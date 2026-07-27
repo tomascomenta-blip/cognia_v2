@@ -1,0 +1,230 @@
+{
+  "nombre": "Verificar estado inicial del carrito",
+  "pasos": [
+    {
+      "nombre": "Estado inicial sin productos",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#total",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Botones add habilitados",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".add",
+          "esperado": 3
+        },
+        {
+          "accion": "existe",
+          "selector": ".add:not([disabled])"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar primer producto p1",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 1
+        },
+        {
+          "accion": "existe",
+          "selector": ".linea[data-id='p1']"
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p1'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "100"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar segundo producto p2",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p2']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 2
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p2'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "150"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar p1 de nuevo (incrementa cantidad)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p1'] .cant",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "250"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar p1 hasta stock máximo (2)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".add[data-id='p1'][disabled]"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar p3 (stock 1)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p3']",
+          "indice": 0
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p3'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "275"
+        }
+      ]
+    },
+    {
+      "nombre": "Intentar agregar p3 de nuevo (no debe pasar)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p3']",
+          "indice": 0
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".linea[data-id='p3'] .cant:contains('2')"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar una unidad de p1",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p1'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "175"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar última unidad de p1 (línea desaparece)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".linea[data-id='p1']"
+        },
+        {
+          "accion": "existe",
+          "selector": ".add[data-id='p1']"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar botón add p1 habilitado tras quitar",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "existe",
+          "selector": ".add[data-id='p1']:not([disabled])"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar total final correcto",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "75"
+        }
+      ]
+    }
+  ]
+}

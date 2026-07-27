@@ -1,0 +1,96 @@
+{
+  "nombre": "Prueba de funcionalidad del buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 25 celdas sin abrir",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: ninguna celda abierta",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 0
+    },
+    {
+      "nombre": "Clic en celda 0 (sin minas adyacentes)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Después del clic: celda 0 abierta y muestra 0",
+      "critico": true,
+      "accion": "contiene",
+      "selector": ".c.abierta",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Cascada: todas celdas adyacentes a 0 abiertas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Clic derecho en celda 6 (mina)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "evento": "contextmenu"
+    },
+    {
+      "nombre": "Celda 6 muestra bandera",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera"
+    },
+    {
+      "nombre": "Clic en celda 6 con bandera (no debe abrirse)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Estado: celda 6 sigue con bandera y no abierta",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera",
+      "esperado": 1
+    },
+    {
+      "nombre": "Clic en celda 12 (mina)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12
+    },
+    {
+      "nombre": "Estado: mensaje 'perdiste' aparece",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Clic en celda 18 (mina) después de perder (no debe abrirse)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 18
+    },
+    {
+      "nombre": "Estado: celda 18 sigue sin abrir",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='18'].abierta",
+      "esperado": 0
+    }
+  ]
+}

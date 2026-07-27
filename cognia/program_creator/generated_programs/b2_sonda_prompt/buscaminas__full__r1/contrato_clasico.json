@@ -1,0 +1,69 @@
+{
+  "nombre": "Verificar funcionamiento de un buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: ninguna celda abierta",
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 0
+    },
+    {
+      "nombre": "Clic en celda 0 (no mina) abre y muestra número de minas adyacentes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Celda 0 muestra 0 y abre recursivamente todas las celdas con 0 minas adyacentes",
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Celdas abiertas muestran los números correctos de minas adyacentes",
+      "accion": "existe",
+      "selector": ".c.abierta[data-i='1']"
+    },
+    {
+      "nombre": "Clic derecho en celda 6 (mina) coloca bandera y no abre la celda",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "tipo": "derecho"
+    },
+    {
+      "nombre": "Celda 6 tiene clase bandera y sigue oculta",
+      "accion": "existe",
+      "selector": ".c.bandera[data-i='6']"
+    },
+    {
+      "nombre": "Clic en celda 6 no abre la celda y no cambia estado",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Clic en celda 6 con bandera no cambia estado",
+      "accion": "existe",
+      "selector": ".c.bandera[data-i='6']"
+    },
+    {
+      "nombre": "Clic en celda 6 sin bandera abre la mina y muestra 'perdiste'",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Estado final: #estado muestra 'perdiste'",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 con minas fijas</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:300px;}
+.c{background:#ccc;border:1px solid #999;width:100%;padding-top:100%;position:relative;cursor:pointer;user-select:none;}
+.c .content{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;}
+.c.abierta{background:#eee;cursor:default;}
+.c.bandera{background:#ff0;}
+.c.mina{background:#f88;}
+#estado{margin-top:10px;font-size:1.2em;}
+@keyframes fadeIn{
+  from{opacity:0;transform:scale(0.9);}
+  to{opacity:1;transform:scale(1);}
+}
+.c{
+  animation:fadeIn 0.5s ease forwards;
+  animation-delay:calc(var(--i)*0.05s);
+}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor() {
+    this.gridElement = document.getElementById('grid');
+    this.estadoElement = document.getElementById('estado');
+    this.cells = [];
+    this.gameOver = false;
+    this.mines = [6,12,18];
+    this.initGrid();
+    this.computeAdjacency();
+  }
+  initGrid() {
+    for (var i = 0; i < 25; i++) {
+      var cell = document.createElement('div');
+      cell.className = 'c';
+      cell.dataset.i = i;
+      cell.dataset.mine = this.mines.includes(i) ? 'true' : 'false';
+      if (this.mines.includes(i)) cell.classList.add('mina');
+      cell.dataset.opened = 'false';
+      cell.dataset.flag = 'false';
+      var span = document.createElement('span');
+      span.className = 'content';
+      cell.appendChild(span);
+      cell.addEventListener('click', this.handleClick.bind(this));
+      cell.addEventListener('contextmenu', this.handleRightClick.bind(this));
+      this.gridElement.appendChild(cell);
+      this.cells.push(cell);
+      // Set CSS variable for animation delay
+      cell.style.setProperty('--i', i);
+    }
+  }
+  computeAdjacency() {
+    for (var idx = 0; idx < this.cells.length; idx++) {
+      var cell = this.cells[idx];
+      var i = parseInt(cell.dataset.i);
+      var neighbors = this.getNeighbors(i);
+      var count = 0;
+      for (var n = 0; n < neighbors.length; n++) {
+        if (this.cells[neighbors[n]].dataset.mine === 'true') count++;
+      }
+      cell.dataset.count = count;
+    }
+  }
+  getNeighbors(index) {
+    var neighbors = [];
+    var row = Math.floor(index / 5);
+    var col = index % 5;
+    for (var dr = -1; dr <= 1; dr++) {
+      for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var r = row + dr;
+        var c = col + dc;
+        if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+          neighbors.push(r * 5 + c);
+        }
+      }
+    }
+    return neighbors;
+  }
+  handleClick(e) {
+    if (this.gameOver) return;
+    var cell = e.currentTarget;
+    if (cell.dataset.flag === 'true' || cell.dataset.opened === 'true') return;
+    if (cell.dataset.mine === 'true') {
+      this.openMine(cell);
+    } else {
+      this.openCell(cell);
+      if (parseInt(cell.dataset.count) === 0) {
+        this.cascade(cell);
+      }
+    }
+  }
+  handleRightClick(e) {
+    e.preventDefault();
+    if (this.gameOver) return;
+    var cell = e.currentTarget;
+    if (cell.dataset.opened === 'true') return;
+    var span = cell.querySelector('.content');
+    if (cell.dataset.flag === 'true') {
+      cell.dataset.flag = 'false';
+      cell.classList.remove('bandera');
+      span.textContent = '';
+    } else {
+      cell.dataset.flag = 'true';
+      cell.classList.add('bandera');
+      span.textContent = '🚩';
+    }
+  }
+  openMine(cell) {
+    this.gameOver = true;
+    var span = cell.querySelector('.content');
+    span.textContent = '💣';
+    span.style.color = 'red';
+    cell.classList.add('abierta');
+    this.estadoElement.textContent = 'perdiste';
+  }
+  openCell(cell) {
+    cell.dataset.opened = 'true';
+    cell.classList.add('abierta');
+    var count = parseInt(cell.dataset.count);
+    var span = cell.querySelector('.content');
+    span.textContent = count;
+    span.style.color = 'green';
+  }
+  cascade(startCell) {
+    var queue = [startCell];
+    while (queue.length) {
+      var cell = queue.shift();
+      var i = parseInt(cell.dataset.i);
+      var neighbors = this.getNeighbors(i);
+      for (var n = 0; n < neighbors.length; n++) {
+        var neighborCell = this.cells[neighbors[n]];
+        if (neighborCell.dataset.opened === 'true' || neighborCell.dataset.flag === 'true' || neighborCell.dataset.mine === 'true') continue;
+        this.openCell(neighborCell);
+        if (parseInt(neighborCell.dataset.count) === 0) {
+          queue.push(neighborCell);
+        }
+      }
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  new Minesweeper();
+});
+</script>
+</body>
+</html>

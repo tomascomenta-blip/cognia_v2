@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carrito con Stock</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;flex-wrap:wrap;}
+#productos{flex:1 1 200px;padding:10px;}
+#carrito{flex:1 1 200px;padding:10px;border-left:1px solid #ccc;}
+.prod{margin-bottom:10px;}
+.prod button{margin-top:5px;}
+.linea{display:flex;align-items:center;margin-bottom:5px;}
+.linea span{margin-right:5px;}
+#total{font-weight:bold;}
+@media(max-width:600px){body{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div id="productos">
+<h2>Productos</h2>
+<div class="prod" data-id="p1" data-precio="100" data-stock="2"><span>Producto 1 - 100</span><button class="add" data-id="p1">Añadir</button></div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3"><span>Producto 2 - 50</span><button class="add" data-id="p2">Añadir</button></div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1"><span>Producto 3 - 25</span><button class="add" data-id="p3">Añadir</button></div>
+</div>
+<div id="carrito">
+<h2>Carrito</h2>
+<div id="lineas"></div>
+<div>Total: <span id="total">0</span></div>
+</div>
+<script>
+const productos=document.querySelectorAll('.prod'),lineas=document.getElementById('lineas'),total=document.getElementById('total'),stock={};
+productos.forEach(p=>{stock[p.dataset.id]=+p.dataset.stock;});
+
+function upd(){let t=0;document.querySelectorAll('.linea').forEach(l=>{let id=l.dataset.id,c=+l.querySelector('.cant').textContent,p=+document.querySelector(`.prod[data-id="${id}"]`).dataset.precio;t+=c*p;});total.textContent=t;}
+
+function add(id){
+  const prod=document.querySelector(`.prod[data-id="${id}"]`);
+  const btn=prod.querySelector('.add');
+  let line=document.querySelector(`.linea[data-id="${id}"]`);
+  let oldC=0;
+  if(line){oldC=+line.querySelector('.cant').textContent;}
+  let newC=oldC+1;
+  if(newC>stock[id]) newC=stock[id];
+  if(!line){
+    line=document.createElement('div');
+    line.className='linea';
+    line.dataset.id=id;
+    line.innerHTML=`<span class="cant">${newC}</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+    lineas.appendChild(line);
+  }else{
+    line.querySelector('.cant').textContent=newC;
+  }
+  const cantEl=line.querySelector('.cant');
+  cantEl.style.color='green';
+  // Disable button only after the quantity has already reached stock
+  if(newC===stock[id] && oldC===stock[id]){
+    btn.disabled=true;
+  }else{
+    btn.disabled=false;
+  }
+  upd();
+}
+
+function quit(id){
+  const line=document.querySelector(`.linea[data-id="${id}"]`);
+  if(!line)return;
+  const prod=document.querySelector(`.prod[data-id="${id}"]`);
+  const btn=prod.querySelector('.add');
+  let oldC=+line.querySelector('.cant').textContent;
+  let newC=oldC-1;
+  if(newC<=0){
+    line.remove();
+    btn.disabled=false;
+  }else{
+    line.querySelector('.cant').textContent=newC;
+    const cantEl=line.querySelector('.cant');
+    cantEl.style.color='red';
+    btn.disabled=false;
+  }
+  upd();
+}
+
+document.querySelectorAll('.add').forEach(b=>b.addEventListener('click',e=>add(e.target.dataset.id)));
+document.addEventListener('click',e=>{if(e.target.classList.contains('quitar'))quit(e.target.dataset.id);});
+
+// Auto‑animation on load
+document.addEventListener('DOMContentLoaded',()=>{
+  const order=['p1','p2','p3'];
+  let idx=0;
+  const interval=setInterval(()=>{
+    if(idx>=order.length){clearInterval(interval);return;}
+    add(order[idx]);
+    idx++;
+  },1000);
+});
+</script>
+</body>
+</html>

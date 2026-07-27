@@ -61,6 +61,10 @@ def main(argv: list) -> int:
                             "banco": bool(c["aprobado"])})
     if not paginas:
         sys.exit("no hay páginas de la sonda con veredicto en disco")
+    # Las páginas que el banco REPRUEBA van primero: son las únicas que miden
+    # FP y son pocas (5 de 24 en crudo+full). Bajo un corte de tiempo, el
+    # orden decide QUÉ se mide, no CÓMO (el apareado por página no se sesga).
+    paginas.sort(key=lambda p: p["banco"])
 
     SALIDA.mkdir(parents=True, exist_ok=True)
     fichero_res = SALIDA / "resultados.json"

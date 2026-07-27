@@ -1,0 +1,80 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Estado inicial del carrito vacío",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Botones add habilitados al inicio",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Agregar primer producto p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Linea p1 aparece con cantidad 1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id='p1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Total muestra 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Agregar p1 hasta stock máximo (2)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Botón add p1 deshabilitado y cantidad 2",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id='p1'][disabled]"
+    },
+    {
+      "nombre": "Quitar una unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Cantidad p1 vuelve a 1 y botón add habilitado",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id='p1'] .cant",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Quitar última unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Linea p1 desaparece y botón add habilitado",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".linea[data-id='p1']"
+    }
+  ]
+}

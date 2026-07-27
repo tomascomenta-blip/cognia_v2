@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#e0f2f1;color:#004d40;margin:0;padding:20px;animation:fadeIn 1s;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  table{border-collapse:collapse;width:100%;max-width:400px;margin:auto;}
+  th,td{border:1px solid #b0bec5;text-align:center;padding:0;}
+  th{background:#cfd8dc;color:#004d40;font-weight:normal;}
+  td{background:#e0f2f1;}
+  input.celda{width:80px;height:30px;border:none;background:transparent;text-align:right;font-size:14px;color:#004d40;}
+  input.celda:focus{outline:2px solid #26a69a;}
+</style>
+</head>
+<body>
+<h1 style="text-align:center;">Mini hoja de cálculo 3x3</h1>
+<table>
+  <thead>
+    <tr><th></th><th>A</th><th>B</th><th>C</th></tr>
+  </thead>
+  <tbody>
+    <tr><th>1</th>
+      <td><input class="celda" data-ref="A1" id="A1"></td>
+      <td><input class="celda" data-ref="B1" id="B1"></td>
+      <td><input class="celda" data-ref="C1" id="C1"></td>
+    </tr>
+    <tr><th>2</th>
+      <td><input class="celda" data-ref="A2" id="A2"></td>
+      <td><input class="celda" data-ref="B2" id="B2"></td>
+      <td><input class="celda" data-ref="C2" id="C2"></td>
+    </tr>
+    <tr><th>3</th>
+      <td><input class="celda" data-ref="A3" id="A3"></td>
+      <td><input class="celda" data-ref="B3" id="B3"></td>
+      <td><input class="celda" data-ref="C3" id="C3"></td>
+    </tr>
+  </tbody>
+</table>
+<script>
+const refs = ["A1","A2","A3","B1","B2","B3","C1","C2","C3"];
+function evaluateCell(ref, stack) {
+  const el = document.querySelector(`[data-ref="${ref}"]`);
+  const formula = el.dataset.formula;
+  let result;
+  if (!formula) { result = ""; }
+  else if (formula[0] !== '=') { result = formula; }
+  else {
+    if (stack.has(ref)) { result = "CIRC"; }
+    else {
+      stack.add(ref);
+      const expr = formula.slice(1);
+      const replaced = expr.replace(/[A-C][1-3]/g, match => {
+        const val = evaluateCell(match, stack);
+        if (val === "CIRC") return "CIRC";
+        if (val === "") return "0";
+        return val;
+      });
+      if (replaced.includes("CIRC")) { result = "CIRC"; }
+      else {
+        try { result = Function(`return ${replaced}`)(); }
+        catch (e) { result = "CIRC"; }
+      }
+      stack.delete(ref);
+    }
+  }
+  // Update value and color
+  const prev = el.dataset.prev;
+  el.value = result;
+  el.dataset.prev = result;
+  if (prev !== undefined && result !== "CIRC" && result !== "") {
+    const prevNum = parseFloat(prev);
+    const curNum = parseFloat(result);
+    if (!isNaN(prevNum) && !isNaN(curNum)) {
+      const diff = curNum - prevNum;
+      if (diff > 0) el.style.color = "green";
+      else if (diff < 0) el.style.color = "red";
+    }
+  }
+  return result;
+}
+function recalcAll() { refs.forEach(ref => evaluateCell(ref, new Set())); }
+document.querySelectorAll('input.celda').forEach(inp => {
+  inp.dataset.formula = "0";
+  inp.dataset.prev = "0";
+  inp.value = "0";
+  inp.style.color = "green";
+  inp.addEventListener('input', e => {
+    inp.dataset.formula = inp.value;
+    recalcAll();
+  });
+});
+recalcAll();
+</script>
+</body>
+</html>

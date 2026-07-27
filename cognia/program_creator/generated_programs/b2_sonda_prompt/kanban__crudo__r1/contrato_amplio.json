@@ -1,0 +1,114 @@
+{
+  "nombre": "Kanban One-File Board Test",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 tarjetas en todo, 0 en doing y done",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contador doing inicial es 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contador done inicial es 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en doing",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#cont-doing"
+    },
+    {
+      "nombre": "Contador doing es 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a done",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en done",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#cont-done"
+    },
+    {
+      "nombre": "Intentar mover tarjeta t1 más allá de done",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 sigue en done",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#cont-done"
+    },
+    {
+      "nombre": "Mover tarjeta t2 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 1
+    },
+    {
+      "nombre": "Mover tarjeta t3 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 2
+    },
+    {
+      "nombre": "Intentar mover tarjeta t3 a doing cuando doing ya tiene 2 tarjetas",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 2
+    },
+    {
+      "nombre": "Tarjeta t3 sigue en todo, doing sigue con 2 tarjetas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contador doing sigue siendo 2",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    }
+  ]
+}

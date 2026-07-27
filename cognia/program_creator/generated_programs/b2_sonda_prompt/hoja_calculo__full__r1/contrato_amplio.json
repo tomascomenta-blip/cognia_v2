@@ -1,0 +1,117 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que todas las celdas están vacías al inicio",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Escribir valor numérico en A1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Escribir fórmula en B1 que depende de A1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+3"
+    },
+    {
+      "nombre": "Verificar que B1 muestra resultado 8 tras cálculo",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='B1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Cambiar valor de A1 a 10",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "10"
+    },
+    {
+      "nombre": "Verificar que B1 se actualiza a 13",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='B1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Crear fórmula circular C1 = C1+1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "=C1+1"
+    },
+    {
+      "nombre": "Verificar que C1 muestra texto CIRC",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='C1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Escribir fórmula en D1 que referencia C1 (no existe) y verificar que no se muestra valor",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='D1']",
+      "contiene": "=C1+2"
+    },
+    {
+      "nombre": "Confirmar que D1 no muestra valor (valor vacío)",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='D1']",
+      "esperado": 0
+    },
+    {
+      "nombre": "Escribir fórmula en E1 = A1+B1-C1 y verificar que muestra 0 (C1 es CIRC)",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='E1']",
+      "contiene": "=A1+B1-C1"
+    },
+    {
+      "nombre": "Verificar que E1 muestra 0 tras cálculo",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='E1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Cambiar A1 a 0 y verificar que B1 y E1 se actualizan correctamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Verificar que B1 muestra 3 y E1 muestra 3 tras actualización",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='B1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar que C1 sigue mostrando CIRC tras cambios",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='C1']",
+      "esperado": 1
+    }
+  ]
+}

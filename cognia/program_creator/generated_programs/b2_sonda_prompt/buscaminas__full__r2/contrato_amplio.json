@@ -1,0 +1,93 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: ningún texto visible en celdas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: estado sin mensaje",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": false
+    },
+    {
+      "nombre": "Click en celda 0 (sin minas adyacentes)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Cascada: todas las celdas adyacentes a 0 abiertas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 9
+    },
+    {
+      "nombre": "Celdas con 0 minas adyacentes muestran texto vacío",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c",
+      "contiene": "0",
+      "esperado": false
+    },
+    {
+      "nombre": "Click derecho en celda 6 (mina)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "tecla": "contextmenu"
+    },
+    {
+      "nombre": "Celda 6 muestra bandera",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera"
+    },
+    {
+      "nombre": "Click en celda 6 no abre la mina",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 9
+    },
+    {
+      "nombre": "Estado: no se muestra 'perdiste' tras bandera",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": false
+    },
+    {
+      "nombre": "Click en celda 12 (mina) sin bandera",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12
+    },
+    {
+      "nombre": "Estado: se muestra 'perdiste' tras abrir mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": true
+    }
+  ]
+}

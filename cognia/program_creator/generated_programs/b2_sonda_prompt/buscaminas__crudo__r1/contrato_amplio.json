@@ -1,0 +1,89 @@
+{
+  "nombre": "Prueba de funcionalidad de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar estado inicial del tablero",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Verificar que ninguna celda esté abierta al inicio",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 0
+    },
+    {
+      "nombre": "Verificar que el estado inicial no indique pérdida",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Hacer click en la celda 0 (sin minas adyacentes)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la celda 0 se abra y muestre 0 minas adyacentes",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='0'].abierta"
+    },
+    {
+      "nombre": "Verificar que se haya abierto la cascada de celdas sin minas adyacentes",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Hacer click derecho en la celda 6 (minado)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Verificar que la celda 6 tenga la clase bandera",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera"
+    },
+    {
+      "nombre": "Intentar abrir la celda 6 con click izquierdo",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el estado no indique pérdida tras intentar abrir celda con bandera",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "min": 0
+    },
+    {
+      "nombre": "Hacer click en la celda 12 (minado) sin bandera",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='12']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el estado indique pérdida tras abrir una mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

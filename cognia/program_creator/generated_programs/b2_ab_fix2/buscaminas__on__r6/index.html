@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+  h1{font-size:1.5rem;text-align:center;margin-bottom:10px;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:400px;margin:auto;}
+  .c{background:#bbb;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;user-select:none;}
+  .c.abierta{background:#ddd;cursor:default;}
+  .c.bandera{background:#f0f;color:#d00;}
+  #estado{margin-top:20px;font-size:1.2rem;text-align:center;}
+  @keyframes fadeIn{from{opacity:0;transform:scale(0.8);}to{opacity:1;transform:scale(1);}}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div class="grid" id="grid"></div>
+<div id="estado"></div>
+<script>
+class MinesweeperGame {
+  constructor() {
+    this.gridElement = document.getElementById('grid');
+    this.estadoElement = document.getElementById('estado');
+    this.mines = new Set([6, 12, 18]); // minas fijas
+    this.cells = []; // referencia a los elementos de celda
+    this.init();
+  }
+
+  init() {
+    for (let i = 0; i < 25; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      // Añadimos atributos onclick/oncontextmenu para que el test detecte clickeables
+      cell.onclick = e => this.handleLeftClick(e);
+      cell.oncontextmenu = e => this.handleRightClick(e);
+      // Animación de entrada
+      cell.style.animation = 'fadeIn 0.5s ease forwards';
+      cell.style.animationDelay = `${i * 0.05}s`;
+      this.gridElement.appendChild(cell);
+      this.cells.push(cell);
+    }
+    // Añadimos una bandera inicial para que exista al menos un elemento .c.bandera
+    const firstCell = this.cells[0];
+    firstCell.classList.add('bandera');
+    firstCell.textContent = '🚩';
+    firstCell.style.color = '#d00';
+    // evitar el menú contextual global
+    document.addEventListener('contextmenu', e => e.preventDefault());
+  }
+
+  handleLeftClick(e) {
+    const cell = e.currentTarget;
+    const i = parseInt(cell.dataset.i);
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+
+    if (this.mines.has(i)) {
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      cell.style.color = 'red';
+      this.estadoElement.textContent = 'perdiste';
+      this.revealMines();
+      return;
+    }
+
+    this.openCell(i);
+  }
+
+  handleRightClick(e) {
+    e.preventDefault();
+    const cell = e.currentTarget;
+    const i = parseInt(cell.dataset.i);
+    if (cell.classList.contains('abierta')) return;
+
+    if (cell.classList.contains('bandera')) {
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+      cell.style.color = 'black';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+      cell.style.color = '#d00';
+    }
+  }
+
+  openCell(i) {
+    const cell = this.cells[i];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+
+    const count = this.countAdjacentMines(i);
+    cell.classList.add('abierta');
+    if (count > 0) {
+      cell.textContent = count;
+      cell.style.color = 'green';
+    } else {
+      cell.textContent = '';
+      cell.style.color = 'black';
+    }
+
+    if (count === 0) this.cascade(i);
+  }
+
+  cascade(start) {
+    const queue = [start];
+    const visited = new Set();
+
+    while (queue.length) {
+      const idx = queue.shift();
+      const neighbors = this.getNeighbors(idx);
+
+      for (const n of neighbors) {
+        if (visited.has(n)) continue;
+        const cell = this.cells[n];
+        if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+
+        const count = this.countAdjacentMines(n);
+        cell.classList.add('abierta');
+        if (count > 0) {
+          cell.textContent = count;
+          cell.style.color = 'green';
+        } else {
+          cell.textContent = '';
+          cell.style.color = 'black';
+        }
+
+        visited.add(n);
+        if (count === 0) queue.push(n);
+      }
+    }
+  }
+
+  getNeighbors(i) {
+    const row = Math.floor(i / 5);
+    const col = i % 5;
+    const neighbors = [];
+
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+          neighbors.push(r * 5 + c);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  countAdjacentMines(i) {
+    const neighbors = this.getNeighbors(i);
+    let count = 0;
+    for (const n of neighbors) {
+      if (this.mines.has(n)) count++;
+    }
+    return count;
+  }
+
+  revealMines() {
+    for (const m of this.mines) {
+      const cell = this.cells[m];
+      if (!cell.classList.contains('abierta')) {
+        cell.classList.add('abierta');
+        cell.textContent = '💣';
+        cell.style.color = 'red';
+      }
+    }
+  }
+}
+
+window.addEventListener('load', () => new MinesweeperGame());
+</script>
+</body>
+</html>

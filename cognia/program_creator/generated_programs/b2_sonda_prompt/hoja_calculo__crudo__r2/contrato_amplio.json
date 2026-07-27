@@ -1,0 +1,107 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y celdas",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar existencia de las 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Estado inicial: todas las celdas vacías",
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Ingresar valor 5 en A1",
+      "accion": "texto",
+      "selector": "input[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Ingresar valor 3 en B1",
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Ingresar fórmula =A1+B1 en C1",
+      "accion": "texto",
+      "selector": "input[data-ref='C1']",
+      "contiene": "=A1+B1"
+    },
+    {
+      "nombre": "Verificar que C1 muestra 8",
+      "accion": "existe",
+      "selector": "input[data-ref='C1']",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 10",
+      "accion": "texto",
+      "selector": "input[data-ref='A1']",
+      "contiene": "10"
+    },
+    {
+      "nombre": "Verificar que C1 actualiza a 13",
+      "accion": "existe",
+      "selector": "input[data-ref='C1']",
+      "critico": true
+    },
+    {
+      "nombre": "Crear referencia circular: B1 =C1+1",
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "=C1+1"
+    },
+    {
+      "nombre": "Verificar que B1 muestra CIRC",
+      "accion": "existe",
+      "selector": "input[data-ref='B1']",
+      "critico": true
+    },
+    {
+      "nombre": "Eliminar fórmula de B1 y poner 2",
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Verificar que C1 vuelve a 12 (10+2)",
+      "accion": "existe",
+      "selector": "input[data-ref='C1']",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula =C1-A1 en A2",
+      "accion": "texto",
+      "selector": "input[data-ref='A2']",
+      "contiene": "=C1-A1"
+    },
+    {
+      "nombre": "Verificar que A2 muestra 2 (12-10)",
+      "accion": "existe",
+      "selector": "input[data-ref='A2']",
+      "critico": true
+    },
+    {
+      "nombre": "Intentar ingresar fórmula con referencia inválida =Z1+1 en A3",
+      "accion": "texto",
+      "selector": "input[data-ref='A3']",
+      "contiene": "=Z1+1"
+    },
+    {
+      "nombre": "Verificar que A3 muestra CIRC (referencia inválida no se resuelve)",
+      "accion": "existe",
+      "selector": "input[data-ref='A3']",
+      "critico": true
+    }
+  ]
+}

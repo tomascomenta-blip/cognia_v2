@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;height:100vh;display:flex;align-items:center;justify-content:center;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:#e0e0e0;padding:5px;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,0.1);max-width:400px;width:100%;}
+  .celda{width:80px;height:30px;border:1px solid #ccc;background:white;color:#003366;text-align:right;padding-right:5px;font-size:14px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);}
+  .celda:focus{outline:none;border-color:#0066cc;}
+</style>
+</head>
+<body>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = {};          // ref -> {el, formula, value, dependencies}
+  const dependents = {};     // ref -> Set of dependents
+
+  document.querySelectorAll('.celda').forEach(inp => {
+    const ref = inp.dataset.ref;
+    cells[ref] = {el: inp, formula: null, value: '', dependencies: new Set()};
+    dependents[ref] = new Set();
+    inp.addEventListener('input', () => handleInput(ref));
+  });
+
+  function handleInput(ref) {
+    const cell = cells[ref];
+    const raw = cell.el.value.trim();
+    if (raw.startsWith('=')) {
+      cell.formula = raw.slice(1);
+      updateDependencies(ref);
+      const val = evaluateCell(ref, new Set());
+      cell.value = val;
+      cell.el.value = val;
+    } else {
+      cell.formula = null;
+      cell.el.value = raw;
+      cell.value = raw;
+      removeAllDependencies(ref);
+    }
+    propagate(ref);
+  }
+
+  function updateDependencies(ref) {
+    const cell = cells[ref];
+    const newDeps = parseRefs(cell.formula);
+    cell.dependencies.forEach(dep => dependents[dep].delete(ref));
+    cell.dependencies.clear();
+    newDeps.forEach(dep => {
+      dependents[dep].add(ref);
+      cell.dependencies.add(dep);
+    });
+  }
+
+  function removeAllDependencies(ref) {
+    const cell = cells[ref];
+    cell.dependencies.forEach(dep => dependents[dep].delete(ref));
+    cell.dependencies.clear();
+  }
+
+  function parseRefs(expr) {
+    const r = /([A-C][1-3])/g;
+    const set = new Set();
+    let m;
+    while ((m = r.exec(expr))) set.add(m[1]);
+    return set;
+  }
+
+  function evaluateCell(ref, visited) {
+    if (visited.has(ref)) return 'CIRC';
+    const cell = cells[ref];
+    if (!cell.formula) return cell.value || '0';
+    visited.add(ref);
+    let expr = cell.formula.replace(/([A-C][1-3])/g, m => {
+      const v = evaluateCell(m, visited);
+      return v === 'CIRC' ? '0' : v;
+    });
+    let result;
+    try {
+      if (/[^0-9+\-.\s]/.test(expr)) result = 'CIRC';
+      else result = eval(expr);
+    } catch { result = 'CIRC'; }
+    visited.delete(ref);
+    return result === 'CIRC' ? 'CIRC' : result.toString();
+  }
+
+  function propagate(ref, visited = new Set()) {
+    if (visited.has(ref)) return;
+    visited.add(ref);
+    dependents[ref].forEach(dep => {
+      const cell = cells[dep];
+      if (cell.formula) {
+        const val = evaluateCell(dep, new Set());
+        cell.value = val;
+        cell.el.value = val;
+        propagate(dep, visited);
+      }
+    });
+  }
+
+  // initial evaluation for any prefilled formulas
+  document.querySelectorAll('.celda').forEach(inp => handleInput(inp.dataset.ref));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Buscaminas 5x5</title><style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f0f0f0;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:90vmin;height:90vmin;}
+.c{background:#ccc;display:flex;align-items:center;justify-content:center;font-size:1.5em;cursor:pointer;}
+.c.abierta{background:#fff;}
+.c.bandera{background:#ff0;}
+#estado{margin-top:10px;font-size:1.2em;}
+</style></head><body>
+<div id="grid"></div><div id="estado"></div>
+<script>
+const mines=[6,12,18],g=document.getElementById('grid'),e=document.getElementById('estado'),o=false;
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');d.className='c';d.dataset.i=i;
+  d.onclick=e=>{if(o||d.classList.contains('bandera')||d.classList.contains('abierta'))return;open(i);};
+  d.oncontextmenu=e=>{e.preventDefault();if(o||d.classList.contains('abierta'))return;d.classList.toggle('bandera');};
+  d.onmousedown=e=>{if(e.button===2){e.preventDefault();if(o||d.classList.contains('abierta'))return;d.classList.toggle('bandera');}};
+  g.appendChild(d);
+}
+function open(i){
+  const d=document.querySelector(`.c[data-i="${i}"]`);
+  if(d.classList.contains('abierta')||d.classList.contains('bandera'))return;
+  d.classList.add('abierta');
+  if(mines.includes(i)){e.textContent='perdiste';e.style.color='red';o=true;clearInterval(autoInterval);return;}
+  const a=countAdj(i);
+  if(a>0){d.textContent=a;d.style.color='green';}
+  else for(let n of neighbors(i))if(!mines.includes(n) && !document.querySelector(`.c[data-i="${n}"]`).classList.contains('abierta'))open(n);
+}
+function countAdj(i){let r=Math.floor(i/5),c=i%5,adj=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5){let idx=nr*5+nc;if(mines.includes(idx))adj++;}}return adj;}
+function neighbors(i){let r=Math.floor(i/5),c=i%5,arr=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);}return arr;}
+let autoInterval;
+function startAuto(){autoInterval=setInterval(()=>{autoOpen();},800);}
+function autoOpen(){if(o){clearInterval(autoInterval);return;}const cells=Array.from(g.children).filter(c=>!c.classList.contains('abierta')&&!c.classList.contains('bandera'));if(cells.length===0){clearInterval(autoInterval);return;}const cell=cells[Math.floor(Math.random()*cells.length)];const i=parseInt(cell.dataset.i);open(i);}
+startAuto();
+</script>
+</body></html>

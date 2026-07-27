@@ -1,0 +1,62 @@
+{
+  "nombre": "Prueba funcional de Buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Confirmar que el estado inicial está vacío",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "",
+      "critico": true
+    },
+    {
+      "nombre": "Revelar una celda con minas adyacentes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Comprobar que la celda revelada muestra número de minas adyacentes",
+      "accion": "contiene",
+      "selector": ".c",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Revelar una celda con 0 minas adyacentes y verificar cascada",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Contar celdas abiertas tras cascada",
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": {
+        "min": 5
+      },
+      "critico": true
+    },
+    {
+      "nombre": "Colocar bandera en una celda sin abrir",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que la celda con bandera no se abre al hacer click",
+      "accion": "existe",
+      "selector": ".c.bandera",
+      "critico": true
+    }
+  ]
+}

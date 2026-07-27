@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:Arial,sans-serif;background:#fafafa;margin:0;padding:20px;text-align:center;}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:300px;margin:auto;}
+.c{background:#ccc;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;aspect-ratio:1;}
+.c.abierta{background:#eee;}
+.c.bandera{background:#fdd;}
+#estado{margin-top:15px;font-size:1.2rem;color:#900;}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div class="grid">
+  <!-- 25 cells -->
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+const mines = new Set([6,12,18]);
+const opened = new Set();
+const flagged = new Set();
+const grid = document.querySelector('.grid');
+grid.addEventListener('click', e=>{
+  const cell = e.target.closest('.c');
+  if(!cell) return;
+  const i = parseInt(cell.dataset.i,10);
+  if(flagged.has(i) || opened.has(i)) return;
+  openCell(i);
+});
+grid.addEventListener('contextmenu', e=>{
+  e.preventDefault();
+  const cell = e.target.closest('.c');
+  if(!cell) return;
+  const i = parseInt(cell.dataset.i,10);
+  if(opened.has(i)) return;
+  if(flagged.has(i)){
+    flagged.delete(i);
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    flagged.add(i);
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+});
+function getNeighbors(i){
+  const r = Math.floor(i/5);
+  const c = i%5;
+  const neighbors=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<5 && nc>=0 && nc<5){
+        neighbors.push(nr*5+nc);
+      }
+    }
+  }
+  return neighbors;
+}
+function openCell(i){
+  if(opened.has(i) || flagged.has(i)) return;
+  const cell=document.querySelector(`.c[data-i="${i}"]`);
+  opened.add(i);
+  if(mines.has(i)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    document.getElementById('estado').textContent='perdiste';
+    return;
+  }
+  const neighbors=getNeighbors(i);
+  let count=0;
+  for(const n of neighbors){
+    if(mines.has(n)) count++;
+  }
+  cell.classList.add('abierta');
+  cell.textContent=count>0?count:'';
+  if(count===0){
+    for(const n of neighbors){
+      openCell(n);
+    }
+  }
+}
+</script>
+</body>
+</html>

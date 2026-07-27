@@ -1,0 +1,155 @@
+{
+  "nombre": "Verificar funcionamiento del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".menos",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".mas",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta a la derecha",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Contadores después de mover",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Contadores después de mover",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Contadores después de mover",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta a la derecha hasta done",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Contadores después de mover a done",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Contadores después de mover a done",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contadores después de mover a done",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Intentar mover tarjeta fuera de bounds",
+      "accion": "click",
+      "selector": ".menos",
+      "indice": 0
+    },
+    {
+      "nombre": "Contadores sin cambio",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Contadores sin cambio",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contadores sin cambio",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    },
+    {
+      "nombre": "WIP limit 2 en doing",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "WIP limit 2 en doing",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "WIP limit 2 en doing",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Contadores sin cambio por WIP",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contadores sin cambio por WIP",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Contadores sin cambio por WIP",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    }
+  ]
+}

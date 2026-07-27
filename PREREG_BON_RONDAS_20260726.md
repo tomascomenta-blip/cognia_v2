@@ -435,6 +435,33 @@ La referencia 12/24 de anoche NO entra en el veredicto (deriva medida);
 solo el OFF concurrente. El A/B hereda el contrato interno CLÁSICO (el
 amplio está en su propio prereg y NO se mezcla en esta serie).
 
+## RESULTADO del A/B fix2 (2026-07-27 ~09:55 — cerrado COMPLETO, 6 réplicas)
+
+**ON 12/24 (50%) vs OFF 17/24 (71%); apareado: ON gana 5, OFF gana 10,
+NETO ON = −5 → veredicto pre-registrado: EL FIX NO COBRA.** El gate queda
+como está (fix2 env-gated, OFF por defecto — producción intacta).
+
+Dos lecturas que valen más que el fix:
+
+1. **La atribución de la sonda directa NO transfirió al lazo.** En directo,
+   quitar REQUIRED/formato recuperaba celdas; dentro del lazo, el troceo
+   por frases + números exactos EMPEORA (carrito pierde 5 de 6 pares con
+   ON). Mecanismo candidato VERIFICADO a nivel prompt (~10:00, sin GPU,
+   con idea_build real): con fix2 ON el troceo por frases absorbe el
+   adorno `. TARGET LOOK, match it: {brief}` (el `..` no se parte) y el
+   brief estético ENTERO entra como "REQUIRED component 9" — la checklist
+   convierte la estética en requisito duro; con OFF el troceo por comas
+   lo fragmentaba y solo quedaba un residuo de dos palabras. La sonda
+   directa corría SIN adorno (idea pelada): por eso su atribución no
+   transfirió al lazo. Si el fix se re-intenta, tiene que trocear la idea
+   ORIGINAL (no idea_build con el adorno) — y re-pasar el A/B intercalado
+   desde cero.
+2. **La deriva entre noches es del SISTEMA entero, no solo del crudo: OFF
+   (código idéntico a anoche) pasó de 12/24 (50%) a 17/24 (71%).** Una
+   serie de un solo brazo esta mañana habría dicho "el fix no cambia nada"
+   (12/24 vs 12/24 histórico) cuando el concurrente dice −5. El intercalado
+   es lo único que salvó el veredicto. Referencias históricas: solo sanidad.
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

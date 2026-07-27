@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  #board{display:flex;flex-wrap:wrap;justify-content:space-around;padding:10px;}
+  .col{background:#fff;border:1px solid #ccc;border-radius:4px;flex:1 1 30%;margin:5px;min-width:200px;display:flex;flex-direction:column;}
+  .col h2{background:#eee;margin:0;padding:10px;font-size:1.2em;display:flex;justify-content:space-between;align-items:center;}
+  .cards{flex:1;padding:10px;display:flex;flex-direction:column;gap:10px;}
+  .card{background:#e0e0ff;border:1px solid #999;border-radius:4px;padding:10px;display:flex;justify-content:space-between;align-items:center;}
+  .card.todo{background:#e0f7ff;}
+  .card.doing{background:#e0ffe0;}
+  .card.done{background:#f0f0f0;}
+  button{margin-left:5px;padding:2px 6px;font-size:0.9em;}
+  button.mas::after{content:"→";}
+  button.menos::after{content:"←";}
+  @media (max-width:600px){#board{flex-direction:column;}.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<h1 style="text-align:center;padding:10px;background:#333;color:#fff;margin:0;">Tablero Kanban</h1>
+<div id="board">
+  <div class="col todo" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col doing" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col done" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+class Card {
+  constructor(el){ this.el = el; this.id = el.dataset.id; }
+  moveTo(colName){
+    const target = document.querySelector(`.col[data-col="${colName}"] .cards`);
+    // Update class before moving to ensure correct styling
+    this.el.className = 'card ' + colName;
+    target.appendChild(this.el);
+  }
+}
+
+class Board {
+  constructor(){
+    this.cols = ['todo','doing','done'];
+    this.init();
+  }
+  init(){
+    const todoContainer = document.querySelector('.col[data-col="todo"] .cards');
+    for(let i=1;i<=3;i++){
+      const card = this.createCard(`t${i}`);
+      todoContainer.appendChild(card);
+    }
+    this.updateCounters();
+    this.attachEvents();
+  }
+  createCard(id){
+    const div = document.createElement('div');
+    div.className = 'card todo';
+    div.dataset.id = id;
+    div.id = id;
+    div.innerHTML = `<span>${id}</span>`;
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.title = 'Avanzar';
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.title = 'Retroceder';
+    div.appendChild(btnMas);
+    div.appendChild(btnMenos);
+    return div;
+  }
+  attachEvents(){
+    document.querySelectorAll('.mas').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        const cardEl = e.target.parentElement;
+        const card = new Card(cardEl);
+        const currentCol = cardEl.parentElement.parentElement.dataset.col;
+        const nextIndex = this.cols.indexOf(currentCol)+1;
+        if(nextIndex>=this.cols.length) return;
+        const nextCol = this.cols[nextIndex];
+        if(currentCol==='todo' && nextCol==='doing'){
+          const doingCount = document.querySelector('.col[data-col="doing"] .cards').children.length;
+          if(doingCount>=2) return;
+        }
+        card.moveTo(nextCol);
+        this.updateCounters();
+      });
+    });
+    document.querySelectorAll('.menos').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        const cardEl = e.target.parentElement;
+        const card = new Card(cardEl);
+        const currentCol = cardEl.parentElement.parentElement.dataset.col;
+        const prevIndex = this.cols.indexOf(currentCol)-1;
+        if(prevIndex<0) return;
+        const prevCol = this.cols[prevIndex];
+        card.moveTo(prevCol);
+        this.updateCounters();
+      });
+    });
+  }
+  updateCounters(){
+    this.cols.forEach(col=>{
+      const count = document.querySelector(`.col[data-col="${col}"] .cards`).children.length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => new Board());
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{
+  "nombre": "Buscaminas 5x5 con minas fijas y cascada",
+  "pasos": [
+    {
+      "nombre": "Verifica que existen 25 celdas con clase .c y data-i de 0 a 24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Comprueba que las celdas con data-i 6,12,18 tienen la clase .mina al iniciar",
+      "critico": true,
+      "accion": "existe",
+      "selector": "[data-i=\"6\"].mina"
+    },
+    {
+      "nombre": "Comprueba que las celdas con data-i 6,12,18 no tienen la clase .abierta al iniciar",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": "[data-i=\"6\"].abierta"
+    },
+    {
+      "nombre": "Haz click en una celda que no sea mina (ej. data-i 0) y verifica que se abre con la clase .abierta y muestra el número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"0\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Si el número mostrado es 0, verifica que se abren todas las celdas contiguas con 0 y sus bordes recursivamente",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "[data-i].abierta",
+      "esperado": {
+        "min": 1
+      }
+    },
+    {
+      "nombre": "Haz click derecho en una celda no abierta (ej. data-i 1) y verifica que se añade la clase .bandera y que no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Haz click en una celda con bandera y verifica que no se abre ni cambia el estado",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Haz click en una celda que sea una mina (ej. data-i 6) y verifica que el elemento #estado muestra \"perdiste\" y que la celda se abre con la clase .abierta",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"6\"]",
+      "indice": 0
+    }
+  ]
+}

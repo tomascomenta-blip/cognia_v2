@@ -1,0 +1,111 @@
+{
+  "nombre": "Buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 25 celdas cerradas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: ninguna celda abierta ni con bandera",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: estado sin mensaje",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": false
+    },
+    {
+      "nombre": "Click en celda 0 (no mina)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Celda 0 abre con número 1",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='0'].abierta"
+    },
+    {
+      "nombre": "Celda 0 muestra número 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c[data-i='0']",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Click derecho en celda 6 (mina)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Celda 6 tiene bandera",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera"
+    },
+    {
+      "nombre": "Click en celda 6 no abre la mina",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".c[data-i='6'].abierta"
+    },
+    {
+      "nombre": "Estado sigue sin mensaje de pérdida",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": false
+    },
+    {
+      "nombre": "Click en celda 12 (mina)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='12']",
+      "indice": 0
+    },
+    {
+      "nombre": "Estado muestra 'perdiste' tras abrir mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Click en celda 18 (mina) no cambia estado",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": true
+    },
+    {
+      "nombre": "Reiniciar juego (simulado) y verificar 25 celdas cerradas",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelectorAll('.c').length",
+      "esperado": 25
+    },
+    {
+      "nombre": "Reiniciar juego y verificar que no hay banderas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c.bandera",
+      "esperado": 0
+    }
+  ]
+}

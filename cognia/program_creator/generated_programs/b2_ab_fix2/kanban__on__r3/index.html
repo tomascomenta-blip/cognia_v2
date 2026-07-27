@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{margin:0;padding:10px;background:#f0f0f0;font-family:Arial,Helvetica,sans-serif;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;}
+  .col{flex:1;min-width:250px;background:#fff;border-radius:4px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);opacity:0;animation:fadeIn 0.5s ease-out forwards;}
+  .col h2{font-size:1.2rem;margin:0 0 10px 0;display:flex;justify-content:space-between;align-items:center;}
+  .card{background:#fff;border-radius:3px;padding:8px 10px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.05);display:flex;justify-content:space-between;align-items:center;opacity:0;animation:slideIn 0.5s ease-out forwards;}
+  .card .id{font-weight:bold;}
+  .card .actions{display:flex;}
+  .card button{background:#007bff;color:#fff;border:none;border-radius:3px;padding:4px 6px;font-size:12px;cursor:pointer;margin-left:4px;}
+  .card button:disabled{background:#a0a0a0;cursor:not-allowed;}
+  @media(max-width:600px){.col{min-width:100%;}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes slideIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">3</span></h2>
+    <div class="cards">
+      <div class="card" id="t1" data-id="t1"><span class="id">t1</span><div class="actions"><button class="menos">-</button><button class="mas">+</button></div></div>
+      <div class="card" id="t2" data-id="t2"><span class="id">t2</span><div class="actions"><button class="menos">-</button><button class="mas">+</button></div></div>
+      <div class="card" id="t3" data-id="t3"><span class="id">t3</span><div class="actions"><button class="menos">-</button><button class="mas">+</button></div></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var cols = document.querySelectorAll('.col');
+
+  function updateCounters(){
+    cols.forEach(function(col){
+      var count = col.querySelectorAll('.card').length;
+      var span = col.querySelector('span[id^="cont-"]');
+      if(span) span.textContent = count;
+    });
+  }
+
+  function updateButtons(){
+    var doingCol = document.querySelector('.col[data-col="doing"]');
+    var doingCount = doingCol ? doingCol.querySelectorAll('.card').length : 0;
+    var cards = document.querySelectorAll('.card');
+    cards.forEach(function(card){
+      var col = card.closest('.col').dataset.col;
+      var mas = card.querySelector('.mas');
+      var menos = card.querySelector('.menos');
+      if(col==='todo'){
+        if(menos) menos.disabled = true;
+        if(mas) mas.disabled = doingCount>=2;
+      }else if(col==='doing'){
+        if(menos) menos.disabled = false;
+        if(mas) mas.disabled = false;
+      }else{ // done
+        if(menos) menos.disabled = false;
+        if(mas) mas.disabled = true;
+      }
+    });
+  }
+
+  document.addEventListener('click', function(e){
+    if(!e.target.classList.contains('mas') && !e.target.classList.contains('menos')) return;
+    var card = e.target.closest('.card');
+    if(!card) return;
+    var currentCol = card.closest('.col').dataset.col;
+    var targetCol;
+    if(e.target.classList.contains('mas')){
+      if(currentCol==='todo') targetCol='doing';
+      else if(currentCol==='doing') targetCol='done';
+      else return;
+    }else{ // menos
+      if(currentCol==='doing') targetCol='todo';
+      else if(currentCol==='done') targetCol='doing';
+      else return;
+    }
+    // WIP rule: doing max 2 cards
+    if(currentCol==='todo' && targetCol==='doing'){
+      var doingCount = document.querySelector('.col[data-col="doing"]').querySelectorAll('.card').length;
+      if(doingCount>=2) return;
+    }
+    var targetDiv = document.querySelector('.col[data-col="'+targetCol+'"] .cards');
+    if(targetDiv){
+      targetDiv.appendChild(card);
+      updateCounters();
+      updateButtons();
+    }
+  });
+
+  // Initial update
+  updateCounters();
+  updateButtons();
+});
+</script>
+</body>
+</html>

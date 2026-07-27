@@ -1,0 +1,62 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla 3x3",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "accion": "existe",
+      "selector": ".celda[data-ref='A1']",
+      "critico": true
+    },
+    {
+      "nombre": "Asegurar que el valor inicial de todas las celdas sea vacío",
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": {
+        "max": 0
+      },
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar un valor numérico en A1 y comprobar que se muestra",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Crear fórmula en B1 que dependa de A1 y verificar cálculo",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "=A1+2",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de A1 y comprobar cascada de actualización en B1",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Introducir referencia circular C1=B1 y verificar que muestra CIRC",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "CIRC",
+      "critico": true
+    },
+    {
+      "nombre": "Eliminar referencia circular y comprobar que C1 vuelve a calcularse correctamente",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "7",
+      "critico": true
+    }
+  ]
+}

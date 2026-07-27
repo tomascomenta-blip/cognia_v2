@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  .prod{border:1px solid #ddd;padding:.5rem;margin:.5rem 0;background:#fff;}
+  .prod button{margin-left:.5rem;}
+  #cart{margin-top:1rem;padding:.5rem;background:#fff;border:1px solid #ddd;}
+  .linea{display:flex;align-items:center;margin:.3rem 0;}
+  .linea span{margin-right:.5rem;}
+  #total{font-weight:bold;}
+  @media(max-width:600px){body{padding:.5rem;}}
+</style>
+</head>
+<body>
+<h2>Productos</h2>
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+  <span>Producto 1 - 100 €</span>
+  <button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+  <span>Producto 2 - 50 €</span>
+  <button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+  <span>Producto 3 - 25 €</span>
+  <button class="add" data-id="p3">Añadir</button>
+</div>
+
+<h2>Carrito</h2>
+<div id="cart"></div>
+<div>Total: <span id="total">0 €</span></div>
+
+<script>
+const productos = {
+  p1:{precio:100,stock:2},
+  p2:{precio:50,stock:3},
+  p3:{precio:25,stock:1}
+};
+
+const cart = document.getElementById('cart');
+const totalEl = document.getElementById('total');
+
+function formatMoneda(n){return n.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function actualizarTotal(){
+  let total=0;
+  for(const line of cart.querySelectorAll('.linea')){
+    const id=line.dataset.id;
+    const cant=parseInt(line.querySelector('.cant').textContent,10);
+    total+=productos[id].precio*cant;
+  }
+  totalEl.textContent=formatMoneda(total);
+}
+
+function crearLinea(id){
+  const line=document.createElement('div');
+  line.className='linea';
+  line.dataset.id=id;
+  const cantSpan=document.createElement('span');
+  cantSpan.className='cant';
+  cantSpan.textContent='1';
+  const quitarBtn=document.createElement('button');
+  quitarBtn.className='quitar';
+  quitarBtn.dataset.id=id;
+  quitarBtn.textContent='-';
+  quitarBtn.addEventListener('click',()=>quitar(id));
+  line.append(cantSpan,quitarBtn);
+  cart.appendChild(line);
+  actualizarTotal();
+}
+
+function agregar(id){
+  const prod=document.querySelector(`.prod[data-id="${id}"]`);
+  const addBtn=prod.querySelector('.add');
+  const line=cart.querySelector(`.linea[data-id="${id}"]`);
+  if(line){
+    const cant=parseInt(line.querySelector('.cant').textContent,10)+1;
+    line.querySelector('.cant').textContent=cant;
+    if(cant>=productos[id].stock) addBtn.disabled=true;
+  }else{
+    crearLinea(id);
+    if(productos[id].stock===1) addBtn.disabled=true;
+  }
+  actualizarTotal();
+}
+
+function quitar(id){
+  const line=cart.querySelector(`.linea[data-id="${id}"]`);
+  if(!line) return;
+  const cant=parseInt(line.querySelector('.cant').textContent,10)-1;
+  if(cant>0){
+    line.querySelector('.cant').textContent=cant;
+    const prod=document.querySelector(`.prod[data-id="${id}"]`);
+    prod.querySelector('.add').disabled=false;
+  }else{
+    line.remove();
+    const prod=document.querySelector(`.prod[data-id="${id}"]`);
+    prod.querySelector('.add').disabled=false;
+  }
+  actualizarTotal();
+}
+
+document.querySelectorAll('.add').forEach(btn=>{
+  btn.addEventListener('click',()=>agregar(btn.dataset.id));
+});
+</script>
+</body>
+</html>

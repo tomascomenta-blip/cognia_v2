@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tarjetas iniciales en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-id]",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contador doing e done iniciales",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contador done iniciales",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id=\"t1\"] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar contadores después de mover",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Verificar contadores después de mover",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    }
+  ]
+}

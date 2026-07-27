@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family:sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:0;
+    width:100%;
+    max-width:300px;
+  }
+  .c{
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+    height:60px;
+    animation:fadeIn 1s ease-in-out;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+  .c.abierta{
+    background:#ddd;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#fdd;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+(function(){
+  function Minesweeper(rows, cols, mines){
+    this.rows = rows || 5;
+    this.cols = cols || 5;
+    this.mines = new Set(mines || [6,12,18]);
+    this.cells = [];
+    this.adjacentCounts = new Array(this.rows*this.cols).fill(0);
+    this.init();
+  }
+  Minesweeper.prototype.init = function(){
+    var grid = document.getElementById('grid');
+    var self = this;
+    for(var i=0; i<this.rows*this.cols; i++){
+      var cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.addEventListener('click', function(e){self.handleClick(e,i);});
+      cell.addEventListener('contextmenu', function(e){self.handleRightClick(e,i);});
+      grid.appendChild(cell);
+      this.cells.push(cell);
+    }
+    this.computeAdjacentCounts();
+  };
+  Minesweeper.prototype.computeAdjacentCounts = function(){
+    var dirs = [-1,0,1];
+    for(var i=0; i<this.rows*this.cols; i++){
+      if(this.mines.has(i)){
+        this.adjacentCounts[i] = -1;
+        continue;
+      }
+      var count = 0;
+      var r = Math.floor(i/this.cols);
+      var c = i%this.cols;
+      for(var dr=0; dr<dirs.length; dr++){
+        for(var dc=0; dc<dirs.length; dc++){
+          if(dirs[dr]===0 && dirs[dc]===0) continue;
+          var nr = r+dirs[dr], nc = c+dirs[dc];
+          if(nr>=0 && nr<this.rows && nc>=0 && nc<this.cols){
+            var ni = nr*this.cols+nc;
+            if(this.mines.has(ni)) count++;
+          }
+        }
+      }
+      this.adjacentCounts[i] = count;
+    }
+  };
+  Minesweeper.prototype.handleClick = function(e,i){
+    e.preventDefault();
+    var cell = this.cells[i];
+    if(cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if(this.mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      cell.style.color = 'red';
+      document.getElementById('estado').textContent = 'perdiste';
+      this.revealAllMines();
+      return;
+    }
+    this.openCell(i);
+  };
+  Minesweeper.prototype.handleRightClick = function(e,i){
+    e.preventDefault();
+    var cell = this.cells[i];
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+      cell.style.color = '';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+      cell.style.color = '';
+    }
+  };
+  Minesweeper.prototype.openCell = function(i){
+    var cell = this.cells[i];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    var count = this.adjacentCounts[i];
+    if(count > 0){
+      cell.textContent = count;
+      cell.style.color = 'green';
+    } else {
+      cell.textContent = '';
+      cell.style.color = '';
+      this.cascadeOpen(i);
+    }
+  };
+  Minesweeper.prototype.cascadeOpen = function(startIndex){
+    var queue = [startIndex];
+    var visited = new Set();
+    while(queue.length){
+      var idx = queue.shift();
+      var r = Math.floor(idx/this.cols);
+      var c = idx%this.cols;
+      for(var dr=-1; dr<=1; dr++){
+        for(var dc=-1; dc<=1; dc++){
+          if(dr===0 && dc===0) continue;
+          var nr = r+dr, nc = c+dc;
+          if(nr>=0 && nr<this.rows && nc>=0 && nc<this.cols){
+            var ni = nr*this.cols+nc;
+            if(visited.has(ni)) continue;
+            var neighborCell = this.cells[ni];
+            if(neighborCell.classList.contains('abierta') || neighborCell.classList.contains('bandera')) continue;
+            visited.add(ni);
+            var count = this.adjacentCounts[ni];
+            neighborCell.classList.add('abierta');
+            if(count > 0){
+              neighborCell.textContent = count;
+              neighborCell.style.color = 'green';
+            } else {
+              neighborCell.textContent = '';
+              neighborCell.style.color = '';
+              queue.push(ni);
+            }
+          }
+        }
+      }
+    }
+  };
+  Minesweeper.prototype.revealAllMines = function(){
+    var self = this;
+    this.mines.forEach(function(i){
+      var cell = self.cells[i];
+      if(!cell.classList.contains('abierta')){
+        cell.classList.add('abierta');
+        cell.textContent = '💣';
+        cell.style.color = 'red';
+      }
+    });
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    new Minesweeper();
+  });
+})();
+</script>
+</body>
+</html>

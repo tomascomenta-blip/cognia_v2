@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar funcionamiento del buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas y sin clases especiales",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contar que existen 25 celdas con data-i 0-24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Click en celda 0 (no mina) abre y muestra número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que celda 0 tiene clase 'abierta' y muestra número 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c[data-i='0']",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Click derecho en celda 6 (mina) coloca bandera y no abre",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "tecla": "contextmenu"
+    },
+    {
+      "nombre": "Verificar que celda 6 tiene clase 'bandera' y sigue sin abrir",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera"
+    },
+    {
+      "nombre": "Click en celda 12 (mina) abre y muestra estado 'perdiste'",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='12']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que #estado contiene texto 'perdiste' y que todas las minas están abiertas",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

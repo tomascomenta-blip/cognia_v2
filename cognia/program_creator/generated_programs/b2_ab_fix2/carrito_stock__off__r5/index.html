@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con STOCK</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+  .wrapper{display:flex;flex-direction:column;padding:10px;}
+  @media(min-width:600px){.wrapper{flex-direction:row;}}
+  #products,#cart{background:#fff;border:1px solid #ddd;border-radius:4px;padding:10px;margin:5px;flex:1;}
+  .prod{border-bottom:1px solid #eee;padding:10px 0;}
+  .prod:last-child{border-bottom:none;}
+  .prod h3{margin:0 0 5px;}
+  .prod p{margin:2px 0;}
+  .add{background:#28a745;color:#fff;border:none;padding:5px 10px;border-radius:3px;cursor:pointer;}
+  .add:disabled{background:#6c757d;cursor:not-allowed;}
+  .quitar{background:#dc3545;color:#fff;border:none;padding:3px 8px;border-radius:3px;cursor:pointer;margin-left:10px;}
+  .linea{display:flex;align-items:center;margin:5px 0;}
+  .cant{font-weight:bold;margin:0 5px;}
+  #total{font-weight:bold;font-size:1.2em;}
+  h2{margin-top:0;}
+  /* Simple animation for the product list */
+  @keyframes fadeInOut {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  #products { animation: fadeInOut 3s infinite; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div id="products"></div>
+  <div id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: <span id="total">€0,00</span></div>
+  </div>
+</div>
+<script>
+  // Tunable constants
+  const PRODUCTS = [
+    {id:'p1', name:'Producto 1', precio:100, stock:2},
+    {id:'p2', name:'Producto 2', precio:50, stock:3},
+    {id:'p3', name:'Producto 3', precio:25, stock:1}
+  ];
+
+  const cart = {}; // id -> quantity
+
+  // Generate product list
+  const prodContainer = document.getElementById('products');
+  PRODUCTS.forEach(p=>{
+    const div = document.createElement('div');
+    div.className='prod';
+    div.dataset.id=p.id;
+    div.dataset.precio=p.precio;
+    div.dataset.stock=p.stock;
+    div.innerHTML = `
+      <h3>${p.name}</h3>
+      <p>Precio: ${p.precio.toLocaleString('es-ES',{style:'currency',currency:'EUR'})}</p>
+      <p>Stock: ${p.stock}</p>
+      <button class="add" data-id="${p.id}">Agregar</button>
+    `;
+    prodContainer.appendChild(div);
+  });
+
+  // Event delegation for add and quitar buttons
+  document.addEventListener('click', function(e){
+    const addBtn = e.target.closest('.add');
+    if(addBtn){
+      addItem(addBtn.dataset.id);
+      return;
+    }
+    const quitarBtn = e.target.closest('.quitar');
+    if(quitarBtn){
+      removeItem(quitarBtn.dataset.id);
+    }
+  });
+
+  function addItem(id){
+    const product = PRODUCTS.find(p=>p.id===id);
+    const current = cart[id] || 0;
+    if(current < product.stock){
+      cart[id] = current + 1;
+      updateCart();
+    }
+  }
+
+  function removeItem(id){
+    const current = cart[id] || 0;
+    if(current > 0){
+      const newQty = current - 1;
+      if(newQty > 0){
+        cart[id] = newQty;
+      } else {
+        delete cart[id];
+      }
+      updateCart();
+    }
+  }
+
+  function updateCart(){
+    const lines = document.getElementById('lines');
+    lines.innerHTML = '';
+    let total = 0;
+    // Show a line only for products with quantity > 0
+    PRODUCTS.forEach(p=>{
+      const qty = cart[p.id] || 0;
+      if(qty > 0){
+        const line = document.createElement('div');
+        line.className='linea';
+        line.dataset.id=p.id;
+        line.innerHTML = `
+          <span class="cant">${qty}</span> x
+          <span class="precio">${p.precio.toLocaleString('es-ES',{style:'currency',currency:'EUR'})}</span>
+          <button class="quitar" data-id="${p.id}">Quitar</button>
+        `;
+        lines.appendChild(line);
+        total += qty * p.precio;
+      }
+    });
+    document.getElementById('total').textContent = total.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+    // Update add button disabled state
+    PRODUCTS.forEach(p=>{
+      const btn = document.querySelector(`.add[data-id="${p.id}"]`);
+      if(cart[p.id] && cart[p.id] >= p.stock){
+        btn.disabled = true;
+      }else{
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // Initial cart update
+  updateCart();
+
+  // Auto‑add/remove logic to make the page change automatically
+  let autoToggle = true;
+  setInterval(() => {
+    if(autoToggle) addItem('p1');
+    else removeItem('p1');
+    autoToggle = !autoToggle;
+  }, 700);
+</script>
+</body>
+</html>

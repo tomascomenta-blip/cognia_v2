@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:10px;background:#f0f0f0;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;}
+  .col{flex:1 1 30%;min-width:200px;background:#e0f7fa;padding:10px;border-radius:5px;}
+  .col[data-col="todo"]{background:#c8e6c9;}
+  .col[data-col="doing"]{background:#ffe0b2;}
+  .col[data-col="done"]{background:#eeeeee;}
+  .col h3{margin:0 0 10px;font-size:1.1em;}
+  .card{background:#fff;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,.1);padding:8px;margin:5px 0;display:flex;justify-content:space-between;align-items:center;}
+  .card button{background:none;border:none;cursor:pointer;font-size:1em;padding:2px 4px;}
+  .card button:focus{outline:none;}
+  .mas::after{content:"→";}
+  .menos::after{content:"←";}
+  @media(max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h3>Todo <span id="cont-todo">0</span></h3>
+    <div class="card" data-id="t1">t1 <button class="menos"></button><button class="mas"></button></div>
+    <div class="card" data-id="t2">t2 <button class="menos"></button><button class="mas"></button></div>
+    <div class="card" data-id="t3">t3 <button class="menos"></button><button class="mas"></button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h3>Doing <span id="cont-doing">0</span></h3>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Done <span id="cont-done">0</span></h3>
+  </div>
+</div>
+<script>
+  const order = ['todo','doing','done'];
+  function updateCounters(){
+    order.forEach(col=>{
+      const cnt = document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
+      document.getElementById(`cont-${col}`).textContent = cnt;
+    });
+  }
+  function moveCard(card, dir){
+    const curCol = card.parentElement;
+    const curIdx = order.indexOf(curCol.dataset.col);
+    const tgtIdx = curIdx + dir;
+    if(tgtIdx<0||tgtIdx>2) return;
+    const tgtCol = document.querySelector(`.col[data-col="${order[tgtIdx]}"]`);
+    // WIP rule
+    if(order[tgtIdx]==='doing' && tgtCol.querySelectorAll('.card').length>=2) return;
+    tgtCol.appendChild(card);
+    updateCounters();
+  }
+  document.querySelectorAll('.mas').forEach(btn=>{
+    btn.addEventListener('click',e=>moveCard(e.target.parentElement,1));
+  });
+  document.querySelectorAll('.menos').forEach(btn=>{
+    btn.addEventListener('click',e=>moveCard(e.target.parentElement,-1));
+  });
+  updateCounters();
+</script>
+</body>
+</html>

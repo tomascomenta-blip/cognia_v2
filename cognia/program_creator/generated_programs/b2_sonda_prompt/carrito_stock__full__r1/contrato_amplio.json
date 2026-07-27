@@ -1,0 +1,142 @@
+{
+  "nombre": "Carrito con stock limitado",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: carrito vacío",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: total 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Añadir primer producto p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Carrito muestra una línea p1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 1
+    },
+    {
+      "nombre": "Cantidad p1 es 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Total es 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Añadir p1 segunda vez",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Cantidad p1 es 2 (stock máximo)",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Botón add p1 está deshabilitado",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Intentar añadir p1 tercera vez (no debe cambiar)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Cantidad p1 sigue siendo 2",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Total sigue siendo 200",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "200"
+    },
+    {
+      "nombre": "Quitar una unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Cantidad p1 es 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Botón add p1 habilitado de nuevo",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Total es 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Quitar última unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Línea p1 desaparece",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 0
+    },
+    {
+      "nombre": "Botón add p1 habilitado",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Total es 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0"
+    }
+  ]
+}

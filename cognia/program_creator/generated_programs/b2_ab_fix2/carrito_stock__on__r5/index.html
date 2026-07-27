@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+  .container{display:flex;flex-direction:row;min-height:100vh;gap:10px;padding:10px;animation:fadeIn 1s ease-in-out;}
+  .products,.cart{flex:1;background:#fff;border-radius:5px;padding:10px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  .prod{border:1px solid #ddd;border-radius:5px;padding:10px;margin-bottom:10px;background:#fafafa;}
+  .prod h3{margin:0 0 5px 0;font-size:1.1em;}
+  .prod .info{font-size:0.9em;margin-bottom:5px;}
+  .prod button.add{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  .cart h2{margin-top:0;}
+  .linea{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eee;}
+  .linea button.quitar{padding:3px 6px;background:#dc3545;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  .total{font-weight:bold;margin-top:10px;font-size:1.1em;}
+  @media (max-width:600px){.container{flex-direction:column;}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products" id="products"></div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <div class="total">Total: <span id="total">0</span></div>
+  </div>
+</div>
+<script>
+const PRODUCTS = {
+  p1: {precio:100, stock:2},
+  p2: {precio:50, stock:3},
+  p3: {precio:25, stock:1}
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const productsDiv = document.getElementById('products');
+  const cartLinesDiv = document.getElementById('cart-lines');
+  const totalSpan = document.getElementById('total');
+
+  // Create product elements
+  Object.entries(PRODUCTS).forEach(([id, data]) => {
+    const prodDiv = document.createElement('div');
+    prodDiv.className = 'prod';
+    prodDiv.dataset.id = id;
+    prodDiv.dataset.precio = data.precio;
+    prodDiv.dataset.stock = data.stock;
+
+    const title = document.createElement('h3');
+    title.textContent = 'Producto ' + id.toUpperCase();
+    prodDiv.appendChild(title);
+
+    const info = document.createElement('div');
+    info.className = 'info';
+    info.textContent = 'Precio: ' + data.precio + ' | Stock: ' + data.stock;
+    prodDiv.appendChild(info);
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add';
+    addBtn.dataset.id = id;
+    addBtn.textContent = 'Agregar';
+    prodDiv.appendChild(addBtn);
+
+    productsDiv.appendChild(prodDiv);
+
+    // Add event listener
+    addBtn.addEventListener('click', () => {
+      const prodId = addBtn.dataset.id;
+      const prodData = PRODUCTS[prodId];
+      const line = cartLinesDiv.querySelector('.linea[data-id="' + prodId + '"]');
+      let qty = 0;
+      if (line) {
+        qty = parseInt(line.querySelector('.cant').textContent, 10);
+      }
+      if (qty < prodData.stock) {
+        qty++;
+        if (line) {
+          line.querySelector('.cant').textContent = qty;
+        } else {
+          const lineDiv = document.createElement('div');
+          lineDiv.className = 'linea';
+          lineDiv.dataset.id = prodId;
+
+          const spanCant = document.createElement('span');
+          spanCant.className = 'cant';
+          spanCant.textContent = qty;
+          lineDiv.appendChild(spanCant);
+
+          const quitarBtn = document.createElement('button');
+          quitarBtn.className = 'quitar';
+          quitarBtn.dataset.id = prodId;
+          quitarBtn.textContent = 'Quitar';
+          lineDiv.appendChild(quitarBtn);
+
+          cartLinesDiv.appendChild(lineDiv);
+
+          quitarBtn.addEventListener('click', () => {
+            const line = cartLinesDiv.querySelector('.linea[data-id="' + prodId + '"]');
+            if (!line) return;
+            let currentQty = parseInt(line.querySelector('.cant').textContent, 10);
+            currentQty--;
+            if (currentQty <= 0) {
+              line.remove();
+              addBtn.style.display = '';
+            } else {
+              line.querySelector('.cant').textContent = currentQty;
+              if (currentQty < prodData.stock) {
+                addBtn.style.display = '';
+              }
+            }
+            updateTotal();
+          });
+        }
+        if (qty >= prodData.stock) {
+          addBtn.style.display = 'none';
+        } else {
+          addBtn.style.display = '';
+        }
+        updateTotal();
+      }
+    });
+  });
+
+  function updateTotal() {
+    let total = 0;
+    cartLinesDiv.querySelectorAll('.linea').forEach(line => {
+      const prodId = line.dataset.id;
+      const qty = parseInt(line.querySelector('.cant').textContent, 10);
+      const price = PRODUCTS[prodId].precio;
+      total += price * qty;
+    });
+    totalSpan.textContent = total;
+  }
+});
+</script>
+</body>
+</html>

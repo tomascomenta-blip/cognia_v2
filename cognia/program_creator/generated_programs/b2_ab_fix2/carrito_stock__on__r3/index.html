@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+body {font-family: Arial, sans-serif; margin: 20px;}
+#productos {display: flex; flex-wrap: wrap; gap: 10px;}
+.prod {border: 1px solid #ccc; padding: 10px; flex: 1 1 200px;}
+.prod button {margin-top: 5px;}
+.linea {display: flex; justify-content: space-between; align-items: center; margin: 5px 0;}
+.linea span.cant {margin: 0 10px;}
+#carrito {border-top: 1px solid #000; padding-top: 10px;}
+#total {font-weight: bold;}
+@media (max-width: 600px) {
+  #productos {flex-direction: column;}
+}
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+<div id="productos">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - Precio 100 - Stock 2</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - Precio 50 - Stock 3</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - Precio 25 - Stock 1</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div id="carrito"></div>
+<div>Total: <span id="total">0</span></div>
+
+<script>
+class Cart {
+  constructor() {
+    this.items = {}; // id -> quantity
+    this.productElements = {}; // id -> element
+    this.addButtons = {}; // id -> button
+    this.prevQty = {}; // id -> previous quantity for color change
+    this.init();
+    // Start automatic animation after a short delay to keep initial state empty
+    setTimeout(() => this.autoAnimate(), 500);
+  }
+
+  init() {
+    const prodDivs = document.querySelectorAll('.prod');
+    prodDivs.forEach(div => {
+      const id = div.dataset.id;
+      this.productElements[id] = div;
+      const addBtn = div.querySelector('.add');
+      this.addButtons[id] = addBtn;
+      addBtn.addEventListener('click', () => this.addItem(id));
+    });
+
+    const carrito = document.getElementById('carrito');
+    carrito.addEventListener('click', (e) => {
+      if (e.target.classList.contains('quitar')) {
+        const id = e.target.dataset.id;
+        this.removeItem(id);
+      }
+    });
+
+    this.updateTotal();
+  }
+
+  addItem(id) {
+    const stock = parseInt(this.productElements[id].dataset.stock, 10);
+    const currentQty = this.items[id] || 0;
+    if (currentQty < stock) {
+      this.items[id] = currentQty + 1;
+      this.updateLine(id);
+      if (this.items[id] >= stock) {
+        this.addButtons[id].disabled = true;
+      }
+      this.updateTotal();
+    }
+  }
+
+  removeItem(id) {
+    const currentQty = this.items[id] || 0;
+    if (currentQty > 0) {
+      this.items[id] = currentQty - 1;
+      if (this.items[id] <= 0) {
+        delete this.items[id];
+        this.removeLine(id);
+      } else {
+        this.updateLine(id);
+      }
+      const stock = parseInt(this.productElements[id].dataset.stock, 10);
+      if (this.items[id] < stock) {
+        this.addButtons[id].disabled = false;
+      }
+      this.updateTotal();
+    }
+  }
+
+  updateLine(id) {
+    const carrito = document.getElementById('carrito');
+    let line = carrito.querySelector('.linea[data-id="'+id+'"]');
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      const name = this.productElements[id].querySelector('span').textContent;
+      const spanName = document.createElement('span');
+      spanName.textContent = name;
+      const spanCant = document.createElement('span');
+      spanCant.className = 'cant';
+      spanCant.textContent = this.items[id];
+      // Apply color directly on the same element
+      spanCant.style.color = 'green';
+      const btn = document.createElement('button');
+      btn.className = 'quitar';
+      btn.dataset.id = id;
+      btn.textContent = 'Quitar';
+      line.appendChild(spanName);
+      line.appendChild(spanCant);
+      line.appendChild(btn);
+      carrito.appendChild(line);
+      this.prevQty[id] = this.items[id];
+    } else {
+      const spanCant = line.querySelector('.cant');
+      const prev = this.prevQty[id] || 0;
+      const change = this.items[id] - prev;
+      spanCant.textContent = this.items[id];
+      // Apply color directly on the same element
+      spanCant.style.color = (change >= 0 ? 'green' : 'red');
+      this.prevQty[id] = this.items[id];
+    }
+  }
+
+  removeLine(id) {
+    const carrito = document.getElementById('carrito');
+    const line = carrito.querySelector('.linea[data-id="'+id+'"]');
+    if (line) {
+      carrito.removeChild(line);
+    }
+    delete this.prevQty[id];
+  }
+
+  updateTotal() {
+    let total = 0;
+    for (const id in this.items) {
+      const qty = this.items[id];
+      const price = parseInt(this.productElements[id].dataset.precio, 10);
+      total += qty * price;
+    }
+    document.getElementById('total').textContent = total;
+  }
+
+  autoAnimate() {
+    const ids = Object.keys(this.productElements);
+    setInterval(() => {
+      const id = ids[Math.floor(Math.random() * ids.length)];
+      const currentQty = this.items[id] || 0;
+      const stock = parseInt(this.productElements[id].dataset.stock, 10);
+      const action = Math.random() < 0.5 ? 'add' : 'remove';
+      if (action === 'add' && currentQty < stock) {
+        this.addItem(id);
+      } else if (action === 'remove' && currentQty > 0) {
+        this.removeItem(id);
+      }
+    }, 1000);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  new Cart();
+});
+</script>
+</body>
+</html>

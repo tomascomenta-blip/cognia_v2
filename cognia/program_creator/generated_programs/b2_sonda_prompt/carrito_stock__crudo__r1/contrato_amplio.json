@@ -1,0 +1,122 @@
+{
+  "nombre": "Contrato de prueba para carrito con stock",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: carrito vacío y botones habilitados",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: total es 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Agregar producto p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 creada con cantidad 1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar cantidad p1 es 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Verificar total actualizado a 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Agregar producto p1 nuevamente",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar cantidad p1 incrementada a 2",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Verificar botón add p1 deshabilitado al alcanzar stock",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Intentar agregar p1 una vez más y verificar que no se crea nueva línea",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que cantidad p1 sigue siendo 2",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Eliminar una unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar cantidad p1 decrementada a 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Verificar botón add p1 habilitado nuevamente",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Eliminar la última unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 desaparecida",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 0
+    },
+    {
+      "nombre": "Verificar total vuelve a 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0"
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "nombre": "Verificar hoja de cálculo 3x3 con fórmulas y recálculo",
+  "pasos": [
+    {
+      "nombre": "Existe la grilla 3x3 con 9 celdas",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".celda",
+          "esperado": 9
+        }
+      ],
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "js",
+          "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.dataset.ref))",
+          "esperado": true
+        }
+      ],
+      "esperado": true
+    },
+    {
+      "nombre": "Valor inicial de todas las celdas es vacío",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar_visible",
+          "selector": ".celda",
+          "esperado": 0
+        }
+      ],
+      "esperado": 0
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1 y verificar actualización",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": ".celda[data-ref='A1']",
+          "contiene": "5"
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".celda[data-ref='A1']",
+          "esperado": 1
+        }
+      ],
+      "esperado": 1
+    },
+    {
+      "nombre": "Crear fórmula en B1 que dependa de A1 y verificar cálculo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": ".celda[data-ref='B1']",
+          "contiene": "=A1+3"
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".celda[data-ref='B1']",
+          "esperado": 1
+        },
+        {
+          "accion": "js",
+          "expr": "document.querySelector('.celda[data-ref=\"B1\"]').value",
+          "esperado": "8"
+        }
+      ],
+      "esperado": "8"
+    },
+    {
+      "nombre": "Cambiar A1 y comprobar cascada de recálculo en B1",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": ".celda[data-ref='A1']",
+          "contiene": "10"
+        },
+        {
+          "accion": "js",
+          "expr": "document.querySelector('.celda[data-ref=\"B1\"]').value",
+          "esperado": "13"
+        }
+      ],
+      "esperado": "13"
+    },
+    {
+      "nombre": "Crear referencia circular C1 = C1 y verificar texto CIRC",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": ".celda[data-ref='C1']",
+          "contiene": "=C1"
+        },
+        {
+          "accion": "js",
+          "expr": "document.querySelector('.celda[data-ref=\"C1\"]').value",
+          "esperado": "CIRC"
+        }
+      ],
+      "esperado": "CIRC"
+    },
+    {
+      "nombre": "Crear fórmula en C2 que dependa de C1 y verificar que no se recalcule",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": ".celda[data-ref='C2']",
+          "contiene": "=C1+2"
+        },
+        {
+          "accion": "js",
+          "expr": "document.querySelector('.celda[data-ref=\"C2\"]').value",
+          "esperado": "CIRC"
+        }
+      ],
+      "esperado": "CIRC"
+    }
+  ]
+}

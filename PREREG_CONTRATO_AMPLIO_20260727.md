@@ -55,3 +55,30 @@ Caveats declarados: (a) el corpus son páginas DIRECTAS (sin lazo), no
 productos del lazo — mide calidad del examen, no el efecto en el lazo;
 (b) n≈24-48 páginas por estilo es direccional; (c) los contratos se generan
 con el inventario del DOM de cada página, como en producción.
+
+## RESULTADO (2026-07-27 ~10:35 — corpus crudo+full, 24 páginas, completo)
+
+| modo | aprueba | FP (de sus aprobados) | FN (de las 24 páginas) | pasos (mediana) |
+|---|---|---|---|---|
+| clásico | 10/24 | 2/10 (20%) | 11/24 = **46%** | 8 |
+| amplio | **1/24** | 0/1 | 18/24 = **75%** | 17 |
+
+(el banco aprueba 19/24 del corpus; "sin contrato": 0 en ambos modos)
+
+**Veredicto: GRIS — no se adopta.** El amplio elimina los FP al precio de
+aprobar el 4% de las páginas cuando el 79% son buenas: como señal del lazo
+mandaría a reparar TODO, siempre. La ambigüedad de mi propio criterio
+("FN ≤ FN + 10 pts" sin denominador) se resuelve por la lectura sustantiva:
+sobre todas las páginas el FN sube 46%→75%, que es exactamente el caso GRIS
+("examen más duro que acusa sanos").
+
+**La lección que reordena la prioridad #3 de META:** más aserciones NO es
+la palanca — los DOS exámenes autogenerados rechazan en masa páginas que el
+examen escrito a mano aprueba (FN 46-75%). El cuello es la CORRECCIÓN de
+las aserciones (literales inventados, secuencias mal pensadas, esperado-
+exacto donde va min), no su cantidad. Direcciones con sentido para la
+próxima sesión: (a) validar cada aserción generada contra el enunciado
+(un paso barato de "¿la idea realmente exige esto?"); (b) medir la tasa de
+FN de cada TIPO de paso (js/texto/contar) para podar los tipos que acusan
+sanos; (c) el held-out escrito a mano sigue siendo el único examen fiable
+— generarlos una vez por tarea de banco y auditarlos, no por producto.

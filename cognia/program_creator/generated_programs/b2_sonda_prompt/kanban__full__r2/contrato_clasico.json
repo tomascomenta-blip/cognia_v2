@@ -1,0 +1,65 @@
+{
+  "nombre": "Kanban single-file board compliance",
+  "pasos": [
+    {
+      "nombre": "Initial state has three columns and three cards in todo",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Initial state has three cards in todo with correct data-id",
+      "accion": "contar",
+      "selector": ".card[data-id]",
+      "esperado": 3
+    },
+    {
+      "nombre": "Initial state has no cards in doing and done columns",
+      "accion": "contar_visible",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Initial state shows correct counts in span elements",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Click mas on first card moves it to doing and updates counts",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "After move, doing column has one card and todo has two, done remains zero",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Click mas on second card moves it to doing until WIP limit reached",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 1
+    },
+    {
+      "nombre": "After two cards in doing, further mas clicks on todo cards do not change state and counts remain unchanged",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Click menos on a card in doing moves it back to todo and updates counts",
+      "accion": "click",
+      "selector": ".menos",
+      "indice": 0
+    },
+    {
+      "nombre": "After moving back, doing has one card, todo has three, done remains zero",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    }
+  ]
+}

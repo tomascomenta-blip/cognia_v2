@@ -1,0 +1,65 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 columnas con 3 tarjetas en todo",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contador doing inicial es 0",
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contador done inicial es 0",
+      "accion": "contar",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que t1 se movió a doing y contadores actualizados",
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 2
+    },
+    {
+      "nombre": "Mover t1 a done",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que t1 está en done y no puede avanzar más",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Intentar mover t2 a doing cuando doing ya tiene 2 tarjetas",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 1
+    },
+    {
+      "nombre": "Verificar que t2 no se movió y contadores no cambian",
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 2
+    }
+  ]
+}

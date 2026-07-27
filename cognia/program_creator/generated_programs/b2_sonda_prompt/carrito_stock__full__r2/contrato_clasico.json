@@ -1,0 +1,146 @@
+{
+  "nombre": "Validación del carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Estado inicial del carrito vacío",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".cart .linea",
+          "esperado": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar primer producto (p1)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id=\"p1\"]",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea[data-id=\"p1\"]",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "100"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar mismo producto (p1) sin crear nueva línea",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id=\"p1\"]",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea[data-id=\"p1\"]",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "200"
+        }
+      ]
+    },
+    {
+      "nombre": "No superar stock de p1 (stock 2) y botón deshabilitado",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "existe",
+          "selector": ".add[data-id=\"p1\"]:disabled"
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea[data-id=\"p1\"] .cant",
+          "esperado": "2"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar segundo producto (p2) y verificar línea y total",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id=\"p2\"]",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea[data-id=\"p2\"]",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "250"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar unidad de p1 y verificar decremento y botón habilitado",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id=\"p1\"]",
+          "indice": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "150"
+        }
+      ]
+    },
+    {
+      "nombre": "Eliminar última unidad de p1 y línea desaparece",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id=\"p1\"]",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea[data-id=\"p1\"]",
+          "esperado": 0
+        },
+        {
+          "accion": "existe",
+          "selector": ".add[data-id=\"p1\"]:not(:disabled)"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que total se actualiza correctamente tras todas las operaciones",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "250"
+        }
+      ]
+    }
+  ]
+}

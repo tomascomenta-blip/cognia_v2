@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+  h1{font-size:1.5em;text-align:center;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:400px;margin:auto;}
+  input.celda{width:100%;padding:8px;font-size:1em;text-align:right;border:1px solid #ccc;border-radius:4px;background:#fff;}
+  input.celda:focus{outline:none;border-color:#66afe9;}
+</style>
+</head>
+<body>
+<h1>Mini Hoja de Cálculo 3x3</h1>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1" placeholder="A1">
+  <input type="text" class="celda" data-ref="B1" placeholder="B1">
+  <input type="text" class="celda" data-ref="C1" placeholder="C1">
+  <input type="text" class="celda" data-ref="A2" placeholder="A2">
+  <input type="text" class="celda" data-ref="B2" placeholder="B2">
+  <input type="text" class="celda" data-ref="C2" placeholder="C2">
+  <input type="text" class="celda" data-ref="A3" placeholder="A3">
+  <input type="text" class="celda" data-ref="B3" placeholder="B3">
+  <input type="text" class="celda" data-ref="C3" placeholder="C3" data-formula="=A1+A2">
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cells = document.querySelectorAll('input.celda');
+
+  function evalCell(ref, visited){
+    if(visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const cell = document.querySelector(`input[data-ref="${ref}"]`);
+    if(!cell){visited.delete(ref); return 0;}
+    if(cell.dataset.formula !== undefined){
+      const result = evaluateFormula(cell.dataset.formula, visited);
+      visited.delete(ref);
+      return result;
+    } else {
+      let val = parseFloat(cell.value.replace(/,/g, ''));
+      if(isNaN(val)) val = 0;
+      visited.delete(ref);
+      return val;
+    }
+  }
+
+  function evaluateFormula(formula, visited){
+    let expr = formula.replace(/\b([A-C][1-3])\b/g, (m)=>{
+      const val = evalCell(m, visited);
+      if(val==='CIRC') return 'CIRC';
+      return val;
+    });
+    if(expr.includes('CIRC')) return 'CIRC';
+    try{
+      const res = Function('"use strict";return ('+expr+')')();
+      return res;
+    }catch(e){return 'ERR';}
+  }
+
+  function recalcAll(){
+    cells.forEach(cell=>{
+      const prev = parseFloat(cell.dataset.prevValue) || 0;
+      if(cell.dataset.formula !== undefined){
+        const res = evalCell(cell.dataset.ref, new Set());
+        if(res==='CIRC' || res==='ERR'){
+          cell.value = res;
+          cell.style.color = 'black';
+          cell.dataset.prevValue = '';
+        }else{
+          const num = Number(res);
+          const formatted = num.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+          cell.value = formatted;
+          const change = num - prev;
+          cell.style.color = (change >= 0 ? 'green' : 'red');
+          cell.dataset.prevValue = num;
+        }
+      }else{
+        let val = parseFloat(cell.value.replace(/,/g, ''));
+        if(isNaN(val)) val = 0;
+        const formatted = val.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+        cell.value = formatted;
+        const change = val - prev;
+        cell.style.color = (change >= 0 ? 'green' : 'red');
+        cell.dataset.prevValue = val;
+      }
+    });
+  }
+
+  cells.forEach(cell=>{
+    cell.addEventListener('input', function(){
+      const val = this.value;
+      if(val.startsWith('=')){
+        this.dataset.formula = val;
+        delete this.dataset.value;
+      }else{
+        delete this.dataset.formula;
+      }
+      recalcAll();
+    });
+  });
+
+  recalcAll();
+  setInterval(recalcAll, 500);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+{
+  "nombre": "Prueba de funcionalidad de Buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar estado inicial del tablero",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Verificar que ninguna celda está abierta al inicio",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 0
+    },
+    {
+      "nombre": "Verificar que el estado inicial no muestra 'perdiste'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": false
+    },
+    {
+      "nombre": "Hacer click en la celda 0 (sin minas adyacentes)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la celda 0 se abre y muestra 0 minas adyacentes",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='0'].abierta",
+      "esperado": true
+    },
+    {
+      "nombre": "Verificar que se abren todas las celdas contiguas con 0 minas adyacentes (cascada)",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Verificar que las celdas 6, 12 y 18 siguen sin abrirse tras cascada",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".c[data-i='6'].abierta",
+      "esperado": true
+    },
+    {
+      "nombre": "Hacer click derecho en la celda 6 para colocar bandera",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Verificar que la celda 6 tiene la clase 'bandera' y no está abierta",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera",
+      "esperado": true
+    },
+    {
+      "nombre": "Hacer click en la celda 6 (con bandera) y verificar que no se abre",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Hacer click en la celda 12 (minada) y verificar que el estado muestra 'perdiste'",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='12']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la celda 12 se abre y muestra la mina",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='12'].abierta",
+      "esperado": true
+    },
+    {
+      "nombre": "Verificar que el estado muestra 'perdiste' tras abrir la mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": true
+    },
+    {
+      "nombre": "Verificar que ninguna celda adicional se abre tras perder",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 1
+    }
+  ]
+}

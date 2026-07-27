@@ -1,0 +1,53 @@
+{
+  "nombre": "Verificar carrito con stock y comportamiento de botones",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos y carrito vacío",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: carrito sin líneas",
+      "accion": "contar",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Agregar primer producto (p1)",
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 con cantidad 1 y botón add deshabilitado cuando stock alcanzado",
+      "accion": "contar",
+      "selector": ".linea[data-id='p1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Agregar p1 nuevamente hasta stock máximo",
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que cantidad de p1 sea 2 y botón add deshabilitado",
+      "accion": "texto",
+      "selector": ".linea[data-id='p1'] .cant",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Quitar una unidad de p1",
+      "accion": "click",
+      "selector": ".quitar[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que cantidad de p1 sea 1 y botón add habilitado",
+      "accion": "texto",
+      "selector": ".linea[data-id='p1'] .cant",
+      "contiene": "1"
+    }
+  ]
+}

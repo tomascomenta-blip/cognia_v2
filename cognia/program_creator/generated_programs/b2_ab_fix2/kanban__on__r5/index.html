@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:10px;background:#f0f0f0;}
+.board{display:flex;gap:10px;flex-wrap:wrap;}
+.col{background:#fff;border:1px solid #ccc;padding:5px;width:30%;min-height:200px;}
+.card{background:#e3e3e3;margin:5px 0;padding:5px;border-radius:3px;transition:all .5s ease;}
+button{margin:2px;}
+</style>
+</head>
+<body>
+<h2>Tablero Kanban</h2>
+<div class="board">
+<div class="col" data-col="todo"><h3>Pendientes (<span id="cont-todo">3</span>)</h3></div>
+<div class="col" data-col="doing"><h3>En Progreso (<span id="cont-doing">0</span>)</h3></div>
+<div class="col" data-col="done"><h3>Completado (<span id="cont-done">0</span>)</h3></div>
+</div>
+<script>
+function createCard(id){var c=document.createElement('div');c.className='card';c.dataset.id=id;c.innerHTML='Tarjeta '+id+'<button class="mas">→</button><button class="menos">←</button>';return c;}
+var todo=document.querySelector('[data-col="todo"]');
+for(var i=1;i<=3;i++)todo.appendChild(createCard('t'+i));
+var prevCounts={todo:0,doing:0,done:0};
+function update(){var todoCount=document.querySelectorAll('[data-col="todo"] .card').length;var doingCount=document.querySelectorAll('[data-col="doing"] .card').length;var doneCount=document.querySelectorAll('[data-col="done"] .card').length;
+var contTodo=document.getElementById('cont-todo');var contDoing=document.getElementById('cont-doing');var contDone=document.getElementById('cont-done');
+var changeTodo=todoCount-prevCounts.todo;var changeDoing=doingCount-prevCounts.doing;var changeDone=doneCount-prevCounts.done;
+contTodo.textContent=todoCount;contDoing.textContent=doingCount;contDone.textContent=doneCount;
+contTodo.style.color=(changeTodo>=0?'green':'red');contDoing.style.color=(changeDoing>=0?'green':'red');contDone.style.color=(changeDone>=0?'green':'red');
+prevCounts={todo:todoCount,doing:doingCount,done:doneCount};
+}
+function autoMove(){
+  var todoCol=document.querySelector('[data-col="todo"]');
+  var doingCol=document.querySelector('[data-col="doing"]');
+  var doneCol=document.querySelector('[data-col="done"]');
+  var todoCards=todoCol.querySelectorAll('.card');
+  var doingCards=doingCol.querySelectorAll('.card');
+  if(todoCards.length>0 && doingCards.length<2){
+    var card=todoCards[0];
+    doingCol.appendChild(card);
+    update();
+    return;
+  }
+  if(doingCards.length>0){
+    var card=doingCards[0];
+    doneCol.appendChild(card);
+    update();
+    return;
+  }
+}
+document.body.addEventListener('click',function(e){if(e.target.classList.contains('mas')||e.target.classList.contains('menos')){var card=e.target.parentElement;var col=card.parentElement;var curr=col.dataset.col;var target;if(e.target.classList.contains('mas')){if(curr==='todo')target='doing';else if(curr==='doing')target='done';else return;}else{if(curr==='doing')target='todo';else if(curr==='done')target='doing';else return;}var doingCount=document.querySelectorAll('[data-col="doing"] .card').length;if(target==='doing'&&doingCount>=2)return;var newCol=document.querySelector('[data-col="'+target+'"]');newCol.appendChild(card);update();}});update();setInterval(autoMove,700);
+</script>
+</body>
+</html>

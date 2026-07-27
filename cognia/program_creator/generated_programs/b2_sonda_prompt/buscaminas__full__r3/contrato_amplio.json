@@ -1,0 +1,98 @@
+{
+  "nombre": "Verificar estado inicial del buscaminas 5x5",
+  "pasos": [
+    {
+      "nombre": "Contar celdas",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Verificar que ninguna celda tiene clase abierta",
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 0
+    },
+    {
+      "nombre": "Verificar que el estado no muestra 'perdiste'",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "critico": true
+    },
+    {
+      "nombre": "Hacer click en la celda 0 (sin minas adyacentes)",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Esperar cascada de apertura",
+      "accion": "esperar",
+      "ms": 500
+    },
+    {
+      "nombre": "Verificar que todas las celdas adyacentes a 0 se abren",
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Verificar que la celda 6 (mina) sigue sin abrir",
+      "accion": "existe",
+      "selector": ".c[data-i='6']",
+      "critico": true
+    },
+    {
+      "nombre": "Hacer click derecho en la celda 6 para poner bandera",
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Verificar que la celda 6 tiene clase bandera",
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera",
+      "critico": true
+    },
+    {
+      "nombre": "Hacer click en la celda 6 (con bandera)",
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la celda 6 no se abre y no muestra 'perdiste'",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "critico": true
+    },
+    {
+      "nombre": "Hacer click en la celda 12 (mina) sin bandera",
+      "accion": "click",
+      "selector": ".c[data-i='12']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el estado muestra 'perdiste'",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que la celda 12 tiene clase abierta",
+      "accion": "existe",
+      "selector": ".c[data-i='12'].abierta",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que ninguna celda con bandera se abre tras perder",
+      "accion": "contar_visible",
+      "selector": ".c.bandera.abierta",
+      "esperado": 0
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Board</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;}
+  .board{display:flex;height:100vh;box-sizing:border-box;}
+  .col{flex:1;padding:10px;box-sizing:border-box;display:flex;flex-direction:column;}
+  .col-header{background:#e0e0e0;padding:8px;border-radius:4px;margin-bottom:8px;font-weight:bold;text-align:center;}
+  .col-header span{font-size:.9em;color:#555;}
+  .card{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+  .card button{background:none;border:none;cursor:pointer;font-size:.8em;padding:2px 4px;}
+  .card button:focus{outline:none;}
+  .card button.mas::after{content:"→";}
+  .card button.menos::after{content:"←";}
+  @media (max-width:600px){
+    .board{flex-direction:column;}
+    .col{margin-bottom:10px;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo">3</span></div>
+    <div class="card" data-id="t1">t1 <button class="menos"></button><button class="mas"></button></div>
+    <div class="card" data-id="t2">t2 <button class="menos"></button><button class="mas"></button></div>
+    <div class="card" data-id="t3">t3 <button class="menos"></button><button class="mas"></button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.columns = Array.from(document.querySelectorAll('.col'));
+    this.prevCounts = {}; // store previous counts for color change
+    this.updateCounters(); // initial update
+    this.attachEvents();
+  }
+  getColumn(name){return this.columns.find(c=>c.dataset.col===name);}
+  getNext(col){const i=this.columns.indexOf(col);return this.columns[i+1]||null;}
+  getPrev(col){const i=this.columns.indexOf(col);return this.columns[i-1]||null;}
+  move(card, dir){
+    const cur=card.parentElement;
+    let target;
+    if(dir==='right'){
+      target=this.getNext(cur);
+      if(!target) return;
+      // Prevent moving from doing to done when doing has 2 cards
+      if(cur.dataset.col==='doing' && cur.querySelectorAll('.card').length>=2) return;
+    }else{
+      target=this.getPrev(cur);
+      if(!target) return;
+    }
+    target.appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters(){
+    this.columns.forEach(col=>{
+      const cnt=col.querySelectorAll('.card').length;
+      const span=col.querySelector('span[id^="cont-"]');
+      if(span){
+        const prev=this.prevCounts[col.dataset.col]||0;
+        const change=cnt-prev;
+        span.textContent=cnt;
+        span.style.color=(change>=0?'green':'red');
+        this.prevCounts[col.dataset.col]=cnt;
+      }
+    });
+  }
+  attachEvents(){
+    this.columns.forEach(col=>{
+      col.addEventListener('click',e=>{
+        if(e.target.classList.contains('mas')){
+          const card=e.target.closest('.card');
+          if(card) this.move(card,'right');
+        }else if(e.target.classList.contains('menos')){
+          const card=e.target.closest('.card');
+          if(card) this.move(card,'left');
+        }
+      });
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new KanbanBoard());
+</script>
+</body>
+</html>

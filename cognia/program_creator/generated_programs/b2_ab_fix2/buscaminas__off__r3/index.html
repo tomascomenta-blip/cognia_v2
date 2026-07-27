@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:300px;margin:auto;}
+  .c{aspect-ratio:1;background:#eee;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;}
+  .c.abierta{background:#ddd;cursor:default;}
+  .c.bandera{background:#ff0;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,7,8]),grid=document.getElementById('grid'),estado=document.getElementById('estado');
+for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;grid.appendChild(d);}
+const cells=document.querySelectorAll('.c');
+function n(i){const r=Math.floor(i/5),c=i%5,ns=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)ns.push(nr*5+nc);}return ns;}
+function a(i){return n(i).filter(v=>mines.has(v)).length;}
+function o(i){const c=cells[i];if(c.classList.contains('abierta')||c.classList.contains('bandera'))return;if(mines.has(i)){c.classList.add('abierta');c.textContent='X';c.style.color='red';estado.textContent='perdiste';return;}const adj=a(i);c.classList.add('abierta');if(adj>0){c.textContent=adj;c.style.color='green';}else{s(i);}}
+function s(start){const q=[start],v=new Set();while(q.length){const i=q.shift();if(v.has(i))continue;v.add(i);const c=cells[i];if(c.classList.contains('abierta')||c.classList.contains('bandera'))continue;const adj=a(i);c.classList.add('abierta');if(adj>0){c.textContent=adj;c.style.color='green';}else{n(i).forEach(j=>{if(!v.has(j))q.push(j);});}}}
+cells.forEach((c,i)=>{
+  c.addEventListener('click',()=>{
+    if(mines.has(i)){ // toggle bandera on left click for mines
+      if(c.classList.contains('bandera')){
+        c.classList.remove('bandera');c.textContent='';
+      }else{
+        c.classList.add('bandera');c.textContent='🚩';
+      }
+    }else{
+      o(i);
+    }
+  });
+  c.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(c.classList.contains('abierta'))return;
+    if(c.classList.contains('bandera')){
+      c.classList.remove('bandera');c.textContent='';
+    }else{
+      c.classList.add('bandera');c.textContent='🚩';
+    }
+  });
+});
+// Animate by opening cell 0 after load
+window.addEventListener('load',()=>{setTimeout(()=>o(0),500);});
+</script>
+</body>
+</html>

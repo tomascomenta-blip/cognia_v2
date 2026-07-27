@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#f9f9f9;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:400px;margin:auto;}
+  .celda{width:100%;padding:8px;font-size:1rem;box-sizing:border-box;}
+  .circular{background:#ffe6e6;color:#a00;}
+</style>
+</head>
+<body>
+<h2 style="text-align:center;">Mini Hoja de Cálculo 3x3</h2>
+<div class="grid">
+  <input class="celda" data-ref="A1" type="text">
+  <input class="celda" data-ref="A2" type="text">
+  <input class="celda" data-ref="A3" type="text">
+  <input class="celda" data-ref="B1" type="text">
+  <input class="celda" data-ref="B2" type="text">
+  <input class="celda" data-ref="B3" type="text">
+  <input class="celda" data-ref="C1" type="text">
+  <input class="celda" data-ref="C2" type="text">
+  <input class="celda" data-ref="C3" type="text">
+</div>
+<script>
+const cells=document.querySelectorAll('.celda');
+function getCell(ref){return document.querySelector(`.celda[data-ref="${ref}"]`);}
+function compute(ref,stack){
+  const cell=getCell(ref);
+  if(!cell)return '0';
+  if(stack.has(ref))return 'CIRC';
+  if(cell.dataset.formula){
+    const expr=cell.dataset.formula.slice(1);
+    const refs=expr.match(/[A-C][1-3]/g)||[];
+    let val=expr;
+    for(const r of refs){
+      const res=compute(r,new Set(stack).add(ref));
+      if(res==='CIRC')return 'CIRC';
+      // replace all occurrences of r with res
+      val = val.split(r).join(res);
+    }
+    try{
+      const result=eval(val);
+      return result.toString();
+    }catch{
+      return 'CIRC';
+    }
+  }
+  return cell.value;
+}
+function recomputeAll(){
+  cells.forEach(c=>{
+    const ref=c.dataset.ref;
+    const val=compute(ref,new Set());
+    if(c.dataset.formula){
+      c.value=val;
+      c.classList.toggle('circular',val==='CIRC');
+    }else{
+      c.value=val;
+    }
+    // Set color directly (green for normal, red for circular)
+    c.style.color = (val==='CIRC' ? 'red' : 'green');
+  });
+}
+cells.forEach(c=>c.addEventListener('input',e=>{
+  const val=e.target.value;
+  if(val.startsWith('=')){
+    c.dataset.formula=val;
+    recomputeAll();
+  }else{
+    delete c.dataset.formula;
+    recomputeAll();
+  }
+}));
+</script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+    margin:auto;
+  }
+  .c{
+    background:#bbb;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:60px;
+    cursor:pointer;
+    user-select:none;
+    font-size:1.2em;
+    transition:background .2s;
+  }
+  .c.abierta{
+    background:#ddd;
+    color:#000;
+  }
+  .c.bandera{
+    background:#ffeb3b;
+    color:#000;
+  }
+  #estado{
+    margin-top:20px;
+    font-size:1.2em;
+    text-align:center;
+  }
+  @media (max-width:400px){
+    .c{height:50px;font-size:1em;}
+  }
+</style>
+</head>
+<body>
+<div id="board"></div>
+<div id="estado"></div>
+
+<script>
+/* CONSTANTS */
+const BOARD_SIZE = 5;
+const TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
+/* 1‑based positions 6,12,18 correspond to 0‑based indices 5,11,17 */
+const MINE_POSITIONS = [5, 11, 17];
+const FLAG_SYMBOL = '🚩';
+const MINE_SYMBOL = '💣';
+
+/* ELEMENTS */
+const board = document.getElementById('board');
+const estado = document.getElementById('estado');
+let gameOver = false;
+
+/* CREATE CELLS */
+for (let i = 0; i < TOTAL_CELLS; i++) {
+  const cell = document.createElement('div');
+  cell.classList.add('c');
+  cell.dataset.i = i;
+  cell.dataset.mine = MINE_POSITIONS.includes(i) ? '1' : '0';
+  cell.dataset.opened = '0';
+  cell.dataset.flagged = '0';
+  board.appendChild(cell);
+
+  /* explicit click handlers for interactivity */
+  cell.addEventListener('click', () => openCell(cell));
+  cell.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (gameOver) return;
+    if (cell.dataset.flagged === '1') {
+      cell.dataset.flagged = '0';
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    } else {
+      cell.dataset.flagged = '1';
+      cell.classList.add('bandera');
+      cell.textContent = FLAG_SYMBOL;
+    }
+  });
+}
+
+/* PRECOMPUTE ADJACENT MINE COUNTS */
+const adjCount = new Array(TOTAL_CELLS).fill(0);
+for (let i = 0; i < TOTAL_CELLS; i++) {
+  if (MINE_POSITIONS.includes(i)) continue;
+  let count = 0;
+  const r = Math.floor(i / BOARD_SIZE);
+  const c = i % BOARD_SIZE;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+        const idx = nr * BOARD_SIZE + nc;
+        if (MINE_POSITIONS.includes(idx)) count++;
+      }
+    }
+  }
+  adjCount[i] = count;
+}
+
+/* OPEN CELL LOGIC */
+function openCell(cell) {
+  if (cell.dataset.opened === '1' || cell.dataset.flagged === '1' || gameOver) return;
+  const idx = parseInt(cell.dataset.i, 10);
+  cell.dataset.opened = '1';
+  cell.classList.add('abierta');
+
+  if (MINE_POSITIONS.includes(idx)) {
+    cell.textContent = MINE_SYMBOL;
+    cell.style.color = 'red';
+    estado.textContent = 'perdiste';
+    gameOver = true;
+    return;
+  }
+
+  const count = adjCount[idx];
+  if (count > 0) {
+    cell.textContent = count;
+    cell.style.color = 'green';
+  } else {
+    /* Cascade opening */
+    const queue = [cell];
+    while (queue.length) {
+      const cur = queue.shift();
+      const curIdx = parseInt(cur.dataset.i, 10);
+      const r = Math.floor(curIdx / BOARD_SIZE);
+      const c = curIdx % BOARD_SIZE;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const nIdx = nr * BOARD_SIZE + nc;
+            const neighbor = board.children[nIdx];
+            if (neighbor.dataset.opened === '0' && neighbor.dataset.flagged === '0' && neighbor.dataset.mine === '0') {
+              neighbor.dataset.opened = '1';
+              neighbor.classList.add('abierta');
+              const nCount = adjCount[nIdx];
+              if (nCount > 0) {
+                neighbor.textContent = nCount;
+                neighbor.style.color = 'green';
+              } else {
+                neighbor.textContent = '0';
+                neighbor.style.color = 'green';
+                queue.push(neighbor);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/* AUTO‑OPENING ANIMATION ON LOAD */
+let autoIndex = 0;
+function autoOpenNext() {
+  if (autoIndex < TOTAL_CELLS && !gameOver) {
+    const cell = board.children[autoIndex];
+    openCell(cell);
+    autoIndex++;
+    setTimeout(autoOpenNext, 200);
+  }
+}
+setTimeout(autoOpenNext, 500);
+</script>
+</body>
+</html>

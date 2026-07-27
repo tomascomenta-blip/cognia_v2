@@ -9441,3 +9441,68 @@ más débil que el held-out (aprueba lo que el externo reprueba, y apareció
 el primer FP en producción del fix): CodeRM/más aserciones; (3) re-plantear
 BoN con candidatos 2..k a temperatura alta; (4) próximo A/B del banco
 fácil: intercalado y n>=6 por brazo, o directamente sobre el brutal.
+
+## 2026-07-27 (diurna 27, 05:42-11:15) — La escalera del prompt, dos KILL honestos y la deriva sistémica
+
+**Nota de ventana:** el prompt de la sesión pedía "hasta las 04:30" pero
+llegó a las 05:42; decisión autónoma: misma duración y espíritu, ventana
+corrida (aterrizaje 10:58, shutdown 11:15).
+
+**Unidades cerradas, cada una con su número:**
+
+1. **Atribución de los ~25 pts del brutal (sonda de ESCALERA, enmiendas
+   9-10 del PREREG).** 4 brazos ANIDADOS (crudo → base → base+REQUIRED →
+   full: cada par adyacente difiere en UNA variable), directos sin lazo,
+   48 gen intercaladas con control concurrente y parada automática por
+   deriva, lectura APAREADA pre-registrada: crudo 11/12, base 10/12,
+   basereq 8/12, full 8/12. Ladrones con mecanismo: troceo REQUIRED
+   (-2 netas; "data-precio 100,50,25" -> "data-precio 100") y regla
+   "Format numbers for humans" (-1; "8,00" donde el contrato exige "8").
+   SIN CARGO: hint+patrones (0 neto) y formato Title/Description (parse
+   estricto 35/36). La revision de 2 agentes frescos ANTES de gastar GPU
+   corrigio 3 mayores del diseno original (fallback silencioso de
+   _call_llm a otro backend/temperatura, hint sin aparear, brazo que
+   mezclaba 3 variables); el brazo `base` salio de esa revision y fue el
+   que cazo al ladron de formato.
+
+2. **A/B de confirmacion del fix (COGNIA_PROMPT_FIX2), COMPLETO — 6
+   replicas intercaladas ON/OFF, 48 corridas de lazo: EL FIX NO COBRA.
+   ON 12/24 (50%) vs OFF 17/24 (71%), neto apareado -5.** Produccion
+   intacta (env-gated, OFF por defecto). Lo que vale mas que el fix:
+   (a) la atribucion directa NO transfiere al lazo, mecanismo verificado
+   sin GPU: el lazo arma idea_build = idea + ". TARGET LOOK, match it:
+   {brief}" y el troceo por frases absorbia el brief ENTERO como REQUIRED
+   component (el viejo por comas lo fragmentaba y quedaba fuera del tope);
+   la sonda corria con la idea pelada. Toda sonda de prompt debe sondear
+   el prompt QUE EL LAZO ARMA. (b) **La deriva entre noches es del SISTEMA
+   entero: OFF con codigo identico paso de 12/24 (50%) anoche a 17/24
+   (71%) hoy.** Una serie de un solo brazo habria dicho "sin cambio"
+   (12 vs 12 historico) donde el apareado concurrente dice -5.
+
+3. **El contrato interno esta al nivel del AZAR y "mas aserciones" NO lo
+   arregla (unidad 2 cerrada: antes Y despues).** Antes (cruce en disco,
+   cero GPU, n=196): FP 32-50%, FN ~50% — el lazo repara guiado por ruido
+   y el D6 corta con 17-27/~20-28 checks. Despues (A/B pre-registrado,
+   PREREG_CONTRATO_AMPLIO_20260727.md, 24 paginas x 2 modos): el modo
+   AMPLIO (10-16 pasos, CodeRM) elimina FP (0) pero aprueba 1/24 paginas
+   cuando el banco aprueba 19/24 — FN 46%->75%. VEREDICTO GRIS: no se
+   adopta. La leccion que reordena la prioridad #3 de META: el cuello es
+   la CORRECCION de las aserciones autogeneradas, no su cantidad; los dos
+   examenes rechazan en masa paginas que el examen a mano aprueba.
+
+**Suite:** 5454 passed, 1 skipped (unico fallo: test_repl_piped bajo
+carga, pasa aislado — clase flaky conocida). **Commits:** 60e3bc1 (sonda +
+fix2 + contrato amplio; un here-string mal cerrado fusiono dos commits en
+uno) + el commit de cierre con los dos A/B y veredictos.
+
+**Lecciones a memoria:** contrato-interno-al-azar (nueva, con el GRIS del
+amplio); juez-tiene-que-ejecutar (escalera anidada, no-transferencia
+directa->lazo, TARGET LOOK); gate-e2e-flaky (deriva cuantificada: crudo
+75->92%, sistema 50->71% en 12h — control concurrente SIEMPRE).
+
+**Que sigue (por valor):** (1) re-sondear el prompt DEL LAZO (con adorno)
+antes de re-intentar fix de troceo — trocear la idea ORIGINAL, no
+idea_build; (2) correccion del contrato interno: validar cada asercion
+generada contra el enunciado + medir FN por TIPO de paso + auditar
+held-outs a mano por tarea de banco; (3) el gap directo (67%) vs lazo
+(50-71%) se re-mide DESPUES de arreglar la senal del contrato, no antes.

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    background:#f0f0f0;
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90vmin;
+    max-width:400px;
+    aspect-ratio:1;
+    background:#777;
+    padding:2px;
+  }
+  .c{
+    background:#ccc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+    position:relative;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ff0;
+  }
+  .c.bandera::before{
+    content:"🚩";
+    font-size:1.2rem;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<div id="board"></div>
+<div id="estado">juego en progreso</div>
+
+<script>
+class Minesweeper {
+  constructor(size, mines) {
+    this.size = size;
+    this.mines = new Set(mines);
+    this.board = document.getElementById('board');
+    this.estado = document.getElementById('estado');
+    this.initBoard();
+  }
+
+  initBoard() {
+    for (let i = 0; i < this.size * this.size; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.addEventListener('click', (e) => this.handleLeftClick(e, i));
+      cell.addEventListener('contextmenu', (e) => this.handleRightClick(e, i));
+      this.board.appendChild(cell);
+    }
+  }
+
+  getNeighbors(i) {
+    const neighbors = [];
+    const row = Math.floor(i / this.size);
+    const col = i % this.size;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r < this.size && c >= 0 && c < this.size) {
+          neighbors.push(r * this.size + c);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  countAdjacentMines(i) {
+    return this.getNeighbors(i).filter(n => this.mines.has(n)).length;
+  }
+
+  handleLeftClick(e, i) {
+    const cell = e.currentTarget;
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if (this.mines.has(i)) {
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      this.estado.textContent = 'perdiste';
+      return;
+    }
+    const count = this.countAdjacentMines(i);
+    if (count === 0) {
+      this.openZeroRegion(i);
+    } else {
+      this.openCell(i, count);
+    }
+  }
+
+  handleRightClick(e, i) {
+    e.preventDefault();
+    const cell = e.currentTarget;
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')) {
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '';
+    }
+  }
+
+  openCell(i, count) {
+    const cell = this.board.children[i];
+    cell.classList.add('abierta');
+    if (count > 0) cell.textContent = count;
+  }
+
+  openZeroRegion(start) {
+    const queue = [start];
+    const visited = new Set();
+    while (queue.length) {
+      const i = queue.shift();
+      if (visited.has(i)) continue;
+      visited.add(i);
+      const count = this.countAdjacentMines(i);
+      this.openCell(i, count);
+      if (count === 0) {
+        this.getNeighbors(i).forEach(n => {
+          if (!visited.has(n)) queue.push(n);
+        });
+      }
+    }
+  }
+}
+
+// Instantiate the game on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const mines = [6, 12, 18]; // fixed positions
+  new Minesweeper(5, mines);
+});
+</script>
+</body>
+</html>

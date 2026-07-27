@@ -1,0 +1,140 @@
+{
+  "nombre": "Kanban One-File Board Compliance",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 tarjetas en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: 0 tarjetas en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: 0 tarjetas en done",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='done'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en doing",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#t1[data-col='doing']"
+    },
+    {
+      "nombre": "Contador doing actualizado a 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Mover tarjeta t2 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t2 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 ahora en doing",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#t2[data-col='doing']"
+    },
+    {
+      "nombre": "Contador doing actualizado a 2",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Intentar mover tarjeta t3 a doing cuando doing lleno",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t3 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t3 sigue en todo",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#t3[data-col='todo']"
+    },
+    {
+      "nombre": "Contador todo sigue 2",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a done",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en done",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#t1[data-col='done']"
+    },
+    {
+      "nombre": "Intentar mover tarjeta t1 a done nuevamente",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 sigue en done",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#t1[data-col='done']"
+    },
+    {
+      "nombre": "Contador done actualizado a 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    }
+  ]
+}

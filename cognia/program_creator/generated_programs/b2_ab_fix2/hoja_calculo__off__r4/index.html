@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f0f0;}
+  table{border-collapse:collapse;}
+  td{border:1px solid #999;padding:0;}
+  input.celda{width:80px;height:30px;text-align:right;padding:5px;border:none;font-size:1rem;}
+  input.celda:focus{outline:2px solid #0066cc;}
+</style>
+</head>
+<body>
+<table>
+  <tbody>
+    <tr>
+      <td><input class="celda" data-ref="A1" /></td>
+      <td><input class="celda" data-ref="B1" /></td>
+      <td><input class="celda" data-ref="C1" /></td>
+    </tr>
+    <tr>
+      <td><input class="celda" data-ref="A2" /></td>
+      <td><input class="celda" data-ref="B2" /></td>
+      <td><input class="celda" data-ref="C2" /></td>
+    </tr>
+    <tr>
+      <td><input class="celda" data-ref="A3" /></td>
+      <td><input class="celda" data-ref="B3" /></td>
+      <td><input class="celda" data-ref="C3" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<script>
+(() => {
+  const cells = Array.from(document.querySelectorAll('input.celda'));
+  const cellMap = {};
+  cells.forEach(c => cellMap[c.dataset.ref] = c);
+
+  function parseFormula(formula) {
+    formula = formula.slice(1);
+    const tokens = [];
+    let num = '';
+    let op = '+';
+    for (let i = 0; i < formula.length; i++) {
+      const ch = formula[i];
+      if (ch === '+' || ch === '-') {
+        if (num) {
+          tokens.push({op, val: num.trim()});
+          num = '';
+        }
+        op = ch;
+      } else {
+        num += ch;
+      }
+    }
+    if (num) tokens.push({op, val: num.trim()});
+    return tokens;
+  }
+
+  function evaluate(cell, stack = []) {
+    const valTrim = cell.value.trim();
+    if (!cell.dataset.formula && valTrim.startsWith('=')) {
+      cell.dataset.formula = valTrim;
+    }
+    if (cell.dataset.formula && !valTrim.startsWith('=')) {
+      delete cell.dataset.formula;
+    }
+
+    if (stack.includes(cell)) {
+      cell.value = 'CIRC';
+      return 'CIRC';
+    }
+    const formula = cell.dataset.formula;
+    if (formula) {
+      stack.push(cell);
+      const tokens = parseFormula(formula);
+      let result = 0;
+      for (const t of tokens) {
+        const ref = t.val.toUpperCase();
+        if (cellMap[ref]) {
+          const refVal = evaluate(cellMap[ref], stack);
+          if (refVal === 'CIRC') {
+            cell.value = 'CIRC';
+            stack.pop();
+            return 'CIRC';
+          }
+          const num = parseFloat(refVal);
+          if (isNaN(num)) continue;
+          result = t.op === '+' ? result + num : result - num;
+        } else {
+          const num = parseFloat(t.val);
+          if (!isNaN(num)) {
+            result = t.op === '+' ? result + num : result - num;
+          }
+        }
+      }
+      cell.value = result.toString();
+      stack.pop();
+      return result;
+    } else {
+      const val = cell.value.trim();
+      if (val === '') return '';
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num;
+    }
+  }
+
+  function updateCellStyle(cell) {
+    const val = cell.value.trim();
+    if (val === '') {
+      cell.style.color = '';
+      return;
+    }
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      cell.style.color = num >= 0 ? 'green' : 'red';
+    } else {
+      cell.style.color = '';
+    }
+  }
+
+  function recalcAll() {
+    cells.forEach(c => evaluate(c));
+    cells.forEach(c => updateCellStyle(c));
+  }
+
+  cells.forEach(c => {
+    c.addEventListener('input', () => {
+      const val = c.value.trim();
+      if (val.startsWith('=')) {
+        c.dataset.formula = val;
+      } else {
+        delete c.dataset.formula;
+      }
+      recalcAll();
+    });
+  });
+
+  recalcAll();
+  setInterval(recalcAll, 700);
+})();
+</script>
+</body>
+</html>

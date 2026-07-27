@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar funcionamiento de un buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Verificar que existen 25 celdas con data-i 0-24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Click en celda 0 (no mina) abre y muestra número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Celda 0 debe tener clase 'abierta' y mostrar 0 o número",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c.abierta"
+    },
+    {
+      "nombre": "Al abrir celda 0, todas las vecinas con 0 se abren en cascada",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Click derecho en celda 6 (mina) coloca bandera y no se abre",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Celda 6 debe tener clase 'bandera' y no 'abierta'",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c.bandera"
+    },
+    {
+      "nombre": "Click en celda 6 no abre y estado permanece sin 'perdiste'",
+      "critico": true,
+      "accion": "existe",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": 0
+    }
+  ]
+}

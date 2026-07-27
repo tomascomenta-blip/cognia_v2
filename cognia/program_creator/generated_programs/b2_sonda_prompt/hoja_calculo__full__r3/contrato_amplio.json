@@ -1,0 +1,102 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 9 celdas vacías",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Estado inicial: ninguna celda muestra valor",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Ingresar valor 5 en A1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Ingresar valor 3 en B1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Ingresar fórmula =A1+B1 en C1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='C1']",
+      "contiene": "=A1+B1"
+    },
+    {
+      "nombre": "Verificar que C1 muestra 8",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "input[data-ref='C1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Cambiar A1 a 10",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='A1']",
+      "contiene": "10"
+    },
+    {
+      "nombre": "Verificar que C1 actualiza a 13",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "input[data-ref='C1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Crear referencia circular: B1 =C1+1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "=C1+1"
+    },
+    {
+      "nombre": "Verificar que B1 muestra CIRC",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "input[data-ref='B1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Eliminar referencia circular: B1 =3",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Verificar que B1 muestra 3 y C1 actualiza a 13",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "input[data-ref='C1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Intentar ingresar fórmula con referencia inválida: D1 =A1+1",
+      "critico": false,
+      "accion": "texto",
+      "selector": "input[data-ref='D1']",
+      "contiene": "=A1+1"
+    },
+    {
+      "nombre": "Verificar que D1 no aparece en el DOM (no debe existir)",
+      "critico": false,
+      "accion": "no_existe",
+      "selector": "input[data-ref='D1']"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".mas",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".menos",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta a la derecha",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Actualizar contadores tras movimiento",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Actualizar contadores tras movimiento",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Mover tarjeta a la izquierda",
+      "accion": "click",
+      "selector": ".menos",
+      "indice": 0
+    },
+    {
+      "nombre": "Actualizar contadores tras movimiento",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Verificar límite WIP en doing",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 1
+    },
+    {
+      "nombre": "Verificar que no se mueve cuando doing lleno",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Verificar que tarjeta en done no avanza",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 2
+    },
+    {
+      "nombre": "Verificar que tarjeta en done no avanza",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    }
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "nombre": "Kanban One-File Board Compliance",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 columnas con 3 tarjetas en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: 3 tarjetas en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: 0 tarjetas en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='doing']",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: 0 tarjetas en done",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='done']",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en doing",
+      "critico": true,
+      "accion": "existe",
+      "selector": "[data-id='t1'][data-col='doing']"
+    },
+    {
+      "nombre": "Contadores después de mover t1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Contadores después de mover t1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Mover tarjeta t2 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t2'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 ahora en doing",
+      "critico": true,
+      "accion": "existe",
+      "selector": "[data-id='t2'][data-col='doing']"
+    },
+    {
+      "nombre": "Contadores después de mover t2",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Contadores después de mover t2",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Intentar mover t3 a doing cuando doing lleno",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t3'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "t3 sigue en todo porque doing lleno",
+      "critico": true,
+      "accion": "existe",
+      "selector": "[data-id='t3'][data-col='todo']"
+    },
+    {
+      "nombre": "Contadores siguen sin cambiar",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Contadores siguen sin cambiar",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Mover t1 a done",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "t1 ahora en done",
+      "critico": true,
+      "accion": "existe",
+      "selector": "[data-id='t1'][data-col='done']"
+    },
+    {
+      "nombre": "Contadores después de mover t1 a done",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Contadores después de mover t1 a done",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Intentar mover t1 a done nuevamente (no debe avanzar)",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "t1 sigue en done",
+      "critico": true,
+      "accion": "existe",
+      "selector": "[data-id='t1'][data-col='done']"
+    },
+    {
+      "nombre": "Contadores no cambian al intentar mover t1 a done",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    }
+  ]
+}
