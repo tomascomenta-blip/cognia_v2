@@ -3,7 +3,11 @@ b2_ab_contrato.py — A/B del contrato interno: clásico (≤8 pasos) vs amplio
 (10-16 pasos, CodeRM). PREREG_CONTRATO_AMPLIO_20260727.md: leerlo ANTES.
 
     PYTHONUTF8=1 venv312\\Scripts\\python.exe scripts\\b2_ab_contrato.py
-        [--brazos crudo,full] [--reanudar]
+        [--brazos crudo,full] [--modos clasico,amplio] [--reanudar]
+
+Con --modos distinto del default la salida va a un directorio propio
+(b2_ab_contrato_<modos>) para no pisar corridas previas: el brazo clásico se
+RE-genera en cada corrida como control concurrente ([[gate-e2e-flaky]]).
 
 Corpus: las páginas de b2_sonda_prompt (cada una con veredicto del BANCO ya
 registrado en su resultados.json). Por página se generan DOS contratos
@@ -33,9 +37,7 @@ sys.path.insert(0, str(RAIZ))
 TAREAS = RAIZ / "scripts" / "b1_tareas_brutales.json"
 SONDA = (RAIZ / "cognia" / "program_creator" / "generated_programs"
          / "b2_sonda_prompt")
-SALIDA = (RAIZ / "cognia" / "program_creator" / "generated_programs"
-          / "b2_ab_contrato")
-MODOS = ["clasico", "amplio"]
+MODOS_DEFECTO = ["clasico", "amplio"]
 
 
 def main(argv: list) -> int:
@@ -43,8 +45,14 @@ def main(argv: list) -> int:
     apply_config()
     from cognia.program_creator import juez_ejecutable
 
+    global MODOS, SALIDA
     brazos = (argv[argv.index("--brazos") + 1].split(",")
               if "--brazos" in argv else ["crudo", "full"])
+    MODOS = (argv[argv.index("--modos") + 1].split(",")
+             if "--modos" in argv else MODOS_DEFECTO)
+    sufijo = "" if MODOS == MODOS_DEFECTO else "_" + "-".join(MODOS)
+    SALIDA = (RAIZ / "cognia" / "program_creator" / "generated_programs"
+              / f"b2_ab_contrato{sufijo}")
     reanudar = "--reanudar" in argv
 
     ideas = {t["id"]: t["idea"]
@@ -109,10 +117,17 @@ def main(argv: list) -> int:
                 print(f"  {p['tarea']:<14} {p['brazo']:<7} r{p['rep']} "
                       f"{modo:<8} SIN CONTRATO", flush=True)
                 continue
-            (p["dir"] / f"contrato_{modo}.json").write_text(
+            # En SALIDA, no junto a la página: una re-corrida no debe pisar
+            # los contratos de corridas previas (el corpus de análisis de
+            # b2_fn_por_tipo.py son esos archivos).
+            (SALIDA / f"{p['tarea']}__{p['brazo']}__r{p['rep']}"
+                      f"__contrato_{modo}.json").write_text(
                 json.dumps(contrato, indent=2, ensure_ascii=False),
                 encoding="utf-8")
             fila["pasos"] = len(contrato.get("pasos", []))
+            fila["criticos"] = sum(
+                1 for paso in contrato.get("pasos", [])
+                if isinstance(paso, dict) and paso.get("critico"))
             try:
                 v = juez_ejecutable.juzgar_web(html, contrato)
                 fila["interno"] = bool(v.aprobado)
@@ -143,10 +158,17 @@ def main(argv: list) -> int:
         fp = sum(1 for f in ap_int if not f["banco"])
         fn = sum(1 for f in no_int if f["banco"])
         pasos = sorted(f["pasos"] for f in fs if f.get("pasos"))
+        criticos = sorted(f["criticos"] for f in fs if "criticos" in f)
         resumen[modo] = {
             "n": len(con), "sin_contrato": len(fs) - len(con),
             "fp": f"{fp}/{len(ap_int)}", "fn": f"{fn}/{len(no_int)}",
-            "pasos_mediana": pasos[len(pasos) // 2] if pasos else None}
+            "pasos_mediana": pasos[len(pasos) // 2] if pasos else None,
+            # distribución de criticidad por brazo (M1 de la enmienda del
+            # prereg SEÑAL: si difiere fuerte entre modos, el veredicto no
+            # es atribuible solo a los fixes F1-F2)
+            "criticos_mediana": (criticos[len(criticos) // 2]
+                                 if criticos else None),
+            "sin_criticos": sum(1 for c in criticos if c == 0)}
         print(f"{modo:<9}{len(con):>4}"
               f"{f'{fp}/{len(ap_int)} de aprob.':>16}"
               f"{f'{fn}/{len(no_int)} de rech.':>16}"

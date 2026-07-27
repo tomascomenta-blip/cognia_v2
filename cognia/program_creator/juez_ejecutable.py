@@ -564,6 +564,42 @@ COBERTURA OBLIGATORIA (un examen corto aprueba productos rotos):
 ESCRIBE ENTRE 10 Y 16 PASOS. Un JSON de una sola linea por paso. Nada mas.""")
 
 
+# Variante CORREGIDA (PREREG_SENAL_CONTRATO_20260727.md, resultado 1a).
+# La medición de FN por tipo de paso sobre 48 contratos en disco encontró que
+# el peor tipo es estructural, no estocástico: la aserción de texto sobre un
+# <input> falla SIEMPRE (55/55 en páginas sanas, 0/6 de acierto en rotas —
+# inner_text de un campo de formulario es vacío) y el pensador la usa porque
+# la plantilla no le documenta la acción `escribir` (0 de 48 contratos la
+# usan; los pasos "Ingresar valor..." improvisan con `texto`/`contiene`).
+# Además 7/24 contratos clásicos no marcan NINGÚN paso critico y aprueban
+# por vacuidad. Fixes que entraron por la regla pre-registrada: F1 (escribir
+# documentado + Tab), F2 (leer inputs con js .value), F5 (criticidad).
+# NO reemplaza a la clásica hasta que su A/B pase: generar_contrato(modo=).
+_PLANTILLA_CONTRATO_CORREGIDO = _PLANTILLA_CONTRATO.replace(
+    """  {{"accion":"click","selector":".x","indice":0}}
+  {{"accion":"tecla","key":"ArrowRight"}}
+  {{"accion":"texto","selector":"#x","contiene":"..."}}""",
+    """  {{"accion":"click","selector":".x","indice":0}}
+  {{"accion":"tecla","key":"ArrowRight"}}
+  {{"accion":"escribir","selector":"#x","texto":"..."}}
+  {{"accion":"texto","selector":"#x","contiene":"..."}}
+
+  Para ESCRIBIR en un campo usa "escribir". "texto" NO escribe: solo LEE y
+  compara. "escribir" deja el campo ENFOCADO: si el producto reacciona al
+  salir del campo, pulsa despues {{"accion":"tecla","key":"Tab"}}.
+
+  El VALOR de un <input>/<textarea>/<select> NO es texto del DOM: "texto" y
+  "contar_visible" lo ven SIEMPRE vacio, aunque el campo tenga contenido.
+  Un valor de campo se lee con js:
+  {{"accion":"js","expr":"document.querySelector('#x').value","esperado":"..."}}""").replace(
+    """Cada paso lleva "nombre" (que afirma) y "critico": true si el producto NO SIRVE
+sin eso.""",
+    """Cada paso lleva "nombre" (que afirma) y "critico": true si el producto NO SIRVE
+sin eso. Los pasos que verifican la mecanica que la idea exige LLEVAN
+"critico": true. Un contrato donde ningun paso es critico no verifica nada:
+se aprueba solo, este roto o no.""")
+
+
 def inventario_dom(html: Path) -> dict:
     """Que selectores hay en la pagina. Estructura, nunca logica."""
     from playwright.sync_api import sync_playwright
@@ -589,8 +625,10 @@ def generar_contrato(idea: str, html: Path,
     Solo se le da el inventario de selectores, para que los pasos sean
     ejecutables contra ESTE DOM.
 
-    modo: "clasico" (≤8 pasos, el de produccion) o "amplio" (10-16 pasos,
-    CodeRM; en A/B pre-registrado — PREREG_CONTRATO_AMPLIO_20260727.md).
+    modo: "clasico" (≤8 pasos, el de produccion), "amplio" (10-16 pasos,
+    CodeRM; A/B dio GRIS — PREREG_CONTRATO_AMPLIO_20260727.md) o "corregido"
+    (clasico + escribir/inputs/criticidad; en A/B pre-registrado —
+    PREREG_SENAL_CONTRATO_20260727.md).
     """
     from ..llm_local import generar
 
@@ -599,8 +637,9 @@ def generar_contrato(idea: str, html: Path,
     texto_inv = "\n".join(f"  {sel}  x{n}" for sel, n in clases)
     texto_inv += "\n" + "\n".join(f"  {i}" for i in inv.get("ids", [])[:20])
 
-    plantilla = (_PLANTILLA_CONTRATO_AMPLIO if modo == "amplio"
-                 else _PLANTILLA_CONTRATO)
+    plantilla = {"amplio": _PLANTILLA_CONTRATO_AMPLIO,
+                 "corregido": _PLANTILLA_CONTRATO_CORREGIDO,
+                 }.get(modo, _PLANTILLA_CONTRATO)
     crudo = generar(
         plantilla.format(idea=idea, inventario=texto_inv),
         # 1400 tokens truncaban el JSON a mitad (medido: JSONDecodeError en el
