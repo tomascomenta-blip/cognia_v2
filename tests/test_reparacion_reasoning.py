@@ -75,6 +75,31 @@ def test_reparar_web_pide_effort_low_y_reintenta_una_vez():
     assert llamadas == [(None, 12000, 400), (None, 12000, 400)]
 
 
+# ── ideas interactivas: sin reglas de dashboard en el prompt ─────────────────
+
+def test_idea_interactiva_no_recibe_reglas_de_dashboard():
+    """El ladron del banco brutal (2026-07-27): idea cruda 75% vs 17% por
+    generate_program — las reglas 'ANIMATE on its own' / Math.random /
+    grafico contradicen los contratos interactivos (el 'Contador Automatico
+    con Grafico'). Para ideas con OBLIGATORIO/click/juego, fuera."""
+    idea = ('Un contador en un solo archivo HTML. OBLIGATORIO: un <span '
+            'id="valor">, un <button id="mas"> que suma 1. Empieza en 0.')
+    p = g._build_prompt_web(idea, "hint")
+    assert "ANIMATE on its own" not in p
+    assert "Math.random" not in p
+    assert "at least 3 distinct sections" not in p
+    assert "EXACTLY the behavior" in p
+    assert "INITIAL state" in p
+
+
+def test_idea_de_dashboard_conserva_sus_reglas():
+    p = g._build_prompt_web("dashboard de inversiones con precios en vivo",
+                            "hint")
+    assert "ANIMATE on its own" in p
+    assert "Math.random" in p
+    assert "at least 3 distinct sections" in p
+
+
 # ── contratos malformados se rechazan, los legitimos no ──────────────────────
 
 def test_pasos_con_dict_donde_va_string_se_rechazan():

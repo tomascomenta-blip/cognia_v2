@@ -1,0 +1,62 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": 1
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": false,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='20.28', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al camb",
+      "segundos": 86.25215029716492,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 22,
+      "checks": 28,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "carrito_stock": {
+      "aprobado": false,
+      "motivo": "falla critica: dos veces el mismo producto = UNA linea (count('.linea')=0, esperaba 1); la cantidad es 2 (excepcion: Err",
+      "segundos": 34.62916827201843,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 8,
+      "checks": 19,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "kanban": {
+      "aprobado": true,
+      "motivo": "20/20 checks OK (16/16 del contrato)",
+      "segundos": 117.61363863945007,
+      "como": "create_program",
+      "checks_ok": 20,
+      "checks": 20,
+      "rondas": 0,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "no se pudo generar la pagina inicial",
+      "bon": null,
+      "aprobado_heldout": true,
+      "heldout_motivo": "23/23 checks OK (19/19 del contrato)"
+    },
+    "buscaminas": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza todo cerrado (count('.abierta')=3, esperaba 0); la celda 11 dice 2 (vecinas de 6 y 12) (js='', es",
+      "segundos": 75.66247391700745,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 16,
+      "checks": 20,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    }
+  },
+  "aprobados": 1,
+  "aprobados_heldout": 1,
+  "n_tareas": 4
+}

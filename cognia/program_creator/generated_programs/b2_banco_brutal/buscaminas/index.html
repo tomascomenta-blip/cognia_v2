@@ -1,229 +1,273 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<title>Minas 5x5 con Animación</title>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con Animación Automática</title>
 <style>
-  body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
-  header{background:#333;color:#fff;padding:10px;text-align:center;}
-  #summary{display:flex;justify-content:space-around;padding:10px;background:#ddd;}
-  #board{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:200px;margin:0 auto;}
-  .c{background:#bbb;color:#000;display:flex;align-items:center;justify-content:center;height:40px;cursor:pointer;}
-  .c.abierta{background:#fff;color:#000;}
-  .c.bandera{background:#ff0;}
-  .c.mina{background:#f00;color:#fff;}
-  #chart{margin:20px auto;width:90%;height:200px;}
-  #estado{font-size:1.2em;text-align:center;margin:10px;color:#900;}
-  svg{font-size:10px;}
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#fafafa;}
+  header{width:100%;text-align:center;padding:10px;background:#e0e0e0;}
+  #estado{font-weight:bold;margin-top:5px;}
+  #grid{display:grid;grid-template-columns:repeat(5,40px);grid-gap:1px;margin:10px;}
+  .c{width:40px;height:40px;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;user-select:none;}
+  .abierta{background:#e0e0e0;cursor:default;}
+  .bandera{background:#ffeb3b;cursor:default;}
+  #chart{width:100%;max-width:600px;height:200px;border:1px solid #ccc;margin:10px;}
+  #summary{width:100%;max-width:600px;margin:10px;}
+  #summary table{width:100%;border-collapse:collapse;}
+  #summary th,#summary td{border:1px solid #999;padding:5px;text-align:center;}
 </style>
 </head>
 <body>
-<header>Minas 5x5 con Animación Automática</header>
+<header>
+  <h1>Buscaminas 5x5 con Animación Automática</h1>
+  <div id="estado">En juego</div>
+</header>
+<div id="grid"></div>
+<div id="chart"></div>
 <div id="summary">
-  <div>Minas: <strong id="minas">3</strong></div>
-  <div>Abiertas: <strong id="abiertas">0</strong></div>
-  <div>Bandera: <strong id="banderas">0</strong></div>
+  <table>
+    <thead><tr><th>Celdas abiertas</th><th>Celdas marcadas</th><th>Mines restantes</th></tr></thead>
+    <tbody id="summary-body"><tr><td id="opened-count">0</td><td id="flagged-count">0</td><td id="mines-left">3</td></tr></tbody>
+  </table>
 </div>
-<div id="board"></div>
-<svg id="chart"></svg>
-<div id="estado"></div>
-
 <script>
-(() => {
-  const size = 5;
-  const total = size*size;
-  const mines = [6,12,18];
-  const board = document.getElementById('board');
-  const estado = document.getElementById('estado');
-  const abiertasEl = document.getElementById('abiertas');
-  const minasEl = document.getElementById('minas');
-  const banderasEl = document.getElementById('banderas');
-  const chart = document.getElementById('chart');
+class Minesweeper {
+  constructor() {
+    this.size = 5;
+    this.totalCells = this.size * this.size;
+    this.mines = new Set([6,12,18]); // minas fijas
+    this.opened = new Set();
+    this.flagged = new Set();
+    this.adjacentCounts = new Array(this.totalCells).fill(0);
+    this.gridElement = document.getElementById('grid');
+    this.estadoElement = document.getElementById('estado');
+    this.openedCountElement = document.getElementById('opened-count');
+    this.flaggedCountElement = document.getElementById('flagged-count');
+    this.minesLeftElement = document.getElementById('mines-left');
+    this.chartElement = document.getElementById('chart');
+    this.time = 0;
+    this.chartData = [];
+    this.simulationInterval = null;
+    this.initGrid();
+    this.calculateAdjacentCounts();
+    this.updateSummary();
+    this.startSimulation();
+  }
 
-  const cells = [];
-  const adjCount = Array(total).fill(0);
-  const opened = new Set();
-  const flagged = new Set();
-  let gameOver = false;
-  let intervalId = null;
+  initGrid() {
+    for (let i = 0; i < this.totalCells; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.addEventListener('click', e => this.handleClick(e, i));
+      cell.addEventListener('contextmenu', e => this.handleRightClick(e, i));
+      this.gridElement.appendChild(cell);
+    }
+  }
 
-  // Precompute adjacent mine counts
-  for(let i=0;i<total;i++){
-    const r=Math.floor(i/size), c=i%size;
-    let count=0;
-    for(let dr=-1;dr<=1;dr++){
-      for(let dc=-1;dc<=1;dc++){
-        if(dr===0&&dc===0)continue;
-        const nr=r+dr, nc=c+dc;
-        if(nr>=0&&nr<size&&nc>=0&&nc<size){
-          const idx=nr*size+nc;
-          if(mines.includes(idx))count++;
+  calculateAdjacentCounts() {
+    for (let i = 0; i < this.totalCells; i++) {
+      if (this.mines.has(i)) continue;
+      let count = 0;
+      for (let ni of this.getNeighbors(i)) {
+        if (this.mines.has(ni)) count++;
+      }
+      this.adjacentCounts[i] = count;
+    }
+  }
+
+  getNeighbors(i) {
+    const neighbors = [];
+    const row = Math.floor(i / this.size);
+    const col = i % this.size;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r < this.size && c >= 0 && c < this.size) {
+          neighbors.push(r * this.size + c);
         }
       }
     }
-    adjCount[i]=count;
+    return neighbors;
   }
 
-  // Create cells
-  for(let i=0;i<total;i++){
-    const div=document.createElement('div');
-    div.className='c';
-    div.dataset.i=i;
-    div.addEventListener('click',()=>{if(!gameOver)openCell(i);});
-    div.addEventListener('contextmenu',e=>{
-      e.preventDefault();
-      if(gameOver)return;
-      if(opened.has(i))return;
-      if(flagged.has(i)){
-        flagged.delete(i);
-        div.classList.remove('bandera');
-      }else{
-        flagged.add(i);
-        div.classList.add('bandera');
-      }
-      updateSummary();
-    });
-    board.appendChild(div);
-    cells.push(div);
+  handleClick(e, i) {
+    e.preventDefault();
+    if (this.flagged.has(i) || this.opened.has(i)) return;
+    this.openCell(i);
+    this.checkGameState();
   }
 
-  function openCell(i){
-    if(opened.has(i)||flagged.has(i)||gameOver)return;
-    if(mines.includes(i)){
-      // Hit mine
-      cells[i].classList.add('mina');
-      estado.textContent='perdiste';
-      gameOver=true;
-      clearInterval(intervalId);
-      revealMines();
+  handleRightClick(e, i) {
+    e.preventDefault();
+    if (this.opened.has(i)) return;
+    if (this.flagged.has(i)) {
+      this.flagged.delete(i);
+      this.getCellElement(i).classList.remove('bandera');
+    } else {
+      this.flagged.add(i);
+      this.getCellElement(i).classList.add('bandera');
+    }
+    this.updateSummary();
+  }
+
+  getCellElement(i) {
+    return this.gridElement.querySelector(`.c[data-i='${i}']`);
+  }
+
+  openCell(i) {
+    if (this.opened.has(i) || this.flagged.has(i)) return;
+    this.opened.add(i);
+    const cell = this.getCellElement(i);
+    cell.classList.add('abierta');
+    if (this.mines.has(i)) {
+      cell.textContent = '💣';
+      this.estadoElement.textContent = 'perdiste';
+      this.stopSimulation();
       return;
     }
-    // Open cell
-    opened.add(i);
-    const div=cells[i];
-    div.classList.add('abierta');
-    const cnt=adjCount[i];
-    if(cnt>0)div.textContent=cnt;
-    if(cnt===0){
-      // Cascade
-      const queue=[i];
-      while(queue.length){
-        const cur=queue.shift();
-        const r=Math.floor(cur/size), c=cur%size;
-        for(let dr=-1;dr<=1;dr++){
-          for(let dc=-1;dc<=1;dc++){
-            if(dr===0&&dc===0)continue;
-            const nr=r+dr, nc=c+dc;
-            if(nr>=0&&nr<size&&nc>=0&&nc<size){
-              const idx=nr*size+nc;
-              if(!opened.has(idx)&&!flagged.has(idx)){
-                opened.add(idx);
-                const d=cells[idx];
-                d.classList.add('abierta');
-                const ccnt=adjCount[idx];
-                if(ccnt>0)d.textContent=ccnt;
-                if(ccnt===0)queue.push(idx);
-              }
-            }
-          }
+    const count = this.adjacentCounts[i];
+    if (count > 0) {
+      cell.textContent = count;
+    } else {
+      cell.textContent = '';
+      for (let ni of this.getNeighbors(i)) {
+        if (!this.opened.has(ni) && !this.flagged.has(ni)) {
+          this.openCell(ni);
         }
       }
     }
-    updateSummary();
-    updateChart();
-    if(opened.size===total-mines.length){
-      estado.textContent='¡Ganaste!';
-      clearInterval(intervalId);
+    this.updateSummary();
+  }
+
+  checkGameState() {
+    if (this.opened.size + this.mines.size === this.totalCells) {
+      this.estadoElement.textContent = 'ganaste';
+      this.stopSimulation();
     }
   }
 
-  function revealMines(){
-    mines.forEach(i=>{cells[i].classList.add('mina');});
+  updateSummary() {
+    this.openedCountElement.textContent = this.opened.size;
+    this.flaggedCountElement.textContent = this.flagged.size;
+    this.minesLeftElement.textContent = this.mines.size - this.flagged.size;
   }
 
-  function updateSummary(){
-    abiertasEl.textContent=opened.size;
-    banderasEl.textContent=flagged.size;
+  startSimulation() {
+    this.simulationInterval = setInterval(() => {
+      this.time++;
+      this.updateChart();
+      const candidates = [];
+      for (let i = 0; i < this.totalCells; i++) {
+        if (!this.opened.has(i) && !this.flagged.has(i)) {
+          candidates.push(i);
+        }
+      }
+      if (candidates.length === 0) {
+        this.stopSimulation();
+        return;
+      }
+      const idx = candidates[Math.floor(Math.random() * candidates.length)];
+      this.openCell(idx);
+      this.checkGameState();
+    }, 1000);
   }
 
-  // Chart drawing
-  function updateChart(){
-    const counts=[...Array(9).keys()].map(n=>0);
-    opened.forEach(i=>{
-      const c=adjCount[i];
-      counts[c]++;
-    });
-    const max=Math.max(...counts,1);
-    const w=chart.clientWidth;
-    const h=chart.clientHeight;
-    chart.innerHTML='';
-    // Axes
-    const yAxis=svgLine(0,h,0,h);
-    const xAxis=svgLine(0,0,w,0);
-    chart.appendChild(yAxis);
-    chart.appendChild(xAxis);
-    // Gridlines and labels
-    for(let i=0;i<=max;i++){
-      const y=h-i*h/max;
-      const line=svgLine(0,y,w,y);
-      line.style.stroke='#ccc';
-      line.style.strokeDasharray='2,2';
-      chart.appendChild(line);
-      const txt=svgText(5,y-2,i.toString());
-      chart.appendChild(txt);
+  stopSimulation() {
+    if (this.simulationInterval) {
+      clearInterval(this.simulationInterval);
+      this.simulationInterval = null;
     }
-    // Bars
-    const barWidth=w/9;
-    counts.forEach((cnt,idx)=>{
-      const barHeight=cnt*h/max;
-      const rect=svgRect(idx*barWidth, h-barHeight, barWidth-2, barHeight);
-      rect.style.fill='#4a90e2';
-      chart.appendChild(rect);
-      const txt=svgText(idx*barWidth+2, h-barHeight-2, cnt>0?cnt:'');
-      chart.appendChild(txt);
-    });
   }
 
-  function svgLine(x1,y1,x2,y2){
-    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
-    l.setAttribute('x1',x1);l.setAttribute('y1',y1);
-    l.setAttribute('x2',x2);l.setAttribute('y2',y2);
-    l.style.stroke='#000';
-    return l;
-  }
-  function svgRect(x,y,w,h){
-    const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
-    r.setAttribute('x',x);r.setAttribute('y',y);
-    r.setAttribute('width',w);r.setAttribute('height',h);
-    return r;
-  }
-  function svgText(x,y,txt){
-    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x',x);t.setAttribute('y',y);
-    t.textContent=txt;
-    t.style.fontSize='10px';
-    return t;
+  updateChart() {
+    this.chartData.push({time: this.time, opened: this.opened.size});
+    this.renderChart();
   }
 
-  // Automatic opening
-  function openRandomCell(){
-    if(gameOver)return;
-    const candidates=[];
-    for(let i=0;i<total;i++){
-      if(!opened.has(i)&&!flagged.has(i)&&!mines.includes(i))candidates.push(i);
+  renderChart() {
+    const width = 600;
+    const height = 200;
+    const maxTime = this.time || 1;
+    const maxOpened = this.totalCells;
+    const xScale = width / maxTime;
+    const yScale = height / maxOpened;
+    const points = this.chartData.map(d => {
+      const x = d.time * xScale;
+      const y = height - d.opened * yScale;
+      return `${x},${y}`;
+    }).join(' ');
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '200');
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const axisX = document.createElementNS(svgNS, 'line');
+    axisX.setAttribute('x1', '0');
+    axisX.setAttribute('y1', `${height}`);
+    axisX.setAttribute('x2', `${width}`);
+    axisX.setAttribute('y2', `${height}`);
+    axisX.setAttribute('stroke', '#000');
+    svg.appendChild(axisX);
+    const axisY = document.createElementNS(svgNS, 'line');
+    axisY.setAttribute('x1', '0');
+    axisY.setAttribute('y1', '0');
+    axisY.setAttribute('x2', '0');
+    axisY.setAttribute('y2', `${height}`);
+    axisY.setAttribute('stroke', '#000');
+    svg.appendChild(axisY);
+    const gridGroup = document.createElementNS(svgNS, 'g');
+    gridGroup.setAttribute('stroke', '#ddd');
+    gridGroup.setAttribute('stroke-width', '1');
+    for (let y = 0; y <= maxOpened; y += 5) {
+      const yPos = height - y * yScale;
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', `${yPos}`);
+      line.setAttribute('x2', `${width}`);
+      line.setAttribute('y2', `${yPos}`);
+      gridGroup.appendChild(line);
+      const text = document.createElementNS(svgNS, 'text');
+      text.setAttribute('x', '-5');
+      text.setAttribute('y', `${yPos + 4}`);
+      text.setAttribute('text-anchor', 'end');
+      text.setAttribute('font-size', '10');
+      text.textContent = y;
+      gridGroup.appendChild(text);
     }
-    if(candidates.length===0){
-      clearInterval(intervalId);
-      return;
+    for (let x = 0; x <= maxTime; x += 5) {
+      const xPos = x * xScale;
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', `${xPos}`);
+      line.setAttribute('y1', '0');
+      line.setAttribute('x2', `${xPos}`);
+      line.setAttribute('y2', `${height}`);
+      gridGroup.appendChild(line);
+      const text = document.createElementNS(svgNS, 'text');
+      text.setAttribute('x', `${xPos}`);
+      text.setAttribute('y', `${height + 12}`);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('font-size', '10');
+      text.textContent = x;
+      gridGroup.appendChild(text);
     }
-    const idx=candidates[Math.floor(Math.random()*candidates.length)];
-    openCell(idx);
+    svg.appendChild(gridGroup);
+    const linePath = document.createElementNS(svgNS, 'polyline');
+    linePath.setAttribute('points', points);
+    linePath.setAttribute('fill', 'none');
+    linePath.setAttribute('stroke', '#007bff');
+    linePath.setAttribute('stroke-width', '2');
+    svg.appendChild(linePath);
+    this.chartElement.innerHTML = '';
+    this.chartElement.appendChild(svg);
   }
+}
 
-  // Start animation after initial render
-  updateChart();
-  intervalId=setInterval(openRandomCell,800);
-})();
+document.addEventListener('DOMContentLoaded', () => {
+  new Minesweeper();
+});
 </script>
 </body>
 </html>

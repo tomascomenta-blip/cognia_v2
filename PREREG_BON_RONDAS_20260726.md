@@ -285,6 +285,33 @@ camino del sistema, sin adorno y sin reparación. n=3 (12 tareas).
 | **reparto** | 4-6/12 — ambos roban |
 | **el ladrón es generate_program** | ≤ 3/12 — el camino de generación del sistema pierde contra _call_llm directo |
 
+## OCTAVA ENMIENDA (2026-07-27 ~23:15 — el ladrón identificado con mecanismo; brazo H)
+
+Brazo G (triangula: pelada + max_rondas=1): **0/4, 1/4, 1/4 = 2/12** — igual
+que el sistema completo. El lazo de reparación queda ABSUELTO en el brutal;
+el ladrón es el camino de generación de `generate_program`. Mecanismo
+encontrado leyendo el prompt: `_build_prompt_web` inyecta reglas de
+DASHBOARD — "All data simulated (Math.random, setInterval)", "must ANIMATE
+on its own, no user click needed", "at least 3 sections (chart + table)" —
+que CONTRADICEN los contratos interactivos. Los productos fallidos se
+titulan "Contador Automático con Gráfico y Tabla". La sonda directa (75%)
+manda la idea sin esas reglas.
+
+**Fix aplicado (con tests): `_idea_interactiva()`** — ideas con
+OBLIGATORIO/click/botón/tecla/juego reciben reglas que respetan el contrato
+(comportamiento exacto, sin animación autónoma, sin datos aleatorios,
+estado inicial literal, selectores reproducidos tal cual); los dashboards
+conservan sus reglas de siempre.
+
+**Brazo H — brutal con el prompt arreglado** (config restaurada, sin flags),
+n=3:
+
+| lectura brazo H | condición |
+|---|---|
+| **ladrón confirmado y cobrado** | ≥ 6/12 (recupera la mayor parte de los 58 pts) |
+| **cobro parcial** | 3-5/12 |
+| **el fix no cobra** | ≤ 2/12 — el mecanismo era otro (volver a triangular con el prompt real registrado) |
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

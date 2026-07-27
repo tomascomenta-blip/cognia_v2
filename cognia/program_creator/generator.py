@@ -330,6 +330,26 @@ def _componentes_de_idea(category: str) -> list:
     return partes[:10]
 
 
+def _idea_interactiva(category: str) -> bool:
+    """
+    Ideas que piden COMPORTAMIENTO A DEMANDA (clicks, teclas, estado exacto,
+    selectores obligatorios). Para ellas, las reglas de dashboard del prompt
+    web ("animate on its own", datos con Math.random, grafico + 3 secciones)
+    son VENENO: contradicen el contrato. Medido 2026-07-27 en el banco brutal
+    (PREREG_BON_RONDAS_20260726.md, enmiendas 6-7): la idea CRUDA aprueba
+    9/12 (75%) y por generate_program 2/12 (17%) — mismo modelo, mismo juez,
+    misma noche; el lazo de reparacion quedo absuelto por triangulacion
+    (pelada+max_rondas=1: tambien 2/12). Los productos fallidos se titulaban
+    "Contador Automatico con Grafico": el prompt forzaba animacion autonoma
+    y graficos dentro de un contador que debe empezar en 0 y moverse SOLO al
+    click.
+    """
+    return bool(re.search(
+        r"OBLIGATORIO|\bclicks?\b|\bbot[oó]n\b|\btecla\b|\bjuego\b"
+        r"|\bal (hacer|pulsar|presionar|escribir)\b|id=\"|class=\"|<button|<input",
+        category or "", re.I))
+
+
 def _build_prompt_web(category: str, extra_hint: str) -> str:
     """
     Prompt para paginas web. Un solo index.html autocontenido.
@@ -337,6 +357,7 @@ def _build_prompt_web(category: str, extra_hint: str) -> str:
     Sin recursos externos a proposito: el resultado tiene que abrir igual desde
     file:// que servido por Railway, sin CDN que pueda caerse ni pedir red.
     """
+    interactiva = _idea_interactiva(category)
     return (
         f"You are a creative front-end developer making self-contained web pages.\n\n"
         f"Write a complete HTML page for: **{category}**\n\n"
@@ -345,8 +366,22 @@ def _build_prompt_web(category: str, extra_hint: str) -> str:
         f"- Inline <style> and <script> — no external files\n"
         f"- NO external resources: no CDN, no <link href=http...>, no fetch(), "
         f"no remote images or fonts. It must work fully offline.\n"
-        f"- All data simulated in JavaScript (Math.random, setInterval)\n"
-        f"- It must ANIMATE on its own: values updating live, no user click needed\n"
+        + (
+            # Idea INTERACTIVA: el comportamiento pedido manda. Nada de
+            # animacion autonoma ni datos aleatorios que el enunciado no pida.
+            f"- Implement EXACTLY the behavior the idea specifies. Nothing "
+            f"happens on its own: NO setInterval animations and NO random "
+            f"data unless the idea explicitly asks for them.\n"
+            f"- The INITIAL state must match the idea exactly (e.g. a counter "
+            f"that starts at 0 shows 0 and only changes on user action).\n"
+            f"- Reproduce LITERALLY every id=, class= and element the idea "
+            f"marks as required: automated tests will query those exact "
+            f"selectors.\n"
+            if interactiva else
+            f"- All data simulated in JavaScript (Math.random, setInterval)\n"
+            f"- It must ANIMATE on its own: values updating live, no user click needed\n"
+        )
+        +
         # SVG y no canvas, a proposito: el verificador de navegador puede LEER
         # el contenido de un SVG (¿tiene <text> de ejes?) pero un canvas es
         # una caja opaca de pixeles — la regla de "ejes visibles" quedaba sin
@@ -365,12 +400,19 @@ def _build_prompt_web(category: str, extra_hint: str) -> str:
         # aplastado sin ejes y dos filas de texto. El modelo SI sabe hacerlo
         # mejor: nadie se lo estaba pidiendo.
         f"- Write ALL visible text in the SAME language as the page topic above\n"
-        f"- Structure the page in at least 3 distinct sections (for a "
-        f"dashboard: summary numbers on top, a chart, and a detail table)\n"
-        f"- A chart MUST have visible axis labels (numeric y-axis values) and "
-        f"light gridlines. Compute the scale from the data min/max — never "
-        f"hardcode the range\n"
-        f"- If you use <canvas>: set canvas.width = canvas.clientWidth and "
+        + (
+            # Las secciones/graficos son reglas de DASHBOARD; a una idea
+            # interactiva le meten un grafico que el contrato no pide (el
+            # "Contador Automatico con Grafico y Tabla" de la noche del 27).
+            ""
+            if interactiva else
+            f"- Structure the page in at least 3 distinct sections (for a "
+            f"dashboard: summary numbers on top, a chart, and a detail table)\n"
+            f"- A chart MUST have visible axis labels (numeric y-axis values) and "
+            f"light gridlines. Compute the scale from the data min/max — never "
+            f"hardcode the range\n"
+        )
+        + f"- If you use <canvas>: set canvas.width = canvas.clientWidth and "
         f"canvas.height = canvas.clientHeight BEFORE drawing, and redraw on "
         f"resize. A canvas stretched by CSS from its default 300x150 renders "
         f"squashed and blurry. Inline <svg> avoids this entirely and is "

@@ -7,10 +7,10 @@
   "sistema_real": {
     "hoja_calculo": {
       "aprobado": false,
-      "motivo": "falla critica: B1 = A1+A2 = 8 (js='23,00', esperaba '8'); C1 = B1+A1 = 13 (js='44,00', esperaba '13'); CASCADA: al cambi",
-      "segundos": 59.08117747306824,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='572,00', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cam",
+      "segundos": 77.96764826774597,
       "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
-      "checks_ok": 19,
+      "checks_ok": 22,
       "checks": 28,
       "rondas": 1,
       "sello_lazo": "FALLIDO",
@@ -18,35 +18,33 @@
       "bon": null
     },
     "carrito_stock": {
-      "aprobado": true,
-      "motivo": "19/19 checks OK (15/15 del contrato)",
-      "segundos": 67.46514987945557,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
-      "checks_ok": 19,
-      "checks": 19,
-      "rondas": 1,
-      "sello_lazo": "APROBADO",
-      "motivo_corte": "aprobado por juez ejecutable",
-      "bon": null,
-      "aprobado_heldout": true,
-      "heldout_motivo": "23/23 checks OK (19/19 del contrato)"
-    },
-    "kanban": {
       "aprobado": false,
-      "motivo": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2); LIMITE WIP: t3 NO ",
-      "segundos": 73.75813221931458,
+      "motivo": "falla critica: la cantidad es 2 (excepcion: Error: Page.evaluate: TypeError: Cannot read properties of null (reading 'te",
+      "segundos": 41.52534246444702,
       "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
-      "checks_ok": 12,
-      "checks": 20,
+      "checks_ok": 15,
+      "checks": 19,
       "rondas": 1,
       "sello_lazo": "FALLIDO",
       "motivo_corte": "tope de rondas",
       "bon": null
     },
+    "kanban": {
+      "aprobado": false,
+      "motivo": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); t3 se queda en todo (js=0, esperaba 1); t1 llega a don",
+      "segundos": 77.30687260627747,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 12,
+      "checks": 20,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
     "buscaminas": {
       "aprobado": false,
-      "motivo": "falla critica: empieza todo cerrado (count('.abierta')=1, esperaba 0)",
-      "segundos": 78.49019312858582,
+      "motivo": "falla critica: la celda 11 dice 2 (vecinas de 6 y 12) (js='', esperaba '2')",
+      "segundos": 109.97977757453918,
       "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
       "checks_ok": 18,
       "checks": 20,
@@ -56,7 +54,7 @@
       "bon": null
     }
   },
-  "aprobados": 1,
-  "aprobados_heldout": 1,
+  "aprobados": 0,
+  "aprobados_heldout": 0,
   "n_tareas": 4
 }
