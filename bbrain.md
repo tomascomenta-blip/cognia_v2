@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-07-25 23:55:04
+> Generado: 2026-07-27 06:50:26
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -26,8 +26,8 @@
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 437 archivos .py
-- Archivos de test (tests/test_*.py): 434
+- tests/: 441 archivos .py
+- Archivos de test (tests/test_*.py): 438
 
 ## Radar de cobertura (anti-danos-colaterales)
 - Modulos con simbolos publicos: 376
