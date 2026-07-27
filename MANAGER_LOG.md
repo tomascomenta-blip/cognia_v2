@@ -9374,3 +9374,70 @@ descartar-hipotesis-reproduce-condiciones, presupuesto-tokens-razonamiento;
 actualizadas laguna-xs-candidato (medido y descartado) y
 juez-tiene-que-ejecutar (cableado al lazo).
 
+
+
+## 2026-07-27 (nocturna 26/27) — El A/B que se corrigió tres veces y el ladrón del banco brutal
+
+**Sesión autónoma hasta 04:30. Unidades cerradas, cada una con su número:**
+
+1. **Gate de b2 CERRADO con n=6** — réplica 9: 6/6 (primera corrida perfecta).
+   Serie config final: 3,4,5,5,4,6 (media 4.5, mínimo 3; 27/36=75%) vs
+   baseline 2/6. Veredicto formal gate-e2e-flaky: mejora DECLARADA (fallos
+   dispersos = ruido de generación, no regresión). Commit bd51f3a.
+
+2. **El A/B de BoN/rondas (PREREG con 8 enmiendas) — el resultado es el
+   MÉTODO, no una config.** Tres series n=6 del banco fácil: pre-fix 4.5,
+   primera-generación 3.17, restaurada 3.33. Con sd≈1.3/réplica NINGUNA
+   config separa del ruido; dos políticas de producción se cambiaron y
+   REVIRTIERON en horas por leer n=3 (primgen 5,2,5=4.0 → n=6 3.17). Brazos
+   n=3 (todos con reparación effort=low): baseline 3.33, BoN k=3 3.0 (KILL:
+   a temp 0.2 los candidatos son CLONES — checks_ok 9,9,9; 0/16 aprobados
+   en fase BoN; coste 2.2x), escalada 3.33 (KILL), best-of-so-far 2.33
+   (KILL). Regla a memoria: n>=6 POR BRAZO + brazos INTERCALADOS a nivel
+   tarea + banco con efectos grandes.
+
+3. **Fixes mecánicos con medición propia** (commits 0a70f98, 8f476b7,
+   81cdb77): la espiral de razonamiento de reparar_web se mata con
+   chat_template_kwargs.reasoning_effort (6/6 sondas morían finish=length
+   con 22-53k chars pensando ANTES de responder; la línea "Reasoning: low"
+   del system NO hace nada — 3/3 sondas); contratos a effort=low salen 3/3
+   válidos vs 2/3 MALFORMADOS con esfuerzo default (validación de pasos
+   añadida: un dict en 'accion' reventaba juzgar_web CADA ronda y bloqueaba
+   el reintento); reparar_web con timeout 400 + un reintento. Config
+   vigente: rondas=3, reparación esfuerzo default, contrato low +
+   validación. Suite: 5447 passed, 1 skipped, 0 failed.
+
+4. **Tasa de "sin verificar" medida (primera vez): 9/79 = 11.4%** de las
+   construcciones salieron sin sello (8/9 por fallo del pensador/backend).
+   Telemetría append-only en generated_programs/telemetria_sellos.jsonl,
+   con con_contrato para separar fallo del pensador de fallo de harness;
+   aislada en tests via conftest.
+
+5. **Banco brutal por el sistema real (primera medición) y la caza del
+   ladrón — lo más valioso de la noche.** Sistema sin fix: 2/12 (17%).
+   Modelo CRUDO, misma noche, mismo server, mismo juez: 9/12 (75%) —
+   b2_confound_envoltorio.py cerró el confound de deriva. Cadena de
+   aislamiento pre-registrada: adorno TARGET LOOK absuelto (pelada 0/12);
+   lazo de reparación absuelto (triangulación pelada+max_rondas=1: 2/12);
+   ladrón CON MECANISMO: las reglas dashboard de _build_prompt_web ("must
+   ANIMATE on its own", "data simulated with Math.random", "3 sections
+   chart+table") contradicen los contratos interactivos — los productos
+   fallidos se titulaban "Contador Automático con Gráfico y Tabla". Fix
+   _idea_interactiva() (reglas condicionales, commit 1a50bbc):
+   **2,1,1,2,3,3 = 12/24 (50%) por contrato, 11/24 (46%) held-out limpio —
+   TRIPLICA el 17%** y recupera ~33 de los 58 puntos. Quedan ~25 pts hasta
+   el crudo.
+
+**Lecciones a memoria:** brazo-envenenado-re-baselinear (nueva);
+presupuesto-tokens-razonamiento (6º bug de la clase + el kwarg del
+template); gate-e2e-flaky (n>=6 POR BRAZO + intercalado);
+juez-tiene-que-ejecutar (corregida TRES veces la misma noche — quedó la
+versión honesta, incluido el ladrón del prompt).
+
+**Qué sigue (por valor):** (1) cazar los ~25 pts restantes del brutal
+(sospechosos: componentes REQUIRED troceados por comas, formato de
+respuesta, reparación en composicionales); (2) el contrato interno sigue
+más débil que el held-out (aprueba lo que el externo reprueba, y apareció
+el primer FP en producción del fix): CodeRM/más aserciones; (3) re-plantear
+BoN con candidatos 2..k a temperatura alta; (4) próximo A/B del banco
+fácil: intercalado y n>=6 por brazo, o directamente sobre el brutal.

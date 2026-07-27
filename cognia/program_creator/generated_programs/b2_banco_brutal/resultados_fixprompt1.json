@@ -1,0 +1,64 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": false,
+      "motivo": "falla critica: REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)",
+      "segundos": 297.251558303833,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 26,
+      "checks": 28,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    },
+    "carrito_stock": {
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "segundos": 196.90829181671143,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 19,
+      "checks": 19,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null,
+      "aprobado_heldout": true,
+      "heldout_motivo": "23/23 checks OK (19/19 del contrato)"
+    },
+    "kanban": {
+      "aprobado": true,
+      "motivo": "20/20 checks OK (16/16 del contrato)",
+      "segundos": 51.05921149253845,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 20,
+      "checks": 20,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null,
+      "aprobado_heldout": true,
+      "heldout_motivo": "23/23 checks OK (19/19 del contrato)"
+    },
+    "buscaminas": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza todo cerrado (count('.abierta')=4, esperaba 0); la cascada NO destapa una mina (js=False, esperab",
+      "segundos": 226.31637334823608,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 16,
+      "checks": 20,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    }
+  },
+  "aprobados": 2,
+  "aprobados_heldout": 2,
+  "n_tareas": 4
+}

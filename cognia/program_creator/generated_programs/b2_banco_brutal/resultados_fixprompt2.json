@@ -1,0 +1,62 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": false,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='3', esperaba '8'); C1 = B1+A1 = 13 (js='2', esperaba '13'); CASCADA: al cambiar A1, B",
+      "segundos": 223.71199893951416,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 22,
+      "checks": 28,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "carrito_stock": {
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "segundos": 238.44645404815674,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 19,
+      "checks": 19,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null,
+      "aprobado_heldout": true,
+      "heldout_motivo": "23/23 checks OK (19/19 del contrato)"
+    },
+    "kanban": {
+      "aprobado": false,
+      "motivo": "falla critica: t3 se queda en todo (js=0, esperaba 1); t1 llega a done (js=2, esperaba 1); en done ya no avanza mas (js=",
+      "segundos": 379.85125851631165,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 12,
+      "checks": 20,
+      "rondas": 3,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "buscaminas": {
+      "aprobado": false,
+      "motivo": "falla critica: abrir una mina pierde ('' no contiene 'perdiste')",
+      "segundos": 151.34438800811768,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 19,
+      "checks": 20,
+      "rondas": 3,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    }
+  },
+  "aprobados": 1,
+  "aprobados_heldout": 1,
+  "n_tareas": 4
+}

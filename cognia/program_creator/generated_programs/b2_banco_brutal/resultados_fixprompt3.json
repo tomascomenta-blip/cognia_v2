@@ -1,0 +1,60 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": false,
+      "motivo": "falla critica: C1 = B1+A1 = 13 (js='12', esperaba '13'); CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba ",
+      "segundos": 135.13142204284668,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 23,
+      "checks": 28,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "carrito_stock": {
+      "aprobado": false,
+      "motivo": "falla critica: total vuelve a 25 ('75,00 €' no contiene '25')",
+      "segundos": 255.8411407470703,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 18,
+      "checks": 19,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "kanban": {
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "segundos": 324.7348110675812,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 19,
+      "checks": 20,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null,
+      "aprobado_heldout": true,
+      "heldout_motivo": "22/23 checks OK (19/19 del contrato)"
+    },
+    "buscaminas": {
+      "aprobado": false,
+      "motivo": "sin HTML",
+      "segundos": 200.48971509933472,
+      "como": "create_program (sin respuesta)",
+      "rondas": 0,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "no se pudo generar la pagina inicial",
+      "bon": null
+    }
+  },
+  "aprobados": 1,
+  "aprobados_heldout": 1,
+  "n_tareas": 4
+}

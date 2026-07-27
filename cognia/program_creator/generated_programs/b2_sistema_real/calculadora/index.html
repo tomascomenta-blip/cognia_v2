@@ -1,82 +1,101 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<title>Calculadora y Gráfico Automático</title>
+<meta charset="utf-8"><title>Calculadora y Dashboard</title>
 <style>
-  body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
-  header{background:#333;color:#fff;padding:1rem;text-align:center;}
-  section{padding:1rem;background:#fff;margin:1rem auto;max-width:600px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
-  #pantalla{height:50px;background:#222;color:#0f0;font-size:2rem;text-align:right;padding:.5rem;margin-bottom:1rem;border-radius:4px;}
-  .tecla{display:inline-block;width:60px;height:60px;margin:5px;background:#ddd;border-radius:8px;font-size:1.5rem;cursor:pointer;user-select:none;}
-  .tecla:active{background:#bbb;}
-  svg{width:100%;height:200px;}
-  .grid line{stroke:#ccc;stroke-width:.5;}
-  .bar{fill:#4caf50;}
-  .axis text{font-size:.8rem;}
+body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
+#summary,#chart,#table{background:#fff;padding:10px;margin:5px;}
+#pantalla{border:1px solid #000;padding:5px;font-size:1.2em;}
+.tecla{display:inline-block;width:30px;height:30px;margin:2px;background:#ddd;text-align:center;line-height:30px;}
+.tecla.active{background:#bbb;}
+svg{width:100%;height:200px;}
+.grid line{stroke:#ccc;}
+.bar{fill:#4caf50;transition:height 1s;}
 </style>
 </head>
 <body>
-<header>Calculadora y Gráfico Automático</header>
-<section id="calc">
-  <div id="pantalla"></div>
-  <div id="teclas">
-    <div class="tecla" data-t="2">2</div>
-    <div class="tecla" data-t="+">+</div>
-    <div class="tecla" data-t="3">3</div>
-    <div class="tecla" data-t="=">=</div>
-  </div>
-</section>
-<section id="chart">
-  <svg id="chartSvg"></svg>
-</section>
+<div id="summary"><div id="pantalla">0</div></div>
+<div id="chart"><svg id="chartSvg" width="400" height="200"></svg></div>
+<div id="table"><table id="detailTable"><tr><th>Item</th><th>Valor</th></tr></table></div>
+<div id="buttons">
+  <button class="tecla" data-t="2">2</button>
+  <button class="tecla" data-t="+">+</button>
+  <button class="tecla" data-t="3">3</button>
+  <button class="tecla" data-t="=">=</button>
+</div>
 <script>
-  // Calculadora
-  const pantalla=document.getElementById('pantalla');
-  let cur='',op='',op1='';
-  const press=v=>{
-    if(!isNaN(v)){cur+=v;pantalla.textContent=cur;}
-    else if(v==='+'||v==='-'){op1=cur;op=v;cur='';pantalla.textContent=op1+op;}
-    else if(v==='='){const r=op==='+'?+op1++cur:op==='-'?+op1-+cur:0;pantalla.textContent=r.toLocaleString();cur='';op='';op1='';}
-  };
-  const seq=['2','+','3','='];let i=0;
-  const next=()=>{if(i<seq.length){press(seq[i++]);setTimeout(next,800);}};
-  next();
+let p = document.getElementById('pantalla'),
+    t = document.querySelectorAll('.tecla'),
+    d = ['2', '+', '3', '='],
+    i = 0,
+    calc = 0,
+    op = null,
+    opv = 0,
+    prev = 0;
 
-  // Gráfico
-  const data=[12,7,9,15,6];
-  const svg=document.getElementById('chartSvg');
-  const w=svg.clientWidth,h=svg.clientHeight,p=40;
-  const max=Math.max(...data),min=Math.min(...data);
-  const scaleY=y=>p+(h-2*p)*(max-y)/(max-min);
-  const bw=(w-2*p)/data.length*0.8;
-  const grid=document.createElementNS('http://www.w3.org/2000/svg','g');grid.setAttribute('class','grid');
-  for(let i=0;i<=5;i++){
-    const y=p+(h-2*p)*i/5;
-    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
-    l.setAttribute('x1',p);l.setAttribute('y1',y);l.setAttribute('x2',w-p);l.setAttribute('y2',y);
-    grid.appendChild(l);
+function press(v) {
+  if (v === '=') {
+    if (op) {
+      const current = parseInt(p.textContent, 10);
+      const result = op(opv, current);
+      const change = result - prev;
+      p.textContent = result;
+      p.style.color = change >= 0 ? 'green' : 'red';
+      prev = result;
+      op = null;
+      opv = 0;
+    }
+  } else if (v === '+' || v === '-') {
+    opv = parseInt(p.textContent, 10);
+    op = (v === '+') ? ((a, b) => a + b) : ((a, b) => a - b);
+  } else {
+    p.textContent = v;
+    p.style.color = 'black';
   }
-  svg.appendChild(grid);
-  data.forEach((d,idx)=>{
-    const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
-    const x=p+idx*(w-2*p)/data.length+bw*0.1;
-    const y=scaleY(d);
-    const hgt=h-2*p-(y-p);
-    r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',bw);r.setAttribute('height',hgt);r.setAttribute('class','bar');
-    svg.appendChild(r);
-    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x',x+bw/2);t.setAttribute('y',y-5);t.setAttribute('text-anchor','middle');t.textContent=d.toLocaleString();
-    svg.appendChild(t);
+}
+
+t.forEach(btn => btn.addEventListener('click', () => press(btn.dataset.t)));
+
+setTimeout(() => {
+  if (i < d.length) {
+    press(d[i]);
+    i++;
+    setTimeout(arguments.callee, 500);
+  }
+}, 500);
+
+const data = [12, 7, 9, 15, 4],
+      svg = document.getElementById('chartSvg'),
+      h = svg.height.baseVal.value,
+      w = svg.width.baseVal.value;
+
+svg.innerHTML = '<g class="grid">' +
+  data.map((v, j) => `<line x1="0" y1="${h - 20 * j}" x2="${w}" y2="${h - 20 * j}"></line>`).join('') +
+  '</g><g class="bars">' +
+  data.map((v, j) => `<rect class="bar" x="${j * 80 + 10}" y="${h}" width="60" height="0" data-t="${v}"></rect>`).join('') +
+  '</g>';
+
+// Add Y‑axis labels
+for (let j = 0; j <= 10; j++) {
+  const y = h - 20 * j;
+  const label = j * 5;
+  svg.innerHTML += `<text x="5" y="${y - 5}" font-size="10" fill="black">${label}</text>`;
+}
+
+setTimeout(() => {
+  document.querySelectorAll('.bar').forEach(r => {
+    const v = parseInt(r.dataset.t, 10);
+    r.setAttribute('y', h - 20 * v);
+    r.setAttribute('height', 20 * v);
   });
-  const axis=document.createElementNS('http://www.w3.org/2000/svg','g');axis.setAttribute('class','axis');
-  const yMax=document.createElementNS('http://www.w3.org/2000/svg','text');
-  yMax.setAttribute('x',p-10);yMax.setAttribute('y',p);yMax.setAttribute('text-anchor','end');yMax.textContent=max.toLocaleString();
-  axis.appendChild(yMax);
-  const yMin=document.createElementNS('http://www.w3.org/2000/svg','text');
-  yMin.setAttribute('x',p-10);yMin.setAttribute('y',h-p);yMin.setAttribute('text-anchor','end');yMin.textContent=min.toLocaleString();
-  axis.appendChild(yMin);
-  svg.appendChild(axis);
+}, 200);
+
+const tbl = document.getElementById('detailTable');
+data.forEach((v, i) => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>Dato ${i + 1}</td><td>${v.toLocaleString()}</td>`;
+  tbl.appendChild(tr);
+});
 </script>
 </body>
 </html>

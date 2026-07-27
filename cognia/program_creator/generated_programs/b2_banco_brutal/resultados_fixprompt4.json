@@ -1,0 +1,64 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": false,
+      "motivo": "falla critica: REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)",
+      "segundos": 157.58286881446838,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 26,
+      "checks": 28,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    },
+    "carrito_stock": {
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "segundos": 456.3110888004303,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 19,
+      "checks": 19,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null,
+      "aprobado_heldout": false,
+      "heldout_motivo": "falla critica: quitar baja p2 a 2 (js='3', esperaba '2')"
+    },
+    "kanban": {
+      "aprobado": false,
+      "motivo": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2); LIMITE WIP: t3 NO ",
+      "segundos": 38.52682113647461,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 6,
+      "checks": 20,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "buscaminas": {
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "segundos": 28.46766948699951,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 19,
+      "checks": 20,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null,
+      "aprobado_heldout": true,
+      "heldout_motivo": "22/23 checks OK (19/19 del contrato)"
+    }
+  },
+  "aprobados": 2,
+  "aprobados_heldout": 1,
+  "n_tareas": 4
+}

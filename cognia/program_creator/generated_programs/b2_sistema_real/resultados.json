@@ -1,59 +1,85 @@
 {
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
   "sistema_real": {
     "memoria_4x4": {
       "aprobado": true,
       "motivo": "10/10 checks OK (6/6 del contrato)",
-      "segundos": 240.37053442001343,
-      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "segundos": 165.0313971042633,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
       "checks_ok": 10,
-      "checks": 10
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
     },
     "contador": {
-      "aprobado": false,
-      "motivo": "falla critica: tras dos + vale 2 ('3' no contiene '2'); tras - vuelve a 1 ('2' no contiene '1'); NO baja de 0 ('1' no co",
-      "segundos": 202.59991478919983,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
-      "checks_ok": 9,
-      "checks": 14
+      "aprobado": true,
+      "motivo": "14/14 checks OK (10/10 del contrato)",
+      "segundos": 294.05110263824463,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 14,
+      "checks": 14,
+      "rondas": 3,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
     },
     "tareas_todo": {
-      "aprobado": true,
-      "motivo": "11/12 checks OK (8/8 del contrato)",
-      "segundos": 226.13270211219788,
-      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
-      "checks_ok": 11,
-      "checks": 12
+      "aprobado": false,
+      "motivo": "sin HTML",
+      "segundos": 111.71919465065002,
+      "como": "create_program",
+      "rondas": 0,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "no se pudo generar la pagina inicial",
+      "bon": null
     },
     "calculadora": {
-      "aprobado": false,
-      "motivo": "falla critica: la pantalla muestra 5 ('' no contiene '5')",
-      "segundos": 157.48442029953003,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
-      "checks_ok": 7,
-      "checks": 10
+      "aprobado": true,
+      "motivo": "8/10 checks OK (6/6 del contrato)",
+      "segundos": 108.4280743598938,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 8,
+      "checks": 10,
+      "rondas": 2,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
     },
     "semaforo": {
       "aprobado": true,
       "motivo": "10/11 checks OK (7/7 del contrato)",
-      "segundos": 96.43752360343933,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "segundos": 272.6251268386841,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
       "checks_ok": 10,
-      "checks": 11
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
     },
     "filtro_lista": {
       "aprobado": true,
-      "motivo": "10/11 checks OK (7/7 del contrato)",
-      "segundos": 63.360124588012695,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
-      "checks_ok": 10,
-      "checks": 11
+      "motivo": "11/11 checks OK (7/7 del contrato)",
+      "segundos": 164.92914152145386,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
     }
   },
   "techo": 6,
-  "real": 4,
+  "real": 5,
   "desperdicio": [
-    "contador",
-    "calculadora"
+    "tareas_todo"
   ],
   "n_tareas": 6
 }

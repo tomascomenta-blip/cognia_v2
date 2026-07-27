@@ -4,179 +4,218 @@
 <meta charset="UTF-8">
 <title>Semáforo y Dashboard</title>
 <style>
-  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;}
-  header, main{max-width:800px;margin:auto;padding:10px;}
-  #summary{display:flex;flex-wrap:wrap;gap:10px;}
-  #summary p{background:#fff;padding:5px 10px;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
-  #chart{width:100%;height:200px;background:#fff;border:1px solid #ccc;border-radius:5px;}
-  #table-container{margin-top:20px;overflow-x:auto;}
-  #data-table{width:100%;border-collapse:collapse;}
-  #data-table th,#data-table td{border:1px solid #ccc;padding:5px;text-align:center;}
-  #luz{width:60px;height:180px;border-radius:10px;margin:20px auto;position:relative;}
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f4f4f4;}
+  #summary{display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff;border-bottom:1px solid #ddd;}
+  #luz{width:50px;height:50px;border-radius:50%;border:2px solid #333;flex-shrink:0;}
   #luz[data-color="rojo"]{background:red;}
   #luz[data-color="verde"]{background:green;}
   #luz[data-color="ambar"]{background:orange;}
-  #avanzar{padding:10px 20px;font-size:1rem;cursor:pointer;}
-  pre{background:#000;color:#0f0;padding:10px;border-radius:5px;overflow:auto;}
+  #avanzar{padding:8px 12px;font-size:1rem;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  #avanzar:hover{background:#0056b3;}
+  #stats{display:flex;gap:15px;font-size:0.9rem;}
+  #chart-section{padding:10px;background:#fff;margin:10px;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+  #chart{width:100%;height:300px;}
+  #detail-section{padding:10px;background:#fff;margin:10px;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+  #detail-table{width:100%;border-collapse:collapse;}
+  #detail-table th,#detail-table td{border:1px solid #ddd;padding:5px;text-align:center;}
+  #detail-table th{background:#f0f0f0;}
+  @media(max-width:600px){
+    #summary{flex-direction:column;align-items:flex-start;}
+    #stats{flex-direction:column;gap:5px;}
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Semáforo y Dashboard</h1>
-  <div id="summary">
-    <p>Visitas: 0</p>
-    <p>Último valor: 0</p>
-    <p>Tiempo: 00:00:00</p>
-    <p>Datos totales: 0</p>
-    <p>Media: 0.00</p>
-  </div>
-</header>
-
-<main>
+<div id="summary">
   <div id="luz" data-color="rojo"></div>
-  <button id="avanzar">Avanzar semáforo</button>
-
-  <svg id="chart"></svg>
-
-  <div id="table-container">
-    <table id="data-table">
-      <thead><tr><th>Hora</th><th>Valor</th></tr></thead>
-      <tbody></tbody>
-    </table>
+  <button id="avanzar">Avanzar</button>
+  <div id="stats">
+    <span id="avg">Promedio: 0</span>
+    <span id="max">Máximo: 0</span>
+    <span id="min">Mínimo: 0</span>
   </div>
+</div>
 
-  <pre id="ascii-art">
-     _____
-    |     |
-    |  R  |
-    |  G  |
-    |  Y  |
-    |_____|
-  </pre>
-</main>
+<div id="chart-section">
+  <svg id="chart"></svg>
+</div>
+
+<div id="detail-section">
+  <table id="detail-table">
+    <thead>
+      <tr><th>Hora</th><th>Valor</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 
 <script>
-const colors = ["rojo","verde","ambar"];
-let colorIndex = 0;
-const luz = document.getElementById('luz');
-const avanzarBtn = document.getElementById('avanzar');
-const summary = document.getElementById('summary');
-const chartSvg = document.getElementById('chart');
-const tableBody = document.querySelector('#data-table tbody');
-let counter = 0;
-const data = [];
-const maxDataPoints = 20;
+  // Configurables
+  const UPDATE_INTERVAL = 2000; // ms
+  const MAX_POINTS = 20;
+  const CHART_HEIGHT = 300;
+  const CHART_WIDTH = 600; // viewBox width
+  const LIGHT_COLORS = ['rojo', 'verde', 'ambar'];
+  const LIGHT_COLORS_MAP = {
+    rojo: 'red',
+    verde: 'green',
+    ambar: 'orange'
+  };
 
-function updateData() {
-  counter++;
-  const now = new Date();
-  data.push({time: now, value: counter});
-  if (data.length > maxDataPoints) data.shift();
-  updateSummary();
-  updateChart();
-  updateTable();
-}
+  // State
+  let dataPoints = [];
+  let lightIndex = 0;
 
-function updateSummary() {
-  const last = data[data.length-1];
-  const avg = data.reduce((sum, d)=>sum+d.value,0)/data.length;
-  summary.innerHTML = `
-    <p>Visitas: ${counter.toLocaleString()}</p>
-    <p>Último valor: ${last.value.toLocaleString()}</p>
-    <p>Tiempo: ${last.time.toLocaleTimeString()}</p>
-    <p>Datos totales: ${data.length}</p>
-    <p>Media: ${avg.toFixed(2)}</p>
-  `;
-}
+  // Elements
+  const luz = document.getElementById('luz');
+  const avanzarBtn = document.getElementById('avanzar');
+  const avgEl = document.getElementById('avg');
+  const maxEl = document.getElementById('max');
+  const minEl = document.getElementById('min');
+  const chartSvg = document.getElementById('chart');
+  const detailTbody = document.querySelector('#detail-table tbody');
 
-function updateChart() {
-  const width = chartSvg.clientWidth;
-  const height = chartSvg.clientHeight;
-  const padding = 40;
-  const innerWidth = width - 2*padding;
-  const innerHeight = height - 2*padding;
-  const values = data.map(d=>d.value);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
-  const yScale = y => padding + innerHeight - ((y - minVal)/(maxVal - minVal || 1) * innerHeight);
-  const xScale = i => padding + (i/(data.length-1||1))*innerWidth;
+  // Initialize chart viewBox
+  chartSvg.setAttribute('viewBox', `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`);
 
-  chartSvg.innerHTML = '';
-
-  // Gridlines and Y labels
-  const gridLines = 5;
-  for(let i=0;i<=gridLines;i++){
-    const y = padding + i*(innerHeight/gridLines);
-    const val = maxVal - i*((maxVal-minVal)/gridLines);
-    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',padding);
-    line.setAttribute('y1',y);
-    line.setAttribute('x2',width-padding);
-    line.setAttribute('y2',y);
-    line.setAttribute('stroke','#e0e0e0');
-    line.setAttribute('stroke-width','1');
-    chartSvg.appendChild(line);
-    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-    text.setAttribute('x',5);
-    text.setAttribute('y',y+5);
-    text.setAttribute('font-size','10');
-    text.textContent = val.toFixed(0);
-    chartSvg.appendChild(text);
+  // Helper: format number
+  function fmt(num, decimals=2){
+    return num.toLocaleString('es-ES', {minimumFractionDigits:decimals, maximumFractionDigits:decimals});
   }
 
-  // Axes
-  const xAxis = document.createElementNS('http://www.w3.org/2000/svg','line');
-  xAxis.setAttribute('x1',padding);
-  xAxis.setAttribute('y1',height-padding);
-  xAxis.setAttribute('x2',width-padding);
-  xAxis.setAttribute('y2',height-padding);
-  xAxis.setAttribute('stroke','#000');
-  xAxis.setAttribute('stroke-width','1');
-  chartSvg.appendChild(xAxis);
+  // Update light color
+  function updateLight(){
+    luz.setAttribute('data-color', LIGHT_COLORS[lightIndex]);
+  }
 
-  const yAxis = document.createElementNS('http://www.w3.org/2000/svg','line');
-  yAxis.setAttribute('x1',padding);
-  yAxis.setAttribute('y1',padding);
-  yAxis.setAttribute('x2',padding);
-  yAxis.setAttribute('y2',height-padding);
-  yAxis.setAttribute('stroke','#000');
-  yAxis.setAttribute('stroke-width','1');
-  chartSvg.appendChild(yAxis);
-
-  // Path
-  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-  let d = '';
-  data.forEach((dpt,i)=>{
-    const x = xScale(i);
-    const y = yScale(dpt.value);
-    d += `${i===0?'M':'L'}${x},${y} `;
+  // Cycle light on button click
+  avanzarBtn.addEventListener('click', () => {
+    lightIndex = (lightIndex + 1) % LIGHT_COLORS.length;
+    updateLight();
   });
-  path.setAttribute('d',d);
-  path.setAttribute('fill','none');
-  path.setAttribute('stroke','steelblue');
-  path.setAttribute('stroke-width','2');
-  chartSvg.appendChild(path);
-}
 
-function updateTable() {
-  const rows = data.map(d=>{
-    const time = d.time.toLocaleTimeString();
-    const val = d.value.toLocaleString();
-    return `<tr><td>${time}</td><td>${val}</td></tr>`;
-  }).join('');
-  tableBody.innerHTML = rows;
-}
+  // Add new data point
+  function addDataPoint(){
+    const value = Math.floor(Math.random() * 1000) + 1; // 1-1000
+    const timestamp = new Date();
+    dataPoints.push({value, timestamp});
+    if(dataPoints.length > MAX_POINTS) dataPoints.shift();
+    render();
+  }
 
-function cycleColor() {
-  colorIndex = (colorIndex+1)%colors.length;
-  luz.setAttribute('data-color',colors[colorIndex]);
-}
+  // Render everything
+  function render(){
+    renderStats();
+    renderChart();
+    renderTable();
+  }
 
-avanzarBtn.addEventListener('click',cycleColor);
-setInterval(updateData,1000);
-setInterval(cycleColor,3000);
-window.addEventListener('resize', updateChart);
-updateData();
+  // Render stats
+  function renderStats(){
+    const values = dataPoints.map(p=>p.value);
+    if(values.length===0){
+      avgEl.textContent = 'Promedio: 0';
+      maxEl.textContent = 'Máximo: 0';
+      minEl.textContent = 'Mínimo: 0';
+      return;
+    }
+    const sum = values.reduce((a,b)=>a+b,0);
+    const avg = sum / values.length;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    avgEl.textContent = `Promedio: ${fmt(avg)}`;
+    maxEl.textContent = `Máximo: ${fmt(max)}`;
+    minEl.textContent = `Mínimo: ${fmt(min)}`;
+  }
+
+  // Render chart
+  function renderChart(){
+    // Clear
+    while(chartSvg.firstChild) chartSvg.removeChild(chartSvg.firstChild);
+    if(dataPoints.length===0) return;
+
+    const values = dataPoints.map(p=>p.value);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const range = maxVal - minVal || 1; // avoid zero
+
+    // Gridlines and Y labels
+    const gridCount = 5;
+    for(let i=0;i<=gridCount;i++){
+      const y = CHART_HEIGHT - (i/gridCount)*CHART_HEIGHT;
+      const val = minVal + (i/gridCount)*range;
+      // line
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',0);
+      line.setAttribute('y1',y);
+      line.setAttribute('x2',CHART_WIDTH);
+      line.setAttribute('y2',y);
+      line.setAttribute('stroke','#e0e0e0');
+      line.setAttribute('stroke-width',1);
+      chartSvg.appendChild(line);
+      // label
+      const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+      label.setAttribute('x',-5);
+      label.setAttribute('y',y+4);
+      label.setAttribute('text-anchor','end');
+      label.setAttribute('font-size','10');
+      label.textContent = fmt(val,0);
+      chartSvg.appendChild(label);
+    }
+
+    // Line path
+    const points = dataPoints.map((p,i)=>{
+      let x;
+      if(dataPoints.length===1){
+        x = CHART_WIDTH/2;
+      }else{
+        x = (i/(dataPoints.length-1)) * CHART_WIDTH;
+      }
+      const y = CHART_HEIGHT - ((p.value - minVal)/range)*CHART_HEIGHT;
+      return `${x},${y}`;
+    }).join(' ');
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    polyline.setAttribute('points',points);
+    polyline.setAttribute('fill','none');
+    polyline.setAttribute('stroke','#007bff');
+    polyline.setAttribute('stroke-width',2);
+    chartSvg.appendChild(polyline);
+  }
+
+  // Render detail table
+  function renderTable(){
+    detailTbody.innerHTML = '';
+    dataPoints.slice().reverse().forEach((p,idx)=>{
+      const tr = document.createElement('tr');
+      const tdTime = document.createElement('td');
+      tdTime.textContent = p.timestamp.toLocaleTimeString('es-ES', {hour12:false});
+      const tdVal = document.createElement('td');
+      tdVal.textContent = fmt(p.value);
+      // Set color based on change relative to previous point
+      if(idx < dataPoints.length-1){
+        const prev = dataPoints[dataPoints.length-2-idx];
+        const diff = p.value - prev.value;
+        tdVal.style.color = diff >= 0 ? 'green' : 'red';
+      } else {
+        tdVal.style.color = 'black';
+      }
+      tr.appendChild(tdTime);
+      tr.appendChild(tdVal);
+      detailTbody.appendChild(tr);
+    });
+  }
+
+  // Initial load
+  function init(){
+    // Generate initial data
+    for(let i=0;i<5;i++) addDataPoint();
+    updateLight();
+    // Start auto update
+    setInterval(addDataPoint, UPDATE_INTERVAL);
+  }
+
+  // Run init immediately (script is at bottom of body)
+  init();
 </script>
 </body>
 </html>

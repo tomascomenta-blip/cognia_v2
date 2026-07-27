@@ -1,231 +1,77 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Tablero Kanban Automático</title>
+<meta charset="utf-8">
+<title>Kanban en HTML</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#fafafa;color:#333;}
-  h1{background:#4CAF50;color:white;padding:10px;margin:0;text-align:center;}
-  #summary{padding:10px;background:#e0f2f1;}
-  #summary p{margin:5px 0;}
-  #chart-section{padding:10px;}
-  #board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
-  .col{flex:1;min-width:200px;background:#fff;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:10px;}
-  .col h2{margin-top:0;text-align:center;color:#555;}
-  .cards{min-height:50px;}
-  .card{background:#fff;border:1px solid #ccc;border-radius:3px;padding:5px;margin:5px 0;display:flex;justify-content:space-between;align-items:center;}
-  .card button{background:#e0e0e0;border:none;padding:2px 5px;border-radius:3px;cursor:pointer;margin-left:5px;}
-  .card button:hover{background:#d0d0d0;}
-  #detail{padding:10px;}
-  #detail-table{width:100%;border-collapse:collapse;}
-  #detail-table th,#detail-table td{border:1px solid #ccc;padding:5px;text-align:left;}
-  #detail-table th{background:#eee;}
-  svg{background:#fafafa;border:1px solid #ccc;border-radius:3px;}
+  body{font-family:Arial,sans-serif;margin:0;padding:10px;background:#eaeaea;}
+  #board{display:flex;flex-wrap:wrap;gap:10px;}
+  .col{flex:1 1 30%;min-width:250px;background:#f9f9f9;padding:10px;border-radius:5px;}
+  .col h2{margin-top:0;font-size:1.2em;}
+  .cards{min-height:30px;}
+  .card{background:#fff;border:1px solid #ccc;border-radius:3px;padding:8px;margin-bottom:8px;display:flex;align-items:center;}
+  .card p{margin:0;flex:1;}
+  button{margin-left:4px;padding:2px 6px;font-size:0.9em;}
+  .counter{font-size:0.9em;color:#555;}
+  @media(max-width:600px){.col{flex:1 1 100%;}}
 </style>
 </head>
 <body>
-<h1>Tablero Kanban Automático</h1>
-
-<section id="summary">
-  <p>Total tarjetas: <span id="total-cards"></span></p>
-  <p>En Todo: <span id="cont-todo"></span></p>
-  <p>En Doing: <span id="cont-doing"></span></p>
-  <p>En Done: <span id="cont-done"></span></p>
-</section>
-
-<section id="chart-section">
-  <svg id="chart" viewBox="0 0 300 200" width="100%" height="200"></svg>
-</section>
-
-<section id="board">
+<div id="board">
   <div class="col" data-col="todo">
     <h2>Todo</h2>
-    <div class="cards"></div>
+    <div class="cards">
+      <div class="card" data-id="t1"><p>t1</p><button class="menos">←</button><button class="mas">→</button></div>
+      <div class="card" data-id="t2"><p>t2</p><button class="menos">←</button><button class="mas">→</button></div>
+      <div class="card" data-id="t3"><p>t3</p><button class="menos">←</button><button class="mas">→</button></div>
+    </div>
+    <div class="counter"><span id="cont-todo"></span> tarjetas</div>
   </div>
   <div class="col" data-col="doing">
     <h2>Doing</h2>
     <div class="cards"></div>
+    <div class="counter"><span id="cont-doing"></span> tarjetas</div>
   </div>
   <div class="col" data-col="done">
     <h2>Done</h2>
     <div class="cards"></div>
+    <div class="counter"><span id="cont-done"></span> tarjetas</div>
   </div>
-</section>
-
-<section id="detail">
-  <h2>Detalle de Tarjetas</h2>
-  <table id="detail-table">
-    <thead><tr><th>ID</th><th>Columna</th></tr></thead>
-    <tbody></tbody>
-  </table>
-</section>
-
+</div>
 <script>
-/* Configurables */
-const MAX_DOING = 2;
-const MOVE_INTERVAL = 2000; // ms
-const CARD_IDS = ['t1','t2','t3'];
-const COLORS = {todo:'#4CAF50', doing:'#2196F3', done:'#9E9E9E'};
-const BAR_POSITIONS = {todo:20, doing:120, done:220};
-const BAR_WIDTH = 80;
-const SVG_HEIGHT = 200;
-
-/* Helpers */
-function createCard(id){
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.dataset.id = id;
-  card.innerHTML = `<strong>${id}</strong> <button class="mas">→</button> <button class="menos">←</button>`;
-  // Event listeners (not used for auto but kept for completeness)
-  card.querySelector('.mas').addEventListener('click', ()=>moveRight(card));
-  card.querySelector('.menos').addEventListener('click', ()=>moveLeft(card));
-  return card;
-}
-
-function getColumn(card){
-  return card.parentElement.parentElement.dataset.col;
-}
-
-function setColumn(card, col){
-  card.parentElement.parentElement.querySelector('.cards').appendChild(card);
-}
-
-function countInColumn(col){
-  return document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
-}
-
-function moveRight(card){
-  const current = getColumn(card);
-  if(current==='todo'){
-    if(countInColumn('doing')<MAX_DOING){
-      setColumn(card,'doing');
-      return true;
-    }
-    return false;
-  }
-  if(current==='doing'){
-    setColumn(card,'done');
-    return true;
-  }
-  return false; // done cannot move right
-}
-
-function moveLeft(card){
-  const current = getColumn(card);
-  if(current==='doing'){
-    setColumn(card,'todo');
-    return true;
-  }
-  if(current==='done'){
-    if(countInColumn('doing')<MAX_DOING){
-      setColumn(card,'doing');
-      return true;
-    }
-    return false;
-  }
-  return false; // todo cannot move left
-}
-
-function updateCounters(){
-  const todo = countInColumn('todo');
-  const doing = countInColumn('doing');
-  const done = countInColumn('done');
-  document.getElementById('cont-todo').textContent = todo;
-  document.getElementById('cont-doing').textContent = doing;
-  document.getElementById('cont-done').textContent = done;
-  document.getElementById('total-cards').textContent = todo+doing+done;
-}
-
-function updateDetailTable(){
-  const tbody = document.querySelector('#detail-table tbody');
-  tbody.innerHTML = '';
+const colOrder = ['todo','doing','done'];
+function updateBoard(){
+  const cols = document.querySelectorAll('.col');
+  const counts = {todo:0,doing:0,done:0};
+  cols.forEach(col=>{
+    const c = col.querySelectorAll('.card').length;
+    counts[col.dataset.col] = c;
+  });
+  document.getElementById('cont-todo').textContent = counts.todo;
+  document.getElementById('cont-doing').textContent = counts.doing;
+  document.getElementById('cont-done').textContent = counts.done;
   document.querySelectorAll('.card').forEach(card=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${card.dataset.id}</td><td>${getColumn(card)}</td>`;
-    tbody.appendChild(tr);
+    const col = card.parentElement.parentElement.dataset.col;
+    const menos = card.querySelector('.menos');
+    const mas = card.querySelector('.mas');
+    menos.disabled = col==='todo';
+    mas.disabled = col==='done' || (col==='todo' && counts.doing>=2);
   });
 }
-
-function updateChart(){
-  const svg = document.getElementById('chart');
-  const todo = countInColumn('todo');
-  const doing = countInColumn('doing');
-  const done = countInColumn('done');
-  const counts = {todo, doing, done};
-  const maxCount = Math.max(todo,doing,done,1);
-  const step = Math.ceil(maxCount/5) || 1;
-  svg.innerHTML = '';
-
-  /* Gridlines and Y-axis labels */
-  for(let i=0;i<=5;i++){
-    const val = i*step;
-    if(val>maxCount) continue;
-    const y = SVG_HEIGHT - (val/maxCount)*SVG_HEIGHT;
-    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',0);
-    line.setAttribute('y1',y);
-    line.setAttribute('x2',300);
-    line.setAttribute('y2',y);
-    line.setAttribute('stroke','#ddd');
-    line.setAttribute('stroke-width',1);
-    svg.appendChild(line);
-    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('x',5);
-    txt.setAttribute('y',y+4);
-    txt.setAttribute('font-size',10);
-    txt.textContent = val;
-    svg.appendChild(txt);
-  }
-
-  /* Bars */
-  Object.keys(counts).forEach(col=>{
-    const count = counts[col];
-    const barHeight = (count/maxCount)*SVG_HEIGHT;
-    const y = SVG_HEIGHT - barHeight;
-    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rect.setAttribute('x',BAR_POSITIONS[col]);
-    rect.setAttribute('y',y);
-    rect.setAttribute('width',BAR_WIDTH);
-    rect.setAttribute('height',barHeight);
-    rect.setAttribute('fill',COLORS[col]);
-    svg.appendChild(rect);
-
-    /* Bar label */
-    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('x',BAR_POSITIONS[col]+BAR_WIDTH/2);
-    txt.setAttribute('y',SVG_HEIGHT-5);
-    txt.setAttribute('font-size',12);
-    txt.setAttribute('text-anchor','middle');
-    txt.textContent = col.charAt(0).toUpperCase()+col.slice(1);
-    svg.appendChild(txt);
-  });
+function moveCard(btn,dir){
+  const card = btn.closest('.card');
+  const currCol = card.parentElement.parentElement.dataset.col;
+  const idx = colOrder.indexOf(currCol);
+  const newIdx = idx+dir;
+  if(newIdx<0||newIdx>=colOrder.length)return;
+  const targetCol = document.querySelector('.col[data-col="'+colOrder[newIdx]+'"]');
+  targetCol.querySelector('.cards').appendChild(card);
+  updateBoard();
 }
-
-function autoMove(){
-  const cards = Array.from(document.querySelectorAll('.card'));
-  if(cards.length===0) return;
-  const card = cards[Math.floor(Math.random()*cards.length)];
-  const dir = Math.random()<0.5 ? 'right' : 'left';
-  if(dir==='right'){
-    if(!moveRight(card)) moveLeft(card);
-  }else{
-    if(!moveLeft(card)) moveRight(card);
-  }
-  updateCounters();
-  updateChart();
-  updateDetailTable();
-}
-
-/* Initial setup */
-document.addEventListener('DOMContentLoaded',()=>{
-  const todoDiv = document.querySelector('.col[data-col="todo"] .cards');
-  CARD_IDS.forEach(id=>todoDiv.appendChild(createCard(id)));
-  updateCounters();
-  updateChart();
-  updateDetailTable();
-  setInterval(autoMove, MOVE_INTERVAL);
-});
+document.querySelectorAll('.mas').forEach(b=>b.addEventListener('click',()=>moveCard(b,1)));
+document.querySelectorAll('.menos').forEach(b=>b.addEventListener('click',()=>moveCard(b,-1)));
+updateBoard();
 </script>
 </body>
 </html>

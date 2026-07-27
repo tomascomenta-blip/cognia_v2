@@ -1,273 +1,105 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Buscaminas 5x5 con Animación Automática</title>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#fafafa;}
-  header{width:100%;text-align:center;padding:10px;background:#e0e0e0;}
-  #estado{font-weight:bold;margin-top:5px;}
-  #grid{display:grid;grid-template-columns:repeat(5,40px);grid-gap:1px;margin:10px;}
-  .c{width:40px;height:40px;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;user-select:none;}
-  .abierta{background:#e0e0e0;cursor:default;}
-  .bandera{background:#ffeb3b;cursor:default;}
-  #chart{width:100%;max-width:600px;height:200px;border:1px solid #ccc;margin:10px;}
-  #summary{width:100%;max-width:600px;margin:10px;}
-  #summary table{width:100%;border-collapse:collapse;}
-  #summary th,#summary td{border:1px solid #999;padding:5px;text-align:center;}
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:300px;width:100%;}
+  .c{background:#ccc;border:1px solid #999;position:relative;cursor:pointer;width:60px;height:60px;display:flex;align-items:center;justify-content:center;}
+  .c span{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.5em;display:none;}
+  .c.abierta span{display:block;}
+  .c.bandera::after{content:"🚩";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.5em;}
+  #estado{margin-top:15px;font-size:1.2em;color:#d00;}
 </style>
 </head>
 <body>
-<header>
-  <h1>Buscaminas 5x5 con Animación Automática</h1>
-  <div id="estado">En juego</div>
-</header>
 <div id="grid"></div>
-<div id="chart"></div>
-<div id="summary">
-  <table>
-    <thead><tr><th>Celdas abiertas</th><th>Celdas marcadas</th><th>Mines restantes</th></tr></thead>
-    <tbody id="summary-body"><tr><td id="opened-count">0</td><td id="flagged-count">0</td><td id="mines-left">3</td></tr></tbody>
-  </table>
-</div>
+<div id="estado"></div>
 <script>
-class Minesweeper {
-  constructor() {
-    this.size = 5;
-    this.totalCells = this.size * this.size;
-    this.mines = new Set([6,12,18]); // minas fijas
-    this.opened = new Set();
-    this.flagged = new Set();
-    this.adjacentCounts = new Array(this.totalCells).fill(0);
-    this.gridElement = document.getElementById('grid');
-    this.estadoElement = document.getElementById('estado');
-    this.openedCountElement = document.getElementById('opened-count');
-    this.flaggedCountElement = document.getElementById('flagged-count');
-    this.minesLeftElement = document.getElementById('mines-left');
-    this.chartElement = document.getElementById('chart');
-    this.time = 0;
-    this.chartData = [];
-    this.simulationInterval = null;
-    this.initGrid();
-    this.calculateAdjacentCounts();
-    this.updateSummary();
-    this.startSimulation();
-  }
-
-  initGrid() {
-    for (let i = 0; i < this.totalCells; i++) {
-      const cell = document.createElement('div');
-      cell.classList.add('c');
-      cell.dataset.i = i;
-      cell.addEventListener('click', e => this.handleClick(e, i));
-      cell.addEventListener('contextmenu', e => this.handleRightClick(e, i));
-      this.gridElement.appendChild(cell);
+const mines=[false,false,false,false,false,false,true,false,false,false,false,false,true,false,false,false,false,false,true,false,false,false,false,false];
+const counts=new Array(25).fill(0);
+function neighbors(i){
+  const r=Math.floor(i/5),c=i%5;
+  const res=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<5&&nc>=0&&nc<5)res.push(nr*5+nc);
     }
   }
-
-  calculateAdjacentCounts() {
-    for (let i = 0; i < this.totalCells; i++) {
-      if (this.mines.has(i)) continue;
-      let count = 0;
-      for (let ni of this.getNeighbors(i)) {
-        if (this.mines.has(ni)) count++;
-      }
-      this.adjacentCounts[i] = count;
-    }
+  return res;
+}
+for(let i=0;i<25;i++){
+  let cnt=0;
+  for(const n of neighbors(i))if(mines[n])cnt++;
+  counts[i]=cnt;
+}
+const grid=document.getElementById('grid');
+const cells=new Array(25);
+for(let i=0;i<25;i++){
+  const div=document.createElement('div');
+  div.className='c';
+  div.dataset.i=i;
+  const span=document.createElement('span');
+  div.appendChild(span);
+  div.onclick = () => openCell(i);
+  div.oncontextmenu = e => { e.preventDefault(); toggleFlag(i); };
+  grid.appendChild(div);
+  cells[i]=div;
+}
+function openCell(i){
+  const cell=cells[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  cell.classList.add('abierta');
+  const span=cell.querySelector('span');
+  if(mines[i]){
+    span.textContent='M';
+    span.style.color='red';
+    document.getElementById('estado').textContent='perdiste';
+    return;
   }
-
-  getNeighbors(i) {
-    const neighbors = [];
-    const row = Math.floor(i / this.size);
-    const col = i % this.size;
-    for (let dr = -1; dr <= 1; dr++) {
-      for (let dc = -1; dc <= 1; dc++) {
-        if (dr === 0 && dc === 0) continue;
-        const r = row + dr;
-        const c = col + dc;
-        if (r >= 0 && r < this.size && c >= 0 && c < this.size) {
-          neighbors.push(r * this.size + c);
+  if(counts[i]>0){
+    span.textContent=counts[i];
+    span.style.color='green';
+  }
+  if(counts[i]===0){
+    const queue=[i];
+    const visited=new Set();
+    while(queue.length){
+      const cur=queue.shift();
+      for(const n of neighbors(cur)){
+        if(visited.has(n))continue;
+        visited.add(n);
+        const ncell=cells[n];
+        if(ncell.classList.contains('abierta')||ncell.classList.contains('bandera'))continue;
+        ncell.classList.add('abierta');
+        const nspan=ncell.querySelector('span');
+        if(mines[n]){
+          nspan.textContent='M';
+          nspan.style.color='red';
+          document.getElementById('estado').textContent='perdiste';
+          continue;
         }
-      }
-    }
-    return neighbors;
-  }
-
-  handleClick(e, i) {
-    e.preventDefault();
-    if (this.flagged.has(i) || this.opened.has(i)) return;
-    this.openCell(i);
-    this.checkGameState();
-  }
-
-  handleRightClick(e, i) {
-    e.preventDefault();
-    if (this.opened.has(i)) return;
-    if (this.flagged.has(i)) {
-      this.flagged.delete(i);
-      this.getCellElement(i).classList.remove('bandera');
-    } else {
-      this.flagged.add(i);
-      this.getCellElement(i).classList.add('bandera');
-    }
-    this.updateSummary();
-  }
-
-  getCellElement(i) {
-    return this.gridElement.querySelector(`.c[data-i='${i}']`);
-  }
-
-  openCell(i) {
-    if (this.opened.has(i) || this.flagged.has(i)) return;
-    this.opened.add(i);
-    const cell = this.getCellElement(i);
-    cell.classList.add('abierta');
-    if (this.mines.has(i)) {
-      cell.textContent = '💣';
-      this.estadoElement.textContent = 'perdiste';
-      this.stopSimulation();
-      return;
-    }
-    const count = this.adjacentCounts[i];
-    if (count > 0) {
-      cell.textContent = count;
-    } else {
-      cell.textContent = '';
-      for (let ni of this.getNeighbors(i)) {
-        if (!this.opened.has(ni) && !this.flagged.has(ni)) {
-          this.openCell(ni);
+        if(counts[n]>0){
+          nspan.textContent=counts[n];
+          nspan.style.color='green';
         }
+        if(counts[n]===0)queue.push(n);
       }
     }
-    this.updateSummary();
-  }
-
-  checkGameState() {
-    if (this.opened.size + this.mines.size === this.totalCells) {
-      this.estadoElement.textContent = 'ganaste';
-      this.stopSimulation();
-    }
-  }
-
-  updateSummary() {
-    this.openedCountElement.textContent = this.opened.size;
-    this.flaggedCountElement.textContent = this.flagged.size;
-    this.minesLeftElement.textContent = this.mines.size - this.flagged.size;
-  }
-
-  startSimulation() {
-    this.simulationInterval = setInterval(() => {
-      this.time++;
-      this.updateChart();
-      const candidates = [];
-      for (let i = 0; i < this.totalCells; i++) {
-        if (!this.opened.has(i) && !this.flagged.has(i)) {
-          candidates.push(i);
-        }
-      }
-      if (candidates.length === 0) {
-        this.stopSimulation();
-        return;
-      }
-      const idx = candidates[Math.floor(Math.random() * candidates.length)];
-      this.openCell(idx);
-      this.checkGameState();
-    }, 1000);
-  }
-
-  stopSimulation() {
-    if (this.simulationInterval) {
-      clearInterval(this.simulationInterval);
-      this.simulationInterval = null;
-    }
-  }
-
-  updateChart() {
-    this.chartData.push({time: this.time, opened: this.opened.size});
-    this.renderChart();
-  }
-
-  renderChart() {
-    const width = 600;
-    const height = 200;
-    const maxTime = this.time || 1;
-    const maxOpened = this.totalCells;
-    const xScale = width / maxTime;
-    const yScale = height / maxOpened;
-    const points = this.chartData.map(d => {
-      const x = d.time * xScale;
-      const y = height - d.opened * yScale;
-      return `${x},${y}`;
-    }).join(' ');
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('width', '100%');
-    svg.setAttribute('height', '200');
-    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-    const axisX = document.createElementNS(svgNS, 'line');
-    axisX.setAttribute('x1', '0');
-    axisX.setAttribute('y1', `${height}`);
-    axisX.setAttribute('x2', `${width}`);
-    axisX.setAttribute('y2', `${height}`);
-    axisX.setAttribute('stroke', '#000');
-    svg.appendChild(axisX);
-    const axisY = document.createElementNS(svgNS, 'line');
-    axisY.setAttribute('x1', '0');
-    axisY.setAttribute('y1', '0');
-    axisY.setAttribute('x2', '0');
-    axisY.setAttribute('y2', `${height}`);
-    axisY.setAttribute('stroke', '#000');
-    svg.appendChild(axisY);
-    const gridGroup = document.createElementNS(svgNS, 'g');
-    gridGroup.setAttribute('stroke', '#ddd');
-    gridGroup.setAttribute('stroke-width', '1');
-    for (let y = 0; y <= maxOpened; y += 5) {
-      const yPos = height - y * yScale;
-      const line = document.createElementNS(svgNS, 'line');
-      line.setAttribute('x1', '0');
-      line.setAttribute('y1', `${yPos}`);
-      line.setAttribute('x2', `${width}`);
-      line.setAttribute('y2', `${yPos}`);
-      gridGroup.appendChild(line);
-      const text = document.createElementNS(svgNS, 'text');
-      text.setAttribute('x', '-5');
-      text.setAttribute('y', `${yPos + 4}`);
-      text.setAttribute('text-anchor', 'end');
-      text.setAttribute('font-size', '10');
-      text.textContent = y;
-      gridGroup.appendChild(text);
-    }
-    for (let x = 0; x <= maxTime; x += 5) {
-      const xPos = x * xScale;
-      const line = document.createElementNS(svgNS, 'line');
-      line.setAttribute('x1', `${xPos}`);
-      line.setAttribute('y1', '0');
-      line.setAttribute('x2', `${xPos}`);
-      line.setAttribute('y2', `${height}`);
-      gridGroup.appendChild(line);
-      const text = document.createElementNS(svgNS, 'text');
-      text.setAttribute('x', `${xPos}`);
-      text.setAttribute('y', `${height + 12}`);
-      text.setAttribute('text-anchor', 'middle');
-      text.setAttribute('font-size', '10');
-      text.textContent = x;
-      gridGroup.appendChild(text);
-    }
-    svg.appendChild(gridGroup);
-    const linePath = document.createElementNS(svgNS, 'polyline');
-    linePath.setAttribute('points', points);
-    linePath.setAttribute('fill', 'none');
-    linePath.setAttribute('stroke', '#007bff');
-    linePath.setAttribute('stroke-width', '2');
-    svg.appendChild(linePath);
-    this.chartElement.innerHTML = '';
-    this.chartElement.appendChild(svg);
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  new Minesweeper();
-});
+function toggleFlag(i){
+  const cell=cells[i];
+  if(cell.classList.contains('abierta'))return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+  }else{
+    cell.classList.add('bandera');
+  }
+}
 </script>
 </body>
 </html>

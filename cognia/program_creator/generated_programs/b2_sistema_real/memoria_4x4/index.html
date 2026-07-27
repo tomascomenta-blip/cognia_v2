@@ -3,195 +3,115 @@
 <head>
 <meta charset="utf-8">
 <title>Juego de Memoria 4x4</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body{
-    margin:0;
-    font-family:Arial,Helvetica,sans-serif;
-    background:#f0f0f0;
-    display:flex;
-    flex-direction:column;
-    min-height:100vh;
-  }
-  header{
-    padding:1rem;
-    background:#fff;
-    box-shadow:0 1px 3px rgba(0,0,0,.1);
-    display:flex;
-    align-items:center;
-    justify-content:flex-start;
-    gap:1rem;
-  }
-  header h1{
-    margin:0;
-    font-size:1.5rem;
-    color:#333;
-  }
-  header .counter{
-    font-size:1rem;
-    color:#555;
-  }
-  main{
-    flex:1;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:1rem;
-  }
-  #grid{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:0.8rem;
-    max-width:400px;
-    width:100%;
-  }
-  .tile{
-    background:#fff;
-    border-radius:8px;
-    box-shadow:0 2px 5px rgba(0,0,0,.1);
-    font-size:2rem;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    user-select:none;
-    transition:transform 0.3s,background 0.3s;
-    aspect-ratio:1;
-  }
-  .tile:hover{
-    transform:scale(1.05);
-  }
-  .tile.face-up{
-    background:#e0ffe0;
-  }
-  footer{
-    padding:1rem;
-    text-align:center;
-    font-size:0.9rem;
-    color:#777;
-  }
-  /* Overlay for game over */
-  #overlay{
-    position:fixed;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
-    background:rgba(0,0,0,0.7);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    color:#fff;
-    font-size:2rem;
-    z-index:1000;
-    text-align:center;
-    padding:1rem;
-  }
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+header{background:#4a90e2;color:#fff;padding:10px;text-align:center;}
+header h1{margin:0;font-size:2rem;animation:slideIn 1s ease-out;}
+#moves{font-weight:bold;}
+section{padding:10px;}
+#board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:400px;margin:auto;}
+.tile{background:#333;color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer;transition:transform .3s;transform-style:preserve-3d;aspect-ratio:1/1;}
+.tile.down{background:#333;}
+.tile.up{background:#fff;color:#333;}
+#chart{width:100%;height:200px;background:#fff;border:1px solid #ccc;}
+table{width:100%;border-collapse:collapse;}
+th,td{border:1px solid #ccc;padding:4px;text-align:center;}
+@keyframes slideIn{
+  from{transform:translateX(-100%);opacity:0;}
+  to{transform:translateX(0);opacity:1;}
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>Juego de Memoria</h1>
-  <div class="counter">Movimientos: <span id="moves">0</span></div>
+<h1>Juego de Memoria 4x4</h1>
+<p>Movimientos: <span id="moves">0</span></p>
 </header>
-<main>
-  <div id="grid"></div>
-</main>
-<footer>
-  <p>¡Intenta encontrar todos los pares!</p>
-</footer>
 
-<div id="overlay"></div>
+<section id="board"></section>
+
+<section>
+<h2>Gráfico de Movimientos</h2>
+<svg id="chart"></svg>
+</section>
+
+<section>
+<h2>Detalle de Cartas</h2>
+<table id="detail"><thead><tr><th>#</th><th>Emoji</th><th>Estado</th></tr></thead><tbody></tbody></table>
+</section>
 
 <script>
-/* CONFIGURABLE CONSTANTS */
-const TILE_COUNT = 16;          // 4x4 grid
-const PAIR_COUNT = 8;           // 8 pairs
-const EMOJIS = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
-const FLIP_DELAY = 1000;        // ms before flipping back
+const emojis=['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+const tiles=[];
+const board=document.getElementById('board');
+const movesSpan=document.getElementById('moves');
+const detailBody=document.querySelector('#detail tbody');
+const chart=document.getElementById('chart');
+let first=null,second=null,lock=false,moves=0;
+const chartData=[];
 
-/* STATE VARIABLES */
-let tiles = [];                // array of tile elements
-let firstTile = null;
-let secondTile = null;
-let busy = false;
-let moves = 0;
+// Shuffle emojis and create tiles
+const deck=emojis.concat(emojis).sort(()=>Math.random()-0.5);
+deck.forEach((e,i)=>{
+  const div=document.createElement('div');
+  div.className='tile down';
+  div.dataset.emoji=e;
+  div.dataset.idx=i;
+  div.addEventListener('click',()=>handleClick(div));
+  board.appendChild(div);
+  tiles.push(div);
+});
 
-/* UTILITIES */
-function shuffle(array){
-  for(let i=array.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [array[i],array[j]]=[array[j],array[i]];
-  }
-  return array;
-}
-
-/* PATCH querySelectorAll to support :visible pseudo-class used by tests */
-const origQSAll = document.querySelectorAll.bind(document);
-document.querySelectorAll = function(sel){
-  if(sel.includes(':visible')){
-    const newSel = sel.replace(/:visible/g, ':not(.face-up)');
-    return origQSAll(newSel);
-  }
-  return origQSAll(sel);
-};
-
-/* INITIALIZE GRID */
-function initGrid(){
-  const grid = document.getElementById('grid');
-  const emojiPairs = EMOJIS.concat(EMOJIS); // duplicate each emoji
-  shuffle(emojiPairs);
-  for(let i=0;i<TILE_COUNT;i++){
-    const tile = document.createElement('div');
-    tile.className = 'tile';
-    tile.dataset.emoji = emojiPairs[i];
-    tile.textContent = ''; // face down
-    tile.addEventListener('click', onTileClick);
-    grid.appendChild(tile);
-    tiles.push(tile);
-  }
-}
-
-/* CLICK HANDLER */
-function onTileClick(e){
-  if(busy) return;
-  const tile = e.currentTarget;
-  if(tile.classList.contains('face-up')) return;
-  tile.textContent = tile.dataset.emoji;
-  tile.classList.add('face-up');
-  if(!firstTile){
-    firstTile = tile;
-    return;
-  }
-  secondTile = tile;
-  moves++;
-  document.getElementById('moves').textContent = moves;
-  if(firstTile.dataset.emoji === secondTile.dataset.emoji){
-    // matched
-    firstTile = secondTile = null;
-    if(tiles.every(t=>t.classList.contains('face-up'))){
-      setTimeout(()=>{ 
-        const overlay = document.getElementById('overlay');
-        overlay.textContent = '¡Felicidades! Has encontrado todos los pares.';
-        overlay.style.display = 'flex';
-      }, 200);
-    }
+function handleClick(tile){
+  if(lock||tile.classList.contains('up')) return;
+  tile.classList.remove('down');tile.classList.add('up');
+  tile.textContent=tile.dataset.emoji;
+  if(!first){first=tile;updateDetail();return;}
+  second=tile;lock=true;
+  moves++;movesSpan.textContent=moves;
+  updateDetail();
+  if(first.dataset.emoji===second.dataset.emoji){
+    first=null;second=null;lock=false;
   }else{
-    // not matched
-    busy = true;
-    setTimeout(()=>{ 
-      firstTile.textContent = '';
-      secondTile.textContent = '';
-      firstTile.classList.remove('face-up');
-      secondTile.classList.remove('face-up');
-      firstTile = secondTile = null;
-      busy = false;
-    }, FLIP_DELAY);
+    setTimeout(()=>{first.classList.remove('up');first.classList.add('down');first.textContent='';
+                    second.classList.remove('up');second.classList.add('down');second.textContent='';
+                    first=null;second=null;lock=false;updateDetail();},1000);
   }
 }
 
-/* RUN ON PAGE LOAD */
-document.addEventListener('DOMContentLoaded', initGrid);
+function updateDetail(){
+  detailBody.innerHTML='';
+  tiles.forEach(t=>{const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${t.dataset.idx}</td><td>${t.dataset.emoji}</td><td>${t.classList.contains('up')?'Arriba':'Abajo'}</td>`;
+    detailBody.appendChild(tr);
+  });
+}
+
+// Chart animation
+function drawChart(){
+  const w=chart.clientWidth;const h=chart.clientHeight;
+  const maxY=Math.max(...chartData,1);
+  const stepY=h/(maxY+1);
+  const stepX=w/(chartData.length-1||1);
+  let path='';
+  chartData.forEach((v,i)=>{path+=`${i*stepX},${h-v*stepY} `;});
+  // Y axis labels
+  const ticks=5;
+  const tickValues=[];
+  for(let i=0;i<=ticks;i++){
+    tickValues.push(Math.round(maxY*i/ticks));
+  }
+  let yLabels='';
+  tickValues.forEach(v=>{
+    const y=h-v*stepY;
+    yLabels+=`<text x="5" y="${y+5}" font-size="10" fill="#000">${v}</text>`;
+  });
+  chart.innerHTML=`<rect width="100%" height="100%" fill="#fff"/>${yLabels}<g transform="translate(0,${h}) scale(1,-1)">
+    <polyline fill="none" stroke="#4a90e2" stroke-width="2" points="${path.trim()}"/>
+    <g stroke="#ccc"><!-- gridlines --></g>
+  </g>`;
+}
+setInterval(()=>{chartData.push(moves);drawChart();},1000);
 </script>
 </body>
 </html>

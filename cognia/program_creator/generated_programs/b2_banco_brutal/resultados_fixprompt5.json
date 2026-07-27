@@ -7,22 +7,22 @@
   "sistema_real": {
     "hoja_calculo": {
       "aprobado": true,
-      "motivo": "27/28 checks OK (24/24 del contrato)",
-      "segundos": 263.0639624595642,
+      "motivo": "28/28 checks OK (24/24 del contrato)",
+      "segundos": 174.70762062072754,
       "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
-      "checks_ok": 27,
+      "checks_ok": 28,
       "checks": 28,
       "rondas": 3,
       "sello_lazo": "FALLIDO",
       "motivo_corte": "disyuntor D6",
       "bon": null,
       "aprobado_heldout": true,
-      "heldout_motivo": "29/30 checks OK (26/26 del contrato)"
+      "heldout_motivo": "30/30 checks OK (26/26 del contrato)"
     },
     "carrito_stock": {
       "aprobado": false,
       "motivo": "falla critica: al tope de stock (2) el boton se deshabilita (js=False, esperaba True); p3 tiene stock 1: se deshabilita ",
-      "segundos": 201.59999322891235,
+      "segundos": 278.2492742538452,
       "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
       "checks_ok": 17,
       "checks": 19,
@@ -33,14 +33,14 @@
     },
     "kanban": {
       "aprobado": true,
-      "motivo": "17/20 checks OK (14/16 del contrato)",
-      "segundos": 48.73755216598511,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
-      "checks_ok": 17,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "segundos": 273.77539324760437,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 19,
       "checks": 20,
-      "rondas": 1,
-      "sello_lazo": "APROBADO",
-      "motivo_corte": "aprobado por juez ejecutable",
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
       "bon": null,
       "aprobado_heldout": true,
       "heldout_motivo": "22/23 checks OK (19/19 del contrato)"
@@ -48,7 +48,7 @@
     "buscaminas": {
       "aprobado": true,
       "motivo": "19/20 checks OK (16/16 del contrato)",
-      "segundos": 193.69564270973206,
+      "segundos": 199.14751887321472,
       "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
       "checks_ok": 19,
       "checks": 20,
