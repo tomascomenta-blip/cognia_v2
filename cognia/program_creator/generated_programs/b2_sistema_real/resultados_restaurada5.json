@@ -1,0 +1,89 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": false,
+      "motivo": "falla critica: al cargar NINGUNA carta muestra su emoji (visibles('.tile')=2, esperaba 0); tras 1 click hay EXACTAMENTE ",
+      "segundos": 223.8665804862976,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 6,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: tras + vale 1 ('2,00' no contiene '1'); tras dos + vale 2 ('4,00' no contiene '2'); tras - vuelve a 1 ('3",
+      "segundos": 315.01526975631714,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 14,
+      "rondas": 3,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 238.08830451965332,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "calculadora": {
+      "aprobado": false,
+      "motivo": "falla critica: la pantalla muestra 5 ('37' no contiene '5')",
+      "segundos": 457.33383560180664,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 10,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    },
+    "semaforo": {
+      "aprobado": true,
+      "motivo": "11/11 checks OK (7/7 del contrato)",
+      "segundos": 140.01341485977173,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "filtro_lista": {
+      "aprobado": true,
+      "motivo": "10/11 checks OK (7/7 del contrato)",
+      "segundos": 400.11146903038025,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 11,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    }
+  },
+  "techo": 6,
+  "real": 3,
+  "desperdicio": [
+    "memoria_4x4",
+    "contador",
+    "calculadora"
+  ],
+  "n_tareas": 6
+}

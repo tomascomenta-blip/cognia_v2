@@ -215,6 +215,37 @@ la misma dirección.
 - Verificación de cierre: n=3 de la config restaurada (esperable ~4+; el
   n=6 queda para otra noche).
 
+## CIERRE (2026-07-26 ~21:15 — restaurada a n=6 y la lectura final)
+
+restaurada (la receta pre-fix + fixes buenos), n=6: **2, 5, 3, 2, 3, 5 —
+media 3.33**. NO reproduce el 4.5 pre-fix. Las tres series n=6 del banco:
+
+| serie (n=6) | valores | media |
+|---|---|---|
+| config final pre-fix (noche 25/26) | 3,4,5,5,4,6 | 4.5 |
+| primgen (sin reparar, esta noche) | 5,2,5,2,3,2 | 3.17 |
+| restaurada (esta noche) | 2,5,3,2,3,5 | 3.33 |
+
+**Lectura final, la que queda:** con sd≈1.3 por réplica, ni siquiera las
+medias de n=6 separan (Δ4.5−3.33 ≈ 1.5σ), y las dos series de ESTA noche
+(3.17 vs 3.33) son indistinguibles. Ninguna intervención de la noche (BoN,
+escalada, primgen, best-of-so-far, effort de reparación, restauración)
+demostró efecto sobre el pass/6 con la potencia disponible. El 4.5 de
+anoche pudo ser una tirada alta, deriva entre noches (estado del server,
+caché de prompts), o real — este diseño no lo distingue. Lo que SÍ queda
+en pie: el gate original (toda serie ≥ 3 contra el baseline 2/6), y los
+hallazgos MECÁNICOS reproducidos (espiral de razonamiento y su fix por
+template, "Reasoning: low" en system inerte 3/3, contratos malformados 2/3
+con esfuerzo default vs 0/3 con low, clones a temp 0.2 en BoN 0/16, tasa
+sin-verificar 11.4%).
+
+**Regla de diseño para el próximo A/B de este banco (la lección cara):**
+n≥6 POR BRAZO e INTERCALADO a nivel tarea dentro de la misma corrida
+(A,B,A,B...), nunca brazos secuenciales en bloques — el drift entre bloques
+es del tamaño del efecto buscado. Y el banco de 6 tareas fáciles se queda
+corto: con techo 6 y ruido ±1.5, un efecto de +1 tarea necesita ~n=12; el
+banco brutal (efectos esperables mayores) es mejor instrumento.
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

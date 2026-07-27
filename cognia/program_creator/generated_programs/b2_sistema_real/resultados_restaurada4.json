@@ -1,0 +1,90 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": false,
+      "motivo": "falla critica: hay 16 cartas (count('.tile')=0, esperaba 16); tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile'",
+      "segundos": 215.39189195632935,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 3,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza en 0 ('6' no contiene '0'); tras + vale 1 ('8' no contiene '1'); tras dos + vale 2 ('10' no conti",
+      "segundos": 109.26584529876709,
+      "como": "create_program",
+      "checks_ok": 9,
+      "checks": 14,
+      "rondas": 0,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "no se pudo generar la pagina inicial",
+      "bon": null
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 322.4096567630768,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    },
+    "calculadora": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 42.48300266265869,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "semaforo": {
+      "aprobado": false,
+      "motivo": "falla critica: pasa a AMBAR (js='rojo', esperaba 'ambar'); cierra el ciclo en ROJO (js='verde', esperaba 'rojo')",
+      "segundos": 121.64085221290588,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "filtro_lista": {
+      "aprobado": false,
+      "motivo": "falla critica: 'an' deja solo manzana y banana (visibles('.item')=5, esperaba 2); 'kiwi' deja solo 1 (visibles('.item')=",
+      "segundos": 156.87533855438232,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 7,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    }
+  },
+  "techo": 6,
+  "real": 2,
+  "desperdicio": [
+    "memoria_4x4",
+    "contador",
+    "semaforo",
+    "filtro_lista"
+  ],
+  "n_tareas": 6
+}
