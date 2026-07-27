@@ -1,0 +1,227 @@
+{
+  "nombre": "Verificar carrito con stock y comportamiento de botones",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: carrito vacío y botones habilitados",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "contar",
+          "selector": ".cart .linea",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".add",
+          "esperado": 3
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".add",
+          "esperado": 3
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar primer producto (p1)",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#cart-lines .linea[data-id='p1'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "100"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar mismo producto (p1) hasta stock máximo",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".add[data-id='p1']",
+          "esperado": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#cart-lines .linea[data-id='p1'] .cant",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "200"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar segundo producto (p2) y verificar cantidad",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p2']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea",
+          "esperado": 2
+        },
+        {
+          "accion": "texto",
+          "selector": "#cart-lines .linea[data-id='p2'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "250"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar una unidad de p1 y verificar línea y botón",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#cart-lines .linea[data-id='p1'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "150"
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".add[data-id='p1']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar última unidad de p1 y verificar desaparición línea y botón habilitado",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea",
+          "esperado": 1
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".cart .linea[data-id='p1']"
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".add[data-id='p1']",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "50"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar tercer producto (p3) y verificar stock limitado a 1",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p3']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea",
+          "esperado": 2
+        },
+        {
+          "accion": "texto",
+          "selector": "#cart-lines .linea[data-id='p3'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".add[data-id='p3']",
+          "esperado": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "75"
+        }
+      ]
+    },
+    {
+      "nombre": "Intentar agregar p3 nuevamente y verificar que botón sigue deshabilitado",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p3']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".cart .linea",
+          "esperado": 2
+        },
+        {
+          "accion": "texto",
+          "selector": "#cart-lines .linea[data-id='p3'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "75"
+        }
+      ]
+    }
+  ]
+}

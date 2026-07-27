@@ -1,0 +1,59 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tarjetas en columna todo",
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Columna doing vacía",
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Columna done vacía",
+      "accion": "contar_visible",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "accion": "click",
+      "selector": ".card[data-id=\"t1\"] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 en doing y contadores actualizados",
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 1
+    },
+    {
+      "nombre": "Mover tarjeta t1 a done",
+      "accion": "click",
+      "selector": ".card[data-id=\"t1\"] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 en done y no puede avanzar",
+      "accion": "click",
+      "selector": ".card[data-id=\"t1\"] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que no cambió contadores",
+      "accion": "contar_visible",
+      "selector": "#cont-done",
+      "esperado": 1
+    }
+  ]
+}

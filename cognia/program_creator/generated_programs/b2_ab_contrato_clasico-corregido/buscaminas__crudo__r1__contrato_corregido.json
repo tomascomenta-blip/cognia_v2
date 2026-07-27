@@ -1,0 +1,61 @@
+{
+  "nombre": "Pruebas funcionales de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas con data-i 0-24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Confirmar que las celdas 6,12,18 contienen minas y no se revelan al inicio",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c[data-i='6']",
+      "esperado": 0
+    },
+    {
+      "nombre": "Revelar una celda con minas adyacentes (ej. celda 0) y comprobar número correcto",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='0']",
+      "indice": 0
+    },
+    {
+      "nombre": "Revelar una celda con 0 minas adyacentes (ej. celda 1) y verificar cascada de revelaciones",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Colocar bandera en una celda no revelada (ej. celda 5) y asegurar que no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='5']",
+      "indice": 0
+    },
+    {
+      "nombre": "Revelar una celda con bandera y confirmar que permanece cerrada",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='5']",
+      "indice": 0
+    },
+    {
+      "nombre": "Revelar una mina (celda 6) y verificar que el estado muestra 'perdiste'",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Confirmar que el elemento #estado contiene la palabra 'perdiste' tras perder",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

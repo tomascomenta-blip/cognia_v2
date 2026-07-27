@@ -1,0 +1,61 @@
+{
+  "nombre": "Validación de la lógica de Buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas con clase .c y data-i 0-24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Confirmar que las celdas 6,12,18 tienen minas (clase .mina)",
+      "critico": true,
+      "accion": "existe",
+      "selector": "[data-i=\"6\"].mina"
+    },
+    {
+      "nombre": "Confirmar que las celdas 6,12,18 no se abren al hacer click izquierdo",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"6\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que al hacer click derecho en una celda sin bandera se añade la clase .bandera y no se abre la celda",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"0\"]",
+      "indice": 0,
+      "tecla": "contextmenu"
+    },
+    {
+      "nombre": "Confirmar que al hacer click izquierdo en una celda con 0 minas adyacentes se abre la celda y se abre recursivamente todas las vecinas con 0 y sus bordes",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que al hacer click izquierdo en una celda con minas adyacentes se muestra el número correcto y no se abre si la celda tiene bandera",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"2\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Confirmar que al abrir una mina se muestra el texto 'perdiste' en #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"6\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que al abrir una mina el juego no permite abrir más celdas (celdas con .abierta no cambian al hacer click)",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-i=\"3\"]",
+      "indice": 0
+    }
+  ]
+}

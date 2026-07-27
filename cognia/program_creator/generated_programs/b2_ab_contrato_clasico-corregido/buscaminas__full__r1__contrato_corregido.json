@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar funcionamiento de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Existe 25 celdas con clase .c y data-i de 0 a 24",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "El estado inicial muestra texto vacío en #estado",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "",
+      "critico": true
+    },
+    {
+      "nombre": "Al hacer click en celda 6 (mina) se muestra 'perdiste' en #estado",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "critico": true
+    },
+    {
+      "nombre": "Al hacer click en celda 12 (mina) se muestra 'perdiste' en #estado",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "critico": true
+    },
+    {
+      "nombre": "Al hacer click en celda 18 (mina) se muestra 'perdiste' en #estado",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 18,
+      "critico": true
+    },
+    {
+      "nombre": "Al hacer click en celda 0 (no mina) se abre y muestra número de minas adyacentes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Al hacer click en celda 7 (0 minas adyacentes) se abre cascada y todas vecinas con 0 se abren",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 7,
+      "critico": true
+    },
+    {
+      "nombre": "Al hacer click derecho en celda 5 se coloca bandera y no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 5,
+      "critico": true
+    }
+  ]
+}

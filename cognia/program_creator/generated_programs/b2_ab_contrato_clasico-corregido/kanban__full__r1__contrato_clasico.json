@@ -1,0 +1,271 @@
+{
+  "nombre": "Tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "contar",
+          "selector": ".col",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".card",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 0
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-todo"
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-doing"
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-done"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón + mueve tarjeta a la derecha",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": "#cont-todo .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 0
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-todo .card[data-id=\"t1\"]"
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-doing .card[data-id=\"t1\"]"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón - mueve tarjeta a la izquierda",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": "#cont-doing .menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 0
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-todo .card[data-id=\"t1\"]"
+        },
+        {
+          "accion": "no_existe",
+          "selector": "#cont-doing .card[data-id=\"t1\"]"
+        }
+      ]
+    },
+    {
+      "nombre": "Tarjeta en done no avanza",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": "#cont-todo .mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": "#cont-doing .mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": "#cont-done .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done .card",
+          "esperado": 1
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-done .card[data-id=\"t1\"]"
+        }
+      ]
+    },
+    {
+      "nombre": "Tarjeta en todo no retrocede",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": "#cont-todo .menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 0
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-todo .card[data-id=\"t1\"]"
+        }
+      ]
+    },
+    {
+      "nombre": "WIP: columna doing no excede 2 tarjetas",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": "#cont-todo .mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": "#cont-todo .mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": "#cont-todo .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing .card",
+          "esperado": 2
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-doing .card[data-id=\"t2\"]"
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-doing .card[data-id=\"t3\"]"
+        }
+      ]
+    },
+    {
+      "nombre": "Contadores actualizan al mover tarjetas",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": "#cont-todo .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 0
+        },
+        {
+          "accion": "click",
+          "selector": "#cont-doing .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    }
+  ]
+}

@@ -67,6 +67,21 @@ def test_clasico_no_cambia_con_el_modo_nuevo():
     assert "COMO MUCHO 8 PASOS" in prompt
 
 
+def test_contrato_sin_criticos_se_descarta():
+    # Sin ningun critico, _cerrar hace all() sobre vacio y el veredicto es
+    # APROBADO pase lo que pase. Medido 2026-07-27: 7/24 contratos clasicos
+    # en disco sin criticos; en el A/B del mismo dia las 7 aprobaciones del
+    # brazo clasico fueron TODAS vacuas. Peor que ninguno: se descarta y el
+    # llamador paga su reintento normal (o sella "sin verificar", honesto).
+    vacuo = json.dumps({
+        "nombre": "t",
+        "pasos": [{"accion": "contar", "selector": ".x", "esperado": 1,
+                   "nombre": "hay uno"}]})      # sin critico en ningun paso
+    with patch.object(je, "inventario_dom", return_value=_INV), \
+         patch("cognia.llm_local.generar", return_value=vacuo):
+        assert je.generar_contrato("una idea", "no_importa.html") is None
+
+
 def test_los_replace_del_corregido_sustituyeron_de_verdad():
     # Si el texto ancla del .replace deriva, el replace se vuelve un no-op
     # silencioso (la clase de bug de este repo: degradar sin excepcion).

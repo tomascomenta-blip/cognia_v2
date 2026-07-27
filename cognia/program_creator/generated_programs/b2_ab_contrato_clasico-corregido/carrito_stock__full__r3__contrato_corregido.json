@@ -1,0 +1,53 @@
+{
+  "nombre": "Verificar carrito con stock y comportamiento de botones",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos, 0 líneas en carrito, total 0",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: total 0 visible",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Añadir producto p1 una vez",
+      "critico": true,
+      "accion": "click",
+      "selector": "button.add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 creada con cantidad 1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "div.linea[data-id='p1'] .cant",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar total actualizado a 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Añadir producto p1 hasta stock máximo (2)",
+      "critico": true,
+      "accion": "click",
+      "selector": "button.add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que botón add p1 está deshabilitado y línea muestra cantidad 2",
+      "critico": true,
+      "accion": "existe",
+      "selector": "button.add[data-id='p1'][disabled]"
+    }
+  ]
+}

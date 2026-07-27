@@ -1,0 +1,61 @@
+{
+  "nombre": "Carrito con stock y líneas dinámicas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos, 3 botones add, 1 carrito vacío",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: carrito sin líneas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Agregar producto p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 con cantidad 1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id='p1'] .cant",
+      "esperado": 1
+    },
+    {
+      "nombre": "Agregar p1 nuevamente hasta stock máximo (2)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar cantidad p1 es 2 y botón add deshabilitado",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".add[data-id='p1']",
+      "contiene": "disabled"
+    },
+    {
+      "nombre": "Quitar una unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 desaparece y botón add habilitado",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id='p1']",
+      "esperado": 0
+    }
+  ]
+}

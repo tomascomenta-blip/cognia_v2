@@ -1,0 +1,68 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 columnas y 3 tarjetas en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: 3 tarjetas en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-id]",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: columnas doing y done vacías",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: contadores correctos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Estado inicial: contadores correctos para doing y done",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing y verificar contadores",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que t1 está en doing y contadores actualizados",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Verificar que t1 no puede avanzar cuando doing tiene 2 tarjetas",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que t1 permanece en doing y contadores no cambian",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    }
+  ]
+}

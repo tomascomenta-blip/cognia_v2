@@ -1,0 +1,51 @@
+{
+  "nombre": "Verificar funcionalidad básica de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas y sin minas visibles",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: no hay texto visible en ninguna celda",
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Verificar que las minas están en las posiciones 6, 12 y 18",
+      "accion": "existe",
+      "selector": ".c[data-i='6']"
+    },
+    {
+      "nombre": "Verificar que las minas están en las posiciones 6, 12 y 18",
+      "accion": "existe",
+      "selector": ".c[data-i='12']"
+    },
+    {
+      "nombre": "Verificar que las minas están en las posiciones 6, 12 y 18",
+      "accion": "existe",
+      "selector": ".c[data-i='18']"
+    },
+    {
+      "nombre": "Al hacer click en una celda no mina con 0 minas adyacentes, se abre la celda y se abre en cascada todas las vecinas con 0",
+      "accion": "click",
+      "selector": ".c[data-i='0']",
+      "indice": 0
+    },
+    {
+      "nombre": "Al hacer click en una celda con una mina, se muestra el estado 'perdiste' en #estado",
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Al hacer click derecho en una celda, se añade la clase 'bandera' y la celda no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c[data-i='1']",
+      "indice": 0,
+      "tecla": "contextmenu"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Botón mas no avanza cuando doing llena",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta no se mueve a doing cuando límite alcanzado",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Botón menos no retrocede tarjeta en todo",
+      "critico": true,
+      "accion": "click",
+      "selector": ".menos",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta se mueve a doing cuando espacio disponible",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 1
+    },
+    {
+      "nombre": "Contadores actualizados tras movimientos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 2
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "nombre": "Verificar hoja de cálculo 3x3 con fórmulas y recálculo",
+  "pasos": [
+    {
+      "nombre": "Existe la grilla 3x3 con 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).map(c=>c.dataset.ref)",
+      "esperado": [
+        "A1",
+        "A2",
+        "A3",
+        "B1",
+        "B2",
+        "B3",
+        "C1",
+        "C2",
+        "C3"
+      ]
+    },
+    {
+      "nombre": "Celda A1 muestra valor inicial vacío",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('[data-ref=\"A1\"]').value",
+      "esperado": ""
+    },
+    {
+      "nombre": "Escribir 5 en A1 y verificar valor",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref=\"A1\"]",
+      "texto": "5"
+    },
+    {
+      "nombre": "Escribir fórmula en B1 =A1+1 y verificar cálculo",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref=\"B1\"]",
+      "texto": "=A1+1"
+    },
+    {
+      "nombre": "Cambiar A1 a 10 y verificar cascada en B1",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref=\"A1\"]",
+      "texto": "10"
+    },
+    {
+      "nombre": "Escribir fórmula en C1 =B1+1 y verificar recálculo tras cambio A1",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref=\"C1\"]",
+      "texto": "=B1+1"
+    },
+    {
+      "nombre": "Crear referencia circular C2 =C2+1 y verificar texto CIRC",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref=\"C2\"]",
+      "texto": "=C2+1"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla 3x3 de celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).map(c=>c.dataset.ref)",
+      "esperado": [
+        "A1",
+        "A2",
+        "A3",
+        "B1",
+        "B2",
+        "B3",
+        "C1",
+        "C2",
+        "C3"
+      ]
+    },
+    {
+      "nombre": "Escribir valor numérico en A1 y verificar que se muestra",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "5"
+    },
+    {
+      "nombre": "Escribir fórmula en B1 que dependa de A1 y verificar cálculo",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='B1']",
+      "texto": "=A1+3"
+    },
+    {
+      "nombre": "Verificar que B1 muestra valor calculado 8",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('[data-ref=\"B1\"]').value",
+      "esperado": "8"
+    },
+    {
+      "nombre": "Escribir fórmula en C1 que dependa de B1 y verificar cascada",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='C1']",
+      "texto": "=B1+2"
+    },
+    {
+      "nombre": "Cambiar valor de A1 a 10 y verificar actualización en B1 y C1",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "10"
+    },
+    {
+      "nombre": "Verificar que B1 muestra 13 y C1 muestra 15 tras actualización",
+      "critico": true,
+      "accion": "js",
+      "expr": "[document.querySelector('[data-ref=\"B1\"]').value,document.querySelector('[data-ref=\"C1\"]').value]",
+      "esperado": [
+        "13",
+        "15"
+      ]
+    }
+  ]
+}

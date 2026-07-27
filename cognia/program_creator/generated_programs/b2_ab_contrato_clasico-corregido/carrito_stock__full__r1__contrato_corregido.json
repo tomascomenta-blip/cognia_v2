@@ -1,0 +1,62 @@
+{
+  "nombre": "Carrito de compra con stock y control de líneas",
+  "pasos": [
+    {
+      "nombre": "Verificar estado inicial del carrito",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Agregar primer producto (p1)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Confirmar línea p1 creada con cantidad 1",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 1
+    },
+    {
+      "nombre": "Agregar mismo producto p1 hasta alcanzar stock máximo",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que botón add p1 está deshabilitado tras llegar al stock",
+      "critico": true,
+      "accion": "escribir",
+      "selector": ".add[data-id=\"p1\"]",
+      "texto": "disabled",
+      "esperado": "disabled"
+    },
+    {
+      "nombre": "Eliminar una unidad de p1 y comprobar que la línea sigue presente con cantidad 1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Eliminar última unidad de p1 y verificar que la línea desaparece y botón add se habilita",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Revisar que el total se actualiza correctamente tras cada operación",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('#total').textContent",
+      "esperado": "0"
+    }
+  ]
+}

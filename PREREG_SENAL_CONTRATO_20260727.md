@@ -219,3 +219,47 @@ mencionar tareas/selectores/literales del banco. Residual declarado SIN fix
 en esta ronda (los umbrales no lo habilitan): existe/existencia con
 literales de selector inventados (62% FN) — la guarda anti-invención actual
 no alcanza; dirección para otra sesión, junto al held-out a mano por tarea.
+
+## RESULTADO 1b (2026-07-27 ~19:30 — A/B completo, 24 páginas × 2 modos,
+## intercalado por página, clásico RE-generado como control concurrente)
+
+| modo | FN (/19 sanas) | FP (/5 rotas) | sin contrato | aprueba con 0 críticos |
+|---|---|---|---|---|
+| clásico (concurrente) | 12/19 = 63% | 0/5 | 0 | **7 de sus 7 aprobaciones** |
+| corregido | 11/19 = 58% | 1/5 | 0 | 1 de sus 9 |
+
+**Veredicto por la regla pre-registrada: KILL** (FN_corr = FN_clas − 1
+celda, bajo el umbral GRIS de −2). El modo `corregido` NO se adopta como
+modo del lazo. Se escribe con la misma tinta que un PASA.
+
+**Pero el confound pre-declarado en la enmienda DISPARÓ, y con mecanismo:
+las 7 aprobaciones del brazo clásico son TODAS por vacuidad (0 pasos
+críticos → `all()` sobre vacío → APROBADO pase lo que pase).** El clásico
+no aprobó NI UNA página sana por checks reales (0/19); el corregido aprobó
+8/19 con 8 críticos reales cada una. El "FN 63%" del clásico está inflado
+de aprobaciones que no verifican nada: como señal del lazo, esas 7 celdas
+son "APROBADO sin examen", indistinguibles de un FP en potencia. Por la
+cláusula escrita ANTES de correr: el KILL no es atribuible a F1/F2 — F5
+convierte exámenes vacíos en exámenes reales y eso sube el FN medido
+mecánicamente.
+
+Lectura EXPLORATORIA (partición post-hoc, se declara como tal, no entra en
+el veredicto): entre contratos NO vacuos, clásico aprueba 0/12 sanas
+(FN 100%) y corregido 8/18 (FN 56%).
+
+**Mecanismo de F1/F2 verificado en los contratos generados:** corregido usa
+`escribir` en 7/24 y `.value` en 6/24; clásico 0/24 y 1/24. La plantilla
+llega al pensador.
+
+**Decisión que sale de esto (fix de producción independiente del modo,
+misma clase que el rechazo de malformados):** `generar_contrato` descarta
+todo contrato sin ningún paso crítico (aprobaría por vacuidad; peor que
+ninguno — sin contrato el lazo sella "sin verificar", que es honesto).
+Test de regresión incluido. La unidad 2 (lazo vs max_rondas=1) NO corre:
+su premisa pre-registrada ("si 1b mejora la señal") no se cumplió por la
+regla formal. Direcciones para la próxima sesión: (a) re-plantear el A/B
+del contrato con la métrica de señal REAL pre-registrada desde el inicio
+(veredicto correcto POR CHECKS CRÍTICOS REALES, vacuidad excluida por
+construcción — con el descarte de vacuos ya en producción, el próximo A/B
+lo hereda limpio); (b) el residual existe/existencia (literales de selector
+inventados); (c) held-outs a mano por tarea.

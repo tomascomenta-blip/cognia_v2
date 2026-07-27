@@ -1,0 +1,75 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 en doing y contadores actualizados",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a done",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 en done y no puede avanzar",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "WIP límite en doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t2 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "WIP límite impide mover t3 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t3 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Contador doing sigue 2",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    }
+  ]
+}

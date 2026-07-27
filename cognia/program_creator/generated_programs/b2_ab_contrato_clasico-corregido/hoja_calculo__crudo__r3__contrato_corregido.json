@@ -1,0 +1,61 @@
+{
+  "nombre": "Prueba funcional de mini hoja de cálculo 3x3",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Confirmar que todas las celdas están vacías inicialmente",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(c=>c.value==='')",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1 y comprobar que se muestra",
+      "accion": "escribir",
+      "selector": ".celda[data-ref='A1']",
+      "texto": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Escribir fórmula en B1 que dependa de A1 y verificar cálculo",
+      "accion": "escribir",
+      "selector": ".celda[data-ref='B1']",
+      "texto": "=A1+3",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de A1 y comprobar actualización en cascada de B1",
+      "accion": "escribir",
+      "selector": ".celda[data-ref='A1']",
+      "texto": "10",
+      "critico": true
+    },
+    {
+      "nombre": "Crear referencia circular C1->C2->C1 y verificar texto CIRC",
+      "accion": "escribir",
+      "selector": ".celda[data-ref='C1']",
+      "texto": "=C2",
+      "critico": true
+    },
+    {
+      "nombre": "Escribir fórmula en C2 que referencia C1 y comprobar que C1 muestra CIRC",
+      "accion": "escribir",
+      "selector": ".celda[data-ref='C2']",
+      "texto": "=C1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que el valor interno de B1 es 13 tras actualización de A1",
+      "accion": "js",
+      "expr": "document.querySelector('.celda[data-ref=\"B1\"]').value",
+      "esperado": "13",
+      "critico": true
+    }
+  ]
+}

@@ -679,6 +679,18 @@ def generar_contrato(idea: str, html: Path,
         print("[juez] contrato con pasos malformados (campo no-string donde "
               "va un string): se descarta", file=sys.stderr)
         return None
+    if not any(isinstance(p, dict) and p.get("critico")
+               for p in c.get("pasos", [])):
+        # Aprobaria por VACUIDAD: _cerrar hace all() sobre los criticos, y
+        # sin ninguno el veredicto es APROBADO pase lo que pase. Medido
+        # 2026-07-27 (PREREG_SENAL_CONTRATO): 7/24 contratos clasicos en
+        # disco sin criticos, y en el A/B del mismo dia las 7 aprobaciones
+        # del brazo clasico fueron TODAS vacuas. Un contrato asi es peor que
+        # ninguno: sella "APROBADO" sin verificar nada; sin contrato el lazo
+        # al menos dice "sin verificar", que es honesto.
+        print("[juez] contrato sin ningun paso critico: aprobaria por "
+              "vacuidad — se descarta", file=sys.stderr)
+        return None
     return c
 
 

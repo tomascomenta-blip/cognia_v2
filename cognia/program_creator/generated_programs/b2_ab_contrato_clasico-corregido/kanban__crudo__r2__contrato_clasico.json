@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Columnas con data-col correctas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Tarjetas iniciales en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tarjetas en doing y done vacías",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contadores actualizados al inicio",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Mover tarjeta de todo a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar límite WIP en doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card .mas",
+      "indice": 1
+    },
+    {
+      "nombre": "Intentar mover tarjeta cuando doing lleno",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card .mas",
+      "indice": 2
+    }
+  ]
+}

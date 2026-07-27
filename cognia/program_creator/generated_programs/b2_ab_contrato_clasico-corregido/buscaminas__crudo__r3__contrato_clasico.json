@@ -1,0 +1,62 @@
+{
+  "nombre": "Verificar funcionamiento de un buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas",
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": {
+        "max": 0
+      },
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que existen 25 celdas con data-i 0-24",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Click en celda 0 (no mina) abre y muestra número de minas adyacentes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Celda 0 debe tener clase 'abierta' y mostrar 1 (una mina adyacente)",
+      "accion": "texto",
+      "selector": ".c[data-i='0']",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Click en celda 6 (mina) cambia estado a 'perdiste' y muestra mensaje",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "critico": true
+    },
+    {
+      "nombre": "Elemento #estado debe contener texto 'perdiste' tras abrir mina",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "critico": true
+    },
+    {
+      "nombre": "Click derecho en celda 12 (mina) coloca bandera y no abre al hacer click",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "critico": true
+    },
+    {
+      "nombre": "Celda 12 debe tener clase 'bandera' y permanecer cerrada al hacer click",
+      "accion": "existe",
+      "selector": ".c[data-i='12'].bandera",
+      "critico": true
+    }
+  ]
+}

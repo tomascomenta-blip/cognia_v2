@@ -1,0 +1,58 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y celdas",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar existencia de las 9 celdas con clase .celda",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.dataset.ref))",
+      "esperado": true
+    },
+    {
+      "nombre": "Ingresar valores numéricos en todas las celdas y comprobar que se muestran",
+      "accion": "texto",
+      "selector": ".celda",
+      "contiene": "[0-9]",
+      "esperado": true
+    },
+    {
+      "nombre": "Escribir una fórmula simple en A1 y verificar que su valor se actualiza",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=1+2",
+      "esperado": true
+    },
+    {
+      "nombre": "Cambiar el valor de B1 y comprobar que las celdas dependientes (C1) se recalculan",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "5",
+      "esperado": true
+    },
+    {
+      "nombre": "Crear una referencia circular entre B2 y C2 y verificar que ambas muestren 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B2']",
+      "contiene": "=C2",
+      "esperado": true
+    },
+    {
+      "nombre": "Eliminar la referencia circular y comprobar que las celdas vuelven a mostrar valores calculados",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B2']",
+      "contiene": "=A1+1",
+      "esperado": true
+    }
+  ]
+}

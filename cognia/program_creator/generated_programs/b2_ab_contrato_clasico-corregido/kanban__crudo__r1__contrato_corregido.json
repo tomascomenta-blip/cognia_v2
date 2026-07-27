@@ -1,0 +1,228 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".col",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".card",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Mover tarjeta de todo a doing",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Mover tarjeta de doing a done",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Intentar mover tarjeta de done a la derecha",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 2
+        }
+      ]
+    },
+    {
+      "nombre": "Intentar mover tarjeta de todo a la izquierda",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar límite WIP en doing",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Mover tarjeta de doing a todo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Mover tarjeta de todo a doing cuando doing tiene 1 tarjeta",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-doing",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    }
+  ]
+}

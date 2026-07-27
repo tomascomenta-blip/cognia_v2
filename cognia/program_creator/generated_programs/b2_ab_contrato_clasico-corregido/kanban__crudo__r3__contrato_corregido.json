@@ -1,0 +1,54 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: tres tarjetas en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: columnas doing y done vacías",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: contadores actualizados",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que t1 está en doing y contadores actualizados",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Intentar mover t1 a done y verificar que se mueve",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que t1 está en done y contadores actualizados",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    }
+  ]
+}

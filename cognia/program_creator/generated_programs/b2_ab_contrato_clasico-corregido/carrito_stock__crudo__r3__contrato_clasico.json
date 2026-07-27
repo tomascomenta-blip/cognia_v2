@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar carrito con stock y reglas de cantidad",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: carrito vacío y botones habilitados",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Agregar primer producto (p1) y comprobar línea y total",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la línea p1 aparece con cantidad 1 y total 100",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 1
+    },
+    {
+      "nombre": "Agregar p1 nuevamente hasta alcanzar stock (2) y comprobar botón disabled",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que cantidad de p1 es 2, total 200 y botón add p1 está disabled",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "esperado": 1
+    },
+    {
+      "nombre": "Quitar una unidad de p1 y comprobar que cantidad reduce a 1, botón add habilitado y total 100",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Quitar última unidad de p1 y verificar que línea desaparece y botón add habilitado",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 0
+    },
+    {
+      "nombre": "Agregar p3 (stock 1), verificar línea, total 25, y que botón add p3 se deshabilita tras agregar",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p3\"]",
+      "indice": 0
+    }
+  ]
+}

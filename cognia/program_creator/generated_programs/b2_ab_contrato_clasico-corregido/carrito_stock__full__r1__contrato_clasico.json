@@ -1,0 +1,53 @@
+{
+  "nombre": "Validación funcional del carrito con stock",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de los tres productos y sus botones de añadir",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Confirmar que cada botón de añadir está habilitado inicialmente",
+      "accion": "contar_visible",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Añadir el primer producto (p1) y comprobar que aparece una línea con cantidad 1 y el total actualizado a 100",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Añadir el mismo producto (p1) otra vez y verificar que la cantidad aumenta a 2 y el total a 200, sin crear nueva línea",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Intentar añadir el producto (p1) una tercera vez y comprobar que el botón se deshabilita y la cantidad permanece 2",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Quitar una unidad del producto (p1) y verificar que la cantidad baja a 1 y el total a 100, y que el botón vuelve habilitado",
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0
+    },
+    {
+      "nombre": "Quitar la última unidad del producto (p1) y confirmar que la línea desaparece y el botón de añadir se habilita nuevamente",
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0
+    },
+    {
+      "nombre": "Añadir el tercer producto (p3) y comprobar que la línea se crea con cantidad 1, el total aumenta a 25 y el botón de añadir permanece habilitado porque el stock es 1",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 2
+    }
+  ]
+}

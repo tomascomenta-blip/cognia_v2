@@ -1,0 +1,64 @@
+{
+  "nombre": "Verificar funcionalidad de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas con clase .c y data-i de 0 a 24",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las celdas 6, 12 y 18 contienen minas y no se revelan al inicio",
+      "accion": "existe",
+      "selector": "#game .c[data-i=\"6\"]",
+      "critico": true
+    },
+    {
+      "nombre": "Hacer clic en una celda no mina (ejemplo data-i=0) y verificar que se abre con clase abierta y muestra número de minas adyacentes",
+      "accion": "click",
+      "selector": "#game .c[data-i=\"0\"]",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que al abrir una celda con 0 minas adyacentes se revelan todas las vecinas con 0 y sus bordes",
+      "accion": "contar_visible",
+      "selector": "#game .c.abierta",
+      "esperado": {
+        "min": 1
+      },
+      "critico": true
+    },
+    {
+      "nombre": "Hacer clic derecho en una celda no abierta y verificar que se añade la clase bandera",
+      "accion": "click",
+      "selector": "#game .c[data-i=\"5\"]",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que una celda con bandera no se abre al hacer clic",
+      "accion": "click",
+      "selector": "#game .c.bandera",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Hacer clic en una celda con mina (ejemplo data-i=6) y verificar que el estado muestra \"perdiste\"",
+      "accion": "click",
+      "selector": "#game .c[data-i=\"6\"]",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que después de perder, ninguna celda adicional se abre automáticamente",
+      "accion": "contar_visible",
+      "selector": "#game .c.abierta",
+      "esperado": {
+        "max": 1
+      },
+      "critico": true
+    }
+  ]
+}

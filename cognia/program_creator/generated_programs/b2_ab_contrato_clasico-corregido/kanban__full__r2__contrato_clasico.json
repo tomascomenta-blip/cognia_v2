@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Columnas doing y done vacías",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contadores reflejan estado inicial",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contador doing es 0",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contador done es 0",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar límites WIP y contadores actualizados",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 1
+    }
+  ]
+}

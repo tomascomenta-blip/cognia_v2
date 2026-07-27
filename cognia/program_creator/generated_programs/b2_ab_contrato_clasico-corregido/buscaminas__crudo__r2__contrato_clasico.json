@@ -1,0 +1,53 @@
+{
+  "nombre": "Verificar funcionamiento de un buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas y sin minas visibles",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: no hay texto visible en ninguna celda",
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial: el elemento #estado muestra texto vacío",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": ""
+    },
+    {
+      "nombre": "Al hacer click en la celda 0, se abre y muestra número de minas adyacentes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "La celda 0 adquiere la clase 'abierta' y muestra el número correcto de minas adyacentes",
+      "accion": "existe",
+      "selector": ".c.abierta"
+    },
+    {
+      "nombre": "Al hacer click en la celda 6 (mina), el elemento #estado muestra 'perdiste'",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Al hacer click derecho en la celda 12, se añade la clase 'bandera' y la celda no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Al hacer click en una celda con 0 minas adyacentes, se abre en cascada todas las vecinas con 0 y sus bordes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 1
+    }
+  ]
+}
