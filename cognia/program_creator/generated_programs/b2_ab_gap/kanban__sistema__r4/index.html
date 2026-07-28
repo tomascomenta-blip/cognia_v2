@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  #board{display:flex;flex-wrap:wrap;gap:1rem;padding:1rem;}
+  .col{flex:1;min-width:200px;background:#fff;border:1px solid #ccc;border-radius:4px;padding:0.5rem;}
+  .col h2{font-size:1.2rem;margin:0 0 0.5rem 0;display:flex;justify-content:space-between;align-items:center;}
+  .card{border:1px solid #999;border-radius:4px;background:#fafafa;padding:0.5rem;margin-bottom:0.5rem;}
+  .card p{margin:0 0 0.5rem 0;}
+  .card button{margin-right:0.3rem;padding:0.2rem 0.5rem;font-size:0.9rem;}
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Por hacer <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <p>t1</p>
+      <button class="mas">→</button>
+      <button class="menos">←</button>
+    </div>
+    <div class="card" data-id="t2">
+      <p>t2</p>
+      <button class="mas">→</button>
+      <button class="menos">←</button>
+    </div>
+    <div class="card" data-id="t3">
+      <p>t3</p>
+      <button class="mas">→</button>
+      <button class="menos">←</button>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>En progreso <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Hecho <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.board = document.getElementById('board');
+    this.columns = {
+      todo: document.querySelector('.col[data-col="todo"]'),
+      doing: document.querySelector('.col[data-col="doing"]'),
+      done: document.querySelector('.col[data-col="done"]')
+    };
+    this.counters = {
+      todo: document.getElementById('cont-todo'),
+      doing: document.getElementById('cont-doing'),
+      done: document.getElementById('cont-done')
+    };
+    this.init();
+  }
+  init() {
+    this.board.addEventListener('click', e => {
+      if (e.target.classList.contains('mas')) {
+        this.moveCard(e.target.closest('.card'), 'right');
+      } else if (e.target.classList.contains('menos')) {
+        this.moveCard(e.target.closest('.card'), 'left');
+      }
+    });
+    this.updateCounters();
+  }
+  moveCard(card, direction) {
+    const currentCol = card.parentElement;
+    const currentData = currentCol.dataset.col;
+    let targetColName;
+    if (direction === 'right') {
+      if (currentData === 'todo') targetColName = 'doing';
+      else if (currentData === 'doing') targetColName = 'done';
+      else return; // done cannot move right
+    } else if (direction === 'left') {
+      if (currentData === 'doing') targetColName = 'todo';
+      else if (currentData === 'done') targetColName = 'doing';
+      else return; // todo cannot move left
+    }
+    if (targetColName === 'doing' && this.columns.doing.children.length >= 2) {
+      return; // WIP limit reached
+    }
+    this.columns[targetColName].appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters() {
+    this.counters.todo.textContent = this.columns.todo.children.length;
+    this.counters.doing.textContent = this.columns.doing.children.length;
+    this.counters.done.textContent = this.columns.done.children.length;
+  }
+}
+document.addEventListener('DOMContentLoaded', () => new KanbanBoard());
+</script>
+</body>
+</html>

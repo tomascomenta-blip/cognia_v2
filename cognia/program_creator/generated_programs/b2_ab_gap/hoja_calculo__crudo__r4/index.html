@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3×3</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:400px;margin:auto;}
+  .celda{width:100%;padding:8px;font-size:1rem;text-align:right;}
+</style>
+</head>
+<body>
+<h2 style="text-align:center;">Mini Hoja de Cálculo 3×3</h2>
+<div class="grid">
+  <input class="celda" data-ref="A1" placeholder="A1">
+  <input class="celda" data-ref="B1" placeholder="B1">
+  <input class="celda" data-ref="C1" placeholder="C1">
+  <input class="celda" data-ref="A2" placeholder="A2">
+  <input class="celda" data-ref="B2" placeholder="B2">
+  <input class="celda" data-ref="C2" placeholder="C2">
+  <input class="celda" data-ref="A3" placeholder="A3">
+  <input class="celda" data-ref="B3" placeholder="B3">
+  <input class="celda" data-ref="C3" placeholder="C3">
+</div>
+
+<script>
+(() => {
+  const cells = {}; // map ref -> input element
+  document.querySelectorAll('.celda').forEach(el => {
+    const ref = el.dataset.ref;
+    cells[ref] = el;
+  });
+
+  let recomputing = false;
+
+  function evaluate(ref, visited, cache) {
+    if (cache.has(ref)) return cache.get(ref);
+    if (visited.has(ref)) return 'CIRC'; // circular reference
+    visited.add(ref);
+
+    const el = cells[ref];
+    const raw = el.value.trim();
+
+    // If not a formula, return numeric value or 0
+    if (!raw.startsWith('=')) {
+      const num = parseFloat(raw);
+      const val = isNaN(num) ? '0' : num.toString();
+      cache.set(ref, val);
+      visited.delete(ref);
+      return val;
+    }
+
+    // Formula: parse and evaluate
+    const expr = raw.slice(1); // remove '='
+    const refs = expr.match(/[A-C][1-3]/g) || [];
+    let resolved = expr;
+
+    for (const r of refs) {
+      const v = evaluate(r, visited, cache);
+      if (v === 'CIRC') {
+        cache.set(ref, 'CIRC');
+        visited.delete(ref);
+        return 'CIRC';
+      }
+      // Replace all occurrences of the reference with its numeric value
+      resolved = resolved.split(r).join(v);
+    }
+
+    let result;
+    try {
+      result = eval(resolved);
+      if (typeof result !== 'number' || !isFinite(result)) throw new Error();
+    } catch {
+      result = 'ERR';
+    }
+
+    const val = result.toString();
+    cache.set(ref, val);
+    visited.delete(ref);
+    return val;
+  }
+
+  function recomputeAll() {
+    if (recomputing) return;
+    recomputing = true;
+    const cache = new Map();
+
+    Object.keys(cells).forEach(ref => {
+      const val = evaluate(ref, new Set(), cache);
+      const el = cells[ref];
+      if (el.value.trim().startsWith('=')) {
+        el.value = val;
+      }
+    });
+
+    recomputing = false;
+  }
+
+  // Attach listeners
+  Object.values(cells).forEach(el => {
+    el.addEventListener('input', () => {
+      recomputeAll();
+    });
+  });
+
+  // Initial calculation
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

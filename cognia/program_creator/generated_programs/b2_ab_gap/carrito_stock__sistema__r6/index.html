@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con stock</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f5f5f5}
+.container{display:grid;grid-template-columns:1fr 300px;gap:20px}
+.products{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+.prod{background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;text-align:center}
+.prod .thumb{background:#ccc;width:80px;height:80px;margin:0 auto 10px}
+.prod h3{margin:0 0 10px;font-size:1.1em}
+.prod button.add{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer}
+.prod button.add:disabled{background:#aaa;cursor:not-allowed}
+#cart{background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;position:sticky;top:20px}
+#cart h2{margin-top:0}
+.linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.linea .cant{font-weight:bold}
+.linea button.quitar{padding:2px 6px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer}
+@media(max-width:600px){.container{grid-template-columns:1fr}#cart{position:static;margin-top:20px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <div class="thumb"></div>
+      <h3>Producto 1</h3>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <div class="thumb"></div>
+      <h3>Producto 2</h3>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <div class="thumb"></div>
+      <h3>Producto 3</h3>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: <span id="total">0,00 €</span></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const products = {};
+  document.querySelectorAll('.prod').forEach(prod=>{
+    const id = prod.dataset.id;
+    const price = parseFloat(prod.dataset.precio);
+    const stock = parseInt(prod.dataset.stock,10);
+    products[id] = {price, stock, added:0};
+  });
+
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>addToCart(btn.dataset.id));
+  });
+
+  document.getElementById('cart').addEventListener('click',e=>{
+    if(e.target.matches('.quitar')) removeFromCart(e.target.dataset.id);
+  });
+
+  function addToCart(id){
+    const p = products[id];
+    if(p.added < p.stock){
+      p.added++;
+      updateLine(id);
+      updateTotal();
+      const btn = document.querySelector(`.add[data-id="${id}"]`);
+      if(p.added===p.stock) btn.disabled=true;
+    }
+  }
+
+  function removeFromCart(id){
+    const p = products[id];
+    if(p.added>0){
+      p.added--;
+      updateLine(id);
+      updateTotal();
+      const btn = document.querySelector(`.add[data-id="${id}"]`);
+      if(p.added<p.stock) btn.disabled=false;
+    }
+  }
+
+  function updateLine(id){
+    const p = products[id];
+    const lines = document.getElementById('lines');
+    let line = lines.querySelector(`.linea[data-id="${id}"]`);
+    if(p.added===0){
+      if(line) line.remove();
+    }else{
+      if(line){
+        line.querySelector('.cant').textContent = p.added;
+      }else{
+        line = document.createElement('div');
+        line.className='linea';
+        line.dataset.id=id;
+        const cant=document.createElement('span');cant.className='cant';cant.textContent=p.added;
+        const quitar=document.createElement('button');quitar.className='quitar';quitar.dataset.id=id;quitar.textContent='-';
+        const name=document.createElement('span');name.textContent=document.querySelector(`.prod[data-id="${id}"] h3`).textContent;
+        const price=document.createElement('span');price.textContent=p.price.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+        line.append(cant,quitar,name,price);
+        lines.appendChild(line);
+      }
+    }
+  }
+
+  function updateTotal(){
+    let total=0;
+    Object.values(products).forEach(p=>total+=p.added*p.price);
+    document.getElementById('total').textContent=total.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+  }
+});
+</script>
+</body>
+</html>

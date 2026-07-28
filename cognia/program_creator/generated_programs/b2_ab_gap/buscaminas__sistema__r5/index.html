@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 con 3 minas fijas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:0;}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    max-width:400px;
+    margin:20px auto;
+  }
+  .c{
+    aspect-ratio:1;
+    background:#d3d3d3;
+    border:1px solid #888;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.4rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#fff;
+    color:#0000ff;
+  }
+  .c.abierta.zero{
+    background:#e0ffe0;
+    color:#008000;
+  }
+  .c.abierta.mine{
+    color:#ff0000;
+  }
+  .c.bandera{
+    background:#d3d3d3;
+  }
+  #estado{
+    text-align:center;
+    font-size:1.2rem;
+    margin-top:10px;
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const mines = [6,12,18];
+  const cells = Array.from(document.querySelectorAll('.c'));
+  const estado = document.getElementById('estado');
+
+  // Mark mines
+  cells.forEach(cell => {
+    const i = parseInt(cell.dataset.i,10);
+    if (mines.includes(i)) cell.dataset.mine = 'true';
+  });
+
+  // Compute adjacent mine counts
+  cells.forEach(cell => {
+    const i = parseInt(cell.dataset.i,10);
+    if (cell.dataset.mine) return;
+    const row = Math.floor(i/5);
+    const col = i%5;
+    let count = 0;
+    for (let dr=-1; dr<=1; dr++) {
+      for (let dc=-1; dc<=1; dc++) {
+        if (dr===0 && dc===0) continue;
+        const nr = row+dr, nc = col+dc;
+        if (nr<0||nr>4||nc<0||nc>4) continue;
+        const nIdx = nr*5+nc;
+        if (mines.includes(nIdx)) count++;
+      }
+    }
+    cell.dataset.count = count;
+  });
+
+  function openCell(cell) {
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    const i = parseInt(cell.dataset.i,10);
+    if (cell.dataset.mine) {
+      cell.classList.add('abierta','mine');
+      cell.textContent = '💣';
+      estado.textContent = 'perdiste';
+      return;
+    }
+    const count = parseInt(cell.dataset.count,10);
+    cell.classList.add('abierta');
+    if (count > 0) {
+      cell.textContent = count;
+    } else {
+      cell.classList.add('zero');
+      // Cascade opening
+      const queue = [cell];
+      const visited = new Set();
+      visited.add(cell);
+      while (queue.length) {
+        const cur = queue.shift();
+        const idx = parseInt(cur.dataset.i,10);
+        const r = Math.floor(idx/5), c = idx%5;
+        for (let dr=-1; dr<=1; dr++) {
+          for (let dc=-1; dc<=1; dc++) {
+            if (dr===0 && dc===0) continue;
+            const nr = r+dr, nc = c+dc;
+            if (nr<0||nr>4||nc<0||nc>4) continue;
+            const nIdx = nr*5+nc;
+            const neighbor = cells[nIdx];
+            if (neighbor.classList.contains('abierta') || neighbor.classList.contains('bandera') || visited.has(neighbor)) continue;
+            const nCount = parseInt(neighbor.dataset.count,10);
+            neighbor.classList.add('abierta');
+            if (nCount > 0) {
+              neighbor.textContent = nCount;
+            } else {
+              neighbor.classList.add('zero');
+              queue.push(neighbor);
+            }
+            visited.add(neighbor);
+          }
+        }
+      }
+    }
+  }
+
+  cells.forEach(cell => {
+    cell.addEventListener('click', () => openCell(cell));
+    cell.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (cell.classList.contains('abierta')) return;
+      if (cell.classList.contains('bandera')) {
+        cell.classList.remove('bandera');
+        cell.textContent = '';
+      } else {
+        cell.classList.add('bandera');
+        cell.textContent = '🚩';
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:20px;}
+  h1{font-size:1.4em;text-align:center;margin-bottom:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,80px);gap:5px;justify-content:center;}
+  .celda{width:80px;height:30px;text-align:center;font-size:1em;}
+</style>
+</head>
+<body>
+<h1>Mini Hoja de Cálculo 3x3</h1>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1" value="">
+  <input type="text" class="celda" data-ref="A2" value="">
+  <input type="text" class="celda" data-ref="A3" value="">
+  <input type="text" class="celda" data-ref="B1" value="">
+  <input type="text" class="celda" data-ref="B2" value="">
+  <input type="text" class="celda" data-ref="B3" value="">
+  <input type="text" class="celda" data-ref="C1" value="">
+  <input type="text" class="celda" data-ref="C2" value="">
+  <input type="text" class="celda" data-ref="C3" value="">
+</div>
+
+<script>
+(() => {
+  const cells = {}; // ref -> input element
+  const dependencies = {}; // ref -> Set of refs it depends on
+  const dependents = {};   // ref -> Set of refs that depend on it
+
+  // Initialize maps
+  document.querySelectorAll('.celda').forEach(el => {
+    const ref = el.dataset.ref;
+    cells[ref] = el;
+    dependencies[ref] = new Set();
+    dependents[ref] = new Set();
+  });
+
+  // Build dependency graph
+  function buildGraph() {
+    // Reset
+    for (const ref in dependencies) {
+      dependencies[ref].clear();
+      dependents[ref].clear();
+    }
+    // Parse each formula
+    for (const ref in cells) {
+      const val = cells[ref].value.trim();
+      if (val.startsWith('=')) {
+        const refs = val.slice(1).match(/[A-C][1-3]/g) || [];
+        refs.forEach(r => dependencies[ref].add(r));
+      }
+    }
+    // Build dependents
+    for (const ref in dependencies) {
+      dependencies[ref].forEach(dep => {
+        if (dependents[dep]) dependents[dep].add(ref);
+      });
+    }
+  }
+
+  // Evaluate a single cell
+  function evaluate(ref, stack) {
+    const el = cells[ref];
+    const raw = el.value.trim();
+    if (raw.startsWith('=')) {
+      // Circular detection
+      if (stack.includes(ref)) {
+        el.value = 'CIRC';
+        return 'CIRC';
+      }
+      stack.push(ref);
+      const expr = raw.slice(1);
+      // Tokenize by + and -
+      const tokens = expr.split(/([+-])/);
+      let result = null;
+      let op = null;
+      for (const token of tokens) {
+        if (token === '' || token === '+' || token === '-') continue;
+        let val;
+        if (/[A-C][1-3]/.test(token)) {
+          // Reference
+          val = evaluate(token, stack);
+          if (val === 'CIRC' || isNaN(val)) {
+            result = 'CIRC';
+            break;
+          }
+        } else {
+          val = Number(token);
+          if (isNaN(val)) {
+            result = 'CIRC';
+            break;
+          }
+        }
+        if (result === null) {
+          result = val;
+        } else {
+          if (op === '+') result += val;
+          else if (op === '-') result -= val;
+        }
+        if (token === '+' || token === '-') op = token;
+      }
+      stack.pop();
+      if (result === 'CIRC' || result === null) {
+        el.value = 'CIRC';
+        return 'CIRC';
+      } else {
+        el.value = result.toString();
+        return result;
+      }
+    } else {
+      // Plain value
+      return raw;
+    }
+  }
+
+  // Recalculate a cell and propagate to dependents
+  function recalc(ref, stack = []) {
+    evaluate(ref, stack);
+    if (dependents[ref]) {
+      dependents[ref].forEach(dep => recalc(dep, stack));
+    }
+  }
+
+  // Event handler
+  function onInput(e) {
+    const ref = e.target.dataset.ref;
+    buildGraph();
+    recalc(ref);
+  }
+
+  // Attach listeners
+  for (const ref in cells) {
+    cells[ref].addEventListener('input', onInput);
+  }
+
+  // Initial build
+  buildGraph();
+})();
+</script>
+</body>
+</html>

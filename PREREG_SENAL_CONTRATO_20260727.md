@@ -502,3 +502,28 @@ Ajustes de la revisión rápida (1 agente), ANTES de lanzar:
   coherente con "medición de estado", pero si el neto sale positivo para
   el sistema, mirar si sus victorias se concentran en reps altas antes de
   atribuirlo al envoltorio.
+
+### RESULTADO del A/B GAP (2026-07-28 ~02:40 — PARCIAL 23/24 pares, 0
+### infra; la celda buscaminas r6 se cortó colgada, ver nota)
+
+**sistema 15/23 (65%) vs crudo 19/23 (83%); apareado: sistema gana 2
+(ambas hoja_calculo), crudo gana 6 (kanban r4, hoja r6, buscaminas r2 y
+r4, carrito r2 y r3 — 4 tareas) → NETO CRUDO = +4 con reparto → fila
+pre-registrada: EL ENVOLTORIO AÚN ROBA** (direccional por PARCIAL, aunque
+23/24 pares es casi completo). Lectura de tamaño: la brecha
+sistema-vs-crudo pasó de ~58 pts (17% vs 75%, hace dos días) a ~17 pts
+(65% vs 83%) — los fixes de la semana cobraron la mayor parte, la deriva
+ya no puede reclamar la brecha (control concurrente), y queda un ladrón
+real en el camino de generate_program. Siguiente sonda pre-registrada:
+el prompt DEL LAZO completo (con checklist REQUIRED por comas, system
+prompt e idea adornada — lo que el fix2 v2/v3 no pudo sondear porque la
+sonda directa corría con la idea pelada).
+
+Nota de infra (para la próxima sesión, no se debuggeó a las 02:40): la
+celda `buscaminas crudo r6` quedó >45 min generando con :8080 respondiendo
+/v1/models — el read-timeout de 500 s de `_preguntar_constructor`
+aparentemente no dispara si los tokens gotean lento (el timeout de lectura
+se resetea por chunk). Un watchdog por celda (que la revisión sugirió y se
+descartó por "peor caso acotado") habría pagado: el peor caso NO está
+acotado. Convertirlo en chequeo/presupuesto por celda antes del próximo
+runner largo.

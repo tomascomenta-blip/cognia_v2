@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    height:100vh;
+    box-sizing:border-box;
+  }
+  #board{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+  }
+  .col{
+    background:#fff;
+    border-radius:5px;
+    padding:10px;
+    width:200px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    opacity:0;
+    animation:fadeIn .5s ease forwards;
+  }
+  .col[data-col="todo"]{animation-delay:.1s;}
+  .col[data-col="doing"]{animation-delay:.3s;}
+  .col[data-col="done"]{animation-delay:.5s;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .col h2{
+    font-size:16px;
+    margin:0 0 10px 0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .cards{
+    min-height:20px;
+  }
+  .card{
+    background:#e3f2fd;
+    border-radius:3px;
+    padding:8px;
+    margin-bottom:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    animation:cardIn .3s ease forwards;
+  }
+  .card:nth-child(1){animation-delay:.1s;}
+  .card:nth-child(2){animation-delay:.2s;}
+  .card:nth-child(3){animation-delay:.3s;}
+  @keyframes cardIn{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  button{
+    margin-left:5px;
+    padding:2px 5px;
+    font-size:12px;
+    cursor:pointer;
+  }
+  button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', init);
+
+function init(){
+  const todoCards = document.querySelector('.col[data-col="todo"] .cards');
+  ['t1','t2','t3'].forEach(id=>todoCards.appendChild(createCard(id)));
+  updateAll();
+  document.addEventListener('click', e=>{
+    if(e.target.classList.contains('mas')) moveCard(e.target.closest('.card'),1);
+    if(e.target.classList.contains('menos')) moveCard(e.target.closest('.card'),-1);
+  });
+}
+
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  card.textContent=id;
+  const btnMas=document.createElement('button');
+  btnMas.className='mas';
+  btnMas.textContent='+';
+  const btnMenos=document.createElement('button');
+  btnMenos.className='menos';
+  btnMenos.textContent='-';
+  card.appendChild(btnMas);
+  card.appendChild(btnMenos);
+  return card;
+}
+
+function moveCard(card,dir){
+  const currentCol=card.parentElement.parentElement;
+  const colName=currentCol.dataset.col;
+  const order=['todo','doing','done'];
+  const idx=order.indexOf(colName);
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>2) return; // fuera de rango
+  // regla WIP: no más de 2 en doing
+  if(order[newIdx]==='doing'){
+    const doingCnt=document.querySelector('.col[data-col="doing"] .cards').children.length;
+    if(doingCnt>=2) return;
+  }
+  const newCol=document.querySelector(`.col[data-col="${order[newIdx]}"] .cards`);
+  newCol.appendChild(card);
+  updateAll();
+}
+
+function updateAll(){
+  updateCounts();
+  updateButtons();
+}
+
+function updateCounts(){
+  ['todo','doing','done'].forEach(col=>{
+    const cnt=document.querySelector(`.col[data-col="${col}"] .cards`).children.length;
+    document.getElementById(`cont-${col}`).textContent=cnt;
+  });
+}
+
+function updateButtons(){
+  ['todo','doing','done'].forEach(col=>{
+    const cards=document.querySelectorAll(`.col[data-col="${col}"] .card`);
+    cards.forEach(card=>{
+      const btnMas=card.querySelector('.mas');
+      const btnMenos=card.querySelector('.menos');
+      if(col==='todo'){
+        btnMenos.disabled=true;
+        const doingCnt=document.querySelector('.col[data-col="doing"] .cards').children.length;
+        btnMas.disabled=doingCnt>=2;
+      }else if(col==='doing'){
+        btnMenos.disabled=false;
+        btnMas.disabled=false;
+      }else{ // done
+        btnMas.disabled=true;
+        btnMenos.disabled=false;
+      }
+    });
+  });
+}
+</script>
+</body>
+</html>

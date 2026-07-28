@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5, 40px);
+    grid-gap:2px;
+    margin-bottom:20px;
+  }
+  .c{
+    width:40px;
+    height:40px;
+    background:#ddd;
+    border:1px solid #999;
+    text-align:center;
+    line-height:40px;
+    font-weight:bold;
+    cursor:pointer;
+    opacity:0;
+    transition:opacity 0.3s;
+    user-select:none;
+  }
+  .c.animate{
+    opacity:1;
+  }
+  .c.abierta{
+    background:#eee;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ffeb3b;
+  }
+  .c.mina{
+    background:#ff5252;
+    color:#fff;
+  }
+  #estado{
+    font-size:1.2em;
+    font-weight:bold;
+    color:#d32f2f;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const size = 5;
+  const total = size*size;
+  const mines = new Set([6,12,18]); // posiciones fijas
+
+  // Crear celdas
+  for(let i=0;i<total;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    grid.appendChild(div);
+  }
+
+  // Función para obtener vecinos
+  const vecinos = (i)=>{
+    const r=Math.floor(i/size), c=i%size;
+    const arr=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<size && nc>=0 && nc<size){
+          arr.push(nr*size+nc);
+        }
+      }
+    }
+    return arr;
+  };
+
+  // Contar minas adyacentes
+  const contar = (i)=>{
+    return vecinos(i).filter(v=>mines.has(v)).length;
+  };
+
+  // Abrir celda (recursiva para 0)
+  const abrir = (i, visited=new Set())=>{
+    if(visited.has(i)) return;
+    visited.add(i);
+    const cell=document.querySelector(`.c[data-i='${i}']`);
+    if(cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    cell.classList.add('abierta');
+    const n=contar(i);
+    if(n>0){
+      cell.textContent=n;
+    }else{
+      // abrir vecinos
+      vecinos(i).forEach(v=>abrir(v,visited));
+    }
+  };
+
+  // Eventos
+  grid.addEventListener('click',e=>{
+    if(e.target.className.indexOf('c')===-1) return;
+    const i=parseInt(e.target.dataset.i);
+    if(e.target.classList.contains('bandera')) return;
+    if(mines.has(i)){
+      e.target.classList.add('mina');
+      estado.textContent='perdiste';
+      // opcional: revelar todas las minas
+      mines.forEach(m=>{
+        const mcell=document.querySelector(`.c[data-i='${m}']`);
+        mcell.classList.add('mina');
+      });
+      return;
+    }
+    abrir(i);
+  });
+
+  grid.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(e.target.className.indexOf('c')===-1) return;
+    const cell=e.target;
+    if(cell.classList.contains('abierta')) return;
+    cell.classList.toggle('bandera');
+  });
+
+  // Animación de carga
+  const cells=document.querySelectorAll('.c');
+  cells.forEach((c,i)=>{
+    setTimeout(()=>c.classList.add('animate'),i*80);
+  });
+})();
+</script>
+</body>
+</html>

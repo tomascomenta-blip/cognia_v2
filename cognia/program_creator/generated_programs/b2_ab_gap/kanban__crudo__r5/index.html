@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .board{
+    display:flex;
+    width:90%;
+    max-width:1200px;
+    gap:10px;
+  }
+  .col{
+    flex:1;
+    background:#e0e0e0;
+    border-radius:8px;
+    padding:10px;
+    box-sizing:border-box;
+    overflow-y:auto;
+    min-height:400px;
+    animation:slideIn 0.5s ease forwards;
+    opacity:0;
+  }
+  .col[data-col="todo"]{animation-delay:0s;}
+  .col[data-col="doing"]{animation-delay:0.2s;}
+  .col[data-col="done"]{animation-delay:0.4s;}
+  .col h2{
+    margin-top:0;
+    font-size:1.2em;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .card{
+    background:#fff;
+    border-radius:4px;
+    padding:8px;
+    margin-bottom:8px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:fadeIn 0.3s ease forwards;
+    opacity:0;
+  }
+  .card button{
+    margin-left:4px;
+    padding:2px 6px;
+    font-size:0.8em;
+    cursor:pointer;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-100%); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  #cont-todo,#cont-doing,#cont-done{
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+  </div>
+</div>
+
+<script>
+  // Helper to create a card element
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.textContent = id;
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '→';
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+    return card;
+  }
+
+  // Initialize board with 3 cards in Todo
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  ['t1','t2','t3'].forEach(id => todoCol.appendChild(createCard(id)));
+
+  // Update counters
+  function updateCounters(){
+    ['todo','doing','done'].forEach(col=>{
+      const count = document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+  updateCounters();
+
+  // Event delegation for buttons
+  document.querySelector('.board').addEventListener('click', e=>{
+    if(!e.target.classList.contains('mas') && !e.target.classList.contains('menos')) return;
+    const card = e.target.closest('.card');
+    const currentCol = card.parentElement.dataset.col;
+    let targetCol = currentCol;
+
+    if(e.target.classList.contains('mas')){
+      if(currentCol==='todo') targetCol='doing';
+      else if(currentCol==='doing') targetCol='done';
+      else return; // done cannot advance
+    }else{ // menos
+      if(currentCol==='done') targetCol='doing';
+      else if(currentCol==='doing') targetCol='todo';
+      else return; // todo cannot retreat
+    }
+
+    // WIP rule: doing max 2 cards
+    if(targetCol==='doing'){
+      const doingCards = document.querySelectorAll('.col[data-col="doing"] .card');
+      if(doingCards.length>=2 && currentCol==='todo') return;
+    }
+
+    // Move card
+    const targetElement = document.querySelector(`.col[data-col="${targetCol}"]`);
+    targetElement.appendChild(card);
+    updateCounters();
+  });
+</script>
+</body>
+</html>

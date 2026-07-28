@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-wrap:wrap;}
+.left,.right{flex:1;padding:10px;box-sizing:border-box;}
+.left{min-width:200px;}
+.prod{border:1px solid #ccc;margin-bottom:10px;padding:10px;}
+.prod button{margin-top:5px;}
+.linea{display:flex;align-items:center;margin-bottom:5px;}
+.linea span{margin-right:5px;}
+#total{font-weight:bold;}
+@media(max-width:600px){body{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="left">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+<strong>Producto p1</strong><br>
+Precio: <span class="precio"></span><br>
+Stock: <span class="stock"></span><br>
+<button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+<strong>Producto p2</strong><br>
+Precio: <span class="precio"></span><br>
+Stock: <span class="stock"></span><br>
+<button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+<strong>Producto p3</strong><br>
+Precio: <span class="precio"></span><br>
+Stock: <span class="stock"></span><br>
+<button class="add" data-id="p3">Añadir</button>
+</div>
+</div>
+<div class="right">
+<h3>Carrito</h3>
+<div id="cart"></div>
+Total: <span id="total">0</span>
+</div>
+<script>
+const cart={};
+function formatPrice(v){return v.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function update(){
+  const cartDiv=document.getElementById('cart');cartDiv.innerHTML='';let total=0;
+  for(const id in cart){const qty=cart[id];if(qty>0){const prod=document.querySelector('.prod[data-id="'+id+'"]');const price=parseFloat(prod.dataset.precio);total+=price*qty;cartDiv.innerHTML+=`<div class="linea" data-id="${id}"><span class="cant">${qty}</span> x ${formatPrice(price)} <button class="quitar" data-id="${id}">Quitar</button></div>`;}}
+  document.getElementById('total').textContent=formatPrice(total);
+  document.querySelectorAll('.prod').forEach(prod=>{
+    const id=prod.dataset.id;const stock=parseInt(prod.dataset.stock);const qty=cart[id]||0;const btn=prod.querySelector('.add');btn.disabled=qty>=stock;
+  });
+  document.querySelectorAll('.quitar').forEach(btn=>{
+    btn.onclick=()=>{const id=btn.dataset.id;cart[id]--;if(cart[id]===0){delete cart[id];}update();}
+  });
+}
+document.querySelectorAll('.add').forEach(btn=>{
+  btn.onclick=()=>{const id=btn.dataset.id;cart[id]=(cart[id]||0)+1;update();}
+});
+document.querySelectorAll('.prod').forEach(prod=>{
+  const price=parseFloat(prod.dataset.precio);const stock=parseInt(prod.dataset.stock);
+  prod.querySelector('.precio').textContent=formatPrice(price);
+  prod.querySelector('.stock').textContent=stock;
+});
+update();
+</script>
+</body>
+</html>

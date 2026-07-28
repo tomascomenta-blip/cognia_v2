@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+.board{display:flex;gap:10px;width:100%;max-width:800px;padding:10px;}
+.col{flex:1;border:1px solid #ccc;padding:5px;min-height:200px;display:flex;flex-direction:column;}
+.card{background:#f9f9f9;border:1px solid #aaa;margin:5px 0;padding:5px;display:flex;justify-content:space-between;align-items:center;}
+button{margin-left:2px;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h3>Todo <span id="cont-todo"></span></h3></div>
+<div class="col" data-col="doing"><h3>En Progreso <span id="cont-doing"></span></h3></div>
+<div class="col" data-col="done"><h3>Hecho <span id="cont-done"></span></h3></div>
+</div>
+<script>
+function createCard(id){var c=document.createElement('div');c.className='card';c.dataset.id=id;var s=document.createElement('span');s.textContent=id;var b=document.createElement('div');var m=document.createElement('button');m.className='menos';m.textContent='←';var p=document.createElement('button');p.className='mas';p.textContent='→';b.appendChild(m);b.appendChild(p);c.appendChild(s);c.appendChild(b);c.addEventListener('click',function(e){if(e.target.className=='mas'||e.target.className=='menos'){var cur=c.parentElement.dataset.col;var idx=['todo','doing','done'].indexOf(cur);var newIdx=idx+(e.target.className=='mas'?1:-1);if(newIdx<0||newIdx>2)return;var newCol=document.querySelector('[data-col='+['todo','doing','done'][newIdx]+']');if(newCol.dataset.col=='doing'&&newCol.querySelectorAll('.card').length>=2)return;newCol.appendChild(c);updateCounters();}});return c;}
+var todo=document.querySelector('[data-col=todo]');var doing=document.querySelector('[data-col=doing]');var done=document.querySelector('[data-col=done]');
+['t1','t2','t3'].forEach(id=>todo.appendChild(createCard(id)));
+function updateCounters(){['todo','doing','done'].forEach(col=>{var count=document.querySelectorAll('[data-col='+col+'] .card').length;document.getElementById('cont-'+col).textContent=count;});}
+updateCounters();
+</script>
+</body>
+</html>

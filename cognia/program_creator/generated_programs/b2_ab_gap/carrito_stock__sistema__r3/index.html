@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{
+  margin:0;
+  font-family:system-ui,sans-serif;
+  background:#f5f5f5;
+  color:#333;
+}
+.container{
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  max-width:1200px;
+  margin:20px auto;
+  padding:0 20px;
+}
+.products{
+  flex:2;
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+}
+.cart-panel{
+  flex:1;
+  min-width:260px;
+  position:sticky;
+  top:20px;
+  align-self:flex-start;
+}
+.prod{
+  background:#fff;
+  border:1px solid #e0e0e0;
+  border-radius:10px;
+  padding:15px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.05);
+  flex:1 1 200px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.prod h3{
+  margin:0 0 10px;
+  font-size:1.2em;
+}
+.prod p{
+  margin:5px 0;
+  font-size:.95em;
+}
+.prod .add{
+  margin-top:10px;
+  padding:8px 12px;
+  background:#007bff;
+  color:#fff;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  font-size:.95em;
+}
+.prod .add:disabled{
+  background:#ccc;
+  cursor:not-allowed;
+}
+.cart-panel h2{
+  margin:0 0 15px;
+  font-size:1.5em;
+}
+.linea{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:#fff;
+  border:1px solid #e0e0e0;
+  border-radius:5px;
+  padding:8px 10px;
+  margin-bottom:10px;
+}
+.linea .cant{
+  font-weight:bold;
+}
+.linea .quitar{
+  padding:4px 8px;
+  background:#dc3545;
+  color:#fff;
+  border:none;
+  border-radius:3px;
+  cursor:pointer;
+  font-size:.85em;
+}
+.total{
+  margin-top:20px;
+  font-size:1.2em;
+  font-weight:bold;
+}
+@media(max-width:768px){
+  .container{
+    flex-direction:column;
+  }
+  .cart-panel{
+    position:static;
+    top:auto;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <p>Precio: 100 €</p>
+      <p>Stock: 2</p>
+      <button class="add" data-id="p1">Agregar</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <p>Precio: 50 €</p>
+      <p>Stock: 3</p>
+      <button class="add" data-id="p2">Agregar</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <p>Precio: 25 €</p>
+      <p>Stock: 1</p>
+      <button class="add" data-id="p3">Agregar</button>
+    </div>
+  </div>
+  <div class="cart-panel" id="cart-panel">
+    <h2>Carrito</h2>
+    <div id="cart-items"></div>
+    <div class="total">Total: <span id="total">0 €</span></div>
+  </div>
+</div>
+<script>
+class Cart {
+  constructor() {
+    this.items = new Map(); // id -> {quantity, price, stock}
+    this.totalEl = document.getElementById('total');
+    this.cartEl = document.getElementById('cart-items');
+    this.updateTotal();
+  }
+
+  add(id) {
+    const prodEl = document.querySelector(`.prod[data-id="${id}"]`);
+    if (!prodEl) return;
+    const price = parseFloat(prodEl.dataset.precio);
+    const stock = parseInt(prodEl.dataset.stock, 10);
+    const current = this.items.get(id) || {quantity: 0, price, stock};
+    if (current.quantity < stock) {
+      current.quantity += 1;
+      this.items.set(id, current);
+      this.updateLine(id, current.quantity);
+      if (current.quantity >= stock) {
+        this.disableAdd(id);
+      }
+      this.updateTotal();
+    }
+  }
+
+  remove(id) {
+    const current = this.items.get(id);
+    if (!current) return;
+    current.quantity -= 1;
+    if (current.quantity <= 0) {
+      this.items.delete(id);
+      this.removeLine(id);
+      this.enableAdd(id);
+    } else {
+      this.items.set(id, current);
+      this.updateLine(id, current.quantity);
+    }
+    this.updateTotal();
+  }
+
+  updateLine(id, quantity) {
+    let lineEl = this.cartEl.querySelector(`.linea[data-id="${id}"]`);
+    if (!lineEl) {
+      lineEl = this.createLine(id, quantity);
+      this.cartEl.appendChild(lineEl);
+    } else {
+      const cantEl = lineEl.querySelector('.cant');
+      cantEl.textContent = quantity;
+    }
+  }
+
+  createLine(id, quantity) {
+    const lineEl = document.createElement('div');
+    lineEl.className = 'linea';
+    lineEl.dataset.id = id;
+    const cantEl = document.createElement('span');
+    cantEl.className = 'cant';
+    cantEl.textContent = quantity;
+    const quitarBtn = document.createElement('button');
+    quitarBtn.className = 'quitar';
+    quitarBtn.dataset.id = id;
+    quitarBtn.textContent = 'Quitar';
+    quitarBtn.addEventListener('click', () => this.remove(id));
+    lineEl.appendChild(cantEl);
+    lineEl.appendChild(quitarBtn);
+    return lineEl;
+  }
+
+  removeLine(id) {
+    const lineEl = this.cartEl.querySelector(`.linea[data-id="${id}"]`);
+    if (lineEl) lineEl.remove();
+  }
+
+  updateTotal() {
+    let total = 0;
+    for (const {quantity, price} of this.items.values()) {
+      total += quantity * price;
+    }
+    this.totalEl.textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+
+  disableAdd(id) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if (btn) btn.disabled = true;
+  }
+
+  enableAdd(id) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if (btn) btn.disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const cart = new Cart();
+  const addButtons = document.querySelectorAll('.add');
+  addButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      cart.add(id);
+    });
+  });
+});
+</script>
+</body>
+</html>

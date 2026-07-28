@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+#grid{display:grid;grid-template-columns:repeat(5,40px);gap:2px;margin-top:20px;}
+.c{width:40px;height:40px;background:#bbb;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.c.abierta{background:#ddd;}
+.c.bandera{background:#f00;}
+#estado{margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,12,18]);const grid=document.getElementById('grid');
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');d.className='c';d.dataset.i=i;
+  d.addEventListener('click',e=>{
+    if(d.classList.contains('bandera')||d.classList.contains('abierta'))return;
+    if(mines.has(i)){d.classList.add('abierta');document.getElementById('estado').textContent='perdiste';return;}
+    const open=i=>{
+      const cell=document.querySelector(`.c[data-i='${i}']`);
+      if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+      const r=Math.floor(i/5),c=i%5;
+      let count=0;
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr<0||nr>4||nc<0||nc>4)continue;
+        const ni=nr*5+nc;
+        if(mines.has(ni))count++;
+      }
+      cell.classList.add('abierta');
+      if(count>0)cell.textContent=count;
+      if(count===0){
+        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+          if(dr===0&&dc===0)continue;
+          const nr=r+dr,nc=c+dc;
+          if(nr<0||nr>4||nc<0||nc>4)continue;
+          open(nr*5+nc);
+        }
+      }
+    };
+    open(i);
+  });
+  d.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(d.classList.contains('abierta'))return;
+    d.classList.toggle('bandera');
+  });
+  grid.appendChild(d);
+}
+</script>
+</body>
+</html>

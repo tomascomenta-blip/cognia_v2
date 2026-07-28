@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:sans-serif;background:#eceff1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;width:90vw;max-width:300px;}
+.c{background:#e0f2f1;border:1px solid #b2dfdb;box-shadow:0 2px 4px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:1.2rem;color:#004d40;cursor:pointer;aspect-ratio:1;}
+.c.abierta{background:#b2dfdb;cursor:default;}
+.c.bandera{background:#ffebee;color:#d32f2f;}
+.number{color:#ff5722;}
+.mine{color:#d32f2f;font-size:1.5rem;}
+#estado{margin-top:10px;font-size:1.2rem;color:#d32f2f;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,12,18]);
+function createGrid(){const container=document.getElementById('grid');for(let i=0;i<25;i++){const c=document.createElement('div');c.className='c';c.dataset.i=i;c.addEventListener('click',onClick);c.addEventListener('contextmenu',onRight);container.appendChild(c);}}
+function onClick(e){const c=e.currentTarget;if(c.classList.contains('bandera')||c.classList.contains('abierta'))return;const i=parseInt(c.dataset.i);if(mines.has(i)){c.classList.add('abierta');c.innerHTML='<span class="mine">💣</span>';document.getElementById('estado').textContent='perdiste';return;}const adj=countAdj(i);c.classList.add('abierta');if(adj>0)c.innerHTML='<span class="number">'+adj+'</span>';if(adj===0)cascade(i);}
+function onRight(e){e.preventDefault();const c=e.currentTarget;if(c.classList.contains('abierta'))return;c.classList.toggle('bandera');c.innerHTML=c.classList.contains('bandera')?'🚩':'';}
+function countAdj(i){const r=Math.floor(i/5),c=Math.floor(i%5);let count=0;for(let dr=-1;dr<=1;dr++){for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;const ni=nr*5+nc;if(mines.has(ni))count++;}}return count;}
+function cascade(i){const r=Math.floor(i/5),c=Math.floor(i%5);for(let dr=-1;dr<=1;dr++){for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;const ni=nr*5+nc;const cell=document.querySelector('.c[data-i="'+ni+'"]');if(cell&&!cell.classList.contains('abierta')&&!cell.classList.contains('bandera')){const adj=countAdj(ni);cell.classList.add('abierta');if(adj>0)cell.innerHTML='<span class="number">'+adj+'</span>';if(adj===0)cascade(ni);}}}
+createGrid();
+</script>
+</body>
+</html>

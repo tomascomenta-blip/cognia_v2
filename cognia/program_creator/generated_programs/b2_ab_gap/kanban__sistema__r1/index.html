@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban en una sola página</title>
+<style>
+  body {font-family: Arial, sans-serif; margin:0; padding:0; background:#f4f4f4;}
+  .counters {text-align:center; margin:10px 0; font-size:1.1em;}
+  .counters span {margin:0 5px; font-weight:bold;}
+  .board {display:flex; flex-wrap:wrap; padding:10px;}
+  .col {flex:1 1 30%; background:#e0e0e0; margin:5px; padding:10px; min-height:200px; box-sizing:border-box;}
+  .col[data-col="todo"] {background:#d1e7dd;}
+  .col[data-col="doing"] {background:#fff3cd;}
+  .col[data-col="done"] {background:#d1ecf1;}
+  .card {background:#fff; padding:8px; margin-bottom:8px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.1); display:flex; justify-content:space-between; align-items:center;}
+  .card span.id {font-weight:bold;}
+  .card button {margin-left:4px; padding:2px 6px; font-size:0.9em;}
+  @media (max-width:600px) {
+    .col {flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+<div class="counters">
+  <span id="cont-todo"></span> / <span id="cont-doing"></span> / <span id="cont-done"></span>
+</div>
+<div class="board">
+  <div class="col" data-col="todo"></div>
+  <div class="col" data-col="doing"></div>
+  <div class="col" data-col="done"></div>
+</div>
+<script>
+  // Constantes configurables
+  const MAX_DOING = 2;
+  const INITIAL_TODO = ['t1', 't2', 't3'];
+
+  // Función para crear una tarjeta
+  function createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const idSpan = document.createElement('span');
+    idSpan.className = 'id';
+    idSpan.textContent = id;
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = 'Avanzar';
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = 'Retroceder';
+
+    card.appendChild(idSpan);
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+    return card;
+  }
+
+  // Referencias a las columnas
+  const cols = {
+    todo: document.querySelector('.col[data-col="todo"]'),
+    doing: document.querySelector('.col[data-col="doing"]'),
+    done: document.querySelector('.col[data-col="done"]')
+  };
+
+  // Inicializar tarjetas en la columna "todo"
+  INITIAL_TODO.forEach(id => {
+    const card = createCard(id);
+    cols.todo.appendChild(card);
+  });
+
+  // Actualizar contadores
+  function updateCounters() {
+    const todoCount = cols.todo.children.length;
+    const doingCount = cols.doing.children.length;
+    const doneCount = cols.done.children.length;
+    document.getElementById('cont-todo').textContent = 'Todo: ' + todoCount;
+    document.getElementById('cont-doing').textContent = 'En Progreso: ' + doingCount;
+    document.getElementById('cont-done').textContent = 'Hecho: ' + doneCount;
+  }
+  updateCounters();
+
+  // Manejo de eventos de los botones
+  document.querySelector('.board').addEventListener('click', function(e) {
+    if (e.target.classList.contains('mas') || e.target.classList.contains('menos')) {
+      const card = e.target.closest('.card');
+      const currentCol = card.parentElement.dataset.col;
+      let targetCol;
+
+      if (e.target.classList.contains('mas')) {
+        if (currentCol === 'todo') targetCol = 'doing';
+        else if (currentCol === 'doing') targetCol = 'done';
+        else return; // no avanzar desde "done"
+      } else { // botón menos
+        if (currentCol === 'doing') targetCol = 'todo';
+        else if (currentCol === 'done') targetCol = 'doing';
+        else return; // no retroceder desde "todo"
+      }
+
+      // Regla WIP: máximo 2 tarjetas en "doing"
+      if (targetCol === 'doing' && cols.doing.children.length >= MAX_DOING) {
+        return; // no se permite mover
+      }
+
+      cols[targetCol].appendChild(card);
+      updateCounters();
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,120px);
+    grid-template-rows:repeat(3,40px);
+    gap:5px;
+    padding:10px;
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,.1);
+    animation:slideIn 1s ease-out;
+  }
+  .celda{
+    width:100%;height:100%;box-sizing:border-box;padding:5px;
+    font-size:14px;text-align:right;
+    border:1px solid #ccc;border-radius:4px;
+    transition:background .2s;
+  }
+  .celda:focus{outline:none;background:#e6f7ff;}
+  @keyframes slideIn{
+    from{transform:translateX(-100%);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1" value="">
+  <input type="text" class="celda" data-ref="A2" value="">
+  <input type="text" class="celda" data-ref="A3" value="">
+  <input type="text" class="celda" data-ref="B1" value="">
+  <input type="text" class="celda" data-ref="B2" value="">
+  <input type="text" class="celda" data-ref="B3" value="">
+  <input type="text" class="celda" data-ref="C1" value="">
+  <input type="text" class="celda" data-ref="C2" value="">
+  <input type="text" class="celda" data-ref="C3" value="">
+</div>
+
+<script>
+(() => {
+  const cells = Array.from(document.querySelectorAll('.celda'));
+
+  // Map ref -> element
+  const refMap = {};
+  cells.forEach(el => refMap[el.dataset.ref] = el);
+
+  // Store formulas separately
+  cells.forEach(el => {
+    el.addEventListener('input', () => {
+      const val = el.value.trim();
+      if (val.startsWith('=')) {
+        el.dataset.formula = val;
+      } else {
+        delete el.dataset.formula;
+      }
+      recomputeAll();
+    });
+  });
+
+  function recomputeAll() {
+    cells.forEach(el => {
+      const result = evaluate(el.dataset.ref, new Set());
+      el.value = result;
+    });
+  }
+
+  function evaluate(ref, stack) {
+    if (stack.has(ref)) return 'CIRC';
+    stack.add(ref);
+    const el = refMap[ref];
+    const formula = el.dataset.formula;
+    if (!formula) {
+      // Plain value
+      const val = el.value.trim();
+      stack.delete(ref);
+      return val === '' ? '0' : val;
+    }
+    // Replace references
+    const expr = formula.slice(1).replace(/[A-C][1-3]/g, match => {
+      const sub = evaluate(match, stack);
+      return sub === 'CIRC' ? 'CIRC' : sub;
+    });
+    if (expr.includes('CIRC')) {
+      stack.delete(ref);
+      return 'CIRC';
+    }
+    // Evaluate numeric expression
+    try {
+      const res = eval(expr);
+      stack.delete(ref);
+      return res.toString();
+    } catch (e) {
+      stack.delete(ref);
+      return 'CIRC';
+    }
+  }
+
+  // Initial calculation
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

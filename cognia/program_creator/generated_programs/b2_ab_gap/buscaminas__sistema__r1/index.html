@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 Fixed Mines</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#fafafa;}
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    max-width:400px;
+    margin:auto;
+  }
+  .c{
+    position:relative;
+    width:100%;
+    padding-bottom:100%; /* square cells */
+    border:1px solid #999;
+    background:#f0f0f0;
+    cursor:pointer;
+    user-select:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+  }
+  .c > span{
+    position:absolute;
+    top:0;left:0;right:0;bottom:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .c.abierta{background:#ddd;cursor:default;}
+  .c.bandera{background:#ff0;}
+  .c:hover:not(.abierta):not(.bandera){background:#e0e0e0;}
+  #estado{
+    margin-top:10px;
+    text-align:center;
+    font-size:1.2rem;
+    color:red;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+"use strict";
+const GRID_SIZE = 5;
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+const MINE_POSITIONS = [6,12,18];
+const mineSet = new Set(MINE_POSITIONS);
+const adjCounts = new Array(TOTAL_CELLS).fill(0);
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+
+// compute adjacent mine counts
+const dirs = [
+  [-1,-1],[-1,0],[-1,1],
+  [0,-1],       [0,1],
+  [1,-1],[1,0],[1,1]
+];
+for(let i=0;i<TOTAL_CELLS;i++){
+  const r = Math.floor(i/GRID_SIZE);
+  const c = i%GRID_SIZE;
+  let count = 0;
+  for(const [dr,dc] of dirs){
+    const nr=r+dr, nc=c+dc;
+    if(nr<0||nr>=GRID_SIZE||nc<0||nc>=GRID_SIZE) continue;
+    const ni = nr*GRID_SIZE+nc;
+    if(mineSet.has(ni)) count++;
+  }
+  adjCounts[i]=count;
+}
+
+// create cells
+for(let i=0;i<TOTAL_CELLS;i++){
+  const cell = document.createElement('div');
+  cell.className='c';
+  cell.dataset.i=i;
+  const span = document.createElement('span');
+  cell.appendChild(span);
+  cell.addEventListener('click', onLeftClick);
+  cell.addEventListener('contextmenu', onRightClick);
+  grid.appendChild(cell);
+}
+
+// left click handler
+function onLeftClick(e){
+  const cell = e.currentTarget;
+  if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  const i = parseInt(cell.dataset.i);
+  if(mineSet.has(i)){
+    openMine(cell);
+    estado.textContent='perdiste';
+    return;
+  }
+  openCell(cell);
+  if(adjCounts[i]===0){
+    cascade(cell);
+  }
+}
+
+// right click handler
+function onRightClick(e){
+  e.preventDefault();
+  const cell = e.currentTarget;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.querySelector('span').textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.querySelector('span').textContent='🚩';
+  }
+}
+
+// open a non-mine cell
+function openCell(cell){
+  const i = parseInt(cell.dataset.i);
+  cell.classList.add('abierta');
+  const count = adjCounts[i];
+  cell.querySelector('span').textContent = count>0 ? count : '';
+}
+
+// open a mine cell
+function openMine(cell){
+  cell.classList.add('abierta');
+  cell.querySelector('span').textContent='💣';
+}
+
+// cascade opening for zero-adjacent cells
+function cascade(startCell){
+  const queue = [startCell];
+  while(queue.length){
+    const cell = queue.shift();
+    const i = parseInt(cell.dataset.i);
+    const r = Math.floor(i/GRID_SIZE);
+    const c = i%GRID_SIZE;
+    for(const [dr,dc] of dirs){
+      const nr=r+dr, nc=c+dc;
+      if(nr<0||nr>=GRID_SIZE||nc<0||nc>=GRID_SIZE) continue;
+      const ni = nr*GRID_SIZE+nc;
+      const neighbor = grid.querySelector(`.c[data-i="${ni}"]`);
+      if(neighbor.classList.contains('abierta') || neighbor.classList.contains('bandera')) continue;
+      if(mineSet.has(ni)) continue; // do not open mines
+      openCell(neighbor);
+      if(adjCounts[ni]===0){
+        queue.push(neighbor);
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>

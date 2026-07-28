@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .board{
+    display:flex;
+    gap:20px;
+    width:90%;
+    max-width:1200px;
+  }
+  .col{
+    background:#e0e0e0;
+    flex:1;
+    padding:10px;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    opacity:0;
+    animation:fadeIn 0.8s forwards;
+  }
+  .col:nth-child(1){animation-delay:0.1s;}
+  .col:nth-child(2){animation-delay:0.3s;}
+  .col:nth-child(3){animation-delay:0.5s;}
+  .col h2{
+    margin-top:0;
+    font-size:1.2em;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .cards{
+    min-height:50px;
+  }
+  .card{
+    background:#fff;
+    padding:10px;
+    margin:8px 0;
+    border-radius:5px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    animation:fadeIn 0.6s forwards;
+  }
+  .card:nth-child(1){animation-delay:0.2s;}
+  .card:nth-child(2){animation-delay:0.3s;}
+  .card:nth-child(3){animation-delay:0.4s;}
+  button{
+    background:#007bff;
+    color:#fff;
+    border:none;
+    padding:4px 8px;
+    margin-left:4px;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:0.9em;
+  }
+  button:disabled{
+    background:#aaa;
+    cursor:not-allowed;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">3</span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1">
+        <span>tarea 1</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <span>tarea 2</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <span>tarea 3</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cols = document.querySelectorAll('.col');
+  const updateCounts = () => {
+    cols.forEach(col => {
+      const count = col.querySelectorAll('.card').length;
+      const span = col.querySelector('span[id^="cont-"]');
+      if (span) span.textContent = count;
+    });
+  };
+
+  const moveCard = (card, direction) => {
+    const currentCol = card.closest('.col');
+    const currentKey = currentCol.dataset.col;
+    let targetKey;
+    if (direction === 'right') {
+      if (currentKey === 'todo') targetKey = 'doing';
+      else if (currentKey === 'doing') targetKey = 'done';
+      else return; // done -> no move
+    } else if (direction === 'left') {
+      if (currentKey === 'doing') targetKey = 'todo';
+      else if (currentKey === 'done') targetKey = 'doing';
+      else return; // todo -> no move
+    } else return;
+
+    const targetCol = document.querySelector(`.col[data-col="${targetKey}"]`);
+    // WIP rule: doing max 2 cards
+    if (targetKey === 'doing' && targetCol.querySelectorAll('.card').length >= 2) {
+      return;
+    }
+    targetCol.querySelector('.cards').appendChild(card);
+    updateCounts();
+  };
+
+  // Attach listeners to all buttons
+  document.querySelectorAll('.mas').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.card');
+      moveCard(card, 'right');
+    });
+  });
+  document.querySelectorAll('.menos').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.card');
+      moveCard(card, 'left');
+    });
+  });
+
+  updateCounts();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+  }
+  .board{
+    display:flex;
+    gap:10px;
+    justify-content:space-between;
+  }
+  .col{
+    background:#fff;
+    padding:10px;
+    border-radius:5px;
+    flex:1;
+    min-height:300px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    animation:fadeIn 1s ease forwards;
+  }
+  .col[data-col="todo"]{animation-delay:0s;}
+  .col[data-col="doing"]{animation-delay:0.2s;}
+  .col[data-col="done"]{animation-delay:0.4s;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  h2{
+    margin:0 0 10px 0;
+    font-size:1.2em;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .cards{
+    min-height:50px;
+  }
+  .card{
+    background:#e3e3e3;
+    margin:5px 0;
+    padding:5px;
+    border-radius:3px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .card span{flex:1;}
+  button{
+    margin-left:5px;
+    padding:2px 6px;
+    font-size:0.9em;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1"><span>t1</span><button class="mas">→</button><button class="menos">←</button></div>
+      <div class="card" data-id="t2"><span>t2</span><button class="mas">→</button><button class="menos">←</button></div>
+      <div class="card" data-id="t3"><span>t3</span><button class="mas">→</button><button class="menos">←</button></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+  function updateCounts(){
+    const todo=document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doing=document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const done=document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent=todo;
+    document.getElementById('cont-doing').textContent=doing;
+    document.getElementById('cont-done').textContent=done;
+  }
+  function moveCard(card,dir){
+    const col=card.parentElement.parentElement;
+    const cur=col.dataset.col;
+    let target;
+    if(dir==='right'){
+      if(cur==='todo') target='doing';
+      else if(cur==='doing') target='done';
+      else return;
+    }else{
+      if(cur==='doing') target='todo';
+      else if(cur==='done') target='doing';
+      else return;
+    }
+    if(target==='doing'){
+      const doingCount=document.querySelectorAll('.col[data-col="doing"] .card').length;
+      if(doingCount>=2) return;
+    }
+    const dest=document.querySelector('.col[data-col="'+target+'"] .cards');
+    dest.appendChild(card);
+    updateCounts();
+  }
+  document.querySelectorAll('.mas').forEach(b=>{
+    b.addEventListener('click',e=>moveCard(e.target.parentElement,'right'));
+  });
+  document.querySelectorAll('.menos').forEach(b=>{
+    b.addEventListener('click',e=>moveCard(e.target.parentElement,'left'));
+  });
+  updateCounts();
+</script>
+</body>
+</html>

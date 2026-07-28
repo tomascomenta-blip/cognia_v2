@@ -9577,3 +9577,20 @@ BoN con candidatos a temperatura alta ahora que la entrega es primgen
 vacuidad, doble KILL, no-replicación de la exploratoria, troceo agotado)
 y el-lazo-restaba (nueva: el A/B que cambió el default).
 
+
+### Addendum nocturna 27 (02:45) — el GAP medido con control concurrente
+
+7. **A/B GAP sistema-vs-crudo (SEXTA enmienda, PARCIAL 23/24 pares, 0
+   infra): EL ENVOLTORIO AÚN ROBA, pero la brecha se achicó 3×.** sistema
+   15/23 (65%) vs crudo 19/23 (83%); apareado: crudo +4 neto con reparto
+   en 4 tareas. La brecha pasó de ~58 pts (17% vs 75%) a ~17 pts con
+   control concurrente: los fixes de la semana (prompt dashboard, descarte
+   de vacuos, rondas=1) cobraron la mayor parte; queda un ladrón real en
+   generate_program. Siguiente sonda: el prompt DEL LAZO completo. De la
+   revisión pre-lanzamiento (1 mayor): el fallback silencioso a Ollama 1B
+   se neutralizó en la medición y cada celda registra su backend — sin
+   eso, un hipo de :8080 habría contado como fallo legítimo. Nota de
+   infra: una celda crudo quedó >45 min (el read-timeout por chunk no
+   acota el goteo lento de tokens) — presupuesto por celda pendiente como
+   chequeo, no como prosa. Commits 2ccfcd9 y el de este cierre.
+

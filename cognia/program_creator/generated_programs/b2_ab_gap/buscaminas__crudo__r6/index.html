@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#fafafa;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin-top:20px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,40px);
+    grid-template-rows:repeat(5,40px);
+    gap:2px;
+  }
+  .c{
+    width:40px;height:40px;
+    border:1px solid #999;
+    background:#ccc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    cursor:pointer;
+    user-select:none;
+    transition:background .2s;
+  }
+  .c.abierta{background:#eee;cursor:default;}
+  .c.bandera{background:#fdd;}
+  .c.abierta[data-num="1"]{color:#00f;}
+  .c.abierta[data-num="2"]{color:#008000;}
+  .c.abierta[data-num="3"]{color:#f00;}
+  .c.abierta[data-num="4"]{color:#0000ff;}
+  .c.abierta[data-num="5"]{color:#800080;}
+  .c.abierta[data-num="6"]{color:#808080;}
+  .c.abierta[data-num="7"]{color:#000;}
+  .c.abierta[data-num="8"]{color:#000;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:scale(.8);}
+    to{opacity:1;transform:scale(1);}
+  }
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+const size=5;
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+const cells=[];
+let gameOver=false;
+
+// Crear celdas
+for(let i=0;i<size*size;i++){
+  const div=document.createElement('div');
+  div.className='c';
+  div.dataset.i=i;
+  div.dataset.opened='false';
+  div.dataset.flagged='false';
+  div.dataset.mine= mines.includes(i)?'true':'false';
+  div.dataset.num='0';
+  div.style.animationDelay=`${i*0.05}s`;
+  div.style.animation='fadeIn 0.5s ease forwards';
+  grid.appendChild(div);
+  cells.push(div);
+}
+
+// Contar minas adyacentes
+function countAdj(i){
+  const r=Math.floor(i/size), c=i%size;
+  let cnt=0;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0&&nr<size&&nc>=0&&nc<size){
+        const idx=nr*size+nc;
+        if(mines.includes(idx))cnt++;
+      }
+    }
+  }
+  return cnt;
+}
+
+// Abrir celda
+function openCell(cell){
+  if(gameOver)return;
+  const i=parseInt(cell.dataset.i);
+  if(cell.dataset.opened==='true'||cell.dataset.flagged==='true')return;
+  if(cell.dataset.mine==='true'){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    estado.textContent='perdiste';
+    gameOver=true;
+    return;
+  }
+  const num=countAdj(i);
+  cell.dataset.num=num;
+  cell.classList.add('abierta');
+  if(num>0)cell.textContent=num;
+  if(num===0){
+    const queue=[cell];
+    while(queue.length){
+      const cur=queue.shift();
+      const idx=parseInt(cur.dataset.i);
+      const r=Math.floor(idx/size), c=idx%size;
+      for(let dr=-1;dr<=1;dr++){
+        for(let dc=-1;dc<=1;dc++){
+          if(dr===0&&dc===0)continue;
+          const nr=r+dr, nc=c+dc;
+          if(nr>=0&&nr<size&&nc>=0&&nc<size){
+            const nIdx=nr*size+nc;
+            const nCell=cells[nIdx];
+            if(nCell.dataset.opened==='true'||nCell.dataset.flagged==='true')continue;
+            const nNum=countAdj(nIdx);
+            nCell.dataset.num=nNum;
+            nCell.classList.add('abierta');
+            if(nNum>0)nCell.textContent=nNum;
+            if(nNum===0)queue.push(nCell);
+          }
+        }
+      }
+    }
+  }
+}
+
+// Alternar bandera
+function toggleFlag(cell){
+  if(gameOver)return;
+  if(cell.dataset.opened==='true')return;
+  if(cell.dataset.flagged==='true'){
+    cell.dataset.flagged='false';
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.dataset.flagged='true';
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+}
+
+// Eventos
+cells.forEach(cell=>{
+  cell.addEventListener('click',()=>openCell(cell));
+  cell.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    toggleFlag(cell);
+  });
+});
+</script>
+</body>
+</html>

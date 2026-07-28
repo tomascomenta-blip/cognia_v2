@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  .container{display:flex;min-height:100vh;}
+  #products{flex:1;padding:20px;background:#fff;animation:slideIn 1s ease-out;}
+  #cart{flex:1;padding:20px;background:#e9e9e9;animation:slideIn 1s ease-out 0.2s forwards;}
+  .prod{border-bottom:1px solid #ddd;padding:10px 0;}
+  .prod:last-child{border:none;}
+  .prod button{margin-left:10px;}
+  #lines{margin-top:10px;}
+  .linea{display:flex;align-items:center;margin-bottom:5px;animation:fadeIn 0.5s;}
+  .linea span{margin-right:10px;}
+  .linea button{margin-left:auto;}
+  #total{font-weight:bold;}
+  button:disabled{opacity:0.5;cursor:not-allowed;}
+  @keyframes slideIn{
+    from{transform:translateX(-20px);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="products">
+    <h2>Productos</h2>
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <span>Producto 1 - $100</span>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <span>Producto 2 - $50</span>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <span>Producto 3 - $25</span>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: $<span id="total">0</span></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const addButtons = document.querySelectorAll('.add');
+  const linesContainer = document.getElementById('lines');
+  const totalSpan = document.getElementById('total');
+
+  function recalcTotal(){
+    let total = 0;
+    document.querySelectorAll('.linea').forEach(line=>{
+      const id = line.dataset.id;
+      const qty = parseInt(line.querySelector('.cant').textContent);
+      const price = parseFloat(document.querySelector(`.prod[data-id="${id}"]`).dataset.precio);
+      total += qty * price;
+    });
+    totalSpan.textContent = total.toFixed(2);
+  }
+
+  function updateAddButton(id, qty){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock);
+    const btn = prod.querySelector('.add');
+    btn.disabled = qty >= stock;
+  }
+
+  addButtons.forEach(btn=>{
+    btn.addEventListener('click', function(){
+      const id = this.dataset.id;
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const stock = parseInt(prod.dataset.stock);
+      let line = document.querySelector(`.linea[data-id="${id}"]`);
+      if(line){
+        let qty = parseInt(line.querySelector('.cant').textContent);
+        if(qty < stock){
+          qty++;
+          line.querySelector('.cant').textContent = qty;
+          updateAddButton(id, qty);
+        }
+      }else{
+        const qty = 1;
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'linea';
+        lineDiv.dataset.id = id;
+        lineDiv.innerHTML = `<span class="cant">${qty}</span> <button class="quitar" data-id="${id}">-</button>`;
+        linesContainer.appendChild(lineDiv);
+        updateAddButton(id, qty);
+        // Attach quitar listener
+        lineDiv.querySelector('.quitar').addEventListener('click', quitarHandler);
+      }
+      recalcTotal();
+    });
+  });
+
+  function quitarHandler(){
+    const id = this.dataset.id;
+    const line = document.querySelector(`.linea[data-id="${id}"]`);
+    let qty = parseInt(line.querySelector('.cant').textContent);
+    qty--;
+    if(qty <= 0){
+      line.remove();
+      updateAddButton(id, 0);
+    }else{
+      line.querySelector('.cant').textContent = qty;
+      updateAddButton(id, qty);
+    }
+    recalcTotal();
+  }
+
+  // Attach quitar listeners to existing lines (none initially)
+});
+</script>
+</body>
+</html>

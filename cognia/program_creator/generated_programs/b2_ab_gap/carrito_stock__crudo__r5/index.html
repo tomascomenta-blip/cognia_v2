@@ -1,0 +1,117 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f9f9f9;}
+  #products{display:flex;gap:20px;margin-bottom:30px;}
+  .prod{background:#fff;padding:15px;border:1px solid #ddd;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1);animation:slideIn 0.5s forwards;}
+  .prod span{display:block;margin-bottom:10px;}
+  .add{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  .add:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{background:#fff;padding:15px;border:1px solid #ddd;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .quitar{padding:3px 8px;background:#dc3545;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  @keyframes slideIn{
+    from{transform:translateX(-100px);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - $100 (Stock: 2)</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - $50 (Stock: 3)</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - $25 (Stock: 1)</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="lines"></div>
+  <div>Total: $<span id="total">0</span></div>
+</div>
+
+<script>
+  const cart = {}; // {id: quantity}
+  const addButtons = document.querySelectorAll('.add');
+  const linesContainer = document.getElementById('lines');
+  const totalSpan = document.getElementById('total');
+
+  function updateTotal() {
+    let total = 0;
+    for (const id in cart) {
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = Number(prod.dataset.precio);
+      total += price * cart[id];
+    }
+    totalSpan.textContent = total;
+  }
+
+  function createLine(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const price = Number(prod.dataset.precio);
+    const line = document.createElement('div');
+    line.className = 'linea';
+    line.dataset.id = id;
+    line.innerHTML = `
+      <span>${prod.dataset.id} - $${price}</span>
+      <span class="cant">${cart[id]}</span>
+      <button class="quitar" data-id="${id}">-</button>
+    `;
+    linesContainer.appendChild(line);
+    line.querySelector('.quitar').addEventListener('click', () => removeItem(id));
+  }
+
+  function updateLine(id) {
+    const line = linesContainer.querySelector(`.linea[data-id="${id}"]`);
+    if (line) {
+      line.querySelector('.cant').textContent = cart[id];
+    }
+  }
+
+  function addItem(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = Number(prod.dataset.stock);
+    if (!cart[id]) cart[id] = 0;
+    if (cart[id] < stock) {
+      cart[id]++;
+      if (cart[id] === stock) prod.querySelector('.add').disabled = true;
+      const line = linesContainer.querySelector(`.linea[data-id="${id}"]`);
+      if (line) updateLine(id);
+      else createLine(id);
+      updateTotal();
+    }
+  }
+
+  function removeItem(id) {
+    if (!cart[id]) return;
+    cart[id]--;
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    prod.querySelector('.add').disabled = false;
+    if (cart[id] === 0) {
+      const line = linesContainer.querySelector(`.linea[data-id="${id}"]`);
+      if (line) line.remove();
+      delete cart[id];
+    } else {
+      updateLine(id);
+    }
+    updateTotal();
+  }
+
+  addButtons.forEach(btn => {
+    btn.addEventListener('click', () => addItem(btn.dataset.id));
+  });
+</script>
+</body>
+</html>

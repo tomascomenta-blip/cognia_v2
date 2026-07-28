@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban Simple</title>
+<style>
+  body{font-family:system-ui,Arial,sans-serif;margin:0;padding:0;background:#f0f4f8;}
+  .board{max-width:800px;margin:0 auto;padding:20px;display:flex;gap:10px;flex-wrap:wrap;}
+  .col{flex:1;min-width:200px;background:#fafafa;padding:10px;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+  .col h3{margin:0 0 10px;font-size:1.2rem;color:#555;}
+  .card{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+  .btns button{width:24px;height:24px;border:none;border-radius:50%;background:#bbb;color:#fff;cursor:pointer;margin-left:5px;font-size:12px;display:flex;align-items:center;justify-content:center;}
+  .btns button:hover{background:#999;}
+  .btns button:disabled{background:#ddd;color:#aaa;cursor:not-allowed;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h3>Pendientes <span id="cont-todo"></span></h3>
+    <div class="card" data-id="t1"><span>Tarea 1</span><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+    <div class="card" data-id="t2"><span>Tarea 2</span><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+    <div class="card" data-id="t3"><span>Tarea 3</span><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h3>En Progreso <span id="cont-doing"></span></h3>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Completado <span id="cont-done"></span></h3>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const updateCounters = () => {
+    document.getElementById('cont-todo').textContent = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    document.getElementById('cont-doing').textContent = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    document.getElementById('cont-done').textContent = document.querySelectorAll('.col[data-col="done"] .card').length;
+  };
+  const updateButtons = () => {
+    const doingCol = document.querySelector('.col[data-col="doing"]');
+    const doingCount = doingCol.querySelectorAll('.card').length;
+    document.querySelectorAll('.card').forEach(card => {
+      const col = card.parentElement.dataset.col;
+      const menos = card.querySelector('.menos');
+      const mas = card.querySelector('.mas');
+      menos.disabled = col === 'todo';
+      mas.disabled = col === 'done' || (col === 'todo' && doingCount >= 2);
+    });
+  };
+  const moveCard = (card, dir) => {
+    const currentCol = card.parentElement;
+    const current = currentCol.dataset.col;
+    let targetCol = null;
+    if (dir === 1) { // derecha
+      if (current === 'todo') targetCol = document.querySelector('.col[data-col="doing"]');
+      else if (current === 'doing') targetCol = document.querySelector('.col[data-col="done"]');
+      else return;
+    } else if (dir === -1) { // izquierda
+      if (current === 'done') targetCol = document.querySelector('.col[data-col="doing"]');
+      else if (current === 'doing') targetCol = document.querySelector('.col[data-col="todo"]');
+      else return;
+    }
+    if (!targetCol) return;
+    if (targetCol.dataset.col === 'doing' && targetCol.querySelectorAll('.card').length >= 2) return;
+    targetCol.appendChild(card);
+    updateCounters();
+    updateButtons();
+  };
+  document.querySelectorAll('.mas').forEach(btn => {
+    btn.addEventListener('click', () => moveCard(btn.closest('.card'), 1));
+  });
+  document.querySelectorAll('.menos').forEach(btn => {
+    btn.addEventListener('click', () => moveCard(btn.closest('.card'), -1));
+  });
+  updateCounters();
+  updateButtons();
+});
+</script>
+</body>
+</html>

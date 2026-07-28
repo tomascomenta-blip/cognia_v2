@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carrito con Stock</title>
+<style>
+:root{
+  --accent:#0066cc;
+  --accent-hover:#005bb5;
+  --danger:#ff4d4d;
+  --danger-hover:#e60000;
+  --bg:#f5f5f5;
+  --card-bg:#fff;
+  --border:#ddd;
+  --text:#333;
+}
+body{
+  margin:0;
+  font-family:system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+.wrapper{
+  display:flex;
+  gap:20px;
+  padding:20px;
+  max-width:1200px;
+  margin:auto;
+}
+.products{
+  flex:1;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:20px;
+}
+.prod{
+  background:var(--card-bg);
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.thumb{
+  background:#e0e0e0;
+  width:100%;
+  height:150px;
+  border-radius:5px;
+  margin-bottom:10px;
+}
+.title{
+  font-size:1.1rem;
+  margin:0 0 5px 0;
+  text-align:center;
+}
+.price,.stock{
+  margin:0 0 5px 0;
+  text-align:center;
+}
+.add{
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  padding:8px 12px;
+  border-radius:3px;
+  cursor:pointer;
+  margin-top:auto;
+}
+.add:hover{background:var(--accent-hover);}
+.add:disabled{background:#ccc;cursor:not-allowed;}
+.cart{
+  flex:0 0 300px;
+  position:sticky;
+  top:20px;
+  align-self:flex-start;
+  background:var(--card-bg);
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+  height:fit-content;
+}
+.cart h2{margin-top:0;text-align:center;}
+.linea{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:5px;
+}
+.linea .cant{font-weight:bold;}
+.quitar{
+  background:var(--danger);
+  color:#fff;
+  border:none;
+  padding:4px 8px;
+  border-radius:3px;
+  cursor:pointer;
+}
+.quitar:hover{background:var(--danger-hover);}
+.total-line{
+  margin-top:10px;
+  font-size:1.1rem;
+  text-align:right;
+}
+.total-line strong{margin-right:5px;}
+@media(max-width:800px){
+  .wrapper{flex-direction:column;}
+  .cart{flex:0 0 100%;margin-top:20px;}
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cart = {};
+  const priceMap = {};
+  const prodElems = document.querySelectorAll('.prod');
+  prodElems.forEach(p=>{
+    const id = p.dataset.id;
+    priceMap[id] = parseInt(p.dataset.precio,10);
+  });
+
+  function updateTotal(){
+    let total = 0;
+    for(const id in cart){
+      total += cart[id] * priceMap[id];
+    }
+    document.getElementById('total').textContent = total.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+  }
+
+  function addToCart(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock,10);
+    const qty = cart[id] || 0;
+    if(qty < stock){
+      const newQty = qty + 1;
+      cart[id] = newQty;
+      let line = document.querySelector(`.linea[data-id="${id}"]`);
+      if(!line){
+        line = document.createElement('div');
+        line.className = 'linea';
+        line.dataset.id = id;
+        const cantSpan = document.createElement('span');
+        cantSpan.className = 'cant';
+        cantSpan.textContent = newQty;
+        const quitarBtn = document.createElement('button');
+        quitarBtn.className = 'quitar';
+        quitarBtn.dataset.id = id;
+        quitarBtn.textContent = 'Quitar';
+        quitarBtn.addEventListener('click', ()=>removeFromCart(id));
+        line.appendChild(cantSpan);
+        line.appendChild(quitarBtn);
+        document.getElementById('cart-lines').appendChild(line);
+      }else{
+        line.querySelector('.cant').textContent = newQty;
+      }
+      const addBtn = prod.querySelector('.add');
+      addBtn.disabled = newQty >= stock;
+      updateTotal();
+    }
+  }
+
+  function removeFromCart(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock,10);
+    const qty = cart[id] || 0;
+    if(qty > 0){
+      const newQty = qty - 1;
+      if(newQty === 0){
+        delete cart[id];
+        const line = document.querySelector(`.linea[data-id="${id}"]`);
+        if(line) line.remove();
+        const addBtn = prod.querySelector('.add');
+        addBtn.disabled = false;
+      }else{
+        cart[id] = newQty;
+        const line = document.querySelector(`.linea[data-id="${id}"]`);
+        if(line) line.querySelector('.cant').textContent = newQty;
+        const addBtn = prod.querySelector('.add');
+        addBtn.disabled = newQty >= stock;
+      }
+      updateTotal();
+    }
+  }
+
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click', ()=>addToCart(btn.dataset.id));
+  });
+
+  updateTotal();
+});
+</script>
+</head>
+<body>
+<div class="wrapper">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <div class="thumb"></div>
+      <h3 class="title">Producto 1</h3>
+      <p class="price">Precio: 100 €</p>
+      <p class="stock">Stock: 2</p>
+      <button class="add" data-id="p1">Agregar</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <div class="thumb"></div>
+      <h3 class="title">Producto 2</h3>
+      <p class="price">Precio: 50 €</p>
+      <p class="stock">Stock: 3</p>
+      <button class="add" data-id="p2">Agregar</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <div class="thumb"></div>
+      <h3 class="title">Producto 3</h3>
+      <p class="price">Precio: 25 €</p>
+      <p class="stock">Stock: 1</p>
+      <button class="add" data-id="p3">Agregar</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <div class="total-line"><strong>Total:</strong> <span id="total">0 €</span></div>
+  </div>
+</div>
+</body>
+</html>

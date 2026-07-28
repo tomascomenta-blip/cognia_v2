@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  #board{display:flex;gap:10px;padding:10px;flex-wrap:wrap;}
+  .col{flex:1 1 200px;background:#fff;border:1px solid #ccc;border-radius:4px;padding:10px;box-sizing:border-box;}
+  .col h2{margin-top:0;font-size:1.2em;}
+  .card{display:flex;align-items:center;justify-content:space-between;background:#e9e9e9;border:1px solid #bbb;border-radius:4px;padding:5px;margin-bottom:5px;}
+  .card-id{flex:1;}
+  button.mas{background:#28a745;color:#fff;border:none;border-radius:3px;padding:2px 5px;cursor:pointer;}
+  button.menos{background:#dc3545;color:#fff;border:none;border-radius:3px;padding:2px 5px;cursor:pointer;}
+  button:disabled{opacity:0.5;cursor:not-allowed;}
+  @media(max-width:600px){
+    #board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Pendiente (<span id="cont-todo"></span>)</h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>En Progreso (<span id="cont-doing"></span>)</h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Hecho (<span id="cont-done"></span>)</h2>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const board = document.getElementById('board');
+  const todoCol = board.querySelector('.col[data-col="todo"]');
+  const doingCol = board.querySelector('.col[data-col="doing"]');
+  const doneCol = board.querySelector('.col[data-col="done"]');
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const idSpan = document.createElement('span');
+    idSpan.className = 'card-id';
+    idSpan.textContent = id;
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '→';
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+
+    card.appendChild(idSpan);
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+
+    btnMas.addEventListener('click', function(){
+      const currentCol = card.parentElement.dataset.col;
+      if(currentCol === 'todo'){
+        const doingCards = doingCol.querySelectorAll('.card');
+        if(doingCards.length >= 2) return;
+        doingCol.appendChild(card);
+      } else if(currentCol === 'doing'){
+        doneCol.appendChild(card);
+      } else if(currentCol === 'done'){
+        return; // cannot advance
+      }
+      updateCounters();
+    });
+
+    btnMenos.addEventListener('click', function(){
+      const currentCol = card.parentElement.dataset.col;
+      if(currentCol === 'doing'){
+        todoCol.appendChild(card);
+      } else if(currentCol === 'done'){
+        const doingCards = doingCol.querySelectorAll('.card');
+        if(doingCards.length >= 2) return;
+        doingCol.appendChild(card);
+      } else if(currentCol === 'todo'){
+        return; // cannot retreat
+      }
+      updateCounters();
+    });
+
+    return card;
+  }
+
+  function updateCounters(){
+    const todoCount = todoCol.querySelectorAll('.card').length;
+    const doingCount = doingCol.querySelectorAll('.card').length;
+    const doneCount = doneCol.querySelectorAll('.card').length;
+    document.getElementById('cont-todo').textContent = todoCount;
+    document.getElementById('cont-doing').textContent = doingCount;
+    document.getElementById('cont-done').textContent = doneCount;
+  }
+
+  // Inicializar tarjetas
+  ['t1','t2','t3'].forEach(id=>{
+    const card = createCard(id);
+    todoCol.appendChild(card);
+  });
+
+  updateCounters();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f0f4f7;
+  }
+  h2{margin-top:40px;}
+  .prod{
+    background:#fff;
+    border:1px solid #ddd;
+    padding:10px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    animation:fadeIn 0.5s forwards;
+  }
+  .prod:nth-child(1){animation-delay:0.2s;}
+  .prod:nth-child(2){animation-delay:0.4s;}
+  .prod:nth-child(3){animation-delay:0.6s;}
+  .add{
+    padding:5px 10px;
+    background:#28a745;
+    color:#fff;
+    border:none;
+    cursor:pointer;
+  }
+  .add:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{background:#fff;border:1px solid #ddd;padding:10px;margin-top:20px;}
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:5px 0;
+    border-bottom:1px solid #eee;
+  }
+  .quitar{
+    padding:3px 6px;
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    cursor:pointer;
+  }
+  #total{font-weight:bold;}
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+
+<h1>Carrito de Compra</h1>
+
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - $100 (Stock: 2)</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - $50 (Stock: 3)</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - $25 (Stock: 1)</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="lines"></div>
+  <div>Total: $<span id="total">0</span></div>
+</div>
+
+<script>
+  // Mapa de precios por id
+  const precios = {};
+  document.querySelectorAll('.prod').forEach(p=>{
+    precios[p.dataset.id] = parseFloat(p.dataset.precio);
+  });
+
+  // Estado del carrito: id -> cantidad
+  const carrito = {};
+
+  // Función para actualizar el total
+  function actualizarTotal(){
+    let total = 0;
+    for(const id in carrito){
+      total += carrito[id] * precios[id];
+    }
+    document.getElementById('total').textContent = total.toFixed(2);
+  }
+
+  // Función para actualizar el botón Add según stock
+  function actualizarBotonAdd(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const addBtn = prod.querySelector('.add');
+    const stock = parseInt(prod.dataset.stock);
+    const cant = carrito[id] || 0;
+    addBtn.disabled = cant >= stock;
+  }
+
+  // Añadir producto al carrito
+  function agregar(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock);
+    const cantActual = carrito[id] || 0;
+    if(cantActual < stock){
+      carrito[id] = cantActual + 1;
+      renderLinea(id);
+      actualizarBotonAdd(id);
+      actualizarTotal();
+    }
+  }
+
+  // Quitar una unidad del carrito
+  function quitar(id){
+    if(!carrito[id]) return;
+    carrito[id] -= 1;
+    if(carrito[id] <= 0){
+      delete carrito[id];
+      const linea = document.querySelector(`.linea[data-id="${id}"]`);
+      if(linea) linea.remove();
+    }else{
+      renderLinea(id);
+    }
+    actualizarBotonAdd(id);
+    actualizarTotal();
+  }
+
+  // Renderizar o actualizar la línea del carrito
+  function renderLinea(id){
+    let linea = document.querySelector(`.linea[data-id="${id}"]`);
+    const cant = carrito[id];
+    const precio = precios[id];
+    if(!linea){
+      linea = document.createElement('div');
+      linea.className = 'linea';
+      linea.dataset.id = id;
+      linea.innerHTML = `<span class="cant">${cant}</span> x $${precio} <button class="quitar" data-id="${id}">-</button>`;
+      document.getElementById('lines').appendChild(linea);
+      linea.querySelector('.quitar').addEventListener('click',()=>quitar(id));
+    }else{
+      linea.querySelector('.cant').textContent = cant;
+    }
+  }
+
+  // Asignar listeners a los botones Add
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>agregar(btn.dataset.id));
+  });
+
+  // Animación inicial: fadeIn ya está en CSS
+</script>
+</body>
+</html>
