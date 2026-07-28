@@ -9506,3 +9506,74 @@ idea_build; (2) correccion del contrato interno: validar cada asercion
 generada contra el enunciado + medir FN por TIPO de paso + auditar
 held-outs a mano por tarea de banco; (3) el gap directo (67%) vs lazo
 (50-71%) se re-mide DESPUES de arreglar la senal del contrato, no antes.
+
+## 2026-07-27/28 (nocturna 27, 16:40-04:30) — La señal tocó techo, el lazo quedó acusado con dos A/B, y el default cambió con evidencia doble
+
+Ventana: el prompt llegó con [HORA] sin rellenar (16:40); se fijó 22:40 y
+el dueño la extendió en vivo hasta las 04:30. Fe de erratas: las marcas
+"~" de las horas de los preregs de la tarde van corridas +1-2 h (se estimó
+la hora sin mirar el reloj; el orden de los hitos es correcto). Método:
+TODO pre-registrado ANTES de correr (PREREG_SENAL_CONTRATO_20260727.md con
+5 enmiendas + undécima de PREREG_BON_RONDAS); revisión de 2 agentes con
+contexto fresco antes de cada corrida (cazaron 4 mayores en el diseño de
+1a y 2 en el de la unidad 2); suite completa en cada commit con código.
+
+1. **Unidad 1a (cero GPU, commit 6e2a214) — la causa raíz del FN del
+   contrato, por tipo de paso.** Re-ejecución de los 48 contratos en disco
+   sub-acción por sub-acción, tabla de PRIMERA CULPA (la incondicionada
+   cuenta víctimas de cascada). Sanidad: banco replay 24/24, vs mañana
+   48/48. La aserción de texto sobre un input es ruido puro (55/55 FN en
+   sanas, 0/6 en rotas — inner_text de un campo es vacío) porque la
+   plantilla no documentaba `escribir` (0/48 contratos la usan); 7/24
+   clásicos sin ningún critico → aprobaban por VACUIDAD.
+
+2. **Unidad 1b (ef44c16, 8006037) — modo corregido: KILL formal con el
+   confound pre-declarado disparado.** Las 7 aprobaciones del clásico eran
+   TODAS vacuas (0/19 sanas por checks reales vs 8/19 del corregido). Al
+   código entró el DESCARTE de contratos sin críticos (test incluido).
+
+3. **A/B de señal real (e3caf4a) — KILL otra vez, limpio.** Con vacuidad
+   imposible: aciertos 10/24 vs 9/24, ambos FN 14/19. La exploratoria del
+   1b (100%→56%) NO replicó — selección post-hoc + deriva, como estaba
+   declarado. El contrato autogenerado desde idea+inventario tiene un
+   TECHO en composicionales; dirección viva: held-outs a mano + validar
+   aserciones contra el enunciado.
+
+4. **fix2 v3 (fcf03fb, 06a2483) — NO COBRA (neto −4, n=6): vía agotada.**
+   Cortar el adorno TARGET LOOK no rescató el troceo por frases (v2 −5,
+   v3 −4). No se vuelve a tocar salvo sonda del prompt DEL LAZO completo.
+
+5. **Unidad 2 (b19bfa5) — EL LAZO RESTA en el brutal.** lazo 16/24 (67%)
+   vs primgen 19/24 (79%), neto −3, reparto en 3 tareas, 0 infra, 24/24
+   pares. En 4 de 5 discordantes la versión del lazo tiene MENOS checks
+   del banco que la primera generación: las rondas degradan páginas que
+   nacieron mejor. Ambos brazos al nivel del crudo histórico — la brecha
+   del 17% no reaparece (sin crudo concurrente no se reparte fixes/deriva).
+
+6. **Confirmación en fácil (2afe3ac) — evidencia doble y ADOPCIÓN.**
+   36/36 pares: lazo 26/36 (72%) vs primgen 33/36 (92%), neto −7;
+   semaforo pierde las 6 réplicas con reparación (concentrado =
+   regresión). Por la QUINTA enmienda: **MAX_RONDAS_DEFECTO pasa de 3 a
+   1** (override COGNIA_MAX_RONDAS, reversible sin release; el lazo queda
+   íntegro y vuelve cuando el contrato interno demuestre señal). La
+   reversión del 26/07 ("reparar aporta +1.33") venía de BLOQUES entre
+   noches — el diseño que gate-e2e-flaky invalidó; los intercalados de
+   esta noche son la primera medición válida de la pregunta.
+
+**Suite: 5459 → 5460 → 5461 passed en los gates (última corrida: 1 fallo
+de test_repl_piped, flaky conocido bajo carga, pasa aislado).**
+
+**Qué sigue (por valor):** (1) held-outs a mano por tarea + validación de
+aserciones contra el enunciado — la única dirección viva para que el
+contrato interno deje de estar al azar, y la condición para que el lazo
+de reparación vuelva; (2) re-medir el gap sistema-vs-crudo CON crudo
+concurrente en la misma corrida (esta noche ambos brazos rindieron a
+nivel del crudo histórico — ¿fixes o deriva?); (3) el residual
+existe/existencia (literales inventados) como chequeo ejecutable; (4)
+BoN con candidatos a temperatura alta ahora que la entrega es primgen
+(sin pagar reparación, seleccionar entre varias vuelve a tener sentido).
+
+**Lecciones a memoria:** contrato-interno-al-azar (causa raíz por tipo,
+vacuidad, doble KILL, no-replicación de la exploratoria, troceo agotado)
+y el-lazo-restaba (nueva: el A/B que cambió el default).
+
