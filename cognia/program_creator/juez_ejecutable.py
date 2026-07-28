@@ -600,6 +600,81 @@ sin eso. Los pasos que verifican la mecanica que la idea exige LLEVAN
 se aprueba solo, este roto o no.""")
 
 
+# Validador de aserciones contra el ENUNCIADO (séptima enmienda de
+# PREREG_SENAL_CONTRATO_20260727.md). El FN residual del contrato
+# autogenerado son expectativas INVENTADAS (literales supuestos, formatos
+# no dictados, posiciones de elementos aleatorios) que acusan a páginas
+# sanas. El validador ve SOLO la idea y los pasos — nunca la página ni el
+# inventario: no puede re-anclar al DOM.
+_SISTEMA_VALIDADOR = (
+    "Reasoning: low\n\n"
+    "Eres un auditor de contratos de prueba. Respondes SOLO con JSON "
+    "valido, sin explicaciones ni fences.")
+
+_PLANTILLA_VALIDADOR = """\
+Un contrato de prueba se genero para esta idea. Audita CADA paso: ¿el
+enunciado de la idea EXIGE lo que el paso afirma?
+
+IDEA PEDIDA: {idea}
+
+PASOS DEL CONTRATO (numerados):
+{pasos}
+
+Un paso se CONSERVA solo si la idea lo exige: estado inicial dictado,
+comportamiento pedido, selector declarado OBLIGATORIO, valor que el
+enunciado dicta literalmente o que se deduce con certeza de sus reglas.
+Un paso se DESCARTA si afirma algo que la idea NO pide: literales
+supuestos (textos, cifras, posiciones concretas de elementos aleatorios),
+formatos que el enunciado no dicta, comportamientos imaginados.
+
+Responde SOLO este JSON:
+{{"conservar": [numeros de los pasos que la idea exige]}}
+"""
+
+
+def _validar_contra_enunciado(idea: str, contrato: dict) -> dict:
+    """
+    Filtra los pasos que el enunciado no exige. NUNCA puede ser peor que
+    el contrato sin filtrar por plomeria: ante fallo del pensador, JSON
+    invalido, <2 pasos supervivientes o cero criticos supervivientes, se
+    devuelve el contrato ORIGINAL tal cual (fallback declarado en el
+    prereg).
+    """
+    from ..llm_local import generar
+
+    pasos = contrato.get("pasos", [])
+    lineas = "\n".join(
+        f"  {i + 1}. {json.dumps(p, ensure_ascii=False)[:220]}"
+        for i, p in enumerate(pasos))
+    crudo = generar(
+        _PLANTILLA_VALIDADOR.format(idea=idea, pasos=lineas),
+        system=_SISTEMA_VALIDADOR, temperature=0.0,
+        # la respuesta util son ~30 chars; el resto es presupuesto de
+        # PENSAMIENTO ([[presupuesto-tokens-razonamiento]], margen 2-3x)
+        max_tokens=6000, via="juez.validar_contrato", timeout=400,
+        reasoning_effort="low")
+    if not crudo:
+        return contrato
+    txt = crudo.strip()
+    if "```" in txt:
+        txt = txt.split("```")[1]
+        txt = txt[4:] if txt.lstrip().startswith("json") else txt
+    ini, fin = txt.find("{"), txt.rfind("}")
+    if ini < 0 or fin <= ini:
+        return contrato
+    try:
+        indices = json.loads(txt[ini:fin + 1]).get("conservar", [])
+        keep = [pasos[i - 1] for i in indices
+                if isinstance(i, int) and 1 <= i <= len(pasos)]
+    except Exception:
+        return contrato
+    if len(keep) < 2 or not any(
+            isinstance(p, dict) and p.get("critico") for p in keep):
+        return contrato
+    return {**contrato, "pasos": keep,
+            "_validado": {"antes": len(pasos), "despues": len(keep)}}
+
+
 def inventario_dom(html: Path) -> dict:
     """Que selectores hay en la pagina. Estructura, nunca logica."""
     from playwright.sync_api import sync_playwright
@@ -626,9 +701,10 @@ def generar_contrato(idea: str, html: Path,
     ejecutables contra ESTE DOM.
 
     modo: "clasico" (≤8 pasos, el de produccion), "amplio" (10-16 pasos,
-    CodeRM; A/B dio GRIS — PREREG_CONTRATO_AMPLIO_20260727.md) o "corregido"
-    (clasico + escribir/inputs/criticidad; en A/B pre-registrado —
-    PREREG_SENAL_CONTRATO_20260727.md).
+    CodeRM; A/B dio GRIS — PREREG_CONTRATO_AMPLIO_20260727.md), "corregido"
+    (clasico + escribir/inputs/criticidad; su A/B dio KILL doble) o
+    "validado" (clasico + filtro de aserciones contra el ENUNCIADO;
+    séptima enmienda de PREREG_SENAL_CONTRATO_20260727.md).
     """
     from ..llm_local import generar
 
@@ -691,6 +767,8 @@ def generar_contrato(idea: str, html: Path,
         print("[juez] contrato sin ningun paso critico: aprobaria por "
               "vacuidad — se descarta", file=sys.stderr)
         return None
+    if modo == "validado":
+        c = _validar_contra_enunciado(idea, c)
     return c
 
 

@@ -527,3 +527,53 @@ se resetea por chunk). Un watchdog por celda (que la revisión sugirió y se
 descartó por "peor caso acotado") habría pagado: el peor caso NO está
 acotado. Convertirlo en chequeo/presupuesto por celda antes del próximo
 runner largo.
+
+## SÉPTIMA ENMIENDA (2026-07-28 ~05:45, sesión matinal hasta 11:00 —
+## dos unidades pre-registradas ANTES de implementar/correr)
+
+**Unidad A — VALIDACIÓN de aserciones contra el enunciado (el ataque (c)
+del plan original, nunca corrido; la dirección que ambos KILL dejaron
+viva).** Modo `validado` en `generar_contrato`: se genera el contrato
+CLÁSICO y un segundo paso barato le pregunta al pensador, con la IDEA y la
+lista numerada de pasos, cuáles exige realmente el enunciado; los pasos no
+exigidos se DESCARTAN (si el filtro deja <2 pasos o falla, se usa el
+contrato clásico tal cual — el modo nunca puede ser peor que "sin
+filtro" por plomería). El validador NO ve la página ni el inventario:
+solo idea + pasos (no puede re-anclar al DOM).
+
+Medición: mismo corpus de 24 páginas (banco 19/5), `b2_ab_contrato.py
+--modos clasico,validado --etiqueta valid` — clásico RE-generado como
+control concurrente, intercalado por página. Métrica primaria: ACIERTOS
+(la de la segunda enmienda, M3: sin contrato = reprueba). Misma tabla:
+
+| veredicto | condición |
+|---|---|
+| **PASA** | aciertos_val ≥ aciertos_clas + 4, FP_val ≤ FP_clas + 1, mejora en ≥2 tareas |
+| **GRIS** | aciertos_val ≥ aciertos_clas + 2 con FP_val ≤ FP_clas + 1 |
+| **KILL** | lo demás |
+
+Predicción falsable (H): el filtro debe matar la clase "expectativa
+inventada" (CIRC/8,00/minas en data-i) que causó el FN residual; si el
+pensador no sabe distinguir "exigido" de "inventado" ni viendo solo la
+idea, el techo es del PENSADOR y la única vía que queda es el held-out a
+mano.
+
+**Unidad B — re-aislar el ADORNO post-fixes.** El brazo F (séptima enmienda
+del prereg BON) absolvió a `TARGET LOOK` PRE-fix-dashboard (0/12 en un
+sistema que rendía 17%); nunca se re-aisló POST-fixes y con rondas=1. Con
+el flag existente `COGNIA_IDEA_PELADA`: A/B intercalado por celda (mismo
+runner de fix2 con `--var COGNIA_IDEA_PELADA`), banco brutal, sistema
+completo con defaults vigentes, objetivo n=6 (24 pares).
+
+| lectura (pares apareados) | condición |
+|---|---|
+| el adorno roba HOY | pelada gana ≥3 netas con reparto ≥2 tareas |
+| sin cargo | neto en [−2, +2] |
+| el adorno aporta | adornada gana ≥3 netas con reparto |
+| efecto de una tarea | ≥3 netas concentradas en 1 tarea → sin veredicto global |
+
+Si "roba": el fix candidato es construir con la idea pelada (el brief
+queda para árbitro/sprites), con su propio A/B de confirmación antes de
+default. PARCIAL = direccional, no adopta. Ambas unidades: infra excluida
+y reportada; el fallback de Ollama sigue neutralizado SOLO en runners de
+medición; backend registrado por celda donde el runner ya lo hace.

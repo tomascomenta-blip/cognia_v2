@@ -34,6 +34,7 @@ HELDOUT = RAIZ / "scripts" / "b1_contratos_heldout.json"
 SALIDA = (RAIZ / "cognia" / "program_creator" / "generated_programs"
           / "b2_ab_fix2")
 BRAZOS = ["off", "on"]
+VAR = "COGNIA_PROMPT_FIX2"      # sobreescribible con --var
 
 
 def _cargar_b2():
@@ -54,7 +55,14 @@ def main(argv: list) -> int:
     reanudar = "--reanudar" in argv
     # --sufijo v3: corrida DESDE CERO en directorio propio (undécima
     # enmienda — la corrida del v2 no se pisa y no se mezcla).
-    global SALIDA
+    global SALIDA, VAR
+    if "--var" in argv:
+        # séptima enmienda del PREREG_SENAL: el mismo runner intercalado
+        # sirve para cualquier flag env on/off (p.ej. COGNIA_IDEA_PELADA);
+        # la salida va a directorio propio del flag.
+        VAR = argv[argv.index("--var") + 1]
+        SALIDA = SALIDA.with_name("b2_ab_" + VAR.lower().replace(
+            "cognia_", ""))
     if "--sufijo" in argv:
         SALIDA = SALIDA.with_name(
             SALIDA.name + "_" + argv[argv.index("--sufijo") + 1])
@@ -62,6 +70,14 @@ def main(argv: list) -> int:
     # rastro (revision 2026-07-27); CONSTRUCTOR_URL ya lo popea correr_sistema.
     os.environ.pop("COGNIA_IDEA_PELADA", None)
     b2 = _cargar_b2()
+    # Protecciones de runner de MEDICION (revision del A/B gap, 2026-07-28):
+    # el fallback silencioso a Ollama 1B contaria una celda degradada como
+    # fallo legitimo; aqui la degradacion es ruidosa (sin HTML -> infra).
+    from cognia.program_creator import generator as _generator
+    _generator.OLLAMA_MODEL = "NO-EXISTE-AB"
+    from cognia import backend_activo
+    from cognia.colonia import feromona
+    feromona.RUTA_RASTRO = SALIDA / "feromona.json"
     # La telemetria del A/B no debe sesgar el contador de salud de produccion.
     from cognia.program_creator import diseno_a_codigo
     diseno_a_codigo.RUTA_TELEMETRIA = SALIDA / "telemetria_sellos.jsonl"
@@ -80,7 +96,7 @@ def main(argv: list) -> int:
 
     print(f"A/B FIX2 — sistema completo x banco brutal, INTERCALADO\n"
           f"config: brazos={BRAZOS}, replicas={replicas}, "
-          f"fix2=COGNIA_PROMPT_FIX2 por celda, contrato interno CLASICO, "
+          f"var={VAR} por celda, contrato interno CLASICO, "
           f"reanudar={reanudar} (hechas: {len(hechas)})\n", flush=True)
 
     def _guardar():
@@ -96,9 +112,9 @@ def main(argv: list) -> int:
                 if (t["id"], brazo, rep) in hechas:
                     continue
                 if brazo == "on":
-                    os.environ["COGNIA_PROMPT_FIX2"] = "1"
+                    os.environ[VAR] = "1"
                 else:
-                    os.environ.pop("COGNIA_PROMPT_FIX2", None)
+                    os.environ.pop(VAR, None)
                 # ON y OFF del mismo par sacan el MISMO extra_hint de
                 # generate_program (random.choice global): menos varianza
                 # apareada sin tocar produccion.
@@ -112,7 +128,8 @@ def main(argv: list) -> int:
                     html, segs, como, meta = (None, 0.0,
                                               f"EXCEPCION {exc}"[:80], {})
                 celda = {"tarea": t["id"], "brazo": brazo, "rep": rep,
-                         "segundos": round(segs, 1), "como": como[:90], **meta}
+                         "segundos": round(segs, 1), "como": como[:90],
+                         "backend": backend_activo.ultimo(), **meta}
                 if not html:
                     celda.update(aprobado=False, motivo="sin HTML")
                 else:
@@ -142,14 +159,23 @@ def main(argv: list) -> int:
                       f" ({celda.get('checks_ok', '?')}/"
                       f"{celda.get('checks', '?')}, {segs:.0f}s, "
                       f"sello={celda.get('sello_lazo')})", flush=True)
-    os.environ.pop("COGNIA_PROMPT_FIX2", None)
+    os.environ.pop(VAR, None)
 
     # ── resumen apareado ─────────────────────────────────────────────────
+    def _es_infra(c):
+        b = c.get("backend") or {}
+        return ("EXCEPCION" in c.get("como", "")
+                or c.get("motivo") == "sin HTML"
+                or "juez crasheo" in c.get("motivo", "")
+                or bool(b.get("degradado"))
+                or (b.get("puerto") not in (None, 8080)))
+
+    infra = {(c["tarea"], c["rep"]) for c in res["celdas"] if _es_infra(c)}
     von = {(c["tarea"], c["rep"]): bool(c.get("aprobado"))
            for c in res["celdas"] if c["brazo"] == "on"}
     voff = {(c["tarea"], c["rep"]): bool(c.get("aprobado"))
             for c in res["celdas"] if c["brazo"] == "off"}
-    comunes = sorted(set(von) & set(voff))
+    comunes = sorted((set(von) & set(voff)) - infra)
     gana_on = [k for k in comunes if von[k] and not voff[k]]
     gana_off = [k for k in comunes if voff[k] and not von[k]]
     ap_on = sum(1 for c in res["celdas"]
@@ -169,10 +195,14 @@ def main(argv: list) -> int:
           f"(veredicto prereg: >=3 cobra, 1-2 dudoso, <=0 no cobra)")
     print(f"{'=' * 70}")
     res["resumen"] = {"on": f"{ap_on}/{n_on}", "off": f"{ap_off}/{n_off}",
-                      "pares": len(comunes),
+                      "pares": len(comunes), "var": VAR,
                       "gana_on": [f"{t}:r{r}" for t, r in gana_on],
                       "gana_off": [f"{t}:r{r}" for t, r in gana_off],
-                      "neto_on": len(gana_on) - len(gana_off)}
+                      "neto_on": len(gana_on) - len(gana_off),
+                      "tareas_gana_on": sorted({t for t, _ in gana_on}),
+                      "tareas_gana_off": sorted({t for t, _ in gana_off}),
+                      "pares_infra_excluidos": sorted(
+                          f"{t}:r{r}" for t, r in infra)}
     _guardar()
     print(f"\nJSON: {fichero_res}")
     return 0
