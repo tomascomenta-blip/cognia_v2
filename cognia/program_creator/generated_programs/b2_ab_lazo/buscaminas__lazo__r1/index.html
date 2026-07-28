@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 Fijas</title>
+<style>
+  body{
+    margin:0;
+    background:#222;
+    color:#fff;
+    font-family:sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90vw;
+    max-width:400px;
+  }
+  .c{
+    background:#444;
+    border:1px solid #bbb;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+    aspect-ratio:1/1;
+  }
+  .c.abierta{
+    background:#666;
+    box-shadow:0 0 5px #fff;
+  }
+  .c.bandera{
+    color:#f00;
+    font-weight:bold;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+  }
+  #reset{
+    margin-top:10px;
+    padding:5px 10px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<button id="reset">Reiniciar</button>
+
+<script>
+const GRID_SIZE = 5;
+const MINES = new Set([6,12,18]); // posiciones fijas
+const cells = document.querySelectorAll('.c');
+const estado = document.getElementById('estado');
+const resetBtn = document.getElementById('reset');
+
+// Helper: get row, col from index
+function rc(i){ return {r:Math.floor(i/GRID_SIZE), c:i%GRID_SIZE}; }
+
+// Helper: get index from row, col
+function idx(r,c){ return r*GRID_SIZE + c; }
+
+// Get adjacent indices
+function neighbors(i){
+  const {r,c} = rc(i);
+  const list=[];
+  for(let dr=-1; dr<=1; dr++){
+    for(let dc=-1; dc<=1; dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE){
+        list.push(idx(nr,nc));
+      }
+    }
+  }
+  return list;
+}
+
+// Count adjacent mines
+function countMines(i){
+  return neighbors(i).filter(n=>MINES.has(n)).length;
+}
+
+// Open a cell (called by left click or cascade)
+function openCell(i){
+  const cell = cells[i];
+  if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  cell.classList.add('abierta');
+  if(MINES.has(i)){
+    cell.textContent = '💣';
+    estado.textContent = 'perdiste';
+    return;
+  }
+  const cnt = countMines(i);
+  if(cnt>0) cell.textContent = cnt;
+  // If zero, cascade
+  if(cnt===0){
+    const queue=[i];
+    const visited=new Set();
+    while(queue.length){
+      const cur=queue.shift();
+      if(visited.has(cur)) continue;
+      visited.add(cur);
+      const curCell=cells[cur];
+      if(curCell.classList.contains('abierta') || curCell.classList.contains('bandera')) continue;
+      curCell.classList.add('abierta');
+      const curCnt=countMines(cur);
+      if(curCnt>0){
+        curCell.textContent=curCnt;
+      }else{
+        curCell.textContent='';
+        neighbors(cur).forEach(n=>{ if(!visited.has(n)) queue.push(n); });
+      }
+    }
+  }
+}
+
+// Left click handler
+cells.forEach(cell=>{
+  cell.addEventListener('click',e=>{
+    const i=parseInt(cell.dataset.i,10);
+    openCell(i);
+  });
+  // Right click for flag
+  cell.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='⚑';
+    }
+  });
+});
+
+// Reset button
+resetBtn.addEventListener('click',()=>{
+  cells.forEach(c=>{
+    c.classList.remove('abierta','bandera');
+    c.textContent='';
+  });
+  estado.textContent='';
+});
+</script>
+</body>
+</html>

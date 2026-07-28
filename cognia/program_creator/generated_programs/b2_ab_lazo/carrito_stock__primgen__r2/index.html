@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+  .container{max-width:800px;margin:auto;padding:1rem;}
+  .products{display:flex;flex-wrap:wrap;gap:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;padding:1rem;border-radius:4px;flex:1 1 calc(33% - 1rem);box-sizing:border-box;}
+  .prod button{margin-top:.5rem;}
+  .cart{background:#fff;border:1px solid #ddd;padding:1rem;margin-top:1rem;border-radius:4px;}
+  .linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;}
+  .linea span{margin-right:.5rem;}
+  .linea button{margin-left:.5rem;}
+  #total{font-weight:bold;font-size:1.2rem;}
+  @media(max-width:600px){
+    .prod{flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Carrito de compra con stock</h1>
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <p>Producto 1</p>
+      <p>Precio: <span class="precio"></span></p>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <p>Producto 2</p>
+      <p>Precio: <span class="precio"></span></p>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <p>Producto 3</p>
+      <p>Precio: <span class="precio"></span></p>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <p>Total: <span id="total">0,00 €</span></p>
+  </div>
+</div>
+<script>
+  const products = {
+    p1:{precio:100,stock:2,qty:0},
+    p2:{precio:50,stock:3,qty:0},
+    p3:{precio:25,stock:1,qty:0}
+  };
+
+  function formatCurrency(val){return val.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+
+  function updateTotal(){
+    let total=0;
+    for(const id in products){total+=products[id].precio*products[id].qty;}
+    document.getElementById('total').textContent=formatCurrency(total);
+  }
+
+  function renderCart(){
+    const container=document.getElementById('cart-lines');
+    container.innerHTML='';
+    for(const id in products){
+      const qty=products[id].qty;
+      if(qty>0){
+        const line=document.createElement('div');
+        line.className='linea';
+        line.dataset.id=id;
+        const name=document.querySelector(`.prod[data-id="${id}"] p`).textContent;
+        const nameSpan=document.createElement('span');
+        nameSpan.textContent=name;
+        const cantSpan=document.createElement('span');
+        cantSpan.className='cant';
+        cantSpan.textContent=qty;
+        const btn=document.createElement('button');
+        btn.className='quitar';
+        btn.dataset.id=id;
+        btn.textContent='Quitar';
+        btn.addEventListener('click',()=>{removeItem(id);});
+        line.appendChild(nameSpan);
+        line.appendChild(cantSpan);
+        line.appendChild(btn);
+        container.appendChild(line);
+      }
+    }
+  }
+
+  function addItem(id){
+    const prod=products[id];
+    if(prod.qty<prod.stock){
+      prod.qty++;
+      updateAddButton(id);
+      renderCart();
+      updateTotal();
+    }
+  }
+
+  function removeItem(id){
+    const prod=products[id];
+    if(prod.qty>0){
+      prod.qty--;
+      updateAddButton(id);
+      renderCart();
+      updateTotal();
+    }
+  }
+
+  function updateAddButton(id){
+    const btn=document.querySelector(`.add[data-id="${id}"]`);
+    if(products[id].qty>=products[id].stock){
+      btn.disabled=true;
+    }else{
+      btn.disabled=false;
+    }
+  }
+
+  function init(){
+    const prodDivs=document.querySelectorAll('.prod');
+    prodDivs.forEach(div=>{
+      const id=div.dataset.id;
+      const precio=div.dataset.precio;
+      div.querySelector('.precio').textContent=formatCurrency(parseFloat(precio));
+      const btn=div.querySelector('.add');
+      btn.addEventListener('click',()=>{addItem(id);});
+    });
+    updateTotal();
+  }
+  init();
+</script>
+</body>
+</html>

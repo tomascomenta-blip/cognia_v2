@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:monospace;margin:20px;background:#f0f0f0;}
+  h1{margin-bottom:10px;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  input.celda{width:100%;padding:5px;font-size:1em;border:1px solid #999;}
+  input.celda:focus{outline:none;border-color:#0066cc;}
+  .circular{color:red;font-weight:bold;}
+</style>
+</head>
+<body>
+<h1>Mini hoja de cálculo 3x3</h1>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1" value="">
+  <input type="text" class="celda" data-ref="B1" value="">
+  <input type="text" class="celda" data-ref="C1" value="">
+  <input type="text" class="celda" data-ref="A2" value="">
+  <input type="text" class="celda" data-ref="B2" value="">
+  <input type="text" class="celda" data-ref="C2" value="">
+  <input type="text" class="celda" data-ref="A3" value="">
+  <input type="text" class="celda" data-ref="B3" value="">
+  <input type="text" class="celda" data-ref="C3" value="">
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = document.querySelectorAll('input.celda');
+  const cellMap = {};
+  cells.forEach(cell => {
+    cellMap[cell.dataset.ref] = cell;
+    cell.addEventListener('input', onInput);
+  });
+
+  let isUpdating = false;
+
+  function onInput(e) {
+    if (isUpdating) return;
+    isUpdating = true;
+    const cell = e.target;
+    const val = cell.value;
+    if (val.startsWith('=')) {
+      cell.dataset.formula = val;
+    } else {
+      delete cell.dataset.formula;
+    }
+    recomputeAll();
+    isUpdating = false;
+  }
+
+  function recomputeAll() {
+    cells.forEach(cell => {
+      if (cell.dataset.formula) {
+        const result = evaluateFormula(cell, new Set());
+        if (result === 'CIRC') {
+          cell.value = 'CIRC';
+          cell.setAttribute('value', 'CIRC');
+          cell.classList.add('circular');
+        } else {
+          cell.value = result;
+          cell.setAttribute('value', result);
+          cell.classList.remove('circular');
+        }
+      } else {
+        const val = cell.value;
+        cell.setAttribute('value', val);
+        cell.classList.remove('circular');
+      }
+    });
+  }
+
+  function evaluateFormula(cell, visited) {
+    const ref = cell.dataset.ref;
+    if (visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const expr = cell.dataset.formula.slice(1); // remove '='
+    let replaced = expr.replace(/[A-C][1-3]/g, match => {
+      const target = cellMap[match];
+      if (!target) return '0';
+      if (target.dataset.formula) {
+        const res = evaluateFormula(target, visited);
+        if (res === 'CIRC') return 'CIRC';
+        return res;
+      } else {
+        const num = parseFloat(target.value);
+        return isNaN(num) ? '0' : num;
+      }
+    });
+    visited.delete(ref);
+    if (replaced.includes('CIRC')) return 'CIRC';
+    try {
+      const res = Function('return ' + replaced)();
+      return isNaN(res) ? '0' : res;
+    } catch (e) {
+      return '0';
+    }
+  }
+
+  // initial compute
+  recomputeAll();
+});
+</script>
+</body>
+</html>

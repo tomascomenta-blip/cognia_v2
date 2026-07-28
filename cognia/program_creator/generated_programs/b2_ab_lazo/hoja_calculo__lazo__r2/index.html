@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo 3×3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  h1{margin:0 0 10px;}
+  table{border-collapse:collapse;width:100%;max-width:400px;}
+  td{padding:0;}
+  input.celda{
+    width:100%;
+    box-sizing:border-box;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    text-align:right;
+    font-size:14px;
+  }
+  input.celda.formula{background:#e0f0ff;}
+  input.celda:focus{outline:2px solid #0063cc;}
+</style>
+</head>
+<body>
+<h1>Mini hoja de cálculo 3×3</h1>
+<table id="grid"></table>
+
+<script>
+'use strict';
+const FORMULA_PREFIX = '=';
+const REF_REGEX = /[A-C][1-3]/g;
+
+const cells = {};      // ref -> input element
+const dependents = {}; // ref -> Set of refs that depend on it
+
+function getCell(ref){ return cells[ref]; }
+
+function parseReferences(formula){ return formula.match(REF_REGEX) || []; }
+
+function buildDependencyGraph(){
+  for(const ref in dependents) delete dependents[ref];
+  for(const ref in cells){
+    const input = cells[ref];
+    const formula = input.dataset.formula;
+    if(formula){
+      const refs = parseReferences(formula);
+      for(const r of refs){
+        if(!dependents[r]) dependents[r] = new Set();
+        dependents[r].add(ref);
+      }
+    }
+  }
+}
+
+function evaluateCell(ref, stack=[]){
+  const input = cells[ref];
+  const formula = input.dataset.formula;
+  if(!formula){
+    const val = parseFloat(input.value);
+    return isNaN(val)?0:val;
+  }
+  if(stack.includes(ref)) return 'CIRC';
+  stack.push(ref);
+  let expr = formula.slice(1); // remove '='
+  expr = expr.replace(REF_REGEX, (match)=>{
+    const val = evaluateCell(match, stack.slice());
+    if(val==='CIRC') return 'NaN';
+    return val;
+  });
+  let result;
+  try{
+    result = eval(expr);
+    if(isNaN(result)) result = 0;
+  }catch(e){ result = 0; }
+  stack.pop();
+  return result;
+}
+
+function formatValue(val){
+  if(val==='CIRC') return 'CIRC';
+  if(typeof val==='number'){
+    return val.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  return val;
+}
+
+function updateCell(ref){
+  const input = cells[ref];
+  const formula = input.dataset.formula;
+  const raw = input.value;
+  let val;
+  if(formula){
+    val = evaluateCell(ref);
+  }else{
+    const num = parseFloat(raw);
+    val = isNaN(num)?0:num;
+  }
+  const formatted = formatValue(val);
+  // compute change
+  const prevVal = input._prevVal;
+  let numericVal = null;
+  if(val !== 'CIRC'){
+    numericVal = typeof val === 'number' ? val : parseFloat(val);
+  }
+  let change = null;
+  if(prevVal !== undefined && numericVal !== null && prevVal !== null){
+    change = numericVal - prevVal;
+  }
+  // set color
+  if(change !== null){
+    input.style.color = change >= 0 ? 'green' : 'red';
+  }else{
+    input.style.color = '';
+  }
+  // set value
+  if(formula || raw !== ''){
+    input.value = formatted;
+  }else{
+    input.value = '';
+  }
+  // update prevVal
+  input._prevVal = numericVal;
+  // update class
+  if(formula) input.classList.add('formula');
+  else input.classList.remove('formula');
+  // propagate
+  const deps = dependents[ref];
+  if(deps){
+    for(const d of deps) updateCell(d);
+  }
+}
+
+function handleInput(e){
+  const input = e.target;
+  const ref = input.dataset.ref;
+  const val = input.value;
+  if(val.startsWith(FORMULA_PREFIX)){
+    input.dataset.formula = val;
+  }else{
+    delete input.dataset.formula;
+  }
+  buildDependencyGraph();
+  updateCell(ref);
+}
+
+function init(){
+  const container = document.getElementById('grid');
+  const rows = ['A','B','C'];
+  for(let r=0;r<3;r++){
+    const tr = document.createElement('tr');
+    for(let c=1;c<=3;c++){
+      const td = document.createElement('td');
+      const input = document.createElement('input');
+      input.type='text';
+      input.className='celda';
+      const ref = rows[r]+c;
+      input.dataset.ref = ref;
+      input.addEventListener('input',handleInput);
+      input.addEventListener('click',()=>updateCell(ref));
+      td.appendChild(input);
+      tr.appendChild(td);
+      cells[ref] = input;
+    }
+    container.appendChild(tr);
+  }
+  buildDependencyGraph();
+  for(const ref in cells) updateCell(ref);
+}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

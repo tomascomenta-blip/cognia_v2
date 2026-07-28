@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:20px;background:#f9f9f9;}
+  h1{font-size:1.5rem;text-align:center;margin-bottom:20px;}
+  .container{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:5px;
+    max-width:400px;
+    margin:auto;
+  }
+  input.celda{
+    width:100%;
+    height:30px;
+    font-size:1rem;
+    padding:5px;
+    box-sizing:border-box;
+    border:1px solid #ccc;
+    border-radius:3px;
+    text-align:right;
+  }
+</style>
+</head>
+<body>
+<h1>Mini Hoja de Cálculo 3x3</h1>
+<div class="container">
+  <input class="celda" data-ref="A1" />
+  <input class="celda" data-ref="A2" />
+  <input class="celda" data-ref="A3" />
+  <input class="celda" data-ref="B1" />
+  <input class="celda" data-ref="B2" />
+  <input class="celda" data-ref="B3" />
+  <input class="celda" data-ref="C1" />
+  <input class="celda" data-ref="C2" />
+  <input class="celda" data-ref="C3" />
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = {};
+  const formulas = {};
+  const dependencies = {};
+  const dependents = {};
+
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  refs.forEach(ref => {
+    const input = document.querySelector(`input[data-ref="${ref}"]`);
+    cells[ref] = input;
+    formulas[ref] = null;
+    dependencies[ref] = new Set();
+    dependents[ref] = new Set();
+    input.addEventListener('input', () => handleInput(ref));
+  });
+
+  function handleInput(ref) {
+    const val = cells[ref].value;
+    if (val.startsWith('=')) {
+      formulas[ref] = val;
+    } else {
+      formulas[ref] = null;
+    }
+
+    // Update dependencies
+    const oldDeps = dependencies[ref];
+    oldDeps.forEach(dep => dependents[dep].delete(ref));
+
+    const newDeps = new Set();
+    if (formulas[ref]) {
+      const refsInFormula = formulas[ref].match(/[A-C][1-3]/g) || [];
+      refsInFormula.forEach(r => newDeps.add(r));
+    }
+    dependencies[ref] = newDeps;
+    newDeps.forEach(dep => dependents[dep].add(ref));
+
+    recalc(ref);
+  }
+
+  function recalc(ref) {
+    evaluateCell(ref, []);
+    dependents[ref].forEach(dep => recalc(dep));
+  }
+
+  function evaluateCell(ref, stack) {
+    if (stack.includes(ref)) {
+      cells[ref].value = 'CIRC';
+      return NaN;
+    }
+    stack.push(ref);
+    let cycleDetected = false;
+    let result;
+    if (formulas[ref]) {
+      const expr = formulas[ref].substring(1).replace(/\s+/g, '');
+      const replaced = expr.replace(/[A-C][1-3]/g, (match) => {
+        const val = evaluateCell(match, stack);
+        if (isNaN(val)) {
+          cycleDetected = true;
+          return '0';
+        }
+        return val.toString();
+      });
+      if (cycleDetected) {
+        result = NaN;
+      } else {
+        const normalized = replaced.replace(/-/g, '+-');
+        const parts = normalized.split('+');
+        let sum = 0;
+        for (const part of parts) {
+          const num = parseFloat(part);
+          if (!isNaN(num)) sum += num;
+        }
+        result = sum;
+      }
+    } else {
+      const val = cells[ref].value;
+      const num = parseFloat(val);
+      result = isNaN(num) ? 0 : num;
+    }
+    stack.pop();
+    if (formulas[ref]) {
+      if (typeof result === 'number' && !isNaN(result)) {
+        cells[ref].value = result.toString();
+      } else {
+        cells[ref].value = 'CIRC';
+      }
+    }
+    return result;
+  }
+});
+</script>
+</body>
+</html>

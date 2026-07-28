@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+body{background:#eaeaea;color:#333;font-family:Arial,Helvetica,sans-serif;text-align:center;padding-top:20px;}
+table{border-collapse:collapse;margin:auto;background:#f5f5f5;padding:10px;border-radius:8px;max-width:400px;width:100%;}
+td{padding:2px;}
+input.celda{background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);padding:8px;width:80px;text-align:right;font-family:monospace;font-size:14px;animation:fadeIn 0.8s ease-out;}
+input.celda:focus{outline:2px solid #007BFF;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<h1>Mini hoja de cálculo 3x3</h1>
+<table>
+<tr>
+<td><input class="celda" data-ref="A1" value="5"></td>
+<td><input class="celda" data-ref="A2" value="=A1+1"></td>
+<td><input class="celda" data-ref="A3" value=""></td>
+</tr>
+<tr>
+<td><input class="celda" data-ref="B1" value="=A1+1"></td>
+<td><input class="celda" data-ref="B2" value=""></td>
+<td><input class="celda" data-ref="B3" value=""></td>
+</tr>
+<tr>
+<td><input class="celda" data-ref="C1" value="=B1+1"></td>
+<td><input class="celda" data-ref="C2" value=""></td>
+<td><input class="celda" data-ref="C3" value="=A1+B1"></td>
+</tr>
+</table>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cells = document.querySelectorAll('input.celda');
+  const cellMap = {};
+  cells.forEach(cell=>{
+    const ref = cell.dataset.ref;
+    cellMap[ref] = cell;
+    // store initial value for change tracking
+    cell.dataset.prevValue = cell.value;
+    if(cell.value.startsWith('=')){
+      cell.dataset.formula = cell.value;
+    }
+    cell.addEventListener('input', function(){
+      const val = this.value;
+      if(val.startsWith('=')){
+        // first time a formula is entered, remember the previous numeric value
+        if(!this.dataset.original){
+          this.dataset.original = this.dataset.prevValue;
+        }
+        this.dataset.formula = val;
+      }else{
+        delete this.dataset.formula;
+        if(val === '' && this.dataset.original !== undefined){
+          // revert to original number when formula removed
+          this.value = this.dataset.original;
+        }else{
+          this.value = val;
+        }
+      }
+      evaluateAll();
+      // update previous value after evaluation
+      this.dataset.prevValue = this.value;
+    });
+  });
+
+  function evaluateAll(){
+    cells.forEach(cell=>evaluateCell(cell, new Set()));
+    // after all evaluations, update prevValue for each cell
+    cells.forEach(cell=>cell.dataset.prevValue = cell.value);
+  }
+
+  function evaluateCell(cell, stack){
+    const oldVal = cell.value;
+    if(!cell.dataset.formula){
+      return cell.value;
+    }
+    if(stack.has(cell)){
+      cell.value = 'CIRC';
+      cell.style.color = 'red';
+      return 'CIRC';
+    }
+    stack.add(cell);
+    const expr = cell.dataset.formula.slice(1);
+    const refs = expr.match(/[A-C][1-3]/g) || [];
+    const localMap = {};
+    for(const ref of refs){
+      const refCell = cellMap[ref];
+      const refVal = evaluateCell(refCell, stack);
+      if(refVal === 'CIRC'){
+        cell.value = 'CIRC';
+        cell.style.color = 'red';
+        stack.delete(cell);
+        return 'CIRC';
+      }
+      const num = parseFloat(refVal);
+      localMap[ref] = isNaN(num) ? 0 : num;
+    }
+    let exprNum = expr.replace(/[A-C][1-3]/g, m=>localMap[m]);
+    let result;
+    try{
+      result = Function('"use strict";return ('+exprNum+')')();
+    }catch(e){
+      result = 'CIRC';
+    }
+    if(result === 'CIRC'){
+      cell.value = 'CIRC';
+      cell.style.color = 'red';
+    }else{
+      cell.value = result.toString();
+      const newVal = parseFloat(cell.value);
+      const oldNum = parseFloat(oldVal);
+      if(!isNaN(newVal) && !isNaN(oldNum)){
+        const diff = newVal - oldNum;
+        cell.style.color = (diff >= 0 ? 'green' : 'red');
+      }else{
+        cell.style.color = '#333';
+      }
+    }
+    stack.delete(cell);
+    return cell.value;
+  }
+
+  evaluateAll();
+});
+</script>
+</body>
+</html>

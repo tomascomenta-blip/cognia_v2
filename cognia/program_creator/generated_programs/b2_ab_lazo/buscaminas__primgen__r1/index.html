@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:400px;}
+  .c{background:#bbb;color:#000;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;user-select:none;aspect-ratio:1;}
+  .c.abierta{background:#ddd;cursor:default;}
+  .c.bandera{background:#ff0;}
+  #estado{margin-top:15px;font-size:1.2rem;color:#900;}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+/* ---------- CONFIGURACIÓN ---------- */
+const GRID_SIZE = 5;
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+const MINES = [6, 12, 18]; // posiciones fijas de minas
+
+/* ---------- CREAR CELDAS ---------- */
+const gridEl = document.getElementById('grid');
+for (let i = 0; i < TOTAL_CELLS; i++) {
+  const cell = document.createElement('div');
+  cell.classList.add('c');
+  cell.dataset.i = i;
+  cell.addEventListener('click', onLeftClick);
+  cell.addEventListener('contextmenu', onRightClick);
+  gridEl.appendChild(cell);
+}
+
+/* ---------- UTILIDADES ---------- */
+function getNeighbors(idx) {
+  const neighbors = [];
+  const r = Math.floor(idx / GRID_SIZE);
+  const c = idx % GRID_SIZE;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+        neighbors.push(nr * GRID_SIZE + nc);
+      }
+    }
+  }
+  return neighbors;
+}
+
+function countAdjacentMines(idx) {
+  return getNeighbors(idx).filter(n => MINES.includes(n)).length;
+}
+
+/* ---------- LÓGICA DE ABRIR ---------- */
+function openCell(idx) {
+  const cell = document.querySelector(`.c[data-i="${idx}"]`);
+  if (!cell || cell.classList.contains('abierta') || cell.classList.contains('bandera')) return 0;
+  cell.classList.add('abierta');
+  if (MINES.includes(idx)) {
+    cell.textContent = '💣';
+    document.getElementById('estado').textContent = 'perdiste';
+    return -1; // indica mina
+  }
+  const count = countAdjacentMines(idx);
+  if (count > 0) cell.textContent = count;
+  return count;
+}
+
+function reveal(idx) {
+  const firstCount = openCell(idx);
+  if (firstCount === -1) return; // mina abierta
+  if (firstCount > 0) return; // no cascada
+  // cascada de celdas con 0 minas
+  const queue = [idx];
+  while (queue.length) {
+    const current = queue.shift();
+    const neighbors = getNeighbors(current);
+    neighbors.forEach(n => {
+      if (document.querySelector(`.c[data-i="${n}"]`).classList.contains('abierta') ||
+          document.querySelector(`.c[data-i="${n}"]`).classList.contains('bandera')) return;
+      const cnt = openCell(n);
+      if (cnt === 0) queue.push(n);
+    });
+  }
+}
+
+/* ---------- EVENTOS ---------- */
+function onLeftClick(e) {
+  const idx = parseInt(this.dataset.i, 10);
+  reveal(idx);
+}
+
+function onRightClick(e) {
+  e.preventDefault();
+  const cell = this;
+  if (cell.classList.contains('abierta')) return;
+  cell.classList.toggle('bandera');
+}
+</script>
+</body>
+</html>

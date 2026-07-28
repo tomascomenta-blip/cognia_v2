@@ -51,7 +51,14 @@ def main(argv: list) -> int:
     replicas = (int(argv[argv.index("--replicas") + 1])
                 if "--replicas" in argv else 6)
     reanudar = "--reanudar" in argv
-    global SALIDA
+    global SALIDA, TAREAS
+    # --banco facil: la confirmación de la QUINTA enmienda corre sobre
+    # b1_tareas.json (6 tareas); el default sigue siendo el brutal.
+    banco = (argv[argv.index("--banco") + 1]
+             if "--banco" in argv else "brutal")
+    if banco == "facil":
+        TAREAS = RAIZ / "scripts" / "b1_tareas.json"
+        SALIDA = SALIDA.with_name(SALIDA.name + "_facil")
     if "--sufijo" in argv:
         SALIDA = SALIDA.with_name(
             SALIDA.name + "_" + argv[argv.index("--sufijo") + 1])

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  h1{font-size:1.5rem;margin-bottom:.5rem;}
+  #productos{display:flex;flex-wrap:wrap;gap:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;padding:.5rem 1rem;border-radius:4px;flex:1 1 200px;display:flex;justify-content:space-between;align-items:center;}
+  .prod span{flex:1;}
+  .prod button{margin-left:.5rem;}
+  .linea{background:#fff;border:1px solid #ddd;padding:.5rem 1rem;border-radius:4px;margin-top:.5rem;display:flex;justify-content:space-between;align-items:center;}
+  .linea .cant{flex:1;}
+  .linea button{margin-left:.5rem;}
+  #total-container{margin-top:1rem;font-size:1.2rem;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  @media(max-width:600px){
+    #productos{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<h1>Carrito de compra</h1>
+
+<div id="productos">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - €100</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - €50</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - €25</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div id="carrito"></div>
+<div id="total-container">Total: <span id="total">€0.00</span></div>
+
+<script>
+class Cart {
+  constructor() {
+    this.items = {}; // id -> {qty, price, stock}
+    this.totalEl = document.getElementById('total');
+    this.carritoEl = document.getElementById('carrito');
+    this.addButtons = document.querySelectorAll('.add');
+    this.addButtons.forEach(btn => {
+      btn.addEventListener('click', () => this.addItem(btn.dataset.id));
+    });
+    this.updateTotal();
+  }
+  addItem(id) {
+    const prodDiv = document.querySelector(`.prod[data-id="${id}"]`);
+    const price = parseFloat(prodDiv.dataset.precio);
+    const stock = parseInt(prodDiv.dataset.stock, 10);
+    if (!this.items[id]) {
+      this.items[id] = {qty:0, price, stock};
+    }
+    if (this.items[id].qty < stock) {
+      this.items[id].qty += 1;
+      this.renderLine(id);
+      this.updateAddButton(id);
+      this.updateTotal();
+    }
+  }
+  removeItem(id) {
+    if (!this.items[id]) return;
+    this.items[id].qty -= 1;
+    if (this.items[id].qty <= 0) {
+      delete this.items[id];
+      this.removeLine(id);
+    } else {
+      this.renderLine(id);
+    }
+    this.updateAddButton(id);
+    this.updateTotal();
+  }
+  renderLine(id) {
+    let line = this.carritoEl.querySelector(`.linea[data-id="${id}"]`);
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `<span class="cant"></span> <button class="quitar" data-id="${id}">Quitar</button>`;
+      this.carritoEl.appendChild(line);
+      line.querySelector('.quitar').addEventListener('click', () => this.removeItem(id));
+    }
+    line.querySelector('.cant').textContent = `${this.items[id].qty} x ${this.items[id].price.toLocaleString('es-ES', {style:'currency', currency:'EUR'})}`;
+  }
+  removeLine(id) {
+    const line = this.carritoEl.querySelector(`.linea[data-id="${id}"]`);
+    if (line) line.remove();
+  }
+  updateAddButton(id) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    const qty = this.items[id] ? this.items[id].qty : 0;
+    const stock = parseInt(document.querySelector(`.prod[data-id="${id}"]`).dataset.stock, 10);
+    btn.disabled = qty >= stock;
+  }
+  updateTotal() {
+    let total = 0;
+    for (const id in this.items) {
+      total += this.items[id].qty * this.items[id].price;
+    }
+    this.totalEl.textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  new Cart();
+});
+</script>
+</body>
+</html>

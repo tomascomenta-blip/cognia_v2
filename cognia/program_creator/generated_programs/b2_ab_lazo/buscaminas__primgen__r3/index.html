@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Buscaminas 5x5</title>
+<style>body{font-family:sans-serif;margin:0;padding:1rem;background:#f0f0f0;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:300px;margin:auto;}
+.c{background:#ccc;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;}
+.c.abierta{background:#fff;}
+.c.bandera{background:#ff0;}
+#estado{margin-top:1rem;text-align:center;font-weight:bold;}</style></head>
+<body><div id="grid"></div><div id="estado"></div>
+<script>
+const mines=[6,12,18],grid=document.getElementById('grid');
+grid.innerHTML='';for(let i=0;i<25;i++)grid.innerHTML+=`<div class="c" data-i="${i}"></div>`;
+const cells=document.querySelectorAll('.c');
+cells.forEach(d=>{
+ d.addEventListener('click',e=>{
+  if(d.classList.contains('bandera')||d.classList.contains('abierta'))return;
+  const i=+d.dataset.i;
+  if(mines.includes(i)){d.classList.add('abierta');document.getElementById('estado').textContent='perdiste';return;}
+  const n=adj(i);d.textContent=n||'';d.classList.add('abierta');if(n===0)openZero(i);
+ });
+ d.addEventListener('contextmenu',e=>{
+  e.preventDefault();if(d.classList.contains('abierta'))return;d.classList.toggle('bandera');
+ });
+});
+function adj(i){const r=Math.floor(i/5),c=i%5;let cnt=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;const idx=nr*5+nc;if(mines.includes(idx))cnt++;}return cnt;}
+function openZero(i){const stack=[i],vis=new Set();while(stack.length){const cur=stack.pop();const cell=document.querySelector(`.c[data-i="${cur}"]`);if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))continue;const n=adj(cur);cell.textContent=n||'';cell.classList.add('abierta');if(n===0){const r=Math.floor(cur/5),c=cur%5;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;const idx=nr*5+nc;if(!vis.has(idx)){vis.add(idx);stack.push(idx);}}}}
+}
+</script></body></html>

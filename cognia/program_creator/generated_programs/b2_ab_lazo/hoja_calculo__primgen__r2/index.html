@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;color:#333;}
+  .container{max-width:400px;margin:2rem auto;padding:1rem;background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+  h1{font-size:1.5rem;margin:0 0 1rem 0;text-align:center;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .celda{width:100%;height:40px;font-size:1rem;padding:5px;box-sizing:border-box;text-align:right;}
+  @media(max-width:480px){.celda{height:35px;font-size:0.9rem;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Mini Hoja de Cálculo 3x3</h1>
+  <div class="grid">
+    <input type="text" class="celda" data-ref="A1" value="10">
+    <input type="text" class="celda" data-ref="A2">
+    <input type="text" class="celda" data-ref="A3">
+    <input type="text" class="celda" data-ref="B1" value="5">
+    <input type="text" class="celda" data-ref="B2">
+    <input type="text" class="celda" data-ref="B3">
+    <input type="text" class="celda" data-ref="C1">
+    <input type="text" class="celda" data-ref="C2" value="3">
+    <input type="text" class="celda" data-ref="C3" value="=A1+B1-C2">
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const inputs = document.querySelectorAll('.celda');
+  const cells = {};
+  inputs.forEach(inp => { cells[inp.dataset.ref] = inp; });
+
+  const isUpdating = {value: false};
+
+  const getRefsFromFormula = (formula) => {
+    const refs = [];
+    const regex = /[A-C][1-3]/g;
+    let m;
+    while ((m = regex.exec(formula)) !== null) refs.push(m[0]);
+    return refs;
+  };
+
+  const evaluateCell = (ref, stack = []) => {
+    if (stack.includes(ref)) return 'CIRC';
+    const inp = cells[ref];
+    if (!inp) return 0;
+    const formula = inp.dataset.formula;
+    if (!formula) {
+      const val = inp.value.trim();
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num;
+    }
+    const expr = formula.slice(1); // remove '='
+    const tokens = expr.split(/([+-])/);
+    let result = 0;
+    let op = '+';
+    for (let token of tokens) {
+      if (token === '' || token === '+' || token === '-') continue;
+      if (token === '+') { op = '+'; continue; }
+      if (token === '-') { op = '-'; continue; }
+      let val;
+      if (/^[A-C][1-3]$/.test(token)) {
+        val = evaluateCell(token, [...stack, ref]);
+        if (val === 'CIRC') return 'CIRC';
+        val = parseFloat(val);
+        if (isNaN(val)) val = 0;
+      } else {
+        val = parseFloat(token);
+        if (isNaN(val)) val = 0;
+      }
+      result = op === '+' ? result + val : result - val;
+    }
+    return result;
+  };
+
+  const formatValue = (val) => {
+    if (typeof val === 'number') {
+      return val.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+    return val;
+  };
+
+  const recalcCell = (ref) => {
+    const inp = cells[ref];
+    if (!inp) return;
+    if (!inp.dataset.formula) return;
+    const val = evaluateCell(ref);
+    inp.value = val === 'CIRC' ? 'CIRC' : formatValue(val);
+  };
+
+  const recalcDependents = (ref, visited = new Set()) => {
+    for (let r in cells) {
+      const inp = cells[r];
+      const formula = inp.dataset.formula;
+      if (!formula) continue;
+      const refs = getRefsFromFormula(formula);
+      if (refs.includes(ref)) {
+        recalcCell(r);
+        if (!visited.has(r)) {
+          visited.add(r);
+          recalcDependents(r, visited);
+        }
+      }
+    }
+  };
+
+  const handleInput = (e) => {
+    if (isUpdating.value) return;
+    const inp = e.target;
+    const ref = inp.dataset.ref;
+    const raw = inp.value;
+    if (raw.startsWith('=')) {
+      inp.dataset.formula = raw;
+      const val = evaluateCell(ref);
+      inp.value = val === 'CIRC' ? 'CIRC' : formatValue(val);
+    } else {
+      delete inp.dataset.formula;
+    }
+    recalcDependents(ref);
+  };
+
+  inputs.forEach(inp => inp.addEventListener('input', handleInput));
+
+  // Initial evaluation of formula cells
+  isUpdating.value = true;
+  for (let ref in cells) {
+    const inp = cells[ref];
+    if (inp.dataset.formula) {
+      const val = evaluateCell(ref);
+      inp.value = val === 'CIRC' ? 'CIRC' : formatValue(val);
+    }
+  }
+  isUpdating.value = false;
+});
+</script>
+</body>
+</html>

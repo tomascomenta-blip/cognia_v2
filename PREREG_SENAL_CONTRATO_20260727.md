@@ -382,3 +382,47 @@ Reglas adicionales pre-declaradas para el A/B lazo vs primgen:
 8. El held-out corre en try propio (un crash suyo no puede pisar el
    APROBADO primario — solo castigaría al brazo que aprobó). El rastro de
    feromona se redirige fuera del store de producción.
+
+## RESULTADO Unidad 2 (2026-07-27 ~21:50 — COMPLETO: 24/24 pares, 0 infra)
+
+**lazo 16/24 (67%) vs primgen 19/24 (79%); apareado: lazo gana 2 (carrito
+r3, hoja r1), primgen gana 5 (carrito r2,r6; hoja r4,r6; kanban r1) —
+NETO LAZO = −3, reparto en 3 tareas, n completo → veredicto pre-registrado:
+EL LAZO RESTA.** create_program por brazo: lazo 3 / primgen 2 (visible, no
+excluido). Config sondada: commit 06a2483, fix2 OFF, contrato clásico,
+rondas 3.
+
+Evidencia de mecanismo en los pares discordantes: en 4 de los 5 que gana
+primgen, la versión del lazo tiene MENOS checks del banco que la primera
+generación (18→19, 17→19, 24→27, 23→27, 16→19) — **las rondas de
+reparación degradan páginas que nacieron mejor**, lo que predice
+[[contrato-interno-al-azar]] (reparar guiado por una señal ~aleatoria). El
+sello interno sigue ruidoso en la misma corrida (páginas banco-aprobadas
+con sello FALLIDO, p.ej. hoja r1 lazo 28/28 banco con sello FALLIDO).
+
+Nota de nivel: AMBOS brazos rinden alto esta noche (67-79%, nivel del crudo
+histórico) — la brecha sistema-vs-crudo de hace dos días (17% vs 75%) no
+reaparece; sin crudo concurrente esta noche, no se puede repartir entre
+fixes y deriva (declarado).
+
+**Política: la candidata max_rondas=1 queda ACTIVADA como candidata**, y
+por la regla de la tercera enmienda NO se adopta sin su A/B de confirmación
+en el banco fácil (donde la serie pre-fix había sugerido lo contrario:
+reparar +1.33). Ese A/B se pre-registra ahora:
+
+## QUINTA ENMIENDA (2026-07-27 ~22:00 — confirmación en banco FÁCIL,
+## escrita ANTES de correr)
+
+`b2_ab_lazo.py --banco facil` (b1_tareas.json, 6 tareas), brazos
+lazo/primgen intercalados, objetivo n=6 (36 pares). Misma mecánica y
+exclusiones que la cuarta enmienda. Corre hasta ~03:30; si el aterrizaje
+corta antes de n=6, PARCIAL direccional y NO se adopta nada.
+
+| lectura (36 pares completos) | condición | decisión |
+|---|---|---|
+| el lazo aporta EN EL FÁCIL | lazo neto ≥ +3 con reparto ≥2 tareas | rondas=3 se queda (política por banco NO: se queda global, y la resta del brutal se ataca por la señal) |
+| empate | neto en [−2, +2] | **rondas=1 se adopta por COSTE** (mismo resultado, ~3× menos GPU): cambio de default + test + suite, reversible por env |
+| el lazo también resta aquí | primgen neto ≥ +3 con reparto | rondas=1 se adopta con evidencia doble |
+
+Adopción SOLO con n=36 completo (PARCIAL nunca adopta). El brazo lazo es
+idéntico a producción; el JSON registra las mismas sondas de config.

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:sans-serif;text-align:center;margin:0;padding:20px;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:300px;margin:auto;}
+.c{background:#bbb;color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center;height:60px;font-size:20px;}
+.abierta{background:#ddd;cursor:default;}
+.bandera{background:#f88;}
+#estado{margin-top:20px;font-size:18px;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18],grid=document.getElementById('grid'),estado=document.getElementById('estado'),cells=[];
+for(let i=0;i<25;i++){let d=document.createElement('div');d.className='c';d.dataset.i=i;
+d.onclick=()=>open(i);d.oncontextmenu=e=>{e.preventDefault();flag(i);};grid.appendChild(d);cells.push(d);}
+const cnt=new Array(25).fill(0);
+for(let i=0;i<25;i++){if(mines.includes(i))continue;let r=i/5|0,c=i%5,cv=0;
+for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;
+if(nr<0||nr>4||nc<0||nc>4)continue;if(mines.includes(nr*5+nc))cv++;}cnt[i]=cv;}
+function open(i){let d=cells[i];if(d.classList.contains('abierta')||d.classList.contains('bandera'))return;
+if(mines.includes(i)){d.classList.add('abierta');d.textContent='💣';estado.textContent='perdiste';return;}flood(i);}
+function flood(i){let s=[i];while(s.length){let j=s.pop(),d=cells[j];
+if(d.classList.contains('abierta')||d.classList.contains('bandera'))continue;d.classList.add('abierta');let v=cnt[j];
+if(v>0)d.textContent=v;else{let r=j/5|0,c=j%5;
+for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;
+if(nr<0||nr>4||nc<0||nc>4)continue;let k=nr*5+nc;if(!cells[k].classList.contains('abierta')&&!cells[k].classList.contains('bandera'))s.push(k);}}}}
+function flag(i){let d=cells[i];if(d.classList.contains('abierta'))return;d.classList.toggle('bandera');d.textContent=d.classList.contains('bandera')?'🚩':'';}
+</script>
+</body>
+</html>

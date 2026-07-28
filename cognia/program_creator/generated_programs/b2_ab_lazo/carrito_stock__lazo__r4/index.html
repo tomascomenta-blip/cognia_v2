@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f9f9f9;color:#333;}
+  h1{background:#4CAF50;color:#fff;padding:1rem;margin:0;text-align:center;}
+  #container{display:flex;flex-wrap:wrap;justify-content:space-around;padding:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;border-radius:4px;padding:1rem;margin:0.5rem;flex:1 1 200px;box-sizing:border-box;}
+  .prod .name{font-weight:bold;display:block;margin-bottom:0.5rem;}
+  .prod .price,.prod .stock{display:block;margin-bottom:0.5rem;}
+  .prod button{background:#4CAF50;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{background:#fff;border:1px solid #ddd;border-radius:4px;padding:1rem;margin:0.5rem;flex:1 1 300px;box-sizing:border-box;}
+  #cart h2{margin-top:0;}
+  .linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;}
+  .linea .cant{font-weight:bold;}
+  .linea button{background:#f44336;color:#fff;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;}
+  #total{font-weight:bold;font-size:1.2rem;}
+  @media(max-width:600px){
+    #container{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<h1>Carrito con Stock</h1>
+<div id="container">
+  <div id="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <span class="name">Producto 1</span>
+      <span class="price"></span>
+      <span class="stock"></span>
+      <button class="add" data-id="p1">Agregar</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <span class="name">Producto 2</span>
+      <span class="price"></span>
+      <span class="stock"></span>
+      <button class="add" data-id="p2">Agregar</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <span class="name">Producto 3</span>
+      <span class="price"></span>
+      <span class="stock"></span>
+      <button class="add" data-id="p3">Agregar</button>
+    </div>
+  </div>
+  <div id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: <span id="total">0,00 €</span></div>
+  </div>
+</div>
+<script>
+  // Configurable constants
+  const LOCALE = 'es-ES';
+  const CURRENCY = 'EUR';
+  const formatter = new Intl.NumberFormat(LOCALE, {style:'currency', currency:CURRENCY});
+
+  // Cart data structure
+  const cart = {};
+
+  // Initialize product display
+  document.querySelectorAll('.prod').forEach(prod => {
+    const price = parseFloat(prod.dataset.precio);
+    const stock = parseInt(prod.dataset.stock, 10);
+    prod.querySelector('.price').textContent = formatter.format(price);
+    prod.querySelector('.stock').textContent = `Stock: ${stock}`;
+  });
+
+  // Add button event listeners
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      addToCart(id);
+    });
+  });
+
+  // Quitar button event delegation
+  document.getElementById('lines').addEventListener('click', e => {
+    if (e.target.matches('.quitar')) {
+      const id = e.target.dataset.id;
+      removeFromCart(id);
+    }
+  });
+
+  function addToCart(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock, 10);
+    const current = cart[id] || 0;
+    if (current < stock) {
+      cart[id] = current + 1;
+      updateCart();
+    }
+  }
+
+  function removeFromCart(id) {
+    const current = cart[id] || 0;
+    if (current > 0) {
+      cart[id] = current - 1;
+      if (cart[id] === 0) delete cart[id];
+      updateCart();
+    }
+  }
+
+  function updateCart() {
+    const linesContainer = document.getElementById('lines');
+    linesContainer.innerHTML = '';
+    let total = 0;
+    Object.keys(cart).forEach(id => {
+      const qty = cart[id];
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      total += price * qty;
+
+      const line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+
+      const cantSpan = document.createElement('span');
+      cantSpan.className = 'cant';
+      cantSpan.textContent = qty;
+
+      const quitarBtn = document.createElement('button');
+      quitarBtn.className = 'quitar';
+      quitarBtn.dataset.id = id;
+      quitarBtn.textContent = 'Quitar';
+
+      line.appendChild(cantSpan);
+      line.appendChild(quitarBtn);
+      linesContainer.appendChild(line);
+    });
+
+    // Update total display
+    document.getElementById('total').textContent = formatter.format(total);
+
+    // Update add buttons disabled state
+    document.querySelectorAll('.add').forEach(btn => {
+      const id = btn.dataset.id;
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const stock = parseInt(prod.dataset.stock, 10);
+      const qty = cart[id] || 0;
+      btn.disabled = qty >= stock;
+    });
+  }
+</script>
+</body>
+</html>

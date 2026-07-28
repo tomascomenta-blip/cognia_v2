@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+  .container{max-width:800px;margin:auto;padding:1rem;}
+  .products,.cart{margin-bottom:2rem;}
+  .prod{border:1px solid #ddd;padding:1rem;margin-bottom:1rem;background:#fff;display:flex;flex-direction:column;}
+  .prod h3{margin:0 0 .5rem;}
+  .prod p{margin:.2rem 0;}
+  .prod button.add{margin-top:.5rem;padding:.5rem 1rem;font-size:1rem;}
+  .cart h2{margin-bottom:.5rem;}
+  .linea{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #ddd;}
+  .linea span.cant{font-weight:bold;}
+  .linea button.quitar{margin-left:1rem;}
+  #total{font-weight:bold;font-size:1.2rem;}
+  @media (max-width:600px){
+    .prod,.linea{flex-direction:column;align-items:flex-start;}
+    .linea button.quitar{margin-top:.5rem;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <section class="products">
+    <h2>Productos</h2>
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <p>Precio: <span class="precio"></span></p>
+      <p>Stock disponible: <span class="stock"></span></p>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <p>Precio: <span class="precio"></span></p>
+      <p>Stock disponible: <span class="stock"></span></p>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <p>Precio: <span class="precio"></span></p>
+      <p>Stock disponible: <span class="stock"></span></p>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </section>
+  <section class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <p>Total: <span id="total">0</span></p>
+  </section>
+</div>
+<script>
+  const LOCALE='es-ES';
+  const CURRENCY='EUR';
+  function formatCurrency(v){return v.toLocaleString(LOCALE,{style:'currency',currency:CURRENCY});}
+  document.querySelectorAll('.prod').forEach(p=>{
+    const precio=parseFloat(p.dataset.precio);
+    const stock=parseInt(p.dataset.stock);
+    p.querySelector('.precio').textContent=formatCurrency(precio);
+    p.querySelector('.stock').textContent=stock;
+  });
+  const cart={};
+  function updateCart(){
+    const lines=document.getElementById('cart-lines');
+    lines.innerHTML='';
+    let total=0;
+    for(const id in cart){
+      const qty=cart[id];
+      if(qty<=0)continue;
+      const prod=document.querySelector(`.prod[data-id="${id}"]`);
+      const precio=parseFloat(prod.dataset.precio);
+      total+=precio*qty;
+      const line=document.createElement('div');
+      line.className='linea';
+      line.dataset.id=id;
+      line.innerHTML=`<span>${prod.querySelector('h3').textContent}</span><span class="cant">${qty}</span><button class="quitar" data-id="${id}">Quitar</button>`;
+      lines.appendChild(line);
+    }
+    document.getElementById('total').textContent=formatCurrency(total);
+    document.querySelectorAll('.add').forEach(btn=>{
+      const id=btn.dataset.id;
+      const prod=document.querySelector(`.prod[data-id="${id}"]`);
+      const stock=parseInt(prod.dataset.stock);
+      const qty=cart[id]||0;
+      btn.disabled=qty>=stock;
+    });
+  }
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.id;
+      const prod=document.querySelector(`.prod[data-id="${id}"]`);
+      const stock=parseInt(prod.dataset.stock);
+      const qty=cart[id]||0;
+      if(qty<stock){cart[id]=qty+1;updateCart();}
+    });
+  });
+  document.getElementById('cart-lines').addEventListener('click',e=>{
+    if(e.target.classList.contains('quitar')){
+      const id=e.target.dataset.id;
+      const qty=cart[id]||0;
+      if(qty>0){cart[id]=qty-1;if(cart[id]<=0)delete cart[id];updateCart();}
+    }
+  });
+  updateCart();
+</script>
+</body>
+</html>

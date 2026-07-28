@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    grid-gap:5px;
+  }
+  .celda{
+    width:80px;height:30px;text-align:right;padding:5px;font-size:14px;
+    border:1px solid #ccc;border-radius:3px;
+    transition:background-color .3s;
+    animation:fadeIn 1s ease-in-out;
+  }
+  .celda:focus{outline:none;border-color:#66afe9;background:#e6f7ff;}
+  @keyframes fadeIn{
+    from{background:#e0f7ff;}
+    to{background:#fff;}
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1" value="">
+  <input type="text" class="celda" data-ref="A2" value="">
+  <input type="text" class="celda" data-ref="A3" value="">
+  <input type="text" class="celda" data-ref="B1" value="">
+  <input type="text" class="celda" data-ref="B2" value="">
+  <input type="text" class="celda" data-ref="B3" value="">
+  <input type="text" class="celda" data-ref="C1" value="">
+  <input type="text" class="celda" data-ref="C2" value="">
+  <input type="text" class="celda" data-ref="C3" value="">
+</div>
+
+<script>
+(() => {
+  const cells = new Map(); // ref -> {el, dependents}
+  const inputs = document.querySelectorAll('.celda');
+
+  // Inicializar mapa de celdas
+  inputs.forEach(el => {
+    const ref = el.dataset.ref;
+    cells.set(ref, {el, dependents: []});
+  });
+
+  // Reconstruir dependencias
+  function rebuildDependencies() {
+    cells.forEach(cell => cell.dependents = []);
+    cells.forEach((cell, ref) => {
+      const val = cell.el.value.trim();
+      if (val.startsWith('=')) {
+        const expr = val.slice(1);
+        const refs = expr.match(/[A-C][1-3]/g) || [];
+        refs.forEach(r => {
+          if (cells.has(r)) cells.get(r).dependents.push(ref);
+        });
+      }
+    });
+  }
+
+  // Evaluar expresión de fórmula
+  function evaluateExpression(expr, stack) {
+    const tokens = expr.match(/([A-C][1-3])|(\d+(\.\d+)?)|([+-])/g);
+    if (!tokens) return 0;
+    let current = null;
+    let op = '+';
+    for (const token of tokens) {
+      if (token === '+' || token === '-') {
+        op = token;
+      } else if (/^[A-C][1-3]$/.test(token)) {
+        const val = evaluateCell(token, stack);
+        if (val === 'CIRC') return 'CIRC';
+        if (current === null) current = val;
+        else current = op === '+' ? current + val : current - val;
+      } else { // número
+        const num = parseFloat(token);
+        if (current === null) current = num;
+        else current = op === '+' ? current + num : current - num;
+      }
+    }
+    return current;
+  }
+
+  // Evaluar celda (retorna número o 'CIRC')
+  function evaluateCell(ref, stack) {
+    const cell = cells.get(ref);
+    const val = cell.el.value.trim();
+    if (val === 'CIRC') return 'CIRC';
+    if (val.startsWith('=')) {
+      if (stack.includes(ref)) return 'CIRC';
+      const expr = val.slice(1);
+      const result = evaluateExpression(expr, [...stack, ref]);
+      if (result === 'CIRC') {
+        cell.el.value = 'CIRC';
+        return 'CIRC';
+      } else {
+        cell.el.value = result.toString();
+        return result;
+      }
+    } else {
+      const num = parseFloat(val);
+      return isNaN(num) ? 0 : num;
+    }
+  }
+
+  // Recalcular celda y sus dependientes
+  function recalc(ref, visited = new Set()) {
+    if (visited.has(ref)) return;
+    visited.add(ref);
+    evaluateCell(ref, []);
+    const cell = cells.get(ref);
+    cell.dependents.forEach(dep => recalc(dep, visited));
+  }
+
+  // Evento de cambio en cualquier celda
+  inputs.forEach(el => {
+    el.addEventListener('input', () => {
+      const ref = el.dataset.ref;
+      rebuildDependencies();
+      recalc(ref);
+    });
+  });
+
+  // Inicializar al cargar
+  document.addEventListener('DOMContentLoaded', () => {
+    rebuildDependencies();
+    cells.forEach((_, ref) => recalc(ref));
+  });
+})();
+</script>
+</body>
+</html>

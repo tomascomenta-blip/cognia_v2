@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-template-rows:repeat(5,60px);
+    gap:2px;
+    margin:20px;
+  }
+  .c{
+    background:#bbb;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ff0;
+  }
+  .c.bandera::after{
+    content:"🚩";
+    font-size:24px;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:18px;
+    color:#900;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor(rows, cols, minePositions) {
+    this.rows = rows;
+    this.cols = cols;
+    this.minePositions = new Set(minePositions);
+    this.gridElement = document.getElementById('grid');
+    this.estadoElement = document.getElementById('estado');
+    this.cells = [];
+    this.initGrid();
+  }
+  initGrid() {
+    for (let i = 0; i < this.rows * this.cols; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.dataset.mine = this.minePositions.has(i) ? '1' : '0';
+      cell.addEventListener('click', (e) => this.handleClick(e));
+      cell.addEventListener('contextmenu', (e) => this.handleRightClick(e));
+      this.gridElement.appendChild(cell);
+      this.cells.push(cell);
+    }
+  }
+  handleClick(e) {
+    const cell = e.currentTarget;
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    if (cell.dataset.mine === '1') {
+      this.openMine(cell);
+      this.estadoElement.textContent = 'perdiste';
+      return;
+    }
+    this.openCell(cell);
+  }
+  handleRightClick(e) {
+    e.preventDefault();
+    const cell = e.currentTarget;
+    if (cell.classList.contains('abierta')) return;
+    cell.classList.toggle('bandera');
+  }
+  openMine(cell) {
+    cell.classList.add('abierta');
+    cell.textContent = '💣';
+  }
+  openCell(cell) {
+    cell.classList.add('abierta');
+    const count = this.countAdjacentMines(cell);
+    if (count > 0) {
+      cell.textContent = count;
+    } else {
+      this.cascadeOpen(cell);
+    }
+  }
+  countAdjacentMines(cell) {
+    const i = parseInt(cell.dataset.i);
+    const row = Math.floor(i / this.cols);
+    const col = i % this.cols;
+    let count = 0;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) continue;
+        const idx = r * this.cols + c;
+        if (this.minePositions.has(idx)) count++;
+      }
+    }
+    return count;
+  }
+  cascadeOpen(startCell) {
+    const queue = [startCell];
+    const visited = new Set();
+    while (queue.length) {
+      const cell = queue.shift();
+      const i = parseInt(cell.dataset.i);
+      if (visited.has(i)) continue;
+      visited.add(i);
+      cell.classList.add('abierta');
+      const count = this.countAdjacentMines(cell);
+      if (count > 0) {
+        cell.textContent = count;
+        continue;
+      }
+      // count == 0, show nothing
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const r = Math.floor(i / this.cols) + dr;
+          const c = i % this.cols + dc;
+          if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) continue;
+          const idx = r * this.cols + c;
+          const neighbor = this.cells[idx];
+          if (!neighbor.classList.contains('abierta') && !neighbor.classList.contains('bandera')) {
+            queue.push(neighbor);
+          }
+        }
+      }
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const mines = [6, 12, 18];
+  new Minesweeper(5, 5, mines);
+});
+</script>
+</body>
+</html>

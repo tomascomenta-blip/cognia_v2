@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con stock</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;min-height:100vh;}
+  #app{display:flex;flex-direction:column;flex:1;padding:1rem;animation:fadeIn 1s ease-in-out;}
+  #products{display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;}
+  .prod{border:1px solid #ccc;padding:1rem;flex:1 1 200px;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;}
+  .prod .name{font-weight:bold;margin-bottom:.5rem;}
+  .prod .price{margin-bottom:.5rem;}
+  .prod button.add{padding:.5rem 1rem;}
+  #cart{border-top:1px solid #ccc;padding-top:1rem;}
+  #lines{display:flex;flex-direction:column;gap:.5rem;}
+  .linea{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eee;padding:.5rem 0;}
+  .linea .cant{font-weight:bold;}
+  .linea .name{margin-right:1rem;}
+  .linea button.quitar{padding:.3rem .6rem;}
+  .total{font-size:1.2rem;font-weight:bold;margin-top:1rem;}
+  button.add:disabled{background:#ccc;color:#666;cursor:not-allowed;}
+  @media (max-width:600px){#products{flex-direction:column;}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Carrito de compra</h1>
+  <section id="products"></section>
+  <section id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div class="total">Total: <span id="total">€0.00</span></div>
+  </section>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const productsContainer = document.getElementById('products');
+  const linesContainer = document.getElementById('lines');
+  const totalSpan = document.getElementById('total');
+
+  const PRODUCTS = [
+    {id:'p1', name:'Producto 1', price:100, stock:2},
+    {id:'p2', name:'Producto 2', price:50, stock:3},
+    {id:'p3', name:'Producto 3', price:25, stock:1}
+  ];
+
+  const cart = {}; // id -> qty
+
+  // Helper to format currency
+  const formatCurrency = (value) => value.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+
+  // Function used by the test harness
+  function contiene(element, selector) {
+    return element.matches(selector);
+  }
+
+  // Generate product elements
+  PRODUCTS.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'prod';
+    div.dataset.id = p.id;
+    div.dataset.precio = p.price;
+    div.dataset.stock = p.stock;
+    div.innerHTML = `
+      <span class="name">${p.name}</span>
+      <span class="price">${formatCurrency(p.price)}</span>
+      <button class="add" data-id="${p.id}">Agregar</button>
+    `;
+    productsContainer.appendChild(div);
+  });
+
+  // Update total
+  const updateTotal = () => {
+    let total = 0;
+    Object.entries(cart).forEach(([id, qty]) => {
+      const product = PRODUCTS.find(p => p.id === id);
+      total += product.price * qty;
+    });
+    totalSpan.textContent = formatCurrency(total);
+  };
+
+  // Update line for product
+  const updateLine = (id) => {
+    const qty = cart[id] || 0;
+    const line = linesContainer.querySelector(`.linea[data-id="${id}"]`);
+    const product = PRODUCTS.find(p => p.id === id);
+    if (qty > 0) {
+      if (line) {
+        const prevQty = parseInt(line.dataset.prev) || 0;
+        const change = qty - prevQty;
+        line.dataset.prev = qty;
+        const cantSpan = line.querySelector('.cant');
+        cantSpan.textContent = qty;
+        cantSpan.style.color = change >= 0 ? 'green' : 'red';
+      } else {
+        const newLine = document.createElement('div');
+        newLine.className = 'linea';
+        newLine.dataset.id = id;
+        newLine.dataset.prev = qty;
+        newLine.innerHTML = `
+          <span class="name">${product.name}</span>
+          <span class="cant">${qty}</span>
+          <button class="quitar" data-id="${id}">Quitar</button>
+        `;
+        const cantSpan = newLine.querySelector('.cant');
+        cantSpan.style.color = 'green';
+        linesContainer.appendChild(newLine);
+      }
+    } else {
+      if (line) line.remove();
+    }
+  };
+
+  // Event delegation using contiene
+  document.addEventListener('click', (e) => {
+    if (contiene(e.target, '.add')) {
+      const id = e.target.dataset.id;
+      const product = PRODUCTS.find(p => p.id === id);
+      const qty = cart[id] || 0;
+      if (qty < product.stock) {
+        cart[id] = qty + 1;
+        updateLine(id);
+        updateTotal();
+      }
+    } else if (contiene(e.target, '.quitar')) {
+      const id = e.target.dataset.id;
+      const qty = cart[id] || 0;
+      if (qty > 0) {
+        cart[id] = qty - 1;
+        if (cart[id] === 0) delete cart[id];
+        updateLine(id);
+        updateTotal();
+      }
+    }
+  });
+
+  // Initialize total
+  updateTotal();
+});
+</script>
+</body>
+</html>

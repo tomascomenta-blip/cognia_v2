@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+  }
+  #board{
+    display:flex;
+    gap:20px;
+    animation:boardIn 1s ease-out forwards;
+    opacity:0;
+  }
+  @keyframes boardIn{
+    from{opacity:0;transform:translateY(-20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .col{
+    background:#fff;
+    padding:10px;
+    border-radius:5px;
+    width:200px;
+    min-height:300px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    animation:colIn .8s ease-out forwards;
+    opacity:0;
+    transform:translateX(-20px);
+  }
+  @keyframes colIn{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  .col h2{
+    margin:0;
+    font-size:1.2em;
+    text-align:center;
+  }
+  .cards{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+  }
+  .card{
+    background:#e3f2fd;
+    padding:8px;
+    border-radius:3px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:cardIn .5s ease-out forwards;
+    opacity:0;
+    transform:translateX(-10px);
+  }
+  @keyframes cardIn{
+    from{opacity:0;transform:translateX(-10px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  button{
+    margin-left:5px;
+    padding:2px 5px;
+    font-size:12px;
+    cursor:pointer;
+    border:none;
+    border-radius:3px;
+    background:#1976d2;
+    color:#fff;
+    transition:transform .1s ease;
+  }
+  button:active{transform:scale(.9);}
+  span[id^="cont-"]{
+    font-weight:bold;
+    margin-top:5px;
+    align-self:center;
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="cards"></div>
+    <span id="cont-todo"></span>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="cards"></div>
+    <span id="cont-doing"></span>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="cards"></div>
+    <span id="cont-done"></span>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', init);
+
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+
+  const txt=document.createElement('span');
+  txt.textContent=id;
+
+  const btnMas=document.createElement('button');
+  btnMas.className='mas';
+  btnMas.textContent='→';
+
+  const btnMenos=document.createElement('button');
+  btnMenos.className='menos';
+  btnMenos.textContent='←';
+
+  card.appendChild(txt);
+  card.appendChild(btnMas);
+  card.appendChild(btnMenos);
+
+  btnMas.addEventListener('click',()=>moveCard(card,'right'));
+  btnMenos.addEventListener('click',()=>moveCard(card,'left'));
+
+  return card;
+}
+
+function init(){
+  const todoCol=document.querySelector('[data-col="todo"] .cards');
+  for(let i=1;i<=3;i++){
+    const card=createCard('t'+i);
+    todoCol.appendChild(card);
+  }
+  updateCounts();
+}
+
+function updateCounts(){
+  const todo=document.querySelectorAll('[data-col="todo"] .card').length;
+  const doing=document.querySelectorAll('[data-col="doing"] .card').length;
+  const done=document.querySelectorAll('[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent='Todo: '+todo;
+  document.getElementById('cont-doing').textContent='Doing: '+doing;
+  document.getElementById('cont-done').textContent='Done: '+done;
+}
+
+function moveCard(card,direction){
+  const currentCol=card.parentElement.parentElement;
+  const current=currentCol.dataset.col;
+  let target;
+
+  if(direction==='right'){
+    if(current==='todo'){
+      if(document.querySelectorAll('[data-col="doing"] .card').length>=2) return; // WIP rule
+      target=document.querySelector('[data-col="doing"] .cards');
+    }else if(current==='doing'){
+      target=document.querySelector('[data-col="done"] .cards');
+    }else return; // done cannot move right
+  }else if(direction==='left'){
+    if(current==='doing'){
+      target=document.querySelector('[data-col="todo"] .cards');
+    }else if(current==='done'){
+      target=document.querySelector('[data-col="doing"] .cards');
+    }else return; // todo cannot move left
+  }else return;
+
+  target.appendChild(card);
+  updateCounts();
+}
+</script>
+</body>
+</html>

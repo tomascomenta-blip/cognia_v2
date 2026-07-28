@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f9f9f9;color:#333;}
+  .container{display:flex;gap:20px;flex-wrap:wrap;}
+  .products{flex:1 1 300px;}
+  .cart{flex:1 1 300px;background:#fff;border-radius:8px;padding:15px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .prod{background:#fff;border-radius:6px;padding:15px;margin-bottom:15px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .prod h3{margin:0 0 10px;}
+  .prod .price{display:block;margin-bottom:10px;color:#555;}
+  .add{background:#5a9bd4;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;}
+  .add.disabled{background:#aaa;cursor:not-allowed;}
+  .linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .linea span{margin-right:5px;}
+  .quitar{background:#d9534f;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;}
+  #total{font-weight:bold;font-size:1.2em;margin-top:10px;}
+  @media(max-width:600px){.container{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <span class="price">100,00 €</span>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <span class="price">50,00 €</span>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <span class="price">25,00 €</span>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h3>Carrito</h3>
+    <div id="lines"></div>
+    <div id="total">0,00 €</div>
+  </div>
+</div>
+<script>
+(function(){
+  const cart = {}; // id -> qty
+  const linesEl = document.getElementById('lines');
+  const totalEl = document.getElementById('total');
+
+  function formatMoney(v){return v.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+  function updateTotal(){
+    let sum=0;
+    for(const id in cart){sum+=cart[id]*parseFloat(getProd(id).dataset.precio);}
+    totalEl.textContent=formatMoney(sum);
+  }
+  function getProd(id){return document.querySelector(`.prod[data-id="${id}"]`);}
+  function getAddBtn(id){return document.querySelector(`.add[data-id="${id}"]`);}
+  function renderLine(id){
+    let line=document.querySelector(`.linea[data-id="${id}"]`);
+    const qty=cart[id];
+    if(!line){
+      line=document.createElement('div');
+      line.className='linea';
+      line.dataset.id=id;
+      line.innerHTML=`<span class="cant">${qty}</span> <span class="name">${getProd(id).querySelector('h3').textContent}</span> <span class="price">${formatMoney(parseFloat(getProd(id).dataset.precio))}</span> <button class="quitar" data-id="${id}">-</button>`;
+      linesEl.appendChild(line);
+      line.querySelector('.quitar').addEventListener('click',()=>remove(id));
+    }else{
+      line.querySelector('.cant').textContent=qty;
+    }
+    // style add button as disabled when stock reached
+    const addBtn=getAddBtn(id);
+    if(qty>=parseInt(getProd(id).dataset.stock))addBtn.classList.add('disabled');
+    else addBtn.classList.remove('disabled');
+  }
+  function add(id){
+    const stock=parseInt(getProd(id).dataset.stock);
+    if(!cart[id])cart[id]=0;
+    if(cart[id]<stock){
+      cart[id]++;
+      renderLine(id);
+      updateTotal();
+    }
+  }
+  function remove(id){
+    if(cart[id]){
+      cart[id]--;
+      if(cart[id]===0){
+        const line=document.querySelector(`.linea[data-id="${id}"]`);
+        if(line)line.remove();
+        delete cart[id];
+      }else{
+        renderLine(id);
+      }
+      updateTotal();
+    }
+  }
+  // init
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>add(btn.dataset.id));
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;color:#333;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{flex:1;min-width:200px;background:#fff;border-radius:5px;padding:10px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  .col h2{margin-top:0;text-align:center;font-size:1.2rem;}
+  .card{background:#e3f2fd;border-radius:4px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;}
+  .card p{margin:0 0 8px 0;}
+  .card button{margin-top:4px;padding:4px 8px;font-size:0.9rem;cursor:pointer;border:none;border-radius:3px;}
+  .card button.mas{background:#4caf50;color:#fff;}
+  .card button.menos{background:#f44336;color:#fff;}
+  .counter{margin-top:10px;text-align:center;font-weight:bold;}
+  @media (max-width:600px){.board{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="card" data-id="t1"><p>t1</p><button class="mas">→</button><button class="menos">←</button></div>
+    <div class="card" data-id="t2"><p>t2</p><button class="mas">→</button><button class="menos">←</button></div>
+    <div class="card" data-id="t3"><p>t3</p><button class="mas">→</button><button class="menos">←</button></div>
+    <div class="counter">Cards: <span id="cont-todo"></span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>En Progreso</h2>
+    <div class="counter">Cards: <span id="cont-doing"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="counter">Cards: <span id="cont-done"></span></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const MAX_WIP = 2;
+  const colNames = ['todo','doing','done'];
+  const columnElems = {};
+  colNames.forEach(col => {
+    columnElems[col] = document.querySelector(`.col[data-col="${col}"]`);
+  });
+  const counterElems = {
+    todo: document.getElementById('cont-todo'),
+    doing: document.getElementById('cont-doing'),
+    done: document.getElementById('cont-done')
+  };
+  const prevCounts = {todo:0, doing:0, done:0};
+
+  function updateCounters(){
+    colNames.forEach(col => {
+      const newCount = columnElems[col].querySelectorAll('.card').length;
+      const diff = newCount - prevCounts[col];
+      if(diff > 0){
+        counterElems[col].style.color = 'green';
+      } else if(diff < 0){
+        counterElems[col].style.color = 'red';
+      }
+      counterElems[col].textContent = newCount;
+      prevCounts[col] = newCount;
+    });
+  }
+
+  function moveCard(card, dir){
+    const currentCol = card.parentElement.dataset.col;
+    const idx = colNames.indexOf(currentCol);
+    if(dir === 'right'){
+      if(idx === colNames.length-1) return;
+      const nextCol = colNames[idx+1];
+      if(nextCol === 'doing' && columnElems[nextCol].querySelectorAll('.card').length >= MAX_WIP) return;
+      card.parentElement.removeChild(card);
+      columnElems[nextCol].appendChild(card);
+    } else if(dir === 'left'){
+      if(idx === 0) return;
+      const prevCol = colNames[idx-1];
+      if(prevCol === 'doing' && columnElems[prevCol].querySelectorAll('.card').length >= MAX_WIP) return;
+      card.parentElement.removeChild(card);
+      columnElems[prevCol].appendChild(card);
+    }
+    updateCounters();
+  }
+
+  document.querySelectorAll('.card button.mas').forEach(btn=>{
+    btn.addEventListener('click', function(){
+      moveCard(this.parentElement, 'right');
+    });
+  });
+  document.querySelectorAll('.card button.menos').forEach(btn=>{
+    btn.addEventListener('click', function(){
+      moveCard(this.parentElement, 'left');
+    });
+  });
+
+  function autoMove(){
+    const allCards = document.querySelectorAll('.card');
+    if(allCards.length===0) return;
+    const card = allCards[Math.floor(Math.random()*allCards.length)];
+    const currentCol = card.parentElement.dataset.col;
+    const idx = colNames.indexOf(currentCol);
+    let dir;
+    if(idx===0){
+      dir='right';
+    }else if(idx===colNames.length-1){
+      dir='left';
+    }else{
+      dir=Math.random()<0.5?'left':'right';
+    }
+    moveCard(card, dir);
+  }
+  setInterval(autoMove, 2000);
+
+  updateCounters();
+})();
+</script>
+</body>
+</html>

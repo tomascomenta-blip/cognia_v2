@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:20px;}
+  h1{font-size:1.5rem;margin-bottom:10px;text-align:center;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:400px;margin:auto;}
+  .celda{width:100%;box-sizing:border-box;padding:5px;font-size:1rem;text-align:right;border:1px solid #ccc;border-radius:3px;background:#fff;}
+  .celda:focus{outline:2px solid #0066cc;}
+</style>
+</head>
+<body>
+<h1>Mini hoja de cálculo 3x3</h1>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1" />
+  <input type="text" class="celda" data-ref="B1" />
+  <input type="text" class="celda" data-ref="C1" />
+  <input type="text" class="celda" data-ref="A2" />
+  <input type="text" class="celda" data-ref="B2" />
+  <input type="text" class="celda" data-ref="C2" />
+  <input type="text" class="celda" data-ref="A3" />
+  <input type="text" class="celda" data-ref="B3" />
+  <input type="text" class="celda" data-ref="C3" />
+</div>
+
+<script>
+(() => {
+  const cells = {}; // ref -> element
+  const dependents = {}; // ref -> Set of refs that depend on it
+  let updating = false;
+
+  // Initialize cell map
+  document.querySelectorAll('.celda').forEach(el => {
+    const ref = el.dataset.ref;
+    cells[ref] = el;
+    el.addEventListener('input', () => {
+      if (updating) return;
+      updateCell(ref);
+    });
+  });
+
+  // Build dependency graph based on current formulas
+  function buildGraph() {
+    Object.keys(dependents).forEach(k => dependents[k].clear());
+    Object.keys(cells).forEach(ref => {
+      const el = cells[ref];
+      const formula = el.dataset.formula;
+      if (!formula) return;
+      const refs = formula.match(/[A-C][1-3]/g) || [];
+      refs.forEach(r => {
+        if (!dependents[r]) dependents[r] = new Set();
+        dependents[r].add(ref);
+      });
+    });
+  }
+
+  // Evaluate a cell recursively
+  function evaluate(ref, visited = new Set()) {
+    if (visited.has(ref)) return null; // circular
+    visited.add(ref);
+    const el = cells[ref];
+    const formula = el.dataset.formula;
+    if (!formula) {
+      const val = parseFloat(el.value);
+      visited.delete(ref);
+      return isNaN(val) ? 0 : val;
+    }
+    const expr = formula.slice(1).trim();
+    const tokens = expr.split(/([+-])/).filter(t => t.trim() !== '');
+    let result = evalOperand(tokens[0], visited);
+    if (result === null) { visited.delete(ref); return null; }
+    for (let i = 1; i < tokens.length; i += 2) {
+      const op = tokens[i];
+      const operand = evalOperand(tokens[i+1], visited);
+      if (operand === null) { visited.delete(ref); return null; }
+      result = op === '+' ? result + operand : result - operand;
+    }
+    visited.delete(ref);
+    return result;
+  }
+
+  function evalOperand(tok, visited) {
+    if (/^[A-C][1-3]$/.test(tok)) {
+      const val = evaluate(tok, visited);
+      return val;
+    }
+    const num = parseFloat(tok);
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Update a single cell and recalc all
+  function updateCell(ref) {
+    const el = cells[ref];
+    const val = el.value.trim();
+    if (val.startsWith('=')) {
+      el.dataset.formula = val;
+    } else {
+      delete el.dataset.formula;
+    }
+    buildGraph();
+    recalcAll();
+  }
+
+  // Recalculate all cells
+  function recalcAll() {
+    updating = true;
+    Object.keys(cells).forEach(ref => {
+      const val = evaluate(ref);
+      const el = cells[ref];
+      if (val === null) {
+        el.value = 'CIRC';
+        el.style.color = 'black';
+      } else {
+        const oldVal = parseFloat(el.dataset.prev);
+        const oldNum = isNaN(oldVal) ? 0 : oldVal;
+        const diff = val - oldNum;
+        el.style.color = diff >= 0 ? 'green' : 'red';
+        el.dataset.prev = val;
+        el.value = val.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2});
+      }
+    });
+    updating = false;
+  }
+
+  // Initial calculation
+  recalcAll();
+})();
+</script>
+</body>
+</html>

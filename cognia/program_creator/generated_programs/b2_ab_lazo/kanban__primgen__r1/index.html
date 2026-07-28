@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una página</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f4f4f4;}
+  .board{display:flex;flex-wrap:wrap;justify-content:space-between;padding:10px;}
+  .col{flex:1 1 30%;background:#fff;border:1px solid #ccc;border-radius:4px;margin:5px;box-sizing:border-box;padding:10px;}
+  .col h2{margin-top:0;font-size:1.2em;color:#333;}
+  .card{background:#e9e9e9;border:1px solid #999;border-radius:3px;padding:8px;margin-bottom:8px;}
+  .card button{margin-right:4px;padding:2px 6px;font-size:0.9em;}
+  .counter{font-weight:bold;}
+  @media (max-width:600px){
+    .col{flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo (<span id="cont-todo" class="counter">0</span>)</h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>En Progreso (<span id="cont-doing" class="counter">0</span>)</h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Hecho (<span id="cont-done" class="counter">0</span>)</h2>
+  </div>
+</div>
+
+<script>
+/* Tunable constants */
+const MAX_DOING = 2;
+const INITIAL_TODO = ['t1','t2','t3'];
+
+/* Utility to get column element by name */
+function getCol(colName){ return document.querySelector('.col[data-col="'+colName+'"]'); }
+
+/* Create a card element */
+function createCard(id){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = id;
+  card.innerHTML = `<strong>${id}</strong> 
+    <button class="mas">→</button>
+    <button class="menos">←</button>`;
+  // Attach event listeners
+  card.querySelector('.mas').addEventListener('click',()=>moveCard(card,'right'));
+  card.querySelector('.menos').addEventListener('click',()=>moveCard(card,'left'));
+  return card;
+}
+
+/* Move card left or right */
+function moveCard(card, dir){
+  const currentCol = card.parentElement.dataset.col;
+  let targetCol;
+  if(dir==='right'){
+    if(currentCol==='todo'){
+      if(getCol('doing').children.length-1 >= MAX_DOING) return; // WIP limit
+      targetCol='doing';
+    }else if(currentCol==='doing'){
+      targetCol='done';
+    }else{ // done
+      return; // cannot move right
+    }
+  }else{ // dir==='left'
+    if(currentCol==='doing'){
+      targetCol='todo';
+    }else if(currentCol==='done'){
+      if(getCol('doing').children.length-1 >= MAX_DOING) return; // WIP limit
+      targetCol='doing';
+    }else{ // todo
+      return; // cannot move left
+    }
+  }
+  getCol(targetCol).appendChild(card);
+  updateCounters();
+}
+
+/* Update counters for each column */
+function updateCounters(){
+  document.getElementById('cont-todo').textContent = getCol('todo').children.length-1; // exclude header
+  document.getElementById('cont-doing').textContent = getCol('doing').children.length-1;
+  document.getElementById('cont-done').textContent = getCol('done').children.length-1;
+}
+
+/* Initialize board */
+document.addEventListener('DOMContentLoaded',()=>{
+  const todoCol = getCol('todo');
+  INITIAL_TODO.forEach(id=>todoCol.appendChild(createCard(id)));
+  updateCounters();
+});
+</script>
+</body>
+</html>

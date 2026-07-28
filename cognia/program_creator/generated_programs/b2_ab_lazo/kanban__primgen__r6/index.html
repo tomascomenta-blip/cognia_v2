@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#fafafa;}
+  h1{margin:10px 0;text-align:center;}
+  #board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{flex:1 1 200px;background:#e0e0e0;padding:10px;border-radius:5px;min-width:200px;}
+  .col h2{text-align:center;margin-top:0;}
+  .cards{min-height:50px;}
+  .card{background:#fff;padding:8px;margin-bottom:8px;border-radius:3px;display:flex;justify-content:space-between;align-items:center;border:1px solid #ccc;}
+  .card button{margin-left:4px;padding:2px 6px;font-size:.9em;}
+  .counter{text-align:center;margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<h1>Tablero Kanban</h1>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="cards"></div>
+    <div class="counter">Todo: <span id="cont-todo"></span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="cards"></div>
+    <div class="counter">Doing: <span id="cont-doing"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="cards"></div>
+    <div class="counter">Done: <span id="cont-done"></span></div>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+const colOrder = ['todo','doing','done'];
+
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  const span=document.createElement('span');
+  span.textContent=id;
+  card.appendChild(span);
+  const btnMinus=document.createElement('button');
+  btnMinus.className='menos';
+  btnMinus.textContent='←';
+  const btnPlus=document.createElement('button');
+  btnPlus.className='mas';
+  btnPlus.textContent='→';
+  card.appendChild(btnMinus);
+  card.appendChild(btnPlus);
+  btnMinus.addEventListener('click',()=>moveCard(card,-1));
+  btnPlus.addEventListener('click',()=>moveCard(card,1));
+  return card;
+}
+
+function moveCard(card,dir){
+  const col=card.parentElement.parentElement;
+  const curIdx=colOrder.indexOf(col.dataset.col);
+  const newIdx=curIdx+dir;
+  if(newIdx<0||newIdx>=colOrder.length)return;
+  if(dir===1&&col.dataset.col==='done')return;
+  if(dir===-1&&col.dataset.col==='todo')return;
+  if(dir===1&&colOrder[newIdx]==='doing'){
+    const doingCol=document.querySelector('.col[data-col="doing"] .cards');
+    if(doingCol.children.length>=MAX_DOING)return;
+  }
+  const newCol=document.querySelector('.col[data-col="'+colOrder[newIdx]+'"] .cards');
+  newCol.appendChild(card);
+  updateCounters();
+}
+
+function updateCounters(){
+  const todo=document.querySelector('.col[data-col="todo"] .cards').children.length;
+  const doing=document.querySelector('.col[data-col="doing"] .cards').children.length;
+  const done=document.querySelector('.col[data-col="done"] .cards').children.length;
+  document.getElementById('cont-todo').textContent=todo;
+  document.getElementById('cont-doing').textContent=doing;
+  document.getElementById('cont-done').textContent=done;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  for(let i=1;i<=3;i++){
+    const card=createCard('t'+i);
+    document.querySelector('.col[data-col="todo"] .cards').appendChild(card);
+  }
+  updateCounters();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#3e7b7b;font-family:sans-serif;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:90vw;max-width:400px;}
+.c{background:#ccc;border:1px solid #999;aspect-ratio:1/1;position:relative;cursor:pointer;box-shadow:inset 0 0 2px #000;transition:background .2s;}
+.c.abierta{background:#fffae6;}
+.c.abierta span{color:#c00;font-weight:bold;font-size:1.2em;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
+.c.bandera::after{content:"🚩";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.2em;}
+#estado{margin-top:10px;text-align:center;color:#c00;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+const cells=[];
+const counts=new Array(25).fill(0);
+for(let i=0;i<25;i++){
+  const c=document.createElement('div');
+  c.className='c';c.dataset.i=i;
+  grid.appendChild(c);
+  cells.push(c);
+}
+for(let i=0;i<25;i++){
+  if(mines.includes(i))continue;
+  let cnt=0;
+  const r=Math.floor(i/5),c=Math.floor(i%5);
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(dr===0&&dc===0)continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr<0||nr>4||nc<0||nc>4)continue;
+    const idx=nr*5+nc;
+    if(mines.includes(idx))cnt++;
+  }
+  counts[i]=cnt;
+}
+function openCell(idx){
+  const cell=cells[idx];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  if(mines.includes(idx)){
+    cell.classList.add('abierta');
+    estado.textContent='perdiste';
+    return;
+  }
+  cell.classList.add('abierta');
+  if(counts[idx]>0)cell.innerHTML=`<span>${counts[idx]}</span>`;
+  if(counts[idx]===0){
+    const queue=[idx];
+    const visited=new Set([idx]);
+    while(queue.length){
+      const cur=queue.shift();
+      const r=Math.floor(cur/5),c=Math.floor(cur%5);
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr<0||nr>4||nc<0||nc>4)continue;
+        const nidx=nr*5+nc;
+        if(visited.has(nidx))continue;
+        const ncell=cells[nidx];
+        if(ncell.classList.contains('bandera'))continue;
+        ncell.classList.add('abierta');
+        if(counts[nidx]>0)ncell.innerHTML=`<span>${counts[nidx]}</span>`;
+        visited.add(nidx);
+        if(counts[nidx]===0)queue.push(nidx);
+      }
+    }
+  }
+}
+cells.forEach(c=>{
+  c.addEventListener('click',e=>{
+    const idx=parseInt(c.dataset.i);
+    openCell(idx);
+  });
+  c.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(c.classList.contains('abierta'))return;
+    c.classList.toggle('bandera');
+  });
+});
+</script>
+</body>
+</html>

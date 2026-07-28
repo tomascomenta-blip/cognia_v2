@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+/* Basic styles */
+body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#fafafa;}
+.board{display:flex;gap:1rem;flex-wrap:wrap;}
+.col{flex:1 1 30%;background:#e0e0e0;padding:0.5rem;border-radius:4px;
+     opacity:0;transform:translateX(-20px);animation:slideIn 0.6s ease forwards;}
+.col:nth-child(1){animation-delay:0.1s;}
+.col:nth-child(2){animation-delay:0.3s;}
+.col:nth-child(3){animation-delay:0.5s;}
+.col h3{margin:0 0 0.5rem 0;font-size:1.1rem;}
+.col h3 span{font-weight:normal;font-size:0.9rem;color:#555;}
+.card{background:#fff;margin:0.5rem 0;padding:0.5rem;border-radius:4px;
+      box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;justify-content:space-between;
+      align-items:center;opacity:0;transform:translateY(20px);animation:fadeIn 0.4s ease forwards;}
+.card:nth-child(1){animation-delay:0.2s;}
+.card:nth-child(2){animation-delay:0.4s;}
+.card:nth-child(3){animation-delay:0.6s;}
+.card button{margin-left:0.2rem;}
+.card button:disabled{opacity:0.5;cursor:not-allowed;}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+<h1>Tablero Kanban</h1>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h3>Todo <span id="cont-todo"></span></h3>
+    <div class="card" data-id="t1" id="t1">Tarea t1<button class="mas">+</button><button class="menos">-</button></div>
+    <div class="card" data-id="t2" id="t2">Tarea t2<button class="mas">+</button><button class="menos">-</button></div>
+    <div class="card" data-id="t3" id="t3">Tarea t3<button class="mas">+</button><button class="menos">-</button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h3>Doing <span id="cont-doing"></span></h3>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Done <span id="cont-done"></span></h3>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  function updateCounters(){
+    const cols=document.querySelectorAll('.col');
+    cols.forEach(col=>{
+      const id=col.dataset.col;
+      const count=col.querySelectorAll('.card').length;
+      document.getElementById('cont-'+id).textContent=count;
+    });
+  }
+  function moveCard(card, direction){
+    const currentCol=card.parentElement;
+    const currentId=currentCol.dataset.col;
+    let targetId;
+    if(direction==='right'){
+      if(currentId==='done') return;
+      targetId=currentId==='todo'?'doing':'done';
+    }else{
+      if(currentId==='todo') return;
+      targetId=currentId==='doing'?'todo':'doing';
+    }
+    const targetCol=document.querySelector('.col[data-col="'+targetId+'"]');
+    if(targetId==='doing' && targetCol.querySelectorAll('.card').length>=2) return;
+    targetCol.appendChild(card);
+    // Remove or disable the + button when card is in 'done'
+    if(targetId==='done'){
+      const plusBtn=card.querySelector('.mas');
+      if(plusBtn) plusBtn.remove();
+    }else{
+      // Ensure + button exists when not in done
+      if(!card.querySelector('.mas')){
+        const plusBtn=document.createElement('button');
+        plusBtn.className='mas';
+        plusBtn.textContent='+';
+        card.appendChild(plusBtn);
+      }
+    }
+    updateCounters();
+  }
+  document.addEventListener('click',function(e){
+    if(e.target.classList.contains('mas')){
+      moveCard(e.target.parentElement,'right');
+    }
+    if(e.target.classList.contains('menos')){
+      moveCard(e.target.parentElement,'left');
+    }
+  });
+  updateCounters();
+});
+</script>
+</body>
+</html>
