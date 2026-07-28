@@ -1,0 +1,142 @@
+{
+  "_por_que": "Suite HELD-OUT del banco FACIL (b1_tareas.json), hermana de b1_contratos_heldout.json (brutal). Aserciones DISTINTAS sobre el mismo DOM obligatorio, que ningun modelo vio y que el contrato original no menciona: miden 'paso el examen, no la materia' (FP del contrato original) y dan al selector de BoN una senal independiente en el banco facil.",
+
+  "_regla_de_diseno": "Cada check es una CONSECUENCIA LOGICA del enunciado (mismo texto que vieron los modelos), nunca un requisito nuevo. Solo selectores que el enunciado declara OBLIGATORIOS. Lo que exige interpretacion (no letra) entra con critico:false hasta que la validacion lo confirme.",
+
+  "_validacion": "PENDIENTE al escribirse (2026-07-28): antes de usar esta suite en un veredicto, correrla contra paginas APROBADAS por el contrato original de corridas previas (b2_ab_lazo_facil). Un desacuerdo se adjudica LEYENDO el HTML de la pagina (como la fe de erratas de buscaminas): si la pagina es correcta y el held-out la reprueba, el bug es del held-out y se corrige aqui; si la pagina esta rota, es un FP del original y se documenta. Ver memoria fp-heldout-por-modelo: validar SIEMPRE contra referencia antes de usar.",
+
+  "tareas": [
+    {
+      "id": "memoria_4x4",
+      "contrato": {
+        "nombre": "memoria HELD-OUT: intento completo nunca deja 1 destapada, nada se destruye",
+        "pasos": [
+          {"_por_que": "'cuenta los intentos' con cero intentos hechos: la unica lectura coherente es 0, pero el enunciado no dice literalmente 'empieza en 0' -> critico:false hasta validar.",
+           "accion": "texto", "selector": "#moves", "contiene": "0", "nombre": "antes de jugar, moves marca 0", "critico": false},
+          {"accion": "click", "selector": ".tile", "indice": 2, "nombre": "destapo la carta 3"},
+          {"accion": "click", "selector": ".tile", "indice": 13, "nombre": "destapo la carta 14"},
+          {"accion": "esperar", "ms": 1600},
+          {"_por_que": "No se sabe si las cartas 3 y 14 coinciden (los pares son aleatorios), pero la LOGICA del juego solo permite dos finales: coinciden (quedan 2 vistas) o no (tras ~1s se tapan las dos, quedan 0). Quedar EXACTAMENTE 1 destapada es imposible en un producto correcto.",
+           "accion": "js", "expr": "(() => { const n = [...document.querySelectorAll('.tile')].filter(t => t.innerText.trim().length > 0 && getComputedStyle(t).visibility !== 'hidden').length; return n === 0 || n === 2; })()", "esperado": true, "nombre": "tras un intento completo quedan 0 o 2 vistas, nunca 1", "critico": true},
+          {"_por_que": "'tras un segundo se vuelven a TAPAR': taparse no es desaparecer. Un producto que elimina cartas al fallar rompe el juego.",
+           "accion": "contar", "selector": ".tile", "esperado": 16, "nombre": "siguen existiendo las 16 cartas", "critico": true},
+          {"_por_que": "Un intento = destapar dos cartas. Interpretacion razonable pero el enunciado no define 'intento' -> critico:false hasta validar.",
+           "accion": "texto", "selector": "#moves", "contiene": "1", "nombre": "tras un intento, moves marca 1", "critico": false}
+        ]
+      }
+    },
+
+    {
+      "id": "contador",
+      "contrato": {
+        "nombre": "contador HELD-OUT: sube pasado 2, el suelo no corrompe el estado, nunca negativo",
+        "pasos": [
+          {"accion": "click", "selector": "#menos", "nombre": "- en 0 (al suelo directo)"},
+          {"accion": "click", "selector": "#menos", "nombre": "- otra vez"},
+          {"accion": "click", "selector": "#menos", "nombre": "- tercera"},
+          {"_por_que": "'NUNCA baja de 0' y 'muestra el numero': tras tres menos en 0 el valor mostrado sigue siendo 0 y ademas no puede haber un signo negativo.",
+           "accion": "js", "expr": "!document.querySelector('#valor').textContent.includes('-')", "esperado": true, "nombre": "jamas muestra un negativo", "critico": true},
+          {"accion": "texto", "selector": "#valor", "contiene": "0", "nombre": "sigue en 0 tras el suelo repetido", "critico": true},
+          {"_por_que": "La trampa clasica: guardar -3 internamente y mostrar 0. Si el estado interno bajo de 0, el primer + mostraria -2 (o cualquier cosa distinta de 1). 'NUNCA baja de 0' es del VALOR, no de la pantalla.",
+           "accion": "click", "selector": "#mas", "nombre": "+ despues del suelo"},
+          {"accion": "texto", "selector": "#valor", "contiene": "1", "nombre": "el + tras el suelo da 1 (estado no corrompido)", "critico": true},
+          {"accion": "click", "selector": "#mas", "nombre": "+"},
+          {"accion": "click", "selector": "#mas", "nombre": "+"},
+          {"_por_que": "El original nunca paso de 2: se comprueba que suma de verdad y no un automata de dos estados.",
+           "accion": "texto", "selector": "#valor", "contiene": "3", "nombre": "sube hasta 3", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "tareas_todo",
+      "contrato": {
+        "nombre": "tareas HELD-OUT: el texto de la segunda, anidamiento en la ul, duplicados",
+        "pasos": [
+          {"accion": "escribir", "selector": "#nueva", "texto": "lavar el coche", "nombre": "escribo la primera"},
+          {"accion": "click", "selector": "#anadir", "nombre": "anadir"},
+          {"accion": "escribir", "selector": "#nueva", "texto": "pagar la luz", "nombre": "escribo la segunda"},
+          {"accion": "click", "selector": "#anadir", "nombre": "anadir"},
+          {"_por_que": "El original solo verifico el texto de la PRIMERA tarea; un producto que siempre pinta el mismo texto lo pasaba.",
+           "accion": "js", "expr": "[...document.querySelectorAll('.tarea')].some(t => t.textContent.includes('pagar la luz'))", "esperado": true, "nombre": "la segunda tarea dice lo que escribi", "critico": true},
+          {"accion": "js", "expr": "[...document.querySelectorAll('.tarea')].some(t => t.textContent.includes('lavar el coche'))", "esperado": true, "nombre": "la primera sigue diciendo lo suyo", "critico": true},
+          {"_por_que": "'una <ul id=lista>' y 'cada tarea anadida es un <li class=tarea>': las tareas viven DENTRO de esa ul, no sueltas por el documento.",
+           "accion": "js", "expr": "[...document.querySelectorAll('.tarea')].every(t => t.closest('#lista') !== null)", "esperado": true, "nombre": "todas las tareas cuelgan de #lista", "critico": true},
+          {"_por_que": "'al pulsar el boton se anade la tarea': anadir dos veces el mismo texto son dos tareas. Un dedupe no esta en el enunciado, pero tampoco prohibido explicitamente -> critico:false hasta validar.",
+           "accion": "escribir", "selector": "#nueva", "texto": "pagar la luz", "nombre": "repito el texto"},
+          {"accion": "click", "selector": "#anadir", "nombre": "anadir duplicado"},
+          {"accion": "contar", "selector": ".tarea", "esperado": 3, "nombre": "el duplicado tambien se anade (3 tareas)", "critico": false}
+        ]
+      }
+    },
+
+    {
+      "id": "calculadora",
+      "contrato": {
+        "nombre": "calculadora HELD-OUT: conmutada, mismo sumando, multi-digito",
+        "pasos": [
+          {"_por_que": "Solo se usan las teclas que el enunciado declara OBLIGATORIAS (2, 3, +, =).",
+           "accion": "click", "selector": "[data-t='3']", "nombre": "pulso 3"},
+          {"accion": "click", "selector": "[data-t='+']", "nombre": "pulso +"},
+          {"accion": "click", "selector": "[data-t='2']", "nombre": "pulso 2"},
+          {"accion": "click", "selector": "[data-t='=']", "nombre": "pulso ="},
+          {"accion": "texto", "selector": "#pantalla", "contiene": "5", "nombre": "3+2 tambien da 5 (conmutada, nunca probada)", "critico": true},
+          {"accion": "click", "selector": "[data-t='3']", "nombre": "pulso 3"},
+          {"accion": "click", "selector": "[data-t='+']", "nombre": "pulso +"},
+          {"accion": "click", "selector": "[data-t='3']", "nombre": "pulso 3"},
+          {"accion": "click", "selector": "[data-t='=']", "nombre": "pulso ="},
+          {"accion": "texto", "selector": "#pantalla", "contiene": "6", "nombre": "3+3=6 (mismo sumando dos veces)", "critico": true},
+          {"accion": "click", "selector": "[data-t='2']", "nombre": "pulso 2"},
+          {"accion": "click", "selector": "[data-t='2']", "nombre": "pulso 2 otra vez"},
+          {"accion": "click", "selector": "[data-t='+']", "nombre": "pulso +"},
+          {"accion": "click", "selector": "[data-t='3']", "nombre": "pulso 3"},
+          {"accion": "click", "selector": "[data-t='=']", "nombre": "pulso ="},
+          {"_por_que": "'Una calculadora' que no concatena digitos (22) no es una calculadora; aun asi el enunciado solo ejemplifica un digito -> critico:false hasta validar contra referencias.",
+           "accion": "texto", "selector": "#pantalla", "contiene": "25", "nombre": "22+3=25 (numeros de dos digitos)", "critico": false}
+        ]
+      }
+    },
+
+    {
+      "id": "semaforo",
+      "contrato": {
+        "nombre": "semaforo HELD-OUT: segunda vuelta completa y dominio cerrado de colores",
+        "pasos": [
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 1 (verde)"},
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 2 (ambar)"},
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 3 (rojo)"},
+          {"_por_que": "El original paro en la primera vuelta: un producto con el ciclo hardcodeado a 3 estados sin modulo se atascaria aqui.",
+           "accion": "click", "selector": "#avanzar", "nombre": "avanzo 4 (segunda vuelta)"},
+          {"accion": "js", "expr": "document.querySelector('#luz').dataset.color", "esperado": "verde", "nombre": "la SEGUNDA vuelta tambien pasa a verde", "critico": true},
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 5"},
+          {"accion": "js", "expr": "document.querySelector('#luz').dataset.color", "esperado": "ambar", "nombre": "y a ambar", "critico": true},
+          {"_por_que": "'cambiando data-color' dentro del ciclo rojo->verde->ambar: el atributo nunca puede valer otra cosa.",
+           "accion": "js", "expr": "['rojo', 'verde', 'ambar'].includes(document.querySelector('#luz').dataset.color)", "esperado": true, "nombre": "data-color siempre esta en el dominio {rojo, verde, ambar}", "critico": true},
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 6 (cierra la segunda vuelta)"},
+          {"accion": "js", "expr": "document.querySelector('#luz').dataset.color", "esperado": "rojo", "nombre": "dos vueltas completas cierran en rojo", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "filtro_lista",
+      "contrato": {
+        "nombre": "filtro HELD-OUT: 'a' deja 4, 'z' deja 2, sin coincidencias deja 0, y se recupera",
+        "pasos": [
+          {"_por_que": "'a' esta en manzana, banana, cereza y datil (el original nunca probo un filtro de 4): la trampa es olvidar la 'a' final de cereza.",
+           "accion": "escribir", "selector": "#buscar", "texto": "a", "nombre": "escribo 'a'"},
+          {"accion": "contar_visible", "selector": ".item", "esperado": 4, "nombre": "'a' deja manzana, banana, cereza y datil", "critico": true},
+          {"accion": "escribir", "selector": "#buscar", "texto": "z", "nombre": "escribo 'z'"},
+          {"accion": "contar_visible", "selector": ".item", "esperado": 2, "nombre": "'z' deja manzana y cereza", "critico": true},
+          {"_por_que": "'solo quedan VISIBLES los que contienen lo escrito': si nada lo contiene, no queda ninguno. El original nunca llevo el filtro a 0.",
+           "accion": "escribir", "selector": "#buscar", "texto": "xyz", "nombre": "escribo algo que no esta"},
+          {"accion": "contar_visible", "selector": ".item", "esperado": 0, "nombre": "sin coincidencias no se ve ninguno", "critico": true},
+          {"accion": "escribir", "selector": "#buscar", "texto": "", "nombre": "borro el filtro"},
+          {"accion": "contar_visible", "selector": ".item", "esperado": 5, "nombre": "se recupera desde 0 visibles a los 5", "critico": true},
+          {"_por_que": "Los 5 textos exactos son OBLIGATORIOS del enunciado; un producto con items renombrados pasaba el original si los conteos cuadraban.",
+           "accion": "js", "expr": "(() => { const ts = [...document.querySelectorAll('.item')].map(i => i.textContent.trim().toLowerCase()); return ['manzana', 'banana', 'cereza', 'datil', 'kiwi'].every(f => ts.some(t => t.includes(f))); })()", "esperado": true, "nombre": "estan los 5 textos exigidos", "critico": true}
+        ]
+      }
+    }
+  ]
+}
