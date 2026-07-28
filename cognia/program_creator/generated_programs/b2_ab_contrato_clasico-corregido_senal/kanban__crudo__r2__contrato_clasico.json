@@ -1,0 +1,65 @@
+{
+  "nombre": "Verificar estado inicial del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existe tablero con tres columnas",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Cada columna tiene atributo data-col correcto",
+      "accion": "existe",
+      "selector": "[data-col='todo']",
+      "critico": true
+    },
+    {
+      "nombre": "Existe columna doing vacía",
+      "accion": "existe",
+      "selector": "[data-col='doing']",
+      "critico": true
+    },
+    {
+      "nombre": "Existe columna done vacía",
+      "accion": "existe",
+      "selector": "[data-col='done']",
+      "critico": true
+    },
+    {
+      "nombre": "Hay tres tarjetas en la columna todo con IDs t1,t2,t3",
+      "accion": "contar",
+      "selector": "[data-col='todo'] .card",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Cada tarjeta tiene botones mas y menos",
+      "accion": "contar",
+      "selector": "[data-col='todo'] .card .mas",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Contadores iniciales son 3,0,0 respectivamente",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Contadores iniciales son 0,0 respectivamente para doing y done",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Contadores iniciales son 0,0 respectivamente para done",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0",
+      "critico": true
+    }
+  ]
+}

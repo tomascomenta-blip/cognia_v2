@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar funcionamiento completo de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas y sin minas reveladas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Revelar celda con 0 minas adyacentes (celda 0) y cascada de apertura",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que todas las celdas adyacentes a la región de 0 se abran",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 9
+    },
+    {
+      "nombre": "Revelar celda con mina (celda 6) y comprobar mensaje de pérdida",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Verificar que el estado muestre 'perdiste' tras abrir una mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Colocar bandera en celda con mina (celda 12) y comprobar que no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "tecla": "contextmenu"
+    },
+    {
+      "nombre": "Revisar que la celda con bandera no tenga la clase 'abierta' tras click",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c.bandera"
+    },
+    {
+      "nombre": "Revisar que la celda con bandera no revele número al hacer click",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.bandera",
+      "esperado": 0
+    }
+  ]
+}

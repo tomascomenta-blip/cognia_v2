@@ -1,0 +1,59 @@
+{
+  "nombre": "Verificar carrito con stock y comportamiento de botones",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 3 productos en inventario",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar existencia de 3 botones de añadir",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Añadir primer producto y comprobar línea creada",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la línea del producto añadido aparece con cantidad 1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 1
+    },
+    {
+      "nombre": "Añadir mismo producto hasta alcanzar stock y comprobar botón deshabilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el botón de añadir del producto está deshabilitado tras alcanzar stock",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[disabled]"
+    },
+    {
+      "nombre": "Quitar una unidad del producto y comprobar que la cantidad disminuye a 0 y línea desaparece",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el botón de añadir vuelve habilitado tras eliminar todas las unidades",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".add[disabled]"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "nombre": "Verificar funcionalidad básica de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas sin abrir y sin bandera",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": {
+        "max": 0
+      }
+    },
+    {
+      "nombre": "Verificar que las 25 celdas existen",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Abrir una celda no mina (ej. data-i=0) y comprobar que se abre con número correcto",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='0']",
+      "indice": 0
+    },
+    {
+      "nombre": "Confirmar que la celda abierta muestra el número de minas adyacentes (0,1,2,3)",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c[data-i='0']",
+      "contiene": "[0-3]"
+    },
+    {
+      "nombre": "Abrir una celda con 0 minas adyacentes (ej. data-i=1) y verificar cascada de apertura",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Contar celdas abiertas tras cascada y asegurarse de que todas las vecinas de la región 0 están abiertas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": {
+        "min": 1
+      }
+    },
+    {
+      "nombre": "Colocar bandera en una celda (ej. data-i=6) y comprobar que no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Abrir una celda con mina (ej. data-i=6) y verificar que el estado muestra 'perdiste'",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Confirmar que el elemento #estado contiene la palabra 'perdiste' tras abrir una mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

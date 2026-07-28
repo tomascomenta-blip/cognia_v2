@@ -1,0 +1,54 @@
+{
+  "nombre": "Carrito con stock y líneas dinámicas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos y carrito vacío",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: 3 botones add activos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Agregar primer producto p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 creada con cantidad 1",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".linea[data-id='p1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar cantidad mostrada 1 y total 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Agregar p1 hasta stock máximo (2 unidades)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar cantidad 2, botón add deshabilitado y total 200",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "200"
+    }
+  ]
+}

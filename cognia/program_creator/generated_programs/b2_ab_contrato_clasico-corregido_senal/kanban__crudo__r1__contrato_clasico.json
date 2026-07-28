@@ -1,0 +1,110 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": "[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contador doing y done iniciales cero",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contador done inicial cero",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "Botón mas mueve tarjeta a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en doing y contadores actualizados",
+      "critico": true,
+      "accion": "contar",
+      "selector": "[data-col='doing'] .card",
+      "esperado": 1
+    },
+    {
+      "nombre": "WIP límite de 2 tarjetas en doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t2'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 también en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": "[data-col='doing'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Botón mas no mueve cuando doing lleno",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t3'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t3 sigue en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": "[data-col='todo'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Botón menos mueve tarjeta a todo",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t2'] .menos",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 ahora en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": "[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Botón menos no mueve cuando en todo",
+      "critico": true,
+      "accion": "click",
+      "selector": "[data-id='t1'] .menos",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 sigue en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": "[data-col='doing'] .card",
+      "esperado": 1
+    }
+  ]
+}

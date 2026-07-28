@@ -1,0 +1,75 @@
+{
+  "nombre": "Prueba funcional de Buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que el estado inicial muestra mensaje vacío",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "",
+      "critico": true
+    },
+    {
+      "nombre": "Revisar que ninguna celda tiene la clase abierta ni bandera al inicio",
+      "accion": "contar",
+      "selector": ".c.abierta",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Revisar que ninguna celda tiene la clase bandera al inicio",
+      "accion": "contar",
+      "selector": ".c.bandera",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Hacer click en una celda no mina (ej. data-i=0) y verificar que se abre y muestra número de minas adyacentes",
+      "accion": "click",
+      "selector": ".c[data-i='0']",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que la celda abierta muestra la clase abierta y el número correcto (0,1,2,3)",
+      "accion": "texto",
+      "selector": ".c[data-i='0']",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Hacer click derecho en una celda no abierta (ej. data-i=1) y verificar que se agrega la clase bandera",
+      "accion": "click",
+      "selector": ".c[data-i='1']",
+      "indice": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Revisar que una celda con bandera no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c[data-i='1']",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Hacer click en una celda mina (ej. data-i='6') y verificar que el estado muestra 'perdiste' y la celda muestra la clase abierta",
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que el texto de #estado contiene 'perdiste'",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "critico": true
+    }
+  ]
+}

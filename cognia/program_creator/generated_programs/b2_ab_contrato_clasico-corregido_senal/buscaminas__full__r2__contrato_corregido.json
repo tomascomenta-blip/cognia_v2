@@ -1,0 +1,76 @@
+{
+  "nombre": "Verificar funcionamiento de buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas sin abrir y sin bandera",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: no hay texto visible en ninguna celda",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Al hacer click en celda 0 (no mina) se abre y muestra número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Celda 0 muestra número 0 y se abre con clase 'abierta'",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Al abrir celda 0 se abren todas las celdas contiguas con 0 y sus bordes",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 9
+    },
+    {
+      "nombre": "Al hacer click derecho en celda 6 (mina) se coloca bandera y no se abre",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "tecla": "contextmenu"
+    },
+    {
+      "nombre": "Celda 6 tiene clase 'bandera' y sigue sin abrirse",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c",
+      "contiene": "bandera"
+    },
+    {
+      "nombre": "Al hacer click en celda 6 (con bandera) no se abre y no cambia estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Al hacer click en celda 6 (sin bandera) se abre y muestra 'perdiste' en #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "#estado muestra texto 'perdiste' tras abrir una mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

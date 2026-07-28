@@ -1,0 +1,62 @@
+{
+  "nombre": "Validación de mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "accion": "existe",
+      "selector": ".celda[data-ref='A1']",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1 y comprobar que se muestra",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Definir fórmula en B1 que suma A1 y 2, verificar resultado",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 5 y verificar cascada en B1",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Definir fórmula circular C1 = C1+1 y comprobar que muestra 'CIRC'",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "CIRC",
+      "critico": true
+    },
+    {
+      "nombre": "Eliminar referencia circular cambiando C1 a 10 y verificar valor numérico",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "10",
+      "critico": true
+    },
+    {
+      "nombre": "Confirmar que todas las celdas siguen mostrando valores numéricos o 'CIRC' y no están vacías",
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": {
+        "min": 9
+      },
+      "critico": true
+    }
+  ]
+}

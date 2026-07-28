@@ -1,0 +1,110 @@
+{
+  "nombre": "Verificar tablero kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contador doing y done iniciales",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contador done iniciales",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "Mover tarjeta a doing y verificar contadores",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que tarjeta se movió y contadores actualizados",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 2
+    },
+    {
+      "nombre": "Verificar límite WIP en doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card[data-id='t2'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que segunda tarjeta se movió a doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 2
+    },
+    {
+      "nombre": "Intentar mover tercera tarjeta a doing (exceso)",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card[data-id='t3'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que tarjeta no se movió y contadores permanecen",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 2
+    },
+    {
+      "nombre": "Mover tarjeta de doing a done",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='doing'] .card[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que tarjeta se movió a done y contadores actualizados",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-done",
+      "esperado": 1
+    },
+    {
+      "nombre": "Intentar mover tarjeta de done a más allá",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='done'] .card[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que tarjeta no se movió y contadores permanecen",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-done",
+      "esperado": 1
+    }
+  ]
+}

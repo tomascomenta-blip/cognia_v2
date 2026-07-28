@@ -1,0 +1,67 @@
+{
+  "nombre": "Verificar funcionamiento de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 25 celdas sin abrir",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Estado inicial: ninguna celda abierta ni marcada",
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Click en celda 0 (sin minas adyacentes) abre región y bordes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que todas las celdas de la región 0 se abran",
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Click derecho en celda 6 (mina) coloca bandera y no abre",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que celda 6 tenga clase bandera y no abierta",
+      "accion": "existe",
+      "selector": ".c[data-i='6'].bandera",
+      "critico": true
+    },
+    {
+      "nombre": "Click en celda 6 (con bandera) no abre y estado permanece",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "critico": true
+    },
+    {
+      "nombre": "Estado final: al abrir celda 12 (mina) muestra 'perdiste'",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar mensaje de pérdida",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "critico": true
+    }
+  ]
+}

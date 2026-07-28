@@ -1,0 +1,72 @@
+{
+  "nombre": "Prueba funcional de Minas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las minas están en las posiciones 6,12,18",
+      "accion": "existe",
+      "selector": "[data-i='6']",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las minas tienen clase 'minado' (no especificado, solo existencia)",
+      "accion": "existe",
+      "selector": "[data-i='6'].minado",
+      "critico": false
+    },
+    {
+      "nombre": "Click en una celda sin minas adyacentes (ej. 0) y verificar apertura en cascada",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que la celda clickeada tiene clase 'abierta' y muestra número de minas adyacentes",
+      "accion": "existe",
+      "selector": "[data-i='0'].abierta",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las celdas vecinas con 0 minas adyacentes también se abren",
+      "accion": "contar_visible",
+      "selector": ".abierta",
+      "esperado": {
+        "min": 1
+      },
+      "critico": true
+    },
+    {
+      "nombre": "Click derecho en una celda sin abrir y verificar que se añade clase 'bandera'",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 5,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que una celda con bandera no se abre al hacer click",
+      "accion": "click",
+      "selector": "[data-i='5']",
+      "critico": true
+    },
+    {
+      "nombre": "Click en una celda con mina (ej. 6) y verificar que se muestra estado 'perdiste'",
+      "accion": "click",
+      "selector": "[data-i='6']",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que el elemento #estado muestra texto 'perdiste'",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "critico": true
+    }
+  ]
+}

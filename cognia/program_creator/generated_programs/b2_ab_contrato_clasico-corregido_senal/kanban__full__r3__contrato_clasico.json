@@ -1,0 +1,253 @@
+{
+  "nombre": "Verificar funcionalidad del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".col",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".card",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".mas",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".menos",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".board",
+          "esperado": 1
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "3"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón más avanza tarjeta a la derecha",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "2"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón menos retrocede tarjeta a la izquierda",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "3"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Tarjeta en done no avanza",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "1"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "Tarjeta en todo no retrocede",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "2"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "WIP: columna doing admite máximo 2 tarjetas",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "0"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "2"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón más no avanza cuando doing está lleno",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "0"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "2"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "Contadores se actualizan tras cada interacción",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-todo",
+          "contiene": "1"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        },
+        {
+          "accion": "contiene",
+          "selector": "#cont-done",
+          "contiene": "1"
+        }
+      ]
+    }
+  ]
+}

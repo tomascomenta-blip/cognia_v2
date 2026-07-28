@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y las 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).map(c=>c.dataset.ref).join(',')",
+      "esperado": "A1,A2,A3,B1,B2,B3,C1,C2,C3"
+    },
+    {
+      "nombre": "Escribir valor numérico en A1 y verificar que se muestra",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "5"
+    },
+    {
+      "nombre": "Escribir fórmula en B1 que dependa de A1 y verificar resultado",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='B1']",
+      "texto": "=A1+3"
+    },
+    {
+      "nombre": "Cambiar valor de A1 y comprobar que B1 se recalcula automáticamente",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "10"
+    },
+    {
+      "nombre": "Crear fórmula circular C1 = C1+1 y verificar que muestra 'CIRC'",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='C1']",
+      "texto": "=C1+1"
+    },
+    {
+      "nombre": "Crear fórmula dependiente C2 = C1+1 y verificar que también muestra 'CIRC'",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='C2']",
+      "texto": "=C1+1"
+    },
+    {
+      "nombre": "Eliminar la referencia circular cambiando C1 a valor numérico y comprobar que C2 se recalcula correctamente",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='C1']",
+      "texto": "7"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "nombre": "Verificar funcionamiento de buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas sin abrir y sin bandera",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Verificar que el grid contiene 25 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Click en celda 0 (no mina) y comprobar que se abre y muestra número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la celda 0 tiene clase 'abierta' y muestra un número (no 0)",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c[data-i='0']",
+      "contiene": "[1-8]"
+    },
+    {
+      "nombre": "Click en celda 6 (mina) y comprobar que el estado muestra 'perdiste'",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Verificar que el elemento #estado contiene 'perdiste'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Click derecho en celda 12 (mina) y comprobar que se añade clase 'bandera' y que no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "tipo": "derecho"
+    },
+    {
+      "nombre": "Verificar que la celda 12 tiene clase 'bandera' y que sigue sin clase 'abierta' tras un click normal",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c[data-i='12']",
+      "contiene": "bandera"
+    }
+  ]
+}

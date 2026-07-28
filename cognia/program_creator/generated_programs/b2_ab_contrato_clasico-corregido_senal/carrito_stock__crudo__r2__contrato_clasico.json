@@ -1,0 +1,73 @@
+{
+  "nombre": "Validación de carrito con stock",
+  "pasos": [
+    {
+      "nombre": "Estado inicial del carrito vacío",
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Cantidad de productos en inventario",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Botones add habilitados al inicio",
+      "accion": "contar",
+      "selector": ".add[disabled]",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Agregar primer producto y verificar línea",
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar cantidad y stock decrementado",
+      "accion": "texto",
+      "selector": "#lines .linea[data-id='p1'] .cant",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Agregar mismo producto hasta stock máximo",
+      "accion": "click",
+      "selector": ".add[data-id='p1']",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Botón add deshabilitado al alcanzar stock",
+      "accion": "existe",
+      "selector": ".add[data-id='p1'][disabled]",
+      "critico": true
+    },
+    {
+      "nombre": "Eliminar unidad y comprobar línea desaparece al llegar a 0",
+      "accion": "click",
+      "selector": ".quitar[data-id='p1']",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Botón add reactivado tras eliminar última unidad",
+      "accion": "no_existe",
+      "selector": ".add[data-id='p1'][disabled]",
+      "critico": true
+    },
+    {
+      "nombre": "Total actualizado tras todas las interacciones",
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0",
+      "critico": true
+    }
+  ]
+}

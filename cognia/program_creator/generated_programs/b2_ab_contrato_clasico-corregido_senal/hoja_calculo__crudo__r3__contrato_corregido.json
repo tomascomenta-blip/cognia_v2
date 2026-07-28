@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Existe la grilla 3x3 de celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Cada celda tiene atributo data-ref correcto",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).map(c=>c.dataset.ref).join(',')",
+      "esperado": "A1,A2,A3,B1,B2,B3,C1,C2,C3",
+      "critico": true
+    },
+    {
+      "nombre": "Valor inicial de todas las celdas es vacío",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(c=>c.value==='')",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Escribir un número en A1 actualiza su valor",
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Escribir una fórmula en B1 que dependa de A1 muestra resultado correcto",
+      "accion": "escribir",
+      "selector": "[data-ref='B1']",
+      "texto": "=A1+3",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 actualiza B1 automáticamente",
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "10",
+      "critico": true
+    },
+    {
+      "nombre": "Crear referencia circular C1= C1+1 muestra texto CIRC",
+      "accion": "escribir",
+      "selector": "[data-ref='C1']",
+      "texto": "=C1+1",
+      "critico": true
+    },
+    {
+      "nombre": "C1 muestra el texto CIRC en su valor",
+      "accion": "js",
+      "expr": "document.querySelector('[data-ref=\"C1\"]').value",
+      "esperado": "CIRC",
+      "critico": true
+    }
+  ]
+}

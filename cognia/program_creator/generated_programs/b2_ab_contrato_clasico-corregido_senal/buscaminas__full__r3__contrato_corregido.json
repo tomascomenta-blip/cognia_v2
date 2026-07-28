@@ -1,0 +1,62 @@
+{
+  "nombre": "Verificar funcionamiento de un buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas y sin minas visibles",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: no hay texto visible en ninguna celda",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Click en la celda 0 (no mina) abre la celda y muestra número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Celda 0 tiene clase 'abierta' y muestra número 1 (una mina adyacente)",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Click en la celda 6 (mina) muestra mensaje de pérdida en #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "#estado contiene texto 'perdiste' tras abrir una mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Click derecho en la celda 12 coloca bandera y no abre la celda",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Celda 12 tiene clase 'bandera' y permanece cerrada tras click izquierdo",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".c",
+      "contiene": "bandera"
+    }
+  ]
+}

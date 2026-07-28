@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y las 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar que cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda[data-ref='A1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Escribir valor numérico en A1 y confirmar que se muestra",
+      "critico": true,
+      "accion": "escribir",
+      "selector": ".celda[data-ref='A1']",
+      "texto": "5"
+    },
+    {
+      "nombre": "Escribir fórmula en B1 que suma A1 y 3, y verificar resultado",
+      "critico": true,
+      "accion": "escribir",
+      "selector": ".celda[data-ref='B1']",
+      "texto": "=A1+3"
+    },
+    {
+      "nombre": "Confirmar que B1 muestra 8 tras escribir y tabular",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('.celda[data-ref=\"B1\"]').value",
+      "esperado": "8"
+    },
+    {
+      "nombre": "Cambiar A1 a 10 y verificar cascada en B1",
+      "critico": true,
+      "accion": "escribir",
+      "selector": ".celda[data-ref='A1']",
+      "texto": "10"
+    },
+    {
+      "nombre": "Confirmar que B1 actualiza a 13 tras tabular",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('.celda[data-ref=\"B1\"]').value",
+      "esperado": "13"
+    },
+    {
+      "nombre": "Crear referencia circular C1=B1, B1=A1+C1 y verificar que C1 muestra CIRC",
+      "critico": true,
+      "accion": "escribir",
+      "selector": ".celda[data-ref='C1']",
+      "texto": "=B1"
+    }
+  ]
+}

@@ -292,6 +292,32 @@ Si PASA: `corregido` pasa a modo por defecto del lazo (cambio de default +
 tests) y la unidad 2 corre con él DECLARÁNDOLO. Si GRIS/KILL: la unidad 2
 corre con clásico. n=24 páginas por modo: direccional, se declara.
 
+### RESULTADO del A/B de señal real (2026-07-27 ~20:55, completo)
+
+| modo | aciertos (/24, M3: sin contrato=reprueba) | FN (/19) | FP (/5) | sin contrato |
+|---|---|---|---|---|
+| clásico (concurrente) | 10 | 14 | 0 | 4 |
+| corregido | 9 | 14 | 1 | 1 |
+
+**Veredicto pre-registrado: KILL** (aciertos_corr = aciertos_clas − 1; el
+GRIS exigía +2). El modo `corregido` NO se adopta; la unidad 2 corre con
+CLÁSICO. Se escribe con la misma tinta que un PASA, otra vez.
+
+Lecturas honestas: (1) el descarte de vacuidad hizo su trabajo — los "sin
+contrato" del clásico (4) calcan las celdas que esta mañana aprobaban con 0
+críticos, y `sin_criticos=0` en ambos brazos; (2) la lectura exploratoria
+del 1b (FN no-vacuos 100% vs 56%) NO replicó con contratos frescos: ambos
+modos quedan en FN 14/19 (74%) — aquella partición post-hoc era
+selección + deriva, y por eso era exploratoria; (3) **la palanca
+"documentar escribir + leer inputs con .value" no mueve el veredicto a
+nivel PÁGINA aunque el mecanismo llegue** (el corregido sí usa escribir);
+el cuello restante atraviesa los tipos: literales/expectativas inventadas
+contra páginas que no las violan (el residual existe/existencia de 1a, y
+sus análogos). El contrato autogenerado desde idea+inventario parece tener
+un TECHO de corrección en composicionales; la dirección con soporte es el
+held-out A MANO por tarea de banco (una vez, auditado) y validar aserciones
+contra el enunciado — queda para otra sesión con este prereg como base.
+
 ## TERCERA ENMIENDA (misma hora — Unidad 2 re-planteada, escrita ANTES de
 ## correrla)
 

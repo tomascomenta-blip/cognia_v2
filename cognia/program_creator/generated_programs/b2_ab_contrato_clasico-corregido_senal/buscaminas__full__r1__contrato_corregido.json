@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar funcionamiento de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Existe 25 celdas con clase .c y data-i 0-24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Celdas 6,12,18 tienen minas (no visible inicialmente)",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c[data-i='6']",
+      "esperado": 0
+    },
+    {
+      "nombre": "Al hacer click en celda 0 sin minas adyacentes abre y muestra 0",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='0']",
+      "indice": 0
+    },
+    {
+      "nombre": "Celdas vecinas de 0 con 0 minas adyacentes se abren automáticamente (cascada)",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Al hacer click derecho en celda 1 coloca bandera y no se abre al click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='1']",
+      "indice": 0,
+      "boton": "derecho"
+    },
+    {
+      "nombre": "Al hacer click en celda 6 (mina) muestra 'perdiste' en #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "El texto de #estado cambia a 'perdiste' tras abrir mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "La bandera en celda 1 permanece después de abrir otras celdas",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i='1'].bandera"
+    }
+  ]
+}

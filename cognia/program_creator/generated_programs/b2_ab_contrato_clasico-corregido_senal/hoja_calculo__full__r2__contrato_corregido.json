@@ -1,0 +1,65 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Existe la grilla 3x3 con 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).map(c=>c.dataset.ref).join(',')",
+      "esperado": "A1,A2,A3,B1,B2,B3,C1,C2,C3"
+    },
+    {
+      "nombre": "Al escribir un valor numérico en A1 se muestra el mismo valor",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "5",
+      "esperado": ""
+    },
+    {
+      "nombre": "Al escribir una fórmula en B1 que referencia A1, se muestra el resultado calculado",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='B1']",
+      "texto": "=A1+3",
+      "esperado": ""
+    },
+    {
+      "nombre": "El valor de B1 se actualiza cuando cambia A1",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='A1']",
+      "texto": "10",
+      "esperado": ""
+    },
+    {
+      "nombre": "El valor de B1 refleja el nuevo resultado tras cambio de A1",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('[data-ref=\"B1\"]').value",
+      "esperado": "13"
+    },
+    {
+      "nombre": "Se crea una referencia circular entre C1 y B1 y se muestra \"CIRC\"",
+      "critico": true,
+      "accion": "escribir",
+      "selector": "[data-ref='C1']",
+      "texto": "=B1",
+      "esperado": ""
+    },
+    {
+      "nombre": "El valor de C1 muestra \"CIRC\" tras crear la referencia circular",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('[data-ref=\"C1\"]').value",
+      "esperado": "CIRC"
+    }
+  ]
+}
