@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#f9f9f9;} .prod{margin-bottom:.5rem;} .prod button{margin-left:.5rem;} #cart{margin-top:1rem;background:#fff;padding:.5rem;border-radius:.3rem;} .linea{display:flex;justify-content:space-between;margin-bottom:.3rem;} .linea span{margin-right:.5rem;} #total{font-weight:bold;}</style>
+</head>
+<body>
+<h1>Carrito con Stock</h1>
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">Producto 1 (€100) Stock 2 <button class="add" data-id="p1">Añadir</button></div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">Producto 2 (€50) Stock 3 <button class="add" data-id="p2">Añadir</button></div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">Producto 3 (€25) Stock 1 <button class="add" data-id="p3">Añadir</button></div>
+<div id="cart"><h2>Carrito</h2><div id="lines"></div><div>Total: <span id="total">0</span></div></div>
+<script>
+const prodEls=document.querySelectorAll('.prod'),linesEl=document.getElementById('lines'),totalEl=document.getElementById('total'),qty={},price={},stock={};
+prodEls.forEach(p=>{const id=p.dataset.id;price[id]=+p.dataset.precio;stock[id]=+p.dataset.stock;qty[id]=0;p.querySelector('.add').addEventListener('click',()=>add(id));});
+function add(id){if(qty[id]>=stock[id])return;qty[id]++;updateLine(id);if(qty[id]===stock[id])disableAdd(id);updateTotal();}
+function quitar(id){if(qty[id]<=0)return;qty[id]--;if(qty[id]===0)removeLine(id);else updateLine(id);enableAdd(id);updateTotal();}
+function updateLine(id){let line=document.querySelector('.linea[data-id="'+id+'"]');if(!line){line=document.createElement('div');line.className='linea';line.dataset.id=id;line.innerHTML='<span>'+id+'</span><span class="cant">'+qty[id]+'</span><button class="quitar" data-id="'+id+'">Quitar</button>';linesEl.appendChild(line);line.querySelector('.quitar').addEventListener('click',()=>quitar(id));}else{line.querySelector('.cant').textContent=qty[id];}}
+function removeLine(id){const line=document.querySelector('.linea[data-id="'+id+'"]');if(line)line.remove();}
+function disableAdd(id){const btn=document.querySelector('.prod[data-id="'+id+'"] .add');if(btn)btn.disabled=true;}
+function enableAdd(id){const btn=document.querySelector('.prod[data-id="'+id+'"] .add');if(btn)btn.disabled=false;}
+function updateTotal(){let sum=0;for(const id in qty)sum+=qty[id]*price[id];totalEl.textContent=sum.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+</script>
+</body>
+</html>

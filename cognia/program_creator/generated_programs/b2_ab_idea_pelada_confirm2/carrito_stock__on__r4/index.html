@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  h1,h2{text-align:center;}
+  .products{display:flex;flex-wrap:wrap;justify-content:center;gap:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;padding:1rem;border-radius:4px;width:200px;box-sizing:border-box;text-align:center;}
+  .prod button{margin-top:.5rem;}
+  .cart{background:#fff;border:1px solid #ddd;padding:1rem;border-radius:4px;margin-top:1rem;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;}
+  .linea button{margin-left:.5rem;}
+  .total{text-align:right;margin-top:1rem;font-weight:bold;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  @media(max-width:600px){.products{flex-direction:column;align-items:center;}}
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+
+<div class="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div class="cart"></div>
+
+<div class="total">Total: <span id="total">0</span> €</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const cart = {}; // id -> quantity
+  const addButtons = document.querySelectorAll('.add');
+  const cartContainer = document.querySelector('.cart');
+  const totalSpan = document.getElementById('total');
+
+  function updateTotal() {
+    let total = 0;
+    for (const id in cart) {
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      total += cart[id] * price;
+    }
+    totalSpan.textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+
+  function createLine(id, quantity) {
+    const line = document.createElement('div');
+    line.className = 'linea';
+    line.dataset.id = id;
+    const cantSpan = document.createElement('span');
+    cantSpan.className = 'cant';
+    cantSpan.textContent = quantity;
+    const quitarBtn = document.createElement('button');
+    quitarBtn.className = 'quitar';
+    quitarBtn.dataset.id = id;
+    quitarBtn.textContent = '-';
+    line.appendChild(cantSpan);
+    line.appendChild(quitarBtn);
+    cartContainer.appendChild(line);
+  }
+
+  function updateLine(id, quantity) {
+    const line = cartContainer.querySelector(`.linea[data-id="${id}"]`);
+    if (line) {
+      const cantSpan = line.querySelector('.cant');
+      cantSpan.textContent = quantity;
+    }
+  }
+
+  function removeLine(id) {
+    const line = cartContainer.querySelector(`.linea[data-id="${id}"]`);
+    if (line) line.remove();
+  }
+
+  function getStock(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    return parseInt(prod.dataset.stock, 10);
+  }
+
+  function toggleAddButton(id, disabled) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if (btn) btn.disabled = disabled;
+  }
+
+  addButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const currentQty = cart[id] || 0;
+      const stock = getStock(id);
+      if (currentQty < stock) {
+        cart[id] = currentQty + 1;
+        if (currentQty === 0) {
+          createLine(id, cart[id]);
+        } else {
+          updateLine(id, cart[id]);
+        }
+        if (cart[id] >= stock) {
+          toggleAddButton(id, true);
+        }
+        updateTotal();
+      }
+    });
+  });
+
+  cartContainer.addEventListener('click', function(e) {
+    if (e.target.classList.contains('quitar')) {
+      const id = e.target.dataset.id;
+      const currentQty = cart[id];
+      if (currentQty > 1) {
+        cart[id] = currentQty - 1;
+        updateLine(id, cart[id]);
+      } else {
+        delete cart[id];
+        removeLine(id);
+        toggleAddButton(id, false);
+      }
+      updateTotal();
+    }
+  });
+
+  updateTotal();
+});
+</script>
+</body>
+</html>

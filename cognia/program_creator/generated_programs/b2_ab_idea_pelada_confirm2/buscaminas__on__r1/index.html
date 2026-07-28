@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con minas fijas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+    margin-top:20px;
+  }
+  .c{
+    background:#dcdcdc;
+    border:1px solid #999;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  .c.bandera{
+    color:#d00;
+  }
+  #estado{
+    margin-top:15px;
+    font-size:1.2rem;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+/* CONFIGURACIÓN */
+const GRID_SIZE = 5;
+const TOTAL = GRID_SIZE * GRID_SIZE;
+const MINES = [6,12,18]; // posiciones fijas de minas
+
+/* ESTADOS */
+const opened = Array(TOTAL).fill(false);
+const flagged = Array(TOTAL).fill(false);
+const cells = [];
+
+/* CALCULAR NUMERO DE MINAS ADJACENTES */
+function getNeighbors(i){
+  const r = Math.floor(i/GRID_SIZE);
+  const c = i%GRID_SIZE;
+  const neigh = [];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE){
+        neigh.push(nr*GRID_SIZE+nc);
+      }
+    }
+  }
+  return neigh;
+}
+const counts = Array(TOTAL).fill(0);
+for(let i=0;i<TOTAL;i++){
+  const neigh=getNeighbors(i);
+  let cnt=0;
+  for(const n of neigh) if(MINES.includes(n)) cnt++;
+  counts[i]=cnt;
+}
+
+/* FUNCIÓN DE ABRIR CELDA */
+function openCell(i){
+  if(opened[i]||flagged[i]) return;
+  opened[i]=true;
+  const cell=cells[i];
+  cell.classList.add('abierta');
+  if(MINES.includes(i)){
+    cell.textContent='💣';
+    document.getElementById('estado').textContent='perdiste';
+    return;
+  }
+  const cnt=counts[i];
+  if(cnt>0){
+    cell.textContent=cnt;
+  }else{
+    const neigh=getNeighbors(i);
+    for(const n of neigh){
+      if(!opened[n]&&!flagged[n]) openCell(n);
+    }
+  }
+}
+
+/* FUNCIÓN DE BANDERA */
+function toggleFlag(i){
+  if(opened[i]) return;
+  flagged[i]=!flagged[i];
+  const cell=cells[i];
+  if(flagged[i]){
+    cell.textContent='🚩';
+    cell.classList.add('bandera');
+  }else{
+    cell.textContent='';
+    cell.classList.remove('bandera');
+  }
+}
+
+/* CREAR EL GRID */
+document.addEventListener('DOMContentLoaded',()=>{
+  const grid=document.getElementById('grid');
+  for(let i=0;i<TOTAL;i++){
+    const div=document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    div.addEventListener('click',()=>openCell(i));
+    div.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      toggleFlag(i);
+    });
+    grid.appendChild(div);
+    cells.push(div);
+  }
+});
+</script>
+</body>
+</html>

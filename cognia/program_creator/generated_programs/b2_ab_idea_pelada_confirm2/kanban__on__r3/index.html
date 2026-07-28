@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en HTML</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 10px;
+  background: #fafafa;
+}
+.board {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.col {
+  flex: 1;
+  min-width: 250px;
+  background: #f0f0f0;
+  padding: 10px;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.col[data-col="todo"] {
+  background: #e0f7fa;
+}
+.col[data-col="doing"] {
+  background: #fff3e0;
+}
+.col[data-col="done"] {
+  background: #e8eaf6;
+}
+.col h2 {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.col[data-col="todo"] h2 {
+  color: #007bff;
+}
+.col[data-col="doing"] h2 {
+  color: #ffc107;
+}
+.col[data-col="done"] h2 {
+  color: #6c757d;
+}
+.card {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-left: 4px solid #007bff;
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.col[data-col="doing"] .card {
+  border-left-color: #ffc107;
+}
+.col[data-col="done"] .card {
+  border-left-color: #6c757d;
+}
+.card-id {
+  font-weight: bold;
+}
+.card button {
+  padding: 5px 8px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-right: 5px;
+}
+.mas {
+  background: #28a745;
+  color: #fff;
+}
+.menos {
+  background: #dc3545;
+  color: #fff;
+}
+@media (max-width: 600px) {
+  .board {
+    flex-direction: column;
+  }
+}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Pendientes <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <div class="card-id">t1</div>
+      <button class="mas">Avanzar</button>
+      <button class="menos">Retroceder</button>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="card-id">t2</div>
+      <button class="mas">Avanzar</button>
+      <button class="menos">Retroceder</button>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="card-id">t3</div>
+      <button class="mas">Avanzar</button>
+      <button class="menos">Retroceder</button>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>En Progreso <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Completado <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  function updateCounters() {
+    const todoCount = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const doneCount = document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent = todoCount;
+    document.getElementById('cont-doing').textContent = doingCount;
+    document.getElementById('cont-done').textContent = doneCount;
+  }
+
+  function moveCard(card, direction) {
+    const currentCol = card.parentElement;
+    const currentData = currentCol.dataset.col;
+    let newData;
+    if (direction === 'mas') {
+      if (currentData === 'todo') newData = 'doing';
+      else if (currentData === 'doing') newData = 'done';
+      else return; // done cannot move right
+    } else if (direction === 'menos') {
+      if (currentData === 'doing') newData = 'todo';
+      else if (currentData === 'done') newData = 'doing';
+      else return; // todo cannot move left
+    }
+    // WIP rule: block todo->doing if doing already has 2 cards
+    if (newData === 'doing' && currentData === 'todo') {
+      const doingCol = document.querySelector('.col[data-col="doing"]');
+      if (doingCol.querySelectorAll('.card').length >= 2) return;
+    }
+    const targetCol = document.querySelector('.col[data-col="' + newData + '"]');
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+
+  document.querySelectorAll('.mas').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const card = this.closest('.card');
+      moveCard(card, 'mas');
+    });
+  });
+
+  document.querySelectorAll('.menos').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const card = this.closest('.card');
+      moveCard(card, 'menos');
+    });
+  });
+
+  updateCounters();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{font-family:Arial,sans-serif;margin:10px}
+.prod{border:1px solid #ccc;padding:10px;margin-bottom:10px}
+.linea{display:flex;align-items:center;margin:5px 0}
+.linea .cant{margin-right:10px}
+.add,.quitar{margin-left:5px}
+#cart{margin-top:20px}
+#total{font-weight:bold}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+const products=document.querySelectorAll('.prod'),lines=document.getElementById('lines'),totalEl=document.getElementById('total'),cart={};
+function updateTotal(){let sum=0;for(const id in cart){const qty=cart[id];const price=parseFloat(document.querySelector(`.prod[data-id="${id}"]`).dataset.precio);sum+=qty*price;}totalEl.textContent=sum.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function updateAddButton(id){const prod=document.querySelector(`.prod[data-id="${id}"]`);const stock=parseInt(prod.dataset.stock);const qty=cart[id]||0;const btn=prod.querySelector(`.add[data-id="${id}"]`);btn.disabled=qty>=stock;}
+function addItem(id){const prod=document.querySelector(`.prod[data-id="${id}"]`);const stock=parseInt(prod.dataset.stock);const qty=cart[id]||0;if(qty>=stock)return;cart[id]=qty+1;let line=lines.querySelector(`.linea[data-id="${id}"]`);if(!line){line=document.createElement('div');line.className='linea';line.dataset.id=id;line.innerHTML=`<span class="cant">1</span> <button class="quitar" data-id="${id}">Quitar</button>`;lines.appendChild(line);}else{line.querySelector('.cant').textContent=cart[id];}updateAddButton(id);updateTotal();}
+function removeItem(id){const qty=cart[id];if(!qty)return;cart[id]=qty-1;if(cart[id]<=0){delete cart[id];const line=lines.querySelector(`.linea[data-id="${id}"]`);if(line)line.remove();}else{const line=lines.querySelector(`.linea[data-id="${id}"]`);if(line)line.querySelector('.cant').textContent=cart[id];}updateAddButton(id);updateTotal();}
+products.forEach(prod=>{const addBtn=prod.querySelector('.add');addBtn.addEventListener('click',()=>addItem(addBtn.dataset.id));});
+lines.addEventListener('click',e=>{if(e.target.classList.contains('quitar'))removeItem(e.target.dataset.id);});
+products.forEach(prod=>updateAddButton(prod.dataset.id));
+updateTotal();
+});
+</script>
+</head>
+<body>
+<h1>Carrito con Stock</h1>
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+<p>Producto 1 - 100 €</p>
+<button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+<p>Producto 2 - 50 €</p>
+<button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+<p>Producto 3 - 25 €</p>
+<button class="add" data-id="p3">Añadir</button>
+</div>
+<div id="cart">
+<h2>Carrito</h2>
+<div id="lines"></div>
+<div>Total: <span id="total">0 €</span></div>
+</div>
+</body>
+</html>

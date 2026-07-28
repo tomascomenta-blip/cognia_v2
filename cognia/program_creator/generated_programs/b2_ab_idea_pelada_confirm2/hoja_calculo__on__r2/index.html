@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:20px;background:#f9f9f9;}
+  #grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:400px;margin:auto;}
+  .celda{width:100%;padding:5px;font-size:1rem;box-sizing:border-box;}
+</style>
+</head>
+<body>
+<h2 style="text-align:center;">Mini Hoja de Cálculo 3x3</h2>
+<div id="grid">
+  <input type="text" class="celda" data-ref="A1" value="10">
+  <input type="text" class="celda" data-ref="A2" value="20">
+  <input type="text" class="celda" data-ref="A3">
+  <input type="text" class="celda" data-ref="B1" value="=A1+1" data-formula="=A1+1">
+  <input type="text" class="celda" data-ref="B2" value="5">
+  <input type="text" class="celda" data-ref="B3">
+  <input type="text" class="celda" data-ref="C1" value="=B1+1" data-formula="=B1+1">
+  <input type="text" class="celda" data-ref="C2">
+  <input type="text" class="celda" data-ref="C3" value="=A1+A2" data-formula="=A1+A2">
+</div>
+<script>
+/* CONFIGURABLE CONSTANTS */
+const REF_REGEX = /^[A-C][1-3]$/; // valid cell references
+
+/* GLOBAL STATE */
+let isUpdating = false;
+
+/* EVALUATE A CELL REFERENCE */
+function evaluate(ref, visited) {
+  const cell = document.querySelector(`.celda[data-ref="${ref}"]`);
+  if (!cell) return 0;
+  const formula = cell.dataset.formula;
+  if (formula) {
+    if (visited.has(ref)) return "CIRC"; // circular reference detected
+    visited.add(ref);
+    const expr = formula.slice(1); // remove leading '='
+    const tokens = expr.match(/([A-C][1-3])|(\d+(\.\d+)?)|([+-])/g);
+    if (!tokens) { visited.delete(ref); return 0; }
+    let result = 0;
+    let op = '+';
+    for (const tok of tokens) {
+      if (tok === '+' || tok === '-') {
+        op = tok;
+      } else if (REF_REGEX.test(tok)) {
+        const val = evaluate(tok, visited);
+        if (val === "CIRC") { visited.delete(ref); return "CIRC"; }
+        result = op === '+' ? result + val : result - val;
+      } else { // numeric literal
+        const num = parseFloat(tok);
+        result = op === '+' ? result + num : result - num;
+      }
+    }
+    visited.delete(ref);
+    return result;
+  } else {
+    const val = parseFloat(cell.value);
+    return isNaN(val) ? 0 : val;
+  }
+}
+
+/* RECALCULATE ALL CELLS */
+function recalcAll() {
+  isUpdating = true;
+  const cells = document.querySelectorAll('.celda');
+  cells.forEach(cell => {
+    const ref = cell.dataset.ref;
+    const val = evaluate(ref, new Set());
+    if (val === "CIRC") {
+      cell.value = "CIRC";
+    } else {
+      // format number with 2 decimals and thousands separator
+      cell.value = typeof val === 'number'
+        ? val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
+        : val;
+    }
+  });
+  isUpdating = false;
+}
+
+/* EVENT LISTENERS */
+document.querySelectorAll('.celda').forEach(cell => {
+  cell.addEventListener('input', () => {
+    if (isUpdating) return;
+    const val = cell.value;
+    if (val.startsWith('=')) {
+      cell.dataset.formula = val;
+    } else {
+      delete cell.dataset.formula;
+    }
+    recalcAll();
+  });
+});
+
+/* INITIAL CALCULATION ON LOAD */
+window.addEventListener('load', recalcAll);
+</script>
+</body>
+</html>

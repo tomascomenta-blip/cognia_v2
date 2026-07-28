@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  h1{font-size:1.5rem;margin-bottom:.5rem;}
+  .container{display:flex;flex-wrap:wrap;gap:1rem;}
+  .prod,.cart{background:#fff;border-radius:4px;padding:1rem;box-shadow:0 1px 3px rgba(0,0,0,.1);flex:1 1 200px;}
+  .prod button,.cart button{margin-left:.5rem;padding:.3rem .6rem;border:none;border-radius:3px;background:#007bff;color:#fff;cursor:pointer;}
+  .prod button:disabled,.cart button:disabled{background:#aaa;cursor:not-allowed;}
+  .linea{display:flex;align-items:center;margin-bottom:.5rem;}
+  .linea span{margin-right:.5rem;}
+  .total{font-weight:bold;margin-top:.5rem;}
+  @media(max-width:600px){
+    .container{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<h1>Carrito de Compra</h1>
+<div class="container">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1</span>
+    <span>$100.00</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2</span>
+    <span>$50.00</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3</span>
+    <span>$25.00</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <div class="total">Total: <span id="total">$0.00</span></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const prodElems = document.querySelectorAll('.prod');
+  const cartLines = document.getElementById('cart-lines');
+  const totalSpan = document.getElementById('total');
+  const products = {};
+
+  prodElems.forEach(p => {
+    const id = p.dataset.id;
+    products[id] = {
+      precio: parseFloat(p.dataset.precio),
+      stock: parseInt(p.dataset.stock, 10)
+    };
+  });
+
+  function formatMoney(v) {
+    return v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  }
+
+  function updateTotal() {
+    let sum = 0;
+    cartLines.querySelectorAll('.linea').forEach(line => {
+      const id = line.dataset.id;
+      const qty = parseInt(line.querySelector('.cant').textContent, 10);
+      sum += qty * products[id].precio;
+    });
+    totalSpan.textContent = formatMoney(sum);
+  }
+
+  function addToCart(id) {
+    const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+    const line = cartLines.querySelector(`.linea[data-id="${id}"]`);
+    const currentQty = line ? parseInt(line.querySelector('.cant').textContent, 10) : 0;
+    const stock = products[id].stock;
+
+    if (currentQty >= stock) return; // already at stock
+
+    if (line) {
+      line.querySelector('.cant').textContent = currentQty + 1;
+    } else {
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const newLine = document.createElement('div');
+      newLine.className = 'linea';
+      newLine.dataset.id = id;
+      newLine.innerHTML = `
+        <span>${prod.querySelector('span').textContent}</span>
+        <span class="cant">1</span>
+        <button class="quitar" data-id="${id}">-</button>
+      `;
+      cartLines.appendChild(newLine);
+    }
+
+    if (currentQty + 1 >= stock) {
+      addBtn.disabled = true;
+    }
+    updateTotal();
+  }
+
+  function removeFromCart(id) {
+    const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+    const line = cartLines.querySelector(`.linea[data-id="${id}"]`);
+    if (!line) return;
+    const qty = parseInt(line.querySelector('.cant').textContent, 10);
+    if (qty <= 1) {
+      line.remove();
+      addBtn.disabled = false;
+    } else {
+      line.querySelector('.cant').textContent = qty - 1;
+      if (qty - 1 < products[id].stock) {
+        addBtn.disabled = false;
+      }
+    }
+    updateTotal();
+  }
+
+  // Event delegation for add buttons
+  document.body.addEventListener('click', e => {
+    if (e.target.matches('.add')) {
+      const id = e.target.dataset.id;
+      addToCart(id);
+    }
+    if (e.target.matches('.quitar')) {
+      const id = e.target.dataset.id;
+      removeFromCart(id);
+    }
+  });
+})();
+</script>
+</body>
+</html>

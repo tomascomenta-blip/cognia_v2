@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:400px;}
+  .c{background:#ccc;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;aspect-ratio:1;user-select:none;}
+  .c.abierta{background:#eee;cursor:default;}
+  .c.bandera{background:#ff0;}
+  #estado{margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+const mines = [6,12,18];
+const cells = Array.from(document.querySelectorAll('.c'));
+
+function getNeighbors(i){
+  const neighbors=[];
+  const row=Math.floor(i/5), col=i%5;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const r=row+dr, c=col+dc;
+      if(r>=0&&r<5&&c>=0&&c<5)neighbors.push(r*5+c);
+    }
+  }
+  return neighbors;
+}
+function countAdjMines(i){
+  return getNeighbors(i).filter(n=>mines.includes(n)).length;
+}
+function openCell(i){
+  const cell=cells[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  const count=countAdjMines(i);
+  cell.classList.add('abierta');
+  if(count>0)cell.textContent=count;
+  else{
+    cell.textContent='';
+    floodFill(i);
+  }
+}
+function floodFill(i){
+  const neighbors=getNeighbors(i);
+  neighbors.forEach(n=>{
+    const cell=cells[n];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+    const count=countAdjMines(n);
+    cell.classList.add('abierta');
+    if(count>0)cell.textContent=count;
+    else{
+      cell.textContent='';
+      floodFill(n);
+    }
+  });
+}
+cells.forEach(cell=>{
+  cell.addEventListener('click',e=>{
+    const i=parseInt(cell.dataset.i);
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;
+    if(mines.includes(i)){
+      cell.textContent='💣';
+      cell.classList.add('abierta');
+      document.getElementById('estado').textContent='perdiste';
+    }else{
+      openCell(i);
+    }
+  });
+  cell.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    const i=parseInt(cell.dataset.i);
+    if(cell.classList.contains('abierta'))return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+:root{
+  --bg-soft-gray:#f5f5f5;
+  --accent-teal:#008080;
+  --accent-teal-light:#00b3b3;
+  --disabled:#bbb;
+  --border:#ddd;
+  --text:#333;
+  --bg-white:#fff;
+}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg-soft-gray);
+  color:var(--text);
+}
+.container{
+  display:flex;
+  flex-wrap:wrap;
+  max-width:1200px;
+  margin:auto;
+  padding:20px;
+}
+.products{
+  flex:1 1 60%;
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+}
+.prod{
+  background:var(--bg-white);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:10px;
+  flex:1 1 calc(33.333% - 20px);
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.prod .img{
+  width:100%;
+  height:120px;
+  background:#ccc;
+  border-radius:4px;
+  margin-bottom:10px;
+}
+.prod h3{
+  margin:5px 0;
+  font-size:1.1em;
+}
+.prod .precio{
+  font-weight:bold;
+}
+.prod button.add{
+  background:var(--accent-teal);
+  color:#fff;
+  border:none;
+  padding:8px 12px;
+  border-radius:4px;
+  cursor:pointer;
+  margin-top:10px;
+}
+.prod button.add:disabled{
+  background:var(--disabled);
+  cursor:not-allowed;
+}
+.cart{
+  flex:1 1 40%;
+  background:var(--bg-white);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:10px;
+  margin-left:20px;
+  box-sizing:border-box;
+}
+.cart h2{
+  margin-top:0;
+  font-size:1.2em;
+}
+#linea-container{
+  margin-top:10px;
+}
+.linea{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:5px 0;
+  border-bottom:1px solid var(--border);
+}
+.linea:last-child{
+  border-bottom:none;
+}
+.linea .cant{
+  font-weight:bold;
+}
+.linea button.quitar{
+  background:var(--accent-teal);
+  color:#fff;
+  border:none;
+  padding:4px 8px;
+  border-radius:4px;
+  cursor:pointer;
+}
+.linea button.quitar:disabled{
+  background:var(--disabled);
+  cursor:not-allowed;
+}
+#total{
+  font-weight:bold;
+  font-size:1.2em;
+}
+@media(max-width:600px){
+  .container{
+    flex-direction:column;
+  }
+  .products{
+    flex:1 1 100%;
+    margin-bottom:20px;
+  }
+  .cart{
+    flex:1 1 100%;
+    margin-left:0;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <div class="img"></div>
+      <h3>Producto 1</h3>
+      <p>Precio: <span class="precio">100 €</span></p>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <div class="img"></div>
+      <h3>Producto 2</h3>
+      <p>Precio: <span class="precio">50 €</span></p>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <div class="img"></div>
+      <h3>Producto 3</h3>
+      <p>Precio: <span class="precio">25 €</span></p>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <div>Total: <span id="total">0,00 €</span></div>
+  </div>
+</div>
+<script>
+/* Configurable constants */
+const COLORS = {
+  bgSoftGray:'#f5f5f5',
+  accentTeal:'#008080',
+  accentTealLight:'#00b3b3',
+  disabled:'#bbb',
+  border:'#ddd',
+  text:'#333',
+  bgWhite:'#fff'
+};
+document.documentElement.style.setProperty('--bg-soft-gray', COLORS.bgSoftGray);
+document.documentElement.style.setProperty('--accent-teal', COLORS.accentTeal);
+document.documentElement.style.setProperty('--accent-teal-light', COLORS.accentTealLight);
+document.documentElement.style.setProperty('--disabled', COLORS.disabled);
+document.documentElement.style.setProperty('--border', COLORS.border);
+document.documentElement.style.setProperty('--text', COLORS.text);
+document.documentElement.style.setProperty('--bg-white', COLORS.bgWhite);
+
+const cartLines = document.getElementById('cart-lines');
+const totalSpan = document.getElementById('total');
+const addButtons = document.querySelectorAll('.add');
+
+let cart = {}; // id -> quantity
+
+function updateTotal(){
+  let total = 0;
+  for (const id in cart){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const price = parseFloat(prod.dataset.precio);
+    total += price * cart[id];
+  }
+  totalSpan.textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+}
+
+function updateAddButton(id){
+  const prod = document.querySelector(`.prod[data-id="${id}"]`);
+  const stock = parseInt(prod.dataset.stock);
+  const qty = cart[id] || 0;
+  const btn = prod.querySelector(`button.add[data-id="${id}"]`);
+  btn.disabled = qty >= stock;
+}
+
+function renderLine(id){
+  const qty = cart[id];
+  let line = document.querySelector(`.linea[data-id="${id}"]`);
+  if (line){
+    line.querySelector('.cant').textContent = qty;
+  } else {
+    const lineDiv = document.createElement('div');
+    lineDiv.className = 'linea';
+    lineDiv.dataset.id = id;
+    lineDiv.innerHTML = `<span class="cant">${qty}</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+    cartLines.appendChild(lineDiv);
+  }
+}
+
+function removeLine(id){
+  const line = document.querySelector(`.linea[data-id="${id}"]`);
+  if (line) line.remove();
+}
+
+function addToCart(id){
+  const prod = document.querySelector(`.prod[data-id="${id}"]`);
+  const stock = parseInt(prod.dataset.stock);
+  const qty = cart[id] || 0;
+  if (qty < stock){
+    cart[id] = qty + 1;
+    renderLine(id);
+    updateAddButton(id);
+    updateTotal();
+  }
+}
+
+function removeFromCart(id){
+  const qty = cart[id] || 0;
+  if (qty > 0){
+    cart[id] = qty - 1;
+    if (cart[id] === 0){
+      delete cart[id];
+      removeLine(id);
+    } else {
+      renderLine(id);
+    }
+    updateAddButton(id);
+    updateTotal();
+  }
+}
+
+addButtons.forEach(btn => {
+  btn.addEventListener('click', () => addToCart(btn.dataset.id));
+});
+
+cartLines.addEventListener('click', e => {
+  if (e.target.classList.contains('quitar')){
+    removeFromCart(e.target.dataset.id);
+  }
+});
+</script>
+</body>
+</html>

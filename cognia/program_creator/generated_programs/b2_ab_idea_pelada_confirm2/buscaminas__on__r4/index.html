@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con minas fijas</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    margin:20px;
+  }
+  .c{
+    background:#ccc;
+    width:60px;
+    height:60px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#fff;
+  }
+  .c.bandera{
+    background:#ff0;
+  }
+  #estado{
+    font-size:24px;
+    margin-top:10px;
+    color:#900;
+  }
+  @media (max-width:600px){
+    .c{width:40px;height:40px;font-size:16px;}
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor() {
+    this.gridEl = document.getElementById('grid');
+    this.estadoEl = document.getElementById('estado');
+    this.mines = new Set([6,12,18]); // posiciones fijas
+    this.opened = new Set();
+    this.flagged = new Set();
+    this.createGrid();
+    this.addEventListeners();
+  }
+  createGrid() {
+    for (let i=0;i<25;i++){
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.textContent = '';
+      this.gridEl.appendChild(cell);
+    }
+  }
+  addEventListeners() {
+    this.gridEl.addEventListener('click', e=>this.handleClick(e));
+    this.gridEl.addEventListener('contextmenu', e=>this.handleRightClick(e));
+  }
+  handleClick(e){
+    const cell = e.target.closest('.c');
+    if (!cell) return;
+    const i = parseInt(cell.dataset.i);
+    if (this.flagged.has(i) || this.opened.has(i)) return;
+    if (this.mines.has(i)) {
+      this.openMine(cell,i);
+      this.estadoEl.textContent = 'perdiste';
+      return;
+    }
+    this.openCell(cell,i);
+  }
+  handleRightClick(e){
+    e.preventDefault();
+    const cell = e.target.closest('.c');
+    if (!cell) return;
+    const i = parseInt(cell.dataset.i);
+    if (this.opened.has(i)) return;
+    if (this.flagged.has(i)) {
+      this.flagged.delete(i);
+      cell.classList.remove('bandera');
+    } else {
+      this.flagged.add(i);
+      cell.classList.add('bandera');
+    }
+  }
+  openMine(cell,i){
+    cell.classList.add('abierta');
+    cell.textContent = '💣';
+    this.opened.add(i);
+  }
+  openCell(cell,i){
+    const count = this.countAdjacentMines(i);
+    cell.classList.add('abierta');
+    if (count>0) cell.textContent = count;
+    this.opened.add(i);
+    if (count===0){
+      this.cascade(i);
+    }
+  }
+  countAdjacentMines(i){
+    const row = Math.floor(i/5);
+    const col = i%5;
+    let count=0;
+    for (let dr=-1;dr<=1;dr++){
+      for (let dc=-1;dc<=1;dc++){
+        if (dr===0 && dc===0) continue;
+        const r=row+dr,c=col+dc;
+        if (r<0||r>4||c<0||c>4) continue;
+        const idx=r*5+c;
+        if (this.mines.has(idx)) count++;
+      }
+    }
+    return count;
+  }
+  cascade(startIdx){
+    const queue=[startIdx];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      const cell=this.gridEl.querySelector(`.c[data-i="${idx}"]`);
+      if (!cell) continue;
+      const count=this.countAdjacentMines(idx);
+      if (count===0){
+        for (let dr=-1;dr<=1;dr++){
+          for (let dc=-1;dc<=1;dc++){
+            if (dr===0 && dc===0) continue;
+            const r=Math.floor(idx/5)+dr;
+            const c=idx%5+dc;
+            if (r<0||r>4||c<0||c>4) continue;
+            const nIdx=r*5+c;
+            if (visited.has(nIdx)||this.flagged.has(nIdx)||this.opened.has(nIdx)) continue;
+            visited.add(nIdx);
+            const nCell=this.gridEl.querySelector(`.c[data-i="${nIdx}"]`);
+            if (!nCell) continue;
+            const nCount=this.countAdjacentMines(nIdx);
+            nCell.classList.add('abierta');
+            if (nCount>0) nCell.textContent=nCount;
+            this.opened.add(nIdx);
+            if (nCount===0) queue.push(nIdx);
+          }
+        }
+      }
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new Minesweeper());
+</script>
+</body>
+</html>

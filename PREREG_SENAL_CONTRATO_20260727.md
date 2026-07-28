@@ -656,3 +656,19 @@ cerrar la pregunta sin dejar la decisión a discreción:
 
 Es acumulación secuencial con umbral sobre el total, declarada — lectura
 direccional por construcción; la adopción (si sale) lleva la etiqueta.
+
+### RESULTADO de la tercera serie y CIERRE (2026-07-28 ~09:25)
+
+Tercera serie (23 pares, 1 infra): **pelada 16/24 vs adornada 21/24,
+apareado 1-6 — NETO −5.** Total de las TRES series: +3, 0, −5 = **−2
+sobre ~70 pares → fila pre-registrada: CONTRADICCIÓN, VÍA CERRADA.** El
+adorno TARGET LOOK ni roba ni aporta de forma separable del ruido a esta
+potencia; producción queda como está (adorno activo, flag
+COGNIA_IDEA_PELADA disponible para experimentos).
+
+La moraleja que queda escrita: la primera serie (+3, umbral justo) habría
+adoptado "pelada" y la tercera sola (−5) habría "probado" lo contrario —
+tres series intercaladas con la lectura fijada por adelantado es lo único
+que impidió las dos conclusiones falsas. El patrón hoja_calculo ilustra el
+ruido: aporta pares a AMBOS lados dentro de la misma corrida y entre
+corridas cambió de bando (2-0 pelada en la serie 2, 0-4 en la 3).

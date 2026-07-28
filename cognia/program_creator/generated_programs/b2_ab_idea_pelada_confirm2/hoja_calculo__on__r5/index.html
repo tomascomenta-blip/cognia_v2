@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+  body{font-family:sans-serif;margin:0;padding:1rem;background:#f0f0f0;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;}
+  .celda{width:100%;padding:0.5rem;font-size:1rem;}
+</style>
+</head>
+<body>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="C3" value="=A1+A2">
+</div>
+<script>
+const cells=document.querySelectorAll('.celda');
+const refToCell={};
+let dependents={};
+function buildDeps(){
+  dependents={};
+  cells.forEach(el=>{
+    const ref=el.dataset.ref;
+    refToCell[ref]=el;
+    if(el.dataset.formula){
+      const refs=el.dataset.formula.match(/[A-C][1-3]/g)||[];
+      refs.forEach(r=>{dependents[r]=dependents[r]||[];dependents[r].push(ref);});
+    }
+  });
+}
+function fmt(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function evalCell(ref,stack){
+  const el=refToCell[ref];
+  if(!el)return 0;
+  if(stack.includes(ref)){el.value='CIRC';return 'CIRC';}
+  stack.push(ref);
+  let val;
+  if(el.dataset.formula){
+    const f=el.dataset.formula.slice(1);
+    const tokens=[];
+    const r=/([A-C][1-3])|([+-])|(\d+(\.\d+)?)/g;
+    let m;
+    while((m=r.exec(f))!==null){
+      if(m[1])tokens.push({t:'ref',v:m[1]});
+      else if(m[2])tokens.push({t:'op',v:m[2]});
+      else if(m[3])tokens.push({t:'num',v:parseFloat(m[3])});
+    }
+    let res=null,op=null;
+    for(const tk of tokens){
+      let opnd;
+      if(tk.t==='num')opnd=tk.v;
+      else if(tk.t==='ref'){opnd=evalCell(tk.v,stack);if(opnd==='CIRC'){stack.pop();el.value='CIRC';return 'CIRC';}}
+      if(res===null)res=opnd;
+      else if(op)res=op==='+'?res+opnd:res-opnd;
+      if(tk.t==='op')op=tk.v;
+    }
+    val=res;
+    el.value=fmt(val);
+  }else{
+    const s=el.value.trim();
+    if(s===''){stack.pop();return 0;}
+    const num=parseFloat(s);
+    if(isNaN(num)){stack.pop();return 0;}
+    el.value=fmt(num);
+    val=num;
+  }
+  stack.pop();
+  if(dependents[ref])dependents[ref].forEach(d=>evalCell(d,stack));
+  return val;
+}
+function computeAll(){
+  buildDeps();
+  cells.forEach(el=>evalCell(el.dataset.ref,[]));
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  cells.forEach(el=>{
+    el.addEventListener('input',()=>{
+      const v=el.value;
+      if(v.startsWith('='))el.dataset.formula=v;
+      else delete el.dataset.formula;
+      computeAll();
+    });
+  });
+  computeAll();
+});
+</script>
+</body>
+</html>

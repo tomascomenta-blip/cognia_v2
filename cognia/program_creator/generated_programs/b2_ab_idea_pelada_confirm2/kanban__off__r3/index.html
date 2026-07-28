@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Tablero</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{margin:0;font-family:Arial,sans-serif;background:#f0f4f8;color:#333;}
+  .board{display:flex;gap:1rem;padding:1rem;flex-wrap:wrap;}
+  .col{flex:1 1 30%;background:#fff;border-radius:4px;padding:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);min-width:250px;}
+  .col h2{margin-top:0;font-size:1.2rem;display:flex;justify-content:space-between;align-items:center;}
+  .counter{font-size:0.9rem;color:#777;}
+  .cards{margin-top:0.5rem;}
+  .card{background:#fff;border-radius:4px;padding:0.5rem 1rem;margin-bottom:0.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.1);position:relative;}
+  .card button{position:absolute;top:50%;transform:translateY(-50%);width:24px;height:24px;border:none;border-radius:50%;background:#008080;color:#fff;font-weight:bold;cursor:pointer;}
+  .card button.menos{left:-12px;}
+  .card button.mas{right:-12px;}
+  .card button:disabled{background:#ccc;cursor:not-allowed;}
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo" class="counter"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing" class="counter"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done" class="counter"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const order = ['todo','doing','done'];
+  const cols = {
+    todo: document.querySelector('.col[data-col="todo"] .cards'),
+    doing: document.querySelector('.col[data-col="doing"] .cards'),
+    done: document.querySelector('.col[data-col="done"] .cards')
+  };
+  const counters = {
+    todo: document.getElementById('cont-todo'),
+    doing: document.getElementById('cont-doing'),
+    done: document.getElementById('cont-done')
+  };
+  function createCard(id){
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.dataset.id = id;
+    div.textContent = id;
+    const btnMinus = document.createElement('button');
+    btnMinus.className = 'menos';
+    btnMinus.textContent = '-';
+    const btnPlus = document.createElement('button');
+    btnPlus.className = 'mas';
+    btnPlus.textContent = '+';
+    div.appendChild(btnMinus);
+    div.appendChild(btnPlus);
+    return div;
+  }
+  // Initialize 3 cards in todo
+  ['t1','t2','t3'].forEach(id=>{
+    cols.todo.appendChild(createCard(id));
+  });
+  function updateCounters(){
+    counters.todo.textContent = cols.todo.children.length;
+    counters.doing.textContent = cols.doing.children.length;
+    counters.done.textContent = cols.done.children.length;
+  }
+  function updateButtons(){
+    document.querySelectorAll('.card').forEach(card=>{
+      const col = card.closest('.col').dataset.col;
+      const btnMinus = card.querySelector('.menos');
+      const btnPlus = card.querySelector('.mas');
+      btnMinus.disabled = col === 'todo';
+      btnPlus.disabled = col === 'done';
+    });
+  }
+  function moveCard(card, direction){
+    const currentCol = card.closest('.col').dataset.col;
+    const idx = order.indexOf(currentCol);
+    let newIdx = direction === 'right' ? idx + 1 : idx - 1;
+    if(newIdx < 0 || newIdx >= order.length) return;
+    const newColName = order[newIdx];
+    // WIP rule: doing max 2 cards
+    if(newColName === 'doing' && cols.doing.children.length >= 2) return;
+    cols[newColName].appendChild(card);
+    updateCounters();
+    updateButtons();
+  }
+  // Attach event listeners
+  document.querySelectorAll('.card button').forEach(btn=>{
+    btn.addEventListener('click', function(e){
+      const card = this.closest('.card');
+      if(this.classList.contains('mas')){
+        moveCard(card,'right');
+      }else if(this.classList.contains('menos')){
+        moveCard(card,'left');
+      }
+    });
+  });
+  updateCounters();
+  updateButtons();
+});
+</script>
+</body>
+</html>

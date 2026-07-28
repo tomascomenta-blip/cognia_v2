@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:90vw;max-width:400px;}
+.c{aspect-ratio:1/1;background:#ccc;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.c.abierta{background:#eee;}
+.c.bandera{background:#f88;}
+#estado{margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');
+  d.className='c';
+  d.dataset.i=i;
+  d.addEventListener('click',()=>openCell(i));
+  d.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(d.classList.contains('abierta'))return;
+    d.classList.toggle('bandera');
+  });
+  grid.appendChild(d);
+}
+function neighbors(i){
+  const r=Math.floor(i/5),c=i%5;
+  const arr=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);
+    }
+  }
+  return arr;
+}
+function countAdj(i){return neighbors(i).filter(n=>mines.includes(n)).length;}
+function openCell(i){
+  const d=document.querySelector(`.c[data-i='${i}']`);
+  if(d.classList.contains('abierta')||d.classList.contains('bandera'))return;
+  if(mines.includes(i)){
+    d.classList.add('abierta');
+    d.textContent='*';
+    document.getElementById('estado').textContent='perdiste';
+    return;
+  }
+  const cnt=countAdj(i);
+  d.classList.add('abierta');
+  if(cnt>0)d.textContent=cnt;
+  if(cnt===0)neighbors(i).forEach(n=>openCell(n));
+}
+</script>
+</body>
+</html>

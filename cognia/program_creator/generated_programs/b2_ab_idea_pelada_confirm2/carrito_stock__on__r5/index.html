@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f9f9f9;color:#333;}
+  .container{max-width:600px;margin:auto;padding:20px;}
+  h1{font-size:1.8em;margin-bottom:20px;text-align:center;}
+  .prod{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:10px;margin-bottom:10px;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .prod button{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{background:#fff;padding:15px;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .linea span{margin-right:5px;}
+  .linea button{padding:3px 6px;background:#dc3545;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  .total{font-weight:bold;margin-top:10px;font-size:1.2em;}
+  @media(max-width:480px){
+    .prod{flex-direction:column;align-items:flex-start;}
+    .prod button{margin-top:5px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Carrito de compra con STOCK</h1>
+  <div id="products"></div>
+  <div id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div class="total">Total: <span id="total">0</span></div>
+  </div>
+</div>
+
+<script>
+/* ---------- Datos de los productos ---------- */
+const products = [
+  {id:'p1', name:'Producto 1', precio:100, stock:2},
+  {id:'p2', name:'Producto 2', precio:50, stock:3},
+  {id:'p3', name:'Producto 3', precio:25, stock:1}
+];
+
+/* ---------- Estado del carrito ---------- */
+const cart = {};
+
+/* ---------- Renderizar productos ---------- */
+const prodContainer = document.getElementById('products');
+products.forEach(p=>{
+  const div = document.createElement('div');
+  div.className = 'prod';
+  div.dataset.id = p.id;
+  div.dataset.precio = p.precio;
+  div.dataset.stock = p.stock;
+  div.innerHTML = `
+    <span>${p.name} - ${formatPrice(p.precio)}</span>
+    <button class="add" data-id="${p.id}">Añadir</button>
+  `;
+  prodContainer.appendChild(div);
+});
+
+/* ---------- Eventos de los botones Añadir ---------- */
+document.querySelectorAll('.add').forEach(btn=>{
+  btn.addEventListener('click',()=>addToCart(btn.dataset.id));
+});
+
+/* ---------- Funciones ---------- */
+function addToCart(id){
+  const prod = products.find(p=>p.id===id);
+  const qty = cart[id] || 0;
+  if(qty < prod.stock){
+    cart[id] = qty + 1;
+    updateLine(id);
+    if(cart[id]===prod.stock){
+      document.querySelector(`.add[data-id="${id}"]`).disabled = true;
+    }
+    updateTotal();
+  }
+}
+
+function removeFromCart(id){
+  const qty = cart[id] || 0;
+  if(qty>0){
+    cart[id] = qty - 1;
+    if(cart[id]===0){
+      delete cart[id];
+      removeLine(id);
+      document.querySelector(`.add[data-id="${id}"]`).disabled = false;
+    }else{
+      updateLine(id);
+    }
+    updateTotal();
+  }
+}
+
+function updateLine(id){
+  const prod = products.find(p=>p.id===id);
+  let line = document.querySelector(`.linea[data-id="${id}"]`);
+  if(!line){
+    line = document.createElement('div');
+    line.className = 'linea';
+    line.dataset.id = id;
+    line.innerHTML = `
+      <span>${prod.name}</span>
+      <span class="cant">${cart[id]}</span>
+      <span class="price">${formatPrice(prod.precio)}</span>
+      <button class="quitar" data-id="${id}">Quitar</button>
+    `;
+    document.getElementById('lines').appendChild(line);
+    line.querySelector('.quitar').addEventListener('click',()=>removeFromCart(id));
+  }else{
+    line.querySelector('.cant').textContent = cart[id];
+  }
+}
+
+function removeLine(id){
+  const line = document.querySelector(`.linea[data-id="${id}"]`);
+  if(line) line.remove();
+}
+
+function updateTotal(){
+  let total = 0;
+  for(const id in cart){
+    const prod = products.find(p=>p.id===id);
+    total += prod.precio * cart[id];
+  }
+  document.getElementById('total').textContent = formatPrice(total);
+}
+
+function formatPrice(value){
+  return value.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+}
+</script>
+</body>
+</html>

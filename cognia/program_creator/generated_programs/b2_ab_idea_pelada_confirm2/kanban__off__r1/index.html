@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{flex:1 1 0;background:#fff;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,0.1);min-width:250px;display:flex;flex-direction:column;}
+  .header{padding:10px;font-weight:bold;background:#e0e0e0;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;align-items:center;}
+  .cards{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px;}
+  .card{background:#fafafa;border-radius:4px;padding:8px;box-shadow:0 1px 2px rgba(0,0,0,0.05);display:flex;justify-content:space-between;align-items:center;}
+  .card button{margin-left:4px;padding:2px 6px;font-size:12px;border:none;border-radius:3px;cursor:pointer;}
+  .card button.mas{background:#4caf50;color:#fff;}
+  .card button.menos{background:#f44336;color:#fff;}
+  .card button:disabled{opacity:0.5;cursor:not-allowed;}
+  @media (max-width:600px){.board{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="header">Todo <span id="cont-todo"></span></div>
+    <div class="cards" id="cards-todo">
+      <div class="card" data-id="t1">
+        <span>t1</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <span>t2</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <span>t3</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="header">Doing <span id="cont-doing"></span></div>
+    <div class="cards" id="cards-doing"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="header">Done <span id="cont-done"></span></div>
+    <div class="cards" id="cards-done"></div>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+function updateCounters() {
+  const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+  const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+  const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent = todo;
+  document.getElementById('cont-doing').textContent = doing;
+  document.getElementById('cont-done').textContent = done;
+}
+function moveCard(card, direction) {
+  const currentCol = card.parentElement.parentElement; // .cards
+  const currentDataCol = currentCol.parentElement.dataset.col;
+  let targetColName;
+  if (direction === 'right') {
+    if (currentDataCol === 'todo') targetColName = 'doing';
+    else if (currentDataCol === 'doing') targetColName = 'done';
+    else return; // done cannot move right
+  } else if (direction === 'left') {
+    if (currentDataCol === 'doing') targetColName = 'todo';
+    else if (currentDataCol === 'done') targetColName = 'doing';
+    else return; // todo cannot move left
+  }
+  // WIP rule: doing max 2
+  if (targetColName === 'doing') {
+    const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    if (doingCount >= MAX_DOING) return;
+  }
+  const targetCards = document.querySelector('.col[data-col="' + targetColName + '"] .cards');
+  targetCards.appendChild(card);
+  updateCounters();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  updateCounters();
+  document.querySelectorAll('.card').forEach(card => {
+    const masBtn = card.querySelector('.mas');
+    const menosBtn = card.querySelector('.menos');
+    masBtn.addEventListener('click', () => moveCard(card, 'right'));
+    menosBtn.addEventListener('click', () => moveCard(card, 'left'));
+  });
+});
+</script>
+</body>
+</html>

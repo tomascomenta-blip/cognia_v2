@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una página</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;}
+  .board{display:flex;height:100vh;box-sizing:border-box;}
+  .col{flex:1;padding:10px;display:flex;flex-direction:column;}
+  .col h2{margin:0 0 10px 0;font-size:1.2em;}
+  .card{background:#fff;padding:10px;margin-bottom:10px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);position:relative;}
+  .card button{background:#4a90e2;color:#fff;border:none;border-radius:3px;padding:2px 6px;margin-left:5px;cursor:pointer;font-size:0.8em;}
+  .card button:disabled{background:#aaa;cursor:not-allowed;}
+  @media (max-width:600px){
+    .board{flex-direction:column;}
+    .col{flex:none;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>todo <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <span>t1</span>
+      <button class="menos">-</button>
+      <button class="mas">+</button>
+    </div>
+    <div class="card" data-id="t2">
+      <span>t2</span>
+      <button class="menos">-</button>
+      <button class="mas">+</button>
+    </div>
+    <div class="card" data-id="t3">
+      <span>t3</span>
+      <button class="menos">-</button>
+      <button class="mas">+</button>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+  function updateCounters() {
+    document.querySelectorAll('.col').forEach(col=>{
+      const id=col.getAttribute('data-col');
+      const count=col.querySelectorAll('.card').length;
+      document.getElementById('cont-'+id).textContent=count;
+    });
+  }
+  function moveCard(card, dir){
+    const curCol=card.parentElement;
+    const board=curCol.parentElement;
+    const idx=Array.from(board.children).indexOf(curCol);
+    const targetIdx=idx+dir;
+    if(targetIdx<0||targetIdx>2) return;
+    const targetCol=board.children[targetIdx];
+    if(targetCol.getAttribute('data-col')==='doing' && targetCol.querySelectorAll('.card').length>=2) return;
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+  document.querySelectorAll('.mas').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const card=btn.parentElement;
+      if(card.parentElement.getAttribute('data-col')==='done') return;
+      moveCard(card,1);
+    });
+  });
+  document.querySelectorAll('.menos').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const card=btn.parentElement;
+      if(card.parentElement.getAttribute('data-col')==='todo') return;
+      moveCard(card,-1);
+    });
+  });
+  updateCounters();
+</script>
+</body>
+</html>

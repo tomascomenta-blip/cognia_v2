@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una página</title>
+<style>body{font-family:Arial,sans-serif;margin:0;padding:10px;background:#f0f0f0;}#board{display:flex;gap:10px;} .col{background:#fff;border:1px solid #ccc;border-radius:4px;padding:5px;margin:5px;flex:1;min-width:200px;} .col h3{margin:0 0 5px;font-size:1.1em;} .card{background:#e3f2fd;border:1px solid #90caf9;border-radius:3px;padding:5px;margin-bottom:5px;} .card button{margin-right:2px;font-size:0.9em;} .card button:last-child{margin-right:0;}</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo"><h3>Todo <span id="cont-todo"></span></h3><div class="card" data-id="t1">Tarea 1 <button class="mas">→</button><button class="menos">←</button></div><div class="card" data-id="t2">Tarea 2 <button class="mas">→</button><button class="menos">←</button></div><div class="card" data-id="t3">Tarea 3 <button class="mas">→</button><button class="menos">←</button></div></div><div class="col" data-col="doing"><h3>En Progreso <span id="cont-doing"></span></h3></div><div class="col" data-col="done"><h3>Hecho <span id="cont-done"></span></h3></div>
+</div>
+<script>function updateCounters(){document.getElementById('cont-todo').textContent=document.querySelectorAll('[data-col=todo] .card').length;document.getElementById('cont-doing').textContent=document.querySelectorAll('[data-col=doing] .card').length;document.getElementById('cont-done').textContent=document.querySelectorAll('[data-col=done] .card').length;}function move(card,dir){var col=card.parentElement,cols=Array.from(document.querySelectorAll('.col')),idx=cols.indexOf(col),newIdx=idx+dir;if(newIdx<0||newIdx>=cols.length)return;var newCol=cols[newIdx];if(newCol.dataset.col==='doing'&&newCol.querySelectorAll('.card').length>=2)return;newCol.appendChild(card);updateCounters();}document.querySelectorAll('.card button').forEach(btn=>{btn.addEventListener('click',function(){var card=this.parentElement;if(this.classList.contains('mas')){if(card.parentElement.dataset.col==='done')return;move(card,1);}else{if(card.parentElement.dataset.col==='todo')return;move(card,-1);}});});updateCounters();</script>
+</body>
+</html>

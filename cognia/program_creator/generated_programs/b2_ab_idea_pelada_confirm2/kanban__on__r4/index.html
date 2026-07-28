@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban Simple</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f0f0;}
+  #board {display:flex; flex-wrap:wrap; gap:10px; padding:10px;}
+  .col {background:#fff; flex:1 1 30%; min-width:250px; border-radius:5px; padding:10px; box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .col h2 {margin-top:0; font-size:1.2em; display:flex; align-items:center;}
+  .col h2 span {margin-left:5px; font-weight:bold;}
+  .card {background:#e3f2fd; border-radius:3px; padding:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;}
+  .card button {margin-left:5px;}
+  .card button:disabled {opacity:0.5;}
+  @media (max-width:600px) {
+    #board {flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>En Progreso <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Hecho <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.columns = {};
+    this.cards = {};
+    this.initColumns();
+    this.initCards();
+    this.updateCounters();
+    this.updateButtons();
+  }
+
+  initColumns() {
+    const colElements = document.querySelectorAll('.col');
+    colElements.forEach(el => {
+      const colName = el.dataset.col;
+      this.columns[colName] = new Column(el, colName);
+    });
+  }
+
+  initCards() {
+    const initialCards = ['t1', 't2', 't3'];
+    initialCards.forEach(id => {
+      const card = new Card(id);
+      this.cards[id] = card;
+      this.columns['todo'].addCard(card);
+    });
+  }
+
+  moveCard(card, direction) {
+    const currentCol = card.currentColumn;
+    let targetColName;
+    if (direction === 'right') {
+      if (currentCol === 'done') return;
+      if (currentCol === 'todo') targetColName = 'doing';
+      else if (currentCol === 'doing') targetColName = 'done';
+    } else if (direction === 'left') {
+      if (currentCol === 'todo') return;
+      if (currentCol === 'doing') targetColName = 'todo';
+      else if (currentCol === 'done') targetColName = 'doing';
+    }
+    if (direction === 'right' && targetColName === 'doing' && this.columns['doing'].cards.length >= 2) {
+      return;
+    }
+    this.columns[currentCol].removeCard(card);
+    this.columns[targetColName].addCard(card);
+    card.currentColumn = targetColName;
+    this.updateCounters();
+    this.updateButtons();
+  }
+
+  updateCounters() {
+    for (const colName in this.columns) {
+      const count = this.columns[colName].cards.length;
+      const span = document.getElementById(`cont-${colName}`);
+      if (span) {
+        span.textContent = count.toLocaleString('es-ES');
+      }
+    }
+  }
+
+  updateButtons() {
+    for (const id in this.cards) {
+      const card = this.cards[id];
+      const masBtn = card.element.querySelector('.mas');
+      const menosBtn = card.element.querySelector('.menos');
+      if (card.currentColumn === 'done') {
+        masBtn.disabled = true;
+      } else if (card.currentColumn === 'todo' && this.columns['doing'].cards.length >= 2) {
+        masBtn.disabled = true;
+      } else {
+        masBtn.disabled = false;
+      }
+      if (card.currentColumn === 'todo') {
+        menosBtn.disabled = true;
+      } else {
+        menosBtn.disabled = false;
+      }
+    }
+  }
+}
+
+class Column {
+  constructor(element, name) {
+    this.element = element;
+    this.name = name;
+    this.cards = [];
+  }
+
+  addCard(card) {
+    this.cards.push(card);
+    this.element.appendChild(card.element);
+  }
+
+  removeCard(card) {
+    this.cards = this.cards.filter(c => c !== card);
+    if (card.element.parentElement === this.element) {
+      this.element.removeChild(card.element);
+    }
+  }
+}
+
+class Card {
+  constructor(id) {
+    this.id = id;
+    this.currentColumn = 'todo';
+    this.element = this.createElement();
+  }
+
+  createElement() {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.dataset.id = this.id;
+    div.innerHTML = `
+      <span>${this.id}</span>
+      <div>
+        <button class="menos" title="Retroceder">&larr;</button>
+        <button class="mas" title="Avanzar">&rarr;</button>
+      </div>
+    `;
+    div.querySelector('.mas').addEventListener('click', () => {
+      board.moveCard(this, 'right');
+    });
+    div.querySelector('.menos').addEventListener('click', () => {
+      board.moveCard(this, 'left');
+    });
+    return div;
+  }
+}
+
+let board;
+
+document.addEventListener('DOMContentLoaded', () => {
+  board = new KanbanBoard();
+});
+</script>
+</body>
+</html>

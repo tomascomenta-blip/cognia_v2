@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:10px;}
+.board{display:flex;gap:10px;}
+.col{flex:1;background:#fff;border-radius:4px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+h2{margin:0 0 10px;font-size:1.2em;}
+.card{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;}
+button{font-size:0.8em;padding:2px 5px;margin-left:2px;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2 style="color:#1e90ff;">Todo <span id="cont-todo"></span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1"><span>t1</span><button class="menos">-</button><button class="mas">+</button></div>
+      <div class="card" data-id="t2"><span>t2</span><button class="menos">-</button><button class="mas">+</button></div>
+      <div class="card" data-id="t3"><span>t3</span><button class="menos">-</button><button class="mas">+</button></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2 style="color:#ff8c00;">Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2 style="color:#32cd32;">Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+function updateCounters(){document.querySelectorAll('.col').forEach(c=>{document.getElementById('cont-'+c.dataset.col).textContent=c.querySelectorAll('.card').length;});}
+function moveCard(card,dir){var col=card.parentElement.parentElement;var name=col.dataset.col;var tgt;if(dir=='mas'){if(name=='todo')tgt='doing';else if(name=='doing')tgt='done';else return;}else{if(name=='done')tgt='doing';else if(name=='doing')tgt='todo';else return;}if(tgt=='doing'&&document.querySelector('.col[data-col="doing"]').querySelectorAll('.card').length>=2)return;document.querySelector('.col[data-col="'+tgt+'"]').querySelector('.cards').appendChild(card);updateCounters();}
+document.querySelectorAll('.mas').forEach(b=>b.addEventListener('click',e=>moveCard(e.target.parentElement,'mas')));
+document.querySelectorAll('.menos').forEach(b=>b.addEventListener('click',e=>moveCard(e.target.parentElement,'menos')));
+updateCounters();
+</script>
+</body>
+</html>

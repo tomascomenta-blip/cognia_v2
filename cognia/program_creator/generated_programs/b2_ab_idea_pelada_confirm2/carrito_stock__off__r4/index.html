@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;display:flex;min-height:100vh;}
+  header{width:100%;background:#333;color:#fff;padding:1rem;}
+  nav h1{margin:0;}
+  main{flex:1;padding:1rem;}
+  .products{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;border-radius:4px;padding:1rem;box-shadow:0 2px 5px rgba(0,0,0,0.1);display:flex;flex-direction:column;align-items:center;}
+  .prod h2{margin:0 0 .5rem;}
+  .prod .precio,.prod .stock{font-weight:bold;}
+  .prod button.add{margin-top:.5rem;padding:.5rem 1rem;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .prod button.add:disabled{background:#ccc;cursor:not-allowed;}
+  aside#cart{position:fixed;right:0;top:0;width:300px;height:100%;background:#f9f9f9;border-left:1px solid #ddd;padding:1rem;overflow-y:auto;}
+  aside#cart h2{margin-top:0;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;border-bottom:1px solid #eee;padding-bottom:.5rem;}
+  .linea .cant{font-weight:bold;}
+  .linea button.quitar{padding:.2rem .5rem;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .total{margin-top:1rem;font-size:1.2rem;font-weight:bold;}
+  @media (max-width:600px){aside#cart{width:100%;}}
+</style>
+</head>
+<body>
+<header>
+  <nav>
+    <h1>Mi Tienda</h1>
+  </nav>
+</header>
+<main>
+  <section class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h2>Producto 1</h2>
+      <p>Precio: <span class="precio"></span></p>
+      <p>Stock: <span class="stock"></span></p>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h2>Producto 2</h2>
+      <p>Precio: <span class="precio"></span></p>
+      <p>Stock: <span class="stock"></span></p>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h2>Producto 3</h2>
+      <p>Precio: <span class="precio"></span></p>
+      <p>Stock: <span class="stock"></span></p>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </section>
+</main>
+<aside id="cart">
+  <h2>Carrito</h2>
+  <div id="cart-items"></div>
+  <div class="total">Total: <span id="total">0 €</span></div>
+</aside>
+<script>
+const products = [
+  {id:'p1', name:'Producto 1', precio:100, stock:2},
+  {id:'p2', name:'Producto 2', precio:50, stock:3},
+  {id:'p3', name:'Producto 3', precio:25, stock:1}
+];
+const cart = {}; // id -> qty
+
+function formatCurrency(val){return val.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+
+function init(){
+  products.forEach(p=>{
+    const prodDiv = document.querySelector(`.prod[data-id="${p.id}"]`);
+    prodDiv.querySelector('.precio').textContent = formatCurrency(p.precio);
+    prodDiv.querySelector('.stock').textContent = p.stock;
+  });
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>addToCart(btn.dataset.id));
+  });
+  document.getElementById('cart-items').addEventListener('click',e=>{
+    if(e.target.classList.contains('quitar')) removeFromCart(e.target.dataset.id);
+  });
+  updateCartDisplay();
+}
+
+function addToCart(id){
+  const prod = products.find(p=>p.id===id);
+  if(!prod) return;
+  const qty = cart[id]||0;
+  if(qty < prod.stock){
+    cart[id] = qty+1;
+    updateCartDisplay();
+  }
+}
+
+function removeFromCart(id){
+  const qty = cart[id]||0;
+  if(qty>0){
+    cart[id] = qty-1;
+    if(cart[id]===0) delete cart[id];
+    updateCartDisplay();
+  }
+}
+
+function updateCartDisplay(){
+  const container = document.getElementById('cart-items');
+  container.innerHTML = '';
+  let total = 0;
+  Object.entries(cart).forEach(([id,qty])=>{
+    const prod = products.find(p=>p.id===id);
+    const line = document.createElement('div');
+    line.className='linea';
+    line.dataset.id=id;
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent=prod.name;
+    const cantSpan = document.createElement('span');
+    cantSpan.className='cant';
+    cantSpan.textContent=qty;
+    const quitarBtn = document.createElement('button');
+    quitarBtn.className='quitar';
+    quitarBtn.dataset.id=id;
+    quitarBtn.textContent='-';
+    line.appendChild(nameSpan);
+    line.appendChild(cantSpan);
+    line.appendChild(quitarBtn);
+    container.appendChild(line);
+    total += prod.precio*qty;
+  });
+  document.getElementById('total').textContent = formatCurrency(total);
+  products.forEach(p=>{
+    const btn = document.querySelector(`.add[data-id="${p.id}"]`);
+    const qty = cart[p.id]||0;
+    btn.disabled = qty>=p.stock;
+  });
+}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

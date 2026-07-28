@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;box-sizing:border-box;}
+h1{margin:0;padding:10px;text-align:center;background:#f0f0f0;}
+#main{display:flex;flex-wrap:wrap;justify-content:space-around;padding:10px;}
+#products,#cart{flex:1 1 300px;margin:10px;}
+.prod{border:1px solid #ccc;padding:10px;margin-bottom:10px;border-radius:5px;}
+.prod h3{margin:0 0 5px;}
+.prod p{margin:5px 0;}
+.prod button{padding:5px 10px;margin-top:5px;}
+.linea{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eee;padding:5px 0;}
+.linea .cant{margin:0 10px;}
+.linea button{padding:3px 6px;}
+#total-container{text-align:right;padding:10px;font-size:1.2em;}
+button:disabled{opacity:0.5;cursor:not-allowed;}
+@media(max-width:600px){#main{flex-direction:column;}}
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+<div id="main">
+  <div id="products"></div>
+  <div id="cart"></div>
+</div>
+<div id="total-container">Total: <span id="total">0,00 €</span></div>
+<script>
+const PRODUCTS = [
+  {id:'p1', name:'Producto 1', precio:100, stock:2},
+  {id:'p2', name:'Producto 2', precio:50, stock:3},
+  {id:'p3', name:'Producto 3', precio:25, stock:1}
+];
+const cart = {}; // id -> qty
+const productsContainer = document.getElementById('products');
+const cartContainer = document.getElementById('cart');
+const totalSpan = document.getElementById('total');
+function renderProducts(){
+  PRODUCTS.forEach(prod=>{
+    const div=document.createElement('div');
+    div.className='prod';
+    div.dataset.id=prod.id;
+    div.dataset.precio=prod.precio;
+    div.dataset.stock=prod.stock;
+    const h3=document.createElement('h3');
+    h3.textContent=prod.name;
+    const pPrice=document.createElement('p');
+    pPrice.textContent='Precio: '+prod.precio.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+    const pStock=document.createElement('p');
+    pStock.textContent='Stock: '+prod.stock;
+    const btnAdd=document.createElement('button');
+    btnAdd.className='add';
+    btnAdd.dataset.id=prod.id;
+    btnAdd.textContent='Añadir';
+    btnAdd.addEventListener('click',()=>addToCart(prod.id));
+    div.appendChild(h3);
+    div.appendChild(pPrice);
+    div.appendChild(pStock);
+    div.appendChild(btnAdd);
+    productsContainer.appendChild(div);
+  });
+}
+function addToCart(id){
+  const prod=PRODUCTS.find(p=>p.id===id);
+  const current=cart[id]||0;
+  if(current<prod.stock){
+    cart[id]=current+1;
+    const line=cartContainer.querySelector(`.linea[data-id="${prod.id}"]`);
+    if(!line) createCartLine(prod);
+    else updateCartLine(prod);
+    updateAddButton(prod);
+    updateTotal();
+  }
+}
+function removeFromCart(id){
+  const prod=PRODUCTS.find(p=>p.id===id);
+  const current=cart[id]||0;
+  if(current>0){
+    cart[id]=current-1;
+    if(cart[id]===0){
+      delete cart[id];
+      removeCartLine(prod);
+    }else{
+      updateCartLine(prod);
+    }
+    updateAddButton(prod);
+    updateTotal();
+  }
+}
+function createCartLine(prod){
+  const div=document.createElement('div');
+  div.className='linea';
+  div.dataset.id=prod.id;
+  const name=document.createElement('span');
+  name.textContent=prod.name;
+  const cant=document.createElement('span');
+  cant.className='cant';
+  cant.textContent=cart[prod.id];
+  const btn=document.createElement('button');
+  btn.className='quitar';
+  btn.dataset.id=prod.id;
+  btn.textContent='Quitar';
+  btn.addEventListener('click',()=>removeFromCart(prod.id));
+  div.appendChild(name);
+  div.appendChild(cant);
+  div.appendChild(btn);
+  cartContainer.appendChild(div);
+}
+function updateCartLine(prod){
+  const line=cartContainer.querySelector(`.linea[data-id="${prod.id}"]`);
+  if(line){
+    const cant=line.querySelector('.cant');
+    cant.textContent=cart[prod.id];
+  }
+}
+function removeCartLine(prod){
+  const line=cartContainer.querySelector(`.linea[data-id="${prod.id}"]`);
+  if(line) cartContainer.removeChild(line);
+}
+function updateAddButton(prod){
+  const btn=productsContainer.querySelector(`.add[data-id="${prod.id}"]`);
+  btn.disabled=cart[prod.id]===prod.stock;
+}
+function updateTotal(){
+  let total=0;
+  for(const id in cart){
+    const prod=PRODUCTS.find(p=>p.id===id);
+    total+=prod.precio*cart[id];
+  }
+  totalSpan.textContent=total.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  renderProducts();
+  updateTotal();
+});
+</script>
+</body>
+</html>

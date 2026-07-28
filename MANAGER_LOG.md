@@ -9594,3 +9594,52 @@ y el-lazo-restaba (nueva: el A/B que cambió el default).
    acota el goteo lento de tokens) — presupuesto por celda pendiente como
    chequeo, no como prosa. Commits 2ccfcd9 y el de este cierre.
 
+
+## 2026-07-28 (matinal 28, 05:39-11:00) — El tercer clavo de la señal y el adorno que era ruido
+
+Ventana pedida en vivo por el dueño (hasta las 11:00). Todo pre-registrado
+en las enmiendas 7ª-9ª de PREREG_SENAL_CONTRATO ANTES de implementar o
+correr; apagado 11:00 y aterrizaje programados al arrancar.
+
+1. **Unidad A (commits 2d6d388, 79d92ff) — modo `validado`: KILL, el
+   TERCER clavo de la señal autogenerada.** El filtro de aserciones contra
+   el enunciado (el pensador audita sus pasos viendo SOLO la idea;
+   fallback al original por plomería) estuvo ACTIVO en 24/24 contratos,
+   cortó 30 pasos… y el FN no se movió (15/19 ambos brazos; aciertos 9/24
+   vs 8/24, umbral GRIS +2 no alcanzado). Conserva exactamente las
+   expectativas inventadas que acusan páginas sanas — porque él mismo las
+   inventó desde la misma idea (la razón 5.4 aplicada al auditor). **Con
+   corregido ×2 + validado: el techo es del PENSADOR. No más
+   prompt-engineering del contrato autogenerado: held-out A MANO por tarea
+   o un modelo más fuerte para el rol QA.** Deriva re-confirmada: el
+   clásico concurrente dio 8/24 donde 12 h antes dio 10/24.
+
+2. **Unidad B (commits beebc5c, 8c9843c y el de este cierre) — el adorno
+   TARGET LOOK: tres series n=6 intercaladas dieron +3, 0, −5 (total −2
+   sobre ~70 pares) → VÍA CERRADA, era ruido.** La primera serie sola
+   habría adoptado "pelada" y la tercera sola habría "probado" lo
+   contrario: la política de evidencia doble (octava enmienda) y la
+   lectura por el total fijada antes de la tercera (novena, declarando el
+   estado de conocimiento) impidieron las dos conclusiones falsas.
+   Producción queda como está.
+
+3. Infra de medición endurecida en los runners (fallback de Ollama
+   neutralizado, backend por celda, pares de infra excluidos del
+   apareado, feromona redirigida) y `b2_ab_fix2.py` generalizado con
+   `--var` para intercalar cualquier flag env.
+
+**Suite: 5467 passed en el gate con código.**
+
+**Qué sigue (por valor):** (1) held-outs A MANO por tarea de banco — tres
+KILL convergentes dicen que es la única vía viva para la señal interna;
+mientras no exista, "sin verificar" es el sello honesto; (2) el
+watchdog/presupuesto de pared por celda como chequeo (la celda >45 min del
+gap; el read-timeout por chunk no acota goteo lento); (3) BoN a
+temperatura alta sobre primgen (la entrega ya no paga reparación); (4) el
+ladrón restante de generate_program (~17 pts vs crudo) — sondear el prompt
+DEL LAZO completo, no el directo (dos transferencias fallidas lo exigen).
+
+**Lecciones a memoria:** contrato-interno-al-azar (tercer clavo: techo del
+pensador) y gate-e2e-flaky (el umbral rozado que no replicó y la lectura
+por total pre-fijada).
+

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con minas fijas</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#fafafa;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:400px;margin:auto;}
+  .c{background:#ccc;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;border:1px solid #999;user-select:none;aspect-ratio:1;}
+  .c.abierta{background:#eee;cursor:default;}
+  .c.bandera{background:#fdd;}
+  #estado{margin-top:10px;text-align:center;font-size:1.2rem;color:red;}
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor() {
+    this.grid = document.querySelectorAll('.c');
+    this.mines = new Set([6,12,18]); // minas fijas
+    this.adjacentCounts = new Array(25).fill(0);
+    this.calculateAdjacentCounts();
+    this.initEvents();
+  }
+  calculateAdjacentCounts() {
+    for (let i=0;i<25;i++){
+      if (this.mines.has(i)) continue;
+      const neighbors = this.getNeighbors(i);
+      let count=0;
+      for (const n of neighbors){
+        if (this.mines.has(n)) count++;
+      }
+      this.adjacentCounts[i]=count;
+    }
+  }
+  getNeighbors(idx){
+    const neighbors=[];
+    const row=Math.floor(idx/5);
+    const col=idx%5;
+    for (let dr=-1;dr<=1;dr++){
+      for (let dc=-1;dc<=1;dc++){
+        if (dr===0 && dc===0) continue;
+        const r=row+dr;
+        const c=col+dc;
+        if (r>=0 && r<5 && c>=0 && c<5){
+          neighbors.push(r*5+c);
+        }
+      }
+    }
+    return neighbors;
+  }
+  initEvents(){
+    this.grid.forEach(cell=>{
+      cell.addEventListener('click',e=>this.handleLeftClick(e));
+      cell.addEventListener('contextmenu',e=>this.handleRightClick(e));
+    });
+  }
+  handleLeftClick(e){
+    const cell=e.currentTarget;
+    const idx=parseInt(cell.dataset.i);
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if (this.mines.has(idx)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      document.getElementById('estado').textContent='perdiste';
+      return;
+    }
+    this.openCell(idx);
+  }
+  handleRightClick(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+  openCell(idx){
+    const cell=this.grid[idx];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    const count=this.adjacentCounts[idx];
+    if (count>0){
+      cell.textContent=count;
+    } else {
+      cell.textContent='';
+      this.cascadeOpen(idx);
+    }
+  }
+  cascadeOpen(startIdx){
+    const queue=[startIdx];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      const neighbors=this.getNeighbors(idx);
+      for(const n of neighbors){
+        if (visited.has(n)) continue;
+        const cell=this.grid[n];
+        if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+        if (this.mines.has(n)) continue;
+        visited.add(n);
+        const count=this.adjacentCounts[n];
+        cell.classList.add('abierta');
+        if (count>0){
+          cell.textContent=count;
+        } else {
+          cell.textContent='';
+          queue.push(n);
+        }
+      }
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{new Minesweeper();});
+</script>
+</body>
+</html>
