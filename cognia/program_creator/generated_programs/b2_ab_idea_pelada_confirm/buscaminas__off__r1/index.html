@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 con minas fijas</title>
+<style>
+  body{
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:#222;
+    font-family:sans-serif;
+  }
+  #grid{
+    width:90vw;
+    max-width:500px;
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+  }
+  .c{
+    background:#444;
+    border:1px solid #555;
+    color:#fff;
+    font-size:1.5rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    user-select:none;
+    cursor:pointer;
+    aspect-ratio:1;
+  }
+  .c.abierta{
+    background:#666;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#444;
+  }
+  #estado{
+    margin-top:10px;
+    color:#f00;
+    font-weight:bold;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+const GRID_SIZE = 5;
+const MINES = [6,12,18];
+const cells = document.querySelectorAll('.c');
+const estado = document.getElementById('estado');
+
+function isMine(i){return MINES.includes(i);}
+
+function getNeighbors(i){
+  const r=Math.floor(i/GRID_SIZE), c=i%GRID_SIZE;
+  const neigh=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0&&nr<GRID_SIZE&&nc>=0&&nc<GRID_SIZE){
+        neigh.push(nr*GRID_SIZE+nc);
+      }
+    }
+  }
+  return neigh;
+}
+
+function countAdjacentMines(i){
+  return getNeighbors(i).filter(isMine).length;
+}
+
+function openCell(i){
+  const cell=cells[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  cell.classList.add('abierta');
+  const count=countAdjacentMines(i);
+  if(count>0){cell.textContent=count;}
+  else{
+    cell.textContent='';
+    const queue=[i];
+    while(queue.length){
+      const cur=queue.shift();
+      const neigh=getNeighbors(cur);
+      for(const n of neigh){
+        const nCell=cells[n];
+        if(nCell.classList.contains('abierta')||nCell.classList.contains('bandera'))continue;
+        nCell.classList.add('abierta');
+        const nCount=countAdjacentMines(n);
+        if(nCount>0){nCell.textContent=nCount;}
+        else{nCell.textContent='';queue.push(n);}
+      }
+    }
+  }
+}
+
+function handleClick(e){
+  const cell=e.currentTarget;
+  const i=parseInt(cell.dataset.i,10);
+  if(cell.classList.contains('bandera'))return;
+  if(isMine(i)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    estado.textContent='perdiste';
+    return;
+  }
+  openCell(i);
+}
+
+function handleContextMenu(e){
+  e.preventDefault();
+  const cell=e.currentTarget;
+  if(cell.classList.contains('abierta'))return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+}
+
+cells.forEach(cell=>{
+  cell.addEventListener('click',handleClick);
+  cell.addEventListener('contextmenu',handleContextMenu);
+});
+</script>
+</body>
+</html>

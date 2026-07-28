@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de Compra con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+  .container{display:flex;flex-direction:column;max-width:800px;margin:auto;padding:10px;}
+  .products,.cart{background:#fff;border-radius:5px;padding:15px;margin-bottom:15px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .prod{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .prod button{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  .prod button:disabled{background:#6c757d;cursor:not-allowed;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+  .linea button{padding:3px 6px;background:#dc3545;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  #total{font-weight:bold;}
+  @media (max-width:480px){
+    .prod{flex-direction:column;align-items:flex-start;}
+    .prod button{margin-top:5px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products" id="products">
+    <h2>Productos</h2>
+  </div>
+  <div class="cart" id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: <span id="total">0</span></div>
+  </div>
+</div>
+
+<script>
+/* Configurable constants */
+const PRODUCTS = [
+  {id:'p1', name:'Producto 1', precio:100, stock:2},
+  {id:'p2', name:'Producto 2', precio:50, stock:3},
+  {id:'p3', name:'Producto 3', precio:25, stock:1}
+];
+
+/* State */
+const cart = new Map(); // id -> quantity
+
+/* Utility to format currency */
+function fmt(value){ return value.toLocaleString('es-ES',{style:'currency',currency:'EUR'}); }
+
+/* Render product list */
+function renderProducts(){
+  const container = document.getElementById('products');
+  PRODUCTS.forEach(p=>{
+    const div = document.createElement('div');
+    div.className='prod';
+    div.dataset.id=p.id;
+    div.dataset.precio=p.precio;
+    div.dataset.stock=p.stock;
+    div.innerHTML = `
+      <div>
+        <strong>${p.name}</strong><br>
+        Precio: ${fmt(p.precio)}<br>
+        Stock: ${p.stock}
+      </div>
+      <button class="add" data-id="${p.id}">Añadir</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+/* Render cart lines */
+function renderCart(){
+  const linesDiv = document.getElementById('lines');
+  linesDiv.innerHTML=''; // clear
+  cart.forEach((qty,id)=>{
+    const prod = PRODUCTS.find(p=>p.id===id);
+    const line = document.createElement('div');
+    line.className='linea';
+    line.dataset.id=id;
+    line.innerHTML = `
+      <span>${prod.name} (${fmt(prod.precio)}) x <span class="cant">${qty}</span></span>
+      <button class="quitar" data-id="${id}">Quitar</button>
+    `;
+    linesDiv.appendChild(line);
+  });
+  updateTotal();
+  updateAddButtons();
+}
+
+/* Update total */
+function updateTotal(){
+  let total=0;
+  cart.forEach((qty,id)=>{
+    const prod = PRODUCTS.find(p=>p.id===id);
+    total += qty*prod.precio;
+  });
+  document.getElementById('total').textContent = fmt(total);
+}
+
+/* Update add button disabled state */
+function updateAddButtons(){
+  PRODUCTS.forEach(p=>{
+    const btn = document.querySelector(`button.add[data-id="${p.id}"]`);
+    const qty = cart.get(p.id)||0;
+    if(qty>=p.stock) btn.disabled=true; else btn.disabled=false;
+  });
+}
+
+/* Add product to cart */
+function addToCart(id){
+  const prod = PRODUCTS.find(p=>p.id===id);
+  const qty = cart.get(id)||0;
+  if(qty<prod.stock){
+    cart.set(id,qty+1);
+    renderCart();
+  }
+}
+
+/* Remove product from cart */
+function removeFromCart(id){
+  const qty = cart.get(id)||0;
+  if(qty>0){
+    if(qty===1) cart.delete(id);
+    else cart.set(id,qty-1);
+    renderCart();
+  }
+}
+
+/* Event delegation for add buttons */
+document.getElementById('products').addEventListener('click',e=>{
+  if(e.target.classList.contains('add')){
+    addToCart(e.target.dataset.id);
+  }
+});
+
+/* Event delegation for quitar buttons */
+document.getElementById('lines').addEventListener('click',e=>{
+  if(e.target.classList.contains('quitar')){
+    removeFromCart(e.target.dataset.id);
+  }
+});
+
+/* Initial render */
+renderProducts();
+renderCart();
+</script>
+</body>
+</html>

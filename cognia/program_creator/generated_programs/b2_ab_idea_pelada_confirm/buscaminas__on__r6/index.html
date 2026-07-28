@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con 3 Minas Fijas</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f0f0f0;}
+  #juego{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:20px;width:90%;max-width:400px;}
+  .c{background:#d3d3d3;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;}
+  .c.abierta{background:#fff;cursor:default;}
+  .c.bandera{background:#ffeb3b;}
+  #estado{margin-top:15px;font-size:1.2rem;color:#d32f2f;}
+  @media(max-width:400px){.c{font-size:1rem;}}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="juego"></div>
+<div id="estado"></div>
+
+<script>
+class Minesweeper {
+  constructor(container, estado) {
+    this.container = container;
+    this.estado = estado;
+    this.size = 5;
+    this.total = this.size * this.size;
+    this.mines = new Set([6,12,18]); // posiciones fijas
+    this.cells = [];
+    this.init();
+  }
+
+  init() {
+    for (let i = 0; i < this.total; i++) {
+      const div = document.createElement('div');
+      div.classList.add('c');
+      div.dataset.i = i;
+      div.addEventListener('click', (e)=>this.leftClick(e));
+      div.addEventListener('contextmenu', (e)=>this.rightClick(e));
+      this.container.appendChild(div);
+      this.cells.push(div);
+    }
+  }
+
+  leftClick(e) {
+    const cell = e.currentTarget;
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    const idx = +cell.dataset.i;
+    if (this.mines.has(idx)) {
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      this.estado.textContent = 'perdiste';
+      this.revealAllMines();
+      return;
+    }
+    this.openCell(idx);
+  }
+
+  rightClick(e) {
+    e.preventDefault();
+    const cell = e.currentTarget;
+    if (cell.classList.contains('abierta')) return;
+    cell.classList.toggle('bandera');
+    cell.textContent = cell.classList.contains('bandera') ? '🚩' : '';
+  }
+
+  openCell(idx) {
+    const cell = this.cells[idx];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    const adj = this.countAdjMines(idx);
+    cell.classList.add('abierta');
+    if (adj > 0) cell.textContent = adj;
+    if (adj === 0) this.expandZero(idx);
+  }
+
+  expandZero(idx) {
+    const queue = [idx];
+    const visited = new Set();
+    while (queue.length) {
+      const current = queue.shift();
+      visited.add(current);
+      const neighbors = this.getNeighbors(current);
+      for (const n of neighbors) {
+        if (visited.has(n)) continue;
+        const cell = this.cells[n];
+        if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+        const adj = this.countAdjMines(n);
+        cell.classList.add('abierta');
+        if (adj > 0) cell.textContent = adj;
+        if (adj === 0) queue.push(n);
+        visited.add(n);
+      }
+    }
+  }
+
+  countAdjMines(idx) {
+    return this.getNeighbors(idx).filter(n => this.mines.has(n)).length;
+  }
+
+  getNeighbors(idx) {
+    const row = Math.floor(idx / this.size);
+    const col = idx % this.size;
+    const neighbors = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r < 0 || r >= this.size || c < 0 || c >= this.size) continue;
+        neighbors.push(r * this.size + c);
+      }
+    }
+    return neighbors;
+  }
+
+  revealAllMines() {
+    for (const m of this.mines) {
+      const cell = this.cells[m];
+      if (!cell.classList.contains('abierta')) {
+        cell.classList.add('abierta');
+        cell.textContent = '💣';
+      }
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const juego = document.getElementById('juego');
+  const estado = document.getElementById('estado');
+  new Minesweeper(juego, estado);
+});
+</script>
+</body>
+</html>

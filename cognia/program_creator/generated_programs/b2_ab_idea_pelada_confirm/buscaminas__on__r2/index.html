@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:10px;background:#eee;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;}
+.c{background:#ccc;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;}
+.c.abierta{background:#fff;}
+.c.bandera{background:#ff0;}
+#estado{margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,12,18]),grid=document.getElementById('grid');
+function adj(i){let r=Math.floor(i/5),c=i%5, cnt=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;let ni=nr*5+nc;if(mines.has(ni))cnt++;}return cnt;}
+function open(i){let el=grid.children[i];if(el.classList.contains('abierta')||el.classList.contains('bandera'))return;el.classList.add('abierta');if(mines.has(i)){document.getElementById('estado').textContent='perdiste';return;}let n=adj(i);el.textContent=n?n:'';if(n===0){for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=Math.floor(i/5)+dr,nc=i%5+dc;if(nr<0||nr>4||nc<0||nc>4)continue;open(nr*5+nc);}}}
+for(let i=0;i<25;i++){let d=document.createElement('div');d.className='c';d.dataset.i=i;d.addEventListener('click',()=>open(i));d.addEventListener('contextmenu',e=>{e.preventDefault();d.classList.toggle('bandera');});grid.appendChild(d);}
+</script>
+</body>
+</html>

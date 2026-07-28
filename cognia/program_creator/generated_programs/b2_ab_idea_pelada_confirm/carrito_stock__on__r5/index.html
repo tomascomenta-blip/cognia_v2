@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de Compra con Stock</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f9f9f9;}
+  .container{max-width:600px;margin:auto;}
+  .prod{background:#fff;border:1px solid #ddd;border-radius:5px;padding:15px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+  .prod button{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{background:#fff;border:1px solid #ddd;border-radius:5px;padding:15px;margin-top:20px;}
+  .linea{display:flex;align-items:center;margin:5px 0;}
+  .linea span{margin:0 10px;}
+  .quitar{padding:3px 6px;background:#dc3545;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+  #total{font-weight:bold;font-size:1.2em;}
+  @media(max-width:480px){
+    .prod{flex-direction:column;align-items:flex-start;}
+    .prod button{margin-top:10px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Carrito de Compra</h1>
+  <div id="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <span>Producto 1 - 100 €</span>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <span>Producto 2 - 50 €</span>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <span>Producto 3 - 25 €</span>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+
+  <div id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: <span id="total">0 €</span></div>
+  </div>
+</div>
+
+<script>
+  // Datos de los productos
+  const productos = {
+    p1:{precio:100, stock:2},
+    p2:{precio:50, stock:3},
+    p3:{precio:25, stock:1}
+  };
+
+  // Estado del carrito
+  const carrito = {};
+
+  // Formatear precios
+  function formatear(n){ return n.toLocaleString('es-ES', {style:'currency', currency:'EUR'}); }
+
+  // Actualizar la vista del carrito
+  function actualizarCarrito(){
+    const linesDiv = document.getElementById('lines');
+    linesDiv.innerHTML = '';
+    let total = 0;
+    for(const id in carrito){
+      const cant = carrito[id];
+      if(cant>0){
+        const prod = productos[id];
+        const linea = document.createElement('div');
+        linea.className = 'linea';
+        linea.dataset.id = id;
+        linea.innerHTML = `
+          <span>${id.toUpperCase()}</span>
+          <span class="cant">${cant}</span>
+          <span>${formatear(prod.precio)}</span>
+          <button class="quitar" data-id="${id}">Quitar</button>
+        `;
+        linesDiv.appendChild(linea);
+        total += cant*prod.precio;
+      }
+    }
+    document.getElementById('total').textContent = formatear(total);
+    // Actualizar estado de los botones Add
+    document.querySelectorAll('.add').forEach(btn=>{
+      const id = btn.dataset.id;
+      const cant = carrito[id]||0;
+      btn.disabled = cant >= productos[id].stock;
+    });
+  }
+
+  // Manejar clics en botones Añadir
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const prod = productos[id];
+      const cant = carrito[id]||0;
+      if(cant < prod.stock){
+        carrito[id] = cant+1;
+        actualizarCarrito();
+      }
+    });
+  });
+
+  // Manejar clics en botones Quitar
+  document.getElementById('lines').addEventListener('click', e=>{
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      const cant = carrito[id]||0;
+      if(cant>0){
+        carrito[id] = cant-1;
+        if(carrito[id]===0) delete carrito[id];
+        actualizarCarrito();
+      }
+    }
+  });
+
+  // Inicializar
+  actualizarCarrito();
+</script>
+</body>
+</html>

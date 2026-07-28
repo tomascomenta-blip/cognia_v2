@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:400px;}
+  .c{background:#ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;cursor:pointer;user-select:none;aspect-ratio:1;}
+  .c.abierta{background:#fff;border:1px solid #aaa;}
+  .c.bandera{background:#f0f0f0;color:red;}
+  #estado{margin-top:10px;font-size:1.2em;}
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor() {
+    this.grid = Array.from(document.querySelectorAll('.c'));
+    this.mines = new Set([6,12,18]); // minas fijas
+    this.opened = new Set();
+    this.flagged = new Set();
+    this.gameOver = false;
+    this.adjacentCounts = this.calculateAdjacentCounts();
+    this.addEventListeners();
+  }
+  calculateAdjacentCounts() {
+    const counts = new Array(25).fill(0);
+    for (let i=0;i<25;i++) {
+      if (this.mines.has(i)) continue;
+      const neighbors = this.getNeighbors(i);
+      let count = 0;
+      for (const n of neighbors) {
+        if (this.mines.has(n)) count++;
+      }
+      counts[i] = count;
+    }
+    return counts;
+  }
+  getNeighbors(i) {
+    const neighbors = [];
+    const row = Math.floor(i/5);
+    const col = i%5;
+    for (let dr=-1; dr<=1; dr++) {
+      for (let dc=-1; dc<=1; dc++) {
+        if (dr===0 && dc===0) continue;
+        const r = row+dr;
+        const c = col+dc;
+        if (r>=0 && r<5 && c>=0 && c<5) {
+          neighbors.push(r*5 + c);
+        }
+      }
+    }
+    return neighbors;
+  }
+  addEventListeners() {
+    this.grid.forEach(cell=>{
+      cell.addEventListener('click', e=>this.handleLeftClick(e));
+      cell.addEventListener('contextmenu', e=>this.handleRightClick(e));
+    });
+  }
+  handleLeftClick(e) {
+    if (this.gameOver) return;
+    const cell = e.currentTarget;
+    const i = parseInt(cell.dataset.i);
+    if (this.flagged.has(i) || this.opened.has(i)) return;
+    if (this.mines.has(i)) {
+      this.openMine(i);
+      return;
+    }
+    this.openCell(i);
+  }
+  handleRightClick(e) {
+    e.preventDefault();
+    if (this.gameOver) return;
+    const cell = e.currentTarget;
+    const i = parseInt(cell.dataset.i);
+    if (this.opened.has(i)) return;
+    if (this.flagged.has(i)) {
+      this.unflagCell(i);
+    } else {
+      this.flagCell(i);
+    }
+  }
+  openMine(i) {
+    const cell = this.grid[i];
+    cell.classList.add('abierta');
+    cell.textContent = '💣';
+    document.getElementById('estado').textContent = 'perdiste';
+    this.gameOver = true;
+  }
+  openCell(i) {
+    const cell = this.grid[i];
+    cell.classList.add('abierta');
+    this.opened.add(i);
+    const count = this.adjacentCounts[i];
+    if (count>0) {
+      cell.textContent = count;
+    } else {
+      cell.textContent = '';
+      this.floodFill(i);
+    }
+  }
+  floodFill(start) {
+    const queue = [start];
+    while (queue.length>0) {
+      const idx = queue.shift();
+      const neighbors = this.getNeighbors(idx);
+      for (const n of neighbors) {
+        if (this.opened.has(n) || this.flagged.has(n)) continue;
+        this.opened.add(n);
+        const cell = this.grid[n];
+        cell.classList.add('abierta');
+        const count = this.adjacentCounts[n];
+        if (count>0) {
+          cell.textContent = count;
+        } else {
+          cell.textContent = '';
+          queue.push(n);
+        }
+      }
+    }
+  }
+  flagCell(i) {
+    const cell = this.grid[i];
+    cell.classList.add('bandera');
+    cell.textContent = '🚩';
+    this.flagged.add(i);
+  }
+  unflagCell(i) {
+    const cell = this.grid[i];
+    cell.classList.remove('bandera');
+    cell.textContent = '';
+    this.flagged.delete(i);
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>new Minesweeper());
+</script>
+</body>
+</html>

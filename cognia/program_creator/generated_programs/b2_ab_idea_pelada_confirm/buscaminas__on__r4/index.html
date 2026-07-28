@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con minas fijas</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(5, 60px);
+    grid-template-rows:repeat(5, 60px);
+    gap:2px;
+  }
+  .c{
+    background:#ccc;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#eee;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#fdd;
+    color:red;
+    font-weight:bold;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:18px;
+    font-weight:bold;
+  }
+  @media (max-width: 400px){
+    #board{
+      grid-template-columns:repeat(5, 40px);
+      grid-template-rows:repeat(5, 40px);
+    }
+    .c{
+      font-size:16px;
+    }
+  }
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="board"></div>
+<div id="estado"></div>
+
+<script>
+class Minesweeper {
+  constructor() {
+    this.mines = new Set([6, 12, 18]); // posiciones fijas
+    this.board = document.getElementById('board');
+    this.estado = document.getElementById('estado');
+    this.cells = [];
+    this.init();
+  }
+
+  init() {
+    for (let i = 0; i < 25; i++) {
+      const div = document.createElement('div');
+      div.classList.add('c');
+      div.dataset.i = i;
+      div.addEventListener('click', e => this.handleClick(e));
+      div.addEventListener('contextmenu', e => this.handleRight(e));
+      this.board.appendChild(div);
+      this.cells.push(div);
+    }
+  }
+
+  handleClick(e) {
+    const cell = e.currentTarget;
+    const idx = parseInt(cell.dataset.i, 10);
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if (this.mines.has(idx)) {
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      this.estado.textContent = 'perdiste';
+      return;
+    }
+    this.openCell(idx);
+  }
+
+  handleRight(e) {
+    e.preventDefault();
+    const cell = e.currentTarget;
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')) {
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+    }
+  }
+
+  openCell(idx) {
+    const cell = this.cells[idx];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    const adj = this.countAdjMines(idx);
+    cell.classList.add('abierta');
+    if (adj > 0) cell.textContent = adj;
+    if (adj === 0) this.cascade(idx);
+  }
+
+  cascade(startIdx) {
+    const queue = [startIdx];
+    const visited = new Set();
+    while (queue.length) {
+      const current = queue.shift();
+      const neighbors = this.getNeighbors(current);
+      for (const n of neighbors) {
+        if (visited.has(n)) continue;
+        visited.add(n);
+        const nCell = this.cells[n];
+        if (nCell.classList.contains('abierta') || nCell.classList.contains('bandera')) continue;
+        const adjCount = this.countAdjMines(n);
+        nCell.classList.add('abierta');
+        if (adjCount > 0) nCell.textContent = adjCount;
+        if (adjCount === 0) queue.push(n);
+      }
+    }
+  }
+
+  countAdjMines(idx) {
+    const neighbors = this.getNeighbors(idx);
+    let count = 0;
+    for (const n of neighbors) if (this.mines.has(n)) count++;
+    return count;
+  }
+
+  getNeighbors(idx) {
+    const row = Math.floor(idx / 5);
+    const col = idx % 5;
+    const neighbors = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r < 5 && c >= 0 && c < 5) neighbors.push(r * 5 + c);
+      }
+    }
+    return neighbors;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => new Minesweeper());
+</script>
+</body>
+</html>

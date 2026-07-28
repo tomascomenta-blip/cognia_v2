@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:10px;background:#f0f0f0;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .celda{width:100%;padding:5px;font-size:1rem;box-sizing:border-box;}
+</style>
+</head>
+<body>
+<h2>Mini Hoja de Cálculo 3x3</h2>
+<div class="grid">
+  <input class="celda" data-ref="A1" placeholder="A1">
+  <input class="celda" data-ref="A2" placeholder="A2">
+  <input class="celda" data-ref="A3" placeholder="A3">
+  <input class="celda" data-ref="B1" placeholder="B1">
+  <input class="celda" data-ref="B2" placeholder="B2">
+  <input class="celda" data-ref="B3" placeholder="B3">
+  <input class="celda" data-ref="C1" placeholder="C1">
+  <input class="celda" data-ref="C2" placeholder="C2">
+  <input class="celda" data-ref="C3" placeholder="C3">
+</div>
+<script>
+(() => {
+  const cells = {};
+  const deps = {};   // cell -> Set of refs it depends on
+  const revDeps = {}; // ref -> Set of refs that depend on it
+
+  // Initialize maps
+  document.querySelectorAll('.celda').forEach(el => {
+    const ref = el.dataset.ref;
+    cells[ref] = el;
+    deps[ref] = new Set();
+    revDeps[ref] = new Set();
+    el.addEventListener('input', onInput);
+  });
+
+  function onInput(e) {
+    const el = e.target;
+    const ref = el.dataset.ref;
+    const val = el.value.trim();
+    if (val.startsWith('=')) {
+      el.dataset.formula = val;
+    } else {
+      delete el.dataset.formula;
+      el.dataset.valueNum = parseFloat(val) || 0;
+    }
+    updateDependencies(ref);
+    recalc(ref);
+  }
+
+  function updateDependencies(ref) {
+    const el = cells[ref];
+    const old = deps[ref];
+    const newSet = new Set();
+    if (el.dataset.formula) {
+      const matches = el.dataset.formula.match(/\b([A-C][1-3])\b/g);
+      if (matches) matches.forEach(r => newSet.add(r));
+    }
+    // Remove old deps
+    old.forEach(r => revDeps[r].delete(ref));
+    // Add new deps
+    newSet.forEach(r => revDeps[r].add(ref));
+    deps[ref] = newSet;
+  }
+
+  function recalc(ref, visited = new Set()) {
+    if (visited.has(ref)) return;
+    visited.add(ref);
+    const el = cells[ref];
+    if (el.dataset.formula) {
+      const result = evaluateFormula(el.dataset.formula, [ref]);
+      if (result === 'CIRC') {
+        el.value = 'CIRC';
+        el.dataset.valueNum = NaN;
+      } else {
+        el.dataset.valueNum = result;
+        el.value = Number(result).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+      }
+    } else {
+      // Non-formula: value already set by input handler
+    }
+    revDeps[ref].forEach(dep => recalc(dep, visited));
+  }
+
+  function evaluateFormula(formula, stack) {
+    const expr = formula.slice(1); // remove '='
+    const replaced = expr.replace(/\b([A-C][1-3])\b/g, (_, r) => {
+      if (stack.includes(r)) return 'NaN'; // circular
+      const val = getCellValue(r, stack.concat(r));
+      return isNaN(val) ? 'NaN' : val;
+    });
+    try {
+      const res = Function('return ' + replaced)();
+      return isNaN(res) ? 'CIRC' : res;
+    } catch {
+      return 'CIRC';
+    }
+  }
+
+  function getCellValue(ref, stack) {
+    const el = cells[ref];
+    if (el.dataset.formula) {
+      return evaluateFormula(el.dataset.formula, stack);
+    }
+    const num = parseFloat(el.dataset.valueNum);
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Initial calculation (all empty)
+  Object.keys(cells).forEach(recalc);
+})();
+</script>
+</body>
+</html>

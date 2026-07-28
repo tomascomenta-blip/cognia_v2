@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;}
+  .board{display:flex;flex-wrap:wrap;padding:10px;}
+  .col{background:#fff;border:1px solid #ddd;margin:5px;flex:1 1 30%;min-width:250px;display:flex;flex-direction:column;}
+  .col-header{background:#eee;padding:5px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;}
+  .col-content{flex:1;padding:5px;min-height:100px;}
+  .card{background:#fafafa;border:1px solid #ccc;padding:5px;margin:5px 0;display:flex;justify-content:space-between;align-items:center;}
+  .card button{margin-left:5px;}
+  @media(max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">
+      <span>Por hacer</span>
+      <span>Total: <span id="cont-todo">3</span></span>
+    </div>
+    <div class="col-content" id="todo-content">
+      <div class="card" data-id="t1">
+        <span>t1</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <span>t2</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <span>t3</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">
+      <span>En progreso</span>
+      <span>Total: <span id="cont-doing">0</span></span>
+    </div>
+    <div class="col-content" id="doing-content"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">
+      <span>Hecho</span>
+      <span>Total: <span id="cont-done">0</span></span>
+    </div>
+    <div class="col-content" id="done-content"></div>
+  </div>
+</div>
+<script>
+  function updateCounters() {
+    const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent = todo;
+    document.getElementById('cont-doing').textContent = doing;
+    document.getElementById('cont-done').textContent = done;
+  }
+  function moveCard(card, direction) {
+    const colDiv = card.parentElement.parentElement; // .col-content
+    const currentData = colDiv.parentElement.dataset.col;
+    let targetData;
+    if (direction === 'mas') {
+      if (currentData === 'todo') {
+        const doingCards = document.querySelectorAll('.col[data-col="doing"] .card').length;
+        if (doingCards >= 2) return; // WIP limit
+        targetData = 'doing';
+      } else if (currentData === 'doing') {
+        targetData = 'done';
+      } else return; // done cannot advance
+    } else if (direction === 'menos') {
+      if (currentData === 'doing') {
+        targetData = 'todo';
+      } else if (currentData === 'done') {
+        targetData = 'doing';
+      } else return; // todo cannot retreat
+    }
+    const targetCol = document.querySelector('.col[data-col="' + targetData + '"] .col-content');
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+  document.querySelectorAll('.card').forEach(card => {
+    card.querySelector('.mas').addEventListener('click', () => moveCard(card, 'mas'));
+    card.querySelector('.menos').addEventListener('click', () => moveCard(card, 'menos'));
+  });
+  updateCounters();
+</script>
+</body>
+</html>

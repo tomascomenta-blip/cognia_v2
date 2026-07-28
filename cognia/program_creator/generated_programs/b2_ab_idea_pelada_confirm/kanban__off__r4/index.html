@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#fafafa;}
+  h1{margin:1rem 0;text-align:center;}
+  .board{display:flex;flex-wrap:wrap;gap:1rem;padding:1rem;}
+  .col{flex:1 1 30%;background:#e0e0e0;padding:0.5rem;border-radius:4px;}
+  .col h2{margin-top:0;font-size:1.2rem;}
+  .card{background:#fff;margin:0.5rem 0;padding:0.5rem;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+  .card-id{font-weight:bold;}
+  .card-actions{display:flex;justify-content:flex-end;gap:0.5rem;margin-top:0.5rem;}
+  button{padding:0.2rem 0.5rem;}
+  @media (max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<h1>Tablero Kanban</h1>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+class Card {
+  constructor(element) {
+    this.element = element;
+    this.id = element.dataset.id;
+    this.column = null;
+    this.masBtn = element.querySelector('.mas');
+    this.menosBtn = element.querySelector('.menos');
+    this.masBtn.addEventListener('click', () => this.moveRight());
+    this.menosBtn.addEventListener('click', () => this.moveLeft());
+  }
+  setColumn(column) {
+    this.column = column;
+    this.updateButtons();
+  }
+  moveRight() {
+    if (!this.column) return;
+    const nextCol = this.column.getNextColumn();
+    if (!nextCol) return;
+    if (nextCol.dataCol === 'doing' && nextCol.cards.length >= 2) return;
+    this.column.removeCard(this);
+    nextCol.addCard(this);
+    Board.updateCounters();
+    Board.updateTodoMasButtons();
+  }
+  moveLeft() {
+    if (!this.column) return;
+    const prevCol = this.column.getPrevColumn();
+    if (!prevCol) return;
+    this.column.removeCard(this);
+    prevCol.addCard(this);
+    Board.updateCounters();
+    Board.updateTodoMasButtons();
+  }
+  updateButtons() {
+    this.menosBtn.disabled = this.column.dataCol === 'todo';
+    if (this.column.dataCol === 'done') {
+      this.masBtn.disabled = true;
+    } else if (this.column.dataCol === 'todo') {
+      const doingCol = Board.columns['doing'];
+      this.masBtn.disabled = doingCol.cards.length >= 2;
+    } else {
+      this.masBtn.disabled = false;
+    }
+  }
+}
+class Column {
+  constructor(element) {
+    this.element = element;
+    this.dataCol = element.dataset.col;
+    this.cards = [];
+  }
+  addCard(card) {
+    this.cards.push(card);
+    this.element.appendChild(card.element);
+    card.setColumn(this);
+  }
+  removeCard(card) {
+    const idx = this.cards.indexOf(card);
+    if (idx !== -1) this.cards.splice(idx, 1);
+  }
+  getNextColumn() {
+    const order = ['todo', 'doing', 'done'];
+    const idx = order.indexOf(this.dataCol);
+    return idx < order.length - 1 ? Board.columns[order[idx + 1]] : null;
+  }
+  getPrevColumn() {
+    const order = ['todo', 'doing', 'done'];
+    const idx = order.indexOf(this.dataCol);
+    return idx > 0 ? Board.columns[order[idx - 1]] : null;
+  }
+}
+class Board {
+  static init() {
+    this.columns = {};
+    document.querySelectorAll('.col').forEach(el => {
+      const col = new Column(el);
+      this.columns[el.dataset.col] = col;
+    });
+    this.cards = [];
+    const initialIds = ['t1', 't2', 't3'];
+    initialIds.forEach(id => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.dataset.id = id;
+      cardEl.innerHTML = `
+        <div class="card-id">${id}</div>
+        <div class="card-actions">
+          <button class="menos">&lt;</button>
+          <button class="mas">&gt;</button>
+        </div>
+      `;
+      const card = new Card(cardEl);
+      this.cards.push(card);
+      this.columns['todo'].addCard(card);
+    });
+    this.updateCounters();
+    this.updateTodoMasButtons();
+  }
+  static updateCounters() {
+    document.getElementById('cont-todo').textContent = this.columns['todo'].cards.length;
+    document.getElementById('cont-doing').textContent = this.columns['doing'].cards.length;
+    document.getElementById('cont-done').textContent = this.columns['done'].cards.length;
+  }
+  static updateTodoMasButtons() {
+    const doingCol = this.columns['doing'];
+    this.columns['todo'].cards.forEach(card => {
+      card.masBtn.disabled = doingCol.cards.length >= 2;
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded', () => Board.init());
+</script>
+</body>
+</html>

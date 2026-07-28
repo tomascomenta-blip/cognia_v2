@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    padding: 0;
+    background: #f9f9f9;
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  .celda {
+    width: 100%;
+    padding: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+<h1>Mini Hoja de Cálculo 3x3</h1>
+<div id="grid">
+  <input class="celda" data-ref="A1" value="1">
+  <input class="celda" data-ref="A2">
+  <input class="celda" data-ref="A3">
+  <input class="celda" data-ref="B1" value="2">
+  <input class="celda" data-ref="B2">
+  <input class="celda" data-ref="B3">
+  <input class="celda" data-ref="C1">
+  <input class="celda" data-ref="C2">
+  <input class="celda" data-ref="C3" data-formula="=A1+B1">
+</div>
+<script>
+const REF_ROWS = ['A','B','C'];
+const REF_COLS = ['1','2','3'];
+const OPERATORS = ['+','-'];
+
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = document.querySelectorAll('.celda');
+  const refToCell = {};
+  const dependents = {};
+
+  // Map ref to cell element
+  cells.forEach(cell => {
+    refToCell[cell.dataset.ref] = cell;
+  });
+
+  // Build dependents map
+  function buildDependents() {
+    Object.keys(dependents).forEach(k => dependents[k] = []);
+    cells.forEach(cell => {
+      const ref = cell.dataset.ref;
+      const formula = cell.dataset.formula;
+      if (formula) {
+        const refs = formula.match(/([A-C][1-3])/g) || [];
+        refs.forEach(r => {
+          if (!dependents[r]) dependents[r] = [];
+          dependents[r].push(ref);
+        });
+      }
+    });
+  }
+
+  // Evaluate a cell value
+  function evaluateCell(ref, stack = []) {
+    const cell = refToCell[ref];
+    if (!cell) return 0;
+    const formula = cell.dataset.formula;
+    if (!formula) {
+      if (cell.value === 'CIRC') return 'CIRC';
+      const num = parseFloat(cell.value.trim());
+      return isNaN(num) ? 0 : num;
+    }
+    if (stack.includes(ref)) return 'CIRC';
+    stack.push(ref);
+    const expr = formula.slice(1).replace(/([A-C][1-3])/g, (m, r) => {
+      const val = evaluateCell(r, stack);
+      return val === 'CIRC' ? 'CIRC' : val;
+    });
+    if (expr.includes('CIRC')) {
+      stack.pop();
+      return 'CIRC';
+    }
+    try {
+      const result = new Function(`return ${expr}`)();
+      stack.pop();
+      return typeof result === 'number' && !isNaN(result) ? result : 'CIRC';
+    } catch (e) {
+      stack.pop();
+      return 'CIRC';
+    }
+  }
+
+  // Update cell display and propagate changes
+  function updateCell(ref) {
+    const cell = refToCell[ref];
+    if (!cell) return;
+    const val = evaluateCell(ref);
+    cell.value = val === 'CIRC' ? 'CIRC' : val.toLocaleString();
+    const deps = dependents[ref] || [];
+    deps.forEach(d => updateCell(d));
+  }
+
+  // Initial calculation
+  buildDependents();
+  cells.forEach(cell => updateCell(cell.dataset.ref));
+
+  // Handle user input
+  cells.forEach(cell => {
+    cell.addEventListener('input', () => {
+      const ref = cell.dataset.ref;
+      const val = cell.value;
+      if (val.startsWith('=')) {
+        cell.dataset.formula = val;
+      } else {
+        delete cell.dataset.formula;
+      }
+      buildDependents();
+      updateCell(ref);
+    });
+  });
+});
+</script>
+</body>
+</html>

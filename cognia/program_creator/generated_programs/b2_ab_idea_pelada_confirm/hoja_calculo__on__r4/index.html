@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f9f9f9;}
+  header{text-align:center;margin-bottom:20px;}
+  pre{font-family:monospace;text-align:center;margin:0;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .celda{width:100%;padding:5px;font-size:1rem;box-sizing:border-box;}
+</style>
+</head>
+<body>
+<header>
+<pre>
+  _____ _   _ _____ _____ _____ _____
+ |  ___| | | |  ___|  ___|  ___|  ___|
+ | |__ | | | | |__ | |__ | |__ | |__
+ |  __|| | | |  __||  __||  __||  __|
+ | |___| |_| | |___| |___| |___| |___
+ \____/ \___/ \____/\____/\____/\____/
+</pre>
+</header>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1">
+  <input type="text" class="celda" data-ref="A2">
+  <input type="text" class="celda" data-ref="A3">
+  <input type="text" class="celda" data-ref="B1">
+  <input type="text" class="celda" data-ref="B2">
+  <input type="text" class="celda" data-ref="B3">
+  <input type="text" class="celda" data-ref="C1">
+  <input type="text" class="celda" data-ref="C2">
+  <input type="text" class="celda" data-ref="C3">
+</div>
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const cells = document.querySelectorAll('.celda');
+  const cellsMap = {};
+  cells.forEach(cell => {
+    const ref = cell.dataset.ref;
+    cellsMap[ref] = cell;
+  });
+
+  let isProgrammatic = false;
+
+  function evaluateCell(ref, visited) {
+    if (visited.has(ref)) {
+      const cell = cellsMap[ref];
+      cell.dataset.num = NaN;
+      isProgrammatic = true;
+      cell.value = 'CIRC';
+      isProgrammatic = false;
+      return 'CIRC';
+    }
+    visited.add(ref);
+    const cell = cellsMap[ref];
+    const formula = cell.dataset.formula;
+    if (formula) {
+      const expr = formula.slice(1);
+      const refs = expr.match(/([A-C][1-3])/g) || [];
+      for (const r of refs) {
+        const val = evaluateCell(r, visited);
+        if (val === 'CIRC') {
+          cell.dataset.num = NaN;
+          isProgrammatic = true;
+          cell.value = 'CIRC';
+          isProgrammatic = false;
+          visited.delete(ref);
+          return 'CIRC';
+        }
+      }
+      const replaced = expr.replace(/([A-C][1-3])/g, (m, p1) => {
+        const num = cellsMap[p1].dataset.num;
+        return num;
+      });
+      try {
+        const result = eval(replaced);
+        cell.dataset.num = result;
+        const formatted = Number(result).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        isProgrammatic = true;
+        cell.value = formatted;
+        isProgrammatic = false;
+        visited.delete(ref);
+        return result;
+      } catch (e) {
+        cell.dataset.num = NaN;
+        isProgrammatic = true;
+        cell.value = 'CIRC';
+        isProgrammatic = false;
+        visited.delete(ref);
+        return 'CIRC';
+      }
+    } else {
+      const valStr = cell.value;
+      const num = parseFloat(valStr.replace(/,/g, ''));
+      const result = isNaN(num) ? 0 : num;
+      cell.dataset.num = result;
+      visited.delete(ref);
+      return result;
+    }
+  }
+
+  function evaluateAll() {
+    Object.keys(cellsMap).forEach(ref => {
+      evaluateCell(ref, new Set());
+    });
+  }
+
+  cells.forEach(cell => {
+    cell.addEventListener('input', () => {
+      if (isProgrammatic) return;
+      const val = cell.value;
+      if (val.startsWith('=')) {
+        cell.dataset.formula = val;
+      } else {
+        delete cell.dataset.formula;
+      }
+      evaluateAll();
+    });
+  });
+
+  evaluateAll();
+});
+</script>
+</body>
+</html>

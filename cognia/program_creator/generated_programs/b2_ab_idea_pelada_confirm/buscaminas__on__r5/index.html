@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;text-align:center;margin:0;padding:20px;}
+  #grid{display:grid;grid-template-columns:repeat(5,60px);gap:2px;justify-content:center;margin:auto;}
+  .c{width:60px;height:60px;background:#ccc;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-weight:bold;cursor:pointer;user-select:none;transition:background 0.3s;}
+  .c.abierta{background:#eee;cursor:default;pointer-events:none;}
+  .c.bandera{background:#ff0;color:#000;}
+  #estado{margin-top:20px;font-size:1.2em;color:#900;}
+  @keyframes fadeIn{from{opacity:0;transform:scale(0.8);}to{opacity:1;transform:scale(1);}}
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = Array.from(document.querySelectorAll('.c'));
+  const estado = document.getElementById('estado');
+  const size = 5;
+  const mines = [6,12,18];
+  const counts = Array(25).fill(0);
+
+  // Calculate adjacent mine counts
+  for (let i = 0; i < 25; i++) {
+    if (mines.includes(i)) continue;
+    let row = Math.floor(i / size), col = i % size;
+    let count = 0;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        let nr = row + dr, nc = col + dc;
+        if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+          let idx = nr * size + nc;
+          if (mines.includes(idx)) count++;
+        }
+      }
+    }
+    counts[i] = count;
+  }
+
+  // Set animation delay for each cell
+  cells.forEach((cell, i) => {
+    cell.style.animation = 'fadeIn 0.5s ease forwards';
+    cell.style.animationDelay = `${i * 0.05}s`;
+  });
+
+  // Event listeners
+  cells.forEach(cell => {
+    cell.addEventListener('click', () => {
+      const i = parseInt(cell.dataset.i);
+      if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+      if (mines.includes(i)) {
+        cell.classList.add('abierta');
+        cell.textContent = 'X';
+        estado.textContent = 'perdiste';
+        // Disable further interactions
+        cells.forEach(c => {
+          c.removeEventListener('click', () => {});
+          c.removeEventListener('contextmenu', () => {});
+        });
+        return;
+      }
+      openCell(i);
+    });
+
+    cell.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (cell.classList.contains('abierta')) return;
+      if (cell.classList.contains('bandera')) {
+        cell.classList.remove('bandera');
+        cell.textContent = '';
+      } else {
+        cell.classList.add('bandera');
+        cell.textContent = '🚩';
+      }
+    });
+  });
+
+  function openCell(i) {
+    const cell = document.querySelector(`.c[data-i="${i}"]`);
+    if (!cell || cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    const count = counts[i];
+    if (count > 0) {
+      cell.textContent = count;
+    } else {
+      cell.textContent = '';
+      // Cascade opening
+      const row = Math.floor(i / size), col = i % size;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          let nr = row + dr, nc = col + dc;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+            let idx = nr * size + nc;
+            openCell(idx);
+          }
+        }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>

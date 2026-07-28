@@ -629,3 +629,30 @@ intercalado, 0 code-change. Regla de ADOPCIÓN escrita ahora:
 (El umbral de adopción baja a +2 porque ya existe un +3 independiente de
 la misma mañana — evidencia combinada +5 sobre 48 pares; misma lógica de
 "evidencia doble" que la adopción de rondas=1.) PARCIAL nunca adopta.
+
+### RESULTADO de la confirmación (2026-07-28 ~08:10 — 23 pares, 1 de
+### infra excluido)
+
+**pelada 18/24 vs adornada 19/24; apareado 3-3 — NETO 0 → fila
+pre-registrada: DUDOSO, NO se adopta.** El +3 de la primera corrida no
+replicó (interesante: hoja_calculo aporta pares a ambos lados en la misma
+corrida). La regla de evidencia doble evitó adoptar por una corrida que
+rozó el umbral. Candidata archivada con evidencia 1 de 2.
+
+## NOVENA ENMIENDA (2026-07-28 ~08:15 — tercera corrida del adorno,
+## escrita ANTES de correrla y DECLARANDO el estado de conocimiento)
+
+Se corre una TERCERA serie idéntica (`--sufijo confirm2`, n=6, 24 pares).
+Declaración explícita: al escribir esto se conocen los resultados de las
+dos primeras (+3 y 0, total +3 sobre 47 pares) — esta enmienda fija la
+lectura FINAL por el TOTAL apareado de las tres corridas (~71 pares) para
+cerrar la pregunta sin dejar la decisión a discreción:
+
+| total apareado de las 3 corridas | decisión |
+|---|---|
+| neto ≥ +5 con reparto ≥2 tareas | se adopta idea pelada (equivale a exigir ≥ +2 a la tercera; se declara) |
+| neto en [0, +4] | la candidata se ARCHIVA: "no separable del ruido a esta potencia" — se re-abre solo con un banco más discriminante o n mucho mayor |
+| neto < 0 | contradicción: vía cerrada |
+
+Es acumulación secuencial con umbral sobre el total, declarada — lectura
+direccional por construcción; la adopción (si sale) lleva la etiqueta.

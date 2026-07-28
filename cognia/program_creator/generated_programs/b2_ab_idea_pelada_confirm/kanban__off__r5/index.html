@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;}
+.board{display:flex;height:100vh;gap:10px;padding:10px;}
+.col{flex:1;background:#fff;border-radius:4px;display:flex;flex-direction:column;}
+.col h2{margin:0;padding:10px;background:#e0e0e0;font-size:1rem;}
+.card{margin:10px;padding:10px;background:#fff;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,.1);display:flex;justify-content:space-between;align-items:center;}
+.card button{width:24px;height:24px;border:none;border-radius:50%;background:#c0e8ff;color:#333;font-size:1rem;cursor:pointer;}
+.card button:disabled{background:#ddd;color:#999;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h2>Todo <span id="cont-todo"></span></h2>
+<div class="card" data-id="t1"><span>t1</span><div><button class="menos">←</button><button class="mas">→</button></div></div>
+<div class="card" data-id="t2"><span>t2</span><div><button class="menos">←</button><button class="mas">→</button></div></div>
+<div class="card" data-id="t3"><span>t3</span><div><button class="menos">←</button><button class="mas">→</button></div></div>
+</div>
+<div class="col" data-col="doing"><h2>Doing <span id="cont-doing"></span></h2></div>
+<div class="col" data-col="done"><h2>Done <span id="cont-done"></span></h2></div>
+</div>
+<script>
+function updateCounters(){['todo','doing','done'].forEach(c=>{document.getElementById('cont-'+c).textContent=document.querySelectorAll('.col[data-col="'+c+'"] .card').length;});}
+function move(card,dir){let col=card.parentElement;let curr=col.dataset.col;let target;if(dir==='mas'){if(curr==='todo'){target='doing';}else if(curr==='doing'){target='done';}else return;}else{if(curr==='doing'){target='todo';}else if(curr==='done'){target='doing';}else return;}
+let targetCol=document.querySelector('.col[data-col="'+target+'"]');if(target==='doing'&&targetCol.querySelectorAll('.card').length>=2)return;targetCol.appendChild(card);updateCounters();}
+document.querySelectorAll('.mas').forEach(b=>b.addEventListener('click',e=>move(e.target.parentElement.parentElement,'mas')));
+document.querySelectorAll('.menos').forEach(b=>b.addEventListener('click',e=>move(e.target.parentElement.parentElement,'menos')));
+updateCounters();
+</script>
+</body>
+</html>

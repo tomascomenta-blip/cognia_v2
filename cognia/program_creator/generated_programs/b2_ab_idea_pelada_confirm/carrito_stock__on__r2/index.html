@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con STOCK</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;color:#333;}
+h1{background:#4CAF50;color:white;padding:10px;text-align:center;}
+#products{display:flex;flex-wrap:wrap;justify-content:center;padding:10px;}
+.prod{background:white;border:1px solid #ddd;border-radius:4px;margin:10px;padding:10px;width:200px;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+.prod h3{margin:0 0 5px;}
+.prod p{margin:5px 0;}
+.prod button{background:#4CAF50;color:white;border:none;padding:5px 10px;border-radius:3px;cursor:pointer;}
+.prod button:disabled{background:#aaa;cursor:not-allowed;}
+#cart{background:white;border-top:1px solid #ddd;padding:10px;margin:10px;}
+#linea{display:flex;align-items:center;justify-content:space-between;margin:5px 0;}
+.linea span.cant{font-weight:bold;margin:0 5px;}
+.linea button{background:#f44336;color:white;border:none;padding:3px 6px;border-radius:3px;cursor:pointer;}
+.linea button:disabled{background:#aaa;cursor:not-allowed;}
+#cart-total{font-size:1.2em;margin-top:10px;}
+@media (max-width:600px){
+.prod{width:100%;}
+}
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+<div id="products">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+<h3>Producto 1</h3>
+<p>Precio: <span class="precio"></span></p>
+<p>Stock disponible: <span class="stock"></span></p>
+<button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+<h3>Producto 2</h3>
+<p>Precio: <span class="precio"></span></p>
+<p>Stock disponible: <span class="stock"></span></p>
+<button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+<h3>Producto 3</h3>
+<p>Precio: <span class="precio"></span></p>
+<p>Stock disponible: <span class="stock"></span></p>
+<button class="add" data-id="p3">Añadir</button>
+</div>
+</div>
+<div id="cart">
+<h2>Carrito</h2>
+<div id="cart-lines"></div>
+<div id="cart-total"><strong>Total:</strong> <span id="total">€0,00</span></div>
+</div>
+<script>
+const currencyOptions = {style:'currency', currency:'EUR', minimumFractionDigits:2, maximumFractionDigits:2};
+function formatCurrency(value){return value.toLocaleString('es-ES', currencyOptions);}
+document.querySelectorAll('.precio').forEach(el=>{
+  const prod = el.parentElement.parentElement;
+  el.textContent = formatCurrency(parseFloat(prod.dataset.precio));
+});
+document.querySelectorAll('.stock').forEach(el=>{
+  const prod = el.parentElement.parentElement;
+  el.textContent = prod.dataset.stock;
+});
+const cart = {}; // {id: quantity}
+const addButtons = document.querySelectorAll('.add');
+addButtons.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const id = btn.dataset.id;
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock);
+    cart[id] = (cart[id]||0)+1;
+    if(cart[id] >= stock){btn.disabled = true;}
+    updateCart();
+  });
+});
+function updateCart(){
+  const lines = document.getElementById('cart-lines');
+  lines.innerHTML = '';
+  let total = 0;
+  for(const id in cart){
+    const qty = cart[id];
+    if(qty>0){
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      total += price*qty;
+      const line = document.createElement('div');
+      line.className='linea';
+      line.dataset.id=id;
+      const name = document.createElement('span');
+      name.textContent = prod.querySelector('h3').textContent;
+      const qtySpan = document.createElement('span');
+      qtySpan.className='cant';
+      qtySpan.textContent = qty;
+      const btn = document.createElement('button');
+      btn.className='quitar';
+      btn.dataset.id=id;
+      btn.textContent='Quitar';
+      btn.addEventListener('click',()=>{
+        cart[id]--;
+        const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+        if(cart[id] <= 0){
+          delete cart[id];
+          addBtn.disabled = false;
+        }else{
+          const stock = parseInt(prod.dataset.stock);
+          addBtn.disabled = cart[id] >= stock;
+        }
+        updateCart();
+      });
+      line.appendChild(name);
+      line.appendChild(qtySpan);
+      line.appendChild(btn);
+      lines.appendChild(line);
+    }
+  }
+  document.getElementById('total').textContent = formatCurrency(total);
+}
+</script>
+</body>
+</html>

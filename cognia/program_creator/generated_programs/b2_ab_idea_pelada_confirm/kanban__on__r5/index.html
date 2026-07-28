@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:10px;background:#fafafa}
+.board{display:flex;gap:10px}
+.col{flex:1;border:1px solid #ccc;background:#fff;padding:5px}
+.col h3{margin:0 0 5px;font-size:14px}
+.card{background:#e3f2fd;margin:5px 0;padding:5px;border:1px solid #90caf9;display:flex;justify-content:space-between;align-items:center}
+.card button{margin-left:5px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo"><h3>Todo <span id="cont-todo"></span></h3></div>
+  <div class="col" data-col="doing"><h3>Doing <span id="cont-doing"></span></h3></div>
+  <div class="col" data-col="done"><h3>Done <span id="cont-done"></span></h3></div>
+</div>
+<script>
+const cols=['todo','doing','done'];
+function createCard(id){
+  const d=document.createElement('div');d.className='card';d.dataset.id=id;
+  d.innerHTML=`<span>${id}</span><div><button class="menos">←</button><button class="mas">→</button></div>`;
+  return d;
+}
+function update(){
+  cols.forEach(c=>{
+    const col=document.querySelector(`.col[data-col="${c}"]`);
+    document.getElementById(`cont-${c}`).textContent=col.querySelectorAll('.card').length;
+  });
+}
+function move(e){
+  const btn=e.target; if(!btn.classList.contains('mas')&&!btn.classList.contains('menos'))return;
+  const card=btn.closest('.card'); const col=card.parentElement; const cur=col.dataset.col;
+  const idx=cols.indexOf(cur); const delta=btn.classList.contains('mas')?1:-1;
+  const newIdx=idx+delta; if(newIdx<0||newIdx>2)return;
+  const newCol=document.querySelector(`.col[data-col="${cols[newIdx]}"]`);
+  if(cols[newIdx]==='doing' && newCol.querySelectorAll('.card').length>=2)return;
+  newCol.appendChild(card); update();
+}
+document.querySelectorAll('.col').forEach(c=>c.addEventListener('click',move));
+['t1','t2','t3'].forEach(id=>document.querySelector('.col[data-col="todo"]').appendChild(createCard(id)));
+update();
+</script>
+</body>
+</html>

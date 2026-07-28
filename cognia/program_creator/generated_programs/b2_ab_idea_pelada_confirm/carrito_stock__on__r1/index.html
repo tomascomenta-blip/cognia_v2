@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{font-family:sans-serif;margin:1rem}
+.prod{margin-bottom:.5rem}
+.prod button{margin-left:.5rem}
+.linea{display:flex;align-items:center;margin-bottom:.3rem}
+.linea button{margin-left:.5rem}
+#total{font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Carrito de compra</h1>
+<div id="products">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+<span>Producto 1 - 100,00 € (Stock: 2)</span>
+<button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+<span>Producto 2 - 50,00 € (Stock: 3)</span>
+<button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+<span>Producto 3 - 25,00 € (Stock: 1)</span>
+<button class="add" data-id="p3">Añadir</button>
+</div>
+</div>
+<h2>Carrito</h2>
+<div id="cart"></div>
+<div>Total: <span id="total">0,00 €</span></div>
+<script>
+const cart=document.getElementById('cart'),totalEl=document.getElementById('total');
+function format(v){return v.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function recalc(){let sum=0;cart.querySelectorAll('.linea').forEach(l=>{const id=l.dataset.id;const qty=parseInt(l.dataset.qty);const price=parseFloat(document.querySelector(`[data-id="${id}"]`).dataset.precio);sum+=qty*price;});totalEl.textContent=format(sum);}
+document.querySelectorAll('.add').forEach(b=>b.addEventListener('click',e=>{const id=b.dataset.id;const prod=document.querySelector(`[data-id="${id}"]`);const stock=parseInt(prod.dataset.stock);let line=cart.querySelector(`.linea[data-id="${id}"]`);if(line){let qty=parseInt(line.dataset.qty)+1;if(qty>stock){return;}line.dataset.qty=qty;line.querySelector('.cant').textContent=qty;if(qty===stock){b.disabled=true;}}else{line=document.createElement('div');line.className='linea';line.dataset.id=id;line.dataset.qty=1;line.innerHTML=`<span class="cant">1</span> <button class="quitar" data-id="${id}">Quitar</button>`;cart.appendChild(line);if(stock===1){b.disabled=true;}}recalc();}));
+cart.addEventListener('click',e=>{if(e.target.classList.contains('quitar')){const id=e.target.dataset.id;const line=e.target.closest('.linea');let qty=parseInt(line.dataset.qty)-1;if(qty>0){line.dataset.qty=qty;line.querySelector('.cant').textContent=qty;if(qty<parseInt(document.querySelector(`[data-id="${id}"]`).dataset.stock)){document.querySelector(`.add[data-id="${id}"]`).disabled=false;}}else{line.remove();document.querySelector(`.add[data-id="${id}"]`).disabled=false;}recalc();}});
+</script>
+</body>
+</html>

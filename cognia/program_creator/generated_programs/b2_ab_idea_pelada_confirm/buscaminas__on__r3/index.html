@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:90vmin;height:90vmin;}
+.c{background:#ccc;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;}
+.c.abierta{background:#eee;cursor:default;}
+.c.bandera{background:#f99;}
+#estado{margin-top:10px;font-size:1.2rem;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+for(let i=0;i<25;i++){
+  const c=document.createElement('div');c.className='c';c.dataset.i=i;
+  if(mines.includes(i))c.dataset.mine='1';
+  c.addEventListener('click',e=>{
+    if(c.classList.contains('bandera')||c.classList.contains('abierta'))return;
+    c.classList.add('abierta');
+    if(c.dataset.mine){document.getElementById('estado').textContent='perdiste';return;}
+    const adj=countAdj(i);
+    if(adj>0)c.textContent=adj;
+    if(adj===0)flood(i);
+  });
+  c.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(c.classList.contains('abierta'))return;
+    c.classList.toggle('bandera');
+  });
+  grid.appendChild(c);
+}
+function countAdj(i){const r=Math.floor(i/5),c=Math.floor(i%5),dirs=[-1,0,1];let cnt=0;for(let dr of dirs)for(let dc of dirs){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;const idx=nr*5+nc;if(mines.includes(idx))cnt++;}return cnt;}
+function flood(i){const r=Math.floor(i/5),c=Math.floor(i%5),dirs=[-1,0,1];for(let dr of dirs)for(let dc of dirs){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;const idx=nr*5+nc;const cell=document.querySelector(`.c[data-i="${idx}"]`);if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))continue;cell.classList.add('abierta');if(mines.includes(idx))continue;const adj=countAdj(idx);if(adj>0)cell.textContent=adj;if(adj===0)flood(idx);}}
+</script>
+</body>
+</html>
