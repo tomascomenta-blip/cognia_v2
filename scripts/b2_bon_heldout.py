@@ -137,14 +137,30 @@ def main(argv: list) -> int:
         commit = "?"
     # Reanudar tras un cambio de código o de plan mezclaría dos sistemas
     # sin dejar rastro (revisión pre-lanzamiento): se aborta ruidosamente.
+    # --acepta-commit: si el que reanuda VERIFICÓ que los commits nuevos no
+    # tocan cognia/ ni el runner (docs/datos), puede seguir — y la config
+    # registra TODOS los commits bajo los que corrió, no finge uno solo.
     previa = res.get("config")
     if reanudar and previa:
-        for campo, ahora in (("commit", commit), ("replicas", replicas),
+        for campo, ahora in (("replicas", replicas),
                              ("muestras_por_ensayo", muestras_k)):
             if previa.get(campo) != ahora:
                 sys.exit(f"--reanudar con {campo} distinto "
                          f"({previa.get(campo)} -> {ahora}): la corrida "
                          f"mezclaría dos sistemas; usa --sufijo nuevo")
+        commits_previos = previa.get("commits", [previa.get("commit")])
+        if commit not in commits_previos:
+            if "--acepta-commit" not in argv:
+                sys.exit(f"--reanudar con commit distinto "
+                         f"({commits_previos} -> {commit}): si los commits "
+                         f"nuevos no tocan el sistema medido, relanza con "
+                         f"--acepta-commit; si lo tocan, --sufijo nuevo")
+            print(f"  REANUDACION ACEPTADA entre commits: "
+                  f"{commits_previos} + {commit}", flush=True)
+            commits_previos = commits_previos + [commit]
+        res_commits = commits_previos
+    else:
+        res_commits = [commit]
     # Sondas en runtime, no copias muertas del env (patrón b2_ab_lazo).
     from cognia.program_creator.generator import _componentes_de_idea
     sonda_fix2 = _componentes_de_idea(
@@ -152,7 +168,7 @@ def main(argv: list) -> int:
         "paleta oscura con acentos vivos")
     res["config"] = {
         "replicas": replicas, "muestras_por_ensayo": muestras_k,
-        "commit": commit, "max_rondas": 1,
+        "commit": commit, "commits": res_commits, "max_rondas": 1,
         "max_rondas_defecto": diseno_a_codigo.MAX_RONDAS_DEFECTO,
         "fix2_activo_sonda": not any("paleta" in p or "TARGET" in p
                                      for p in sonda_fix2),
