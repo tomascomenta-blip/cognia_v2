@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:1em;background:#f9f9f9;}
+  h1{font-size:1.5em;text-align:center;margin-bottom:0.5em;}
+  pre{font-family:monospace;text-align:center;margin:0 0 1em;}
+  table{border-collapse:collapse;width:100%;max-width:400px;margin:0 auto;}
+  td{border:1px solid #ccc;}
+  input.celda{width:100%;height:2em;padding:0.2em;box-sizing:border-box;text-align:right;font-size:1em;}
+  @media (max-width:600px){input.celda{font-size:0.9em;}}
+</style>
+</head>
+<body>
+<h1>🗂️ Mini Hoja de Cálculo</h1>
+<pre>
+  _____ _   _ _____ _____
+ |  ___| | | |  ___|  ___|
+ | |__ | | | | |__ | |__ 
+ |  __|| | | |  __||  __|
+ | |___| |_| | |___| |___
+ \____/ \___/ \____/\____/
+</pre>
+<table>
+  <tr>
+    <td><input type="text" class="celda" data-ref="A1"></td>
+    <td><input type="text" class="celda" data-ref="B1"></td>
+    <td><input type="text" class="celda" data-ref="C1"></td>
+  </tr>
+  <tr>
+    <td><input type="text" class="celda" data-ref="A2"></td>
+    <td><input type="text" class="celda" data-ref="B2"></td>
+    <td><input type="text" class="celda" data-ref="C2"></td>
+  </tr>
+  <tr>
+    <td><input type="text" class="celda" data-ref="A3"></td>
+    <td><input type="text" class="celda" data-ref="B3"></td>
+    <td><input type="text" class="celda" data-ref="C3"></td>
+  </tr>
+</table>
+<script>
+(() => {
+  const cells = {};
+  const inputs = document.querySelectorAll('input.celda');
+  inputs.forEach(inp => { cells[inp.dataset.ref] = inp; });
+
+  let isUpdating = false;
+
+  function evaluateCell(ref, stack) {
+    const el = cells[ref];
+    if (!el) return 0;
+    if (el.dataset.formula) {
+      if (stack.includes(ref)) return 'CIRC';
+      const expr = el.dataset.formula.slice(1);
+      const replaced = expr.replace(/[A-C][1-3]/g, match => {
+        const val = evaluateCell(match, stack.concat(ref));
+        if (val === 'CIRC') return 'CIRC';
+        return val;
+      });
+      if (replaced.includes('CIRC')) return 'CIRC';
+      try {
+        const result = Function('return ' + replaced)();
+        if (typeof result !== 'number' || isNaN(result)) return 'CIRC';
+        return result;
+      } catch (e) {
+        return 'CIRC';
+      }
+    } else {
+      const val = parseFloat(el.value);
+      return isNaN(val) ? 0 : val;
+    }
+  }
+
+  function recalcAll() {
+    isUpdating = true;
+    for (const ref in cells) {
+      const el = cells[ref];
+      if (el.dataset.formula) {
+        const val = evaluateCell(ref, []);
+        if (val === 'CIRC') {
+          el.value = 'CIRC';
+        } else {
+          el.value = val.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+      }
+    }
+    isUpdating = false;
+  }
+
+  inputs.forEach(inp => {
+    inp.addEventListener('input', e => {
+      if (isUpdating) return;
+      const val = e.target.value;
+      if (val.startsWith('=')) {
+        e.target.dataset.formula = val;
+      } else {
+        delete e.target.dataset.formula;
+      }
+      recalcAll();
+    });
+  });
+
+  recalcAll();
+})();
+</script>
+</body>
+</html>

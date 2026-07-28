@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+table{width:100%;border-collapse:collapse;}
+td{border:1px solid #ccc;}
+input{width:100%;box-sizing:border-box;padding:8px;font-size:1rem;}
+</style>
+</head>
+<body>
+<table>
+<tr><td><input class="celda" data-ref="A1"></td><td><input class="celda" data-ref="B1"></td><td><input class="celda" data-ref="C1"></td></tr>
+<tr><td><input class="celda" data-ref="A2"></td><td><input class="celda" data-ref="B2"></td><td><input class="celda" data-ref="C2"></td></tr>
+<tr><td><input class="celda" data-ref="A3"></td><td><input class="celda" data-ref="B3"></td><td><input class="celda" data-ref="C3" value="=A1+B1"></td></tr>
+</table>
+<script>
+const cells=document.querySelectorAll('.celda');
+const map={};
+cells.forEach(c=>{map[c.dataset.ref]=c;c.addEventListener('input',e=>{if(e.target.value.startsWith('='))e.target.dataset.formula=e.target.value;else delete e.target.dataset.formula;e.target.setAttribute('value',e.target.value);recalc();});});
+if(map['C3'].value.startsWith('='))map['C3'].dataset.formula=map['C3'].value;
+function recalc(){cells.forEach(c=>{if(c.dataset.formula){const val=evalF(c,new Set());c.value=val;c.setAttribute('value',val);} } );}
+function evalF(c,vis){const r=c.dataset.ref;if(vis.has(r))return'CIRC';vis.add(r);const expr=c.dataset.formula.slice(1);const toks=expr.match(/[A-Z][1-3]|[+-]/g)||[];let res=0,op='+';for(let i=0;i<toks.length;i+=2){let t=toks[i];let num;if(/[A-Z][1-3]/.test(t)){const tC=map[t];if(tC.dataset.formula){num=evalF(tC,vis);if(num==='CIRC')return'CIRC';num=parseFloat(num);}else{num=parseFloat(tC.value)||0;}}else{num=parseFloat(t)||0;}if(op==='+')res+=num;else res-=num;op=toks[i+1]||'+';}vis.delete(r);return res.toString();}recalc();
+</script>
+</body>
+</html>

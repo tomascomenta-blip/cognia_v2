@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#222;
+    color:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+  }
+  #game{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90vmin;
+    max-width:400px;
+  }
+  .c{
+    background:#555;
+    border:1px solid #444;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:1.5rem;
+    color:#00f;
+    cursor:pointer;
+    user-select:none;
+    aspect-ratio:1;
+    box-shadow:0 1px 3px rgba(0,0,0,0.5);
+    transition:background 0.2s;
+  }
+  .c.abierta{background:#777;color:#00f;}
+  .c.bandera{background:#555;color:#f00;}
+  #estado{
+    margin-top:10px;
+    text-align:center;
+    font-size:1.2rem;
+  }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor() {
+    this.mineIndices = new Set([6,12,18]); // posiciones fijas de las minas
+    this.totalCells = 25;
+    this.cells = [];
+    this.counts = new Array(this.totalCells).fill(0);
+    this.gameOver = false;
+    this.initGrid();
+    this.computeCounts();
+    this.attachEvents();
+  }
+  initGrid() {
+    const game = document.getElementById('game');
+    for (let i=0;i<this.totalCells;i++){
+      const div=document.createElement('div');
+      div.classList.add('c');
+      div.dataset.i=i;
+      game.appendChild(div);
+      this.cells.push(div);
+    }
+  }
+  computeCounts() {
+    for (let i=0;i<this.totalCells;i++){
+      if (this.mineIndices.has(i)) continue;
+      let count=0;
+      for (const n of this.neighbors(i)){
+        if (this.mineIndices.has(n)) count++;
+      }
+      this.counts[i]=count;
+    }
+  }
+  neighbors(idx){
+    const res=[];
+    const row=Math.floor(idx/5);
+    const col=idx%5;
+    for (let dr=-1;dr<=1;dr++){
+      for (let dc=-1;dc<=1;dc++){
+        if (dr===0 && dc===0) continue;
+        const r=row+dr;
+        const c=col+dc;
+        if (r>=0 && r<5 && c>=0 && c<5){
+          res.push(r*5+c);
+        }
+      }
+    }
+    return res;
+  }
+  attachEvents(){
+    for (const cell of this.cells){
+      cell.addEventListener('click',e=>this.handleClick(e));
+      cell.addEventListener('contextmenu',e=>this.handleRight(e));
+    }
+  }
+  handleClick(e){
+    if (this.gameOver) return;
+    const cell=e.currentTarget;
+    if (cell.classList.contains('bandera')) return;
+    const idx=parseInt(cell.dataset.i);
+    if (this.mineIndices.has(idx)){
+      this.revealMine(idx);
+      document.getElementById('estado').textContent='perdiste';
+      this.gameOver=true;
+      return;
+    }
+    this.cascadeOpen(idx);
+  }
+  handleRight(e){
+    e.preventDefault();
+    if (this.gameOver) return;
+    const cell=e.currentTarget;
+    if (cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+  revealMine(idx){
+    const cell=this.cells[idx];
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+  }
+  cascadeOpen(startIdx){
+    const queue=[startIdx];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      if (visited.has(idx)) continue;
+      visited.add(idx);
+      const cell=this.cells[idx];
+      if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+      cell.classList.add('abierta');
+      const count=this.counts[idx];
+      cell.textContent=count>0?count:'';
+      if (count===0){
+        for (const n of this.neighbors(idx)){
+          if (!visited.has(n) && !this.mineIndices.has(n)){
+            queue.push(n);
+          }
+        }
+      }
+    }
+  }
+}
+new Minesweeper();
+</script>
+</body>
+</html>

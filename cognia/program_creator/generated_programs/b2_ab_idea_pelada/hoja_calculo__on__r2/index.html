@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3x3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f0f0;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:#333;}
+  .celda{width:100%;padding:8px;border:none;box-sizing:border-box;font-size:1rem;}
+  .celda:focus{outline:2px solid #0066cc;}
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<script>
+  // Configurables
+  const REF_ROWS = ['A','B','C'];
+  const REF_COLS = ['1','2','3'];
+  const cells = {};          // map ref -> input element
+  const cycleRefs = new Set(); // refs that are part of a cycle
+
+  const grid = document.querySelector('.grid');
+
+  // Create the 3x3 grid of inputs
+  REF_ROWS.forEach(r => {
+    REF_COLS.forEach(c => {
+      const ref = r + c;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'celda';
+      input.dataset.ref = ref;
+      input.dataset.raw = ''; // raw content typed by the user
+      input.addEventListener('input', () => {
+        input.dataset.raw = input.value;
+        recalcAll();
+      });
+      grid.appendChild(input);
+      cells[ref] = input;
+    });
+  });
+
+  // Recalculate all cells
+  function recalcAll() {
+    cycleRefs.clear();
+    Object.values(cells).forEach(cell => {
+      const raw = cell.dataset.raw;
+      if (raw.startsWith('=')) {
+        const val = evaluateCell(cell.dataset.ref, new Set());
+        if (cycleRefs.has(cell.dataset.ref) || isNaN(val)) {
+          cell.value = 'CIRC';
+        } else {
+          cell.value = val.toString();
+        }
+      } else {
+        cell.value = raw;
+      }
+    });
+  }
+
+  // Evaluate a cell recursively
+  function evaluateCell(ref, stack) {
+    if (stack.has(ref)) {
+      // Cycle detected
+      stack.forEach(r => cycleRefs.add(r));
+      cycleRefs.add(ref);
+      return NaN;
+    }
+    if (cycleRefs.has(ref)) return NaN;
+
+    const cell = cells[ref];
+    const raw = cell.dataset.raw;
+    if (!raw.startsWith('=')) {
+      return raw; // non‑formula: return raw string
+    }
+
+    stack.add(ref);
+    const expr = raw.slice(1); // remove leading '='
+    const tokens = expr.match(/([A-C][1-3])|([+-])|(\d+(\.\d+)?)/g);
+    if (!tokens) {
+      stack.delete(ref);
+      return NaN;
+    }
+
+    let idx = 0;
+    let current;
+
+    // First term
+    const first = tokens[idx++];
+    if (/^[A-C][1-3]$/.test(first)) {
+      const val = evaluateCell(first, stack);
+      current = parseNumeric(val);
+    } else {
+      current = parseFloat(first);
+    }
+
+    // Remaining terms
+    while (idx < tokens.length) {
+      const op = tokens[idx++];
+      const term = tokens[idx++];
+      let termVal;
+      if (/^[A-C][1-3]$/.test(term)) {
+        const val = evaluateCell(term, stack);
+        termVal = parseNumeric(val);
+      } else {
+        termVal = parseFloat(term);
+      }
+      if (op === '+') current += termVal;
+      else if (op === '-') current -= termVal;
+    }
+
+    stack.delete(ref);
+    return current;
+  }
+
+  // Helper: parse numeric value, treating non‑numeric as 0
+  function parseNumeric(str) {
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Initial calculation
+  recalcAll();
+</script>
+</body>
+</html>

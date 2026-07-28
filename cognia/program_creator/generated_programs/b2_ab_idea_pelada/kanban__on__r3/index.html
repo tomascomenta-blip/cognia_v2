@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{flex:1 1 200px;background:#fff;border:1px solid #ddd;border-radius:4px;display:flex;flex-direction:column;}
+  .col h2{margin:0;padding:10px;background:#e0e0e0;border-bottom:1px solid #ddd;font-size:1.1em;}
+  .col .cards{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px;}
+  .card{background:#fafafa;border:1px solid #ccc;border-radius:4px;padding:8px;display:flex;align-items:center;justify-content:space-between;}
+  .card p{margin:0;flex:1;}
+  button{margin-left:4px;padding:2px 6px;font-size:0.9em;}
+  button:disabled{opacity:0.4;}
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1">
+        <p>Tarea 1</p>
+        <div>
+          <button class="menos">←</button>
+          <button class="mas">→</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <p>Tarea 2</p>
+        <div>
+          <button class="menos">←</button>
+          <button class="mas">→</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <p>Tarea 3</p>
+        <div>
+          <button class="menos">←</button>
+          <button class="mas">→</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const cols = ['todo','doing','done'];
+  const colElems = {};
+  cols.forEach(c=>{colElems[c]=document.querySelector('.col[data-col="'+c+'"] .cards');});
+
+  function updateCounters(){
+    cols.forEach(c=>{
+      const cnt = colElems[c].children.length;
+      document.getElementById('cont-'+c).textContent='('+cnt+')';
+    });
+  }
+
+  function moveCard(card, direction){
+    const currentCol = card.parentElement.parentElement.parentElement.getAttribute('data-col');
+    const idx = cols.indexOf(currentCol);
+    let targetIdx = idx + direction; // -1 for menos, +1 for mas
+    if(targetIdx<0 || targetIdx>=cols.length) return; // out of bounds
+    // WIP rule: doing max 2 cards
+    if(cols[targetIdx]==='doing' && colElems['doing'].children.length>=2) return;
+    // move
+    colElems[cols[targetIdx]].appendChild(card);
+    updateCounters();
+  }
+
+  document.querySelectorAll('.mas').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      const card = e.target.closest('.card');
+      moveCard(card, +1);
+    });
+  });
+  document.querySelectorAll('.menos').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      const card = e.target.closest('.card');
+      moveCard(card, -1);
+    });
+  });
+
+  updateCounters(); // initial counts
+})();
+</script>
+</body>
+</html>

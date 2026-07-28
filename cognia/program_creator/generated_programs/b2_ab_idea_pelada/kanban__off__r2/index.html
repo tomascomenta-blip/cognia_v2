@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una página</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family: Arial, Helvetica, sans-serif;
+    margin:0;
+    padding:0;
+    background:#f0f0f0;
+  }
+  #board{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px;
+  }
+  .col{
+    background:#fff;
+    flex:1 1 250px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    padding:10px;
+    box-sizing:border-box;
+  }
+  .col h3{
+    margin-top:0;
+    font-size:1.2em;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card{
+    background:#e3f2fd;
+    border:1px solid #90caf9;
+    border-radius:4px;
+    padding:8px;
+    margin-bottom:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card span{
+    flex:1;
+  }
+  .card button{
+    margin-left:4px;
+    padding:2px 6px;
+    font-size:0.9em;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .card button.mas{
+    background:#4caf50;
+    color:#fff;
+  }
+  .card button.menos{
+    background:#f44336;
+    color:#fff;
+  }
+  .card button:disabled{
+    background:#ccc;
+    cursor:not-allowed;
+  }
+  @media(max-width:600px){
+    .col{
+      flex:1 1 100%;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h3>Todo <span id="cont-todo"></span></h3>
+    <div class="card" data-id="t1">
+      <span>Tarea 1</span>
+      <div>
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <span>Tarea 2</span>
+      <div>
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <span>Tarea 3</span>
+      <div>
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h3>Doing <span id="cont-doing"></span></h3>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Done <span id="cont-done"></span></h3>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const board = document.getElementById('board');
+  const cols = {
+    todo: document.querySelector('.col[data-col="todo"]'),
+    doing: document.querySelector('.col[data-col="doing"]'),
+    done: document.querySelector('.col[data-col="done"]')
+  };
+
+  function updateCounters(){
+    const todoCount = cols.todo.querySelectorAll('.card').length;
+    const doingCount = cols.doing.querySelectorAll('.card').length;
+    const doneCount = cols.done.querySelectorAll('.card').length;
+    document.getElementById('cont-todo').textContent = todoCount;
+    document.getElementById('cont-doing').textContent = doingCount;
+    document.getElementById('cont-done').textContent = doneCount;
+  }
+
+  function moveCard(card, direction){
+    const currentCol = card.parentElement.dataset.col;
+    let targetCol = null;
+
+    if(direction === 'right'){
+      if(currentCol === 'todo'){
+        if(cols.doing.querySelectorAll('.card').length >= 2) return; // WIP limit
+        targetCol = 'doing';
+      }else if(currentCol === 'doing'){
+        targetCol = 'done';
+      }else if(currentCol === 'done'){
+        return; // cannot move right from done
+      }
+    }else if(direction === 'left'){
+      if(currentCol === 'doing'){
+        targetCol = 'todo';
+      }else if(currentCol === 'done'){
+        targetCol = 'doing';
+      }else if(currentCol === 'todo'){
+        return; // cannot move left from todo
+      }
+    }
+
+    if(targetCol){
+      cols[targetCol].appendChild(card);
+      updateCounters();
+    }
+  }
+
+  // Attach listeners to all buttons
+  board.querySelectorAll('.mas').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const card = this.closest('.card');
+      moveCard(card, 'right');
+    });
+  });
+
+  board.querySelectorAll('.menos').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const card = this.closest('.card');
+      moveCard(card, 'left');
+    });
+  });
+
+  // Initial counter update
+  updateCounters();
+});
+</script>
+</body>
+</html>

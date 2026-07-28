@@ -1,0 +1,157 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background:#f9f9f9;
+  }
+  .prod, .linea{
+    padding:10px;
+    margin:10px 0;
+    border:1px solid #ddd;
+    border-radius:5px;
+    background:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .prod span, .linea span{
+    flex:1;
+  }
+  button{
+    padding:5px 10px;
+    cursor:pointer;
+  }
+  button:disabled{
+    background:#ccc;
+    cursor:not-allowed;
+  }
+  #cart{
+    margin-top:30px;
+  }
+  #total{
+    font-weight:bold;
+  }
+  /* Animación de entrada */
+  .fade-in{
+    animation: fadeIn 1s ease-in;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+  <h1>Productos</h1>
+  <div id="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <span>Producto 1 - $100 - Stock: 2</span>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <span>Producto 2 - $50 - Stock: 3</span>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <span>Producto 3 - $25 - Stock: 1</span>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+
+  <div id="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: $<span id="total">0</span></div>
+  </div>
+
+<script>
+  // Datos de los productos
+  const productos = {
+    p1:{precio:100, stock:2},
+    p2:{precio:50, stock:3},
+    p3:{precio:25, stock:1}
+  };
+
+  // Carrito: id -> cantidad
+  const carrito = {};
+
+  // Función para actualizar el total
+  function actualizarTotal(){
+    let total = 0;
+    for(const id in carrito){
+      total += carrito[id] * productos[id].precio;
+    }
+    document.getElementById('total').textContent = total;
+  }
+
+  // Función para crear o actualizar una línea en el carrito
+  function actualizarLinea(id){
+    const linesDiv = document.getElementById('lines');
+    let linea = document.querySelector(`.linea[data-id="${id}"]`);
+    if(carrito[id] > 0){
+      if(linea){
+        linea.querySelector('.cant').textContent = carrito[id];
+      }else{
+        linea = document.createElement('div');
+        linea.className = 'linea';
+        linea.dataset.id = id;
+        linea.innerHTML = `
+          <span>Producto ${id.toUpperCase()} - $${productos[id].precio}</span>
+          <span class="cant">${carrito[id]}</span>
+          <button class="quitar" data-id="${id}">Quitar</button>
+        `;
+        linesDiv.appendChild(linea);
+      }
+    }else{
+      if(linea) linea.remove();
+    }
+  }
+
+  // Manejar clics en los botones "Añadir"
+  document.getElementById('products').addEventListener('click', e=>{
+    if(e.target.classList.contains('add')){
+      const id = e.target.dataset.id;
+      const stock = productos[id].stock;
+      const cantActual = carrito[id] || 0;
+      if(cantActual < stock){
+        carrito[id] = cantActual + 1;
+        actualizarLinea(id);
+        actualizarTotal();
+        if(carrito[id] === stock){
+          e.target.disabled = true;
+        }
+      }
+    }
+  });
+
+  // Manejar clics en los botones "Quitar"
+  document.getElementById('lines').addEventListener('click', e=>{
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      if(carrito[id]){
+        carrito[id] -= 1;
+        actualizarLinea(id);
+        actualizarTotal();
+        // Habilitar botón "Añadir" si queda espacio
+        const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+        if(addBtn && carrito[id] < productos[id].stock){
+          addBtn.disabled = false;
+        }
+      }
+    }
+  });
+
+  // Animación al cargar la página
+  window.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('products').classList.add('fade-in');
+    document.getElementById('cart').classList.add('fade-in');
+  });
+</script>
+</body>
+</html>

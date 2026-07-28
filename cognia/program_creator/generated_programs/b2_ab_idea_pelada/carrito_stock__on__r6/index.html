@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  h1,h2{margin:0.5rem 0;text-align:center;}
+  #products{display:flex;flex-wrap:wrap;justify-content:space-around;}
+  .prod{border:1px solid #ccc;background:#fff;padding:0.5rem;margin:0.5rem;flex:1 1 200px;box-sizing:border-box;text-align:center;}
+  .prod .price{display:block;margin:0.5rem 0;font-weight:bold;}
+  .prod .add{padding:0.3rem 0.6rem;}
+  #cart{margin-top:1rem;}
+  .linea{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding:0.5rem 0;}
+  .linea .cant{font-weight:bold;}
+  .linea .quitar{padding:0.2rem 0.4rem;}
+  .total{text-align:right;margin-top:1rem;font-size:1.2rem;}
+  button:disabled{opacity:0.5;}
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span class="name">Producto 1</span>
+    <span class="price">€100.00</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span class="name">Producto 2</span>
+    <span class="price">€50.00</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span class="name">Producto 3</span>
+    <span class="price">€25.00</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div id="cart"></div>
+
+<div class="total">Total: <span id="total">€0.00</span></div>
+
+<script>
+(function(){
+  const cart = {}; // {id: quantity}
+  const products = document.querySelectorAll('.prod');
+  const cartContainer = document.getElementById('cart');
+  const totalSpan = document.getElementById('total');
+
+  function formatCurrency(value){
+    return value.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+
+  function updateCart(){
+    // Clear cart display
+    cartContainer.innerHTML = '';
+    let total = 0;
+    for(const id in cart){
+      const qty = cart[id];
+      if(qty <= 0) continue;
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      total += qty * price;
+
+      // Create line
+      const line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+
+      const name = prod.querySelector('.name').textContent;
+      const priceSpan = document.createElement('span');
+      priceSpan.textContent = `${name} - ${formatCurrency(price)}`;
+
+      const qtySpan = document.createElement('span');
+      qtySpan.className = 'cant';
+      qtySpan.textContent = qty;
+
+      const quitarBtn = document.createElement('button');
+      quitarBtn.className = 'quitar';
+      quitarBtn.dataset.id = id;
+      quitarBtn.textContent = 'Quitar';
+
+      line.appendChild(priceSpan);
+      line.appendChild(qtySpan);
+      line.appendChild(quitarBtn);
+      cartContainer.appendChild(line);
+    }
+    totalSpan.textContent = formatCurrency(total);
+
+    // Update add buttons disabled state
+    products.forEach(prod=>{
+      const id = prod.dataset.id;
+      const stock = parseInt(prod.dataset.stock,10);
+      const qty = cart[id] || 0;
+      const addBtn = prod.querySelector('.add');
+      addBtn.disabled = qty >= stock;
+    });
+  }
+
+  // Add button handler
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click', function(){
+      const id = this.dataset.id;
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const stock = parseInt(prod.dataset.stock,10);
+      const qty = cart[id] || 0;
+      if(qty < stock){
+        cart[id] = qty + 1;
+        updateCart();
+      }
+    });
+  });
+
+  // Quitar button handler (delegated)
+  cartContainer.addEventListener('click', function(e){
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      const qty = cart[id] || 0;
+      if(qty > 0){
+        cart[id] = qty - 1;
+        if(cart[id] <= 0) delete cart[id];
+        updateCart();
+      }
+    }
+  });
+
+  // Initial render
+  updateCart();
+})();
+</script>
+</body>
+</html>

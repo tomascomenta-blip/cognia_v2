@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;min-height:100vh;}
+  header{background:#2a78d6;color:white;padding:1rem;text-align:center;}
+  main{flex:1;padding:1rem;display:flex;flex-direction:column;gap:1rem;}
+  .products,.cart{display:flex;flex-direction:column;gap:0.5rem;}
+  .prod{display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border:1px solid #ccc;border-radius:4px;}
+  .prod button.add{padding:0.3rem 0.6rem;}
+  .linea{display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border:1px solid #ccc;border-radius:4px;}
+  .linea button.quitar{padding:0.3rem 0.6rem;}
+  #total{font-weight:bold;font-size:1.2rem;text-align:right;}
+  @media (min-width:600px){
+    .products,.cart{flex-direction:row;flex-wrap:wrap;}
+    .prod,.linea{width:calc(33.333% - 1rem);}
+  }
+</style>
+</head>
+<body>
+<header>Carrito de Compra con Stock</header>
+<main>
+  <section class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <span>Producto 1 - $100.00</span>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <span>Producto 2 - $50.00</span>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <span>Producto 3 - $25.00</span>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </section>
+  <section class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-contents"></div>
+    <span id="total">Total: $0.00</span>
+  </section>
+</main>
+<script>
+class Cart {
+  constructor() {
+    this.items = {}; // id -> {qty, price, stock}
+    this.totalEl = document.getElementById('total');
+    this.cartEl = document.getElementById('cart-contents');
+    this.init();
+  }
+  init() {
+    document.querySelectorAll('.add').forEach(btn => {
+      btn.addEventListener('click', () => this.addItem(btn.dataset.id));
+    });
+  }
+  addItem(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const price = parseFloat(prod.dataset.precio);
+    const stock = parseInt(prod.dataset.stock);
+    const current = this.items[id] || {qty:0, price, stock};
+    if (current.qty >= stock) return;
+    current.qty += 1;
+    this.items[id] = current;
+    this.updateLine(id);
+    this.updateAddButton(id);
+    this.updateTotal();
+  }
+  removeItem(id) {
+    const item = this.items[id];
+    if (!item) return;
+    item.qty -= 1;
+    if (item.qty <= 0) {
+      delete this.items[id];
+      this.removeLine(id);
+    } else {
+      this.updateLine(id);
+    }
+    this.updateAddButton(id);
+    this.updateTotal();
+  }
+  updateLine(id) {
+    let line = this.cartEl.querySelector(`.linea[data-id="${id}"]`);
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `
+        <span class="name"></span>
+        <span class="cant"></span>
+        <button class="quitar" data-id="${id}">-</button>
+      `;
+      this.cartEl.appendChild(line);
+      line.querySelector('.quitar').addEventListener('click', () => this.removeItem(id));
+    }
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    line.querySelector('.name').textContent = prod.querySelector('span').textContent;
+    line.querySelector('.cant').textContent = this.items[id].qty;
+  }
+  removeLine(id) {
+    const line = this.cartEl.querySelector(`.linea[data-id="${id}"]`);
+    if (line) line.remove();
+  }
+  updateAddButton(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const btn = prod.querySelector('.add');
+    const qty = this.items[id] ? this.items[id].qty : 0;
+    const stock = parseInt(prod.dataset.stock);
+    btn.disabled = qty >= stock;
+  }
+  updateTotal() {
+    let total = 0;
+    for (const id in this.items) {
+      total += this.items[id].price * this.items[id].qty;
+    }
+    this.totalEl.textContent = 'Total: $' + total.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  new Cart();
+});
+</script>
+</body>
+</html>

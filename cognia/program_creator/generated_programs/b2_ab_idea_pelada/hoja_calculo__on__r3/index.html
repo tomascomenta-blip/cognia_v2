@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:sans-serif;margin:0;padding:20px;background:#f0f0f0;color:#333;}
+  h1{font-size:1.5rem;margin-bottom:0.5rem;}
+  p{margin-top:0;margin-bottom:1rem;}
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    max-width:400px;
+    margin:auto;
+  }
+  .celda{
+    width:100%;
+    box-sizing:border-box;
+    padding:6px;
+    font-size:1rem;
+    text-align:right;
+    border:1px solid #bbb;
+    border-radius:4px;
+    background:#fff;
+  }
+  .celda:focus{outline:none;border-color:#66afe9;background:#e6f7ff;}
+</style>
+</head>
+<body>
+<h1>Mini Hoja de Cálculo 3x3</h1>
+<p>Escribe valores o fórmulas (ejemplo: <code>=A1+B1-A2</code>) y observa cómo se actualizan.</p>
+<div id="grid">
+  <input type="text" class="celda" data-ref="A1" placeholder="A1">
+  <input type="text" class="celda" data-ref="B1" placeholder="B1">
+  <input type="text" class="celda" data-ref="C1" placeholder="C1">
+  <input type="text" class="celda" data-ref="A2" placeholder="A2">
+  <input type="text" class="celda" data-ref="B2" placeholder="B2">
+  <input type="text" class="celda" data-ref="C2" placeholder="C2">
+  <input type="text" class="celda" data-ref="A3" placeholder="A3">
+  <input type="text" class="celda" data-ref="B3" placeholder="B3">
+  <input type="text" class="celda" data-ref="C3" placeholder="C3">
+</div>
+<script>
+(function(){
+  const inputs = document.querySelectorAll('.celda');
+  const refMap = {};
+  inputs.forEach(inp=>{refMap[inp.dataset.ref]=inp;});
+  let isUpdating=false;
+
+  function evaluateCell(ref, visited){
+    const inp=refMap[ref];
+    const content=inp.value.trim();
+    if(!content.startsWith('=')){
+      const num=parseFloat(content);
+      return isNaN(num)?0:num;
+    }
+    if(visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    let expr=content.slice(1);
+    expr=expr.replace(/[A-C][1-3]/g,match=>{
+      const val=evaluateCell(match,visited);
+      if(val==='CIRC') return 'NaN';
+      return val;
+    });
+    let result;
+    try{
+      result=Function('"use strict";return ('+expr+')')();
+    }catch(e){
+      result='CIRC';
+    }
+    visited.delete(ref);
+    return result;
+  }
+
+  function recalcAll(){
+    isUpdating=true;
+    inputs.forEach(inp=>{
+      const content=inp.value.trim();
+      if(content.startsWith('=')){
+        const val=evaluateCell(inp.dataset.ref,new Set());
+        inp.value=val==='CIRC'? 'CIRC': val;
+      }
+    });
+    isUpdating=false;
+  }
+
+  inputs.forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      if(isUpdating) return;
+      recalcAll();
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded',recalcAll);
+})();
+</script>
+</body>
+</html>

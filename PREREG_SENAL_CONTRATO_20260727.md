@@ -601,3 +601,31 @@ sello honesto es "sin verificar" antes que un examen que acusa al 75-79%
 de las páginas sanas.** Nota de nivel (deriva): el clásico concurrente dio
 8/24 de aciertos donde anoche dio 10/24 — otra confirmación de que solo
 los controles concurrentes valen.
+
+### RESULTADO Unidad B (2026-07-28 ~07:00 — COMPLETO: 24 pares, 0 infra)
+
+**pelada 19/24 (79%) vs adornada 16/24 (67%); apareado: pelada gana 4
+(buscaminas r3, carrito r4 y r6, hoja r2 — 3 tareas), adornada gana 1
+(kanban r3) — NETO PELADA = +3 con reparto → fila pre-registrada: EL
+ADORNO ROBA HOY.** El brazo F de la séptima enmienda del prereg BON lo
+había absuelto PRE-fix-dashboard (0/12 en un sistema al 17%: no había
+margen que robar); post-fixes y con rondas=1, quitar el TARGET LOOK
+recupera 3 celdas netas. Coherente con el mecanismo del fix2 v2: el brief
+estético compite con los requisitos duros en composicionales.
+
+## OCTAVA ENMIENDA (2026-07-28 ~07:05 — confirmación del adorno, escrita
+## ANTES de correr; el umbral +3 se tocó JUSTO y la política exige doble)
+
+Confirmación independiente: mismo runner y diseño (`--var
+COGNIA_IDEA_PELADA --sufijo confirm`), n=6 nuevo (24 pares frescos),
+intercalado, 0 code-change. Regla de ADOPCIÓN escrita ahora:
+
+| confirmación | decisión |
+|---|---|
+| pelada neto ≥ +2 con reparto ≥2 tareas | **se adopta**: el lazo construye con la idea PELADA por defecto (el brief queda para árbitro/sprites); reversible por env `COGNIA_IDEA_ADORNADA=1`; cambio + test + suite antes del aterrizaje |
+| neto en [−1, +1] | dudoso: NO se adopta; queda candidata con evidencia 1 de 2 |
+| neto ≤ −2 | contradicción: NO se adopta; reportar ambas corridas |
+
+(El umbral de adopción baja a +2 porque ya existe un +3 independiente de
+la misma mañana — evidencia combinada +5 sobre 48 pares; misma lógica de
+"evidencia doble" que la adopción de rondas=1.) PARCIAL nunca adopta.

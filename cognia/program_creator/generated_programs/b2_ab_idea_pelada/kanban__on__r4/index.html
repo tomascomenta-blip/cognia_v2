@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body {font-family: Arial, sans-serif; margin: 0; padding: 1rem; background:#eaeaea;}
+  h1 {text-align:center; margin-bottom:1rem;}
+  #board {display:flex; flex-wrap:wrap; gap:1rem;}
+  .col {flex:1 1 30%; min-width:250px; background:#f4f4f4; padding:0.5rem; border-radius:4px;}
+  .col h2 {margin-top:0; font-size:1.2rem; display:flex; justify-content:space-between; align-items:center;}
+  .card {background:white; margin:0.5rem 0; padding:0.5rem; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center;}
+  .card button {margin-left:0.25rem; padding:0.2rem 0.4rem; font-size:0.9rem;}
+  @media (max-width:600px) { .col {flex:1 1 100%;} }
+</style>
+</head>
+<body>
+<h1>Tablero Kanban</h1>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.board = document.getElementById('board');
+    this.columns = {
+      todo: this.board.querySelector('[data-col="todo"]'),
+      doing: this.board.querySelector('[data-col="doing"]'),
+      done: this.board.querySelector('[data-col="done"]')
+    };
+    this.counters = {
+      todo: document.getElementById('cont-todo'),
+      doing: document.getElementById('cont-doing'),
+      done: document.getElementById('cont-done')
+    };
+    this.cards = {}; // map id to element
+    this.init();
+  }
+  init() {
+    ['t1', 't2', 't3'].forEach(id => this.createCard(id, 'todo'));
+    this.updateCounters();
+  }
+  createCard(id, colName) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    const span = document.createElement('span');
+    span.textContent = id;
+    card.appendChild(span);
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '→';
+    btnMas.addEventListener('click', () => this.moveCard(id, 'right'));
+    card.appendChild(btnMas);
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+    btnMenos.addEventListener('click', () => this.moveCard(id, 'left'));
+    card.appendChild(btnMenos);
+    this.columns[colName].appendChild(card);
+    this.cards[id] = card;
+  }
+  moveCard(id, direction) {
+    const card = this.cards[id];
+    const currentCol = this.getCardColumn(card);
+    let targetColName;
+    if (direction === 'right') {
+      if (currentCol === 'done') return;
+      if (currentCol === 'todo') targetColName = 'doing';
+      else if (currentCol === 'doing') targetColName = 'done';
+    } else if (direction === 'left') {
+      if (currentCol === 'todo') return;
+      if (currentCol === 'doing') targetColName = 'todo';
+      else if (currentCol === 'done') targetColName = 'doing';
+    }
+    if (targetColName === 'doing' && this.getColumnCards('doing').length >= 2) {
+      return;
+    }
+    this.columns[targetColName].appendChild(card);
+    this.updateCounters();
+  }
+  getCardColumn(card) {
+    for (const [name, col] of Object.entries(this.columns)) {
+      if (col.contains(card)) return name;
+    }
+    return null;
+  }
+  getColumnCards(colName) {
+    return Array.from(this.columns[colName].querySelectorAll('.card'));
+  }
+  updateCounters() {
+    for (const colName of ['todo', 'doing', 'done']) {
+      const count = this.getColumnCards(colName).length;
+      this.counters[colName].textContent = count.toLocaleString();
+    }
+  }
+}
+window.addEventListener('DOMContentLoaded', () => {
+  new KanbanBoard();
+});
+</script>
+</body>
+</html>

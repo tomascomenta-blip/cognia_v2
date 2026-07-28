@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:10px;background:#f0f0f0;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .celda{width:100%;height:2rem;font-size:1rem;padding:0 5px;box-sizing:border-box;}
+</style>
+</head>
+<body>
+<h1>Mini hoja de cálculo 3x3</h1>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+<script>
+  (function(){
+    const cells=document.querySelectorAll('.celda');
+    const refs={};
+    cells.forEach(c=>{refs[c.dataset.ref]=c;});
+    function evaluateAll(){
+      const cache={};
+      const cycleRefs=new Set();
+      function evalCell(ref,stack){
+        if(cache[ref]!==undefined)return cache[ref];
+        if(stack.includes(ref)){cycleRefs.add(ref);return null;}
+        stack.push(ref);
+        const cell=refs[ref];
+        const val=cell.value;
+        if(!val.startsWith('=')){
+          const num=parseFloat(val);
+          const res=isNaN(num)?0:num;
+          cache[ref]=res;
+          stack.pop();
+          return res;
+        }
+        const expr=val.slice(1);
+        const replaced=expr.replace(/[A-C][1-3]/g,match=>{
+          const r=evalCell(match,stack);
+          if(r===null){cycleRefs.add(match);return '0';}
+          return r;
+        });
+        let res;
+        try{res=eval(replaced);}catch(e){res=0;}
+        cache[ref]=res;
+        stack.pop();
+        return res;
+      }
+      Object.keys(refs).forEach(ref=>{
+        const cell=refs[ref];
+        if(cell.value.startsWith('=')){
+          evalCell(ref,[]);
+        }
+      });
+      Object.keys(refs).forEach(ref=>{
+        const cell=refs[ref];
+        if(cycleRefs.has(ref)){
+          cell.value='CIRC';
+        }else if(cell.value.startsWith('=')){
+          const val=cache[ref];
+          cell.value=val.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+        }
+      });
+    }
+    cells.forEach(c=>c.addEventListener('input',evaluateAll));
+    evaluateAll();
+  })();
+</script>
+</body>
+</html>

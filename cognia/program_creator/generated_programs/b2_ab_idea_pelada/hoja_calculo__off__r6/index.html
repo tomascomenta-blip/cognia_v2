@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+  h1{font-size:1.5rem;text-align:center;margin-bottom:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:400px;margin:auto;}
+  .celda{width:100%;padding:8px;font-size:1rem;box-sizing:border-box;}
+</style>
+</head>
+<body>
+<h1>Mini hoja de cálculo 3x3</h1>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = document.querySelectorAll('.celda');
+  const map = {};
+  cells.forEach(c => { map[c.dataset.ref] = c; });
+
+  function evaluate(ref, stack) {
+    const cell = map[ref];
+    if (!cell) return NaN;
+    if (stack.has(ref)) { // circular reference
+      cell.value = 'CIRC';
+      cell.dataset.evaluated = NaN;
+      return NaN;
+    }
+    if (cell.dataset.evaluated !== undefined) return cell.dataset.evaluated;
+
+    const val = cell.value;
+    if (val.startsWith('=')) {
+      const expr = val.slice(1).replace(/[A-C][1-3]/g, match => {
+        const v = evaluate(match, new Set(stack).add(ref));
+        return isNaN(v) ? 'NaN' : v;
+      });
+      let res;
+      try {
+        res = Function('return ' + expr)();
+      } catch (e) {
+        res = NaN;
+      }
+      if (isNaN(res)) {
+        cell.value = 'CIRC';
+        cell.dataset.evaluated = NaN;
+        return NaN;
+      }
+      // format number with 2 decimals, thousands separator
+      cell.value = res.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      cell.dataset.evaluated = res;
+      return res;
+    } else {
+      cell.dataset.evaluated = val;
+      return val;
+    }
+  }
+
+  function recalc() {
+    Object.keys(map).forEach(ref => delete map[ref].dataset.evaluated);
+    Object.keys(map).forEach(ref => evaluate(ref, new Set()));
+  }
+
+  cells.forEach(c => c.addEventListener('input', recalc));
+  recalc(); // initial calculation
+});
+</script>
+</body>
+</html>

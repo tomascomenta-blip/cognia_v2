@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#e0e0e0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    grid-auto-rows:1fr;
+    gap:2px;
+    width:90vmin;
+    max-width:400px;
+    aspect-ratio:1/1;
+  }
+  .c{
+    background:#f0f0f0;
+    border:1px solid #ccc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2em;
+    cursor:pointer;
+    user-select:none;
+    transition:background-color .2s;
+  }
+  .c.abierta{
+    background:#b2f5ea;
+    border:1px solid #8ed6d3;
+    cursor:default;
+  }
+  .c.bandera::before{
+    content:"🚩";
+    color:#ff0000;
+    font-size:1.2em;
+  }
+  .c.bandera{
+    color:transparent;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2em;
+    color:#d00;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const gridSize = 5;
+const totalCells = gridSize * gridSize;
+const mineIndices = new Set([6,12,18]);
+
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+
+function createGrid(){
+  for(let i=0;i<totalCells;i++){
+    const cell=document.createElement('div');
+    cell.classList.add('c');
+    cell.dataset.i=i;
+    cell.addEventListener('click',onCellClick);
+    cell.addEventListener('contextmenu',onCellRightClick);
+    grid.appendChild(cell);
+  }
+}
+
+function onCellClick(e){
+  const cell=e.currentTarget;
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+  const idx=parseInt(cell.dataset.i,10);
+  if(mineIndices.has(idx)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    estado.textContent='perdiste';
+    return;
+  }
+  openCell(idx);
+}
+
+function onCellRightClick(e){
+  e.preventDefault();
+  const cell=e.currentTarget;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+  }else{
+    cell.classList.add('bandera');
+  }
+}
+
+function openCell(idx){
+  const cell=getCellByIndex(idx);
+  if(!cell||cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+  const count=countAdjacentMines(idx);
+  cell.classList.add('abierta');
+  cell.textContent=count>0?count:'';
+  if(count===0) floodFill(idx);
+}
+
+function floodFill(idx){
+  const neighbors=getNeighbors(idx);
+  for(const n of neighbors){
+    const cell=getCellByIndex(n);
+    if(!cell||cell.classList.contains('abierta')||cell.classList.contains('bandera')) continue;
+    if(mineIndices.has(n)) continue;
+    const count=countAdjacentMines(n);
+    cell.classList.add('abierta');
+    cell.textContent=count>0?count:'';
+    if(count===0) floodFill(n);
+  }
+}
+
+function getCellByIndex(idx){
+  return grid.querySelector(`.c[data-i="${idx}"]`);
+}
+
+function getNeighbors(idx){
+  const r=Math.floor(idx/gridSize);
+  const c=idx%gridSize;
+  const neigh=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0) continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<gridSize&&nc>=0&&nc<gridSize){
+        neigh.push(nr*gridSize+nc);
+      }
+    }
+  }
+  return neigh;
+}
+
+function countAdjacentMines(idx){
+  const neigh=getNeighbors(idx);
+  let cnt=0;
+  for(const n of neigh){
+    if(mineIndices.has(n)) cnt++;
+  }
+  return cnt;
+}
+
+createGrid();
+</script>
+</body>
+</html>

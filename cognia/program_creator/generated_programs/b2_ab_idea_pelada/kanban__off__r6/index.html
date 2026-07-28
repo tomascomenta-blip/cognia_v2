@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban Simple</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{background:#fff;border-radius:5px;flex:1;min-width:250px;display:flex;flex-direction:column;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .col-header{background:#e0e0e0;padding:10px;border-bottom:1px solid #ccc;font-weight:bold;}
+  .col-header h2{margin:0;font-size:1.2em;display:flex;align-items:center;}
+  .col-header span{margin-left:10px;font-weight:normal;font-size:0.9em;color:#555;}
+  .card{background:#fafafa;border:1px solid #ddd;border-radius:3px;margin:10px;padding:10px;display:flex;align-items:center;justify-content:space-between;}
+  .card span{flex:1;}
+  .card button{margin-left:5px;padding:2px 6px;font-size:0.9em;}
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div id="board" class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header"><h2>Todo <span id="cont-todo"></span></h2></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header"><h2>Doing <span id="cont-doing"></span></h2></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header"><h2>Done <span id="cont-done"></span></h2></div>
+  </div>
+</div>
+<script>
+  // Tunable constants
+  const MAX_DOING = 2;
+  const columns = ['todo', 'doing', 'done'];
+  const initialCards = ['t1', 't2', 't3'];
+
+  const board = document.getElementById('board');
+  const colElements = {};
+  columns.forEach(col => {
+    colElements[col] = board.querySelector(`.col[data-col="${col}"]`);
+  });
+
+  // Create card element
+  function createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const idSpan = document.createElement('span');
+    idSpan.textContent = id;
+    card.appendChild(idSpan);
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '→';
+    btnMas.addEventListener('click', () => handleMove(card, 'right'));
+    card.appendChild(btnMas);
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+    btnMenos.addEventListener('click', () => handleMove(card, 'left'));
+    card.appendChild(btnMenos);
+
+    return card;
+  }
+
+  // Move card logic
+  function handleMove(card, direction) {
+    const currentCol = card.parentElement.dataset.col;
+    let targetCol = null;
+
+    if (direction === 'right') {
+      if (currentCol === 'todo') {
+        if (colElements['doing'].querySelectorAll('.card').length >= MAX_DOING) return;
+        targetCol = 'doing';
+      } else if (currentCol === 'doing') {
+        targetCol = 'done';
+      } else if (currentCol === 'done') {
+        return; // cannot move right
+      }
+    } else if (direction === 'left') {
+      if (currentCol === 'done') {
+        targetCol = 'doing';
+      } else if (currentCol === 'doing') {
+        targetCol = 'todo';
+      } else if (currentCol === 'todo') {
+        return; // cannot move left
+      }
+    }
+
+    if (targetCol) {
+      colElements[targetCol].appendChild(card);
+      updateCounters();
+    }
+  }
+
+  // Update counters
+  function updateCounters() {
+    columns.forEach(col => {
+      const count = colElements[col].querySelectorAll('.card').length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+
+  // Initialize board
+  function init() {
+    const todoCol = colElements['todo'];
+    initialCards.forEach(id => {
+      const card = createCard(id);
+      todoCol.appendChild(card);
+    });
+    updateCounters();
+  }
+
+  init();
+</script>
+</body>
+</html>

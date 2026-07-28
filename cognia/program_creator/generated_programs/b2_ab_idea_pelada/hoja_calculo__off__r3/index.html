@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+  #grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:400px;margin:auto;}
+  .celda{width:100%;padding:8px;font-size:1rem;text-align:right;border:1px solid #ccc;border-radius:4px;}
+  .celda:focus{outline:none;border-color:#007bff;}
+  #art{margin-top:20px;font-family:monospace;font-size:0.9rem;text-align:center;color:#555;}
+</style>
+</head>
+<body>
+<h2 style="text-align:center;">Mini Hoja de Cálculo 3x3</h2>
+<div id="grid">
+  <input class="celda" data-ref="A1" placeholder="A1">
+  <input class="celda" data-ref="A2" placeholder="A2">
+  <input class="celda" data-ref="A3" placeholder="A3">
+  <input class="celda" data-ref="B1" placeholder="B1">
+  <input class="celda" data-ref="B2" placeholder="B2">
+  <input class="celda" data-ref="B3" placeholder="B3">
+  <input class="celda" data-ref="C1" placeholder="C1">
+  <input class="celda" data-ref="C2" placeholder="C2">
+  <input class="celda" data-ref="C3" placeholder="C3">
+</div>
+<div id="art">
+<pre>
+   ┌───────────────────────┐
+   │  Mini Hoja 3x3        │
+   │  ┌─────┬─────┬─────┐  │
+   │  │ A1  │ A2  │ A3  │  │
+   │  ├─────┼─────┼─────┤  │
+   │  │ B1  │ B2  │ B3  │  │
+   │  ├─────┼─────┼─────┤  │
+   │  │ C1  │ C2  │ C3  │  │
+   │  └─────┴─────┴─────┘  │
+   └───────────────────────┘
+</pre>
+</div>
+<script>
+(() => {
+  const refs = ["A1","A2","A3","B1","B2","B3","C1","C2","C3"];
+  const cells = {};
+  const rawValue = {};
+  const cellFormula = {};
+
+  refs.forEach(ref => {
+    const el = document.querySelector(`input[data-ref="${ref}"]`);
+    cells[ref] = el;
+    rawValue[ref] = "";
+    el.addEventListener('input', () => handleInput(ref));
+  });
+
+  function handleInput(ref) {
+    const val = cells[ref].value;
+    if (val.startsWith('=')) {
+      cellFormula[ref] = val.slice(1);
+    } else {
+      delete cellFormula[ref];
+      rawValue[ref] = val;
+    }
+    recomputeAll();
+  }
+
+  function recomputeAll() {
+    refs.forEach(ref => {
+      if (cellFormula[ref]) {
+        const res = evaluateCell(ref, new Set());
+        if (res === "CIRC") {
+          cells[ref].value = "CIRC";
+        } else if (res === "ERR") {
+          cells[ref].value = "ERR";
+        } else {
+          cells[ref].value = formatNumber(res);
+        }
+      } else {
+        cells[ref].value = rawValue[ref];
+      }
+    });
+  }
+
+  function evaluateCell(ref, stack) {
+    if (stack.has(ref)) return "CIRC";
+    stack.add(ref);
+    const formula = cellFormula[ref];
+    if (!formula) {
+      const val = rawValue[ref];
+      const num = parseFloat(val);
+      stack.delete(ref);
+      return isNaN(num) ? 0 : num;
+    }
+    const tokens = [];
+    const regex = /([A-C][1-3])|(\+|\-)|(\d+(\.\d+)?)/g;
+    let m;
+    while ((m = regex.exec(formula)) !== null) {
+      if (m[1]) tokens.push({type:'ref', value:m[1]});
+      else if (m[3]) tokens.push({type:'op', value:m[3]});
+      else if (m[4]) tokens.push({type:'num', value:m[4]});
+    }
+    if (tokens.length === 0) {
+      stack.delete(ref);
+      return "ERR";
+    }
+    let acc;
+    let op = '+';
+    for (const tok of tokens) {
+      if (tok.type === 'op') {
+        op = tok.value;
+      } else {
+        let val;
+        if (tok.type === 'num') {
+          val = parseFloat(tok.value);
+        } else {
+          val = evaluateCell(tok.value, stack);
+          if (val === "CIRC" || val === "ERR") {
+            stack.delete(ref);
+            return val;
+          }
+        }
+        if (op === '+') acc = (acc === undefined ? 0 : acc) + val;
+        else if (op === '-') acc = (acc === undefined ? 0 : acc) - val;
+      }
+    }
+    stack.delete(ref);
+    return acc;
+  }
+
+  function formatNumber(num) {
+    if (typeof num !== 'number' || isNaN(num)) return "";
+    return num.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

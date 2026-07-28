@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:10px;}
+.board{display:flex;gap:10px;}
+.col{flex:1;background:#f0f0f0;padding:10px;min-height:200px;}
+.col h3{margin:0 0 10px;}
+.card{background:#fff;border:1px solid #ccc;margin-bottom:5px;padding:5px;}
+.card button{margin-right:5px;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h3>Todo <span id="cont-todo"></span></h3>
+<div class="card" data-id="t1">t1 <button class="mas">→</button><button class="menos">←</button></div>
+<div class="card" data-id="t2">t2 <button class="mas">→</button><button class="menos">←</button></div>
+<div class="card" data-id="t3">t3 <button class="mas">→</button><button class="menos">←</button></div>
+</div>
+<div class="col" data-col="doing"><h3>En Progreso <span id="cont-doing"></span></h3></div>
+<div class="col" data-col="done"><h3>Hecho <span id="cont-done"></span></h3></div>
+</div>
+<script>
+const cols=['todo','doing','done'];
+function update(){cols.forEach(c=>{document.getElementById('cont-'+c).textContent=document.querySelectorAll('.col[data-col="'+c+'"] .card').length;});}
+document.querySelectorAll('.card button').forEach(b=>{b.addEventListener('click',e=>{let card=b.parentNode;let col=card.parentNode.dataset.col;let idx=cols.indexOf(col);let dir=b.classList.contains('mas')?1:-1;let newIdx=idx+dir;if(newIdx<0||newIdx>2)return;let newCol=cols[newIdx];if(col==='todo'&&newCol==='doing'&&document.querySelectorAll('.col[data-col="doing"] .card').length>=2)return;card.parentNode.removeChild(card);document.querySelector('.col[data-col="'+newCol+'"]').appendChild(card);update();});});update();
+</script>
+</body>
+</html>

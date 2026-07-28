@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#e0f7ff;font-family:sans-serif;}
+#container{background:#fff;padding:10px;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.1);display:grid;grid-template-columns:repeat(5,1fr);gap:5px;width:90vw;max-width:300px;}
+.c{background:#d3d3d3;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;position:relative;}
+.c.abierta{background:#fff;color:#333;}
+.c.bandera{background:#ffeb3b;}
+#estado{margin-top:10px;text-align:center;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="container"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,12,18]);const cells=[];const container=document.getElementById('container');for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;container.appendChild(d);cells.push(d);}
+function countAdj(i){let r=Math.floor(i/5),c=i%5,tot=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;if(mines.has(nr*5+nc))tot++;}return tot;}
+const adjCounts=Array.from({length:25},(_,i)=>countAdj(i));
+function openCell(d){const i=+d.dataset.i;if(d.classList.contains('bandera')||d.classList.contains('abierta'))return;if(mines.has(i)){d.classList.add('abierta');d.textContent='💣';document.getElementById('estado').textContent='perdiste';return;}const cnt=adjCounts[i];d.classList.add('abierta');d.textContent=cnt?cnt:'';if(cnt===0){const queue=[d];while(queue.length){const cur=queue.shift();const idx=+cur.dataset.i;const r=Math.floor(idx/5),c=idx%5;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr<0||nr>4||nc<0||nc>4)continue;let nd=cells[nr*5+nc];if(nd.classList.contains('abierta')||nd.classList.contains('bandera'))continue;const ncnt=adjCounts[nr*5+nc];nd.classList.add('abierta');nd.textContent=ncnt?ncnt:'';if(ncnt===0)queue.push(nd);}}}}
+}
+function toggleFlag(e){e.preventDefault();const d=e.currentTarget;if(d.classList.contains('abierta'))return;d.classList.toggle('bandera');d.textContent=d.classList.contains('bandera')?'🚩':'';}
+cells.forEach(d=>{d.addEventListener('click',()=>openCell(d));d.addEventListener('contextmenu',toggleFlag);});
+</script>
+</body>
+</html>

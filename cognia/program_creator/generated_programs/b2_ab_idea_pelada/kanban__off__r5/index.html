@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+#board{display:flex;gap:10px;padding:10px;flex-wrap:wrap;}
+.col{background:#fff;border-radius:4px;padding:10px;flex:1 1 30%;min-width:200px;}
+.card{background:#e3e3e3;margin:5px 0;padding:5px;border-radius:3px;display:flex;justify-content:space-between;align-items:center;}
+button{margin-left:5px;}
+@media(max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<div id="board">
+<div class="col" data-col="todo"><h3>Todo (<span id="cont-todo"></span>)</h3><div class="card" data-id="t1"><span>t1</span><div><button class="menos">←</button><button class="mas">→</button></div></div><div class="card" data-id="t2"><span>t2</span><div><button class="menos">←</button><button class="mas">→</button></div></div><div class="card" data-id="t3"><span>t3</span><div><button class="menos">←</button><button class="mas">→</button></div></div></div>
+<div class="col" data-col="doing"><h3>En Progreso (<span id="cont-doing"></span>)</h3></div>
+<div class="col" data-col="done"><h3>Hecho (<span id="cont-done"></span>)</h3></div>
+</div>
+<script>
+function update(){const cols=document.querySelectorAll('.col');cols.forEach(c=>{const col=c.dataset.col;const cnt=c.querySelectorAll('.card').length;document.getElementById('cont-'+col).textContent=cnt;});}
+function move(e){const btn=e.target;if(!btn.classList.contains('mas')&&!btn.classList.contains('menos'))return;const card=btn.closest('.card');const col=card.parentElement.dataset.col;let target;if(btn.classList.contains('mas')){if(col==='done')return;target=col==='todo'?'doing':'done';}else{if(col==='todo')return;target=col==='doing'?'todo':'doing';}const targetCol=document.querySelector('.col[data-col="'+target+'"]');if(target==='doing'&&targetCol.querySelectorAll('.card').length>=2)return;card.parentElement.removeChild(card);targetCol.appendChild(card);update();}
+document.querySelectorAll('.mas,.menos').forEach(b=>b.addEventListener('click',move));update();
+</script>
+</body>
+</html>
