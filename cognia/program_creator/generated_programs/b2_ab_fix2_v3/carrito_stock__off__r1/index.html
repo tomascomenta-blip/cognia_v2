@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{font-family:sans-serif;margin:1rem;}
+.prod{margin:.5rem 0;}
+.prod button{margin-left:.5rem;}
+.linea{margin:.3rem 0;}
+.linea span{margin:0 .3rem;}
+#total{font-weight:bold;}
+</style>
+</head>
+<body>
+<h1>Carrito con Stock</h1>
+<div id="productos">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+Producto 1 - <span class="precio"></span>
+<button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+Producto 2 - <span class="precio"></span>
+<button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+Producto 3 - <span class="precio"></span>
+<button class="add" data-id="p3">Añadir</button>
+</div>
+</div>
+<h2>Carrito</h2>
+<div id="carrito"></div>
+<p>Total: <span id="total" data-value="0">0</span></p>
+<script>
+const fmt=new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'});
+document.querySelectorAll('.prod').forEach(p=>p.querySelector('.precio').textContent=fmt.format(+p.dataset.precio));
+const cart=document.getElementById('carrito'),totalEl=document.getElementById('total'),qty={};
+function recalc(){let sum=0;cart.querySelectorAll('.linea').forEach(l=>{const id=l.dataset.id,price=+l.dataset.precio,q=+l.querySelector('.cant').textContent;const sub=price*q;const subEl=l.querySelector('.subtotal');const oldSub=+subEl.dataset.value||0;subEl.dataset.value=sub;subEl.textContent=fmt.format(sub);const changeSub=sub-oldSub;subEl.style.color=(changeSub>=0?'green':'red');sum+=sub;});const oldTotal=+totalEl.dataset.value||0;totalEl.dataset.value=sum;totalEl.textContent=fmt.format(sum);const changeTotal=sum-oldTotal;totalEl.style.color=(changeTotal>=0?'green':'red');}
+function add(id){const prod=document.querySelector(`.prod[data-id="${id}"]`),stock=+prod.dataset.stock,price=+prod.dataset.precio;let q=qty[id]||0;if(q>=stock)return;q++;qty[id]=q;let line=cart.querySelector(`.linea[data-id="${id}"]`);if(!line){line=document.createElement('div');line.className='linea';line.dataset.id=id;line.dataset.precio=price;line.innerHTML=`<span class="cant">${q}</span> x <span class="name">${prod.textContent.split(' -')[0]}</span> - <span class="subtotal" data-value="0"></span> <button class="quitar" data-id="${id}">-</button>`;cart.appendChild(line);line.querySelector('.quitar').addEventListener('click',()=>remove(id));}else{line.querySelector('.cant').textContent=q;}const cantEl=line.querySelector('.cant');cantEl.style.color='green';if(q>=stock)prod.querySelector('.add').disabled=true;recalc();}
+function remove(id){const prod=document.querySelector(`.prod[data-id="${id}"]`);let q=qty[id]||0;if(q<=0)return;q--;qty[id]=q;const line=cart.querySelector(`.linea[data-id="${id}"]`);if(q===0){line.remove();delete qty[id];prod.querySelector('.add').disabled=false;}else{line.querySelector('.cant').textContent=q;const cantEl=line.querySelector('.cant');cantEl.style.color='red';}prod.querySelector('.add').disabled=false;recalc();}
+document.querySelectorAll('.add').forEach(b=>b.addEventListener('click',()=>add(b.dataset.id)));
+</script>
+</body>
+</html>

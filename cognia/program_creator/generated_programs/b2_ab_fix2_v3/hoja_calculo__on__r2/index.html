@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+    background:#e0e0e0;
+  }
+  .grid {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:5px;
+    width:90%;
+    max-width:400px;
+  }
+  .celda {
+    width:100%;
+    padding:5px;
+    font-size:1rem;
+    box-sizing:border-box;
+    animation: fade 2s ease-in-out;
+  }
+  @keyframes fade {
+    from{background-color:#f0f0f0;}
+    to{background-color:#fff;}
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1">
+  <input type="text" class="celda" data-ref="A2">
+  <input type="text" class="celda" data-ref="A3">
+  <input type="text" class="celda" data-ref="B1">
+  <input type="text" class="celda" data-ref="B2">
+  <input type="text" class="celda" data-ref="B3">
+  <input type="text" class="celda" data-ref="C1">
+  <input type="text" class="celda" data-ref="C2">
+  <input type="text" class="celda" data-ref="C3">
+</div>
+<script>
+(() => {
+  const cells = Array.from(document.querySelectorAll('.celda'));
+  const refMap = {};
+  cells.forEach(cell => { refMap[cell.dataset.ref] = cell; });
+
+  // Inicializar valor previo de cada celda
+  cells.forEach(cell => { cell.dataset.prev = cell.value || '0'; });
+
+  let isUpdating = false;
+
+  function updateCell(cell, result) {
+    const prevVal = parseFloat(cell.dataset.prev) || 0;
+    const newVal = parseFloat(result) || 0;
+    const cambio = newVal - prevVal;
+    // Actualizar color directamente sobre el mismo elemento
+    cell.style.color = (cambio >= 0 ? 'green' : 'red');
+    cell.value = result;
+    cell.dataset.prev = result;
+  }
+
+  function recomputeAll() {
+    if (isUpdating) return;
+    isUpdating = true;
+    const computed = {};
+    const visited = new Set();
+
+    cells.forEach(cell => {
+      const result = evaluateCellRecursive(cell, visited, computed);
+      // Actualizar siempre el valor y color de la celda
+      updateCell(cell, result);
+    });
+
+    isUpdating = false;
+  }
+
+  function evaluateCellRecursive(cell, visited, computed) {
+    const ref = cell.dataset.ref;
+    if (computed[ref] !== undefined) return computed[ref];
+    if (visited.has(ref)) {
+      computed[ref] = 'CIRC';
+      return 'CIRC';
+    }
+    visited.add(ref);
+
+    let val = cell.value;
+    let result;
+    if (val.startsWith('=')) {
+      result = evaluateFormula(val, visited, computed);
+    } else {
+      if (val === '') {
+        result = '0';
+      } else {
+        const num = parseFloat(val);
+        result = isNaN(num) ? '0' : num.toString();
+      }
+    }
+
+    visited.delete(ref);
+    computed[ref] = result;
+    return result;
+  }
+
+  function evaluateFormula(formula, visited, computed) {
+    let expr = formula.slice(1);
+    const tokens = [];
+    let i = 0;
+    while (i < expr.length) {
+      const c = expr[i];
+      if (c === '+' || c === '-') {
+        tokens.push(c);
+        i++;
+      } else if (/[A-Z]/.test(c)) {
+        const ref = expr.slice(i, i+2);
+        tokens.push(ref);
+        i += 2;
+      } else if (/\d/.test(c)) {
+        let num = '';
+        while (i < expr.length && /\d/.test(expr[i])) {
+          num += expr[i];
+          i++;
+        }
+        tokens.push(num);
+      } else {
+        i++;
+      }
+    }
+
+    let result = 0;
+    let op = '+';
+    for (const token of tokens) {
+      if (token === '+' || token === '-') {
+        op = token;
+      } else {
+        let val;
+        if (/^[A-Z][1-3]$/.test(token)) {
+          const refCell = refMap[token];
+          if (!refCell) {
+            val = 0;
+          } else {
+            val = evaluateCellRecursive(refCell, visited, computed);
+          }
+        } else {
+          val = parseFloat(token);
+        }
+        if (val === 'CIRC') {
+          return 'CIRC';
+        }
+        if (op === '+') {
+          result += val;
+        } else {
+          result -= val;
+        }
+      }
+    }
+    return result.toString();
+  }
+
+  cells.forEach(cell => {
+    cell.addEventListener('input', () => {
+      recomputeAll();
+    });
+  });
+
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

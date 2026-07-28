@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un carrito de compra con STOCK</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f9f9f9;}
+  h1{margin-bottom:20px;text-align:center;}
+  #products{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}
+  .prod{border:1px solid #ccc;background:#fff;padding:10px;width:200px;text-align:center;border-radius:4px;}
+  .prod button{margin-top:8px;padding:5px 10px;cursor:pointer;}
+  .prod button:disabled{background:#ddd;color:#666;cursor:not-allowed;}
+  #cart{border:1px solid #000;background:#fff;padding:10px;margin-top:20px;border-radius:4px;max-width:600px;margin-left:auto;margin-right:auto;}
+  #cart h2{margin-top:0;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+  .linea span{margin-right:10px;}
+  .linea button{padding:3px 6px;cursor:pointer;}
+  #cart-total{margin-top:10px;font-size:1.2em;font-weight:bold;}
+  @media (max-width:600px){
+    .prod{width:100%;}
+  }
+</style>
+</head>
+<body>
+<h1>Un carrito de compra con STOCK</h1>
+
+<div id="products"></div>
+
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="cart-lines"></div>
+  <div id="cart-total">Total: <span id="total">0.00</span></div>
+</div>
+
+<script>
+const PRODUCTS = [
+  {id:'p1', name:'Producto 1', precio:100, stock:2},
+  {id:'p2', name:'Producto 2', precio:50, stock:3},
+  {id:'p3', name:'Producto 3', precio:25, stock:1}
+];
+
+let cart = {}; // id -> cantidad
+
+function formatCurrency(val){
+  return '$'+val.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function renderProducts(){
+  const container = document.getElementById('products');
+  container.innerHTML = '';
+  PRODUCTS.forEach(p=>{
+    const div = document.createElement('div');
+    div.className = 'prod';
+    div.dataset.id = p.id;
+    div.dataset.precio = p.precio;
+    div.dataset.stock = p.stock;
+
+    const name = document.createElement('div');
+    name.textContent = p.name;
+    const price = document.createElement('div');
+    price.textContent = 'Precio: '+formatCurrency(p.precio);
+    const stock = document.createElement('div');
+    stock.textContent = 'Stock: '+p.stock;
+
+    const btn = document.createElement('button');
+    btn.className = 'add';
+    btn.dataset.id = p.id;
+    btn.textContent = 'Agregar';
+    btn.disabled = false;
+
+    div.append(name,price,stock,btn);
+    container.appendChild(div);
+  });
+}
+
+function addToCart(id){
+  const product = PRODUCTS.find(p=>p.id===id);
+  if(!product) return;
+  const currentQty = cart[id] || 0;
+  if(currentQty < product.stock){
+    cart[id] = currentQty + 1;
+    updateCart();
+  }
+}
+
+function removeFromCart(id){
+  const currentQty = cart[id] || 0;
+  if(currentQty > 0){
+    cart[id] = currentQty - 1;
+    if(cart[id]===0) delete cart[id];
+    updateCart();
+  }
+}
+
+function updateCart(){
+  const linesContainer = document.getElementById('cart-lines');
+  linesContainer.innerHTML = '';
+  let total = 0;
+  for(const id in cart){
+    const qty = cart[id];
+    const product = PRODUCTS.find(p=>p.id===id);
+    const line = document.createElement('div');
+    line.className = 'linea';
+    line.dataset.id = id;
+
+    const name = document.createElement('span');
+    name.textContent = product.name;
+    const qtySpan = document.createElement('span');
+    qtySpan.className = 'cant';
+    qtySpan.textContent = qty;
+    const btn = document.createElement('button');
+    btn.className = 'quitar';
+    btn.dataset.id = id;
+    btn.textContent = 'Quitar';
+
+    line.append(name,qtySpan,btn);
+    linesContainer.appendChild(line);
+
+    total += qty * product.precio;
+  }
+  document.getElementById('total').textContent = formatCurrency(total);
+
+  // Update add buttons disabled state
+  document.querySelectorAll('.add').forEach(btn=>{
+    const id = btn.dataset.id;
+    const product = PRODUCTS.find(p=>p.id===id);
+    const qty = cart[id] || 0;
+    btn.disabled = qty >= product.stock;
+  });
+}
+
+document.getElementById('products').addEventListener('click', e=>{
+  if(e.target.classList.contains('add')){
+    addToCart(e.target.dataset.id);
+  }
+});
+
+document.getElementById('cart-lines').addEventListener('click', e=>{
+  if(e.target.classList.contains('quitar')){
+    removeFromCart(e.target.dataset.id);
+  }
+});
+
+renderProducts();
+updateCart();
+</script>
+</body>
+</html>

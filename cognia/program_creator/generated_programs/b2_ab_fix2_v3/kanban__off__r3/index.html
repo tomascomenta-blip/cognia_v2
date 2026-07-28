@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:10px;background:#fafafa;}
+  #board{display:flex;flex-wrap:wrap;gap:10px;}
+  .col{flex:1 1 30%;border:1px solid #ccc;padding:10px;min-height:200px;box-sizing:border-box;}
+  .col h2{margin-top:0;font-size:1.2em;}
+  .card{background:#fff;border:1px solid #999;margin:5px 0;padding:5px;display:flex;justify-content:space-between;align-items:center;}
+  .card button{margin-left:5px;padding:2px 6px;font-size:0.9em;}
+  .counters{margin-top:10px;text-align:center;font-size:1.1em;}
+  .counters div{margin:5px 0;}
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="card" data-id="t1">t1 <button class="mas">→</button> <button class="menos">←</button></div>
+    <div class="card" data-id="t2">t2 <button class="mas">→</button> <button class="menos">←</button></div>
+    <div class="card" data-id="t3">t3 <button class="mas">→</button> <button class="menos">←</button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+  </div>
+</div>
+<div class="counters">
+  <div>Todo: <span id="cont-todo"></span></div>
+  <div>Doing: <span id="cont-doing"></span></div>
+  <div>Done: <span id="cont-done"></span></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const board = document.getElementById('board');
+  const cols = ['todo','doing','done'];
+  function updateCounts(){
+    cols.forEach(col=>{
+      const cnt = board.querySelectorAll('.col[data-col="'+col+'"] .card').length;
+      document.getElementById('cont-'+col).textContent = cnt;
+    });
+  }
+  function moveCard(card, dir){
+    const cur = card.parentElement.dataset.col;
+    const idx = cols.indexOf(cur);
+    const newIdx = dir==='right'?idx+1:idx-1;
+    if(newIdx<0||newIdx>=cols.length) return;
+    const newCol = cols[newIdx];
+    if(newCol==='doing'){
+      const doingCnt = board.querySelectorAll('.col[data-col="doing"] .card').length;
+      if(doingCnt>=2) return;
+    }
+    board.querySelector('.col[data-col="'+newCol+'"]').appendChild(card);
+    updateCounts();
+  }
+  board.addEventListener('click', e=>{
+    if(e.target.classList.contains('mas')){
+      const card = e.target.closest('.card');
+      moveCard(card,'right');
+    }else if(e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      moveCard(card,'left');
+    }
+  });
+  updateCounts();
+});
+</script>
+</body>
+</html>

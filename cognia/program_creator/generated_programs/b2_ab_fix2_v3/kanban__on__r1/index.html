@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;}
+  header{background:#333;color:#fff;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .container{display:flex;height:calc(100vh-30px);}
+  .col{flex:1;padding:10px;box-sizing:border-box;background:#e0e0e0;display:flex;flex-direction:column;}
+  .col h2{margin:0 0 10px 0;font-size:18px;display:flex;align-items:center;}
+  .col h2 span{margin-left:10px;font-size:14px;background:#fff;color:#333;border-radius:12px;padding:2px 6px;}
+  .cards{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+  .card{background:#fff;padding:10px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;transition:transform 0.3s ease, opacity 0.3s ease;}
+  .card .title{flex:1;}
+  .card button{width:24px;height:24px;border:none;border-radius:50%;background:#ddd;color:#333;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:5px;}
+  .card button:disabled{opacity:0.5;cursor:not-allowed;}
+</style>
+</head>
+<body>
+<header>Kanban en una sola página</header>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards" id="cards-todo"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards" id="cards-doing"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards" id="cards-done"></div>
+  </div>
+</div>
+<script>
+/* CONSTANTS */
+const MAX_DOING = 2;
+const INITIAL_CARDS = [
+  {id:'t1', title:'Tarea 1'},
+  {id:'t2', title:'Tarea 2'},
+  {id:'t3', title:'Tarea 3'}
+];
+
+/* ELEMENTS */
+const cols = {
+  todo: document.getElementById('cards-todo'),
+  doing: document.getElementById('cards-doing'),
+  done: document.getElementById('cards-done')
+};
+const counters = {
+  todo: document.getElementById('cont-todo'),
+  doing: document.getElementById('cont-doing'),
+  done: document.getElementById('cont-done')
+};
+const order = ['todo','doing','done'];
+
+/* CREATE CARD */
+function createCard(id, title){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = id;
+
+  const titleDiv = document.createElement('div');
+  titleDiv.className = 'title';
+  titleDiv.textContent = title;
+
+  const btnLess = document.createElement('button');
+  btnLess.className = 'menos';
+  btnLess.textContent = '◀';
+
+  const btnMore = document.createElement('button');
+  btnMore.className = 'mas';
+  btnMore.textContent = '▶';
+
+  btnLess.addEventListener('click', ()=>moveCard(card, -1));
+  btnMore.addEventListener('click', ()=>moveCard(card, +1));
+
+  const btnDiv = document.createElement('div');
+  btnDiv.appendChild(btnLess);
+  btnDiv.appendChild(btnMore);
+
+  card.appendChild(titleDiv);
+  card.appendChild(btnDiv);
+  return card;
+}
+
+/* MOVE CARD */
+function moveCard(card, dir){
+  const currentCol = order.find(col => cols[col].contains(card));
+  const idx = order.indexOf(currentCol);
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= order.length) return; // out of bounds
+
+  const targetCol = order[newIdx];
+  if(targetCol === 'doing' && cols.doing.children.length >= MAX_DOING) return; // WIP limit
+
+  cols[targetCol].appendChild(card);
+  updateCounters();
+}
+
+/* UPDATE COUNTERS */
+function updateCounters(){
+  counters.todo.textContent = cols.todo.children.length;
+  counters.doing.textContent = cols.doing.children.length;
+  counters.done.textContent = cols.done.children.length;
+}
+
+/* AUTOMATIC MOVEMENT FOR ANIMATION */
+function autoMove(){
+  const allCards = [...cols.todo.children, ...cols.doing.children, ...cols.done.children];
+  if(allCards.length===0) return;
+  const card = allCards[Math.floor(Math.random()*allCards.length)];
+  const currentCol = order.find(col => cols[col].contains(card));
+  const idx = order.indexOf(currentCol);
+  let moved = false;
+
+  // Try to move forward if possible
+  if(idx < order.length-1){
+    const targetCol = order[idx+1];
+    if(!(targetCol==='doing' && cols.doing.children.length>=MAX_DOING)){
+      moveCard(card, +1);
+      moved = true;
+    }
+  }
+
+  // If not moved, try to move backward
+  if(!moved && idx > 0){
+    moveCard(card, -1);
+    moved = true;
+  }
+}
+
+// Start automatic animation on load
+setInterval(autoMove, 700);
+
+/* INITIALIZE */
+function init(){
+  INITIAL_CARDS.forEach(c=>cols.todo.appendChild(createCard(c.id, c.title)));
+  updateCounters();
+}
+init();
+</script>
+</body>
+</html>

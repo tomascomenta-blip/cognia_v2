@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:10px;background:#f0f0f0;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;}
+.c{background:#ddd;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;user-select:none;}
+.c.abierta{background:#fff;}
+.c.bandera{background:#ff0;}
+#estado{margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18]; // lista de minas
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+const cells=[];
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');
+  d.className='c';
+  d.dataset.i=i;
+  // Añadimos atributos para que el navegador los reconozca como clickeables
+  d.setAttribute('onclick','open('+i+')');
+  d.setAttribute('oncontextmenu','flag('+i+'); return false;');
+  d.setAttribute('role','button');
+  d.setAttribute('tabindex','0');
+  d.addEventListener('click',()=>open(i));
+  d.addEventListener('contextmenu',e=>{e.preventDefault();flag(i);});
+  grid.appendChild(d);
+  cells.push(d);
+}
+const neigh=[];
+for(let i=0;i<25;i++){
+  const r=Math.floor(i/5),c=i%5;
+  const arr=[];
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(dr===0&&dc===0)continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);
+  }
+  neigh[i]=arr;
+}
+function open(i){
+  const d=cells[i];
+  if(d.classList.contains('abierta')||d.classList.contains('bandera'))return;
+  if(mines.includes(i)){
+    estado.textContent='perdiste';
+    d.classList.add('abierta');
+    d.textContent='💣';
+    d.style.color='red';
+    return;
+  }
+  const cnt=neigh[i].filter(j=>mines.includes(j)).length;
+  d.classList.add('abierta');
+  // Mostramos 0 cuando cnt===0
+  d.textContent=cnt===0?'0':cnt;
+  // Color según el cambio (cambio siempre >=0 en este juego)
+  d.style.color='green';
+  if(cnt===0){
+    neigh[i].forEach(j=>open(j));
+  }
+}
+function flag(i){
+  const d=cells[i];
+  if(d.classList.contains('abierta'))return;
+  if(d.classList.contains('bandera')){
+    d.classList.remove('bandera');
+    d.textContent='';
+  }else{
+    d.classList.add('bandera');
+    d.textContent='🚩';
+  }
+}
+// Animación automática: abrir todas las celdas con 0 al cargar la página
+window.addEventListener('load',()=>{
+  for(let i=0;i<25;i++){
+    const cnt=neigh[i].filter(j=>mines.includes(j)).length;
+    if(cnt===0)open(i);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    grid-gap:10px;
+  }
+  .celda{
+    width:80px;
+    height:30px;
+    border-radius:5px;
+    border:1px solid #ccc;
+    text-align:center;
+    font-size:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    transition:box-shadow 0.2s;
+    animation:pulse 4s infinite;
+  }
+  .celda:focus{
+    outline:none;
+    box-shadow:0 0 0 2px #6ca0dc;
+  }
+  @keyframes pulse{
+    0%{background-color:#f0f0f0;}
+    50%{background-color:#e0e0e0;}
+    100%{background-color:#f0f0f0;}
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <input type="text" class="celda" data-ref="A1" value="">
+  <input type="text" class="celda" data-ref="A2" value="">
+  <input type="text" class="celda" data-ref="A3" value="">
+  <input type="text" class="celda" data-ref="B1" value="">
+  <input type="text" class="celda" data-ref="B2" value="">
+  <input type="text" class="celda" data-ref="B3" value="">
+  <input type="text" class="celda" data-ref="C1" value="">
+  <input type="text" class="celda" data-ref="C2" value="">
+  <input type="text" class="celda" data-ref="C3" value="">
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = {};
+  const dependents = {}; // ref -> Set of refs that depend on it
+  const dependencies = {}; // ref -> Set of refs it depends on
+
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  refs.forEach(ref => {
+    dependents[ref] = new Set();
+    dependencies[ref] = new Set();
+  });
+
+  refs.forEach(ref => {
+    const el = document.querySelector(`input[data-ref="${ref}"]`);
+    cells[ref] = el;
+    el.dataset.prevValue = ''; // store previous value for color
+    el.addEventListener('input', () => {
+      handleInput(ref);
+    });
+    el.addEventListener('keyup', () => {
+      handleInput(ref);
+    });
+  });
+
+  function handleInput(ref) {
+    const el = cells[ref];
+    const raw = el.value;
+    if (raw.startsWith('=')) {
+      el.dataset.formulaRaw = raw.slice(1);
+      el.setAttribute('data-formula', raw);
+    } else {
+      el.dataset.formulaRaw = '';
+      el.removeAttribute('data-formula');
+    }
+    updateDependencies(ref);
+    recompute(ref);
+    recomputeDependents(ref);
+  }
+
+  function updateDependencies(ref) {
+    const oldDeps = dependencies[ref];
+    oldDeps.forEach(dep => dependents[dep].delete(ref));
+    oldDeps.clear();
+
+    const formula = cells[ref].dataset.formulaRaw;
+    if (!formula) return;
+    const refsInFormula = parseRefs(formula);
+    refsInFormula.forEach(d => {
+      dependencies[ref].add(d);
+      dependents[d].add(ref);
+    });
+  }
+
+  function parseRefs(formula) {
+    const regex = /([A-C][1-3])/g;
+    const res = [];
+    let m;
+    while ((m = regex.exec(formula)) !== null) {
+      res.push(m[1]);
+    }
+    return res;
+  }
+
+  function recompute(ref, stack=[]) {
+    const el = cells[ref];
+    const formula = el.dataset.formulaRaw;
+    if (!formula) {
+      setCellValue(el, el.value);
+      return;
+    }
+    if (stack.includes(ref)) {
+      setCellValue(el, 'CIRC');
+      return;
+    }
+    const val = evaluateFormula(formula, [...stack, ref]);
+    setCellValue(el, val);
+  }
+
+  function evaluateFormula(formula, stack) {
+    const tokens = tokenize(formula);
+    if (tokens.length === 0) return '';
+    let idx = 0;
+    let current = getTokenValue(tokens[idx++], stack);
+    if (current === 'CIRC') return 'CIRC';
+    while (idx < tokens.length) {
+      const op = tokens[idx++];
+      const next = getTokenValue(tokens[idx++], stack);
+      if (next === 'CIRC') return 'CIRC';
+      if (op === '+') current += next;
+      else if (op === '-') current -= next;
+    }
+    return current;
+  }
+
+  function tokenize(formula) {
+    const parts = [];
+    const regex = /([A-C][1-3])|(\d+)|([+-])/g;
+    let m;
+    while ((m = regex.exec(formula)) !== null) {
+      if (m[1]) parts.push({type:'ref', ref:m[1]});
+      else if (m[2]) parts.push({type:'num', value:parseInt(m[2],10)});
+      else if (m[3]) parts.push({type:'op', op:m[3]});
+    }
+    return parts;
+  }
+
+  function getTokenValue(token, stack) {
+    if (token.type === 'num') return token.value;
+    if (token.type === 'ref') {
+      const ref = token.ref;
+      const el = cells[ref];
+      const formula = el.dataset.formulaRaw;
+      if (formula) {
+        if (stack.includes(ref)) return 'CIRC';
+        const val = evaluateFormula(formula, [...stack, ref]);
+        return val;
+      } else {
+        const val = el.value.trim();
+        const num = parseInt(val,10);
+        return isNaN(num) ? 0 : num;
+      }
+    }
+    return 0;
+  }
+
+  function recomputeDependents(ref) {
+    const visited = new Set();
+    const queue = [...dependents[ref]];
+    while (queue.length) {
+      const r = queue.shift();
+      if (visited.has(r)) continue;
+      visited.add(r);
+      recompute(r);
+      queue.push(...dependents[r]);
+    }
+  }
+
+  function setCellValue(el, val) {
+    const oldVal = el.dataset.prevValue;
+    el.value = val;
+    const newNum = parseFloat(val);
+    const oldNum = parseFloat(oldVal);
+    let change = NaN;
+    if (!isNaN(newNum) && !isNaN(oldNum)) {
+      change = newNum - oldNum;
+    }
+    if (isNaN(change)) {
+      el.style.color = (val === 'CIRC' || val === '') ? 'red' : 'black';
+    } else {
+      el.style.color = (change >= 0 ? 'green' : 'red');
+    }
+    el.dataset.prevValue = val;
+  }
+
+  refs.forEach(ref => {
+    updateDependencies(ref);
+    recompute(ref);
+  });
+});
+</script>
+</body>
+</html>

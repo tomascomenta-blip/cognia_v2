@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+body{font-family:monospace;background:#fafafa;color:#333;margin:0;padding:20px;}
+h1{text-align:center;}
+#grid{display:grid;grid-template-columns:repeat(3,auto);gap:5px;justify-content:center;margin-top:20px;}
+.celda{width:80px;height:30px;text-align:right;padding:5px;border:1px solid #ccc;border-radius:4px;font-size:1rem;}
+.celda:focus{outline:none;border-color:#66afe9;}
+pre{background:#f0f0f0;padding:10px;border-radius:4px;overflow-x:auto;}
+@media (max-width:600px){.celda{width:60px;}}
+</style>
+</head>
+<body>
+<h1>Mini Hoja de Cálculo 3x3</h1>
+<p>Escriba valores o fórmulas (ejemplo: <code>=A1+B1</code>)</p>
+<div id="grid">
+<input type="text" class="celda" data-ref="A1" />
+<input type="text" class="celda" data-ref="B1" />
+<input type="text" class="celda" data-ref="C1" />
+<input type="text" class="celda" data-ref="A2" />
+<input type="text" class="celda" data-ref="B2" />
+<input type="text" class="celda" data-ref="C2" />
+<input type="text" class="celda" data-ref="A3" />
+<input type="text" class="celda" data-ref="B3" />
+<input type="text" class="celda" data-ref="C3" />
+</div>
+<pre>
++---+---+---+
+| A | B | C |
++---+---+---+
+| 1 | 2 | 3 |
++---+---+---+
+</pre>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const cells = {};
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  refs.forEach(ref => {
+    const el = document.querySelector(`input[data-ref="${ref}"]`);
+    cells[ref] = el;
+    el.addEventListener('input', handleInput);
+  });
+
+  function handleInput(e){
+    const input = e.target;
+    const val = input.value.trim();
+    if(val.startsWith('=')){
+      input.dataset.formula = val;
+      delete input.dataset.typed;
+    } else {
+      delete input.dataset.formula;
+      input.dataset.typed = val;
+    }
+    recomputeAll();
+  }
+
+  function recomputeAll(){
+    refs.forEach(ref => {
+      const cell = cells[ref];
+      const prev = parseFloat(cell.dataset.prevResult) || 0;
+      if(cell.dataset.formula){
+        const result = evaluateCell(ref, []);
+        if(result === null){
+          cell.value = 'CIRC';
+          cell.style.color = 'red';
+          cell.dataset.prevResult = '';
+        } else {
+          cell.value = result.toString();
+          const cambio = result - (parseFloat(cell.dataset.prevResult) || 0);
+          cell.style.color = (cambio >= 0 ? 'green' : 'red');
+          cell.dataset.prevResult = result;
+        }
+      } else {
+        const typed = cell.dataset.typed || '';
+        cell.value = typed;
+        const num = parseFloat(typed);
+        if(!isNaN(num)){
+          const cambio = num - (parseFloat(cell.dataset.prevResult) || 0);
+          cell.style.color = (cambio >= 0 ? 'green' : 'red');
+          cell.dataset.prevResult = num;
+        } else {
+          cell.style.color = '#333';
+          cell.dataset.prevResult = '';
+        }
+      }
+    });
+  }
+
+  function evaluateCell(ref, stack){
+    if(stack.includes(ref)) return null; // circular
+    const cell = cells[ref];
+    const formula = cell.dataset.formula;
+    if(!formula){
+      const v = parseFloat(cell.value);
+      return isNaN(v) ? 0 : v;
+    }
+    const expr = formula.slice(1);
+    const refsInExpr = expr.match(/[A-C][1-3]/g) || [];
+    const values = {};
+    for(const r of refsInExpr){
+      const v = evaluateCell(r, stack.concat(ref));
+      if(v === null) return null;
+      values[r] = v;
+    }
+    let replaced = expr.replace(/[A-C][1-3]/g, match => values[match]);
+    try{
+      const result = Function('return ' + replaced)();
+      return result;
+    }catch(e){
+      return null;
+    }
+  }
+
+  // initial compute
+  recomputeAll();
+});
+</script>
+</body>
+</html>

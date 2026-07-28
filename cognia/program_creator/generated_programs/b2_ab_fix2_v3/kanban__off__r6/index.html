@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  #board{
+    display:flex;
+    gap:10px;
+    width:90%;
+    max-width:1200px;
+  }
+  .col{
+    flex:1;
+    background:#e3e3e3;
+    padding:10px;
+    border-radius:5px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    animation:fadeIn 1s ease-out;
+  }
+  .col h2{
+    margin-top:0;
+    text-align:center;
+  }
+  .col .counter{
+    display:block;
+    text-align:center;
+    margin-bottom:10px;
+    font-weight:bold;
+  }
+  .card{
+    background:#fff;
+    padding:8px;
+    margin-bottom:8px;
+    border-radius:3px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:slideIn 0.5s ease-out;
+  }
+  .card span{
+    flex:1;
+  }
+  .card button{
+    margin-left:4px;
+    padding:2px 6px;
+    font-size:12px;
+    cursor:pointer;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-100%); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <span id="cont-todo" class="counter">0</span>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <span id="cont-doing" class="counter">0</span>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <span id="cont-done" class="counter">0</span>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+  // Helper to create a card element
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const label = document.createElement('span');
+    label.textContent = id;
+    card.appendChild(label);
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '→';
+    card.appendChild(btnMas);
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+    card.appendChild(btnMenos);
+
+    // Event listeners
+    btnMas.addEventListener('click', () => moveCard(card, 1));
+    btnMenos.addEventListener('click', () => moveCard(card, -1));
+
+    return card;
+  }
+
+  // Move card by offset (1 = right, -1 = left)
+  function moveCard(card, offset){
+    const currentCol = card.parentElement.parentElement; // .cards -> .col
+    const currentIndex = Array.from(currentCol.parentElement.children).indexOf(currentCol);
+    const targetIndex = currentIndex + offset;
+    if(targetIndex < 0 || targetIndex > 2) return; // out of bounds
+
+    const targetCol = currentCol.parentElement.children[targetIndex];
+    const targetData = targetCol.dataset.col;
+
+    // WIP rule: doing can hold max 2 cards
+    if(targetData === 'doing'){
+      const doingCards = targetCol.querySelectorAll('.card');
+      if(doingCards.length >= 2) return;
+    }
+
+    // Move card
+    targetCol.querySelector('.cards').appendChild(card);
+    updateCounters();
+  }
+
+  // Update counters for each column
+  function updateCounters(){
+    ['todo','doing','done'].forEach(col=>{
+      const colDiv = document.querySelector(`.col[data-col="${col}"]`);
+      const count = colDiv.querySelectorAll('.card').length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+
+  // Initial load: create 3 cards in todo
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const todoCardsDiv = document.querySelector('.col[data-col="todo"] .cards');
+    ['t1','t2','t3'].forEach(id=>{
+      todoCardsDiv.appendChild(createCard(id));
+    });
+    updateCounters();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#222;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5, 60px);
+    grid-gap:2px;
+    margin-bottom:20px;
+  }
+  .c{
+    width:60px;
+    height:60px;
+    background:#444;
+    border:1px solid #222;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+    user-select:none;
+    animation:fadeIn 0.5s ease-in-out;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+  .c.abierta{
+    background:#888;
+  }
+  .c.abierta.mine{
+    color:#f00;
+  }
+  .c.bandera{
+    background:#444;
+  }
+  #estado{
+    font-size:18px;
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+"use strict";
+
+class Game {
+  constructor(rows=5, cols=5, mines=[6,12,18]) {
+    this.rows = rows;
+    this.cols = cols;
+    this.total = rows*cols;
+    this.mines = new Set(mines);
+    this.opened = new Set();
+    this.flagged = new Set();
+    this.gameOver = false;
+    this.init();
+  }
+
+  init() {
+    const grid = document.getElementById('grid');
+    for (let i=0;i<this.total;i++){
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.setAttribute('role','button');
+      cell.setAttribute('tabindex','0');
+      cell.addEventListener('click', (e)=>this.handleClick(e));
+      cell.addEventListener('contextmenu', (e)=>this.handleRightClick(e));
+      grid.appendChild(cell);
+    }
+  }
+
+  handleClick(e){
+    if (this.gameOver) return;
+    const cell = e.currentTarget;
+    const idx = parseInt(cell.dataset.i,10);
+    if (this.flagged.has(idx)) {
+      this.flagged.delete(idx);
+      cell.classList.remove('bandera');
+      cell.textContent='';
+      return;
+    }
+    if (this.opened.has(idx)) return;
+    if (this.mines.has(idx)){
+      this.revealMine(idx);
+      this.endGame(false);
+      return;
+    }
+    this.openCell(idx);
+    if (this.checkWin()){
+      this.endGame(true);
+    }
+  }
+
+  handleRightClick(e){
+    e.preventDefault();
+    if (this.gameOver) return;
+    const cell = e.currentTarget;
+    const idx = parseInt(cell.dataset.i,10);
+    if (this.opened.has(idx)) return;
+    if (this.flagged.has(idx)){
+      this.flagged.delete(idx);
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    } else {
+      this.flagged.add(idx);
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+
+  openCell(idx){
+    if (this.opened.has(idx) || this.flagged.has(idx)) return;
+    this.opened.add(idx);
+    const cell = this.getCell(idx);
+    const adj = this.countAdjacentMines(idx);
+    cell.classList.add('abierta');
+    if (adj>0){
+      cell.textContent = adj;
+      cell.style.color = 'green';
+    } else {
+      cell.style.color = 'green';
+      this.cascade(idx);
+    }
+  }
+
+  cascade(startIdx){
+    const queue = [startIdx];
+    while(queue.length){
+      const idx = queue.shift();
+      const neighbors = this.getNeighbors(idx);
+      for(const n of neighbors){
+        if (this.opened.has(n) || this.flagged.has(n) || this.mines.has(n)) continue;
+        this.opened.add(n);
+        const cell = this.getCell(n);
+        const adj = this.countAdjacentMines(n);
+        cell.classList.add('abierta');
+        if (adj>0){
+          cell.textContent = adj;
+          cell.style.color = 'green';
+        } else {
+          cell.style.color = 'green';
+          queue.push(n);
+        }
+      }
+    }
+  }
+
+  countAdjacentMines(idx){
+    const neighbors = this.getNeighbors(idx);
+    let count = 0;
+    for(const n of neighbors){
+      if (this.mines.has(n)) count++;
+    }
+    return count;
+  }
+
+  getNeighbors(idx){
+    const r = Math.floor(idx/this.cols);
+    const c = idx%this.cols;
+    const dirs = [-1,0,1];
+    const neighbors = [];
+    for(const dr of dirs){
+      for(const dc of dirs){
+        if (dr===0 && dc===0) continue;
+        const nr = r+dr;
+        const nc = c+dc;
+        if (nr>=0 && nr<this.rows && nc>=0 && nc<this.cols){
+          neighbors.push(nr*this.cols+nc);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  getCell(idx){
+    return document.querySelector(`.c[data-i='${idx}']`);
+  }
+
+  revealMine(idx){
+    const cell = this.getCell(idx);
+    cell.classList.add('abierta','mine');
+    cell.textContent = '💣';
+    cell.style.color = 'red';
+  }
+
+  endGame(win){
+    this.gameOver = true;
+    const estado = document.getElementById('estado');
+    estado.textContent = win ? '¡Ganaste!' : 'perdiste';
+    estado.style.color = win ? 'green' : 'red';
+    if (!win){
+      for(const m of this.mines){
+        const cell = this.getCell(m);
+        if (!cell.classList.contains('abierta')){
+          cell.classList.add('abierta','mine');
+          cell.textContent = '💣';
+          cell.style.color = 'red';
+        }
+      }
+    }
+  }
+
+  checkWin(){
+    return this.opened.size === this.total - this.mines.size;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const game = new Game();
+  // Auto open a zero‑adjacent cell to trigger cascade
+  setTimeout(()=>{ game.openCell(3); }, 500);
+});
+</script>
+</body>
+</html>

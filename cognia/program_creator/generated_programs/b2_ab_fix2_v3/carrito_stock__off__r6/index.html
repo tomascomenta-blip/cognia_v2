@@ -1,0 +1,168 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+  }
+  .products, .cart{
+    background:#fff;
+    padding:15px;
+    margin-bottom:20px;
+    border-radius:5px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+  }
+  .prod{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+    padding:10px;
+    border-bottom:1px solid #ddd;
+    animation:fadeIn 0.8s ease forwards;
+    opacity:0;
+  }
+  .prod:last-child{border-bottom:none;}
+  .prod button{
+    padding:5px 10px;
+    background:#28a745;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  .cart h2{margin-top:0;}
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+    padding:8px;
+    background:#fafafa;
+    border-radius:3px;
+    animation:slideIn 0.5s ease forwards;
+    opacity:0;
+  }
+  .linea button{
+    padding:3px 6px;
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  #total{font-weight:bold;}
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-20px); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+</style>
+</head>
+<body>
+
+<div class="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - $100 (Stock 2)</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - $50 (Stock 3)</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - $25 (Stock 1)</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<div class="cart">
+  <h2>Carrito</h2>
+  <div class="lines"></div>
+  <div>Total: $<span id="total">0</span></div>
+</div>
+
+<script>
+  // Obtener referencias
+  const addButtons = document.querySelectorAll('.add');
+  const linesContainer = document.querySelector('.lines');
+  const totalSpan = document.getElementById('total');
+
+  // Mapa de productos por id
+  const products = {};
+  document.querySelectorAll('.prod').forEach(div=>{
+    const id = div.dataset.id;
+    products[id] = {
+      precio: parseFloat(div.dataset.precio),
+      stock: parseInt(div.dataset.stock)
+    };
+  });
+
+  // Función para actualizar el total
+  function actualizarTotal(){
+    let total = 0;
+    document.querySelectorAll('.linea').forEach(line=>{
+      const id = line.dataset.id;
+      const cant = parseInt(line.querySelector('.cant').textContent);
+      total += cant * products[id].precio;
+    });
+    totalSpan.textContent = total;
+  }
+
+  // Añadir producto
+  addButtons.forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id = btn.dataset.id;
+      const prod = products[id];
+      // Buscar línea existente
+      let line = document.querySelector(`.linea[data-id="${id}"]`);
+      if(line){
+        const cantSpan = line.querySelector('.cant');
+        let cant = parseInt(cantSpan.textContent);
+        if(cant < prod.stock){
+          cant++;
+          cantSpan.textContent = cant;
+          if(cant === prod.stock) btn.disabled = true;
+        }
+      }else{
+        // Crear nueva línea
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'linea';
+        lineDiv.dataset.id = id;
+        lineDiv.innerHTML = `
+          <span>${id} - $${prod.precio}</span>
+          <span class="cant">1</span>
+          <button class="quitar" data-id="${id}">Quitar</button>
+        `;
+        linesContainer.appendChild(lineDiv);
+        if(prod.stock === 1) btn.disabled = true;
+        // Añadir listener al botón quitar
+        lineDiv.querySelector('.quitar').addEventListener('click',()=>{
+          const cantSpan = lineDiv.querySelector('.cant');
+          let cant = parseInt(cantSpan.textContent);
+          cant--;
+          if(cant === 0){
+            lineDiv.remove();
+            btn.disabled = false;
+          }else{
+            cantSpan.textContent = cant;
+            if(cant < prod.stock) btn.disabled = false;
+          }
+          actualizarTotal();
+        });
+      }
+      actualizarTotal();
+    });
+  });
+</script>
+</body>
+</html>

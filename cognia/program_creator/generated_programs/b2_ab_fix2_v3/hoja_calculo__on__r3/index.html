@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:monospace;background:#fafafa;margin:0;padding:20px;}
+  .title{font-size:1.5em;text-align:center;margin-bottom:0.5em;}
+  .description{font-size:0.9em;text-align:center;margin-bottom:1em;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;max-width:300px;margin:auto;}
+  .celda{width:100%;height:30px;text-align:right;padding:0 5px;box-sizing:border-box;border:1px solid #ccc;}
+  .celda:focus{outline:none;background:#e0f7ff;}
+  /* Grid lines */
+  .celda:nth-child(3n){border-right:1px solid #ccc;}
+  .celda:nth-last-child(-n+3){border-bottom:1px solid #ccc;}
+  .celda:last-child{border-right:1px solid #ccc;border-bottom:1px solid #ccc;}
+</style>
+</head>
+<body>
+<div class="title">Mini Hoja de Cálculo 3x3</div>
+<div class="description">Edite valores o fórmulas (ej. =A1+B1-A2). Se recalcula automáticamente.</div>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+
+<script>
+(() => {
+  const cells = Array.from(document.querySelectorAll('.celda'));
+  const refMap = new Map(cells.map(c => [c.dataset.ref, c]));
+  let ignoreInput = false;
+
+  const getRefs = (formula) => (formula.match(/[A-C][1-3]/g) || []).filter((v,i,a)=>a.indexOf(v)===i);
+
+  const buildDependents = () => {
+    const dependents = new Map();
+    cells.forEach(cell => {
+      const formula = cell.dataset.formula;
+      if (formula) {
+        const refs = getRefs(formula);
+        refs.forEach(r => {
+          if (!dependents.has(r)) dependents.set(r, new Set());
+          dependents.get(r).add(cell);
+        });
+      }
+    });
+    return dependents;
+  };
+
+  const evaluateCell = (ref, visited = new Set()) => {
+    const cell = refMap.get(ref);
+    if (!cell) return 'CIRC';
+    if (visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+
+    const formula = cell.dataset.formula;
+    if (!formula) {
+      visited.delete(ref);
+      return cell.value.trim() || '0';
+    }
+
+    const refs = getRefs(formula);
+    let expr = formula.slice(1);
+    for (const r of refs) {
+      const val = evaluateCell(r, visited);
+      if (val === 'CIRC') {
+        visited.delete(ref);
+        return 'CIRC';
+      }
+      const num = parseFloat(val);
+      expr = expr.split(r).join(num);
+    }
+
+    let result;
+    try {
+      result = Function(`return ${expr}`)();
+      if (isNaN(result)) throw new Error();
+    } catch {
+      visited.delete(ref);
+      return 'CIRC';
+    }
+
+    visited.delete(ref);
+    return result.toString();
+  };
+
+  const updateCell = (cell) => {
+    const ref = cell.dataset.ref;
+    const oldVal = parseFloat(cell.dataset.prevValue);
+    let val;
+    if (cell.dataset.formula) {
+      val = evaluateCell(ref);
+    } else {
+      val = cell.value.trim() || '0';
+    }
+    const newVal = parseFloat(val);
+    if (!isNaN(newVal)) {
+      const cambio = newVal - (isNaN(oldVal) ? 0 : oldVal);
+      cell.style.color = (cambio >= 0 ? 'green' : 'red');
+      cell.dataset.prevValue = newVal;
+    } else {
+      cell.style.color = 'black';
+    }
+    cell.value = val;
+    if (!cell.dataset.formula) delete cell.dataset.formula;
+  };
+
+  const propagate = (changedRef) => {
+    const dependentsMap = buildDependents();
+    const queue = [];
+    const visited = new Set();
+
+    const addToQueue = (cell) => {
+      if (!visited.has(cell.dataset.ref)) {
+        visited.add(cell.dataset.ref);
+        queue.push(cell);
+      }
+    };
+
+    const direct = dependentsMap.get(changedRef);
+    if (direct) direct.forEach(addToQueue);
+
+    while (queue.length) {
+      const cell = queue.shift();
+      updateCell(cell);
+      const deps = dependentsMap.get(cell.dataset.ref);
+      if (deps) deps.forEach(addToQueue);
+    }
+  };
+
+  const onInput = (e) => {
+    if (ignoreInput) return;
+    const cell = e.target;
+    const val = cell.value.trim();
+    if (val.startsWith('=')) {
+      cell.dataset.formula = val;
+    } else {
+      delete cell.dataset.formula;
+    }
+    ignoreInput = true;
+    updateCell(cell);
+    propagate(cell.dataset.ref);
+    ignoreInput = false;
+  };
+
+  cells.forEach(c => c.addEventListener('input', onInput));
+
+  cells.forEach(c => updateCell(c));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f4f4f4;
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+  }
+  .prod{
+    background:#fff;
+    padding:15px;
+    border-radius:5px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    width:200px;
+    opacity:0;
+    animation:fadeIn 0.8s forwards;
+  }
+  .prod:nth-child(1){animation-delay:0.1s;}
+  .prod:nth-child(2){animation-delay:0.3s;}
+  .prod:nth-child(3){animation-delay:0.5s;}
+  .prod h3{margin:0 0 10px;}
+  .prod button{
+    background:#28a745;
+    color:#fff;
+    border:none;
+    padding:8px 12px;
+    cursor:pointer;
+    border-radius:3px;
+  }
+  .prod button:disabled{
+    background:#aaa;
+    cursor:not-allowed;
+  }
+  .cart{
+    background:#fff;
+    padding:15px;
+    border-radius:5px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    width:300px;
+    opacity:0;
+    animation:fadeIn 0.8s forwards;
+    animation-delay:0.7s;
+  }
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+    padding:5px 0;
+    border-bottom:1px solid #eee;
+  }
+  .linea button{
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    padding:4px 8px;
+    cursor:pointer;
+    border-radius:3px;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <p>Precio: $100</p>
+      <p>Stock: 2</p>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <p>Precio: $50</p>
+      <p>Stock: 3</p>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <p>Precio: $25</p>
+      <p>Stock: 1</p>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <p>Total: $<span id="total">0</span></p>
+  </div>
+
+<script>
+  const cart = {}; // {id: quantity}
+  const totalEl = document.getElementById('total');
+  const linesEl = document.getElementById('lines');
+
+  function updateTotal(){
+    let sum = 0;
+    for(const id in cart){
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      sum += price * cart[id];
+    }
+    totalEl.textContent = sum.toFixed(2);
+  }
+
+  function renderLine(id){
+    const quantity = cart[id];
+    let line = document.querySelector(`.linea[data-id="${id}"]`);
+    if(!line){
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `
+        <span class="nombre">${document.querySelector(`.prod[data-id="${id}"] h3`).textContent}</span>
+        <span class="cant">${quantity}</span>
+        <button class="quitar" data-id="${id}">-</button>
+      `;
+      linesEl.appendChild(line);
+    }else{
+      line.querySelector('.cant').textContent = quantity;
+    }
+  }
+
+  function removeLine(id){
+    const line = document.querySelector(`.linea[data-id="${id}"]`);
+    if(line) line.remove();
+  }
+
+  function toggleAddButton(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const addBtn = prod.querySelector('.add');
+    const stock = parseInt(prod.dataset.stock);
+    if(cart[id] >= stock){
+      addBtn.disabled = true;
+    }else{
+      addBtn.disabled = false;
+    }
+  }
+
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id = btn.dataset.id;
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const stock = parseInt(prod.dataset.stock);
+      if(!cart[id]) cart[id] = 0;
+      if(cart[id] < stock){
+        cart[id]++;
+        renderLine(id);
+        toggleAddButton(id);
+        updateTotal();
+      }
+    });
+  });
+
+  document.addEventListener('click',e=>{
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      if(cart[id]){
+        cart[id]--;
+        if(cart[id] <= 0){
+          delete cart[id];
+          removeLine(id);
+        }else{
+          renderLine(id);
+        }
+        toggleAddButton(id);
+        updateTotal();
+      }
+    }
+  });
+</script>
+</body>
+</html>

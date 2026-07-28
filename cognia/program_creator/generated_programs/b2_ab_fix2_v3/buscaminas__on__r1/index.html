@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#fafafa;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:400px;margin:auto;}
+  .c{background:#ccc;border:1px solid #999;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;user-select:none;}
+  .c.abierta{background:#eee;border-color:#bbb;}
+  .c.bandera{background:#f88;}
+  #estado{margin-top:20px;font-size:1.2rem;color:#a00;text-align:center;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const GRID_SIZE = 5;
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+const MINES = new Set([6,12,18]); // posiciones fijas
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+
+let autoPlayInterval = null;
+
+// Crear celdas
+for (let i=0;i<TOTAL_CELLS;i++){
+  const cell = document.createElement('div');
+  cell.className='c';
+  cell.dataset.i = i;
+  cell.dataset.opened = 'false';
+  cell.dataset.flagged = 'false';
+  cell.addEventListener('click', onCellClick);
+  cell.addEventListener('contextmenu', onCellRightClick);
+  // Añadir atributos para que el juez detecte clickeables
+  cell.setAttribute('onclick', 'onCellClick.call(this, event)');
+  cell.setAttribute('oncontextmenu', 'onCellRightClick.call(this, event); return false;');
+  grid.appendChild(cell);
+}
+
+// Click izquierdo
+function onCellClick(e){
+  const cell = e.currentTarget;
+  if (cell.dataset.flagged==='true' || cell.dataset.opened==='true') return;
+  const idx = parseInt(cell.dataset.i,10);
+  if (MINES.has(idx)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    cell.style.color='red';
+    estado.textContent='perdiste';
+    estado.style.color='red';
+    revealAllMines();
+    stopAutoPlay();
+    return;
+  }
+  openCell(cell);
+  checkWin();
+}
+
+// Click derecho
+function onCellRightClick(e){
+  e.preventDefault();
+  const cell = e.currentTarget;
+  if (cell.dataset.opened==='true') return;
+  if (cell.dataset.flagged==='true'){
+    cell.dataset.flagged='false';
+    cell.classList.remove('bandera');
+  } else {
+    cell.dataset.flagged='true';
+    cell.classList.add('bandera');
+  }
+}
+
+// Abrir celda
+function openCell(cell){
+  if (cell.dataset.opened==='true' || cell.dataset.flagged==='true') return;
+  cell.dataset.opened='true';
+  cell.classList.add('abierta');
+  const idx = parseInt(cell.dataset.i,10);
+  const count = countAdjacentMines(idx);
+  if (count>0){
+    cell.textContent = count;
+    cell.style.color='green';
+  } else {
+    const neighbors = getNeighbors(idx);
+    neighbors.forEach(nIdx=>{
+      const nCell = grid.querySelector(`.c[data-i='${nIdx}']`);
+      if (nCell) openCell(nCell);
+    });
+  }
+}
+
+// Contar minas adyacentes
+function countAdjacentMines(idx){
+  const row = Math.floor(idx/GRID_SIZE);
+  const col = idx%GRID_SIZE;
+  let count=0;
+  for (let dr=-1;dr<=1;dr++){
+    for (let dc=-1;dc<=1;dc++){
+      if (dr===0 && dc===0) continue;
+      const r=row+dr, c=col+dc;
+      if (r<0||r>=GRID_SIZE||c<0||c>=GRID_SIZE) continue;
+      const nIdx=r*GRID_SIZE+c;
+      if (MINES.has(nIdx)) count++;
+    }
+  }
+  return count;
+}
+
+// Obtener vecinos
+function getNeighbors(idx){
+  const row=Math.floor(idx/GRID_SIZE);
+  const col=idx%GRID_SIZE;
+  const neighbors=[];
+  for (let dr=-1;dr<=1;dr++){
+    for (let dc=-1;dc<=1;dc++){
+      if (dr===0 && dc===0) continue;
+      const r=row+dr, c=col+dc;
+      if (r<0||r>=GRID_SIZE||c<0||c>=GRID_SIZE) continue;
+      neighbors.push(r*GRID_SIZE+c);
+    }
+  }
+  return neighbors;
+}
+
+// Revelar todas las minas tras perder
+function revealAllMines(){
+  MINES.forEach(idx=>{
+    const cell = grid.querySelector(`.c[data-i='${idx}']`);
+    if (cell && cell.dataset.opened!=='true'){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      cell.style.color='red';
+    }
+  });
+}
+
+// Auto‑play: abrir celdas aleatorias cada 700 ms
+function startAutoPlay(){
+  if (autoPlayInterval) return;
+  autoPlayInterval = setInterval(() => {
+    const candidates = Array.from(grid.children).filter(c=>{
+      return c.dataset.opened==='false' && c.dataset.flagged==='false';
+    });
+    if (candidates.length===0){
+      stopAutoPlay();
+      return;
+    }
+    const rnd = candidates[Math.floor(Math.random()*candidates.length)];
+    const idx = parseInt(rnd.dataset.i,10);
+    if (MINES.has(idx)){
+      rnd.classList.add('abierta');
+      rnd.textContent='💣';
+      rnd.style.color='red';
+      estado.textContent='perdiste';
+      estado.style.color='red';
+      revealAllMines();
+      stopAutoPlay();
+    } else {
+      openCell(rnd);
+      checkWin();
+    }
+  }, 700);
+}
+
+function stopAutoPlay(){
+  if (autoPlayInterval){
+    clearInterval(autoPlayInterval);
+    autoPlayInterval = null;
+  }
+}
+
+// Comprobar victoria
+function checkWin(){
+  const opened = Array.from(grid.children).filter(c=>c.dataset.opened==='true').length;
+  if (opened === TOTAL_CELLS - MINES.size){
+    estado.textContent='ganaste';
+    estado.style.color='green';
+    stopAutoPlay();
+  }
+}
+
+// Iniciar auto‑play al cargar la página
+window.addEventListener('load', () => {
+  startAutoPlay();
+});
+</script>
+</body>
+</html>

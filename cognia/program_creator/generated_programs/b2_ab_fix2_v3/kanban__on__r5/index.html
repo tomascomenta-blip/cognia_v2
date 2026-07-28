@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+.board{display:flex;gap:10px;width:100%;max-width:900px;padding:10px;box-sizing:border-box;opacity:0;animation:fadeIn 2s forwards;}
+@keyframes fadeIn{to{opacity:1;}}
+.col{flex:1;background:#f0f0f0;padding:10px;box-sizing:border-box;}
+.col h2{margin:0 0 10px;}
+.card{background:#fff;border:1px solid #ccc;padding:5px;margin-bottom:5px;}
+button{margin-right:5px;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo"><h2>Todo <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1"><span>t1</span><button class="menos">←</button><button class="mas">→</button></div>
+    <div class="card" data-id="t2"><span>t2</span><button class="menos">←</button><button class="mas">→</button></div>
+    <div class="card" data-id="t3"><span>t3</span><button class="menos">←</button><button class="mas">→</button></div>
+  </div>
+  <div class="col" data-col="doing"><h2>En Progreso <span id="cont-doing"></span></h2></div>
+  <div class="col" data-col="done"><h2>Hecho <span id="cont-done"></span></h2></div>
+</div>
+<script>
+var prevCounts = {todo:0, doing:0, done:0};
+function update(){
+  ['todo','doing','done'].forEach(function(c){
+    var el=document.getElementById('cont-'+c);
+    var newCount=document.querySelectorAll('.col[data-col="'+c+'"] .card').length;
+    var change=newCount - prevCounts[c];
+    el.style.color = (change >= 0 ? 'green' : 'red');
+    el.textContent=newCount;
+    prevCounts[c]=newCount;
+  });
+}
+function move(e){
+  var btn=e.target;
+  var card=btn.parentElement;
+  var col=card.parentElement;
+  var dir=btn.classList.contains('mas')?1:-1;
+  var cols=['todo','doing','done'];
+  var idx=cols.indexOf(col.dataset.col);
+  var newIdx=idx+dir;
+  if(newIdx<0||newIdx>2)return;
+  var target=document.querySelector('.col[data-col="'+cols[newIdx]+'"]');
+  if(cols[newIdx]=='doing'&&target.querySelectorAll('.card').length>=2)return;
+  target.appendChild(card);
+  update();
+}
+document.querySelectorAll('button').forEach(function(b){b.addEventListener('click',move);});
+update();
+</script>
+</body>
+</html>

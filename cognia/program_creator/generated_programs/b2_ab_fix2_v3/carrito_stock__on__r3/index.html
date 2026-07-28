@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con STOCK</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    background:#f9f9f9;
+  }
+  .products{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin:20px;
+  }
+  .prod{
+    border:1px solid #ccc;
+    padding:10px;
+    margin:10px;
+    width:150px;
+    text-align:center;
+    background:#fff;
+    box-shadow:0 2px 4px rgba(0,0,0,.1);
+  }
+  .prod button{
+    margin-top:10px;
+    padding:5px 10px;
+    font-size:0.9rem;
+  }
+  .cart{
+    width:90%;
+    max-width:600px;
+    background:#fff;
+    padding:15px;
+    margin-top:20px;
+    box-shadow:0 2px 4px rgba(0,0,0,.1);
+  }
+  .cart h2{
+    margin-top:0;
+  }
+  .linea{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin:5px 0;
+  }
+  .linea span{
+    margin:0 5px;
+  }
+  button:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+  }
+  @media (max-width:600px){
+    .prod{width:100%;}
+  }
+</style>
+</head>
+<body>
+  <h1>Carrito de compra con STOCK</h1>
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <div>Producto 1</div>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <div>Producto 2</div>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <div>Producto 3</div>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: <span id="total">0</span></div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  // Map de productos
+  const products = new Map();
+  document.querySelectorAll('.prod').forEach(el=>{
+    const id = el.dataset.id;
+    const price = parseInt(el.dataset.precio,10);
+    const stock = parseInt(el.dataset.stock,10);
+    products.set(id,{id,price,stock});
+  });
+
+  // Clase carrito
+  class Cart{
+    constructor(){ this.items = new Map(); }
+    add(id){
+      const prod = products.get(id);
+      if(!prod) return;
+      const qty = this.items.get(id)||0;
+      if(qty < prod.stock) this.items.set(id,qty+1);
+    }
+    remove(id){
+      const prod = products.get(id);
+      if(!prod) return;
+      const qty = this.items.get(id)||0;
+      if(qty>0){
+        if(qty===1) this.items.delete(id);
+        else this.items.set(id,qty-1);
+      }
+    }
+    getTotal(){
+      let total=0;
+      for(const [id,qty] of this.items){
+        const prod = products.get(id);
+        total += qty*prod.price;
+      }
+      return total;
+    }
+  }
+
+  const cart = new Cart();
+
+  // Renderizar carrito
+  function renderCart(){
+    const linesDiv = document.getElementById('lines');
+    linesDiv.innerHTML = '';
+    cart.items.forEach((qty,id)=>{
+      const prod = products.get(id);
+      const line = document.createElement('div');
+      line.className='linea';
+      line.dataset.id=id;
+
+      const cantSpan = document.createElement('span');
+      cantSpan.className='cant';
+      cantSpan.textContent=qty;
+
+      const priceSpan = document.createElement('span');
+      priceSpan.textContent=prod.price;
+
+      const quitarBtn = document.createElement('button');
+      quitarBtn.className='quitar';
+      quitarBtn.dataset.id=id;
+      quitarBtn.textContent='-';
+      quitarBtn.addEventListener('click',()=>{
+        cart.remove(id);
+        renderCart();
+      });
+
+      line.appendChild(cantSpan);
+      line.appendChild(document.createTextNode(' x '));
+      line.appendChild(priceSpan);
+      line.appendChild(quitarBtn);
+      linesDiv.appendChild(line);
+    });
+
+    document.getElementById('total').textContent = cart.getTotal();
+
+    // Actualizar estado de botones de añadir
+    products.forEach((prod,id)=>{
+      const addBtn = document.querySelector('.add[data-id="'+id+'"]');
+      if(!addBtn) return;
+      const qty = cart.items.get(id)||0;
+      addBtn.disabled = qty >= prod.stock;
+    });
+  }
+
+  // Eventos de añadir
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      cart.add(btn.dataset.id);
+      renderCart();
+    });
+  });
+
+  renderCart();
+});
+</script>
+</body>
+</html>

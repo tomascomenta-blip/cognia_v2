@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+  .container{max-width:800px;margin:auto;padding:20px;}
+  h1{font-size:1.8em;text-align:center;margin-bottom:20px;}
+  .products,.cart{background:#fff;border-radius:8px;padding:15px;margin-bottom:20px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .prod{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;}
+  .prod:last-child{border-bottom:none;}
+  .prod h3{margin:0;font-size:1.1em;}
+  .prod span{display:block;font-size:.9em;color:#555;}
+  .prod button{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  .cart h2{margin-top:0;}
+  .linea{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee;}
+  .linea:last-child{border-bottom:none;}
+  .linea span{font-size:1em;}
+  .linea button{padding:3px 6px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  #total{display:none;text-align:right;font-size:1.2em;margin-top:10px;}
+  @media(max-width:600px){
+    .prod{flex-direction:column;align-items:flex-start;}
+    .prod button{margin-top:5px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Carrito con Stock</h1>
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <div>
+        <h3>Producto 1</h3>
+        <span>Precio: 100</span>
+        <span>Stock: 2</span>
+      </div>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <div>
+        <h3>Producto 2</h3>
+        <span>Precio: 50</span>
+        <span>Stock: 3</span>
+      </div>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <div>
+        <h3>Producto 3</h3>
+        <span>Precio: 25</span>
+        <span>Stock: 1</span>
+      </div>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <span id="total">0</span>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const addButtons = document.querySelectorAll('.add');
+  const linesContainer = document.getElementById('lines');
+  const totalSpan = document.getElementById('total');
+
+  function updateTotal(){
+    let total = 0;
+    const lines = linesContainer.querySelectorAll('.linea');
+    lines.forEach(line=>{
+      const id = line.dataset.id;
+      const qty = parseInt(line.querySelector('.cant').textContent,10);
+      const price = parseInt(document.querySelector('.prod[data-id="'+id+'"]').dataset.precio,10);
+      total += qty * price;
+    });
+    totalSpan.textContent = total;
+    // Mostrar u ocultar el total según haya líneas
+    totalSpan.style.display = lines.length > 0 ? 'block' : 'none';
+  }
+
+  function findLine(id){
+    return linesContainer.querySelector('.linea[data-id="'+id+'"]');
+  }
+
+  addButtons.forEach(btn=>{
+    btn.addEventListener('click', function(){
+      const id = this.dataset.id;
+      const prodDiv = document.querySelector('.prod[data-id="'+id+'"]');
+      const stock = parseInt(prodDiv.dataset.stock,10);
+      let line = findLine(id);
+      if(line){
+        const cantSpan = line.querySelector('.cant');
+        let qty = parseInt(cantSpan.textContent,10);
+        if(qty < stock){
+          qty++;
+          cantSpan.textContent = qty;
+        }
+      }else{
+        const newLine = document.createElement('div');
+        newLine.className = 'linea';
+        newLine.dataset.id = id;
+        newLine.innerHTML = `
+          <span class="cant">1</span>
+          <button class="quitar" data-id="${id}">Quitar</button>
+        `;
+        linesContainer.appendChild(newLine);
+      }
+      updateTotal();
+    });
+  });
+
+  linesContainer.addEventListener('click', function(e){
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      const line = findLine(id);
+      if(line){
+        const cantSpan = line.querySelector('.cant');
+        let qty = parseInt(cantSpan.textContent,10);
+        qty--;
+        if(qty > 0){
+          cantSpan.textContent = qty;
+        }else{
+          line.remove();
+        }
+      }
+      updateTotal();
+    }
+  });
+
+  // Inicializar total en 0 y oculto
+  updateTotal();
+});
+</script>
+</body>
+</html>

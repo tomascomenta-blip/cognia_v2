@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una sola página</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body { margin:0; padding:0; font-family:system-ui, sans-serif; background:#f0f0f0; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
+#board { display:flex; flex-wrap:wrap; gap:10px; width:100%; max-width:1200px; padding:10px; }
+.col { flex:1 1 30%; background:#fff; border-radius:8px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.1); min-width:250px; display:flex; flex-direction:column; }
+.col h2 { margin:0 0 5px; font-size:1.2rem; text-align:center; color:#333; }
+.counter { text-align:center; font-size:0.9rem; color:#666; margin-bottom:10px; }
+.card { background:#fff; border-radius:6px; padding:10px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; }
+.card-id { font-weight:bold; }
+.card-buttons { display:flex; gap:5px; }
+.card-buttons button { width:24px; height:24px; border:none; border-radius:50%; background:#e0e0e0; color:#333; cursor:pointer; font-size:14px; display:flex; justify-content:center; align-items:center; }
+.card-buttons button:hover { background:#d0d0d0; }
+.col[data-col="todo"] .card { border-left:4px solid teal; }
+.col[data-col="doing"] .card { border-left:4px solid orange; }
+.col[data-col="done"] .card { border-left:4px solid green; }
+@media (max-width:600px) { .col { flex:1 1 100%; } }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>TODO</h2>
+    <div class="counter">Tarjetas: <span id="cont-todo">0</span></div>
+    <div class="card" id="t1" data-id="t1">
+      <span class="card-id">t1</span>
+      <div class="card-buttons">
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" id="t2" data-id="t2">
+      <span class="card-id">t2</span>
+      <div class="card-buttons">
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" id="t3" data-id="t3">
+      <span class="card-id">t3</span>
+      <div class="card-buttons">
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>DOING</h2>
+    <div class="counter">Tarjetas: <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>DONE</h2>
+    <div class="counter">Tarjetas: <span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+function updateCounters() {
+  const todoCount = document.querySelectorAll('.col[data-col="todo"] .card').length;
+  const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+  const doneCount = document.querySelectorAll('.col[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent = todoCount;
+  document.getElementById('cont-doing').textContent = doingCount;
+  document.getElementById('cont-done').textContent = doneCount;
+}
+function moveCard(card, direction) {
+  const currentCol = card.parentElement.dataset.col;
+  let targetCol;
+  if (direction === 'right') {
+    if (currentCol === 'todo') targetCol = 'doing';
+    else if (currentCol === 'doing') targetCol = 'done';
+    else return;
+  } else if (direction === 'left') {
+    if (currentCol === 'doing') targetCol = 'todo';
+    else if (currentCol === 'done') targetCol = 'doing';
+    else return;
+  }
+  if (targetCol === 'doing' && currentCol === 'todo') {
+    const doingCards = document.querySelectorAll('.col[data-col="doing"] .card');
+    if (doingCards.length >= 2) return;
+  }
+  const targetDiv = document.querySelector('.col[data-col="' + targetCol + '"]');
+  targetDiv.appendChild(card);
+  updateCounters();
+}
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('mas')) {
+    const card = e.target.closest('.card');
+    if (card) moveCard(card, 'right');
+  } else if (e.target.classList.contains('menos')) {
+    const card = e.target.closest('.card');
+    if (card) moveCard(card, 'left');
+  }
+});
+updateCounters();
+</script>
+</body>
+</html>

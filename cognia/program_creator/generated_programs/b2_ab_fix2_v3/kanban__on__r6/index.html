@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:0;
+    background:#f0f0f0;
+  }
+  #board{
+    display:flex;
+    justify-content:space-around;
+    padding:20px;
+  }
+  .col{
+    background:#e0e0e0;
+    width:30%;
+    min-height:400px;
+    padding:10px;
+    border-radius:5px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    display:flex;
+    flex-direction:column;
+  }
+  .col h2{
+    text-align:center;
+    margin:0 0 10px 0;
+  }
+  .card{
+    background:#fff;
+    margin:10px 0;
+    padding:10px;
+    border-radius:3px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    transform:translateX(-20px);
+    animation:slideIn 0.5s forwards;
+  }
+  .card button{
+    margin-left:5px;
+  }
+  .card button:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+  }
+  @keyframes slideIn{
+    to{opacity:1;transform:translateX(0);}
+  }
+  .counter{
+    text-align:center;
+    margin-top:10px;
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+
+<script>
+  // ---------- Configuración inicial ----------
+  const cols = document.querySelectorAll('.col');
+  const counters = {
+    todo: document.getElementById('cont-todo'),
+    doing: document.getElementById('cont-doing'),
+    done: document.getElementById('cont-done')
+  };
+
+  // Función para crear una tarjeta
+  function createCard(id, delayIndex){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.style.animationDelay = `${delayIndex * 0.1}s`;
+
+    const text = document.createElement('span');
+    text.textContent = id;
+    card.appendChild(text);
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '+';
+    card.appendChild(btnMas);
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '-';
+    card.appendChild(btnMenos);
+
+    // Eventos
+    btnMas.addEventListener('click', () => moveCard(card, 1));
+    btnMenos.addEventListener('click', () => moveCard(card, -1));
+
+    return card;
+  }
+
+  // Añadir tarjetas iniciales a la columna "todo"
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  ['t1', 't2', 't3'].forEach((id, idx) => {
+    const card = createCard(id, idx);
+    todoCol.appendChild(card);
+  });
+
+  // ---------- Funciones auxiliares ----------
+  function getCol(card){
+    return card.parentElement.dataset.col;
+  }
+
+  function setCol(card, newCol){
+    const target = document.querySelector(`.col[data-col="${newCol}"]`);
+    target.appendChild(card);
+  }
+
+  function updateCounters(){
+    counters.todo.textContent = `(${document.querySelectorAll('.col[data-col="todo"] .card').length})`;
+    counters.doing.textContent = `(${document.querySelectorAll('.col[data-col="doing"] .card').length})`;
+    counters.done.textContent = `(${document.querySelectorAll('.col[data-col="done"] .card').length})`;
+  }
+
+  function updateCardButtons(card){
+    const col = getCol(card);
+    const btnMas = card.querySelector('.mas');
+    const btnMenos = card.querySelector('.menos');
+
+    btnMas.disabled = col === 'done';
+    btnMenos.disabled = col === 'todo';
+  }
+
+  function moveCard(card, direction){
+    const current = getCol(card);
+    const order = ['todo', 'doing', 'done'];
+    const idx = order.indexOf(current);
+    const targetIdx = idx + direction;
+    if(targetIdx < 0 || targetIdx >= order.length) return; // fuera de rango
+
+    // Regla WIP: no más de 2 tarjetas en "doing"
+    if(order[targetIdx] === 'doing'){
+      const doingCards = document.querySelectorAll('.col[data-col="doing"] .card');
+      if(doingCards.length >= 2) return;
+    }
+
+    setCol(card, order[targetIdx]);
+    updateCounters();
+    updateCardButtons(card);
+  }
+
+  // ---------- Inicializar ----------
+  // Actualizar contadores y botones al cargar
+  document.querySelectorAll('.card').forEach(card => {
+    updateCardButtons(card);
+  });
+  updateCounters();
+</script>
+</body>
+</html>

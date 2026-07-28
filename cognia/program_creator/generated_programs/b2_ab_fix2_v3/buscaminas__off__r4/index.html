@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    margin:0;
+    background:#222;
+    color:#fff;
+    font-family:system-ui,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    gap:1rem;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:80vmin;
+    height:80vmin;
+  }
+  .c{
+    background:#444;
+    border:1px solid #555;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+    aspect-ratio:1/1;
+  }
+  .c.abierta{
+    background:#bbb;
+    color:#00f;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#444;
+    color:#f00;
+    cursor:pointer;
+  }
+  .c.bandera::after{
+    content:"🚩";
+  }
+  #estado{
+    font-size:1.2rem;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor() {
+    this.size = 5;
+    this.total = this.size * this.size;
+    this.mines = Array(this.total).fill(false);
+    this.mines[6] = true;
+    this.mines[12] = true;
+    this.mines[18] = true;
+    this.counts = Array(this.total).fill(0);
+    this.opened = Array(this.total).fill(false);
+    this.flagged = Array(this.total).fill(false);
+    this.cells = [];
+    this.grid = document.getElementById('grid');
+    this.estado = document.getElementById('estado');
+    this.initGrid();
+    this.computeCounts();
+  }
+  initGrid() {
+    for (let i = 0; i < this.total; i++) {
+      const div = document.createElement('div');
+      div.classList.add('c');
+      div.dataset.i = i;
+      div.addEventListener('click', (e) => this.handleClick(e, i));
+      div.addEventListener('contextmenu', (e) => this.handleRightClick(e, i));
+      this.grid.appendChild(div);
+      this.cells.push(div);
+    }
+  }
+  computeCounts() {
+    const dirs = [-1, 0, 1];
+    for (let i = 0; i < this.total; i++) {
+      if (this.mines[i]) continue;
+      let count = 0;
+      const row = Math.floor(i / this.size);
+      const col = i % this.size;
+      for (let dr of dirs) {
+        for (let dc of dirs) {
+          if (dr === 0 && dc === 0) continue;
+          const r = row + dr;
+          const c = col + dc;
+          if (r < 0 || r >= this.size || c < 0 || c >= this.size) continue;
+          const idx = r * this.size + c;
+          if (this.mines[idx]) count++;
+        }
+      }
+      this.counts[i] = count;
+    }
+  }
+  handleClick(e, i) {
+    if (this.flagged[i]) return;
+    if (this.opened[i]) return;
+    this.openCell(i);
+    if (this.mines[i]) {
+      this.estado.textContent = 'perdiste';
+    } else if (this.counts[i] === 0) {
+      this.cascadeOpen(i);
+    }
+  }
+  handleRightClick(e, i) {
+    e.preventDefault();
+    if (this.opened[i]) return;
+    this.flagged[i] = !this.flagged[i];
+    if (this.flagged[i]) {
+      this.cells[i].classList.add('bandera');
+    } else {
+      this.cells[i].classList.remove('bandera');
+    }
+  }
+  openCell(i) {
+    if (this.opened[i] || this.flagged[i]) return;
+    this.opened[i] = true;
+    const cell = this.cells[i];
+    cell.classList.add('abierta');
+    if (this.mines[i]) {
+      cell.textContent = '💣';
+    } else {
+      cell.textContent = this.counts[i] > 0 ? this.counts[i] : '';
+    }
+  }
+  cascadeOpen(start) {
+    const queue = [start];
+    const visited = new Set();
+    visited.add(start);
+    while (queue.length) {
+      const idx = queue.shift();
+      const neighbors = this.getNeighbors(idx);
+      for (const n of neighbors) {
+        if (this.opened[n] || this.flagged[n] || this.mines[n]) continue;
+        this.openCell(n);
+        if (this.counts[n] === 0 && !visited.has(n)) {
+          visited.add(n);
+          queue.push(n);
+        }
+      }
+    }
+  }
+  getNeighbors(i) {
+    const neighbors = [];
+    const dirs = [-1, 0, 1];
+    const row = Math.floor(i / this.size);
+    const col = i % this.size;
+    for (let dr of dirs) {
+      for (let dc of dirs) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r < 0 || r >= this.size || c < 0 || c >= this.size) continue;
+        neighbors.push(r * this.size + c);
+      }
+    }
+    return neighbors;
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  new Minesweeper();
+});
+</script>
+</body>
+</html>

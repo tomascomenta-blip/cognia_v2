@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una página</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);flex:1 1 30%;min-width:250px;display:flex;flex-direction:column;opacity:0;transform:translateX(-20px);animation:slideIn 0.5s forwards;}
+  .col:nth-child(1){animation-delay:0s;}
+  .col:nth-child(2){animation-delay:0.2s;}
+  .col:nth-child(3){animation-delay:0.4s;}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
+  .col header{background:#007bff;color:#fff;padding:8px;font-weight:bold;text-align:center;}
+  .col .cards{flex:1;padding:8px;display:flex;flex-direction:column;gap:8px;}
+  .card{background:#e9ecef;border-radius:4px;padding:8px;display:flex;justify-content:space-between;align-items:center;}
+  .card button{background:#007bff;color:#fff;border:none;border-radius:2px;padding:4px 8px;cursor:pointer;margin-left:4px;}
+  .card button:disabled{background:#6c757d;cursor:not-allowed;}
+  .counter{font-size:0.9em;color:#fff;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <header>Todo <span id="cont-todo" class="counter"></span></header>
+    <div class="cards" id="todo-cards">
+      <div class="card" data-id="t1"><span>t1</span><div><button class="menos">←</button><button class="mas">→</button></div></div>
+      <div class="card" data-id="t2"><span>t2</span><div><button class="menos">←</button><button class="mas">→</button></div></div>
+      <div class="card" data-id="t3"><span>t3</span><div><button class="menos">←</button><button class="mas">→</button></div></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <header>Doing <span id="cont-doing" class="counter"></span></header>
+    <div class="cards" id="doing-cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <header>Done <span id="cont-done" class="counter"></span></header>
+    <div class="cards" id="done-cards"></div>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+
+function updateCounters() {
+  const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+  const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+  const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent = todo;
+  document.getElementById('cont-doing').textContent = doing;
+  document.getElementById('cont-done').textContent = done;
+}
+
+function moveCard(card, direction) {
+  const colDiv = card.parentElement.parentElement; // .cards container
+  const colName = colDiv.dataset.col;
+  let targetColName;
+
+  if (direction === 'mas') {
+    if (colName === 'todo') {
+      if (document.querySelectorAll('.col[data-col="doing"] .card').length >= MAX_DOING) return;
+      targetColName = 'doing';
+    } else if (colName === 'doing') {
+      targetColName = 'done';
+    } else {
+      return; // already done
+    }
+  } else if (direction === 'menos') {
+    if (colName === 'doing') {
+      targetColName = 'todo';
+    } else if (colName === 'done') {
+      targetColName = 'doing';
+    } else {
+      return; // already todo
+    }
+  }
+
+  const targetColDiv = document.querySelector('.col[data-col="' + targetColName + '"] .cards');
+  targetColDiv.appendChild(card);
+  updateCounters();
+}
+
+// Delegated event handling for dynamic buttons
+document.addEventListener('click', function(e) {
+  if (e.target.matches('.card button.mas')) {
+    moveCard(e.target.parentElement.parentElement, 'mas');
+  } else if (e.target.matches('.card button.menos')) {
+    moveCard(e.target.parentElement.parentElement, 'menos');
+  }
+});
+
+document.addEventListener('DOMContentLoaded', updateCounters);
+</script>
+</body>
+</html>

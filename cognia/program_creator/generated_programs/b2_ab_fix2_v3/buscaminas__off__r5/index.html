@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:400px;width:100%;}
+.c{border:1px solid #ccc;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;aspect-ratio:1;animation:pulse 2s infinite;}
+.c.abierta{background:#fff8b3;animation:none;}
+.c.bandera::after{content:"🚩";}
+.c.abierta[data-mine="true"]::after{content:"💣";}
+#estado{margin-top:10px;font-size:1.2rem;font-weight:bold;}
+@keyframes pulse{
+  0%{background-color:#f0f0f0;}
+  50%{background-color:#e0e0ff;}
+  100%{background-color:#f0f0f0;}
+}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const mineIndices = new Set([6,12,18]);
+
+  for (let i=0; i<25; i++) {
+    const cell = document.createElement('div');
+    cell.classList.add('c');
+    cell.dataset.i = i;
+    if (mineIndices.has(i)) cell.dataset.mine = 'true';
+    cell.addEventListener('click', () => openCell(cell));
+    cell.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      toggleFlag(cell);
+    });
+    grid.appendChild(cell);
+  }
+
+  function openCell(cell) {
+    if (estado.textContent === 'perdiste') return;
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    if (cell.dataset.mine === 'true') {
+      cell.classList.add('abierta');
+      cell.style.color = 'red';
+      estado.textContent = 'perdiste';
+      return;
+    }
+    const i = parseInt(cell.dataset.i);
+    const count = countAdjacentMines(i);
+    cell.dataset.num = count;
+    cell.classList.add('abierta');
+    if (count > 0) {
+      cell.textContent = count;
+      cell.style.color = (count >= 0 ? 'green' : 'red');
+    } else {
+      cascadeOpen(i);
+    }
+  }
+
+  function toggleFlag(cell) {
+    if (estado.textContent === 'perdiste') return;
+    if (cell.classList.contains('abierta')) return;
+    cell.classList.toggle('bandera');
+  }
+
+  function countAdjacentMines(i) {
+    const row = Math.floor(i/5);
+    const col = i%5;
+    let count = 0;
+    for (let dr=-1; dr<=1; dr++) {
+      for (let dc=-1; dc<=1; dc++) {
+        if (dr===0 && dc===0) continue;
+        const r = row+dr;
+        const c = col+dc;
+        if (r<0||r>4||c<0||c>4) continue;
+        const idx = r*5 + c;
+        if (mineIndices.has(idx)) count++;
+      }
+    }
+    return count;
+  }
+
+  function cascadeOpen(startIdx) {
+    const queue = [startIdx];
+    const visited = new Set();
+    while (queue.length) {
+      const idx = queue.shift();
+      if (visited.has(idx)) continue;
+      visited.add(idx);
+      const cell = grid.querySelector(`.c[data-i="${idx}"]`);
+      if (!cell || cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+      const count = countAdjacentMines(idx);
+      cell.dataset.num = count;
+      cell.classList.add('abierta');
+      if (count > 0) {
+        cell.textContent = count;
+        cell.style.color = (count >= 0 ? 'green' : 'red');
+      } else {
+        const row = Math.floor(idx/5);
+        const col = idx%5;
+        for (let dr=-1; dr<=1; dr++) {
+          for (let dc=-1; dc<=1; dc++) {
+            if (dr===0 && dc===0) continue;
+            const r = row+dr;
+            const c = col+dc;
+            if (r<0||r>4||c<0||c>4) continue;
+            const nIdx = r*5 + c;
+            if (!visited.has(nIdx)) queue.push(nIdx);
+          }
+        }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>

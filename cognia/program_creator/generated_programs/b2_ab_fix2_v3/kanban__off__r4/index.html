@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+  }
+  .board{
+    display:flex;
+    flex-wrap:wrap;
+    gap:1rem;
+    padding:1rem;
+    max-width:1200px;
+    width:100%;
+  }
+  .col{
+    flex:1 1 300px;
+    background:#e0e0e0;
+    border-radius:8px;
+    padding:1rem;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+  }
+  .col[data-col="todo"]{background:#d0e7ff;}
+  .col[data-col="doing"]{background:#fff8d0;}
+  .col[data-col="done"]{background:#d0ffd0;}
+  .col h2{margin-top:0;font-size:1.2rem;}
+  .col .counter{font-weight:bold;margin-bottom:0.5rem;}
+  .card{
+    background:white;
+    border-radius:6px;
+    padding:0.5rem;
+    margin-bottom:0.5rem;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card button{
+    background:#007bff;
+    color:white;
+    border:none;
+    border-radius:4px;
+    padding:0.2rem 0.5rem;
+    cursor:pointer;
+    font-size:0.9rem;
+  }
+  .card button:disabled{background:#aaa;cursor:not-allowed;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .col,.card{animation:fadeIn 0.5s ease forwards;}
+  @media (max-width:600px){
+    .board{flex-direction:column;align-items:stretch;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>TODO <span id="cont-todo" class="counter"></span></h2>
+    <div class="card" data-id="t1">
+      <span>t1</span>
+      <div>
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <span>t2</span>
+      <div>
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <span>t3</span>
+      <div>
+        <button class="menos">←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>DOING <span id="cont-doing" class="counter"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>DONE <span id="cont-done" class="counter"></span></h2>
+  </div>
+</div>
+<script>
+class KanbanBoard{
+  constructor(){
+    this.cols={
+      todo:document.querySelector('.col[data-col="todo"]'),
+      doing:document.querySelector('.col[data-col="doing"]'),
+      done:document.querySelector('.col[data-col="done"]')
+    };
+    this.counters={
+      todo:document.getElementById('cont-todo'),
+      doing:document.getElementById('cont-doing'),
+      done:document.getElementById('cont-done')
+    };
+    this.init();
+  }
+  init(){
+    this.updateCounters();
+    this.attachEvents();
+  }
+  attachEvents(){
+    document.querySelectorAll('.card').forEach(card=>{
+      const masBtn=card.querySelector('.mas');
+      const menosBtn=card.querySelector('.menos');
+      masBtn.addEventListener('click',()=>this.moveCard(card,1));
+      menosBtn.addEventListener('click',()=>this.moveCard(card,-1));
+    });
+  }
+  moveCard(card,dir){
+    const currentCol=card.parentElement;
+    const colName=currentCol.dataset.col;
+    const order=['todo','doing','done'];
+    const idx=order.indexOf(colName);
+    const newIdx=idx+dir;
+    if(newIdx<0||newIdx>=order.length)return;
+    const newColName=order[newIdx];
+    if(newColName==='doing'&&this.cols.doing.querySelectorAll('.card').length>=2)return;
+    this.cols[newColName].appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters(){
+    this.counters.todo.textContent=this.cols.todo.querySelectorAll('.card').length;
+    this.counters.doing.textContent=this.cols.doing.querySelectorAll('.card').length;
+    this.counters.done.textContent=this.cols.done.querySelectorAll('.card').length;
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new KanbanBoard());
+</script>
+</body>
+</html>

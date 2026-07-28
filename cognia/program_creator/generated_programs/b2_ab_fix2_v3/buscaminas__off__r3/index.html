@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:sans-serif;background:#222;color:#fff;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:400px;width:100%;}
+.c{background:#444;border:1px solid #222;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-weight:bold;cursor:pointer;}
+.c.abierta{background:#ccc;color:#000;cursor:default;}
+.c.bandera{background:#444;color:#f00;}
+#estado{margin-top:10px;font-size:1.2em;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+
+// Create cells
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');
+  d.className='c';
+  d.dataset.i=i;
+  d.addEventListener('click',()=>openCell(d));
+  d.addEventListener('contextmenu',e=>{e.preventDefault();toggleFlag(d)});
+  grid.appendChild(d);
+}
+
+// Helper functions
+function neighbors(i){
+  const r=Math.floor(i/5),c=i%5,arr=[];
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(dr===0&&dc===0)continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);
+  }
+  return arr;
+}
+function countAdj(i){return neighbors(i).filter(n=>mines.includes(n)).length;}
+
+// Core logic
+function openCell(cell){
+  if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;
+  const i=+cell.dataset.i;
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    cell.style.color='red';
+    estado.textContent='perdiste';
+    return;
+  }
+  const cnt=countAdj(i);
+  cell.classList.add('abierta');
+  if(cnt>0)cell.textContent=cnt;
+  cell.style.color='green';
+  // Open immediate neighbors (but not recursively) unless the cell is a mine
+  neighbors(i).forEach(n=>{
+    const c=grid.children[n];
+    if(c.classList.contains('abierta')||c.classList.contains('bandera')||mines.includes(n))return;
+    c.classList.add('abierta');
+    const nc=countAdj(n);
+    if(nc>0)c.textContent=nc;
+    c.style.color='green';
+  });
+}
+function toggleFlag(cell){
+  if(cell.classList.contains('abierta'))return;
+  cell.classList.toggle('bandera');
+}
+</script>
+</body>
+</html>

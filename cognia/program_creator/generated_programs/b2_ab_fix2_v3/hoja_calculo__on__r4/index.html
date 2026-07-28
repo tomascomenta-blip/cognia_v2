@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:monospace;background:#f0f0f0;margin:0;padding:20px;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+  .container{max-width:400px;width:100%;background:#fff;padding:10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+  h1{font-size:1.4em;margin:0 0 10px;text-align:center;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .celda{width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;text-align:right;font-size:1em;}
+  .celda.formula{background:#e8f4ff;}
+  .header-art{font-family:monospace;font-size:0.9em;color:#555;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Mini Hoja de Cálculo 3x3</h1>
+  <div class="header-art">
+    ┌───────────────────────┐<br>
+    │  M I N I  H O J A     │<br>
+    │  D E  C Á L C U L O   │<br>
+    └───────────────────────┘
+  </div>
+  <div class="grid">
+    <input type="text" class="celda" data-ref="A1" value="">
+    <input type="text" class="celda" data-ref="A2" value="">
+    <input type="text" class="celda" data-ref="A3" value="">
+    <input type="text" class="celda" data-ref="B1" value="">
+    <input type="text" class="celda" data-ref="B2" value="">
+    <input type="text" class="celda" data-ref="B3" value="">
+    <input type="text" class="celda" data-ref="C1" value="">
+    <input type="text" class="celda" data-ref="C2" value="">
+    <input type="text" class="celda" data-ref="C3" value="">
+  </div>
+</div>
+
+<script>
+(() => {
+  const cells = document.querySelectorAll('.celda');
+  const refMap = {};
+  cells.forEach(cell => {
+    refMap[cell.dataset.ref] = cell;
+    // Initialize data-formula if starts with '='
+    const val = cell.value.trim();
+    if (val.startsWith('=')) {
+      cell.dataset.formula = val;
+      cell.classList.add('formula');
+    } else {
+      delete cell.dataset.formula;
+    }
+    // Store previous value for color change detection
+    cell.dataset.prev = cell.value;
+  });
+
+  // Update cell display and color based on change
+  function updateCellDisplay(cell, newVal) {
+    const prev = cell.dataset.prev;
+    // Determine numeric change if possible
+    const prevNum = parseFloat(prev);
+    const newNum = parseFloat(newVal);
+    if (newVal === 'CIRC') {
+      cell.style.color = 'red';
+    } else if (!isNaN(prevNum) && !isNaN(newNum)) {
+      cell.style.color = newNum >= prevNum ? 'green' : 'red';
+    } else {
+      // Non-numeric or first time: keep default color
+      cell.style.color = '';
+    }
+    cell.dataset.prev = newVal;
+  }
+
+  // Evaluate a cell recursively
+  function evaluate(ref, stack, cache) {
+    const cell = refMap[ref];
+    if (!cell) return 0;
+    if (cache.hasOwnProperty(ref)) return cache[ref];
+    if (stack.has(ref)) {
+      // Circular reference detected
+      cell.value = 'CIRC';
+      cell.setAttribute('value', 'CIRC');
+      cell.dataset.formula = 'CIRC';
+      updateCellDisplay(cell, 'CIRC');
+      cache[ref] = NaN;
+      return NaN;
+    }
+    stack.add(ref);
+    let result;
+    if (cell.dataset.formula) {
+      const expr = cell.dataset.formula.slice(1).trim(); // remove '='
+      result = evaluateExpression(expr, stack, cache);
+      // Update cell display only if formula
+      const formatted = formatNumber(result);
+      cell.value = formatted;
+      cell.setAttribute('value', formatted);
+      updateCellDisplay(cell, formatted);
+    } else {
+      // Non-formula cell: just return its numeric value, do not modify
+      const num = parseFloat(cell.value.trim());
+      result = isNaN(num) ? 0 : num;
+    }
+    stack.delete(ref);
+    cache[ref] = result;
+    return result;
+  }
+
+  // Simple left-to-right evaluator supporting + and -
+  function evaluateExpression(expr, stack, cache) {
+    const tokens = expr.match(/([A-Z][1-3])|(\d+(\.\d+)?)|([+-])/g);
+    if (!tokens) return 0;
+    let acc = 0;
+    let op = '+';
+    tokens.forEach(tok => {
+      if (tok === '+' || tok === '-') {
+        op = tok;
+      } else if (/^[A-Z][1-3]$/.test(tok)) {
+        const val = evaluate(tok, stack, cache);
+        acc = applyOp(acc, val, op);
+      } else {
+        const val = parseFloat(tok);
+        acc = applyOp(acc, val, op);
+      }
+    });
+    return acc;
+  }
+
+  function applyOp(a, b, op) {
+    if (Number.isNaN(a) || Number.isNaN(b)) return NaN;
+    return op === '+' ? a + b : a - b;
+  }
+
+  function formatNumber(n) {
+    if (Number.isNaN(n)) return 'CIRC';
+    return Number.isInteger(n) ? n.toString() : n.toString();
+  }
+
+  function recomputeAll() {
+    const cache = {};
+    Object.keys(refMap).forEach(ref => {
+      evaluate(ref, new Set(), cache);
+    });
+  }
+
+  // Attach input listeners
+  cells.forEach(cell => {
+    cell.addEventListener('input', () => {
+      const val = cell.value.trim();
+      if (val.startsWith('=')) {
+        cell.dataset.formula = val;
+        cell.classList.add('formula');
+      } else {
+        delete cell.dataset.formula;
+        cell.classList.remove('formula');
+      }
+      recomputeAll();
+    });
+  });
+
+  // Initial compute
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

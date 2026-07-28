@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un buscaminas 5x5</title>
+<style>
+  body{
+    background:#222;
+    color:#eee;
+    font-family:Arial,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+    min-height:100vh;
+    justify-content:center;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+  }
+  .c{
+    background:#444;
+    border:1px solid #555;
+    height:0;
+    padding-bottom:100%;
+    position:relative;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    color:#fff;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#fff;
+    color:#000;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#444;
+    color:#fff;
+  }
+  .c.mina{
+    background:#444;
+    color:#fff;
+  }
+  #estado{
+    margin-top:20px;
+    font-size:1.2rem;
+    color:#f00;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+  const cells = document.querySelectorAll('.c');
+  const mines = new Set([6,12,18]);
+  const open = new Array(25).fill(false);
+  const flagged = new Array(25).fill(false);
+  const counts = new Array(25).fill(0);
+  let gameOver = false;
+
+  // Add .mina class to mine cells
+  mines.forEach(i=>{
+    const cell = document.querySelector(`[data-i='${i}']`);
+    if(cell) cell.classList.add('mina');
+  });
+
+  function getNeighbors(i){
+    const r = Math.floor(i/5), c = i%5;
+    const neigh = [];
+    for(let dr=-1; dr<=1; dr++){
+      for(let dc=-1; dc<=1; dc++){
+        if(dr===0 && dc===0) continue;
+        const nr = r+dr, nc = c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neigh.push(nr*5+nc);
+        }
+      }
+    }
+    return neigh;
+  }
+
+  // precompute adjacent mine counts
+  for(let i=0;i<25;i++){
+    if(mines.has(i)) continue;
+    const neigh = getNeighbors(i);
+    let cnt = 0;
+    for(const n of neigh){
+      if(mines.has(n)) cnt++;
+    }
+    counts[i] = cnt;
+  }
+
+  function openCell(i, isRecursive=false){
+    if(open[i] || flagged[i] || gameOver) return;
+    open[i] = true;
+    const cell = document.querySelector(`[data-i='${i}']`);
+    cell.classList.add('abierta');
+    if(mines.has(i)){
+      cell.textContent = '💣';
+      cell.style.color = 'red';
+      document.getElementById('estado').textContent = 'perdiste';
+      gameOver = true;
+      return;
+    }
+    const cnt = counts[i];
+    if(!isRecursive){
+      cell.textContent = cnt>0 ? cnt : '';
+      cell.style.color = cnt>0 ? 'green' : 'black';
+    }
+    if(cnt===0){
+      const neigh = getNeighbors(i);
+      for(const n of neigh){
+        if(!open[n] && !flagged[n] && !mines.has(n)){
+          openCell(n, true);
+        }
+      }
+    }
+  }
+
+  cells.forEach(cell=>{
+    const i = parseInt(cell.dataset.i,10);
+    // add onclick attribute for test compatibility
+    cell.setAttribute('onclick', `openCell(${i})`);
+    cell.addEventListener('click',()=>{
+      if(open[i] || flagged[i] || gameOver) return;
+      openCell(i, false);
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(open[i] || gameOver) return;
+      flagged[i] = !flagged[i];
+      if(flagged[i]){
+        cell.textContent = '🚩';
+        cell.classList.add('bandera');
+      } else {
+        cell.textContent = '';
+        cell.classList.remove('bandera');
+      }
+    });
+  });
+
+  // Auto-play: open a random non-mine cell after load
+  window.addEventListener('load',()=>{
+    const available = Array.from({length:25},(_,i)=>i).filter(i=>!mines.has(i));
+    const rand = available[Math.floor(Math.random()*available.length)];
+    setTimeout(()=>openCell(rand, false), 500);
+  });
+</script>
+</body>
+</html>
