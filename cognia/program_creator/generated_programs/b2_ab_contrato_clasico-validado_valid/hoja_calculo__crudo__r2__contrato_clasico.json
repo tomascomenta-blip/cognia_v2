@@ -1,0 +1,58 @@
+{
+  "nombre": "Verificar funcionalidad de mini hoja de cálculo 3x3",
+  "pasos": [
+    {
+      "nombre": "Contar celdas iniciales",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar valores iniciales vacíos",
+      "accion": "existe",
+      "selector": ".celda",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1",
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula en B1 que dependa de A1",
+      "accion": "texto",
+      "selector": "#B1",
+      "contiene": "=A1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que B1 muestra resultado 2",
+      "accion": "existe",
+      "selector": "#B1",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula en C1 que dependa de B1",
+      "accion": "texto",
+      "selector": "#C1",
+      "contiene": "=B1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 5 y verificar cascada",
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Confirmar que B1 y C1 actualizan a 6 y 7 respectivamente",
+      "accion": "existe",
+      "selector": "#C1",
+      "critico": true
+    }
+  ]
+}

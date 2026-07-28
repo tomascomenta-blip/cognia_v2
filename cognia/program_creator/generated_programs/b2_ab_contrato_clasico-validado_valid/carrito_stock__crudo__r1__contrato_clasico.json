@@ -1,0 +1,60 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 3 productos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar existencia de 3 botones de añadir",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Añadir el primer producto y comprobar línea creada",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la línea del primer producto tiene cantidad 1",
+      "critico": true,
+      "accion": "contiene",
+      "selector": ".linea[data-id='p1'] .cant",
+      "esperado": "1"
+    },
+    {
+      "nombre": "Añadir el mismo producto hasta alcanzar stock máximo",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el botón add del primer producto está deshabilitado tras alcanzar stock",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id='p1'][disabled]"
+    },
+    {
+      "nombre": "Quitar una unidad del primer producto y comprobar que la cantidad disminuye",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el total se actualiza correctamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "125"
+    }
+  ]
+}

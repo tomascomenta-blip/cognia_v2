@@ -1,0 +1,64 @@
+{
+  "nombre": "Carrito de compra con stock y control de líneas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de los tres productos en inventario",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Confirmar que cada botón de añadir está habilitado inicialmente",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Añadir el primer producto y comprobar que aparece una línea con cantidad 1 y el total actualizado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Añadir el mismo producto hasta alcanzar su stock máximo y verificar que la cantidad aumenta sin crear nuevas líneas",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0
+    },
+    {
+      "nombre": "Confirmar que el botón de añadir del producto con stock agotado queda deshabilitado",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[disabled]"
+    },
+    {
+      "nombre": "Eliminar una unidad del producto y comprobar que la cantidad disminuye y el total se recalcula",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0
+    },
+    {
+      "nombre": "Eliminar la última unidad del producto y verificar que la línea desaparece y el botón de añadir se habilita nuevamente",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0
+    },
+    {
+      "nombre": "Repetir el proceso con los otros dos productos para asegurar que el comportamiento es consistente en todos ellos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 3
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 8
+  }
+}

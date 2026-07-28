@@ -1,0 +1,65 @@
+{
+  "nombre": "Verificar funcionamiento del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Estado inicial del tablero",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar tarjetas iniciales en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Confirmar columnas doing y done vacías",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Validar contadores iniciales",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Mover una tarjeta de todo a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que la tarjeta se movió a doing y contadores actualizados",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 1
+    },
+    {
+      "nombre": "Intentar mover tarjeta de doing a done y verificar contadores",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='doing'] .card .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Confirmar que la tarjeta no puede avanzar más desde done",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='done'] .card .mas",
+      "indice": 0
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 8
+  }
+}

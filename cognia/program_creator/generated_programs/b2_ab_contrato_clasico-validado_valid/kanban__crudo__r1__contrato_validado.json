@@ -1,0 +1,65 @@
+{
+  "nombre": "Kanban Board Functionality Test",
+  "pasos": [
+    {
+      "nombre": "Initial state has 3 todo cards",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-id]",
+      "esperado": 3
+    },
+    {
+      "nombre": "Initial state has 0 doing cards",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col=\"doing\"] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Initial state has 0 done cards",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col=\"done\"] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Counters show correct counts initially",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Counters show correct counts initially",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Counters show correct counts initially",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Move first todo card to doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".card[data-id=\"t1\"] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Doing column now has 1 card and todo has 2, counters updated",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 8
+  }
+}

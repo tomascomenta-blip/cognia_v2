@@ -1,0 +1,61 @@
+{
+  "nombre": "Buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: no hay texto visible en las celdas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Al hacer click en una celda no mina, se abre y muestra número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Si la celda abierta tiene 0 minas adyacentes, se abre en cascada todas las vecinas con 0 y sus bordes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 1
+    },
+    {
+      "nombre": "Al hacer click derecho en una celda, se añade la clase 'bandera' y la celda no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 2
+    },
+    {
+      "nombre": "Al hacer click en una celda con bandera, no se abre y no cambia el estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 2
+    },
+    {
+      "nombre": "Al hacer click en una celda que contiene una mina, se muestra el texto 'perdiste' en #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "El texto 'perdiste' aparece solo cuando se abre una mina y no antes",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

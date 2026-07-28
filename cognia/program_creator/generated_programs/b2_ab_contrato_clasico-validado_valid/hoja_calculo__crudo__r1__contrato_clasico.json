@@ -1,0 +1,60 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y las celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Confirmar que hay 9 celdas con clase .celda",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Comprobar que cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".celda[data-ref='A1']"
+    },
+    {
+      "nombre": "Verificar que el valor inicial de todas las celdas es vacío",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Ingresar un valor numérico en A1 y comprobar que se muestra",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Escribir una fórmula en B1 que dependa de A1 y verificar su cálculo",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#B1",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Cambiar A1 y comprobar que B1 se recalcula automáticamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#B1",
+      "contiene": "10"
+    },
+    {
+      "nombre": "Crear una referencia circular C1= C1+1 y verificar que muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#C1",
+      "contiene": "CIRC"
+    }
+  ]
+}

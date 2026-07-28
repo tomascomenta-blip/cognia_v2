@@ -1,0 +1,159 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Columnas doing y done vacías",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contadores iniciales correctos",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 1
+    },
+    {
+      "nombre": "Contador doing actualizado a 1",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 1
+    },
+    {
+      "nombre": "Mover tarjeta t1 a done",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t1 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t1 ahora en done",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='done'] .card",
+      "esperado": 1
+    },
+    {
+      "nombre": "Contador done actualizado a 1",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-done",
+      "esperado": 1
+    },
+    {
+      "nombre": "Intentar mover tarjeta t2 a doing cuando doing ya tiene 1 tarjeta",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t2 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 sigue en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Mover tarjeta t3 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t3 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t3 ahora en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Intentar mover tarjeta t3 a done cuando doing está lleno",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t3 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t3 sigue en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Mover tarjeta t2 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t2 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 ahora en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Intentar mover tarjeta t2 a done cuando doing está lleno",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t2 .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 sigue en doing",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='doing'] .card",
+      "esperado": 2
+    },
+    {
+      "nombre": "Mover tarjeta t2 a todo",
+      "critico": true,
+      "accion": "click",
+      "selector": "#t2 .menos",
+      "indice": 0
+    },
+    {
+      "nombre": "Tarjeta t2 ahora en todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 1
+    }
+  ]
+}

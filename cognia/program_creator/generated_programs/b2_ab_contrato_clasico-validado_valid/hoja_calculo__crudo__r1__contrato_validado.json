@@ -1,0 +1,58 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Contar celdas con clase .celda",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.dataset.ref))",
+      "esperado": true
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Ingresar fórmula en B1 que dependa de A1 y comprobar cálculo",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "=A1+2"
+    },
+    {
+      "nombre": "Cambiar valor de A1 y verificar que B1 se recalcula automáticamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Crear referencia circular C1= C1+1 y comprobar que muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "CIRC"
+    },
+    {
+      "nombre": "Verificar que la actualización en cascada funciona: B1= A1+1, C1= B1+1, cambiar A1 y comprobar C1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "3"
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 7
+  }
+}

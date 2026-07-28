@@ -1,0 +1,43 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "accion": "existe",
+      "selector": ".celda[data-ref='A1']",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula en B1 que depende de A1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de A1 a 5 y comprobar cascada a B1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Crear referencia circular C1= C1+1 y verificar texto CIRC",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "CIRC",
+      "critico": true
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 5
+  }
+}

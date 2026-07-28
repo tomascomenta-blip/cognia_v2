@@ -1,0 +1,61 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Verifica que existen los 3 productos con sus datos",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#products .prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Comprueba que cada producto tiene el botón add habilitado",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#products .add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Añade el producto p1 una vez y verifica que aparece una línea con cantidad 1",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Añade el producto p1 otra vez y verifica que la cantidad aumenta a 2 y el botón add se deshabilita",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Intenta añadir el producto p1 una tercera vez y verifica que no se crea nueva línea ni cambia la cantidad",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .add[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Quita una unidad del producto p1 y verifica que la cantidad baja a 1 y el botón add se habilita",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .quitar[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Quita la última unidad del producto p1 y verifica que la línea desaparece y el botón add vuelve a habilitarse",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .quitar[data-id='p1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Comprueba que el total se actualiza correctamente tras cada operación",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": ""
+    }
+  ]
+}

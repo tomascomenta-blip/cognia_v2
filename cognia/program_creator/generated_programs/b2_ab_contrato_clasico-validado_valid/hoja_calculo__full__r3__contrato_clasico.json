@@ -1,0 +1,66 @@
+{
+  "nombre": "Verificar funcionamiento de la mini hoja de cálculo 3x3",
+  "pasos": [
+    {
+      "nombre": "Existe la grilla 3x3 con 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.dataset.ref))",
+      "esperado": true
+    },
+    {
+      "nombre": "Valor inicial de todas las celdas es vacío",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "1",
+      "esperado": true
+    },
+    {
+      "nombre": "Crear fórmula en B1 que sume A1+1 y verificar resultado",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+1",
+      "esperado": true
+    },
+    {
+      "nombre": "Cambiar valor de A1 a 5 y verificar cascada en B1",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "esperado": true
+    },
+    {
+      "nombre": "Crear referencia circular C1= C1+1 y verificar texto CIRC",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "CIRC",
+      "esperado": true
+    },
+    {
+      "nombre": "Eliminar referencia circular y verificar que C1 vuelve a mostrar valor calculado",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "1",
+      "esperado": true
+    }
+  ]
+}

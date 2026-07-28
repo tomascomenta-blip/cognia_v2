@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar funcionamiento del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "Mover tarjeta a la derecha",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Actualizar contadores tras movimiento",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 2
+    },
+    {
+      "nombre": "Actualizar contadores tras movimiento",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-doing",
+      "esperado": 1
+    }
+  ]
+}

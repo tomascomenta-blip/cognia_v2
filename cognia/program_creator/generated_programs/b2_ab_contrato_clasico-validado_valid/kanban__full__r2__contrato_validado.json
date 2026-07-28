@@ -1,0 +1,72 @@
+{
+  "nombre": "Verificar funcionamiento del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contador de doing inicial",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Contador de done inicial",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "Mover tarjeta a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Actualizar contadores tras movimiento",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 2
+    },
+    {
+      "nombre": "Limitar WIP a 2 tarjetas en doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card .mas",
+      "indice": 1
+    },
+    {
+      "nombre": "Verificar que tercer intento no avanza",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 2
+    }
+  ],
+  "_validado": {
+    "antes": 9,
+    "despues": 9
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "nombre": "Carrito de compra con stock y manejo de líneas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de los tres productos con sus atributos",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#products .prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Confirmar que cada producto tiene el botón de añadir habilitado",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#products .prod .add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Añadir el producto p1 una vez y comprobar que aparece una línea con cantidad 1",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .prod[data-id='p1'] .add",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el total muestra 100 y la línea p1 tiene cantidad 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Añadir el producto p1 otra vez y comprobar que la cantidad aumenta a 2 y el botón add queda deshabilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .prod[data-id='p1'] .add",
+      "indice": 0
+    },
+    {
+      "nombre": "Intentar añadir p1 una tercera vez y verificar que el botón sigue deshabilitado y la cantidad permanece 2",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .prod[data-id='p1'] .add",
+      "indice": 0
+    },
+    {
+      "nombre": "Quitar una unidad del producto p1 y comprobar que la cantidad baja a 1 y el botón add se habilita",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .linea[data-id='p1'] .quitar",
+      "indice": 0
+    },
+    {
+      "nombre": "Quitar la última unidad del producto p1 y verificar que la línea desaparece y el total se actualiza a 0",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .linea[data-id='p1'] .quitar",
+      "indice": 0
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 8
+  }
+}

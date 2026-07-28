@@ -1,0 +1,62 @@
+{
+  "nombre": "Verificar funcionamiento de un buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas y sin bandera",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Estado inicial: no hay texto visible en ninguna celda",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Al hacer click en la celda 0 (sin minas adyacentes) se abre la celda y se revelan todas las celdas de la región de 0 adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Después del click en la celda 0, todas las celdas de la región de 0 adyacentes muestran texto visible (número de minas adyacentes o vacío) y tienen la clase 'abierta'",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Al hacer click derecho en la celda 6 (minera) se coloca una bandera y la celda no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Al hacer click en una celda con bandera, la celda permanece con la clase 'bandera' y no cambia a 'abierta'",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c.bandera",
+      "indice": 6
+    },
+    {
+      "nombre": "Al hacer click en una celda que contiene una mina (por ejemplo la celda 12) se muestra el estado 'perdiste' en el elemento #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12
+    },
+    {
+      "nombre": "El elemento #estado muestra el texto 'perdiste' después de abrir una mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ]
+}

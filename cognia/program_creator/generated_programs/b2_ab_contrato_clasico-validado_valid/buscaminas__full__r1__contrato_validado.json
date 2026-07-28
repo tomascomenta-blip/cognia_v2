@@ -1,0 +1,78 @@
+{
+  "nombre": "Verificar funcionamiento de buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Revisar que existen 25 celdas con data-i 0-24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Click en celda 6 (mina) y comprobar mensaje de pérdida",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Verificar que #estado muestra 'perdiste' tras abrir mina",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Confirmar que celda 0 abre y muestra número de minas adyacentes (0)",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c.abierta"
+    },
+    {
+      "nombre": "Verificar cascada: todas las celdas adyacentes a 0 con 0 minas también abiertas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 9
+    },
+    {
+      "nombre": "Click derecho en celda 12 (mina) y comprobar que se añade clase 'bandera' y no se abre",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "key": "contextmenu"
+    },
+    {
+      "nombre": "Verificar que celda 12 tiene clase 'bandera' y no 'abierta'",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c.bandera"
+    },
+    {
+      "nombre": "Click en celda 12 con click izquierdo y confirmar que no cambia de estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12
+    },
+    {
+      "nombre": "Revisar que #estado sigue vacío (no perdió) después de click izquierdo en celda con bandera",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": ""
+    }
+  ],
+  "_validado": {
+    "antes": 11,
+    "despues": 10
+  }
+}

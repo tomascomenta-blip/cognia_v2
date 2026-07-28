@@ -1,0 +1,198 @@
+{
+  "nombre": "Carrito de compra con stock y control de cantidades",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos visibles y 0 líneas en el carrito",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar_visible",
+          "selector": ".prod",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 0
+        },
+        {
+          "accion": "existe",
+          "selector": "#total"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar primer producto (p1)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 1
+        },
+        {
+          "accion": "existe",
+          "selector": ".linea[data-id='p1']"
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p1'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "100"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar mismo producto (p1) hasta stock máximo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p1'] .cant",
+          "contiene": "2"
+        },
+        {
+          "accion": "existe",
+          "selector": ".add[data-id='p1'][disabled]"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar segundo producto (p2) y verificar total",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p2']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 2
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p2'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "150"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar una unidad de p1 y verificar línea y total",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "texto",
+          "selector": ".linea[data-id='p1'] .cant",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "150"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar última unidad de p1 y verificar línea desaparecida y botón habilitado",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar[data-id='p1']",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 1
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".linea[data-id='p1']"
+        },
+        {
+          "accion": "existe",
+          "selector": ".add[data-id='p1']"
+        },
+        {
+          "accion": "existe",
+          "selector": ".add[data-id='p1'][disabled]",
+          "esperado": 0
+        }
+      ],
+      "esperado": 0
+    },
+    {
+      "nombre": "Agregar tercer producto (p3) y verificar stock límite",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p3']",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".add[data-id='p3']",
+          "indice": 0
+        },
+        {
+          "accion": "existe",
+          "selector": ".add[data-id='p3'][disabled]"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que total refleja todas las líneas correctamente",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "225"
+        }
+      ]
+    }
+  ]
+}

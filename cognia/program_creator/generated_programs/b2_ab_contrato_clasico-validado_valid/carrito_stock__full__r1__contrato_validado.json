@@ -1,0 +1,23 @@
+{
+  "nombre": "Carrito con stock y manejo de líneas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos, 0 líneas en carrito",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Estado inicial: 3 botones add habilitados",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".add",
+      "esperado": 3
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 2
+  }
+}

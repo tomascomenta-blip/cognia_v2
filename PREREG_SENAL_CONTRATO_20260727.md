@@ -577,3 +577,27 @@ queda para árbitro/sprites), con su propio A/B de confirmación antes de
 default. PARCIAL = direccional, no adopta. Ambas unidades: infra excluida
 y reportada; el fallback de Ollama sigue neutralizado SOLO en runners de
 medición; backend registrado por celda donde el runner ya lo hace.
+
+### RESULTADO Unidad A (2026-07-28 ~06:45 — A/B completo, 24 páginas × 2)
+
+| modo | aciertos (/24, M3) | FN (/19) | FP (/5) | sin contrato |
+|---|---|---|---|---|
+| clásico (concurrente) | 8 | 15 | 1 | 1 |
+| validado | 9 | 15 | 0 | 0 |
+
+**Veredicto pre-registrado: KILL** (+1 acierto < umbral GRIS de +2). Y la
+lectura que importa: **el filtro estuvo ACTIVO en los 24 contratos (cortó
+30 pasos, 0-6 por contrato, cero fallbacks) y el FN no se movió — el
+validador conserva exactamente las expectativas inventadas que acusan a
+las páginas sanas.** La predicción falsable H se cumple en su rama dura:
+el pensador no distingue "exigido" de "inventado" ni viendo solo la idea,
+porque él mismo las inventó desde esa idea (la razón 5.4 de
+[[juez-tiene-que-ejecutar]] otra vez: el que audita el examen es el mismo
+que lo escribió). Con esto son TRES KILL convergentes sobre la señal
+autogenerada (corregido ×2, validado): **el techo es del PENSADOR, no de
+la plantilla ni del filtro. La única dirección viva es el held-out A MANO
+por tarea (una vez, auditado contra referencia) — y en producción, el
+sello honesto es "sin verificar" antes que un examen que acusa al 75-79%
+de las páginas sanas.** Nota de nivel (deriva): el clásico concurrente dio
+8/24 de aciertos donde anoche dio 10/24 — otra confirmación de que solo
+los controles concurrentes valen.

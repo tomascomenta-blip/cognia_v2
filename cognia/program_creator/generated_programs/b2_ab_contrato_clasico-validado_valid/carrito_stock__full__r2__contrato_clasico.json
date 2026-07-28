@@ -1,0 +1,60 @@
+{
+  "nombre": "Carrito de compra con stock limitado",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos con stock y precio correctos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Botones add visibles y habilitados",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Agregar producto p1 aumenta línea y cantidad a 1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Cantidad de p1 en línea es 1 y total es 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Agregar p1 hasta stock máximo (2) y botón deshabilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Botón add p1 está deshabilitado",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Quitar una unidad de p1 reduce cantidad a 1 y botón habilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Total actualizado a 100 y línea p1 sigue visible con cantidad 1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    }
+  ]
+}

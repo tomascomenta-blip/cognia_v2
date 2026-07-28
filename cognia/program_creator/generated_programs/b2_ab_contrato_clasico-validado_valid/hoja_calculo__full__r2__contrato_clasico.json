@@ -1,0 +1,60 @@
+{
+  "nombre": "Verificar funcionalidad de la mini hoja de cálculo 3x3",
+  "pasos": [
+    {
+      "nombre": "Existe la grilla 3x3 con 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "existe",
+      "selector": "input[data-ref='A1']"
+    },
+    {
+      "nombre": "Valor inicial de todas las celdas es vacío",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "input.celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Crear fórmula en B1 que dependa de A1 y verificar cálculo",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "=A1+3"
+    },
+    {
+      "nombre": "Cambiar valor de A1 y comprobar que B1 se recalcula automáticamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='B1']",
+      "contiene": "8"
+    },
+    {
+      "nombre": "Crear cadena de dependencias C1=B1+1 y verificar cascada al cambiar A1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='C1']",
+      "contiene": "9"
+    },
+    {
+      "nombre": "Introducir referencia circular en A2 y verificar que muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "input[data-ref='A2']",
+      "contiene": "CIRC"
+    }
+  ]
+}

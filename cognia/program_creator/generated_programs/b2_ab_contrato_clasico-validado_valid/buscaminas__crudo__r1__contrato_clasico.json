@@ -1,0 +1,59 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5 con 3 minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas con data-i 0-24",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Confirmar que las celdas 6,12,18 contienen minas y no se revelan al inicio",
+      "critico": true,
+      "accion": "contiene",
+      "selector": ".c[data-i='6']",
+      "esperado": "minas"
+    },
+    {
+      "nombre": "Revelar una celda no mina y comprobar que se añade clase 'abierta' y muestra número de minas adyacentes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que al abrir una celda con 0 minas adyacentes se abren todas las celdas contiguas con 0 y sus bordes",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 1
+    },
+    {
+      "nombre": "Asegurar que al hacer click derecho en una celda se añade clase 'bandera' y no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 2
+    },
+    {
+      "nombre": "Confirmar que al abrir una celda con mina se muestra mensaje 'perdiste' en #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']"
+    },
+    {
+      "nombre": "Verificar que una celda con bandera no se revela al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='12']"
+    },
+    {
+      "nombre": "Comprobar que el número de celdas abiertas coincide con el número esperado tras una cascada",
+      "critico": false,
+      "accion": "contar_visible",
+      "selector": ".c.abierta",
+      "esperado": 10
+    }
+  ]
+}

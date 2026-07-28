@@ -1,0 +1,57 @@
+{
+  "nombre": "Verificar carrito con stock y comportamiento de botones",
+  "pasos": [
+    {
+      "nombre": "Estado inicial del carrito",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Cantidad visible de productos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Botones add habilitados al inicio",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar línea p1 creada con cantidad 1",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".linea[data-id=\"p1\"]",
+      "esperado": 1
+    },
+    {
+      "nombre": "Botón add p1 deshabilitado al alcanzar stock",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Eliminar una unidad de p1 y verificar línea desaparece y botón habilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Total actualizado tras eliminar p1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0"
+    }
+  ],
+  "_validado": {
+    "antes": 9,
+    "despues": 7
+  }
+}

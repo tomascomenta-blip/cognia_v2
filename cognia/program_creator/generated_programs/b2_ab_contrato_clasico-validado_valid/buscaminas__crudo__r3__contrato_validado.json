@@ -1,0 +1,52 @@
+{
+  "nombre": "Verificar funcionamiento de un buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: todas las celdas ocultas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c",
+      "esperado": 0
+    },
+    {
+      "nombre": "Celdas con minas permanecen ocultas",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".c[data-i='6']",
+      "esperado": 0
+    },
+    {
+      "nombre": "Click derecho en celda 6 coloca bandera",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "tecla": "contextmenu"
+    },
+    {
+      "nombre": "Celda con bandera no se abre al hacer click",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0
+    },
+    {
+      "nombre": "Revelar mina 12 muestra mensaje de pérdida",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c[data-i='12']",
+      "indice": 0
+    },
+    {
+      "nombre": "Estado final: mensaje 'perdiste' visible",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste"
+    }
+  ],
+  "_validado": {
+    "antes": 9,
+    "despues": 6
+  }
+}

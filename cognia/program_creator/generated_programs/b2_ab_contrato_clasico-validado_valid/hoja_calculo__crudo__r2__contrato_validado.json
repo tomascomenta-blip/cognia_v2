@@ -1,0 +1,67 @@
+{
+  "nombre": "Verificar funcionalidad básica de la mini hoja de cálculo",
+  "pasos": [
+    {
+      "nombre": "Contar celdas iniciales",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Verificar que todas las celdas están vacías al inicio",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": {
+        "max": 0
+      }
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Verificar que A1 muestra el valor ingresado",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#A1",
+      "esperado": 1
+    },
+    {
+      "nombre": "Crear fórmula en B1 que dependa de A1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#B1",
+      "contiene": "=A1+1"
+    },
+    {
+      "nombre": "Verificar que B1 muestra el resultado calculado (2)",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#B1",
+      "esperado": 1
+    },
+    {
+      "nombre": "Cambiar A1 a 5 y verificar cascada en B1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Verificar que B1 actualiza a 6 tras cambio de A1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#B1",
+      "esperado": 1
+    }
+  ],
+  "_validado": {
+    "antes": 8,
+    "despues": 8
+  }
+}
