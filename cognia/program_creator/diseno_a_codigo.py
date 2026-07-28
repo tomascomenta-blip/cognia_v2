@@ -53,14 +53,28 @@ LlmFn = Callable[[str, str, int, float], Optional[str]]
 # COGNIA_GATE_VISUAL.
 GATE_VISUAL_DEFECTO = 7.0
 
-# Tope de rondas de reparacion guiadas por el arbitro. 3 (umbral de Aider);
-# el disyuntor puede cortar antes. En el A/B nocturno del 2026-07-26/27 el
-# tope bajo a 1 durante unas horas por un n=3 enganoso (primera generacion
-# 5,2,5) que a n=6 se revirtio (5,2,5,2,3,2 = 3.17 contra 4.5 del lazo
-# completo con reparacion a esfuerzo default, tambien n=6): REPARAR APORTA
-# +1.33 tareas cuando la reparacion piensa. Detalle y series en
-# PREREG_BON_RONDAS_20260726.md (5 enmiendas).
-MAX_RONDAS_DEFECTO = 3
+# Tope de rondas de reparacion guiadas por el arbitro; el disyuntor puede
+# cortar antes. HISTORIA COMPLETA (no repetirla): el 2026-07-26 un n=3
+# enganoso lo bajo a 1 y el n=6 lo revirtio a 3 (aquellas series eran
+# BLOQUES SECUENCIALES entre noches, con deriva del tamano del efecto). El
+# 2026-07-27/28 los A/B INTERCALADOS con control concurrente (la unica
+# lectura valida — [[gate-e2e-flaky]]) dieron lo contrario y consistente:
+# el lazo RESTA frente a entregar la primera generacion juzgada, en el
+# banco brutal (neto -3, 24 pares) y en el facil (neto -7, 36 pares;
+# semaforo pierde 6/6 con reparacion). Mecanismo: el sello interno esta
+# al nivel del azar en composicionales y las rondas degradan paginas que
+# nacieron mejor. Adopcion pre-registrada (QUINTA enmienda de
+# PREREG_SENAL_CONTRATO_20260727.md, "evidencia doble"): el default pasa
+# a 1 hasta que el contrato interno demuestre senal; override por
+# COGNIA_MAX_RONDAS para experimentos y para revertir sin release.
+MAX_RONDAS_DEFECTO = 1
+
+
+def _max_rondas_defecto() -> int:
+    try:
+        return int(os.environ.get("COGNIA_MAX_RONDAS", MAX_RONDAS_DEFECTO))
+    except ValueError:
+        return MAX_RONDAS_DEFECTO
 
 
 def _gate() -> float:
@@ -368,7 +382,7 @@ def _registrar_sello(res: "ResultadoDiseno") -> None:
 
 
 def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
-                          max_rondas: int = MAX_RONDAS_DEFECTO,
+                          max_rondas: Optional[int] = None,
                           gate_nota: Optional[float] = None,
                           usar_mockup_imagen: bool = True,
                           mockup_path: Optional[str] = None,
@@ -415,6 +429,8 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
         del pipeline); ante fallo temprano devuelve el resultado con lo que haya.
     """
     gate = _gate() if gate_nota is None else gate_nota
+    if max_rondas is None:
+        max_rondas = _max_rondas_defecto()
     res = ResultadoDiseno(idea=idea)
 
     try:

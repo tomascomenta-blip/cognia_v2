@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Contador con animación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .container {
+    text-align: center;
+    background: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  #valor {
+    display: block;
+    font-size: 4rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    animation: pulse 2s infinite;
+  }
+  button {
+    font-size: 1rem;
+    padding: 0.75rem 1.5rem;
+    margin: 0 0.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #mas { background: #4caf50; color: #fff; }
+  #menos { background: #f44336; color: #fff; }
+  button:hover { opacity: 0.9; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <span id="valor">0</span>
+  <button id="mas">Más</button>
+  <button id="menos">Menos</button>
+</div>
+
+<script>
+  // Configurables
+  const MIN = 0;
+  const STEP = 1;
+
+  const valorEl = document.getElementById('valor');
+  const masBtn = document.getElementById('mas');
+  const menosBtn = document.getElementById('menos');
+
+  let count = 0;
+  updateDisplay();
+
+  masBtn.addEventListener('click', () => {
+    count += STEP;
+    updateDisplay();
+  });
+
+  menosBtn.addEventListener('click', () => {
+    if (count > MIN) {
+      count -= STEP;
+      updateDisplay();
+    }
+  });
+
+  function updateDisplay() {
+    valorEl.textContent = count.toLocaleString('es-ES');
+  }
+</script>
+</body>
+</html>

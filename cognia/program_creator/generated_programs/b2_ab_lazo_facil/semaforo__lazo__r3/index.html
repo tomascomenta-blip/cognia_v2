@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo en HTML</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #luz {
+    width:80vw;
+    max-width:120px;
+    height:80vw;
+    max-height:120px;
+    border-radius:50%;
+    background:#ccc;
+    margin-bottom:20px;
+    transition:background-color 0.3s;
+  }
+  #luz[data-color="rojo"]   {background-color:#ff0000;}
+  #luz[data-color="verde"]  {background-color:#00ff00;}
+  #luz[data-color="ambar"]  {background-color:#ffbf00;}
+  button {
+    padding:10px 20px;
+    font-size:1rem;
+    cursor:pointer;
+    background:#333;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+  }
+</style>
+</head>
+<body>
+<h1>Semáforo</h1>
+<div id="luz" data-color="rojo"></div>
+<button id="avanzar">rojo</button>
+<script>
+  const colores = ['rojo', 'verde', 'ambar'];
+  const luz = document.getElementById('luz');
+  const btn = document.getElementById('avanzar');
+
+  function cambiarColor() {
+    const current = luz.dataset.color;
+    const idx = colores.indexOf(current);
+    const next = colores[(idx + 1) % colores.length];
+    luz.dataset.color = next;
+    btn.textContent = next;
+    btn.style.color = next === 'rojo' ? 'red' : next === 'verde' ? 'green' : 'orange';
+  }
+
+  btn.addEventListener('click', cambiarColor);
+
+  // Animación automática cada 700 ms
+  setInterval(cambiarColor, 700);
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de lista</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:20px;}
+  #buscar{width:100%;padding:8px;font-size:16px;box-sizing:border-box;}
+  ul{list-style:none;padding:0;margin-top:10px;}
+  li{padding:6px 0;border-bottom:1px solid #ddd;}
+  li.hidden{display:none;}
+</style>
+</head>
+<body>
+<h1>Filtro de lista</h1>
+<input type="text" id="buscar" placeholder="Buscar...">
+<ul id="lista">
+  <li class="item">manzana</li>
+  <li class="item">banana</li>
+  <li class="item">cereza</li>
+  <li class="item">datil</li>
+  <li class="item">kiwi</li>
+</ul>
+<script>
+  const input = document.getElementById('buscar');
+  const items = document.querySelectorAll('#lista .item');
+  input.addEventListener('input', () => {
+    const filter = input.value.toLowerCase();
+    items.forEach(li => {
+      const text = li.textContent.toLowerCase();
+      li.classList.toggle('hidden', filter && !text.includes(filter));
+    });
+  });
+</script>
+</body>
+</html>

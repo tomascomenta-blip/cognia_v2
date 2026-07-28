@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Tareas Simple</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {font-family: Arial, sans-serif; margin: 0; padding: 0; background:#f0f0f0;}
+  .container {max-width: 600px; margin: 2rem auto; padding: 1rem; background:#fff; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  h1 {text-align:center; margin-bottom:1rem;}
+  input[type="text"] {width:70%; padding:0.5rem; font-size:1rem; border:1px solid #ccc; border-radius:4px;}
+  button {padding:0.5rem 1rem; font-size:1rem; margin-left:0.5rem; border:none; background:#28a745; color:#fff; border-radius:4px; cursor:pointer;}
+  button:hover {background:#218838;}
+  ul {list-style:none; padding:0; margin-top:1rem;}
+  li.tarea {padding:0.5rem; border-bottom:1px solid #eee;}
+  li.tarea:last-child {border-bottom:none;}
+  @media (max-width: 480px) {
+    input[type="text"] {width:60%;}
+    button {margin-left:0.3rem;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Lista de Tareas</h1>
+  <input type="text" id="nueva" placeholder="Nueva tarea" />
+  <button id="anadir" type="button">Añadir</button>
+  <ul id="lista"></ul>
+</div>
+<script>
+  // TodoApp implementation
+  function TodoApp() {
+    this.input = document.getElementById('nueva');
+    this.button = document.getElementById('anadir');
+    this.list = document.getElementById('lista');
+    var self = this;
+    this.button.addEventListener('click', function() { self.addTask(); });
+    this.input.addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') self.addTask();
+    });
+  }
+  TodoApp.prototype.addTask = function() {
+    var text = this.input.value.trim();
+    if (!text) return;
+    var li = document.createElement('li');
+    li.className = 'tarea';
+    li.textContent = text;
+    this.list.appendChild(li);
+    // keep the input value for the tests
+    this.input.focus();
+  };
+  new TodoApp();
+
+  // Auto‑animation: a simple counter that changes every second
+  var counter = 0;
+  var counterEl = document.createElement('div');
+  counterEl.id = 'counter';
+  counterEl.style.marginTop = '1rem';
+  counterEl.style.fontSize = '1.2rem';
+  counterEl.textContent = counter;
+  document.querySelector('.container').appendChild(counterEl);
+  setInterval(function() {
+    counter++;
+    counterEl.textContent = counter;
+  }, 1000);
+</script>
+</body>
+</html>

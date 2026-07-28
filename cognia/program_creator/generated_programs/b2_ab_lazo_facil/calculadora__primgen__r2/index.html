@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Simple</title>
+<style>
+  body{
+    font-family: Arial, Helvetica, sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+  }
+  .calc{
+    background:#222;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,.3);
+    width:100%;
+    max-width:360px;
+  }
+  #pantalla{
+    background:#000;
+    color:#0f0;
+    font-size:2rem;
+    padding:10px;
+    border-radius:5px;
+    text-align:right;
+    min-height:50px;
+    margin-bottom:15px;
+    overflow:hidden;
+  }
+  .teclas{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  .tecla{
+    background:#444;
+    color:#fff;
+    font-size:1.5rem;
+    padding:15px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  .tecla:hover{
+    background:#666;
+  }
+  @media(max-width:400px){
+    .tecla{font-size:1.2rem;padding:12px;}
+  }
+</style>
+</head>
+<body>
+<div class="calc">
+  <div id="pantalla">0</div>
+  <div class="teclas">
+    <button class="tecla" data-t="C">C</button>
+    <button class="tecla" data-t="/">/</button>
+    <button class="tecla" data-t="*">*</button>
+    <button class="tecla" data-t="-">-</button>
+
+    <button class="tecla" data-t="7">7</button>
+    <button class="tecla" data-t="8">8</button>
+    <button class="tecla" data-t="9">9</button>
+    <button class="tecla" data-t="+">+</button>
+
+    <button class="tecla" data-t="4">4</button>
+    <button class="tecla" data-t="5">5</button>
+    <button class="tecla" data-t="6">6</button>
+    <button class="tecla" data-t="=">=</button>
+
+    <button class="tecla" data-t="1">1</button>
+    <button class="tecla" data-t="2">2</button>
+    <button class="tecla" data-t="3">3</button>
+    <button class="tecla" data-t=".">.</button>
+
+    <button class="tecla" data-t="0" style="grid-column:span 2;">0</button>
+  </div>
+</div>
+
+<script>
+  (function(){
+    const pantalla=document.getElementById('pantalla');
+    let expr='';
+    const updateScreen=()=>{ pantalla.textContent=expr||'0'; };
+    document.querySelectorAll('.tecla').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const val=btn.dataset.t;
+        if(val==='C'){ expr=''; updateScreen(); return; }
+        if(val==='='){
+          try{
+            // Evaluate safely: only numbers and operators
+            const result=eval(expr);
+            expr=result.toString();
+          }catch(e){ expr='Error'; }
+          updateScreen();
+          return;
+        }
+        expr+=val;
+        updateScreen();
+      });
+    });
+  })();
+</script>
+</body>
+</html>

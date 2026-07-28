@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Juego de Memoria 4x4</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f0f0f0;}
+#board{display:grid;grid-template-columns:repeat(4,80px);grid-gap:10px;margin-top:20px;}
+.tile{width:80px;height:80px;background:#444;color:white;font-size:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;}
+.tile.revealed{background:#fff;color:#444;}
+#moves{margin-top:10px;font-size:18px;}
+</style>
+</head>
+<body>
+<h1>Juego de Memoria 4x4</h1>
+<div id="board"></div>
+<p>Movimientos: <span id="moves">0</span></p>
+<script>
+const emojis=['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+const deck=[...emojis,...emojis];
+for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
+const board=document.getElementById('board');
+deck.forEach(e=>{const d=document.createElement('div');d.className='tile';d.dataset.emoji=e;board.appendChild(d);});
+let first=null,second=null,lock=false,moves=0;
+function update(){document.getElementById('moves').textContent=moves;}
+function clickTile(e){const t=e.currentTarget;if(lock||t===first||t.classList.contains('revealed'))return;t.textContent=t.dataset.emoji;t.classList.add('revealed');if(!first){first=t;return;}second=t;moves++;update();if(first.dataset.emoji===second.dataset.emoji){first=second=null;return;}lock=true;setTimeout(()=>{first.textContent='';second.textContent='';first.classList.remove('revealed');second.classList.remove('revealed');first=second=null;lock=false;},1000);}
+board.addEventListener('click',e=>{if(e.target.classList.contains('tile'))clickTile(e);});
+</script>
+</body>
+</html>

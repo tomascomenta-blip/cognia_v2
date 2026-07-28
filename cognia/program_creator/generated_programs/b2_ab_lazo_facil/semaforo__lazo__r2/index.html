@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Semáforo</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #luz{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    background-color:gray;
+    transition:background-color 0.3s ease;
+    margin-bottom:20px;
+  }
+  #luz[data-color="rojo"]{background-color:red;}
+  #luz[data-color="verde"]{background-color:green;}
+  #luz[data-color="ambar"]{background-color:orange;}
+  button{
+    padding:10px 20px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo"></div>
+<button id="avanzar">ROJO</button>
+<script>
+class TrafficLight {
+  constructor(elementId, buttonId){
+    this.light = document.getElementById(elementId);
+    this.button = document.getElementById(buttonId);
+    this.colors = ['rojo','verde','ambar'];
+    this.currentIndex = this.colors.indexOf(this.light.dataset.color);
+    if (this.currentIndex === -1) {
+      this.currentIndex = 0;
+      this.light.dataset.color = this.colors[this.currentIndex];
+    }
+    this.button.addEventListener('click', () => this.next());
+    this.updateButton();
+  }
+  next(){
+    this.currentIndex = (this.currentIndex + 1) % this.colors.length;
+    this.light.dataset.color = this.colors[this.currentIndex];
+    this.updateButton();
+  }
+  updateButton(){
+    const colorName = this.colors[this.currentIndex];
+    this.button.textContent = colorName.toUpperCase();
+    let btnColor;
+    if (colorName === 'rojo') btnColor = 'red';
+    else if (colorName === 'verde') btnColor = 'green';
+    else btnColor = 'orange';
+    this.button.style.color = btnColor;
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const tl = new TrafficLight('luz', 'avanzar');
+  setInterval(() => tl.next(), 700);
+});
+</script>
+</body>
+</html>

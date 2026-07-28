@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador Simple</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f5f5f5;
+  }
+  #contador{
+    font-size:3rem;
+    margin:20px 0;
+    color:#333;
+  }
+  button{
+    font-size:1rem;
+    padding:10px 20px;
+    margin:0 10px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    background:#007bff;
+    color:white;
+    transition:background .2s;
+  }
+  button:hover{
+    background:#0056b3;
+  }
+  @media (max-width: 480px){
+    #contador{font-size:2rem;}
+    button{font-size:.9rem;padding:8px 16px;margin:5px;}
+  }
+</style>
+</head>
+<body>
+<div id="contador"><span id="valor">0</span></div>
+<button id="menos">-1</button>
+<button id="mas">+1</button>
+
+<script>
+  // Configurable constants
+  const INITIAL_VALUE = 0;
+  const STEP = 1;
+  const MIN_VALUE = 0;
+
+  const valorSpan = document.getElementById('valor');
+  const btnMas = document.getElementById('mas');
+  const btnMenos = document.getElementById('menos');
+
+  let currentValue = INITIAL_VALUE;
+  // Render initial value
+  valorSpan.textContent = currentValue.toLocaleString('es-ES');
+
+  btnMas.addEventListener('click', () => {
+    currentValue += STEP;
+    valorSpan.textContent = currentValue.toLocaleString('es-ES');
+  });
+
+  btnMenos.addEventListener('click', () => {
+    if (currentValue > MIN_VALUE) {
+      currentValue -= STEP;
+      valorSpan.textContent = currentValue.toLocaleString('es-ES');
+    }
+  });
+</script>
+</body>
+</html>

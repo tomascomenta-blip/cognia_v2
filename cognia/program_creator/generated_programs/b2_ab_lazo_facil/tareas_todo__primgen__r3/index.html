@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Lista de tareas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:system-ui,Arial,sans-serif;
+    margin:0;
+    padding:1rem;
+    background:#f9f9f9;
+    color:#333;
+  }
+  .container{
+    max-width:600px;
+    margin:auto;
+  }
+  h1{
+    font-size:1.5rem;
+    margin-bottom:1rem;
+    text-align:center;
+  }
+  input{
+    width:calc(100% - 2rem);
+    padding:.5rem;
+    font-size:1rem;
+    border:1px solid #ccc;
+    border-radius:.25rem;
+  }
+  button{
+    padding:.5rem 1rem;
+    font-size:1rem;
+    margin-top:.5rem;
+    border:none;
+    background:#007bff;
+    color:white;
+    border-radius:.25rem;
+    cursor:pointer;
+  }
+  button:hover{
+    background:#0056b3;
+  }
+  ul{
+    list-style:none;
+    padding:0;
+    margin-top:1rem;
+  }
+  li.tarea{
+    padding:.5rem;
+    border-bottom:1px solid #ddd;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Lista de tareas</h1>
+  <input type="text" id="nueva" placeholder="Nueva tarea">
+  <button id="anadir">Añadir</button>
+  <ul id="lista"></ul>
+</div>
+<script>
+  document.getElementById('anadir').addEventListener('click', function(){
+    var input = document.getElementById('nueva');
+    var text = input.value.trim();
+    if(text){
+      var li = document.createElement('li');
+      li.className = 'tarea';
+      li.textContent = text;
+      document.getElementById('lista').appendChild(li);
+      input.value = '';
+      input.focus();
+    }
+  });
+</script>
+</body>
+</html>

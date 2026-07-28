@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador Simple</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#f0f8ff;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    color:#333;
+  }
+  .contenedor{
+    text-align:center;
+    width:80%;
+    max-width:320px;
+  }
+  #valor{
+    display:block;
+    font-size:4rem;
+    font-weight:bold;
+    margin-bottom:1.5rem;
+  }
+  button{
+    font-size:1.5rem;
+    padding:0.5rem 1rem;
+    margin:0 0.5rem;
+    border:none;
+    border-radius:0.5rem;
+    background:#4a90e2;
+    color:white;
+    cursor:pointer;
+    transition:background 0.2s;
+  }
+  button:hover{background:#357ab8;}
+  button:active{background:#2c5e9a;}
+  @media (max-width:480px){
+    #valor{font-size:3rem;}
+    button{font-size:1.2rem;}
+  }
+</style>
+</head>
+<body>
+<div class="contenedor">
+  <span id="valor">0</span>
+  <div>
+    <button id="mas">+</button>
+    <button id="menos">–</button>
+  </div>
+</div>
+<script>
+  const valorEl = document.getElementById('valor');
+  const masBtn = document.getElementById('mas');
+  const menosBtn = document.getElementById('menos');
+  let valor = 0;
+  function actualizar(){
+    valorEl.textContent = valor.toLocaleString('es-ES');
+  }
+  masBtn.addEventListener('click', () => { valor++; actualizar(); });
+  menosBtn.addEventListener('click', () => { if(valor>0){ valor--; actualizar(); } });
+  // Inicial
+  actualizar();
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo Interactivo</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #luz{
+    width:80px;
+    height:240px;
+    border-radius:10px;
+    border:2px solid #333;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-around;
+    align-items:center;
+    color:white;
+    font-weight:bold;
+    font-size:1.2rem;
+    text-transform:capitalize;
+  }
+  #luz[data-color="rojo"]{background-color:red;}
+  #luz[data-color="verde"]{background-color:green;}
+  #luz[data-color="ambar"]{background-color:orange;}
+  #avanzar{
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo">rojo</div>
+<button id="avanzar">Avanzar</button>
+
+<script>
+class TrafficLight {
+  constructor() {
+    this.states = ['rojo', 'verde', 'ambar'];
+    this.currentIndex = 0;
+    this.luz = document.getElementById('luz');
+    this.button = document.getElementById('avanzar');
+    this.updateDisplay();
+    this.button.addEventListener('click', () => this.next());
+    // Auto-advance every 700 ms
+    this.interval = setInterval(() => this.next(), 700);
+  }
+  next() {
+    this.currentIndex = (this.currentIndex + 1) % this.states.length;
+    this.updateDisplay();
+  }
+  updateDisplay() {
+    const color = this.states[this.currentIndex];
+    this.luz.setAttribute('data-color', color);
+    this.luz.textContent = color;
+  }
+}
+new TrafficLight();
+</script>
+</body>
+</html>

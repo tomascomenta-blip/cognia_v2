@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de lista</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f9f9f9;}
+  .container{max-width:400px;margin:auto;background:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+  h1{font-size:1.4em;margin:0 0 15px;}
+  #buscar{width:100%;padding:8px 10px;font-size:1em;border:1px solid #ccc;border-radius:4px;}
+  ul{list-style:none;padding:0;margin:15px 0 0;}
+  li{padding:8px 10px;border-bottom:1px solid #eee; opacity:0; animation: fadeIn 0.5s forwards;}
+  li:last-child{border-bottom:none;}
+  @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
+  li:nth-child(1){animation-delay:0.1s;}
+  li:nth-child(2){animation-delay:0.2s;}
+  li:nth-child(3){animation-delay:0.3s;}
+  li:nth-child(4){animation-delay:0.4s;}
+  li:nth-child(5){animation-delay:0.5s;}
+  @media (max-width:480px){body{padding:10px;} .container{padding:15px;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Filtro de lista</h1>
+  <input type="text" id="buscar" placeholder="Buscar fruta...">
+  <ul id="lista">
+    <li class="item">manzana</li>
+    <li class="item">banana</li>
+    <li class="item">cereza</li>
+    <li class="item">datil</li>
+    <li class="item">kiwi</li>
+  </ul>
+</div>
+<script>
+  (function(){
+    const input = document.getElementById('buscar');
+    const items = document.querySelectorAll('#lista .item');
+    input.addEventListener('input', function(){
+      const val = this.value.trim().toLowerCase();
+      items.forEach(li=>{
+        const text = li.textContent.toLowerCase();
+        li.style.display = text.includes(val) || val === '' ? 'list-item' : 'none';
+      });
+    });
+  })();
+</script>
+</body>
+</html>

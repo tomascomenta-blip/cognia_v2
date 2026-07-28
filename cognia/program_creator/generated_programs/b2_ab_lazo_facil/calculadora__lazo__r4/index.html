@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora</title>
+<style>
+  body{margin:0;background:#222;font-family:sans-serif;}
+  #pantalla{height:80px;background:#111;color:#fff;font-size:2em;text-align:center;line-height:80px;}
+  .calc{display:flex;flex-wrap:wrap;}
+  .tecla{width:25%;height:80px;background:#00f;color:#fff;border:1px solid #333;box-sizing:border-box;font-size:1.5em;cursor:pointer;}
+  .tecla:hover{background:#00c;}
+</style>
+</head>
+<body>
+<div id="pantalla">0</div>
+<div class="calc">
+  <button class="tecla" data-t="7">7</button>
+  <button class="tecla" data-t="8">8</button>
+  <button class="tecla" data-t="9">9</button>
+  <button class="tecla" data-t="/">/</button>
+  <button class="tecla" data-t="4">4</button>
+  <button class="tecla" data-t="5">5</button>
+  <button class="tecla" data-t="6">6</button>
+  <button class="tecla" data-t="*">*</button>
+  <button class="tecla" data-t="1">1</button>
+  <button class="tecla" data-t="2">2</button>
+  <button class="tecla" data-t="3">3</button>
+  <button class="tecla" data-t="-">-</button>
+  <button class="tecla" data-t="0">0</button>
+  <button class="tecla" data-t=".">.</button>
+  <button class="tecla" data-t="=">=</button>
+  <button class="tecla" data-t="+">+</button>
+</div>
+<script>
+  const pantalla=document.getElementById('pantalla');
+  let current='', operand='', operator='';
+  document.querySelectorAll('.tecla').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const t=btn.dataset.t;
+      if(/[0-9.]/.test(t)){current+=t; pantalla.textContent=current;}
+      else if(['+','-','*','/'].includes(t)){operand=current; operator=t; current='';}
+      else if(t==='='){if(operand && operator){const res=eval(operand+operator+current); pantalla.textContent=res; current=res.toString(); operand=''; operator='';}}
+    });
+  });
+</script>
+</body>
+</html>

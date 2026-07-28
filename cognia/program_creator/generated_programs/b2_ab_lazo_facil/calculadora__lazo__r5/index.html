@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Simple</title>
+<style>
+  body{
+    font-family:monospace;
+    background:#222;
+    color:#eee;
+    margin:0;
+    padding:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .calculadora{
+    background:#333;
+    border-radius:10px;
+    padding:20px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:100%;
+    max-width:300px;
+  }
+  #pantalla{
+    grid-column:span 4;
+    background:#111;
+    color:#0f0;
+    padding:10px;
+    font-size:1.5rem;
+    text-align:right;
+    border-radius:5px;
+  }
+  .tecla{
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:5px;
+    font-size:1.2rem;
+    padding:15px;
+    cursor:pointer;
+  }
+  .tecla:hover{
+    background:#555;
+  }
+  pre{
+    grid-column:span 4;
+    font-family:monospace;
+    text-align:center;
+    color:#0f0;
+    margin:0 0 10px 0;
+  }
+</style>
+</head>
+<body>
+<div class="calculadora">
+  <pre>
+    _______
+   |  ___  |
+   | |   | |
+   | |___| |
+   |_______|
+  </pre>
+  <div id="pantalla"></div>
+  <button class="tecla" data-t="2">2</button>
+  <button class="tecla" data-t="3">3</button>
+  <button class="tecla" data-t="+">+</button>
+  <button class="tecla" data-t="=">=</button>
+</div>
+<script>
+  const pantalla=document.getElementById('pantalla');
+  let current=''; let first=null; let op=null;
+  let prevValue=null;
+  function updateDisplay(val){
+    pantalla.textContent=val;
+    const num=parseFloat(val);
+    if(!isNaN(num)){
+      const cambio=prevValue!==null?num-prevValue:0;
+      pantalla.style.color=(cambio>=0?'green':'red');
+      prevValue=num;
+    }else{
+      pantalla.style.color='#0f0';
+    }
+  }
+  function handleDigit(d){ current+=d; updateDisplay(current); }
+  function handleOperator(o){ if(current==='') return; first=parseFloat(current); op=o; current=''; }
+  function handleEquals(){ if(current===''||first===null||op===null) return; const second=parseFloat(current); let result; if(op==='+'){ result=first+second; } else{ result=first-second; } updateDisplay(result); first=null; op=null; current=''; }
+  document.querySelectorAll('.tecla').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const t=btn.dataset.t;
+      if(/^\d$/.test(t)) handleDigit(t);
+      else if(t==='+'||t==='-') handleOperator(t);
+      else if(t==='=') handleEquals();
+    });
+  });
+</script>
+</body>
+</html>

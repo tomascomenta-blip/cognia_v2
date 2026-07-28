@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo Interactivo</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  #luz{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-size:1.5rem;
+    font-weight:bold;
+  }
+  #luz[data-color="rojo"]{background:red;}
+  #luz[data-color="verde"]{background:green;}
+  #luz[data-color="ambar"]{background:orange;}
+  #avanzar{
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:1rem;
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo">rojo</div>
+<button id="avanzar">Avanzar</button>
+<script>
+  const luz = document.getElementById('luz');
+  const btn = document.getElementById('avanzar');
+  const colors = ['rojo','verde','ambar'];
+  function advance() {
+    const current = luz.dataset.color;
+    const idx = colors.indexOf(current);
+    const next = colors[(idx + 1) % colors.length];
+    luz.dataset.color = next;
+    luz.textContent = next;
+  }
+  btn.addEventListener('click', advance);
+  setInterval(advance, 700);
+</script>
+</body>
+</html>

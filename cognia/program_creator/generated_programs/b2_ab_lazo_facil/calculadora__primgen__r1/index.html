@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+#pantalla{background:#fff;border:1px solid #ccc;padding:10px;font-size:2rem;text-align:right;margin-bottom:10px;}
+.tecla{font-size:1.5rem;padding:10px;margin:5px;flex:1 0 20%;background:#e0e0e0;border:none;border-radius:5px;}
+.tecla:active{background:#d0d0d0;}
+.calculator{display:flex;flex-wrap:wrap;max-width:400px;margin:auto;}
+</style>
+</head>
+<body>
+<div id="pantalla">0</div>
+<div class="calculator">
+<button class="tecla" data-t="2">2</button>
+<button class="tecla" data-t="+">+</button>
+<button class="tecla" data-t="3">3</button>
+<button class="tecla" data-t="=">=</button>
+</div>
+<script>
+const pantalla=document.getElementById('pantalla');
+let operand1=null, operator=null, current='';
+document.querySelectorAll('.tecla').forEach(btn=>{
+btn.addEventListener('click',()=>{
+const t=btn.dataset.t;
+if(!isNaN(t)){current+=t; pantalla.textContent=current;}
+else if(t==='+'||t==='-'){operand1=parseFloat(current);operator=t;current='';}
+else if(t==='='){const operand2=parseFloat(current);let res=0;if(operator==='+' )res=operand1+operand2;else if(operator==='-')res=operand1-operand2;pantalla.textContent=res;operand1=null;operator=null;current='';}
+});
+});
+</script>
+</body>
+</html>

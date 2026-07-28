@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo Interactivo</title>
+<style>
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+  }
+  #luz{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    border:4px solid #333;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    color:#fff;
+    margin-bottom:20px;
+    transition:background-color .3s;
+  }
+  #luz[data-color="rojo"]{background:#d32f2f;}
+  #luz[data-color="verde"]{background:#388e3c;}
+  #luz[data-color="ambar"]{background:#f57c00;}
+  #avanzar{
+    padding:10px 20px;
+    font-size:1rem;
+    cursor:pointer;
+    border:none;
+    border-radius:5px;
+    background:#1976d2;
+    color:#fff;
+    transition:background .3s;
+  }
+  #avanzar:hover{background:#1565c0;}
+  @media (max-width:400px){
+    #luz{width:80px;height:80px;font-size:1rem;}
+    #avanzar{padding:8px 16px;font-size:.9rem;}
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo">Rojo</div>
+<button id="avanzar">Avanzar</button>
+
+<script>
+  // Object-oriented design: TrafficLight class
+  class TrafficLight {
+    constructor(luzElement, buttonElement) {
+      this.luz = luzElement;
+      this.button = buttonElement;
+      this.states = ['rojo', 'verde', 'ambar'];
+      this.currentIndex = this.states.indexOf(this.luz.dataset.color) || 0;
+      this.updateDisplay();
+      this.button.addEventListener('click', () => this.nextState());
+    }
+
+    nextState() {
+      this.currentIndex = (this.currentIndex + 1) % this.states.length;
+      this.luz.dataset.color = this.states[this.currentIndex];
+      this.updateDisplay();
+    }
+
+    updateDisplay() {
+      const colorNames = {
+        rojo: 'Rojo',
+        verde: 'Verde',
+        ambar: 'Ámbar'
+      };
+      this.luz.textContent = colorNames[this.luz.dataset.color];
+    }
+  }
+
+  // Demo automatically runs on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    const luzDiv = document.getElementById('luz');
+    const avanzarBtn = document.getElementById('avanzar');
+    new TrafficLight(luzDiv, avanzarBtn);
+  });
+</script>
+</body>
+</html>

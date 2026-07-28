@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Juego de Memoria 4x4 con Emojis</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #moves-container{
+    margin-top:10px;
+    font-size:18px;
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:90%;
+    max-width:400px;
+    margin-top:20px;
+  }
+  .tile{
+    aspect-ratio:1;
+    background:#444;
+    color:white;
+    font-size:2rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    border-radius:8px;
+    user-select:none;
+  }
+  .tile.flipped{
+    background:#fff;
+    color:#444;
+  }
+  .tile span{
+    display:none;
+  }
+  .tile.flipped span{
+    display:inline;
+  }
+  .hidden{
+    display:none;
+  }
+</style>
+</head>
+<body>
+<div id="moves-container">Movimientos: <span id="moves">0</span></div>
+<div id="board">
+  <!-- 16 tiles -->
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+  <div class="tile"><span></span></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const emojis=['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+  const pairs=emojis.concat(emojis); // duplicate
+  shuffle(pairs);
+  const tiles=document.querySelectorAll('.tile');
+  tiles.forEach((tile,index)=>{
+    const emoji=pairs[index];
+    tile.dataset.emoji=emoji;
+    tile.querySelector('span').textContent=emoji;
+    // tiles are visible from the start; no hidden class added
+  });
+
+  let flippedTiles=[];
+  let lockBoard=false;
+  let moves=0;
+
+  tiles.forEach(tile=>{
+    tile.addEventListener('click',()=>handleClick(tile));
+  });
+
+  function handleClick(tile){
+    if(lockBoard || tile.classList.contains('flipped')) return;
+    tile.classList.add('flipped');
+    flippedTiles.push(tile);
+    if(flippedTiles.length===2){
+      moves++;
+      document.getElementById('moves').textContent=moves;
+      const [first,second]=flippedTiles;
+      if(first.dataset.emoji===second.dataset.emoji){
+        // matched
+        flippedTiles=[];
+      }else{
+        lockBoard=true;
+        setTimeout(()=>{ 
+          flippedTiles.forEach(t=>{
+            t.classList.remove('flipped');
+          });
+          flippedTiles=[];
+          lockBoard=false;
+        },1000);
+      }
+    }
+  }
+
+  function shuffle(array){
+    for(let i=array.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [array[i],array[j]]=[array[j],array[i]];
+    }
+    return array;
+  }
+});
+</script>
+</body>
+</html>

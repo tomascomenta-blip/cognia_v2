@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador Simple</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    background:#f0f0f0;
+    color:#333;
+    text-align:center;
+    padding:2rem;
+  }
+  #valor{
+    font-size:4rem;
+    font-weight:bold;
+    margin:1rem;
+  }
+  button{
+    font-size:1.5rem;
+    padding:.5rem 1rem;
+    margin:0 .5rem;
+    cursor:pointer;
+  }
+  button:focus{outline:none;}
+  #mas{background:#4CAF50;color:white;}
+  #menos{background:#f44336;color:white;}
+  #menos:disabled{background:#ccc;color:#666;}
+</style>
+</head>
+<body>
+<h1>Contador</h1>
+<span id="valor">0</span>
+<div>
+  <button id="menos" disabled>–</button>
+  <button id="mas">+</button>
+</div>
+<pre style="font-family:monospace;margin-top:2rem;">
+   _____
+  /     \\
+ |  0 0  |
+ |   ^   |
+ |  '-'  |
+  \\_____/
+</pre>
+<script>
+  const valorEl = document.getElementById('valor');
+  const masBtn = document.getElementById('mas');
+  const menosBtn = document.getElementById('menos');
+  let count = 0;
+
+  function update() {
+    valorEl.textContent = count;
+    menosBtn.disabled = count === 0;
+  }
+
+  masBtn.addEventListener('click', () => { count++; update(); });
+  menosBtn.addEventListener('click', () => { if (count > 0) { count--; update(); } });
+
+  update();
+</script>
+</body>
+</html>

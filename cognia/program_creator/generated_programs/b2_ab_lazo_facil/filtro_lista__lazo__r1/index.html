@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de lista simple</title>
+<style>
+  body {
+    font-family: sans-serif;
+    background: #f9f9f9;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 {
+    margin-bottom: 20px;
+    font-weight: 400;
+  }
+  #buscar {
+    width: 80%;
+    max-width: 400px;
+    padding: 12px 16px;
+    font-size: 1.2rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    transition: box-shadow 0.3s;
+  }
+  #buscar:focus {
+    outline: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 80%;
+    max-width: 400px;
+  }
+  li.item {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-weight: 300;
+    opacity: 0;
+    animation: fadeIn 0.5s ease forwards;
+  }
+  li.item:last-child {
+    border-bottom: none;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  li.item:nth-child(1) { animation-delay: 0s; }
+  li.item:nth-child(2) { animation-delay: 0.1s; }
+  li.item:nth-child(3) { animation-delay: 0.2s; }
+  li.item:nth-child(4) { animation-delay: 0.3s; }
+  li.item:nth-child(5) { animation-delay: 0.4s; }
+</style>
+</head>
+<body>
+<h1>Buscar fruta</h1>
+<input type="text" id="buscar" placeholder="Buscar...">
+<ul>
+  <li class="item">manzana</li>
+  <li class="item">banana</li>
+  <li class="item">cereza</li>
+  <li class="item">datil</li>
+  <li class="item">kiwi</li>
+</ul>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('buscar');
+    if (!input) return;
+    function filterItems() {
+      var filter = input.value.toLowerCase();
+      var items = document.querySelectorAll('.item');
+      items.forEach(function(li) {
+        if (li.textContent.toLowerCase().includes(filter)) {
+          li.style.display = '';
+          li.style.color = 'green';
+        } else {
+          li.style.display = 'none';
+          li.style.color = 'red';
+        }
+      });
+    }
+    input.addEventListener('input', filterItems);
+    input.addEventListener('keyup', filterItems);
+    input.addEventListener('change', filterItems);
+    input.addEventListener('click', filterItems);
+  });
+</script>
+</body>
+</html>

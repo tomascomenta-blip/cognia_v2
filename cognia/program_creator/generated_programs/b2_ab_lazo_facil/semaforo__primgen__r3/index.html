@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Semáforo en HTML</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+    font-family:sans-serif;
+  }
+  #luz{
+    width:120px;
+    height:260px;
+    border:4px solid #333;
+    border-radius:12px;
+    background:#333;
+    color:white;
+    font-size:1.2rem;
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:20px;
+  }
+  #luz[data-color="rojo"]{ background:red; }
+  #luz[data-color="verde"]{ background:green; }
+  #luz[data-color="ambar"]{ background:orange; }
+  #avanzar{
+    padding:10px 20px;
+    font-size:1rem;
+    border:none;
+    border-radius:6px;
+    background:#333;
+    color:white;
+    cursor:pointer;
+  }
+  #avanzar:hover{ background:#555; }
+  @media (max-width:400px){
+    #luz{ width:90px; height:200px; font-size:1rem; }
+    #avanzar{ padding:8px 16px; font-size:0.9rem; }
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo">rojo</div>
+<button id="avanzar">Avanzar</button>
+
+<script>
+  // Configurable constants
+  const COLORS = ['rojo', 'verde', 'ambar'];
+  const COLOR_MAP = { rojo: 'red', verde: 'green', ambar: 'orange' };
+
+  const luz = document.getElementById('luz');
+  const avanzarBtn = document.getElementById('avanzar');
+
+  // Ensure initial state is correct
+  luz.setAttribute('data-color', 'rojo');
+  luz.textContent = 'rojo';
+
+  avanzarBtn.addEventListener('click', () => {
+    const current = luz.getAttribute('data-color');
+    const idx = COLORS.indexOf(current);
+    const nextIdx = (idx + 1) % COLORS.length;
+    const nextColor = COLORS[nextIdx];
+    luz.setAttribute('data-color', nextColor);
+    luz.textContent = nextColor;
+  });
+</script>
+</body>
+</html>

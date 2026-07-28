@@ -426,3 +426,26 @@ corta antes de n=6, PARCIAL direccional y NO se adopta nada.
 
 Adopción SOLO con n=36 completo (PARCIAL nunca adopta). El brazo lazo es
 idéntico a producción; el JSON registra las mismas sondas de config.
+
+### RESULTADO de la confirmación (2026-07-28 ~00:45 — COMPLETO: 36/36
+### pares, 0 infra, 0 create_program)
+
+**lazo 26/36 (72%) vs primgen 33/36 (92%); apareado: lazo gana 3 (las tres
+en memoria_4x4), primgen gana 10 — NETO LAZO = −7, reparto en 3 tareas →
+fila pre-registrada "el lazo también resta aquí": max_rondas=1 SE ADOPTA
+con evidencia doble.** El caso más limpio: `semaforo` pierde con
+reparación en LAS SEIS réplicas (primgen 6/6, lazo 0/6 de esos pares) —
+regresión sistemática, no ruido ([[gate-e2e-flaky]]: concentrado =
+regresión). memoria_4x4 reparte 3-3 (ruido).
+
+Nota honesta sobre la reversión del 26/07: aquella lectura "reparar aporta
++1.33" venía de comparar SERIES EN BLOQUES entre noches (4.5 vs 3.17), el
+diseño que la propia [[gate-e2e-flaky]] invalidó después al cuantificar la
+deriva; los A/B intercalados de esta noche son la primera medición válida
+de la pregunta, y las dos (brutal −3, fácil −7) apuntan igual.
+
+**Adoptado (commit de esta noche): MAX_RONDAS_DEFECTO = 1**, con override
+`COGNIA_MAX_RONDAS` (reversible sin release) y test de regresión que
+documenta la historia completa. El lazo de reparación NO se borra: queda
+íntegro tras el override y vuelve el día que el contrato interno demuestre
+señal (esa sigue siendo la palanca #1 de META).

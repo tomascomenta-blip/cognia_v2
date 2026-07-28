@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Un contador en un solo archivo HTML</title>
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: #f0f8ff; /* fondo claro */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: #004d4d; /* tono teal apagado */
+  }
+  .container {
+    text-align: center;
+  }
+  #valor {
+    font-size: 6rem;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 1rem;
+    animation: fadeIn 1s ease-out;
+  }
+  button {
+    background: #008080; /* teal */
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    margin: 0 0.5rem;
+    font-size: 1.25rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #006666;
+  }
+  button:active {
+    background: #004d4d;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  pre {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: #006666;
+  }
+  @media (max-width: 600px) {
+    #valor { font-size: 4rem; }
+    button { font-size: 1rem; padding: 0.5rem 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <span id="valor">0</span>
+  <div>
+    <button id="menos">Menos</button>
+    <button id="mas">Más</button>
+  </div>
+  <pre>
+  ┌───────────────────────┐
+  │   Contador en acción   │
+  └───────────────────────┘
+  </pre>
+</div>
+<script>
+  const valorEl = document.getElementById('valor');
+  const masBtn = document.getElementById('mas');
+  const menosBtn = document.getElementById('menos');
+  let valor = 0;
+  function updateDisplay() {
+    valorEl.textContent = valor;
+  }
+  masBtn.addEventListener('click', () => {
+    valor += 1;
+    updateDisplay();
+  });
+  menosBtn.addEventListener('click', () => {
+    if (valor > 0) {
+      valor -= 1;
+      updateDisplay();
+    }
+  });
+  // Mostrar valor inicial
+  updateDisplay();
+</script>
+</body>
+</html>

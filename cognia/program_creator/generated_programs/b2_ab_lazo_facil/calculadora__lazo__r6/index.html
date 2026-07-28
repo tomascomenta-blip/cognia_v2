@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calculadora Compacta</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#111;
+    color:#eee;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #pantalla{
+    width:90%;
+    max-width:400px;
+    background:#333;
+    color:#fff;
+    font-size:2rem;
+    padding:15px;
+    border-radius:8px;
+    box-shadow:0 0 12px rgba(255,255,255,0.2);
+    text-align:right;
+    margin-top:30px;
+    min-height:60px;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%{background:#333;}
+    50%{background:#444;}
+    100%{background:#333;}
+  }
+  .calc{
+    width:90%;
+    max-width:400px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-top:20px;
+    margin-bottom:30px;
+  }
+  .tecla{
+    width:100%;
+    padding:0;
+    aspect-ratio:1;
+    border-radius:50%;
+    background:#008080;
+    color:#fff;
+    font-size:1.5rem;
+    border:none;
+    cursor:pointer;
+    transition:background 0.2s;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .tecla:hover{
+    background:#006666;
+  }
+  @media (max-width:400px){
+    #pantalla{font-size:1.5rem;}
+    .tecla{font-size:1.2rem;}
+  }
+</style>
+</head>
+<body>
+<div id="pantalla">0</div>
+<div class="calc">
+  <button class="tecla" data-t="7">7</button>
+  <button class="tecla" data-t="8">8</button>
+  <button class="tecla" data-t="9">9</button>
+  <button class="tecla" data-t="/">/</button>
+
+  <button class="tecla" data-t="4">4</button>
+  <button class="tecla" data-t="5">5</button>
+  <button class="tecla" data-t="6">6</button>
+  <button class="tecla" data-t="*">*</button>
+
+  <button class="tecla" data-t="1">1</button>
+  <button class="tecla" data-t="2">2</button>
+  <button class="tecla" data-t="3">3</button>
+  <button class="tecla" data-t="-">-</button>
+
+  <button class="tecla" data-t="C">C</button>
+  <button class="tecla" data-t="0">0</button>
+  <button class="tecla" data-t=".">.</button>
+  <button class="tecla" data-t="+">+</button>
+
+  <button class="tecla" data-t="=" style="grid-column: span 4;">=</button>
+</div>
+<script>
+  (function(){
+    const pantalla = document.getElementById('pantalla');
+    let expr = '';
+    let resultShown = false;
+    let prevNumeric = null; // previous numeric value for color change
+
+    function updateDisplay(val){
+      // Determine numeric value if possible
+      const numericVal = parseFloat(val);
+      let cambio = 0;
+      if (!isNaN(numericVal)) {
+        if (prevNumeric !== null) {
+          cambio = numericVal - prevNumeric;
+        }
+        prevNumeric = numericVal;
+      } else {
+        // If not numeric, keep previous color
+        cambio = 0;
+      }
+      pantalla.textContent = val;
+      // Apply color directly on the same element that holds the text
+      pantalla.style.color = (cambio >= 0 ? 'green' : 'red');
+    }
+
+    function safeEval(str){
+      // Allow only digits, operators, and dot
+      if(!/^[0-9+\-*/.]+$/.test(str)) return 'Error';
+      try{
+        // eslint-disable-next-line no-eval
+        const res = eval(str);
+        return res.toString();
+      }catch(e){
+        return 'Error';
+      }
+    }
+
+    document.querySelectorAll('.tecla').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const t = btn.dataset.t;
+        if(t==='C'){
+          expr='';
+          resultShown=false;
+          updateDisplay('0');
+          return;
+        }
+        if(t==='='){
+          if(expr==='') return;
+          const res = safeEval(expr);
+          updateDisplay(res);
+          expr = res;
+          resultShown=true;
+          return;
+        }
+        if(resultShown && /[0-9.]/.test(t)){
+          expr='';
+          resultShown=false;
+        }
+        expr += t;
+        updateDisplay(expr);
+      });
+    });
+  })();
+</script>
+</body>
+</html>

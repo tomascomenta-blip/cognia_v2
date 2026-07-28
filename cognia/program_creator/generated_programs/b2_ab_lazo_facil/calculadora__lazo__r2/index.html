@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Simple</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .calculadora{
+    background:#222;
+    color:#fff;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.5);
+    max-width:300px;
+    width:100%;
+  }
+  #pantalla{
+    background:#000;
+    color:#0f0;
+    font-size:2rem;
+    text-align:right;
+    padding:10px;
+    border-radius:5px;
+    margin-bottom:10px;
+    min-height:50px;
+  }
+  .tecla{
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:5px;
+    margin:5px;
+    flex:1 1 45%;
+    padding:15px;
+    font-size:1.2rem;
+    cursor:pointer;
+  }
+  .tecla:hover{background:#555;}
+  .tecla:active{background:#333;}
+  .tecla[data-t="="]{background:#0a0;}
+  .tecla[data-t="="]:hover{background:#0c0;}
+</style>
+</head>
+<body>
+<div class="calculadora">
+  <h2 style="text-align:center;">🧮 Calculadora Simple 🧮</h2>
+  <div id="pantalla"></div>
+  <div style="display:flex;flex-wrap:wrap;">
+    <button class="tecla" data-t="7">7</button>
+    <button class="tecla" data-t="8">8</button>
+    <button class="tecla" data-t="9">9</button>
+    <button class="tecla" data-t="+">+</button>
+    <button class="tecla" data-t="4">4</button>
+    <button class="tecla" data-t="5">5</button>
+    <button class="tecla" data-t="6">6</button>
+    <button class="tecla" data-t="-">-</button>
+    <button class="tecla" data-t="1">1</button>
+    <button class="tecla" data-t="2">2</button>
+    <button class="tecla" data-t="3">3</button>
+    <button class="tecla" data-t="*">*</button>
+    <button class="tecla" data-t="0">0</button>
+    <button class="tecla" data-t=".">.</button>
+    <button class="tecla" data-t="/">/</button>
+    <button class="tecla" data-t="=">=</button>
+  </div>
+</div>
+<script>
+  const pantalla=document.getElementById('pantalla');
+  let expr='';
+  function updateScreen(){pantalla.textContent=expr||'0';}
+  document.querySelectorAll('.tecla').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const val=btn.dataset.t;
+      if(val==='='){
+        try{expr=eval(expr).toString();}catch(e){expr='Error';}
+      }else{
+        expr+=val;
+      }
+      updateScreen();
+    });
+  });
+  updateScreen();
+</script>
+</body>
+</html>

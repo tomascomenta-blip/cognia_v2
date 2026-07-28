@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Tareas</title>
+<style>
+:root{
+  --bg:#f5f5f5;
+  --text:#333;
+  --button:#008080;
+  --button-hover:#006666;
+  --shadow:rgba(0,0,0,0.1);
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,Helvetica,sans-serif;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding-top:2rem;
+  margin:0;
+  animation:fadeIn 0.6s ease-out forwards;
+}
+@keyframes fadeIn{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.input-group{
+  display:flex;
+  gap:0.5rem;
+  width:90%;
+  max-width:600px;
+  margin-bottom:1rem;
+}
+#nueva{
+  flex:1;
+  padding:0.5rem;
+  border:1px solid #ccc;
+  border-radius:4px;
+  box-shadow:0 1px 2px var(--shadow);
+  font-size:1rem;
+}
+#anadir{
+  background:var(--button);
+  color:#fff;
+  border:none;
+  padding:0.5rem 1rem;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:1rem;
+  box-shadow:0 1px 2px var(--shadow);
+  transition:background 0.3s;
+}
+#anadir:hover{
+  background:var(--button-hover);
+}
+#lista{
+  width:90%;
+  max-width:600px;
+  list-style:none;
+  padding:0;
+  margin:0;
+}
+.tarea{
+  background:#fff;
+  padding:0.5rem;
+  margin-bottom:0.5rem;
+  border-radius:4px;
+  box-shadow:0 1px 2px var(--shadow);
+  font-size:1rem;
+}
+@media (max-width:480px){
+  .input-group{flex-direction:column;}
+  #anadir{width:100%;}
+}
+</style>
+</head>
+<body>
+<div class="input-group">
+  <input type="text" id="nueva" placeholder="Nueva tarea">
+  <button id="anadir">Añadir</button>
+</div>
+<ul id="lista"></ul>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const input=document.getElementById('nueva');
+  const button=document.getElementById('anadir');
+  const list=document.getElementById('lista');
+  function addTask(){
+    const text=input.value.trim();
+    if(text){
+      const li=document.createElement('li');
+      li.className='tarea';
+      li.textContent=text;
+      li.style.color='green';
+      list.appendChild(li);
+      input.value='';
+      input.focus();
+    }
+  }
+  button.addEventListener('click',addTask);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){addTask();}
+  });
+  input.addEventListener('click',addTask);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador Simple</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .counter-container {
+    text-align:center;
+    background:#fff;
+    padding:2rem;
+    border-radius:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+  }
+  #valor {
+    font-size:5rem;
+    font-weight:bold;
+    display:block;
+    margin-bottom:1rem;
+    color:#333;
+  }
+  button {
+    font-size:1.5rem;
+    padding:0.5rem 1rem;
+    margin:0 0.5rem;
+    border:none;
+    border-radius:6px;
+    background:#007bff;
+    color:#fff;
+    cursor:pointer;
+    transition:background 0.2s;
+  }
+  button:hover { background:#0056b3; }
+  button:active { transform:scale(0.98); }
+  @media (max-width: 600px) {
+    #valor { font-size:3rem; }
+    button { font-size:1.2rem; padding:0.4rem 0.8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="counter-container">
+  <span id="valor">0</span>
+  <div>
+    <button id="menos">-1</button>
+    <button id="mas">+1</button>
+  </div>
+</div>
+
+<script>
+  // Configurable constants
+  const MIN_VALUE = 0;
+  const STEP = 1;
+  const VALOR_ID = 'valor';
+  const PLUS_ID = 'mas';
+  const MINUS_ID = 'menos';
+
+  // State
+  let counter = 0;
+
+  // Elements
+  const valorEl = document.getElementById(VALOR_ID);
+  const plusBtn = document.getElementById(PLUS_ID);
+  const minusBtn = document.getElementById(MINUS_ID);
+
+  // Update display
+  function updateDisplay() {
+    valorEl.textContent = counter.toLocaleString('es-ES');
+  }
+
+  // Event handlers
+  plusBtn.addEventListener('click', () => {
+    counter += STEP;
+    updateDisplay();
+  });
+
+  minusBtn.addEventListener('click', () => {
+    if (counter > MIN_VALUE) {
+      counter -= STEP;
+      updateDisplay();
+    }
+  });
+
+  // Initial render
+  updateDisplay();
+</script>
+</body>
+</html>

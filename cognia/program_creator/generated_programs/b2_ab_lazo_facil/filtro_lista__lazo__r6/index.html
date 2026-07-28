@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de Lista Simple</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f9f9f9;
+    color:#555;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .container{
+    width:90%;
+    max-width:400px;
+    text-align:center;
+  }
+  #buscar{
+    width:100%;
+    padding:12px 10px;
+    margin-bottom:20px;
+    border:1px solid #ddd;
+    border-radius:4px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    font-size:16px;
+    outline:none;
+  }
+  ul{
+    list-style:none;
+    padding:0;
+    margin:0;
+  }
+  li.item{
+    padding:8px 0;
+    border-bottom:1px solid #eee;
+    font-size:18px;
+    opacity:0;
+    transform: translateY(10px);
+    animation: fadeIn 0.5s ease-in-out forwards;
+    cursor:pointer;
+  }
+  li.item:last-child{
+    border-bottom:none;
+  }
+  li.item.selected{
+    background-color:#e0f7fa;
+  }
+  span.value{
+    margin-left:8px;
+    font-weight:normal;
+    font-size:0.9em;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;transform:translateY(0);}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <input type="text" id="buscar" placeholder="Buscar...">
+  <ul id="lista">
+    <li class="item" data-original="manzana">manzana <span class="value">0</span></li>
+    <li class="item" data-original="banana">banana <span class="value">0</span></li>
+    <li class="item" data-original="cereza">cereza <span class="value">0</span></li>
+    <li class="item" data-original="datil">datil <span class="value">0</span></li>
+    <li class="item" data-original="kiwi">kiwi <span class="value">0</span></li>
+  </ul>
+</div>
+<script>
+  // Reference to input and items
+  const input = document.getElementById('buscar') || document.querySelector('input');
+  const items = document.querySelectorAll('.item');
+
+  // Ensure each item has a numeric value and a span for display
+  items.forEach(li => {
+    // If span not present, create it
+    if (!li.querySelector('.value')) {
+      const span = document.createElement('span');
+      span.className = 'value';
+      span.textContent = '0';
+      li.appendChild(span);
+    }
+    // Store initial value in dataset
+    li.dataset.value = 0;
+  });
+
+  // Function to update values randomly every 700ms
+  function updateValues() {
+    items.forEach(li => {
+      const current = parseInt(li.dataset.value, 10);
+      // Random change between -5 and +5
+      const change = Math.floor(Math.random() * 11) - 5;
+      const newVal = current + change;
+      li.dataset.value = newVal;
+      const span = li.querySelector('.value');
+      if (span) {
+        span.textContent = newVal;
+        // Color based on change
+        span.style.color = change >= 0 ? 'green' : 'red';
+      }
+    });
+  }
+
+  // Initial update
+  updateValues();
+  // Update every 700ms
+  setInterval(updateValues, 700);
+
+  // Filter function
+  function filter() {
+    const val = input.value.trim().toLowerCase();
+    items.forEach(li => {
+      const text = li.dataset.original.toLowerCase();
+      li.style.display = text.includes(val) || val === '' ? 'block' : 'none';
+    });
+  }
+
+  // Event listeners for filtering
+  if (input) {
+    input.addEventListener('input', filter);
+    input.addEventListener('keyup', filter);
+    input.addEventListener('change', filter);
+  }
+
+  // Click event to toggle selection
+  items.forEach(li => {
+    li.addEventListener('click', () => {
+      li.classList.toggle('selected');
+    });
+  });
+
+  // Initial filter call
+  filter();
+</script>
+</body>
+</html>

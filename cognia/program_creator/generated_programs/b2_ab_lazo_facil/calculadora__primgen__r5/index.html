@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Compacta</title>
+<style>
+  body{
+    background:#222;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+  }
+  #calculator{
+    background:#444;
+    width:100%;
+    max-width:320px;
+    border-radius:8px;
+    box-shadow:0 4px 10px rgba(0,0,0,.5);
+    padding:10px;
+    box-sizing:border-box;
+  }
+  #pantalla{
+    background:#fff;
+    color:#000;
+    font-size:2rem;
+    text-align:right;
+    padding:10px;
+    border-radius:4px;
+    min-height:60px;
+    margin-bottom:10px;
+    overflow:hidden;
+  }
+  .tecla{
+    width:25%;
+    padding:15px 0;
+    margin:2px;
+    background:#ddd;
+    color:#000;
+    font-size:1.5rem;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  .tecla:hover{background:#bbb;}
+  @media (max-width:400px){
+    .tecla{font-size:1.2rem;padding:12px 0;}
+  }
+  pre{
+    margin-top:20px;
+    color:#0f0;
+    font-family:monospace;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div id="calculator">
+  <div id="pantalla">0</div>
+  <div id="teclas">
+    <button class="tecla" data-t="2">2</button>
+    <button class="tecla" data-t="3">3</button>
+    <button class="tecla" data-t="+">+</button>
+    <button class="tecla" data-t="=">=</button>
+  </div>
+</div>
+<pre>
+   ___________________
+  |  _________________|
+  | | 0 | 1 | 2 | 3 | |
+  | | 4 | 5 | 6 | 7 | |
+  | | 8 | 9 | + | - | |
+  | | * | / | = | C | |
+  | |_________________| 
+</pre>
+<script>
+(() => {
+  const pantalla = document.getElementById('pantalla');
+  const teclas = document.querySelectorAll('.tecla');
+  let current = '';
+  let operand1 = null;
+  let operator = null;
+  let resetNext = false;
+
+  const updateDisplay = (value) => {
+    pantalla.textContent = value || '0';
+  };
+
+  const compute = () => {
+    if (operand1 !== null && operator && current !== '') {
+      const a = parseFloat(operand1);
+      const b = parseFloat(current);
+      let result = 0;
+      switch (operator) {
+        case '+': result = a + b; break;
+        case '-': result = a - b; break;
+        case '*': result = a * b; break;
+        case '/': result = b !== 0 ? a / b : 'Error'; break;
+      }
+      updateDisplay(result);
+      operand1 = result.toString();
+      current = '';
+      operator = null;
+      resetNext = true;
+    }
+  };
+
+  teclas.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.getAttribute('data-t');
+      if (!isNaN(val)) { // number
+        if (resetNext) { current = ''; resetNext = false; }
+        current += val;
+        updateDisplay(current);
+      } else if (val === '+' || val === '-' || val === '*' || val === '/') {
+        if (current === '' && operand1 === null) return;
+        if (operand1 !== null && operator && current !== '') {
+          compute();
+        }
+        operand1 = current || operand1;
+        operator = val;
+        current = '';
+      } else if (val === '=') {
+        compute();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

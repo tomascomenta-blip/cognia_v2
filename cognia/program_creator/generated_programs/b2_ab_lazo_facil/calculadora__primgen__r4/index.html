@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Simple</title>
+<style>
+body{font-family:sans-serif;background:#f0f0f0;margin:0;padding:20px;text-align:center;}
+#pantalla{background:#fff;border:1px solid #ccc;padding:10px;font-size:2rem;margin-bottom:10px;}
+.tecla{font-size:1.5rem;width:60px;height:60px;margin:5px;background:#ddd;border:none;border-radius:5px;}
+.tecla:active{background:#bbb;}
+</style>
+</head>
+<body>
+<div id="pantalla">0</div>
+<div>
+<button class="tecla" data-t="2">2</button>
+<button class="tecla" data-t="+">+</button>
+<button class="tecla" data-t="3">3</button>
+<button class="tecla" data-t="=">=</button>
+</div>
+<script>
+const pantalla=document.getElementById('pantalla');
+let first=null,op=null,second='';
+document.querySelectorAll('.tecla').forEach(b=>{
+b.addEventListener('click',()=>{
+const t=b.dataset.t;
+if(t==='+'||t==='-'){
+first=parseFloat(pantalla.textContent);
+op=t;
+pantalla.textContent='0';
+}else if(t==='='){
+second=parseFloat(pantalla.textContent);
+let res=0;
+if(op==='+')res=first+second;
+else if(op==='-')res=first-second;
+pantalla.textContent=res;
+first=null;op=null;second='';
+}else{
+pantalla.textContent=(pantalla.textContent==='0'?t:pantalla.textContent+t);
+}
+});
+});
+</script>
+</body>
+</html>

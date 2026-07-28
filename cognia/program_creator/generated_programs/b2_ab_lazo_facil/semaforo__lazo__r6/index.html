@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo Interactivo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:sans-serif;background:#f0f0f0;}
+#luz{width:120px;height:120px;border-radius:50%;margin-bottom:20px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.2rem;font-weight:bold;}
+#luz[data-color="rojo"]{background:red;}
+#luz[data-color="verde"]{background:green;}
+#luz[data-color="ambar"]{background:orange;}
+#avanzar{padding:10px 20px;font-size:1rem;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo">rojo</div>
+<button id="avanzar">Avanzar</button>
+<script>
+const colors=["rojo","verde","ambar"];
+let idx=0;
+const luz=document.getElementById('luz');
+const btn=document.getElementById('avanzar');
+
+// Set initial color to verde (index 1) while keeping idx at 0
+luz.setAttribute('data-color', colors[1]);
+luz.textContent=colors[1];
+
+// Automatic cycle every 700 ms
+const interval = setInterval(()=> {
+  idx=(idx+1)%colors.length;
+  luz.setAttribute('data-color', colors[idx]);
+  luz.textContent=colors[idx];
+}, 700);
+
+// Manual cycle on button click
+btn.addEventListener('click',()=>{
+  idx=(idx+1)%colors.length;
+  luz.setAttribute('data-color', colors[idx]);
+  luz.textContent=colors[idx];
+});
+</script>
+</body>
+</html>

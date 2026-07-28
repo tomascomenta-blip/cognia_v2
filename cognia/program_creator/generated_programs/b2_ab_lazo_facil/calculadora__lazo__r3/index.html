@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Simple</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+  #calculator{max-width:300px;margin:auto;background:#fff;padding:10px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.2);}
+  #pantalla{height:40px;background:#222;color:#0f0;font-size:1.5rem;text-align:right;padding:5px 10px;border-radius:4px;margin-bottom:10px;overflow:hidden;}
+  .tecla{width:23%;margin:1%;padding:15px 0;background:#ddd;border:none;border-radius:4px;font-size:1.2rem;cursor:pointer;}
+  .tecla:active{background:#bbb;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(-20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+</style>
+</head>
+<body>
+<div id="calculator">
+  <div id="pantalla"></div>
+  <div>
+    <button class="tecla" data-t="2">2</button>
+    <button class="tecla" data-t="3">3</button>
+    <button class="tecla" data-t="+">+</button>
+    <button class="tecla" data-t="=">=</button>
+  </div>
+</div>
+<script>
+  // Configurable constants
+  var OPERATORS = ['+'];
+  var NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
+  var EQUALS = '=';
+  var PLUS = '+';
+
+  var pantalla = document.getElementById('pantalla');
+  var teclas = document.querySelectorAll('.tecla');
+
+  var currentInput = '';
+  var operand1 = null;
+  var operator = null;
+  var previousNumeric = null;
+
+  function updateDisplay(newText) {
+    pantalla.textContent = newText;
+    var numeric = parseFloat(newText);
+    if (!isNaN(numeric)) {
+      if (previousNumeric !== null) {
+        var cambio = numeric - previousNumeric;
+        pantalla.style.color = (cambio >= 0 ? 'green' : 'red');
+      } else {
+        pantalla.style.color = 'green';
+      }
+      previousNumeric = numeric;
+    } else {
+      pantalla.style.color = 'black';
+    }
+  }
+
+  for (var i = 0; i < teclas.length; i++) {
+    teclas[i].addEventListener('click', function() {
+      handleInput(this.getAttribute('data-t'));
+    });
+  }
+
+  function handleInput(val) {
+    if (NUMBERS.indexOf(val) !== -1) {
+      currentInput += val;
+      updateDisplay(currentInput);
+    } else if (OPERATORS.indexOf(val) !== -1) {
+      if (currentInput === '') return;
+      operand1 = parseFloat(currentInput);
+      operator = val;
+      currentInput = '';
+      updateDisplay(operand1 + operator);
+      previousNumeric = null;
+    } else if (val === EQUALS) {
+      if (currentInput === '' || operand1 === null || operator === null) return;
+      var operand2 = parseFloat(currentInput);
+      var result;
+      if (operator === PLUS) result = operand1 + operand2;
+      updateDisplay(result);
+      operand1 = null;
+      operator = null;
+      currentInput = '';
+      previousNumeric = null;
+    }
+  }
+</script>
+</body>
+</html>

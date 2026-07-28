@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora</title>
+<style>
+  body{font-family:sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+  #pantalla{background:#fff;border:1px solid #ccc;padding:10px;font-size:2rem;text-align:right;margin-bottom:10px;}
+  .teclas{display:flex;flex-wrap:wrap;gap:5px;}
+  .tecla{flex:1 1 30%;padding:15px;font-size:1.5rem;background:#e0e0e0;border:none;border-radius:5px;cursor:pointer;}
+  .tecla:active{background:#d0d0d0;}
+</style>
+</head>
+<body>
+<div id="pantalla"></div>
+<div class="teclas">
+  <button class="tecla" data-t="2">2</button>
+  <button class="tecla" data-t="3">3</button>
+  <button class="tecla" data-t="+">+</button>
+  <button class="tecla" data-t="=">=</button>
+</div>
+<script>
+  const pantalla=document.getElementById('pantalla');
+  let current='',first=null,op='';
+  document.querySelectorAll('.tecla').forEach(b=>{
+    b.addEventListener('click',()=>{const v=b.dataset.t;
+      if(/[0-9]/.test(v)){current+=v;pantalla.textContent=current;}
+      else if(v==='+'||v==='-'){
+        if(first!==null&&current){first=eval(first+op+current);pantalla.textContent=first;current='';}
+        else if(current){first=parseFloat(current);current='';}
+        op=v;
+      }else if(v==='='){
+        if(op&&current){first=eval(first+op+current);pantalla.textContent=first;first=null;op='';current='';}
+      }
+    });
+  });
+</script>
+</body>
+</html>

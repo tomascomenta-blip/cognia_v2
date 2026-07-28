@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Simple</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #pantalla{
+    width:90%;
+    max-width:300px;
+    height:60px;
+    background:#222;
+    color:#0f0;
+    font-size:2rem;
+    text-align:right;
+    padding:10px;
+    box-sizing:border-box;
+    border-radius:5px;
+    margin-bottom:20px;
+    overflow:hidden;
+  }
+  .teclas{
+    display:flex;
+    flex-wrap:wrap;
+    width:90%;
+    max-width:300px;
+    gap:10px;
+  }
+  .tecla{
+    flex:1 1 30%;
+    padding:15px;
+    font-size:1.5rem;
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:5px;
+    cursor:pointer;
+    text-align:center;
+    user-select:none;
+  }
+  .tecla:active{
+    background:#e0e0e0;
+  }
+</style>
+</head>
+<body>
+<div id="pantalla"></div>
+<div class="teclas">
+  <button class="tecla" data-t="2">2</button>
+  <button class="tecla" data-t="+">+</button>
+  <button class="tecla" data-t="3">3</button>
+  <button class="tecla" data-t="=">=</button>
+</div>
+
+<script>
+  // Configurable constants
+  const DISPLAY = document.getElementById('pantalla');
+  let operand1 = '';
+  let operand2 = '';
+  let operator = null;
+  let resultDisplayed = false;
+
+  function updateDisplay(value){
+    DISPLAY.textContent = value;
+  }
+
+  function clearAll(){
+    operand1 = '';
+    operand2 = '';
+    operator = null;
+    resultDisplayed = false;
+    updateDisplay('');
+  }
+
+  function compute(){
+    if(operand1 && operator && operand2){
+      let a = parseFloat(operand1);
+      let b = parseFloat(operand2);
+      let res = 0;
+      switch(operator){
+        case '+': res = a + b; break;
+        case '-': res = a - b; break;
+        case '*': res = a * b; break;
+        case '/': res = b !== 0 ? a / b : 'Error'; break;
+      }
+      updateDisplay(res);
+      operand1 = res.toString();
+      operand2 = '';
+      operator = null;
+      resultDisplayed = true;
+    }
+  }
+
+  document.querySelectorAll('.tecla').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const val = btn.getAttribute('data-t');
+      if(!isNaN(val)){ // digit
+        if(resultDisplayed){
+          clearAll();
+        }
+        if(!operator){
+          operand1 += val;
+          updateDisplay(operand1);
+        }else{
+          operand2 += val;
+          updateDisplay(operand2);
+        }
+      }else if(val === '+' || val === '-' || val === '*' || val === '/'){
+        if(operand1){
+          operator = val;
+          resultDisplayed = false;
+        }
+      }else if(val === '='){
+        compute();
+      }
+    });
+  });
+
+  // Inicial state
+  updateDisplay('');
+</script>
+</body>
+</html>

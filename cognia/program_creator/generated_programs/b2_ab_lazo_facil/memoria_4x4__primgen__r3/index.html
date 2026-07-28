@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Juego de Memoria 4x4</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;padding:20px;}
+h1{margin-bottom:10px;}
+#moves{margin-top:10px;font-size:1.2rem;}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:90vw;max-width:500px;}
+.tile{aspect-ratio:1/1;background:#444;color:transparent;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer;user-select:none;transition:background 0.3s;}
+.tile.face-up{background:#fff;color:#000;}
+.tile.matched{background:#8f8;color:#000;cursor:default;}
+</style>
+</head>
+<body>
+<h1>Juego de Memoria 4x4</h1>
+<div class="board" id="board"></div>
+<div id="moves">0</div>
+<script>
+class MemoryGame{
+constructor(boardId,movesId){
+this.board=document.getElementById(boardId);
+this.movesCounter=document.getElementById(movesId);
+this.emojis=['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+this.tiles=[];
+this.firstTile=null;
+this.secondTile=null;
+this.locked=false;
+this.moves=0;
+this.matchedCount=0;
+this.init();
+}
+init(){
+const pairs=[...this.emojis,...this.emojis];
+this.shuffle(pairs);
+pairs.forEach(emoji=>{
+const tile=document.createElement('div');
+tile.classList.add('tile');
+tile.dataset.emoji=emoji;
+tile.addEventListener('click',()=>this.handleClick(tile));
+this.board.appendChild(tile);
+this.tiles.push(tile);
+});
+}
+shuffle(arr){
+for(let i=arr.length-1;i>0;i--){
+const j=Math.floor(Math.random()*(i+1));
+[arr[i],arr[j]]=[arr[j],arr[i]];
+}
+}
+handleClick(tile){
+if(this.locked||tile.classList.contains('face-up')||tile.classList.contains('matched'))return;
+tile.textContent=tile.dataset.emoji;
+tile.classList.add('face-up');
+if(!this.firstTile){
+this.firstTile=tile;
+}else{
+this.secondTile=tile;
+this.moves++;
+this.updateMoves();
+if(this.firstTile.dataset.emoji===this.secondTile.dataset.emoji){
+this.firstTile.classList.add('matched');
+this.secondTile.classList.add('matched');
+this.firstTile.classList.remove('face-up');
+this.secondTile.classList.remove('face-up');
+this.firstTile=null;
+this.secondTile=null;
+this.matchedCount+=2;
+if(this.matchedCount===this.tiles.length){
+alert('¡Felicidades! Has completado el juego en '+this.moves+' intentos.');
+}
+}else{
+this.locked=true;
+setTimeout(()=>{
+this.firstTile.textContent='';
+this.secondTile.textContent='';
+this.firstTile.classList.remove('face-up');
+this.secondTile.classList.remove('face-up');
+this.firstTile=null;
+this.secondTile=null;
+this.locked=false;
+},1000);
+}
+}
+}
+updateMoves(){
+this.movesCounter.textContent=this.moves;
+}
+}
+document.addEventListener('DOMContentLoaded',()=>new MemoryGame('board','moves'));
+</script>
+</body>
+</html>

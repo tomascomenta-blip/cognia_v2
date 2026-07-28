@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Tareas Simple</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;background:#f0f0f0;}
+header{margin-top:2rem;}
+#nueva{padding:0.5rem;font-size:1rem;}
+#anadir{padding:0.5rem 1rem;font-size:1rem;margin-left:0.5rem;}
+#lista{list-style:none;padding:0;margin-top:1rem;width:90%;max-width:400px;}
+.tarea{background:#fff;border-radius:4px;padding:0.5rem;margin-bottom:0.5rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+</style>
+</head>
+<body>
+<header>
+<input id="nueva" type="text" placeholder="Nueva tarea">
+<button id="anadir">Añadir</button>
+</header>
+<ul id="lista"></ul>
+<script>
+document.getElementById('anadir').addEventListener('click',function(){
+var txt=document.getElementById('nueva').value.trim();
+if(txt){
+var li=document.createElement('li');
+li.className='tarea';
+li.textContent=txt;
+li.style.color='green';
+document.getElementById('lista').appendChild(li);
+document.getElementById('nueva').value='';
+}
+});
+</script>
+</body>
+</html>

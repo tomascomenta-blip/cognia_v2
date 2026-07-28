@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Juego de Memoria 4x4</title>
+<style>
+  body{
+    font-family: sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  h1{margin:10px 0;}
+  #moves{
+    font-size:1.5rem;
+    margin:10px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:100%;
+    max-width:400px;
+    padding:10px;
+  }
+  .tile{
+    background:#444;
+    color:#fff;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:2rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .tile.flipped{
+    background:#fff;
+    color:#000;
+  }
+  .tile::after{
+    content:"";
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    height:100%;
+  }
+  .tile.flipped::after{
+    content:attr(data-emoji);
+  }
+</style>
+</head>
+<body>
+<h1>Juego de Memoria 4x4</h1>
+<div id="moves">0</div>
+<div id="grid"></div>
+<script>
+  // CONSTANTES
+  const EMOJIS = [
+    '🐶','🐶',
+    '🐱','🐱',
+    '🐭','🐭',
+    '🐹','🐹',
+    '🐰','🐰',
+    '🦊','🦊',
+    '🐻','🐻',
+    '🐼','🐼'
+  ];
+
+  const grid = document.getElementById('grid');
+  const movesCounter = document.getElementById('moves');
+  let flippedTiles = [];
+  let busy = false;
+
+  // CREAR CARTAS
+  EMOJIS.forEach(emoji => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.dataset.emoji = emoji;
+    tile.addEventListener('click', () => {
+      if (busy || tile.classList.contains('flipped')) return;
+      tile.classList.add('flipped');
+      flippedTiles.push(tile);
+      if (flippedTiles.length === 2) {
+        movesCounter.textContent = parseInt(movesCounter.textContent) + 1;
+        const [t1, t2] = flippedTiles;
+        if (t1.dataset.emoji === t2.dataset.emoji) {
+          flippedTiles = [];
+        } else {
+          busy = true;
+          setTimeout(() => {
+            t1.classList.remove('flipped');
+            t2.classList.remove('flipped');
+            flippedTiles = [];
+            busy = false;
+          }, 1000);
+        }
+      }
+    });
+    grid.appendChild(tile);
+  });
+</script>
+</body>
+</html>

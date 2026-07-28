@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .container{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #luz{
+    width:120px;
+    height:300px;
+    background:#444;
+    border-radius:20px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-around;
+    align-items:center;
+    padding:20px 0;
+  }
+  .light{
+    width:80px;
+    height:80px;
+    border-radius:50%;
+    background:#333;
+    border:2px solid #222;
+  }
+  #luz[data-color="rojo"] .light.top{background:red;}
+  #luz[data-color="verde"] .light.bottom{background:green;}
+  #luz[data-color="ambar"] .light.middle{background:orange;}
+  #avanzar{
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:1rem;
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+  }
+  #avanzar:hover{background:#555;}
+  @media (max-width:400px){
+    #luz{width:80px;height:200px;}
+    .light{width:50px;height:50px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="luz" data-color="rojo">
+    <div class="light top"></div>
+    <div class="light middle"></div>
+    <div class="light bottom"></div>
+  </div>
+  <button id="avanzar">avanzar</button>
+</div>
+<script>
+  const luz=document.getElementById('luz');
+  const btn=document.getElementById('avanzar');
+  const colors=['rojo','verde','ambar'];
+  let idx=0;
+  btn.addEventListener('click',()=>{
+    idx=(idx+1)%colors.length;
+    luz.dataset.color=colors[idx];
+  });
+</script>
+</body>
+</html>

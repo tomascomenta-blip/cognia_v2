@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Tareas Simple</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f9f9f9;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  h1{
+    margin-bottom:20px;
+    color:#333;
+  }
+  .contenedor{
+    width:100%;
+    max-width:600px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  #nueva{
+    flex:1;
+    padding:10px;
+    font-size:1rem;
+    border:1px solid #ccc;
+    border-radius:4px;
+  }
+  #anadir{
+    padding:10px 20px;
+    font-size:1rem;
+    background:#28a745;
+    color:white;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  #anadir:hover{
+    background:#218838;
+  }
+  #lista{
+    list-style:none;
+    padding:0;
+    margin:0;
+    border:1px solid #ddd;
+    border-radius:4px;
+    background:white;
+  }
+  .tarea{
+    padding:10px;
+    border-bottom:1px solid #eee;
+  }
+  .tarea:last-child{
+    border-bottom:none;
+  }
+  @media (max-width:480px){
+    #nueva, #anadir{
+      width:100%;
+    }
+    .contenedor{
+      flex-direction:column;
+    }
+  }
+</style>
+</head>
+<body>
+<h1>Lista de Tareas</h1>
+<div class="contenedor">
+  <input type="text" id="nueva" placeholder="Escribe una tarea">
+  <button id="anadir">Añadir</button>
+</div>
+<ul id="lista"></ul>
+
+<script>
+class TodoApp {
+  constructor(){
+    this.input = document.getElementById('nueva');
+    this.button = document.getElementById('anadir');
+    this.list = document.getElementById('lista');
+    this.bindEvents();
+  }
+  bindEvents(){
+    this.button.addEventListener('click', () => this.addTask());
+    this.input.addEventListener('keyup', (e) => {
+      if(e.key === 'Enter') this.addTask();
+    });
+  }
+  addTask(){
+    const text = this.input.value.trim();
+    if(!text) return;
+    const li = document.createElement('li');
+    li.className = 'tarea';
+    li.textContent = text;
+    this.list.appendChild(li);
+    this.input.value = '';
+    this.input.focus();
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  new TodoApp();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Lista de tareas</title>
+<style>
+body{font-family:sans-serif;margin:20px;}
+#nueva{width:70%;padding:8px;font-size:1rem;}
+#anadir{padding:8px 12px;font-size:1rem;margin-left:5px;}
+#lista{margin-top:15px;list-style:none;padding:0;}
+.tarea{background:#f0f0f0;margin-bottom:5px;padding:8px;border-radius:4px;}
+</style>
+</head>
+<body>
+<input id="nueva" placeholder="Nueva tarea">
+<button id="anadir">Añadir</button>
+<ul id="lista"></ul>
+<script>
+document.getElementById('anadir').addEventListener('click',function(){
+  var txt=document.getElementById('nueva').value.trim();
+  if(txt){
+    var li=document.createElement('li');
+    li.className='tarea';
+    li.textContent=txt;
+    document.getElementById('lista').appendChild(li);
+    document.getElementById('nueva').value='';
+  }
+});
+</script>
+</body>
+</html>

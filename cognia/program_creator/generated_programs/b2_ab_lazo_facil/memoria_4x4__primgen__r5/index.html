@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Juego de Memoria 4x4</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #moves {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: 80vw;
+    max-width: 500px;
+  }
+  .tile {
+    background-color: #ccc;
+    color: #ccc;
+    aspect-ratio: 1 / 1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.3s, color 0.3s;
+  }
+</style>
+</head>
+<body>
+<div id="moves">0</div>
+<div id="board"></div>
+<script>
+class Tile {
+  constructor(emoji, game) {
+    this.emoji = emoji;
+    this.game = game;
+    this.isRevealed = false;
+    this.isMatched = false;
+    this.element = document.createElement('div');
+    this.element.className = 'tile';
+    this.element.addEventListener('click', () => this.game.handleTileClick(this));
+    this.update();
+  }
+  reveal() {
+    this.isRevealed = true;
+    this.update();
+  }
+  hide() {
+    this.isRevealed = false;
+    this.update();
+  }
+  setMatched() {
+    this.isMatched = true;
+    this.update();
+  }
+  update() {
+    if (this.isMatched || this.isRevealed) {
+      this.element.textContent = this.emoji;
+      this.element.style.backgroundColor = '#fff';
+      this.element.style.color = '#000';
+    } else {
+      this.element.textContent = '';
+      this.element.style.backgroundColor = '#ccc';
+      this.element.style.color = '#ccc';
+    }
+  }
+}
+class Game {
+  constructor() {
+    this.emojis = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+    this.tiles = [];
+    this.firstTile = null;
+    this.secondTile = null;
+    this.locked = false;
+    this.moves = 0;
+    this.movesCounter = document.getElementById('moves');
+    this.board = document.getElementById('board');
+    this.init();
+  }
+  init() {
+    this.shuffleEmojis();
+    this.createTiles();
+  }
+  shuffleEmojis() {
+    const pairs = this.emojis.concat(this.emojis);
+    for (let i = pairs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+    }
+    this.shuffledEmojis = pairs;
+  }
+  createTiles() {
+    this.board.innerHTML = '';
+    this.tiles = [];
+    this.shuffledEmojis.forEach((emoji) => {
+      const tile = new Tile(emoji, this);
+      this.tiles.push(tile);
+      this.board.appendChild(tile.element);
+    });
+  }
+  handleTileClick(tile) {
+    if (this.locked || tile.isRevealed || tile.isMatched) return;
+    tile.reveal();
+    if (!this.firstTile) {
+      this.firstTile = tile;
+    } else {
+      this.secondTile = tile;
+      this.moves++;
+      this.updateMoves();
+      if (this.firstTile.emoji === this.secondTile.emoji) {
+        this.firstTile.setMatched();
+        this.secondTile.setMatched();
+        this.firstTile = null;
+        this.secondTile = null;
+      } else {
+        this.locked = true;
+        setTimeout(() => {
+          this.firstTile.hide();
+          this.secondTile.hide();
+          this.firstTile = null;
+          this.secondTile = null;
+          this.locked = false;
+        }, 1000);
+      }
+    }
+  }
+  updateMoves() {
+    this.movesCounter.textContent = this.moves;
+  }
+}
+window.onload = () => {
+  new Game();
+};
+</script>
+</body>
+</html>

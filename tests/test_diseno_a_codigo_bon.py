@@ -189,15 +189,30 @@ def test_idea_pelada_no_pega_el_target_look(monkeypatch):
     assert "TARGET LOOK" not in capturado["idea"]
 
 
-# ── La politica de rondas es 3, decidida con series de n=6 ───────────────────
+# ── La politica de rondas es 1, decidida con A/B intercalados de n=6 ─────────
 
-def test_default_de_produccion_son_tres_rondas():
-    """La unica pareja de series con n=6 (config con reparacion a esfuerzo
-    default 4.5/6 contra primera-generacion 3.17/6) dice que reparar APORTA.
-    El default bajo a 1 durante unas horas por un n=3 enganoso que n=6
-    revirtio (5ta enmienda del prereg): si alguien lo vuelve a cambiar, que
-    sea con una serie de n>=6, no con tres corridas."""
-    assert d2c.MAX_RONDAS_DEFECTO == 3
+def test_default_de_produccion_es_una_ronda():
+    """Historia completa para no repetirla: el 2026-07-26 un n=3 enganoso
+    bajo el default a 1 y el n=6 lo revirtio a 3 — pero aquellas series eran
+    BLOQUES entre noches, con deriva del tamano del efecto. El 2026-07-27/28
+    los A/B INTERCALADOS con control concurrente (la unica lectura valida)
+    dieron consistente que el lazo RESTA: brutal neto -3 (24 pares) y facil
+    neto -7 (36 pares; semaforo pierde 6/6 con reparacion). Adopcion
+    pre-registrada con evidencia doble (QUINTA enmienda de
+    PREREG_SENAL_CONTRATO_20260727.md). Si alguien lo vuelve a cambiar, que
+    sea con A/B intercalado n>=6 por brazo, no con bloques ni con n=3."""
+    assert d2c.MAX_RONDAS_DEFECTO == 1
+
+
+def test_max_rondas_none_resuelve_del_env(monkeypatch):
+    # Reversible sin release: COGNIA_MAX_RONDAS manda cuando el llamador no
+    # pasa max_rondas; un valor basura cae al default sin romper.
+    monkeypatch.setenv("COGNIA_MAX_RONDAS", "3")
+    assert d2c._max_rondas_defecto() == 3
+    monkeypatch.setenv("COGNIA_MAX_RONDAS", "basura")
+    assert d2c._max_rondas_defecto() == d2c.MAX_RONDAS_DEFECTO
+    monkeypatch.delenv("COGNIA_MAX_RONDAS")
+    assert d2c._max_rondas_defecto() == d2c.MAX_RONDAS_DEFECTO
 
 
 # ── Telemetria: el sello queda contado, tambien el "sin verificar" ───────────

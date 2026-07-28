@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de lista interactivo</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f9f9f9;
+    color:#333;
+  }
+  .container{
+    max-width:400px;
+    margin:auto;
+    background:#fff;
+    padding:20px;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  }
+  #buscar{
+    width:100%;
+    padding:8px;
+    font-size:16px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    box-sizing:border-box;
+    margin-bottom:12px;
+  }
+  ul{
+    list-style:none;
+    padding:0;
+    margin:0;
+  }
+  li.item{
+    padding:8px;
+    border-bottom:1px solid #eee;
+  }
+  li.item:last-child{
+    border-bottom:none;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <input type="text" id="buscar" placeholder="Buscar...">
+  <ul id="lista">
+    <li class="item">manzana</li>
+    <li class="item">banana</li>
+    <li class="item">cereza</li>
+    <li class="item">datil</li>
+    <li class="item">kiwi</li>
+  </ul>
+</div>
+
+<script>
+  (function(){
+    const input = document.getElementById('buscar');
+    const items = document.querySelectorAll('#lista .item');
+
+    input.addEventListener('input', function(){
+      const filter = input.value.trim().toLowerCase();
+      items.forEach(function(li){
+        const text = li.textContent.toLowerCase();
+        li.style.display = text.includes(filter) || filter === '' ? '' : 'none';
+      });
+    });
+  })();
+</script>
+</body>
+</html>

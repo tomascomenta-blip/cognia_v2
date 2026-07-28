@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juego de Memoria 4x4</title>
+<style>
+  body {
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    background:#f0f0f0;
+    font-family:sans-serif;
+  }
+  #game {
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:10px;
+    width:90vw;
+    max-width:600px;
+  }
+  .tile {
+    background:#444;
+    color:#fff;
+    font-size:2rem;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    transition:background 0.3s;
+    animation: fadeIn 0.5s ease forwards;
+  }
+  .tile[data-flipped="true"] {
+    background:#fff;
+    color:#000;
+  }
+  #moves {
+    margin-top:20px;
+    font-size:1.2rem;
+  }
+  @keyframes fadeIn {
+    from { opacity:0; transform:scale(0.9); }
+    to { opacity:1; transform:scale(1); }
+  }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="moves">Movimientos: 0</div>
+<script>
+class MemoryGame {
+  constructor(container, movesDisplay) {
+    this.container = container;
+    this.movesDisplay = movesDisplay;
+    this.emojis = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+    this.tiles = [];
+    this.firstTile = null;
+    this.secondTile = null;
+    this.lock = false;
+    this.moves = 0;
+    this.init();
+  }
+  init() {
+    const deck = [...this.emojis, ...this.emojis];
+    this.shuffle(deck);
+    deck.forEach((emoji, index) => {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.flipped = 'false';
+      tile.dataset.emoji = emoji;
+      tile.dataset.index = index;
+      tile.addEventListener('click', () => this.onTileClick(tile));
+      this.container.appendChild(tile);
+      this.tiles.push(tile);
+    });
+  }
+  shuffle(array) {
+    for (let i = array.length -1; i>0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+  onTileClick(tile) {
+    if (this.lock || tile.dataset.flipped === 'true') return;
+    tile.dataset.flipped = 'true';
+    tile.textContent = tile.dataset.emoji;
+    if (!this.firstTile) {
+      this.firstTile = tile;
+    } else {
+      this.secondTile = tile;
+      this.moves++; // increment only on second tile
+      this.updateMoves();
+      if (this.firstTile.dataset.emoji === this.secondTile.dataset.emoji) {
+        // matched: keep them flipped
+        this.firstTile = null;
+        this.secondTile = null;
+      } else {
+        this.lock = true;
+        setTimeout(() => {
+          this.firstTile.dataset.flipped = 'false';
+          this.firstTile.textContent = '';
+          this.secondTile.dataset.flipped = 'false';
+          this.secondTile.textContent = '';
+          this.firstTile = null;
+          this.secondTile = null;
+          this.lock = false;
+        }, 1000);
+      }
+    }
+  }
+  updateMoves() {
+    this.movesDisplay.textContent = `Movimientos: ${this.moves}`;
+    // Apply color directly to the element being updated
+    this.movesDisplay.style.color = 'green';
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const gameContainer = document.getElementById('game');
+  const movesDisplay = document.getElementById('moves');
+  new MemoryGame(gameContainer, movesDisplay);
+});
+</script>
+</body>
+</html>

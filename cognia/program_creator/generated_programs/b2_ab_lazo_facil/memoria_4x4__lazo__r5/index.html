@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Juego de Memoria 4x4</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:system-ui, sans-serif;
+    background:#f0e6f7;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  #game{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:90vw;
+    max-width:400px;
+  }
+  .tile{
+    background:#ccc; /* face‑down color */
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.2);
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    transition:transform 0.2s;
+    visibility:visible; /* tiles are visible so they can be clicked */
+  }
+  .tile:active{transform:scale(0.95);}
+  .tile.flipped{
+    background:#fff; /* face‑up color */
+    visibility:visible; /* keep visible */
+  }
+  .tile span{
+    font-size:2rem;
+    visibility:hidden; /* hide emoji until flipped */
+  }
+  .tile.flipped span{
+    visibility:visible; /* show emoji when flipped */
+  }
+  #moves{
+    margin-top:20px;
+    font-size:1.2rem;
+    color:#333;
+  }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="moves">0</div>
+
+<script>
+class MemoryGame{
+  constructor(){
+    this.emojis = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+    this.tiles = [];
+    this.first = null;
+    this.second = null;
+    this.lock = false;
+    this.moves = 0;
+    this.init();
+  }
+  init(){
+    const shuffled = this.shuffle([...this.emojis, ...this.emojis]);
+    const gameDiv = document.getElementById('game');
+    shuffled.forEach((emoji, idx)=>{
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.emoji = emoji;
+      const span = document.createElement('span');
+      span.textContent = emoji;
+      tile.appendChild(span);
+      tile.addEventListener('click', ()=>this.handleClick(tile));
+      gameDiv.appendChild(tile);
+      this.tiles.push(tile);
+    });
+  }
+  shuffle(array){
+    for(let i=array.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [array[i],array[j]]=[array[j],array[i]];
+    }
+    return array;
+  }
+  handleClick(tile){
+    if(this.lock || tile.classList.contains('flipped')) return;
+    tile.classList.add('flipped');
+    if(!this.first){
+      this.first = tile;
+    }else{
+      this.second = tile;
+      this.lock = true;
+      this.moves++;
+      document.getElementById('moves').textContent = this.moves;
+      if(this.first.dataset.emoji === this.second.dataset.emoji){
+        this.resetTurn();
+      }else{
+        setTimeout(()=>this.flipBack(),1000);
+      }
+    }
+  }
+  flipBack(){
+    this.first.classList.remove('flipped');
+    this.second.classList.remove('flipped');
+    this.resetTurn();
+  }
+  resetTurn(){
+    this.first = null;
+    this.second = null;
+    this.lock = false;
+  }
+}
+
+window.addEventListener('DOMContentLoaded',()=>new MemoryGame());
+</script>
+</body>
+</html>

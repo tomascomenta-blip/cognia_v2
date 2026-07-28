@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Contador Minimalista</title>
+<style>
+  :root{
+    --bg:#fdfdfd;
+    --txt:#333;
+    --btn:#e0f7fa;
+    --btn-hover:#b2ebf2;
+  }
+  body{
+    margin:0;
+    height:100vh;
+    background:var(--bg);
+    color:var(--txt);
+    font-family:system-ui, sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .contenedor{
+    display:flex;
+    align-items:center;
+    gap:1rem;
+  }
+  #valor{
+    font-size:4rem;
+    font-weight:bold;
+    min-width:3rem;
+    text-align:center;
+  }
+  button{
+    background:var(--btn);
+    border:none;
+    border-radius:8px;
+    padding:.5rem 1rem;
+    font-size:1.5rem;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  button:hover{
+    background:var(--btn-hover);
+  }
+  @media(max-width:480px){
+    #valor{font-size:3rem;}
+    button{font-size:1.2rem;}
+  }
+</style>
+</head>
+<body>
+<div class="contenedor">
+  <button id="menos">–</button>
+  <span id="valor">0</span>
+  <button id="mas">+</button>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded',function(){
+    const valorEl=document.getElementById('valor');
+    const masBtn=document.getElementById('mas');
+    const menosBtn=document.getElementById('menos');
+    let contador=0;
+    const actualizar=()=>{
+      valorEl.textContent=contador;
+    };
+    masBtn.addEventListener('click',()=>{
+      contador++;
+      actualizar();
+    });
+    menosBtn.addEventListener('click',()=>{
+      if(contador>0){contador--; actualizar();}
+    });
+    actualizar();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo en HTML</title>
+<style>
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    font-family:sans-serif;
+    background:#f0f0f0;
+  }
+  #luz{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    border:4px solid #333;
+    margin-bottom:20px;
+    transition:background-color .3s;
+  }
+  #luz[data-color="rojo"]{background:#c00;}
+  #luz[data-color="verde"]{background:#0c0;}
+  #luz[data-color="ambar"]{background:#cc0;}
+  #avanzar{
+    padding:.5em 1em;
+    font-size:1rem;
+    cursor:pointer;
+    border:none;
+    border-radius:4px;
+    background:#333;
+    color:#fff;
+  }
+  @media(max-width:400px){
+    #luz{width:80px;height:80px;}
+    #avanzar{font-size:.9rem;}
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo"></div>
+<button id="avanzar">Avanzar</button>
+
+<script>
+class TrafficLight {
+  constructor(luzId, buttonId) {
+    this.luz = document.getElementById(luzId);
+    this.button = document.getElementById(buttonId);
+    this.states = ['rojo', 'verde', 'ambar'];
+    this.currentIndex = 0;
+    this.button.addEventListener('click', () => this.advance());
+  }
+  advance() {
+    this.currentIndex = (this.currentIndex + 1) % this.states.length;
+    this.luz.dataset.color = this.states[this.currentIndex];
+  }
+}
+
+// Demo automatically runs when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  new TrafficLight('luz', 'avanzar');
+});
+</script>
+</body>
+</html>

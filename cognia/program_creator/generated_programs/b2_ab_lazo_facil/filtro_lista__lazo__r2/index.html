@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Filtro de lista</title>
+<style>
+body{font-family:sans-serif;background:#f5f5f5;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+#buscar{width:100%;max-width:300px;padding:10px;border:1px solid #ccc;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;}
+ul{list-style:none;padding:0;margin:0;width:100%;max-width:300px;}
+li.item{background:#fff;border-radius:8px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.2s;cursor:pointer;}
+li.item:hover{background:#e0f7fa;}
+li.item.selected{background:#c8e6c9;}
+span.value{margin-left:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<input id="buscar" type="text" placeholder="Buscar...">
+<ul id="lista">
+<li class="item" data-fruit="manzana"><span class="fruit">manzana</span><span class="value">0</span></li>
+<li class="item" data-fruit="banana"><span class="fruit">banana</span><span class="value">0</span></li>
+<li class="item" data-fruit="cereza"><span class="fruit">cereza</span><span class="value">0</span></li>
+<li class="item" data-fruit="datil"><span class="fruit">datil</span><span class="value">0</span></li>
+<li class="item" data-fruit="kiwi"><span class="fruit">kiwi</span><span class="value">0</span></li>
+</ul>
+<script>
+const input=document.getElementById('buscar');
+const items=document.querySelectorAll('#lista .item');
+function filterItems(){
+  const val=input.value.toLowerCase();
+  items.forEach(el=>{
+    const fruit=el.getAttribute('data-fruit')||'';
+    el.style.display=fruit.includes(val)?'block':'none';
+  });
+}
+input.addEventListener('input',filterItems);
+input.addEventListener('keyup',filterItems);
+items.forEach(el=>{
+  el.addEventListener('click',()=>{el.classList.toggle('selected');});
+});
+const prevValues=[];
+items.forEach((el,i)=>{prevValues[i]=0;});
+setInterval(()=>{
+  items.forEach((el,i)=>{
+    const newVal=Math.floor(Math.random()*101);
+    const change=newVal-prevValues[i];
+    const valSpan=el.querySelector('.value');
+    valSpan.textContent=newVal;
+    valSpan.style.color=change>=0?'green':'red';
+    prevValues[i]=newVal;
+  });
+},700);
+</script>
+</body>
+</html>

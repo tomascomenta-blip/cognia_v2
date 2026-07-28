@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Simple</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    background:#222;
+    color:#eee;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+  }
+  #pantalla{
+    width:90%;
+    max-width:300px;
+    height:60px;
+    background:#333;
+    color:#ddd;
+    font-size:2rem;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    padding:0 10px;
+    border-radius:8px;
+    margin-bottom:20px;
+  }
+  .calculator{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:90%;
+    max-width:300px;
+  }
+  .tecla{
+    background:#444;
+    color:#fff;
+    font-size:1.5rem;
+    padding:15px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .tecla:active{background:#555;}
+  .tecla[data-t="="]{background:#0066cc;}
+  .tecla[data-t="="]:active{background:#0055aa;}
+  .tecla[data-t="C"]{background:#cc0000;}
+  .tecla[data-t="C"]:active{background:#ff3333;}
+  .tecla[data-t="+"]{background:#0066cc;}
+  .tecla[data-t="-"]{background:#0066cc;}
+  .tecla[data-t="*"]{background:#0066cc;}
+  .tecla[data-t="/"]{background:#0066cc;}
+  .tecla[data-t="."]{background:#444;}
+  .tecla[data-t="0"]{grid-column:span 2;}
+</style>
+</head>
+<body>
+<div id="pantalla">0</div>
+<div class="calculator">
+  <button class="tecla" data-t="7">7</button>
+  <button class="tecla" data-t="8">8</button>
+  <button class="tecla" data-t="9">9</button>
+  <button class="tecla" data-t="/">/</button>
+
+  <button class="tecla" data-t="4">4</button>
+  <button class="tecla" data-t="5">5</button>
+  <button class="tecla" data-t="6">6</button>
+  <button class="tecla" data-t="*">*</button>
+
+  <button class="tecla" data-t="1">1</button>
+  <button class="tecla" data-t="2">2</button>
+  <button class="tecla" data-t="3">3</button>
+  <button class="tecla" data-t="-">-</button>
+
+  <button class="tecla" data-t="C">C</button>
+  <button class="tecla" data-t="0">0</button>
+  <button class="tecla" data-t=".">.</button>
+  <button class="tecla" data-t="+">+</button>
+
+  <button class="tecla" data-t="=">=</button>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const pantalla = document.getElementById('pantalla');
+  let expr = '';
+  const update = v => pantalla.textContent = v;
+  update('0');
+  document.querySelectorAll('.tecla').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const val = btn.dataset.t;
+      if(val==='C'){
+        expr='';
+        update('0');
+      }else if(val==='='){
+        if(expr==='') return;
+        try{
+          if(/^[0-9+\-*/.]+$/.test(expr)){
+            const res = eval(expr);
+            update(res.toString());
+            expr = res.toString();
+          }else{
+            update('Error');
+            expr='';
+          }
+        }catch(e){
+          update('Error');
+          expr='';
+        }
+      }else{
+        if(expr==='0' && /^[0-9]$/.test(val)) expr=val;
+        else expr+=val;
+        update(expr);
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>

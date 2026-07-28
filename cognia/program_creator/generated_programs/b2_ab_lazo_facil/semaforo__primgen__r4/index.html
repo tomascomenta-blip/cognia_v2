@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo Interactivo</title>
+<style>
+  body{
+    font-family:sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    background:#f0f0f0;
+  }
+  #luz{
+    width:80px;
+    height:200px;
+    background:#333;
+    border-radius:10px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-around;
+    align-items:center;
+    padding:10px;
+    box-shadow:0 0 10px rgba(0,0,0,.3);
+    color:#fff;
+  }
+  #luz[data-color="rojo"] .circle{background:red;}
+  #luz[data-color="verde"] .circle{background:green;}
+  #luz[data-color="ambar"] .circle{background:orange;}
+  .circle{
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    background:#555;
+  }
+  #avanzar{
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:1rem;
+    border:none;
+    border-radius:5px;
+    background:#007bff;
+    color:#fff;
+    cursor:pointer;
+  }
+  #avanzar:hover{background:#0056b3;}
+  @media (max-width:400px){
+    #luz{width:60px;height:150px;}
+    .circle{width:45px;height:45px;}
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo">
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+</div>
+<button id="avanzar">Avanzar</button>
+<script>
+  const luz = document.getElementById('luz');
+  const btn = document.getElementById('avanzar');
+  const colors = ['rojo', 'verde', 'ambar'];
+  btn.addEventListener('click', () => {
+    const current = luz.dataset.color;
+    const idx = colors.indexOf(current);
+    const next = colors[(idx + 1) % colors.length];
+    luz.dataset.color = next;
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filtro de lista</title>
+<style>
+body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+input{margin-bottom:10px;padding:5px;width:100%;max-width:300px;}
+ul{list-style:none;padding:0;margin:0;width:100%;max-width:300px;}
+li{padding:5px 0;text-align:center;border-bottom:1px solid #ddd;}
+</style>
+</head>
+<body>
+<input id="buscar" placeholder="Buscar...">
+<ul id="lista">
+<li class="item">manzana</li>
+<li class="item">banana</li>
+<li class="item">cereza</li>
+<li class="item">datil</li>
+<li class="item">kiwi</li>
+</ul>
+<script>
+const input=document.getElementById('buscar');
+const items=document.querySelectorAll('#lista .item');
+input.addEventListener('input',()=>{const val=input.value.toLowerCase();items.forEach(li=>{li.style.display=li.textContent.toLowerCase().includes(val)?'':'none';});});
+</script>
+</body>
+</html>

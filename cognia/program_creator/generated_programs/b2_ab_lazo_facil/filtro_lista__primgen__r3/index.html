@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de lista</title>
+<style>
+  body{
+    font-family:system-ui, sans-serif;
+    background:#f9f9f9;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #buscar{
+    width:100%;
+    max-width:400px;
+    padding:10px;
+    font-size:16px;
+    border:1px solid #ccc;
+    border-radius:4px;
+  }
+  ul{
+    list-style:none;
+    padding:0;
+    margin-top:20px;
+    width:100%;
+    max-width:400px;
+  }
+  li{
+    padding:8px 12px;
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:4px;
+    margin-bottom:8px;
+    font-size:16px;
+  }
+  li.hidden{display:none;}
+</style>
+</head>
+<body>
+<input type="text" id="buscar" placeholder="Buscar...">
+<ul id="lista"></ul>
+<script>
+  // Datos de la lista
+  const items = ['manzana','banana','cereza','datil','kiwi'];
+  const lista = document.getElementById('lista');
+
+  // Renderizar los elementos <li>
+  function renderList(){
+    lista.innerHTML='';
+    items.forEach(text=>{
+      const li=document.createElement('li');
+      li.className='item';
+      li.textContent=text;
+      lista.appendChild(li);
+    });
+  }
+  renderList();
+
+  // Filtro en tiempo real
+  const buscar=document.getElementById('buscar');
+  buscar.addEventListener('input',()=>{
+    const val=buscar.value.toLowerCase();
+    document.querySelectorAll('#lista li').forEach(li=>{
+      if(val && !li.textContent.toLowerCase().includes(val)){
+        li.classList.add('hidden');
+      }else{
+        li.classList.remove('hidden');
+      }
+    });
+  });
+</script>
+</body>
+</html>
