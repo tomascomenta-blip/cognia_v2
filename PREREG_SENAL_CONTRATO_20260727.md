@@ -449,3 +449,56 @@ de la pregunta, y las dos (brutal −3, fácil −7) apuntan igual.
 documenta la historia completa. El lazo de reparación NO se borra: queda
 íntegro tras el override y vuelve el día que el contrato interno demuestre
 señal (esa sigue siendo la palanca #1 de META).
+
+## SEXTA ENMIENDA (2026-07-28 ~01:20 — el GAP sistema-vs-crudo con control
+## concurrente; escrita ANTES de correr)
+
+La pregunta que la noche dejó sin repartir: ambos brazos del A/B del lazo
+rindieron 67-92% (nivel del crudo histórico) — ¿los fixes de la semana
+cerraron la brecha del 17%-vs-75%, o es deriva? Nunca se midió sistema y
+crudo EN LA MISMA corrida.
+
+**A/B GAP (`scripts/b2_ab_gap.py`):** banco brutal, intercalado a nivel
+tarea con orden rotado y semilla compartida por par, objetivo n=6 (24
+pares), reanudable:
+
+- brazo `sistema`: `correr_sistema` con los defaults vigentes (rondas=1
+  adoptado esta noche, descarte de vacuos, fix2 OFF — sondas en el JSON).
+- brazo `crudo`: `b1_router_oraculo.generar_html(idea)` — la idea pelada
+  por la vía directa, el MISMO generador del confound y de la sonda.
+
+Misma mecánica que la cuarta enmienda (infra excluida y reportada,
+create_program contado, held-out en try propio). Es MEDICIÓN de estado, no
+A/B de política: ninguna adopción cuelga de esto.
+
+| lectura (pares apareados) | condición |
+|---|---|
+| el envoltorio AÚN roba | crudo neto ≥ +3 con reparto ≥2 tareas — siguiente sonda: el prompt DEL LAZO completo |
+| **gap CERRADO a esta potencia** | neto en [−2, +2] — los fixes cobraron; la deriva ya no puede reclamar la brecha |
+| el sistema SUPERA al crudo | sistema neto ≥ +3 — primera vez; el envoltorio aporta |
+
+PARCIAL: se reporta el n alcanzado como direccional (el aterrizaje es
+04:10). Referencias históricas (17%, 75%, 92%): solo sanidad.
+
+Ajustes de la revisión rápida (1 agente), ANTES de lanzar:
+- **Fila que faltaba:** si un brazo saca neto ≥ +3 pero concentrado en UNA
+  tarea → SIN veredicto global; se reporta "efecto de una tarea" y la
+  siguiente sonda es específica de esa tarea.
+- **Fallback de Ollama NEUTRALIZADO en esta medición** (generator.
+  OLLAMA_MODEL → inexistente): _call_llm caía en silencio a llama3.2:1b si
+  :8080 hipaba, y esa celda degradada contaría como fallo legítimo
+  (victoria fantasma del otro brazo). Aquí la degradación es ruidosa: sin
+  HTML → infra excluida. Declarado: producción CONSERVA el fallback; esto
+  aplica solo al runner de medición.
+- Cada celda registra `backend_activo.ultimo()` (aproximación declarada:
+  en el brazo sistema hay varias llamadas por celda) y una celda con
+  backend degradado o puerto ≠ 8080 cuenta como infra. `config` registra
+  `backend_activo.estado()` al arrancar.
+- Sin watchdog por celda (peor caso ~19 min si :8080 acepta TCP sin
+  contestar): aceptado porque la corrida es reanudable y PARCIAL es una
+  lectura válida aquí; si una racha de cuelgues come la ventana, se
+  reporta tal cual.
+- Feromona compartida entre celdas del brazo sistema (el crudo no la usa):
+  coherente con "medición de estado", pero si el neto sale positivo para
+  el sistema, mirar si sus victorias se concentran en reps altas antes de
+  atribuirlo al envoltorio.
