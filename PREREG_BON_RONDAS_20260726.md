@@ -497,6 +497,26 @@ Declarado: ambos brazos heredan por igual el descarte de contratos vacuos
 CLÁSICO. El OFF concurrente es la única vara; el 17/24 de la mañana es solo
 sanidad ([[gate-e2e-flaky]]: deriva sistémica medida de ~21 pts en 12 h).
 
+### RESULTADO del A/B v3 (2026-07-27 ~20:05, COMPLETO, 24 pares)
+
+**ON 13/24 vs OFF 17/24; apareado: ON gana 4 (buscaminas r6, carrito r2,
+hoja r3, kanban r5), OFF gana 8 (buscaminas r1,r2,r5; carrito r4,r6; hoja
+r5; kanban r1,r3) — NETO ON = −4 → veredicto pre-registrado: NO COBRA.**
+El gate queda OFF (producción intacta); fix2 v3 permanece en el código,
+env-gated, para futuras sondas.
+
+Lectura honesta: es la SEGUNDA vez que la atribución de la sonda directa
+(troceo por comas cuesta −2 en directo) no transfiere al lazo — ahora
+incluso con el adorno TARGET LOOK cortado (el mecanismo que explicaba el
+fracaso del v2). Con OFF 17/24 = 71% y sd binomial ~9%, el −4 neto sobre 12
+discordantes es compatible tanto con daño real del troceo por frases dentro
+del lazo como con una interacción prompt×lazo que la sonda directa no
+captura. La vía "arreglar el troceo" queda AGOTADA por esta noche (dos A/B
+completos n=6 en contra); el REQUIRED troceado solo vuelve a tocarse si una
+sonda futura sondea el prompt DEL LAZO (con adorno, con checklist, con
+system prompt) y no el directo. Los ~25 pts del gap sistema-vs-crudo siguen
+sin dueño confirmado a nivel lazo.
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

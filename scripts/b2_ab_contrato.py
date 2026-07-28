@@ -51,6 +51,10 @@ def main(argv: list) -> int:
     MODOS = (argv[argv.index("--modos") + 1].split(",")
              if "--modos" in argv else MODOS_DEFECTO)
     sufijo = "" if MODOS == MODOS_DEFECTO else "_" + "-".join(MODOS)
+    # --etiqueta: re-corridas de los mismos modos en directorio propio
+    # (sin ella, una segunda corrida PISARIA resultados.json en silencio).
+    if "--etiqueta" in argv:
+        sufijo += "_" + argv[argv.index("--etiqueta") + 1]
     SALIDA = (RAIZ / "cognia" / "program_creator" / "generated_programs"
               / f"b2_ab_contrato{sufijo}")
     reanudar = "--reanudar" in argv

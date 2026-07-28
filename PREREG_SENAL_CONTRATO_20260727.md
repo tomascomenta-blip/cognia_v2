@@ -263,3 +263,96 @@ del contrato con la métrica de señal REAL pre-registrada desde el inicio
 construcción — con el descarte de vacuos ya en producción, el próximo A/B
 lo hereda limpio); (b) el residual existe/existencia (literales de selector
 inventados); (c) held-outs a mano por tarea.
+
+## SEGUNDA ENMIENDA (2026-07-27 ~19:35 REAL — fe de erratas de horas: las
+## marcas "~" anteriores de este archivo van corridas +1-2 h, se estimaron
+## sin mirar el reloj; el orden de los hitos es correcto. El dueño extendió
+## la ventana hasta las 04:30. Escrita ANTES de correr el A/B de señal real)
+
+**A/B de SEÑAL REAL (la revancha limpia del 1b):** mismo corpus (24 páginas
+de la sonda con veredicto del banco: 19 sanas / 5 rotas), mismos dos modos
+(clasico re-generado como control concurrente vs corregido), intercalado
+por página — pero ahora el descarte de contratos vacuos ESTÁ en producción
+(commit 8006037): el clásico ya no puede aprobar por vacuidad; donde antes
+aprobaba con 0 críticos ahora reintenta y, si vuelve a salir vacuo, queda
+"sin contrato" (= REPRUEBA por M3, en ambos brazos por igual).
+
+**Métrica PRIMARIA (fijada ahora): aciertos = (interno aprueba ∧ banco
+aprueba) + (interno reprueba ∧ banco reprueba), sobre las 24 páginas por
+modo.** Secundarias: FN/19 y FP/5 como antes; conteo de "sin contrato" por
+modo; distribución de criticidad.
+
+| veredicto | condición |
+|---|---|
+| **PASA** | aciertos_corr ≥ aciertos_clas + 4, FP_corr ≤ FP_clas + 1, y la mejora reparte en ≥2 tareas |
+| **GRIS** | aciertos_corr ≥ aciertos_clas + 2 con FP_corr ≤ FP_clas + 1 — direccional |
+| **KILL** | aciertos_corr < aciertos_clas + 2, o FP_corr > FP_clas + 1 |
+
+Si PASA: `corregido` pasa a modo por defecto del lazo (cambio de default +
+tests) y la unidad 2 corre con él DECLARÁNDOLO. Si GRIS/KILL: la unidad 2
+corre con clásico. n=24 páginas por modo: direccional, se declara.
+
+## TERCERA ENMIENDA (misma hora — Unidad 2 re-planteada, escrita ANTES de
+## correrla)
+
+**Unidad 2 — ¿el lazo SUMA o RESTA con la señal saneada?** A/B intercalado
+a nivel tarea EN LA MISMA corrida, banco brutal, sistema completo, n=6 por
+brazo (48 celdas):
+
+- brazo `lazo`: config de producción (max_rondas=3, reparación esfuerzo
+  default) — el sistema tal cual.
+- brazo `primgen`: max_rondas=1 (primera generación juzgada, sin reparar).
+
+Ambos brazos heredan: descarte de vacuos, fix2 en el estado que deje el A/B
+v3 (si "cobra" pasa a defecto y rige en AMBOS brazos; si no, OFF en ambos),
+y el modo de contrato que deje la segunda enmienda (declarado en el JSON).
+La corrida guarda incremental y es reanudable; si el aterrizaje corta, se
+reporta el n alcanzado como PARCIAL.
+
+| lectura (pares apareados por celda) | condición |
+|---|---|
+| **el lazo SUMA** | lazo gana ≥3 celdas netas |
+| **ruido** | neto en [-2, +2] |
+| **el lazo RESTA** | primgen gana ≥3 celdas netas |
+
+Si RESTA o ruido: la política de producción candidata es max_rondas=1
+hasta que el contrato interno demuestre señal (el lazo gasta 3× por nada o
+por daño); se deja pre-registrado que ese cambio de default requeriría su
+propio A/B de confirmación en el banco fácil (no se adopta esta noche).
+Referencia de sanidad (NO vara): primgen histórico 2/12 pre-fix-dashboard.
+
+## CUARTA ENMIENDA (2026-07-27 ~19:45, tras la revisión de 2 agentes del
+## diseño de la unidad 2 — 2 mayores y 4 menores; escrita ANTES de lanzar)
+
+Reglas adicionales pre-declaradas para el A/B lazo vs primgen:
+
+1. **Gate de lanzamiento (mayor):** fix2 hoy solo existe env-gated; si el
+   A/B v3 da "cobra", el flip del default se COMMITEA en generator.py antes
+   de lanzar la unidad 2 (si no, ambos brazos correrían sin fix en
+   silencio). El estado real se registra con SONDA en runtime en el JSON
+   (`fix2_activo_sonda`: el troceo corta o no el adorno), junto al commit,
+   el modo de contrato default (inspect) y MAX_RONDAS_DEFECTO — no con un
+   campo copiado del env.
+2. **Pares de INFRA** (EXCEPCIÓN del harness, "sin HTML" por backend caído,
+   juez crasheado) se EXCLUYEN del neto y se reportan por brazo (una caída
+   del server cae asimétrica sobre el brazo lazo, que ocupa ~3× más reloj).
+3. **El veredicto SUMA/RESTA exige reparto en ≥2 tareas** (24 pares pero
+   solo 4 tareas: 6 réplicas de una sola bastan para fabricar ±3). Si no
+   reparte, se reporta "efecto de una tarea", sin veredicto de política.
+4. **PARCIAL: con n<24 pares el resultado es DIRECCIONAL y NO dispara la
+   candidata max_rondas=1** (el umbral ±3 se definió para 24 pares).
+5. **Asimetría declarada de sellos:** el reintento del contrato interno se
+   paga "en la ronda siguiente", que en primgen no existe → primgen tendrá
+   más "sin verificar" por mecánica, no por mérito. `sello_lazo` y el coste
+   por celda NO se leen como señal de este A/B; el aprobado lo da el
+   contrato del banco en el runner, que no se afecta.
+6. **Celdas vía create_program** (fallback cuando el lazo no produce HTML):
+   se cuentan por brazo y quedan visibles en el resumen; NO se excluyen del
+   neto (excluirlas abriría discreción post-hoc).
+7. **Recorte declarado del linaje b2:** sin sprites, sin mockup de imagen,
+   candidatos=1 — la candidata "max_rondas=1" salta a un sistema con
+   sprites/mockup donde las rondas podrían valer distinto; por eso el
+   cambio de default exige su A/B de confirmación propio.
+8. El held-out corre en try propio (un crash suyo no puede pisar el
+   APROBADO primario — solo castigaría al brazo que aprobó). El rastro de
+   feromona se redirige fuera del store de producción.

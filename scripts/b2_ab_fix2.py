@@ -124,13 +124,18 @@ def main(argv: list) -> int:
                             aprobado=v.aprobado, motivo=v.motivo[:100],
                             checks_ok=sum(1 for c in v.checks if c.ok),
                             checks=len(v.checks))
-                        if v.aprobado and t["id"] in heldout:
-                            vh = juez_ejecutable.juzgar_web(
-                                d / "index.html", heldout[t["id"]])
-                            celda["aprobado_heldout"] = vh.aprobado
                     except Exception as exc:
                         celda.update(aprobado=False,
                                      motivo=f"juez crasheo: {exc}"[:100])
+                    # try PROPIO (revision 2026-07-27): un crash del
+                    # held-out no debe pisar el APROBADO primario.
+                    if celda.get("aprobado") and t["id"] in heldout:
+                        try:
+                            vh = juez_ejecutable.juzgar_web(
+                                d / "index.html", heldout[t["id"]])
+                            celda["aprobado_heldout"] = vh.aprobado
+                        except Exception:
+                            celda["aprobado_heldout"] = None
                 res["celdas"].append(celda)
                 _guardar()
                 print(f"       -> {'APROBADO' if celda['aprobado'] else 'FALLIDO'}"
