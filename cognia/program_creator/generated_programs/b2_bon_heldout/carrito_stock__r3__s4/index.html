@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+.container{max-width:600px;margin:auto;padding:10px;}
+.prod{background:#fff;border:1px solid #ddd;padding:10px;margin-bottom:10px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;}
+.prod button{padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+.prod button:disabled{background:#aaa;cursor:not-allowed;}
+.cart{background:#fff;border:1px solid #ddd;padding:10px;margin-top:20px;border-radius:4px;}
+.linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.linea button{padding:3px 6px;background:#dc3545;color:#fff;border:none;border-radius:3px;cursor:pointer;}
+.linea button:disabled{background:#aaa;cursor:not-allowed;}
+#total{font-weight:bold;font-size:1.2em;margin-top:10px;}
+@media (max-width:480px){
+.prod{flex-direction:column;align-items:flex-start;}
+.prod button{margin-top:5px;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Carrito de Compra</h1>
+<div class="productos">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+<span>Producto 1 - 100 €</span>
+<button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+<span>Producto 2 - 50 €</span>
+<button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+<span>Producto 3 - 25 €</span>
+<button class="add" data-id="p3">Añadir</button>
+</div>
+</div>
+<div class="cart">
+<h2>Carrito</h2>
+<div id="lines"></div>
+<div id="total">Total: 0 €</div>
+</div>
+</div>
+<script>
+(function(){
+const products=document.querySelectorAll('.prod');
+const linesContainer=document.getElementById('lines');
+const totalSpan=document.getElementById('total');
+const cart={}; // id -> {qty, price, stock}
+function formatMoney(val){return val.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function updateTotal(){
+let sum=0;
+for(const id in cart){
+sum+=cart[id].qty*cart[id].price;
+}
+totalSpan.textContent='Total: '+formatMoney(sum);
+}
+function addToCart(id){
+const prod=document.querySelector('.prod[data-id="'+id+'"]');
+const price=parseFloat(prod.dataset.precio);
+const stock=parseInt(prod.dataset.stock);
+if(!cart[id]){cart[id]={qty:0,price,stock};}
+if(cart[id].qty<stock){
+cart[id].qty+=1;
+}
+updateLine(id);
+updateTotal();
+}
+function removeFromCart(id){
+if(!cart[id])return;
+cart[id].qty-=1;
+if(cart[id].qty<=0){
+delete cart[id];
+removeLine(id);
+}
+else{
+updateLine(id);
+}
+updateTotal();
+}
+function updateLine(id){
+const line=document.querySelector('.linea[data-id="'+id+'"]');
+const prod=document.querySelector('.prod[data-id="'+id+'"]');
+const stock=parseInt(prod.dataset.stock);
+const addBtn=prod.querySelector('.add');
+if(line){
+line.querySelector('.cant').textContent=cart[id].qty;
+if(cart[id].qty>=stock) addBtn.disabled=true; else addBtn.disabled=false;
+}
+else{
+const div=document.createElement('div');
+div.className='linea';
+div.dataset.id=id;
+const span=document.createElement('span');
+span.className='cant';
+span.textContent=cart[id].qty;
+const btn=document.createElement('button');
+btn.className='quitar';
+btn.dataset.id=id;
+btn.textContent='Quitar';
+btn.addEventListener('click',()=>removeFromCart(id));
+div.appendChild(span);
+div.appendChild(btn);
+linesContainer.appendChild(div);
+if(cart[id].qty>=stock) addBtn.disabled=true; else addBtn.disabled=false;
+}
+}
+function removeLine(id){
+const line=document.querySelector('.linea[data-id="'+id+'"]');
+if(line) line.remove();
+const prod=document.querySelector('.prod[data-id="'+id+'"]');
+const addBtn=prod.querySelector('.add');
+addBtn.disabled=false;
+}
+products.forEach(prod=>{
+const btn=prod.querySelector('.add');
+btn.addEventListener('click',()=>addToCart(prod.dataset.id));
+});
+})();
+</script>
+</body>
+</html>

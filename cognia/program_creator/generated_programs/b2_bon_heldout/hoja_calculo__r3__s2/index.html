@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    font-family: Arial, Helvetica, sans-serif;
+    background:#f5f5f5;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+  }
+  .container{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    grid-gap:5px;
+    background:#e0f7ff;
+    padding:10px;
+    border-radius:8px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+  }
+  .celda{
+    width:80px;
+    height:30px;
+    text-align:right;
+    padding-right:5px;
+    font-size:14px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    background:#fff;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);
+    transition:box-shadow 0.2s;
+  }
+  .celda:focus{
+    outline:none;
+    box-shadow:0 0 0 2px #4a90e2;
+  }
+  @media (max-width:400px){
+    .container{
+      grid-template-columns:repeat(3,1fr);
+    }
+    .celda{
+      width:100%;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <input type="text" class="celda" data-ref="A1" />
+  <input type="text" class="celda" data-ref="B1" />
+  <input type="text" class="celda" data-ref="C1" />
+  <input type="text" class="celda" data-ref="A2" />
+  <input type="text" class="celda" data-ref="B2" />
+  <input type="text" class="celda" data-ref="C2" />
+  <input type="text" class="celda" data-ref="A3" />
+  <input type="text" class="celda" data-ref="B3" />
+  <input type="text" class="celda" data-ref="C3" />
+</div>
+
+<script>
+class Spreadsheet {
+  constructor() {
+    this.cells = {};          // ref -> element
+    this.dependents = {};     // ref -> Set of refs that depend on it
+    this.init();
+  }
+
+  init() {
+    const inputs = document.querySelectorAll('.celda');
+    inputs.forEach(el => {
+      const ref = el.dataset.ref;
+      this.cells[ref] = el;
+      this.dependents[ref] = new Set();
+      el.addEventListener('input', () => this.onInput(ref));
+    });
+    this.buildDependents();
+    this.recomputeAll();
+  }
+
+  buildDependents() {
+    // clear all dependents
+    Object.keys(this.dependents).forEach(ref => this.dependents[ref].clear());
+    // rebuild based on current formulas
+    Object.values(this.cells).forEach(el => {
+      const ref = el.dataset.ref;
+      const formula = el.dataset.formula;
+      if (formula) {
+        const deps = this.parseDependencies(formula);
+        deps.forEach(dep => {
+          if (!this.dependents[dep]) this.dependents[dep] = new Set();
+          this.dependents[dep].add(ref);
+        });
+      }
+    });
+  }
+
+  parseDependencies(formula) {
+    const matches = [...formula.matchAll(/[A-C][1-3]/g)];
+    return matches.map(m => m[0]);
+  }
+
+  onInput(ref) {
+    const el = this.cells[ref];
+    const val = el.value;
+    if (val.startsWith('=')) {
+      el.dataset.formula = val;
+    } else {
+      delete el.dataset.formula;
+    }
+    this.buildDependents();
+    this.recomputeAll();
+  }
+
+  recomputeAll() {
+    Object.keys(this.cells).forEach(ref => this.evaluateCell(ref, []));
+  }
+
+  evaluateCell(ref, stack) {
+    const el = this.cells[ref];
+    const formula = el.dataset.formula;
+    if (!formula) {
+      const num = parseFloat(el.value);
+      const val = isNaN(num) ? 0 : num;
+      el.value = val.toString();
+      return val;
+    }
+    if (stack.includes(ref)) {
+      el.value = 'CIRC';
+      return null;
+    }
+    stack.push(ref);
+    const expr = formula.slice(1).replace(/[A-C][1-3]/g, m => {
+      const v = this.evaluateCell(m, stack);
+      return v !== null ? v : 'NaN';
+    });
+    let result;
+    try {
+      result = Function('"use strict";return (' + expr + ')')();
+    } catch (e) {
+      result = NaN;
+    }
+    if (result === null || isNaN(result)) {
+      el.value = 'CIRC';
+      stack.pop();
+      return null;
+    }
+    el.value = result.toString();
+    stack.pop();
+    return result;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sheet = new Spreadsheet();
+
+  // Demo: set some initial values
+  sheet.cells['A1'].value = '10';
+  sheet.cells['B1'].value = '20';
+  sheet.cells['C3'].dataset.formula = '=A1+B1';
+  sheet.buildDependents();
+  sheet.recomputeAll();
+});
+</script>
+</body>
+</html>

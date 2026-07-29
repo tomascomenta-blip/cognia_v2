@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+    margin:0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+  }
+  .c{
+    background:#eee;
+    border:1px solid #999;
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#ddd;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#fdd;
+    color:red;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:18px;
+    color:red;
+    min-height:1.2em;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <!-- 25 cells with data-i from 0 to 24 -->
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+
+<script>
+  const mines = new Set([6,12,18]); // fixed mine positions
+  const cells = Array.from(document.querySelectorAll('.c'));
+
+  function getNeighbors(i){
+    const row = Math.floor(i/5);
+    const col = i%5;
+    const neighbors=[];
+    for(let dr=-1; dr<=1; dr++){
+      for(let dc=-1; dc<=1; dc++){
+        if(dr===0 && dc===0) continue;
+        const r=row+dr, c=col+dc;
+        if(r>=0 && r<5 && c>=0 && c<5){
+          neighbors.push(r*5+c);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  function countAdjMines(i){
+    return getNeighbors(i).filter(n=>mines.has(n)).length;
+  }
+
+  function openCell(i){
+    const cell=cells[i];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    const cnt=countAdjMines(i);
+    cell.textContent=cnt>0?cnt:'';
+  }
+
+  function cascade(startIdx){
+    const queue=[startIdx];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      if(visited.has(idx)) continue;
+      visited.add(idx);
+      const cell=cells[idx];
+      if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+      if(mines.has(idx)) continue; // skip mines during cascade
+      openCell(idx);
+      if(countAdjMines(idx)===0){
+        getNeighbors(idx).forEach(n=>{ if(!visited.has(n)) queue.push(n); });
+      }
+    }
+  }
+
+  cells.forEach(cell=>{
+    const i=parseInt(cell.dataset.i,10);
+    cell.addEventListener('click',e=>{
+      e.preventDefault();
+      if(cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+      if(mines.has(i)){
+        openCell(i);
+        document.getElementById('estado').textContent='perdiste';
+      }else{
+        cascade(i);
+      }
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(cell.classList.contains('abierta')) return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      }else{
+        cell.classList.add('bandera');
+        cell.textContent='🚩';
+      }
+    });
+  });
+</script>
+</body>
+</html>

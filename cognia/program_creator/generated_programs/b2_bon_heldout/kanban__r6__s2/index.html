@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+  body{margin:0;font-family:sans-serif;background:#f5f5f5;}
+  .container{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{flex:1;min-width:200px;background:#fff;border:2px solid #ddd;border-radius:5px;display:flex;flex-direction:column;}
+  .col.active{border-color:#4a90e2;}
+  .col-header{font-size:24px;text-align:center;padding:10px;border-bottom:1px solid #ddd;}
+  .col-content{flex:1;padding:10px;display:flex;flex-direction:column;gap:10px;}
+  .card{background:#fff;border:1px solid #ddd;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.1);padding:10px;display:flex;justify-content:space-between;align-items:center;}
+  .card button{background:#4a90e2;color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:12px;cursor:pointer;}
+  .card button:disabled{background:#bbb;cursor:not-allowed;}
+  .counter{font-size:12px;text-align:center;margin-top:5px;color:#555;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <div class="col-header">📋</div>
+    <div class="col-content" id="todo-content"></div>
+    <div class="counter"><span id="cont-todo">0</span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">🛠️</div>
+    <div class="col-content" id="doing-content"></div>
+    <div class="counter"><span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">✅</div>
+    <div class="col-content" id="done-content"></div>
+    <div class="counter"><span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  const span=document.createElement('span');
+  span.textContent=id;
+  const btnLess=document.createElement('button');
+  btnLess.className='menos';
+  btnLess.textContent='←';
+  const btnMore=document.createElement('button');
+  btnMore.className='mas';
+  btnMore.textContent='→';
+  card.appendChild(span);
+  card.appendChild(btnLess);
+  card.appendChild(btnMore);
+  return card;
+}
+function updateCounters(){
+  document.getElementById('cont-todo').textContent=document.querySelectorAll('#todo-content .card').length;
+  document.getElementById('cont-doing').textContent=document.querySelectorAll('#doing-content .card').length;
+  document.getElementById('cont-done').textContent=document.querySelectorAll('#done-content .card').length;
+}
+function updateActiveColumn(){
+  const cols=document.querySelectorAll('.col');
+  let max=0, active=null;
+  cols.forEach(col=>{
+    const count=col.querySelectorAll('.card').length;
+    if(count>max){max=count; active=col;}
+  });
+  cols.forEach(col=>col.classList.remove('active'));
+  if(active) active.classList.add('active');
+}
+function moveCard(card, direction){
+  const currentCol=card.parentElement.parentElement.dataset.col;
+  let targetCol;
+  if(direction==='mas'){
+    if(currentCol==='todo') targetCol='doing';
+    else if(currentCol==='doing') targetCol='done';
+    else return;
+  }else if(direction==='menos'){
+    if(currentCol==='doing') targetCol='todo';
+    else if(currentCol==='done') targetCol='doing';
+    else return;
+  }
+  // Límite WIP: 2 tarjetas en doing
+  if(targetCol==='doing' && document.querySelectorAll('#doing-content .card').length>=2) return;
+  const targetContent=document.getElementById(targetCol+'-content');
+  targetContent.appendChild(card);
+  updateCounters();
+  updateActiveColumn();
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const todo=document.getElementById('todo-content');
+  ['t1','t2','t3'].forEach(id=>todo.appendChild(createCard(id)));
+  updateCounters();
+  updateActiveColumn();
+  document.querySelectorAll('.card').forEach(card=>{
+    card.querySelector('.mas').addEventListener('click',()=>moveCard(card,'mas'));
+    card.querySelector('.menos').addEventListener('click',()=>moveCard(card,'menos'));
+  });
+});
+</script>
+</body>
+</html>

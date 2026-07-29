@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban sencillo</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  h1{background:#007bff;color:#fff;margin:0;padding:10px;text-align:center;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{background:#fff;border-radius:4px;flex:1 1 30%;min-width:200px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+  .col-header{background:#007bff;color:#fff;padding:8px;font-weight:bold;text-align:center;border-top-left-radius:4px;border-top-right-radius:4px;}
+  .col-content{flex:1;padding:8px;display:flex;flex-direction:column;gap:8px;}
+  .card{background:#e9ecef;border-radius:4px;padding:8px;display:flex;justify-content:space-between;align-items:center;}
+  .card-title{flex:1;margin-right:8px;}
+  .card-buttons button{margin-left:4px;}
+  .counter{font-size:0.9em;color:#555;text-align:center;margin-top:4px;}
+</style>
+</head>
+<body>
+<h1>Tablero Kanban sencillo</h1>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Por hacer</div>
+    <div class="col-content" id="col-todo"></div>
+    <div class="counter">Total: <span id="cont-todo">0</span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">En progreso</div>
+    <div class="col-content" id="col-doing"></div>
+    <div class="counter">Total: <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Hecho</div>
+    <div class="col-content" id="col-done"></div>
+    <div class="counter">Total: <span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  const title=document.createElement('div');
+  title.className='card-title';
+  title.textContent=id;
+  const btns=document.createElement('div');
+  btns.className='card-buttons';
+  const btnMas=document.createElement('button');
+  btnMas.className='mas';
+  btnMas.textContent='→';
+  const btnMenos=document.createElement('button');
+  btnMenos.className='menos';
+  btnMenos.textContent='←';
+  btns.appendChild(btnMas);
+  btns.appendChild(btnMenos);
+  card.appendChild(title);
+  card.appendChild(btns);
+  return card;
+}
+function updateCounters(){
+  document.getElementById('cont-todo').textContent=document.querySelectorAll('#col-todo .card').length;
+  document.getElementById('cont-doing').textContent=document.querySelectorAll('#col-doing .card').length;
+  document.getElementById('cont-done').textContent=document.querySelectorAll('#col-done .card').length;
+}
+function moveCard(card,direction){
+  const currentCol=card.parentElement.parentElement.dataset.col;
+  const colTodo=document.getElementById('col-todo');
+  const colDoing=document.getElementById('col-doing');
+  const colDone=document.getElementById('col-done');
+  if(direction==='right'){
+    if(currentCol==='todo'){
+      if(colDoing.children.length>=2)return; // límite WIP
+      colDoing.appendChild(card);
+    }else if(currentCol==='doing'){
+      colDone.appendChild(card);
+    }else if(currentCol==='done'){
+      return; // no avanzar
+    }
+  }else if(direction==='left'){
+    if(currentCol==='doing'){
+      colTodo.appendChild(card);
+    }else if(currentCol==='todo'){
+      return; // no retroceder
+    }else if(currentCol==='done'){
+      colDoing.appendChild(card);
+    }
+  }
+  updateCounters();
+}
+document.addEventListener('DOMContentLoaded',function(){
+  const ids=['t1','t2','t3'];
+  const colTodo=document.getElementById('col-todo');
+  ids.forEach(id=>{
+    const card=createCard(id);
+    colTodo.appendChild(card);
+  });
+  updateCounters();
+  document.querySelectorAll('.mas').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      const card=this.closest('.card');
+      moveCard(card,'right');
+    });
+  });
+  document.querySelectorAll('.menos').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      const card=this.closest('.card');
+      moveCard(card,'left');
+    });
+  });
+});
+</script>
+</body>
+</html>

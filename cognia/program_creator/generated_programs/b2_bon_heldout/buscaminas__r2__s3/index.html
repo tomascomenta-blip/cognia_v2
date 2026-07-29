@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un buscaminas 5x5 con 3 minas</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:10px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+  }
+  .c{
+    background:#eee;
+    border:1px solid #999;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#ddd;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ffc;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+const MINE_POSITIONS=[6,12,18];
+const GRID_SIZE=5;
+const TOTAL_CELLS=GRID_SIZE*GRID_SIZE;
+const cells=document.querySelectorAll('.c');
+const cellArray=Array.from(cells);
+const mineSet=new Set(MINE_POSITIONS);
+const counts=new Array(TOTAL_CELLS).fill(0);
+const opened=new Set();
+const flagged=new Set();
+
+function computeCounts(){
+  for(let i=0;i<TOTAL_CELLS;i++){
+    let row=Math.floor(i/GRID_SIZE);
+    let col=i%GRID_SIZE;
+    let count=0;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        let r=row+dr,c=col+dc;
+        if(r>=0&&r<GRID_SIZE&&c>=0&&c<GRID_SIZE){
+          let idx=r*GRID_SIZE+c;
+          if(mineSet.has(idx))count++;
+        }
+      }
+    }
+    counts[i]=count;
+  }
+}
+
+function openCell(i){
+  if(opened.has(i)||flagged.has(i))return;
+  const cell=cellArray[i];
+  if(mineSet.has(i)){
+    cell.textContent='💣';
+    cell.classList.add('abierta');
+    opened.add(i);
+    document.getElementById('estado').textContent='perdiste';
+    return;
+  }
+  cell.classList.add('abierta');
+  opened.add(i);
+  const count=counts[i];
+  if(count>0)cell.textContent=count;
+  else{
+    cell.textContent='';
+    floodFill(i);
+  }
+}
+
+function floodFill(start){
+  const queue=[start];
+  while(queue.length){
+    const idx=queue.shift();
+    const row=Math.floor(idx/GRID_SIZE);
+    const col=idx%GRID_SIZE;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        let r=row+dr,c=col+dc;
+        if(r>=0&&r<GRID_SIZE&&c>=0&&c<GRID_SIZE){
+          const nIdx=r*GRID_SIZE+c;
+          if(opened.has(nIdx)||flagged.has(nIdx))continue;
+          const nCell=cellArray[nIdx];
+          nCell.classList.add('abierta');
+          opened.add(nIdx);
+          const nCount=counts[nIdx];
+          if(nCount>0){
+            nCell.textContent=nCount;
+          }else{
+            nCell.textContent='';
+            queue.push(nIdx);
+          }
+        }
+      }
+    }
+  }
+}
+
+function toggleFlag(i){
+  if(opened.has(i))return;
+  const cell=cellArray[i];
+  if(flagged.has(i)){
+    flagged.delete(i);
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    flagged.add(i);
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+}
+
+function init(){
+  computeCounts();
+  cellArray.forEach((cell,i)=>{
+    cell.addEventListener('click',()=>openCell(i));
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      toggleFlag(i);
+    });
+  });
+}
+init();
+</script>
+</body>
+</html>

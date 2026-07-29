@@ -135,3 +135,32 @@ aplicados al runner antes de lanzar. Cambios que tocan lo pre-registrado:
    añadidas a la config como en b2_ab_lazo.
 
 Ningún umbral ni métrica cambia. Nada se ha corrido aún.
+
+## RESULTADO (2026-07-28 19:15 — corrida completa, veredicto por los umbrales pre-fijados)
+
+- **n = 24/24 ensayos válidos** (0 infra, 0 incompletos; 96 muestras). Nota
+  de logística: el harness mató el proceso a los 48 min (muestra 31); se
+  reanudó desacoplado con `--reanudar --acepta-commit` (commits 58a9cba +
+  c13df07, solo docs/datos entre medias; registrados ambos en config).
+- **Control (s=1, estricto): 17/24 (71%).**
+- **A — techo pass@4: 24/24 (100%), neto A = +7 → MARGEN GRANDE** (umbral
+  ≥+5). TODOS los ensayos tuvieron al menos una muestra que aprueba el juez
+  estricto: las 4 réplicas independientes bastan para cubrir el banco entero.
+- **B — selector held-out: 24/24 (100%), neto B = +7; C (pérdida) = 0 →
+  el selector CAPTURA todo el margen** (umbral B ≥ A−1). En ningún ensayo
+  eligió una muestra held-OK∧orig-NO habiendo una estricta.
+- **D — FP del contrato original:** kanban 1, buscaminas 3 (4 páginas más de
+  "pasó el examen, no la materia"; la memoria fp-heldout se actualiza).
+- Composición del sistema en las muestras: 12/96 vía fallback create_program
+  (pre-declarado como parte del camino primgen), 2/96 sin HTML (cuentan como
+  reprobadas, primera enmienda). Visión del mockup degradada a idea cruda en
+  TODA la corrida (max_tokens=400 no cubre el pensamiento de gpt-oss —
+  régimen idéntico en ambos "brazos", validez interna intacta; fix de
+  producción pendiente fuera de esta medición).
+
+**Conclusión de inversión (la pre-registrada):** el cuello del goal NO es el
+constructor — es FABRICAR SEÑAL. Con verificador de señal real, muestrear 4
+réplicas independientes lleva el banco brutal de 17/24 a 24/24 (nivel 8/8
+del goal, con señal a mano). La vía "BoN + verificador" queda VALIDADA como
+arquitectura; el siguiente trabajo es el generador de señal (unidad 2 de
+esta noche: PREREG_QA_FUERTE_20260728.md).

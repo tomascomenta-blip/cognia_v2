@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{margin:0;padding:20px;font-family:Arial,Helvetica,sans-serif;background:#f9f9f9;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+  #grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:100%;max-width:400px;}
+  .celda{width:100%;box-sizing:border-box;padding:8px;font-size:1rem;text-align:right;border:1px solid #ccc;border-radius:4px;background:#fff;}
+  .celda:focus{outline:none;border-color:#66afe9;background:#e6f7ff;}
+</style>
+</head>
+<body>
+<div id="grid">
+  <input type="text" class="celda" data-ref="A1" placeholder="A1">
+  <input type="text" class="celda" data-ref="B1" placeholder="B1">
+  <input type="text" class="celda" data-ref="C1" placeholder="C1">
+  <input type="text" class="celda" data-ref="A2" placeholder="A2">
+  <input type="text" class="celda" data-ref="B2" placeholder="B2">
+  <input type="text" class="celda" data-ref="C2" placeholder="C2">
+  <input type="text" class="celda" data-ref="A3" placeholder="A3">
+  <input type="text" class="celda" data-ref="B3" placeholder="B3">
+  <input type="text" class="celda" data-ref="C3" placeholder="C3">
+</div>
+<script>
+(() => {
+  const cells = {}; // ref -> input element
+  const deps = {};  // ref -> Set of refs it depends on
+  const revDeps = {}; // ref -> Set of refs that depend on it
+  const isUpdating = {value:false};
+
+  // Initialize maps
+  document.querySelectorAll('.celda').forEach(el=>{
+    const ref = el.dataset.ref;
+    cells[ref] = el;
+    deps[ref] = new Set();
+    revDeps[ref] = new Set();
+  });
+
+  // Parse dependencies from a formula string
+  function parseDeps(formula) {
+    const matches = formula.match(/[A-C][1-3]/g);
+    return matches ? matches : [];
+  }
+
+  // Rebuild dependency graph
+  function rebuildDeps() {
+    // Clear current deps
+    Object.keys(deps).forEach(r=>deps[r].clear());
+    Object.keys(revDeps).forEach(r=>revDeps[r].clear());
+    // Build new deps
+    Object.keys(cells).forEach(ref=>{
+      const formula = cells[ref].dataset.formula;
+      if (formula && formula.startsWith('=')) {
+        const refs = parseDeps(formula);
+        refs.forEach(r=>deps[ref].add(r));
+      }
+    });
+    // Build reverse deps
+    Object.keys(deps).forEach(ref=>{
+      deps[ref].forEach(dep=>{
+        revDeps[dep].add(ref);
+      });
+    });
+  }
+
+  // Evaluate a cell recursively with cycle detection
+  function evaluateCell(ref, visited) {
+    const cell = cells[ref];
+    const formula = cell.dataset.formula;
+    if (!formula) {
+      // Not a formula, return current value
+      return cell.value;
+    }
+    if (visited.has(ref)) {
+      return 'CIRC';
+    }
+    visited.add(ref);
+    // Replace references with their evaluated values
+    let expr = formula.slice(1); // remove '='
+    expr = expr.replace(/[A-C][1-3]/g, match=>{
+      const val = evaluateCell(match, visited);
+      if (val === 'CIRC') return 'CIRC';
+      const num = parseFloat(val);
+      return isNaN(num) ? 0 : num;
+    });
+    if (expr.includes('CIRC')) {
+      visited.delete(ref);
+      return 'CIRC';
+    }
+    // Evaluate arithmetic expression (+, -)
+    let result;
+    try {
+      // eslint-disable-next-line no-eval
+      result = eval(expr);
+    } catch (e) {
+      result = 'CIRC';
+    }
+    visited.delete(ref);
+    return result.toString();
+  }
+
+  // Recalculate all cells
+  function recalcAll() {
+    if (isUpdating.value) return;
+    isUpdating.value = true;
+    rebuildDeps();
+    Object.keys(cells).forEach(ref=>{
+      const val = evaluateCell(ref, new Set());
+      cells[ref].value = val;
+    });
+    isUpdating.value = false;
+  }
+
+  // Input event handler
+  document.querySelectorAll('.celda').forEach(el=>{
+    el.addEventListener('input', e=>{
+      if (isUpdating.value) return;
+      const ref = el.dataset.ref;
+      const val = el.value;
+      if (val.startsWith('=')) {
+        el.dataset.formula = val;
+      } else {
+        delete el.dataset.formula;
+      }
+      recalcAll();
+    });
+  });
+
+  // Initial calculation
+  recalcAll();
+})();
+</script>
+</body>
+</html>

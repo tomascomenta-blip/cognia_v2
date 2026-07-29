@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{font-family:Arial,sans-serif;text-align:center;padding:20px;}
+  h1{margin-bottom:10px;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:400px;margin:auto;}
+  .c{background:#f0f0f0;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;user-select:none;}
+  .c.abierta{background:#e0e0e0;}
+  .c.bandera{color:red;}
+  #estado{margin-top:10px;font-weight:bold;color:red;}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+
+<script>
+const MINE_INDICES = [6,12,18];
+const mineSet = new Set(MINE_INDICES);
+const cells = Array.from(document.querySelectorAll('.c'));
+const opened = new Array(25).fill(false);
+const flagged = new Array(25).fill(false);
+const adjacentCounts = new Array(25).fill(0);
+const neighbors = Array.from({length:25},()=>[]);
+
+function computeNeighbors(){
+  for(let i=0;i<25;i++){
+    const row=Math.floor(i/5), col=i%5;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=row+dr, nc=col+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5){
+          const j=nr*5+nc;
+          neighbors[i].push(j);
+        }
+      }
+    }
+  }
+}
+
+function computeAdjacent(){
+  for(let i=0;i<25;i++){
+    let count=0;
+    for(const j of neighbors[i]){
+      if(mineSet.has(j))count++;
+    }
+    adjacentCounts[i]=count;
+  }
+}
+
+function openCell(i){
+  if(flagged[i]||opened[i])return;
+  if(mineSet.has(i)){
+    cells[i].classList.add('abierta');
+    cells[i].textContent='💣';
+    opened[i]=true;
+    document.getElementById('estado').textContent='perdiste';
+    return;
+  }
+  cells[i].classList.add('abierta');
+  cells[i].textContent=adjacentCounts[i]>0?adjacentCounts[i]:'';
+  opened[i]=true;
+  if(adjacentCounts[i]===0){
+    cascadeOpen(i);
+  }
+}
+
+function cascadeOpen(start){
+  const queue=[];
+  for(const j of neighbors[start]){
+    if(!opened[j]&&!flagged[j])queue.push(j);
+  }
+  while(queue.length){
+    const idx=queue.shift();
+    if(opened[idx]||flagged[idx])continue;
+    cells[idx].classList.add('abierta');
+    cells[idx].textContent=adjacentCounts[idx]>0?adjacentCounts[idx]:'';
+    opened[idx]=true;
+    if(adjacentCounts[idx]===0){
+      for(const j of neighbors[idx]){
+        if(!opened[j]&&!flagged[j])queue.push(j);
+      }
+    }
+  }
+}
+
+function toggleFlag(i){
+  if(opened[i])return;
+  if(flagged[i]){
+    flagged[i]=false;
+    cells[i].classList.remove('bandera');
+    cells[i].textContent='';
+  }else{
+    flagged[i]=true;
+    cells[i].classList.add('bandera');
+    cells[i].textContent='🚩';
+  }
+}
+
+function init(){
+  computeNeighbors();
+  computeAdjacent();
+  cells.forEach((cell,i)=>{
+    cell.addEventListener('click',()=>openCell(i));
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      toggleFlag(i);
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

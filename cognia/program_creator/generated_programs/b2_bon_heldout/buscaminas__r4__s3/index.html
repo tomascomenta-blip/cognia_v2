@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 con minas fijas</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #game{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:100%;
+    max-width:400px;
+    margin-top:20px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+  }
+  .c{
+    background:#ccc;
+    border:1px solid #999;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#eee;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#fdd;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="grid"></div>
+  <div id="estado"></div>
+</div>
+<script>
+class Minesweeper{
+  constructor(){
+    this.mines = new Set([6,12,18]); // posiciones fijas
+    this.opened = new Set();
+    this.flagged = new Set();
+    this.gameOver = false;
+    this.cells = [];
+    this.stateDiv = document.getElementById('estado');
+    this.init();
+  }
+  init(){
+    const grid = document.getElementById('grid');
+    for(let i=0;i<25;i++){
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.addEventListener('click', e=>this.handleClick(e,i));
+      cell.addEventListener('contextmenu', e=>this.handleRightClick(e,i));
+      grid.appendChild(cell);
+      this.cells.push(cell);
+    }
+  }
+  handleClick(e,i){
+    if(this.gameOver) return;
+    if(this.flagged.has(i)) return;
+    if(this.opened.has(i)) return;
+    this.openCell(i);
+  }
+  handleRightClick(e,i){
+    e.preventDefault();
+    if(this.gameOver) return;
+    if(this.opened.has(i)) return;
+    if(this.flagged.has(i)){
+      this.flagged.delete(i);
+      this.cells[i].classList.remove('bandera');
+      this.cells[i].textContent = '';
+    }else{
+      this.flagged.add(i);
+      this.cells[i].classList.add('bandera');
+      this.cells[i].textContent = '🚩';
+    }
+  }
+  openCell(i){
+    if(this.flagged.has(i)) return;
+    if(this.opened.has(i)) return;
+    const cell = this.cells[i];
+    if(this.mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      this.stateDiv.textContent = 'perdiste';
+      this.gameOver = true;
+      return;
+    }
+    const count = this.countAdjacentMines(i);
+    cell.classList.add('abierta');
+    if(count>0){
+      cell.textContent = count;
+    }else{
+      cell.textContent = '';
+      this.cascadeOpen(i);
+    }
+    this.opened.add(i);
+  }
+  countAdjacentMines(i){
+    const neighbors = this.getNeighbors(i);
+    let count = 0;
+    for(const n of neighbors){
+      if(this.mines.has(n)) count++;
+    }
+    return count;
+  }
+  getNeighbors(i){
+    const neighbors = [];
+    const row = Math.floor(i/5);
+    const col = i%5;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr = row+dr;
+        const nc = col+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neighbors.push(nr*5+nc);
+        }
+      }
+    }
+    return neighbors;
+  }
+  cascadeOpen(start){
+    const queue = [start];
+    const visited = new Set();
+    while(queue.length){
+      const i = queue.shift();
+      if(visited.has(i)) continue;
+      visited.add(i);
+      if(this.opened.has(i) || this.flagged.has(i) || this.mines.has(i)) continue;
+      const count = this.countAdjacentMines(i);
+      const cell = this.cells[i];
+      cell.classList.add('abierta');
+      if(count>0){
+        cell.textContent = count;
+      }else{
+        cell.textContent = '';
+        queue.push(...this.getNeighbors(i));
+      }
+      this.opened.add(i);
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new Minesweeper());
+</script>
+</body>
+</html>

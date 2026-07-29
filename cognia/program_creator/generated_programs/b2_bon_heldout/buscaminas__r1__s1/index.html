@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+  }
+  h1{
+    margin-bottom:10px;
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    max-width:400px;
+    width:100%;
+  }
+  .c{
+    background:#ccc;
+    border:1px solid #999;
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    font-size:1.2rem;
+    font-weight:bold;
+  }
+  .c.abierta{
+    background:#eee;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ffeb3b;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    font-weight:bold;
+    color:#d32f2f;
+  }
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="board"></div>
+<div id="estado"></div>
+
+<script>
+class Minesweeper {
+  constructor(rows=5, cols=5, mines=[6,12,18]) {
+    this.rows = rows;
+    this.cols = cols;
+    this.total = rows*cols;
+    this.mineIndices = new Set(mines);
+    this.opened = new Set();
+    this.flagged = new Set();
+    this.boardEl = document.getElementById('board');
+    this.estadoEl = document.getElementById('estado');
+    this.cells = [];
+    this.initBoard();
+  }
+
+  initBoard() {
+    for(let i=0;i<this.total;i++){
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.addEventListener('click', (e)=>this.handleLeftClick(e));
+      cell.addEventListener('contextmenu', (e)=>this.handleRightClick(e));
+      this.boardEl.appendChild(cell);
+      this.cells.push(cell);
+    }
+  }
+
+  getNeighbors(idx){
+    const neighbors = [];
+    const r = Math.floor(idx/this.cols);
+    const c = idx%this.cols;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr = r+dr, nc = c+dc;
+        if(nr>=0 && nr<this.rows && nc>=0 && nc<this.cols){
+          neighbors.push(nr*this.cols+nc);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  countAdjacentMines(idx){
+    return this.getNeighbors(idx).filter(n=>this.mineIndices.has(n)).length;
+  }
+
+  handleLeftClick(e){
+    const idx = parseInt(e.currentTarget.dataset.i);
+    if(this.flagged.has(idx) || this.opened.has(idx)) return;
+    if(this.mineIndices.has(idx)){
+      this.opened.add(idx);
+      this.cells[idx].classList.add('abierta');
+      this.cells[idx].textContent = '💣';
+      this.estadoEl.textContent = 'perdiste';
+      return;
+    }
+    this.openCell(idx);
+  }
+
+  handleRightClick(e){
+    e.preventDefault();
+    const idx = parseInt(e.currentTarget.dataset.i);
+    if(this.opened.has(idx)) return;
+    if(this.flagged.has(idx)){
+      this.flagged.delete(idx);
+      this.cells[idx].classList.remove('bandera');
+    } else {
+      this.flagged.add(idx);
+      this.cells[idx].classList.add('bandera');
+    }
+  }
+
+  openCell(idx){
+    if(this.opened.has(idx) || this.flagged.has(idx)) return;
+    this.opened.add(idx);
+    const cell = this.cells[idx];
+    cell.classList.add('abierta');
+    const count = this.countAdjacentMines(idx);
+    if(count>0){
+      cell.textContent = count;
+    } else {
+      cell.textContent = '';
+      this.cascadeOpen(idx);
+    }
+  }
+
+  cascadeOpen(startIdx){
+    const queue = [startIdx];
+    while(queue.length){
+      const idx = queue.shift();
+      const neighbors = this.getNeighbors(idx);
+      for(const n of neighbors){
+        if(this.opened.has(n) || this.flagged.has(n) || this.mineIndices.has(n)) continue;
+        this.opened.add(n);
+        const cell = this.cells[n];
+        cell.classList.add('abierta');
+        const count = this.countAdjacentMines(n);
+        if(count>0){
+          cell.textContent = count;
+        } else {
+          cell.textContent = '';
+          queue.push(n);
+        }
+      }
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  new Minesweeper();
+});
+</script>
+</body>
+</html>

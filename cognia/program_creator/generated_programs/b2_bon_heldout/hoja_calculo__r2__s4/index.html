@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:20px;}
+  h2{font-size:1.4em;text-align:center;margin-bottom:10px;}
+  table{border-collapse:collapse;width:100%;max-width:400px;margin:auto;}
+  td{border:1px solid #ccc;padding:2px;}
+  input.celda{width:100%;box-sizing:border-box;text-align:right;font-family:monospace;font-size:14px;}
+</style>
+</head>
+<body>
+<h2>Mini Hoja de Cálculo 3x3</h2>
+<table>
+  <tbody>
+    <tr>
+      <td><input class="celda" data-ref="A1" value="10"></td>
+      <td><input class="celda" data-ref="A2" value="20"></td>
+      <td><input class="celda" data-ref="A3" value="=A1+A2"></td>
+    </tr>
+    <tr>
+      <td><input class="celda" data-ref="B1" value="=A1+1"></td>
+      <td><input class="celda" data-ref="B2" value="5"></td>
+      <td><input class="celda" data-ref="B3" value="=B1+1"></td>
+    </tr>
+    <tr>
+      <td><input class="celda" data-ref="C1" value="0"></td>
+      <td><input class="celda" data-ref="C2" value="=C1+1"></td>
+      <td><input class="celda" data-ref="C3" value="=B3+C2"></td>
+    </tr>
+  </tbody>
+</table>
+<script>
+(() => {
+  const cells = {};
+  document.querySelectorAll('input.celda').forEach(el => {
+    const ref = el.dataset.ref;
+    cells[ref] = el;
+    if (el.value.startsWith('=')) el.dataset.formula = el.value;
+    el.addEventListener('input', () => {
+      const val = el.value;
+      if (val.startsWith('=')) el.dataset.formula = val;
+      else delete el.dataset.formula;
+      recalcAll();
+    });
+  });
+
+  function recalcAll() {
+    Object.keys(cells).forEach(ref => evaluateCell(ref, []));
+  }
+
+  function evaluateCell(ref, stack) {
+    const cell = cells[ref];
+    const formula = cell.dataset.formula;
+    if (!formula) return cell.value;
+    if (stack.includes(ref)) { cell.value = 'CIRC'; return 'CIRC'; }
+    stack.push(ref);
+    let expr = formula.slice(1);
+    expr = expr.replace(/[A-C][1-3]/g, m => {
+      const v = evaluateCell(m, stack.slice());
+      return v === 'CIRC' ? 'NaN' : v;
+    });
+    let result;
+    try { result = eval(expr); if (isNaN(result)) throw new Error(); }
+    catch { result = 'CIRC'; }
+    stack.pop();
+    cell.value = result;
+    return result;
+  }
+
+  recalcAll();
+})();
+</script>
+</body>
+</html>

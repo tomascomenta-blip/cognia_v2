@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;box-sizing:border-box}
+  .container{max-width:800px;margin:0 auto}
+  .products{display:flex;flex-wrap:wrap;gap:10px}
+  .prod{border:1px solid #ccc;padding:10px;border-radius:5px;flex:1 1 calc(33% - 20px);box-sizing:border-box;display:flex;justify-content:space-between;align-items:center}
+  .prod .name{flex:1}
+  .prod .add{margin-left:10px}
+  .prod button:disabled{opacity:.5;cursor:not-allowed}
+  .cart{margin-top:20px;border:1px solid #000;padding:10px;border-radius:5px}
+  .linea{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #ddd}
+  .linea:last-child{border-bottom:none}
+  .linea .cant{width:30px;text-align:center}
+  .linea .quitar{margin-left:10px}
+  #total-container{margin-top:10px;font-size:1.2em}
+  @media(max-width:600px){.prod{flex:1 1 100%}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Carrito de Compras</h1>
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <span class="name">Producto 1</span>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <span class="name">Producto 2</span>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <span class="name">Producto 3</span>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+
+  <div id="cart" class="cart">
+    <h2>Carrito</h2>
+  </div>
+
+  <div id="total-container"><strong>Total:</strong> <span id="total">0,00 €</span></div>
+</div>
+
+<script>
+(() => {
+  const cart = {};
+
+  function updateCart() {
+    const cartDiv = document.getElementById('cart');
+    cartDiv.innerHTML = '<h2>Carrito</h2>';
+    let total = 0;
+
+    for (const id in cart) {
+      const qty = cart[id];
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      const line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+
+      const cantSpan = document.createElement('span');
+      cantSpan.className = 'cant';
+      cantSpan.textContent = qty;
+
+      const quitarBtn = document.createElement('button');
+      quitarBtn.className = 'quitar';
+      quitarBtn.dataset.id = id;
+      quitarBtn.textContent = 'Quitar';
+
+      line.appendChild(cantSpan);
+      line.appendChild(quitarBtn);
+      cartDiv.appendChild(line);
+
+      total += qty * price;
+    }
+
+    document.getElementById('total').textContent =
+      total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+    // Update add buttons disabled state
+    document.querySelectorAll('.prod').forEach(prod => {
+      const id = prod.dataset.id;
+      const stock = parseInt(prod.dataset.stock, 10);
+      const addBtn = prod.querySelector(`.add[data-id="${id}"]`);
+      const qty = cart[id] || 0;
+      addBtn.disabled = qty >= stock;
+    });
+  }
+
+  function addToCart(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock, 10);
+    const currentQty = cart[id] || 0;
+    if (currentQty < stock) {
+      cart[id] = currentQty + 1;
+      updateCart();
+    }
+  }
+
+  function removeFromCart(id) {
+    const currentQty = cart[id] || 0;
+    if (currentQty > 0) {
+      cart[id] = currentQty - 1;
+      if (cart[id] <= 0) delete cart[id];
+      updateCart();
+    }
+  }
+
+  // Add button listeners
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => addToCart(btn.dataset.id));
+  });
+
+  // Remove button delegation
+  document.getElementById('cart').addEventListener('click', e => {
+    if (e.target.classList.contains('quitar')) {
+      removeFromCart(e.target.dataset.id);
+    }
+  });
+
+  // Initial render
+  updateCart();
+})();
+</script>
+</body>
+</html>

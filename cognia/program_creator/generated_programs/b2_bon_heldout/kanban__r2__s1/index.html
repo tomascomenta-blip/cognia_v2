@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;}
+.board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+.col{flex:1 1 30%;min-width:200px;border:1px solid #ccc;border-radius:4px;padding:5px;}
+.card{background:#f9f9f9;border:1px solid #ddd;border-radius:3px;margin:5px 0;padding:5px;display:flex;justify-content:space-between;align-items:center;}
+button{font-size:12px;margin-left:2px;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h3>Pendiente (<span id="cont-todo"></span>)</h3>
+<div class="card" data-id="t1">t1<button class="mas">→</button><button class="menos">←</button></div>
+<div class="card" data-id="t2">t2<button class="mas">→</button><button class="menos">←</button></div>
+<div class="card" data-id="t3">t3<button class="mas">→</button><button class="menos">←</button></div>
+</div>
+<div class="col" data-col="doing"><h3>En Progreso (<span id="cont-doing"></span>)</h3></div>
+<div class="col" data-col="done"><h3>Hecho (<span id="cont-done"></span>)</h3></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{const order=['todo','doing','done'];function update(){['todo','doing','done'].forEach(c=>{document.getElementById('cont-'+c).textContent=document.querySelectorAll('.col[data-col="'+c+'"] .card').length;});}
+function move(e){const dir=e.target.classList.contains('mas')?1:-1;const card=e.target.closest('.card');const col=card.parentElement;const idx=order.indexOf(col.dataset.col);const newIdx=idx+dir;if(newIdx<0||newIdx>2)return;const target=document.querySelector('.col[data-col="'+order[newIdx]+'"]');if(order[newIdx]==='doing'&&target.querySelectorAll('.card').length>=2)return;target.appendChild(card);update();}
+document.querySelectorAll('.mas,.menos').forEach(b=>b.addEventListener('click',move));update();});
+</script>
+</body>
+</html>

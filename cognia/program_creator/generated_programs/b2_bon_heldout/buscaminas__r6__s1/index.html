@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un buscaminas 5x5 con 3 minas</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+  .grid{display:grid;grid-template-columns:repeat(5,60px);grid-gap:4px;justify-content:center;}
+  .c{width:60px;height:60px;line-height:60px;text-align:center;background:#d3d3d3;border:1px solid #999;cursor:pointer;user-select:none;font-size:1.2em;}
+  .c.abierta{background:#fff;color:#0066cc;font-weight:bold;}
+  .c.abierta.mine{color:red;}
+  .c.bandera{background:#ffeb3b;color:#000;}
+  .c:hover{box-shadow:0 0 5px #888;}
+  #estado{margin-top:12px;font-weight:bold;color:red;}
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines = new Set([6,12,18]); // posiciones fijas de minas
+const cells = [];
+const grid = document.getElementById('grid');
+
+// Crear las 25 celdas
+for(let i=0;i<25;i++){
+  const div=document.createElement('div');
+  div.className='c';
+  div.dataset.i=i;
+  div.addEventListener('click',()=>openCell(i));
+  div.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(div.classList.contains('abierta')) return;
+    if(div.classList.contains('bandera')){
+      div.classList.remove('bandera');
+      div.textContent='';
+    }else{
+      div.classList.add('bandera');
+      div.textContent='🚩';
+    }
+  });
+  grid.appendChild(div);
+  cells.push(div);
+}
+
+// Obtener vecinos de una celda
+function getNeighbors(i){
+  const neighbors=[];
+  const r=Math.floor(i/5),c=i%5;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<5&&nc>=0&&nc<5)neighbors.push(nr*5+nc);
+    }
+  }
+  return neighbors;
+}
+
+// Contar minas adyacentes
+function countAdjacentMines(i){
+  let cnt=0;
+  for(const nb of getNeighbors(i)){
+    if(mines.has(nb))cnt++;
+  }
+  return cnt;
+}
+
+// Abrir una celda
+function openCell(i){
+  const cell=cells[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  if(mines.has(i)){
+    cell.classList.add('abierta','mine');
+    cell.textContent='💣';
+    document.getElementById('estado').textContent='perdiste';
+    return;
+  }
+  const count=countAdjacentMines(i);
+  cell.classList.add('abierta');
+  if(count>0)cell.textContent=count;
+  else{
+    cell.textContent='';
+    const stack=[];
+    for(const nb of getNeighbors(i)){
+      if(!cells[nb].classList.contains('abierta')&&!cells[nb].classList.contains('bandera')){
+        stack.push(nb);
+      }
+    }
+    while(stack.length){
+      const idx=stack.pop();
+      const c=cells[idx];
+      if(c.classList.contains('abierta')||c.classList.contains('bandera'))continue;
+      const cnt=countAdjacentMines(idx);
+      c.classList.add('abierta');
+      if(cnt>0)c.textContent=cnt;
+      else{
+        c.textContent='';
+        for(const nb of getNeighbors(idx)){
+          if(!cells[nb].classList.contains('abierta')&&!cells[nb].classList.contains('bandera')){
+            stack.push(nb);
+          }
+        }
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>

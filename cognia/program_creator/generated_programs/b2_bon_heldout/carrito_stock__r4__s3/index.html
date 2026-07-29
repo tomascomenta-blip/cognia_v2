@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de Compra con Stock</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:20px;
+    background:#fafafa;
+  }
+  h1{margin-bottom:10px;}
+  .products{display:flex;gap:15px;margin-bottom:30px;}
+  .prod{
+    width:180px;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:6px;
+    background:#fff;
+    box-shadow:0 2px 4px rgba(0,0,0,.1);
+    opacity:0;
+    transform:translateX(-40px);
+    animation:slideIn 0.5s ease forwards;
+  }
+  .prod:nth-child(1){animation-delay:0.1s;}
+  .prod:nth-child(2){animation-delay:0.2s;}
+  .prod:nth-child(3){animation-delay:0.3s;}
+  .prod .name{display:block;font-weight:bold;margin-bottom:6px;}
+  .prod .price{display:block;color:#555;margin-bottom:8px;}
+  .prod button{padding:6px 10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{margin-bottom:20px;}
+  .linea{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:6px 0;
+    opacity:0;
+    animation:fadeIn 0.3s forwards;
+  }
+  .linea:nth-child(1){animation-delay:0.1s;}
+  .linea:nth-child(2){animation-delay:0.2s;}
+  .linea:nth-child(3){animation-delay:0.3s;}
+  .linea .cant{font-weight:bold;}
+  .linea button{
+    padding:4px 8px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;
+  }
+  #total{font-weight:bold;font-size:1.2em;}
+  @keyframes slideIn{
+    from{transform:translateX(-40px);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<h1>Carrito de Compra</h1>
+<div class="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span class="name">Producto 1</span>
+    <span class="price">Precio: 100</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span class="name">Producto 2</span>
+    <span class="price">Precio: 50</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span class="name">Producto 3</span>
+    <span class="price">Precio: 25</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div id="cart"></div>
+<div>Total: <span id="total">0</span></div>
+
+<script>
+  // Mapa para almacenar la cantidad de cada producto en el carrito
+  const cart = new Map();
+
+  // Función para actualizar el total del carrito
+  function updateTotal() {
+    let total = 0;
+    cart.forEach((qty, id) => {
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      total += qty * price;
+    });
+    document.getElementById('total').textContent = total;
+  }
+
+  // Función para crear o actualizar una línea en el carrito
+  function renderLine(id, qty) {
+    const cartDiv = document.getElementById('cart');
+    let line = cartDiv.querySelector(`.linea[data-id="${id}"]`);
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `<span class="cant">${qty}</span> <button class="quitar" data-id="${id}">-</button>`;
+      cartDiv.appendChild(line);
+    } else {
+      line.querySelector('.cant').textContent = qty;
+    }
+  }
+
+  // Manejo de eventos para los botones "Añadir"
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const stock = parseInt(prod.dataset.stock, 10);
+      let qty = cart.get(id) || 0;
+      if (qty < stock) {
+        qty++;
+        cart.set(id, qty);
+        renderLine(id, qty);
+        if (qty === stock) btn.disabled = true;
+        updateTotal();
+      }
+    });
+  });
+
+  // Manejo de eventos para los botones "quitar" mediante delegación
+  document.getElementById('cart').addEventListener('click', e => {
+    if (e.target.classList.contains('quitar')) {
+      const id = e.target.dataset.id;
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const stock = parseInt(prod.dataset.stock, 10);
+      let qty = cart.get(id) || 0;
+      if (qty > 0) {
+        qty--;
+        if (qty === 0) {
+          cart.delete(id);
+          const line = document.querySelector(`.linea[data-id="${id}"]`);
+          if (line) line.remove();
+          document.querySelector(`.add[data-id="${id}"]`).disabled = false;
+        } else {
+          cart.set(id, qty);
+          renderLine(id, qty);
+          document.querySelector(`.add[data-id="${id}"]`).disabled = false;
+        }
+        updateTotal();
+      }
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    font-family: sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+    margin:0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+    margin-bottom:10px;
+  }
+  .c{
+    background:#fff;
+    border:1px solid #999;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+    pointer-events:none;
+  }
+  .c.bandera{
+    background:#ffdddd;
+    color:red;
+    font-size:1.5rem;
+  }
+  #estado{
+    font-size:1.2rem;
+    color:red;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+class Minesweeper {
+  constructor(gridId, estadoId) {
+    this.grid = document.getElementById(gridId);
+    this.estado = document.getElementById(estadoId);
+    this.size = 5;
+    this.mines = new Set([6, 12, 18]); // posiciones fijas
+    this.cells = [];
+    this.init();
+  }
+  init() {
+    for (let i = 0; i < 25; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.addEventListener('click', e => this.handleLeft(e, i));
+      cell.addEventListener('contextmenu', e => this.handleRight(e, i));
+      this.grid.appendChild(cell);
+      this.cells.push(cell);
+    }
+  }
+  handleLeft(e, i) {
+    e.preventDefault();
+    this.openCell(i);
+  }
+  handleRight(e, i) {
+    e.preventDefault();
+    this.toggleFlag(i);
+  }
+  openCell(i) {
+    const cell = this.cells[i];
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if (this.mines.has(i)) {
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      this.estado.textContent = 'perdiste';
+      return;
+    }
+    const adj = this.countAdj(i);
+    cell.classList.add('abierta');
+    if (adj > 0) cell.textContent = adj;
+    if (adj === 0) this.cascade(i);
+  }
+  toggleFlag(i) {
+    const cell = this.cells[i];
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')) {
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+    }
+  }
+  countAdj(i) {
+    const r = Math.floor(i / 5);
+    const c = i % 5;
+    let cnt = 0;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < 5 && nc >= 0 && nc < 5) {
+          const idx = nr * 5 + nc;
+          if (this.mines.has(idx)) cnt++;
+        }
+      }
+    }
+    return cnt;
+  }
+  cascade(start) {
+    const queue = [start];
+    const visited = new Set();
+    while (queue.length) {
+      const idx = queue.shift();
+      if (visited.has(idx)) continue;
+      visited.add(idx);
+      const cell = this.cells[idx];
+      if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+      if (this.mines.has(idx)) continue;
+      const adj = this.countAdj(idx);
+      cell.classList.add('abierta');
+      if (adj > 0) cell.textContent = adj;
+      if (adj === 0) {
+        const r = Math.floor(idx / 5);
+        const c = idx % 5;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < 5 && nc >= 0 && nc < 5) {
+              const nIdx = nr * 5 + nc;
+              if (!visited.has(nIdx)) queue.push(nIdx);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => new Minesweeper('grid', 'estado'));
+</script>
+</body>
+</html>

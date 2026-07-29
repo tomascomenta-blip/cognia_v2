@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{margin:0;font-family:sans-serif;background:#f0f0f0;}
+.board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;justify-content:center;}
+.col{flex:1;background:#fff;border-radius:4px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.col h2{margin:0 0 5px;font-size:1.1em;}
+.card{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-bottom:8px;padding:8px;display:flex;align-items:center;animation:slideIn .4s ease forwards;}
+@keyframes slideIn{from{transform:translateX(-20px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.card button{border:none;background:none;padding:4px;margin:0 4px;cursor:pointer;font-size:1em;}
+.card button.menos{color:#555;}
+.card button.mas{color:#1e90ff;}
+.card:hover{box-shadow:0 0 8px rgba(30,144,255,.3);}
+.counter{font-size:.9em;color:#777;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h2>Todo <span id="cont-todo" class="counter"></span></h2></div>
+<div class="col" data-col="doing"><h2>Doing <span id="cont-doing" class="counter"></span></h2></div>
+<div class="col" data-col="done"><h2>Done <span id="cont-done" class="counter"></span></h2></div>
+</div>
+<script>
+function createCard(id){var c=document.createElement('div');c.className='card';c.dataset.id=id;c.innerHTML='<button class="menos">-</button>'+id+'<button class="mas">+</button>';return c;}
+var todo=document.querySelector('[data-col=todo]'),doing=document.querySelector('[data-col=doing]'),done=document.querySelector('[data-col=done]');
+['t1','t2','t3'].forEach(id=>todo.appendChild(createCard(id)));
+function update(){document.getElementById('cont-todo').textContent=todo.children.length;document.getElementById('cont-doing').textContent=doing.children.length;document.getElementById('cont-done').textContent=done.children.length;}
+function move(card,dir){var col=card.parentElement, target;if(dir===1){if(col.dataset.col==='done')return;target=col.nextElementSibling;}else{if(col.dataset.col==='todo')return;target=col.previousElementSibling;}if(target.dataset.col==='doing'&&doing.children.length>=2)return;target.appendChild(card);update();}
+document.querySelectorAll('.card').forEach(c=>{c.querySelector('.menos').onclick=e=>move(e.target.parentElement,-1);c.querySelector('.mas').onclick=e=>move(e.target.parentElement,1);});
+update();
+</script>
+</body>
+</html>

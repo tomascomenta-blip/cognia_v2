@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f0f0f0;}
+  h1{margin-top:20px;font-size:1.5rem;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:10px;}
+  .c{width:60px;height:60px;background:#ccc;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;}
+  .c.abierta{background:#e0e0e0;cursor:default;}
+  .c.bandera{background:#ff0;}
+  #estado{margin-top:10px;font-size:1.2rem;color:#900;}
+  @media (max-width:400px){
+    .c{width:40px;height:40px;font-size:1rem;}
+  }
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+const cells=[];
+for(let i=0;i<25;i++){
+  const div=document.createElement('div');
+  div.className='c';
+  div.dataset.i=i;
+  div.addEventListener('click',onClick);
+  div.addEventListener('contextmenu',onRight);
+  grid.appendChild(div);
+  cells.push(div);
+}
+function neighbors(i){
+  const r=Math.floor(i/5),c=i%5;
+  const list=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<5&&nc>=0&&nc<5){
+        list.push(nr*5+nc);
+      }
+    }
+  }
+  return list;
+}
+function countAdj(i){
+  return neighbors(i).filter(n=>mines.includes(n)).length;
+}
+function openCell(i){
+  const cell=cells[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.textContent='*';
+    estado.textContent='perdiste';
+    return;
+  }
+  const adj=countAdj(i);
+  cell.classList.add('abierta');
+  if(adj>0)cell.textContent=adj;
+  if(adj===0){
+    neighbors(i).forEach(n=>openCell(n));
+  }
+}
+function onClick(e){
+  const i=parseInt(e.currentTarget.dataset.i);
+  openCell(i);
+}
+function onRight(e){
+  e.preventDefault();
+  const i=parseInt(e.currentTarget.dataset.i);
+  const cell=cells[i];
+  if(cell.classList.contains('abierta'))return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+}
+</script>
+</body>
+</html>

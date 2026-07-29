@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{margin:0;background:#222;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:80vmin;height:80vmin;}
+.c{background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;user-select:none;}
+.c.abierta{background:#fff;}
+.c.bandera::before{content:"⚑";color:red;font-size:1.2rem;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,12,18]),grid=document.getElementById('grid'),estado=document.getElementById('estado');
+for(let i=0;i<25;i++){const c=document.createElement('div');c.className='c';c.dataset.i=i;grid.appendChild(c);}
+function neighbors(i){const r=Math.floor(i/5),c=i%5,arr=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr||dc){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);}}return arr;}
+function open(i){const cell=grid.children[i];if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;if(mines.has(i)){cell.classList.add('abierta');cell.innerHTML='<svg width="20" height="20"><polygon points="10,0 20,20 0,20" fill="red"/></svg>';estado.textContent='perdiste';return;}const cnt=neighbors(i).filter(n=>mines.has(n)).length;cell.classList.add('abierta');cell.style.color='#add8e6';cell.textContent=cnt?cnt:'';if(cnt===0){neighbors(i).forEach(open);}}
+grid.addEventListener('click',e=>{const c=e.target;if(c.className.includes('c'))open(parseInt(c.dataset.i));});
+grid.addEventListener('contextmenu',e=>{e.preventDefault();const c=e.target;if(c.className.includes('c')){if(c.classList.contains('abierta'))return;if(c.classList.contains('bandera')){c.classList.remove('bandera');c.textContent='';}else{c.classList.add('bandera');c.textContent='';}}});
+</script>
+</body>
+</html>

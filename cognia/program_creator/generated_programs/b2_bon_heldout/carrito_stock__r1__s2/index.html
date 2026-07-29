@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f9f9f9;}
+  header{padding:1rem;background:#333;color:#fff;width:100%;text-align:center;}
+  main{max-width:600px;width:100%;padding:1rem;}
+  .prod{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #ddd;border-radius:4px;margin-bottom:0.5rem;padding:0.5rem;}
+  .prod button{padding:0.3rem 0.6rem;}
+  .cart{background:#fff;border:1px solid #ddd;border-radius:4px;padding:0.5rem;margin-top:1rem;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;}
+  .linea button{padding:0.2rem 0.4rem;}
+  #total{font-weight:bold;font-size:1.2rem;}
+  @media(max-width:480px){
+    .prod{flex-direction:column;align-items:flex-start;}
+    .prod button{margin-top:0.3rem;}
+  }
+</style>
+</head>
+<body>
+<header>Carrito de compra con Stock</header>
+<main>
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - €100</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - €50</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - €25</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div>Total: <span id="total">€0.00</span></div>
+  </div>
+</main>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const cart={};
+  const lines=document.getElementById('lines');
+  const totalEl=document.getElementById('total');
+
+  function updateTotal(){
+    let sum=0;
+    for(const id in cart){
+      sum+=cart[id]*parseFloat(document.querySelector('.prod[data-id="'+id+'"]').dataset.precio);
+    }
+    totalEl.textContent='€'+sum.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+
+  function addToCart(id){
+    const prod=document.querySelector('.prod[data-id="'+id+'"]');
+    const stock=parseInt(prod.dataset.stock);
+    if(!cart[id]){cart[id]=0;}
+    if(cart[id] < stock){
+      cart[id]++; 
+      let line=document.querySelector('.linea[data-id="'+id+'"]');
+      if(!line){
+        line=document.createElement('div');
+        line.className='linea';
+        line.dataset.id=id;
+        line.innerHTML='<span>'+prod.querySelector('span').textContent+' x <span class="cant">'+cart[id]+'</span></span> <button class="quitar" data-id="'+id+'">Quitar</button>';
+        lines.appendChild(line);
+      }else{
+        line.querySelector('.cant').textContent=cart[id];
+      }
+      if(cart[id]===stock){
+        prod.querySelector('.add').disabled=true;
+      }
+      updateTotal();
+    }
+  }
+
+  function removeFromCart(id){
+    const prod=document.querySelector('.prod[data-id="'+id+'"]');
+    if(cart[id]){
+      cart[id]--;
+      if(cart[id]===0){
+        const line=document.querySelector('.linea[data-id="'+id+'"]');
+        if(line)line.remove();
+        delete cart[id];
+        prod.querySelector('.add').disabled=false;
+      }else{
+        const line=document.querySelector('.linea[data-id="'+id+'"]');
+        if(line)line.querySelector('.cant').textContent=cart[id];
+      }
+      updateTotal();
+    }
+  }
+
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>addToCart(btn.dataset.id));
+  });
+
+  document.addEventListener('click',function(e){
+    if(e.target.classList.contains('quitar')){
+      removeFromCart(e.target.dataset.id);
+    }
+  });
+});
+</script>
+</body>
+</html>

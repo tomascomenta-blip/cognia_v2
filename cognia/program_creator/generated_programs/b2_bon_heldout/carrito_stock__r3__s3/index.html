@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de Compra con Stock</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+  .container{max-width:800px;margin:auto;padding:1rem;}
+  .products{display:flex;flex-wrap:wrap;gap:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;padding:1rem;border-radius:4px;flex:1 1 calc(33% - 1rem);box-sizing:border-box;}
+  .prod h3{margin-top:0;}
+  .prod button{margin-top:0.5rem;padding:0.5rem 1rem;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  .cart{background:#fff;border:1px solid #ddd;padding:1rem;margin-top:1rem;border-radius:4px;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
+  .linea span{font-weight:bold;}
+  .linea button{padding:0.3rem 0.6rem;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .linea button:disabled{background:#aaa;cursor:not-allowed;}
+  #total{font-size:1.2rem;font-weight:bold;}
+  @media(max-width:600px){
+    .prod{flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Carrito de Compra con Stock</h1>
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <p>Precio: <span class="precio"></span></p>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <p>Precio: <span class="precio"></span></p>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <p>Precio: <span class="precio"></span></p>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <p>Total: <span id="total">0 €</span></p>
+  </div>
+</div>
+<script>
+  // Configurable constants
+  const LOCALE = 'es-ES';
+  const CURRENCY = 'EUR';
+
+  const cart = {}; // id -> quantity
+
+  function formatCurrency(value){
+    return value.toLocaleString(LOCALE,{style:'currency',currency:CURRENCY});
+  }
+
+  function updateCart(){
+    const lines = document.getElementById('cart-lines');
+    lines.innerHTML = '';
+    let total = 0;
+    for(const id in cart){
+      const qty = cart[id];
+      if(qty > 0){
+        const prod = document.querySelector('.prod[data-id="'+id+'"]');
+        const price = parseFloat(prod.dataset.precio);
+        total += price * qty;
+        const line = document.createElement('div');
+        line.className = 'linea';
+        line.dataset.id = id;
+        const name = prod.querySelector('h3').textContent;
+        line.innerHTML = `<span>${name} x <span class="cant">${qty}</span></span>
+                          <button class="quitar" data-id="${id}">Quitar</button>`;
+        lines.appendChild(line);
+      }
+    }
+    document.getElementById('total').textContent = formatCurrency(total);
+    updateAddButtons();
+  }
+
+  function updateAddButtons(){
+    document.querySelectorAll('.prod').forEach(prod=>{
+      const id = prod.dataset.id;
+      const stock = parseInt(prod.dataset.stock);
+      const qty = cart[id] || 0;
+      const btn = prod.querySelector('.add');
+      btn.disabled = qty >= stock;
+    });
+  }
+
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id = btn.dataset.id;
+      cart[id] = (cart[id]||0) + 1;
+      updateCart();
+    });
+  });
+
+  document.addEventListener('click',e=>{
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      cart[id] = (cart[id]||0) - 1;
+      if(cart[id] <= 0) delete cart[id];
+      updateCart();
+    }
+  });
+
+  // Inicializar precios
+  document.querySelectorAll('.precio').forEach(span=>{
+    const prod = span.parentElement.parentElement;
+    span.textContent = formatCurrency(parseFloat(prod.dataset.precio));
+  });
+</script>
+</body>
+</html>

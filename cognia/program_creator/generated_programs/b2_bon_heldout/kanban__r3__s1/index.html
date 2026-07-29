@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban en una sola página</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:system-ui, sans-serif; margin:0; padding:1rem; background:#f0f0f0;}
+  #board{display:flex; flex-wrap:wrap; gap:1rem;}
+  .col{flex:1 1 200px; background:#fff; border-radius:5px; padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .col h3{margin-top:0; margin-bottom:.5rem; font-size:1.2rem;}
+  .card{background:#fafafa; border:1px solid #ddd; border-radius:4px; padding:.5rem; margin-bottom:.5rem; display:flex; align-items:center; justify-content:space-between;}
+  .card button{background:#007bff; color:#fff; border:none; border-radius:3px; padding:.2rem .5rem; cursor:pointer; font-size:.9rem;}
+  .card button:disabled{background:#aaa; cursor:not-allowed;}
+  @media(max-width:600px){#board{flex-direction:column;}}
+</style>
+</head>
+<body>
+<h1>Tablero Kanban</h1>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h3>Pendientes (<span id="cont-todo"></span>)</h3>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h3>En Progreso (<span id="cont-doing"></span>)</h3>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Completado (<span id="cont-done"></span>)</h3>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+const initialCards = ['t1','t2','t3'];
+function createCard(id){
+  const card = document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  card.innerHTML = `<span>${id}</span>
+    <div>
+      <button class="menos">&lt;</button>
+      <button class="mas">&gt;</button>
+    </div>`;
+  card.querySelector('.mas').addEventListener('click',()=>moveCard(card,'right'));
+  card.querySelector('.menos').addEventListener('click',()=>moveCard(card,'left'));
+  return card;
+}
+function moveCard(card,dir){
+  const currentCol = card.parentElement.parentElement; // .cards -> .col
+  const colName = currentCol.dataset.col;
+  let targetColName;
+  if(dir==='right'){
+    if(colName==='todo') targetColName='doing';
+    else if(colName==='doing') targetColName='done';
+    else return; // done cannot move right
+  }else{ // left
+    if(colName==='done') targetColName='doing';
+    else if(colName==='doing') targetColName='todo';
+    else return; // todo cannot move left
+  }
+  // check WIP rule
+  if(targetColName==='doing'){
+    const doingCol = document.querySelector('.col[data-col="doing"] .cards');
+    if(doingCol.children.length>=MAX_DOING) return;
+  }
+  const targetCol = document.querySelector(`.col[data-col="${targetColName}"] .cards`);
+  targetCol.appendChild(card);
+  updateCounters();
+}
+function updateCounters(){
+  document.getElementById('cont-todo').textContent=document.querySelectorAll('.col[data-col="todo"] .cards .card').length;
+  document.getElementById('cont-doing').textContent=document.querySelectorAll('.col[data-col="doing"] .cards .card').length;
+  document.getElementById('cont-done').textContent=document.querySelectorAll('.col[data-col="done"] .cards .card').length;
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const todoCards = document.querySelector('.col[data-col="todo"] .cards');
+  initialCards.forEach(id=>todoCards.appendChild(createCard(id)));
+  updateCounters();
+});
+</script>
+</body>
+</html>

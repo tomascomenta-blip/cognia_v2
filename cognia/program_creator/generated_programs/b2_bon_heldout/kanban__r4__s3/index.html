@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .board{
+    display:flex;
+    gap:10px;
+    width:90%;
+    max-width:1200px;
+  }
+  .col{
+    background:#fff;
+    border-radius:6px;
+    padding:10px;
+    flex:1;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    opacity:0;
+    transform:translateY(20px);
+    animation:slideIn 0.5s ease-out forwards;
+  }
+  .col[data-col="todo"]{animation-delay:0.1s;}
+  .col[data-col="doing"]{animation-delay:0.2s;}
+  .col[data-col="done"]{animation-delay:0.3s;}
+  .col h2{
+    margin:0 0 10px;
+    font-size:1.2em;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .cards{
+    min-height:50px;
+  }
+  .card{
+    background:#e3f2fd;
+    border-radius:4px;
+    padding:8px;
+    margin-bottom:6px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    transform:translateY(10px);
+    animation:cardIn 0.3s ease-out forwards;
+  }
+  .card[data-id="t1"]{animation-delay:0.4s;}
+  .card[data-id="t2"]{animation-delay:0.5s;}
+  .card[data-id="t3"]{animation-delay:0.6s;}
+  .card button{
+    margin-left:4px;
+    padding:2px 6px;
+    font-size:0.8em;
+    cursor:pointer;
+    border:none;
+    border-radius:3px;
+    background:#1976d2;
+    color:#fff;
+  }
+  .card button.menos{background:#d32f2f;}
+  @keyframes slideIn{
+    to{opacity:1;transform:translateY(0);}
+  }
+  @keyframes cardIn{
+    to{opacity:1;transform:translateY(0);}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+    <div class="cards" id="todo-cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+    <div class="cards" id="doing-cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+    <div class="cards" id="done-cards"></div>
+  </div>
+</div>
+
+<script>
+  // Crear tarjetas iniciales
+  const initialCards = ['t1','t2','t3'];
+  const todoContainer = document.getElementById('todo-cards');
+  const doingContainer = document.getElementById('doing-cards');
+  const doneContainer = document.getElementById('done-cards');
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.textContent = id;
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '→';
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+    return card;
+  }
+
+  initialCards.forEach(id => {
+    todoContainer.appendChild(createCard(id));
+  });
+
+  // Actualizar contadores
+  function updateCounts(){
+    document.getElementById('cont-todo').textContent = todoContainer.children.length;
+    document.getElementById('cont-doing').textContent = doingContainer.children.length;
+    document.getElementById('cont-done').textContent = doneContainer.children.length;
+  }
+
+  // Mover tarjeta
+  function moveCard(card, direction){
+    const currentCol = card.parentElement.parentElement.dataset.col;
+    const nextCol = direction === 'right' ? 'doing' : 'todo';
+    const prevCol = direction === 'left' ? 'doing' : 'done';
+    const targetContainer = direction === 'right' ? doingContainer : todoContainer;
+    const sourceContainer = direction === 'right' ? todoContainer : doingContainer;
+
+    // Reglas de movimiento
+    if(currentCol === 'done' && direction === 'right') return;
+    if(currentCol === 'todo' && direction === 'left') return;
+
+    // WIP: max 2 en doing
+    if(direction === 'right' && doingContainer.children.length >= 2) return;
+
+    // Mover
+    targetContainer.appendChild(card);
+    updateCounts();
+  }
+
+  // Delegar eventos
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', e => {
+      if(e.target.classList.contains('mas')){
+        moveCard(card, 'right');
+      }else if(e.target.classList.contains('menos')){
+        moveCard(card, 'left');
+      }
+    });
+  });
+
+  // Actualizar contadores al cargar
+  updateCounts();
+</script>
+</body>
+</html>

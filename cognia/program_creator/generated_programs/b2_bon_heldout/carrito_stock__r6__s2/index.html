@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;box-sizing:border-box;background:#f9f9f9;}
+  .container{display:flex;flex-wrap:wrap;padding:20px;}
+  .products,.cart{flex:1 1 300px;padding:10px;}
+  .prod{border:1px solid #ccc;border-radius:5px;padding:10px;margin-bottom:10px;background:#fff;}
+  .prod h3{margin:0 0 5px;}
+  .prod p{margin:5px 0;}
+  .prod .precio{color:#006600;font-weight:bold;}
+  .prod .stock{color:#990000;}
+  .prod button{margin-top:5px;background:#28a745;color:#fff;border:none;padding:5px 10px;border-radius:3px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;color:#666;cursor:not-allowed;}
+  .cart h2{margin-top:0;}
+  .linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;background:#fff;padding:5px;border-radius:3px;border:1px solid #ddd;}
+  .linea span{margin-right:5px;}
+  .linea .name{font-weight:bold;}
+  .linea .subtotal{color:#0000ff;}
+  .linea button{background:#dc3545;color:#fff;border:none;padding:3px 8px;border-radius:3px;cursor:pointer;}
+  #total{font-weight:bold;font-size:1.2em;}
+  @media (max-width:600px){.container{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products" id="products">
+    <!-- Product cards will be injected here -->
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <p>Total: <span id="total">€0.00</span></p>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* Tunable constants */
+const PRODUCTS = [
+  {id: 'p1', name: 'Producto 1', price: 100, stock: 2},
+  {id: 'p2', name: 'Producto 2', price: 50,  stock: 3},
+  {id: 'p3', name: 'Producto 3', price: 25,  stock: 1}
+];
+
+/* Helper to format currency */
+function formatPrice(v){
+  return v.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+}
+
+/* Render product list */
+const productsContainer = document.getElementById('products');
+PRODUCTS.forEach(p=>{
+  const div = document.createElement('div');
+  div.className = 'prod';
+  div.dataset.id = p.id;
+  div.dataset.precio = p.price;
+  div.dataset.stock = p.stock;
+  div.innerHTML = `
+    <h3>${p.name}</h3>
+    <p>Precio: <span class="precio">${formatPrice(p.price)}</span></p>
+    <p>Stock: <span class="stock">${p.stock}</span></p>
+    <button class="add" data-id="${p.id}">Añadir</button>
+  `;
+  productsContainer.appendChild(div);
+});
+
+/* Cart state */
+const cart = {}; // id -> quantity
+
+/* Update a single line in the cart */
+function updateCartLine(id){
+  const product = PRODUCTS.find(p=>p.id===id);
+  const qty = cart[id]||0;
+  const cartLines = document.getElementById('cart-lines');
+  let line = cartLines.querySelector(`.linea[data-id="${id}"]`);
+  if(qty===0){
+    if(line) line.remove();
+  }else{
+    if(!line){
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `
+        <span class="name">${product.name}</span>
+        <span class="cant">${qty}</span> x
+        <span class="precio">${formatPrice(product.price)}</span> =
+        <span class="subtotal">${formatPrice(product.price*qty)}</span>
+        <button class="quitar" data-id="${id}">Quitar</button>
+      `;
+      cartLines.appendChild(line);
+    }else{
+      line.querySelector('.cant').textContent = qty;
+      line.querySelector('.subtotal').textContent = formatPrice(product.price*qty);
+    }
+  }
+  /* Enable/disable add button */
+  const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+  if(addBtn) addBtn.disabled = qty>=product.stock;
+}
+
+/* Recalculate total */
+function recalcTotal(){
+  let total = 0;
+  for(const id in cart){
+    const product = PRODUCTS.find(p=>p.id===id);
+    total += product.price*cart[id];
+  }
+  document.getElementById('total').textContent = formatPrice(total);
+}
+
+/* Event delegation for add & quitar buttons */
+document.addEventListener('click', e=>{
+  if(e.target.matches('.add')){
+    const id = e.target.dataset.id;
+    const product = PRODUCTS.find(p=>p.id===id);
+    const cur = cart[id]||0;
+    if(cur<product.stock){
+      cart[id] = cur+1;
+      updateCartLine(id);
+      recalcTotal();
+    }
+  }else if(e.target.matches('.quitar')){
+    const id = e.target.dataset.id;
+    const cur = cart[id]||0;
+    if(cur>0){
+      cart[id] = cur-1;
+      if(cart[id]===0) delete cart[id];
+      updateCartLine(id);
+      recalcTotal();
+    }
+  }
+});
+</script>
+</body>
+</html>

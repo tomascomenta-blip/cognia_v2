@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+.container{display:flex;gap:10px;padding:10px;}
+.col{flex:1;background:#fff;border-radius:4px;padding:10px;min-height:200px;}
+.card{background:#e3e3e3;margin:5px 0;padding:5px;border-radius:3px;display:flex;justify-content:space-between;align-items:center;}
+button{margin-left:5px;}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.card{animation:fade 0.3s;}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="col" data-col="todo"><h3>Todo <span id="cont-todo"></span></h3></div>
+<div class="col" data-col="doing"><h3>En Progreso <span id="cont-doing"></span></h3></div>
+<div class="col" data-col="done"><h3>Hecho <span id="cont-done"></span></h3></div>
+</div>
+<script>
+function createCard(id){const d=document.createElement('div');d.className='card';d.dataset.id=id;d.innerHTML=`<span>${id}</span><div><button class="menos">←</button><button class="mas">→</button></div>`;return d;}
+const cols=document.querySelectorAll('.col');
+const todoCol=Array.from(cols).find(c=>c.dataset.col==='todo');
+const doingCol=Array.from(cols).find(c=>c.dataset.col==='doing');
+const doneCol=Array.from(cols).find(c=>c.dataset.col==='done');
+['t1','t2','t3'].forEach(id=>todoCol.appendChild(createCard(id)));
+function updateCounters(){document.getElementById('cont-todo').textContent=todoCol.children.length;document.getElementById('cont-doing').textContent=doingCol.children.length;document.getElementById('cont-done').textContent=doneCol.children.length;}
+updateCounters();
+document.body.addEventListener('click',e=>{
+if(e.target.classList.contains('mas')){
+const card=e.target.closest('.card');
+const col=card.parentElement.dataset.col;
+if(col==='todo'){if(doingCol.children.length>=2)return;card.parentElement.removeChild(card);doingCol.appendChild(card);}
+else if(col==='doing'){card.parentElement.removeChild(card);doneCol.appendChild(card);}
+}
+if(e.target.classList.contains('menos')){
+const card=e.target.closest('.card');
+const col=card.parentElement.dataset.col;
+if(col==='doing'){card.parentElement.removeChild(card);todoCol.appendChild(card);}
+else if(col==='done'){card.parentElement.removeChild(card);doingCol.appendChild(card);}
+}
+updateCounters();
+});
+</script>
+</body>
+</html>

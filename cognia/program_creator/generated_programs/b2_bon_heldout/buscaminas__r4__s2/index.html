@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f5f5;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:20px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:4px;
+    width:100%;
+    max-width:300px;
+  }
+  .c{
+    background:#e0e0e0;
+    border:1px solid #c0c0c0;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    color:#333;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c:hover{background:#d5d5d5;}
+  .c.abierta{
+    background:#d0d0d0;
+    cursor:default;
+    font-weight:bold;
+  }
+  .c.bandera::after{
+    content:"🚩";
+    font-size:1.2rem;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    font-weight:bold;
+  }
+  #reset{
+    margin-top:10px;
+    padding:8px 16px;
+    background:#ff6f61;
+    color:white;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  #reset:hover{background:#e65b4e;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<button id="reset">Reiniciar</button>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const mines = [6,12,18];
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const resetBtn = document.getElementById('reset');
+  let gameOver = false;
+  const neighborCounts = new Array(25).fill(0);
+
+  // Precompute adjacent mine counts
+  for(let i=0;i<25;i++){
+    let count=0;
+    const r=Math.floor(i/5), c=i%5;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          const ni=nr*5+nc;
+          if(mines.includes(ni)) count++;
+        }
+      }
+    }
+    neighborCounts[i]=count;
+  }
+
+  function openCell(i){
+    const cell = grid.children[i];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    const count = neighborCounts[i];
+    cell.textContent = count>0 ? count : '';
+    if(count===0){
+      const r=Math.floor(i/5), c=i%5;
+      for(let dr=-1;dr<=1;dr++){
+        for(let dc=-1;dc<=1;dc++){
+          if(dr===0 && dc===0) continue;
+          const nr=r+dr, nc=c+dc;
+          if(nr>=0 && nr<5 && nc>=0 && nc<5){
+            const ni=nr*5+nc;
+            openCell(ni);
+          }
+        }
+      }
+    }
+  }
+
+  function handleLeftClick(e){
+    if(gameOver) return;
+    const cell = e.currentTarget;
+    const i = parseInt(cell.dataset.i,10);
+    if(cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if(mines.includes(i)){
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      estado.textContent = 'perdiste';
+      gameOver = true;
+      mines.forEach(mi=>{
+        const mineCell = grid.children[mi];
+        mineCell.classList.add('abierta');
+        mineCell.textContent = '💣';
+      });
+      return;
+    }
+    openCell(i);
+  }
+
+  function handleRightClick(e){
+    e.preventDefault();
+    if(gameOver) return;
+    const cell = e.currentTarget;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+    }else{
+      cell.classList.add('bandera');
+    }
+  }
+
+  // Create cells
+  for(let i=0;i<25;i++){
+    const div = document.createElement('div');
+    div.className = 'c';
+    div.dataset.i = i;
+    div.addEventListener('click', handleLeftClick);
+    div.addEventListener('contextmenu', handleRightClick);
+    grid.appendChild(div);
+  }
+
+  resetBtn.addEventListener('click', function(){
+    gameOver = false;
+    estado.textContent = '';
+    for(let i=0;i<25;i++){
+      const cell = grid.children[i];
+      cell.classList.remove('abierta','bandera');
+      cell.textContent = '';
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Simple</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;color:#333;}
+  .container{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{flex:1 1 30%;background:#eaeaea;border-radius:5px;padding:10px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  .col h2{margin-top:0;font-size:1.2em;text-align:center;}
+  .card{background:#fff;border-radius:4px;padding:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;}
+  .card span{flex:1;}
+  button{background:none;border:none;color:#555;font-size:1em;cursor:pointer;margin-left:4px;}
+  button:disabled{opacity:0.5;cursor:not-allowed;}
+  .counter{display:block;text-align:center;margin-top:4px;font-size:0.9em;color:#777;}
+  @media(max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo" class="counter"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing" class="counter"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done" class="counter"></span></h2>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+const COLS = ['todo','doing','done'];
+function createCard(id){
+  const card = document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  const span = document.createElement('span');
+  span.textContent=id;
+  card.appendChild(span);
+  const btnMas=document.createElement('button');
+  btnMas.className='mas';
+  btnMas.textContent='▶';
+  const btnMen=document.createElement('button');
+  btnMen.className='menos';
+  btnMen.textContent='◀';
+  card.appendChild(btnMas);
+  card.appendChild(btnMen);
+  return card;
+}
+function init(){
+  const todoCol=document.querySelector('.col[data-col="todo"]');
+  ['t1','t2','t3'].forEach(id=>todoCol.appendChild(createCard(id)));
+  updateCounters();
+}
+function updateCounters(){
+  COLS.forEach(col=>{
+    const count=document.querySelectorAll('.col[data-col="'+col+'"] .card').length;
+    document.getElementById('cont-'+col).textContent='('+count+')';
+  });
+}
+function moveCard(card, direction){
+  const currentCol=card.parentElement.dataset.col;
+  const idx=COLS.indexOf(currentCol);
+  let targetIdx=idx+direction;
+  if(targetIdx<0||targetIdx>=COLS.length) return;
+  const targetCol=document.querySelector('.col[data-col="'+COLS[targetIdx]+'"]');
+  // WIP rule: doing max 2
+  if(COLS[targetIdx]==='doing' && targetCol.querySelectorAll('.card').length>=MAX_DOING) return;
+  targetCol.appendChild(card);
+  updateCounters();
+}
+document.addEventListener('click',function(e){
+  if(e.target.classList.contains('mas')){
+    moveCard(e.target.parentElement,1);
+  }else if(e.target.classList.contains('menos')){
+    moveCard(e.target.parentElement,-1);
+  }
+});
+init();
+</script>
+</body>
+</html>

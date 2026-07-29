@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+:root{
+  --teal:#008080;
+  --gray:#666;
+  --orange:#ff8c00;
+  --bg:#f5f5f5;
+}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--gray);
+}
+.container{
+  display:flex;
+  flex-wrap:wrap;
+  padding:20px;
+  gap:20px;
+}
+.products{
+  flex:3;
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+}
+.prod{
+  background:#fff;
+  border:1px solid #ddd;
+  border-radius:8px;
+  padding:10px;
+  width:calc(33% - 20px);
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.prod svg{
+  width:100%;
+  height:120px;
+  border-radius:4px;
+  margin-bottom:10px;
+}
+.prod h3{
+  margin:5px 0;
+  font-size:1.1em;
+}
+.prod p{
+  margin:3px 0;
+  font-size:0.9em;
+}
+.prod button.add{
+  margin-top:auto;
+  padding:8px 12px;
+  background:var(--orange);
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  cursor:pointer;
+}
+.prod button.add:disabled{
+  background:gray;
+  cursor:default;
+}
+.cart{
+  flex:1;
+  background:#fff;
+  border:1px solid #ddd;
+  border-radius:8px;
+  padding:10px;
+  height:fit-content;
+}
+.cart h2{
+  margin-top:0;
+}
+.lines{
+  margin-top:10px;
+}
+.linea{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:5px 0;
+  border-bottom:1px solid #eee;
+}
+.linea span.cant{
+  font-weight:bold;
+}
+.linea button.quitar{
+  background:var(--orange);
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  padding:4px 8px;
+  cursor:pointer;
+}
+.linea button.quitar:hover{
+  background:darkorange;
+}
+.total{
+  margin-top:10px;
+  font-size:1.2em;
+  font-weight:bold;
+}
+@media (max-width:768px){
+  .container{flex-direction:column;}
+  .products{flex:1;}
+  .cart{margin-left:0;margin-top:20px;}
+  .prod{width:100%;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="#ddd"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-size="12">Imagen</text>
+      </svg>
+      <h3>Producto 1</h3>
+      <p>Precio: <span class="precio">100 €</span></p>
+      <p>Stock: <span class="stock">2</span></p>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="#ddd"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-size="12">Imagen</text>
+      </svg>
+      <h3>Producto 2</h3>
+      <p>Precio: <span class="precio">50 €</span></p>
+      <p>Stock: <span class="stock">3</span></p>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="#ddd"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-size="12">Imagen</text>
+      </svg>
+      <h3>Producto 3</h3>
+      <p>Precio: <span class="precio">25 €</span></p>
+      <p>Stock: <span class="stock">1</span></p>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div class="lines"></div>
+    <div class="total">Total: <span id="total">0 €</span></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const products = document.querySelectorAll('.prod');
+  const cartLines = document.querySelector('.lines');
+  const totalSpan = document.getElementById('total');
+  const cart = {};
+
+  function formatCurrency(value){
+    return value.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+
+  function updateTotal(){
+    let total = 0;
+    for(const id in cart){
+      total += cart[id].qty * cart[id].price;
+    }
+    totalSpan.textContent = formatCurrency(total);
+  }
+
+  function renderLine(id){
+    let line = cartLines.querySelector(`.linea[data-id="${id}"]`);
+    if(!line){
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      const cantSpan = document.createElement('span');
+      cantSpan.className = 'cant';
+      const quitarBtn = document.createElement('button');
+      quitarBtn.className = 'quitar';
+      quitarBtn.dataset.id = id;
+      quitarBtn.textContent = 'Quitar';
+      quitarBtn.addEventListener('click', () => removeFromCart(id));
+      line.appendChild(cantSpan);
+      line.appendChild(quitarBtn);
+      cartLines.appendChild(line);
+    }
+    line.querySelector('.cant').textContent = cart[id].qty;
+  }
+
+  function addToCart(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const price = parseFloat(prod.dataset.precio);
+    const stock = parseInt(prod.dataset.stock);
+    if(!cart[id]) cart[id] = {qty:0, price:price};
+    if(cart[id].qty < stock){
+      cart[id].qty += 1;
+      renderLine(id);
+      updateTotal();
+      const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+      if(cart[id].qty >= stock) addBtn.disabled = true;
+      else addBtn.disabled = false;
+    }
+  }
+
+  function removeFromCart(id){
+    if(!cart[id]) return;
+    cart[id].qty -= 1;
+    if(cart[id].qty <= 0){
+      delete cart[id];
+      const line = cartLines.querySelector(`.linea[data-id="${id}"]`);
+      if(line) line.remove();
+      const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+      addBtn.disabled = false;
+    }else{
+      renderLine(id);
+    }
+    updateTotal();
+  }
+
+  products.forEach(prod=>{
+    const id = prod.dataset.id;
+    const addBtn = prod.querySelector('.add');
+    addBtn.addEventListener('click', () => addToCart(id));
+  });
+
+  updateTotal();
+});
+</script>
+</body>
+</html>

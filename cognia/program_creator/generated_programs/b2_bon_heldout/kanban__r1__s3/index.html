@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  header{background:#333;color:#fff;padding:10px;text-align:center;}
+  #board{display:flex;flex-wrap:wrap;justify-content:space-around;padding:10px;}
+  .col{background:#fff;border:1px solid #ccc;border-radius:4px;flex:1 1 30%;margin:5px;min-width:200px;display:flex;flex-direction:column;}
+  .col h2{background:#eee;padding:5px;margin:0;font-size:1.2em;text-align:center;}
+  .cards{flex:1;padding:5px;}
+  .card{background:#fafafa;border:1px solid #ddd;border-radius:3px;margin:5px;padding:5px;display:flex;align-items:center;justify-content:space-between;}
+  .card span.id{font-weight:bold;}
+  button{margin-left:5px;}
+  .counter{text-align:center;margin-top:5px;font-weight:bold;}
+  @media(max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<header>Tablero Kanban</header>
+<p style="text-align:center;margin:5px;">Un tablero Kanban con 3 columnas y tarjetas que se mueven entre ellas.</p>
+<div id="board">
+  <div class="col" data-col="todo"><h2>Todo</h2><div class="cards"></div><div class="counter">0</div></div>
+  <div class="col" data-col="doing"><h2>Doing</h2><div class="cards"></div><div class="counter">0</div></div>
+  <div class="col" data-col="done"><h2>Done</h2><div class="cards"></div><div class="counter">0</div></div>
+</div>
+<div style="text-align:center;margin:10px;">
+  <span id="cont-todo"></span> | <span id="cont-doing"></span> | <span id="cont-done"></span>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.columns = ['todo','doing','done'];
+    this.columnElements = {};
+    this.columns.forEach(col => {
+      const el = document.querySelector(`.col[data-col="${col}"] .cards`);
+      this.columnElements[col] = el;
+    });
+    this.initCards();
+    this.updateCounters();
+    this.attachEventListeners();
+  }
+  initCards() {
+    ['t1','t2','t3'].forEach(id => {
+      const card = this.createCard(id);
+      this.columnElements['todo'].appendChild(card);
+    });
+  }
+  createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    const span = document.createElement('span');
+    span.className = 'id';
+    span.textContent = id;
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '→';
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+    card.appendChild(span);
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+    return card;
+  }
+  attachEventListeners() {
+    document.querySelectorAll('.mas, .menos').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const card = e.target.closest('.card');
+        const currentCol = this.getCardColumn(card);
+        const dir = e.target.classList.contains('mas') ? 1 : -1;
+        this.moveCard(card, currentCol, dir);
+      });
+    });
+  }
+  getCardColumn(card) {
+    for (const col of this.columns) {
+      if (this.columnElements[col].contains(card)) return col;
+    }
+    return null;
+  }
+  moveCard(card, fromCol, dir) {
+    const toIndex = this.columns.indexOf(fromCol) + dir;
+    if (toIndex < 0 || toIndex >= this.columns.length) return;
+    const toCol = this.columns[toIndex];
+    if (toCol === 'doing' && this.columnElements['doing'].children.length >= 2) return;
+    this.columnElements[fromCol].removeChild(card);
+    this.columnElements[toCol].appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters() {
+    ['todo','doing','done'].forEach(col => {
+      const count = this.columnElements[col].children.length;
+      document.getElementById(`cont-${col}`).textContent = count;
+      // Update the counter display inside each column
+      const counterDiv = this.columnElements[col].parentElement.querySelector('.counter');
+      counterDiv.textContent = count;
+    });
+  }
+}
+new KanbanBoard();
+</script>
+</body>
+</html>

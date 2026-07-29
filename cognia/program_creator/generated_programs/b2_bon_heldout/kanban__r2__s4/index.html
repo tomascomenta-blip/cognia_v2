@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban en HTML</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f4f4f4;
+}
+.board {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 10px;
+}
+.col {
+  flex: 1 1 100%;
+  max-width: 100%;
+  margin: 5px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.col h2 {
+  margin: 0;
+  padding: 10px;
+  background: #e0e0e0;
+  font-size: 1.1em;
+  text-align: center;
+}
+.cards {
+  flex: 1;
+  padding: 10px;
+}
+.card {
+  background: #fafafa;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card span {
+  flex: 1;
+}
+.card button {
+  margin-left: 4px;
+  padding: 2px 6px;
+  font-size: 0.9em;
+}
+.counters {
+  padding: 10px;
+  text-align: center;
+}
+.counters p {
+  margin: 5px 0;
+}
+@media (min-width: 600px) {
+  .col {
+    flex: 1 1 calc(33.333% - 20px);
+    max-width: calc(33.333% - 20px);
+  }
+}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Pendientes</h2>
+    <div class="cards">
+      <div class="card" data-id="t1">
+        <span>Tarea t1</span>
+        <button class="mas">→</button>
+        <button class="menos">←</button>
+      </div>
+      <div class="card" data-id="t2">
+        <span>Tarea t2</span>
+        <button class="mas">→</button>
+        <button class="menos">←</button>
+      </div>
+      <div class="card" data-id="t3">
+        <span>Tarea t3</span>
+        <button class="mas">→</button>
+        <button class="menos">←</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>En progreso</h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Completado</h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<div class="counters">
+  <p>Pendientes: <span id="cont-todo"></span></p>
+  <p>En progreso: <span id="cont-doing"></span></p>
+  <p>Completado: <span id="cont-done"></span></p>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  function updateCounters() {
+    const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent = todo;
+    document.getElementById('cont-doing').textContent = doing;
+    document.getElementById('cont-done').textContent = done;
+  }
+
+  function moveCard(card, direction) {
+    const col = card.closest('.col');
+    const currentDataCol = col.dataset.col;
+    let targetCol;
+    if (direction === 'mas') {
+      if (currentDataCol === 'todo') {
+        const doingCards = document.querySelectorAll('.col[data-col="doing"] .card');
+        if (doingCards.length >= 2) return;
+        targetCol = document.querySelector('.col[data-col="doing"] .cards');
+      } else if (currentDataCol === 'doing') {
+        targetCol = document.querySelector('.col[data-col="done"] .cards');
+      } else {
+        return;
+      }
+    } else if (direction === 'menos') {
+      if (currentDataCol === 'doing') {
+        targetCol = document.querySelector('.col[data-col="todo"] .cards');
+      } else if (currentDataCol === 'done') {
+        targetCol = document.querySelector('.col[data-col="doing"] .cards');
+      } else {
+        return;
+      }
+    }
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+
+  document.querySelectorAll('.card').forEach(card => {
+    card.querySelector('.mas').addEventListener('click', function() {
+      moveCard(card, 'mas');
+    });
+    card.querySelector('.menos').addEventListener('click', function() {
+      moveCard(card, 'menos');
+    });
+  });
+
+  updateCounters();
+});
+</script>
+</body>
+</html>

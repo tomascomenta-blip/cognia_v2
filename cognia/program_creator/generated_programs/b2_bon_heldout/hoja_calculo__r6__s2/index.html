@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3×3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f0f0f0;}
+  .sheet{border-collapse:collapse;margin:auto;}
+  .sheet th{background:#e0e0e0;border:1px solid #bbb;padding:4px 8px;text-align:center;}
+  .sheet td{border:1px solid #bbb;padding:0;}
+  .celda{width:80px;height:24px;text-align:right;padding:2px 4px;font-size:14px;}
+  .celda:focus{outline:2px solid #4a90e2;}
+  @media(max-width:400px){
+    .celda{width:60px;height:20px;font-size:12px;}
+  }
+</style>
+</head>
+<body>
+<table class="sheet">
+  <tr>
+    <th></th><th>A</th><th>B</th><th>C</th>
+  </tr>
+  <tr>
+    <th>1</th>
+    <td><input type="text" class="celda" data-ref="A1" value=""></td>
+    <td><input type="text" class="celda" data-ref="B1" value=""></td>
+    <td><input type="text" class="celda" data-ref="C1" value=""></td>
+  </tr>
+  <tr>
+    <th>2</th>
+    <td><input type="text" class="celda" data-ref="A2" value=""></td>
+    <td><input type="text" class="celda" data-ref="B2" value=""></td>
+    <td><input type="text" class="celda" data-ref="C2" value=""></td>
+  </tr>
+  <tr>
+    <th>3</th>
+    <td><input type="text" class="celda" data-ref="A3" value=""></td>
+    <td><input type="text" class="celda" data-ref="B3" value=""></td>
+    <td><input type="text" class="celda" data-ref="C3" value=""></td>
+  </tr>
+</table>
+
+<script>
+(() => {
+  const cells = {}; // ref -> input element
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  refs.forEach(r => cells[r] = document.querySelector(`input[data-ref="${r}"]`));
+
+  // Evaluate a cell recursively, detecting cycles
+  function evaluateCell(ref, stack = []) {
+    const input = cells[ref];
+    const formula = input.dataset.formula;
+    if (!formula) return input.value; // not a formula
+
+    if (stack.includes(ref)) return 'CIRC'; // cycle detected
+
+    let expr = formula.slice(1); // remove leading '='
+    const matches = expr.match(/[A-C][1-3]/g) || [];
+    for (const r of matches) {
+      const val = evaluateCell(r, stack.concat(ref));
+      if (val === 'CIRC') return 'CIRC';
+      // Replace all occurrences of the reference with its numeric value
+      const num = parseFloat(val);
+      if (isNaN(num)) return 'CIRC';
+      const reg = new RegExp(r, 'g');
+      expr = expr.replace(reg, num);
+    }
+    try {
+      const result = eval(expr);
+      if (isNaN(result)) return '';
+      return result.toString();
+    } catch {
+      return '';
+    }
+  }
+
+  // Recompute all cells
+  function recomputeAll() {
+    refs.forEach(ref => {
+      const input = cells[ref];
+      const val = evaluateCell(ref);
+      input.value = val;
+    });
+  }
+
+  // Handle input changes
+  refs.forEach(ref => {
+    const input = cells[ref];
+    input.addEventListener('input', () => {
+      const val = input.value.trim();
+      if (val.startsWith('=')) {
+        input.dataset.formula = val;
+      } else {
+        delete input.dataset.formula;
+      }
+      recomputeAll();
+    });
+  });
+
+  // Initial computation
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

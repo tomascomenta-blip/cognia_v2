@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Simple</title>
+<style>
+  body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  .board{display:flex;justify-content:space-around;padding:10px;}
+  .col{background:#fff;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex:1;margin:0 5px;display:flex;flex-direction:column;}
+  .col-header{font-weight:bold;padding:8px;background:#e0e0e0;border-bottom:1px solid #ccc;display:none;}
+  .card{background:#fafafa;border:1px solid #ddd;border-radius:3px;margin:5px;padding:8px;display:flex;justify-content:space-between;align-items:center;}
+  .card button{margin-left:2px;}
+  .counter{font-size:12px;color:#555;margin:5px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo</div>
+    <div id="todo-cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing</div>
+    <div id="doing-cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done</div>
+    <div id="done-cards"></div>
+  </div>
+</div>
+<div class="counter">
+  <span id="cont-todo"></span> | <span id="cont-doing"></span> | <span id="cont-done"></span>
+</div>
+<script>
+class KanbanBoard{
+  constructor(){
+    this.columns=['todo','doing','done'];
+    this.init();
+  }
+  init(){
+    // Create 3 cards in todo
+    for(let i=0;i<3;i++){
+      const id='t'+(i+1);
+      this.addCard(id,'todo');
+    }
+    this.updateCounters();
+  }
+  addCard(id,col){
+    const card=document.createElement('div');
+    card.className='card';
+    card.dataset.id=id;
+    card.dataset.col=col;
+    card.innerHTML=`<span>${id}</span>
+      <button class="menos">←</button>
+      <button class="mas">→</button>`;
+    document.getElementById(col+'-cards').appendChild(card);
+    this.attachEvents(card);
+  }
+  attachEvents(card){
+    card.querySelector('.mas').addEventListener('click',()=>this.move(card,1));
+    card.querySelector('.menos').addEventListener('click',()=>this.move(card,-1));
+  }
+  move(card,dir){
+    const current=card.dataset.col;
+    const idx=this.columns.indexOf(current);
+    const targetIdx=idx+dir;
+    if(targetIdx<0||targetIdx>=this.columns.length) return; // out of bounds
+    const targetCol=this.columns[targetIdx];
+    // WIP rule: doing can hold max 2 cards
+    if(current==='todo' && dir===1){
+      if(this.countInColumn('doing')>=2) return; // cannot move if doing full
+    }
+    // Cannot move left from todo or right from done
+    if(current==='todo' && dir===-1) return;
+    if(current==='done' && dir===1) return;
+    // Perform move
+    card.dataset.col=targetCol;
+    card.parentElement.removeChild(card);
+    document.getElementById(targetCol+'-cards').appendChild(card);
+    this.updateCounters();
+  }
+  countInColumn(col){
+    return document.querySelectorAll('#'+col+'-cards .card').length;
+  }
+  updateCounters(){
+    document.getElementById('cont-todo').textContent=this.countInColumn('todo');
+    document.getElementById('cont-doing').textContent=this.countInColumn('doing');
+    document.getElementById('cont-done').textContent=this.countInColumn('done');
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{new KanbanBoard();});
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+#grid{display:grid;grid-template-columns:repeat(5,40px);gap:2px;margin-top:20px;}
+.c{width:40px;height:40px;background:#ccc;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.c.abierta{background:#eee;}
+.c.bandera{background:#fdd;}
+#estado{margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18],grid=document.getElementById('grid');
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');d.className='c';d.dataset.i=i;
+  if(mines.includes(i))d.dataset.mine='1';
+  d.addEventListener('click',e=>{
+    if(d.classList.contains('bandera')||d.classList.contains('abierta'))return;
+    if(d.dataset.mine){d.classList.add('abierta');d.textContent='X';document.getElementById('estado').textContent='perdiste';return;}
+    const r=Math.floor(i/5),c=i%5;let count=0;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>4||nc<0||nc>4)continue;
+      const ni=nr*5+nc;if(mines.includes(ni))count++;
+    }
+    d.classList.add('abierta');d.textContent=count||'';
+    if(count===0){
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr<0||nr>4||nc<0||nc>4)continue;
+        const ni=nr*5+nc;const nd=grid.children[ni];
+        if(!nd.classList.contains('abierta')&&!nd.classList.contains('bandera'))nd.click();
+      }
+    }
+  });
+  d.addEventListener('contextmenu',e=>{
+    e.preventDefault();if(d.classList.contains('abierta'))return;
+    d.classList.toggle('bandera');d.textContent=d.classList.contains('bandera')?'🚩':'';
+  });
+  grid.appendChild(d);
+}
+</script>
+</body>
+</html>
