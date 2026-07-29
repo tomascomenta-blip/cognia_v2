@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding-top:20px;
+  }
+  #top{
+    display:flex;
+    justify-content:space-between;
+    width:100%;
+    max-width:400px;
+    margin-bottom:10px;
+  }
+  #score{
+    font-size:18px;
+  }
+  #reset{
+    font-size:16px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,80px);
+    grid-template-rows:repeat(5,80px);
+    gap:2px;
+    max-width:400px;
+  }
+  .c{
+    width:80px;
+    height:80px;
+    background:#2f4f4f;
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#708090;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#2f4f4f;
+    color:#ff0;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:20px;
+    color:red;
+  }
+  @media (max-width:420px){
+    #grid{
+      grid-template-columns:repeat(5,60px);
+      grid-template-rows:repeat(5,60px);
+    }
+    .c{
+      width:60px;
+      height:60px;
+      font-size:18px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="top">
+  <div id="score">0</div>
+  <button id="reset">Reiniciar</button>
+</div>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+(() => {
+  const mines = new Set([6,12,18]);
+  const cells = document.querySelectorAll('.c');
+  const scoreEl = document.getElementById('score');
+  const estadoEl = document.getElementById('estado');
+  const resetBtn = document.getElementById('reset');
+  let opened = new Set();
+  let gameOver = false;
+
+  function getNeighbors(i){
+    const r = Math.floor(i/5);
+    const c = i%5;
+    const neighbors=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neighbors.push(nr*5+nc);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  function countAdjMines(i){
+    return getNeighbors(i).filter(n=>mines.has(n)).length;
+  }
+
+  function openCell(i){
+    if(opened.has(i) || gameOver) return;
+    const cell = cells[i];
+    if(cell.classList.contains('bandera')) return;
+    opened.add(i);
+    const adj = countAdjMines(i);
+    cell.classList.add('abierta');
+    if(mines.has(i)){
+      cell.textContent = '💣';
+      estadoEl.textContent = 'perdiste';
+      gameOver = true;
+      return;
+    }
+    if(adj>0){
+      cell.textContent = adj;
+    } else {
+      cell.textContent = '';
+      getNeighbors(i).forEach(n=>{
+        if(!opened.has(n)){
+          openCell(n);
+        }
+      });
+    }
+    updateScore();
+  }
+
+  function updateScore(){
+    scoreEl.textContent = opened.size;
+  }
+
+  cells.forEach(cell=>{
+    const i = parseInt(cell.dataset.i,10);
+    cell.addEventListener('click',()=>{ if(!gameOver) openCell(i); });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(gameOver) return;
+      if(cell.classList.contains('abierta')) return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      } else {
+        cell.classList.add('bandera');
+        cell.textContent='🚩';
+      }
+    });
+  });
+
+  resetBtn.addEventListener('click',()=>{
+    opened.clear();
+    gameOver=false;
+    estadoEl.textContent='';
+    cells.forEach(cell=>{
+      cell.classList.remove('abierta','bandera');
+      cell.textContent='';
+    });
+    updateScore();
+  });
+})();
+</script>
+</body>
+</html>

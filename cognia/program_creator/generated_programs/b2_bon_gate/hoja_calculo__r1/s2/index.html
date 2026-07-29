@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#eee;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(3,70px);
+    grid-gap:5px;
+    justify-content:center;
+  }
+  .celda{
+    width:70px;
+    height:70px;
+    border:1px solid #ccc;
+    background:#f9f9f9;
+    text-align:center;
+    font-size:16px;
+    padding:0;
+    box-sizing:border-box;
+    color:#000;
+  }
+  .celda:focus{
+    background:#fff;
+  }
+  .result{
+    color:#555;
+  }
+  .formula{
+    color:#000;
+  }
+  @media (max-width:400px){
+    .celda{
+      width:50px;
+      height:50px;
+      font-size:12px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <input type="text" class="celda" data-ref="A1" />
+  <input type="text" class="celda" data-ref="A2" />
+  <input type="text" class="celda" data-ref="A3" />
+  <input type="text" class="celda" data-ref="B1" />
+  <input type="text" class="celda" data-ref="B2" />
+  <input type="text" class="celda" data-ref="B3" />
+  <input type="text" class="celda" data-ref="C1" />
+  <input type="text" class="celda" data-ref="C2" />
+  <input type="text" class="celda" data-ref="C3" />
+</div>
+<script>
+(() => {
+  const cells = Array.from(document.querySelectorAll('.celda'));
+  const refMap = {};
+  cells.forEach(c => refMap[c.dataset.ref] = c);
+
+  function isFormula(val){ return typeof val==='string' && val.startsWith('='); }
+
+  function evaluateAll(){
+    const computed = {}; // ref -> value string or 'CIRC'
+    const stack = []; // for cycle detection
+
+    function evalCell(ref, path){
+      if(computed[ref] !== undefined) return computed[ref];
+      if(path.includes(ref)){
+        // cycle detected
+        path.forEach(r=>computed[r]='CIRC');
+        return 'CIRC';
+      }
+      const cell = refMap[ref];
+      const val = cell.value.trim();
+      if(!isFormula(val)){
+        computed[ref] = val;
+        return val;
+      }
+      // formula
+      const expr = val.slice(1); // remove '='
+      const tokens = expr.match(/([A-Z][1-3])|(\d+(\.\d+)?)|([+-])/g);
+      if(!tokens){ computed[ref]=''; return ''; }
+      let result = 0;
+      let op = '+';
+      for(const tk of tokens){
+        if(tk==='+'||tk==='-'){
+          op=tk;
+        }else if(/^[A-Z][1-3]$/.test(tk)){
+          const v = evalCell(tk, [...path, ref]);
+          if(v==='CIRC'){ computed[ref]='CIRC'; return 'CIRC'; }
+          const num = parseFloat(v)||0;
+          result = op==='+'? result+num : result-num;
+        }else{ // number
+          const num = parseFloat(tk)||0;
+          result = op==='+'? result+num : result-num;
+        }
+      }
+      computed[ref] = result.toString();
+      return computed[ref];
+    }
+
+    // Evaluate all cells
+    cells.forEach(c=>{
+      const ref=c.dataset.ref;
+      if(document.activeElement===c){
+        // skip evaluation for focused cell
+        return;
+      }
+      evalCell(ref, []);
+    });
+
+    // Update UI
+    cells.forEach(c=>{
+      const ref=c.dataset.ref;
+      const val = computed[ref];
+      if(isFormula(c.value.trim())){
+        // formula cell
+        if(document.activeElement===c){
+          // keep formula text
+          c.classList.add('formula');
+          c.classList.remove('result');
+        }else{
+          // show result
+          c.value = val;
+          c.classList.add('result');
+          c.classList.remove('formula');
+        }
+      }else{
+        // normal cell
+        c.value = val;
+        c.classList.add('result');
+        c.classList.remove('formula');
+      }
+    });
+  }
+
+  cells.forEach(c=>{
+    c.addEventListener('input', e=>{
+      // store current value as formula if starts with '='
+      if(isFormula(e.target.value)){
+        e.target.dataset.formula = e.target.value;
+      }else{
+        e.target.dataset.formula = '';
+      }
+      evaluateAll();
+    });
+    c.addEventListener('focus', e=>{
+      if(isFormula(e.target.value)){
+        e.target.value = e.target.dataset.formula || e.target.value;
+        e.target.classList.add('formula');
+        e.target.classList.remove('result');
+      }
+    });
+    c.addEventListener('blur', e=>{
+      if(isFormula(e.target.value)){
+        // evaluate and show result
+        const ref=e.target.dataset.ref;
+        const val=e.target.value.trim();
+        const expr=val.slice(1);
+        const tokens=expr.match(/([A-Z][1-3])|(\d+(\.\d+)?)|([+-])/g);
+        let result=0, op='+';
+        if(tokens){
+          for(const tk of tokens){
+            if(tk==='+'||tk==='-'){
+              op=tk;
+            }else if(/^[A-Z][1-3]$/.test(tk)){
+              const v=refMap[tk].value.trim();
+              const num=parseFloat(v)||0;
+              result=op==='+'? result+num : result-num;
+            }else{
+              const num=parseFloat(tk)||0;
+              result=op==='+'? result+num : result-num;
+            }
+          }
+        }
+        e.target.value=result.toString();
+        e.target.classList.add('result');
+        e.target.classList.remove('formula');
+      }
+      evaluateAll();
+    });
+  });
+
+  // Initial evaluation
+  evaluateAll();
+})();
+</script>
+</body>
+</html>

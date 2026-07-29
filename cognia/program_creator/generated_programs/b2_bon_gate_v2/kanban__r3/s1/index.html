@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fafafa;}
+.board{display:flex;flex-wrap:wrap;gap:1rem;padding:1rem;max-width:1200px;margin:auto;}
+.col{background:#fff;border-radius:4px;flex:1 1 30%;min-width:250px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+.col-header{background:#e0f7ff;padding:0.5rem 1rem;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;align-items:center;}
+.col-header h2{margin:0;font-size:1.2rem;}
+.col-header span{font-weight:bold;}
+.cards{flex:1;padding:0.5rem 1rem;display:flex;flex-direction:column;}
+.card{background:#fff;border-radius:4px;padding:0.5rem 0.5rem;margin-bottom:0.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;}
+.card-title{flex:1;font-size:0.9rem;}
+.card-actions{display:flex;}
+.card-actions button{background:#4caf50;color:#fff;border:none;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;margin-left:4px;cursor:pointer;font-size:14px;}
+.card-actions button.menos{background:#f44336;}
+.card-actions button:focus{outline:none;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">
+      <h2>Todo</h2>
+      <span id="cont-todo">0</span>
+    </div>
+    <div class="cards">
+      <div class="card" data-id="t1">
+        <div class="card-title">Tarea 1</div>
+        <div class="card-actions">
+          <button class="menos">←</button>
+          <button class="mas">→</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <div class="card-title">Tarea 2</div>
+        <div class="card-actions">
+          <button class="menos">←</button>
+          <button class="mas">→</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <div class="card-title">Tarea 3</div>
+        <div class="card-actions">
+          <button class="menos">←</button>
+          <button class="mas">→</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">
+      <h2>Doing</h2>
+      <span id="cont-doing">0</span>
+    </div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">
+      <h2>Done</h2>
+      <span id="cont-done">0</span>
+    </div>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  function updateCounters() {
+    ['todo','doing','done'].forEach(col => {
+      const count = document.querySelectorAll('.col[data-col="'+col+'"] .cards .card').length;
+      document.getElementById('cont-'+col).textContent = count;
+    });
+  }
+  function moveCard(card, direction) {
+    const currentCol = card.closest('.col');
+    const currentData = currentCol.dataset.col;
+    let targetData;
+    if (direction === 'mas') {
+      if (currentData === 'todo') targetData = 'doing';
+      else if (currentData === 'doing') targetData = 'done';
+      else return; // done cannot move
+    } else if (direction === 'menos') {
+      if (currentData === 'done') targetData = 'doing';
+      else if (currentData === 'doing') targetData = 'todo';
+      else return; // todo cannot move
+    }
+    // WIP rule: doing max 2 cards
+    if (targetData === 'doing') {
+      const doingCards = document.querySelectorAll('.col[data-col="doing"] .cards .card').length;
+      if (doingCards >= 2) return;
+    }
+    const targetCol = document.querySelector('.col[data-col="'+targetData+'"] .cards');
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+  document.querySelectorAll('.mas').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const card = this.closest('.card');
+      moveCard(card, 'mas');
+    });
+  });
+  document.querySelectorAll('.menos').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const card = this.closest('.card');
+      moveCard(card, 'menos');
+    });
+  });
+  updateCounters();
+});
+</script>
+</body>
+</html>

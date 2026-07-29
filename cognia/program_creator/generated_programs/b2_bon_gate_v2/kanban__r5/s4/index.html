@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en HTML</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#121212;
+    color:#e0e0e0;
+  }
+  .container{
+    display:flex;
+    justify-content:center;
+    padding:20px;
+    gap:20px;
+  }
+  .col{
+    flex:1;
+    min-width:200px;
+    background:#1e1e1e;
+    border-radius:8px;
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+  }
+  .col h2{
+    text-align:center;
+    margin:0 0 10px 0;
+    color:#b0b0b0;
+  }
+  .card{
+    background:#ffffff;
+    color:#000;
+    padding:10px;
+    margin-bottom:10px;
+    border-radius:4px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.3);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .card span{
+    flex:1;
+  }
+  .card button{
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-size:16px;
+    color:#555;
+    padding:0 5px;
+  }
+  .card button:disabled{
+    color:#999;
+    cursor:not-allowed;
+  }
+  .counter{
+    text-align:center;
+    margin-top:5px;
+    font-size:12px;
+    color:#888;
+  }
+  @media (max-width:600px){
+    .container{
+      flex-direction:column;
+    }
+    .col{
+      margin-bottom:20px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div id="todo-cards"></div>
+    <span id="cont-todo" class="counter"></span>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div id="doing-cards"></div>
+    <span id="cont-doing" class="counter"></span>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div id="done-cards"></div>
+    <span id="cont-done" class="counter"></span>
+  </div>
+</div>
+
+<script>
+class Kanban {
+  constructor() {
+    this.columns = ['todo', 'doing', 'done'];
+    this.cards = {}; // id -> element
+    this.init();
+  }
+
+  init() {
+    this.createInitialCards();
+    this.updateCounters();
+    this.updateButtonStates();
+  }
+
+  createInitialCards() {
+    const ids = ['t1', 't2', 't3'];
+    ids.forEach(id => this.addCard(id, 'todo'));
+  }
+
+  addCard(id, col) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const span = document.createElement('span');
+    span.textContent = id;
+
+    const btnLess = document.createElement('button');
+    btnLess.className = 'menos';
+    btnLess.innerHTML = '&#9664;'; // left arrow
+    btnLess.onclick = () => this.moveCard(id, -1);
+
+    const btnMore = document.createElement('button');
+    btnMore.className = 'mas';
+    btnMore.innerHTML = '&#9654;'; // right arrow
+    btnMore.onclick = () => this.moveCard(id, 1);
+
+    card.appendChild(span);
+    card.appendChild(btnLess);
+    card.appendChild(btnMore);
+
+    this.cards[id] = card;
+    this.appendToColumn(card, col);
+  }
+
+  appendToColumn(card, col) {
+    const container = document.getElementById(col + '-cards');
+    container.appendChild(card);
+  }
+
+  moveCard(id, dir) {
+    const card = this.cards[id];
+    const currentCol = this.getCardColumn(card);
+    const idx = this.columns.indexOf(currentCol);
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= this.columns.length) return; // cannot move
+
+    const newCol = this.columns[newIdx];
+    if (newCol === 'doing' && this.getColumnCount('doing') >= 2) return; // WIP limit
+
+    this.removeFromColumn(card, currentCol);
+    this.appendToColumn(card, newCol);
+    this.updateCounters();
+    this.updateButtonStates();
+  }
+
+  getCardColumn(card) {
+    const parent = card.parentElement;
+    const id = parent.id.replace('-cards', '');
+    return id;
+  }
+
+  removeFromColumn(card, col) {
+    const container = document.getElementById(col + '-cards');
+    container.removeChild(card);
+  }
+
+  getColumnCount(col) {
+    return document.getElementById(col + '-cards').children.length;
+  }
+
+  updateCounters() {
+    this.columns.forEach(col => {
+      const count = this.getColumnCount(col);
+      document.getElementById('cont-' + col).textContent = count;
+    });
+  }
+
+  updateButtonStates() {
+    Object.values(this.cards).forEach(card => {
+      const col = this.getCardColumn(card);
+      const lessBtn = card.querySelector('.menos');
+      const moreBtn = card.querySelector('.mas');
+      lessBtn.disabled = (col === 'todo');
+      moreBtn.disabled = (col === 'done') || (col === 'todo' && this.getColumnCount('doing') >= 2);
+    });
+  }
+}
+
+new Kanban();
+</script>
+</body>
+</html>

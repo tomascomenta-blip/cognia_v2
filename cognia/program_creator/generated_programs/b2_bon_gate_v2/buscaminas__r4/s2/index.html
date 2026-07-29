@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    background:#444;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#fff;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-gap:2px;
+  }
+  .c{
+    width:60px;
+    height:60px;
+    background:#555;
+    border-radius:4px;
+    box-shadow:inset 2px 2px 4px rgba(0,0,0,0.5),inset -2px -2px 4px rgba(255,255,255,0.2);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    font-weight:bold;
+    font-size:18px;
+  }
+  .c:hover{
+    box-shadow:0 0 5px rgba(255,255,255,0.5);
+  }
+  .c.abierta{
+    background:#fffae6;
+    color:#006400;
+    cursor:default;
+  }
+  .c.abierta .mined{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:red;
+  }
+  .c.bandera::before{
+    content:"🚩";
+    font-size:24px;
+  }
+  #estado{
+    margin-top:20px;
+    font-size:18px;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+/* Configurables */
+const GRID_SIZE = 5;
+const TILE_SIZE = 60; // px
+const MINE_POSITIONS = [6,12,18];
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+
+/* Helpers */
+function getCellIndex(row, col){ return row * GRID_SIZE + col; }
+function getNeighbors(index){
+  const row = Math.floor(index / GRID_SIZE);
+  const col = index % GRID_SIZE;
+  const neighbors = [];
+  for(let dr=-1; dr<=1; dr++){
+    for(let dc=-1; dc<=1; dc++){
+      if(dr===0 && dc===0) continue;
+      const nr = row + dr;
+      const nc = col + dc;
+      if(nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE){
+        neighbors.push(getCellIndex(nr,nc));
+      }
+    }
+  }
+  return neighbors;
+}
+
+/* Build grid */
+const gridEl = document.getElementById('grid');
+const cells = [];
+for(let i=0; i<TOTAL_CELLS; i++){
+  const div = document.createElement('div');
+  div.classList.add('c');
+  div.dataset.i = i;
+  div.dataset.mine = MINE_POSITIONS.includes(i) ? 'true' : 'false';
+  div.dataset.opened = 'false';
+  div.dataset.flagged = 'false';
+  cells.push(div);
+  gridEl.appendChild(div);
+}
+
+/* Precompute adjacent mine counts */
+cells.forEach((cell, idx)=>{
+  const neighbors = getNeighbors(idx);
+  let count = 0;
+  neighbors.forEach(nIdx=>{
+    if(MINE_POSITIONS.includes(nIdx)) count++;
+  });
+  cell.dataset.adj = count;
+});
+
+/* State element */
+const estadoEl = document.getElementById('estado');
+
+/* Event handlers */
+function openCell(cell){
+  if(cell.dataset.flagged === 'true' || cell.dataset.opened === 'true') return;
+  cell.dataset.opened = 'true';
+  cell.classList.add('abierta');
+  const adj = parseInt(cell.dataset.adj,10);
+  if(cell.dataset.mine === 'true'){
+    // Open mine
+    const span = document.createElement('span');
+    span.classList.add('mined');
+    cell.appendChild(span);
+    estadoEl.textContent = 'perdiste';
+    return;
+  }
+  if(adj > 0){
+    cell.textContent = adj;
+  } else {
+    // Cascade
+    cascade(cell);
+  }
+}
+
+function cascade(startCell){
+  const queue = [startCell];
+  while(queue.length){
+    const current = queue.shift();
+    const idx = parseInt(current.dataset.i,10);
+    const neighbors = getNeighbors(idx);
+    neighbors.forEach(nIdx=>{
+      const neighbor = cells[nIdx];
+      if(neighbor.dataset.opened === 'true' || neighbor.dataset.flagged === 'true' || neighbor.dataset.mine === 'true') return;
+      neighbor.dataset.opened = 'true';
+      neighbor.classList.add('abierta');
+      const adj = parseInt(neighbor.dataset.adj,10);
+      if(adj > 0){
+        neighbor.textContent = adj;
+      } else {
+        queue.push(neighbor);
+      }
+    });
+  }
+}
+
+function toggleFlag(cell){
+  if(cell.dataset.opened === 'true') return;
+  if(cell.dataset.flagged === 'true'){
+    cell.dataset.flagged = 'false';
+    cell.classList.remove('bandera');
+  } else {
+    cell.dataset.flagged = 'true';
+    cell.classList.add('bandera');
+  }
+}
+
+/* Attach listeners */
+cells.forEach(cell=>{
+  cell.addEventListener('click', ()=>openCell(cell));
+  cell.addEventListener('contextmenu', (e)=>{
+    e.preventDefault();
+    toggleFlag(cell);
+  });
+});
+</script>
+</body>
+</html>

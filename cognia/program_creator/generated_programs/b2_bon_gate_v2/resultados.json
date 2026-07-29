@@ -1,0 +1,2525 @@
+{
+  "ensayos": [
+    {
+      "tarea": "carrito_stock",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:01:29",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 103.6
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:02:37",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 75.7
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:04:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 21,
+            "segundos": 72.7
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:05:55",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.4
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-28T23:05:55",
+        "via": "create_program",
+        "url": null,
+        "puerto": null,
+        "modelo": null,
+        "degradado": true,
+        "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "3": {
+          "aprobado": false,
+          "checks_ok": 18,
+          "checks": 19,
+          "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        },
+        "4": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 372.2
+    },
+    {
+      "tarea": "kanban",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 2,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:06:16",
+              "via": "create_program",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "segundos": 102.0
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:08:52",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 69.5
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:10:09",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 78.3
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:12:05",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.3
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 2,
+      "backend": {
+        "t": "2026-07-28T23:12:05",
+        "via": "create_program",
+        "url": null,
+        "puerto": null,
+        "modelo": null,
+        "degradado": true,
+        "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 365.0
+    },
+    {
+      "tarea": "buscaminas",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 3,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:14:00",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.3
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:14:49",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 60.8
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:16:36",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 104.9
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:17:29",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 54.5
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 3,
+      "backend": {
+        "t": "2026-07-28T23:17:29",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 20,
+          "checks": 20,
+          "motivo": "20/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 342.7
+    },
+    {
+      "tarea": "hoja_calculo",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:18:51",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 29,
+            "segundos": 64.2
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:20:07",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 26,
+            "segundos": 78.2
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:21:22",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 24,
+            "segundos": 81.8
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:23:21",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 28,
+            "segundos": 113.5
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-28T23:23:21",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 27,
+          "checks": 28,
+          "motivo": "27/28 checks OK (24/24 del contrato)"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 24,
+          "checks": 28,
+          "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '1"
+        },
+        "3": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13"
+        },
+        "4": {
+          "aprobado": false,
+          "checks_ok": 26,
+          "checks": 28,
+          "motivo": "falla critica: REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True"
+        }
+      },
+      "segundos": 382.3
+    },
+    {
+      "tarea": "kanban",
+      "rep": 2,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:24:55",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 44.3
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:25:57",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 62.1
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:26:47",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 56.7
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:28:17",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 83.4
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-28T23:28:17",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 270.5
+    },
+    {
+      "tarea": "buscaminas",
+      "rep": 2,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:29:50",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 70.6
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:31:30",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 98.5
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:32:25",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 59.8
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:33:51",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 82.2
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-28T23:33:51",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 18,
+          "checks": 20,
+          "motivo": "18/20 checks OK (15/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 341.4
+    },
+    {
+      "tarea": "hoja_calculo",
+      "rep": 2,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 3,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:35:25",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 24,
+            "segundos": 66.2
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:36:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 26,
+            "segundos": 39.9
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:37:28",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 29,
+            "segundos": 83.5
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:38:35",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 29,
+            "segundos": 67.1
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 3,
+      "backend": {
+        "t": "2026-07-28T23:38:35",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='CIRC', esperaba '8'); C1 = B1+A1 = 13 (js='CI"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 25,
+          "checks": 28,
+          "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '1"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 27,
+          "checks": 28,
+          "motivo": "27/28 checks OK (24/24 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 27,
+          "checks": 28,
+          "motivo": "27/28 checks OK (24/24 del contrato)"
+        }
+      },
+      "segundos": 301.3
+    },
+    {
+      "tarea": "carrito_stock",
+      "rep": 2,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 2,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:40:47",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 22,
+            "segundos": 84.2
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:42:04",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 73.2
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:43:12",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 71.1
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:44:31",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 21,
+            "segundos": 80.0
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 2,
+      "backend": {
+        "t": "2026-07-28T23:44:31",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "4": {
+          "aprobado": false,
+          "checks_ok": 18,
+          "checks": 19,
+          "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        }
+      },
+      "segundos": 330.7
+    },
+    {
+      "tarea": "buscaminas",
+      "rep": 3,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:46:11",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 79.9
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:48:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 111.2
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:49:10",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 64.0
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:50:30",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 81.8
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-28T23:50:30",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 362.8
+    },
+    {
+      "tarea": "hoja_calculo",
+      "rep": 3,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 3,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:52:51",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 102.9
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T23:54:14",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 27,
+            "segundos": 95.6
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T23:55:17",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 29,
+            "segundos": 65.6
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T23:57:16",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.2
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 3,
+      "backend": {
+        "t": "2026-07-28T23:57:16",
+        "via": "create_program",
+        "url": null,
+        "puerto": null,
+        "modelo": null,
+        "degradado": true,
+        "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 25,
+          "checks": 28,
+          "motivo": "falla critica: C1 = B1+A1 = 13 (js='CIRC', esperaba '13'); CASCADA en 2 saltos: "
+        },
+        "3": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='CIRC', esperaba '8'); C1 = B1+A1 = 13 (js='CI"
+        },
+        "4": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 389.5
+    },
+    {
+      "tarea": "carrito_stock",
+      "rep": 3,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 3,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T23:59:21",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.1
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:00:10",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 21,
+            "segundos": 74.8
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:01:58",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 89.8
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:03:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 21,
+            "segundos": 85.3
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 3,
+      "backend": {
+        "t": "2026-07-29T00:03:05",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 18,
+          "checks": 19,
+          "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "4": {
+          "aprobado": false,
+          "checks_ok": 18,
+          "checks": 19,
+          "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        }
+      },
+      "segundos": 369.7
+    },
+    {
+      "tarea": "kanban",
+      "rep": 3,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:04:40",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 67.2
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:05:37",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 55.6
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:06:30",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 48.9
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:07:10",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 39.3
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-29T00:07:10",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 17,
+          "checks": 20,
+          "motivo": "17/20 checks OK (14/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 244.2
+    },
+    {
+      "tarea": "hoja_calculo",
+      "rep": 4,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 2,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:09:06",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 24,
+            "segundos": 89.9
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:10:09",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 29,
+            "segundos": 62.3
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:11:56",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 24,
+            "segundos": 107.6
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:12:43",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 22,
+            "segundos": 46.8
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 2,
+      "backend": {
+        "t": "2026-07-29T00:12:43",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 27,
+          "checks": 28,
+          "motivo": "27/28 checks OK (24/24 del contrato)"
+        },
+        "3": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13"
+        },
+        "4": {
+          "aprobado": false,
+          "checks_ok": 21,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='"
+        }
+      },
+      "segundos": 351.1
+    },
+    {
+      "tarea": "carrito_stock",
+      "rep": 4,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 2,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:14:57",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 21,
+            "segundos": 87.2
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:16:07",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 67.2
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:17:21",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 76.7
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:18:35",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 67.4
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 2,
+      "backend": {
+        "t": "2026-07-29T00:18:35",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "checks_ok": 18,
+          "checks": 19,
+          "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        }
+      },
+      "segundos": 320.9
+    },
+    {
+      "tarea": "kanban",
+      "rep": 4,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:19:58",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 69.7
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:21:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 15,
+            "segundos": 57.7
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:22:24",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 85.1
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:23:19",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 54.5
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-29T00:23:19",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 11,
+          "checks": 20,
+          "motivo": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 17,
+          "checks": 20,
+          "motivo": "17/20 checks OK (14/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 300.0
+    },
+    {
+      "tarea": "buscaminas",
+      "rep": 4,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:24:49",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 56.0
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:25:44",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 55.4
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:26:42",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 17,
+            "segundos": 57.5
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:27:41",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 60.1
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-29T00:27:41",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 253.7
+    },
+    {
+      "tarea": "carrito_stock",
+      "rep": 5,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 3,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:30:01",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.3
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:31:44",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.2
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:32:31",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 68.1
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:33:48",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 68.0
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 3,
+      "backend": {
+        "t": "2026-07-29T00:33:48",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        }
+      },
+      "segundos": 353.7
+    },
+    {
+      "tarea": "kanban",
+      "rep": 5,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 2,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:35:10",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 11,
+            "segundos": 71.5
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:36:35",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 82.9
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:37:25",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 16,
+            "segundos": 49.4
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:38:15",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 51.4
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 2,
+      "backend": {
+        "t": "2026-07-29T00:38:15",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "checks_ok": 8,
+          "checks": 20,
+          "motivo": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": false,
+          "checks_ok": 16,
+          "checks": 20,
+          "motivo": "falla critica: t1 llega a done (js=0, esperaba 1); en done ya no avanza mas (js="
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 17,
+          "checks": 20,
+          "motivo": "17/20 checks OK (14/16 del contrato)"
+        }
+      },
+      "segundos": 287.0
+    },
+    {
+      "tarea": "buscaminas",
+      "rep": 5,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:39:39",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 53.1
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:41:09",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 90.0
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:42:21",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 77.0
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:43:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 20,
+            "segundos": 37.5
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-29T00:43:05",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 282.7
+    },
+    {
+      "tarea": "hoja_calculo",
+      "rep": 5,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 3,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:44:25",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 25,
+            "segundos": 59.0
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:45:57",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 24,
+            "segundos": 92.1
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:47:31",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 29,
+            "segundos": 93.7
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:48:34",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 28,
+            "segundos": 63.2
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 3,
+      "backend": {
+        "t": "2026-07-29T00:48:34",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 27,
+          "checks": 28,
+          "motivo": "27/28 checks OK (24/24 del contrato)"
+        },
+        "4": {
+          "aprobado": false,
+          "checks_ok": 26,
+          "checks": 28,
+          "motivo": "falla critica: REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True"
+        }
+      },
+      "segundos": 352.5
+    },
+    {
+      "tarea": "kanban",
+      "rep": 6,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:50:30",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 69.3
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:51:23",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 54.1
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:52:43",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 80.9
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:53:34",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 47.4
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-29T00:53:34",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 275.7
+    },
+    {
+      "tarea": "buscaminas",
+      "rep": 6,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T00:55:02",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 66.4
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T00:56:15",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 72.9
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T00:57:18",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 61.3
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T00:58:31",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 74.2
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-29T00:58:31",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        }
+      },
+      "segundos": 301.4
+    },
+    {
+      "tarea": "hoja_calculo",
+      "rep": 6,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 3,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T01:00:34",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 26,
+            "segundos": 98.3
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T01:01:45",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 27,
+            "segundos": 71.3
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T01:02:58",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 30,
+            "segundos": 72.6
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T01:04:10",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 24,
+            "segundos": 67.9
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 3,
+      "backend": {
+        "t": "2026-07-29T01:04:10",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 28,
+          "checks": 28,
+          "motivo": "28/28 checks OK (24/24 del contrato)"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 25,
+          "checks": 28,
+          "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '1"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 28,
+          "checks": 28,
+          "motivo": "28/28 checks OK (24/24 del contrato)"
+        },
+        "4": {
+          "aprobado": false,
+          "checks_ok": 23,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='CIRC', esperaba '8'); C1 = B1+A1 = 13 (js='CI"
+        }
+      },
+      "segundos": 354.7
+    },
+    {
+      "tarea": "carrito_stock",
+      "rep": 6,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-29T01:06:49",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 115.2
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-29T01:07:58",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 68.3
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-29T01:08:57",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 60.7
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-29T01:10:52",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 103.1
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-29T01:10:52",
+        "via": "create_program",
+        "url": null,
+        "puerto": null,
+        "modelo": null,
+        "degradado": true,
+        "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "3": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "4": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 364.1
+    }
+  ],
+  "config": {
+    "replicas": 6,
+    "muestras_por_ensayo": 4,
+    "commit": "ea615cc",
+    "commits": [
+      "ea615cc"
+    ],
+    "max_rondas_defecto": 1,
+    "backend": {
+      "url": "http://127.0.0.1:8080",
+      "modelo": "gpt-oss-20b-MXFP4.gguf",
+      "puerto": 8080,
+      "avisos": []
+    },
+    "ollama_fallback_neutralizado": "NO-EXISTE-BON-GATE",
+    "nota": "modo de PRODUCCION bon.construir_bon; selector=held-out; estricto=original∧held-out; control=s1 del ensayo; sin fallback create_program ni semillas (prereg BON_GATE)"
+  },
+  "resumen": {
+    "ensayos_validos": 20,
+    "excluidos_infra": [
+      "buscaminas:r1",
+      "hoja_calculo:r3",
+      "carrito_stock:r3",
+      "carrito_stock:r5"
+    ],
+    "incompletos": [],
+    "control": "12/20",
+    "modo": "20/20",
+    "neto_b": 8,
+    "fallos_control": 8,
+    "techo": "20/20",
+    "neto_a": 8,
+    "perdida_c": 0,
+    "gana": [
+      "kanban:r1",
+      "hoja_calculo:r2",
+      "carrito_stock:r2",
+      "hoja_calculo:r4",
+      "carrito_stock:r4",
+      "kanban:r5",
+      "hoja_calculo:r5",
+      "hoja_calculo:r6"
+    ],
+    "pierde": [],
+    "muestras_sin_html": 1,
+    "muestras_infra": 3,
+    "fp_contrato_original": {
+      "carrito_stock": 1,
+      "buscaminas": 2,
+      "hoja_calculo": 1
+    }
+  }
+}

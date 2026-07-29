@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    margin:0;display:flex;align-items:center;justify-content:center;
+    min-height:100vh;background:#e0e0e0;font-family:sans-serif;
+  }
+  #grid{
+    display:grid;grid-template-columns:repeat(5,1fr);gap:2px;
+    width:320px;max-width:90vw;
+  }
+  .c{
+    position:relative;width:100%;padding-top:100%; /* square */
+    background:linear-gradient(135deg,#f8f8f8,#e0e0e0);
+    border:1px solid #555;box-sizing:border-box;
+    cursor:pointer;user-select:none;
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.2rem;color:#333;
+  }
+  .c.abierta{
+    background:#fff;border:1px solid #aaa;cursor:default;
+  }
+  .c.bandera{
+    color:#c00;
+  }
+  #estado{
+    margin-top:10px;font-size:1.1rem;color:#c00;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+(()=>{
+  const mines=[6,12,18];
+  const size=5;
+  const grid=document.getElementById('grid');
+  const estado=document.getElementById('estado');
+  const cells=[];
+  const counts=new Array(25).fill(0);
+  const opened=new Array(25).fill(false);
+  const flagged=new Array(25).fill(false);
+  let gameOver=false;
+
+  // precompute counts
+  for(let i=0;i<25;i++){
+    let r=Math.floor(i/size),c=i%size;
+    let cnt=0;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        let nr=r+dr,nc=c+dc;
+        if(nr<0||nr>=size||nc<0||nc>=size)continue;
+        let idx=nr*size+nc;
+        if(mines.includes(idx))cnt++;
+      }
+    }
+    counts[i]=cnt;
+  }
+
+  // create cells
+  for(let i=0;i<25;i++){
+    const div=document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    div.dataset.count=counts[i];
+    div.addEventListener('click',e=>handleClick(i));
+    div.addEventListener('contextmenu',e=>handleRight(i));
+    grid.appendChild(div);
+    cells.push(div);
+  }
+
+  function handleClick(i){
+    if(gameOver||opened[i]||flagged[i])return;
+    if(mines.includes(i)){
+      revealMine(i);
+      estado.textContent='perdiste';
+      gameOver=true;
+      return;
+    }
+    openCell(i);
+    if(counts[i]===0)cascade(i);
+  }
+
+  function handleRight(i){
+    e.preventDefault();
+    if(gameOver||opened[i])return;
+    flagged[i]=!flagged[i];
+    const cell=cells[i];
+    if(flagged[i]){
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }else{
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }
+  }
+
+  function openCell(i){
+    if(opened[i])return;
+    opened[i]=true;
+    const cell=cells[i];
+    cell.classList.add('abierta');
+    const cnt=counts[i];
+    if(cnt>0){
+      cell.textContent=cnt;
+      cell.style.fontSize=(1.2+cnt*0.1)+'rem';
+    }
+  }
+
+  function cascade(start){
+    const queue=[start];
+    while(queue.length){
+      const idx=queue.shift();
+      let r=Math.floor(idx/size),c=idx%size;
+      for(let dr=-1;dr<=1;dr++){
+        for(let dc=-1;dc<=1;dc++){
+          if(dr===0&&dc===0)continue;
+          let nr=r+dr,nc=c+dc;
+          if(nr<0||nr>=size||nc<0||nc>=size)continue;
+          let nIdx=nr*size+nc;
+          if(opened[nIdx]||flagged[nIdx]||mines.includes(nIdx))continue;
+          openCell(nIdx);
+          if(counts[nIdx]===0)queue.push(nIdx);
+        }
+      }
+    }
+  }
+
+  function revealMine(i){
+    const cell=cells[i];
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+  }
+})();
+</script>
+</body>
+</html>

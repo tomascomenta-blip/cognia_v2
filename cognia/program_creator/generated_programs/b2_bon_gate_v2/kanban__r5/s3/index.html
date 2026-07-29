@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Board Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #board{
+    display:flex;
+    gap:20px;
+    width:100%;
+    max-width:900px;
+    padding:20px;
+    box-sizing:border-box;
+  }
+  .col{
+    background:#fff;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    border-radius:8px;
+    padding:10px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    min-width:200px;
+  }
+  .col h3{
+    margin:0 0 10px 0;
+    font-size:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .col h3 span{
+    font-size:14px;
+    color:#555;
+  }
+  .card{
+    background:#fafafa;
+    border:1px solid #ddd;
+    border-radius:4px;
+    padding:10px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .card-id{
+    font-weight:bold;
+  }
+  .btns{
+    position:absolute;
+    bottom:10px;
+    right:10px;
+    display:flex;
+    gap:5px;
+  }
+  .btns button{
+    width:24px;
+    height:24px;
+    border-radius:50%;
+    border:none;
+    background:#008080;
+    color:#fff;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  @media (max-width:600px){
+    #board{
+      flex-direction:column;
+      align-items:center;
+    }
+    .col{
+      width:90%;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="board"></div>
+<script>
+  // Constants
+  const columns = ['todo','doing','done'];
+  const maxDoing = 2;
+  const initialCards = ['t1','t2','t3'];
+
+  // Create board
+  const board = document.getElementById('board');
+  const colElements = {};
+
+  columns.forEach(colName => {
+    const col = document.createElement('div');
+    col.className = 'col';
+    col.dataset.col = colName;
+    const header = document.createElement('h3');
+    header.textContent = colName.charAt(0).toUpperCase() + colName.slice(1);
+    const counter = document.createElement('span');
+    counter.id = 'cont-' + colName;
+    header.appendChild(counter);
+    col.appendChild(header);
+    board.appendChild(col);
+    colElements[colName] = col;
+  });
+
+  // Helper to create a card
+  function createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    const idSpan = document.createElement('span');
+    idSpan.className = 'card-id';
+    idSpan.textContent = id;
+    card.appendChild(idSpan);
+
+    const btns = document.createElement('div');
+    btns.className = 'btns';
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '+';
+    btnMas.addEventListener('click', () => moveCard(card, 1));
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '-';
+    btnMenos.addEventListener('click', () => moveCard(card, -1));
+
+    btns.appendChild(btnMas);
+    btns.appendChild(btnMenos);
+    card.appendChild(btns);
+
+    return card;
+  }
+
+  // Add initial cards to 'todo'
+  const todoCol = colElements['todo'];
+  initialCards.forEach(id => {
+    const card = createCard(id);
+    todoCol.appendChild(card);
+  });
+
+  // Move card function
+  function moveCard(card, delta) {
+    const currentCol = card.parentElement;
+    const currentIdx = columns.indexOf(currentCol.dataset.col);
+    const targetIdx = currentIdx + delta;
+    if (targetIdx < 0 || targetIdx >= columns.length) return; // out of bounds
+
+    const targetColName = columns[targetIdx];
+    const targetCol = colElements[targetColName];
+
+    // WIP rule: max 2 cards in 'doing'
+    if (targetColName === 'doing' && targetCol.querySelectorAll('.card').length >= maxDoing) {
+      return;
+    }
+
+    // Prevent moving beyond bounds
+    if (targetColName === 'done' && delta > 0) {
+      // already at done, cannot move right
+      return;
+    }
+    if (targetColName === 'todo' && delta < 0) {
+      // already at todo, cannot move left
+      return;
+    }
+
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+
+  // Update counters
+  function updateCounters() {
+    columns.forEach(colName => {
+      const col = colElements[colName];
+      const count = col.querySelectorAll('.card').length;
+      document.getElementById('cont-' + colName).textContent = count;
+    });
+  }
+
+  // Initial counter update
+  updateCounters();
+</script>
+</body>
+</html>

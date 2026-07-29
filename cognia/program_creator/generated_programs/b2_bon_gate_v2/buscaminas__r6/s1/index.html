@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#e0e0e0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #top{margin-top:20px;}
+  #top h1{margin:0;font-size:2rem;color:#333;}
+  #grid{
+    display:flex;
+    flex-wrap:wrap;
+    width:400px;
+    margin-top:20px;
+  }
+  .c{
+    width:80px;height:80px;
+    border:1px solid #999;
+    box-sizing:border-box;
+    background:#d0d0d0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+    position:relative;
+  }
+  .c.abierta{background:#c0e8ff;cursor:default;}
+  .c.abierta span{font-weight:bold;color:#000;}
+  .c.bandera::before{content:"🚩";font-size:1.5rem;}
+  .c.mina::before{content:"✖";color:red;font-size:1.5rem;}
+  #bottom{margin-top:20px;}
+  #reset{padding:10px 20px;font-size:1rem;cursor:pointer;}
+  #estado{margin-top:10px;font-size:1.2rem;color:#900;}
+  @media (max-width:420px){
+    #grid{width:100%;}
+    .c{width:calc(20% - 2px);height:calc(20% - 2px);}
+  }
+</style>
+</head>
+<body>
+<div id="top"><h1>Minesweeper</h1></div>
+<div id="grid"></div>
+<div id="bottom"><button id="reset">Reset</button></div>
+<div id="estado"></div>
+<script>
+const GRID_SIZE=5;
+const TOTAL_CELLS=GRID_SIZE*GRID_SIZE;
+const MINE_POSITIONS=[6,12,18];
+let gameOver=false;
+let openedCount=0;
+let cells=[];
+let mineMap={};
+let adjCountMap={};
+
+function init(){
+  gameOver=false;
+  openedCount=0;
+  cells=[];
+  mineMap={};
+  adjCountMap={};
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  for(let i=0;i<TOTAL_CELLS;i++){
+    const cell=document.createElement('div');
+    cell.classList.add('c');
+    cell.dataset.i=i;
+    if(MINE_POSITIONS.includes(i)) mineMap[i]=true;
+    cells.push(cell);
+    grid.appendChild(cell);
+  }
+  computeAdjCounts();
+  attachEvents();
+  document.getElementById('estado').textContent='';
+}
+function computeAdjCounts(){
+  for(let i=0;i<TOTAL_CELLS;i++){
+    if(mineMap[i]){adjCountMap[i]=-1;continue;}
+    let count=0;
+    getNeighbors(i).forEach(n=>{if(mineMap[n])count++;});
+    adjCountMap[i]=count;
+  }
+}
+function getNeighbors(idx){
+  const neighbors=[];
+  const r=Math.floor(idx/GRID_SIZE),c=idx%GRID_SIZE;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<GRID_SIZE&&nc>=0&&nc<GRID_SIZE){
+        neighbors.push(nr*GRID_SIZE+nc);
+      }
+    }
+  }
+  return neighbors;
+}
+function attachEvents(){
+  cells.forEach(cell=>{
+    cell.addEventListener('click',e=>onCellClick(e,cell));
+    cell.addEventListener('contextmenu',e=>onCellRightClick(e,cell));
+  });
+  document.getElementById('reset').addEventListener('click',init);
+}
+function onCellClick(e,cell){
+  if(gameOver)return;
+  const i=parseInt(cell.dataset.i);
+  if(cell.classList.contains('bandera'))return;
+  if(cell.classList.contains('abierta'))return;
+  if(mineMap[i]){
+    openMine(cell);
+    gameOver=true;
+    document.getElementById('estado').textContent='perdiste';
+  }else{
+    openCell(i);
+  }
+}
+function onCellRightClick(e,cell){
+  e.preventDefault();
+  if(gameOver)return;
+  if(cell.classList.contains('abierta'))return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+  }else{
+    cell.classList.add('bandera');
+  }
+}
+function openMine(cell){
+  cell.classList.add('abierta','mina');
+}
+function openCell(idx){
+  const cell=cells[idx];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera')||mineMap[idx])return;
+  cell.classList.add('abierta');
+  const count=adjCountMap[idx];
+  if(count>0){
+    cell.textContent=count;
+  }else{
+    cell.textContent='';
+    openNeighbors(idx);
+  }
+  openedCount++;
+  checkWin();
+}
+function openNeighbors(idx){
+  getNeighbors(idx).forEach(n=>{
+    const cell=cells[n];
+    if(!cell.classList.contains('abierta')&&!cell.classList.contains('bandera')&&!mineMap[n]){
+      openCell(n);
+    }
+  });
+}
+function checkWin(){
+  if(openedCount===TOTAL_CELLS-MINE_POSITIONS.length){
+    document.getElementById('estado').textContent='¡Ganaste!';
+    gameOver=true;
+  }
+}
+init();
+</script>
+</body>
+</html>

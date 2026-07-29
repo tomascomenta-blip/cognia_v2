@@ -1,0 +1,85 @@
+{
+  "ensayos": [
+    {
+      "tarea": "kanban",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 2,
+        "elegida_s": 1,
+        "muestras": [
+          {
+            "s": 1,
+            "aprobado_sel": false,
+            "checks_ok_sel": 18,
+            "segundos": 42.9
+          },
+          {
+            "s": 2,
+            "segundos": 57.1
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 1,
+      "backend": {
+        "t": "2026-07-28T22:26:53",
+        "via": "create_program",
+        "url": null,
+        "puerto": null,
+        "modelo": null,
+        "degradado": true,
+        "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "checks_ok": 15,
+          "checks": 20,
+          "motivo": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: t3"
+        },
+        "2": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 106.0
+    }
+  ],
+  "config": {
+    "replicas": 1,
+    "muestras_por_ensayo": 2,
+    "commit": "95b631b",
+    "commits": [
+      "95b631b"
+    ],
+    "max_rondas_defecto": 1,
+    "backend": {
+      "url": "http://127.0.0.1:8080",
+      "modelo": "gpt-oss-20b-MXFP4.gguf",
+      "puerto": 8080,
+      "avisos": []
+    },
+    "ollama_fallback_neutralizado": "NO-EXISTE-BON-GATE",
+    "nota": "modo de PRODUCCION bon.construir_bon; selector=held-out; estricto=original∧held-out; control=s1 del ensayo; sin fallback create_program ni semillas (prereg BON_GATE)"
+  },
+  "resumen": {
+    "ensayos_validos": 0,
+    "excluidos_infra": [
+      "kanban:r1"
+    ],
+    "incompletos": [],
+    "control": "0/0",
+    "modo": "0/0",
+    "neto_b": 0,
+    "fallos_control": 0,
+    "techo": "0/0",
+    "neto_a": 0,
+    "perdida_c": 0,
+    "gana": [],
+    "pierde": [],
+    "muestras_sin_html": 0,
+    "crashes_replica": 0,
+    "fp_contrato_original": {}
+  }
+}

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Board</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f5f5;
+    color:#333;
+  }
+  .board{
+    display:flex;
+    flex-wrap:wrap;
+    padding:20px;
+    gap:20px;
+    justify-content:space-between;
+  }
+  .col{
+    flex:1;
+    min-width:250px;
+    background:#e0f2f1;
+    border-radius:8px;
+    padding:10px;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    max-height:80vh;
+    overflow-y:auto;
+  }
+  .col h2{
+    margin:0 0 10px 0;
+    font-size:1.2em;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .col h2 span{
+    font-size:0.8em;
+    background:#b2dfdb;
+    color:#004d40;
+    padding:2px 6px;
+    border-radius:12px;
+  }
+  .card{
+    background:#fff;
+    border-radius:6px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    padding:8px 10px;
+    margin-bottom:8px;
+    display:flex;
+    align-items:center;
+  }
+  .card button{
+    width:24px;
+    height:24px;
+    border:none;
+    border-radius:50%;
+    background:#00897b;
+    color:#fff;
+    cursor:pointer;
+    margin-right:6px;
+    font-weight:bold;
+    line-height:1;
+  }
+  .card button:hover{
+    background:#00695c;
+  }
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+  </div>
+</div>
+
+<script>
+(function(){
+  const cols = Array.from(document.querySelectorAll('.col'));
+  const colNames = cols.map(c=>c.dataset.col);
+  const maxDoing = 2;
+
+  // Create initial cards
+  const initialIds = ['t1','t2','t3'];
+  const todoCol = cols.find(c=>c.dataset.col==='todo');
+  initialIds.forEach(id=>{
+    const card = createCard(id);
+    todoCol.appendChild(card);
+  });
+
+  updateCounters();
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className='card';
+    card.dataset.id=id;
+    const minus = document.createElement('button');
+    minus.className='menos';
+    minus.textContent='-';
+    const plus = document.createElement('button');
+    plus.className='mas';
+    plus.textContent='+';
+    const text = document.createTextNode(id);
+    card.appendChild(minus);
+    card.appendChild(plus);
+    card.appendChild(text);
+    minus.addEventListener('click',()=>moveCard(card,-1));
+    plus.addEventListener('click',()=>moveCard(card,1));
+    return card;
+  }
+
+  function moveCard(card, dir){
+    const currentCol = card.parentElement;
+    const currentIdx = colNames.indexOf(currentCol.dataset.col);
+    const newIdx = currentIdx + dir;
+    if(newIdx<0 || newIdx>=colNames.length) return; // out of bounds
+    const targetCol = cols[newIdx];
+    // WIP rule: doing max 2
+    if(targetCol.dataset.col==='doing' && targetCol.children.length>=maxDoing) return;
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+
+  function updateCounters(){
+    cols.forEach(col=>{
+      const count = col.querySelectorAll('.card').length;
+      const span = document.getElementById(`cont-${col.dataset.col}`);
+      if(span) span.textContent = count;
+    });
+  }
+})();
+</script>
+</body>
+</html>

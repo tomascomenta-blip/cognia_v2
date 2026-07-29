@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0; padding:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    min-height:100vh;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+    margin:20px auto;
+  }
+  .c{
+    background:#d3d3d3;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    color:#00008b;
+    cursor:pointer;
+    user-select:none;
+    aspect-ratio:1/1;
+    transition:background .2s;
+  }
+  .c.abierta{
+    background:#fff;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ffeb3b;
+  }
+  .c.mined{
+    background:#555;
+    color:#ff0000;
+  }
+  .c .bomb{
+    font-size:1.5rem;
+    color:#ff0000;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    color:#a00;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+(() => {
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const mines = [6,12,18];
+  const total = 25;
+  const opened = Array(total).fill(false);
+  const flagged = Array(total).fill(false);
+  const counts = Array(total).fill(0);
+  const gameOver = {value:false};
+
+  // Precompute adjacent mine counts
+  for (let i=0;i<total;i++){
+    if (mines.includes(i)) continue;
+    let r = Math.floor(i/5), c = i%5;
+    let cnt=0;
+    for (let dr=-1;dr<=1;dr++){
+      for (let dc=-1;dc<=1;dc++){
+        if (dr===0 && dc===0) continue;
+        let nr=r+dr, nc=c+dc;
+        if (nr<0||nr>4||nc<0||nc>4) continue;
+        let ni=nr*5+nc;
+        if (mines.includes(ni)) cnt++;
+      }
+    }
+    counts[i]=cnt;
+  }
+
+  // Create cells
+  for (let i=0;i<total;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    grid.appendChild(div);
+  }
+
+  // Helper to open a cell
+  function openCell(i){
+    if (opened[i] || flagged[i] || gameOver.value) return;
+    opened[i] = true;
+    const cell = grid.children[i];
+    cell.classList.add('abierta');
+    if (mines.includes(i)){
+      cell.classList.add('mined');
+      cell.innerHTML = '<span class="bomb">💣</span>';
+      estado.textContent = 'perdiste';
+      gameOver.value = true;
+      return;
+    }
+    if (counts[i]>0){
+      cell.textContent = counts[i];
+    } else {
+      // cascade open neighbors with 0
+      const stack=[i];
+      while(stack.length){
+        const cur=stack.pop();
+        const r=Math.floor(cur/5), c=cur%5;
+        for (let dr=-1;dr<=1;dr++){
+          for (let dc=-1;dc<=1;dc++){
+            if (dr===0 && dc===0) continue;
+            let nr=r+dr, nc=c+dc;
+            if (nr<0||nr>4||nc<0||nc>4) continue;
+            let ni=nr*5+nc;
+            if (opened[ni] || flagged[ni] || mines.includes(ni)) continue;
+            opened[ni]=true;
+            const ncell=grid.children[ni];
+            ncell.classList.add('abierta');
+            if (counts[ni]>0){
+              ncell.textContent = counts[ni];
+            } else {
+              stack.push(ni);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Event listeners
+  grid.addEventListener('click', e=>{
+    const target = e.target.closest('.c');
+    if (!target) return;
+    const i = +target.dataset.i;
+    if (flagged[i] || gameOver.value) return;
+    openCell(i);
+  });
+
+  grid.addEventListener('contextmenu', e=>{
+    e.preventDefault();
+    const target = e.target.closest('.c');
+    if (!target) return;
+    const i = +target.dataset.i;
+    if (opened[i] || gameOver.value) return;
+    if (flagged[i]){
+      flagged[i]=false;
+      target.classList.remove('bandera');
+    } else {
+      flagged[i]=true;
+      target.classList.add('bandera');
+    }
+  });
+})();
+</script>
+</body>
+</html>

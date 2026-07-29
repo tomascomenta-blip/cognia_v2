@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#1e1e1e;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    gap:10px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:320px;
+  }
+  .c{
+    aspect-ratio:1;
+    background:#1e1e1e;
+    border:1px solid #444;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    color:#00c4a7;
+    cursor:pointer;
+    user-select:none;
+    box-shadow:0 1px 2px rgba(0,0,0,.5);
+  }
+  .c.abierta{
+    background:#f0f0f0;
+    color:#000;
+    cursor:default;
+    box-shadow:none;
+  }
+  .c.bandera{
+    color:#c0392b;
+  }
+  #estado{
+    font-weight:bold;
+    font-size:1.2rem;
+    color:#c0392b;
+  }
+  #reset{
+    background:#00c4a7;
+    color:#fff;
+    border:none;
+    padding:8px 12px;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:1rem;
+    transition:background .2s;
+  }
+  #reset:hover{background:#009e8c;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<button id="reset">Reiniciar</button>
+
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // posiciones fijas
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const resetBtn = document.getElementById('reset');
+  let gameOver = false;
+
+  // Crear las 25 celdas
+  const cells = [];
+  for(let i=0;i<25;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i = i;
+    div.dataset.mine = mines.has(i) ? 'true' : 'false';
+    grid.appendChild(div);
+    cells.push(div);
+  }
+
+  // Pre‑calcular conteo de minas adyacentes
+  const dirs = [-1,0,1];
+  function getNeighbors(idx){
+    const r = Math.floor(idx/5), c = idx%5;
+    const neigh = [];
+    for(let dr of dirs){
+      for(let dc of dirs){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neigh.push(nr*5+nc);
+        }
+      }
+    }
+    return neigh;
+  }
+  const counts = [];
+  for(let i=0;i<25;i++){
+    const neigh = getNeighbors(i);
+    let cnt=0;
+    for(let n of neigh) if(mines.has(n)) cnt++;
+    counts[i]=cnt;
+    cells[i].dataset.count = cnt;
+  }
+
+  // Función que abre una celda sin cascada
+  function openCellSimple(idx){
+    const cell = cells[idx];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    if(mines.has(idx)){
+      cell.textContent = '💣';
+      cell.style.color = '#c0392b';
+      estado.textContent = 'perdiste';
+      gameOver = true;
+      revealAllMines();
+      return;
+    }
+    const cnt = counts[idx];
+    if(cnt>0){
+      cell.textContent = cnt;
+      cell.style.color = '#00c4a7';
+    }else{
+      cell.textContent = '';
+    }
+  }
+
+  // Revelar todas las minas tras perder
+  function revealAllMines(){
+    for(let i=0;i<25;i++){
+      if(mines.has(i)){
+        const cell = cells[i];
+        if(!cell.classList.contains('abierta')){
+          cell.classList.add('abierta');
+          cell.textContent = '💣';
+          cell.style.color = '#c0392b';
+        }
+      }
+    }
+  }
+
+  // Cascada de apertura cuando la celda tiene 0 minas adyacentes
+  function cascade(startIdx){
+    const queue=[startIdx];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      if(visited.has(idx)) continue;
+      visited.add(idx);
+      const cell=cells[idx];
+      if(cell.classList.contains('bandera')) continue;
+      openCellSimple(idx);
+      if(counts[idx]===0){
+        const neigh=getNeighbors(idx);
+        for(let n of neigh){
+          if(!visited.has(n)) queue.push(n);
+        }
+      }
+    }
+  }
+
+  // Manejo de click izquierdo
+  function handleLeft(e){
+    if(gameOver) return;
+    const idx=parseInt(e.currentTarget.dataset.i);
+    if(cells[idx].classList.contains('bandera')) return;
+    if(mines.has(idx)){
+      openCellSimple(idx);
+    }else{
+      cascade(idx);
+    }
+  }
+
+  // Manejo de click derecho (bandera)
+  function handleRight(e){
+    e.preventDefault();
+    if(gameOver) return;
+    const idx=parseInt(e.currentTarget.dataset.i);
+    const cell=cells[idx];
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+      cell.style.color='#c0392b';
+    }
+  }
+
+  // Asignar eventos a cada celda
+  cells.forEach(cell=>{
+    cell.addEventListener('click',handleLeft);
+    cell.addEventListener('contextmenu',handleRight);
+  });
+
+  // Reset
+  resetBtn.addEventListener('click',()=>{
+    cells.forEach(cell=>{
+      cell.classList.remove('abierta','bandera');
+      cell.textContent='';
+    });
+    estado.textContent='';
+    gameOver=false;
+  });
+})();
+</script>
+</body>
+</html>

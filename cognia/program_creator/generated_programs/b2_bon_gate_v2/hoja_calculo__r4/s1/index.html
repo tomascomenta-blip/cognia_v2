@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f2f5;
+    color:#333;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    max-width:400px;
+    width:100%;
+    padding:20px;
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  }
+  .cell{
+    position:relative;
+    background:#fafafa;
+    border:1px solid #ddd;
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .celda{
+    width:100%;
+    height:100%;
+    border:none;
+    background:none;
+    font-size:1rem;
+    text-align:right;
+    padding:8px 12px;
+    box-sizing:border-box;
+  }
+  .celda:focus{
+    outline:none;
+    border:1px solid #4a90e2;
+  }
+  .label{
+    position:absolute;
+    top:2px;
+    left:4px;
+    font-size:0.7rem;
+    color:#666;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="cell"><input class="celda" data-ref="A1" data-raw="5"><span class="label">A1</span></div>
+  <div class="cell"><input class="celda" data-ref="B1" data-raw="10"><span class="label">B1</span></div>
+  <div class="cell"><input class="celda" data-ref="C1" data-raw="15"><span class="label">C1</span></div>
+  <div class="cell"><input class="celda" data-ref="A2" data-raw="=A1+B1"><span class="label">A2</span></div>
+  <div class="cell"><input class="celda" data-ref="B2" data-raw="=A2+C1"><span class="label">B2</span></div>
+  <div class="cell"><input class="celda" data-ref="C2" data-raw="=B2-A1"><span class="label">C2</span></div>
+  <div class="cell"><input class="celda" data-ref="A3" data-raw="=C2+B1"><span class="label">A3</span></div>
+  <div class="cell"><input class="celda" data-ref="B3" data-raw="=A3-A2"><span class="label">B3</span></div>
+  <div class="cell"><input class="celda" data-ref="C3" data-raw="=B3+C1"><span class="label">C3</span></div>
+</div>
+<script>
+(() => {
+  const cells = {};
+  const inputs = document.querySelectorAll('.celda');
+  inputs.forEach(inp => {
+    const ref = inp.dataset.ref;
+    cells[ref] = inp;
+    inp.addEventListener('input', () => {
+      inp.dataset.raw = inp.value;
+      recomputeAll();
+    });
+  });
+  function recomputeAll() {
+    Object.keys(cells).forEach(ref => computeCell(ref, new Set()));
+  }
+  function computeCell(ref, visited) {
+    if (visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const inp = cells[ref];
+    const raw = inp.dataset.raw || '';
+    if (!raw.startsWith('=')) {
+      inp.value = raw;
+      return raw;
+    }
+    const expr = raw.slice(1);
+    const replaced = expr.replace(/[A-C][1-3]/g, match => {
+      const val = computeCell(match, new Set(visited));
+      if (val === 'CIRC') return 'CIRC';
+      const num = parseFloat(val);
+      return isNaN(num) ? '0' : num.toString();
+    });
+    if (replaced.includes('CIRC')) {
+      inp.value = 'CIRC';
+      return 'CIRC';
+    }
+    try {
+      const result = eval(replaced);
+      const formatted = Number(result).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      inp.value = formatted;
+      return result.toString();
+    } catch (e) {
+      inp.value = 'ERR';
+      return 'ERR';
+    }
+  }
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

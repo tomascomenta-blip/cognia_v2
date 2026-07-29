@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#e0f2f7;
+  --text:#333;
+  --accent:#ff8c00;
+  --disabled:#ccc;
+}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+.container{
+  display:flex;
+  flex-wrap:wrap;
+  min-height:100vh;
+}
+.products, .cart{
+  flex:1 1 50%;
+  padding:20px;
+  box-sizing:border-box;
+}
+@media(max-width:600px){
+  .products, .cart{flex-basis:100%;}
+}
+.products h2, .cart h2{margin-top:0;}
+.prod{
+  border:1px solid #ddd;
+  border-radius:5px;
+  padding:15px;
+  margin-bottom:15px;
+  background:#fff;
+}
+.prod h3{margin:0 0 10px;font-size:1.2em;}
+.prod .price, .prod .stock{margin:5px 0;}
+.prod .add{
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  padding:8px 12px;
+  border-radius:3px;
+  cursor:pointer;
+  font-weight:bold;
+}
+.prod .add:disabled{background:var(--disabled);cursor:not-allowed;}
+.cart-lines{margin-top:20px;}
+.linea{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 0;
+  border-bottom:1px solid #eee;
+}
+.linea .name{flex:1;}
+.linea .cant{margin:0 10px;}
+.linea .quitar{
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  padding:4px 8px;
+  border-radius:3px;
+  cursor:pointer;
+  font-size:0.9em;
+}
+.cart-total{
+  margin-top:20px;
+  font-size:1.2em;
+  font-weight:bold;
+}
+#total{margin-left:10px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <h2>Productos</h2>
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <p class="price">Precio: 100 €</p>
+      <p class="stock">Stock: 2</p>
+      <button class="add" data-id="p1">Agregar</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <p class="price">Precio: 50 €</p>
+      <p class="stock">Stock: 3</p>
+      <button class="add" data-id="p2">Agregar</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <p class="price">Precio: 25 €</p>
+      <p class="stock">Stock: 1</p>
+      <button class="add" data-id="p3">Agregar</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div class="cart-lines"></div>
+    <div class="cart-total">Total: <span id="total">0 €</span></div>
+  </div>
+</div>
+<script>
+class Cart{
+  constructor(){
+    this.items = {}; // {id: quantity}
+    this.cartLines = document.querySelector('.cart-lines');
+    this.totalSpan = document.getElementById('total');
+    this.init();
+  }
+  init(){
+    document.querySelectorAll('.add').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        this.add(e.target.dataset.id);
+      });
+    });
+    this.cartLines.addEventListener('click', e=>{
+      if(e.target.classList.contains('quitar')){
+        this.remove(e.target.dataset.id);
+      }
+    });
+    this.updateTotal();
+  }
+  add(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const price = parseFloat(prod.dataset.precio);
+    const stock = parseInt(prod.dataset.stock);
+    const current = this.items[id] || 0;
+    if(current < stock){
+      this.items[id] = current + 1;
+      this.renderLine(id, price, stock);
+      this.updateTotal();
+      this.updateAddButton(id);
+    }
+  }
+  remove(id){
+    const current = this.items[id] || 0;
+    if(current > 0){
+      this.items[id] = current - 1;
+      if(this.items[id] === 0){
+        delete this.items[id];
+        this.removeLine(id);
+      }else{
+        this.updateLineQuantity(id);
+      }
+      this.updateTotal();
+      this.updateAddButton(id);
+    }
+  }
+  renderLine(id, price, stock){
+    let line = this.cartLines.querySelector(`.linea[data-id="${id}"]`);
+    if(!line){
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `<span class="name">Producto ${id.slice(1)}</span> <span class="cant">1</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+      this.cartLines.appendChild(line);
+    }else{
+      this.updateLineQuantity(id);
+    }
+  }
+  updateLineQuantity(id){
+    const line = this.cartLines.querySelector(`.linea[data-id="${id}"]`);
+    if(line){
+      const cantSpan = line.querySelector('.cant');
+      cantSpan.textContent = this.items[id];
+    }
+  }
+  removeLine(id){
+    const line = this.cartLines.querySelector(`.linea[data-id="${id}"]`);
+    if(line){ line.remove(); }
+  }
+  updateTotal(){
+    let total = 0;
+    for(const id in this.items){
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      total += price * this.items[id];
+    }
+    this.totalSpan.textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+  updateAddButton(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock);
+    const current = this.items[id] || 0;
+    const btn = prod.querySelector('.add');
+    btn.disabled = current >= stock;
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  new Cart();
+});
+</script>
+</body>
+</html>

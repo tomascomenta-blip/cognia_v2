@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:320px;
+    max-width:90vw;
+  }
+  .c{
+    background:#fff;
+    border:1px solid #ccc;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+    aspect-ratio:1;
+  }
+  .c.abierta{
+    background:#fffacd;
+    color:#00008b;
+    font-weight:bold;
+  }
+  .c.bandera::after{
+    content:"🚩";
+    font-size:1.2rem;
+  }
+  #reset{
+    margin-top:10px;
+    padding:5px 10px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  #estado{
+    margin-top:5px;
+    font-size:1rem;
+    color:#d00;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<button id="reset">Reiniciar</button>
+<div id="estado"></div>
+<script>
+  const MINE_POSITIONS=[6,12,18];
+  const GRID_SIZE=5;
+  const grid=document.getElementById('grid');
+  const estado=document.getElementById('estado');
+  const resetBtn=document.getElementById('reset');
+  let gameOver=false;
+
+  // Create cells
+  for(let i=0;i<GRID_SIZE*GRID_SIZE;i++){
+    const cell=document.createElement('div');
+    cell.classList.add('c');
+    cell.dataset.i=i;
+    cell.addEventListener('click',onCellClick);
+    cell.addEventListener('contextmenu',onCellRightClick);
+    grid.appendChild(cell);
+  }
+
+  // Precompute adjacent mine counts
+  const mineSet=new Set(MINE_POSITIONS);
+  const adjCount=new Array(GRID_SIZE*GRID_SIZE).fill(0);
+  for(let i=0;i<GRID_SIZE*GRID_SIZE;i++){
+    if(mineSet.has(i))continue;
+    let count=0;
+    const r=Math.floor(i/GRID_SIZE),c=i%GRID_SIZE;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<GRID_SIZE&&nc>=0&&nc<GRID_SIZE){
+          const idx=nr*GRID_SIZE+nc;
+          if(mineSet.has(idx))count++;
+        }
+      }
+    }
+    adjCount[i]=count;
+  }
+
+  function onCellClick(e){
+    if(gameOver)return;
+    const cell=e.currentTarget;
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;
+    const i=parseInt(cell.dataset.i);
+    if(mineSet.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      estado.textContent='perdiste';
+      gameOver=true;
+      return;
+    }
+    openCell(cell,i);
+  }
+
+  function openCell(cell,i){
+    if(cell.classList.contains('abierta'))return;
+    cell.classList.add('abierta');
+    const count=adjCount[i];
+    if(count>0){
+      cell.textContent=count;
+    }else{
+      const queue=[i];
+      while(queue.length){
+        const idx=queue.shift();
+        const r=Math.floor(idx/GRID_SIZE),c=idx%GRID_SIZE;
+        for(let dr=-1;dr<=1;dr++){
+          for(let dc=-1;dc<=1;dc++){
+            if(dr===0&&dc===0)continue;
+            const nr=r+dr,nc=c+dc;
+            if(nr>=0&&nr<GRID_SIZE&&nc>=0&&nc<GRID_SIZE){
+              const nIdx=nr*GRID_SIZE+nc;
+              const nCell=grid.children[nIdx];
+              if(!nCell.classList.contains('abierta')&&!nCell.classList.contains('bandera')){
+                nCell.classList.add('abierta');
+                const nCount=adjCount[nIdx];
+                if(nCount>0){
+                  nCell.textContent=nCount;
+                }else{
+                  queue.push(nIdx);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function onCellRightClick(e){
+    e.preventDefault();
+    if(gameOver)return;
+    const cell=e.currentTarget;
+    if(cell.classList.contains('abierta'))return;
+    cell.classList.toggle('bandera');
+  }
+
+  function resetBoard(){
+    gameOver=false;
+    estado.textContent='';
+    for(let i=0;i<grid.children.length;i++){
+      const cell=grid.children[i];
+      cell.classList.remove('abierta','bandera');
+      cell.textContent='';
+    }
+  }
+
+  resetBtn.addEventListener('click',resetBoard);
+</script>
+</body>
+</html>

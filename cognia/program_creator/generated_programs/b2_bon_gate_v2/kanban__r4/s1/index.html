@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Board Demo</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+    padding:20px;
+  }
+  .container{
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+    max-width:1200px;
+    width:100%;
+    animation:fadeIn 0.5s ease-in-out;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+  .col{
+    background:#fff;
+    flex:1 1 0;
+    min-width:250px;
+    padding:10px;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    display:flex;
+    flex-direction:column;
+  }
+  .col h2{
+    margin-top:0;
+    font-size:1.2rem;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card{
+    background:#fff;
+    margin-bottom:10px;
+    padding:10px;
+    border-radius:5px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    transition:all 0.3s ease;
+  }
+  .card span{
+    font-weight:bold;
+  }
+  button{
+    width:24px;
+    height:24px;
+    border:none;
+    border-radius:50%;
+    color:#fff;
+    font-size:14px;
+    cursor:pointer;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+  }
+  button.mas{background:#28a745;}   /* verde */
+  button.menos{background:#dc3545;} /* rojo */
+  button:focus{outline:none;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>todo <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <span>t1</span>
+      <div>
+        <button class="menos">◀</button>
+        <button class="mas">▶</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <span>t2</span>
+      <div>
+        <button class="menos">◀</button>
+        <button class="mas">▶</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <span>t3</span>
+      <div>
+        <button class="menos">◀</button>
+        <button class="mas">▶</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>done <span id="cont-done"></span></h2>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cols = ['todo','doing','done'];
+  const colElements = {};
+  cols.forEach(c=>{ colElements[c] = document.querySelector('.col[data-col="'+c+'"]'); });
+
+  function updateCounters(){
+    cols.forEach(c=>{
+      const count = colElements[c].querySelectorAll('.card').length;
+      document.getElementById('cont-'+c).textContent = count;
+    });
+  }
+
+  function moveCard(card, dir){
+    const currentCol = card.parentElement;
+    const currentData = currentCol.getAttribute('data-col');
+    const idx = cols.indexOf(currentData);
+    let newIdx = dir==='right'? idx+1 : idx-1;
+    if(newIdx<0 || newIdx>=cols.length) return; // out of bounds
+
+    const targetCol = cols[newIdx];
+    // WIP rule: doing max 2 cards
+    if(targetCol==='doing' && colElements['doing'].querySelectorAll('.card').length>=2) return;
+
+    // cannot advance from done or retreat from todo
+    if(currentData==='done' && dir==='right') return;
+    if(currentData==='todo' && dir==='left') return;
+
+    colElements[targetCol].appendChild(card);
+    updateCounters();
+  }
+
+  // attach listeners
+  document.querySelectorAll('.card button.mas').forEach(btn=>{
+    btn.addEventListener('click', function(){
+      moveCard(this.closest('.card'),'right');
+    });
+  });
+  document.querySelectorAll('.card button.menos').forEach(btn=>{
+    btn.addEventListener('click', function(){
+      moveCard(this.closest('.card'),'left');
+    });
+  });
+
+  updateCounters();
+});
+</script>
+</body>
+</html>

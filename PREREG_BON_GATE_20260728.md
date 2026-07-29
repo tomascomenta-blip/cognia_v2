@@ -106,6 +106,33 @@ nueva en el control s1) encontró 1 BLOQUEA + 3 arreglos. Aplicados:
    se cuenta sobre ensayos válidos (comparabilidad con la memoria
    fp-heldout aproximada, no exacta).
 
+## RESULTADO (2026-07-29 ~01:30 — corrida v2 completa, veredicto por umbrales pre-fijados)
+
+**CONFIRMADO: neto B = +8 (umbral ≥ +4).** 20 ensayos válidos (4 infra por
+s1/elegida degradada), 0 incompletos.
+
+- Control (s=1 estricto): **12/20 (60%)** — más bajo que el 71% del
+  experimento (deriva conocida); headroom 8, así que la regla condicional
+  de la 1ª enmienda no hizo falta.
+- **Modo BoN (elegida): 20/20 (100%)** — el cableado rescató LOS OCHO
+  fallos del control y no perdió ninguno (pierde = 0).
+- Techo pass@4: 20/20; **pérdida C = 0** — el selector held-out capturó
+  todo el margen otra vez, ahora a través del módulo de producción.
+- Coste del no-fallback visible y tolerable: 3 muestras infra + 1 sin HTML
+  de 80 (5%); elegidas s1×12, s2×5, s3×7 (s4 nunca — compatible con la
+  espiral de presupuesto que golpea más tarde en el proceso, cuando la
+  feromona ya engordó el prompt; anotado para la sonda del lazo).
+- D (de paso): 4 FP más del contrato original (carrito 1, buscaminas 2,
+  hoja 1) — actualiza la memoria fp-heldout.
+- Materia prima de la sonda: 96 prompts del lazo capturados con outcome.
+
+**Lectura de inversión:** la arquitectura BoN+señal ya no es solo un
+resultado de experimento — es un MODO del sistema que reproduce el efecto
+de punta a punta (con la mejora de que el modo entrega 100% donde el
+experimento entregó 100%). El env-gate queda listo para gates de banco;
+para producción general sigue faltando el generador de señal (la
+conclusión de inversión no cambia).
+
 ## TERCERA ENMIENDA (2026-07-28 ~23:15 — corrida v1 ABORTADA por infra sistémica; corrida v2 desde cero)
 
 A 5 ensayos de la corrida v1, la telemetría de infra (no el outcome) mostró

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    margin:0;
+    padding:20px;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f5f5;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+  }
+  #container{
+    max-width:400px;
+    width:100%;
+    text-align:center;
+  }
+  #title{
+    font-size:1.5rem;
+    color:#222;
+    margin-bottom:10px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+  }
+  .c{
+    width:100%;
+    padding-top:100%; /* square */
+    position:relative;
+    background:#eaeaea;
+    border:1px solid #ccc;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c span{
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    font-size:1.2rem;
+    color:#222;
+  }
+  .c.abierta{
+    background:#fff;
+    border:1px solid #999;
+  }
+  .c.abierta span{
+    color:#222;
+  }
+  .c.bandera span{
+    color:#c00;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1rem;
+    color:#c00;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="title">Minesweeper</div>
+  <div id="grid"></div>
+  <div id="estado"></div>
+</div>
+<script>
+(() => {
+  const mines = [6,12,18];
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+
+  // Create cells
+  for(let i=0;i<25;i++){
+    const cell = document.createElement('div');
+    cell.className='c';
+    cell.dataset.i=i;
+    const span = document.createElement('span');
+    cell.appendChild(span);
+    grid.appendChild(cell);
+  }
+
+  // Helper: get neighbors
+  function neighbors(i){
+    const r=Math.floor(i/5), c=i%5;
+    const res=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5){
+          res.push(nr*5+nc);
+        }
+      }
+    }
+    return res;
+  }
+
+  // Count adjacent mines
+  function countAdj(i){
+    return neighbors(i).filter(n=>mines.includes(n)).length;
+  }
+
+  // Open a cell
+  function openCell(cell){
+    const i=parseInt(cell.dataset.i);
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;
+    if(mines.includes(i)){
+      cell.classList.add('abierta');
+      cell.querySelector('span').textContent='❌';
+      cell.querySelector('span').style.color='#c00';
+      estado.textContent='perdiste';
+      return;
+    }
+    const cnt=countAdj(i);
+    cell.classList.add('abierta');
+    if(cnt>0){
+      cell.querySelector('span').textContent=cnt;
+    }else{
+      cell.querySelector('span').textContent='';
+      // cascade
+      const queue=[i];
+      const visited=new Set([i]);
+      while(queue.length){
+        const cur=queue.shift();
+        neighbors(cur).forEach(n=>{
+          const cEl=document.querySelector(`.c[data-i="${n}"]`);
+          if(cEl.classList.contains('abierta')||cEl.classList.contains('bandera'))return;
+          const cntN=countAdj(n);
+          cEl.classList.add('abierta');
+          if(cntN>0){
+            cEl.querySelector('span').textContent=cntN;
+          }else{
+            cEl.querySelector('span').textContent='';
+            if(!visited.has(n)){
+              visited.add(n);
+              queue.push(n);
+            }
+          }
+        });
+      }
+    }
+  }
+
+  // Event listeners
+  grid.addEventListener('click',e=>{
+    if(e.target.classList.contains('c')){
+      openCell(e.target);
+    }
+  });
+
+  grid.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    const cell=e.target;
+    if(cell.classList.contains('c')){
+      if(cell.classList.contains('abierta'))return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.querySelector('span').textContent='';
+      }else{
+        cell.classList.add('bandera');
+        cell.querySelector('span').textContent='🚩';
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

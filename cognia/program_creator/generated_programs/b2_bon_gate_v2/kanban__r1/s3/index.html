@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+.board{display:flex;gap:1rem;max-width:800px;margin:2rem auto;padding:1rem;background:#f0f0f0;border-radius:8px;flex-wrap:wrap}
+.col{flex:1 1 200px;background:#fff;border-radius:8px;padding:.5rem;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:.5rem}
+.header{font-weight:bold;margin-bottom:.5rem;display:flex;justify-content:space-between}
+.card{background:#e0e0e0;border-radius:4px;padding:.5rem;box-shadow:0 1px 2px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:.5rem}
+.btns{display:flex;justify-content:flex-end;gap:4px;margin-top:auto}
+.mas,.menos{background:#008080;color:#fff;border:none;border-radius:4px;padding:2px 6px;font-size:12px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><div class="header">Todo <span id="cont-todo"></span></div>
+<div class="card" data-id="t1"><strong>t1</strong><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+<div class="card" data-id="t2"><strong>t2</strong><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+<div class="card" data-id="t3"><strong>t3</strong><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+</div>
+<div class="col" data-col="doing"><div class="header">Doing <span id="cont-doing"></span></div></div>
+<div class="col" data-col="done"><div class="header">Done <span id="cont-done"></span></div></div>
+</div>
+<script>
+const cols=['todo','doing','done'];
+function move(card,dir){const cur=card.parentElement.dataset.col;const i=cols.indexOf(cur);let t=i+(dir==='mas'?1:-1);if(t<0||t>2)return;const tgt=cols[t];if(tgt==='doing'){const d=document.querySelector('.col[data-col="doing"]');if(d.querySelectorAll('.card').length>=2)return;}document.querySelector('.col[data-col="'+tgt+'"]').appendChild(card);update();}
+function update(){const t=document.querySelectorAll('.col[data-col="todo"] .card').length;const d=document.querySelectorAll('.col[data-col="doing"] .card').length;const f=document.querySelectorAll('.col[data-col="done"] .card').length;document.getElementById('cont-todo').textContent=t;document.getElementById('cont-doing').textContent=d;document.getElementById('cont-done').textContent=f;}
+document.addEventListener('DOMContentLoaded',()=>{update();document.body.addEventListener('click',e=>{if(e.target.matches('.mas'))move(e.target.closest('.card'),'mas');else if(e.target.matches('.menos'))move(e.target.closest('.card'),'menos');});});
+</script>
+</body>
+</html>

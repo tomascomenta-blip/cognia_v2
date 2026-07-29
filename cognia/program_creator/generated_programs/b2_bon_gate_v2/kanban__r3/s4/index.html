@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><title>Kanban</title>
+<style>
+body{margin:0;font-family:sans-serif;background:#f0f4f8;color:#333;}
+.board{display:flex;height:100vh;}
+.col{flex:1;padding:10px;box-sizing:border-box;}
+.col h2{margin:0 0 5px;font-size:14px;color:#777;text-transform:uppercase;}
+.col .counter{font-weight:bold;}
+.card{background:#fff;border-radius:5px;padding:10px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;align-items:center;}
+.card .title{flex:1;}
+.card button{width:20px;height:20px;border:none;border-radius:50%;margin-left:5px;cursor:pointer;}
+.card button.mas{background:#4caf50;color:#fff;}
+.card button.menos{background:#f44336;color:#fff;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h2>Todo <span id="cont-todo"></span></h2></div>
+<div class="col" data-col="doing"><h2>Doing <span id="cont-doing"></span></h2></div>
+<div class="col" data-col="done"><h2>Done <span id="cont-done"></span></h2></div>
+</div>
+<script>
+const cols=document.querySelectorAll('.col'),order=['todo','doing','done'];
+function update(){order.forEach(c=>{const cnt=cols[order.indexOf(c)].querySelectorAll('.card').length;document.getElementById('cont-'+c).textContent=cnt;});}
+function move(card,dir){const cur=card.parentElement.dataset.col,idx=order.indexOf(cur)+dir;if(idx<0||idx>2)return;const target=cols[idx];if(target.dataset.col==='doing'&&target.querySelectorAll('.card').length>=2)return;target.appendChild(card);update();}
+function init(){const todo=cols[0];['t1','t2','t3'].forEach(id=>{const c=document.createElement('div');c.className='card';c.dataset.id=id;c.innerHTML='<div class="title">'+id+'</div><button class="mas">+</button><button class="menos">-</button>';c.querySelector('.mas').addEventListener('click',()=>move(c,1));c.querySelector('.menos').addEventListener('click',()=>move(c,-1));todo.appendChild(c);});update();}
+init();
+</script>
+</body>
+</html>

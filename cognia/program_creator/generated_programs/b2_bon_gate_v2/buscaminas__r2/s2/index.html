@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un buscaminas 5x5</title>
+<style>
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:100vh;margin:0;background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:4px;
+    width:100%;
+    max-width:400px;
+    margin-top:20px;
+  }
+  .c{
+    aspect-ratio:1;
+    background:#d3d3d3;
+    border:1px solid #aaa;
+    box-shadow:0 2px 4px rgba(0,0,0,0.2);
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#fff;
+    cursor:default;
+    pointer-events:none;
+  }
+  .c.bandera{
+    background:#fff;
+  }
+  #estado{
+    margin-top:12px;
+    font-size:1.2rem;
+    color:#333;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado">juego en curso</div>
+
+<script>
+const MINE_INDICES = [6,12,18];
+const GRID_SIZE = 5;
+const NUM_CELLS = GRID_SIZE * GRID_SIZE;
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+const mines = new Set(MINE_INDICES);
+const counts = Array(NUM_CELLS).fill(0);
+const cells = [];
+
+// Precompute adjacent mine counts
+for (let i = 0; i < NUM_CELLS; i++) {
+  if (mines.has(i)) continue;
+  let r = Math.floor(i / GRID_SIZE);
+  let c = i % GRID_SIZE;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      let nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+        let ni = nr * GRID_SIZE + nc;
+        if (mines.has(ni)) counts[i]++;
+      }
+    }
+  }
+}
+
+// Create cells
+for (let i = 0; i < NUM_CELLS; i++) {
+  const div = document.createElement('div');
+  div.className = 'c';
+  div.dataset.i = i;
+  div.addEventListener('click', onLeftClick);
+  div.addEventListener('contextmenu', onRightClick);
+  grid.appendChild(div);
+  cells.push(div);
+}
+
+let gameOver = false;
+
+function onLeftClick(e){
+  if (gameOver) return;
+  const div = e.currentTarget;
+  const i = parseInt(div.dataset.i);
+  if (div.classList.contains('abierta') || div.classList.contains('bandera')) return;
+  if (mines.has(i)) {
+    openMine(div, i);
+    estado.textContent = 'perdiste';
+    gameOver = true;
+  } else {
+    openCell(i);
+  }
+}
+
+function onRightClick(e){
+  e.preventDefault();
+  if (gameOver) return;
+  const div = e.currentTarget;
+  if (div.classList.contains('abierta')) return;
+  if (div.classList.contains('bandera')) {
+    div.classList.remove('bandera');
+    div.innerHTML = '';
+  } else {
+    div.classList.add('bandera');
+    div.innerHTML = '<span style="color:#ff4500;">🚩</span>';
+  }
+}
+
+function openMine(div, i){
+  div.classList.add('abierta');
+  div.innerHTML = '<span style="color:#ff8c00;">💣</span>';
+}
+
+function openCell(i){
+  const div = cells[i];
+  if (div.classList.contains('abierta') || div.classList.contains('bandera')) return;
+  div.classList.add('abierta');
+  if (counts[i] > 0) {
+    div.innerHTML = `<span style="color:#008080;">${counts[i]}</span>`;
+  } else {
+    div.innerHTML = '';
+    // cascade open neighbors
+    const queue = [i];
+    const visited = new Set([i]);
+    while (queue.length){
+      const cur = queue.shift();
+      const r = Math.floor(cur / GRID_SIZE);
+      const c = cur % GRID_SIZE;
+      for (let dr = -1; dr <= 1; dr++){
+        for (let dc = -1; dc <= 1; dc++){
+          if (dr===0 && dc===0) continue;
+          const nr = r+dr, nc = c+dc;
+          if (nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE){
+            const ni = nr*GRID_SIZE+nc;
+            if (visited.has(ni)) continue;
+            const nDiv = cells[ni];
+            if (nDiv.classList.contains('bandera')) continue;
+            visited.add(ni);
+            nDiv.classList.add('abierta');
+            if (counts[ni] > 0){
+              nDiv.innerHTML = `<span style="color:#008080;">${counts[ni]}</span>`;
+            } else {
+              nDiv.innerHTML = '';
+              queue.push(ni);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>

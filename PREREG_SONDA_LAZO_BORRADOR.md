@@ -66,6 +66,16 @@ copy del brief?), (c) los patrones de feromona (tamaño vs valor). La
 corrida v2 del gate deja ~96 prompts con outcome estricto para
 cuantificar frecuencias y correlaciones ANTES de gastar GPU en ablaciones.
 
+## Exploratorio sobre los 96 capturados de la corrida v2 (2026-07-29, sin GPU)
+
+Con los 96 prompts alineados a sus outcomes estricto: **el LARGO del prompt
+no separa nada** — mediana 5995 chars en aprobadas, 5898 en reprobadas,
+6071 en espirales de backend; y es PLANO por posición (s1 5996 → s4 5918),
+así que la hipótesis "la feromona engorda el prompt en s3/s4 y por eso s4
+nunca gana" queda DESCARTADA con datos (dos horas de GPU ahorradas). Las
+ablaciones del prereg final deben ser por CONTENIDO de pieza, no por
+tamaño.
+
 ## Riesgos ya conocidos a heredar en el prereg final
 
 - Deriva sistémica ~20 pts/12h → todos los brazos concurrentes e

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#e0e0e0;}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#f0f0f0;border-radius:10px;padding:10px;max-width:400px;width:90%;}
+.celda{width:100%;height:40px;border:1px solid #ccc;border-radius:8px;font-size:16px;text-align:right;padding:5px;background:#fff;color:#000;}
+.celda:focus{outline:none;box-shadow:0 0 0 2px #00f;}
+.dependent{box-shadow:inset 0 0 0 2px rgba(0,255,0,0.3);}
+.cell-wrapper{position:relative;}
+.label{position:absolute;top:2px;left:5px;color:#888;font-size:12px;pointer-events:none;}
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="A1" id="cell-A1"><label class="label" for="cell-A1">A1</label></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="A2" id="cell-A2"></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="A3" id="cell-A3"></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="B1" id="cell-B1"></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="B2" id="cell-B2"></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="B3" id="cell-B3"></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="C1" id="cell-C1"></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="C2" id="cell-C2"></div>
+  <div class="cell-wrapper"><input type="text" class="celda" data-ref="C3" id="cell-C3"></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cells = {};
+  const dependentsMap = {};
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  refs.forEach(ref=>{
+    const el=document.querySelector(`input[data-ref="${ref}"]`);
+    cells[ref]=el;
+    el.addEventListener('input',onInput);
+    el.addEventListener('focus',onFocus);
+    el.addEventListener('blur',onBlur);
+  });
+
+  function onInput(e){
+    const el=e.target;
+    const val=el.value;
+    if(val.startsWith('=')){
+      el.dataset.formula=val;
+      const result=computeCell(el.dataset.ref,new Set());
+      el.value=result;
+    }else{
+      delete el.dataset.formula;
+      el.value=val;
+    }
+    buildDependentsMap();
+    updateDependents(el.dataset.ref);
+  }
+
+  function onFocus(e){
+    const el=e.target;
+    el.classList.add('active');
+    const deps=getAllDependents(el.dataset.ref,new Set());
+    deps.forEach(r=>{
+      if(r!==el.dataset.ref) cells[r].classList.add('dependent');
+    });
+  }
+
+  function onBlur(e){
+    const el=e.target;
+    el.classList.remove('active');
+    refs.forEach(r=>cells[r].classList.remove('dependent'));
+  }
+
+  function buildDependentsMap(){
+    for(const r in dependentsMap) delete dependentsMap[r];
+    refs.forEach(ref=>{
+      const el=cells[ref];
+      if(el.dataset.formula){
+        const refsIn=parseRefs(el.dataset.formula);
+        refsIn.forEach(r=>{
+          if(!dependentsMap[r]) dependentsMap[r]=[];
+          dependentsMap[r].push(ref);
+        });
+      }
+    });
+  }
+
+  function parseRefs(formula){
+    const matches=formula.match(/[A-Z][1-3]/g);
+    return matches?matches:new Set();
+  }
+
+  function getAllDependents(ref,visited){
+    const deps=dependentsMap[ref]||[];
+    deps.forEach(d=>{
+      if(!visited.has(d)){
+        visited.add(d);
+        getAllDependents(d,visited);
+      }
+    });
+    return visited;
+  }
+
+  function updateDependents(ref){
+    const deps=dependentsMap[ref]||[];
+    deps.forEach(d=>{
+      const el=cells[d];
+      if(el.dataset.formula){
+        const result=computeCell(d,new Set());
+        el.value=result;
+        updateDependents(d);
+      }
+    });
+  }
+
+  function computeCell(ref,visited){
+    if(visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const el=cells[ref];
+    if(!el.dataset.formula){
+      visited.delete(ref);
+      return el.value;
+    }
+    const formula=el.dataset.formula;
+    const expr=formula.slice(1);
+    const tokens=expr.match(/([A-Z][1-3])|(\d+(\.\d+)?)/g);
+    let result=0;
+    let op='+';
+    for(const tok of tokens){
+      if(tok==='+'||tok==='-'){op=tok;continue;}
+      let val;
+      if(/[A-Z][1-3]/.test(tok)){
+        val=computeCell(tok,visited);
+        if(val==='CIRC'){visited.delete(ref);return 'CIRC';}
+        val=parseFloat(val)||0;
+      }else{
+        val=parseFloat(tok)||0;
+      }
+      if(op==='+') result+=val; else result-=val;
+    }
+    visited.delete(ref);
+    return result;
+  }
+});
+</script>
+</body>
+</html>

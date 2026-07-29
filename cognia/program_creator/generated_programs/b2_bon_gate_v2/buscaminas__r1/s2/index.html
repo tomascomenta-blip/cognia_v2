@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Constants */
+:root {
+  --grid-size: 5;
+  --cell-gap: 4px;
+  --cell-bg: #e0e0e0;
+  --cell-revealed-bg: #b2d8d8;
+  --cell-hover-bg: #d0d0d0;
+  --cell-border-radius: 4px;
+  --cell-font-size: 1.2rem;
+  --cell-font-color: #333;
+  --cell-font-color-mine: red;
+}
+body {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  margin:0;
+  background:#fafafa;
+  font-family:Arial,sans-serif;
+}
+#grid {
+  display:grid;
+  grid-template-columns: repeat(var(--grid-size), 1fr);
+  gap: var(--cell-gap);
+  width:90vw;
+  max-width:320px;
+}
+.c {
+  background:var(--cell-bg);
+  border-radius:var(--cell-border-radius);
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:var(--cell-font-size);
+  color:var(--cell-font-color);
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+}
+.c:hover {
+  background:var(--cell-hover-bg);
+}
+.c.abierta {
+  background:var(--cell-revealed-bg);
+  color:var(--cell-font-color);
+  font-weight:bold;
+}
+.c.abierta.mina {
+  color:var(--cell-font-color-mine);
+}
+.c.bandera::after {
+  content:"🚩";
+  font-size:1.2em;
+}
+#estado {
+  margin-top:12px;
+  font-size:1.2rem;
+  color:#900;
+}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const MINE_INDICES = [6,12,18];
+const GRID_SIZE = 5;
+const TOTAL_CELLS = GRID_SIZE*GRID_SIZE;
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+
+// Create cells
+for(let i=0;i<TOTAL_CELLS;i++){
+  const cell = document.createElement('div');
+  cell.classList.add('c');
+  cell.dataset.i = i;
+  cell.addEventListener('click', onCellClick);
+  cell.addEventListener('contextmenu', onCellRightClick);
+  grid.appendChild(cell);
+}
+
+// Helper to get cell element by index
+function getCell(i){
+  return grid.querySelector(`.c[data-i='${i}']`);
+}
+
+// Compute adjacent mines
+function countAdjacentMines(i){
+  const r = Math.floor(i/GRID_SIZE);
+  const c = i%GRID_SIZE;
+  let count=0;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE){
+        const ni = nr*GRID_SIZE+nc;
+        if(MINE_INDICES.includes(ni)) count++;
+      }
+    }
+  }
+  return count;
+}
+
+// Open cell logic
+function openCell(i){
+  const cell = getCell(i);
+  if(!cell || cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  if(MINE_INDICES.includes(i)){
+    cell.classList.add('abierta','mina');
+    cell.textContent='!';
+    estado.textContent='perdiste';
+    return;
+  }
+  const adj = countAdjacentMines(i);
+  cell.classList.add('abierta');
+  if(adj>0) cell.textContent=adj;
+  else{
+    // cascade open neighbors
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const r = Math.floor(i/GRID_SIZE)+dr;
+        const c = i%GRID_SIZE+dc;
+        if(r>=0 && r<GRID_SIZE && c>=0 && c<GRID_SIZE){
+          openCell(r*GRID_SIZE+c);
+        }
+      }
+    }
+  }
+}
+
+// Left click handler
+function onCellClick(e){
+  const i = parseInt(e.currentTarget.dataset.i);
+  openCell(i);
+}
+
+// Right click handler
+function onCellRightClick(e){
+  e.preventDefault();
+  const cell = e.currentTarget;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+  }else{
+    cell.classList.add('bandera');
+  }
+}
+</script>
+</body>
+</html>

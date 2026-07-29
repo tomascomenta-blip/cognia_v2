@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f4f8;display:flex;justify-content:center;align-items:center;height:100vh;}
+.sheet{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:20px;}
+table{border-collapse:collapse;margin:0 auto;}
+th{padding:8px 12px;color:#555;font-weight:normal;}
+td{padding:0;}
+input.celda{width:80px;height:80px;box-sizing:border-box;text-align:center;font-size:1rem;border:1px solid #d0d0d0;border-radius:4px;transition:border-color 0.2s;outline:none;}
+input.celda:hover{border-color:#b0b0b0;}
+input.celda:focus{border-color:#4a90e2;}
+</style>
+</head>
+<body>
+<div class="sheet">
+<table>
+<thead>
+<tr><th></th><th>A</th><th>B</th><th>C</th></tr>
+</thead>
+<tbody>
+<tr>
+<td><input class="celda" data-ref="A1"></td>
+<td><input class="celda" data-ref="B1"></td>
+<td><input class="celda" data-ref="C1"></td>
+</tr>
+<tr>
+<td><input class="celda" data-ref="A2"></td>
+<td><input class="celda" data-ref="B2"></td>
+<td><input class="celda" data-ref="C2"></td>
+</tr>
+<tr>
+<td><input class="celda" data-ref="A3"></td>
+<td><input class="celda" data-ref="B3"></td>
+<td><input class="celda" data-ref="C3"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<script>
+class Cell {
+  constructor(ref, input) {
+    this.ref = ref;
+    this.input = input;
+    this.formula = '';
+    this.value = '';
+    this.deps = []; // referencias que necesita
+  }
+}
+class Spreadsheet {
+  constructor() {
+    this.cells = {};      // ref -> Cell
+    this.dependents = {}; // ref -> array de refs que dependen de él
+    this.init();
+  }
+  init() {
+    const inputs = document.querySelectorAll('input.celda');
+    inputs.forEach(input => {
+      const ref = input.dataset.ref;
+      const cell = new Cell(ref, input);
+      this.cells[ref] = cell;
+      this.dependents[ref] = [];
+      input.addEventListener('input', () => this.onInput(cell));
+      input.addEventListener('blur', () => this.onInput(cell));
+    });
+  }
+  onInput(cell) {
+    const val = cell.input.value.trim();
+    cell.formula = val;
+    if (val.startsWith('=')) {
+      const deps = this.parseDeps(val);
+      cell.deps = deps;
+      this.updateDependents(cell.ref, deps);
+    } else {
+      cell.deps = [];
+      this.updateDependents(cell.ref, []);
+    }
+    this.evaluateAll();
+  }
+  parseDeps(formula) {
+    const refs = [];
+    const regex = /([A-C][1-3])/g;
+    let m;
+    while ((m = regex.exec(formula)) !== null) {
+      if (!refs.includes(m[1])) refs.push(m[1]);
+    }
+    return refs;
+  }
+  updateDependents(ref, deps) {
+    const oldDeps = this.cells[ref].deps;
+    oldDeps.forEach(d => {
+      const list = this.dependents[d];
+      const idx = list.indexOf(ref);
+      if (idx !== -1) list.splice(idx, 1);
+    });
+    deps.forEach(d => {
+      if (!this.dependents[d].includes(ref)) this.dependents[d].push(ref);
+    });
+  }
+  evaluateAll() {
+    Object.values(this.cells).forEach(cell => this.evaluateCell(cell.ref, new Set()));
+  }
+  evaluateCell(ref, visited) {
+    if (visited.has(ref)) {
+      this.setCellValue(ref, 'CIRC');
+      return;
+    }
+    visited.add(ref);
+    const cell = this.cells[ref];
+    if (!cell.formula.startsWith('=')) {
+      this.setCellValue(ref, cell.formula);
+      visited.delete(ref);
+      return;
+    }
+    const deps = this.parseDeps(cell.formula);
+    let expr = cell.formula.slice(1);
+    // Evaluate dependencies first
+    for (const dep of deps) {
+      this.evaluateCell(dep, visited);
+      const depVal = this.cells[dep].value;
+      if (depVal === 'CIRC') {
+        this.setCellValue(ref, 'CIRC');
+        visited.delete(ref);
+        return;
+      }
+      expr = expr.replace(new RegExp(dep, 'g'), depVal === '' ? '0' : depVal);
+    }
+    if (!/^[0-9+\-.\s]+$/.test(expr)) {
+      this.setCellValue(ref, 'CIRC');
+      visited.delete(ref);
+      return;
+    }
+    let result;
+    try {
+      result = eval(expr);
+    } catch (e) {
+      result = 'CIRC';
+    }
+    this.setCellValue(ref, result);
+    visited.delete(ref);
+    // Propagate to dependents
+    this.dependents[ref].forEach(d => this.evaluateCell(d, visited));
+  }
+  setCellValue(ref, val) {
+    const cell = this.cells[ref];
+    cell.value = val;
+    cell.input.value = val;
+  }
+}
+new Spreadsheet();
+</script>
+</body>
+</html>

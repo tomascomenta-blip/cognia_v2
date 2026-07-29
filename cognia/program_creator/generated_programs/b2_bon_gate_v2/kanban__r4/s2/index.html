@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body {font-family: Arial, sans-serif; margin:0; padding:0; background:#fafafa;}
+  .board {max-width: 1200px; margin: 0 auto; padding: 20px;}
+  .board-header {text-align:center; font-size:24px; margin-bottom:20px;}
+  .columns {display:flex; flex-wrap:wrap; gap:10px;}
+  .col {flex:1; min-width:250px; background:#fff; border-radius:4px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+  .col-title {font-weight:bold; color:#777; margin-bottom:10px;}
+  .card {background:#f0f0f0; border-radius:4px; padding:10px; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.1); position:relative;}
+  .card button {width:20px; height:20px; border-radius:50%; border:none; color:#fff; font-size:12px; line-height:20px; text-align:center; cursor:pointer; margin-right:5px;}
+  .mas {background:#28a745;} /* verde */
+  .menos {background:#dc3545;} /* rojo */
+  .counter {font-weight:normal; color:#333; margin-left:5px;}
+  @media (max-width: 600px) {
+    .columns {flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="board-header">Tablero Kanban</div>
+  <div class="columns">
+    <div class="col" data-col="todo">
+      <div class="col-title">todo <span id="cont-todo" class="counter"></span></div>
+    </div>
+    <div class="col" data-col="doing">
+      <div class="col-title">doing <span id="cont-doing" class="counter"></span></div>
+    </div>
+    <div class="col" data-col="done">
+      <div class="col-title">done <span id="cont-done" class="counter"></span></div>
+    </div>
+  </div>
+</div>
+<script>
+  // Constantes configurables
+  const MAX_DOING = 2;
+  const INITIAL_CARDS = [
+    {id: 't1', title: 'Tarea 1'},
+    {id: 't2', title: 'Tarea 2'},
+    {id: 't3', title: 'Tarea 3'}
+  ];
+
+  // Crear tarjeta
+  function createCard(card) {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.dataset.id = card.id;
+    div.innerHTML = `
+      <div>${card.title}</div>
+      <div style="position:absolute; top:5px; right:5px;">
+        <button class="mas">+</button>
+        <button class="menos">-</button>
+      </div>
+    `;
+    return div;
+  }
+
+  // Actualizar contadores
+  function updateCounters() {
+    const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent = todo;
+    document.getElementById('cont-doing').textContent = doing;
+    document.getElementById('cont-done').textContent = done;
+  }
+
+  // Mover tarjeta
+  function moveCard(card, dir) {
+    const currentCol = card.parentElement.parentElement; // card -> col
+    const current = currentCol.dataset.col;
+    let targetName;
+    if (dir === 'right') {
+      if (current === 'todo') targetName = 'doing';
+      else if (current === 'doing') targetName = 'done';
+      else return; // done no puede avanzar
+    } else if (dir === 'left') {
+      if (current === 'doing') targetName = 'todo';
+      else if (current === 'done') targetName = 'doing';
+      else return; // todo no puede retroceder
+    }
+    const targetCol = document.querySelector('.col[data-col="' + targetName + '"]');
+    // Límite WIP en doing
+    if (targetName === 'doing' && targetCol.querySelectorAll('.card').length >= MAX_DOING) return;
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+
+  // Inicializar
+  document.addEventListener('DOMContentLoaded', () => {
+    const todoCol = document.querySelector('.col[data-col="todo"]');
+    INITIAL_CARDS.forEach(c => {
+      const cardEl = createCard(c);
+      todoCol.appendChild(cardEl);
+    });
+    updateCounters();
+
+    // Delegación de eventos
+    document.querySelectorAll('.col').forEach(col => {
+      col.addEventListener('click', e => {
+        if (e.target.classList.contains('mas')) {
+          moveCard(e.target.closest('.card'), 'right');
+        } else if (e.target.classList.contains('menos')) {
+          moveCard(e.target.closest('.card'), 'left');
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

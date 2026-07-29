@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #title{margin-top:20px;font-size:2em;font-weight:bold;}
+  #status{display:flex;align-items:center;margin:10px 0;font-size:1.2em;}
+  #status span{margin-left:5px;}
+  #grid{display:flex;flex-wrap:wrap;width:260px;justify-content:center;}
+  .c{
+    width:50px;height:50px;background:#555;margin:2px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.5em;color:#fff;cursor:pointer;user-select:none;
+    box-shadow:1px 1px 3px rgba(0,0,0,0.3);
+  }
+  .c.abierta{background:#ddd;color:#000;cursor:default;}
+  .c.bandera{color:red;}
+  .c.bandera::before{content:"🚩";}
+  .c.num-1{color:#d32f2f;}
+  .c.num-2{color:#1976d2;}
+  .c.num-3{color:#388e3c;}
+  .c.num-4{color:#7b1fa2;}
+  .c.num-5{color:#f57c00;}
+  .c.num-6{color:#00695c;}
+  .c.num-7{color:#c62828;}
+  .c.num-8{color:#000;}
+  .c.mined{color:#000;}
+  #estado{margin-top:10px;font-size:1.2em;color:#d32f2f;}
+  @media (max-width:400px){
+    .c{width:40px;height:40px;font-size:1.2em;}
+    #grid{width:200px;}
+  }
+</style>
+</head>
+<body>
+<h1 id="title">Minesweeper</h1>
+<div id="status"><span>🚩</span><span id="flagCount">0</span></div>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // fixed mine positions
+  const size = 5;
+  const cellCount = size*size;
+  const cells = [];
+  const counts = new Array(cellCount).fill(0);
+
+  // precompute adjacent mine counts
+  for (let i=0;i<cellCount;i++){
+    const r=Math.floor(i/size), c=i%size;
+    let cnt=0;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<size&&nc>=0&&nc<size){
+          const idx=nr*size+nc;
+          if(mines.has(idx)) cnt++;
+        }
+      }
+    }
+    counts[i]=cnt;
+  }
+
+  const grid=document.getElementById('grid');
+
+  // create cells
+  for(let i=0;i<cellCount;i++){
+    const div=document.createElement('div');
+    div.classList.add('c');
+    div.dataset.i=i;
+    div.addEventListener('click', onCellClick);
+    div.addEventListener('contextmenu', onCellRightClick);
+    cells.push(div);
+    grid.appendChild(div);
+  }
+
+  function onCellClick(e){
+    const cell=e.currentTarget;
+    const i=parseInt(cell.dataset.i);
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    openCell(i);
+  }
+
+  function openCell(i){
+    const cell=cells[i];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    if(mines.has(i)){
+      cell.textContent='💣';
+      cell.classList.add('mined');
+      document.getElementById('estado').textContent='perdiste';
+      return;
+    }
+    const cnt=counts[i];
+    if(cnt>0){
+      cell.textContent=cnt;
+      cell.classList.add('num-'+cnt);
+    }else{
+      cascadeOpen(i);
+    }
+  }
+
+  function cascadeOpen(start){
+    const queue=[start];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      if(visited.has(idx)) continue;
+      visited.add(idx);
+      const cell=cells[idx];
+      if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) continue;
+      cell.classList.add('abierta');
+      const cnt=counts[idx];
+      if(cnt>0){
+        cell.textContent=cnt;
+        cell.classList.add('num-'+cnt);
+      }else{
+        const r=Math.floor(idx/size), c=idx%size;
+        for(let dr=-1;dr<=1;dr++){
+          for(let dc=-1;dc<=1;dc++){
+            if(dr===0&&dc===0) continue;
+            const nr=r+dr, nc=c+dc;
+            if(nr>=0&&nr<size&&nc>=0&&nc<size){
+              const nIdx=nr*size+nc;
+              if(!visited.has(nIdx)) queue.push(nIdx);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function onCellRightClick(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+    }else{
+      cell.classList.add('bandera');
+    }
+    updateFlagCount();
+  }
+
+  function updateFlagCount(){
+    const cnt=document.querySelectorAll('.bandera').length;
+    document.getElementById('flagCount').textContent=cnt;
+  }
+
+  // initialize counter
+  updateFlagCount();
+})();
+</script>
+</body>
+</html>

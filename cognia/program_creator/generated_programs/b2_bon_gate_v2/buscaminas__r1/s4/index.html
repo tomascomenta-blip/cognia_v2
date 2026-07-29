@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5 Fixed Mines</title>
+<style>
+body{margin:0;background:#333;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;}
+#estado{margin-bottom:10px;text-align:center;font-size:1.2em;}
+#grid{display:grid;grid-template-columns:repeat(5,60px);grid-template-rows:repeat(5,60px);gap:2px;background:#444;padding:4px;box-shadow:0 4px 8px rgba(0,0,0,0.5);}
+.c{background:#ccc;width:60px;height:60px;display:flex;justify-content:center;align-items:center;cursor:pointer;user-select:none;font-size:1.2em;}
+.c.abierta{background:#008080;color:#004d4d;font-weight:bold;}
+.c.bandera{background:#ccc;color:#ff0;}
+@media (max-width:400px){
+  #grid{grid-template-columns:repeat(5,40px);grid-template-rows:repeat(5,40px);}
+  .c{width:40px;height:40px;font-size:1em;}
+}
+</style>
+</head>
+<body>
+<div id="estado"></div>
+<div id="grid"></div>
+<script>
+class Minesweeper{
+  constructor(){
+    this.mines=new Set([6,12,18]);
+    this.grid=document.getElementById('grid');
+    this.estado=document.getElementById('estado');
+    this.cells=[];
+    for(let i=0;i<25;i++){
+      const cell=document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i=i;
+      cell.addEventListener('click',()=>this.handleClick(i));
+      cell.addEventListener('contextmenu',(e)=>{e.preventDefault();this.toggleFlag(i);});
+      this.grid.appendChild(cell);
+      this.cells.push(cell);
+    }
+  }
+  handleClick(i){
+    const cell=this.cells[i];
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta')) return;
+    if(this.mines.has(i)){
+      this.estado.textContent='perdiste';
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      return;
+    }
+    this.openCell(i);
+  }
+  openCell(i){
+    const cell=this.cells[i];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    const count=this.countAdjMines(i);
+    cell.classList.add('abierta');
+    cell.textContent=count>0?count:'';
+    if(count===0){
+      const neighbors=this.getNeighbors(i);
+      for(const n of neighbors){this.openCell(n);}
+    }
+  }
+  countAdjMines(i){
+    const neighbors=this.getNeighbors(i);
+    let count=0;
+    for(const n of neighbors){if(this.mines.has(n))count++;}
+    return count;
+  }
+  getNeighbors(i){
+    const r=Math.floor(i/5),c=i%5;
+    const neighbors=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5)neighbors.push(nr*5+nc);
+      }
+    }
+    return neighbors;
+  }
+  toggleFlag(i){
+    const cell=this.cells[i];
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+}
+window.addEventListener('DOMContentLoaded',()=>{new Minesweeper();});
+</script>
+</body>
+</html>

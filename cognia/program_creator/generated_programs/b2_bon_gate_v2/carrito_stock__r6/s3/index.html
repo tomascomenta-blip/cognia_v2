@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f9f9f9;color:#333;}
+.container{display:flex;min-height:100vh;}
+.products{flex:1;padding:20px;padding-right:320px;}
+.prod{background:#fff;border:1px solid #ddd;border-radius:4px;padding:15px;margin-bottom:10px;transition:box-shadow .2s;}
+.prod:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.prod button{background:#4a90e2;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;}
+.prod button:disabled{background:#aaa;}
+.cart{position:fixed;right:0;top:0;bottom:0;width:300px;background:#fff;border-left:1px solid #ddd;padding:20px;overflow:auto;}
+.linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.linea span{font-weight:bold;}
+.linea button{background:#e74c3c;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;}
+#total{font-size:1.2em;font-weight:bold;}
+@media(max-width:600px){
+  .cart{position:relative;width:100%;}
+  .products{padding-right:20px;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3><p>Precio: 100 €</p><button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3><p>Precio: 50 €</p><button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3><p>Precio: 25 €</p><button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <span id="total">0 €</span>
+  </div>
+</div>
+<script>
+const qty={};
+function fmt(n){return n.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function update(){
+  let total=0, lines=document.getElementById('lines'); lines.innerHTML='';
+  for(const id in qty){
+    const p=document.querySelector(`.prod[data-id="${id}"]`);
+    const price=parseFloat(p.dataset.precio), c=qty[id];
+    total+=c*price;
+    lines.innerHTML+=`<div class="linea" data-id="${id}"><span class="cant">${c}</span><button class="quitar" data-id="${id}">-</button></div>`;
+    const btn=p.querySelector('.add'); btn.disabled=c>=parseInt(p.dataset.stock);
+  }
+  document.getElementById('total').textContent=fmt(total);
+}
+document.querySelectorAll('.add').forEach(b=>b.addEventListener('click',e=>{
+  const id=e.target.dataset.id, p=document.querySelector(`.prod[data-id="${id}"]`);
+  const stock=parseInt(p.dataset.stock);
+  qty[id]=(qty[id]||0)+1;
+  if(qty[id]>=stock){e.target.disabled=true;}
+  update();
+}));
+document.getElementById('lines').addEventListener('click',e=>{
+  if(e.target.classList.contains('quitar')){
+    const id=e.target.dataset.id;
+    qty[id]--; if(qty[id]<=0){delete qty[id];}
+    update();
+  }
+});
+</script>
+</body>
+</html>

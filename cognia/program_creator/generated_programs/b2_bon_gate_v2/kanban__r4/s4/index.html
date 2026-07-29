@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;}
+  #board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{background:#fff;border-radius:5px;flex:1 1 300px;display:flex;flex-direction:column;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  .col h2{margin:0;padding:10px;font-size:1.2rem;background:#e0e0e0;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;align-items:center;}
+  .cards{flex:1;padding:10px;display:flex;flex-direction:column;gap:10px;}
+  .card{background:#fff;border-radius:5px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;}
+  .card-title{flex:1;}
+  .button-group button{width:24px;height:24px;border-radius:50%;border:none;background:#007bff;color:#fff;cursor:pointer;font-size:14px;line-height:1;margin-left:5px;}
+  .button-group button:disabled{background:#ccc;cursor:not-allowed;}
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+const columns = ['todo','doing','done'];
+const maxDoing = 2;
+const initialCards = [
+  {id:'t1', title:'t1'},
+  {id:'t2', title:'t2'},
+  {id:'t3', title:'t3'}
+];
+
+function createCard(cardData){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=cardData.id;
+  const title=document.createElement('span');
+  title.className='card-title';
+  title.textContent=cardData.title;
+  const btnGroup=document.createElement('div');
+  btnGroup.className='button-group';
+  const btnMas=document.createElement('button');
+  btnMas.className='mas';
+  btnMas.textContent='+';
+  const btnMenos=document.createElement('button');
+  btnMenos.className='menos';
+  btnMenos.textContent='-';
+  btnGroup.appendChild(btnMas);
+  btnGroup.appendChild(btnMenos);
+  card.appendChild(title);
+  card.appendChild(btnGroup);
+  return card;
+}
+
+function init(){
+  const todoCol=document.querySelector('.col[data-col="todo"] .cards');
+  initialCards.forEach(c=>todoCol.appendChild(createCard(c)));
+  updateCounters();
+}
+
+function getColumnIndex(colName){return columns.indexOf(colName);}
+
+function getDoingCount(){
+  return document.querySelector('.col[data-col="doing"] .cards').children.length;
+}
+
+function updateCounters(){
+  columns.forEach(colName=>{
+    const count=document.querySelector('.col[data-col="'+colName+'"] .cards').children.length;
+    document.getElementById('cont-'+colName).textContent=count;
+  });
+}
+
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('mas')||e.target.classList.contains('menos')){
+    const card=e.target.closest('.card');
+    const currentCol=card.closest('.col');
+    const currentColName=currentCol.dataset.col;
+    const currentIndex=getColumnIndex(currentColName);
+    let targetIndex=currentIndex+(e.target.classList.contains('mas')?1:-1);
+    if(targetIndex<0||targetIndex>=columns.length)return;
+    const targetColName=columns[targetIndex];
+    if(targetColName==='doing'&&getDoingCount()>=maxDoing)return;
+    const targetCol=document.querySelector('.col[data-col="'+targetColName+'"] .cards');
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+});
+
+init();
+</script>
+</body>
+</html>

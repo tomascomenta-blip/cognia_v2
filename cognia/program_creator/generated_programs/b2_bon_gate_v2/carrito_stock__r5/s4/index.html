@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Carrito con Stock</title><style>
+body{font:Arial,sans-serif;margin:0;padding:0;display:flex;min-height:100vh;}
+.left{flex:1;padding:20px;}
+.right{flex:0 0 300px;padding:20px;position:sticky;top:10px;background:#f9f9f9;border-left:1px solid #ddd;}
+.prod{border:1px solid #ddd;border-radius:5px;padding:10px;margin-bottom:10px;}
+.prod button{background:#0066cc;color:#fff;border:none;padding:5px 10px;border-radius:3px;cursor:pointer;}
+.prod button:disabled{background:#aaa;}
+.linea{display:flex;justify-content:space-between;margin-bottom:5px;}
+.linea button{background:#cc0000;color:#fff;border:none;padding:2px 5px;border-radius:3px;cursor:pointer;}
+#line-total{font-weight:bold;margin-top:10px;}
+</style></head><body>
+<div class="left">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2"><span>Producto 1</span><br><span>Precio: 100 €</span><br><span>Stock: 2</span><br><button class="add" data-id="p1">Añadir</button></div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3"><span>Producto 2</span><br><span>Precio: 50 €</span><br><span>Stock: 3</span><br><button class="add" data-id="p2">Añadir</button></div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1"><span>Producto 3</span><br><span>Precio: 25 €</span><br><span>Stock: 1</span><br><button class="add" data-id="p3">Añadir</button></div>
+</div>
+<div class="right"><h3>Carrito</h3><div id="cart"></div><div id="line-total">Total: <span id="total">0 €</span></div></div>
+<script>
+const cart=document.getElementById('cart'),total=document.getElementById('total'),state={};
+function fmt(v){return v.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function upd(){let s=0;for(const i in state)s+=state[i].qty*state[i].price;total.textContent=fmt(s);}
+function add(id){const p=document.querySelector(`.prod[data-id="${id}"]`),price=parseFloat(p.dataset.precio),stock=parseInt(p.dataset.stock);
+state[id]=state[id]||{price,qty:0};if(state[id].qty<stock){state[id].qty++;if(state[id].qty===stock)p.querySelector('.add').disabled=true;}render();}
+function rem(id){if(!state[id])return;state[id].qty--;const p=document.querySelector(`.prod[data-id="${id}"]`);
+if(state[id].qty===0){delete state[id];p.querySelector('.add').disabled=false;}else if(state[id].qty<parseInt(p.dataset.stock))p.querySelector('.add').disabled=false;render();}
+function render(){cart.innerHTML='';for(const i in state){const q=state[i].qty,s=state[i].price*q;cart.innerHTML+=`<div class="linea" data-id="${i}"><span>${i}</span><span class="cant">${q}</span><span>${fmt(s)}</span><button class="quitar" data-id="${i}">Quitar</button></div>`;}upd();}
+document.addEventListener('click',e=>{if(e.target.classList.contains('add'))add(e.target.dataset.id);if(e.target.classList.contains('quitar'))rem(e.target.dataset.id);});
+</script>
+</body></html>

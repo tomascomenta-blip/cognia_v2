@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+  body{
+    margin:0;
+    background:#2e2e2e;
+    font-family:Arial,sans-serif;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  .card{
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.3);
+    overflow:hidden;
+    width:90%;
+    max-width:400px;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:40px 1fr 1fr 1fr;
+    grid-auto-rows:40px;
+    gap:0;
+  }
+  .header{
+    background:linear-gradient(180deg,#4a4a4a,#3a3a3a);
+    color:#bbb;
+    font-size:0.8rem;
+    text-align:center;
+    line-height:40px;
+  }
+  .row-label{
+    background:#3a3a3a;
+    color:#bbb;
+    font-size:0.8rem;
+    text-align:center;
+    line-height:40px;
+  }
+  .celda{
+    border:none;
+    border-bottom:1px solid #ddd;
+    border-right:1px solid #ddd;
+    background:#fff;
+    color:#000;
+    font-size:1rem;
+    text-align:right;
+    padding:0 8px;
+    outline:none;
+    transition:box-shadow 0.2s;
+    border-radius:4px;
+  }
+  .celda:focus{
+    box-shadow:0 0 4px cyan;
+  }
+  .celda:last-child{border-right:none;}
+  .header:last-child{border-right:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid">
+    <div class="header"></div>
+    <div class="header">A</div>
+    <div class="header">B</div>
+    <div class="header">C</div>
+
+    <div class="row-label">1</div>
+    <input class="celda" data-ref="A1" value="5">
+    <input class="celda" data-ref="B1" value="=A1+1">
+    <input class="celda" data-ref="C1" value="=B1+1">
+
+    <div class="row-label">2</div>
+    <input class="celda" data-ref="A2" value="">
+    <input class="celda" data-ref="B2" value="">
+    <input class="celda" data-ref="C2" value="">
+
+    <div class="row-label">3</div>
+    <input class="celda" data-ref="A3" value="">
+    <input class="celda" data-ref="B3" value="">
+    <input class="celda" data-ref="C3" value="">
+  </div>
+</div>
+<script>
+const cells = {};
+document.querySelectorAll('.celda').forEach(inp=>{
+  const ref=inp.dataset.ref;
+  cells[ref]=inp;
+  // store initial formula if present
+  if(inp.value.startsWith('=')){
+    inp.dataset.formula=inp.value;
+  }
+  inp.addEventListener('focus',()=>{
+    if(inp.dataset.formula){
+      inp.value=inp.dataset.formula;
+    }
+  });
+  inp.addEventListener('blur',()=>{
+    const val=inp.value;
+    if(val.startsWith('=')){
+      inp.dataset.formula=val;
+    }else{
+      delete inp.dataset.formula;
+    }
+    recalcAll();
+  });
+});
+function evalCell(ref,stack){
+  if(stack.includes(ref)) return 'CIRC';
+  const inp=cells[ref];
+  const val=inp.dataset.formula||inp.value;
+  if(!val.startsWith('=')) return val;
+  stack.push(ref);
+  const expr=val.slice(1).replace(/[A-C][1-3]/g,match=>{
+    const res=evalCell(match,stack);
+    return res==='CIRC'?'NaN':res;
+  });
+  if(expr.includes('NaN')){stack.pop();return 'CIRC';}
+  if(!/^[0-9+\-.\s]+$/.test(expr)){stack.pop();return 'CIRC';}
+  let result;
+  try{
+    result=Function('return '+expr)();
+  }catch(e){result='CIRC';}
+  stack.pop();
+  return result.toString();
+}
+function recalcAll(){
+  Object.values(cells).forEach(inp=>{
+    if(inp.dataset.formula){
+      const res=evalCell(inp.dataset.ref,[]);
+      inp.value=res;
+    }
+  });
+}
+recalcAll();
+</script>
+</body>
+</html>

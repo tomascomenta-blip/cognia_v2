@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#f0f0f0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-height:100vh;
+}
+header{
+  width:100%;
+  text-align:center;
+  padding:10px 0;
+  background:#ddd;
+}
+h1{
+  margin:0;
+  font-size:1.5rem;
+}
+main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+#grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:2px;
+  width:100%;
+  max-width:400px;
+}
+.c{
+  background:#fff;
+  border:1px solid #fff;
+  border-radius:4px;
+  aspect-ratio:1/1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+}
+.c.abierta{
+  background:#e0e0e0;
+}
+.c.bandera{
+  background:#f0e68c;
+}
+.c .number{
+  color:#333;
+  font-weight:bold;
+  font-size:1.2rem;
+  display:none;
+}
+.c.abierta .number{
+  display:block;
+}
+.c .mine{
+  color:red;
+  font-size:1.4rem;
+  display:none;
+}
+.c.abierta .mine{
+  display:block;
+}
+.c .flag{
+  color:red;
+  font-size:1.4rem;
+  display:none;
+}
+.c.bandera .flag{
+  display:block;
+}
+footer{
+  width:100%;
+  text-align:center;
+  padding:10px 0;
+  background:#ddd;
+}
+#timer{
+  font-size:1.2rem;
+  display:inline-block;
+}
+#reset{
+  margin-left:10px;
+  padding:5px 10px;
+  font-size:1rem;
+  border:none;
+  background:#333;
+  color:#fff;
+  border-radius:4px;
+  cursor:pointer;
+}
+#estado{
+  margin-top:10px;
+  font-weight:bold;
+  color:red;
+}
+</style>
+</head>
+<body>
+<header><h1>Minesweeper</h1></header>
+<main>
+<div id="grid">
+<div class="c" data-i="0"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="1"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="2"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="3"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="4"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="5"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="6"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="7"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="8"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="9"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="10"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="11"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="12"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="13"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="14"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="15"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="16"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="17"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="18"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="19"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="20"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="21"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="22"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="23"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+<div class="c" data-i="24"><span class="number"></span><span class="mine"></span><span class="flag"></span></div>
+</div>
+<div id="estado"></div>
+</main>
+<footer>
+<div id="timer">3</div>
+<button id="reset">Reset</button>
+</footer>
+<script>
+const mines = [6,12,18];
+const cells = Array.from(document.querySelectorAll('.c'));
+const adjCounts = new Array(25).fill(0);
+
+function getNeighbors(i){
+  const r = Math.floor(i/5), c = i%5;
+  const neighbors = [];
+  for(let dr=-1; dr<=1; dr++){
+    for(let dc=-1; dc<=1; dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<5 && nc>=0 && nc<5) neighbors.push(nr*5+nc);
+    }
+  }
+  return neighbors;
+}
+
+for(let i=0;i<25;i++){
+  if(mines.includes(i)) continue;
+  const neigh = getNeighbors(i);
+  let cnt=0;
+  for(const n of neigh) if(mines.includes(n)) cnt++;
+  adjCounts[i]=cnt;
+}
+
+function openCell(i){
+  const cell=cells[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+  cell.classList.add('abierta');
+  const count=adjCounts[i];
+  const numSpan=cell.querySelector('.number');
+  if(count>0){
+    numSpan.textContent=count;
+  }else{
+    numSpan.textContent='';
+    const queue=[i];
+    while(queue.length){
+      const idx=queue.shift();
+      const neigh=getNeighbors(idx);
+      for(const n of neigh){
+        const nCell=cells[n];
+        if(nCell.classList.contains('abierta')||nCell.classList.contains('bandera')||mines.includes(n)) continue;
+        nCell.classList.add('abierta');
+        const nCount=adjCounts[n];
+        const nNum=nCell.querySelector('.number');
+        if(nCount>0){
+          nNum.textContent=nCount;
+        }else{
+          nNum.textContent='';
+          queue.push(n);
+        }
+      }
+    }
+  }
+}
+
+function handleLeftClick(e){
+  const cell=e.currentTarget;
+  const i=parseInt(cell.dataset.i);
+  if(cell.classList.contains('bandera')||cell.classList.contains('abierta')) return;
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.querySelector('.mine').textContent='•';
+    document.getElementById('estado').textContent='perdiste';
+  }else{
+    openCell(i);
+  }
+}
+
+function handleRightClick(e){
+  e.preventDefault();
+  const cell=e.currentTarget;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.querySelector('.flag').textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.querySelector('.flag').textContent='🚩';
+  }
+}
+
+cells.forEach(c=>{
+  c.addEventListener('click',handleLeftClick);
+  c.addEventListener('contextmenu',handleRightClick);
+});
+
+let timerInterval;
+let timeLeft=3;
+const timerEl=document.getElementById('timer');
+
+function updateTimer(){ timerEl.textContent=timeLeft; }
+
+function startTimer(){
+  clearInterval(timerInterval);
+  timeLeft=3;
+  updateTimer();
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    if(timeLeft<0){ clearInterval(timerInterval); }
+    updateTimer();
+  },1000);
+}
+
+function resetGame(){
+  cells.forEach(c=>{
+    c.classList.remove('abierta','bandera');
+    c.querySelector('.number').textContent='';
+    c.querySelector('.mine').textContent='';
+    c.querySelector('.flag').textContent='';
+  });
+  document.getElementById('estado').textContent='';
+  startTimer();
+}
+
+document.getElementById('reset').addEventListener('click',resetGame);
+
+startTimer();
+</script>
+</body>
+</html>

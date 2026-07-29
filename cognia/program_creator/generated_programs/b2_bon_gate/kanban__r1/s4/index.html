@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una página</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#f0f2f5;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#333;
+  }
+  .board{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:space-around;
+    padding:20px;
+    gap:15px;
+  }
+  .col{
+    flex:1 1 250px;
+    background:#fff;
+    border-radius:8px;
+    padding:10px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    display:flex;
+    flex-direction:column;
+    min-height:200px;
+  }
+  .col header{
+    font-weight:bold;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .col header span{
+    font-size:0.9em;
+    color:#777;
+  }
+  .card{
+    background:#fafafa;
+    border-radius:6px;
+    padding:8px 10px;
+    margin-bottom:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    font-size:0.95em;
+  }
+  .card button{
+    background:#008080;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    padding:4px 8px;
+    margin-left:4px;
+    cursor:pointer;
+    font-size:0.85em;
+  }
+  .card button:disabled{
+    background:#ccc;
+    cursor:not-allowed;
+  }
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <header>Todo <span id="cont-todo">0</span></header>
+  </div>
+  <div class="col" data-col="doing">
+    <header>Doing <span id="cont-doing">0</span></header>
+  </div>
+  <div class="col" data-col="done">
+    <header>Done <span id="cont-done">0</span></header>
+  </div>
+</div>
+
+<script>
+  // Configurables
+  const MAX_DOING = 2;
+  const COLUMNS = ['todo','doing','done'];
+  const COLUMN_ORDER = {todo:0, doing:1, done:2};
+
+  // Helper to create a card element
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.textContent = id;
+    // Buttons
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '+';
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '-';
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+    return card;
+  }
+
+  // Initial cards in todo
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  ['t1','t2','t3'].forEach(id=>{
+    todoCol.appendChild(createCard(id));
+  });
+
+  // Update counters
+  function updateCounters(){
+    COLUMNS.forEach(col=>{
+      const count = document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+
+  // Update button states for all cards
+  function updateButtonStates(){
+    const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    document.querySelectorAll('.card').forEach(card=>{
+      const col = card.parentElement.dataset.col;
+      const btnMas = card.querySelector('.mas');
+      const btnMenos = card.querySelector('.menos');
+      if(col==='todo'){
+        btnMenos.disabled = true;
+        btnMas.disabled = doingCount>=MAX_DOING;
+      }else if(col==='doing'){
+        btnMenos.disabled = false;
+        btnMas.disabled = false;
+      }else{ // done
+        btnMas.disabled = true;
+        btnMenos.disabled = false;
+      }
+    });
+  }
+
+  // Move card
+  function moveCard(card, direction){
+    const currentCol = card.parentElement.dataset.col;
+    const currentIndex = COLUMN_ORDER[currentCol];
+    let targetIndex = direction==='mas'? currentIndex+1 : currentIndex-1;
+    if(targetIndex<0 || targetIndex>=COLUMNS.length) return; // out of bounds
+    const targetColName = COLUMNS[targetIndex];
+    // WIP rule: doing max 2
+    if(targetColName==='doing'){
+      const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+      if(doingCount>=MAX_DOING) return;
+    }
+    const targetCol = document.querySelector(`.col[data-col="${targetColName}"]`);
+    targetCol.appendChild(card);
+    updateCounters();
+    updateButtonStates();
+  }
+
+  // Event delegation for buttons
+  document.body.addEventListener('click', e=>{
+    if(e.target.classList.contains('mas')){
+      const card = e.target.closest('.card');
+      moveCard(card,'mas');
+    }else if(e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      moveCard(card,'menos');
+    }
+  });
+
+  // Initial update
+  updateCounters();
+  updateButtonStates();
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    margin:0;
+    font-family:sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    gap:2px;
+    margin-top:50px;
+  }
+  .c{
+    width:60px;
+    height:60px;
+    background:#fffacd;
+    border:1px solid #ccc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    position:relative;
+  }
+  .c.abierta{
+    background:#fffacd;
+  }
+  .c.abierta .num{
+    color:#87ceeb;
+    font-weight:bold;
+  }
+  .c.abierta .mine{
+    color:#ff6961;
+    font-weight:bold;
+    font-size:1.2em;
+  }
+  .c.bandera::before{
+    content:"🚩";
+    font-size:1.2em;
+  }
+  #estado{
+    margin-top:20px;
+    font-size:1.2em;
+    color:#333;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+class Minesweeper {
+  constructor(rows=5, cols=5, mines=[6,12,18]) {
+    this.rows = rows;
+    this.cols = cols;
+    this.mines = new Set(mines);
+    this.grid = document.getElementById('grid');
+    this.estado = document.getElementById('estado');
+    this.cells = [];
+    this.init();
+  }
+  init(){
+    for(let i=0;i<this.rows*this.cols;i++){
+      const cell=document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i=i;
+      cell.addEventListener('click',e=>this.leftClick(e));
+      cell.addEventListener('contextmenu',e=>this.rightClick(e));
+      this.grid.appendChild(cell);
+      this.cells.push(cell);
+    }
+  }
+  leftClick(e){
+    const cell=e.currentTarget;
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta')) return;
+    const i=parseInt(cell.dataset.i);
+    if(this.mines.has(i)){
+      cell.classList.add('abierta');
+      const mineSpan=document.createElement('span');
+      mineSpan.classList.add('mine');
+      mineSpan.textContent='X';
+      cell.appendChild(mineSpan);
+      this.estado.textContent='perdiste';
+      return;
+    }
+    this.openCell(i);
+  }
+  rightClick(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+    }else{
+      cell.classList.add('bandera');
+    }
+  }
+  openCell(i){
+    const cell=this.cells[i];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    const count=this.countAdjMines(i);
+    cell.classList.add('abierta');
+    if(count>0){
+      const numSpan=document.createElement('span');
+      numSpan.classList.add('num');
+      numSpan.textContent=count;
+      cell.appendChild(numSpan);
+    }else{
+      const neighbors=this.getNeighbors(i);
+      neighbors.forEach(n=>this.openCell(n));
+    }
+  }
+  countAdjMines(i){
+    const neighbors=this.getNeighbors(i);
+    let cnt=0;
+    neighbors.forEach(n=>{if(this.mines.has(n))cnt++;});
+    return cnt;
+  }
+  getNeighbors(i){
+    const r=Math.floor(i/this.cols);
+    const c=i%this.cols;
+    const neighbors=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols){
+          neighbors.push(nr*this.cols+nc);
+        }
+      }
+    }
+    return neighbors;
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{new Minesweeper();});
+</script>
+</body>
+</html>

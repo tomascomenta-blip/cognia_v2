@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    font-family:sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  h1{margin:0 0 10px 0;font-size:24px;}
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-template-rows:repeat(5,60px);
+    gap:0;
+    width:100%;
+    max-width:300px;
+  }
+  .c{
+    width:60px;height:60px;
+    border:1px solid #999;
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+    background:#ddd;
+  }
+  .c.abierta{background:white;color:#00008b;}
+  .c.bandera{background:#ffe680;}
+  #estado{margin-top:10px;font-weight:bold;}
+  #reset{
+    margin-top:10px;
+    padding:5px 10px;
+    background:#ddd;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  #reset:hover{background:#ccc;}
+</style>
+</head>
+<body>
+<h1>Minesweeper</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+<button id="reset">Reset</button>
+<script>
+class MinesweeperGame {
+  constructor() {
+    this.gridEl = document.getElementById('grid');
+    this.estadoEl = document.getElementById('estado');
+    this.resetBtn = document.getElementById('reset');
+    this.mines = new Set([6,12,18]); // posiciones fijas
+    this.cells = [];
+    this.adjacentCounts = new Array(25).fill(0);
+    this.init();
+  }
+  init() {
+    this.gridEl.innerHTML = '';
+    this.cells = [];
+    this.adjacentCounts.fill(0);
+    this.estadoEl.textContent = '';
+    for (let i=0;i<25;i++){
+      const cell = document.createElement('div');
+      cell.className = 'c';
+      cell.dataset.i = i;
+      cell.addEventListener('click', e=>this.handleClick(e));
+      cell.addEventListener('contextmenu', e=>this.handleRightClick(e));
+      this.gridEl.appendChild(cell);
+      this.cells.push(cell);
+    }
+    this.calculateAdjacents();
+    this.resetBtn.onclick = ()=>this.init();
+  }
+  calculateAdjacents(){
+    for (let i=0;i<25;i++){
+      if (this.mines.has(i)) continue;
+      let count=0;
+      for (let ni of this.neighbors(i)){
+        if (this.mines.has(ni)) count++;
+      }
+      this.adjacentCounts[i]=count;
+    }
+  }
+  neighbors(index){
+    const res=[];
+    const row=Math.floor(index/5);
+    const col=index%5;
+    for (let dr=-1;dr<=1;dr++){
+      for (let dc=-1;dc<=1;dc++){
+        if (dr===0 && dc===0) continue;
+        const r=row+dr;
+        const c=col+dc;
+        if (r>=0 && r<5 && c>=0 && c<5){
+          res.push(r*5+c);
+        }
+      }
+    }
+    return res;
+  }
+  handleClick(e){
+    const cell=e.currentTarget;
+    const i=parseInt(cell.dataset.i);
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if (this.mines.has(i)){
+      this.estadoEl.textContent='perdiste';
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      return;
+    }
+    this.openCell(i);
+  }
+  handleRightClick(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+  openCell(i){
+    const cell=this.cells[i];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    const count=this.adjacentCounts[i];
+    if (count>0){
+      cell.textContent=count;
+    } else {
+      cell.textContent='';
+      // cascade opening
+      const queue=[i];
+      const visited=new Set();
+      visited.add(i);
+      while(queue.length){
+        const cur=queue.shift();
+        for (let nb of this.neighbors(cur)){
+          if (visited.has(nb)) continue;
+          const nbCell=this.cells[nb];
+          if (nbCell.classList.contains('bandera') || nbCell.classList.contains('abierta')) continue;
+          visited.add(nb);
+          const nbCount=this.adjacentCounts[nb];
+          nbCell.classList.add('abierta');
+          if (nbCount>0){
+            nbCell.textContent=nbCount;
+          } else {
+            nbCell.textContent='';
+            queue.push(nb);
+          }
+        }
+      }
+    }
+  }
+}
+new MinesweeperGame();
+</script>
+</body>
+</html>

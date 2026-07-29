@@ -1,0 +1,400 @@
+{
+  "ensayos": [
+    {
+      "tarea": "carrito_stock",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 2,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T22:38:32",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 56.9
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T22:39:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 47.6
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T22:40:15",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 55.0
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T22:40:18",
+              "via": "create_program",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "segundos": 54.8
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 2,
+      "backend": {
+        "t": "2026-07-28T22:40:18",
+        "via": "create_program",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19,
+          "motivo": "19/19 checks OK (15/15 del contrato)"
+        },
+        "3": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "4": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 219.9
+    },
+    {
+      "tarea": "kanban",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 4,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T22:42:08",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 22,
+            "segundos": 70.3
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T22:42:29",
+              "via": "create_program",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "segundos": 51.7
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T22:44:13",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 56.1
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T22:44:55",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": true,
+            "checks_ok_sel": 23,
+            "segundos": 54.7
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 4,
+      "backend": {
+        "t": "2026-07-28T22:44:55",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "orig": {
+        "1": {
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20,
+          "motivo": "19/20 checks OK (16/16 del contrato)"
+        },
+        "2": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "3": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "4": {
+          "aprobado": true,
+          "checks_ok": 18,
+          "checks": 20,
+          "motivo": "18/20 checks OK (14/16 del contrato)"
+        }
+      },
+      "segundos": 253.9
+    },
+    {
+      "tarea": "buscaminas",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": null,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T22:45:33",
+              "via": "create_program",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "segundos": 56.0
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T22:47:18",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 53.4
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T22:48:16",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 57.8
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T22:49:14",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 58.1
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": null,
+      "backend": {
+        "t": "2026-07-28T22:49:14",
+        "via": "create_program",
+        "url": null,
+        "puerto": null,
+        "modelo": null,
+        "degradado": true,
+        "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "3": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "4": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 225.3
+    },
+    {
+      "tarea": "hoja_calculo",
+      "rep": 1,
+      "bon": {
+        "modo": "replicas_independientes",
+        "k": 4,
+        "elegida_s": 2,
+        "muestras": [
+          {
+            "s": 1,
+            "backend": {
+              "t": "2026-07-28T22:50:15",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 61.1
+          },
+          {
+            "s": 2,
+            "backend": {
+              "t": "2026-07-28T22:51:05",
+              "via": "juez.generar_contrato",
+              "url": "http://127.0.0.1:8080",
+              "puerto": 8080,
+              "modelo": "gpt-oss-20b-MXFP4.gguf",
+              "rol": ""
+            },
+            "aprobado_sel": false,
+            "checks_ok_sel": 23,
+            "segundos": 66.5
+          },
+          {
+            "s": 3,
+            "backend": {
+              "t": "2026-07-28T22:52:23",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 61.3
+          },
+          {
+            "s": 4,
+            "backend": {
+              "t": "2026-07-28T22:53:16",
+              "via": "create_program",
+              "url": null,
+              "puerto": null,
+              "modelo": null,
+              "degradado": true,
+              "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+            },
+            "segundos": 52.7
+          }
+        ]
+      },
+      "como": "bon.construir_bon",
+      "elegida_s": 2,
+      "backend": {
+        "t": "2026-07-28T22:53:16",
+        "via": "create_program",
+        "url": null,
+        "puerto": null,
+        "modelo": null,
+        "degradado": true,
+        "detalle": "ni constructor, ni backend inyectado, ni llm_local respondieron (lenguaje=html); ultimo intento: Ollama"
+      },
+      "orig": {
+        "1": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "2": {
+          "aprobado": false,
+          "checks_ok": 22,
+          "checks": 28,
+          "motivo": "falla critica: B1 = A1+A2 = 8 (js='0', esperaba '8'); C1 = B1+A1 = 13 (js='0', e"
+        },
+        "3": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        },
+        "4": {
+          "aprobado": false,
+          "motivo": "sin HTML"
+        }
+      },
+      "segundos": 252.8
+    }
+  ],
+  "config": {
+    "replicas": 6,
+    "muestras_por_ensayo": 4,
+    "commit": "392dfbb",
+    "commits": [
+      "392dfbb"
+    ],
+    "max_rondas_defecto": 1,
+    "backend": {
+      "url": "http://127.0.0.1:8080",
+      "modelo": "gpt-oss-20b-MXFP4.gguf",
+      "puerto": 8080,
+      "avisos": []
+    },
+    "ollama_fallback_neutralizado": "NO-EXISTE-BON-GATE",
+    "nota": "modo de PRODUCCION bon.construir_bon; selector=held-out; estricto=original∧held-out; control=s1 del ensayo; sin fallback create_program ni semillas (prereg BON_GATE)"
+  }
+}

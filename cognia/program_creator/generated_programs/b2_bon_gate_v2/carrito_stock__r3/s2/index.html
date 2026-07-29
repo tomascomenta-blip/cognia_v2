@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:row;
+    min-height:100vh;
+    background:#f5f5f5;
+  }
+  #products{
+    flex:3;
+    padding:20px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:20px;
+  }
+  .prod{
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    padding:15px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .prod h3{margin:0 0 10px;}
+  .price{
+    font-size:1.4em;
+    color:#b8860b;
+    font-weight:bold;
+  }
+  .stock{
+    font-size:0.9em;
+    color:#555;
+  }
+  .add{
+    margin-top:10px;
+    padding:8px 12px;
+    background:#008080;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .add:disabled{
+    background:#aaa;
+    cursor:default;
+  }
+  #cart{
+    flex:1;
+    background:#004d4d;
+    color:#fff;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+  }
+  #cart h2{margin-top:0;}
+  #cart-items{
+    flex:1;
+    overflow-y:auto;
+  }
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .linea .cant{
+    font-weight:bold;
+  }
+  .quitar{
+    background:#ff4d4d;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    padding:4px 8px;
+    cursor:pointer;
+  }
+  #total-container{
+    margin-top:auto;
+    font-size:1.5em;
+    font-weight:bold;
+  }
+  @media (max-width:768px){
+    body{flex-direction:column;}
+    #cart{margin-top:20px;}
+  }
+</style>
+</head>
+<body>
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <h3>Producto 1</h3>
+    <p class="price">€100.00</p>
+    <p class="stock">Stock: 2</p>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <h3>Producto 2</h3>
+    <p class="price">€50.00</p>
+    <p class="stock">Stock: 3</p>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <h3>Producto 3</h3>
+    <p class="price">€25.00</p>
+    <p class="stock">Stock: 1</p>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="cart-items"></div>
+  <div id="total-container"><span id="total">€0.00</span></div>
+</div>
+<script>
+class Cart {
+  constructor() {
+    this.items = {}; // id -> {qty, price}
+    this.cartItemsContainer = document.getElementById('cart-items');
+    this.totalSpan = document.getElementById('total');
+    this.addButtons = document.querySelectorAll('.add');
+    this.addButtons.forEach(btn => btn.addEventListener('click', e => this.addItem(e.target.dataset.id)));
+    this.cartItemsContainer.addEventListener('click', e => {
+      if (e.target.classList.contains('quitar')) {
+        this.removeItem(e.target.dataset.id);
+      }
+    });
+    this.updateTotal();
+  }
+  addItem(id) {
+    const prodDiv = document.querySelector(`.prod[data-id="${id}"]`);
+    const price = parseFloat(prodDiv.dataset.precio);
+    const stock = parseInt(prodDiv.dataset.stock);
+    const currentQty = this.items[id] ? this.items[id].qty : 0;
+    if (currentQty < stock) {
+      if (this.items[id]) {
+        this.items[id].qty += 1;
+      } else {
+        this.items[id] = {qty:1, price:price};
+      }
+      this.renderLine(id);
+      if (this.items[id].qty >= stock) {
+        this.disableAddButton(id);
+      }
+      this.updateTotal();
+    }
+  }
+  removeItem(id) {
+    if (!this.items[id]) return;
+    this.items[id].qty -= 1;
+    if (this.items[id].qty <= 0) {
+      delete this.items[id];
+      this.removeLine(id);
+      this.enableAddButton(id);
+    } else {
+      this.renderLine(id);
+    }
+    this.updateTotal();
+  }
+  renderLine(id) {
+    let line = this.cartItemsContainer.querySelector(`.linea[data-id="${id}"]`);
+    const qty = this.items[id].qty;
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `<span class="cant">${qty}</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+      this.cartItemsContainer.appendChild(line);
+    } else {
+      line.querySelector('.cant').textContent = qty;
+    }
+  }
+  removeLine(id) {
+    const line = this.cartItemsContainer.querySelector(`.linea[data-id="${id}"]`);
+    if (line) line.remove();
+  }
+  disableAddButton(id) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if (btn) btn.disabled = true;
+  }
+  enableAddButton(id) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if (btn) btn.disabled = false;
+  }
+  updateTotal() {
+    let total = 0;
+    for (const id in this.items) {
+      total += this.items[id].qty * this.items[id].price;
+    }
+    this.totalSpan.textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  new Cart();
+});
+</script>
+</body>
+</html>

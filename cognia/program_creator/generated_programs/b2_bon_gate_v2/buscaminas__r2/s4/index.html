@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{margin:0;background:#222;color:#fff;font-family:sans-serif;text-align:center;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:320px;margin:20px auto;}
+  .c{position:relative;aspect-ratio:1;background:linear-gradient(#444,#222);border:1px solid #fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:background .2s;}
+  .c:hover{background:linear-gradient(#555,#333);}
+  .c.abierta{background:#222;color:#0ff;}
+  .c.bandera{background:#222;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+
+function createCells(){
+  for(let i=0;i<25;i++){
+    const div=document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    div.addEventListener('click',()=>handleClick(i));
+    div.addEventListener('contextmenu',e=>{e.preventDefault();handleRightClick(i);});
+    grid.appendChild(div);
+  }
+}
+
+function getNeighbors(i){
+  const neighbors=[];
+  const row=Math.floor(i/5), col=i%5;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const r=row+dr, c=col+dc;
+      if(r>=0&&r<5&&c>=0&&c<5)neighbors.push(r*5+c);
+    }
+  }
+  return neighbors;
+}
+
+function countAdj(i){
+  return getNeighbors(i).filter(n=>mines.includes(n)).length;
+}
+
+function handleClick(i){
+  const cell=document.querySelector(`.c[data-i="${i}"]`);
+  if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    cell.style.color='#b08d57';
+    estado.textContent='perdiste';
+    return;
+  }
+  openCell(i);
+}
+
+function handleRightClick(i){
+  const cell=document.querySelector(`.c[data-i="${i}"]`);
+  if(cell.classList.contains('abierta'))return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+    cell.style.color='#f00';
+  }
+}
+
+function openCell(i){
+  const cell=document.querySelector(`.c[data-i="${i}"]`);
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  const adj=countAdj(i);
+  cell.classList.add('abierta');
+  if(adj>0){
+    cell.textContent=adj;
+    cell.style.color='#0ff';
+  }else{
+    cell.textContent='';
+    getNeighbors(i).forEach(n=>openCell(n));
+  }
+}
+
+createCells();
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5×5</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#e0e0e0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+    margin:0;
+    padding:0;
+  }
+  #container{
+    position:relative;
+    margin-top:20px;
+  }
+  #grid{
+    display:flex;
+    flex-wrap:wrap;
+    width:300px;
+    background:#f0f0f0;
+    padding:5px;
+    box-sizing:border-box;
+  }
+  .c{
+    width:60px;
+    height:60px;
+    border:3px solid #bbb;
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    font-weight:bold;
+    cursor:pointer;
+    user-select:none;
+    background:#ddd;
+    color:#333;
+  }
+  .c.abierta{
+    background:#333;
+    color:#fff;
+    box-shadow:inset 0 0 5px rgba(0,0,0,0.2);
+  }
+  .c.bandera{
+    background:#ffe0a0;
+  }
+  #counter{
+    position:absolute;
+    top:5px;
+    right:5px;
+    background:#008080;
+    color:#fff;
+    padding:2px 6px;
+    border-radius:3px;
+    font-size:14px;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:18px;
+    color:#d00;
+  }
+  #reset{
+    margin-top:10px;
+    padding:8px 16px;
+    background:#008080;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    font-size:16px;
+    cursor:pointer;
+  }
+  #reset:hover{
+    background:#006666;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="counter">0</div>
+  <div id="grid"></div>
+  <div id="estado"></div>
+  <button id="reset">Reset</button>
+</div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const counterEl=document.getElementById('counter');
+const estadoEl=document.getElementById('estado');
+const resetBtn=document.getElementById('reset');
+let openedCount=0;
+
+function createGrid(){
+  for(let i=0;i<25;i++){
+    const cell=document.createElement('div');
+    cell.classList.add('c');
+    cell.dataset.i=i;
+    cell.addEventListener('click',onCellClick);
+    cell.addEventListener('contextmenu',onCellRightClick);
+    grid.appendChild(cell);
+  }
+}
+
+function onCellClick(e){
+  const cell=e.currentTarget;
+  if(cell.classList.contains('bandera')||cell.classList.contains('abierta')) return;
+  const i=parseInt(cell.dataset.i);
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    estadoEl.textContent='perdiste';
+    return;
+  }
+  openCell(i);
+}
+
+function onCellRightClick(e){
+  e.preventDefault();
+  const cell=e.currentTarget;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+}
+
+function openCell(i){
+  const cell=document.querySelector(`.c[data-i='${i}']`);
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+  const adj=countAdjMines(i);
+  cell.classList.add('abierta');
+  if(adj>0) cell.textContent=adj;
+  openedCount++;
+  counterEl.textContent=openedCount;
+  if(adj===0){
+    const neighbors=getNeighbors(i);
+    neighbors.forEach(n=>openCell(n));
+  }
+}
+
+function countAdjMines(i){
+  const neighbors=getNeighbors(i);
+  return neighbors.filter(n=>mines.includes(n)).length;
+}
+
+function getNeighbors(i){
+  const r=Math.floor(i/5);
+  const c=i%5;
+  const dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const res=[];
+  dirs.forEach(d=>{
+    const nr=r+d[0], nc=c+d[1];
+    if(nr>=0&&nr<5&&nc>=0&&nc<5){
+      res.push(nr*5+nc);
+    }
+  });
+  return res;
+}
+
+function reset(){
+  grid.innerHTML='';
+  openedCount=0;
+  counterEl.textContent='0';
+  estadoEl.textContent='';
+  createGrid();
+}
+resetBtn.addEventListener('click',reset);
+createGrid();
+</script>
+</body>
+</html>

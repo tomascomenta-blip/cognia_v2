@@ -1,0 +1,2 @@
+{"ts": "2026-07-28T22:25:51", "idea": "Un tablero kanban en un solo archivo HTML. OBLIGATORIO: 3 columnas <div class=\"c", "sello": "FALLIDO", "con_contrato": true, "contrato_intentos": 1, "contrato_fallido": false, "rondas": 1, "motivo_corte": "tope de rondas", "bon": null}
+{"ts": "2026-07-28T22:26:55", "idea": "Un tablero kanban en un solo archivo HTML. OBLIGATORIO: 3 columnas <div class=\"c", "sello": "sin verificar", "con_contrato": false, "contrato_intentos": 0, "contrato_fallido": false, "rondas": 0, "motivo_corte": "no se pudo generar la pagina inicial", "bon": null}

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Minimalista en HTML</title>
+<style>
+:root{
+  --bg:#fff;
+  --card-bg:#f9f9f9;
+  --border:#e0e0e0;
+  --text:#333;
+  --accent:#666;
+}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+}
+header{
+  padding:1rem;
+  text-align:center;
+  font-size:1.5rem;
+  background:var(--bg);
+}
+.board{
+  flex:1;
+  display:flex;
+  flex-wrap:wrap;
+  padding:1rem;
+  gap:1rem;
+}
+.col{
+  flex:1;
+  min-width:200px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:4px;
+  display:flex;
+  flex-direction:column;
+}
+.col h2{
+  margin:0;
+  padding:0.5rem 1rem;
+  font-size:1.2rem;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.col h2 span{
+  font-size:0.9rem;
+  color:var(--accent);
+}
+.card{
+  background:var(--card-bg);
+  margin:0.5rem 1rem;
+  padding:0.5rem 0.5rem 0.5rem 1rem;
+  border-radius:4px;
+  position:relative;
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+}
+.card button{
+  position:absolute;
+  top:0.3rem;
+  width:1.2rem;
+  height:1.2rem;
+  font-size:0.8rem;
+  line-height:1;
+  padding:0;
+  border:none;
+  background:transparent;
+  color:var(--accent);
+  cursor:pointer;
+}
+.card button.mas{
+  right:0.3rem;
+}
+.card button.menos{
+  right:1.6rem;
+}
+.card button:disabled{
+  opacity:0.3;
+  cursor:not-allowed;
+}
+@media (max-width:600px){
+  .board{
+    flex-direction:column;
+  }
+}
+</style>
+</head>
+<body>
+<header>Kanban Minimalista</header>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+const INITIAL_TODO = ['t1','t2','t3'];
+function createCard(id){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = id;
+  card.textContent = 'Tarea ' + id.toUpperCase();
+  const btnMas = document.createElement('button');
+  btnMas.className = 'mas';
+  btnMas.textContent = '+';
+  const btnMenos = document.createElement('button');
+  btnMenos.className = 'menos';
+  btnMenos.textContent = '-';
+  card.appendChild(btnMas);
+  card.appendChild(btnMenos);
+  return card;
+}
+function init(){
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  INITIAL_TODO.forEach(id => {
+    todoCol.appendChild(createCard(id));
+  });
+  updateCounters();
+}
+function updateCounters(){
+  const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+  const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+  const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent = todo;
+  document.getElementById('cont-doing').textContent = doing;
+  document.getElementById('cont-done').textContent = done;
+}
+function moveCard(card, direction){
+  const currentCol = card.parentElement;
+  const currentData = currentCol.dataset.col;
+  let targetCol;
+  if(direction === 'right'){
+    if(currentData === 'todo') targetCol = document.querySelector('.col[data-col="doing"]');
+    else if(currentData === 'doing') targetCol = document.querySelector('.col[data-col="done"]');
+    else return; // done cannot move right
+  }else if(direction === 'left'){
+    if(currentData === 'doing') targetCol = document.querySelector('.col[data-col="todo"]');
+    else if(currentData === 'done') targetCol = document.querySelector('.col[data-col="doing"]');
+    else return; // todo cannot move left
+  }
+  // Check WIP limit
+  if(targetCol.dataset.col === 'doing' && targetCol.querySelectorAll('.card').length >= MAX_DOING){
+    return;
+  }
+  targetCol.appendChild(card);
+  updateCounters();
+}
+document.querySelector('.board').addEventListener('click', function(e){
+  if(e.target.classList.contains('mas')){
+    moveCard(e.target.parentElement, 'right');
+  }else if(e.target.classList.contains('menos')){
+    moveCard(e.target.parentElement, 'left');
+  }
+});
+init();
+</script>
+</body>
+</html>
