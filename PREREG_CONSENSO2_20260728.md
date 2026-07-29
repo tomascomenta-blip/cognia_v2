@@ -170,6 +170,39 @@ corrido aún salvo la auditoría estática (sin Playwright, sin outcome).
    aparte); el resumen persiste votos_hechos/crasheados/parcial/ancla2_ok;
    tarea desconocida en el clasificador = KeyError ruidoso.
 
+## RESULTADO (2026-07-28 ~22:30 — corrida completa, veredicto por umbrales pre-fijados)
+
+**Anclas perfectas:** reproducción por voto 255/255 = 100% (umbral ≥90%);
+baseline recomputado sobre el re-juzgado = +2 EXACTO (rango [0,+4]); 0
+crasheos, 0 desalineados, 0 cortes de carga. El instrumento es estable.
+
+| variante | neto | peor caso | veredicto pre-fijado |
+|---|---|---|---|
+| V1_oblig | **+3** | +3 (0 exclusiones extra) | señal MODERADA: se reporta, sin validación esta noche |
+| V2_frac (congelados) | +2 | — | KILL (exploratoria; igual al baseline) |
+| V3_combo | +3 | +3 | señal MODERADA (idéntica a V1) |
+| V2r (re-juzgados) | +2 | — | robustez: V2 no cambia con el instrumento nuevo |
+
+- **Ninguna variante llega a +5 → no hay VIVA, no hay validación en FÁCIL,
+  no se adopta nada.** Por la regla de multiplicidad pre-fijada, no habrá
+  tercera vuelta de tuerca a los votos: la próxima vía del "marco nuevo de
+  señal" es OTRA (ejecución en el bucle), con este +3 como mejor marca del
+  consenso de contratos ciegos.
+- Secundarias: la asimetría mejora de 2-0 a **3-0** (V1 rescata además
+  hoja_calculo:r6; sigue sin elegir peor que s1 en ningún ensayo); el
+  offset se relaja poco con el filtro (votos que aprueban 39/255 → 65/255
+  con todos-pasan-oblig; 176/255 con mayoría — mucha aprobación, poca
+  discriminación); coincidencia con el selector held-out casi igual (6→7).
+- Partidas por conjuncto (fuga de superficie): V1 da +3 contra `aprobado`
+  solo Y +3 contra `aprobado_heldout` solo — la ganancia NO vive solo en el
+  conjuncto held-out, así que lo poco que hay no parece mera reconstrucción
+  del instrumento.
+- Lectura de mecanismo (la expectativa honesta de la enmienda se cumplió):
+  la palanca del filtro de superficie era chica (7% de checks) porque las
+  expectativas inventadas viven en los VALORES, no en los selectores. El
+  techo del consenso de contratos ciegos como ranker queda en +3/+7 del
+  margen disponible — el selector held-out sigue capturando 7/7.
+
 ## Presupuesto y logística
 
 - Fase A: 255 juzgados × ~10-15 s ≈ 45-70 min de Playwright, sin GPU (la
