@@ -112,17 +112,24 @@ def imaginar_vision(idea: str, llm: Optional[LlmFn] = None) -> Dict:
     cruda copiada en los dos campos NO es una vision imaginada."""
     try:
         prompt = _PLANTILLA_VISION.format(idea=(idea or "")[:400])
+        # max_tokens 2500 y no 400: con un razonador (gpt-oss) el PENSAMIENTO
+        # se comia los 400 integros y el contenido llegaba VACIO -> vision
+        # degradada a idea cruda en TODAS las corridas endurecidas (7o caso
+        # medido de [[presupuesto-tokens-razonamiento]], 2026-07-28). La
+        # respuesta util son ~150-300 tokens; el resto es presupuesto de
+        # pensamiento con margen 2-3x, y el effort real lo fija el kwarg.
         raw = None
         if llm is not None:
             try:
-                raw = llm(prompt, _SISTEMA_VISION, 400, 0.7)
+                raw = llm(prompt, _SISTEMA_VISION, 2500, 0.7)
             except Exception as e:
                 logger.warning("mockup: backend inyectado fallo (%s)", e)
                 _grito("mockup.imaginar_vision",
                        f"el backend inyectado fallo ({e}); pruebo con llm_local")
         if not raw:
             raw = generar(prompt, system=_SISTEMA_VISION,
-                          temperature=0.7, max_tokens=400, via="mockup")
+                          temperature=0.7, max_tokens=2500, via="mockup",
+                          reasoning_effort="low")
         if not raw:
             return _fallback_vision(
                 idea, "ningun LLM imagino el producto: la 'vision' es la idea "

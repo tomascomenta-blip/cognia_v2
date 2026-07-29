@@ -1,0 +1,611 @@
+{
+  "filas": [
+    {
+      "pagina": "calculadora__lazo__r1",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__lazo__r2",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__lazo__r3",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__lazo__r4",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__lazo__r5",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__lazo__r6",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__primgen__r1",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__primgen__r2",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "calculadora__primgen__r3",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__primgen__r4",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__primgen__r5",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "calculadora__primgen__r6",
+      "tarea": "calculadora",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "contador__lazo__r1",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "contador__lazo__r2",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "contador__lazo__r3",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "contador__lazo__r4",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "contador__lazo__r5",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "contador__lazo__r6",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "contador__primgen__r1",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "contador__primgen__r2",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "contador__primgen__r3",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "contador__primgen__r4",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "contador__primgen__r5",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "contador__primgen__r6",
+      "tarea": "contador",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__lazo__r1",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__lazo__r2",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "filtro_lista__lazo__r3",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "filtro_lista__lazo__r4",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__lazo__r5",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__lazo__r6",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "filtro_lista__primgen__r1",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__primgen__r2",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__primgen__r3",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__primgen__r4",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__primgen__r5",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "filtro_lista__primgen__r6",
+      "tarea": "filtro_lista",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "memoria_4x4__lazo__r1",
+      "tarea": "memoria_4x4",
+      "original": false,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__lazo__r2",
+      "tarea": "memoria_4x4",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "tras un intento, moves marca 1"
+      ]
+    },
+    {
+      "pagina": "memoria_4x4__lazo__r3",
+      "tarea": "memoria_4x4",
+      "original": false,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__lazo__r4",
+      "tarea": "memoria_4x4",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__lazo__r5",
+      "tarea": "memoria_4x4",
+      "original": false,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__lazo__r6",
+      "tarea": "memoria_4x4",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__primgen__r1",
+      "tarea": "memoria_4x4",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__primgen__r2",
+      "tarea": "memoria_4x4",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "destapo la carta 14",
+        "siguen existiendo las 16 cartas",
+        "tras un intento, moves marca 1"
+      ]
+    },
+    {
+      "pagina": "memoria_4x4__primgen__r3",
+      "tarea": "memoria_4x4",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__primgen__r4",
+      "tarea": "memoria_4x4",
+      "original": false,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__primgen__r5",
+      "tarea": "memoria_4x4",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "memoria_4x4__primgen__r6",
+      "tarea": "memoria_4x4",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "tras un intento completo quedan 0 o 2 vistas, nunca 1"
+      ]
+    },
+    {
+      "pagina": "semaforo__lazo__r1",
+      "tarea": "semaforo",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "la SEGUNDA vuelta tambien pasa a verde",
+        "y a ambar",
+        "dos vueltas completas cierran en rojo"
+      ]
+    },
+    {
+      "pagina": "semaforo__lazo__r2",
+      "tarea": "semaforo",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "la SEGUNDA vuelta tambien pasa a verde",
+        "y a ambar",
+        "dos vueltas completas cierran en rojo"
+      ]
+    },
+    {
+      "pagina": "semaforo__lazo__r3",
+      "tarea": "semaforo",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "la SEGUNDA vuelta tambien pasa a verde",
+        "y a ambar",
+        "dos vueltas completas cierran en rojo"
+      ]
+    },
+    {
+      "pagina": "semaforo__lazo__r4",
+      "tarea": "semaforo",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "la SEGUNDA vuelta tambien pasa a verde",
+        "y a ambar",
+        "data-color siempre esta en el dominio {rojo, verde, ambar}",
+        "dos vueltas completas cierran en rojo"
+      ]
+    },
+    {
+      "pagina": "semaforo__lazo__r5",
+      "tarea": "semaforo",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "la SEGUNDA vuelta tambien pasa a verde",
+        "y a ambar",
+        "dos vueltas completas cierran en rojo"
+      ]
+    },
+    {
+      "pagina": "semaforo__lazo__r6",
+      "tarea": "semaforo",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "la SEGUNDA vuelta tambien pasa a verde",
+        "y a ambar",
+        "dos vueltas completas cierran en rojo"
+      ]
+    },
+    {
+      "pagina": "semaforo__primgen__r1",
+      "tarea": "semaforo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "semaforo__primgen__r2",
+      "tarea": "semaforo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "semaforo__primgen__r3",
+      "tarea": "semaforo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "semaforo__primgen__r4",
+      "tarea": "semaforo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "semaforo__primgen__r5",
+      "tarea": "semaforo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": []
+    },
+    {
+      "pagina": "semaforo__primgen__r6",
+      "tarea": "semaforo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__lazo__r1",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__lazo__r2",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__lazo__r3",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__lazo__r4",
+      "tarea": "tareas_todo",
+      "original": false,
+      "heldout": false,
+      "heldout_fallos": [
+        "interactivo",
+        "anadir",
+        "anadir",
+        "la segunda tarea dice lo que escribi",
+        "la primera sigue diciendo lo suyo",
+        "anadir duplicado"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__lazo__r5",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__lazo__r6",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__primgen__r1",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__primgen__r2",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__primgen__r3",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__primgen__r4",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__primgen__r5",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    },
+    {
+      "pagina": "tareas_todo__primgen__r6",
+      "tarea": "tareas_todo",
+      "original": true,
+      "heldout": true,
+      "heldout_fallos": [
+        "interactivo"
+      ]
+    }
+  ],
+  "desacuerdos": []
+}

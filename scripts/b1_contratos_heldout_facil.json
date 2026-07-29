@@ -3,7 +3,7 @@
 
   "_regla_de_diseno": "Cada check es una CONSECUENCIA LOGICA del enunciado (mismo texto que vieron los modelos), nunca un requisito nuevo. Solo selectores que el enunciado declara OBLIGATORIOS. Lo que exige interpretacion (no letra) entra con critico:false hasta que la validacion lo confirme.",
 
-  "_validacion": "PENDIENTE al escribirse (2026-07-28): antes de usar esta suite en un veredicto, correrla contra paginas APROBADAS por el contrato original de corridas previas (b2_ab_lazo_facil). Un desacuerdo se adjudica LEYENDO el HTML de la pagina (como la fe de erratas de buscaminas): si la pagina es correcta y el held-out la reprueba, el bug es del held-out y se corrige aqui; si la pagina esta rota, es un FP del original y se documenta. Ver memoria fp-heldout-por-modelo: validar SIEMPRE contra referencia antes de usar.",
+  "_validacion": "VALIDADA 2026-07-28 contra las 72 paginas de b2_ab_lazo_facil (b1_validar_heldout_facil.py): 0 errores, 0 desacuerdos (ninguna pagina aprobada por el original fallo el held-out). Tres sondas critico:false ascendidas a criticas (0 fallos en aprobadas); 'moves marca 1' se queda informativa (1 pagina sana cuenta por click); clicks de contador pasados a js guardado (2 paginas correctas deshabilitan #menos en 0 y el click de Playwright moria en timeout). RE-VALIDADA tras esos cambios con el mismo resultado: 0 desacuerdos.",
 
   "tareas": [
     {
@@ -11,8 +11,8 @@
       "contrato": {
         "nombre": "memoria HELD-OUT: intento completo nunca deja 1 destapada, nada se destruye",
         "pasos": [
-          {"_por_que": "'cuenta los intentos' con cero intentos hechos: la unica lectura coherente es 0, pero el enunciado no dice literalmente 'empieza en 0' -> critico:false hasta validar.",
-           "accion": "texto", "selector": "#moves", "contiene": "0", "nombre": "antes de jugar, moves marca 0", "critico": false},
+          {"_por_que": "'cuenta los intentos' con cero intentos hechos: la unica lectura coherente es 0. ASCENDIDO a critico en la validacion 2026-07-28: 0 fallos en las 6 paginas aprobadas por ambos contratos.",
+           "accion": "texto", "selector": "#moves", "contiene": "0", "nombre": "antes de jugar, moves marca 0", "critico": true},
           {"accion": "click", "selector": ".tile", "indice": 2, "nombre": "destapo la carta 3"},
           {"accion": "click", "selector": ".tile", "indice": 13, "nombre": "destapo la carta 14"},
           {"accion": "esperar", "ms": 1600},
@@ -31,9 +31,10 @@
       "contrato": {
         "nombre": "contador HELD-OUT: sube pasado 2, el suelo no corrompe el estado, nunca negativo",
         "pasos": [
-          {"accion": "click", "selector": "#menos", "nombre": "- en 0 (al suelo directo)"},
-          {"accion": "click", "selector": "#menos", "nombre": "- otra vez"},
-          {"accion": "click", "selector": "#menos", "nombre": "- tercera"},
+          {"_por_que": "Click guardado via js: deshabilitar #menos en 0 es una implementacion CORRECTA del suelo (2 paginas validadas lo hacen) y el click de Playwright contra un boton disabled muere en timeout — mismo patron que el kanban del brutal. Los checks portadores son los de abajo.",
+           "accion": "js", "expr": "(() => { const b = document.querySelector('#menos'); if (b && !b.disabled) b.click(); return true; })()", "esperado": true, "nombre": "- en 0 (al suelo directo)"},
+          {"accion": "js", "expr": "(() => { const b = document.querySelector('#menos'); if (b && !b.disabled) b.click(); return true; })()", "esperado": true, "nombre": "- otra vez"},
+          {"accion": "js", "expr": "(() => { const b = document.querySelector('#menos'); if (b && !b.disabled) b.click(); return true; })()", "esperado": true, "nombre": "- tercera"},
           {"_por_que": "'NUNCA baja de 0' y 'muestra el numero': tras tres menos en 0 el valor mostrado sigue siendo 0 y ademas no puede haber un signo negativo.",
            "accion": "js", "expr": "!document.querySelector('#valor').textContent.includes('-')", "esperado": true, "nombre": "jamas muestra un negativo", "critico": true},
           {"accion": "texto", "selector": "#valor", "contiene": "0", "nombre": "sigue en 0 tras el suelo repetido", "critico": true},
@@ -65,7 +66,8 @@
           {"_por_que": "'al pulsar el boton se anade la tarea': anadir dos veces el mismo texto son dos tareas. Un dedupe no esta en el enunciado, pero tampoco prohibido explicitamente -> critico:false hasta validar.",
            "accion": "escribir", "selector": "#nueva", "texto": "pagar la luz", "nombre": "repito el texto"},
           {"accion": "click", "selector": "#anadir", "nombre": "anadir duplicado"},
-          {"accion": "contar", "selector": ".tarea", "esperado": 3, "nombre": "el duplicado tambien se anade (3 tareas)", "critico": false}
+          {"_por_que": "ASCENDIDO a critico en la validacion 2026-07-28: 0 fallos en las 11 paginas aprobadas.",
+           "accion": "contar", "selector": ".tarea", "esperado": 3, "nombre": "el duplicado tambien se anade (3 tareas)", "critico": true}
         ]
       }
     },
@@ -91,8 +93,8 @@
           {"accion": "click", "selector": "[data-t='+']", "nombre": "pulso +"},
           {"accion": "click", "selector": "[data-t='3']", "nombre": "pulso 3"},
           {"accion": "click", "selector": "[data-t='=']", "nombre": "pulso ="},
-          {"_por_que": "'Una calculadora' que no concatena digitos (22) no es una calculadora; aun asi el enunciado solo ejemplifica un digito -> critico:false hasta validar contra referencias.",
-           "accion": "texto", "selector": "#pantalla", "contiene": "25", "nombre": "22+3=25 (numeros de dos digitos)", "critico": false}
+          {"_por_que": "'Una calculadora' que no concatena digitos (22) no es una calculadora. ASCENDIDO a critico en la validacion 2026-07-28: 0 fallos en las 12 paginas aprobadas.",
+           "accion": "texto", "selector": "#pantalla", "contiene": "25", "nombre": "22+3=25 (numeros de dos digitos)", "critico": true}
         ]
       }
     },
