@@ -9643,3 +9643,66 @@ DEL LAZO completo, no el directo (dos transferencias fallidas lo exigen).
 pensador) y gate-e2e-flaky (el umbral rozado que no replicó y la lectura
 por total pre-fijada).
 
+
+## 2026-07-28/29 (nocturna 28→29, 16:24-04:30) — El muestreo alcanza el 8/8; lo único que falta es la señal
+
+Ventana pedida en vivo por el dueño ("hasta las 4:30"). Apagado 4:30 y
+aterrizaje 4:14 armados al arrancar. Todo pre-registrado antes de correr;
+revisión adversarial antes de cada gasto de GPU.
+
+1. **Unidad BoN (PREREG_BON_HELDOUT, commits 58a9cba→3a7186d) — EL
+   RESULTADO DE LA NOCHE: techo pass@4 = 24/24 (100%) sobre control 17/24
+   (71%), neto +7, y el selector held-out capturó TODO el margen (B=A,
+   pérdida 0).** 4 réplicas independientes de primgen por ensayo (la
+   diversidad viene de rehacer el pipeline, NO de subir temperatura — 0.9
+   pierde selectores, prior medido), juez estricto = original ∧ held-out,
+   24/24 ensayos válidos. NO contradice el KILL de BoN del 26 (aquel era de
+   clones dentro del lazo). Conclusión de inversión pre-registrada: **el
+   cuello del goal es FABRICAR SEÑAL, no el constructor.** De paso: 4 FP
+   más del contrato original (kanban 1, buscaminas 3). Logística: el
+   harness mató la corrida a los 48 min → relanzada desacoplada
+   (Start-Process + --reanudar --acepta-commit, ambos commits en config).
+
+2. **Unidad QA-fuerte (PREREG_QA_FUERTE, commits 72ce929→33d79ea y el de
+   este cierre) — DOBLE KILL, y es el CUARTO clavo del contrato
+   autogenerado.** Control gpt-oss mismo día: aciertos 8/24, FN 15/19 (sin
+   deriva). Nemotron-14B: KILL DE APTITUD (0/6 en el piloto de futilidad
+   pre-registrado — ahorró el bloque de 2 h; degenera en bucle a 0.2, sin
+   críticos a 0.6). coder-14b: emite perfecto (6/6 piloto, 5-8 s) pero
+   aciertos 10/24, FN 14/19, FP 0/5 → KILL, indistinguible de gpt-oss.
+   **Dos familias, mismo perfil: la enfermedad es el MARCO (contrato ciego
+   desde idea+inventario), no el pensador. Vía drop-in cerrada; no probar
+   un tercer modelo con este prompt.** Plomería que quedó: extractor
+   endurecido (_json_de_respuesta: corta <think> inline + raw_decode, 7
+   tests) y knob COGNIA_TEMP_CONTRATO (default 0.2 intacto).
+
+3. **Held-outs A MANO del banco FÁCIL, escritos y VALIDADOS** (backlog #1
+   de la matinal): 6 tareas, consecuencias lógicas del enunciado, validados
+   contra las 72 páginas guardadas — 0 errores, 0 desacuerdos, dos veces
+   (antes y después de ascender 3 sondas a críticas y blindar los clicks de
+   contador contra botones disabled). Con el brutal ya cubierto, TODO el
+   banco tiene juez estricto de señal real.
+
+4. **Fix de producción: mockup.imaginar_vision** — max_tokens 400→2500 +
+   reasoning_effort low (7º caso de [[presupuesto-tokens-razonamiento]]:
+   el pensamiento se comía el presupuesto y la visión degradaba a idea
+   cruda en toda corrida endurecida). Verificación REAL: degradado=False,
+   brief en 1.6 s contra gpt-oss vivo.
+
+**Suites verdes en cada commit con código (5474/5476 passed según tests
+nuevos). Fe de erratas: el mensaje del commit 33d79ea dice "5479 passed";
+la cifra real de esa corrida fue 5474.**
+
+**Qué sigue (por valor):** (1) **diseñar el marco nuevo de señal para
+tareas no vistas** — consenso conductual entre las K muestras del BoN
+(las muestras se verifican unas a otras: mayoría conductual como contrato)
+o held-outs generados CON ejecución en el bucle; los 4 clavos prohíben
+seguir por prompt/modelo del contrato ciego; (2) cablear BoN K=4 +
+held-out como modo de banco (la arquitectura ya validada) para medir
+regresiones de punta a punta; (3) el watchdog de pared por celda como chequeo
+ejecutable (pendiente de la matinal); (4) el ladrón restante de
+generate_program (~17 pts vs crudo, sondear el prompt DEL LAZO).
+
+**Lecciones a memoria:** bon-con-senal-real (nueva), contrato-interno-al-azar
+(cuarto clavo), fp-heldout-por-modelo (4 FP nuevos + suite fácil validada).
+
