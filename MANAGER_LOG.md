@@ -9775,3 +9775,44 @@ cada gasto, como siempre.
    entero infra): backend POR MUESTRA en el meta + infra por muestra.
    Resultado en el cierre de la noche.
 
+### Cierre nocturna 28→29, segunda sesión (01:45) — El gate CONFIRMA el modo BoN; una corrida entera salvada por la telemetría de infra
+
+6. **Gate BoN v2 (PREREG_BON_GATE, 3 enmiendas, commit 8d0ab01):
+   CONFIRMADO con neto B = +8.** Control s1 12/20 (60%) → modo cableado
+   20/20 (100%): rescató LOS OCHO fallos del control, no perdió ninguno;
+   pérdida del selector C = 0 (el held-out captura todo el margen también
+   a través del módulo de producción). Coste del no-fallback: 5% de
+   muestras. De paso, 4 FP más del contrato original (carrito 1,
+   buscaminas 2, hoja 1).
+
+7. **La corrida v1 se ABORTÓ Y DESCARTÓ ENTERA a 5 ensayos** — la
+   telemetría de infra (no el outcome) mostró 50% de muestras muertas.
+   Diagnóstico por la regla de la memoria (reproducir la llamada exacta,
+   mirar finish_reason/usage): **las builds recientes de llama-server
+   parten --ctx-size entre 4 slots POR DEFECTO** → 8192/4 = 2048 tokens
+   por petición; el prompt del lazo con la visión VIVA (~1.5-2.2k tokens,
+   el fix de imaginar_vision entró ayer) recibía HTTP 500 determinista, y
+   las muestras "exitosas" generaban 5k+ tokens vía context-shift
+   silencioso. Anoche la flota servía ctx 16384 (4096/slot) con visión
+   degradada — por eso 15% y no 50%. Fixes: `--parallel 1` explícito en
+   servir_modelo.py + **chequeo ejecutable de slots al arrancar** (la
+   lección en prosa no impide nada). Verificación real: el prompt
+   capturado #9 (2190 tokens) pasó de 500 a finish=stop con 5474 tokens.
+
+8. Exploratorio sobre los 96 prompts capturados: el LARGO no separa
+   aprobadas de reprobadas (5995 vs 5898 mediana) y es plano por posición
+   — la hipótesis feromona-engorda-el-prompt muere en el escritorio, no
+   en la GPU. Sonda del ladrón lista para la próxima sesión
+   (PREREG_SONDA_LAZO_BORRADOR: piezas identificadas, 96 prompts con
+   outcome, ablaciones por contenido).
+
+**Suites verdes en cada commit con código (5486→5492 passed). Árbol
+limpio y pusheado al cierre. Prioridades del dueño: P1 respondida
+(moderada, vía de votos cerrada), P2 CONFIRMADA y cableada, P4 entregada;
+P3 preparada con materia prima capturada (la GPU de la noche la consumió
+el gate, como correspondía por valor).**
+
+**Lecciones a memoria:** bon-con-senal-real (gate confirmado),
+fp-heldout-por-modelo (+4 FP), descartar-hipotesis-reproduce-condiciones
+(caso slots: 2º éxito del método finish_reason/usage).
+
