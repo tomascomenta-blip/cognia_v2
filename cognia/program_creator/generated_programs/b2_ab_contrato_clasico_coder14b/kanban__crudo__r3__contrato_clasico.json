@@ -1,0 +1,61 @@
+{
+  "nombre": "Kanban Board Functionality Test",
+  "pasos": [
+    {
+      "nombre": "Initial State: 3 Columns Exist",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Initial State: 3 Cards Exist",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Initial State: 3 'mas' Buttons Exist",
+      "accion": "contar",
+      "selector": ".mas",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Initial State: 3 'menos' Buttons Exist",
+      "accion": "contar",
+      "selector": ".menos",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Initial State: Cards in 'todo' Column",
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Initial State: 'cont-todo' Shows 3",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Initial State: 'cont-doing' and 'cont-done' Show 0",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Initial State: 'cont-doing' and 'cont-done' Show 0",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0",
+      "critico": true
+    }
+  ]
+}

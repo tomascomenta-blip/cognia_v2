@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existe una grilla 3x3 de <input class=\"celda\">",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene un atributo data-ref correspondiente",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(c => ['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(c.getAttribute('data-ref')))",
+      "esperado": true
+    },
+    {
+      "nombre": "Al cambiar una celda, se recalculan todas las que dependen de ella",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "La celda B1 muestra el resultado correcto de la fórmula",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6"
+    },
+    {
+      "nombre": "La celda C1 muestra el resultado correcto de la fórmula",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "7"
+    },
+    {
+      "nombre": "Si se crea una referencia cíclica, la celda muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=B1"
+    },
+    {
+      "nombre": "La celda B1 muestra 'CIRC' debido a la referencia cíclica",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "CIRC"
+    },
+    {
+      "nombre": "La celda C1 muestra 'CIRC' debido a la referencia cíclica",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "CIRC"
+    }
+  ]
+}

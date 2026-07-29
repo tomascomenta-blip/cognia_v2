@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar estado inicial del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 tarjetas",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas están en la columna 'todo'",
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas tienen IDs 't1', 't2', 't3'",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.card')).map(card => card.dataset.id).sort().join(',')",
+      "esperado": "t1,t2,t3",
+      "critico": true
+    },
+    {
+      "nombre": "Las columnas 'doing' y 'done' están vacías",
+      "accion": "contar",
+      "selector": ".card[data-col='doing'], .card[data-col='done']",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Los contadores muestran 3 en 'todo', 0 en 'doing', 0 en 'done'",
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Los contadores muestran 3 en 'todo', 0 en 'doing', 0 en 'done'",
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Los contadores muestran 3 en 'todo', 0 en 'doing', 0 en 'done'",
+      "accion": "contar_visible",
+      "selector": "#cont-done",
+      "esperado": 0,
+      "critico": true
+    }
+  ]
+}

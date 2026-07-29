@@ -1,0 +1,104 @@
+{
+  "etiqueta": "nemotron14b",
+  "usables": 0,
+  "n": 6,
+  "veredicto": "KILL DE APTITUD",
+  "filas": [
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__base__r2",
+      "usable": false,
+      "pasos": 0,
+      "criticos": 0,
+      "segundos": 371.3,
+      "backend": {
+        "t": "2026-07-28T19:46:54",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__base__r2",
+      "usable": false,
+      "pasos": 0,
+      "criticos": 0,
+      "segundos": 363.8,
+      "backend": {
+        "t": "2026-07-28T19:53:00",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__base__r2",
+      "usable": false,
+      "pasos": 0,
+      "criticos": 0,
+      "segundos": 365.5,
+      "backend": {
+        "t": "2026-07-28T19:59:04",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__base__r2",
+      "usable": false,
+      "pasos": 0,
+      "criticos": 0,
+      "segundos": 187.8,
+      "backend": {
+        "t": "2026-07-28T20:02:14",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__base__r3",
+      "usable": false,
+      "pasos": 0,
+      "criticos": 0,
+      "segundos": 366.1,
+      "backend": {
+        "t": "2026-07-28T20:08:18",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__base__r3",
+      "usable": false,
+      "pasos": 0,
+      "criticos": 0,
+      "segundos": 36.3,
+      "backend": {
+        "t": "2026-07-28T20:11:50",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "rol": ""
+      }
+    }
+  ]
+}

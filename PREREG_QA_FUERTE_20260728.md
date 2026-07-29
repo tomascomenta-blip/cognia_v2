@@ -80,3 +80,31 @@ Para no gastar ~2 h en un KILL casi seguro ni matarlo con 3 humos post-hoc:
    sigue el esquema.
 3. El control G del día (FN 15/19, dentro de [5,13] aciertos) sigue siendo
    el ancla de deriva para cualquier candidato de esta noche.
+
+## RESULTADO DEL CANDIDATO B — coder-14b (2026-07-28 22:05)
+
+Piloto: **6/6 usables** (5-8 s/contrato, críticos bien marcados — la aptitud
+de emisión no era el problema). Bloque completo (24 páginas, M3:
+sin-contrato=reprueba): **aciertos 10/24, FN 14/19, FP 0/5 → KILL por los
+umbrales pre-fijados** (aciertos ≤13 ∧ FN ≥8). Control G de la misma noche:
+gpt-oss aciertos 8/24, FN 15/19 — indistinguibles.
+
+**Lectura conjunta (el CUARTO clavo):** dos pensadores de familias distintas
+(razonador MoE 20B, coder denso 14B) producen el MISMO perfil de FN con el
+mismo marco. La enfermedad no es el modelo: es el MARCO — un contrato ciego
+generado desde idea+inventario inventa expectativas que condenan páginas
+sanas, lo genere quien lo genere. La vía "QA más fuerte drop-in" queda
+CERRADA con dos KILL; fabricar señal para tareas nuevas exige OTRO marco
+(p. ej. verificación conductual cruzada entre muestras del propio BoN, o
+held-outs con ejecución en el bucle) — diseño para la próxima sesión, no un
+tercer modelo con el mismo prompt.
+
+## RESULTADO DEL PILOTO NEMOTRON (2026-07-28 21:45)
+
+**0/6 usables → KILL DE APTITUD** (piloto_qa_nemotron14b.json, 2 intentos
+por página, temp 0.6 de su tarjeta, extractor ya endurecido). El modelo no
+sabe emitir el artefacto: o el JSON no cierra (degenera aun a 0.6) o no
+marca ningún paso crítico (contrato vacuo, descartado por producción). El
+bloque N completo NO se corre (puerta de futilidad). Matiz honesto: esto
+mata a Nemotron como QA **drop-in con el prompt actual**, no la idea
+"QA más fuerte" — el candidato B sigue el protocolo.

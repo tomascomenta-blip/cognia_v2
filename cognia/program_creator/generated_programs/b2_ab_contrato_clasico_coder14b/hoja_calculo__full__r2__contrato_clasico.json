@@ -1,0 +1,67 @@
+{
+  "nombre": "Mini hoja de cálculo funcional",
+  "pasos": [
+    {
+      "nombre": "Verificar que hay 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que hay 1 elemento con clase 'grid'",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar el valor de A1 a 5",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Verificar que B1 calcula correctamente como A1+1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6"
+    },
+    {
+      "nombre": "Verificar que C1 calcula correctamente como B1+1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "7"
+    },
+    {
+      "nombre": "Crear una referencia circular en D1 como =D1+1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='D1']",
+      "contiene": "=D1+1"
+    },
+    {
+      "nombre": "Verificar que D1 muestra 'CIRC' por referencia circular",
+      "accion": "texto",
+      "selector": ".celda[data-ref='D1']",
+      "contiene": "CIRC"
+    },
+    {
+      "nombre": "Cambiar el valor de A1 a 10 y verificar recálculo",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "10"
+    },
+    {
+      "nombre": "Verificar que B1 recalcula correctamente como A1+1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "11"
+    },
+    {
+      "nombre": "Verificar que C1 recalcula correctamente como B1+1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "12"
+    }
+  ]
+}

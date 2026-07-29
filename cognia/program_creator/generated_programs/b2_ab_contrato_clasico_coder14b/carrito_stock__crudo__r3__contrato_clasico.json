@@ -1,0 +1,164 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".prod",
+          "esperado": 3
+        }
+      ]
+    },
+    {
+      "nombre": "Existen 3 botones de añadir",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".add",
+          "esperado": 3
+        }
+      ]
+    },
+    {
+      "nombre": "Existen 3 productos con stock suficiente",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "js",
+          "expr": "document.querySelector('[data-id=\"p1\"]').getAttribute('data-stock')",
+          "esperado": "2"
+        },
+        {
+          "accion": "js",
+          "expr": "document.querySelector('[data-id=\"p2\"]').getAttribute('data-stock')",
+          "esperado": "3"
+        },
+        {
+          "accion": "js",
+          "expr": "document.querySelector('[data-id=\"p3\"]').getAttribute('data-stock')",
+          "esperado": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "Añadir un producto no crea una línea nueva si ya existe",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "El botón de añadir se deshabilita cuando se alcanza el stock máximo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 1
+        },
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 1
+        },
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 1
+        },
+        {
+          "accion": "existe",
+          "selector": ".add[data-id=\"p2\"][disabled]"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar una unidad de un producto hace que la línea desaparezca si la cantidad llega a 0",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 2
+        },
+        {
+          "accion": "click",
+          "selector": ".quitar",
+          "indice": 0
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".linea[data-id=\"p3\"]"
+        }
+      ]
+    },
+    {
+      "nombre": "El botón de añadir vuelve a habilitarse cuando la cantidad llega a 0",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 2
+        },
+        {
+          "accion": "click",
+          "selector": ".quitar",
+          "indice": 0
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".linea[data-id=\"p3\"]"
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".add[data-id=\"p3\"][disabled]"
+        }
+      ]
+    },
+    {
+      "nombre": "El total se recalcula siempre",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 1
+        },
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 2
+        },
+        {
+          "accion": "js",
+          "expr": "document.getElementById('total').textContent",
+          "esperado": "225"
+        }
+      ]
+    }
+  ]
+}

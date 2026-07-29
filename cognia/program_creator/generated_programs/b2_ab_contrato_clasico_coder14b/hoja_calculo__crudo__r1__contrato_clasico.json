@@ -1,0 +1,67 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 1 elemento con clase 'grid'",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de A1 recalcula B1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "esperado": "5",
+      "critico": true
+    },
+    {
+      "nombre": "B1 muestra resultado correcto",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6",
+      "esperado": "6",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de A2 recalcula C1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A2']",
+      "contiene": "3",
+      "esperado": "3",
+      "critico": true
+    },
+    {
+      "nombre": "C1 muestra resultado correcto",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "9",
+      "esperado": "9",
+      "critico": true
+    },
+    {
+      "nombre": "Crear referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A3']",
+      "contiene": "=B3",
+      "esperado": "=B3",
+      "critico": true
+    },
+    {
+      "nombre": "Celda con referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B3']",
+      "contiene": "CIRC",
+      "esperado": "CIRC",
+      "critico": true
+    }
+  ]
+}

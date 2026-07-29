@@ -1,0 +1,104 @@
+{
+  "etiqueta": "coder14b",
+  "usables": 6,
+  "n": 6,
+  "veredicto": "SIGUE (bloque completo)",
+  "filas": [
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__base__r2",
+      "usable": true,
+      "pasos": 8,
+      "criticos": 8,
+      "segundos": 8.5,
+      "backend": {
+        "t": "2026-07-28T20:12:37",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__base__r2",
+      "usable": true,
+      "pasos": 8,
+      "criticos": 8,
+      "segundos": 6.6,
+      "backend": {
+        "t": "2026-07-28T20:12:46",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__base__r2",
+      "usable": true,
+      "pasos": 10,
+      "criticos": 2,
+      "segundos": 6.4,
+      "backend": {
+        "t": "2026-07-28T20:12:52",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__base__r2",
+      "usable": true,
+      "pasos": 10,
+      "criticos": 10,
+      "segundos": 6.8,
+      "backend": {
+        "t": "2026-07-28T20:12:59",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__base__r3",
+      "usable": true,
+      "pasos": 8,
+      "criticos": 3,
+      "segundos": 5.8,
+      "backend": {
+        "t": "2026-07-28T20:13:05",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__base__r3",
+      "usable": true,
+      "pasos": 8,
+      "criticos": 8,
+      "segundos": 5.2,
+      "backend": {
+        "t": "2026-07-28T20:13:11",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "rol": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5",
+  "pasos": [
+    {
+      "nombre": "Verificar que hay 25 celdas con clase 'c'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Verificar que las minas están en las celdas 6, 12 y 18",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelectorAll('.c').length",
+      "esperado": 25
+    },
+    {
+      "nombre": "Click en una celda sin minas adyacentes abre en cascada",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Click derecho en una celda pone una bandera",
+      "critico": true,
+      "accion": "tecla",
+      "key": "ContextMenu"
+    },
+    {
+      "nombre": "Click en una celda con bandera no la abre",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0
+    },
+    {
+      "nombre": "Abrir una mina muestra 'perdiste' en #estado",
+      "critico": true,
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6
+    },
+    {
+      "nombre": "Verificar que las celdas con 0 minas adyacentes se abren en cascada",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".abierta",
+      "esperado": 25
+    },
+    {
+      "nombre": "Verificar que las celdas con bandera no se abren al hacer click",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".bandera",
+      "esperado": 0
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "nombre": "Mini hoja de cálculo funcional",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 1 grilla",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 se actualiza al cambiar B1",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 1,
+      "esperado": "A1",
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 se actualiza al cambiar A1",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 0,
+      "esperado": "B1",
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 muestra 'CIRC' al crear referencia circular",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 2,
+      "esperado": "C1",
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 se actualiza al cambiar B1",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 1,
+      "esperado": "A1",
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 se actualiza al cambiar A1",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 0,
+      "esperado": "B1",
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 muestra 'CIRC' al crear referencia circular",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 2,
+      "esperado": "C1",
+      "critico": true
+    }
+  ]
+}

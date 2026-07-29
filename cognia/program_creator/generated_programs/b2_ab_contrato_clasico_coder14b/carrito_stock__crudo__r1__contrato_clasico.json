@@ -1,0 +1,80 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones de añadir",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "El carrito está vacío inicialmente",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "El total inicial es 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Añadir un producto no crea una línea nueva",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": {
+        "accion": "contar",
+        "selector": ".linea",
+        "esperado": 1
+      }
+    },
+    {
+      "nombre": "No se puede superar el stock",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": {
+        "accion": "no_existe",
+        "selector": ".add[data-id='p1']:not([disabled])"
+      }
+    },
+    {
+      "nombre": "Quitar una unidad hace que la línea desaparezca",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0,
+      "esperado": {
+        "accion": "contar",
+        "selector": ".linea",
+        "esperado": 0
+      }
+    },
+    {
+      "nombre": "El total se recalcula siempre",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 1,
+      "esperado": {
+        "accion": "texto",
+        "selector": "#total",
+        "contiene": "50"
+      }
+    }
+  ]
+}
