@@ -76,6 +76,28 @@ nunca gana" queda DESCARTADA con datos (dos horas de GPU ahorradas). Las
 ablaciones del prereg final deben ser por CONTENIDO de pieza, no por
 tamaño.
 
+## Brazos y umbrales PROPUESTOS para el prereg final (a revisar adversarialmente antes de correr)
+
+- **Fase 1 (el FORK, correr primero):** solo 2 brazos intercalados a nivel
+  tarea, n=6 réplicas × 4 tareas por brazo (48 gens ≈ 1.3 h GPU):
+  - **L** = replay ÍNTEGRO de un prompt capturado de la tarea (rotando
+    entre los 24 capturados de esa tarea, mismo system/temp, max_tokens
+    12000), juzgado estricto.
+  - **C** = prompt crudo (idea sola, mismo formato de respuesta), control
+  concurrente.
+  - Lectura pre-fijada: |L−C| ≤ 2 netas → **el ladrón NO está en el texto
+    del prompt** (está en el flujo: parseo, reintentos, validaciones,
+    fallback) y las ablaciones de texto NO se corren — la fase 2 pasa a
+    instrumentar el FLUJO. L−C ≤ −4 → el texto roba: fase 2 = ablaciones
+    por pieza. Entre medias: dimensionar mejor antes de seguir.
+- **Fase 2 (condicional):** ablaciones por CONTENIDO de pieza (troceo
+  REQUIRED primero — mutilación medida −2 y visible en producción; brief
+  en el bold segundo; feromona tercero), siempre con C concurrente, n≥6.
+- Requisito de infra heredado de esta noche: server con slots=1 verificado
+  (el chequeo de arranque ya lo hace), COGNIA_DUMP_PROMPTS apagado en los
+  replays (no re-capturar), presupuesto de pared por celda activo.
+- El veredicto de fase 1 NO adopta nada: decide dónde se gasta la fase 2.
+
 ## Riesgos ya conocidos a heredar en el prereg final
 
 - Deriva sistémica ~20 pts/12h → todos los brazos concurrentes e
