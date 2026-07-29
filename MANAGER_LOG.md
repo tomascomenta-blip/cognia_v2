@@ -9706,3 +9706,20 @@ generate_program (~17 pts vs crudo, sondear el prompt DEL LAZO).
 **Lecciones a memoria:** bon-con-senal-real (nueva), contrato-interno-al-azar
 (cuarto clavo), fp-heldout-por-modelo (4 FP nuevos + suite fácil validada).
 
+
+### Addendum nocturna 28→29 (00:45) — Primera variante del marco nuevo: KILL en el umbral, con asimetría
+
+5. **Consenso conductual cruzado (PREREG_CONSENSO_20260728, commits
+   00377ea→6ffe74f): KILL de la variante (neto B' = +2, umbral [−2,+2])
+   sobre las 96 muestras congeladas del BoN.** Los contratos de coder-14b
+   como RANKERS intra-ensayo (cada muestra votada por los contratos de sus
+   hermanas; voto decisorio SOLO por checks del contrato — la revisión cazó
+   que los universales compartían instrumento con `estricto`). El offset
+   pre-declarado existe y es severo (39/255 votos aprueban): el criterio
+   "votos que aprueban" apenas discrimina. Observación secundaria honesta:
+   asimetría 2-0 (rescata 2 ensayos, nunca elige peor que s1) — selector
+   débil, no dañino; queda como BASELINE para una iteración futura (votar
+   solo con checks sobre selectores OBLIGATORIOS del enunciado, o
+   mayoría-de-fracción), sin adopción: el umbral habló. 255/255 votos, 0
+   crasheos, 23 ensayos válidos.
+
