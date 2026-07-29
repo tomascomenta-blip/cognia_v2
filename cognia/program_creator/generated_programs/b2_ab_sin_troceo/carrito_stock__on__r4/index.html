@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de Compra con Stock</title>
+<style>
+  :root{
+    --color-add:#28a745;
+    --color-remove:#fd7e14;
+    --color-total:#fd7e14;
+    --color-bg:#f8f9fa;
+    --color-text:#333;
+    --font-family:Arial,Helvetica,sans-serif;
+  }
+  body{
+    margin:0;
+    font-family:var(--font-family);
+    color:var(--color-text);
+    background:var(--color-bg);
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+  .container{
+    display:flex;
+    flex:1;
+    padding:20px;
+    gap:20px;
+    flex-wrap:wrap;
+  }
+  .products, .cart{
+    flex:1 1 300px;
+    min-width:260px;
+    background:#fff;
+    padding:20px;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+  }
+  .products h2, .cart h2{
+    margin-top:0;
+    font-size:1.5rem;
+    color:var(--color-text);
+  }
+  .prod{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 0;
+    border-bottom:1px solid #e0e0e0;
+  }
+  .prod:last-child{border-bottom:none;}
+  .prod span{margin-right:10px;}
+  .add{
+    padding:6px 12px;
+    background:var(--color-add);
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:0.9rem;
+  }
+  .add:disabled{opacity:0.5;cursor:not-allowed;}
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 0;
+    border-bottom:1px solid #e0e0e0;
+  }
+  .linea:last-child{border-bottom:none;}
+  .cant{
+    font-weight:bold;
+    margin-right:10px;
+  }
+  .quitar{
+    padding:4px 8px;
+    background:var(--color-remove);
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:0.8rem;
+  }
+  #total-container{
+    margin-top:20px;
+    font-size:1.2rem;
+    font-weight:bold;
+    text-align:right;
+  }
+  #total{
+    color:var(--color-total);
+  }
+  @media(max-width:600px){
+    .container{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <section class="products">
+    <h2>Productos</h2>
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <div>
+        <span>Producto 1</span>
+        <span>Precio: <strong id="p1-precio"></strong></span>
+        <span>Stock: <strong id="p1-stock"></strong></span>
+      </div>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <div>
+        <span>Producto 2</span>
+        <span>Precio: <strong id="p2-precio"></strong></span>
+        <span>Stock: <strong id="p2-stock"></strong></span>
+      </div>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <div>
+        <span>Producto 3</span>
+        <span>Precio: <strong id="p3-precio"></strong></span>
+        <span>Stock: <strong id="p3-stock"></strong></span>
+      </div>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </section>
+  <section class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <div id="total-container">Total: <span id="total">0 €</span></div>
+  </section>
+</div>
+<script>
+  // Configurables
+  const CURRENCY = 'EUR';
+  const LOCALE = 'es-ES';
+
+  // Helper to format currency
+  function fmtCurrency(val){
+    return val.toLocaleString(LOCALE,{style:'currency',currency:CURRENCY});
+  }
+
+  // Initialize price and stock display
+  document.querySelectorAll('.prod').forEach(prod=>{
+    const id = prod.dataset.id;
+    const precio = parseInt(prod.dataset.precio,10);
+    const stock = parseInt(prod.dataset.stock,10);
+    document.getElementById(id+'-precio').textContent = fmtCurrency(precio);
+    document.getElementById(id+'-stock').textContent = stock;
+  });
+
+  const cartLines = document.getElementById('cart-lines');
+  const totalEl = document.getElementById('total');
+  const addButtons = document.querySelectorAll('.add');
+  const cart = {}; // {id: quantity}
+
+  function updateTotal(){
+    let sum = 0;
+    for(const id in cart){
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const precio = parseInt(prod.dataset.precio,10);
+      sum += precio * cart[id];
+    }
+    totalEl.textContent = fmtCurrency(sum);
+  }
+
+  function renderLine(id){
+    const qty = cart[id];
+    let line = document.querySelector(`.linea[data-id="${id}"]`);
+    if(!line){
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `<span class="cant">${qty}</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+      cartLines.appendChild(line);
+      line.querySelector('.quitar').addEventListener('click',()=>removeItem(id));
+    }else{
+      line.querySelector('.cant').textContent = qty;
+    }
+  }
+
+  function addItem(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock,10);
+    const current = cart[id] || 0;
+    if(current < stock){
+      cart[id] = current + 1;
+      renderLine(id);
+      if(cart[id] === stock){
+        document.querySelector(`.add[data-id="${id}"]`).disabled = true;
+      }
+      updateTotal();
+    }
+  }
+
+  function removeItem(id){
+    if(!cart[id]) return;
+    cart[id] -= 1;
+    if(cart[id] <= 0){
+      delete cart[id];
+      const line = document.querySelector(`.linea[data-id="${id}"]`);
+      if(line) line.remove();
+      document.querySelector(`.add[data-id="${id}"]`).disabled = false;
+    }else{
+      renderLine(id);
+    }
+    updateTotal();
+  }
+
+  addButtons.forEach(btn=>{
+    btn.addEventListener('click',()=>addItem(btn.dataset.id));
+  });
+</script>
+</body>
+</html>

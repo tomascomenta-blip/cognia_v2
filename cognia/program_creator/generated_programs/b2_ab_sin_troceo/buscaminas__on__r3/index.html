@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{margin:0;font-family:sans-serif;background:#e0e0e0;display:flex;justify-content:center;align-items:center;height:100vh;}
+.board{display:flex;justify-content:center;align-items:center;}
+.grid{display:grid;grid-template-columns:repeat(5,80px);gap:0;}
+.c{width:80px;height:80px;border:3px solid #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:20px;background:#f0f0f0;cursor:pointer;user-select:none;}
+.c.abierta{background:#fffae6;}
+.c.abierta span{color:#008080;}
+.c.bandera{background:#fffae6;}
+.c.bandera::after{content:"🚩";font-size:24px;}
+#estado{margin-top:10px;text-align:center;font-size:18px;}
+.shadow{box-shadow:0 4px 8px rgba(0,0,0,0.2);padding:10px;background:#f0f0f0;border-radius:12px;}
+</style>
+</head>
+<body>
+<div class="board"><div class="shadow"><div class="grid" id="grid"></div></div></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+for(let i=0;i<25;i++){
+  const c=document.createElement('div');
+  c.className='c';c.dataset.i=i;
+  c.addEventListener('click',()=>open(i));
+  c.addEventListener('contextmenu',e=>{e.preventDefault();toggleFlag(i);});
+  grid.appendChild(c);
+}
+function neighbors(i){const r=Math.floor(i/5),c=i%5,arr=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);}return arr;}
+function countAdj(i){return neighbors(i).filter(n=>mines.includes(n)).length;}
+function open(i){const cell=document.querySelector(`.c[data-i="${i}"]`);if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;if(mines.includes(i)){document.getElementById('estado').textContent='perdiste';cell.classList.add('abierta');cell.textContent='💣';return;}
+const cnt=countAdj(i);cell.classList.add('abierta');cell.textContent=cnt?cnt:'';if(cnt===0){neighbors(i).forEach(open);}}
+function toggleFlag(i){const cell=document.querySelector(`.c[data-i="${i}"]`);if(cell.classList.contains('abierta'))return;if(cell.classList.contains('bandera')){cell.classList.remove('bandera');cell.textContent='';}else{cell.classList.add('bandera');cell.textContent='';}}
+</script>
+</body>
+</html>

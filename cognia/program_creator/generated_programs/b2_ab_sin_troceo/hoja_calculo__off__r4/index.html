@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    max-width:400px;
+    background:#fff;
+  }
+  th,td{
+    border:1px solid #ccc;
+    padding:0;
+    text-align:center;
+  }
+  th{
+    background:#f0f0f0;
+    color:#555;
+    font-weight:normal;
+  }
+  td:first-child{
+    background:#f0f0f0;
+    color:#555;
+    font-weight:normal;
+  }
+  input.celda{
+    width:100%;
+    box-sizing:border-box;
+    border:none;
+    padding:8px;
+    text-align:right;
+    background:#f9f9f9;
+    box-shadow:0 1px 2px rgba(0,0,0,0.1);
+    transition:all .2s;
+  }
+  input.celda:focus{
+    outline:none;
+    border:1px solid #007bff;
+    box-shadow:0 0 5px rgba(0,123,255,0.5);
+  }
+  input.celda.formula{
+    color:#008080;
+  }
+  input.celda.circular{
+    color:#ff0000;
+  }
+</style>
+</head>
+<body>
+<table>
+  <thead>
+    <tr>
+      <th></th><th>A</th><th>B</th><th>C</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><input class="celda" data-ref="A1" value="1"></td>
+      <td><input class="celda" data-ref="B1" value="2"></td>
+      <td><input class="celda" data-ref="C1"></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><input class="celda" data-ref="A2" value="3"></td>
+      <td><input class="celda" data-ref="B2"></td>
+      <td><input class="celda" data-ref="C2"></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><input class="celda" data-ref="A3"></td>
+      <td><input class="celda" data-ref="B3"></td>
+      <td><input class="celda" data-ref="C3" value="=A1+B1-A2"></td>
+    </tr>
+  </tbody>
+</table>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cells = document.querySelectorAll('input.celda');
+  const dependentsMap = new Map(); // ref -> Set of dependents
+
+  function buildDependencies(){
+    dependentsMap.clear();
+    cells.forEach(cell=>{
+      const ref = cell.dataset.ref;
+      const formula = cell.dataset.formula;
+      if(formula){
+        const refs = formula.match(/[A-C][1-3]/g) || [];
+        refs.forEach(r=>{
+          if(!dependentsMap.has(r)) dependentsMap.set(r, new Set());
+          dependentsMap.get(r).add(ref);
+        });
+      }
+    });
+  }
+
+  function evaluateCell(ref, stack=[]) {
+    if(stack.includes(ref)) return 'CIRC';
+    const cell = document.querySelector(`input[data-ref="${ref}"]`);
+    const formula = cell.dataset.formula;
+    if(!formula){
+      const val = cell.value.trim();
+      return val === '' ? '' : val;
+    }
+    const parts = formula.split(/([+-])/);
+    let idx = 0;
+    let result = evaluateToken(parts[idx++], stack.concat(ref));
+    while(idx < parts.length){
+      const op = parts[idx++];
+      const token = parts[idx++];
+      const val = evaluateToken(token, stack.concat(ref));
+      if(val === 'CIRC') return 'CIRC';
+      if(op === '+') result += val;
+      else result -= val;
+    }
+    return result;
+  }
+
+  function evaluateToken(token, stack){
+    token = token.trim();
+    if(/[A-C][1-3]/.test(token)){
+      const val = evaluateCell(token, stack);
+      if(val === 'CIRC') return 'CIRC';
+      const num = parseFloat(val);
+      return isNaN(num) ? 0 : num;
+    } else if(token === '') return 0;
+    const num = parseFloat(token);
+    return isNaN(num) ? 0 : num;
+  }
+
+  function computeCell(ref){
+    const cell = document.querySelector(`input[data-ref="${ref}"]`);
+    const val = cell.value.trim();
+    if(val.startsWith('=')){
+      cell.dataset.formula = val.slice(1);
+      cell.classList.add('formula');
+    } else {
+      delete cell.dataset.formula;
+      cell.classList.remove('formula');
+    }
+    const result = evaluateCell(ref);
+    if(result === 'CIRC'){
+      cell.value = 'CIRC';
+      cell.classList.add('circular');
+    } else {
+      cell.value = result;
+      cell.classList.remove('circular');
+    }
+  }
+
+  function cascadeUpdate(ref, visited = new Set()){
+    if(visited.has(ref)) return;
+    visited.add(ref);
+    computeCell(ref);
+    buildDependencies();
+    const dependents = dependentsMap.get(ref);
+    if(dependents){
+      dependents.forEach(depRef => cascadeUpdate(depRef, visited));
+    }
+  }
+
+  cells.forEach(cell=>{
+    cell.addEventListener('input', e=>{
+      cascadeUpdate(cell.dataset.ref);
+    });
+    // Initial evaluation
+    cascadeUpdate(cell.dataset.ref);
+  });
+});
+</script>
+</body>
+</html>

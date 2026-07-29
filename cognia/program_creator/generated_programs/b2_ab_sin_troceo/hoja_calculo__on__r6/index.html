@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  table{
+    border-collapse:collapse;
+    background:#fafafa;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+  }
+  th,td{
+    border:1px solid #ddd;
+    padding:4px 6px;
+    text-align:center;
+  }
+  th{
+    background:#fff;
+    color:#333;
+    font-weight:normal;
+  }
+  .col-header{
+    background:#eee;
+  }
+  input.celda{
+    width:70px;
+    height:28px;
+    border:none;
+    text-align:right;
+    font-size:14px;
+    background:transparent;
+    color:#333;
+  }
+  input.celda:focus{
+    outline:none;
+    box-shadow:0 0 4px teal;
+  }
+</style>
+</head>
+<body>
+<table class="calc">
+  <thead>
+    <tr>
+      <th></th><th>A</th><th>B</th><th>C</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th class="col-header">1</th>
+      <td><input class="celda" data-ref="A1"></td>
+      <td><input class="celda" data-ref="B1"></td>
+      <td><input class="celda" data-ref="C1"></td>
+    </tr>
+    <tr>
+      <th class="col-header">2</th>
+      <td><input class="celda" data-ref="A2"></td>
+      <td><input class="celda" data-ref="B2"></td>
+      <td><input class="celda" data-ref="C2"></td>
+    </tr>
+    <tr>
+      <th class="col-header">3</th>
+      <td><input class="celda" data-ref="A3"></td>
+      <td><input class="celda" data-ref="B3"></td>
+      <td><input class="celda" data-ref="C3"></td>
+    </tr>
+  </tbody>
+</table>
+
+<script>
+(() => {
+  const cells = {};
+  document.querySelectorAll('input.celda').forEach(el => {
+    cells[el.dataset.ref] = el;
+    el.addEventListener('input', () => recomputeAll());
+  });
+
+  function recomputeAll() {
+    Object.keys(cells).forEach(ref => computeCell(ref, new Set()));
+  }
+
+  function computeCell(ref, visited) {
+    const el = cells[ref];
+    const val = el.value.trim();
+    if (val.startsWith('=')) {
+      const expr = val.slice(1);
+      const result = evaluateExpr(expr, visited);
+      if (result === 'CIRC') {
+        el.value = 'CIRC';
+        return 'CIRC';
+      } else if (result === '') {
+        el.value = '';
+        return '';
+      } else {
+        const formatted = formatNumber(result);
+        el.value = formatted;
+        return formatted;
+      }
+    } else {
+      return val;
+    }
+  }
+
+  function evaluateExpr(expr, visited) {
+    const refs = expr.match(/[A-C][1-3]/g) || [];
+    let newExpr = expr;
+    for (const r of refs) {
+      if (visited.has(r)) return 'CIRC';
+      visited.add(r);
+      const res = computeCell(r, visited);
+      if (res === 'CIRC') return 'CIRC';
+      const num = parseFloat(res) || 0;
+      newExpr = newExpr.replaceAll(r, num);
+      visited.delete(r);
+    }
+    try {
+      const num = eval(newExpr);
+      if (isNaN(num)) return '';
+      return num;
+    } catch {
+      return '';
+    }
+  }
+
+  function formatNumber(num) {
+    if (typeof num !== 'number') return num;
+    return num.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+
+  // Initial calculation (in case some cells already contain formulas)
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

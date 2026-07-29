@@ -1,0 +1,368 @@
+{
+  "idea_router": {
+    "discrepancias": [
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con da",
+        "experto": "python_module",
+        "heuristica": "web"
+      }
+    ],
+    "experto_acerto": 0,
+    "heuristica_acerto": 0
+  }
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Spreadsheet</title>
+<style>
+  body{margin:0;font-family:sans-serif;background:#f9f9f9;color:#333;}
+  #header{background:#fff;padding:10px;text-align:center;font-size:1.2rem;border-bottom:1px solid #ddd;}
+  #grid{display:flex;justify-content:center;margin:20px auto;max-width:400px;box-shadow:0 4px 8px rgba(0,0,0,0.1);}
+  .row{display:flex;}
+  .celda{width:80px;height:30px;margin:2px;padding:0 5px;border:1px solid #bbb;background:#fafafa;font-size:1rem;text-align:right;}
+  .celda:hover{box-shadow:0 0 5px #008080;}
+  #status{background:#fff;padding:5px;text-align:center;font-size:0.9rem;color:#008080;border-top:1px solid #ddd;}
+</style>
+</head>
+<body>
+<div id="header">Mini Spreadsheet</div>
+<div id="grid">
+  <div class="row">
+    <input class="celda" data-ref="A1" value="1">
+    <input class="celda" data-ref="B1" value="2">
+    <input class="celda" data-ref="C1" data-formula="=A1+B1">
+  </div>
+  <div class="row">
+    <input class="celda" data-ref="A2">
+    <input class="celda" data-ref="B2">
+    <input class="celda" data-ref="C2">
+  </div>
+  <div class="row">
+    <input class="celda" data-ref="A3">
+    <input class="celda" data-ref="B3">
+    <input class="celda" data-ref="C3">
+  </div>
+</div>
+<div id="status">Recalculated</div>
+
+<script>
+(() => {
+  const cells = {};
+  document.querySelectorAll('.celda').forEach(el => cells[el.dataset.ref] = el);
+
+  const computeCell = (ref, stack) => {
+    const cell = cells[ref];
+    if (!cell) return '';
+    const formula = cell.dataset.formula;
+    if (!formula) return cell.value;
+
+    if (stack.has(ref)) {
+      cell.value = 'CIRC';
+      return 'CIRC';
+    }
+    stack.add(ref);
+
+    const expr = formula.slice(1).replace(/[A-C][1-3]/g, r => {
+      const val = computeCell(r, stack);
+      if (val === 'CIRC') return '0';
+      const num = parseFloat(val);
+      return isNaN(num) ? '0' : num;
+    });
+
+    let result;
+    try {
+      result = Function('return ' + expr)();
+    } catch {
+      result = '';
+    }
+
+    stack.delete(ref);
+    cell.value = result.toString();
+    return result.toString();
+  };
+
+  const recalcAll = () => {
+    Object.keys(cells).forEach(ref => computeCell(ref, new Set()));
+    document.getElementById('status').textContent = 'Recalculated';
+  };
+
+  document.querySelectorAll('.celda').forEach(el => {
+    el.addEventListener('input', () => {
+      const val = el.value;
+      if (val.startsWith('=')) {
+        el.dataset.formula = val;
+      } else {
+        delete el.dataset.formula;
+      }
+      recalcAll();
+    });
+  });
+
+  recalcAll();
+})();
+</script>
+</body>
+</html>

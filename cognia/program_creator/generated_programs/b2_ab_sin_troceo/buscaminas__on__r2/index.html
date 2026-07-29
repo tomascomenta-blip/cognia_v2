@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#fff;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+header{margin:20px 0;font-size:1.5rem;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;width:90vmin;max-width:400px;}
+.c{background:#e0e0e0;border-radius:4px;aspect-ratio:1;display:flex;justify-content:center;align-items:center;font-weight:bold;font-size:1.2rem;cursor:pointer;user-select:none;}
+.c.abierta{background:#fffae6;}
+.c.abierta span{color:#0000ff;}
+.c.abierta.mina span{color:#ff0000;}
+.c.bandera{background:#e0e0e0;}
+#estado{margin-top:10px;font-size:1rem;}
+#reset{position:fixed;bottom:10px;right:10px;padding:8px 12px;background:#ccc;border:none;border-radius:4px;cursor:pointer;}
+</style>
+</head>
+<body>
+<header>Buscaminas 5x5</header>
+<div id="grid"></div>
+<div id="estado"></div>
+<button id="reset">Reiniciar</button>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+let gameOver=false;
+function createGrid(){for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;d.innerHTML='<span></span>';d.addEventListener('click',()=>open(i));d.addEventListener('contextmenu',e=>{e.preventDefault();flag(i);});grid.appendChild(d);}}
+function neighbors(i){const r=Math.floor(i/5),c=i%5;const arr=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);}return arr;}
+function countAdj(i){return neighbors(i).filter(n=>mines.includes(n)).length;}
+function open(i){if(gameOver)return;const d=document.querySelector(`.c[data-i="${i}"]`);if(d.classList.contains('abierta')||d.classList.contains('bandera'))return;if(mines.includes(i)){d.classList.add('abierta','mina');d.querySelector('span').textContent='!';estado.textContent='perdiste';gameOver=true;return;}const cnt=countAdj(i);d.classList.add('abierta');d.querySelector('span').textContent=cnt?cnt:'';if(cnt===0){neighbors(i).forEach(n=>open(n));}}
+function flag(i){const d=document.querySelector(`.c[data-i="${i}"]`);if(d.classList.contains('abierta'))return;d.classList.toggle('bandera');d.querySelector('span').textContent=d.classList.contains('bandera')?'🚩':'';}
+document.getElementById('reset').addEventListener('click',()=>{grid.innerHTML='';estado.textContent='';gameOver=false;createGrid();});
+createGrid();
+</script>
+</body>
+</html>

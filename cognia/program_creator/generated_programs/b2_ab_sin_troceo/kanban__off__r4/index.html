@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;color:#333;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:20px;box-sizing:border-box;}
+.board{display:flex;gap:20px;flex-wrap:wrap;width:100%;max-width:1200px;margin:auto;}
+.col{flex:1;min-width:200px;background:#fff;border-radius:8px;padding:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+.col h2{margin:0 0 10px 0;font-size:1.2rem;display:flex;align-items:center;justify-content:space-between;}
+.card{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);padding:10px;margin-bottom:10px;display:flex;flex-direction:column;justify-content:flex-end;min-height:80px;}
+.card-title{font-weight:bold;margin-bottom:5px;}
+.card-actions{display:flex;justify-content:flex-end;}
+button{width:24px;height:24px;border:none;border-radius:50%;background:#e0e0e0;color:#333;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;margin-left:5px;}
+button:hover{background:#d0d0d0;}
+button:disabled{opacity:0.5;cursor:not-allowed;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1">
+        <div class="card-title">T1</div>
+        <div class="card-actions">
+          <button class="mas">+</button>
+          <button class="menos">-</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <div class="card-title">T2</div>
+        <div class="card-actions">
+          <button class="mas">+</button>
+          <button class="menos">-</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <div class="card-title">T3</div>
+        <div class="card-actions">
+          <button class="mas">+</button>
+          <button class="menos">-</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.columns = {
+      todo: document.querySelector('.col[data-col="todo"]'),
+      doing: document.querySelector('.col[data-col="doing"]'),
+      done: document.querySelector('.col[data-col="done"]')
+    };
+    this.counters = {
+      todo: document.getElementById('cont-todo'),
+      doing: document.getElementById('cont-doing'),
+      done: document.getElementById('cont-done')
+    };
+    this.init();
+  }
+  init() {
+    this.board = document.querySelector('.board');
+    this.board.addEventListener('click', e => {
+      if (e.target.classList.contains('mas')) {
+        this.moveCard(e.target.closest('.card'), 1);
+      } else if (e.target.classList.contains('menos')) {
+        this.moveCard(e.target.closest('.card'), -1);
+      }
+    });
+    this.updateCounters();
+  }
+  moveCard(card, dir) {
+    if (!card) return;
+    const currentCol = card.parentElement.closest('.col');
+    const colKey = currentCol.dataset.col;
+    const order = ['todo', 'doing', 'done'];
+    const idx = order.indexOf(colKey);
+    const targetIdx = idx + dir;
+    if (targetIdx < 0 || targetIdx >= order.length) return;
+    const targetKey = order[targetIdx];
+    const targetCol = this.columns[targetKey];
+    // WIP rule: doing max 2 cards
+    if (targetKey === 'doing' && targetCol.querySelectorAll('.card').length >= 2) return;
+    targetCol.appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters() {
+    this.counters.todo.textContent = this.columns.todo.querySelectorAll('.card').length;
+    this.counters.doing.textContent = this.columns.doing.querySelectorAll('.card').length;
+    this.counters.done.textContent = this.columns.done.querySelectorAll('.card').length;
+  }
+}
+document.addEventListener('DOMContentLoaded', () => new KanbanBoard());
+</script>
+</body>
+</html>

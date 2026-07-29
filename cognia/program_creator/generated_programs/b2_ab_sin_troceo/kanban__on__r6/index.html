@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#f0f4f8;
+  color:#333;
+}
+.board{
+  display:flex;
+  flex-wrap:wrap;
+  width:100%;
+  min-height:100vh;
+}
+.col{
+  flex:1;
+  min-width:250px;
+  padding:10px;
+  box-sizing:border-box;
+}
+.col h2{
+  margin:0 0 10px 0;
+  font-size:1.2rem;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.col .cards{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.card{
+  background:#fff;
+  border-radius:6px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+  padding:10px;
+  position:relative;
+}
+.card .content{
+  margin-bottom:5px;
+}
+.card .handle{
+  position:absolute;
+  top:8px;
+  right:8px;
+  font-size:12px;
+  color:#c0c8d0;
+  cursor:grab;
+}
+.card button{
+  background:#c0c8d0;
+  border:none;
+  border-radius:50%;
+  width:24px;
+  height:24px;
+  margin-left:5px;
+  cursor:pointer;
+  font-size:14px;
+  line-height:1;
+  color:#fff;
+}
+.card button:hover{
+  background:#a0a8b0;
+}
+@media (max-width:600px){
+  .board{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+const INITIAL_TODO = ['t1','t2','t3'];
+
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+
+  const content=document.createElement('div');
+  content.className='content';
+  content.textContent=id;
+  card.appendChild(content);
+
+  const handle=document.createElement('span');
+  handle.className='handle';
+  handle.textContent='⋮';
+  card.appendChild(handle);
+
+  const mas=document.createElement('button');
+  mas.className='mas';
+  mas.textContent='+';
+  card.appendChild(mas);
+
+  const menos=document.createElement('button');
+  menos.className='menos';
+  menos.textContent='-';
+  card.appendChild(menos);
+
+  card.addEventListener('click',function(e){
+    if(e.target.classList.contains('mas')) moveCard(card,'right');
+    else if(e.target.classList.contains('menos')) moveCard(card,'left');
+  });
+
+  return card;
+}
+
+function moveCard(card,direction){
+  const currentCol=card.parentElement.parentElement;
+  const colName=currentCol.dataset.col;
+  let targetColName;
+
+  if(direction==='right'){
+    if(colName==='todo') targetColName='doing';
+    else if(colName==='doing') targetColName='done';
+    else return;
+  }else if(direction==='left'){
+    if(colName==='doing') targetColName='todo';
+    else if(colName==='done') targetColName='doing';
+    else return;
+  }
+
+  const targetCards=document.querySelector(`.col[data-col="${targetColName}"] .cards`);
+  if(targetColName==='doing' && targetCards.children.length>=MAX_DOING) return;
+
+  targetCards.appendChild(card);
+  updateCounters();
+}
+
+function updateCounters(){
+  const todoCount=document.querySelector('.col[data-col="todo"] .cards').children.length;
+  const doingCount=document.querySelector('.col[data-col="doing"] .cards').children.length;
+  const doneCount=document.querySelector('.col[data-col="done"] .cards').children.length;
+  document.getElementById('cont-todo').textContent=todoCount;
+  document.getElementById('cont-doing').textContent=doingCount;
+  document.getElementById('cont-done').textContent=doneCount;
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  const todoCards=document.querySelector('.col[data-col="todo"] .cards');
+  INITIAL_TODO.forEach(id=>{
+    const card=createCard(id);
+    todoCards.appendChild(card);
+  });
+  updateCounters();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f5f5f5;}
+  .board{display:flex;height:100vh;overflow:auto;}
+  .col{flex:1;display:flex;flex-direction:column;background:#fff;margin:10px;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .col-header{background:#e0e0e0;padding:10px;font-weight:bold;text-align:center;position:relative;}
+  .col-header span{font-size:0.9em;color:#555;}
+  .card{background:#fff;margin:10px;padding:10px;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);position:relative;}
+  .card .title{font-size:1em;color:#333;}
+  .card .badge{background:#ccc;color:#333;font-size:0.8em;padding:2px 4px;border-radius:3px;margin-left:5px;}
+  .card button{width:20px;height:20px;border:none;border-radius:50%;font-size:14px;line-height:1;color:#fff;cursor:pointer;position:absolute;top:5px;right:5px;}
+  .card button.menos{background:#d32f2f;right:35px;}
+  .card button.mas{background:#388e3c;}
+  .card button:disabled{opacity:0.5;cursor:not-allowed;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo">3</span></div>
+    <div class="card" data-id="t1">
+      <div class="title">Task t1</div>
+      <span class="badge">t1</span>
+      <button class="menos" disabled>-</button>
+      <button class="mas">+</button>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="title">Task t2</div>
+      <span class="badge">t2</span>
+      <button class="menos" disabled>-</button>
+      <button class="mas">+</button>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="title">Task t3</div>
+      <span class="badge">t3</span>
+      <button class="menos" disabled>-</button>
+      <button class="mas">+</button>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+function updateCounters(){
+  document.querySelectorAll('.col').forEach(col=>{
+    const id=col.dataset.col;
+    const count=col.querySelectorAll('.card').length;
+    document.getElementById('cont-'+id).textContent=count;
+  });
+}
+function moveCard(card, direction){
+  const currentCol=card.parentElement;
+  const currentId=currentCol.dataset.col;
+  let targetId;
+  if(direction==='right'){
+    if(currentId==='todo') targetId='doing';
+    else if(currentId==='doing') targetId='done';
+    else return;
+  }else{
+    if(currentId==='doing') targetId='todo';
+    else if(currentId==='done') targetId='doing';
+    else return;
+  }
+  const targetCol=document.querySelector('.col[data-col="'+targetId+'"]');
+  // Límite WIP: Doing solo 2 tarjetas
+  if(targetId==='doing' && targetCol.querySelectorAll('.card').length>=2) return;
+  targetCol.appendChild(card);
+  // Actualizar estado de botones
+  const masBtn=card.querySelector('.mas');
+  const menosBtn=card.querySelector('.menos');
+  if(targetId==='todo'){
+    menosBtn.disabled=true;
+    masBtn.disabled=false;
+  }else if(targetId==='doing'){
+    menosBtn.disabled=false;
+    masBtn.disabled=false;
+  }else if(targetId==='done'){
+    menosBtn.disabled=false;
+    masBtn.disabled=true;
+  }
+  updateCounters();
+}
+document.querySelectorAll('.card .mas').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    moveCard(this.parentElement,'right');
+  });
+});
+document.querySelectorAll('.card .menos').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    moveCard(this.parentElement,'left');
+  });
+});
+updateCounters();
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una página</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#fafafa;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{flex:1 1 200px;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+  .col h2{margin:0;padding:10px;background:#e0e0e0;border-bottom:1px solid #ccc;font-size:1rem;}
+  .col .counter{font-weight:bold;margin-left:5px;}
+  .card{background:#f0f0f0;margin:10px;padding:10px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;}
+  .card span{flex:1;}
+  .card button{background:#007bff;color:#fff;border:none;border-radius:3px;padding:5px 8px;margin-left:5px;font-weight:bold;cursor:pointer;}
+  .card button:disabled{background:#aaa;cursor:not-allowed;}
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo<span id="cont-todo" class="counter"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing<span id="cont-doing" class="counter"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done<span id="cont-done" class="counter"></span></h2>
+  </div>
+</div>
+<script>
+const columns = ['todo','doing','done'];
+const maxDoing = 2;
+const initialCards = [
+  {id:'t1',col:'todo'},
+  {id:'t2',col:'todo'},
+  {id:'t3',col:'todo'}
+];
+
+function createCard(card){
+  const div=document.createElement('div');
+  div.className='card';
+  div.dataset.id=card.id;
+  const span=document.createElement('span');
+  span.textContent=card.id;
+  const btnMas=document.createElement('button');
+  btnMas.className='mas';
+  btnMas.textContent='+';
+  const btnMen=document.createElement('button');
+  btnMen.className='menos';
+  btnMen.textContent='-';
+  div.appendChild(span);
+  div.appendChild(btnMas);
+  div.appendChild(btnMen);
+  return div;
+}
+
+function updateCounters(){
+  columns.forEach(col=>{
+    const count=document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
+    document.getElementById(`cont-${col}`).textContent='('+count+')';
+  });
+}
+
+function moveCard(card, direction){
+  const currentCol=card.parentElement.parentElement.dataset.col;
+  const idx=columns.indexOf(currentCol);
+  let targetIdx=idx+direction;
+  if(targetIdx<0||targetIdx>=columns.length) return;
+  const targetCol=columns[targetIdx];
+  // WIP rule
+  if(targetCol==='doing'){
+    const doingCount=document.querySelectorAll('.col[data-col="doing"] .card').length;
+    if(doingCount>=maxDoing) return;
+  }
+  // move
+  const targetDiv=document.querySelector(`.col[data-col="${targetCol}"]`);
+  targetDiv.appendChild(card);
+  updateCounters();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  // create initial cards
+  initialCards.forEach(c=>{
+    const card=createCard(c);
+    const colDiv=document.querySelector(`.col[data-col="${c.col}"]`);
+    colDiv.appendChild(card);
+  });
+  updateCounters();
+  // event delegation
+  document.querySelector('.board').addEventListener('click',e=>{
+    if(e.target.classList.contains('mas')){
+      const card=e.target.parentElement;
+      moveCard(card,1);
+    }else if(e.target.classList.contains('menos')){
+      const card=e.target.parentElement;
+      moveCard(card,-1);
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+header{width:100%;background:#2f4f4f;color:white;padding:10px 20px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;}
+header h1{margin:0;font-size:1.2rem;}
+#reset{background:#fff;color:#2f4f4f;border:none;padding:5px 10px;cursor:pointer;font-weight:bold;border-radius:4px;}
+#reset:hover{background:#e0e0e0;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:400px;margin-top:20px;}
+.c{background:linear-gradient(to bottom,#fff,#e0f0ff);border:1px solid #ccc;display:flex;justify-content:center;align-items:center;font-size:1.2rem;font-weight:bold;cursor:pointer;aspect-ratio:1;user-select:none;}
+.c.abierta{background:#fffae6;cursor:default;}
+.c.abierta.mine{background:#fffae6;}
+.c.abierta.mine::after{content:"💣";color:crimson;font-size:1.5rem;}
+.c.bandera{background:#f0e0ff;}
+.c.bandera::after{content:"🚩";color:crimson;font-size:1.5rem;}
+#estado{margin-top:10px;font-size:1rem;color:red;}
+</style>
+</head>
+<body>
+<header>
+<h1>Buscaminas 5x5</h1>
+<button id="reset">Reset</button>
+</header>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+(() => {
+const mines = new Set([6,12,18]);
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+
+function createCells() {
+  grid.innerHTML='';
+  for(let i=0;i<25;i++){
+    const div=document.createElement('div');
+    div.classList.add('c');
+    div.dataset.i=i;
+    div.addEventListener('click', onCellClick);
+    div.addEventListener('contextmenu', onCellRightClick);
+    grid.appendChild(div);
+  }
+}
+
+function onCellClick(e){
+  if(estado.textContent==='perdiste') return;
+  const cell=e.currentTarget;
+  if(cell.classList.contains('bandera')||cell.classList.contains('abierta')) return;
+  const idx=parseInt(cell.dataset.i);
+  if(mines.has(idx)){
+    cell.classList.add('abierta','mine');
+    estado.textContent='perdiste';
+    revealAllMines();
+    return;
+  }
+  const count=countAdjMines(idx);
+  cell.classList.add('abierta');
+  cell.textContent=count>0?count:'';
+  if(count===0){
+    cascadeOpen(idx);
+  }
+}
+
+function onCellRightClick(e){
+  e.preventDefault();
+  const cell=e.currentTarget;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.textContent='';
+  }
+}
+
+function countAdjMines(idx){
+  let count=0;
+  const r=Math.floor(idx/5),c=idx%5;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0) continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>4||nc<0||nc>4) continue;
+      const nIdx=nr*5+nc;
+      if(mines.has(nIdx)) count++;
+    }
+  }
+  return count;
+}
+
+function cascadeOpen(startIdx){
+  const queue=[startIdx];
+  const visited=new Set();
+  while(queue.length){
+    const idx=queue.shift();
+    if(visited.has(idx)) continue;
+    visited.add(idx);
+    const cell=document.querySelector(`.c[data-i="${idx}"]`);
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) continue;
+    const count=countAdjMines(idx);
+    cell.classList.add('abierta');
+    cell.textContent=count>0?count:'';
+    if(count===0){
+      const r=Math.floor(idx/5),c=idx%5;
+      for(let dr=-1;dr<=1;dr++){
+        for(let dc=-1;dc<=1;dc++){
+          if(dr===0&&dc===0) continue;
+          const nr=r+dr,nc=c+dc;
+          if(nr<0||nr>4||nc<0||nc>4) continue;
+          const nIdx=nr*5+nc;
+          if(!visited.has(nIdx)) queue.push(nIdx);
+        }
+      }
+    }
+  }
+}
+
+function revealAllMines(){
+  for(const idx of mines){
+    const cell=document.querySelector(`.c[data-i="${idx}"]`);
+    cell.classList.add('abierta','mine');
+  }
+}
+
+function reset(){
+  estado.textContent='';
+  createCells();
+}
+
+document.getElementById('reset').addEventListener('click', reset);
+createCells();
+})();
+</script>
+</body>
+</html>

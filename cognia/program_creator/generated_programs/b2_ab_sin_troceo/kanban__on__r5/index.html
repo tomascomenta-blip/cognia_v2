@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una sola página</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;color:#333}
+.container{display:flex;flex-wrap:wrap;gap:20px;max-width:900px;margin:20px auto}
+.col{flex:1;background:#e0e0e0;padding:10px;border-radius:5px;min-width:250px;display:flex;flex-direction:column;gap:10px}
+.col h2{margin:0 0 10px;font-size:1.2rem;display:flex;justify-content:space-between;align-items:center}
+.card{background:#fff;border-radius:5px;box-shadow:0 2px 4px rgba(0,0,0,.1);padding:10px;position:relative;display:flex;flex-direction:column;gap:5px}
+.card-header{background:#333;color:#fff;padding:5px;border-radius:3px;font-weight:bold}
+.card-body{background:#f9f9f9;padding:5px;border-radius:3px;flex-grow:1}
+.card-buttons{position:absolute;bottom:5px;right:5px;display:flex;gap:5px}
+button{width:20px;height:20px;border:none;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+button.mas{background:#008080;color:#fff}
+button.menos{background:#ff8c00;color:#fff}
+@media(max-width:600px){.container{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <div class="card-header">t1</div>
+      <div class="card-body">Tarea 1</div>
+      <div class="card-buttons"><button class="mas">+</button><button class="menos">-</button></div>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="card-header">t2</div>
+      <div class="card-body">Tarea 2</div>
+      <div class="card-buttons"><button class="mas">+</button><button class="menos">-</button></div>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="card-header">t3</div>
+      <div class="card-body">Tarea 3</div>
+      <div class="card-buttons"><button class="mas">+</button><button class="menos">-</button></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+function updateCounters(){
+  ['todo','doing','done'].forEach(col=>{
+    const count=document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
+    document.getElementById(`cont-${col}`).textContent=count;
+  });
+}
+function moveCard(card, targetCol){
+  const colEl=document.querySelector(`.col[data-col="${targetCol}"]`);
+  if(colEl) colEl.appendChild(card);
+}
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('mas')||e.target.classList.contains('menos')){
+    const card=e.target.closest('.card');
+    const currCol=card.parentElement.dataset.col;
+    if(e.target.classList.contains('mas')){
+      if(currCol==='todo'){
+        if(document.querySelectorAll('.col[data-col="doing"] .card').length<2) moveCard(card,'doing');
+      }else if(currCol==='doing'){
+        moveCard(card,'done');
+      }
+    }else{
+      if(currCol==='doing'){
+        moveCard(card,'todo');
+      }else if(currCol==='done'){
+        if(document.querySelectorAll('.col[data-col="doing"] .card').length<2) moveCard(card,'doing');
+      }
+    }
+    updateCounters();
+  }
+});
+updateCounters();
+</script>
+</body>
+</html>

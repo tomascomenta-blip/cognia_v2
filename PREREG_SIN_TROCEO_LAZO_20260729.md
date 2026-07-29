@@ -80,6 +80,36 @@ juez-colgado-js-bloqueante antes de culpar al backend).
 en 4 A/B previos; auditar coherencia de umbrales, la guardia de infra y
 la interpretación de comparabilidad). Enmiendas con fecha aquí.
 
+## RESULTADO (2026-07-29 ~16:30 — corrida completa, veredicto por umbrales pre-fijados)
+
+**Neto ON = −4 → rama "≤ −1": EL TROCEO AYUDA DENTRO DEL LAZO ESTA TARDE.
+NO SE ADOPTA; el fix queda env-gated APAGADO.** 24 pares, 0 infra, 0
+sin_html (la sensibilidad pre-declarada da idéntico −4); estricto
+post-hoc aún más claro: **−6** (ON 13/24 vs OFF 19/24).
+
+- ON gana 1 par (kanban:r6); OFF gana 5 en 3 tareas. Es el TERCER caso del
+  patrón "la sonda directa cobra y el lazo lo mata" (v2 −5, v3 −4, y ahora
+  el propio QUITAR −4) — pero esta vez la sonda directa era la más fuerte
+  posible (prompts reales del lazo, apareados, +6).
+- **El dato que reencuadra la discrepancia: OFF (lazo con troceo) = 19/24
+  (79%) — NIVEL CRUDO.** El gap del envoltorio (~17-29 pts histórico,
+  medido de nuevo AYER y esta mañana con el material del gate) NO existe
+  en el lazo de esta tarde. La fase 2 sigue siendo internamente válida
+  (apareada sobre material congelado del gate); lo que cae es su
+  GENERALIZACIÓN: **el efecto del troceo depende del CONTEXTO del prompt**
+  (feromona/brief/hints del momento). En el material del gate v2 (BoN
+  nocturno, feromona rica, sus briefs) el troceo robaba; en los prompts
+  que el lazo armó hoy 16:00 (feromona del run desde cero, briefs
+  frescos), protege — plausiblemente recuperando su función original
+  (checklist anti-omisión, campana 2026-07-21).
+- Consecuencia de inversión: NO hay fix universal del troceo que adoptar.
+  La pregunta operativa pasa a ser **QUÉ variable del contexto conmuta el
+  signo** — y la única vía honesta es capturar los prompts del lazo DE HOY
+  (no se volcaron en esta corrida) y repetir la ablación apareada sobre
+  material fresco: si el +6 no reproduce, el efecto era del material del
+  gate; si reproduce en directo mientras el lazo dice lo contrario, es
+  interacción texto×flujo. Sonda de la discrepancia: prereg aparte.
+
 ## PRIMERA ENMIENDA (2026-07-29 ~16:05 — tras la revisión, ANTES de correr)
 
 SIN BLOQUEA. La conmutación quedó VERIFICADA ejecutando en un mismo

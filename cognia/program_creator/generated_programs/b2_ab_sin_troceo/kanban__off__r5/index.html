@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban</title>
+<style>
+body{font-family:sans-serif;background:#f0f0f0;margin:0;padding:20px;}
+.board{display:flex;gap:10px;}
+.col{background:#e0e0e0;padding:10px;border-radius:5px;flex:1;}
+.header{font-weight:bold;margin-bottom:10px;}
+.card{background:#fff;border-radius:4px;padding:8px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;align-items:center;}
+.card span{flex:1;}
+button{background:#008080;color:#fff;border:none;border-radius:3px;padding:2px 4px;margin-left:4px;font-size:12px;cursor:pointer;}
+button:disabled{background:#aaa;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="header">Todo <span id="cont-todo"></span></div>
+    <div class="card" data-id="t1"><span>t1</span><button class="menos">←</button><button class="mas">→</button></div>
+    <div class="card" data-id="t2"><span>t2</span><button class="menos">←</button><button class="mas">→</button></div>
+    <div class="card" data-id="t3"><span>t3</span><button class="menos">←</button><button class="mas">→</button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="header">Doing <span id="cont-doing"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="header">Done <span id="cont-done"></span></div>
+  </div>
+</div>
+<script>
+function update(){['todo','doing','done'].forEach(c=>{document.getElementById('cont-'+c).textContent=document.querySelectorAll('.col[data-col="'+c+'"] .card').length;});}
+document.querySelectorAll('.mas,.menos').forEach(b=>{b.addEventListener('click',e=>{let card=b.parentElement;let col=card.parentElement;let target;if(b.classList.contains('mas')){if(col.dataset.col==='todo'){target='doing';}else if(col.dataset.col==='doing'){target='done';}else{return;} }else{if(col.dataset.col==='doing'){target='todo';}else if(col.dataset.col==='done'){target='doing';}else{return;} }if(target==='doing'){let doing=document.querySelector('.col[data-col="doing"]');if(doing.querySelectorAll('.card').length>=2)return;}let targetCol=document.querySelector('.col[data-col="'+target+'"]');targetCol.appendChild(card);update();});});update();
+</script>
+</body>
+</html>

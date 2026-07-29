@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+    animation:fadeIn 1s ease forwards;
+  }
+  h1{ text-align:center; }
+  .container{ display:flex; gap:20px; flex-wrap:wrap; }
+  .prod{
+    background:#fff;
+    padding:15px;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    width:200px;
+    opacity:0;
+    animation:slideIn 0.8s ease forwards;
+  }
+  .prod h3{ margin:0 0 10px; }
+  .prod button{ margin-top:10px; }
+  #cart{
+    background:#fff;
+    padding:15px;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    width:100%;
+    max-width:400px;
+  }
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:5px 0;
+    border-bottom:1px solid #eee;
+  }
+  .linea:last-child{ border-bottom:none; }
+  .linea button{ margin-left:10px; }
+  #total{ font-weight:bold; }
+  @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+  @keyframes slideIn{ from{transform:translateY(20px); opacity:0} to{transform:translateY(0); opacity:1} }
+</style>
+</head>
+<body>
+<h1>Carrito con Stock</h1>
+<div class="container">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <h3>Producto 1</h3>
+    <p>Precio: $100</p>
+    <p>Stock: 2</p>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <h3>Producto 2</h3>
+    <p>Precio: $50</p>
+    <p>Stock: 3</p>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <h3>Producto 3</h3>
+    <p>Precio: $25</p>
+    <p>Stock: 1</p>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="lines"></div>
+  <div>Total: $<span id="total">0</span></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cart = {}; // {id: qty}
+  const products = {}; // {id: {precio, stock}}
+  const addButtons = document.querySelectorAll('.add');
+
+  // Initialize product data
+  document.querySelectorAll('.prod').forEach(prod => {
+    const id = prod.dataset.id;
+    products[id] = {
+      precio: parseFloat(prod.dataset.precio),
+      stock: parseInt(prod.dataset.stock, 10)
+    };
+  });
+
+  // Helper to update total
+  function updateTotal() {
+    let total = 0;
+    for (const id in cart) {
+      total += cart[id] * products[id].precio;
+    }
+    document.getElementById('total').textContent = total.toFixed(2);
+  }
+
+  // Helper to update add button state
+  function updateAddButton(id) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if (cart[id] >= products[id].stock) {
+      btn.disabled = true;
+    } else {
+      btn.disabled = false;
+    }
+  }
+
+  // Helper to create or update line
+  function renderLine(id) {
+    const linesDiv = document.getElementById('lines');
+    let line = linesDiv.querySelector(`.linea[data-id="${id}"]`);
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `
+        <span class="name">${id}</span>
+        <span class="cant">${cart[id]}</span>
+        <button class="quitar" data-id="${id}">-</button>
+      `;
+      linesDiv.appendChild(line);
+      line.querySelector('.quitar').addEventListener('click', () => removeItem(id));
+    } else {
+      line.querySelector('.cant').textContent = cart[id];
+    }
+  }
+
+  // Add item
+  function addItem(id) {
+    if (!cart[id]) cart[id] = 0;
+    if (cart[id] < products[id].stock) {
+      cart[id]++;
+      renderLine(id);
+      updateAddButton(id);
+      updateTotal();
+    }
+  }
+
+  // Remove item
+  function removeItem(id) {
+    if (!cart[id]) return;
+    cart[id]--;
+    if (cart[id] <= 0) {
+      delete cart[id];
+      const line = document.querySelector(`.linea[data-id="${id}"]`);
+      if (line) line.remove();
+    } else {
+      renderLine(id);
+    }
+    updateAddButton(id);
+    updateTotal();
+  }
+
+  // Attach listeners to add buttons
+  addButtons.forEach(btn => {
+    btn.addEventListener('click', () => addItem(btn.dataset.id));
+  });
+});
+</script>
+</body>
+</html>

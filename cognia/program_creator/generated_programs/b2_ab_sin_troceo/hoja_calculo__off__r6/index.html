@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .celda{width:100%;padding:5px;font-size:1rem;}
+</style>
+</head>
+<body>
+<h2>Mini Hoja de Cálculo 3x3</h2>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1">
+  <input type="text" class="celda" data-ref="A2">
+  <input type="text" class="celda" data-ref="A3">
+  <input type="text" class="celda" data-ref="B1">
+  <input type="text" class="celda" data-ref="B2">
+  <input type="text" class="celda" data-ref="B3">
+  <input type="text" class="celda" data-ref="C1">
+  <input type="text" class="celda" data-ref="C2">
+  <input type="text" class="celda" data-ref="C3">
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = document.querySelectorAll('.celda');
+  const refMap = {};
+  cells.forEach(cell => {
+    refMap[cell.dataset.ref] = cell;
+    // Detect initial formulas
+    if (cell.value.trim().startsWith('=')) {
+      cell.dataset.formula = cell.value.trim();
+    }
+    cell.addEventListener('input', onCellInput);
+  });
+
+  function onCellInput(e) {
+    const cell = e.target;
+    const val = cell.value.trim();
+    if (val.startsWith('=')) {
+      cell.dataset.formula = val;
+    } else {
+      delete cell.dataset.formula;
+    }
+    recomputeAll();
+  }
+
+  function recomputeAll() {
+    cells.forEach(cell => {
+      if (cell.dataset.formula !== undefined) {
+        const result = evaluateCell(cell.dataset.ref, new Set());
+        cell.value = result;
+      }
+    });
+  }
+
+  function evaluateCell(ref, visited) {
+    if (visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const cell = refMap[ref];
+    if (!cell) { visited.delete(ref); return 0; }
+
+    if (cell.dataset.formula !== undefined) {
+      const expr = cell.dataset.formula.slice(1); // remove leading '='
+      const replaced = expr.replace(/([A-C][1-3])/g, (m, r) => {
+        const val = evaluateCell(r, visited);
+        if (val === 'CIRC') return 'NaN';
+        return val;
+      });
+      let res;
+      try {
+        res = eval(replaced);
+        if (isNaN(res)) res = 0;
+      } catch (e) {
+        res = 'CIRC';
+      }
+      visited.delete(ref);
+      return res;
+    } else {
+      const num = parseFloat(cell.value);
+      visited.delete(ref);
+      return isNaN(num) ? 0 : num;
+    }
+  }
+
+  // Initial calculation
+  recomputeAll();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minera 5×5</title>
+<style>
+  body{
+    margin:0; padding:0;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex; justify-content:center; align-items:center;
+    height:100vh;
+    overflow:hidden;
+  }
+  #wrapper{
+    width:100%; max-width:420px; /* 5*80 + 4*4 = 416px */
+    overflow-x:auto;
+    text-align:center;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,80px);
+    grid-gap:4px;
+    justify-content:center;
+    margin:0 auto;
+  }
+  .c{
+    width:80px; height:80px;
+    background:#d8bfa5; /* muted earth tone */
+    display:flex; justify-content:center; align-items:center;
+    font-weight:bold; font-size:20px; color:#333;
+    cursor:pointer; user-select:none;
+    box-shadow:inset 2px 2px 5px rgba(0,0,0,0.2),
+                inset -2px -2px 5px rgba(255,255,255,0.5);
+    transition:background 0.2s, box-shadow 0.2s;
+  }
+  .c.abierta{
+    background:#a8e6a3; /* bright green */
+    color:#006666;
+    box-shadow:none;
+  }
+  .c.abierta .num{
+    color:#008080; /* teal accent */
+  }
+  .c.bandera{
+    background:#f0e68c; /* light yellow */
+  }
+  .c.mina{
+    background:#ff4d4d; /* red */
+    color:#fff;
+  }
+  #estado{
+    margin-top:12px;
+    font-size:18px;
+    color:#d03b3b;
+  }
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <div id="grid"></div>
+  <div id="estado"></div>
+</div>
+<script>
+/* ---------- Object‑oriented Minesweeper ---------- */
+class Minesweeper {
+  constructor(rows, cols, mineIndices) {
+    this.rows = rows;
+    this.cols = cols;
+    this.total = rows * cols;
+    this.mines = new Set(mineIndices);
+    this.gridEl = document.getElementById('grid');
+    this.estadoEl = document.getElementById('estado');
+    this.cells = []; // array of DOM elements
+    this.adjacentCounts = new Array(this.total).fill(0);
+    this.init();
+  }
+
+  init() {
+    // create cells
+    for (let i = 0; i < this.total; i++) {
+      const div = document.createElement('div');
+      div.className = 'c';
+      div.dataset.i = i;
+      div.addEventListener('click', (e) => this.handleLeftClick(e));
+      div.addEventListener('contextmenu', (e) => this.handleRightClick(e));
+      this.gridEl.appendChild(div);
+      this.cells.push(div);
+    }
+    // precompute adjacent mine counts
+    for (let i = 0; i < this.total; i++) {
+      this.adjacentCounts[i] = this.countAdjacentMines(i);
+    }
+  }
+
+  handleLeftClick(e) {
+    const cell = e.currentTarget;
+    const i = +cell.dataset.i;
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    if (this.mines.has(i)) {
+      this.revealMine(i);
+      this.estadoEl.textContent = 'perdiste';
+      return;
+    }
+    this.openCell(i);
+  }
+
+  handleRightClick(e) {
+    e.preventDefault();
+    const cell = e.currentTarget;
+    const i = +cell.dataset.i;
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')) {
+      cell.classList.remove('bandera');
+    } else {
+      cell.classList.add('bandera');
+    }
+  }
+
+  openCell(i) {
+    const cell = this.cells[i];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    const count = this.adjacentCounts[i];
+    if (count > 0) {
+      const span = document.createElement('span');
+      span.className = 'num';
+      span.textContent = count;
+      cell.appendChild(span);
+    } else {
+      // cascade open neighbors
+      this.cascadeOpen(i);
+    }
+  }
+
+  cascadeOpen(startIdx) {
+    const queue = [startIdx];
+    const visited = new Set();
+    while (queue.length) {
+      const idx = queue.shift();
+      visited.add(idx);
+      const neighbors = this.getNeighbors(idx);
+      for (const n of neighbors) {
+        if (visited.has(n)) continue;
+        const nCell = this.cells[n];
+        if (nCell.classList.contains('bandera') || nCell.classList.contains('abierta')) continue;
+        nCell.classList.add('abierta');
+        const count = this.adjacentCounts[n];
+        if (count > 0) {
+          const span = document.createElement('span');
+          span.className = 'num';
+          span.textContent = count;
+          nCell.appendChild(span);
+        } else {
+          queue.push(n);
+        }
+      }
+    }
+  }
+
+  revealMine(i) {
+    const cell = this.cells[i];
+    cell.classList.add('abierta', 'mina');
+    cell.textContent = '💣';
+  }
+
+  countAdjacentMines(i) {
+    let count = 0;
+    for (const n of this.getNeighbors(i)) {
+      if (this.mines.has(n)) count++;
+    }
+    return count;
+  }
+
+  getNeighbors(i) {
+    const r = Math.floor(i / this.cols);
+    const c = i % this.cols;
+    const neighbors = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr < 0 || nr >= this.rows || nc < 0 || nc >= this.cols) continue;
+        neighbors.push(nr * this.cols + nc);
+      }
+    }
+    return neighbors;
+  }
+}
+
+/* ---------- Start the game ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  new Minesweeper(5, 5, [6, 12, 18]); // mines at indices 6,12,18
+});
+</script>
+</body>
+</html>

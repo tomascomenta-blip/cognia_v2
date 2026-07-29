@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background:#f0f4f8;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  h1{
+    background:#e0e0e0;
+    border-radius:8px;
+    padding:10px 20px;
+    margin-bottom:20px;
+    font-size:1.5rem;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,48px);
+    gap:0;
+  }
+  .c{
+    width:48px;
+    height:48px;
+    border:1px solid #ccc;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:18px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{background:#e8f5e9;}
+  .c.bandera{background:#e8f5e9;}
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    color:#d32f2f;
+  }
+  #controls{
+    margin-top:10px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  #reset{
+    padding:5px 10px;
+    font-size:1rem;
+    border:none;
+    border-radius:4px;
+    background:#1976d2;
+    color:white;
+    cursor:pointer;
+  }
+  #reset:hover{background:#1565c0;}
+  #timer{font-size:1rem;}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+<div id="controls">
+  <button id="reset">Reiniciar</button>
+  <span id="timer">0</span>
+</div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+const timerEl=document.getElementById('timer');
+const resetBtn=document.getElementById('reset');
+let timer=0;
+let timerInterval;
+
+function startTimer(){
+  timer=0;
+  timerEl.textContent=timer;
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{timer++;timerEl.textContent=timer;},1000);
+}
+
+function resetGame(){
+  grid.innerHTML='';
+  for(let i=0;i<25;i++){
+    const cell=document.createElement('div');
+    cell.className='c';
+    cell.dataset.i=i;
+    cell.addEventListener('click',()=>{
+      if(estado.textContent==='perdiste')return;
+      revealCell(i);
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(estado.textContent==='perdiste')return;
+      if(cell.classList.contains('abierta'))return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      }else{
+        cell.classList.add('bandera');
+        cell.textContent='🚩';
+      }
+    });
+    grid.appendChild(cell);
+  }
+  estado.textContent='';
+  startTimer();
+}
+
+function getNeighbors(i){
+  const neighbors=[];
+  const row=Math.floor(i/5);
+  const col=i%5;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=row+dr,nc=col+dc;
+      if(nr>=0&&nr<5&&nc>=0&&nc<5){
+        neighbors.push(nr*5+nc);
+      }
+    }
+  }
+  return neighbors;
+}
+
+function countAdjacentMines(i){
+  return getNeighbors(i).filter(n=>mines.includes(n)).length;
+}
+
+function revealCell(i){
+  const cells=document.querySelectorAll('.c');
+  const cell=cells[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    cell.style.color='#ffeb3b';
+    estado.textContent='perdiste';
+    return;
+  }
+  const count=countAdjacentMines(i);
+  cell.classList.add('abierta');
+  if(count>0){
+    cell.textContent=count;
+    cell.style.color='#008080';
+  }else{
+    cell.textContent='';
+    const queue=[i];
+    while(queue.length){
+      const cur=queue.shift();
+      const neigh=getNeighbors(cur);
+      neigh.forEach(n=>{
+        const c=cells[n];
+        if(c.classList.contains('abierta')||c.classList.contains('bandera'))return;
+        if(mines.includes(n)){
+          c.classList.add('abierta');
+          c.textContent='💣';
+          c.style.color='#ffeb3b';
+          estado.textContent='perdiste';
+          return;
+        }
+        const cnt=countAdjacentMines(n);
+        c.classList.add('abierta');
+        if(cnt>0){
+          c.textContent=cnt;
+          c.style.color='#008080';
+        }else{
+          c.textContent='';
+          queue.push(n);
+        }
+      });
+    }
+  }
+}
+
+resetBtn.addEventListener('click',resetGame);
+resetGame();
+</script>
+</body>
+</html>

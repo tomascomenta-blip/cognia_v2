@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+    margin:0;
+  }
+  #header{
+    width:100%;
+    max-width:400px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  #header h1{
+    margin:0;
+    font-size:1.5rem;
+  }
+  #reset{
+    padding:5px 10px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1rem;
+    color:#d00;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:4px;
+    width:100%;
+    max-width:400px;
+  }
+  .c{
+    background:#fff;
+    border:1px solid #ccc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+    aspect-ratio:1/1;
+  }
+  .c:not(.abierta):not(.bandera):hover{
+    background:#e6e6e6;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+    color:#333;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>Buscaminas 5x5</h1>
+  <button id="reset">Reset</button>
+</div>
+<div id="estado"></div>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<script>
+  const MINE_INDICES = [6,12,18];
+  const GRID_SIZE = 5;
+  const cells = document.querySelectorAll('.c');
+  const estado = document.getElementById('estado');
+  const resetBtn = document.getElementById('reset');
+
+  function getNeighbors(i){
+    const neighbors=[];
+    const row=Math.floor(i/GRID_SIZE);
+    const col=i%GRID_SIZE;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const r=row+dr, c=col+dc;
+        if(r>=0 && r<GRID_SIZE && c>=0 && c<GRID_SIZE){
+          neighbors.push(r*GRID_SIZE+c);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  function countAdjacentMines(i){
+    return getNeighbors(i).filter(n=>MINE_INDICES.includes(n)).length;
+  }
+
+  function openCell(i){
+    const cell=cells[i];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    if(MINE_INDICES.includes(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      estado.textContent='perdiste';
+      cells.forEach(c=>{c.removeEventListener('click',leftClickHandler);c.removeEventListener('contextmenu',rightClickHandler);});
+      return;
+    }
+    const adj=countAdjacentMines(i);
+    cell.classList.add('abierta');
+    cell.textContent=adj>0?adj:'';
+    if(adj===0){
+      getNeighbors(i).forEach(n=>openCell(n));
+    }
+  }
+
+  function leftClickHandler(e){
+    const i=parseInt(this.dataset.i,10);
+    openCell(i);
+  }
+
+  function rightClickHandler(e){
+    e.preventDefault();
+    const cell=this;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+
+  function resetGame(){
+    cells.forEach(cell=>{
+      cell.classList.remove('abierta','bandera');
+      cell.textContent='';
+    });
+    estado.textContent='';
+    cells.forEach(cell=>{
+      cell.addEventListener('click',leftClickHandler);
+      cell.addEventListener('contextmenu',rightClickHandler);
+    });
+  }
+
+  resetBtn.addEventListener('click',resetGame);
+  resetGame();
+</script>
+</body>
+</html>

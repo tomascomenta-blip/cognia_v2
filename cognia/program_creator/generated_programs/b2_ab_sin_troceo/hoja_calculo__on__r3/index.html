@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{margin:0;font-family:sans-serif;background:#eaeaea;}
+  #header{background:#fff;padding:10px 0;text-align:center;}
+  #header h1{margin:0;font-size:1.5em;color:#333;}
+  #grid{display:grid;grid-template-columns:repeat(3,80px);gap:2px;background:#f0f0f0;border:2px solid #555;margin:20px auto;max-width:400px;padding:10px;box-sizing:border-box;}
+  .celda{width:80px;height:30px;padding:4px;font-size:1em;text-align:right;border:1px solid #bbb;background:#fff;box-sizing:border-box;font-family:monospace;}
+  .celda:focus{outline:2px solid #2a78d6;border-color:#2a78d6;}
+  #status{background:#d0e0ff;color:#333;font-size:0.9em;padding:4px 8px;text-align:center;border-top:1px solid #aaa;}
+</style>
+</head>
+<body>
+<div id="header"><h1>Mini Hoja de Cálculo 3x3</h1></div>
+<div id="grid">
+  <input type="text" class="celda" data-ref="A1" value="">
+  <input type="text" class="celda" data-ref="B1" value="">
+  <input type="text" class="celda" data-ref="C1" value="">
+  <input type="text" class="celda" data-ref="A2" value="">
+  <input type="text" class="celda" data-ref="B2" value="">
+  <input type="text" class="celda" data-ref="C2" value="">
+  <input type="text" class="celda" data-ref="A3" value="">
+  <input type="text" class="celda" data-ref="B3" value="">
+  <input type="text" class="celda" data-ref="C3" value="">
+</div>
+<div id="status">Listo</div>
+<script>
+(function(){
+  const cells=document.querySelectorAll('.celda');
+  const refToCell={};
+  const dependents={};
+  const status=document.getElementById('status');
+  cells.forEach(cell=>{
+    const ref=cell.dataset.ref;
+    refToCell[ref]=cell;
+    cell.addEventListener('input',onInput);
+  });
+  function onInput(e){
+    const cell=e.target;
+    const val=cell.value;
+    if(val.startsWith('=')){
+      cell.dataset.formula=val.slice(1);
+    }else{
+      delete cell.dataset.formula;
+    }
+    recalcAll();
+  }
+  function recalcAll(){
+    status.textContent='Recalculando...';
+    buildDependencies();
+    cells.forEach(cell=>{
+      evaluate(cell.dataset.ref,[]);
+    });
+    status.textContent='Listo';
+  }
+  function buildDependencies(){
+    Object.keys(dependents).forEach(k=>dependents[k]=[]);
+    cells.forEach(cell=>{
+      const ref=cell.dataset.ref;
+      const formula=cell.dataset.formula;
+      if(formula){
+        const refs=formula.match(/[A-C][1-3]/g)||[];
+        refs.forEach(r=>{
+          if(!dependents[r]) dependents[r]=[];
+          dependents[r].push(ref);
+        });
+      }
+    });
+  }
+  function evaluate(ref,stack){
+    if(stack.includes(ref)) return 'CIRC';
+    const cell=refToCell[ref];
+    const formula=cell.dataset.formula;
+    if(!formula){
+      return cell.value;
+    }
+    const expr=formula.replace(/[A-C][1-3]/g,match=>{
+      const val=evaluate(match,stack.concat(ref));
+      if(val==='CIRC') return 'CIRC';
+      return val;
+    });
+    if(expr.includes('CIRC')){cell.value='CIRC';return 'CIRC';}
+    try{
+      const result=Function('"use strict";return ('+expr+')')();
+      const formatted=typeof result==='number'?result.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}):result;
+      cell.value=formatted;
+      return formatted;
+    }catch(e){
+      cell.value='CIRC';
+      return 'CIRC';
+    }
+  }
+  recalcAll();
+})();
+</script>
+</body>
+</html>

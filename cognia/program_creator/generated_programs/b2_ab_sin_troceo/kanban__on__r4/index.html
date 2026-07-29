@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una página</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    font-family:system-ui,sans-serif;
+    background:#fafafa;
+    color:#333;
+  }
+  .board{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px;
+    justify-content:center;
+  }
+  .col{
+    flex:1 1 30%;
+    min-width:250px;
+    background:#fff;
+    border-radius:5px;
+    padding:10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    display:flex;
+    flex-direction:column;
+  }
+  .col-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .col-header h3{
+    margin:0;
+    font-size:1.2rem;
+  }
+  .card{
+    background:#f5f5f5;
+    border-radius:5px;
+    padding:8px 10px;
+    margin-bottom:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);
+  }
+  .card-buttons button{
+    background:#008080;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    padding:4px 6px;
+    margin-left:4px;
+    cursor:pointer;
+    font-size:.9rem;
+  }
+  .card-buttons button:hover{background:#006666;}
+  .card-buttons button:disabled{background:#aaa;cursor:not-allowed;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">
+      <h3>Todo</h3>
+      <span id="cont-todo">0</span>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">
+      <h3>Doing</h3>
+      <span id="cont-doing">0</span>
+    </div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">
+      <h3>Done</h3>
+      <span id="cont-done">0</span>
+    </div>
+  </div>
+</div>
+<script>
+class KanbanBoard{
+  constructor(){
+    this.board=document.querySelector('.board');
+    this.columns={
+      todo:document.querySelector('[data-col="todo"]'),
+      doing:document.querySelector('[data-col="doing"]'),
+      done:document.querySelector('[data-col="done"]')
+    };
+    this.counters={
+      todo:document.getElementById('cont-todo'),
+      doing:document.getElementById('cont-doing'),
+      done:document.getElementById('cont-done')
+    };
+    this.init();
+  }
+  init(){
+    const ids=['t1','t2','t3'];
+    ids.forEach(id=>this.addCard('todo',id));
+    this.updateCounters();
+    this.attachEvents();
+  }
+  addCard(col,id){
+    const card=document.createElement('div');
+    card.className='card';
+    card.dataset.id=id;
+    card.innerHTML=`<span>${id}</span>
+      <div class="card-buttons">
+        <button class="menos">-</button>
+        <button class="mas">+</button>
+      </div>`;
+    this.columns[col].appendChild(card);
+  }
+  attachEvents(){
+    this.board.addEventListener('click',e=>{
+      const btn=e.target;
+      if(btn.classList.contains('mas')||btn.classList.contains('menos')){
+        const card=btn.closest('.card');
+        if(!card)return;
+        const cur=card.parentElement.dataset.col;
+        if(btn.classList.contains('mas'))this.move(card,cur,'right');
+        else this.move(card,cur,'left');
+      }
+    });
+  }
+  move(card,curCol,dir){
+    const order=['todo','doing','done'];
+    const idx=order.indexOf(curCol);
+    const tgtIdx=dir==='right'?idx+1:idx-1;
+    if(tgtIdx<0||tgtIdx>=order.length)return;
+    const tgtCol=order[tgtIdx];
+    if(tgtCol==='doing'&&this.columns.doing.children.length>=2)return;
+    if(curCol==='todo'&&dir==='left')return;
+    if(curCol==='done'&&dir==='right')return;
+    this.columns[tgtCol].appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters(){
+    this.counters.todo.textContent=this.columns.todo.children.length;
+    this.counters.doing.textContent=this.columns.doing.children.length;
+    this.counters.done.textContent=this.columns.done.children.length;
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new KanbanBoard());
+</script>
+</body>
+</html>
