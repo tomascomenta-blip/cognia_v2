@@ -1,0 +1,61 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5 con minas fijas",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 25 celdas",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que cada celda tiene atributo data-i de 0 a 24",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.c')).every(el=>parseInt(el.dataset.i)>=0&&parseInt(el.dataset.i)<=24)",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las minas están en las posiciones 6,12,18",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.c')).filter(el=>el.dataset.i==='6'||el.dataset.i==='12'||el.dataset.i==='18').length",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que al hacer click en una celda no mina se abre y muestra número de minas adyacentes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que al hacer click en una celda con 0 minas adyacentes se abre en cascada todas las vecinas con 0 y sus bordes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que al hacer click derecho en una celda se añade la clase 'bandera' y no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 2,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que al hacer click en una celda con bandera no se abre",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 2,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que al hacer click en una mina se muestra 'perdiste' en #estado",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "critico": true
+    }
+  ]
+}

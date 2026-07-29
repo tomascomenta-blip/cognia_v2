@@ -51,4 +51,32 @@ contrato autogenerado (memoria contrato-interno-al-azar): "held-out A MANO
   Nemotron (sin GPU de páginas; solo contratos + replay). Sin umbral de
   adopción: alimenta el diseño del selector de producción de la próxima
   sesión.
-- Nada de este prereg adopta código de producción esta noche.
+- Nada de este prereg adopta código de producción esta noche (los arreglos
+  de plomería del extractor sí se commitean: son bugs, con test).
+
+## PRIMERA ENMIENDA (2026-07-28 ~21:05 — ANTES del bloque N)
+
+Los humos de Nemotron (3 páginas: kanban, hoja, carrito) fallaron los tres,
+por tres vías distintas: bucle de repetición a temp 0.2 (documentado del
+linaje Qwen; knob `COGNIA_TEMP_CONTRATO=0.6` añadido — la decodificación de
+la TARJETA del modelo es parte de "cambiar el modelo", el prompt no se
+tocó), un parse "Extra data" (extractor endurecido con raw_decode + test), y
+DOS contratos sin ningún paso crítico (el descarte por vacuidad de
+producción los tira — eso no es plomería, es el modelo no marcando
+criticidad).
+
+Para no gastar ~2 h en un KILL casi seguro ni matarlo con 3 humos post-hoc:
+
+1. **PILOTO DE FUTILIDAD pre-registrado** sobre 6 páginas FRESCAS (una por
+   tarea × primeras réplicas del corpus, sin contar los 3 humos): si menos
+   de 3/6 contratos son USABLES (parsean ∧ ≥1 crítico ∧ sobreviven el
+   descarte), el bloque N completo NO se corre y Nemotron se declara
+   **KILL DE APTITUD** como QA drop-in (no sabe emitir el artefacto, con
+   dos reintentos por página como en el runner).
+2. **Candidato B pre-declarado:** qwen2.5-coder-14b (mismo protocolo
+   completo: humo, piloto de futilidad, bloque, mismos umbrales del prereg).
+   Racional: el rol exige JSON disciplinado + consecuencias del enunciado;
+   un instruct no-razonador puede ser mejor QA que un razonador que no
+   sigue el esquema.
+3. El control G del día (FN 15/19, dentro de [5,13] aciertos) sigue siendo
+   el ancla de deriva para cualquier candidato de esta noche.

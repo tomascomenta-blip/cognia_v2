@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Existe la grilla 3x3 de celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda",
+      "contiene": "data-ref=\"A1\""
+    },
+    {
+      "nombre": "Valor inicial de todas las celdas es vacío",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Al escribir un número en A1, se muestra el mismo valor",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref=\"A1\"]",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Al escribir fórmula =A1+1 en B1, se muestra el resultado 6",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref=\"B1\"]",
+      "contiene": "6"
+    },
+    {
+      "nombre": "Al cambiar A1 a 10, B1 actualiza a 11",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref=\"B1\"]",
+      "contiene": "11"
+    },
+    {
+      "nombre": "Al crear referencia circular C1 =C1+1, muestra texto CIRC",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref=\"C1\"]",
+      "contiene": "CIRC"
+    },
+    {
+      "nombre": "Al eliminar la referencia circular, C1 vuelve a mostrar valor calculado",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref=\"C1\"]",
+      "contiene": "12"
+    }
+  ]
+}

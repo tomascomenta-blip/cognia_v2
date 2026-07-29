@@ -1,0 +1,92 @@
+{
+  "nombre": "Verificar carrito con stock y comportamiento de botones",
+  "pasos": [
+    {
+      "nombre": "Estado inicial del inventario",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Botones de añadir visibles",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Botón add del producto p1 habilitado",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id=\"p1\"]"
+    },
+    {
+      "nombre": "Añadir p1 una vez",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Linea p1 aparece con cantidad 1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea[data-id=\"p1\"] .cant",
+      "esperado": 1
+    },
+    {
+      "nombre": "Total actualizado a 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Añadir p1 hasta stock máximo",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Botón add p1 deshabilitado y total 200",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id=\"p1\"]:disabled"
+    },
+    {
+      "nombre": "Quitar una unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Cantidad p1 reduce a 1 y total 100",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100"
+    },
+    {
+      "nombre": "Quitar última unidad de p1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Linea p1 desaparece y botón add habilitado",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".linea[data-id=\"p1\"]"
+    },
+    {
+      "nombre": "Botón add p1 habilitado",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id=\"p1\"]:not(:disabled)"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y celdas",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar que existen 9 celdas con clase .celda",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.dataset.ref))",
+      "esperado": true
+    },
+    {
+      "nombre": "Establecer valores iniciales sin fórmulas y comprobar que se muestran",
+      "accion": "texto",
+      "selector": ".celda",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula simple en A1 y verificar cálculo",
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "=1+2",
+      "esperado": true
+    },
+    {
+      "nombre": "Esperar recalculo y comprobar que A1 muestra 3",
+      "accion": "contiene",
+      "selector": "#A1",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Crear dependencia en B1 y C1 y verificar cascada",
+      "accion": "texto",
+      "selector": "#B1",
+      "contiene": "=A1+1",
+      "esperado": true
+    },
+    {
+      "nombre": "Modificar A1 y comprobar que B1 y C1 actualizan correctamente",
+      "accion": "texto",
+      "selector": "#C1",
+      "contiene": "5",
+      "critico": true
+    }
+  ]
+}

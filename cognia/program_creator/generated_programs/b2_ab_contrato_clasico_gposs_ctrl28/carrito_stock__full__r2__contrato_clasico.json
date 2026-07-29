@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificar carrito con stock y comportamiento de botones",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: carrito vacío y botones habilitados",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".linea",
+      "esperado": 0
+    },
+    {
+      "nombre": "Agregar primer producto p1",
+      "critico": true,
+      "accion": "click",
+      "selector": "button.add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar línea p1 con cantidad 1 y total 100",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cart-lines .linea[data-id=\"p1\"]",
+      "esperado": 1
+    },
+    {
+      "nombre": "Agregar p1 nuevamente hasta stock máximo",
+      "critico": true,
+      "accion": "click",
+      "selector": "button.add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que cantidad de p1 sea 2 y botón add deshabilitado",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cart-lines .linea[data-id=\"p1\"] .cant",
+      "esperado": 1
+    },
+    {
+      "nombre": "Eliminar una unidad de p1 y verificar que cantidad sea 1 y botón add habilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": "button.quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Eliminar última unidad de p1 y verificar que línea desaparezca y botón add habilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": "button.quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Agregar p3 (stock 1) y verificar que botón add se deshabilite tras agregar",
+      "critico": true,
+      "accion": "click",
+      "selector": "button.add[data-id=\"p3\"]",
+      "indice": 0
+    }
+  ]
+}

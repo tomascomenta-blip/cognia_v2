@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Confirmar que hay 9 celdas con clase .celda",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Comprobar que cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.dataset.ref))",
+      "esperado": true
+    },
+    {
+      "nombre": "Establecer valores numéricos en A1 y B1 y verificar que se muestran",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Ingresar fórmula =A1+B1 en C1 y comprobar que su valor es la suma",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#C1",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Cambiar valor de A1 a 5 y verificar que C1 se recalcula a 6",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Crear referencia circular C1 =C1+1 y comprobar que muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#C1",
+      "contiene": "CIRC"
+    },
+    {
+      "nombre": "Eliminar la referencia circular y verificar que C1 vuelve a mostrar el valor calculado",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#C1",
+      "contiene": "6"
+    }
+  ]
+}

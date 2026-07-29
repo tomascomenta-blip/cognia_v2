@@ -32,6 +32,7 @@ pero no una mecanica rota: el contrato es lo que hace al juez especifico.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -728,7 +729,7 @@ def generar_contrato(idea: str, html: Path,
         # chars: el resto del presupuesto es para que el pensador PIENSE.
         # El modo amplio pide 10-16 pasos (~2500 chars de respuesta): margen
         # 2-3x sobre lo observado ([[presupuesto-tokens-razonamiento]]).
-        system=_SISTEMA_CONTRATO, temperature=0.2,
+        system=_SISTEMA_CONTRATO, temperature=_temp_contrato(),
         max_tokens=12000 if modo == "amplio" else 9000,
         via="juez.generar_contrato", timeout=400,
         # El esfuerzo REAL lo fija el template de llama-server, no la linea
@@ -738,18 +739,8 @@ def generar_contrato(idea: str, html: Path,
         reasoning_effort="low")
     if not crudo:
         return None
-    txt = crudo.strip()
-    if "```" in txt:                     # por si ignora la instruccion del fence
-        txt = txt.split("```")[1]
-        txt = txt[4:] if txt.lstrip().startswith("json") else txt
-    ini, fin = txt.find("{"), txt.rfind("}")
-    if ini < 0 or fin <= ini:
-        return None
-    try:
-        c = json.loads(txt[ini:fin + 1])
-    except json.JSONDecodeError as exc:
-        print(f"[juez] el pensador no devolvio JSON valido: {exc}",
-              file=sys.stderr)
+    c = _json_de_respuesta(crudo)
+    if c is None:
         return None
     if not _pasos_validos(c.get("pasos")):
         print("[juez] contrato con pasos malformados (campo no-string donde "
@@ -770,6 +761,53 @@ def generar_contrato(idea: str, html: Path,
     if modo == "validado":
         c = _validar_contra_enunciado(idea, c)
     return c
+
+
+def _temp_contrato() -> float:
+    """
+    Temperatura de la generacion de contratos. 0.2 con gpt-oss (medido: a 0.9
+    'interpreta' la idea). Los razonadores Qwen/Nemotron DEGENERAN en bucle de
+    repeticion a temperatura baja (medido 2026-07-28: el mismo paso repetido
+    hasta agotar 9000 tokens, JSON sin cerrar) y su tarjeta pide 0.6 —
+    COGNIA_TEMP_CONTRATO permite dar a cada pensador su decodificacion
+    documentada sin tocar el camino por defecto.
+    """
+    try:
+        return float(os.environ.get("COGNIA_TEMP_CONTRATO", "0.2"))
+    except ValueError:
+        return 0.2
+
+
+def _json_de_respuesta(crudo: str) -> Optional[dict]:
+    """
+    Extrae el dict del contrato de la respuesta del pensador.
+
+    Los razonadores estilo Qwen/Nemotron devuelven el pensamiento INLINE
+    (<think>...</think>) antes del contrato — y si el pensamiento contiene un
+    fence o una llave, el extractor de siempre agarraba basura (medido
+    2026-07-28 con OpenReasoning-Nemotron-14B: 'Expecting value: line 1').
+    Se corta lo pensado primero; para gpt-oss es un no-op porque su canal de
+    razonamiento lo separa el template de llama-server y no llega aqui.
+    """
+    txt = crudo.strip()
+    if "</think>" in txt:
+        txt = txt.split("</think>")[-1].strip()
+    if "```" in txt:                     # por si ignora la instruccion del fence
+        txt = txt.split("```")[1]
+        txt = txt[4:] if txt.lstrip().startswith("json") else txt
+    ini = txt.find("{")
+    if ini < 0:
+        return None
+    # raw_decode toma el PRIMER objeto balanceado e ignora lo que siga: un
+    # razonador que repite basura DESPUES de un contrato completo (medido
+    # 2026-07-28 con Nemotron: 'Extra data') ya no invalida el contrato.
+    try:
+        c, _ = json.JSONDecoder().raw_decode(txt[ini:])
+        return c if isinstance(c, dict) else None
+    except json.JSONDecodeError as exc:
+        print(f"[juez] el pensador no devolvio JSON valido: {exc}",
+              file=sys.stderr)
+        return None
 
 
 def _pasos_validos(pasos) -> bool:

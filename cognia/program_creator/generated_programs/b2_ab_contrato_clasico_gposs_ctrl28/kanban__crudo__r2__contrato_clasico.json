@@ -1,0 +1,223 @@
+{
+  "nombre": "Verificar funcionamiento del tablero Kanban en un solo archivo HTML",
+  "pasos": [
+    {
+      "nombre": "Estado inicial del tablero",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".col",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".card",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".mas",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".menos",
+          "esperado": 3
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 3
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Mover tarjeta t1 a la columna doing",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id=\"t1\"] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Intentar mover tarjeta t2 a doing cuando doing ya tiene 2 tarjetas",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id=\"t2\"] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 2
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Mover tarjeta t1 a done",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id=\"t1\"] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Intentar mover tarjeta t1 de done a la derecha (no debe cambiar)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id=\"t1\"] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Mover tarjeta t2 a la izquierda (de doing a todo)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id=\"t2\"] .menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Intentar mover tarjeta t3 a la izquierda cuando está en todo (no debe cambiar)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id=\"t3\"] .menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que los contadores se actualizan correctamente tras todas las interacciones",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ]
+    }
+  ]
+}

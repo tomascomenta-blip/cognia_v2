@@ -1,0 +1,60 @@
+{
+  "nombre": "Verificar funcionamiento del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tres tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contador doing inicial cero",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contador done inicial cero",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta t1 a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".card[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar contadores tras movimiento",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Verificar que tarjeta t1 está en doing",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".col[data-col='doing'] .card[data-id='t1']"
+    }
+  ]
+}

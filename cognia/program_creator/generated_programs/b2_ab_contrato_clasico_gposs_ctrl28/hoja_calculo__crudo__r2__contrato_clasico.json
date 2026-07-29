@@ -1,0 +1,57 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de la grilla y celdas",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Verificar existencia de las 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.dataset.ref))",
+      "esperado": true
+    },
+    {
+      "nombre": "Establecer valores iniciales sin fórmulas y comprobar que se muestran",
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula en B1 y verificar cálculo",
+      "accion": "texto",
+      "selector": "#B1",
+      "contiene": "=A1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de A1 y comprobar cascada en B1 y C1",
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Crear referencia circular C1=B1+1 y B1=C1+1, verificar que ambas muestren 'CIRC'",
+      "accion": "js",
+      "expr": "document.querySelector('#C1').value==='CIRC' && document.querySelector('#B1').value==='CIRC'",
+      "esperado": true
+    },
+    {
+      "nombre": "Eliminar referencia circular y comprobar que se recalcula correctamente",
+      "accion": "texto",
+      "selector": "#B1",
+      "contiene": "=A1+1",
+      "critico": true
+    }
+  ]
+}

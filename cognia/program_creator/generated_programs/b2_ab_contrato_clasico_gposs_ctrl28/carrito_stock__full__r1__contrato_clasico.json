@@ -1,0 +1,161 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 productos y carrito vacío",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".prod",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".add",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar primer producto (p1)",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".linea",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "100"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar mismo producto (p1) hasta stock máximo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".linea",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "200"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar botón add deshabilitado al alcanzar stock",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "existe",
+          "selector": ".add[disabled]"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar una unidad de p1",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar",
+          "indice": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "100"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar otra unidad de p1 y eliminar línea",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".quitar",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": ".linea",
+          "esperado": 0
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar producto p2 y verificar habilitación del botón add",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 1
+        },
+        {
+          "accion": "existe",
+          "selector": ".add:not([disabled])"
+        }
+      ]
+    },
+    {
+      "nombre": "Agregar p2 hasta stock y comprobar total correcto",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 1
+        },
+        {
+          "accion": "click",
+          "selector": ".add",
+          "indice": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "150"
+        }
+      ]
+    }
+  ]
+}

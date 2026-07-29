@@ -1,0 +1,54 @@
+{
+  "nombre": "Kanban board single file HTML",
+  "pasos": [
+    {
+      "nombre": "Initial state has 3 todo cards and empty doing/done",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Each card has data-id t1,t2,t3",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.card')).every(c=>['t1','t2','t3'].includes(c.dataset.id))",
+      "esperado": true
+    },
+    {
+      "nombre": "Counts show 3,0,0 in #cont-todo,#cont-doing,#cont-done",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Click .mas on first todo card moves it to doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Doing now has 1 card, todo 2, done 0",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Click .mas on same card again moves it to done",
+      "critico": true,
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Attempt to click .mas on done card does nothing, counts remain 2,0,1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "1"
+    }
+  ]
+}

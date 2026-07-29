@@ -1,0 +1,292 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".col",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".card",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".mas",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".menos",
+          "esperado": 3
+        },
+        {
+          "accion": "existe",
+          "selector": ".board"
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-todo"
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-doing"
+        },
+        {
+          "accion": "existe",
+          "selector": "#cont-done"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "3"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón más avanza tarjeta de todo a doing",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 100
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón menos retrocede tarjeta de doing a todo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 100
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "3"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Tarjeta en done no avanza",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 100
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "3"
+        }
+      ]
+    },
+    {
+      "nombre": "Tarjeta en todo no retrocede",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 100
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "3"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "WIP: doing admite máximo 2 tarjetas",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 100
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón más no mueve cuando doing lleno",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 100
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Botón menos mueve tarjeta de doing a todo cuando doing no vacío",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".menos",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 100
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    }
+  ]
+}

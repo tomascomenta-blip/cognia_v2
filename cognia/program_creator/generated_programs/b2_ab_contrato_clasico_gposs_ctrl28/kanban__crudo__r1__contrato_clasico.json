@@ -1,0 +1,81 @@
+{
+  "nombre": "Verificar tablero Kanban funcional",
+  "pasos": [
+    {
+      "nombre": "Estado inicial correcto",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Tarjetas en columna todo",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col[data-col='todo'] .card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Contadores iniciales",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Contador doing inicial",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Contador done inicial",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0"
+    },
+    {
+      "nombre": "Mover tarjeta a doing",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card[data-id='t1'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar límites WIP",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card[data-id='t2'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Intentar mover más allá de WIP",
+      "critico": true,
+      "accion": "click",
+      "selector": ".col[data-col='todo'] .card[data-id='t3'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar contadores después de movimientos",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Verificar contadores after WIP",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Verificar que tarjeta no se movió a done",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".col[data-col='done'] .card[data-id='t3']"
+    }
+  ]
+}

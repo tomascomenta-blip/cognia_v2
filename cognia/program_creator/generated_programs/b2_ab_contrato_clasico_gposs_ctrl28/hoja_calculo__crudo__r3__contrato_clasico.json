@@ -1,0 +1,65 @@
+{
+  "nombre": "Mini hoja de cálculo 3x3 con fórmulas y detección de ciclos",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Confirmar que cada celda tiene atributo data-ref correcto",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(el=>['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(el.getAttribute('data-ref')))",
+      "esperado": true
+    },
+    {
+      "nombre": "Establecer valores iniciales vacíos y comprobar que no se muestra texto",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0
+    },
+    {
+      "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "5",
+      "esperado": true
+    },
+    {
+      "nombre": "Ingresar fórmula en B1 que dependa de A1 y verificar cálculo",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "=A1+2",
+      "esperado": true
+    },
+    {
+      "nombre": "Confirmar que B1 muestra resultado 7 tras actualización de A1",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "[data-ref='B1']",
+      "esperado": 1
+    },
+    {
+      "nombre": "Crear referencia circular C1= C1+1 y verificar que muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "=C1+1",
+      "esperado": true
+    },
+    {
+      "nombre": "Cambiar A1 y asegurar que B1 se recalcula automáticamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "=A1+2",
+      "esperado": true
+    }
+  ]
+}

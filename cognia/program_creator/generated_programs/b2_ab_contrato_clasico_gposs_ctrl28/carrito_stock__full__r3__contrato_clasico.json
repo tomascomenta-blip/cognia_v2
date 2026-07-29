@@ -1,0 +1,61 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Verificar existencia de los 3 productos con sus atributos",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#products .prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Confirmar que cada producto tiene data-id, data-precio y data-stock correctos",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('#products .prod')).every(p=>p.dataset.id&&p.dataset.precio&&p.dataset.stock)",
+      "esperado": true
+    },
+    {
+      "nombre": "Agregar el primer producto y comprobar que aparece una línea con cantidad 1",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Agregar el mismo producto nuevamente y verificar que la cantidad aumenta a 2 sin crear nueva línea",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Intentar agregar el primer producto una tercera vez y comprobar que el botón add queda disabled y la cantidad sigue 2",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .add[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Quitar una unidad del primer producto y verificar que la cantidad disminuye a 1 y el botón add vuelve habilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Quitar la última unidad del primer producto y comprobar que la línea desaparece y el botón add vuelve habilitado",
+      "critico": true,
+      "accion": "click",
+      "selector": "#products .quitar[data-id=\"p1\"]",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que el total se actualiza correctamente después de cada operación",
+      "critico": true,
+      "accion": "js",
+      "expr": "parseFloat(document.querySelector('#total').textContent)",
+      "esperado": 0
+    }
+  ]
+}
