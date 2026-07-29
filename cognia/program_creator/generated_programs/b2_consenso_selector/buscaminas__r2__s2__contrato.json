@@ -1,0 +1,66 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5",
+  "pasos": [
+    {
+      "nombre": "Existen 25 celdas con clase 'c'",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Las minas están en las celdas 6, 12 y 18",
+      "accion": "contar",
+      "selector": ".c[data-i='6'], .c[data-i='12'], .c[data-i='18']",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Al hacer click en una celda sin minas, se revela el número de minas adyacentes",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "esperado": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Si se abre una celda con 0 minas adyacentes, se abren en cascada todas sus vecinas con 0",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "esperado": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Click derecho pone una bandera en una celda",
+      "accion": "tecla",
+      "key": "ContextMenu",
+      "selector": ".c",
+      "indice": 0,
+      "esperado": "bandera",
+      "critico": true
+    },
+    {
+      "nombre": "Una celda con bandera no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c.bandera",
+      "indice": 0,
+      "esperado": "bandera",
+      "critico": true
+    },
+    {
+      "nombre": "Si se abre una mina, el texto de #estado es 'perdiste'",
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "esperado": "perdiste",
+      "critico": true
+    },
+    {
+      "nombre": "El texto de #estado no es 'perdiste' si no se abre una mina",
+      "accion": "click",
+      "selector": ".c[data-i='0']",
+      "esperado": "",
+      "critico": true
+    }
+  ]
+}

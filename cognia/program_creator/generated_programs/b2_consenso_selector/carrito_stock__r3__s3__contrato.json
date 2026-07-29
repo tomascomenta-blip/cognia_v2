@@ -1,0 +1,69 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones 'add'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 productos con stock",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Al añadir un producto, su cantidad se incrementa",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".cant",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": 1
+    },
+    {
+      "nombre": "Al añadir un producto al máximo de stock, el botón 'add' se deshabilita",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".add[data-id='p1']:not([disabled])",
+      "indice": 0,
+      "esperar": 1000
+    },
+    {
+      "nombre": "Al quitar una unidad de un producto, su cantidad se decrementa",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".cant",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": 1
+    },
+    {
+      "nombre": "Al quitar una unidad de un producto a 0, la línea desaparece y el botón 'add' se habilita",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add[data-id='p1']:not([disabled])",
+      "indice": 0,
+      "esperar": 1000
+    },
+    {
+      "nombre": "El total se recalcula siempre",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "indice": 2,
+      "esperar": 1000,
+      "contiene": "175"
+    }
+  ]
+}

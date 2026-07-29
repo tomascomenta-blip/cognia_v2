@@ -1,0 +1,65 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 1 elemento con clase 'grid'",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Cada celda tiene un atributo 'data-ref' único",
+      "accion": "js",
+      "expr": "new Set(document.querySelectorAll('.celda').map(c => c.getAttribute('data-ref'))).size === 9",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Al cambiar una celda, se recalculan todas las que dependen",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Si se crea una referencia circular, la celda muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=A1",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Las celdas con fórmulas muestran el resultado calculado",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Las celdas con fórmulas dependientes se actualizan en cascada",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "7",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "El valor mostrado está en el atributo 'value' del input",
+      "accion": "js",
+      "expr": "document.querySelectorAll('.celda').every(c => c.value === c.textContent)",
+      "esperado": true,
+      "critico": true
+    }
+  ]
+}

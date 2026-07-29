@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo funcional",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 1 grilla",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Celdas iniciales vacías",
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar valor en A1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula en B1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar resultado en B1",
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='B1']",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar fórmula circular en C1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "=C1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar CIRC en C1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "CIRC",
+      "critico": true
+    }
+  ]
+}

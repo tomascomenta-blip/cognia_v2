@@ -1,0 +1,66 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones 'add'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 productos con stock",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Añadir un producto no crea una línea nueva",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": 1
+    },
+    {
+      "nombre": "No se puede superar el stock",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": 2
+    },
+    {
+      "nombre": "Botón 'add' se deshabilita al alcanzar el stock máximo",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": 2
+    },
+    {
+      "nombre": "Quitar una unidad hace que la línea desaparezca",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0,
+      "esperado": 0
+    },
+    {
+      "nombre": "Botón 'add' vuelve a habilitarse al quitar una unidad",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": 1
+    }
+  ]
+}

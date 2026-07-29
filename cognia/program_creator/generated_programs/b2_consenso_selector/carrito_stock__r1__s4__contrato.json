@@ -1,0 +1,93 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos con clase .prod",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones .add",
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 elementos .stock",
+      "accion": "contar",
+      "selector": ".stock",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 elementos .precio",
+      "accion": "contar",
+      "selector": ".precio",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 elementos .linea",
+      "accion": "contar",
+      "selector": ".linea",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "El total inicial es 0",
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Al añadir un producto, su cantidad en el carrito se incrementa y el total se recalcula",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperar": 1000,
+      "pasos": [
+        {
+          "nombre": "Existen 1 elemento .linea",
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 1,
+          "critico": true
+        },
+        {
+          "nombre": "El total es 100",
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "100",
+          "critico": true
+        }
+      ]
+    },
+    {
+      "nombre": "Al quitar una unidad de un producto, su cantidad en el carrito se decrementa y el total se recalcula",
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0,
+      "esperar": 1000,
+      "pasos": [
+        {
+          "nombre": "Existen 0 elementos .linea",
+          "accion": "contar",
+          "selector": ".linea",
+          "esperado": 0,
+          "critico": true
+        },
+        {
+          "nombre": "El total es 0",
+          "accion": "texto",
+          "selector": "#total",
+          "contiene": "0",
+          "critico": true
+        }
+      ]
+    }
+  ]
+}

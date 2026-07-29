@@ -1,0 +1,67 @@
+{
+  "nombre": "Mini hoja de cálculo funcional",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Cada celda tiene un atributo 'data-ref' único",
+      "accion": "js",
+      "expr": "new Set([...document.querySelectorAll('.celda')].map(el => el.getAttribute('data-ref'))).size === 9",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Al cambiar una celda, se recalculan todas las dependientes",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Una fórmula muestra su resultado calculado",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+1",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Se maneja correctamente una referencia circular",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "=B1+1",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "CIRC",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celdas se actualizan en cascada al cambiar una celda",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con fórmula muestra resultado correcto",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "7",
+      "esperado": true,
+      "critico": true
+    }
+  ]
+}

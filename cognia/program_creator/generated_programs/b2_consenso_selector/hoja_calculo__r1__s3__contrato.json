@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Existen 9 celdas visibles con clase 'celda'",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene un atributo 'data-ref' único",
+      "critico": true,
+      "accion": "js",
+      "expr": "new Set(Array.from(document.querySelectorAll('.celda')).map(c => c.getAttribute('data-ref'))).size === 9",
+      "esperado": true
+    },
+    {
+      "nombre": "Cambiar una celda recalcula las dependientes",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Cambiar una celda recalcula las dependientes",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+1"
+    },
+    {
+      "nombre": "Cambiar una celda recalcula las dependientes",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "=B1+1"
+    },
+    {
+      "nombre": "Referencia circular muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=B1"
+    },
+    {
+      "nombre": "Referencia circular muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1"
+    }
+  ]
+}

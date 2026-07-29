@@ -1,0 +1,68 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Verificar que existen 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que existen 1 contenedor",
+      "accion": "contar",
+      "selector": ".container",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar una fórmula en A1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=",
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar un valor en A2",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A2']",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que A1 muestra el resultado de la fórmula",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar el valor de A2",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A2']",
+      "contiene": "2",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que A1 se recalcula con el nuevo valor de A2",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "2",
+      "critico": true
+    },
+    {
+      "nombre": "Crear una referencia circular en B1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+B1",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que B1 muestra 'CIRC' por referencia circular",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "CIRC",
+      "critico": true
+    }
+  ]
+}

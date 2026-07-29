@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificación de tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con clase .col",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 tarjetas con clase .card",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones .menos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".menos",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones .mas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".mas",
+      "esperado": 3
+    },
+    {
+      "nombre": "Las tarjetas están en la columna 'todo'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3
+    },
+    {
+      "nombre": "La columna 'doing' está vacía",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='doing']",
+      "esperado": 0
+    },
+    {
+      "nombre": "La columna 'done' está vacía",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='done']",
+      "esperado": 0
+    },
+    {
+      "nombre": "Los contadores de tarjetas están actualizados correctamente",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 3
+    }
+  ]
+}

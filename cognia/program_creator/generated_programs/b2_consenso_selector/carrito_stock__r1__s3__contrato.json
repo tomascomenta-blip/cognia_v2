@@ -1,0 +1,71 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones 'add'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 productos con stock",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Al añadir un producto, su cantidad se incrementa",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": ".cant",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": 1
+    },
+    {
+      "nombre": "Al alcanzar el stock máximo, el botón 'add' se deshabilita",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add:disabled",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": true
+    },
+    {
+      "nombre": "Al quitar una unidad, si la cantidad llega a 0, la línea desaparece",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".linea",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": true
+    },
+    {
+      "nombre": "El total se recalcula siempre",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#total",
+      "indice": 1,
+      "esperar": 1000,
+      "contiene": "150"
+    },
+    {
+      "nombre": "El botón 'add' vuelve a habilitarse al quitar una unidad",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".add:disabled",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": false
+    }
+  ]
+}

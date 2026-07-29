@@ -1,0 +1,61 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones 'add'",
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 productos con stock",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 productos con precio",
+      "accion": "contar",
+      "selector": ".precio",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 productos con data-id",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 productos con data-precio",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 productos con data-stock",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 productos con data-id",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    }
+  ]
+}

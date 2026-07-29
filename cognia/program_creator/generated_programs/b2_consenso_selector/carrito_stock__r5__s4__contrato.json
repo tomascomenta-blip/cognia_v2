@@ -1,0 +1,66 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones de añadir",
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "El total inicial es 0",
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Añadir un producto no crea una línea nueva",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "No se puede superar el stock",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": 2,
+      "critico": true
+    },
+    {
+      "nombre": "Al quitar una unidad, la línea desaparece",
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0,
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "El total se recalcula siempre",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 1,
+      "esperado": 50,
+      "critico": true
+    },
+    {
+      "nombre": "El botón add vuelve a habilitarse al quitar una unidad",
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 1,
+      "esperado": 0,
+      "critico": true
+    }
+  ]
+}

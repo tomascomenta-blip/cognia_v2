@@ -1,0 +1,68 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5",
+  "pasos": [
+    {
+      "nombre": "Existen 25 celdas con clase 'c'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    },
+    {
+      "nombre": "Las minas están en las celdas 6, 12 y 18",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelectorAll('.c[data-i=\"6\"][data-mina], .c[data-i=\"12\"][data-mina], .c[data-i=\"18\"][data-mina]').length",
+      "esperado": 3
+    },
+    {
+      "nombre": "Al hacer click en una celda sin mina, se revela y muestra el número de minas adyacentes",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i=\"0\"][abierta]",
+      "indice": 0,
+      "esperar": 1000
+    },
+    {
+      "nombre": "Si se abre una celda con 0 minas adyacentes, se abren en cascada todas sus vecinas con 0",
+      "critico": true,
+      "accion": "existe",
+      "selector": ".c[data-i=\"1\"][abierta], .c[data-i=\"2\"][abierta], .c[data-i=\"6\"][abierta]",
+      "indice": 1,
+      "esperar": 1000
+    },
+    {
+      "nombre": "Click derecho pone una bandera en la celda",
+      "critico": true,
+      "accion": "existe",
+      "key": "ContextMenu",
+      "selector": ".c[data-i=\"0\"][bandera]",
+      "indice": 0,
+      "esperar": 1000
+    },
+    {
+      "nombre": "Una celda con bandera no se abre al hacer click",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".c[data-i=\"0\"][abierta]",
+      "indice": 0,
+      "esperar": 1000
+    },
+    {
+      "nombre": "Si se abre una mina, #estado dice 'perdiste'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#estado",
+      "indice": 6,
+      "esperar": 1000,
+      "contiene": "perdiste"
+    },
+    {
+      "nombre": "Existen 25 celdas con clase 'c' al final del juego",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25
+    }
+  ]
+}

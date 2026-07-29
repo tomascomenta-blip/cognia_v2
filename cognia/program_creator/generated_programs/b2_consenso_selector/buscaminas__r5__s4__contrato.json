@@ -1,0 +1,65 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5",
+  "pasos": [
+    {
+      "nombre": "Verificar que hay 25 celdas con clase 'c'",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las celdas tienen data-i de 0 a 24",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.c')).every(c => c.dataset.i >= 0 && c.dataset.i <= 24)",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las minas están en las celdas 6, 12 y 18",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.c')).filter(c => c.dataset.i === '6' || c.dataset.i === '12' || c.dataset.i === '18').length === 3",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Abrir una celda sin minas adyacentes y verificar que se abren en cascada",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 0,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que se abren todas las celdas con 0 minas adyacentes en cascada",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.c.abierta')).every(c => c.dataset.i !== '6' && c.dataset.i !== '12' && c.dataset.i !== '18')",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Poner una bandera en una celda y verificar que no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 6,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Abrir una celda con una mina y verificar que se muestra 'perdiste'",
+      "accion": "click",
+      "selector": ".c",
+      "indice": 12,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que se muestra 'perdiste' en el elemento #estado",
+      "accion": "texto",
+      "selector": "#estado",
+      "contiene": "perdiste",
+      "esperado": null,
+      "critico": true
+    }
+  ]
+}

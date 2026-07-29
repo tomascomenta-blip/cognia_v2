@@ -1,0 +1,61 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones 'add'",
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 productos con stock suficiente",
+      "accion": "js",
+      "expr": "document.querySelectorAll('.prod').every(p => parseInt(p.getAttribute('data-stock')) > 0)",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Click en 'add' del primer producto",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "La cantidad del primer producto en el carrito es 1",
+      "accion": "contar_visible",
+      "selector": ".linea .cant",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "El total es 100",
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100",
+      "critico": true
+    },
+    {
+      "nombre": "Click en 'add' del primer producto nuevamente",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "La cantidad del primer producto en el carrito es 2",
+      "accion": "contar_visible",
+      "selector": ".linea .cant",
+      "esperado": 1,
+      "critico": true
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "nombre": "Verificar estado inicial del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con clase .col",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 tarjetas con clase .card",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas están en la columna 'todo'",
+      "accion": "contar",
+      "selector": ".card[data-id='t1'], .card[data-id='t2'], .card[data-id='t3']",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las columnas 'doing' y 'done' están vacías",
+      "accion": "contar",
+      "selector": "#col-doing .card, #col-done .card",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Los contadores muestran el número correcto de tarjetas en cada columna",
+      "accion": "contar_visible",
+      "selector": "#cont-todo, #cont-doing, #cont-done",
+      "esperado": [
+        3,
+        0,
+        0
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Mover una tarjeta de 'todo' a 'doing'",
+      "accion": "click",
+      "selector": ".card[data-id='t1'] .mas",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "La tarjeta se mueve a la columna 'doing' y el contador se actualiza",
+      "accion": "contar",
+      "selector": "#col-doing .card[data-id='t1']",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "El contador de 'todo' se actualiza correctamente",
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 2,
+      "critico": true
+    }
+  ]
+}

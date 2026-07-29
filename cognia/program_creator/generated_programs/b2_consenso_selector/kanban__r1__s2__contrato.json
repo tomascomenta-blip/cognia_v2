@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificación del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con la clase 'col'",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 tarjetas con la clase 'card'",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas están en la columna 'todo'",
+      "accion": "contar_visible",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas tienen los botones 'mas' y 'menos'",
+      "accion": "contar",
+      "selector": ".card .mas, .card .menos",
+      "esperado": 6,
+      "critico": true
+    },
+    {
+      "nombre": "La columna 'doing' tiene como máximo 2 tarjetas",
+      "accion": "contar_visible",
+      "selector": ".card[data-col='doing']",
+      "max": 2,
+      "critico": true
+    },
+    {
+      "nombre": "Al mover una tarjeta de 'todo' a 'doing', se actualiza el contador",
+      "accion": "click",
+      "selector": ".card[data-id='t1'] .mas",
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Al mover una tarjeta de 'doing' a 'done', se actualiza el contador",
+      "accion": "click",
+      "selector": ".card[data-id='t1'] .mas",
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Una tarjeta en 'done' no puede avanzar más",
+      "accion": "click",
+      "selector": ".card[data-id='t1'] .mas",
+      "esperado": null,
+      "critico": true
+    }
+  ]
+}

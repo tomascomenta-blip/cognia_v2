@@ -1,0 +1,63 @@
+{
+  "nombre": "Verificación del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con clase .col",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 tarjetas con clase .card",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas tienen los data-id t1, t2, t3",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.card')).map(card => card.getAttribute('data-id')).sort().join(',')",
+      "esperado": "t1,t2,t3",
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones .mas y 3 botones .menos",
+      "accion": "contar",
+      "selector": ".mas",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones .menos",
+      "accion": "contar",
+      "selector": ".menos",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Los contadores de columnas muestran 1, 0, 0",
+      "accion": "js",
+      "expr": "document.getElementById('cont-todo').textContent + ',' + document.getElementById('cont-doing').textContent + ',' + document.getElementById('cont-done').textContent",
+      "esperado": "1,0,0",
+      "critico": true
+    },
+    {
+      "nombre": "La columna doing admite como máximo 2 tarjetas",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0,
+      "esperado": "1,1,0",
+      "critico": true
+    },
+    {
+      "nombre": "El botón .mas de las tarjetas en todo no hace nada cuando la columna doing está llena",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0,
+      "esperado": "1,1,0",
+      "critico": true
+    }
+  ]
+}

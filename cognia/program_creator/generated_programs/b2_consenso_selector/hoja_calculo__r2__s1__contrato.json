@@ -1,0 +1,66 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 1 elemento con clase 'grid'",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Cada celda tiene un atributo 'data-ref' único",
+      "accion": "js",
+      "expr": "new Set(document.querySelectorAll('.celda').map(c => c.getAttribute('data-ref'))).size === 9",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar una celda recalcula las dependientes",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con fórmula muestra resultado calculado",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "CIRC",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con fórmula actualiza dependientes en cascada",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "10",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con fórmula muestra resultado actualizado",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "11",
+      "esperado": true,
+      "critico": true
+    }
+  ]
+}

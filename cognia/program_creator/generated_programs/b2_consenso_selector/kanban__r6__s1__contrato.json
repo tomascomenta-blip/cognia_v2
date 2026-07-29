@@ -1,0 +1,67 @@
+{
+  "nombre": "Verificación del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con clase .col",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 tarjetas con clase .card",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Las tarjetas están inicialmente en la columna 'todo'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3
+    },
+    {
+      "nombre": "Las tarjetas tienen botones .mas y .menos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card .mas, .card .menos",
+      "esperado": 6
+    },
+    {
+      "nombre": "Al hacer clic en .mas de una tarjeta en 'todo', se mueve a 'doing'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='doing']",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": 1
+    },
+    {
+      "nombre": "Al hacer clic en .menos de una tarjeta en 'doing', se mueve a 'todo'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": 1
+    },
+    {
+      "nombre": "El contador de tarjetas en cada columna se actualiza correctamente",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo, #cont-doing, #cont-done",
+      "esperado": 3
+    },
+    {
+      "nombre": "La columna 'doing' no admite más de 2 tarjetas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='doing']",
+      "indice": 0,
+      "esperar": 1000,
+      "esperado": 2
+    }
+  ]
+}

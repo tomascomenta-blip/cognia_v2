@@ -1,0 +1,61 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones 'add'",
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 botones 'quitar'",
+      "accion": "contar",
+      "selector": ".quitar",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "El total inicial es 0",
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Añadir un producto",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "El total es 100",
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "100",
+      "critico": true
+    },
+    {
+      "nombre": "Añadir otro producto",
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "critico": true
+    },
+    {
+      "nombre": "El total es 200",
+      "accion": "texto",
+      "selector": "#total",
+      "contiene": "200",
+      "critico": true
+    }
+  ]
+}

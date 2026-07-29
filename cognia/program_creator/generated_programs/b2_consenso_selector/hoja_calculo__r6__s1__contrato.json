@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existe una grilla 3x3 de celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Cada celda tiene un atributo data-ref único",
+      "critico": true,
+      "accion": "js",
+      "expr": "new Set([...document.querySelectorAll('.celda')].map(c => c.getAttribute('data-ref'))).size === 9",
+      "esperado": true
+    },
+    {
+      "nombre": "Al cambiar una celda, se recalculan las dependientes",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "La celda B1 se recalcula correctamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6"
+    },
+    {
+      "nombre": "La celda C1 se recalcula correctamente",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "7"
+    },
+    {
+      "nombre": "Se maneja correctamente una referencia circular",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=B1"
+    },
+    {
+      "nombre": "La celda con referencia circular muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "CIRC"
+    },
+    {
+      "nombre": "La celda con referencia circular muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "CIRC"
+    }
+  ]
+}

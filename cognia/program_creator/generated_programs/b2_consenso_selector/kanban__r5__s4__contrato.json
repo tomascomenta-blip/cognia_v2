@@ -1,0 +1,61 @@
+{
+  "nombre": "Verificación del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Verificar que hay 3 columnas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar que hay 3 tarjetas en la columna 'todo'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar que las tarjetas en 'todo' tienen botones 'mas' y 'menos'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo'] .mas",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar que las tarjetas en 'todo' tienen botones 'menos'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo'] .menos",
+      "esperado": 3
+    },
+    {
+      "nombre": "Verificar que la columna 'doing' admite como máximo 2 tarjetas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='doing']",
+      "esperado": 2
+    },
+    {
+      "nombre": "Verificar que las tarjetas en 'done' no pueden avanzar más",
+      "critico": true,
+      "accion": "click",
+      "selector": ".card[data-col='done'] .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que las tarjetas en 'todo' no pueden retroceder",
+      "critico": true,
+      "accion": "click",
+      "selector": ".card[data-col='todo'] .menos",
+      "indice": 0
+    },
+    {
+      "nombre": "Verificar que los contadores de tarjetas se actualizan correctamente",
+      "critico": true,
+      "accion": "contar",
+      "selector": "#cont-todo",
+      "esperado": 1
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini Hoja de Cálculo",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 1 grilla",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 tiene valor inicial",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "",
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 tiene valor inicial",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "",
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 tiene valor inicial",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "",
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 se actualiza con formula",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "=A2+A3",
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 se actualiza con formula",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "=A1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 se actualiza con formula",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "=B1+1",
+      "critico": true
+    }
+  ]
+}

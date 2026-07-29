@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Verifica que existan 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Verifica que exista una grilla",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Introduce una fórmula en B1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+A2",
+      "critico": true
+    },
+    {
+      "nombre": "Verifica que B1 muestre el resultado de la fórmula",
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='B1']",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Cambia el valor de A1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Verifica que B1 se recalcula",
+      "accion": "contar_visible",
+      "selector": ".celda[data-ref='B1']",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Crea una referencia circular en C1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "=C1+1",
+      "critico": true
+    },
+    {
+      "nombre": "Verifica que C1 muestre 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "CIRC",
+      "critico": true
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "nombre": "Contrato de prueba para tablero kanban",
+  "pasos": [
+    {
+      "nombre": "Estado inicial: 3 columnas con data-col correcto",
+      "pasos": [
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='todo']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='done']",
+          "esperado": 1
+        }
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Estado inicial: 3 tarjetas en la columna 'todo' con data-id correcto",
+      "pasos": [
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t1']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t2']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t3']",
+          "esperado": 1
+        }
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Estado inicial: Contadores de tarjetas correctos",
+      "pasos": [
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 3
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 0
+        }
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Interacción: Mover tarjeta 't1' de 'todo' a 'doing'",
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 2
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 1
+        }
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Interacción: Mover tarjeta 't2' de 'todo' a 'doing'",
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t2'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 2
+        }
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Interacción: Intentar mover tarjeta 't3' de 'todo' a 'doing' (columna llena)",
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t3'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 2
+        }
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Interacción: Mover tarjeta 't1' de 'doing' a 'done'",
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ],
+      "critico": true
+    },
+    {
+      "nombre": "Interacción: Intentar mover tarjeta 't1' de 'done' a 'doing' (no retrocede)",
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 1
+        }
+      ],
+      "critico": true
+    }
+  ]
+}

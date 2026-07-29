@@ -1,0 +1,96 @@
+{
+  "nombre": "Verificación del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con clase .col",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 tarjetas con clase .card",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3
+    },
+    {
+      "nombre": "Las tarjetas están en la columna 'todo'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3
+    },
+    {
+      "nombre": "Las tarjetas tienen botones .mas y .menos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".card .mas, .card .menos",
+      "esperado": 6
+    },
+    {
+      "nombre": "Los contadores iniciales son correctos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 3
+    },
+    {
+      "nombre": "Los contadores iniciales son correctos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 0
+    },
+    {
+      "nombre": "Los contadores iniciales son correctos",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-done",
+      "esperado": 0
+    },
+    {
+      "nombre": "La columna 'doing' admite como máximo 2 tarjetas",
+      "critico": true,
+      "accion": "click",
+      "selector": ".card .mas",
+      "indice": 0
+    },
+    {
+      "nombre": "La columna 'doing' admite como máximo 2 tarjetas",
+      "critico": true,
+      "accion": "click",
+      "selector": ".card .mas",
+      "indice": 1
+    },
+    {
+      "nombre": "La columna 'doing' admite como máximo 2 tarjetas",
+      "critico": true,
+      "accion": "click",
+      "selector": ".card .mas",
+      "indice": 2
+    },
+    {
+      "nombre": "Los contadores se actualizan correctamente",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-todo",
+      "esperado": 1
+    },
+    {
+      "nombre": "Los contadores se actualizan correctamente",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-doing",
+      "esperado": 2
+    },
+    {
+      "nombre": "Los contadores se actualizan correctamente",
+      "critico": true,
+      "accion": "contar_visible",
+      "selector": "#cont-done",
+      "esperado": 0
+    }
+  ]
+}

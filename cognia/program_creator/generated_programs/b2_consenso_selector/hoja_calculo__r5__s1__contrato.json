@@ -1,0 +1,67 @@
+{
+  "nombre": "Mini Hoja de Cálculo Funcional",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 9 celdas visibles",
+      "accion": "contar_visible",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 se actualiza al cambiar B1",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 1,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 se actualiza al cambiar A1",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 0,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 muestra 'CIRC' al crear referencia circular",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 8,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 muestra resultado de formula",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 0,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 muestra resultado de formula",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 1,
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 muestra resultado de formula",
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 8,
+      "esperado": null,
+      "critico": true
+    }
+  ]
+}

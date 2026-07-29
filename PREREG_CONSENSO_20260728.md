@@ -83,3 +83,25 @@ experimento mide exactamente eso.
 4. Declarado: un voto crasheado no se reintenta en --reanudar (se cuenta y
    audita; si deja a una muestra con <2 votos, el ensayo sale del apareado
    y se reporta en sin_voto).
+
+## RESULTADO (2026-07-29 ~00:45 — corrida completa, 255/255 votos, 0 crasheos)
+
+**Neto B' = +2 (23 ensayos, 1 sin voto) → KILL de esta variante** por el
+umbral pre-fijado ([−2,+2]). Control s1: 16/23; selector-consenso: 18/23.
+
+Observaciones secundarias (se reportan, no deciden):
+- **Asimetría 2-0:** el consenso rescató 2 ensayos (carrito r1, hoja r3) y
+  no eligió peor que el control en NINGUNO. No es un selector dañino; es
+  uno débil.
+- **El offset pre-declarado existe y es severo:** solo 39/255 votos por
+  contrato aprueban (15%) — los contratos ajenos condenan casi todo, así
+  que el primer criterio (votos que aprueban) apenas discrimina y el
+  ranking cae sobre la fracción de checks.
+- Coincide con el selector held-out solo 6/23 — elige distinto y aun así
+  acierta 18/23 (la mayoría de muestras son buenas; el mérito real se mide
+  en los discordantes, y ahí está el 2-0).
+- Iteración imaginable para OTRA sesión (no esta noche, no adoptar nada:
+  el umbral habló): votar solo con checks sobre selectores OBLIGATORIOS
+  del enunciado (menos idiosincrasia del DOM ajeno), o mayoría-de-fracción
+  en vez de todos-pasan. Queda anotado en el backlog, con este KILL como
+  baseline.

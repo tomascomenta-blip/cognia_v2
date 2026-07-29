@@ -1,0 +1,114 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones de añadir",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 productos con stock suficiente",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.prod')).every(p => parseInt(p.getAttribute('data-stock')) > 0)",
+      "esperado": true
+    },
+    {
+      "nombre": "Añadir un producto no crea una línea nueva",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": {
+        "min": 1,
+        "max": 1
+      }
+    },
+    {
+      "nombre": "El botón de añadir se desactiva al alcanzar el stock máximo",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 0,
+      "esperado": {
+        "min": 2,
+        "max": 2
+      },
+      "post": [
+        {
+          "accion": "existe",
+          "selector": ".add[data-id='p1']:disabled"
+        }
+      ]
+    },
+    {
+      "nombre": "Quitar una unidad de un producto hace que la línea desaparezca",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 0,
+      "esperado": {
+        "min": 0,
+        "max": 0
+      },
+      "post": [
+        {
+          "accion": "no_existe",
+          "selector": ".linea[data-id='p1']"
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".add[data-id='p1']:disabled"
+        }
+      ]
+    },
+    {
+      "nombre": "El total se recalcula correctamente",
+      "critico": true,
+      "accion": "click",
+      "selector": ".add",
+      "indice": 1,
+      "esperado": {
+        "min": 1,
+        "max": 1
+      },
+      "post": [
+        {
+          "accion": "js",
+          "expr": "parseInt(document.getElementById('total').textContent)",
+          "esperado": 150
+        }
+      ]
+    },
+    {
+      "nombre": "El botón de añadir vuelve a habilitarse al quitar una unidad",
+      "critico": true,
+      "accion": "click",
+      "selector": ".quitar",
+      "indice": 1,
+      "esperado": {
+        "min": 0,
+        "max": 0
+      },
+      "post": [
+        {
+          "accion": "no_existe",
+          "selector": ".linea[data-id='p2']"
+        },
+        {
+          "accion": "no_existe",
+          "selector": ".add[data-id='p2']:disabled"
+        }
+      ]
+    }
+  ]
+}

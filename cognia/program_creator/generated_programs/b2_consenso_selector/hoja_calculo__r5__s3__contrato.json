@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini Hoja de Cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 9 celdas con data-ref A1-A3, B1-B3, C1-C3",
+      "accion": "contar",
+      "selector": "[data-ref]",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 5 y B1 a 3 actualiza C1 a 8",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "5",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 5 y B1 a 3 actualiza C1 a 8",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 5 y B1 a 3 actualiza C1 a 8",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "8",
+      "critico": true
+    },
+    {
+      "nombre": "Crear referencia circular en C1 muestra 'CIRC'",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "CIRC",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 10 recalcula C1 a 11",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "10",
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 a 10 recalcula C1 a 11",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "11",
+      "critico": true
+    }
+  ]
+}

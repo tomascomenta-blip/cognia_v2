@@ -1,0 +1,60 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9
+    },
+    {
+      "nombre": "Existen 1 grilla",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1
+    },
+    {
+      "nombre": "Cambiar valor de A1 recalcula B1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "1"
+    },
+    {
+      "nombre": "Cambiar valor de A1 recalcula B1",
+      "critico": true,
+      "accion": "click",
+      "selector": ".celda",
+      "indice": 0
+    },
+    {
+      "nombre": "Cambiar valor de A1 recalcula B1",
+      "critico": true,
+      "accion": "tecla",
+      "key": "ArrowRight"
+    },
+    {
+      "nombre": "Cambiar valor de A1 recalcula B1",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#A1",
+      "contiene": "2"
+    },
+    {
+      "nombre": "Referencia circular muestra 'CIRC'",
+      "critico": true,
+      "accion": "texto",
+      "selector": "#C1",
+      "contiene": "CIRC"
+    },
+    {
+      "nombre": "Valor mostrado en el atributo value",
+      "critico": true,
+      "accion": "js",
+      "expr": "document.querySelector('#A1').value",
+      "esperado": "2"
+    }
+  ]
+}

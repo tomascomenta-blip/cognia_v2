@@ -1,0 +1,53 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Cada celda tiene un atributo 'data-ref' único",
+      "accion": "js",
+      "expr": "new Set(document.querySelectorAll('.celda').map(el => el.getAttribute('data-ref'))).size === 9",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Cambia el valor de A1 a 5 y verifica que B1 se recalcule",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Cambia el valor de A1 a 5 y verifica que B1 se recalcule",
+      "accion": "click",
+      "selector": "[data-ref='A1']",
+      "indice": 0
+    },
+    {
+      "nombre": "Cambia el valor de A1 a 5 y verifica que B1 se recalcule",
+      "accion": "tecla",
+      "key": "ArrowRight"
+    },
+    {
+      "nombre": "Cambia el valor de A1 a 5 y verifica que B1 se recalcule",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Cambia el valor de A1 a 5 y verifica que B1 se recalcule",
+      "accion": "esperar",
+      "ms": 1000
+    },
+    {
+      "nombre": "Cambia el valor de A1 a 5 y verifica que B1 se recalcule",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "6"
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "nombre": "Tablero Kanban Funcional",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con data-col",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".col",
+          "esperado": 3
+        }
+      ]
+    },
+    {
+      "nombre": "Existen 3 tarjetas con data-id",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".card",
+          "esperado": 3
+        }
+      ]
+    },
+    {
+      "nombre": "Las tarjetas están en la columna 'todo'",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t1'][data-col='todo']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t2'][data-col='todo']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t3'][data-col='todo']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Las otras columnas están vacías",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".card[data-col='doing']",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-col='done']",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Los contadores de tarjetas están correctos",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "3"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Mover una tarjeta de 'todo' a 'doing'",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t1'][data-col='doing']",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "Mover una tarjeta de 'doing' a 'done'",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t1'][data-col='done']",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "Una tarjeta en 'done' no puede avanzar más",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t1'][data-col='done']",
+          "esperado": 1
+        }
+      ]
+    }
+  ]
+}

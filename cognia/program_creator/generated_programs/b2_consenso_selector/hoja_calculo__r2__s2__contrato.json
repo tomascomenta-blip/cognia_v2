@@ -1,0 +1,67 @@
+{
+  "nombre": "Mini hoja de cálculo en un solo archivo HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 1 elemento con clase 'grid'",
+      "accion": "contar",
+      "selector": ".grid",
+      "esperado": 1,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 recalcula B1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "1",
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar A1 recalcula C1",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "1",
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=B1",
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con formula muestra resultado calculado",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "=A1+1",
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con formula muestra resultado calculado",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "=B1+1",
+      "esperado": null,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con formula muestra resultado calculado",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A2']",
+      "contiene": "=A1+A3",
+      "esperado": null,
+      "critico": true
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "nombre": "Verificar estado inicial del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con clases .col",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 3 tarjetas con clases .card",
+      "accion": "contar",
+      "selector": ".card",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas tienen data-id t1, t2, t3",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.card')).map(card => card.getAttribute('data-id')).sort().join(',')",
+      "esperado": "t1,t2,t3",
+      "critico": true
+    },
+    {
+      "nombre": "Las tarjetas están en la columna 'todo'",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.card')).every(card => card.parentElement.getAttribute('data-col') === 'todo')",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Los contadores de columnas muestran 3 en 'todo' y 0 en 'doing' y 'done'",
+      "accion": "js",
+      "expr": "document.getElementById('cont-todo').textContent + ',' + document.getElementById('cont-doing').textContent + ',' + document.getElementById('cont-done').textContent",
+      "esperado": "3,0,0",
+      "critico": true
+    }
+  ]
+}

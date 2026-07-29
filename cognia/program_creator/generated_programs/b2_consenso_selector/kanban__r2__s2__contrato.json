@@ -1,0 +1,231 @@
+{
+  "nombre": "Kanban Board Test",
+  "pasos": [
+    {
+      "nombre": "Initial state: 3 columns with correct data-col attributes",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='todo']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='done']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Initial state: 3 cards with correct data-id attributes in 'todo' column",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t1']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t2']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t3']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Initial state: 'doing' and 'done' columns are empty",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='done'] .card",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Initial state: Counters show correct number of cards in each column",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "3"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "0"
+        }
+      ]
+    },
+    {
+      "nombre": "Moving a card from 'todo' to 'doing' updates counters and positions",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='todo'] .card",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-todo",
+          "contiene": "2"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "Moving a card from 'doing' to 'done' updates counters and positions",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='done'] .card",
+          "esperado": 1
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-doing",
+          "contiene": "0"
+        },
+        {
+          "accion": "texto",
+          "selector": "#cont-done",
+          "contiene": "1"
+        }
+      ]
+    },
+    {
+      "nombre": "WIP rule: 'doing' column cannot have more than 2 cards",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t2'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t3'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card",
+          "esperado": 2
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='todo'] .card",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Cards in 'done' cannot move further, cards in 'todo' cannot move backward",
+      "critico": true,
+      "pasos": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .menos",
+          "indice": 0
+        },
+        {
+          "accion": "esperar",
+          "ms": 1000
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='done'] .card",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card",
+          "esperado": 2
+        }
+      ]
+    }
+  ]
+}

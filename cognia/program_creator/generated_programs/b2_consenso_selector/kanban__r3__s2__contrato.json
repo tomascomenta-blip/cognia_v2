@@ -1,0 +1,178 @@
+{
+  "nombre": "Verificación del tablero Kanban",
+  "pasos": [
+    {
+      "nombre": "Existen 3 columnas con data-col todo, doing, done",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='todo']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='done']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Existen 3 tarjetas con data-id t1, t2, t3 en la columna todo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t1']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t2']",
+          "esperado": 1
+        },
+        {
+          "accion": "contar",
+          "selector": ".card[data-id='t3']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Las otras columnas están vacías",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card",
+          "esperado": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='done'] .card",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "Cada tarjeta tiene un botón .mas y .menos",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar",
+          "selector": ".card .mas",
+          "esperado": 3
+        },
+        {
+          "accion": "contar",
+          "selector": ".card .menos",
+          "esperado": 3
+        }
+      ]
+    },
+    {
+      "nombre": "Al hacer click en .mas de una tarjeta en todo, se mueve a doing",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card[data-id='t1']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Al hacer click en .menos de una tarjeta en doing, se mueve a todo",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .menos",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='todo'] .card[data-id='t1']",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "El contador de tarjetas en cada columna se actualiza correctamente",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t2'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-todo",
+          "esperado": 1
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-doing",
+          "esperado": 2
+        },
+        {
+          "accion": "contar_visible",
+          "selector": "#cont-done",
+          "esperado": 0
+        }
+      ]
+    },
+    {
+      "nombre": "La columna doing admite como máximo 2 tarjetas",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t3'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t1'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t2'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card",
+          "esperado": 2
+        },
+        {
+          "accion": "click",
+          "selector": ".card[data-id='t3'] .mas",
+          "indice": 0
+        },
+        {
+          "accion": "contar",
+          "selector": ".col[data-col='doing'] .card[data-id='t3']",
+          "esperado": 0
+        }
+      ]
+    }
+  ]
+}

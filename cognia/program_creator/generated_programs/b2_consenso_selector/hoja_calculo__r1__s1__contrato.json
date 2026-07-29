@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Existen 9 celdas con data-ref A1-A3, B1-B3, C1-C3",
+      "accion": "contar",
+      "selector": "[data-ref]",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 se puede cambiar y recalcula dependencias",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "1",
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 es =A1+1 y recalcula dependencias",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "2",
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 es =B1+1 y recalcula dependencias",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Celda A1 cambia a 2 y recalcula dependencias",
+      "accion": "texto",
+      "selector": "[data-ref='A1']",
+      "contiene": "2",
+      "critico": true
+    },
+    {
+      "nombre": "Celda B1 recalcula a 3 y dependencias",
+      "accion": "texto",
+      "selector": "[data-ref='B1']",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Celda C1 recalcula a 4 y dependencias",
+      "accion": "texto",
+      "selector": "[data-ref='C1']",
+      "contiene": "4",
+      "critico": true
+    }
+  ]
+}

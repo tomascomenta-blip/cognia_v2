@@ -1,0 +1,67 @@
+{
+  "nombre": "Mini hoja de cálculo funcional",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Celdas tienen atributo data-ref correcto",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(c => ['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(c.getAttribute('data-ref')))",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de celda recalcula dependientes",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "5",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda dependiente muestra resultado correcto",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "6",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=B1",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda con referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "CIRC",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar valor de celda recalcula dependientes en cascada",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "10",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Celda dependiente en cascada muestra resultado correcto",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "11",
+      "esperado": true,
+      "critico": true
+    }
+  ]
+}

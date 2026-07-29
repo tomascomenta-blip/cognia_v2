@@ -1,0 +1,61 @@
+{
+  "nombre": "Mini hoja de cálculo en HTML",
+  "pasos": [
+    {
+      "nombre": "Verificar que existen 9 celdas",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las celdas tienen los atributos data-ref correctos",
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.celda')).every(c => ['A1','A2','A3','B1','B2','B3','C1','C2','C3'].includes(c.getAttribute('data-ref')))",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Cambiar el valor de A1 y verificar que se recalculan las celdas dependientes",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "10",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que B1 se recalcula correctamente",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "11",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que C1 se recalcula correctamente",
+      "accion": "texto",
+      "selector": ".celda[data-ref='C1']",
+      "contiene": "12",
+      "critico": true
+    },
+    {
+      "nombre": "Crear una referencia circular y verificar que la celda muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "=B1",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que la celda con referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": ".celda[data-ref='A1']",
+      "contiene": "CIRC",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las celdas dependientes de A1 se recalculan correctamente",
+      "accion": "texto",
+      "selector": ".celda[data-ref='B1']",
+      "contiene": "11",
+      "critico": true
+    }
+  ]
+}

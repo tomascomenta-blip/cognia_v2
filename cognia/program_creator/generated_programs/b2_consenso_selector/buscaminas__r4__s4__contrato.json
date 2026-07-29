@@ -1,0 +1,62 @@
+{
+  "nombre": "Contrato de prueba para buscaminas 5x5",
+  "pasos": [
+    {
+      "nombre": "Verificar que hay 25 celdas con clase 'c'",
+      "accion": "contar",
+      "selector": ".c",
+      "esperado": 25,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las minas están en las celdas 6, 12 y 18",
+      "accion": "existe",
+      "selector": ".c[data-i='6']",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las minas están en las celdas 6, 12 y 18",
+      "accion": "existe",
+      "selector": ".c[data-i='12']",
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que las minas están en las celdas 6, 12 y 18",
+      "accion": "existe",
+      "selector": ".c[data-i='18']",
+      "critico": true
+    },
+    {
+      "nombre": "Abrir una celda sin minas adyacentes y verificar que se abren en cascada",
+      "accion": "click",
+      "selector": ".c[data-i='0']",
+      "indice": 0,
+      "esperar": 1000,
+      "critico": true
+    },
+    {
+      "nombre": "Verificar que se muestra el número de minas adyacentes en una celda con minas",
+      "accion": "click",
+      "selector": ".c[data-i='1']",
+      "indice": 0,
+      "esperar": 1000,
+      "critico": true
+    },
+    {
+      "nombre": "Colocar una bandera en una celda y verificar que no se abre al hacer click",
+      "accion": "click",
+      "selector": ".c[data-i='2']",
+      "indice": 0,
+      "esperar": 1000,
+      "critico": true
+    },
+    {
+      "nombre": "Abrir una mina y verificar que se muestra 'perdiste' en #estado",
+      "accion": "click",
+      "selector": ".c[data-i='6']",
+      "indice": 0,
+      "esperar": 1000,
+      "critico": true
+    }
+  ]
+}

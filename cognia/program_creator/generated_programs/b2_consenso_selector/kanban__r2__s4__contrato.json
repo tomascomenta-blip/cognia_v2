@@ -1,0 +1,61 @@
+{
+  "nombre": "Kanban Board Test",
+  "pasos": [
+    {
+      "nombre": "Initial state: 3 columns",
+      "accion": "contar",
+      "selector": ".col",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Initial state: 3 cards in 'todo'",
+      "accion": "contar",
+      "selector": ".card[data-col='todo']",
+      "esperado": 3,
+      "critico": true
+    },
+    {
+      "nombre": "Initial state: 0 cards in 'doing'",
+      "accion": "contar",
+      "selector": ".card[data-col='doing']",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Initial state: 0 cards in 'done'",
+      "accion": "contar",
+      "selector": ".card[data-col='done']",
+      "esperado": 0,
+      "critico": true
+    },
+    {
+      "nombre": "Initial state: 'cont-todo' shows 3",
+      "accion": "texto",
+      "selector": "#cont-todo",
+      "contiene": "3",
+      "critico": true
+    },
+    {
+      "nombre": "Initial state: 'cont-doing' shows 0",
+      "accion": "texto",
+      "selector": "#cont-doing",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Initial state: 'cont-done' shows 0",
+      "accion": "texto",
+      "selector": "#cont-done",
+      "contiene": "0",
+      "critico": true
+    },
+    {
+      "nombre": "Move card from 'todo' to 'doing'",
+      "accion": "click",
+      "selector": ".mas",
+      "indice": 0,
+      "critico": true
+    }
+  ]
+}

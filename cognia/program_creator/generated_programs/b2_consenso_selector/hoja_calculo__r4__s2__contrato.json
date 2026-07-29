@@ -1,0 +1,55 @@
+{
+  "nombre": "Mini hoja de cálculo funcional",
+  "pasos": [
+    {
+      "nombre": "Existen 9 celdas con clase 'celda'",
+      "accion": "contar",
+      "selector": ".celda",
+      "esperado": 9,
+      "critico": true
+    },
+    {
+      "nombre": "Cada celda tiene un atributo 'data-ref' único",
+      "accion": "js",
+      "expr": "new Set(document.querySelectorAll('.celda').map(c => c.getAttribute('data-ref'))).size === 9",
+      "esperado": true,
+      "critico": true
+    },
+    {
+      "nombre": "Ingresar una fórmula en una celda calcula correctamente",
+      "accion": "texto",
+      "selector": "#spreadsheet .celda[data-ref='A1']",
+      "contiene": "5"
+    },
+    {
+      "nombre": "Ingresar una fórmula en otra celda calcula correctamente",
+      "accion": "texto",
+      "selector": "#spreadsheet .celda[data-ref='A2']",
+      "contiene": "3"
+    },
+    {
+      "nombre": "Ingresar una fórmula que depende de otras celdas calcula correctamente",
+      "accion": "texto",
+      "selector": "#spreadsheet .celda[data-ref='B1']",
+      "contiene": "=A1+A2"
+    },
+    {
+      "nombre": "Cambiar una celda recalcula todas las dependientes",
+      "accion": "texto",
+      "selector": "#spreadsheet .celda[data-ref='A1']",
+      "contiene": "10"
+    },
+    {
+      "nombre": "Detecta correctamente referencias circulares",
+      "accion": "texto",
+      "selector": "#spreadsheet .celda[data-ref='C1']",
+      "contiene": "=C1+1"
+    },
+    {
+      "nombre": "Referencia circular muestra 'CIRC'",
+      "accion": "texto",
+      "selector": "#spreadsheet .celda[data-ref='C1']",
+      "contiene": "CIRC"
+    }
+  ]
+}

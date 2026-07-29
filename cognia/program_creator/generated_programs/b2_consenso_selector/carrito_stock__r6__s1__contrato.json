@@ -1,0 +1,74 @@
+{
+  "nombre": "Carrito de compra con stock",
+  "pasos": [
+    {
+      "nombre": "Existen 3 productos",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".prod",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 botones 'add'",
+      "critico": true,
+      "accion": "contar",
+      "selector": ".add",
+      "esperado": 3
+    },
+    {
+      "nombre": "Existen 3 productos con stock suficiente",
+      "critico": true,
+      "accion": "js",
+      "expr": "Array.from(document.querySelectorAll('.prod')).every(p => parseInt(p.getAttribute('data-stock')) > 0)",
+      "esperado": true
+    },
+    {
+      "nombre": "Al añadir un producto, su cantidad se incrementa",
+      "critico": true,
+      "accion": "js",
+      "selector": ".add",
+      "indice": 0,
+      "esperar": 1000,
+      "expr": "parseInt(document.querySelector('.linea[data-id=\"p1\"] .cant').textContent)",
+      "esperado": 1
+    },
+    {
+      "nombre": "Al alcanzar el stock máximo, el botón 'add' se deshabilita",
+      "critico": true,
+      "accion": "js",
+      "selector": ".add",
+      "indice": 0,
+      "esperar": 1000,
+      "expr": "document.querySelector('.add[data-id=\"p1\"]').disabled",
+      "esperado": true
+    },
+    {
+      "nombre": "Al quitar una unidad, la línea desaparece si la cantidad llega a 0",
+      "critico": true,
+      "accion": "no_existe",
+      "selector": ".linea[data-id=\"p1\"]",
+      "indice": 0,
+      "esperar": 1000
+    },
+    {
+      "nombre": "El total se recalcula siempre",
+      "critico": true,
+      "accion": "js",
+      "selector": ".add",
+      "indice": 1,
+      "esperar": 1000,
+      "expr": "parseInt(document.getElementById('total').textContent)",
+      "esperado": 100
+    },
+    {
+      "nombre": "El botón 'add' vuelve a habilitarse al quitar una unidad",
+      "critico": true,
+      "accion": "js",
+      "selector": ".quitar",
+      "indice": 1,
+      "esperar": 1000,
+      "expr": "document.querySelector('.add[data-id=\"p2\"]').disabled",
+      "esperado": false
+    }
+  ]
+}
