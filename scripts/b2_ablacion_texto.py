@@ -68,6 +68,42 @@ def _verificar_backend() -> None:
     print(f"  backend OK: slots=1, n_ctx={ctx}", flush=True)
 
 
+def _materia_fresca(dir_materia: Path, ids_tarea: list) -> dict:
+    """(tarea, rep) -> fila {prompt, temperature, s}, desde un prompts.jsonl
+    capturado por COGNIA_DUMP_PROMPTS en una corrida del LAZO (sonda de la
+    discrepancia). Solo entran los prompts CON troceo (brazo OFF: contienen
+    '- REQUIRED component'); la tarea se atribuye por palabra clave del
+    enunciado y se exige atribución única."""
+    CLAVES = {"carrito_stock": "carrito", "kanban": "kanban",
+              "hoja_calculo": "hoja", "buscaminas": "buscaminas"}
+    lineas = [json.loads(l) for l in
+              (dir_materia / "prompts.jsonl")
+              .read_text(encoding="utf-8").splitlines() if l.strip()]
+    lineas = [p for p in lineas if p.get("lenguaje") == "html"
+              and "- REQUIRED component" in p["prompt"]]
+    material: dict = {}
+    conteo: dict = {}
+    for p in lineas:
+        # cortar ANTES del brief: un brief fresco que diga "hoja de..." en
+        # el carrito daria atribucion ambigua espuria (revision)
+        cab = p["prompt"].split("TARGET LOOK")[0][:900].lower()
+        tareas_hit = [t for t, k in CLAVES.items() if k in cab]
+        if len(tareas_hit) != 1:
+            sys.exit(f"ABORTO: prompt con atribución ambigua ({tareas_hit})")
+        tid = tareas_hit[0]
+        if tid not in ids_tarea:
+            continue
+        conteo[tid] = conteo.get(tid, 0) + 1
+        material[(tid, conteo[tid])] = {
+            "prompt": p["prompt"], "temperature": float(p["temperature"]),
+            "s": conteo[tid]}
+    print(f"  materia fresca: {sum(conteo.values())} prompts OFF "
+          f"({conteo})", flush=True)
+    if sum(conteo.values()) < 8:
+        sys.exit("ABORTO: materia fresca insuficiente (<8 prompts OFF)")
+    return material
+
+
 def _materia_prima() -> dict:
     res = json.loads((GATE / "resultados.json").read_text(encoding="utf-8"))
     lineas = [json.loads(l) for l in
@@ -200,6 +236,11 @@ def main(argv: list) -> int:
     verificar_cirugia = "--verificar-cirugia" in argv
     solo_tarea = (argv[argv.index("--tarea") + 1]
                   if "--tarea" in argv else None)
+    # --materia <dir>: sonda de la DISCREPANCIA (PREREG_DISCREPANCIA_TROCEO)
+    # — la materia prima son prompts FRESCOS capturados del lazo, uno por
+    # (tarea, rep), en vez de los 24 del gate.
+    materia_dir = (Path(argv[argv.index("--materia") + 1])
+                   if "--materia" in argv else None)
     global SALIDA
     if "--sufijo" in argv:
         SALIDA = SALIDA.with_name(
@@ -220,25 +261,39 @@ def main(argv: list) -> int:
             sys.exit(f"ABORTO: --tarea {solo_tarea} no existe")
     heldout = {t["id"]: t["contrato"] for t in
                json.loads(HELDOUT.read_text(encoding="utf-8"))["tareas"]}
-    material = _materia_prima()
     ids_tarea = [t["id"] for t in tareas]
+    if materia_dir is not None:
+        material = _materia_fresca(materia_dir, ids_tarea)
+        if not material:
+            sys.exit("ABORTO: la materia fresca quedó vacía")
+    else:
+        material = _materia_prima()
 
     if verificar_cirugia:
         # auditar la cirugía sobre los prompts que la corrida usará
         malos = 0
         for rep in range(1, replicas + 1):
             for i_t, tid in enumerate(ids_tarea):
-                rep_gate = ((rep - 1) % 6) + 1
-                fila = material[(tid, rep_gate)][(rep - 1 + i_t) % 4]
+                if materia_dir is not None:
+                    if (tid, rep) not in material:
+                        continue
+                    fila = material[(tid, rep)]
+                else:
+                    rep_gate = ((rep - 1) % 6) + 1
+                    fila = material[(tid, rep_gate)][(rep - 1 + i_t) % 4]
                 cortado, n_fuera = _sin_required(fila["prompt"])
-                # chequeo NO tautológico (revisión): conteo exacto medido
-                # (10 componentes + 1 Implement en 96/96), cero residuo del
-                # bloque, y cabecera (idea+brief) intacta byte a byte
+                # chequeo NO tautológico (revisión): conteo esperado, cero
+                # residuo del bloque, y cabecera (idea+brief) intacta.
+                # En el gate el conteo es 11 exacto (96/96); en material
+                # FRESCO los briefs cortos dan 6-10 componentes (2ª
+                # revisión): esperado = líneas RE_REQ del original + 1.
                 a = fila["prompt"].split("\n")
+                esperado = (11 if materia_dir is None else
+                            sum(1 for l in a if RE_REQ.match(l)) + 1)
                 residuo = any("REQUIRED component" in l
                               or "Implement EVERY" in l
                               for l in cortado.split("\n"))
-                ok = (n_fuera == 11 and not residuo
+                ok = (n_fuera == esperado and n_fuera >= 3 and not residuo
                       and cortado.split("\n")[2] == a[2])
                 malos += not ok
                 print(f"  {tid:<14} r{rep} s{fila['s']}: -{n_fuera} lineas "
@@ -274,6 +329,7 @@ def main(argv: list) -> int:
         "brazos": BRAZOS, "replicas": replicas, "commit": commit,
         "commits": commits, "backend": backend_activo.estado(),
         "timeout_gen_s": TIMEOUT_GEN,
+        "materia": str(materia_dir) if materia_dir else "gate_v2",
         "nota": "fase 2 del fork (neto -7): L vs L-sin-troceo-REQUIRED, "
                 "apareados sobre el MISMO prompt capturado"}
     print(f"ABLACION TROCEO — L-REQ vs L, INTERCALADO\n"
@@ -295,8 +351,14 @@ def main(argv: list) -> int:
     degradados_seguidos = 0
     for rep in range(1, replicas + 1):
         for i_t, t in enumerate(tareas):
-            rep_gate = ((rep - 1) % 6) + 1
-            fila = material[(t["id"], rep_gate)][(rep - 1 + i_t) % 4]
+            if materia_dir is not None:
+                if (t["id"], rep) not in material:
+                    continue
+                fila = material[(t["id"], rep)]
+                rep_gate = rep
+            else:
+                rep_gate = ((rep - 1) % 6) + 1
+                fila = material[(t["id"], rep_gate)][(rep - 1 + i_t) % 4]
             orden = BRAZOS if (rep + i_t) % 2 == 0 else BRAZOS[::-1]
             for brazo in orden:
                 if (t["id"], brazo, rep) in hechas:

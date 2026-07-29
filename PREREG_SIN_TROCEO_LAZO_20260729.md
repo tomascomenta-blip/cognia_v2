@@ -102,6 +102,11 @@ post-hoc aún más claro: **−6** (ON 13/24 vs OFF 19/24).
   que el lazo armó hoy 16:00 (feromona del run desde cero, briefs
   frescos), protege — plausiblemente recuperando su función original
   (checklist anti-omisión, campana 2026-07-21).
+- **Fe de erratas (2ª revisión, ~17:40):** 6/48 celdas cayeron al fallback
+  `create_program` (idea pelada, sin prompt del lazo) y **3 de los 19
+  aprobados de OFF vinieron de ese camino** — el "OFF lazo = 79%" incluye
+  esas 3; el lazo puro OFF queda en ~16/21 (76%), la lectura no cambia de
+  banda pero el matiz queda declarado.
 - Consecuencia de inversión: NO hay fix universal del troceo que adoptar.
   La pregunta operativa pasa a ser **QUÉ variable del contexto conmuta el
   signo** — y la única vía honesta es capturar los prompts del lazo DE HOY
