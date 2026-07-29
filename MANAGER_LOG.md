@@ -9816,3 +9816,64 @@ el gate, como correspondía por valor).**
 fp-heldout-por-modelo (+4 FP), descartar-hipotesis-reproduce-condiciones
 (caso slots: 2º éxito del método finish_reason/usage).
 
+
+## 2026-07-29 (matinal, 05:32-12:00) — EL LADRÓN TIENE NOMBRE: el troceo REQUIRED; y el marco nuevo pasa su piloto de aptitud
+
+Ventana del dueño hasta las 12:00 (ultracode). Apagado 12:00 y aterrizaje
+11:44 armados al arrancar. Prereg + revisión adversarial antes de cada
+gasto de GPU; suite verde en cada commit con código (5492 passed).
+
+1. **Sonda del lazo FASE 1 — el fork texto-vs-flujo (PREREG_SONDA_LAZO +
+   3 enmiendas): neto L−C = −7 → EL TEXTO ROBA.** Replay ÍNTEGRO de los
+   prompts capturados del gate v2 11/24 (46%) vs idea pelada 18/24 (75%),
+   ambos por el MISMO camino de backend, juez estricto, 24 pares, 0 infra,
+   C gana en las 4 tareas; original-only −6 (misma rama). El flujo del
+   lazo queda absuelto del grueso. La revisión (2 agentes) cazó 2 BLOQUEA
+   pre-GPU (la espiral contaba como infra con sesgo pro-flujo; rama
+   irreversible con 26% de error por Monte Carlo). EN corrida se cazó un
+   mecanismo NUEVO de cuelgue: página generada con JS ocupado bloquea
+   page.evaluate PARA SIEMPRE (chromium 595 s de CPU medido) → 2ª
+   enmienda: el juzgado lleva presupuesto de pared propio (300 s), cuelgue
+   = reprobado legítimo (propiedad de la página). Es la SEGUNDA firma de
+   la "celda eterna" del gap (la 1ª era el goteo del backend).
+
+2. **FASE 2 — ablación del troceo (PREREG_ABLACION_TEXTO + 1 enmienda,
+   revisión SIN BLOQUEA, cirugía verificada 96/96): neto +6 → EL TROCEO
+   REQUIRED ES EL LADRÓN PRINCIPAL.** L-sin-troceo 17/24 (71%) vs L
+   íntegro 11/24 (46%), apareados sobre el MISMO prompt capturado:
+   quitar las 11 líneas recupera prácticamente todo el gap hasta el crudo.
+   Buscaminas domina (+5) con mecanismo legible: su enumeración crítica
+   ("celdas 6, 12 y 18") partida en componentes rotos. El ancla L
+   reprodujo exacto el 11/24 de fase 1.
+
+3. **FASE 3 implementada, corrida PENDIENTE:** COGNIA_SIN_TROCEO env-gated
+   en generator._build_prompt_web (quita el bloque ENTERO, idéntico a la
+   cirugía medida; default intacto; el prompt python no se toca — la
+   evidencia es web). Test de regresión 3/3 (tests/test_sin_troceo.py).
+   **Siguiente sesión: A/B de confirmación EN el lazo** (n≥6/brazo
+   intercalado, banco brutal, ~2.5-4 h GPU — no cabía en este reloj).
+   OJO: fix2 v2/v3 CAMBIABAN el troceo y no cobraron; esta evidencia dice
+   QUITARLO — son palancas distintas.
+
+4. **Marco de EJECUCIÓN EN EL BUCLE it.1 (PREREG_EJECUCION_BUCLE + 1
+   enmienda; la vía de señal para tareas nuevas): diseñado, revisado (2
+   BLOQUEA aplicados: control M3 y desborde de ctx del juicio) y PILOTO
+   DE APTITUD PASADO** — 7/8 páginas con sondas ejecutadas, no
+   degenerado → SIGUE. Lectura direccional honesta del piloto (n=8): el
+   marco acertó 2/7 con FN 5/6 (perfil aún tipo-ciego), control ciego
+   concurrente 3/8 — números chicos, deciden nada: **el bloque de 24 es
+   de la próxima sesión** (b2_ejecucion_bucle.py --reanudar sobre el
+   piloto ya guardado, o corrida limpia del bloque).
+
+5. Preparado para la próxima: PREREG_RESCATE_ESPIRAL_BORRADOR (P4, vía
+   sombra), b2_parse_lazo_vs_directo.py (rama flujo, NO corrido —
+   disciplina: el fork mandó a texto), crudos de 37 celdas guardados.
+
+**Estado de reanudación exacto:** todas las corridas de hoy COMPLETAS y
+versionadas (fase 1: b2_sonda_lazo 48/48; fase 2: b2_ablacion_texto
+48/48; piloto: b2_ejecucion_bucle 8/8). Nada quedó a medias. Flota:
+gpt-oss en :8080 con --parallel 1 + ctx 16384 (verificado slots=1 en
+/props — el chequeo del arranque funciona).
+
+**Lecciones a memoria:** juez-colgado-js-bloqueante (nueva),
+bon-con-senal-real (actualizada: el ladrón identificado y fase 3 lista).

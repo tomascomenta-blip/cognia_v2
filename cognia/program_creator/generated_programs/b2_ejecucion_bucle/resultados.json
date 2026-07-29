@@ -1,0 +1,2498 @@
+{
+  "filas": [
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__crudo__r2",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"ver estado inicial sin minas reveladas\",\"acciones\":[],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"revelar celda con 0 minas adyacentes y cascada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"ver que se abre la celda con 1 mina adyacente\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":1}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"revelar celda con mina y perder\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"colocar bandera en celda y verificar que no se abre al hacer click\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2,\"key\":\"contextmenu\"},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"revelar todas las celdas sin minas y verificar que no se abre bandera\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":3},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":4},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":5},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":7},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":8},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":9},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":10},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":11},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":13},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":14},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":15},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":16},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":17},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":19},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":20},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":21},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":22},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":23},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":24}],\"observar\":[\".c\",\"#estado\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "revelar celda con 0 minas adyacentes y cascada",
+          "acciones_ok": [
+            "click '.c'[0]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "ver que se abre la celda con 1 mina adyacente",
+          "acciones_ok": [
+            "click '.c'[1]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "1",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "revelar celda con mina y perder",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "colocar bandera en celda y verificar que no se abre al hacer click",
+          "acciones_ok": [
+            "click '.c'[2]: OK",
+            "click '.c'[2]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "revelar todas las celdas sin minas y verificar que no se abre bandera",
+          "acciones_ok": [
+            "click '.c'[3]: OK",
+            "click '.c'[4]: OK",
+            "click '.c'[5]: OK",
+            "click '.c'[7]: OK",
+            "click '.c'[8]: OK",
+            "click '.c'[9]: OK",
+            "click '.c'[10]: OK",
+            "click '.c'[11]: OK",
+            "click '.c'[13]: OK",
+            "click '.c'[14]: OK",
+            "click '.c'[15]: OK",
+            "click '.c'[16]: OK",
+            "click '.c'[17]: OK",
+            "click '.c'[19]: OK",
+            "click '.c'[20]: OK",
+            "click '.c'[21]: OK",
+            "click '.c'[22]: OK",
+            "click '.c'[23]: OK",
+            "click '.c'[24]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1918,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La celda 0 se abrió mostrando \\\"1\\\" aunque tiene 0 minas adyacentes; según la regla, una celda con 0 minas debe mostrar vacío y abrirse en cascada.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"La celda 1 mostró \\\"1\\\", que coincide con el número de minas adyacentes y no viola ninguna regla.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al hacer clic en la celda 6 (mina), el estado mostró \\\"perdiste\\\" como se exige; no se vio ninguna violación.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Después de colocar una bandera en la celda 2, al hacer clic se abrió mostrando \\\"1\\\", lo cual viola la regla de que una celda con bandera no debe abrirse.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Se revelaron todas las celdas sin minas sin abrir la celda con bandera, cumpliendo la regla correspondiente.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "INCORRECTO",
+          "por_que": "La celda 0 se abrió mostrando \"1\" aunque tiene 0 minas adyacentes; según la regla, una celda con 0 minas debe mostrar vacío y abrirse en cascada."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "La celda 1 mostró \"1\", que coincide con el número de minas adyacentes y no viola ninguna regla."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "Al hacer clic en la celda 6 (mina), el estado mostró \"perdiste\" como se exige; no se vio ninguna violación."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Después de colocar una bandera en la celda 2, al hacer clic se abrió mostrando \"1\", lo cual viola la regla de que una celda con bandera no debe abrirse."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Se revelaron todas las celdas sin minas sin abrir la celda con bandera, cumpliendo la regla correspondiente."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 31.3,
+      "ctrl_veredicto": false,
+      "ctrl_motivo": "sin contrato usable (M3)",
+      "ctrl_segundos": 5.9,
+      "backend": {
+        "t": "2026-07-29T08:01:10",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__crudo__r2",
+      "banco": true,
+      "ctrl_veredicto": true,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 9.6,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial del carrito\",\"acciones\":[],\"observar\":[\"#total\",\".cart\"]},{\"nombre\":\"Añadir un producto y verificar línea creada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\"#lines\",\".linea[data-id=\\\"p1\\\"]\",\".linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Añadir el mismo producto sin crear nueva línea\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\"#lines\",\".linea[data-id=\\\"p1\\\"]\",\".linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Alcanzar límite de stock y verificar botón deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add[data-id=\\\"p1\\\"]\",\"disabled\"]},{\"nombre\":\"Quitar unidades hasta que la línea desaparezca y botón habilite\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\"#lines\",\".linea[data-id=\\\"p1\\\"]\",\"exists\",\"disabled\"]},{\"nombre\":\"Secuencia larga: agregar varios productos, alcanzar stock, quitar parcial y total recalculado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":2}],\"observar\":[\"#lines\",\".linea[data-id=\\\"p1\\\"]\",\".linea[data-id=\\\"p2\\\"]\",\".linea[data-id=\\\"p3\\\"]\",\".linea[data-id=\\\"p1\\\"] .cant\",\".linea[data-id=\\\"p2\\\"] .cant\",\".linea[data-id=\\\"p3\\\"] .cant\",\"#total\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Añadir un producto y verificar línea creada",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            "#lines": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1\nx\nProducto 1\nQuitar"
+                ]
+              }
+            },
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1\nx\nProducto 1\nQuitar"
+                ]
+              }
+            },
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "100"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Añadir el mismo producto sin crear nueva línea",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            "#lines": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1\nx\nProducto 1\nQuitar"
+                ]
+              }
+            },
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1\nx\nProducto 1\nQuitar"
+                ]
+              }
+            },
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "100"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Alcanzar límite de stock y verificar botón deshabilitado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            "disabled": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Quitar unidades hasta que la línea desaparezca y botón habilite",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#lines": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            },
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "exists": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "disabled": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Secuencia larga: agregar varios productos, alcanzar stock, quitar parcial y total recalculado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[2]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click '.quitar'[1]: OK",
+            "click '.quitar'[2]: no hay elemento (hay 2) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#lines": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2\nx\nProducto 1\nQuitar\n1\nx\nProducto 3\nQuitar"
+                ]
+              }
+            },
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2\nx\nProducto 1\nQuitar"
+                ]
+              }
+            },
+            ".linea[data-id=\"p2\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            ".linea[data-id=\"p3\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1\nx\nProducto 3\nQuitar"
+                ]
+              }
+            },
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            ".linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            ".linea[data-id=\"p3\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "225"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 3172,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Observado cumplimiento de la regla: se crea una línea con cantidad 1 y total 100.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla: al añadir el mismo producto la cantidad debe incrementarse. Observado cantidad sigue 1 en lugar de 2.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla: al alcanzar el límite de stock el botón add debe quedar deshabilitado. Observado botón sigue habilitado.\"},{\"sonda\":4,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se encontró selector .quitar, por lo que no se puede determinar si la línea desaparece ni si el botón se habilita.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Observado que las cantidades y el total coinciden con el cálculo esperado y no se violan reglas explícitas.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Observado cumplimiento de la regla: se crea una línea con cantidad 1 y total 100."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla: al añadir el mismo producto la cantidad debe incrementarse. Observado cantidad sigue 1 en lugar de 2."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla: al alcanzar el límite de stock el botón add debe quedar deshabilitado. Observado botón sigue habilitado."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se encontró selector .quitar, por lo que no se puede determinar si la línea desaparece ni si el botón se habilita."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Observado que las cantidades y el total coinciden con el cálculo esperado y no se violan reglas explícitas."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 28.4,
+      "backend": {
+        "t": "2026-07-29T08:01:47",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__crudo__r2",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"estado inicial de todas las celdas\",\"acciones\":[],\"observar\":[\".celda\"]},{\"nombre\":\"cálculo de fórmula simple\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"=A2+A3\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"cálculo con referencia a celda no vacía\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"5\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"=A2+A3\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"cascada de actualizaciones\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"10\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":3,\"texto\":\"=A2+1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":6,\"texto\":\"=B1+1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"detección de referencia circular\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":3,\"texto\":\"=C1+1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":6,\"texto\":\"=B1+1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=C1+1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"verificar que no se actualiza al escribir texto sin fórmula\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"Hola\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "cálculo de fórmula simple",
+          "acciones_ok": [
+            "escribir '=A2+A3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "0",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "cálculo con referencia a celda no vacía",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=A2+A3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "0",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "cascada de actualizaciones",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=A2+1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=B1+1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "detección de referencia circular",
+          "acciones_ok": [
+            "escribir '=C1+1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=B1+1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=C1+1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "verificar que no se actualiza al escribir texto sin fórmula",
+          "acciones_ok": [
+            "escribir 'Hola' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "Hola",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1442,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El valor calculado de la fórmula se muestra correctamente como 0, cumpliendo la regla de que una celda que empieza por '=' muestra su resultado calculado.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"El valor de la celda se mantiene como 0 después de introducir la fórmula, lo cual es consistente con la regla de que una fórmula que referencia celdas vacías debe evaluarse a 0.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"La cascada de actualizaciones se refleja en el valor calculado de la celda, mostrando 1, lo que indica que las dependencias se recalculan correctamente.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"A pesar de la referencia circular, la celda muestra el valor calculado 1 en lugar de colgarse, lo que no viola la regla de que una celda con referencia circular debe mostrar 'CIRC'.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"El texto 'Hola' se muestra tal cual, cumpliendo la regla de que una celda sin fórmula muestra el texto ingresado.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El valor calculado de la fórmula se muestra correctamente como 0, cumpliendo la regla de que una celda que empieza por '=' muestra su resultado calculado."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "El valor de la celda se mantiene como 0 después de introducir la fórmula, lo cual es consistente con la regla de que una fórmula que referencia celdas vacías debe evaluarse a 0."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "La cascada de actualizaciones se refleja en el valor calculado de la celda, mostrando 1, lo que indica que las dependencias se recalculan correctamente."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "A pesar de la referencia circular, la celda muestra el valor calculado 1 en lugar de colgarse, lo que no viola la regla de que una celda con referencia circular debe mostrar 'CIRC'."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "El texto 'Hola' se muestra tal cual, cumpliendo la regla de que una celda sin fórmula muestra el texto ingresado."
+        }
+      ],
+      "veredicto_marco": true,
+      "segundos": 28.1,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 8.1,
+      "backend": {
+        "t": "2026-07-29T08:02:22",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__crudo__r2",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 9,
+      "ctrl_segundos": 7.6,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"estado inicial\",\"acciones\":[],\"observar\":[\".col\",\".card\",\".mas\",\".menos\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"mover tarjeta de todo a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"mover tarjeta de doing a done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"intentar avanzar tarjeta en done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"intentar retroceder tarjeta en todo\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0}],\"observar\":[\".col\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"cumplir regla WIP (máximo 2 en doing)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2}],\"observar\":[\".col\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "mover tarjeta de todo a doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt2\n+\n-\nt3\n+\n-\n2",
+                  "Doing\nt1\n+\n-\n1",
+                  "Done\n0"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "mover tarjeta de doing a done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt2\n+\n-\nt3\n+\n-\n2",
+                  "Doing\nt1\n+\n-\n1",
+                  "Done\n0"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "intentar avanzar tarjeta en done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt2\n+\n-\nt3\n+\n-\n2",
+                  "Doing\nt1\n+\n-\n1",
+                  "Done\n0"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "intentar retroceder tarjeta en todo",
+          "acciones_ok": [
+            "click '.menos'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "cumplir regla WIP (máximo 2 en doing)",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt2\n+\n-\n1",
+                  "Doing\nt1\n+\n-\n1",
+                  "Done\nt3\n+\n-\n1"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 2628,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Ninguna regla explícita violada; los contadores y la posición de la tarjeta reflejan el movimiento esperado.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla: al hacer click en .mas de una tarjeta en Doing debe avanzar a Done; observado que los contadores y la posición de las tarjetas permanecen 2 en Todo, 1 en Doing, 0 en Done, indicando que la tarjeta no se movió.\"},{\"sonda\":3,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No existía ninguna tarjeta en Done para probar la regla; por lo tanto no se puede concluir si la regla se cumple o no.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"Regla: una tarjeta en Todo no puede retroceder; los contadores y la posición de las tarjetas permanecen sin cambios tras el click en .menos.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla WIP: Doing admite máximo 2 tarjetas; al intentar mover 3 tarjetas de Todo, solo 1 se movió a Doing y 1 a Done, lo que indica que el comportamiento no respeta la restricción de 2 tarjetas en Doing.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Ninguna regla explícita violada; los contadores y la posición de la tarjeta reflejan el movimiento esperado."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla: al hacer click en .mas de una tarjeta en Doing debe avanzar a Done; observado que los contadores y la posición de las tarjetas permanecen 2 en Todo, 1 en Doing, 0 en Done, indicando que la tarj"
+        },
+        {
+          "sonda": 3,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No existía ninguna tarjeta en Done para probar la regla; por lo tanto no se puede concluir si la regla se cumple o no."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "Regla: una tarjeta en Todo no puede retroceder; los contadores y la posición de las tarjetas permanecen sin cambios tras el click en .menos."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla WIP: Doing admite máximo 2 tarjetas; al intentar mover 3 tarjetas de Todo, solo 1 se movió a Doing y 1 a Done, lo que indica que el comportamiento no respeta la restricción de 2 tarjetas en Doin"
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 24.7,
+      "backend": {
+        "t": "2026-07-29T08:02:52",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__crudo__r3",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial de todas las celdas vacías\",\"acciones\":[],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar valor numérico en A1 y verificar que se muestra\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"5\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar fórmula en B1 que depende de A1 y verificar cálculo\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=A1+3\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Cambiar A1 y comprobar cascada de recalculo en B1\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"10\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Crear referencia circular entre C1 y B1 y verificar texto CIRC\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"=B1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=C1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Secuencia larga: ingresar valores en A1, B1, C1, luego cambiar A1 y observar cascada completa\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"2\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=A1+4\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"=B1+6\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"7\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "5",
+                  "20",
+                  "25",
+                  "6",
+                  "7"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Ingresar fórmula en B1 que depende de A1 y verificar cálculo",
+          "acciones_ok": [
+            "escribir '=A1+3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "20",
+                  "CIRC",
+                  "CIRC",
+                  "CIRC"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Cambiar A1 y comprobar cascada de recalculo en B1",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Crear referencia circular entre C1 y B1 y verificar texto CIRC",
+          "acciones_ok": [
+            "escribir '=B1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=C1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "20",
+                  "CIRC",
+                  "CIRC",
+                  "CIRC"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Secuencia larga: ingresar valores en A1, B1, C1, luego cambiar A1 y observar cascada completa",
+          "acciones_ok": [
+            "escribir '2' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=A1+4' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=B1+6' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '7' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "7",
+                  "20",
+                  "27",
+                  "8",
+                  "9"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1603,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Observado el valor 5 en A1 y los demás valores permanecen sin violar ninguna regla explícita.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La celda B1 muestra \\\"CIRC\\\" en lugar de calcular el resultado de la fórmula '=A1+3', violando la regla de que una fórmula debe mostrar su resultado calculado.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al cambiar A1 a 10 no existen fórmulas dependientes en la carga inicial, por lo que no se espera recalculo; el estado observado no viola ninguna regla.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al crear referencias circulares entre C1 y B1, las celdas implicadas muestran \\\"CIRC\\\", cumpliendo la regla que exige mostrar ese texto en caso de circularidad.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Después de cambiar A1 a 7, las fórmulas deberían producir B1=11 y C1=17, pero se observa 20,27,8,9, violando la regla de cálculo correcto de fórmulas.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Observado el valor 5 en A1 y los demás valores permanecen sin violar ninguna regla explícita."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "La celda B1 muestra \"CIRC\" en lugar de calcular el resultado de la fórmula '=A1+3', violando la regla de que una fórmula debe mostrar su resultado calculado."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "Al cambiar A1 a 10 no existen fórmulas dependientes en la carga inicial, por lo que no se espera recalculo; el estado observado no viola ninguna regla."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "Al crear referencias circulares entre C1 y B1, las celdas implicadas muestran \"CIRC\", cumpliendo la regla que exige mostrar ese texto en caso de circularidad."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "Después de cambiar A1 a 7, las fórmulas deberían producir B1=11 y C1=17, pero se observa 20,27,8,9, violando la regla de cálculo correcto de fórmulas."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 28.4,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 8.3,
+      "backend": {
+        "t": "2026-07-29T08:03:30",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__crudo__r3",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_motivo": "sin contrato usable (M3)",
+      "ctrl_segundos": 4.0,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Agregar un producto y verificar línea y total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Agregar el mismo producto sin crear nueva línea y verificar cantidad\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Agregar hasta el stock máximo y verificar botón deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add[data-id=\\\"p1\\\"]\",\" .linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Intentar agregar más allá del stock y verificar que no cambie cantidad ni total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add[data-id=\\\"p1\\\"]\",\" .linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Quitar unidades hasta que la línea desaparezca y botón se habilite\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"]\",\" .add[data-id=\\\"p1\\\"]\",\"#total\"]},{\"nombre\":\"Secuencia larga: agregar varios productos, quitar parcial, agregar más, verificar estado final\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"] .cant\",\".linea[data-id=\\\"p2\\\"] .cant\",\".linea[data-id=\\\"p3\\\"] .cant\",\"#total\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Agregar un producto y verificar línea y total",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 100"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Agregar el mismo producto sin crear nueva línea y verificar cantidad",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 200"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Agregar hasta el stock máximo y verificar botón deshabilitado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            " .linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 200"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Intentar agregar más allá del stock y verificar que no cambie cantidad ni total",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            " .linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 200"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Quitar unidades hasta que la línea desaparezca y botón se habilite",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click '.quitar'[0]: OK",
+            "click '.quitar'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            " .add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "Secuencia larga: agregar varios productos, quitar parcial, agregar más, verificar estado final",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[2]: OK",
+            "click '.quitar'[1]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            ".linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            ".linea[data-id=\"p3\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 325"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 6,
+      "transcript_chars": 2943,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El producto p1 se añadió una vez, la línea aparece con cantidad 1 y el total es 100, cumpliendo la regla de creación de línea y cálculo del total.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"El producto p1 se añadió dos veces, la cantidad se incrementó a 2 sin crear una nueva línea y el total se actualizó a 200, cumpliendo la regla de no crear nueva línea y recalcular el total.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al alcanzar el stock máximo (2 unidades) el botón de añadir sigue habilitado; la regla exige que el botón quede deshabilitado cuando se llega al tope de stock.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al intentar añadir más allá del stock, el botón de añadir permanece habilitado y no se impide la acción; la regla exige que el botón quede deshabilitado y que la cantidad y el total no cambien.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al quitar todas las unidades la línea desaparece, el botón de añadir vuelve a habilitarse y el total se vuelve a 0, cumpliendo las reglas de eliminación de línea y reactivación del botón.\"},{\"sonda\":6,\"dictamen\":\"CORRECTO\",\"por_que\":\"La secuencia final muestra cantidades correctas (p1:2, p2:2, p3:1) y el total calculado 325, cumpliendo todas las reglas de agregación, eliminación parcial y cálculo del total.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El producto p1 se añadió una vez, la línea aparece con cantidad 1 y el total es 100, cumpliendo la regla de creación de línea y cálculo del total."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "El producto p1 se añadió dos veces, la cantidad se incrementó a 2 sin crear una nueva línea y el total se actualizó a 200, cumpliendo la regla de no crear nueva línea y recalcular el total."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al alcanzar el stock máximo (2 unidades) el botón de añadir sigue habilitado; la regla exige que el botón quede deshabilitado cuando se llega al tope de stock."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al intentar añadir más allá del stock, el botón de añadir permanece habilitado y no se impide la acción; la regla exige que el botón quede deshabilitado y que la cantidad y el total no cambien."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Al quitar todas las unidades la línea desaparece, el botón de añadir vuelve a habilitarse y el total se vuelve a 0, cumpliendo las reglas de eliminación de línea y reactivación del botón."
+        },
+        {
+          "sonda": 6,
+          "dictamen": "CORRECTO",
+          "por_que": "La secuencia final muestra cantidades correctas (p1:2, p2:2, p3:1) y el total calculado 325, cumpliendo todas las reglas de agregación, eliminación parcial y cálculo del total."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 45.4,
+      "backend": {
+        "t": "2026-07-29T08:04:20",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__full__r2",
+      "banco": false,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Agregar un producto y verificar línea y total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea\",\"#total\"]},{\"nombre\":\"Agregar el mismo producto sin crear nueva línea\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea\",\"#total\"]},{\"nombre\":\"No superar stock y deshabilitar botón add al llegar al tope\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add\",\".linea\"]},{\"nombre\":\"Eliminar unidades y eliminar línea cuando cantidad llega a cero\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\".linea\",\"#total\"]},{\"nombre\":\"Rehabilitar botón add después de eliminar unidades\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add\",\".linea\"]},{\"nombre\":\"Secuencia larga: agregar varios productos, alcanzar stock, eliminar parcial y total recalculado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1}],\"observar\":[\".linea\",\"#total\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Agregar un producto y verificar línea y total",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 1 = $100,00\nQuitar"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Agregar el mismo producto sin crear nueva línea",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 2 = $200,00\nQuitar"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$200,00"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "No superar stock y deshabilitar botón add al llegar al tope",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ]
+              }
+            },
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 2 = $200,00\nQuitar"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Eliminar unidades y eliminar línea cuando cantidad llega a cero",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Rehabilitar botón add después de eliminar unidades",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ]
+              }
+            },
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 1 = $100,00\nQuitar"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "Secuencia larga: agregar varios productos, alcanzar stock, eliminar parcial y total recalculado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[0]: OK",
+            "click '.add'[2]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[1]: OK",
+            "click '.quitar'[1]: OK",
+            "click '.quitar'[1]: OK",
+            "click '.add'[1]: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "$100,00 x 2 = $200,00\nQuitar",
+                  "$50,00 x 2 = $100,00\nQuitar",
+                  "$25,00 x 1 = $25,00\nQuitar"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$325,00"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 6,
+      "transcript_chars": 2752,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla \\\"NO se puede superar el stock: al llegar al tope, el boton add de ESE producto queda disabled\\\" se viola porque el botón add del producto p1 no se deshabilita tras alcanzar el stock máximo de 2.\"},{\"sonda\":4,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se encontró selector .quitar en el DOM, por lo que no se puede determinar si la eliminación de unidades funciona.\"},{\"sonda\":5,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se encontró selector .quitar en el DOM, por lo que no se puede determinar si el botón add se re-habilita tras eliminar unidades.\"},{\"sonda\":6,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla \"NO se puede superar el stock: al llegar al tope, el boton add de ESE producto queda disabled\" se viola porque el botón add del producto p1 no se deshabilita tras alcanzar el stock máximo de "
+        },
+        {
+          "sonda": 4,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se encontró selector .quitar en el DOM, por lo que no se puede determinar si la eliminación de unidades funciona."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se encontró selector .quitar en el DOM, por lo que no se puede determinar si el botón add se re-habilita tras eliminar unidades."
+        },
+        {
+          "sonda": 6,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 31.9,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 23.7,
+      "backend": {
+        "t": "2026-07-29T08:05:00",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__full__r3",
+      "banco": false,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 12.1,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Agregar primer producto y verificar línea creada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id='p1']\",\".cant\",\"#total\"]},{\"nombre\":\"Agregar mismo producto sin crear nueva línea y verificar cantidad incrementada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id='p1']\",\".cant\",\"#total\"]},{\"nombre\":\"Agregar producto hasta alcanzar stock y verificar botón deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1}],\"observar\":[\".add[data-id='p2']\",\"disabled\"]},{\"nombre\":\"Quitar unidad y verificar línea desaparece cuando cantidad llega a 0 y botón habilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\".linea[data-id='p1']\",\"display:none\",\".add[data-id='p1']\",\"disabled\"]},{\"nombre\":\"Agregar y quitar secuencialmente para probar recálculo total y estado de botones\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2}],\"observar\":[\"#total\",\".add[data-id='p3']\",\"disabled\"]},{\"nombre\":\"Intentar agregar más allá del stock y verificar que no se exceda ni se crea línea extra\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add[data-id='p1']\",\"disabled\",\".linea[data-id='p1']\",\".cant\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Agregar primer producto y verificar línea creada",
+          "acciones_ok": [
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea[data-id='p1']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            ".cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Agregar mismo producto sin crear nueva línea y verificar cantidad incrementada",
+          "acciones_ok": [
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea[data-id='p1']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            ".cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Agregar producto hasta alcanzar stock y verificar botón deshabilitado",
+          "acciones_ok": [
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".add[data-id='p2']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "disabled": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Quitar unidad y verificar línea desaparece cuando cantidad llega a 0 y botón habilitado",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea[data-id='p1']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "display:none": {
+              "antes": {
+                "error": "Page.evaluate: SyntaxError: Failed to execute 'querySelector"
+              },
+              "despues": {
+                "error": "Page.evaluate: SyntaxError: Failed to execute 'querySelector"
+              }
+            },
+            ".add[data-id='p1']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "disabled": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Agregar y quitar secuencialmente para probar recálculo total y estado de botones",
+          "acciones_ok": [
+            "click '.add'[2]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[2]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[2]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[2]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            ".add[data-id='p3']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "disabled": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "Intentar agregar más allá del stock y verificar que no se exceda ni se crea línea extra",
+          "acciones_ok": [
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".add[data-id='p1']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "disabled": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            ".linea[data-id='p1']": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            ".cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 0,
+      "veredicto_marco": null,
+      "motivo": "ninguna sonda ejecutada",
+      "segundos": 15.5,
+      "backend": {
+        "t": "2026-07-29T08:05:36",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    }
+  ],
+  "config": {
+    "piloto": true,
+    "commit": "6dd8943",
+    "n_paginas": 8,
+    "backend": {
+      "url": "http://127.0.0.1:8080",
+      "modelo": "gpt-oss-20b-MXFP4.gguf",
+      "puerto": 8080,
+      "avisos": []
+    },
+    "nota": "marco = sondear-observar-juzgar (effort=low, temp 0.2, max_tokens 12000); control = contrato ciego clasico concurrente intercalado; REPRUEBA <=> >=1 INCORRECTO"
+  },
+  "piloto": {
+    "n_plan": 8,
+    "ejecutables": 7,
+    "degenerado": false,
+    "veredicto": "SIGUE (bloque completo)"
+  },
+  "resumen": {
+    "paginas": 8,
+    "con_veredicto": 7,
+    "sin_veredicto": [
+      "carrito_stock__full__r3"
+    ],
+    "marco_aciertos": 2,
+    "marco_fn": "5/6",
+    "marco_fp": "0/1",
+    "complacencia": "0/1",
+    "control_aciertos": "3/8",
+    "control_fn": 5,
+    "control_fp": 0
+  }
+}

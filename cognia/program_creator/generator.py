@@ -454,13 +454,27 @@ def _build_prompt_web(category: str, extra_hint: str) -> str:
         f"blank page waiting for the first setInterval tick\n"
         # Campana 2026-07-21 (11/20 fallos por omision): la idea multi-
         # componente se ENUMERA y se exige completa. Paginas grandes valen.
-        + "".join(
-            f"- REQUIRED component {i}: {c}\n"
-            for i, c in enumerate(_componentes_de_idea(category), start=1))
-        + f"- Implement EVERY required component above — a page that skips "
-        f"any of them is WRONG. Prefer a LONGER page over an incomplete "
-        f"one; there is no size limit.\n"
-        f"- {extra_hint}\n\n"
+        #
+        # COGNIA_SIN_TROCEO (fase 3 de la sonda del ladron, 2026-07-29): la
+        # ablacion APAREADA sobre los prompts reales del lazo midio que este
+        # bloque ROBA — quitarlo recupera +6 netas (L-sin-troceo 17/24 vs L
+        # integro 11/24, el nivel del modelo crudo). El troceo por comas
+        # mutila las enumeraciones que los contratos verifican ("celdas 6,
+        # 12 y 18" → tres componentes rotos que MIENTEN sobre la spec). Dos
+        # fixes que CAMBIABAN el troceo (fix2 v2/v3) no cobraron; la
+        # evidencia dice QUITARLO. Env-gated hasta el A/B de confirmacion
+        # EN el lazo (PREREG_ABLACION_TEXTO_20260729.md, RESULTADO).
+        + (
+            ""
+            if os.environ.get("COGNIA_SIN_TROCEO") else
+            "".join(
+                f"- REQUIRED component {i}: {c}\n"
+                for i, c in enumerate(_componentes_de_idea(category), start=1))
+            + f"- Implement EVERY required component above — a page that skips "
+            f"any of them is WRONG. Prefer a LONGER page over an incomplete "
+            f"one; there is no size limit.\n"
+        )
+        + f"- {extra_hint}\n\n"
         f"Respond EXACTLY in this format:\n\n"
         f"Title: <short title>\n"
         f"Description: <one sentence>\n"
