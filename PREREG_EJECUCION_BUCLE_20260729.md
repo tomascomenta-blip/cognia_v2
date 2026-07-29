@@ -134,6 +134,31 @@ Playwright). Dos BLOQUEA + arreglos, aplicados al runner:
    y muestreo 5×60 chars — bugs invisibles a esa lente quedan fuera del
    alcance de la iteración 1.
 
+## RESULTADO (2026-07-29 ~17:20 — bloque completo, veredicto por umbrales pre-fijados)
+
+**KILL de la iteración 1: aciertos 6/23 (umbral ≤11).** FN 17/19, FP 0/4,
+complacencia 0/4, 1 página sin veredicto (≤4: el veredicto rige).
+
+- Control ciego concurrente: 6/24 con FN 18 — en el BORDE del rango
+  declarado (6-12/24): la tarde está dura para todos (deriva), pero el
+  apareado por página vale y el marco NO separa del ciego.
+- **Lectura de mecanismo (la que dirige la iteración 2, pre-declarada):
+  el enfermo es el JUICIO, no el sondeo.** El piloto y el bloque muestran
+  sondas ejecutables y observaciones reales (aptitud OK), y CERO
+  complacencia — el modo de fallo NO es bendecir lo que ve (el riesgo que
+  este marco temía) sino el MISMO del contrato ciego: condenar páginas
+  sanas contra expectativas que el enunciado no escribe, ahora vestidas
+  de dictamen sobre lo observado. El QUINTO kill de la señal autogenerada
+  comparte enfermedad con los cuatro anteriores.
+- Dirección de la iteración 2 (NO se corre esta noche; se diseña si hay
+  reloj): atacar el prompt de JUICIO con los dictámenes crudos guardados
+  (auditoría de POR QUÉ condena — están versionados) y/o exigir cita
+  literal de la regla del enunciado violada con verificación mecánica de
+  que esa cita EXISTE en el enunciado (el validador que el contrato ciego
+  no pudo ser porque no veía comportamiento).
+- Los held-outs A MANO siguen siendo la única señal viva; la conclusión
+  de inversión del BoN no cambia.
+
 ## SEGUNDA ENMIENDA (2026-07-29 ~16:15 — antes de lanzar el BLOQUE)
 
 El piloto de aptitud se corrió en la sesión matinal (08:15): **PASADO**

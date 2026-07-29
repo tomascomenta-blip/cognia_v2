@@ -2461,12 +2461,5220 @@
         "modelo": "gpt-oss-20b-MXFP4.gguf",
         "rol": ""
       }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__full__r1",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial de todas las celdas vacías\",\"acciones\":[],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar valor numérico en A1 y verificar que se muestra\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"5\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Crear fórmula simple en B1 que suma A1 y A2 y verificar cálculo\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=A1+A2\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Actualizar A2 y comprobar cascada de recalculo en B1\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"3\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Crear referencia circular C1->B1 y B1->C1 y verificar texto CIRC\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":8,\"texto\":\"=B1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=C1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Verificar que al cambiar A1 el valor de B1 se actualiza y C1 muestra CIRC sin recursión\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"10\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "5",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Crear fórmula simple en B1 que suma A1 y A2 y verificar cálculo",
+          "acciones_ok": [
+            "escribir '=A1+A2' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Actualizar A2 y comprobar cascada de recalculo en B1",
+          "acciones_ok": [
+            "escribir '3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "3",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Crear referencia circular C1->B1 y B1->C1 y verificar texto CIRC",
+          "acciones_ok": [
+            "escribir '=B1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=C1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "0",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Verificar que al cambiar A1 el valor de B1 se actualiza y C1 muestra CIRC sin recursión",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1308,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El valor ingresado en A1 se muestra correctamente en el atributo value del input, cumpliendo la regla de que el valor mostrado debe estar en value.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La celda B1 que contiene la fórmula '=A1+A2' muestra el texto 'CIRC' en lugar de calcular y mostrar el resultado, violando la regla de que las fórmulas deben evaluarse y mostrar su resultado.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al actualizar A2 a 3, la celda B1 no muestra el valor actualizado (se observa '3' en la celda A1 en lugar de en B1), lo que viola la regla de cascada de recalculo.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Después de crear referencias circulares entre C1 y B1, la celda C1 muestra '0' en lugar de 'CIRC', y no se observa el comportamiento esperado de detección de circularidad, violando la regla de manejo de referencias circulares.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al cambiar A1 a 10, solo se observa el valor actualizado en A1; las celdas B1 y C1 no muestran los valores esperados (B1 debería ser 13 y C1 'CIRC'), violando la regla de cascada y detección de circularidad.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El valor ingresado en A1 se muestra correctamente en el atributo value del input, cumpliendo la regla de que el valor mostrado debe estar en value."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "La celda B1 que contiene la fórmula '=A1+A2' muestra el texto 'CIRC' en lugar de calcular y mostrar el resultado, violando la regla de que las fórmulas deben evaluarse y mostrar su resultado."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al actualizar A2 a 3, la celda B1 no muestra el valor actualizado (se observa '3' en la celda A1 en lugar de en B1), lo que viola la regla de cascada de recalculo."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Después de crear referencias circulares entre C1 y B1, la celda C1 muestra '0' en lugar de 'CIRC', y no se observa el comportamiento esperado de detección de circularidad, violando la regla de manejo "
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al cambiar A1 a 10, solo se observa el valor actualizado en A1; las celdas B1 y C1 no muestran los valores esperados (B1 debería ser 13 y C1 'CIRC'), violando la regla de cascada y detección de circul"
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 24.3,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 8.5,
+      "backend": {
+        "t": "2026-07-29T16:54:10",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__crudo__r1",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 8.0,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial de todas las celdas\",\"acciones\":[],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar valor numérico en A1 y verificar que se muestra\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"5\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar fórmula en B1 que depende de A1 y verificar cálculo\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=A1+3\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Cambiar A1 y comprobar cascada de recalculo en B1\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"10\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Crear referencia circular C1->B1 y B1->C1 y verificar texto CIRC\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"=B1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=C1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar fórmula con suma y resta en C2 y verificar cálculo\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":5,\"texto\":\"=A1+B1-C1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "5",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Ingresar fórmula en B1 que depende de A1 y verificar cálculo",
+          "acciones_ok": [
+            "escribir '=A1+3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Cambiar A1 y comprobar cascada de recalculo en B1",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Crear referencia circular C1->B1 y B1->C1 y verificar texto CIRC",
+          "acciones_ok": [
+            "escribir '=B1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=C1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "0",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Ingresar fórmula con suma y resta en C2 y verificar cálculo",
+          "acciones_ok": [
+            "escribir '=A1+B1-C1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1284,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El valor ingresado en A1 se muestra correctamente como 5, cumpliendo la regla de que el valor mostrado es el contenido del atributo value.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La celda B1 contiene la fórmula '=A1+3' pero muestra 'CIRC' en lugar del resultado calculado, violando la regla que exige que las fórmulas muestren su resultado.\"},{\"sonda\":3,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"Solo se observa el cambio en A1; no se verifica si B1 se recalcula, por lo que no se puede concluir sobre la cascada de recalculo.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al crear referencias circulares entre C1 y B1, la celda C1 muestra '0' en lugar de 'CIRC', violando la regla que exige mostrar 'CIRC' en caso de referencia circular.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La celda C2 contiene la fórmula '=A1+B1-C1' pero muestra 'CIRC' en lugar del resultado calculado, violando la regla de que las fórmulas deben mostrar su resultado.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El valor ingresado en A1 se muestra correctamente como 5, cumpliendo la regla de que el valor mostrado es el contenido del atributo value."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "La celda B1 contiene la fórmula '=A1+3' pero muestra 'CIRC' en lugar del resultado calculado, violando la regla que exige que las fórmulas muestren su resultado."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "Solo se observa el cambio en A1; no se verifica si B1 se recalcula, por lo que no se puede concluir sobre la cascada de recalculo."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al crear referencias circulares entre C1 y B1, la celda C1 muestra '0' en lugar de 'CIRC', violando la regla que exige mostrar 'CIRC' en caso de referencia circular."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "La celda C2 contiene la fórmula '=A1+B1-C1' pero muestra 'CIRC' en lugar del resultado calculado, violando la regla de que las fórmulas deben mostrar su resultado."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 23.2,
+      "backend": {
+        "t": "2026-07-29T16:54:43",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__full__r1",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial del carrito vacío\",\"acciones\":[],\"observar\":[\".cart\",\".total\"]},{\"nombre\":\"Añadir producto p1 una vez\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"]\",\".add[data-id=\\\"p1\\\"]\",\".total\"]},{\"nombre\":\"Añadir producto p1 hasta su stock máximo (2) y verificar que el botón se deshabilita\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"] .cant\",\" .add[data-id=\\\"p1\\\"]\",\" .total\"]},{\"nombre\":\"Intentar añadir p1 más allá del stock y comprobar que no cambia la cantidad ni el total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"] .cant\",\" .add[data-id=\\\"p1\\\"]\",\" .total\"]},{\"nombre\":\"Quitar una unidad de p1 y verificar que la línea desaparece y el botón se habilita\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"]\",\" .add[data-id=\\\"p1\\\"]\",\" .total\"]},{\"nombre\":\"Añadir p2, p3, quitar p2, añadir p2 de nuevo y verificar el total acumulado correcto\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1}],\"observar\":[\".linea[data-id=\\\"p2\\\"] .cant\",\" .linea[data-id=\\\"p3\\\"] .cant\",\" .add[data-id=\\\"p2\\\"]\",\" .total\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Añadir producto p1 una vez",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Producto p1\n1\n-"
+                ]
+              }
+            },
+            ".add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            ".total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Añadir producto p1 hasta su stock máximo (2) y verificar que el botón se deshabilita",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            " .add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            " .total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Intentar añadir p1 más allá del stock y comprobar que no cambia la cantidad ni el total",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            " .add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            " .total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Quitar una unidad de p1 y verificar que la línea desaparece y el botón se habilita",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            " .add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            " .total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Añadir p2, p3, quitar p2, añadir p2 de nuevo y verificar el total acumulado correcto",
+          "acciones_ok": [
+            "click '.add'[1]: OK",
+            "click '.add'[2]: OK",
+            "click '.quitar'[1]: OK",
+            "click '.add'[1]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            " .linea[data-id=\"p3\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            " .add[data-id=\"p2\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ]
+              }
+            },
+            " .total": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 2223,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"INCORRECTO\",\"por_que\":\"El total no se actualiza; el selector #total permanece vacío, violando la regla de recalcular el total siempre.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"El botón add para p1 sigue habilitado a pesar de alcanzar el stock máximo, violando la regla que exige deshabilitarlo.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La cantidad de p1 se muestra como 1 después de intentar añadir más allá del stock, indicando que la cantidad cambió, violando la regla de no superar el stock.\"},{\"sonda\":4,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se encontró el selector .quitar, por lo que no se puede determinar si la línea desaparece ni si el botón se habilita.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La cantidad de p2 se muestra como 2 y la de p3 como 0 después de las operaciones, contradiciendo el flujo esperado; además el total permanece vacío, violando la regla de recalcular el total.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "INCORRECTO",
+          "por_que": "El total no se actualiza; el selector #total permanece vacío, violando la regla de recalcular el total siempre."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "El botón add para p1 sigue habilitado a pesar de alcanzar el stock máximo, violando la regla que exige deshabilitarlo."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "La cantidad de p1 se muestra como 1 después de intentar añadir más allá del stock, indicando que la cantidad cambió, violando la regla de no superar el stock."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se encontró el selector .quitar, por lo que no se puede determinar si la línea desaparece ni si el botón se habilita."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "La cantidad de p2 se muestra como 2 y la de p3 como 0 después de las operaciones, contradiciendo el flujo esperado; además el total permanece vacío, violando la regla de recalcular el total."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 22.0,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 9.2,
+      "backend": {
+        "t": "2026-07-29T16:55:11",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__crudo__r1",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_motivo": "sin contrato usable (M3)",
+      "ctrl_segundos": 4.2,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Agregar producto p1 y verificar línea y total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Agregar p1 hasta stock máximo y comprobar botón deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add[data-id=\\\"p1\\\"]\",\" .linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Quitar unidades de p1 y verificar desaparición de línea y habilitación de botón\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\".linea[data-id=\\\"p1\\\"]\",\" .add[data-id=\\\"p1\\\"]\",\"#total\"]},{\"nombre\":\"Agregar p2 y p3, luego quitar p2 parcialmente y comprobar total actualizado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1}],\"observar\":[\".linea[data-id=\\\"p2\\\"] .cant\",\" .linea[data-id=\\\"p3\\\"] .cant\",\"#total\"]},{\"nombre\":\"Intentar superar stock de p3 y asegurar que botón permanece deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2}],\"observar\":[\".add[data-id=\\\"p3\\\"]\",\" .linea[data-id=\\\"p3\\\"] .cant\",\"#total\"]},{\"nombre\":\"Secuencia larga: agregar p1, p2, p3, quitar p2, agregar p1, quitar p1, agregar p3, quitar p3\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":2}],\"observar\":[\".linea[data-id=\\\"p1\\\"] .cant\",\" .linea[data-id=\\\"p2\\\"] .cant\",\" .linea[data-id=\\\"p3\\\"] .cant\",\"#total\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Agregar producto p1 y verificar línea y total",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "100"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Agregar p1 hasta stock máximo y comprobar botón deshabilitado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Agregar"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Agregar"
+                ]
+              }
+            },
+            " .linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "200"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Quitar unidades de p1 y verificar desaparición de línea y habilitación de botón",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            " .add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Agregar"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Agregar"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Agregar p2 y p3, luego quitar p2 parcialmente y comprobar total actualizado",
+          "acciones_ok": [
+            "click '.add'[1]: OK",
+            "click '.add'[2]: OK",
+            "click '.quitar'[1]: OK"
+          ],
+          "observado": {
+            ".linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            " .linea[data-id=\"p3\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "50"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Intentar superar stock de p3 y asegurar que botón permanece deshabilitado",
+          "acciones_ok": [
+            "click '.add'[2]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add[data-id=\"p3\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Agregar"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Agregar"
+                ]
+              }
+            },
+            " .linea[data-id=\"p3\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "25"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "Secuencia larga: agregar p1, p2, p3, quitar p2, agregar p1, quitar p1, agregar p3, quitar p3",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[2]: OK",
+            "click '.quitar'[1]: OK",
+            "click '.add'[0]: OK",
+            "click '.quitar'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click '.quitar'[2]: no hay elemento (hay 2) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            " .linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": []
+              }
+            },
+            " .linea[data-id=\"p3\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "125"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 6,
+      "transcript_chars": 3443,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Observado que al agregar p1 se crea línea con cantidad 1 y total 100, cumpliendo la regla.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al alcanzar el stock máximo (2) el botón add de p1 sigue habilitado; la regla exige que quede disabled.\"},{\"sonda\":3,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se encontró selector .quitar en el DOM, por lo que no se puede determinar si la línea desaparece o el botón se habilita.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"El total observado es 50, pero debería ser 25 tras quitar una unidad de p2; además la línea de p3 desapareció sin acción de quitar.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al llegar al stock máximo de p3 (1) el botón add permanece habilitado; la regla exige que quede disabled.\"},{\"sonda\":6,\"dictamen\":\"CORRECTO\",\"por_que\":\"El estado final coincide con las reglas: p1 y p3 con cantidad 1, p2 eliminado, total 125, y no se violaron restricciones de stock ni de botones.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Observado que al agregar p1 se crea línea con cantidad 1 y total 100, cumpliendo la regla."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al alcanzar el stock máximo (2) el botón add de p1 sigue habilitado; la regla exige que quede disabled."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se encontró selector .quitar en el DOM, por lo que no se puede determinar si la línea desaparece o el botón se habilita."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "El total observado es 50, pero debería ser 25 tras quitar una unidad de p2; además la línea de p3 desapareció sin acción de quitar."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al llegar al stock máximo de p3 (1) el botón add permanece habilitado; la regla exige que quede disabled."
+        },
+        {
+          "sonda": 6,
+          "dictamen": "CORRECTO",
+          "por_que": "El estado final coincide con las reglas: p1 y p3 con cantidad 1, p2 eliminado, total 125, y no se violaron restricciones de stock ni de botones."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 49.6,
+      "backend": {
+        "t": "2026-07-29T16:56:05",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__full__r1",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial del tablero\",\"acciones\":[],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta t1 de todo a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t1 de doing a done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t1 de done a right (no debe avanzar)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta t1 de done a left a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Llenar columna doing y probar límite WIP\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Mover tarjeta t1 de todo a doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo 3\n\nTarea t1\n\n←\n→\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 0",
+                  "Done 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo 2\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 1\n\nTarea t1\n\n←\n→",
+                  "Done 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n\n←\n→",
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→",
+                  "Tarea t1\n\n←\n→"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Intentar mover tarjeta t1 de doing a done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo 3\n\nTarea t1\n\n←\n→\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 0",
+                  "Done 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo 2\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 1\n\nTarea t1\n\n←\n→",
+                  "Done 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n\n←\n→",
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→",
+                  "Tarea t1\n\n←\n→"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Intentar mover tarjeta t1 de done a right (no debe avanzar)",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo 3\n\nTarea t1\n\n←\n→\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 0",
+                  "Done 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo 2\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 1\n\nTarea t1\n\n←\n→",
+                  "Done 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n\n←\n→",
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→",
+                  "Tarea t1\n\n←\n→"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Mover tarjeta t1 de done a left a doing",
+          "acciones_ok": [
+            "click '.menos'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo 3\n\nTarea t1\n\n←\n→\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 0",
+                  "Done 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo 3\n\nTarea t1\n\n←\n→\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 0",
+                  "Done 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n\n←\n→",
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n\n←\n→",
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Llenar columna doing y probar límite WIP",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo 3\n\nTarea t1\n\n←\n→\n\nTarea t2\n\n←\n→\n\nTarea t3\n\n←\n→",
+                  "Doing 0",
+                  "Done 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo 1\n\nTarea t2\n\n←\n→",
+                  "Doing 1\n\nTarea t1\n\n←\n→",
+                  "Done 1\n\nTarea t3\n\n←\n→"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n\n←\n→",
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t3\n\n←\n→"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t2\n\n←\n→",
+                  "Tarea t1\n\n←\n→",
+                  "Tarea t3\n\n←\n→"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 3882,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla implícita de que una tarjeta en la columna Doing puede avanzar a Done no se cumplió; el observador muestra que t1 permanece en Doing tras el clic.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla de que una tarjeta en Done puede retroceder a Doing no se cumplió; t1 sigue en Done tras el clic.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla WIP que limita la columna Doing a 2 tarjetas se violó; el tercer clic movió t3 a Done en lugar de impedir el movimiento.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla implícita de que una tarjeta en la columna Doing puede avanzar a Done no se cumplió; el observador muestra que t1 permanece en Doing tras el clic."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla de que una tarjeta en Done puede retroceder a Doing no se cumplió; t1 sigue en Done tras el clic."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla WIP que limita la columna Doing a 2 tarjetas se violó; el tercer clic movió t3 a Done en lugar de impedir el movimiento."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 22.3,
+      "ctrl_veredicto": false,
+      "ctrl_motivo": "sin contrato usable (M3)",
+      "ctrl_segundos": 3.7,
+      "backend": {
+        "t": "2026-07-29T16:56:37",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__crudo__r1",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 14.6,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial: 3 tarjetas en todo, 0 en doing y done\",\"acciones\":[],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover una tarjeta de todo a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta de todo a doing cuando doing ya tiene 2 tarjetas (WIP limit)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta de doing a done y luego intentar avanzar más (no debe avanzar)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta de done a doing y luego intentar retroceder a todo (no debe retroceder)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":2}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Secuencia larga: mover todas las tarjetas de todo a doing, luego a done, luego intentar mover una más allá de done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Mover una tarjeta de todo a doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt2\n→ ←\nt3\n→ ←\n2",
+                  "Doing\nt1\n→ ←\n1",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n→ ←",
+                  "t3\n→ ←",
+                  "t1\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Intentar mover tarjeta de todo a doing cuando doing ya tiene 2 tarjetas (WIP limit)",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt3\n→ ←\n1",
+                  "Doing\nt1\n→ ←\nt2\n→ ←\n2",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t3\n→ ←",
+                  "t1\n→ ←",
+                  "t2\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Mover tarjeta de doing a done y luego intentar avanzar más (no debe avanzar)",
+          "acciones_ok": [
+            "click '.mas'[1]: OK",
+            "click '.mas'[1]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n→ ←\n1",
+                  "Doing\nt2\n→ ←\nt3\n→ ←\n2",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Mover tarjeta de done a doing y luego intentar retroceder a todo (no debe retroceder)",
+          "acciones_ok": [
+            "click '.menos'[2]: OK",
+            "click '.menos'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Secuencia larga: mover todas las tarjetas de todo a doing, luego a done, luego intentar mover una más allá de done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK",
+            "click '.mas'[0]: OK",
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK",
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n0",
+                  "Doing\n0",
+                  "Done\nt3\n→ ←\nt2\n→ ←\nt1\n→ ←\n3"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t3\n→ ←",
+                  "t2\n→ ←",
+                  "t1\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 3734,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El movimiento de t1 de Todo a Doing se realizó correctamente, los contadores y la disposición de tarjetas cumplen con las reglas del enunciado.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"Solo se movieron dos tarjetas a Doing, respetando el límite WIP de 2; la tercera no se movió, tal como exige la regla.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"Se movió una tarjeta de Doing a Done y el intento de moverla nuevamente no cambió su posición, cumpliendo la regla de que una tarjeta en Done no puede avanzar.\"},{\"sonda\":4,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"El selector '.menos[2]' no corresponde a ningún elemento existente en el estado inicial, por lo que no se puede determinar si la regla se viola o no.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Todas las tarjetas fueron movidas de Todo a Doing y luego a Done, y el intento de mover una más allá de Done no ocurrió, cumpliendo las reglas establecidas.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El movimiento de t1 de Todo a Doing se realizó correctamente, los contadores y la disposición de tarjetas cumplen con las reglas del enunciado."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "Solo se movieron dos tarjetas a Doing, respetando el límite WIP de 2; la tercera no se movió, tal como exige la regla."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "Se movió una tarjeta de Doing a Done y el intento de moverla nuevamente no cambió su posición, cumpliendo la regla de que una tarjeta en Done no puede avanzar."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "El selector '.menos[2]' no corresponde a ningún elemento existente en el estado inicial, por lo que no se puede determinar si la regla se viola o no."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Todas las tarjetas fueron movidas de Todo a Doing y luego a Done, y el intento de mover una más allá de Done no ocurrió, cumpliendo las reglas establecidas."
+        }
+      ],
+      "veredicto_marco": true,
+      "segundos": 26.1,
+      "backend": {
+        "t": "2026-07-29T16:57:14",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__crudo__r1",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"ver estado inicial sin celdas abiertas\",\"acciones\":[],\"observar\":[\".c\"]},{\"nombre\":\"abrir celda con 0 minas adyacentes y cascada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0}],\"observar\":[\".c\"]},{\"nombre\":\"ver que celdas con 0 se abren y bordes se revelan\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":1}],\"observar\":[\".c\"]},{\"nombre\":\"clic derecho coloca bandera y no abre celda\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2}],\"observar\":[\".c\"]},{\"nombre\":\"clic izquierdo en celda con bandera no abre\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2}],\"observar\":[\".c\"]},{\"nombre\":\"abrir mina y mostrar mensaje de pérdida\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6}],\"observar\":[\"#estado\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "abrir celda con 0 minas adyacentes y cascada",
+          "acciones_ok": [
+            "click '.c'[0]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "ver que celdas con 0 se abren y bordes se revelan",
+          "acciones_ok": [
+            "click '.c'[1]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "1",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "clic derecho coloca bandera y no abre celda",
+          "acciones_ok": [
+            "click '.c'[2]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "clic izquierdo en celda con bandera no abre",
+          "acciones_ok": [
+            "click '.c'[2]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "abrir mina y mostrar mensaje de pérdida",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 920,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"El clic derecho debe colocar una bandera y no revelar el número; se observó que la celda muestra '1' tras la acción.\"},{\"sonda\":4,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se puede determinar si la celda estaba marcada con bandera, ya que el estado no indica la clase 'bandera'.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "El clic derecho debe colocar una bandera y no revelar el número; se observó que la celda muestra '1' tras la acción."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se puede determinar si la celda estaba marcada con bandera, ya que el estado no indica la clase 'bandera'."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 19.2,
+      "ctrl_veredicto": false,
+      "ctrl_motivo": "sin contrato usable (M3)",
+      "ctrl_segundos": 4.0,
+      "backend": {
+        "t": "2026-07-29T16:57:40",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__full__r1",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 9,
+      "ctrl_segundos": 9.2,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"estado inicial sin celdas abiertas\",\"acciones\":[],\"observar\":[\".c\"]},{\"nombre\":\"revelar celda con 0 minas adyacentes abre cascada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0}],\"observar\":[\".c\"]},{\"nombre\":\"revelar celda con minas adyacentes muestra número\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6}],\"observar\":[\".c\"]},{\"nombre\":\"click derecho coloca bandera y no abre celda\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":12,\"boton\":\"right\"}],\"observar\":[\".c\"]},{\"nombre\":\"revelar mina muestra estado perdido\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":18}],\"observar\":[\"#estado\"]},{\"nombre\":\"cascada no abre celdas con bandera\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":12,\"boton\":\"right\"},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":1}],\"observar\":[\".c\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "revelar celda con 0 minas adyacentes abre cascada",
+          "acciones_ok": [
+            "click '.c'[0]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "revelar celda con minas adyacentes muestra número",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "click derecho coloca bandera y no abre celda",
+          "acciones_ok": [
+            "click '.c'[12]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "revelar mina muestra estado perdido",
+          "acciones_ok": [
+            "click '.c'[18]: OK"
+          ],
+          "observado": {
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "cascada no abre celdas con bandera",
+          "acciones_ok": [
+            "click '.c'[0]: OK",
+            "click '.c'[12]: OK",
+            "click '.c'[1]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "1",
+                  "1",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 971,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla \\\"si se abre una celda con 0 minas adyacentes, se abren también en cascada todas sus vecinas con 0\\\" se viola: el resultado muestra '1' en la celda 0, indicando que no se abrió la cascada ni se reveló 0.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla \\\"si se abre una celda con una mina, el elemento #estado debe mostrar 'perdiste'\\\" se viola: no hubo cambio en #estado tras hacer click en la celda 6.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla \\\"click derecho coloca una bandera (clase 'bandera') y una celda con bandera no se abre al hacer click\\\" se viola: no se observó la clase 'bandera' en la celda 12 tras la acción.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"La regla se cumplió: al hacer click en la celda 18, #estado muestra 'perdiste'.\"},{\"sonda\":5,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se puede determinar si la cascada evitó abrir celdas con bandera, ya que la acción no especifica que se haya colocado una bandera en la celda 12 y el resultado no muestra la clase 'bandera'.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla \"si se abre una celda con 0 minas adyacentes, se abren también en cascada todas sus vecinas con 0\" se viola: el resultado muestra '1' en la celda 0, indicando que no se abrió la cascada ni se"
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla \"si se abre una celda con una mina, el elemento #estado debe mostrar 'perdiste'\" se viola: no hubo cambio en #estado tras hacer click en la celda 6."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla \"click derecho coloca una bandera (clase 'bandera') y una celda con bandera no se abre al hacer click\" se viola: no se observó la clase 'bandera' en la celda 12 tras la acción."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "La regla se cumplió: al hacer click en la celda 18, #estado muestra 'perdiste'."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se puede determinar si la cascada evitó abrir celdas con bandera, ya que la acción no especifica que se haya colocado una bandera en la celda 12 y el resultado no muestra la clase 'bandera'."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 22.7,
+      "backend": {
+        "t": "2026-07-29T16:58:07",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__full__r2",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial de todas las celdas\",\"acciones\":[],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar valor numérico en A1 y verificar que se muestra\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"5\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar fórmula en B1 que depende de A1 y verificar cálculo\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=A1+3\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Cambiar A1 y verificar cascada de recalculo en B1\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"10\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Crear referencia circular C1->B1->C1 y verificar texto CIRC\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"=B1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=C1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Verificar que al cambiar A1 no se actualiza C1 con referencia circular\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"7\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Ingresar valor numérico en A1 y verificar que se muestra",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "5",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Ingresar fórmula en B1 que depende de A1 y verificar cálculo",
+          "acciones_ok": [
+            "escribir '=A1+3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Cambiar A1 y verificar cascada de recalculo en B1",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Crear referencia circular C1->B1->C1 y verificar texto CIRC",
+          "acciones_ok": [
+            "escribir '=B1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=C1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "0",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Verificar que al cambiar A1 no se actualiza C1 con referencia circular",
+          "acciones_ok": [
+            "escribir '7' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "7",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1279,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El valor ingresado en A1 se muestra correctamente.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La celda B1 muestra \\\"CIRC\\\" aunque la fórmula =A1+3 no forma un ciclo; debería mostrar 8.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al cambiar A1 a 10, B1 no se recalcula y sigue mostrando \\\"CIRC\\\" en lugar de 13.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al crear la referencia circular, la celda C1 muestra 0 en lugar de \\\"CIRC\\\".\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al cambiar A1 a 7, la celda C1 no se actualiza, manteniendo su valor de 0, lo cual es correcto para una referencia circular.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El valor ingresado en A1 se muestra correctamente."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "La celda B1 muestra \"CIRC\" aunque la fórmula =A1+3 no forma un ciclo; debería mostrar 8."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al cambiar A1 a 10, B1 no se recalcula y sigue mostrando \"CIRC\" en lugar de 13."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al crear la referencia circular, la celda C1 muestra 0 en lugar de \"CIRC\"."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Al cambiar A1 a 7, la celda C1 no se actualiza, manteniendo su valor de 0, lo cual es correcto para una referencia circular."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 23.3,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 7.6,
+      "backend": {
+        "t": "2026-07-29T16:58:39",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__full__r2",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 7.9,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial del tablero\",\"acciones\":[],\"observar\":[\".col\",\".card\",\".mas\",\".menos\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta t1 de todo a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t1 de doing a done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t1 de done a right (no debe avanzar)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t2 de todo a doing cuando doing ya tiene 2 tarjetas (no debe avanzar)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta t1 de done a left (retroceder a doing) y luego a left a todo\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Mover tarjeta t1 de todo a doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 3\nTarea t1\n→\n←\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 0",
+                  "Hecho 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 2\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 1\nTarea t1\n→\n←",
+                  "Hecho 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n→\n←",
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←",
+                  "Tarea t1\n→\n←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Intentar mover tarjeta t1 de doing a done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 3\nTarea t1\n→\n←\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 0",
+                  "Hecho 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 2\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 1\nTarea t1\n→\n←",
+                  "Hecho 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n→\n←",
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←",
+                  "Tarea t1\n→\n←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Intentar mover tarjeta t1 de done a right (no debe avanzar)",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 3\nTarea t1\n→\n←\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 0",
+                  "Hecho 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 2\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 1\nTarea t1\n→\n←",
+                  "Hecho 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n→\n←",
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←",
+                  "Tarea t1\n→\n←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Intentar mover tarjeta t2 de todo a doing cuando doing ya tiene 2 tarjetas (no debe avanzar)",
+          "acciones_ok": [
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 3\nTarea t1\n→\n←\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 0",
+                  "Hecho 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 2\nTarea t1\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 0",
+                  "Hecho 1\nTarea t2\n→\n←"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n→\n←",
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n→\n←",
+                  "Tarea t3\n→\n←",
+                  "Tarea t2\n→\n←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Mover tarjeta t1 de done a left (retroceder a doing) y luego a left a todo",
+          "acciones_ok": [
+            "click '.menos'[0]: OK",
+            "click '.menos'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 3\nTarea t1\n→\n←\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 0",
+                  "Hecho 0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Pendiente 3\nTarea t1\n→\n←\nTarea t2\n→\n←\nTarea t3\n→\n←",
+                  "En Progreso 0",
+                  "Hecho 0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n→\n←",
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Tarea t1\n→\n←",
+                  "Tarea t2\n→\n←",
+                  "Tarea t3\n→\n←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 3911,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Ninguna regla violada.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"Ninguna regla violada.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla: Una tarjeta en done no puede avanzar más; observación: la tarjeta t1 se movió de done a doing.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla: doing admite máximo 2 tarjetas; si está llena, el botón mas de las tarjetas de todo no hace nada; observación: la tarjeta t2 se movió de todo a done aunque doing ya tenía 2 tarjetas.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Ninguna regla violada.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Ninguna regla violada."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "Ninguna regla violada."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla: Una tarjeta en done no puede avanzar más; observación: la tarjeta t1 se movió de done a doing."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla: doing admite máximo 2 tarjetas; si está llena, el botón mas de las tarjetas de todo no hace nada; observación: la tarjeta t2 se movió de todo a done aunque doing ya tenía 2 tarjetas."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Ninguna regla violada."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 23.3,
+      "backend": {
+        "t": "2026-07-29T16:59:09",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__full__r2",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"estado inicial sin cambios\",\"acciones\":[],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"revelar celda con 0 minas adyacentes y cascada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"revelar celda con minas adyacentes (no 0)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":1}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"clic derecho coloca bandera y evita apertura\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"revelar mina y mostrar estado perdido\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"cascada larga con múltiples 0 y borde\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":3},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":4},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":5}],\"observar\":[\".c\",\"#estado\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "revelar celda con 0 minas adyacentes y cascada",
+          "acciones_ok": [
+            "click '.c'[0]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "revelar celda con minas adyacentes (no 0)",
+          "acciones_ok": [
+            "click '.c'[1]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "1",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "clic derecho coloca bandera y evita apertura",
+          "acciones_ok": [
+            "click '.c'[2]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "revelar mina y mostrar estado perdido",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "cascada larga con múltiples 0 y borde",
+          "acciones_ok": [
+            "click '.c'[3]: OK",
+            "click '.c'[4]: OK",
+            "click '.c'[5]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1377,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla 1: al hacer click en una celda con 0 minas adyacentes, se debe revelar sin número. Se observó que la celda 0 mostró \\\"1\\\".\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"La celda 1 mostró \\\"1\\\" y no violó ninguna regla.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla 3: click derecho coloca una bandera (clase 'bandera') y una celda con bandera no se abre. Se observó que la celda 2 mostró \\\"1\\\" en lugar de una bandera.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al abrir la mina en la celda 6, el estado mostró \\\"perdiste\\\" cumpliendo la regla 4.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla 1: al abrir una celda con 0 minas adyacentes, se deben abrir en cascada todas sus vecinas con 0 y los bordes. Se observaron solo 3 celdas abiertas, no la cascada esperada.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla 1: al hacer click en una celda con 0 minas adyacentes, se debe revelar sin número. Se observó que la celda 0 mostró \"1\"."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "La celda 1 mostró \"1\" y no violó ninguna regla."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla 3: click derecho coloca una bandera (clase 'bandera') y una celda con bandera no se abre. Se observó que la celda 2 mostró \"1\" en lugar de una bandera."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "Al abrir la mina en la celda 6, el estado mostró \"perdiste\" cumpliendo la regla 4."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla 1: al abrir una celda con 0 minas adyacentes, se deben abrir en cascada todas sus vecinas con 0 y los bordes. Se observaron solo 3 celdas abiertas, no la cascada esperada."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 20.4,
+      "ctrl_veredicto": false,
+      "ctrl_motivo": "sin contrato usable (M3)",
+      "ctrl_segundos": 4.0,
+      "backend": {
+        "t": "2026-07-29T16:59:38",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__full__r3",
+      "banco": false,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial de la grilla\",\"acciones\":[],\"observar\":[\".celda\"]},{\"nombre\":\"Ingresar valor numérico en A1 y verificar que otras celdas no cambian\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"5\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Crear fórmula en B1 que dependa de A1 y comprobar cálculo\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":1,\"texto\":\"=A1+3\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Cambiar A1 y verificar cascada de recalculo en B1 y C1\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"10\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"=B1+2\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Crear referencia circular entre C1 y A1 y verificar mensaje CIRC\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"=C1+1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":2,\"texto\":\"=A1+1\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"Verificar que al borrar contenido de A1 se actualizan dependientes y se muestra vacío\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"indice\":0,\"texto\":\"\"},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Ingresar valor numérico en A1 y verificar que otras celdas no cambian",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "5",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Crear fórmula en B1 que dependa de A1 y comprobar cálculo",
+          "acciones_ok": [
+            "escribir '=A1+3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Cambiar A1 y verificar cascada de recalculo en B1 y C1",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=B1+2' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "2",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Crear referencia circular entre C1 y A1 y verificar mensaje CIRC",
+          "acciones_ok": [
+            "escribir '=C1+1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=A1+1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Verificar que al borrar contenido de A1 se actualizan dependientes y se muestra vacío",
+          "acciones_ok": [
+            "escribir '' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1385,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El valor de A1 se actualiza a 5 y las demás celdas permanecen vacías, cumpliendo la regla de que solo la celda modificada cambia.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al introducir '=A1+3' en B1, el valor mostrado en A1 se convierte en 'CIRC' en lugar de calcular 8, violando la regla de que las fórmulas deben mostrar su resultado numérico.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Después de cambiar A1 a 10 y establecer '=B1+2' en C1, el valor mostrado en A1 es '2' en vez de 10, lo que infringe la regla de que la celda modificada debe reflejar su nuevo valor.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al crear referencias circulares entre C1 y A1, el valor de A1 se muestra como 'CIRC', cumpliendo la regla que indica que las celdas implicadas deben mostrar 'CIRC'.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al borrar el contenido de A1, las celdas dependientes se actualizan y quedan vacías, conforme a la regla de que se debe mostrar vacío cuando la referencia está vacía.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El valor de A1 se actualiza a 5 y las demás celdas permanecen vacías, cumpliendo la regla de que solo la celda modificada cambia."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al introducir '=A1+3' en B1, el valor mostrado en A1 se convierte en 'CIRC' en lugar de calcular 8, violando la regla de que las fórmulas deben mostrar su resultado numérico."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Después de cambiar A1 a 10 y establecer '=B1+2' en C1, el valor mostrado en A1 es '2' en vez de 10, lo que infringe la regla de que la celda modificada debe reflejar su nuevo valor."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "Al crear referencias circulares entre C1 y A1, el valor de A1 se muestra como 'CIRC', cumpliendo la regla que indica que las celdas implicadas deben mostrar 'CIRC'."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Al borrar el contenido de A1, las celdas dependientes se actualizan y quedan vacías, conforme a la regla de que se debe mostrar vacío cuando la referencia está vacía."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 24.3,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 7.9,
+      "backend": {
+        "t": "2026-07-29T17:00:07",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__full__r3",
+      "banco": false,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial del tablero\",\"acciones\":[],\"observar\":[\".col\",\".card\",\".mas\",\".menos\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta t1 de todo a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\"]},{\"nombre\":\"Intentar mover tarjeta t1 de doing a done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar retroceder tarjeta t1 de done a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Llenar columna doing con 2 tarjetas y probar límite\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2}],\"observar\":[\".col\",\".card\",\"#cont-doing\"]},{\"nombre\":\"Secuencia larga: mover t1 a done, t2 a doing, t3 a doing, intentar mover t3 a done cuando doing ya tiene 2\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Mover tarjeta t1 de todo a doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo (4)\nt1\n>\n<\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (1)"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo (3)\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (2)\nt1\n>\n<",
+                  "Hecho (1)"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n>\n<",
+                  "t2\n>\n<",
+                  "t3\n>\n<"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n>\n<",
+                  "t3\n>\n<",
+                  "t1\n>\n<"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "4"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Intentar mover tarjeta t1 de doing a done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo (4)\nt1\n>\n<\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (1)"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo (3)\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (2)\nt1\n>\n<",
+                  "Hecho (1)"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n>\n<",
+                  "t2\n>\n<",
+                  "t3\n>\n<"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n>\n<",
+                  "t3\n>\n<",
+                  "t1\n>\n<"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Intentar retroceder tarjeta t1 de done a doing",
+          "acciones_ok": [
+            "click '.menos'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo (4)\nt1\n>\n<\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (1)"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo (4)\nt1\n>\n<\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (1)"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n>\n<",
+                  "t2\n>\n<",
+                  "t3\n>\n<"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t1\n>\n<",
+                  "t2\n>\n<",
+                  "t3\n>\n<"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Llenar columna doing con 2 tarjetas y probar límite",
+          "acciones_ok": [
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo (4)\nt1\n>\n<\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (1)"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo (3)\nt1\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (2)\nt2\n>\n<"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n>\n<",
+                  "t2\n>\n<",
+                  "t3\n>\n<"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t1\n>\n<",
+                  "t3\n>\n<",
+                  "t2\n>\n<"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Secuencia larga: mover t1 a done, t2 a doing, t3 a doing, intentar mover t3 a done cuando doing ya tiene 2",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK",
+            "click '.mas'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo (4)\nt1\n>\n<\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (1)"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo (3)\nt2\n>\n<\nt3\n>\n<",
+                  "En Progreso (1)",
+                  "Hecho (2)\nt1\n>\n<"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n>\n<",
+                  "t2\n>\n<",
+                  "t3\n>\n<"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n>\n<",
+                  "t3\n>\n<",
+                  "t1\n>\n<"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "4"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 3187,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Los contadores y la posición de las tarjetas coinciden con la descripción del enunciado.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"El card t1 no se movió de la columna En Progreso a Hecho; cont-doing sigue en 2 y cont-done en 1, violando la regla de que una tarjeta en En Progreso puede avanzar a Hecho.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"El card t1 no se movió de Hecho a En Progreso; cont-doing y cont-done permanecen sin cambios, violando la regla que permite retroceder una tarjeta de Hecho a En Progreso.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al intentar mover t3 a En Progreso cuando ya había 2 tarjetas, la tarjeta no se movió y Hecho muestra 2 tarjetas, lo que indica un comportamiento incorrecto respecto a la regla WIP de máximo 2 en En Progreso.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Todas las tarjetas se movieron según las reglas, y al intentar mover t3 a Hecho cuando En Progreso ya tenía 2 tarjetas, la acción fue bloqueada correctamente, cumpliendo la regla WIP.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Los contadores y la posición de las tarjetas coinciden con la descripción del enunciado."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "El card t1 no se movió de la columna En Progreso a Hecho; cont-doing sigue en 2 y cont-done en 1, violando la regla de que una tarjeta en En Progreso puede avanzar a Hecho."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "El card t1 no se movió de Hecho a En Progreso; cont-doing y cont-done permanecen sin cambios, violando la regla que permite retroceder una tarjeta de Hecho a En Progreso."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al intentar mover t3 a En Progreso cuando ya había 2 tarjetas, la tarjeta no se movió y Hecho muestra 2 tarjetas, lo que indica un comportamiento incorrecto respecto a la regla WIP de máximo 2 en En P"
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Todas las tarjetas se movieron según las reglas, y al intentar mover t3 a Hecho cuando En Progreso ya tenía 2 tarjetas, la acción fue bloqueada correctamente, cumpliendo la regla WIP."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 25.0,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 9,
+      "ctrl_segundos": 9.7,
+      "backend": {
+        "t": "2026-07-29T17:00:40",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__crudo__r3",
+      "banco": false,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 8.5,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial del tablero\",\"acciones\":[],\"observar\":[\".col\",\".card\",\".mas\",\".menos\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta t1 de todo a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t1 de doing a done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t1 de done a más allá de done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Intentar mover tarjeta t2 de todo a doing cuando doing ya tiene 2 tarjetas\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"Mover tarjeta t3 de todo a doing y luego retroceder a todo\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":2}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Mover tarjeta t1 de todo a doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n3\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n2\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n1\nt1\n→ ←",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n→ ←",
+                  "t3\n→ ←",
+                  "t1\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Intentar mover tarjeta t1 de doing a done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n3\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n2\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n1\nt1\n→ ←",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n→ ←",
+                  "t3\n→ ←",
+                  "t1\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Intentar mover tarjeta t1 de done a más allá de done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n3\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n2\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n1\nt1\n→ ←",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n→ ←",
+                  "t3\n→ ←",
+                  "t1\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Intentar mover tarjeta t2 de todo a doing cuando doing ya tiene 2 tarjetas",
+          "acciones_ok": [
+            "click '.mas'[1]: OK",
+            "click '.mas'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n3\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n2\nt1\n→ ←\nt3\n→ ←",
+                  "Doing\n0",
+                  "Done\n1\nt2\n→ ←"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t3\n→ ←",
+                  "t2\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Mover tarjeta t3 de todo a doing y luego retroceder a todo",
+          "acciones_ok": [
+            "click '.mas'[2]: OK",
+            "click '.menos'[2]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n3\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\n3\nt1\n→ ←\nt2\n→ ←\nt3\n→ ←",
+                  "Doing\n0",
+                  "Done\n0"
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t1\n→ ←",
+                  "t2\n→ ←",
+                  "t3\n→ ←"
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 3358,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Ninguna regla explícita violada; los contadores y posiciones cambian según lo esperado.\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla: tarjeta en Doing debe poder avanzar a Done; observado que después de click el card t1 sigue en Doing y los contadores no cambian.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"Regla: tarjeta en Done no puede avanzar más; observado que el click no cambia la posición ni los contadores.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla WIP: Doing admite máximo 2 tarjetas; si está llena, el botón mas no hace nada; observado que t2 se movió a Done en lugar de quedarse en Todo.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Regla: tarjeta en Todo debe poder avanzar a Doing y luego retroceder; observado que después de los clicks el card t3 permanece en Todo y los contadores no cambian.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Ninguna regla explícita violada; los contadores y posiciones cambian según lo esperado."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla: tarjeta en Doing debe poder avanzar a Done; observado que después de click el card t1 sigue en Doing y los contadores no cambian."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "Regla: tarjeta en Done no puede avanzar más; observado que el click no cambia la posición ni los contadores."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla WIP: Doing admite máximo 2 tarjetas; si está llena, el botón mas no hace nada; observado que t2 se movió a Done en lugar de quedarse en Todo."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "Regla: tarjeta en Todo debe poder avanzar a Doing y luego retroceder; observado que después de los clicks el card t3 permanece en Todo y los contadores no cambian."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 22.0,
+      "backend": {
+        "t": "2026-07-29T17:01:13",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__full__r3",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial sin ninguna celda abierta\",\"acciones\":[],\"observar\":[\".c\"]},{\"nombre\":\"Abrir una celda con minas adyacentes (celda 0)\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"Abrir una celda con 0 minas adyacentes (celda 1) y cascada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":1}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"Colocar bandera en una celda y verificar que no se abre al hacer click\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2,\"key\":\"contextmenu\"},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"Abrir una celda que contiene una mina (celda 6) y verificar mensaje de pérdida\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6}],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"Secuencia larga: abrir varias celdas, colocar banderas, y verificar que el estado no retrocede\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":3},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":4},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":5},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":7,\"key\":\"contextmenu\"},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":8},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":9}],\"observar\":[\".c\",\"#estado\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Abrir una celda con minas adyacentes (celda 0)",
+          "acciones_ok": [
+            "click '.c'[0]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Abrir una celda con 0 minas adyacentes (celda 1) y cascada",
+          "acciones_ok": [
+            "click '.c'[1]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "1",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Colocar bandera en una celda y verificar que no se abre al hacer click",
+          "acciones_ok": [
+            "click '.c'[2]: OK",
+            "click '.c'[2]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Abrir una celda que contiene una mina (celda 6) y verificar mensaje de pérdida",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Secuencia larga: abrir varias celdas, colocar banderas, y verificar que el estado no retrocede",
+          "acciones_ok": [
+            "click '.c'[3]: OK",
+            "click '.c'[4]: OK",
+            "click '.c'[5]: OK",
+            "click '.c'[7]: OK",
+            "click '.c'[8]: OK",
+            "click '.c'[9]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "1",
+                  "",
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1630,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":2,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La celda 1 debe mostrar el número de minas adyacentes (2) pero se mostró 1, violando la regla de conteo de minas\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al hacer dos clics en la celda 2 se mostró el número 1 en lugar de colocar una bandera; además el número mostrado es incorrecto (debe ser 2) y la celda con bandera no se abrió, violando la regla de bandera\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 2,
+          "dictamen": "INCORRECTO",
+          "por_que": "La celda 1 debe mostrar el número de minas adyacentes (2) pero se mostró 1, violando la regla de conteo de minas"
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al hacer dos clics en la celda 2 se mostró el número 1 en lugar de colocar una bandera; además el número mostrado es incorrecto (debe ser 2) y la celda con bandera no se abrió, violando la regla de ba"
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 23.2,
+      "ctrl_veredicto": false,
+      "ctrl_motivo": "sin contrato usable (M3)",
+      "ctrl_segundos": 6.0,
+      "backend": {
+        "t": "2026-07-29T17:01:43",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__crudo__r3",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 9.1,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"estado inicial sin cambios\",\"acciones\":[],\"observar\":[\".c\",\"#estado\"]},{\"nombre\":\"revelar celda con minas adyacentes\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":5}],\"observar\":[\".c[data-i='5']\",\"#estado\"]},{\"nombre\":\"revelar celda sin minas adyacentes y cascada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0}],\"observar\":[\".c[data-i='0']\",\".c[data-i='1']\",\".c[data-i='5']\",\".c[data-i='6']\",\"#estado\"]},{\"nombre\":\"clic derecho coloca bandera y no abre\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6,\"tecla\":\"contextmenu\"}],\"observar\":[\".c[data-i='6']\",\"#estado\"]},{\"nombre\":\"intentar abrir celda con bandera\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6}],\"observar\":[\".c[data-i='6']\",\"#estado\"]},{\"nombre\":\"abrir celda con mina y perder\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":12}],\"observar\":[\".c[data-i='12']\",\"#estado\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "revelar celda con minas adyacentes",
+          "acciones_ok": [
+            "click '.c'[5]: OK"
+          ],
+          "observado": {
+            ".c[data-i='5']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "revelar celda sin minas adyacentes y cascada",
+          "acciones_ok": [
+            "click '.c'[0]: OK"
+          ],
+          "observado": {
+            ".c[data-i='0']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ]
+              }
+            },
+            ".c[data-i='1']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            },
+            ".c[data-i='5']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            },
+            ".c[data-i='6']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "clic derecho coloca bandera y no abre",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            ".c[data-i='6']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "💣"
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "intentar abrir celda con bandera",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            ".c[data-i='6']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "💣"
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "abrir celda con mina y perder",
+          "acciones_ok": [
+            "click '.c'[12]: OK"
+          ],
+          "observado": {
+            ".c[data-i='12']": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "💣"
+                ]
+              }
+            },
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 1453,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"Observado número 1 en la celda 5, cumpliendo la regla de mostrar minas adyacentes.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"Celda 0 mostró 1, no se activó cascada, cumpliendo la regla de no abrir si no es 0.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al colocar bandera en la celda 6 (mina) el estado cambió a 'perdiste', violando la regla de que marcar con bandera no debe perder.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"Intento de abrir celda 6 con bandera no abrió la celda, cumpliendo la regla de que bandera bloquea apertura.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al abrir la celda 12 (mina) se mostró el símbolo de bandera en lugar de la mina, violando la regla de que abrir una mina debe revelar la mina y perder.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "Observado número 1 en la celda 5, cumpliendo la regla de mostrar minas adyacentes."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "Celda 0 mostró 1, no se activó cascada, cumpliendo la regla de no abrir si no es 0."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al colocar bandera en la celda 6 (mina) el estado cambió a 'perdiste', violando la regla de que marcar con bandera no debe perder."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "Intento de abrir celda 6 con bandera no abrió la celda, cumpliendo la regla de que bandera bloquea apertura."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al abrir la celda 12 (mina) se mostró el símbolo de bandera en lugar de la mina, violando la regla de que abrir una mina debe revelar la mina y perder."
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 21.2,
+      "backend": {
+        "t": "2026-07-29T17:02:11",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
     }
   ],
   "config": {
-    "piloto": true,
-    "commit": "6dd8943",
-    "n_paginas": 8,
+    "piloto": false,
+    "commit": "0f0d5a5",
+    "n_paginas": 24,
     "backend": {
       "url": "http://127.0.0.1:8080",
       "modelo": "gpt-oss-20b-MXFP4.gguf",
@@ -2482,17 +7690,17 @@
     "veredicto": "SIGUE (bloque completo)"
   },
   "resumen": {
-    "paginas": 8,
-    "con_veredicto": 7,
+    "paginas": 24,
+    "con_veredicto": 23,
     "sin_veredicto": [
       "carrito_stock__full__r3"
     ],
-    "marco_aciertos": 2,
-    "marco_fn": "5/6",
-    "marco_fp": "0/1",
-    "complacencia": "0/1",
-    "control_aciertos": "3/8",
-    "control_fn": 5,
+    "marco_aciertos": 6,
+    "marco_fn": "17/19",
+    "marco_fp": "0/4",
+    "complacencia": "0/4",
+    "control_aciertos": "6/24",
+    "control_fn": 18,
     "control_fp": 0
   }
 }
