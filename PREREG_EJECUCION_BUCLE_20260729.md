@@ -134,6 +134,20 @@ Playwright). Dos BLOQUEA + arreglos, aplicados al runner:
    y muestreo 5×60 chars — bugs invisibles a esa lente quedan fuera del
    alcance de la iteración 1.
 
+## SEGUNDA ENMIENDA (2026-07-29 ~16:15 — antes de lanzar el BLOQUE)
+
+El piloto de aptitud se corrió en la sesión matinal (08:15): **PASADO**
+(7/8 páginas con sondas ejecutadas, no degenerado, >4 con veredicto).
+Direccional del piloto (NO decide, n=8): marco 2/7, FN 5/6, control ciego
+3/8. El bloque se lanza esta tarde con `--reanudar` SIN `--piloto`: el
+corpus completo de 24 procesa las 16 páginas restantes y las 8 del piloto
+(mismo protocolo, mismo commit de runner) entran al resumen final.
+**Deriva declarada:** 8 páginas juzgadas por la mañana y 16 por la tarde
+(~8 h; deriva sistémica conocida ~20 pts/12 h). La comparación
+marco-vs-control NO se contamina (el control es concurrente POR PÁGINA,
+generado junto a su marco); la tasa absoluta del marco mezcla dos
+momentos — se reporta el desglose piloto/bloque como secundaria.
+
 ## Método
 
 - Revisión adversarial (1-2 agentes) del prereg + runner ANTES de GPU.
