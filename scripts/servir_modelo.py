@@ -20,6 +20,7 @@ Solo stdlib.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -161,6 +162,22 @@ def main() -> int:
     inicio = time.time()
     while time.time() - inicio < ESPERA_SEG:
         if responde(args.puerto):
+            # Chequeo ejecutable, no lección en prosa: /health con 4 slots
+            # silenciosos ya nos costó una corrida entera (2026-07-28, gate
+            # BoN v1: ctx/4 por slot → HTTP 500 al 50% de los prompts).
+            try:
+                with urllib.request.urlopen(
+                        f"http://127.0.0.1:{args.puerto}/props",
+                        timeout=5) as r:
+                    slots = json.loads(r.read()).get("total_slots")
+                if slots != 1:
+                    print(f"AVISO: el server reparte el contexto entre "
+                          f"{slots} slots ({args.ctx // (slots or 1)} tokens "
+                          f"c/u). Esta build ignoro --parallel 1; los "
+                          f"prompts largos van a recibir HTTP 500.",
+                          file=sys.stderr)
+            except Exception:
+                pass    # /props puede no existir en builds viejas
             print(f"Listo en {time.time() - inicio:.0f}s. "
                   f"Cognia ya lo detecta (llm_local sondea :{PUERTO}).")
             print(f"Para pararlo: taskkill /IM {exe.name} /F")
