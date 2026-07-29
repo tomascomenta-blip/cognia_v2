@@ -566,10 +566,21 @@ class Cognia:
 
             llm = _llm_de_cognia(self)
             print(f"[Construir] '{idea[:60]}' — arbitro visual dirigiendo...")
-            res = construir_para_mockup(
-                idea.strip(), llm=llm, max_rondas=max_rondas,
-                usar_mockup_imagen=usar_mockup,
-                sprites="auto" if usar_sprites else None, verbose=True)
+            # Modo BoN env-gated (COGNIA_BON_K>1 + COGNIA_BON_SELECTOR): K
+            # réplicas independientes elegidas por un contrato held-out.
+            # Medido 2026-07-28 (PREREG_BON_HELDOUT): 17/24 -> 24/24 en el
+            # banco brutal. Default (sin env) = el camino de siempre.
+            from cognia.program_creator import bon as _bon
+            if _bon.k_configurado() > 1:
+                res = _bon.construir_bon(
+                    idea.strip(), llm=llm, max_rondas=max_rondas,
+                    usar_mockup_imagen=usar_mockup,
+                    sprites="auto" if usar_sprites else None, verbose=True)
+            else:
+                res = construir_para_mockup(
+                    idea.strip(), llm=llm, max_rondas=max_rondas,
+                    usar_mockup_imagen=usar_mockup,
+                    sprites="auto" if usar_sprites else None, verbose=True)
 
             html_final = res.html_entregable()
             if not html_final:
