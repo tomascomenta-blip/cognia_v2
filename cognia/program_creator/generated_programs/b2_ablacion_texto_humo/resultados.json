@@ -1,0 +1,101 @@
+{
+  "celdas": [
+    {
+      "tarea": "kanban",
+      "brazo": "replay",
+      "rep": 1,
+      "rep_gate": 1,
+      "s_origen": 1,
+      "prompt_chars": 7696,
+      "segundos": 57.5,
+      "como": "replay",
+      "crudo_chars": 4134,
+      "backend": {
+        "t": "2026-07-29T07:02:08",
+        "via": "ablacion_texto",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "aprobado_orig": true,
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true,
+      "estricto": true,
+      "motivo": "22/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "lsinreq",
+      "rep": 1,
+      "rep_gate": 1,
+      "s_origen": 1,
+      "lineas_cortadas": 11,
+      "prompt_chars": 6373,
+      "segundos": 40.6,
+      "como": "lsinreq",
+      "crudo_chars": 4116,
+      "backend": {
+        "t": "2026-07-29T07:03:18",
+        "via": "ablacion_texto",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "aprobado_orig": false,
+      "checks_ok": 11,
+      "checks": 20,
+      "aprobado_heldout": false,
+      "estricto": false,
+      "motivo": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)"
+    }
+  ],
+  "config": {
+    "brazos": [
+      "lsinreq",
+      "replay"
+    ],
+    "replicas": 1,
+    "commit": "3473a2d",
+    "commits": [
+      "3473a2d"
+    ],
+    "backend": {
+      "url": "http://127.0.0.1:8080",
+      "modelo": "gpt-oss-20b-MXFP4.gguf",
+      "puerto": 8080,
+      "avisos": []
+    },
+    "timeout_gen_s": 400,
+    "nota": "fase 2 del fork (neto -7): L vs L-sin-troceo-REQUIRED, apareados sobre el MISMO prompt capturado"
+  },
+  "resumen": {
+    "pares": 1,
+    "neto": -1,
+    "lsinreq": "0/1",
+    "replay": "1/1",
+    "gana_lsinreq": [],
+    "gana_replay": [
+      "kanban:r1"
+    ],
+    "neto_por_tarea": {
+      "kanban": "sinREQ+0/L+1"
+    },
+    "neto_original_solo": -1,
+    "sin_html": {
+      "lsinreq": 0,
+      "replay": 0
+    },
+    "juez_colgado": {
+      "lsinreq": 0,
+      "replay": 0
+    },
+    "infra_por_brazo": {
+      "lsinreq": 0,
+      "replay": 0
+    },
+    "pares_infra_excluidos": []
+  }
+}

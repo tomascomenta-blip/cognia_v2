@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban en HTML</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --teal: #00bcd4;
+  --gray-bg: #f9f9f9;
+  --card-bg: #ffffff;
+  --text-color: #333333;
+  --border-radius: 4px;
+}
+body {
+  font-family: Arial, sans-serif;
+  background: #fafafa;
+  margin: 0;
+  padding: 1rem;
+  color: var(--text-color);
+}
+.board {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.col {
+  flex: 1;
+  min-width: 250px;
+  background: var(--gray-bg);
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  display: flex;
+  flex-direction: column;
+}
+.col-header {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+.cards {
+  flex: 1;
+}
+.card {
+  background: var(--card-bg);
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-left: 4px solid var(--teal);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-radius: var(--border-radius);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+.card button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #888;
+  margin-left: 4px;
+}
+.card button:hover {
+  color: var(--teal);
+}
+.col-footer {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 12px;
+  color: #555;
+}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo</div>
+    <div class="cards"></div>
+    <div class="col-footer">Cards: <span id="cont-todo">0</span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing</div>
+    <div class="cards"></div>
+    <div class="col-footer">Cards: <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done</div>
+    <div class="cards"></div>
+    <div class="col-footer">Cards: <span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.columns = Array.from(document.querySelectorAll('.col'));
+    this.init();
+  }
+  init() {
+    const todoCol = this.getColumn('todo');
+    ['t1', 't2', 't3'].forEach(id => {
+      const card = this.createCard(id);
+      todoCol.querySelector('.cards').appendChild(card);
+    });
+    this.updateCounters();
+    this.addEventListeners();
+  }
+  getColumn(colName) {
+    return this.columns.find(col => col.dataset.col === colName);
+  }
+  createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    const text = document.createElement('span');
+    text.textContent = 'Task ' + id;
+    const btnMinus = document.createElement('button');
+    btnMinus.className = 'menos';
+    btnMinus.textContent = '-';
+    const btnPlus = document.createElement('button');
+    btnPlus.className = 'mas';
+    btnPlus.textContent = '+';
+    card.appendChild(text);
+    card.appendChild(btnMinus);
+    card.appendChild(btnPlus);
+    return card;
+  }
+  addEventListeners() {
+    document.querySelectorAll('.card button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const card = e.target.closest('.card');
+        if (e.target.classList.contains('mas')) {
+          this.moveCard(card, 1);
+        } else if (e.target.classList.contains('menos')) {
+          this.moveCard(card, -1);
+        }
+      });
+    });
+  }
+  moveCard(card, dir) {
+    const currentCol = card.parentElement.parentElement; // .cards -> .col
+    const currentIndex = this.columns.indexOf(currentCol);
+    const targetIndex = currentIndex + dir;
+    if (targetIndex < 0 || targetIndex >= this.columns.length) return;
+    // WIP rule: if moving to doing and doing already has 2 cards
+    if (dir === 1 && this.columns[targetIndex].dataset.col === 'doing') {
+      const doingCards = this.columns[targetIndex].querySelectorAll('.card');
+      if (doingCards.length >= 2) return;
+    }
+    this.columns[targetIndex].querySelector('.cards').appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters() {
+    this.columns.forEach(col => {
+      const count = col.querySelectorAll('.card').length;
+      const colName = col.dataset.col;
+      const counterSpan = document.getElementById('cont-' + colName);
+      if (counterSpan) counterSpan.textContent = count;
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  new KanbanBoard();
+});
+</script>
+</body>
+</html>

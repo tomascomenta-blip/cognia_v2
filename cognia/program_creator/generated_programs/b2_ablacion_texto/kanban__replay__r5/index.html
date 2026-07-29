@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en HTML</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:20px;}
+  .container{display:flex;gap:20px;flex-wrap:wrap;}
+  .col{background:#fafafa;border-radius:8px;padding:10px;flex:1;min-width:200px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+  .col h2{margin-top:0;font-size:1.2em;color:#333;}
+  .card{background:#fff;border-radius:6px;padding:10px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,0.1);position:relative;}
+  .card-id{font-weight:bold;color:#555;}
+  .mas,.menos{background:#008080;color:#fff;border:none;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;position:absolute;bottom:8px;}
+  .menos{right:36px;}
+  .mas{right:8px;}
+  .mas:disabled,.menos:disabled{opacity:0.4;cursor:not-allowed;}
+  .counter{font-size:0.9em;color:#777;margin-top:5px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="card" data-id="t1">
+      <div class="card-id">t1</div>
+      <button class="menos" disabled>-</button>
+      <button class="mas">+</button>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="card-id">t2</div>
+      <button class="menos" disabled>-</button>
+      <button class="mas">+</button>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="card-id">t3</div>
+      <button class="menos" disabled>-</button>
+      <button class="mas">+</button>
+    </div>
+    <div class="counter">Contador: <span id="cont-todo"></span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="counter">Contador: <span id="cont-doing"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="counter">Contador: <span id="cont-done"></span></div>
+  </div>
+</div>
+<script>
+const maxDoing = 2;
+function updateCounters(){
+  const todo = document.querySelectorAll('[data-col="todo"] .card').length;
+  const doing = document.querySelectorAll('[data-col="doing"] .card').length;
+  const done = document.querySelectorAll('[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent = todo;
+  document.getElementById('cont-doing').textContent = doing;
+  document.getElementById('cont-done').textContent = done;
+}
+function moveCard(card, direction){
+  const currentCol = card.parentElement;
+  const colName = currentCol.dataset.col;
+  let targetColName;
+  if(direction==='right'){
+    if(colName==='todo') targetColName='doing';
+    else if(colName==='doing') targetColName='done';
+    else return; // done cannot move right
+  }else if(direction==='left'){
+    if(colName==='doing') targetColName='todo';
+    else if(colName==='todo') return; // todo cannot move left
+    else return; // done cannot move left
+  }
+  if(targetColName==='doing'){
+    const doingCards = document.querySelectorAll('[data-col="doing"] .card').length;
+    if(doingCards>=maxDoing) return;
+  }
+  const targetCol = document.querySelector('[data-col="'+targetColName+'"]');
+  targetCol.appendChild(card);
+  updateButtonStates(card);
+  updateCounters();
+}
+function updateButtonStates(card){
+  const colName = card.parentElement.dataset.col;
+  const minusBtn = card.querySelector('.menos');
+  const plusBtn = card.querySelector('.mas');
+  minusBtn.disabled = colName==='todo';
+  plusBtn.disabled = colName==='done';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.card').forEach(card=>updateButtonStates(card));
+  updateCounters();
+  document.querySelectorAll('.mas').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const card = btn.closest('.card');
+      moveCard(card,'right');
+    });
+  });
+  document.querySelectorAll('.menos').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const card = btn.closest('.card');
+      moveCard(card,'left');
+    });
+  });
+});
+</script>
+</body>
+</html>

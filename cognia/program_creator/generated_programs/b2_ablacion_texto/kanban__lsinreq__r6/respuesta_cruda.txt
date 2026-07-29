@@ -1,0 +1,110 @@
+Title: Kanban en HTML  
+Description: Un tablero kanban de tres columnas con tarjetas movibles y contadores actualizados.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en HTML</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f9f9f9;}
+  .board{display:flex;height:100vh;overflow:auto;}
+  .col{flex:1;display:flex;flex-direction:column;background:#e0f7ff;margin:1rem;border-radius:8px;padding:1rem;box-sizing:border-box;border:1px solid #cccccc;}
+  .col.doing{background:#e0ffe0;}
+  .col.done{background:#f3e5ff;}
+  .col h2{margin:0 0 0.5rem 0;font-size:1.2rem;text-transform:uppercase;color:#333;}
+  .col .counter{font-size:0.9rem;color:#666;}
+  .card{background:#fff;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:1rem;padding:0.8rem;position:relative;animation:fadeIn 0.5s ease-out;}
+  .card:last-child{margin-bottom:0;}
+  .card .title{font-size:1rem;color:#333;}
+  .card button{width:24px;height:24px;border:none;border-radius:50%;background:#ddd;color:#333;cursor:pointer;margin-left:4px;display:inline-flex;align-items:center;justify-content:center;font-size:0.8rem;}
+  .card button.mas{background:#c8e6c9;}
+  .card button.menos{background:#ffcdd2;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  @media(max-width:600px){.board{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <span class="counter" id="cont-todo"></span>
+    <div class="card" data-id="t1">
+      <div class="title">t1</div>
+      <div style="position:absolute;bottom:8px;right:8px;">
+        <button class="menos" title="Retroceder">-</button>
+        <button class="mas" title="Avanzar">+</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="title">t2</div>
+      <div style="position:absolute;bottom:8px;right:8px;">
+        <button class="menos" title="Retroceder">-</button>
+        <button class="mas" title="Avanzar">+</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="title">t3</div>
+      <div style="position:absolute;bottom:8px;right:8px;">
+        <button class="menos" title="Retroceder">-</button>
+        <button class="mas" title="Avanzar">+</button>
+      </div>
+    </div>
+  </div>
+  <div class="col doing" data-col="doing">
+    <h2>Doing</h2>
+    <span class="counter" id="cont-doing"></span>
+  </div>
+  <div class="col done" data-col="done">
+    <h2>Done</h2>
+    <span class="counter" id="cont-done"></span>
+  </div>
+</div>
+<script>
+  function updateCounters(){
+    const todo=document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doing=document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const done=document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent=todo;
+    document.getElementById('cont-doing').textContent=doing;
+    document.getElementById('cont-done').textContent=done;
+  }
+  function moveCard(card, direction){
+    const col=card.parentElement;
+    const colName=col.dataset.col;
+    let targetColName;
+    if(direction==='mas'){
+      if(colName==='todo'){
+        if(document.querySelectorAll('.col[data-col="doing"] .card').length>=2)return;
+        targetColName='doing';
+      }else if(colName==='doing'){
+        targetColName='done';
+      }else{
+        return;
+      }
+    }else if(direction==='menos'){
+      if(colName==='done'){
+        targetColName='doing';
+      }else if(colName==='doing'){
+        targetColName='todo';
+      }else{
+        return;
+      }
+    }
+    const targetCol=document.querySelector('.col[data-col="'+targetColName+'"]');
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+  document.querySelectorAll('.card button.mas').forEach(btn=>{
+    btn.addEventListener('click',function(){moveCard(this.parentElement.parentElement,'mas');});
+  });
+  document.querySelectorAll('.card button.menos').forEach(btn=>{
+    btn.addEventListener('click',function(){moveCard(this.parentElement.parentElement,'menos');});
+  });
+  updateCounters();
+</script>
+</body>
+</html>
+```

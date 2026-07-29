@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una página</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f2f2f2;
+  }
+  .container{
+    display:flex;
+    flex-direction:row;
+    justify-content:space-around;
+    padding:16px;
+    gap:16px;
+  }
+  .col{
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:4px;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:200px;
+  }
+  .col-header{
+    padding:8px;
+    font-weight:bold;
+    background:#e0e0e0;
+    border-bottom:1px solid #ddd;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .cards{
+    flex:1;
+    padding:8px;
+  }
+  .card{
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:4px;
+    padding:8px;
+    margin:8px 0;
+    position:relative;
+  }
+  .card-id{
+    font-weight:bold;
+  }
+  .card button{
+    width:24px;
+    height:24px;
+    border:none;
+    border-radius:50%;
+    background:#008080;
+    color:#fff;
+    font-size:14px;
+    cursor:pointer;
+    margin-left:4px;
+  }
+  .card button:focus{
+    outline:none;
+  }
+  .card button.menos{
+    background:#008080;
+  }
+  .card button.mas{
+    background:#008080;
+  }
+  .card button.menos:hover,
+  .card button.mas:hover{
+    background:#006666;
+  }
+  @media (max-width:600px){
+    .container{
+      flex-direction:column;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo"></span></div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing"></span></div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done"></span></div>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+  const MAX_DOING = 2;
+  const INITIAL_TODO = ['t1','t2','t3'];
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const span = document.createElement('span');
+    span.className = 'card-id';
+    span.textContent = id;
+    card.appendChild(span);
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '+';
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '-';
+
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+
+    btnMas.addEventListener('click', () => moveCard(card, 'mas'));
+    btnMenos.addEventListener('click', () => moveCard(card, 'menos'));
+
+    return card;
+  }
+
+  function moveCard(card, dir){
+    const currentCol = card.parentElement;
+    const currentData = currentCol.dataset.col;
+    let targetCol = null;
+
+    if(dir === 'mas'){
+      if(currentData === 'todo') targetCol = getCol('doing');
+      else if(currentData === 'doing') targetCol = getCol('done');
+      else return; // done cannot move right
+    }else if(dir === 'menos'){
+      if(currentData === 'done') targetCol = getCol('doing');
+      else if(currentData === 'doing') targetCol = getCol('todo');
+      else return; // todo cannot move left
+    }
+
+    if(!targetCol) return;
+
+    // WIP limit for doing
+    if(targetCol.dataset.col === 'doing' && targetCol.querySelectorAll('.card').length >= MAX_DOING){
+      return; // cannot move
+    }
+
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+
+  function getCol(colName){
+    return document.querySelector('.col[data-col="'+colName+'"] .cards');
+  }
+
+  function updateCounters(){
+    document.getElementById('cont-todo').textContent = getCol('todo').querySelectorAll('.card').length;
+    document.getElementById('cont-doing').textContent = getCol('doing').querySelectorAll('.card').length;
+    document.getElementById('cont-done').textContent = getCol('done').querySelectorAll('.card').length;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const todoCards = getCol('todo');
+    INITIAL_TODO.forEach(id => todoCards.appendChild(createCard(id)));
+    updateCounters();
+  });
+</script>
+</body>
+</html>

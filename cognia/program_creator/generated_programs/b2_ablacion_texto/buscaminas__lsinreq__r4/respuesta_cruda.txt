@@ -1,0 +1,179 @@
+Title: Minesweeper  
+Description: A 5×5 Minesweeper grid with fixed mines, click to reveal, right‑click to flag, and a loss message.  
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+    margin:0;
+  }
+  #header{
+    text-align:center;
+    margin-bottom:10px;
+  }
+  #header h1{
+    margin:0;
+    font-size:1.8rem;
+    font-weight:bold;
+  }
+  #status{
+    margin-top:4px;
+    font-size:0.9rem;
+    color:#555;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:300px;
+  }
+  .c{
+    aspect-ratio:1;
+    background:#444;
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.4rem;
+    font-weight:bold;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#ddd;
+    color:#000;
+    cursor:default;
+  }
+  .c.bandera::after{
+    content:"⚑";
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>Minesweeper</h1>
+  <div id="status">Estado: <span id="estado"></span></div>
+</div>
+<div id="grid">
+  <!-- 25 cells with data-i 0-24 -->
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<script>
+  // Fixed mine positions
+  const mines = new Set([6,12,18]);
+
+  // Precompute neighbors for each cell
+  const neighborsMap = Array.from({length:25}, (_,i)=>getNeighbors(i));
+
+  function getNeighbors(i){
+    const r=Math.floor(i/5), c=i%5;
+    const dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+    const res=[];
+    for(const [dr,dc] of dirs){
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<5 && nc>=0 && nc<5) res.push(nr*5+nc);
+    }
+    return res;
+  }
+
+  function countAdj(i){
+    return neighborsMap[i].filter(n=>mines.has(n)).length;
+  }
+
+  function getColor(n){
+    switch(n){
+      case 1: return '#d32f2f'; // red
+      case 2: return '#1976d2'; // blue
+      case 3: return '#388e3c'; // green
+      case 4: return '#7b1fa2'; // purple
+      case 5: return '#b71c1c'; // maroon
+      case 6: return '#00695c'; // teal
+      case 7: return '#000000'; // black
+      case 8: return '#424242'; // gray
+      default: return '#000';
+    }
+  }
+
+  function openCell(i){
+    const cell=document.querySelector(`.c[data-i='${i}']`);
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    if(mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      document.getElementById('estado').textContent='perdiste';
+      return;
+    }
+    // BFS for cascade
+    const queue=[i];
+    const visited=new Set();
+    while(queue.length){
+      const cur=queue.shift();
+      if(visited.has(cur)) continue;
+      visited.add(cur);
+      const curCell=document.querySelector(`.c[data-i='${cur}']`);
+      if(curCell.classList.contains('abierta')||curCell.classList.contains('bandera')) continue;
+      const cnt=countAdj(cur);
+      curCell.classList.add('abierta');
+      if(cnt>0){
+        curCell.textContent=cnt;
+        curCell.style.color=getColor(cnt);
+      }else{
+        curCell.textContent='';
+        // enqueue neighbors
+        neighborsMap[cur].forEach(n=>{ if(!visited.has(n)) queue.push(n); });
+      }
+    }
+  }
+
+  // Event listeners
+  document.querySelectorAll('.c').forEach(cell=>{
+    cell.addEventListener('click',e=>{
+      const i=parseInt(cell.dataset.i,10);
+      if(cell.classList.contains('bandera')) return;
+      openCell(i);
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(cell.classList.contains('abierta')) return;
+      cell.classList.toggle('bandera');
+    });
+  });
+</script>
+</body>
+</html>
+```

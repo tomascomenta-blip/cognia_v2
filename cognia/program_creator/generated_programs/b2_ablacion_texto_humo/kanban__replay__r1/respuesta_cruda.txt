@@ -1,0 +1,157 @@
+Title: Kanban Simple  
+Description: Un tablero Kanban con 3 columnas y tarjetas que se mueven entre ellas.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Simple</title>
+<style>
+:root{
+  --bg:#f5f5f5;
+  --todo-bg:#f8d7da;   /* muted red */
+  --doing-bg:#d1ecf1;  /* light blue */
+  --done-bg:#d4edda;   /* green */
+  --card-bg:#fff;
+  --card-shadow:rgba(0,0,0,0.1);
+  --font:system-ui,sans-serif;
+}
+body{
+  margin:0;
+  font-family:var(--font);
+  background:var(--bg);
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  min-height:100vh;
+  padding:20px;
+}
+#board{
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
+  max-width:1200px;
+}
+.col{
+  flex:1 1 300px;
+  background:var(--card-bg);
+  border-radius:8px;
+  padding:10px;
+  box-shadow:0 2px 4px var(--card-shadow);
+  display:flex;
+  flex-direction:column;
+  min-height:400px;
+}
+.col[data-col="todo"]{background:var(--todo-bg);}
+.col[data-col="doing"]{background:var(--doing-bg);}
+.col[data-col="done"]{background:var(--done-bg);}
+.col-header{
+  font-weight:bold;
+  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.card{
+  background:var(--card-bg);
+  border-radius:6px;
+  padding:8px;
+  margin-bottom:8px;
+  box-shadow:0 1px 3px var(--card-shadow);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.card-id{font-weight:bold;}
+button{
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-size:14px;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  color:#555;
+}
+button:disabled{opacity:0.3;cursor:not-allowed;}
+@media(max-width:600px){
+  #board{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo"></span></div>
+    <div class="cards" id="cards-todo"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing"></span></div>
+    <div class="cards" id="cards-doing"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done"></span></div>
+    <div class="cards" id="cards-done"></div>
+  </div>
+</div>
+<script>
+const MAX_DOING=2;
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  card.innerHTML=`<span class="card-id">${id}</span>
+    <div>
+      <button class="menos" title="Mover a la izquierda">&#9650;</button>
+      <button class="mas" title="Mover a la derecha">&#9660;</button>
+    </div>`;
+  return card;
+}
+function init(){
+  const todo=document.getElementById('cards-todo');
+  ['t1','t2','t3'].forEach(id=>todo.appendChild(createCard(id)));
+  updateCounters();
+}
+function updateCounters(){
+  document.getElementById('cont-todo').textContent=document.querySelectorAll('#cards-todo .card').length;
+  document.getElementById('cont-doing').textContent=document.querySelectorAll('#cards-doing .card').length;
+  document.getElementById('cont-done').textContent=document.querySelectorAll('#cards-done .card').length;
+}
+function moveCard(card,direction){
+  const currentCol=card.parentElement.parentElement.dataset.col;
+  let targetCol;
+  if(direction==='right'){
+    if(currentCol==='todo'){
+      if(document.querySelectorAll('#cards-doing .card').length>=MAX_DOING)return;
+      targetCol='doing';
+    }else if(currentCol==='doing'){
+      targetCol='done';
+    }else return; // done cannot move right
+  }else if(direction==='left'){
+    if(currentCol==='doing'){
+      targetCol='todo';
+    }else if(currentCol==='done'){
+      targetCol='doing';
+    }else return; // todo cannot move left
+  }
+  const target=document.getElementById(`cards-${targetCol}`);
+  target.appendChild(card);
+  updateCounters();
+}
+document.getElementById('board').addEventListener('click',e=>{
+  if(e.target.classList.contains('mas')){
+    moveCard(e.target.closest('.card'),'right');
+  }else if(e.target.classList.contains('menos')){
+    moveCard(e.target.closest('.card'),'left');
+  }
+});
+init();
+</script>
+</body>
+</html>
+```

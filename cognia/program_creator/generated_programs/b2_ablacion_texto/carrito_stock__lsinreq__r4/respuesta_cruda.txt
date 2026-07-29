@@ -1,0 +1,140 @@
+Title: Carrito de compra con STOCK  
+Description: Un carrito de compra con stock limitado y manejo de cantidades en una sola página HTML.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f9f9f9;color:#333;}
+  .container{display:flex;flex-wrap:wrap;gap:20px;padding:20px;}
+  .products{flex:1 1 250px;}
+  .product{background:#fff;border:1px solid #ddd;border-radius:5px;padding:15px;margin-bottom:15px;}
+  .product h3{margin:0 0 10px;font-size:1.2rem;font-weight:bold;}
+  .price{font-size:1rem;margin-bottom:5px;}
+  .stock{display:inline-block;background:#008080;color:#fff;padding:2px 6px;border-radius:3px;font-size:0.9rem;margin-bottom:10px;}
+  .add{background:#008080;color:#fff;border:none;padding:8px 12px;border-radius:3px;cursor:pointer;font-size:0.9rem;}
+  .add:disabled{background:#aaa;cursor:not-allowed;}
+  .cart{flex:0 0 300px;background:#fff;border:1px solid #ddd;border-radius:5px;padding:15px;height:fit-content;position:sticky;top:20px;}
+  .cart h2{margin-top:0;font-size:1.3rem;}
+  .linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .cant{font-weight:bold;}
+  .quitar{background:#d9534f;color:#fff;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:0.8rem;}
+  .total-line{margin-top:15px;font-size:1.2rem;font-weight:bold;}
+  @media (max-width:600px){.container{flex-direction:column;}.cart{position:static;margin-top:20px;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="product" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <div class="price">Precio: 100,00 €</div>
+      <div class="stock">Stock: 2</div>
+      <button class="add" data-id="p1">Agregar</button>
+    </div>
+    <div class="product" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <div class="price">Precio: 50,00 €</div>
+      <div class="stock">Stock: 3</div>
+      <button class="add" data-id="p2">Agregar</button>
+    </div>
+    <div class="product" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <div class="price">Precio: 25,00 €</div>
+      <div class="stock">Stock: 1</div>
+      <button class="add" data-id="p3">Agregar</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="lines"></div>
+    <div class="total-line">Total: <span id="total">0,00 €</span></div>
+  </div>
+</div>
+<script>
+(() => {
+  const products = {};
+  document.querySelectorAll('.product').forEach(prod => {
+    const id = prod.dataset.id;
+    const price = parseFloat(prod.dataset.precio);
+    const stock = parseInt(prod.dataset.stock, 10);
+    products[id] = {price, stock};
+  });
+
+  const cart = {};
+
+  function updateTotal() {
+    let total = 0;
+    for (const id in cart) {
+      total += cart[id] * products[id].price;
+    }
+    document.getElementById('total').textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+
+  function updateLine(id) {
+    const linesContainer = document.getElementById('lines');
+    let line = linesContainer.querySelector(`.linea[data-id="${id}"]`);
+    const qty = cart[id] || 0;
+    if (qty > 0) {
+      if (!line) {
+        line = document.createElement('div');
+        line.className = 'linea';
+        line.dataset.id = id;
+        line.innerHTML = `<span class="cant">${qty}</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+        linesContainer.appendChild(line);
+      } else {
+        line.querySelector('.cant').textContent = qty;
+      }
+    } else {
+      if (line) line.remove();
+    }
+  }
+
+  function updateAddButton(id) {
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if (!btn) return;
+    const qty = cart[id] || 0;
+    btn.disabled = qty >= products[id].stock;
+  }
+
+  function addToCart(id) {
+    const current = cart[id] || 0;
+    if (current < products[id].stock) {
+      cart[id] = current + 1;
+      updateLine(id);
+      updateAddButton(id);
+      updateTotal();
+    }
+  }
+
+  function removeFromCart(id) {
+    const current = cart[id] || 0;
+    if (current > 0) {
+      cart[id] = current - 1;
+      if (cart[id] === 0) delete cart[id];
+      updateLine(id);
+      updateAddButton(id);
+      updateTotal();
+    }
+  }
+
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => addToCart(btn.dataset.id));
+  });
+
+  document.getElementById('lines').addEventListener('click', e => {
+    if (e.target.classList.contains('quitar')) {
+      removeFromCart(e.target.dataset.id);
+    }
+  });
+
+  updateTotal();
+})();
+</script>
+</body>
+</html>
+```

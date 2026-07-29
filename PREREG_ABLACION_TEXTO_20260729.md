@@ -77,6 +77,33 @@ parcial direccional.
 sobre la cirugía) ANTES de encender la GPU; humo de 1 celda por brazo
 (kanban) antes de la corrida completa. Enmiendas con fecha aquí.
 
+## RESULTADO (2026-07-29 ~07:59 — corrida completa, veredicto por umbrales pre-fijados)
+
+**Neto (L−REQ)−L = +6 → EL TROCEO REQUIRED ES EL LADRÓN PRINCIPAL del
+texto.** 24 pares completos, 0 infra, 0 juez-colgado.
+
+- L−REQ **17/24 (71%)** vs L **11/24 (46%)** — quitar el troceo recupera
+  prácticamente TODO el gap hasta el crudo concurrente de fase 1 (18/24,
+  75%). El ancla L reproduce exacto el 11/24 de fase 1 (misma mañana).
+- Condición de reparto: ganancias netas en 2 tareas (buscaminas +5,
+  carrito +2; hoja −1, kanban 0) — cumplida, CON la nota de la 1ª
+  enmienda: buscaminas domina (+5 de +6) y el mecanismo es legible — su
+  enunciado contiene la enumeración canónica que el troceo mutila ("las
+  minas están en las celdas 6, 12 y 18" → tres componentes rotos: "…las
+  celdas 6" / "12 y 18. Al hacer click…"). No es anomalía a investigar:
+  es la mutilación medida haciendo exactamente el daño predicho, con
+  fuerza proporcional a cuánta enumeración crítica tiene cada tarea.
+- Secundaria por contrato original: +5, misma rama (sin conflicto).
+- sin_html 1-1 (la espiral no distingue brazos aquí).
+
+**Fase 3 (pre-fijada por la rama ≥+4):** fix condicional EN producción —
+quitar/reformar el troceo de `_componentes_de_idea`/`_build_prompt_web` —
+con **A/B de confirmación EN EL LAZO** (la lección de fix2: v2/v3
+CAMBIABAN el troceo y no cobraron; esta evidencia dice QUITARLO). El A/B
+en el lazo exige n≥6 por brazo intercalado (~2.5-4 h de GPU): NO cabe en
+el reloj de esta sesión — el fix se implementa env-gated + prereg hoy, la
+corrida es de la próxima sesión.
+
 ## PRIMERA ENMIENDA (2026-07-29 ~07:15 — tras la revisión, ANTES de correr)
 
 Revisión SIN BLOQUEA (cirugía verificada limpia 96/96: n_fuera=11 exacto,

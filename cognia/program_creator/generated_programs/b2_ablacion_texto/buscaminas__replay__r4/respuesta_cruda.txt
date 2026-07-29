@@ -1,0 +1,151 @@
+Title: Minesweeper 5x5  
+Description: A minimalistic 5x5 Minesweeper with fixed mines at positions 6, 12, and 18, featuring cascade opening, flagging, and a loss indicator.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:20px;text-align:center;}
+  h1{font-weight:bold;margin:0 0 10px;}
+  #status{display:flex;justify-content:center;align-items:center;font-size:18px;margin-bottom:10px;}
+  #status svg{width:20px;height:20px;margin-right:5px;}
+  #grid{display:flex;flex-wrap:wrap;width:260px;margin:auto;}
+  .c{width:60px;height:60px;background:#444;color:white;display:flex;justify-content:center;align-items:center;font-size:24px;cursor:pointer;box-shadow:inset 0 0 3px rgba(0,0,0,0.5);user-select:none;}
+  .c.abierta{background:#ddd;color:#000;cursor:default;}
+  .c.bandera{background:#444;color:white;}
+  .c.abierta.bandera{background:#444;color:white;}
+  .number-1{color:#d32f2f;}
+  .number-2{color:#1976d2;}
+  .number-3{color:#388e3c;}
+  .number-4{color:#7e57c2;}
+  .number-5{color:#f57c00;}
+  .number-6{color:#0d47a1;}
+  .number-7{color:#000;}
+  .number-8{color:#555;}
+  @media (max-width:600px){
+    .c{width:40px;height:40px;font-size:18px;}
+    #grid{width:170px;}
+  }
+</style>
+</head>
+<body>
+<h1>Minesweeper</h1>
+<div id="status"><svg viewBox="0 0 24 24"><path fill="#000" d="M12 2L15 8H9L12 2Z"/></svg><span id="flagCount">0</span></div>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+  const mines = new Set([6,12,18]);
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const flagCountEl = document.getElementById('flagCount');
+  let flagCount = 0;
+  function getNeighbors(i){
+    const neighbors=[];
+    const row=Math.floor(i/5), col=i%5;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const r=row+dr,c=col+dc;
+        if(r>=0&&r<5&&c>=0&&c<5){
+          neighbors.push(r*5+c);
+        }
+      }
+    }
+    return neighbors;
+  }
+  function countAdjMines(i){
+    return getNeighbors(i).filter(n=>mines.has(n)).length;
+  }
+  function openCell(i){
+    const cell=document.querySelector(`.c[data-i="${i}"]`);
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+    cell.classList.add('abierta');
+    if(mines.has(i)){
+      cell.textContent='💣';
+      estado.textContent='perdiste';
+      return;
+    }
+    const cnt=countAdjMines(i);
+    if(cnt>0){
+      cell.textContent=cnt;
+      cell.classList.add(`number-${cnt}`);
+    }else{
+      const queue=[i];
+      const visited=new Set();
+      while(queue.length){
+        const cur=queue.shift();
+        visited.add(cur);
+        const curCell=document.querySelector(`.c[data-i="${cur}"]`);
+        if(curCell.classList.contains('abierta'))continue;
+        curCell.classList.add('abierta');
+        const c=countAdjMines(cur);
+        if(c>0){
+          curCell.textContent=c;
+          curCell.classList.add(`number-${c}`);
+        }else{
+          getNeighbors(cur).forEach(n=>{
+            if(!visited.has(n)){
+              const nCell=document.querySelector(`.c[data-i="${n}"]`);
+              if(!nCell.classList.contains('abierta')&&!nCell.classList.contains('bandera')){
+                queue.push(n);
+              }
+            }
+          });
+        }
+      }
+    }
+  }
+  grid.addEventListener('click',e=>{
+    if(e.target.classList.contains('c')){
+      openCell(parseInt(e.target.dataset.i));
+    }
+  });
+  grid.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(e.target.classList.contains('c')){
+      const cell=e.target;
+      if(cell.classList.contains('abierta'))return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        flagCount--;
+      }else{
+        cell.classList.add('bandera');
+        flagCount++;
+      }
+      flagCountEl.textContent=flagCount;
+    }
+  });
+</script>
+</body>
+</html>
+```

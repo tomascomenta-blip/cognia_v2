@@ -1,0 +1,81 @@
+Title: Kanban en una página  
+Description: Un tablero Kanban de tres columnas con tarjetas movibles y contadores actualizados.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una página</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;font-family:system-ui, sans-serif;background:#fff;}
+  .board{display:flex;height:100%;gap:1rem;padding:1rem;box-sizing:border-box;}
+  .col{flex:1;background:#f0f0f0;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;}
+  .col-header{padding:0.5rem 1rem;background:#e0f7fa;color:#333;font-weight:bold;text-transform:uppercase;position:relative;}
+  .col[data-col="doing"] .col-header{background:#e8f5e9;}
+  .col[data-col="done"] .col-header{background:#f3e5f5;}
+  .col-header span{position:absolute;right:1rem;top:50%;transform:translateY(-50%);background:#ccc;border-radius:12px;padding:0 6px;font-size:0.8rem;}
+  .card{background:#fff;border:1px solid #ccc;border-radius:8px;margin:0.5rem 1rem;box-shadow:0 2px 4px rgba(0,0,0,0.1);padding:1rem;display:flex;flex-direction:column;justify-content:space-between;animation:fadeIn 0.5s ease forwards;opacity:0;transform:translateY(20px);}
+  @keyframes fadeIn{to{opacity:1;transform:translateY(0);}}
+  .card-title{font-weight:bold;margin-bottom:0.5rem;}
+  .card-actions{display:flex;justify-content:flex-end;gap:0.5rem;}
+  .card-actions button{width:24px;height:24px;border:none;border-radius:50%;background:#ccc;color:#fff;cursor:pointer;font-size:0.8rem;}
+  .card-actions button:disabled{background:#eee;cursor:not-allowed;}
+  @media (max-width:600px){.board{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">TODO <span id="cont-todo">3</span></div>
+    <div class="card" data-id="t1"><div class="card-title">t1</div><div class="card-actions"><button class="menos">-</button><button class="mas">+</button></div></div>
+    <div class="card" data-id="t2"><div class="card-title">t2</div><div class="card-actions"><button class="menos">-</button><button class="mas">+</button></div></div>
+    <div class="card" data-id="t3"><div class="card-title">t3</div><div class="card-actions"><button class="menos">-</button><button class="mas">+</button></div></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">DOING <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">DONE <span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+  function updateCounters(){
+    document.querySelectorAll('.col').forEach(col=>{
+      const id=col.dataset.col;
+      const count=col.querySelectorAll('.card').length;
+      document.getElementById('cont-'+id).textContent=count;
+    });
+  }
+  function moveCard(card,dir){
+    const curCol=card.parentElement;
+    const cols=Array.from(curCol.parentElement.children);
+    const idx=cols.indexOf(curCol)+dir;
+    if(idx<0||idx>=cols.length)return;
+    const target=cols[idx];
+    if(target.dataset.col==='doing'&&target.querySelectorAll('.card').length>=2)return;
+    target.appendChild(card);
+    updateCounters();
+  }
+  function updateButtons(){
+    const doingCol=document.querySelector('.col[data-col="doing"]');
+    const doingFull=doingCol.querySelectorAll('.card').length>=2;
+    document.querySelectorAll('.card').forEach(card=>{
+      const col=card.parentElement.dataset.col;
+      const mas=card.querySelector('.mas');
+      const menos=card.querySelector('.menos');
+      mas.disabled=(col==='done'||(col==='todo'&&doingFull));
+      menos.disabled=(col==='todo');
+    });
+  }
+  document.querySelectorAll('.card').forEach(card=>{
+    card.querySelector('.mas').addEventListener('click',()=>moveCard(card,1));
+    card.querySelector('.menos').addEventListener('click',()=>moveCard(card,-1));
+  });
+  updateCounters();updateButtons();
+  new MutationObserver(()=>updateButtons()).observe(document.querySelector('.board'),{childList:true,subtree:true});
+</script>
+</body>
+</html>
+```

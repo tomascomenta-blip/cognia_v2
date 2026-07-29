@@ -1,0 +1,127 @@
+Title: Minesweeper 5x5 con minas fijas  
+Description: Un juego de buscaminas 5x5 con minas en posiciones 6, 12 y 18, con lógica de apertura y banderas.  
+HTML Code:  
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f0f0;font-family:sans-serif;margin:0;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:320px;max-width:90vw;aspect-ratio:1;}
+.c{position:relative;background:linear-gradient(135deg,#e0e0e0,#c0c0c0);border:1px solid #555;cursor:pointer;user-select:none;display:flex;justify-content:center;align-items:center;font-size:1.2em;color:#333;font-weight:bold;}
+.c.abierta{background:#fff;cursor:default;}
+.c.abierta span{color:#333;}
+.c.abierta.mine::before{content:'!';color:red;font-size:1.5em;}
+.c.bandera::before{content:'🚩';color:#008080;font-size:1.5em;}
+#estado{margin-top:10px;font-size:1.2em;color:#d00;}
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+const mines = new Set([6,12,18]);
+const cells = document.querySelectorAll('.c');
+const opened = new Set();
+const flagged = new Set();
+const estado = document.getElementById('estado');
+function getNeighbors(i){
+  const r = Math.floor(i/5), c = i%5;
+  const neigh = [];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<5 && nc>=0 && nc<5){
+        neigh.push(nr*5+nc);
+      }
+    }
+  }
+  return neigh;
+}
+function countMines(i){
+  return getNeighbors(i).filter(n=>mines.has(n)).length;
+}
+function openCell(i){
+  if(opened.has(i)||flagged.has(i)) return;
+  const cell=cells[i];
+  if(mines.has(i)){
+    cell.classList.add('abierta','mine');
+    cell.innerHTML='';
+    estado.textContent='perdiste';
+    return;
+  }
+  const cnt=countMines(i);
+  cell.classList.add('abierta');
+  cell.innerHTML=cnt>0?`<span>${cnt}</span>`:'';
+  opened.add(i);
+  if(cnt===0) cascade(i);
+}
+function cascade(start){
+  const queue=[start];
+  const visited=new Set([start]);
+  while(queue.length){
+    const idx=queue.shift();
+    const neigh=getNeighbors(idx);
+    for(const n of neigh){
+      if(visited.has(n)||opened.has(n)||flagged.has(n)||mines.has(n)) continue;
+      visited.add(n);
+      const cnt=countMines(n);
+      const cell=cells[n];
+      cell.classList.add('abierta');
+      cell.innerHTML=cnt>0?`<span>${cnt}</span>`:'';
+      opened.add(n);
+      if(cnt===0) queue.push(n);
+    }
+  }
+}
+function toggleFlag(i){
+  const cell=cells[i];
+  if(opened.has(i)) return;
+  if(flagged.has(i)){
+    flagged.delete(i);
+    cell.classList.remove('bandera');
+  }else{
+    flagged.add(i);
+    cell.classList.add('bandera');
+  }
+}
+cells.forEach((cell,i)=>{
+  cell.addEventListener('click',()=>openCell(i));
+  cell.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    toggleFlag(i);
+  });
+});
+</script>
+</body>
+</html>
+```

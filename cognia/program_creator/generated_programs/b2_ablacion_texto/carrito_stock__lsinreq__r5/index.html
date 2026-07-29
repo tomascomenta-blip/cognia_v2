@@ -1,0 +1,48 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f9f9f9;color:#333;display:flex;min-height:100vh;}
+.products{flex:2;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+.prod{background:#fff;border:1px solid #ddd;border-radius:8px;padding:15px}
+.prod h3{margin:0 0 10px;font-size:1.2em}
+.prod .price{color:#008080;font-weight:bold}
+.prod .stock{font-size:.9em;color:#777}
+.add{background:#008080;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer}
+.add:disabled{background:#aaa}
+#cart{flex:1;padding:20px;background:#fff;border-left:1px solid #ddd;position:sticky;top:20px;align-self:flex-start}
+#cart h2{margin-top:0}
+.linea{display:flex;justify-content:space-between;align-items:center;margin:10px 0}
+.linea .cant{font-weight:bold}
+.quitar{background:#d9534f;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer}
+#total{font-weight:bold;font-size:1.2em}
+@media(max-width:600px){body{flex-direction:column}#cart{position:static;border-left:none;border-top:1px solid #ddd}}
+</style>
+</head>
+<body>
+<div class="products">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2"><h3>Producto 1</h3><p class="price">100,00 €</p><p class="stock">Stock: 2</p><button class="add" data-id="p1">Añadir</button></div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3"><h3>Producto 2</h3><p class="price">50,00 €</p><p class="stock">Stock: 3</p><button class="add" data-id="p2">Añadir</button></div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1"><h3>Producto 3</h3><p class="price">25,00 €</p><p class="stock">Stock: 1</p><button class="add" data-id="p3">Añadir</button></div>
+</div>
+<div id="cart"><h2>Carrito</h2><div id="lines"></div><div>Total: <span id="total">0,00 €</span></div></div>
+</body>
+<script>
+let cart={},prices={},stocks={};
+document.querySelectorAll('.add').forEach(btn=>{
+let id=btn.dataset.id;prices[id]=parseFloat(btn.parentElement.dataset.precio);stocks[id]=parseInt(btn.parentElement.dataset.stock);
+btn.addEventListener('click',()=>{if(cart[id]===undefined)cart[id]=0; if(cart[id]<stocks[id]){cart[id]++; if(cart[id]===stocks[id])btn.disabled=true; updateLine(id); updateTotal();}});
+});
+function updateLine(id){let lines=document.getElementById('lines');let line=document.querySelector(`.linea[data-id="${id}"]`);
+if(cart[id]>0){if(!line){line=document.createElement('div');line.className='linea';line.dataset.id=id;let span=document.createElement('span');span.className='cant';span.textContent=cart[id];
+let btn=document.createElement('button');btn.className='quitar';btn.dataset.id=id;btn.textContent='Quitar';
+btn.addEventListener('click',()=>{cart[id]--; if(cart[id]===0){line.remove();document.querySelector(`.add[data-id="${id}"]`).disabled=false;}else{span.textContent=cart[id];}
+if(cart[id]<stocks[id])document.querySelector(`.add[data-id="${id}"]`).disabled=false; updateTotal();});
+line.appendChild(span);line.appendChild(btn);lines.appendChild(line);}else{line.querySelector('.cant').textContent=cart[id];}}else{if(line)line.remove();document.querySelector(`.add[data-id="${id}"]`).disabled=false;}}
+function updateTotal(){let total=0;for(let id in cart){total+=cart[id]*prices[id];}document.getElementById('total').textContent=total.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+updateTotal();
+</script>
+</html>

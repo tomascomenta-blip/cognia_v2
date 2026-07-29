@@ -1,0 +1,89 @@
+Title: Tablero Kanban  
+Description: Un tablero Kanban con tres columnas y tarjetas que se mueven entre ellas.  
+
+HTML Code:  
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;margin:0;padding:0;}
+  .board{display:flex;justify-content:space-between;gap:10px;padding:20px;flex-wrap:wrap;}
+  .col{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);flex:1 1 250px;display:flex;flex-direction:column;}
+  .col-header{background:#e0e0e0;color:#333;padding:10px;font-weight:bold;text-align:center;border-bottom:1px solid #ddd;}
+  .card{background:#fff;border-left:4px solid teal;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,0.1);margin:10px;padding:10px;display:flex;justify-content:space-between;align-items:center;}
+  .card span{flex:1;}
+  .card button{width:24px;height:24px;border-radius:50%;background:#e0e0e0;color:#333;font-weight:bold;display:flex;align-items:center;justify-content:center;margin-left:5px;border:none;cursor:pointer;}
+  .card button:hover{background:teal;color:white;}
+  .counter{font-size:14px;color:#555;margin-top:5px;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo" class="counter"></span></div>
+    <div class="card" data-id="t1"><span>Tarea 1</span><button class="mas"></button><button class="menos"></button></div>
+    <div class="card" data-id="t2"><span>Tarea 2</span><button class="mas"></button><button class="menos"></button></div>
+    <div class="card" data-id="t3"><span>Tarea 3</span><button class="mas"></button><button class="menos"></button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing" class="counter"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done" class="counter"></span></div>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor() {
+    this.cols = document.querySelectorAll('.col');
+    this.maxDoing = 2;
+    this.init();
+  }
+  init() {
+    this.updateCounters();
+    this.addEventListeners();
+  }
+  addEventListeners() {
+    this.cols.forEach(col => {
+      col.addEventListener('click', e => {
+        if (e.target.classList.contains('mas')) {
+          this.moveCard(e.target.parentElement, 'right');
+        }
+        if (e.target.classList.contains('menos')) {
+          this.moveCard(e.target.parentElement, 'left');
+        }
+      });
+    });
+  }
+  moveCard(card, direction) {
+    const currentCol = card.parentElement;
+    const currentData = currentCol.dataset.col;
+    let targetData;
+    if (direction === 'right') {
+      if (currentData === 'todo') targetData = 'doing';
+      else if (currentData === 'doing') targetData = 'done';
+      else return; // cannot move right from done
+    } else if (direction === 'left') {
+      if (currentData === 'doing') targetData = 'todo';
+      else if (currentData === 'done') targetData = 'doing';
+      else return; // cannot move left from todo
+    }
+    const targetCol = document.querySelector(`.col[data-col="${targetData}"]`);
+    if (targetData === 'doing' && targetCol.children.length >= this.maxDoing) return; // WIP limit
+    targetCol.appendChild(card);
+    this.updateCounters();
+  }
+  updateCounters() {
+    document.getElementById('cont-todo').textContent = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    document.getElementById('cont-doing').textContent = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    document.getElementById('cont-done').textContent = document.querySelectorAll('.col[data-col="done"] .card').length;
+  }
+}
+document.addEventListener('DOMContentLoaded', () => new KanbanBoard());
+</script>
+</body>
+</html>
+```

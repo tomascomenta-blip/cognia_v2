@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:#333;
+    font-family:sans-serif;
+  }
+  #container{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #estado{
+    margin-bottom:10px;
+    color:#fff;
+    font-size:1.2rem;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-template-rows:repeat(5,60px);
+    gap:2px;
+    box-shadow:0 4px 8px rgba(0,0,0,0.5);
+    background:#555;
+    padding:2px;
+  }
+  .c{
+    background:#bbb;
+    border:1px solid #999;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:1.5rem;
+    color:#333;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#4caf50;
+    color:#006400;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#bbb;
+    color:#f00;
+  }
+  @media (max-width:400px){
+    .c{font-size:1rem;width:40px;height:40px;}
+    .grid{grid-template-columns:repeat(5,40px);grid-template-rows:repeat(5,40px);}
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="estado"></div>
+  <div class="grid">
+    <!-- 25 celdas -->
+    <div class="c" data-i="0"></div>
+    <div class="c" data-i="1"></div>
+    <div class="c" data-i="2"></div>
+    <div class="c" data-i="3"></div>
+    <div class="c" data-i="4"></div>
+    <div class="c" data-i="5"></div>
+    <div class="c" data-i="6"></div>
+    <div class="c" data-i="7"></div>
+    <div class="c" data-i="8"></div>
+    <div class="c" data-i="9"></div>
+    <div class="c" data-i="10"></div>
+    <div class="c" data-i="11"></div>
+    <div class="c" data-i="12"></div>
+    <div class="c" data-i="13"></div>
+    <div class="c" data-i="14"></div>
+    <div class="c" data-i="15"></div>
+    <div class="c" data-i="16"></div>
+    <div class="c" data-i="17"></div>
+    <div class="c" data-i="18"></div>
+    <div class="c" data-i="19"></div>
+    <div class="c" data-i="20"></div>
+    <div class="c" data-i="21"></div>
+    <div class="c" data-i="22"></div>
+    <div class="c" data-i="23"></div>
+    <div class="c" data-i="24"></div>
+  </div>
+</div>
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // posiciones fijas
+  const cells = Array.from(document.querySelectorAll('.c'));
+  const estado = document.getElementById('estado');
+  const size = 5; // dimensión de la cuadrícula
+
+  // Devuelve los índices de las celdas vecinas
+  function getNeighbors(i){
+    const neighbors=[];
+    const row=Math.floor(i/size);
+    const col=i%size;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const r=row+dr, c=col+dc;
+        if(r>=0 && r<size && c>=0 && c<size){
+          neighbors.push(r*size+c);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  // Cuenta minas adyacentes
+  function countMines(i){
+    return getNeighbors(i).filter(n=>mines.has(n)).length;
+  }
+
+  // Abre una celda
+  function openCell(i){
+    const cell=cells[i];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    if(mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      estado.textContent='perdiste';
+      return;
+    }
+    const cnt=countMines(i);
+    cell.classList.add('abierta');
+    cell.textContent=cnt>0?cnt:'';
+    if(cnt===0){
+      getNeighbors(i).forEach(j=>openCell(j));
+    }
+  }
+
+  // Eventos de cada celda
+  cells.forEach(cell=>{
+    const i=parseInt(cell.dataset.i,10);
+    cell.addEventListener('click',()=>openCell(i));
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(cell.classList.contains('abierta')) return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      }else{
+        cell.classList.add('bandera');
+        cell.textContent='🚩';
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

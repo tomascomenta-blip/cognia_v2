@@ -1,0 +1,40 @@
+Title: Kanban en HTML  
+Description: Un tablero Kanban con tres columnas y tarjetas que se mueven entre ellas.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:1rem;}
+.container{display:flex;gap:1rem;max-width:900px;margin:auto;}
+.col{flex:1;background:#fff;border-radius:4px;padding:0.5rem;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;}
+.col h2{margin:0 0 0.5rem;font-size:1.2rem;}
+.col span{font-size:0.9rem;color:#555;}
+.card{background:#e0e0e0;border-radius:4px;padding:0.5rem;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.card strong{font-weight:bold;}
+.btn{background:#008080;color:#fff;border:none;border-radius:3px;padding:0.2rem 0.4rem;font-size:0.8rem;margin-left:0.2rem;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="col" data-col="todo"><h2>Todo <span id="cont-todo"></span></h2>
+<div class="card" data-id="t1"><strong>t1</strong><div><button class="menos btn">←</button><button class="mas btn">→</button></div></div>
+<div class="card" data-id="t2"><strong>t2</strong><div><button class="menos btn">←</button><button class="mas btn">→</button></div></div>
+<div class="card" data-id="t3"><strong>t3</strong><div><button class="menos btn">←</button><button class="mas btn">→</button></div></div>
+</div>
+<div class="col" data-col="doing"><h2>Doing <span id="cont-doing"></span></h2></div>
+<div class="col" data-col="done"><h2>Done <span id="cont-done"></span></h2></div>
+</div>
+<script>
+function upd(){['todo','doing','done'].forEach(c=>{document.getElementById('cont-'+c).textContent=document.querySelectorAll('.col[data-col="'+c+'"] .card').length;});}
+function mv(e){var b=e.target;if(!b.classList.contains('mas')&&!b.classList.contains('menos'))return;var card=b.closest('.card');var col=card.parentElement.dataset.col;var doing=document.querySelector('.col[data-col="doing"]');var doingCnt=doing.querySelectorAll('.card').length;if(b.classList.contains('mas')){if(col==='todo'&&doingCnt<2){doing.appendChild(card);}else if(col==='doing'){document.querySelector('.col[data-col="done"]').appendChild(card);}}else{if(col==='doing'){document.querySelector('.col[data-col="todo"]').appendChild(card);}else if(col==='done'){doing.appendChild(card);}}upd();}
+document.querySelectorAll('.btn').forEach(b=>b.addEventListener('click',mv));
+upd();
+</script>
+</body>
+</html>
+```

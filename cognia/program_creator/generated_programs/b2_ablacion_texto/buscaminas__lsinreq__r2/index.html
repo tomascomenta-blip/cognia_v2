@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:sans-serif;background:#fafafa;margin:0;padding:10px;display:flex;flex-direction:column;align-items:center;}
+#top{margin-bottom:10px;}
+#score{font-weight:bold;margin-right:10px;}
+#reset{padding:2px 6px;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:300px;}
+.c{background:#e0e0e0;border:1px solid #b0b0b0;position:relative;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.2);height:0;padding-bottom:100%;display:flex;align-items:center;justify-content:center;font-size:1.2em;}
+.c.abierta{background:#fff;color:#333;}
+.c.bandera{color:red;}
+#estado{margin-top:10px;color:red;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="top"><span id="score">0</span><button id="reset">Reset</button></div>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const score=document.getElementById('score');
+const estado=document.getElementById('estado');
+let openedCount=0,gameOver=false;
+function createGrid(){
+  for(let i=0;i<25;i++){
+    const c=document.createElement('div');
+    c.className='c';
+    c.dataset.i=i;
+    c.addEventListener('click',()=>openCell(i));
+    c.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(c.classList.contains('abierta')||gameOver)return;
+      if(c.classList.toggle('bandera')){c.textContent='🚩';}else{c.textContent='';}
+    });
+    grid.appendChild(c);
+  }
+}
+function openCell(i){
+  if(gameOver)return;
+  const c=document.querySelector(`.c[data-i='${i}']`);
+  if(c.classList.contains('abierta')||c.classList.contains('bandera'))return;
+  if(mines.includes(i)){
+    c.classList.add('abierta');
+    c.textContent='💣';
+    estado.textContent='perdiste';
+    gameOver=true;
+    return;
+  }
+  const count=adjacentMines(i);
+  c.classList.add('abierta');
+  if(count>0)c.textContent=count;
+  openedCount++;
+  score.textContent=openedCount;
+  if(count===0)cascade(i);
+}
+function adjacentMines(i){
+  const r=Math.floor(i/5),c=i%5;
+  let cnt=0;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>4||nc<0||nc>4)continue;
+      const ni=nr*5+nc;
+      if(mines.includes(ni))cnt++;
+    }
+  }
+  return cnt;
+}
+function cascade(i){
+  const r=Math.floor(i/5),c=i%5;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>4||nc<0||nc>4)continue;
+      const ni=nr*5+nc;
+      const ncEl=document.querySelector(`.c[data-i='${ni}']`);
+      if(ncEl.classList.contains('abierta')||ncEl.classList.contains('bandera'))continue;
+      if(mines.includes(ni))continue;
+      openCell(ni);
+    }
+  }
+}
+document.getElementById('reset').addEventListener('click',()=>{
+  grid.innerHTML='';
+  openedCount=0;
+  gameOver=false;
+  score.textContent='0';
+  estado.textContent='';
+  createGrid();
+});
+createGrid();
+</script>
+</body>
+</html>

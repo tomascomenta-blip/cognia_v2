@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5 con 3 minas fijas</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#333;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    color:#fff;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90vmin;
+    max-width:400px;
+    border:1px solid #fff;
+    background:#222;
+    padding:2px;
+  }
+  .c{
+    background:#555;
+    color:transparent;
+    cursor:pointer;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2em;
+    user-select:none;
+    transition:background 0.2s;
+    box-shadow:inset 0 0 5px rgba(0,0,0,0.5);
+  }
+  .c.abierta{
+    background:#0ff;
+    color:#fff;
+    box-shadow:0 0 5px #0ff;
+  }
+  .c.bandera{
+    background:#555;
+    color:#ff0;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2em;
+  }
+  #instrucciones{
+    margin-top:5px;
+    font-size:0.9em;
+    color:#ccc;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<p id="instrucciones">Haz clic izquierdo para abrir, clic derecho para colocar bandera.</p>
+<script>
+class Minesweeper {
+  constructor(gridEl, estadoEl) {
+    this.grid = gridEl;
+    this.estado = estadoEl;
+    this.size = 5;
+    this.total = this.size * this.size;
+    this.mines = new Set([6,12,18]); // posiciones fijas
+    this.cells = Array.from(this.grid.querySelectorAll('.c'));
+    this.init();
+  }
+  init() {
+    this.cells.forEach(cell => {
+      cell.addEventListener('click', e => this.leftClick(e, cell));
+      cell.addEventListener('contextmenu', e => this.rightClick(e, cell));
+    });
+  }
+  leftClick(e, cell) {
+    if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+    const idx = parseInt(cell.dataset.i,10);
+    if (this.mines.has(idx)) {
+      cell.textContent = 'X';
+      cell.style.color = '#f00';
+      cell.classList.add('abierta');
+      this.estado.textContent = 'perdiste';
+      this.disableAll();
+      return;
+    }
+    this.openCell(cell);
+  }
+  rightClick(e, cell) {
+    e.preventDefault();
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')) {
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+      cell.style.color = '#ff0';
+    }
+  }
+  openCell(cell) {
+    const idx = parseInt(cell.dataset.i,10);
+    const adj = this.countAdj(idx);
+    cell.classList.add('abierta');
+    if (adj > 0) {
+      cell.textContent = adj;
+      cell.style.color = '#fff';
+    } else {
+      cell.textContent = '';
+      this.cascade(idx);
+    }
+  }
+  countAdj(idx) {
+    const r = Math.floor(idx / this.size);
+    const c = idx % this.size;
+    let count = 0;
+    for (let dr=-1; dr<=1; dr++) {
+      for (let dc=-1; dc<=1; dc++) {
+        if (dr===0 && dc===0) continue;
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr>=0 && nr<this.size && nc>=0 && nc<this.size) {
+          const nIdx = nr*this.size + nc;
+          if (this.mines.has(nIdx)) count++;
+        }
+      }
+    }
+    return count;
+  }
+  cascade(startIdx) {
+    const queue = [startIdx];
+    const visited = new Set();
+    while (queue.length) {
+      const idx = queue.shift();
+      if (visited.has(idx)) continue;
+      visited.add(idx);
+      const cell = this.cells[idx];
+      if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+      const adj = this.countAdj(idx);
+      cell.classList.add('abierta');
+      if (adj > 0) {
+        cell.textContent = adj;
+        cell.style.color = '#fff';
+      } else {
+        cell.textContent = '';
+        const r = Math.floor(idx / this.size);
+        const c = idx % this.size;
+        for (let dr=-1; dr<=1; dr++) {
+          for (let dc=-1; dc<=1; dc++) {
+            if (dr===0 && dc===0) continue;
+            const nr = r + dr;
+            const nc = c + dc;
+            if (nr>=0 && nr<this.size && nc>=0 && nc<this.size) {
+              const nIdx = nr*this.size + nc;
+              if (!visited.has(nIdx)) queue.push(nIdx);
+            }
+          }
+        }
+      }
+    }
+  }
+  disableAll() {
+    this.cells.forEach(cell => cell.style.pointerEvents = 'none');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  new Minesweeper(grid, estado);
+});
+</script>
+</body>
+</html>
