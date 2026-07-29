@@ -1,0 +1,141 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#e0e0e0;margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;}
+  .container{background:#f0f0f0;padding:20px;border-radius:8px;text-align:center;}
+  table{border-collapse:collapse;margin:auto;}
+  th,td{border:1px solid #ddd;padding:0;}
+  th{background:#e0e0e0;color:#008080;font-weight:normal;}
+  .label{width:70px;height:70px;line-height:70px;text-align:center;}
+  .celda{width:70px;height:70px;border:1px solid white;font-size:16px;text-align:center;}
+  .celda:focus{outline:none;background:#e0f0ff;}
+  .celda:hover{background:#e0f0ff;}
+  .depends{box-shadow:0 0 5px 2px rgba(0,255,0,0.5);}
+  button{margin-top:10px;padding:5px 10px;font-size:14px;}
+</style>
+</head>
+<body>
+<div class="container">
+<table>
+  <tr>
+    <th></th>
+    <th class="label">1</th>
+    <th class="label">2</th>
+    <th class="label">3</th>
+  </tr>
+  <tr>
+    <th class="label">A</th>
+    <td><input class="celda" data-ref="A1" /></td>
+    <td><input class="celda" data-ref="A2" /></td>
+    <td><input class="celda" data-ref="A3" /></td>
+  </tr>
+  <tr>
+    <th class="label">B</th>
+    <td><input class="celda" data-ref="B1" /></td>
+    <td><input class="celda" data-ref="B2" /></td>
+    <td><input class="celda" data-ref="B3" /></td>
+  </tr>
+  <tr>
+    <th class="label">C</th>
+    <td><input class="celda" data-ref="C1" /></td>
+    <td><input class="celda" data-ref="C2" /></td>
+    <td><input class="celda" data-ref="C3" /></td>
+  </tr>
+</table>
+<button id="recalc">Recalculate</button>
+</div>
+<script>
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  const raw = {}; // raw content per cell
+  const deps = {}; // dependencies per cell
+  const reverseDeps = {}; // reverse dependencies
+  const cells = {}; // input elements
+  refs.forEach(r=>{
+    raw[r]='';
+    deps[r]=new Set();
+    reverseDeps[r]=new Set();
+    cells[r]=document.querySelector('[data-ref="'+r+'"]');
+  });
+  let lastEdited = null;
+  function parseDeps(){
+    refs.forEach(r=>{
+      deps[r].clear();
+      const text = raw[r];
+      if(text.startsWith('=')){
+        const refsFound = text.match(/[A-C][1-3]/g) || [];
+        refsFound.forEach(ref=>deps[r].add(ref));
+      }
+    });
+    refs.forEach(r=>reverseDeps[r].clear());
+    refs.forEach(r=>{
+      deps[r].forEach(dep=>reverseDeps[dep].add(r));
+    });
+  }
+  function evaluateCell(r, visited=new Set()){
+    if(visited.has(r)) return 'CIRC';
+    const text = raw[r];
+    if(!text.startsWith('=')){
+      const num = parseFloat(text);
+      return isNaN(num)?text:num;
+    }
+    visited.add(r);
+    let expr = text.slice(1);
+    const refsFound = expr.match(/[A-C][1-3]/g) || [];
+    refsFound.forEach(ref=>{
+      const val = evaluateCell(ref, visited);
+      if(val==='CIRC') expr = expr.replace(ref, 'NaN');
+      else expr = expr.replace(ref, typeof val==='number'?val:'0');
+    });
+    try{
+      const result = eval(expr);
+      return typeof result==='number'?result:'';
+    }catch(e){return '';}
+  }
+  function updateAll(){
+    parseDeps();
+    const values = {};
+    refs.forEach(r=>{
+      const val = evaluateCell(r);
+      values[r]=val;
+      const input = cells[r];
+      if(val==='CIRC'){
+        input.value='CIRC';
+      }else if(typeof val==='number'){
+        input.value=val.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+      }else{
+        input.value=val;
+      }
+    });
+    refs.forEach(r=>cells[r].classList.remove('depends'));
+    if(lastEdited){
+      const dependents = new Set();
+      const stack=[lastEdited];
+      while(stack.length){
+        const cur=stack.pop();
+        reverseDeps[cur].forEach(dep=>{
+          if(!dependents.has(dep)){
+            dependents.add(dep);
+            stack.push(dep);
+          }
+        });
+      }
+      dependents.forEach(dep=>cells[dep].classList.add('depends'));
+    }
+  }
+  refs.forEach(r=>{
+    const input=cells[r];
+    input.addEventListener('input',e=>{
+      raw[r]=input.value;
+      lastEdited=r;
+      updateAll();
+    });
+  });
+  document.getElementById('recalc').addEventListener('click',updateAll);
+  updateAll();
+</script>
+</body>
+</html>

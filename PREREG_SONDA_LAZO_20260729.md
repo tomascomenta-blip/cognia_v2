@@ -184,6 +184,31 @@ segundo mecanismo con la misma firma).
   2 replay / 2 crudo, sin discordantes) — el veredicto no se computó. La
   celda 5 no se guardó; `--reanudar` la regenera desde cero.
 
+## RESULTADO (2026-07-29 ~06:52 — corrida completa, veredicto por umbrales pre-fijados)
+
+**Neto L−C = −7 → EL TEXTO DEL PROMPT QUE EL LAZO ARMA ROBA.** 24 pares
+completos, 0 infra, 0 juez-colgado (el fix de la 2ª enmienda no tuvo que
+dispararse tras el reinicio).
+
+- replay (L) **11/24 (46%)** vs crudo (C) **18/24 (75%)** por juez
+  estricto. La condición de reparto se cumple con margen: C gana en las
+  CUATRO tareas (buscaminas +2, carrito +3, hoja +4, kanban +1; L gana 3
+  pares). La secundaria por contrato original da −6: misma rama, sin
+  conflicto.
+- El tamaño coincide con el GAP histórico (~17-29 pts): **el texto explica
+  el GRUESO del robo del envoltorio** — y dos sondas directas (fix2 v2/v3)
+  fallaron antes porque cambiaban el troceo en vez de quitarlo, y porque el
+  prompt directo no era el del lazo.
+- sin_html 2-0 contra L (las DOS espirales de la corrida salieron del
+  texto largo del lazo — la clasificación de la 1ª enmienda hizo su
+  trabajo: sin ella habrían sido "infra" invisibles).
+- Concordancia replay↔gate 12/23, asimetría simétrica (6 gate-sí→replay-no
+  vs 5 inversa): el texto fija la TASA, no el destino de cada generación
+  (mucha varianza de muestreo a temp 0.2 — consistente con la flakiness
+  conocida del banco).
+- **Fase 2 (pre-fijada): ablaciones por CONTENIDO de pieza, troceo
+  REQUIRED primero** → PREREG_ABLACION_TEXTO_20260729.md.
+
 ## TERCERA ENMIENDA (2026-07-29 ~06:35 — addendum PASIVO, a 11 celdas)
 
 El runner guarda desde ahora la respuesta CRUDA de cada generación

@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+  }
+  #board{
+    display:flex;
+    justify-content:space-between;
+    width:90%;
+    max-width:1200px;
+    animation:boardSlide 1s ease-out;
+  }
+  .col{
+    background:#fff;
+    border-radius:5px;
+    width:30%;
+    padding:10px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    min-height:400px;
+    display:flex;
+    flex-direction:column;
+  }
+  .col h2{
+    text-align:center;
+    margin-top:0;
+    font-size:1.2em;
+  }
+  .cards{
+    flex:1;
+    margin-top:10px;
+  }
+  .card{
+    background:#e3e3e3;
+    border-radius:3px;
+    padding:10px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:fadeIn 0.5s ease-out;
+  }
+  .card button{
+    margin-left:5px;
+    padding:3px 6px;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+    font-weight:bold;
+  }
+  .mas{background:#4CAF50;color:#fff;}
+  .menos{background:#f44336;color:#fff;}
+  span.counter{
+    font-weight:bold;
+    margin-left:5px;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  @keyframes boardSlide{
+    from{opacity:0;transform:translateX(-50px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo" class="counter">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing" class="counter">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done" class="counter">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const todoCol = document.querySelector('[data-col="todo"] .cards');
+  const doingCol = document.querySelector('[data-col="doing"] .cards');
+  const doneCol = document.querySelector('[data-col="done"] .cards');
+
+  const contTodo = document.getElementById('cont-todo');
+  const contDoing = document.getElementById('cont-doing');
+  const contDone = document.getElementById('cont-done');
+
+  function updateCounters(){
+    contTodo.textContent = todoCol.children.length;
+    contDoing.textContent = doingCol.children.length;
+    contDone.textContent = doneCol.children.length;
+  }
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.textContent = id;
+
+    const masBtn = document.createElement('button');
+    masBtn.className = 'mas';
+    masBtn.textContent = '+';
+    const menosBtn = document.createElement('button');
+    menosBtn.className = 'menos';
+    menosBtn.textContent = '-';
+
+    masBtn.addEventListener('click', ()=>moveCard(card,'right'));
+    menosBtn.addEventListener('click', ()=>moveCard(card,'left'));
+
+    card.appendChild(masBtn);
+    card.appendChild(menosBtn);
+    return card;
+  }
+
+  function moveCard(card, dir){
+    const currentCol = card.closest('.col').dataset.col;
+    let targetCol;
+
+    if(dir==='right'){
+      if(currentCol==='todo'){
+        if(doingCol.children.length>=2) return; // WIP limit
+        targetCol = doingCol;
+      }else if(currentCol==='doing'){
+        targetCol = doneCol;
+      }else return; // done cannot move right
+    }else{ // left
+      if(currentCol==='done'){
+        targetCol = doingCol;
+      }else if(currentCol==='doing'){
+        targetCol = todoCol;
+      }else return; // todo cannot move left
+    }
+
+    if(targetCol){
+      targetCol.appendChild(card);
+      card.classList.add('fade-in');
+      setTimeout(()=>card.classList.remove('fade-in'),500);
+      updateCounters();
+    }
+  }
+
+  // Inicializar tarjetas
+  ['t1','t2','t3'].forEach(id=>{
+    const card = createCard(id);
+    todoCol.appendChild(card);
+    card.classList.add('fade-in');
+    setTimeout(()=>card.classList.remove('fade-in'),500);
+  });
+
+  updateCounters();
+});
+</script>
+</body>
+</html>

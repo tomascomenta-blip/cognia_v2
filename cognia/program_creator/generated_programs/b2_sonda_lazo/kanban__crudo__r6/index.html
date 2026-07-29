@@ -1,0 +1,117 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  /* Reset básico */
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;}
+  /* Contenedor del tablero */
+  #board{display:flex;gap:1rem;animation:fadeIn 1s ease-out;}
+  /* Columnas */
+  .col{background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);width:250px;display:flex;flex-direction:column;overflow:hidden;}
+  .col h2{background:#007bff;color:#fff;padding:0.5rem;text-align:center;font-size:1.1rem;}
+  .cards{flex:1;padding:0.5rem;display:flex;flex-direction:column;gap:0.5rem;}
+  /* Tarjetas */
+  .card{background:#e9e9e9;border-radius:4px;padding:0.5rem;display:flex;justify-content:space-between;align-items:center;animation:fadeInCard 0.5s ease-out;}
+  .card span{font-weight:bold;}
+  .card button{background:#007bff;color:#fff;border:none;border-radius:3px;padding:2px 6px;cursor:pointer;font-size:0.8rem;}
+  .card button:disabled{background:#aaa;cursor:not-allowed;}
+  /* Contadores */
+  .counter{background:#333;color:#fff;text-align:center;padding:0.3rem;font-size:0.9rem;}
+  /* Animaciones */
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  @keyframes fadeInCard{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo" class="counter">0</span></h2>
+    <div class="cards" id="todo-cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing" class="counter">0</span></h2>
+    <div class="cards" id="doing-cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done" class="counter">0</span></h2>
+    <div class="cards" id="done-cards"></div>
+  </div>
+</div>
+
+<script>
+  // Datos iniciales
+  const initialCards = ['t1','t2','t3'];
+  const board = document.getElementById('board');
+  const cols = {
+    todo: document.getElementById('todo-cards'),
+    doing: document.getElementById('doing-cards'),
+    done: document.getElementById('done-cards')
+  };
+  const counters = {
+    todo: document.getElementById('cont-todo'),
+    doing: document.getElementById('cont-doing'),
+    done: document.getElementById('cont-done')
+  };
+
+  // Crear tarjetas
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.innerHTML = `
+      <span>${id}</span>
+      <div>
+        <button class="mas">→</button>
+        <button class="menos">←</button>
+      </div>
+    `;
+    // Eventos
+    card.querySelector('.mas').addEventListener('click', () => moveCard(card, 1));
+    card.querySelector('.menos').addEventListener('click', () => moveCard(card, -1));
+    return card;
+  }
+
+  // Añadir tarjetas iniciales a todo
+  initialCards.forEach(id => cols.todo.appendChild(createCard(id)));
+
+  // Actualizar contadores
+  function updateCounters(){
+    counters.todo.textContent = cols.todo.children.length;
+    counters.doing.textContent = cols.doing.children.length;
+    counters.done.textContent = cols.done.children.length;
+  }
+
+  // Mover tarjeta
+  function moveCard(card, direction){
+    const currentCol = card.parentElement;
+    const colNames = ['todo','doing','done'];
+    const currentIndex = colNames.indexOf(currentCol.dataset.col);
+    const targetIndex = currentIndex + direction;
+    if(targetIndex < 0 || targetIndex > 2) return; // fuera de rango
+
+    const targetColName = colNames[targetIndex];
+    const targetCol = cols[targetColName];
+
+    // Regla WIP: doing máximo 2 tarjetas
+    if(targetColName === 'doing' && targetCol.children.length >= 2) return;
+
+    // Mover
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+
+  // Inicializar contadores
+  updateCounters();
+</script>
+</body>
+</html>

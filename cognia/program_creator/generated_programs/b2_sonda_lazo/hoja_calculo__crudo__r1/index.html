@@ -1,0 +1,97 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:sans-serif;margin:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,100px);grid-gap:5px;}
+  .celda{width:100%;box-sizing:border-box;padding:5px;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  .celda{animation:fadeIn 0.5s ease forwards;opacity:0;}
+  .celda:nth-child(1){animation-delay:0.1s;}
+  .celda:nth-child(2){animation-delay:0.2s;}
+  .celda:nth-child(3){animation-delay:0.3s;}
+  .celda:nth-child(4){animation-delay:0.4s;}
+  .celda:nth-child(5){animation-delay:0.5s;}
+  .celda:nth-child(6){animation-delay:0.6s;}
+  .celda:nth-child(7){animation-delay:0.7s;}
+  .celda:nth-child(8){animation-delay:0.8s;}
+  .celda:nth-child(9){animation-delay:0.9s;}
+</style>
+</head>
+<body>
+<h1>Mini hoja de cálculo 3x3</h1>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+<script>
+const cells = document.querySelectorAll('.celda');
+const map = {};
+cells.forEach(c=>{map[c.dataset.ref]=c;});
+let updating=false;
+function evaluateCell(ref, stack){
+  if(stack.has(ref)) return 'CIRC';
+  const cell=map[ref];
+  const formula=cell.dataset.formula;
+  if(!formula){
+    const val=cell.value.trim();
+    const num=parseFloat(val);
+    return isNaN(num)?val:num;
+  }
+  stack.add(ref);
+  const expr=formula.slice(1);
+  const replaced=expr.replace(/[A-C][1-3]/g,match=>{
+    const v=evaluateCell(match,stack);
+    if(v==='CIRC') return 'CIRC';
+    const n=parseFloat(v);
+    return isNaN(n)?0:n;
+  });
+  if(replaced.includes('CIRC')){
+    stack.delete(ref);
+    return 'CIRC';
+  }
+  try{
+    const res=eval(replaced);
+    stack.delete(ref);
+    return res;
+  }catch(e){
+    stack.delete(ref);
+    return 'ERR';
+  }
+}
+function recomputeAll(){
+  if(updating)return;
+  updating=true;
+  cells.forEach(cell=>{
+    const ref=cell.dataset.ref;
+    const val=evaluateCell(ref,new Set());
+    cell.value=val==='CIRC'?'CIRC':val;
+  });
+  updating=false;
+}
+cells.forEach(cell=>{
+  cell.addEventListener('input',e=>{
+    if(updating)return;
+    const val=cell.value.trim();
+    if(val.startsWith('=')){
+      cell.dataset.formula=val;
+    }else{
+      delete cell.dataset.formula;
+    }
+    recomputeAll();
+  });
+});
+recomputeAll();
+</script>
+</body>
+</html>

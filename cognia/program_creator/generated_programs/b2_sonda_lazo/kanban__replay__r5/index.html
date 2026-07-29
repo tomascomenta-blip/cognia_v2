@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:system-ui, sans-serif;
+    background:#f5f5f5;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  .container{
+    display:flex;
+    flex:1;
+    width:100%;
+    max-width:1200px;
+    padding:20px;
+    box-sizing:border-box;
+    justify-content:space-between;
+  }
+  .col{
+    background:#fff;
+    border-radius:8px;
+    padding:10px;
+    flex:1;
+    margin:0 10px;
+    display:flex;
+    flex-direction:column;
+    min-width:200px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+  }
+  .col h2{
+    font-size:1.2rem;
+    margin:0 0 10px 0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .card{
+    background:#fafafa;
+    border-radius:6px;
+    padding:10px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .card .id{
+    font-weight:bold;
+  }
+  .card .btns{
+    position:absolute;
+    bottom:10px;
+    right:10px;
+  }
+  .card button{
+    width:24px;
+    height:24px;
+    border:none;
+    border-radius:50%;
+    background:#008080;
+    color:#fff;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+    margin-left:5px;
+  }
+  .card button:disabled{
+    background:#ccc;
+    cursor:not-allowed;
+  }
+  @media (max-width:600px){
+    .container{
+      flex-direction:column;
+    }
+    .col{
+      margin:10px 0;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <span class="id">t1</span>
+      <div class="btns">
+        <button class="menos">-</button>
+        <button class="mas">+</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <span class="id">t2</span>
+      <div class="btns">
+        <button class="menos">-</button>
+        <button class="mas">+</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <span class="id">t3</span>
+      <div class="btns">
+        <button class="menos">-</button>
+        <button class="mas">+</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+  const MAX_DOING = 2;
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  const doingCol = document.querySelector('.col[data-col="doing"]');
+  const doneCol = document.querySelector('.col[data-col="done"]');
+
+  function updateCounters(){
+    document.getElementById('cont-todo').textContent = todoCol.querySelectorAll('.card').length;
+    document.getElementById('cont-doing').textContent = doingCol.querySelectorAll('.card').length;
+    document.getElementById('cont-done').textContent = doneCol.querySelectorAll('.card').length;
+  }
+
+  function updateButtons(){
+    document.querySelectorAll('.card').forEach(card=>{
+      const col = card.parentElement.dataset.col;
+      const masBtn = card.querySelector('.mas');
+      const menosBtn = card.querySelector('.menos');
+      if(col==='todo'){
+        masBtn.disabled = doingCol.querySelectorAll('.card').length >= MAX_DOING;
+        menosBtn.disabled = true;
+      }else if(col==='doing'){
+        masBtn.disabled = false;
+        menosBtn.disabled = false;
+      }else if(col==='done'){
+        masBtn.disabled = true;
+        menosBtn.disabled = false;
+      }
+    });
+  }
+
+  function moveCard(card, targetCol){
+    targetCol.appendChild(card);
+    updateCounters();
+    updateButtons();
+  }
+
+  document.addEventListener('click', e=>{
+    if(e.target.classList.contains('mas') || e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      const currentCol = card.parentElement;
+      const currentData = currentCol.dataset.col;
+      let targetData = null;
+      if(e.target.classList.contains('mas')){
+        if(currentData==='todo') targetData='doing';
+        else if(currentData==='doing') targetData='done';
+      }else{ // minus
+        if(currentData==='doing') targetData='todo';
+        else if(currentData==='done') targetData='doing';
+      }
+      if(targetData){
+        const targetCol = document.querySelector('.col[data-col="'+targetData+'"]');
+        // check WIP limit
+        if(targetData==='doing' && targetCol.querySelectorAll('.card').length >= MAX_DOING){
+          return;
+        }
+        moveCard(card, targetCol);
+      }
+    }
+  });
+
+  // initial setup
+  updateCounters();
+  updateButtons();
+</script>
+</body>
+</html>

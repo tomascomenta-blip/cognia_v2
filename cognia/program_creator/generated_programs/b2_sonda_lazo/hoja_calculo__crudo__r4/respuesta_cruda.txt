@@ -1,0 +1,128 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3×3</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,100px);
+    grid-gap:5px;
+    animation:pulse 2s infinite;
+  }
+  .celda{
+    width:100px;
+    height:30px;
+    text-align:right;
+    padding-right:5px;
+    font-size:14px;
+    box-sizing:border-box;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(0,150,255,0.7);}
+    100%{box-shadow:0 0 0 10px rgba(0,150,255,0);}
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+<script>
+  // Mapa de referencias a elementos
+  const cells = document.querySelectorAll('.celda');
+  const cellMap = {};
+  cells.forEach(c => cellMap[c.dataset.ref] = c);
+
+  // Evaluar todas las celdas
+  function evaluateAll() {
+    cells.forEach(c => {
+      const ref = c.dataset.ref;
+      const val = evalCell(ref, new Set());
+      c.value = val;
+    });
+  }
+
+  // Evaluar una celda recursivamente
+  function evalCell(ref, stack) {
+    const cell = cellMap[ref];
+    const formula = cell.dataset.formula; // sin '='
+    if (!formula) return cell.value; // no es fórmula
+
+    if (stack.has(ref)) return 'CIRC'; // referencia circular detectada
+    stack.add(ref);
+
+    // Reemplazar referencias por sus valores
+    let expr = formula.replace(/[A-C][1-3]/g, match => {
+      const v = evalCell(match, stack);
+      if (v === 'CIRC') return 'CIRC';
+      return v;
+    });
+
+    // Si alguna referencia dio CIRC, propagamos
+    if (expr.includes('CIRC')) {
+      stack.delete(ref);
+      return 'CIRC';
+    }
+
+    // Evaluar expresión (+ y -)
+    let result;
+    try {
+      result = eval(expr);
+      if (isNaN(result)) result = 'CIRC';
+    } catch (e) {
+      result = 'CIRC';
+    }
+
+    stack.delete(ref);
+    return result;
+  }
+
+  // Escuchar cambios en cada celda
+  cells.forEach(c => {
+    c.addEventListener('input', e => {
+      const val = e.target.value;
+      if (val.startsWith('=')) {
+        e.target.dataset.formula = val.slice(1); // guardar fórmula sin '='
+      } else {
+        delete e.target.dataset.formula; // no es fórmula
+      }
+      evaluateAll(); // recalcular todo
+    });
+  });
+
+  // Evaluar inicial (puede haber fórmulas predefinidas)
+  evaluateAll();
+</script>
+</body>
+</html>
+```
+
+**Cómo funciona**
+
+1. Cada `<input>` tiene un atributo `data-ref` que identifica la celda (A1…C3).  
+2. Si el contenido comienza con `=`, se guarda la fórmula (sin el `=`) en `data-formula`.  
+3. Al cambiar cualquier celda, se vuelve a evaluar **todas** las celdas.  
+4. La función `evalCell` evalúa recursivamente las fórmulas, sustituyendo referencias por sus valores y detectando ciclos.  
+5. Si se detecta una referencia circular, la celda muestra `CIRC`.  
+6. El valor calculado se escribe en el atributo `value` del `<input>`.  
+7. La página incluye una animación CSS que pulsa el contenedor de la cuadrícula al cargar.

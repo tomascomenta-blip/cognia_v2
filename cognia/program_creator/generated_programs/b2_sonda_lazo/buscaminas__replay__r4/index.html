@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  h1{
+    margin:20px 0 10px;
+    font-size:1.8rem;
+    font-weight:bold;
+    color:#333;
+  }
+  #status{
+    display:flex;
+    align-items:center;
+    font-size:1.2rem;
+    margin-bottom:15px;
+  }
+  #status span{
+    margin-left:5px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:320px;
+    max-width:90vw;
+  }
+  .c{
+    width:100%;
+    padding-top:100%; /* square */
+    position:relative;
+    background:#444;
+    box-shadow:inset 1px 1px 3px rgba(0,0,0,.4);
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#ddd;
+    cursor:default;
+    box-shadow:none;
+  }
+  .c.abierta::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.4rem;
+    font-weight:bold;
+  }
+  .c.abierta[data-num="0"]::after{content:"";}
+  .c.abierta[data-num="1"]::after{content:"1";color:#d00;}
+  .c.abierta[data-num="2"]::after{content:"2";color:#00d;}
+  .c.abierta[data-num="3"]::after{content:"3";color:#0a0;}
+  .c.abierta[data-num="4"]::after{content:"4";color:#a00;}
+  .c.abierta[data-num="5"]::after{content:"5";color:#a0a;}
+  .c.abierta[data-num="6"]::after{content:"6";color:#00a;}
+  .c.abierta[data-num="7"]::after{content:"7";color:#000;}
+  .c.abierta[data-num="8"]::after{content:"8";color:#555;}
+  .c.bandera{
+    background:#444;
+  }
+  .c.bandera::after{
+    content:"🚩";
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.4rem;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    color:#900;
+  }
+</style>
+</head>
+<body>
+<h1>Minesweeper</h1>
+<div id="status"><span>🚩</span><span id="flagCount">0</span></div>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // fixed mine positions
+  const grid = document.getElementById('grid');
+  const flagCountEl = document.getElementById('flagCount');
+  const estado = document.getElementById('estado');
+  const size = 5;
+  const cells = [];
+
+  // create cells
+  for(let i=0;i<25;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i = i;
+    div.dataset.num = 0; // will set later
+    grid.appendChild(div);
+    cells.push(div);
+  }
+
+  // compute adjacent mine counts
+  const adjCount = Array(25).fill(0);
+  for(let i=0;i<25;i++){
+    if(mines.has(i)) continue;
+    let count=0;
+    for(let di=-1;di<=1;di++){
+      for(let dj=-1;dj<=1;dj++){
+        if(di===0 && dj===0) continue;
+        const ni = Math.floor(i/size)+di;
+        const nj = i%size + dj;
+        if(ni<0||ni>=size||nj<0||nj>=size) continue;
+        const idx = ni*size+nj;
+        if(mines.has(idx)) count++;
+      }
+    }
+    adjCount[i]=count;
+    cells[i].dataset.num = count;
+  }
+
+  // helper to open cell
+  function openCell(i){
+    const cell = cells[i];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    if(mines.has(i)){
+      cell.classList.add('abierta');
+      cell.dataset.num = 'M';
+      cell.style.background='#f88';
+      cell.style.boxShadow='none';
+      cell.style.color='#900';
+      cell.innerHTML = '💣';
+      estado.textContent='perdiste';
+      return;
+    }
+    cell.classList.add('abierta');
+    if(adjCount[i]===0){
+      // cascade
+      for(let di=-1;di<=1;di++){
+        for(let dj=-1;dj<=1;dj++){
+          if(di===0 && dj===0) continue;
+          const ni = Math.floor(i/size)+di;
+          const nj = i%size + dj;
+          if(ni<0||ni>=size||nj<0||nj>=size) continue;
+          const idx = ni*size+nj;
+          openCell(idx);
+        }
+      }
+    }
+  }
+
+  // click handlers
+  grid.addEventListener('click', e=>{
+    const cell = e.target.closest('.c');
+    if(!cell) return;
+    const i = +cell.dataset.i;
+    openCell(i);
+  });
+
+  grid.addEventListener('contextmenu', e=>{
+    e.preventDefault();
+    const cell = e.target.closest('.c');
+    if(!cell) return;
+    const i = +cell.dataset.i;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      flagCountEl.textContent = +flagCountEl.textContent - 1;
+    }else{
+      cell.classList.add('bandera');
+      flagCountEl.textContent = +flagCountEl.textContent + 1;
+    }
+  });
+})();
+</script>
+</body>
+</html>

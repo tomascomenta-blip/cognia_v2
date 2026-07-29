@@ -1,0 +1,177 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:2rem;
+    background:#f9f9f9;
+  }
+  h1{margin-bottom:1rem;}
+  .prod{
+    background:#fff;
+    padding:1rem;
+    margin-bottom:0.5rem;
+    border:1px solid #ddd;
+    border-radius:4px;
+    opacity:0;
+    animation:fadeIn 0.8s forwards;
+  }
+  .prod:nth-child(1){animation-delay:0s;}
+  .prod:nth-child(2){animation-delay:0.2s;}
+  .prod:nth-child(3){animation-delay:0.4s;}
+  .add{
+    margin-left:1rem;
+    padding:0.3rem 0.6rem;
+    background:#28a745;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .add:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{margin-top:1.5rem;}
+  .linea{
+    background:#fff;
+    padding:0.8rem;
+    margin-bottom:0.4rem;
+    border:1px solid #ddd;
+    border-radius:4px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    opacity:0;
+    animation:fadeIn 0.5s forwards;
+  }
+  .quitar{
+    padding:0.2rem 0.5rem;
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  #total{
+    font-weight:bold;
+    font-size:1.2rem;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - Precio: 100 - Stock: 2</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - Precio: 50 - Stock: 3</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - Precio: 25 - Stock: 1</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div id="cart"></div>
+<div>Total: <span id="total">0</span></div>
+
+<script>
+  const cart = {}; // {id: quantity}
+  const totalEl = document.getElementById('total');
+  const cartEl = document.getElementById('cart');
+
+  // Helper to find product element by id
+  function getProdEl(id){ return document.querySelector(`.prod[data-id="${id}"]`); }
+
+  // Update total display
+  function updateTotal(){
+    let sum = 0;
+    for(const id in cart){
+      const prod = getProdEl(id);
+      const price = parseFloat(prod.dataset.precio);
+      sum += cart[id] * price;
+    }
+    totalEl.textContent = sum;
+  }
+
+  // Create or update a line in the cart
+  function renderLine(id){
+    let line = cartEl.querySelector(`.linea[data-id="${id}"]`);
+    const prod = getProdEl(id);
+    const price = parseFloat(prod.dataset.precio);
+    if(!line){
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `
+        <span>${prod.textContent.trim()} - Precio: ${price}</span>
+        <span class="cant">${cart[id]}</span>
+        <button class="quitar" data-id="${id}">Quitar</button>
+      `;
+      cartEl.appendChild(line);
+    }else{
+      line.querySelector('.cant').textContent = cart[id];
+    }
+  }
+
+  // Remove line from cart
+  function removeLine(id){
+    const line = cartEl.querySelector(`.linea[data-id="${id}"]`);
+    if(line) line.remove();
+  }
+
+  // Enable or disable add button based on stock
+  function updateAddButton(id){
+    const prod = getProdEl(id);
+    const btn = prod.querySelector('.add');
+    const stock = parseInt(prod.dataset.stock);
+    btn.disabled = cart[id] >= stock;
+  }
+
+  // Add button click
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const prod = getProdEl(id);
+      const stock = parseInt(prod.dataset.stock);
+      if(!cart[id]) cart[id] = 0;
+      if(cart[id] < stock){
+        cart[id]++;
+        renderLine(id);
+        updateAddButton(id);
+        updateTotal();
+      }
+    });
+  });
+
+  // Quitar button click (delegated)
+  cartEl.addEventListener('click', e=>{
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      if(cart[id]){
+        cart[id]--;
+        if(cart[id] === 0){
+          delete cart[id];
+          removeLine(id);
+        }else{
+          renderLine(id);
+        }
+        updateAddButton(id);
+        updateTotal();
+      }
+    }
+  });
+</script>
+</body>
+</html>
+```

@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Un tablero kanban en un solo archivo HTML</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#333;
+  }
+  .board{
+    display:flex;
+    justify-content:center;
+    gap:20px;
+    padding:20px;
+  }
+  .col{
+    flex:1;
+    min-width:200px;
+    border-radius:4px;
+    padding:10px;
+    background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+  }
+  .todo-col{background:#ffcccc;}
+  .doing-col{background:#cce5ff;}
+  .done-col{background:#ccffcc;}
+  .col h2{
+    margin:0 0 10px 0;
+    font-size:18px;
+  }
+  .col h2 span{
+    margin-left:5px;
+    background:#fff;
+    border-radius:3px;
+    padding:2px 5px;
+    font-size:12px;
+  }
+  .card{
+    background:#fff;
+    border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    margin-bottom:10px;
+    padding:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card-buttons{
+    display:flex;
+    gap:5px;
+  }
+  .card-buttons button{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    font-size:12px;
+    line-height:1;
+  }
+  .card-buttons button:hover{
+    background:#e0e0e0;
+  }
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board" id="board">
+  <div class="col todo-col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col doing-col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col done-col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+const columns = ['todo','doing','done'];
+
+function getCol(name){return document.querySelector('.col[data-col="'+name+'"]');}
+function createCard(id){
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.id=id;
+  card.innerHTML=`<strong>${id}</strong>
+    <div class="card-buttons">
+      <button class="menos">▲</button>
+      <button class="mas">▼</button>
+    </div>`;
+  return card;
+}
+function updateCounters(){
+  document.getElementById('cont-todo').textContent=getCol('todo').querySelectorAll('.card').length;
+  document.getElementById('cont-doing').textContent=getCol('doing').querySelectorAll('.card').length;
+  document.getElementById('cont-done').textContent=getCol('done').querySelectorAll('.card').length;
+}
+function moveCard(button){
+  const card=button.closest('.card');
+  const curCol=card.parentElement;
+  const curIdx=columns.indexOf(curCol.dataset.col);
+  const delta=button.classList.contains('mas')?1:-1;
+  const newIdx=curIdx+delta;
+  if(newIdx<0||newIdx>2)return; // boundary
+  // WIP rule: doing max 2
+  if(newIdx===1 && curIdx===0){
+    if(getCol('doing').querySelectorAll('.card').length>=MAX_DOING)return;
+  }
+  const newCol=getCol(columns[newIdx]);
+  newCol.appendChild(card);
+  updateCounters();
+}
+document.getElementById('board').addEventListener('click',e=>{
+  if(e.target.classList.contains('mas')||e.target.classList.contains('menos')){
+    moveCard(e.target);
+  }
+});
+// initial cards
+['t1','t2','t3'].forEach(id=>getCol('todo').appendChild(createCard(id)));
+updateCounters();
+</script>
+</body>
+</html>

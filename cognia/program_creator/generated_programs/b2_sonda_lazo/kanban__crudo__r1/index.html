@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  #board{
+    display:flex;
+    gap:20px;
+    width:650px;
+  }
+  .col{
+    background:#fff;
+    padding:10px;
+    border-radius:5px;
+    width:200px;
+    min-height:300px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    animation:slideIn 0.5s ease-out forwards;
+    opacity:0;
+  }
+  .col h3{
+    margin-top:0;
+    text-align:center;
+  }
+  .cards{
+    margin-top:10px;
+  }
+  .card{
+    background:#e3f2fd;
+    padding:8px;
+    margin-bottom:10px;
+    border-radius:3px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:fadeIn 0.5s ease-out forwards;
+    opacity:0;
+  }
+  .card span{
+    flex:1;
+  }
+  button{
+    margin-left:5px;
+    padding:2px 6px;
+    font-size:0.9em;
+  }
+  .counter{
+    display:block;
+    margin-top:10px;
+    font-weight:bold;
+    text-align:center;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-50px);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h3>Todo</h3>
+    <div class="cards"></div>
+    <span id="cont-todo" class="counter"></span>
+  </div>
+  <div class="col" data-col="doing">
+    <h3>Doing</h3>
+    <div class="cards"></div>
+    <span id="cont-doing" class="counter"></span>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Done</h3>
+    <div class="cards"></div>
+    <span id="cont-done" class="counter"></span>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const todoCards = document.querySelector('.col[data-col="todo"] .cards');
+  for (let i = 1; i <= 3; i++) {
+    todoCards.appendChild(createCard('t' + i));
+  }
+  updateCounters();
+});
+
+function createCard(id) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = id;
+
+  const text = document.createElement('span');
+  text.textContent = 'Task ' + id;
+
+  const btnMas = document.createElement('button');
+  btnMas.className = 'mas';
+  btnMas.textContent = '→';
+
+  const btnMenos = document.createElement('button');
+  btnMenos.className = 'menos';
+  btnMenos.textContent = '←';
+
+  card.appendChild(text);
+  card.appendChild(btnMas);
+  card.appendChild(btnMenos);
+
+  btnMas.addEventListener('click', () => moveCard(card, 'right'));
+  btnMenos.addEventListener('click', () => moveCard(card, 'left'));
+
+  return card;
+}
+
+function moveCard(card, dir) {
+  const col = card.closest('.col');
+  const current = col.dataset.col;
+
+  if (dir === 'right') {
+    if (current === 'done') return; // no avanzar desde done
+    if (current === 'todo') {
+      const doingCount = document.querySelector('.col[data-col="doing"] .cards').children.length;
+      if (doingCount >= 2) return; // WIP máximo 2 en doing
+    }
+    const next = current === 'todo' ? 'doing' : 'done';
+    const nextCol = document.querySelector('.col[data-col="' + next + '"] .cards');
+    nextCol.appendChild(card);
+  } else if (dir === 'left') {
+    if (current === 'todo') return; // no retroceder desde todo
+    const prev = current === 'doing' ? 'todo' : 'doing';
+    const prevCol = document.querySelector('.col[data-col="' + prev + '"] .cards');
+    prevCol.appendChild(card);
+  }
+  updateCounters();
+}
+
+function updateCounters() {
+  const todo = document.querySelector('.col[data-col="todo"] .cards').children.length;
+  const doing = document.querySelector('.col[data-col="doing"] .cards').children.length;
+  const done = document.querySelector('.col[data-col="done"] .cards').children.length;
+
+  document.getElementById('cont-todo').textContent = todo;
+  document.getElementById('cont-doing').textContent = doing;
+  document.getElementById('cont-done').textContent = done;
+}
+</script>
+</body>
+</html>

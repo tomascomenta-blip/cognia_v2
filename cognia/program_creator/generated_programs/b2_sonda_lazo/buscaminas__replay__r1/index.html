@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>5x5 Minas</title>
+<style>
+  body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:#222;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#eee;
+  }
+  #estado{
+    margin-bottom:12px;
+    font-size:1.2rem;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-template-rows:repeat(5,60px);
+    gap:2px;
+    background:#555;
+    padding:5px;
+    box-shadow:0 4px 8px rgba(0,0,0,0.5);
+  }
+  .c{
+    background:#ccc;
+    width:60px;
+    height:60px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    font-weight:bold;
+    font-size:1.2rem;
+    position:relative;
+  }
+  .c.abierta{
+    background:#008080;
+    color:#fff;
+  }
+  .c.bandera::after{
+    content:"🚩";
+    font-size:1.2rem;
+  }
+</style>
+</head>
+<body>
+<div id="estado">minas restantes: 3</div>
+<div id="grid"></div>
+
+<script>
+class Minesweeper{
+  constructor(){
+    this.size = 5;
+    this.totalMines = 3;
+    this.minePositions = new Set([6,12,18]); // fixed mines
+    this.gridEl = document.getElementById('grid');
+    this.estadoEl = document.getElementById('estado');
+    this.cells = [];
+    this.initGrid();
+    this.updateEstado();
+  }
+  initGrid(){
+    for(let i=0;i<25;i++){
+      const cell = document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i = i;
+      cell.addEventListener('click', e=>this.revealCell(e.target));
+      cell.addEventListener('contextmenu', e=>this.toggleFlag(e));
+      this.gridEl.appendChild(cell);
+      this.cells.push(cell);
+    }
+  }
+  getNeighbors(idx){
+    const r = Math.floor(idx/this.size);
+    const c = idx%this.size;
+    const neighbors = [];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr = r+dr, nc = c+dc;
+        if(nr>=0 && nr<this.size && nc>=0 && nc<this.size){
+          neighbors.push(nr*this.size+nc);
+        }
+      }
+    }
+    return neighbors;
+  }
+  countAdjacentMines(idx){
+    return this.getNeighbors(idx).filter(n=>this.minePositions.has(n)).length;
+  }
+  revealCell(cell){
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    const idx = +cell.dataset.i;
+    if(this.minePositions.has(idx)){
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      this.estadoEl.textContent = 'perdiste';
+      this.disableAll();
+      return;
+    }
+    const count = this.countAdjacentMines(idx);
+    cell.classList.add('abierta');
+    if(count>0) cell.textContent = count;
+    if(count===0){
+      this.cascade(idx);
+    }
+    this.updateEstado();
+  }
+  cascade(startIdx){
+    const queue = [startIdx];
+    const visited = new Set();
+    while(queue.length){
+      const idx = queue.shift();
+      const neighbors = this.getNeighbors(idx);
+      for(const n of neighbors){
+        const cell = this.cells[n];
+        if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+        if(visited.has(n)) continue;
+        visited.add(n);
+        const count = this.countAdjacentMines(n);
+        cell.classList.add('abierta');
+        if(count>0) cell.textContent = count;
+        if(count===0) queue.push(n);
+      }
+    }
+  }
+  toggleFlag(e){
+    e.preventDefault();
+    const cell = e.target;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent = '';
+    }
+    this.updateEstado();
+  }
+  updateEstado(){
+    if(this.estadoEl.textContent==='perdiste') return;
+    const flagged = this.cells.filter(c=>c.classList.contains('bandera')).length;
+    this.estadoEl.textContent = `minas restantes: ${this.totalMines - flagged}`;
+  }
+  disableAll(){
+    this.cells.forEach(c=>c.removeEventListener('click', this.revealCell));
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>new Minesweeper());
+</script>
+</body>
+</html>

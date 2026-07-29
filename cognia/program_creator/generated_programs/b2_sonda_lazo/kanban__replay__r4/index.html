@@ -1,0 +1,98 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{margin:0;font-family:system-ui,Arial,sans-serif;background:#fafafa;color:#333;}
+  .board{display:flex;flex-direction:column;min-height:100vh;}
+  .board-header{background:#333;color:#fff;text-align:center;padding:1rem;font-size:1.5rem;}
+  .board-columns{display:flex;flex:1;gap:1rem;padding:1rem;overflow:auto;}
+  .col{flex:1;display:flex;flex-direction:column;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+  .col-title{background:#f0f0f0;color:#666;padding:0.5rem;font-weight:bold;text-align:center;}
+  .col-content{flex:1;padding:0.5rem;display:flex;flex-direction:column;gap:0.5rem;}
+  .card{background:#f5f5f5;border-radius:4px;padding:0.5rem;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;}
+  .card-id{font-weight:bold;}
+  .card-buttons{display:flex;gap:0.25rem;}
+  button{width:24px;height:24px;border:none;border-radius:50%;font-size:14px;cursor:pointer;}
+  button.mas{background:#008080;color:#fff;}
+  button.menos{background:#FF6347;color:#fff;}
+  @media (max-width:600px){
+    .board-columns{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="board-header">Kanban Board</div>
+  <div class="board-columns">
+    <div class="col" data-col="todo">
+      <div class="col-title">Todo <span id="cont-todo"></span></div>
+      <div class="col-content" id="todo-content">
+        <div class="card" data-id="t1">
+          <span class="card-id">t1</span>
+          <div class="card-buttons">
+            <button class="mas">+</button>
+            <button class="menos">-</button>
+          </div>
+        </div>
+        <div class="card" data-id="t2">
+          <span class="card-id">t2</span>
+          <div class="card-buttons">
+            <button class="mas">+</button>
+            <button class="menos">-</button>
+          </div>
+        </div>
+        <div class="card" data-id="t3">
+          <span class="card-id">t3</span>
+          <div class="card-buttons">
+            <button class="mas">+</button>
+            <button class="menos">-</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col" data-col="doing">
+      <div class="col-title">Doing <span id="cont-doing"></span></div>
+      <div class="col-content" id="doing-content"></div>
+    </div>
+    <div class="col" data-col="done">
+      <div class="col-title">Done <span id="cont-done"></span></div>
+      <div class="col-content" id="done-content"></div>
+    </div>
+  </div>
+</div>
+<script>
+  const MAX_DOING = 2;
+  const COL_ORDER = ['todo','doing','done'];
+  function updateCounters(){
+    COL_ORDER.forEach(col=>{
+      const count = document.querySelectorAll('.col[data-col="'+col+'"] .card').length;
+      document.getElementById('cont-'+col).textContent = count;
+    });
+  }
+  function moveCard(card, direction){
+    const currentCol = card.closest('.col');
+    const currentIndex = COL_ORDER.indexOf(currentCol.dataset.col);
+    const newIndex = currentIndex + direction;
+    if(newIndex < 0 || newIndex >= COL_ORDER.length) return;
+    const targetCol = document.querySelector('.col[data-col="'+COL_ORDER[newIndex]+'"]');
+    // WIP rule: doing max 2
+    if(COL_ORDER[newIndex]==='doing' && targetCol.querySelectorAll('.card').length>=MAX_DOING) return;
+    targetCol.querySelector('.col-content').appendChild(card);
+    updateCounters();
+  }
+  document.addEventListener('click',function(e){
+    if(e.target.classList.contains('mas')){
+      moveCard(e.target.closest('.card'),1);
+    }else if(e.target.classList.contains('menos')){
+      moveCard(e.target.closest('.card'),-1);
+    }
+  });
+  // initial counter update
+  updateCounters();
+</script>
+</body>
+</html>

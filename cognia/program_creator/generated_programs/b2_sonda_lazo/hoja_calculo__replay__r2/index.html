@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:#f0f0f0;
+  }
+  .wrapper{
+    background:#fff;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(4,120px);
+    grid-auto-rows:120px;
+    gap:5px;
+  }
+  .grid div{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+  }
+  .label-col{font-weight:bold;}
+  .label-row{font-style:italic;}
+  input.celda{
+    width:120px;
+    height:120px;
+    border-radius:5px;
+    border:1px solid #ccc;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    font-size:18px;
+    text-align:center;
+    line-height:120px;
+    background:#fff;
+    outline:none;
+  }
+  input.celda:focus{
+    box-shadow:0 0 5px teal;
+  }
+  input.celda.formula{
+    font-weight:bold;
+    color:#333;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="grid">
+    <div></div>
+    <div class="label-col">A</div>
+    <div class="label-col">B</div>
+    <div class="label-col">C</div>
+
+    <div class="label-row">1</div>
+    <input type="text" class="celda" data-ref="A1" value="1">
+    <input type="text" class="celda" data-ref="B1" value="2">
+    <input type="text" class="celda" data-ref="C1">
+
+    <div class="label-row">2</div>
+    <input type="text" class="celda" data-ref="A2">
+    <input type="text" class="celda" data-ref="B2">
+    <input type="text" class="celda" data-ref="C2">
+
+    <div class="label-row">3</div>
+    <input type="text" class="celda" data-ref="A3">
+    <input type="text" class="celda" data-ref="B3">
+    <input type="text" class="celda" data-ref="C3" value="=A1+B1">
+  </div>
+</div>
+<script>
+(() => {
+  const cells = Array.from(document.querySelectorAll('input.celda'));
+
+  // Initialize formula cells
+  cells.forEach(cell => {
+    if (cell.value.trim().startsWith('=')) {
+      cell.dataset.formula = cell.value.trim();
+      cell.classList.add('formula');
+    }
+  });
+
+  // Evaluate a cell value (returns number or 'CIRC')
+  function evaluateCell(cell, stack = new Set()) {
+    if (stack.has(cell)) return 'CIRC';
+    if (cell.dataset.formula) {
+      stack.add(cell);
+      const result = evaluateFormula(cell.dataset.formula.slice(1), stack);
+      stack.delete(cell);
+      return result;
+    }
+    const val = cell.value.trim();
+    if (val === '') return 0;
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Evaluate a formula string (no leading '=')
+  function evaluateFormula(expr, stack) {
+    const tokens = expr.match(/([A-C][1-3])|(\d+(\.\d+)?)|([+-])/g);
+    if (!tokens) return 0;
+    let sum = 0;
+    let sign = 1;
+    tokens.forEach(tok => {
+      if (tok === '+') sign = 1;
+      else if (tok === '-') sign = -1;
+      else if (/^[A-C][1-3]$/.test(tok)) {
+        const refCell = cells.find(c => c.dataset.ref === tok);
+        const val = refCell ? evaluateCell(refCell, stack) : 0;
+        if (val === 'CIRC') { sum = 'CIRC'; return; }
+        sum += sign * val;
+      } else { // number
+        sum += sign * parseFloat(tok);
+      }
+    });
+    return sum;
+  }
+
+  // Recalculate all formula cells
+  function recalcAll() {
+    cells.forEach(cell => {
+      if (cell.dataset.formula) {
+        const val = evaluateCell(cell, new Set());
+        cell.value = val === 'CIRC' ? 'CIRC' : val;
+      }
+    });
+  }
+
+  // Handle input events
+  cells.forEach(cell => {
+    cell.addEventListener('input', () => {
+      const val = cell.value.trim();
+      if (val.startsWith('=')) {
+        cell.dataset.formula = val;
+        cell.classList.add('formula');
+      } else {
+        delete cell.dataset.formula;
+        cell.classList.remove('formula');
+      }
+      recalcAll();
+    });
+  });
+
+  // Initial calculation
+  recalcAll();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#eaeaea;}
+.board{display:flex;flex-wrap:wrap;justify-content:center;max-width:900px;margin:20px auto;background:#f5f5f5;padding:20px;border-radius:8px;gap:20px;}
+.col{flex:1 1 0;background:#fff;border-radius:4px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);min-width:200px;}
+h2{margin:0 0 10px;font-size:1.2em;}
+.cnt{font-size:.8em;color:#666;margin-left:5px;}
+.card{background:#fff;border-radius:4px;padding:10px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.1);position:relative;}
+.btns{position:absolute;bottom:5px;right:5px;display:flex;gap:5px;}
+button{background:none;border:none;color:#008080;font-size:14px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo"><h2>Todo<span id="cont-todo" class="cnt"></span></h2>
+    <div class="card" data-id="t1"><strong>t1</strong><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+    <div class="card" data-id="t2"><strong>t2</strong><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+    <div class="card" data-id="t3"><strong>t3</strong><div class="btns"><button class="menos">←</button><button class="mas">→</button></div></div>
+  </div>
+  <div class="col" data-col="doing"><h2>Doing<span id="cont-doing" class="cnt"></span></h2></div>
+  <div class="col" data-col="done"><h2>Done<span id="cont-done" class="cnt"></span></h2></div>
+</div>
+<script>
+function upd(){document.getElementById('cont-todo').textContent=document.querySelectorAll('[data-col="todo"] .card').length;document.getElementById('cont-doing').textContent=document.querySelectorAll('[data-col="doing"] .card').length;document.getElementById('cont-done').textContent=document.querySelectorAll('[data-col="done"] .card').length;}
+document.querySelector('.board').addEventListener('click',e=>{if(e.target.classList.contains('mas')||e.target.classList.contains('menos')){let card=e.target.closest('.card');let col=card.parentElement;let cur=col.dataset.col;let next; if(e.target.classList.contains('mas')){if(cur==='todo'){next='doing';}else if(cur==='doing'){next='done';}else{return;} }else{if(cur==='done'){next='doing';}else if(cur==='doing'){next='todo';}else{return;} } if(next==='doing'&&document.querySelectorAll('[data-col="doing"] .card').length>=2)return;let nextCol=document.querySelector('[data-col="'+next+'"]');nextCol.appendChild(card);upd();}});upd();
+</script>
+</body>
+</html>

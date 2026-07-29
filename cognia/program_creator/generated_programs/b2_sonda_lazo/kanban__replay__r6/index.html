@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban Board</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#333;box-sizing:border-box;}
+  #board{display:flex;height:100vh;}
+  .col{flex:1;padding:16px;box-sizing:border-box;overflow-y:auto;}
+  .col[data-col="todo"]{background:#e0f7fa;}
+  .col[data-col="doing"]{background:#e8f5e9;}
+  .col[data-col="done"]{background:#f3e5f5;}
+  h2{margin:0 0 8px 0;font-size:18px;text-transform:uppercase;color:#555;display:flex;align-items:center;justify-content:space-between;}
+  .card{background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);padding:12px;margin-bottom:12px;display:flex;flex-direction:column;}
+  .card-title{font-weight:bold;margin-bottom:8px;}
+  .card-buttons{margin-top:auto;display:flex;justify-content:flex-end;}
+  .card-buttons button{width:24px;height:24px;border-radius:50%;border:none;background:#bbb;color:#fff;font-size:14px;line-height:24px;text-align:center;cursor:pointer;margin-left:4px;}
+  .card-buttons button:disabled{background:#ddd;cursor:not-allowed;}
+  @media(max-width:600px){#board{flex-direction:column;} .col{flex:none;width:100%;}}
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <div class="card-title">Tarea t1</div>
+      <div class="card-buttons">
+        <button class="menos" disabled>←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="card-title">Tarea t2</div>
+      <div class="card-buttons">
+        <button class="menos" disabled>←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="card-title">Tarea t3</div>
+      <div class="card-buttons">
+        <button class="menos" disabled>←</button>
+        <button class="mas">→</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const columns = Array.from(document.querySelectorAll('.col'));
+  const order = ['todo','doing','done'];
+  const updateCounts = () => {
+    columns.forEach(col=>{
+      const id = col.dataset.col;
+      const count = col.querySelectorAll('.card').length;
+      document.getElementById('cont-'+id).textContent = count;
+    });
+  };
+  const canMove = (card, dir) => {
+    const cur = card.parentElement;
+    const idx = order.indexOf(cur.dataset.col);
+    if(dir==='mas'){
+      if(idx===2) return false;
+      if(cur.dataset.col==='todo'){
+        const doing = columns[order.indexOf('doing')];
+        if(doing.querySelectorAll('.card').length>=2) return false;
+      }
+    }else{
+      if(idx===0) return false;
+    }
+    return true;
+  };
+  const moveCard = (card, dir) => {
+    if(!canMove(card,dir)) return;
+    const cur = card.parentElement;
+    const idx = order.indexOf(cur.dataset.col);
+    const target = columns[dir==='mas'?idx+1:idx-1];
+    target.appendChild(card);
+    updateCounts();
+  };
+  document.querySelectorAll('.mas,.menos').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      const card = this.closest('.card');
+      const dir = this.classList.contains('mas')?'mas':'menos';
+      moveCard(card,dir);
+    });
+  });
+  updateCounts();
+});
+</script>
+</body>
+</html>

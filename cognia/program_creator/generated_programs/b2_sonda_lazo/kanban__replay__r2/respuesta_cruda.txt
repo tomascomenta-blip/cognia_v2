@@ -1,0 +1,107 @@
+Title: Tablero Kanban  
+Description: Un tablero Kanban con tres columnas y tarjetas que se mueven entre ellas con botones, respetando límites de WIP y actualizando contadores.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:0;}
+  .board{display:flex;height:100vh;gap:10px;padding:10px;box-sizing:border-box;}
+  .col{background:#fff;border-radius:4px;flex:1;display:flex;flex-direction:column;overflow-y:auto;}
+  .col-header{background:#e0e0e0;padding:10px;font-weight:bold;text-align:center;border-bottom:1px solid #ccc;}
+  .card{background:#fff;margin:10px;padding:10px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-left:4px solid #008080;display:flex;justify-content:space-between;align-items:center;}
+  .card span{flex:1;}
+  .card button{background:#008080;color:#fff;border:none;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-left:5px;}
+  .card button:hover{background:#006666;}
+  .card button:disabled{background:#cccccc;cursor:not-allowed;}
+  .counter{font-size:12px;color:#666;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo" class="counter"></span></div>
+    <div class="card" data-id="t1"><span>t1</span><div><button class="menos">-</button><button class="mas">+</button></div></div>
+    <div class="card" data-id="t2"><span>t2</span><div><button class="menos">-</button><button class="mas">+</button></div></div>
+    <div class="card" data-id="t3"><span>t3</span><div><button class="menos">-</button><button class="mas">+</button></div></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing" class="counter"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done" class="counter"></span></div>
+  </div>
+</div>
+<script>
+class KanbanBoard {
+  constructor(){
+    this.cols = ['todo','doing','done'];
+    this.colElements = {};
+    this.cols.forEach(col=>{
+      this.colElements[col] = document.querySelector('.col[data-col="'+col+'"]');
+    });
+    this.updateCounters();
+    this.updateButtons();
+    this.addEventListeners();
+  }
+  addEventListeners(){
+    document.querySelectorAll('.card button').forEach(btn=>{
+      btn.addEventListener('click',e=>{
+        const card = e.target.closest('.card');
+        const currentCol = this.getCardColumn(card);
+        const dir = e.target.classList.contains('mas') ? 1 : -1;
+        const targetCol = this.cols[this.cols.indexOf(currentCol)+dir];
+        if(!targetCol) return;
+        if(targetCol==='doing' && this.getColumnCount('doing')>=2) return;
+        if(currentCol==='todo' && dir===-1) return;
+        if(currentCol==='done' && dir===1) return;
+        this.moveCard(card,targetCol);
+        this.updateCounters();
+        this.updateButtons();
+      });
+    });
+  }
+  getCardColumn(card){
+    return card.parentElement.parentElement.dataset.col;
+  }
+  getColumnCount(col){
+    return this.colElements[col].querySelectorAll('.card').length;
+  }
+  moveCard(card,targetCol){
+    const targetColEl = this.colElements[targetCol];
+    targetColEl.appendChild(card);
+  }
+  updateCounters(){
+    this.cols.forEach(col=>{
+      const count = this.getColumnCount(col);
+      document.getElementById('cont-'+col).textContent = count;
+    });
+  }
+  updateButtons(){
+    const doingCount = this.getColumnCount('doing');
+    document.querySelectorAll('.card').forEach(card=>{
+      const col = this.getCardColumn(card);
+      const minusBtn = card.querySelector('.menos');
+      const plusBtn = card.querySelector('.mas');
+      if(col==='todo'){
+        minusBtn.disabled = true;
+        plusBtn.disabled = doingCount>=2;
+      }else if(col==='doing'){
+        minusBtn.disabled = false;
+        plusBtn.disabled = false;
+      }else if(col==='done'){
+        minusBtn.disabled = false;
+        plusBtn.disabled = true;
+      }
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{new KanbanBoard();});
+</script>
+</body>
+</html>
+```

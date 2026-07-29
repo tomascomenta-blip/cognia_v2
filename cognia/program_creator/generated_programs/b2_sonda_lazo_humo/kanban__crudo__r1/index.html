@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    height:100vh;
+    box-sizing:border-box;
+  }
+  #board{
+    display:flex;
+    gap:20px;
+  }
+  .col{
+    background:#fff;
+    padding:10px;
+    border-radius:5px;
+    width:200px;
+    min-height:300px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    animation:slideIn .8s ease-out forwards;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-100%);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  .col h2{
+    margin:0 0 5px;
+    font-size:1.2em;
+    text-align:center;
+  }
+  .col span{
+    display:block;
+    text-align:center;
+    margin-bottom:10px;
+    font-weight:bold;
+  }
+  .cards{
+    min-height:200px;
+  }
+  .card{
+    background:#e3f2fd;
+    margin:5px 0;
+    padding:10px;
+    border-radius:3px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:fadeIn .5s ease-out forwards;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  button{
+    margin-left:5px;
+    padding:2px 6px;
+    font-size:.9em;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <span id="cont-todo">0</span>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <span id="cont-doing">0</span>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <span id="cont-done">0</span>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const order = ['todo', 'doing', 'done'];
+  const maxDoing = 2; // WIP limit
+
+  // Helper to create a card element
+  function createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.textContent = id;
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '+';
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '-';
+
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+
+    // Event listeners
+    btnMas.addEventListener('click', () => moveCard(card, 1));
+    btnMenos.addEventListener('click', () => moveCard(card, -1));
+
+    return card;
+  }
+
+  // Move card in given direction (1 = right, -1 = left)
+  function moveCard(card, dir) {
+    const col = card.closest('.col');
+    const current = col.dataset.col;
+    const idx = order.indexOf(current);
+    const newIdx = idx + dir;
+
+    // Out of bounds
+    if (newIdx < 0 || newIdx >= order.length) return;
+
+    // WIP rule: can't move to doing if full
+    if (order[newIdx] === 'doing') {
+      const doingCol = document.querySelector('.col[data-col="doing"] .cards');
+      if (doingCol.children.length >= maxDoing) return;
+    }
+
+    // Can't move left from todo
+    if (dir === -1 && current === 'todo') return;
+
+    // Can't move right from done
+    if (dir === 1 && current === 'done') return;
+
+    // Perform move
+    const targetCol = document.querySelector(`.col[data-col="${order[newIdx]}"] .cards`);
+    targetCol.appendChild(card);
+    updateCounts();
+  }
+
+  // Update counters
+  function updateCounts() {
+    ['todo', 'doing', 'done'].forEach(col => {
+      const count = document.querySelector(`.col[data-col="${col}"] .cards`).children.length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+
+  // Initialize with 3 cards in todo
+  const todoCards = document.querySelector('.col[data-col="todo"] .cards');
+  ['t1', 't2', 't3'].forEach(id => todoCards.appendChild(createCard(id)));
+
+  updateCounts();
+});
+</script>
+</body>
+</html>

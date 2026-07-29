@@ -1,0 +1,136 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#eaeaea;
+    margin:0;
+    padding:0;
+  }
+  .board{
+    display:flex;
+    justify-content:space-between;
+    padding:20px;
+  }
+  .col{
+    flex:1;
+    margin:0 10px;
+    background:#f0f0f0;
+    padding:10px;
+    border-radius:4px;
+  }
+  .col h2{
+    margin-top:0;
+    font-size:1.2em;
+  }
+  .cards{
+    min-height:50px;
+  }
+  .card{
+    background:#fff;
+    border:1px solid #ccc;
+    padding:8px;
+    margin:4px 0;
+    border-radius:4px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    opacity:0;
+    transform:translateX(-20px);
+    animation:slideIn 0.5s forwards;
+  }
+  .card:nth-child(1){animation-delay:0s;}
+  .card:nth-child(2){animation-delay:0.1s;}
+  .card:nth-child(3){animation-delay:0.2s;}
+  @keyframes slideIn{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  button{
+    background:#007bff;
+    color:#fff;
+    border:none;
+    padding:4px 8px;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:0.9em;
+  }
+  button:disabled{
+    background:#aaa;
+    cursor:not-allowed;
+  }
+  .counter{
+    font-weight:bold;
+    margin-left:8px;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo" class="counter">0</span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1"><span>t1</span><div><button class="mas">→</button><button class="menos">←</button></div></div>
+      <div class="card" data-id="t2"><span>t2</span><div><button class="mas">→</button><button class="menos">←</button></div></div>
+      <div class="card" data-id="t3"><span>t3</span><div><button class="mas">→</button><button class="menos">←</button></div></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing" class="counter">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done" class="counter">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  function updateCounters(){
+    const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent = todo;
+    document.getElementById('cont-doing').textContent = doing;
+    document.getElementById('cont-done').textContent = done;
+  }
+  updateCounters();
+
+  document.addEventListener('click', function(e){
+    if(e.target.classList.contains('mas') || e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      const currentCol = card.closest('.col');
+      const currentName = currentCol.dataset.col;
+      let targetName;
+
+      if(e.target.classList.contains('mas')){
+        if(currentName==='todo') targetName='doing';
+        else if(currentName==='doing') targetName='done';
+        else return; // done no puede avanzar
+      }else{ // menos
+        if(currentName==='doing') targetName='todo';
+        else if(currentName==='done') targetName='doing';
+        else return; // todo no puede retroceder
+      }
+
+      // Regla WIP: máximo 2 en doing
+      if(targetName==='doing'){
+        const doingCards = document.querySelector('.col[data-col="doing"] .cards');
+        if(doingCards.children.length>=2) return;
+      }
+
+      const targetCards = document.querySelector('.col[data-col="'+targetName+'"] .cards');
+      targetCards.appendChild(card);
+      updateCounters();
+    }
+  });
+});
+</script>
+</body>
+</html>
+```

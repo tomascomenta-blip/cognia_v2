@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+  }
+  h1{margin-top:0;}
+  .prod{
+    background:#fff;
+    border:1px solid #ccc;
+    padding:10px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    animation:fadeIn 1s forwards;
+  }
+  .prod:nth-child(1){animation-delay:.2s;}
+  .prod:nth-child(2){animation-delay:.4s;}
+  .prod:nth-child(3){animation-delay:.6s;}
+  .linea{
+    background:#e0e0ff;
+    border:1px solid #999;
+    padding:5px;
+    margin-bottom:5px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    animation:fadeIn 0.5s forwards;
+  }
+  button{cursor:pointer;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  #cart{margin-top:20px;}
+  #total{font-weight:bold;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - $100 - Stock: 2</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - $50 - Stock: 3</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - $25 - Stock: 1</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div id="cart"></div>
+<div>Total: $<span id="total">0</span></div>
+
+<script>
+  const cart = {}; // {id: quantity}
+  const products = document.querySelectorAll('.prod');
+
+  // Helper to get product data
+  function getProduct(id){
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    return {
+      price: parseInt(prod.dataset.precio,10),
+      stock: parseInt(prod.dataset.stock,10)
+    };
+  }
+
+  // Update cart UI
+  function updateCart(){
+    const cartDiv = document.getElementById('cart');
+    cartDiv.innerHTML = '';
+    let total = 0;
+    for(const id in cart){
+      const qty = cart[id];
+      const {price} = getProduct(id);
+      total += qty * price;
+
+      const line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+
+      const span = document.createElement('span');
+      span.className = 'cant';
+      span.textContent = `${id} x ${qty} = $${qty*price}`;
+
+      const btn = document.createElement('button');
+      btn.className = 'quitar';
+      btn.dataset.id = id;
+      btn.textContent = 'Quitar';
+
+      line.appendChild(span);
+      line.appendChild(btn);
+      cartDiv.appendChild(line);
+    }
+    document.getElementById('total').textContent = total;
+  }
+
+  // Enable/disable add button based on stock
+  function setAddButtonState(id, disabled){
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    btn.disabled = disabled;
+  }
+
+  // Add button handler
+  function addHandler(e){
+    const id = e.target.dataset.id;
+    const {stock} = getProduct(id);
+    const current = cart[id] || 0;
+    if(current < stock){
+      cart[id] = current + 1;
+      updateCart();
+      if(cart[id] === stock) setAddButtonState(id,true);
+    }
+  }
+
+  // Quitar button handler
+  function quitarHandler(e){
+    const id = e.target.dataset.id;
+    const current = cart[id];
+    if(current > 1){
+      cart[id] = current - 1;
+      updateCart();
+      setAddButtonState(id,false);
+    }else{
+      delete cart[id];
+      updateCart();
+      setAddButtonState(id,false);
+    }
+  }
+
+  // Attach event listeners
+  products.forEach(prod=>{
+    const addBtn = prod.querySelector('.add');
+    addBtn.addEventListener('click',addHandler);
+  });
+
+  document.getElementById('cart').addEventListener('click',function(e){
+    if(e.target.classList.contains('quitar')){
+      quitarHandler(e);
+    }
+  });
+</script>
+</body>
+</html>

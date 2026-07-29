@@ -1,0 +1,100 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  /* Reset básico */
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;padding:20px;}
+  h2{font-size:1.2rem;margin-bottom:10px;}
+  .board{display:flex;gap:20px;justify-content:center;animation:fadeIn 1s ease-out;}
+  .col{background:#fff;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1);flex:1;min-width:200px;padding:10px;}
+  .col h2{display:flex;justify-content:space-between;align-items:center;}
+  .card{background:#e3f2fd;border-radius:3px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+  .card span{flex:1;}
+  .card button{background:#1976d2;color:#fff;border:none;border-radius:3px;padding:2px 6px;margin-left:4px;cursor:pointer;}
+  .card button:disabled{background:#90caf9;cursor:not-allowed;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+  // Función para crear una tarjeta
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.innerHTML = `
+      <span>${id}</span>
+      <button class="menos">←</button>
+      <button class="mas">→</button>
+    `;
+    // Eventos
+    card.querySelector('.mas').addEventListener('click', moveRight);
+    card.querySelector('.menos').addEventListener('click', moveLeft);
+    return card;
+  }
+
+  // Inicializar tarjetas en "todo"
+  const todoCol = document.querySelector('[data-col="todo"] .cards');
+  ['t1','t2','t3'].forEach(id => todoCol.appendChild(createCard(id)));
+
+  // Función para actualizar contadores
+  function updateCounts(){
+    const todo = document.querySelectorAll('[data-col="todo"] .card').length;
+    const doing = document.querySelectorAll('[data-col="doing"] .card').length;
+    const done = document.querySelectorAll('[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent = todo;
+    document.getElementById('cont-doing').textContent = doing;
+    document.getElementById('cont-done').textContent = done;
+  }
+
+  // Mover tarjeta a la derecha
+  function moveRight(e){
+    const card = e.target.closest('.card');
+    const currentCol = card.parentElement.parentElement.dataset.col;
+    if(currentCol === 'done') return; // no puede avanzar
+    const nextCol = currentCol === 'todo' ? 'doing' : 'done';
+    // Regla WIP: doing solo 2 tarjetas
+    if(nextCol === 'doing' && document.querySelectorAll('[data-col="doing"] .card').length >= 2){
+      return; // no se mueve
+    }
+    const targetCardsDiv = document.querySelector(`[data-col="${nextCol}"] .cards`);
+    targetCardsDiv.appendChild(card);
+    updateCounts();
+  }
+
+  // Mover tarjeta a la izquierda
+  function moveLeft(e){
+    const card = e.target.closest('.card');
+    const currentCol = card.parentElement.parentElement.dataset.col;
+    if(currentCol === 'todo') return; // no puede retroceder
+    const prevCol = currentCol === 'doing' ? 'todo' : 'doing';
+    const targetCardsDiv = document.querySelector(`[data-col="${prevCol}"] .cards`);
+    targetCardsDiv.appendChild(card);
+    updateCounts();
+  }
+
+  // Actualizar contadores al cargar
+  updateCounts();
+</script>
+</body>
+</html>
+```

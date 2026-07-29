@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:sans-serif;background:#f0f0f0;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}
+  #game{display:grid;grid-template-columns:repeat(5,60px);grid-template-rows:repeat(5,60px);gap:2px;}
+  .c{background:#bbb;border:1px solid #999;display:flex;justify-content:center;align-items:center;font-size:24px;cursor:pointer;user-select:none;}
+  .c.abierta{background:#ddd;cursor:default;}
+  .c.bandera{background:#bbb;color:red;}
+  #estado{margin-top:20px;font-size:20px;text-align:center;}
+  @keyframes fadeIn{0%{opacity:0;transform:scale(0.8);}100%{opacity:1;transform:scale(1);}}
+  .c{animation:fadeIn 0.5s ease forwards;animation-delay:calc(0.05s * var(--i));}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="estado"></div>
+<script>
+const game=document.getElementById('game');
+const estado=document.getElementById('estado');
+const mines=[6,12,18];
+for(let i=0;i<25;i++){
+  const cell=document.createElement('div');
+  cell.className='c';
+  cell.dataset.i=i;
+  cell.style.setProperty('--i',i);
+  cell.dataset.mine=mines.includes(i)?'true':'false';
+  cell.dataset.opened='false';
+  cell.dataset.flagged='false';
+  cell.addEventListener('click',onLeft);
+  cell.addEventListener('contextmenu',onRight);
+  game.appendChild(cell);
+}
+function onLeft(e){
+  const cell=e.currentTarget;
+  if(cell.dataset.opened==='true' || cell.dataset.flagged==='true') return;
+  if(cell.dataset.mine==='true'){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    estado.textContent='perdiste';
+    document.querySelectorAll('.c').forEach(c=>c.removeEventListener('click',onLeft));
+    document.querySelectorAll('.c').forEach(c=>c.removeEventListener('contextmenu',onRight));
+    return;
+  }
+  openCell(cell);
+}
+function onRight(e){
+  e.preventDefault();
+  const cell=e.currentTarget;
+  if(cell.dataset.opened==='true') return;
+  if(cell.dataset.flagged==='true'){
+    cell.dataset.flagged='false';
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.dataset.flagged='true';
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+}
+function openCell(cell){
+  cell.dataset.opened='true';
+  cell.classList.add('abierta');
+  const i=parseInt(cell.dataset.i);
+  const adj=countAdjMines(i);
+  if(adj>0){
+    cell.textContent=adj;
+  }else{
+    const neighbors=getNeighbors(i);
+    neighbors.forEach(idx=>{
+      const ncell=document.querySelector(`.c[data-i='${idx}']`);
+      if(ncell && ncell.dataset.opened==='false' && ncell.dataset.flagged==='false'){
+        openCell(ncell);
+      }
+    });
+  }
+}
+function countAdjMines(i){
+  const neighbors=getNeighbors(i);
+  return neighbors.reduce((sum,idx)=>sum+(mines.includes(idx)?1:0),0);
+}
+function getNeighbors(i){
+  const row=Math.floor(i/5);
+  const col=i%5;
+  const neigh=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const r=row+dr;
+      const c=col+dc;
+      if(r>=0&&r<5&&c>=0&&c<5){
+        neigh.push(r*5+c);
+      }
+    }
+  }
+  return neigh;
+}
+</script>
+</body>
+</html>

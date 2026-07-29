@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-template-rows:repeat(5,60px);
+    gap:2px;
+  }
+  .c{
+    width:60px;height:60px;
+    background:#bbb;
+    border:1px solid #888;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2em;
+    cursor:pointer;
+    user-select:none;
+    animation:fadeIn 0.4s ease forwards;
+    opacity:0;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ffeb3b;
+  }
+  #estado{
+    margin-top:15px;
+    font-size:1.4em;
+    color:#d32f2f;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <!-- 25 celdas con data-i de 0 a 24 -->
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // posiciones fijas
+  const cells = Array.from(document.querySelectorAll('.c'));
+  const estado = document.getElementById('estado');
+  let gameOver = false;
+
+  // Animación de entrada
+  cells.forEach((c,i)=>{ c.style.animationDelay = `${i*0.05}s`; });
+
+  // Precalcular vecinos y minas adyacentes
+  const neighbors = new Map();
+  const adjCount = new Map();
+
+  const getNeighbors = (i)=>{
+    const res=[];
+    const row=Math.floor(i/5), col=i%5;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0) continue;
+        const r=row+dr, c=col+dc;
+        if(r>=0&&r<5&&c>=0&&c<5) res.push(r*5+c);
+      }
+    }
+    return res;
+  };
+
+  cells.forEach((c,i)=>{
+    const neigh=getNeighbors(i);
+    neighbors.set(i,neigh);
+    const count=neigh.filter(n=>mines.has(n)).length;
+    adjCount.set(i,count);
+  });
+
+  // Función de apertura
+  const openCell = (i)=>{
+    const cell=cells[i];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')||gameOver) return;
+    if(mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      estado.textContent='perdiste';
+      gameOver=true;
+      return;
+    }
+    const count=adjCount.get(i);
+    cell.classList.add('abierta');
+    if(count>0) cell.textContent=count;
+    if(count===0){
+      // BFS para abrir vecinos con 0 y sus bordes
+      const queue=[i];
+      const visited=new Set([i]);
+      while(queue.length){
+        const cur=queue.shift();
+        neighbors.get(cur).forEach(n=>{
+          if(visited.has(n)) return;
+          const nc=cells[n];
+          if(nc.classList.contains('bandera')) return;
+          visited.add(n);
+          const cnt=adjCount.get(n);
+          nc.classList.add('abierta');
+          if(cnt>0) nc.textContent=cnt;
+          if(cnt===0) queue.push(n);
+        });
+      }
+    }
+  };
+
+  // Click izquierdo
+  cells.forEach((cell,i)=>{
+    cell.addEventListener('click',e=>{
+      e.preventDefault();
+      openCell(i);
+    });
+  });
+
+  // Click derecho (bandera)
+  cells.forEach((cell,i)=>{
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(cell.classList.contains('abierta')||gameOver) return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      }else{
+        cell.classList.add('bandera');
+        cell.textContent='🚩';
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
