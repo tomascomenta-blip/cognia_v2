@@ -355,8 +355,16 @@ def main(argv: list) -> int:
                 except Exception as exc:
                     como = f"EXCEPCION {exc}"[:80]
                 html = _parsear(crudo) if crudo else None
+                # Volcado PASIVO de la respuesta CRUDA (3a enmienda): permite
+                # re-correr el PARSE DEL LAZO (fence estricto, <html>,
+                # truncado->regenerar) sobre estas mismas respuestas SIN GPU
+                # si el fork manda la fase 2 al flujo. No altera lo medido.
+                if crudo:
+                    (d / "respuesta_cruda.txt").write_text(crudo,
+                                                           encoding="utf-8")
                 celda.update(segundos=round(time.time() - t0, 1),
                              como=str(como)[:90],
+                             crudo_chars=len(crudo) if crudo else 0,
                              backend=backend if backend is not None
                              else backend_activo.ultimo())
                 if not html:

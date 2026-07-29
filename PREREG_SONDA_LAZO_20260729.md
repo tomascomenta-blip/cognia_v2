@@ -183,3 +183,15 @@ segundo mecanismo con la misma firma).
 - Exposición al outcome: 4 celdas completas vistas (todas ESTRICTO-OK,
   2 replay / 2 crudo, sin discordantes) — el veredicto no se computó. La
   celda 5 no se guardó; `--reanudar` la regenera desde cero.
+
+## TERCERA ENMIENDA (2026-07-29 ~06:35 — addendum PASIVO, a 11 celdas)
+
+El runner guarda desde ahora la respuesta CRUDA de cada generación
+(`respuesta_cruda.txt` + `crudo_chars`). No toca nada de lo medido; es la
+materia prima para la rama FLUJO de la fase 2: el parse del lazo tiene
+cuatro puntos de rechazo que el parse directo no tiene (corte de <think>,
+fence estricto con truncado→regenerar, exigencia de `<html`, mínimo 30
+chars) y con los crudos guardados esa comparación se hace SIN GPU. Las
+primeras ~11 celdas no tienen crudo (se declara el denominador al usarlo).
+Exposición adicional al outcome en el reinicio: ninguna (solo el conteo de
+hechas).
