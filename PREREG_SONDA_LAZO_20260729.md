@@ -163,3 +163,23 @@ antes de gastar GPU:
    → aborto con parcial guardado; backend capturado en el mismo hilo de la
    generación (el hilo huérfano de PresupuestoAgotado no puede pisarlo);
    `--tarea` para el humo; sin_html del resumen excluye celdas infra.
+
+## SEGUNDA ENMIENDA (2026-07-29 ~06:10 — a 4 celdas de corrida, por cuelgue REAL del juez)
+
+La celda 5 (kanban crudo r1) colgó al runner 8+ minutos con GPU ociosa:
+la página generada bloquea el hilo principal con JS ocupado (chromium con
+**595 s de CPU clavado**, medido con el proceso vivo) y `page.evaluate` no
+tiene timeout — el juez se queda esperando PARA SIEMPRE. El presupuesto de
+pared solo cubría la generación: la misma clase de cuelgue que la celda
+>45 min de b2_ab_gap (entonces atribuida al goteo del backend; este es un
+segundo mecanismo con la misma firma).
+
+- **Fix:** el juzgado (ambos contratos) corre bajo su propio presupuesto
+  (300 s). Desborde → **reprobado LEGÍTIMO** con motivo "juez colgado (JS
+  bloqueante)": es propiedad de la PÁGINA (un producto que cuelga al
+  navegador no sirve), no infra; contador aparte por brazo en el resumen.
+- Coste declarado: el hilo huérfano deja su chromium clavado a 100% de un
+  core hasta el fin del proceso; se vigila que no se acumulen.
+- Exposición al outcome: 4 celdas completas vistas (todas ESTRICTO-OK,
+  2 replay / 2 crudo, sin discordantes) — el veredicto no se computó. La
+  celda 5 no se guardó; `--reanudar` la regenera desde cero.

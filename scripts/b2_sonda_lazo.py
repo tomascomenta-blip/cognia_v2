@@ -45,6 +45,11 @@ URL_BACKEND = "http://127.0.0.1:8080"
 CTX_MINIMO = 16384      # prompts L ~2.2k tok + 12k de generacion (v1 del gate)
 TIMEOUT_GEN = 400       # 3/96 celdas del gate rozaron los 120 s del default
 MAX_DEGRADADOS_SEGUIDOS = 4     # backend muerto a mitad de corrida: abortar
+# 2a enmienda: una pagina cuyo JS bloquea el hilo principal cuelga a
+# page.evaluate PARA SIEMPRE (medido en esta corrida: chromium con 595 s de
+# CPU clavado en kanban__crudo__r1). El juzgado lleva SU presupuesto; el
+# cuelgue es propiedad de la PAGINA -> reprobado legitimo, no infra.
+PRESUPUESTO_JUEZ = 300
 
 
 def _verificar_backend() -> None:
@@ -176,6 +181,10 @@ def _resumir(res: dict) -> None:
                        if c["brazo"] == b
                        and c.get("motivo") == "sin respuesta (server sano)")
                 for b in BRAZOS}
+    colgados = {b: sum(1 for c in validas
+                       if c["brazo"] == b
+                       and c.get("motivo") == "juez colgado (JS bloqueante)")
+                for b in BRAZOS}
     n_infra = {b: sum(1 for c in celdas if c["brazo"] == b and _es_infra(c))
                for b in BRAZOS}
     por_tarea = {}
@@ -202,7 +211,7 @@ def _resumir(res: dict) -> None:
           f"(gate-si->replay-no: {gate_si_replay_no}, "
           f"inversa: {gate_no_replay_si})")
     print(f"  sin_html: {sin_html}  sin_respuesta: {sin_resp}  "
-          f"infra: {n_infra}")
+          f"juez_colgado: {colgados}  infra: {n_infra}")
     print(f"{'=' * 70}")
     res["resumen"] = {
         "pares": len(comunes), "neto": neto,
@@ -216,7 +225,7 @@ def _resumir(res: dict) -> None:
         "conc_gate_si_replay_no": gate_si_replay_no,
         "conc_gate_no_replay_si": gate_no_replay_si,
         "sin_html": sin_html, "sin_respuesta_server_sano": sin_resp,
-        "infra_por_brazo": n_infra,
+        "juez_colgado": colgados, "infra_por_brazo": n_infra,
         "pares_infra_excluidos": sorted(f"{t}:r{r}" for t, r in infra)}
 
 
@@ -367,11 +376,16 @@ def main(argv: list) -> int:
                         celda["motivo"] = "sin HTML"
                 else:
                     (d / "index.html").write_text(html, encoding="utf-8")
+
+                    def _juzgar_ambos(ruta, contrato, contrato_h):
+                        v = juez_ejecutable.juzgar_web(ruta, contrato)
+                        vh = juez_ejecutable.juzgar_web(ruta, contrato_h)
+                        return v, vh
+
                     try:
-                        v = juez_ejecutable.juzgar_web(d / "index.html",
-                                                       t["contrato"])
-                        vh = juez_ejecutable.juzgar_web(d / "index.html",
-                                                        heldout[t["id"]])
+                        v, vh = con_presupuesto(
+                            PRESUPUESTO_JUEZ, _juzgar_ambos,
+                            d / "index.html", t["contrato"], heldout[t["id"]])
                         celda.update(
                             aprobado_orig=v.aprobado,
                             checks_ok=sum(1 for c in v.checks if c.ok),
@@ -380,6 +394,11 @@ def main(argv: list) -> int:
                             estricto=v.aprobado and vh.aprobado,
                             motivo=(v.motivo if not v.aprobado
                                     else vh.motivo or "")[:100])
+                    except PresupuestoAgotado:
+                        # el hilo huerfano deja SU chromium clavado a 100% de
+                        # un core hasta el fin del proceso: coste declarado
+                        celda.update(estricto=False, aprobado_orig=False,
+                                     motivo="juez colgado (JS bloqueante)")
                     except Exception as exc:
                         celda.update(estricto=False, aprobado_orig=False,
                                      motivo=f"juez crasheo: {exc}"[:100])
