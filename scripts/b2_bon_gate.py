@@ -74,6 +74,10 @@ def main(argv: list) -> int:
     from cognia.program_creator import generator as _generator
     _generator.OLLAMA_MODEL = "NO-EXISTE-BON-GATE"
     os.environ["OLLAMA_MODEL"] = "NO-EXISTE-BON-GATE"
+    # Volcado PASIVO del prompt que el lazo arma (para la sonda futura del
+    # ladron de ~17 pts: dos sondas del prompt directo no transfirieron).
+    # No altera los prompts; solo los registra.
+    os.environ["COGNIA_DUMP_PROMPTS"] = str(SALIDA / "prompts")
     from cognia import backend_activo
 
     tareas = json.loads(TAREAS.read_text(encoding="utf-8"))["tareas"]
@@ -207,7 +211,16 @@ def main(argv: list) -> int:
     validos, excl_infra, incompletos = [], [], []
     for fila in res["ensayos"]:
         k = fila.get("bon", {}).get("k") if fila.get("bon") else None
-        if _es_infra(fila):
+        # Infra POR MUESTRA (revision pre-lanzamiento, hallazgos 1-2): una
+        # replica que CRASHEA dentro de bon no es "sin HTML" legitimo, y el
+        # juez held-out caido no es un reprobado — si tocan a s=1 o a la
+        # elegida, el ensayo sale del apareado (mismo criterio que heldout:
+        # s1 infra invalida el par; un crash en s2-s4 solo achica el pool).
+        s1m = _sel_de(fila, 1)
+        eleg = fila.get("elegida_s")
+        elegm = _sel_de(fila, eleg) if eleg else {}
+        if (_es_infra(fila) or "error" in s1m or s1m.get("sel_crasheo")
+                or elegm.get("sel_crasheo")):
             excl_infra.append((fila["tarea"], fila["rep"]))
             continue
         if k != muestras_k or len(fila.get("orig", {})) != muestras_k:
@@ -216,7 +229,8 @@ def main(argv: list) -> int:
         validos.append(fila)
 
     neto_b = neto_a = 0
-    gana_b, pierde_b, gana_a, sin_html = [], [], [], 0
+    gana_b, pierde_b, gana_a = [], [], []
+    sin_html = crashes_replica = 0
     fp_orig: dict = {}
     for fila in validos:
         control = _estricto(fila, 1)
@@ -235,7 +249,10 @@ def main(argv: list) -> int:
         for s in range(1, muestras_k + 1):
             o = fila["orig"].get(str(s), {})
             m = _sel_de(fila, s)
-            if o.get("motivo") == "sin HTML":
+            # el crash de replica no es "no devolvio HTML" (revision, h. 4)
+            if "error" in m:
+                crashes_replica += 1
+            elif o.get("motivo") == "sin HTML":
                 sin_html += 1
             if o.get("aprobado") and m.get("aprobado_sel") is False:
                 fp_orig[fila["tarea"]] = fp_orig.get(fila["tarea"], 0) + 1
@@ -254,9 +271,19 @@ def main(argv: list) -> int:
           f"  (prereg: >=+4 CONFIRMADO, +2..+3 GRIS, <=+1 NO confirma)")
     print(f"  techo pass@{muestras_k}          : {techo_ok}/{n_v}   neto A = "
           f"{neto_a:+d}   pérdida C = {neto_a - neto_b}")
+    fallos_control = n_v - ctrl_ok
+    # Lectura condicional al headroom (revision, h. 3): neto B <= fallos del
+    # control por construccion; con deriva a control alto, +4 seria
+    # inalcanzable con cableado perfecto.
+    if fallos_control < 5:
+        confirmado = neto_b >= fallos_control - 1 and not pierde_b
+        print(f"  headroom bajo ({fallos_control} fallos de control): "
+              f"CONFIRMADO = B >= {fallos_control - 1} y pierde=0 -> "
+              f"{'SI' if confirmado else 'no'}")
     print(f"  gana: {', '.join(gana_b) or '—'}   "
           f"pierde: {', '.join(pierde_b) or '—'}")
     print(f"  muestras sin HTML: {sin_html}/{n_v * muestras_k}   "
+          f"crashes de replica: {crashes_replica}   "
           f"FP original: {fp_orig or '—'}")
     print(f"{'=' * 70}")
     res["resumen"] = {
@@ -264,9 +291,11 @@ def main(argv: list) -> int:
         "excluidos_infra": [f"{t}:r{r}" for t, r in excl_infra],
         "incompletos": [f"{t}:r{r}" for t, r in incompletos],
         "control": f"{ctrl_ok}/{n_v}", "modo": f"{modo_ok}/{n_v}",
-        "neto_b": neto_b, "techo": f"{techo_ok}/{n_v}", "neto_a": neto_a,
+        "neto_b": neto_b, "fallos_control": fallos_control,
+        "techo": f"{techo_ok}/{n_v}", "neto_a": neto_a,
         "perdida_c": neto_a - neto_b, "gana": gana_b, "pierde": pierde_b,
-        "muestras_sin_html": sin_html, "fp_contrato_original": fp_orig}
+        "muestras_sin_html": sin_html, "crashes_replica": crashes_replica,
+        "fp_contrato_original": fp_orig}
     _guardar()
     print(f"\nJSON: {fichero_res}")
     return 0

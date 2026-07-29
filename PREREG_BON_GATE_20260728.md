@@ -45,6 +45,11 @@ reproduce el efecto de punta a punta. Es un A/B de confirmación de ingeniería.
   default 20 min/celda, `cognia/presupuesto_pared.py`): el goteo lento de
   tokens no dispara el timeout por chunk (celda >45 min en b2_ab_gap);
   el desborde cae como EXCEPCIÓN → infra, pre-declarado.
+- **Addendum pasivo (no altera lo medido):** COGNIA_DUMP_PROMPTS registra
+  en `prompts.jsonl` cada prompt TAL COMO el lazo lo arma (con su system,
+  temperatura y effort). Es la materia prima de la sonda futura del ladrón
+  de ~17 pts (dos sondas del prompt DIRECTO no transfirieron al lazo); esta
+  corrida la produce gratis. El volcado no toca los prompts ni el flujo.
 
 ## Métricas y umbrales (fijados ahora; 24 ensayos objetivo)
 
@@ -71,3 +76,32 @@ reproduce el efecto de punta a punta. Es un A/B de confirmación de ingeniería.
 Revisión adversarial (1 agente, lente implementación+diseño) del prereg +
 runner + bon.py ANTES de encender la flota. Los tests unitarios de bon.py
 (10, sin GPU) ya están en verde.
+
+## PRIMERA ENMIENDA (2026-07-28 ~22:30 — tras la revisión, ANTES de correr)
+
+La revisión (verificaciones ejecutadas, no asumidas: backend_activo NO es
+thread-local; PresupuestoAgotado cae al except correcto; sin circularidad
+nueva en el control s1) encontró 1 BLOQUEA + 3 arreglos. Aplicados:
+
+1. **Infra POR MUESTRA restaurada (BLOQUEA):** una réplica que CRASHEA
+   dentro de bon quedaba como "sin HTML" (reprobado legítimo) — y si era
+   s=1, el ensayo contaba "control falla, modo gana": sesgo pro-B justo en
+   la dirección que confirma. Igual el juez held-out caído (`sel_crasheo`).
+   Regla (la del experimento validado): `error` o `sel_crasheo` en s=1 o en
+   la ELEGIDA → ensayo infra, fuera del apareado; crashes en s2-s4 solo
+   achican el pool. Los crashes de réplica se reportan aparte de sin_html
+   (h. 4: el coste del no-fallback no se infla con infra).
+2. **Lectura condicional al headroom (h. 3):** neto B ≤ fallos del control
+   por construcción y la deriva medida es ~20 pts/12 h. Si fallos_control
+   < 5, CONFIRMADO = B ≥ fallos_control − 1 ∧ pierde = 0 (además de la
+   tabla original, que rige con headroom ≥ 5).
+3. **Regla de reanudación pre-declarada (h. 5):** los ensayos con EXCEPCIÓN
+   quedan grabados y `--reanudar` no los repite. Si una tormenta transitoria
+   de backend come ensayos, la poda manual de filas infra del JSON antes de
+   reanudar está PERMITIDA y se anota en la config/log (nunca podar filas
+   válidas).
+4. Notas aceptadas sin cambio: la carrera del hilo huérfano tras
+   PresupuestoAgotado puede ensuciar logs y el snapshot de backend del
+   ensayo siguiente (el veredicto está a salvo: la fila es infra); fp_orig
+   se cuenta sobre ensayos válidos (comparabilidad con la memoria
+   fp-heldout aproximada, no exacta).

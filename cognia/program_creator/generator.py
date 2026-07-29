@@ -596,6 +596,26 @@ def _call_llm(prompt: str, lenguaje: str = "python",
     from .. import backend_activo
 
     system = _SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON
+    # Volcado PASIVO del prompt tal como lo arma el lazo (COGNIA_DUMP_PROMPTS
+    # = dir). Dos sondas del prompt DIRECTO ya fallaron en transferir al lazo
+    # (fix2 v2/v3, 2026-07-27/28): la proxima se hace sobre ESTE registro.
+    # Jamas rompe la generacion; apagado por defecto.
+    _dump = os.environ.get("COGNIA_DUMP_PROMPTS", "").strip()
+    if _dump:
+        try:
+            import time as _time
+            from pathlib import Path as _Path
+            _d = _Path(_dump)
+            _d.mkdir(parents=True, exist_ok=True)
+            with open(_d / "prompts.jsonl", "a", encoding="utf-8") as _f:
+                _f.write(json.dumps(
+                    {"t": round(_time.time(), 1), "lenguaje": lenguaje,
+                     "temperature": temperature,
+                     "reasoning_effort": reasoning_effort,
+                     "max_tokens": max_tokens, "system": system,
+                     "prompt": prompt}, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            print(f"[generator] volcado de prompt fallo (se sigue): {exc}")
     if lenguaje == "html":
         url_constructor = os.environ.get("COGNIA_CONSTRUCTOR_URL", "").strip()
         if url_constructor:
