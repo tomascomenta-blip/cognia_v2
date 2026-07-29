@@ -31,13 +31,22 @@ SALIDA = (RAIZ / "cognia" / "program_creator" / "generated_programs"
 
 
 def _es_infra(e: dict) -> bool:
-    # Mismas reglas que b2_bon_heldout (prereg BoN + 1ª enmienda): "sin HTML"
-    # con backend sano es reprobado legítimo, no infra.
+    # Nivel ENSAYO: EXCEPCION del harness o juez original crasheado.
     if "EXCEPCION" in e.get("como", ""):
         return True
-    if e.get("juez_crasheo"):
+    return bool(e.get("juez_crasheo"))
+
+
+def _infra_muestra(m: dict) -> bool:
+    # Nivel MUESTRA (mismas reglas que b2_bon_heldout): excepcion de la
+    # replica, juez held-out caido, o backend degradado/≠8080. Nota de la
+    # 2ª enmienda: sin fallback, el fallo contenido-vacio termina con
+    # registro degradado (el ultimo intento es el Ollama neutralizado)
+    # aunque el server este sano — cuenta como infra de MUESTRA (pool mas
+    # chico), igual que habria contado en el experimento.
+    if "error" in m or m.get("sel_crasheo"):
         return True
-    b = e.get("backend") or {}
+    b = m.get("backend") or {}
     if not b or b.get("via") == "arbitro_visual":
         return False
     return bool(b.get("degradado") or b.get("puerto") not in (8080, None))
@@ -81,6 +90,9 @@ def main(argv: list) -> int:
     from cognia import backend_activo
 
     tareas = json.loads(TAREAS.read_text(encoding="utf-8"))["tareas"]
+    if "--tareas" in argv:      # para humos; la corrida del prereg va sin el
+        pedidas = argv[argv.index("--tareas") + 1].split(",")
+        tareas = [t for t in tareas if t["id"] in pedidas]
     heldout = {t["id"]: t["contrato"]
                for t in json.loads(HELDOUT.read_text(encoding="utf-8"))["tareas"]}
     faltan = [t["id"] for t in tareas if t["id"] not in heldout]
@@ -211,16 +223,14 @@ def main(argv: list) -> int:
     validos, excl_infra, incompletos = [], [], []
     for fila in res["ensayos"]:
         k = fila.get("bon", {}).get("k") if fila.get("bon") else None
-        # Infra POR MUESTRA (revision pre-lanzamiento, hallazgos 1-2): una
-        # replica que CRASHEA dentro de bon no es "sin HTML" legitimo, y el
-        # juez held-out caido no es un reprobado — si tocan a s=1 o a la
-        # elegida, el ensayo sale del apareado (mismo criterio que heldout:
-        # s1 infra invalida el par; un crash en s2-s4 solo achica el pool).
+        # Infra POR MUESTRA (revision pre-lanzamiento h.1-2 + 2ª enmienda,
+        # humo): s1 o la ELEGIDA infra -> ensayo fuera del apareado; una
+        # muestra infra en s2-s4 solo achica el pool del techo.
         s1m = _sel_de(fila, 1)
         eleg = fila.get("elegida_s")
         elegm = _sel_de(fila, eleg) if eleg else {}
-        if (_es_infra(fila) or "error" in s1m or s1m.get("sel_crasheo")
-                or elegm.get("sel_crasheo")):
+        if _es_infra(fila) or _infra_muestra(s1m) or (eleg and
+                                                      _infra_muestra(elegm)):
             excl_infra.append((fila["tarea"], fila["rep"]))
             continue
         if k != muestras_k or len(fila.get("orig", {})) != muestras_k:
@@ -236,7 +246,9 @@ def main(argv: list) -> int:
         control = _estricto(fila, 1)
         elegida = fila.get("elegida_s")
         modo = _estricto(fila, elegida) if elegida else False
-        techo = any(_estricto(fila, s) for s in range(1, muestras_k + 1))
+        # El techo cuenta solo muestras NO infra (pool del heldout).
+        techo = any(_estricto(fila, s) for s in range(1, muestras_k + 1)
+                    if not _infra_muestra(_sel_de(fila, s)))
         neto_b += (modo and not control) - (control and not modo)
         neto_a += (techo and not control) - (control and not techo)
         clave = f"{fila['tarea']}:r{fila['rep']}"
@@ -249,8 +261,9 @@ def main(argv: list) -> int:
         for s in range(1, muestras_k + 1):
             o = fila["orig"].get(str(s), {})
             m = _sel_de(fila, s)
-            # el crash de replica no es "no devolvio HTML" (revision, h. 4)
-            if "error" in m:
+            # la muestra infra (crash, backend degradado, sel caido) no es
+            # "no devolvio HTML" legitimo (revision h.4 + 2ª enmienda)
+            if _infra_muestra(m):
                 crashes_replica += 1
             elif o.get("motivo") == "sin HTML":
                 sin_html += 1
@@ -283,7 +296,7 @@ def main(argv: list) -> int:
     print(f"  gana: {', '.join(gana_b) or '—'}   "
           f"pierde: {', '.join(pierde_b) or '—'}")
     print(f"  muestras sin HTML: {sin_html}/{n_v * muestras_k}   "
-          f"crashes de replica: {crashes_replica}   "
+          f"muestras infra: {crashes_replica}   "
           f"FP original: {fp_orig or '—'}")
     print(f"{'=' * 70}")
     res["resumen"] = {
@@ -294,7 +307,7 @@ def main(argv: list) -> int:
         "neto_b": neto_b, "fallos_control": fallos_control,
         "techo": f"{techo_ok}/{n_v}", "neto_a": neto_a,
         "perdida_c": neto_a - neto_b, "gana": gana_b, "pierde": pierde_b,
-        "muestras_sin_html": sin_html, "crashes_replica": crashes_replica,
+        "muestras_sin_html": sin_html, "muestras_infra": crashes_replica,
         "fp_contrato_original": fp_orig}
     _guardar()
     print(f"\nJSON: {fichero_res}")

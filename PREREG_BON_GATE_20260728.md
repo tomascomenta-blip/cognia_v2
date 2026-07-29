@@ -105,3 +105,25 @@ nueva en el control s1) encontró 1 BLOQUEA + 3 arreglos. Aplicados:
    ensayo siguiente (el veredicto está a salvo: la fila es infra); fp_orig
    se cuenta sobre ensayos válidos (comparabilidad con la memoria
    fp-heldout aproximada, no exacta).
+
+## SEGUNDA ENMIENDA (2026-07-28 ~22:40 — tras el HUMO, antes de la corrida)
+
+El humo (kanban, K=2, --sufijo humo) cazó lo que la revisión no podía ver
+sin correr: la muestra s2 falló con contenido VACÍO (la espiral de
+razonamiento que quema el presupuesto — el mismo fallo que en el
+experimento rescataba el fallback create_program, 12/96) y, sin fallback,
+el ÚLTIMO intento es el Ollama neutralizado, así que `backend_activo`
+termina con registro **degradado aunque el servidor esté sano** — y mi
+snapshot único por ensayo marcaba TODO el ensayo como infra (n se habría
+desplomado con ~10% de fallo por muestra).
+
+Fix (fiel al experimento validado): **backend POR MUESTRA** en el meta de
+bon.py (`fila["backend"] = backend_activo.ultimo()` tras cada réplica) e
+infra POR MUESTRA en el runner (excepción de réplica, sel_crasheo, backend
+degradado/≠8080): s1 o la ELEGIDA infra → ensayo fuera; muestra infra en
+s2-s4 → solo achica el pool del techo. El contador `muestras_infra`
+absorbe también el caso contenido-vacío (que el experimento veía como
+fallback exitoso y aquí es una muestra perdida — el coste del no-fallback
+queda visible en dos contadores: muestras_infra + sin_html). El humo
+además VERIFICÓ: prompts.jsonl capturando el prompt del lazo, selector
+held-out juzgando (18 checks), guardado incremental y resumen sin crash.

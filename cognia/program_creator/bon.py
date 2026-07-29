@@ -76,6 +76,7 @@ def construir_bon(idea: str, *, k: Optional[int] = None,
     """
     from .diseno_a_codigo import construir_para_mockup
     from . import juez_ejecutable
+    from .. import backend_activo
 
     k = k if k is not None else k_configurado()
     if contrato_selector is None:
@@ -107,6 +108,10 @@ def construir_bon(idea: str, *, k: Optional[int] = None,
                 res = construir_para_mockup(idea, verbose=verbose, **kwargs)
             except Exception as exc:
                 fila["error"] = f"{type(exc).__name__}: {exc}"[:100]
+            # Backend POR MUESTRA (como el experimento validado): un fallo de
+            # backend en una replica no puede ni esconderse ni contaminar al
+            # ensayo entero — el que audita decide muestra a muestra.
+            fila["backend"] = backend_activo.ultimo()
             html = None
             if res is not None:
                 ultimo_res = res
