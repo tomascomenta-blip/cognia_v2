@@ -9723,3 +9723,55 @@ generate_program (~17 pts vs crudo, sondear el prompt DEL LAZO).
    mayoría-de-fracción), sin adopción: el umbral habló. 255/255 votos, 0
    crasheos, 23 ensayos válidos.
 
+
+## 2026-07-28/29 (nocturna 28→29, SEGUNDA sesión 21:30-04:30) — La iteración del consenso no llega; el BoN queda cableado
+
+Ventana nueva del dueño ("hasta las 4:30", ultracode). Apagado 4:30 y
+aterrizaje 4:14 armados al arrancar. Prereg + revisión adversarial antes de
+cada gasto, como siempre.
+
+1. **Consenso cruzado, iteración 2 (PREREG_CONSENSO2, commits a2aa44c→
+   95b631b): V1-oblig +3 y V3-combo +3 (moderada, asimetría 3-0), V2
+   mayoría-de-fracción +2 (KILL) — ninguna llega al umbral de vida +5.**
+   Cero GPU (re-juzgado Playwright de los 255 votos congelados con detalle
+   por check). Anclas PERFECTAS: reproducción por voto 255/255 = 100%,
+   baseline recomputado +2 exacto. La revisión adversarial (3 agentes) cazó
+   2 BLOQUEA antes de correr: el clasificador any-match no discriminaba
+   (93% de checks "obligatorios" → KILL predeterminado) y la recursión no
+   veía la clave anidada `pasos` de coder-14b (3 ensayos de kanban fuera
+   por bug de schema). Partidas por conjuncto: el +3 aparece contra ambos
+   jueces por separado (no es reconstrucción del instrumento). **Mecanismo
+   confirmado: las expectativas inventadas viven en los VALORES de los
+   checks, no en los selectores — el filtro de superficie tenía 7% de
+   palanca. Por la regla pre-fijada: no habrá tercera vuelta de votos; la
+   próxima vía del marco de señal es EJECUCIÓN EN EL BUCLE.** El selector
+   held-out sigue capturando 7/7 del margen.
+
+2. **BoN K=4 + selector cableado como MODO del sistema (bon.py, commit
+   826fc39):** `construir_bon` genera K réplicas independientes del lazo
+   entero y entrega la que el contrato selector EXTERNO prefiere; sin
+   selector degrada RUIDOSAMENTE a una réplica (la señal interna sigue
+   muerta, no se elige con ella). Env-gate en construir_web (COGNIA_BON_K +
+   COGNIA_BON_SELECTOR), default intacto. 10 tests sin GPU.
+
+3. **Presupuesto de PARED por celda (cognia/presupuesto_pared.py, commit
+   005d0bf):** el chequeo ejecutable del cuelgue por goteo (el timeout de
+   urllib es por operación de socket — una celda colgó >45 min en
+   b2_ab_gap). PresupuestoAgotado → infra; COGNIA_PRESUPUESTO_CELDA.
+
+4. **Volcado PASIVO del prompt del lazo (COGNIA_DUMP_PROMPTS, commit
+   ef04694):** dos sondas del prompt directo no transfirieron (fix2 v2/v3);
+   la corrida del gate captura gratis los ~96 prompts REALES del lazo con
+   su outcome. PREREG_SONDA_LAZO_BORRADOR.md deja el diseño para la
+   próxima sesión (prioridad 3 del dueño; la GPU de esta noche la consume
+   el gate).
+
+5. **Gate de confirmación del modo BoN (PREREG_BON_GATE + 2 enmiendas):
+   CORRIENDO al escribir esto** (24 ensayos, control s1 intra-ensayo,
+   lanzada ~22:50, ~3 h). La revisión (1 agente) cazó un BLOQUEA (réplica
+   crasheada contaba como "control falla, modo gana" — sesgo pro-B) y el
+   HUMO cazó otro (sin fallback, el contenido-vacío deja backend
+   "degradado" con server sano y el snapshot único marcaba el ensayo
+   entero infra): backend POR MUESTRA en el meta + infra por muestra.
+   Resultado en el cierre de la noche.
+
