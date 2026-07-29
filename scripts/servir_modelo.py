@@ -115,9 +115,15 @@ def main() -> int:
               f"en {DIR_MODELOS}. Usa --listar para ver que hay.", file=sys.stderr)
         return 1
 
+    # --parallel 1 EXPLICITO: las builds recientes de llama-server usan 4
+    # slots por defecto y PARTEN --ctx-size entre ellos (8192/4 = 2048 por
+    # peticion). Cazado 2026-07-28: los prompts del lazo (~1.5-2.1k tokens
+    # con la vision viva) revientan el slot con HTTP 500 y el sistema
+    # degrada en silencio — el 50% de las muestras del gate BoN cayo por
+    # esto. Un solo cliente secuencial no necesita slots paralelos.
     orden = [str(exe), "--model", str(modelo), "--port", str(args.puerto),
-             "--ctx-size", str(args.ctx), "--n-gpu-layers", "99",
-             "--flash-attn", "on", "--jinja"]
+             "--ctx-size", str(args.ctx), "--parallel", "1",
+             "--n-gpu-layers", "99", "--flash-attn", "on", "--jinja"]
 
     # Decodificacion especulativa: el 0.5B borra tokens y el 14B los verifica
     # y corrige — la salida es IDENTICA a la del 14B solo, pero mas rapida.

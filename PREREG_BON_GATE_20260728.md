@@ -106,6 +106,36 @@ nueva en el control s1) encontró 1 BLOQUEA + 3 arreglos. Aplicados:
    se cuenta sobre ensayos válidos (comparabilidad con la memoria
    fp-heldout aproximada, no exacta).
 
+## TERCERA ENMIENDA (2026-07-28 ~23:15 — corrida v1 ABORTADA por infra sistémica; corrida v2 desde cero)
+
+A 5 ensayos de la corrida v1, la telemetría de infra (no el outcome) mostró
+~50% de muestras con backend "degradado". Diagnóstico por la regla de
+[[descartar-hipotesis-reproduce-condiciones]] — reproducir la llamada
+exacta y mirar finish_reason/usage antes de culpar a capacidad:
+
+- **Causa raíz: las builds recientes de llama-server usan `--parallel 4`
+  por defecto y PARTEN `--ctx-size` entre slots** → 8192/4 = 2048 tokens
+  por petición. El prompt del lazo con la visión VIVA mide ~1.5-2.2k
+  tokens: todo prompt >2048 recibía **HTTP 500** determinista (verificado:
+  el prompt capturado #9 mide 2190 tokens y daba 500). Anoche la flota
+  servía con ctx 16384 (→4096/slot) y la visión DEGRADADA acortaba los
+  prompts: por eso el fallo era ~15% y no 50%. Peor: las muestras
+  "exitosas" de v1 generaban 5k+ tokens en un slot de 2048 vía context
+  shift silencioso — TODA la corrida v1 queda contaminada, no solo las
+  muestras 500.
+- **Fix (ops, no toca cognia/):** servir_modelo.py pasa `--parallel 1`
+  explícito (comentario con la medición); relanzado gpt-oss con ctx 16384.
+  **Verificación REAL:** el mismo prompt #9 ahora genera finish=stop,
+  usage 2190+5474 tokens, contenido 4813 chars.
+- **La corrida v1 se descarta ENTERA** (dir b2_bon_gate intacto como
+  evidencia; la v2 corre con --sufijo v2, mismo prereg, mismos umbrales).
+  Exposición al outcome durante v1: solo las líneas "elegida sN" del log y
+  los campos de infra/selector por muestra de 3 ensayos — ningún veredicto
+  estricto se computó ni miró.
+- Lección para memoria al cierre: el chequeo de arranque del server debe
+  afirmar slots=1 (o ctx/slot suficiente), no solo /health — la lección en
+  prosa no impide nada.
+
 ## SEGUNDA ENMIENDA (2026-07-28 ~22:40 — tras el HUMO, antes de la corrida)
 
 El humo (kanban, K=2, --sufijo humo) cazó lo que la revisión no podía ver
