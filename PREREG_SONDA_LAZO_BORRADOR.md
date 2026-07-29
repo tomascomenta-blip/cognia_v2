@@ -37,6 +37,35 @@ con revisión adversarial y convertir en PREREG con fecha.
    confirmación EN el lazo (la lección de fix2: el fix se mide en el lazo,
    nunca solo en el replay).
 
+## Descomposición HECHA (2026-07-28, sobre los primeros capturados reales)
+
+Estructura del prompt QUE EL LAZO ARMA (capturas de b2_bon_gate; el paso 2
+del esqueleto queda adelantado):
+
+1. **Idea + brief de visión concatenados** en la línea `for: **idea. TARGET
+   LOOK, match it: brief**` — el brief (~600-700 chars) vive DENTRO del
+   bold de la idea, no como sección aparte.
+2. **CRITICAL RULES** (~15 reglas, incluye las dashboard condicionales del
+   fix 1a50bbc).
+3. **REQUIRED component N** — el troceo por comas de la idea CRUDA (sin el
+   brief). **La mutilación de enumeraciones sigue EN PRODUCCIÓN y es
+   visible en la captura:** "component 1: ...las minas estan en las celdas
+   6" / "component 2: 12 y 18. Al hacer click..." (la enumeración "6, 12 y
+   18" partida en tres pedazos; el último componente además truncado a
+   media palabra: "(cla"). La escalera del 27 midió este troceo en −2
+   netas EN SONDA DIRECTA; aquí está la evidencia de cómo luce en el lazo
+   real.
+4. **Patrones de feromona** (bloques HTML/JS de ejemplo, ~2-3k chars — SIN
+   CARGO en la escalera, pero es el trozo más grande del prompt).
+5. **Formato de respuesta** (Title/Description/HTML Code — SIN CARGO).
+
+Piezas candidatas para las ablaciones del prereg final, por prior: (a) el
+troceo REQUIRED (mutilación medida −2 en directo, fix nunca transferido),
+(b) el brief dentro del bold (¿confunde el "Reproduce LITERALLY" con el
+copy del brief?), (c) los patrones de feromona (tamaño vs valor). La
+corrida v2 del gate deja ~96 prompts con outcome estricto para
+cuantificar frecuencias y correlaciones ANTES de gastar GPU en ablaciones.
+
 ## Riesgos ya conocidos a heredar en el prereg final
 
 - Deriva sistémica ~20 pts/12h → todos los brazos concurrentes e
