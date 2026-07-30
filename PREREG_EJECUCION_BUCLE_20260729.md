@@ -142,20 +142,38 @@ complacencia 0/4, 1 página sin veredicto (≤4: el veredicto rige).
 - Control ciego concurrente: 6/24 con FN 18 — en el BORDE del rango
   declarado (6-12/24): la tarde está dura para todos (deriva), pero el
   apareado por página vale y el marco NO separa del ciego.
-- **Lectura de mecanismo (la que dirige la iteración 2, pre-declarada):
-  el enfermo es el JUICIO, no el sondeo.** El piloto y el bloque muestran
-  sondas ejecutables y observaciones reales (aptitud OK), y CERO
-  complacencia — el modo de fallo NO es bendecir lo que ve (el riesgo que
-  este marco temía) sino el MISMO del contrato ciego: condenar páginas
-  sanas contra expectativas que el enunciado no escribe, ahora vestidas
-  de dictamen sobre lo observado. El QUINTO kill de la señal autogenerada
-  comparte enfermedad con los cuatro anteriores.
-- Dirección de la iteración 2 (NO se corre esta noche; se diseña si hay
-  reloj): atacar el prompt de JUICIO con los dictámenes crudos guardados
-  (auditoría de POR QUÉ condena — están versionados) y/o exigir cita
-  literal de la regla del enunciado violada con verificación mecánica de
-  que esa cita EXISTE en el enunciado (el validador que el contrato ciego
-  no pudo ser porque no veía comportamiento).
+- **Lectura de mecanismo — CORREGIDA por la auditoría pre-declarada de los
+  dictámenes crudos (2026-07-29 ~19:30). Mi primera lectura ("el enfermo
+  es el JUICIO, condena contra expectativas inventadas") la REFUTAN los
+  datos:** los 21 dictámenes INCORRECTO auditados citan reglas REALES del
+  enunciado ("al añadir el mismo producto la cantidad debe incrementarse",
+  "al llegar al tope el botón queda disabled", "una celda con 0 minas
+  abre en cascada", "CIRC en referencia circular"). El juicio NO inventa
+  reglas. Lo que falla es la EVIDENCIA que recibe, por dos causas
+  medidas en el transcript:
+  1. **La sonda no ejecuta la secuencia que declara.** `carrito_stock
+     __crudo__r2` sonda 2 se titula "añadir el mismo producto sin crear
+     nueva línea" y ejecuta **UN solo click**; observa `cant=1` (correcto
+     para un click) y el juicio condena "sigue 1 en lugar de 2" — por una
+     regla que la sonda nunca ejercitó.
+  2. **El snapshot es CIEGO al estado que la regla exige.** Sonda 3
+     verifica "botón deshabilitado" observando el selector `disabled`
+     (que no es CSS válido: `n=0` antes y después) y el texto del botón,
+     que no cambia al deshabilitarse → "sigue habilitado". Es el techo
+     que la 1ª enmienda declaró (estado en atributos/clases fuera del
+     snapshot) y resultó ser el cuello, no un caveat.
+  3. Fallo compuesto del juicio: **viendo que solo hubo un click, debió
+     dictaminar NO_CONCLUYENTE** en vez de INCORRECTO. No es invención de
+     reglas: es no advertir que la evidencia no cubre la regla.
+- **Dirección de la iteración 2 (concreta y barata, sale de la auditoría,
+  no de intuición):** (a) snapshot con `disabled`, `className` y
+  `dataset` de los elementos observados; (b) el prompt de sondeo exige
+  declarar cuántas repeticiones necesita la regla y el harness verifica
+  que las acciones las cubran; (c) el prompt de juicio exige
+  NO_CONCLUYENTE cuando las acciones ejecutadas no ejercitan la regla
+  citada. Las tres son del INSTRUMENTO, no del pensador — y eso las hace
+  distintas de los 4 KILL anteriores (que eran de prompt del contrato
+  ciego).
 - Los held-outs A MANO siguen siendo la única señal viva; la conclusión
   de inversión del BoN no cambia.
 
