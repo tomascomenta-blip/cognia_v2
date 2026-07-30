@@ -45,6 +45,9 @@ def main(argv: list) -> int:
     from cognia.presupuesto_pared import PresupuestoAgotado, con_presupuesto
 
     rejuzgar = "--rejuzgar" in argv
+    global CORPUS
+    if "--corpus" in argv:      # la replica vive en su propio directorio
+        CORPUS = CORPUS.with_name(argv[argv.index("--corpus") + 1])
     tareas = {t["id"]: t for t in
               json.loads(TAREAS.read_text(encoding="utf-8"))["tareas"]}
     heldout = {t["id"]: t["contrato"] for t in
@@ -127,7 +130,8 @@ def main(argv: list) -> int:
 
     n = len([f for f in filas if f.get("k")])
     print(f"\n{'=' * 74}")
-    print(f"  EL GOAL — banco DURO, {n} tareas, K={filas[0].get('k','?')}")
+    print(f"  EL GOAL — banco DURO, {n} tareas, K={filas[0].get('k','?')} "
+          f"[{CORPUS.name}]")
     print(f"  {'tarea':<18}{'ctrl':>6}{'MODO':>6}{'techo':>7}  eleg  "
           f"estrictos  clase")
     for f in filas:
