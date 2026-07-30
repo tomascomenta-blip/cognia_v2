@@ -1,0 +1,185 @@
+Title: Minesweeper 5x5  
+Description: A self‑contained 5x5 Minesweeper game with fixed mines and full click/flag functionality.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+    justify-content:center;
+    gap:10px;
+  }
+  h1{margin:0;font-size:1.5rem;}
+  p{margin:0;font-size:0.9rem;}
+  #estado{font-weight:bold;color:#d00;}
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,50px);
+    grid-gap:2px;
+  }
+  .c{
+    width:50px;height:50px;
+    background:#555;
+    border:1px solid #ccc;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:white;
+    font-weight:bold;
+    font-size:18px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c:hover{box-shadow:0 0 5px rgba(255,255,255,0.5);}
+  .c.abierta{
+    background:#e0f7ff;
+    color:#333;
+    cursor:default;
+    pointer-events:none;
+  }
+  .c.bandera{color:#d00;}
+  .c.bandera::after{
+    content:"🚩";
+  }
+  .c.abierta::after{
+    content:"";
+  }
+  .c.abierta.mine::after{
+    content:"💣";
+    color:#d00;
+  }
+  .c.abierta.number::after{
+    content:attr(data-num);
+  }
+  button{padding:5px 10px;font-size:0.9rem;}
+</style>
+</head>
+<body>
+<h1>Minesweeper 5x5</h1>
+<p>Haz clic para abrir, clic derecho para colocar bandera</p>
+<div id="grid"></div>
+<button id="reset">Reiniciar</button>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const rows = 5, cols = 5, total = rows*cols;
+  const mineIndices = [6,12,18];
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const resetBtn = document.getElementById('reset');
+
+  // Create cells
+  const cells = [];
+  for(let i=0;i<total;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i = i;
+    div.dataset.mine = mineIndices.includes(i) ? '1' : '0';
+    div.dataset.num = '0';
+    grid.appendChild(div);
+    cells.push(div);
+  }
+
+  // Precompute adjacent mine counts
+  const counts = Array(total).fill(0);
+  mineIndices.forEach(mi=>{
+    const r = Math.floor(mi/cols), c = mi%cols;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<rows && nc>=0 && nc<cols){
+          const ni = nr*cols+nc;
+          if(!mineIndices.includes(ni)) counts[ni]++;
+        }
+      }
+    }
+  });
+  cells.forEach((cell,i)=>{cell.dataset.num=counts[i];});
+
+  // Helper to open a cell
+  function openCell(cell){
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    const i = +cell.dataset.i;
+    if(cell.dataset.mine==='1'){
+      cell.classList.add('abierta','mine');
+      estado.textContent='perdiste';
+      return;
+    }
+    cell.classList.add('abierta');
+    if(counts[i]>0){
+      cell.classList.add('number');
+    } else {
+      // cascade open neighbors
+      const queue=[i];
+      const visited=new Set();
+      while(queue.length){
+        const idx=queue.shift();
+        if(visited.has(idx)) continue;
+        visited.add(idx);
+        const c = cells[idx];
+        if(c.classList.contains('abierta') || c.classList.contains('bandera')) continue;
+        c.classList.add('abierta');
+        if(counts[idx]>0){
+          c.classList.add('number');
+        } else {
+          // add neighbors
+          const r=Math.floor(idx/cols), col=idx%cols;
+          for(let dr=-1;dr<=1;dr++){
+            for(let dc=-1;dc<=1;dc++){
+              if(dr===0 && dc===0) continue;
+              const nr=r+dr, nc=col+dc;
+              if(nr>=0 && nr<rows && nc>=0 && nc<cols){
+                const ni=nr*cols+nc;
+                if(!visited.has(ni)) queue.push(ni);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Event listeners
+  cells.forEach(cell=>{
+    cell.addEventListener('click',e=>{
+      e.preventDefault();
+      openCell(cell);
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(cell.classList.contains('abierta')) return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+      } else {
+        cell.classList.add('bandera');
+      }
+    });
+  });
+
+  resetBtn.addEventListener('click',()=>{
+    cells.forEach(c=>{
+      c.classList.remove('abierta','mine','number','bandera');
+      c.dataset.num='0';
+    });
+    estado.textContent='';
+  });
+})();
+</script>
+</body>
+</html>
+```

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#2f4f4f;font-family:sans-serif;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;width:200px;}
+.c{background:#d3d3d3;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;user-select:none;aspect-ratio:1;}
+.c:hover{background:#c0c0c0;}
+.c.abierta{background:#fff;box-shadow:0 0 4px #aaa;color:#006666;}
+.c.bandera{background:#f0e68c;}
+.c.bandera::after{content:"🚩";}
+#estado{margin-top:10px;color:#fff;font-size:14px;text-align:center;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18],opened=Array(25).fill(false),flagged=Array(25).fill(false),cnt=Array(25).fill(0);
+for(let i=0;i<25;i++){
+  let r=Math.floor(i/5),c=i%5,c0=0;
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(dr||dc){let nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5){let idx=nr*5+nc;if(mines.includes(idx))c0++;}}
+  }
+  cnt[i]=c0;
+}
+function open(i){
+  if(opened[i]||flagged[i])return;
+  opened[i]=true;
+  const el=document.querySelector(`[data-i="${i}"]`);
+  el.classList.add('abierta');
+  if(mines.includes(i)){el.textContent='!';el.style.color='red';document.getElementById('estado').textContent='perdiste';return;}
+  if(cnt[i]>0)el.textContent=cnt[i];
+  if(cnt[i]===0){
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      if(dr||dc){let nr=Math.floor(i/5)+dr,nc=i%5+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)open(nr*5+nc);}
+    }
+  }
+}
+const g=document.getElementById('grid');
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');d.className='c';d.dataset.i=i;g.appendChild(d);
+}
+g.addEventListener('click',e=>{
+  if(e.target.classList.contains('c'))open(parseInt(e.target.dataset.i));
+});
+g.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  if(e.target.classList.contains('c')){
+    const i=parseInt(e.target.dataset.i);
+    if(flagged[i]){flagged[i]=false;e.target.classList.remove('bandera');}
+    else{flagged[i]=true;e.target.classList.add('bandera');}
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+Title: Carrito con Stock  
+Description: Tienda online con carrito que respeta el stock de cada producto.  
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+:root{--teal:#4a8f8f;--gray:#f0f0f0;--bg:#fff;--text:#333;font-family:Arial,Helvetica,sans-serif;font-weight:700}
+body{margin:0;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh}
+header{background:var(--teal);color:#fff;padding:1rem;text-align:center}
+main{display:flex;flex:1}
+.products{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;padding:1rem;flex:3}
+.prod{background:var(--gray);padding:1rem;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;align-items:center}
+.prod img{width:100%;height:120px;background:#ccc;margin-bottom:.5rem}
+.prod h3,.prod .price{margin:0 0 .5rem}
+.prod button{background:var(--teal);color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;margin:0 0 .5rem}
+.prod button:disabled{background:#999;cursor:not-allowed}
+.cart{background:#fff;border-left:1px solid #ddd;width:300px;overflow-y:auto;box-shadow:-2px 0 5px rgba(0,0,0,.1);padding:1rem}
+.linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+.linea span{margin-right:.5rem}
+.linea button{background:#e74c3c;color:#fff;border:none;padding:.3rem .6rem;border-radius:4px;cursor:pointer}
+#total{font-weight:700;margin-top:1rem;text-align:right}
+</style>
+</head>
+<body>
+<header>Mi Tienda</header>
+<main>
+<div class="products">
+<div class="prod" data-id="p1" data-precio="100" data-stock="2"><img src="" alt=""><h3>Producto 1</h3><div class="price">€100,00</div><button class="add" data-id="p1">Añadir</button></div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3"><img src="" alt=""><h3>Producto 2</h3><div class="price">€50,00</div><button class="add" data-id="p2">Añadir</button></div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1"><img src="" alt=""><h3>Producto 3</h3><div class="price">€25,00</div><button class="add" data-id="p3">Añadir</button></div>
+</div>
+<div class="cart"><h2>Carrito</h2><div id="lines"></div><div id="total">Total: €0,00</div></div>
+</main>
+<script>
+const cart={};
+function upd(id){const p=document.querySelector('.prod[data-id="'+id+'"]');const stock=parseInt(p.dataset.stock);const add=p.querySelector('.add');if(cart[id]===undefined)cart[id]=0;if(cart[id]===stock){add.disabled=true;return;}cart[id]++;add.disabled=cart[id]===stock;let line=document.querySelector('.linea[data-id="'+id+'"]');if(line){line.querySelector('.cant').textContent=cart[id];}else{line=document.createElement('div');line.className='linea';line.dataset.id=id;line.innerHTML='<span>'+p.querySelector('h3').textContent+'</span><span class="cant">'+cart[id]+'</span><button class="quitar" data-id="'+id+'">Quitar</button>';document.getElementById('lines').appendChild(line);}updTot();}
+function rem(e){const id=e.target.dataset.id;const p=document.querySelector('.prod[data-id="'+id+'"]');const add=p.querySelector('.add');const line=document.querySelector('.linea[data-id="'+id+'"]');if(cart[id]!==undefined){cart[id]--;if(cart[id]===0){delete cart[id];line.remove();add.disabled=false;}else{line.querySelector('.cant').textContent=cart[id];add.disabled=false;}}upd

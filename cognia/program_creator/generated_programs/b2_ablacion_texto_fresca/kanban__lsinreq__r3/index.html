@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban</title>
+<style>
+:root{--bg:#f0f0f0;--col-bg:#fff;--accent:#008080;--text:#333;}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);}
+.board{display:flex;gap:8px;padding:8px;height:100vh;box-sizing:border-box;overflow:hidden;}
+.col{flex:1;background:var(--col-bg);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;transition:opacity .5s ease,transform .5s ease;opacity:0;transform:translateY(20px);}
+body.loaded .col{opacity:1;transform:translateY(0);}
+.col h2{display:flex;justify-content:space-between;align-items:center;font-size:1.2rem;margin:0 0 8px 0;color:var(--text);}
+.col span{font-size:.9rem;color:var(--accent);}
+.card{background:var(--col-bg);border-radius:4px;padding:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,.1);cursor:pointer;transition:transform .2s ease;margin-bottom:4px;}
+.card:hover{transform:scale(1.02);}
+.title{flex:1;margin-right:8px;font-size:.95rem;color:var(--text);}
+.buttons{display:flex;gap:4px;}
+button{width:24px;height:24px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:.9rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .2s ease;}
+button:hover{background:#006666;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+    <div class="card" data-id="t1"><span class="title">Task 1</span><div class="buttons"><button class="menos">–</button><button class="mas">+</button></div></div>
+    <div class="card" data-id="t2"><span class="title">Task 2</span><div class="buttons"><button class="menos">–</button><button class="mas">+</button></div></div>
+    <div class="card" data-id="t3"><span class="title">Task 3</span><div class="buttons"><button class="menos">–</button><button class="mas">+</button></div></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+  </div>
+</div>
+<script>
+window.addEventListener('load',()=>{document.body.classList.add('loaded');updateCounters();});
+function updateCounters(){const t=document.querySelectorAll('.col[data-col="todo"] .card').length;const d=document.querySelectorAll('.col[data-col="doing"] .card').length;const f=document.querySelectorAll('.col[data-col="done"] .card').length;document.getElementById('cont-todo').textContent=t;document.getElementById('cont-doing').textContent=d;document.getElementById('cont-done').textContent=f;}
+function moveCard(card,dir){const cur=card.parentElement;const col=cur.dataset.col;let target; if(dir==='right'){if(col==='todo')target='doing';else if(col==='doing')target='done';else return;}else if(dir==='left'){if(col==='doing')target='todo';else if(col==='done')target='doing';else return;} if(target==='doing'){const doing=document.querySelectorAll('.col[data-col="doing"] .card');if(doing.length>=2)return;}const tgt=document.querySelector('.col[data-col="'+target+'"]');tgt.appendChild(card);updateCounters();}
+document.querySelectorAll('.mas').forEach(b=>b.addEventListener('click',e=>moveCard(e.target.closest('.card'),'right')));
+document.querySelectorAll('.menos').forEach(b=>b.addEventListener('click',e=>moveCard(e.target.closest('.card'),'left')));
+</script>
+</body>
+</html>

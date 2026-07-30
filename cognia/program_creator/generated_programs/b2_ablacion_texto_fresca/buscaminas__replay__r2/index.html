@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:sans-serif;text-align:center;margin:0;padding:0;background:#fafafa;}
+header{padding:10px;background:#eee;}
+button{padding:5px 10px;margin:5px;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:400px;margin:0 auto;}
+.c{background:#d3d3d3;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:1.2em;cursor:pointer;user-select:none;}
+.c.abierta{background:#f9f9a5;cursor:default;}
+.c.bandera{background:#f0e68c;}
+#minas{margin-top:10px;}
+#estado{color:red;margin-top:5px;}
+</style>
+</head>
+<body>
+<header><h1>Minesweeper 5x5</h1><button id="reset">Reiniciar</button></header>
+<div id="grid"></div>
+<div id="minas">Minas: 0/3</div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+const minas=document.getElementById('minas');
+let flagCount=0;
+function createGrid(){grid.innerHTML='';for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;d.addEventListener('click',open);d.addEventListener('contextmenu',flag);grid.appendChild(d);}}
+function open(e){const d=e.target;if(d.classList.contains('bandera')||d.classList.contains('abierta'))return;const i=+d.dataset.i;if(mines.includes(i)){d.classList.add('abierta');estado.textContent='perdiste';return;}const cnt=countAdj(i);d.classList.add('abierta');if(cnt>0)d.textContent=cnt;else cascade(i);}
+function cascade(start){const queue=[start];const visited=new Set();while(queue.length){const i=queue.shift();if(visited.has(i)||mines.includes(i))continue;visited.add(i);const d=document.querySelector(`.c[data-i="${i}"]`);if(d.classList.contains('abierta')||d.classList.contains('bandera'))continue;const cnt=countAdj(i);d.classList.add('abierta');if(cnt>0){d.textContent=cnt;continue;}for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){if(di===0&&dj===0)continue;const ni=i+di+dj*5;if(ni<0||ni>24)continue;queue.push(ni);}}
+}
+function countAdj(i){let c=0;for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){if(di===0&&dj===0)continue;const ni=i+di+dj*5;if(ni<0||ni>24)continue;c+=mines.includes(ni)?1:0;}return c;}
+function flag(e){e.preventDefault();const d=e.target;if(d.classList.contains('abierta'))return;if(d.classList.contains('bandera')){d.classList.remove('bandera');d.textContent='';flagCount--;minas.textContent=`Min

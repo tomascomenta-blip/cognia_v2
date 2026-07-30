@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:sans-serif;text-align:center;margin:0;padding:20px;background:#f0f0f0;}
+#grid{display:flex;flex-wrap:wrap;width:260px;margin:auto;}
+.c{width:50px;height:50px;margin:2px;background:#ccc;display:flex;align-items:center;justify-content:center;font-size:1.2em;cursor:pointer;}
+.c.abierta{background:#fffae6;}
+#estado{margin-top:10px;font-weight:bold;}
+#reset{margin-top:10px;padding:5px 10px;}
+#contador{margin-top:5px;}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+<button id="reset">Reiniciar</button>
+<div id="contador">Banderas: 0</div>
+<script>
+const mines=[6,12,18],grid=document.getElementById('grid'),estado=document.getElementById('estado'),cnt=document.getElementById('contador');
+let flag=0;
+function init(){grid.innerHTML='';flag=0;cnt.textContent='Banderas: 0';estado.textContent='';for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;d.addEventListener('click',open);d.addEventListener('contextmenu',flagCell);grid.appendChild(d);}pre();}
+function pre(){const c=new Array(25).fill(0);for(let i=0;i<25;i++){if(mines.includes(i))continue;let r=Math.floor(i/5),c0=i%5;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c0+dc;if(nr<0||nr>4||nc<0||nc>4)continue;const idx=nr*5+nc;if(mines.includes(idx))c[i]++;}grid.children[i].dataset.c=c[i];}}
+function open(e){const d=e.currentTarget;if(d.classList.contains('bandera')||d.classList.contains('abierta'))return;const i=parseInt(d.dataset.i);if(mines.includes(i)){d.classList.add('abierta');d.textContent='💣';estado.textContent='perdiste';return;}const n=parseInt(d.dataset.c);d.classList.add('abierta');d.textContent=n?n:'';if(n===0)openZero(i);}
+function openZero(i){const q=[i];while(q.length){const cur=q.shift();for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let r=Math.floor(cur/5)+dr,c0=cur%5+dc;if(r<0||r>4||c0<0||c0>4)continue;const idx=r*5+c0;const cell=grid.children[idx];if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))continue;const n=parseInt(cell.dataset.c);cell.classList.add('abierta');cell.textContent=n?n:'';if(n===0)q.push(idx);}}}
+function flagCell(e){e.preventDefault();const d=e.currentTarget;if(d.classList.contains('abierta'))return;if(d.classList.contains('bandera')){d.classList.remove('bandera');d.textContent='';flag--;cnt.textContent='Banderas: '+flag;}else{d.classList.add('bandera');d.textContent='🚩';flag++;cnt.textContent='Banderas: '+flag;}}
+document.getElementById('reset').addEventListener('click',init);init();
+</script>
+</body>
+</html>

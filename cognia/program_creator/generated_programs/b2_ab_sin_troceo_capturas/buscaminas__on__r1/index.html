@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{background:#f0f0f0;font-family:Arial,sans-serif;margin:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+#header{margin-top:20px;text-align:center;}
+#grid{display:grid;grid-template-columns:repeat(5,60px);gap:2px;margin-top:20px;}
+.c{width:60px;height:60px;background:#d3d3d3;border:1px solid #a9a9a9;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;user-select:none;}
+.c:hover{background:#c0c0c0;}
+.c.abierta{background:#ffffff;cursor:default;}
+.c.abierta .number{color:#00008b;font-weight:bold;}
+.c.bandera{background:#d3d3d3;}
+.c.bandera::after{content:"🚩";color:#ff0000;font-size:24px;}
+.c.mine::after{content:"⚠";color:#ff0000;font-size:24px;}
+#estado{margin-top:10px;font-weight:bold;color:#ff0000;}
+#reset{margin-top:10px;padding:5px 10px;font-size:14px;cursor:pointer;}
+#hint{margin-top:20px;font-size:12px;color:#555;}
+</style>
+</head>
+<body>
+<div id="header"><h1>Buscaminas 5x5</h1><button id="reset">Reset</button></div>
+<div id="grid">
+<div class="c" data-i="0"></div>
+<div class="c" data-i="1"></div>
+<div class="c" data-i="2"></div>
+<div class="c" data-i="3"></div>
+<div class="c" data-i="4"></div>
+<div class="c" data-i="5"></div>
+<div class="c" data-i="6"></div>
+<div class="c" data-i="7"></div>
+<div class="c" data-i="8"></div>
+<div class="c" data-i="9"></div>
+<div class="c" data-i="10"></div>
+<div class="c" data-i="11"></div>
+<div class="c" data-i="12"></div>
+<div class="c" data-i="13"></div>
+<div class="c" data-i="14"></div>
+<div class="c" data-i="15"></div>
+<div class="c" data-i="16"></div>
+<div class="c" data-i="17"></div>
+<div class="c" data-i="18"></div>
+<div class="c" data-i="19"></div>
+<div class="c" data-i="20"></div>
+<div class="c" data-i="21"></div>
+<div class="c" data-i="22"></div>
+<div class="c" data-i="23"></div>
+<div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<div id="hint">Haz clic para abrir, clic derecho para colocar bandera.</div>
+<script>
+const GRID_SIZE=5;
+const TOTAL_CELLS=GRID_SIZE*GRID_SIZE;
+const MINE_POSITIONS=[6,12,18];
+const MINE_SET=new Set(MINE_POSITIONS);
+function getNeighbors(i){
+  const neighbors=[];
+  const row=Math.floor(i/GRID_SIZE);
+  const col=i%GRID_SIZE;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      const nr=row+dr,nc=col+dc;
+      if(nr>=0&&nr<GRID_SIZE&&nc>=0&&nc<GRID_SIZE){
+        neighbors.push(nr*GRID_SIZE+nc);
+      }
+    }
+  }
+  return neighbors;
+}
+const counts=new Array(TOTAL_CELLS).fill(0);
+for(let i=0;i<TOTAL_CELLS;i++){
+  const neighbors=getNeighbors(i);
+  let cnt=0;
+  neighbors.forEach(n=>{if(MINE_SET.has(n))cnt++;});
+  counts[i]=cnt;
+}
+function openCell(i){
+  const cell=document.querySelector(`.c[data-i="${i}"]`);
+  if(!cell||cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+  cell.classList.add('abierta');
+  const cnt=counts[i];
+  if(cnt>0){cell.textContent=cnt;}
+  else{
+    cell.textContent='';
+    const queue=[i];
+    while(queue.length){
+      const idx=queue.shift();
+      const c=document.querySelector(`.c[data-i="${idx}"]`);
+      if(!c||c.classList.contains('abierta')||c.classList.contains('bandera'))continue;
+      c.classList.add('abierta');
+      const cCnt=counts[idx];
+      if(cCnt>0){c.textContent=cCnt;}
+      else{
+        c.textContent='';
+        const neigh=getNeighbors(idx);
+        neigh.forEach(n=>{
+          const nc=document.querySelector(`.c[data-i="${n}"]`);
+          if(nc&&!nc.classList.contains('abierta')&&!nc.classList.contains('bandera')){
+            queue.push(n);
+          }
+        });
+      }
+    }
+  }
+}
+function revealAllMines(){
+  MINE_SET.forEach(i=>{
+    const cell=document.querySelector(`.c[data-i="${i}"]`);
+    if(cell&&!cell.classList.contains('abierta')){
+      cell.classList.add('abierta','mine');
+    }
+  });
+}
+function resetGame(){
+  document.getElementById('estado').textContent='';
+  document.querySelectorAll('.c').forEach(cell=>{
+    cell.classList.remove('abierta','bandera','mine');
+    cell.textContent='';
+  });
+}
+document.querySelectorAll('.c').forEach(cell=>{
+  cell.addEventListener('click',e=>{
+    const i=parseInt(cell.dataset.i);
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+    if(MINE_SET.has(i)){
+      cell.classList.add('abierta','mine');
+      document.getElementById('estado').textContent='perdiste';
+      revealAllMines();
+    }else{
+      openCell(i);
+    }
+  });
+  cell.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(cell.classList.contains('abierta'))return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  });
+});
+document.getElementById('reset').addEventListener('click',resetGame);
+</script>
+</body>
+</html>

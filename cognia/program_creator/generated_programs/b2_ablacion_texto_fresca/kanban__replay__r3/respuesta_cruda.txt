@@ -1,0 +1,86 @@
+Title: Kanban en HTML  
+Description: Un tablero Kanban minimalista con 3 columnas y tarjetas movibles.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en HTML</title>
+<style>
+html,body{margin:0;height:100%;font-family:sans-serif;background:#f0f0f0;}
+.board{display:flex;height:100%;flex-wrap:wrap;}
+.col{flex:1;min-width:250px;background:#e0e0e0;padding:10px;box-sizing:border-box;}
+.col h2{margin:0 0 10px;font-size:1.2em;color:#555;}
+.cards{display:flex;flex-direction:column;gap:8px;}
+.card{background:#fff;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:10px;display:flex;align-items:center;justify-content:space-between;}
+.card .title{flex:1;color:#333;}
+.btns{display:flex;gap:4px;}
+.btns button{width:24px;height:24px;border:none;border-radius:50%;background:#008080;color:#fff;font-size:14px;cursor:pointer;}
+.btns button:hover{background:#006666;}
+.counter{font-size:0.9em;color:#777;text-align:center;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="cards">
+      <div class="card" data-id="t1"><span class="title">t1</span><div class="btns"><button class="menos">-</button><button class="mas">+</button></div></div>
+      <div class="card" data-id="t2"><span class="title">t2</span><div class="btns"><button class="menos">-</button><button class="mas">+</button></div></div>
+      <div class="card" data-id="t3"><span class="title">t3</span><div class="btns"><button class="menos">-</button><button class="mas">+</button></div></div>
+    </div>
+    <div class="counter"><span id="cont-todo"></span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="cards"></div>
+    <div class="counter"><span id="cont-doing"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="cards"></div>
+    <div class="counter"><span id="cont-done"></span></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const cols=document.querySelectorAll('.col');
+  const colOrder=['todo','doing','done'];
+  function updateCounters(){
+    cols.forEach(col=>{
+      const count=col.querySelector('.cards').children.length;
+      const id='cont-'+col.dataset.col;
+      document.getElementById(id).textContent=count;
+    });
+  }
+  updateCounters();
+  cols.forEach(col=>{
+    col.querySelectorAll('.mas,.menos').forEach(btn=>{
+      btn.addEventListener('click',function(){
+        const card=this.closest('.card');
+        const currentCol=card.parentElement.parentElement; // .cards -> .col
+        const currentIndex=colOrder.indexOf(currentCol.dataset.col);
+        if(this.classList.contains('mas')){
+          if(currentCol.dataset.col==='done') return;
+          if(currentCol.dataset.col==='todo'){
+            const doingCol=document.querySelector('.col[data-col="doing"]');
+            if(doingCol.querySelector('.cards').children.length>=2) return;
+          }
+          const targetCol=document.querySelector('.col[data-col="'+colOrder[currentIndex+1]+'"]');
+          targetCol.querySelector('.cards').appendChild(card);
+        }else if(this.classList.contains('menos')){
+          if(currentCol.dataset.col==='todo') return;
+          const targetCol=document.querySelector('.col[data-col="'+colOrder[currentIndex-1]+'"]');
+          targetCol.querySelector('.cards').appendChild(card);
+        }
+        updateCounters();
+      });
+    });
+  });
+});
+</script>
+</body>
+</html>
+```

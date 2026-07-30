@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  :root{
+    --bg-soft:#f0f0f0;
+    --bg-grid:#333;
+    --bg-cell:#444;
+    --text-white:#fff;
+    --focus-blue:#add8e6;
+    --shadow:0 2px 4px rgba(0,0,0,0.2);
+  }
+  body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:var(--bg-soft);
+    font-family:sans-serif;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    grid-gap:2px;
+    padding:2px;
+    border:1px solid #333;
+    background:var(--bg-grid);
+  }
+  .celda{
+    width:80px;
+    height:30px;
+    text-align:center;
+    color:var(--text-white);
+    background:var(--bg-cell);
+    border:none;
+    outline:none;
+    box-shadow:var(--shadow);
+    font-size:14px;
+    padding:0;
+  }
+  .celda:focus{
+    outline:2px solid var(--focus-blue);
+  }
+  @media (max-width:320px){
+    #grid{
+      grid-template-columns:repeat(3,1fr);
+    }
+    .celda{
+      width:100%;
+      height:30px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <input class="celda" data-ref="A1" value="1">
+  <input class="celda" data-ref="A2" value="2">
+  <input class="celda" data-ref="A3" value="3">
+  <input class="celda" data-ref="B1" value="4">
+  <input class="celda" data-ref="B2" value="5">
+  <input class="celda" data-ref="B3" value="6">
+  <input class="celda" data-ref="C1" value="7">
+  <input class="celda" data-ref="C2" value="8">
+  <input class="celda" data-ref="C3" value="=A1+B1">
+</div>
+<script>
+  (function(){
+    const cells = {};
+    const updating = {flag:false};
+
+    // Map cells by reference
+    document.querySelectorAll('.celda').forEach(el=>{
+      const ref = el.dataset.ref;
+      cells[ref] = el;
+    });
+
+    // Compute all cells
+    function computeAll(){
+      if(updating.flag) return;
+      updating.flag = true;
+      const memo = {};
+
+      function compute(ref, stack){
+        if(stack.has(ref)) return 'CIRC';
+        if(memo[ref] !== undefined) return memo[ref];
+        const el = cells[ref];
+        const val = el.value;
+        if(val.startsWith('=')){
+          const expr = val.slice(1);
+          const refs = expr.match(/[A-C][1-3]/g) || [];
+          let evalExpr = expr;
+          for(const r of refs){
+            const v = compute(r, new Set(stack).add(ref));
+            if(v === 'CIRC'){ memo[ref] = 'CIRC'; return 'CIRC'; }
+            evalExpr = evalExpr.replaceAll(r, v);
+          }
+          try{
+            const res = Function('return '+evalExpr)();
+            memo[ref] = res;
+            return res;
+          }catch(e){
+            memo[ref] = 'CIRC';
+            return 'CIRC';
+          }
+        }else{
+          memo[ref] = val;
+          return val;
+        }
+      }
+
+      for(const ref in cells){
+        const result = compute(ref, new Set());
+        cells[ref].value = result;
+      }
+      updating.flag = false;
+    }
+
+    // Recompute on any input change
+    document.querySelectorAll('.celda').forEach(el=>{
+      el.addEventListener('input', computeAll);
+    });
+
+    // Initial calculation
+    computeAll();
+  })();
+</script>
+</body>
+</html>

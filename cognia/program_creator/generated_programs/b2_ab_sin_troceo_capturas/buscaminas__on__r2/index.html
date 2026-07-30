@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#fff;margin:0;padding:20px;text-align:center;}
+#status{margin-bottom:10px;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:200px;margin:auto;}
+.c{background:#e0e0e0;border:1px solid #bbb;height:0;padding-bottom:100%;position:relative;cursor:pointer;}
+.c.abierta{background:#add8e6;color:#333;font-weight:bold;}
+.c.bandera::after{content:"🚩";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.2em;}
+.c.mine::after{content:"❌";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.2em;color:red;}
+#help{font-size:1.5em;margin-top:10px;}
+</style>
+</head>
+<body>
+<div id="status"><button id="reset">Reset</button> <span id="score">0</span></div>
+<div id="estado"></div>
+<div id="grid"></div>
+<div id="help">❓</div>
+<script>
+const mines=[6,12,18],opened=new Set(),flagged=new Set(),cells=[];
+function init(){const g=document.getElementById('grid');for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;d.addEventListener('click',()=>clickCell(i));d.addEventListener('contextmenu',e=>{e.preventDefault();toggleFlag(i);});g.appendChild(d);cells.push(d);}document.getElementById('reset').addEventListener('click',reset);updateScore();}
+function clickCell(i){if(flagged.has(i)||opened.has(i)||document.getElementById('estado').textContent==='perdiste')return;if(mines.includes(i)){cells[i].classList.add('mine');document.getElementById('estado').textContent='perdiste';return;}open(i);}
+function open(i){if(opened.has(i)||flagged.has(i))return;opened.add(i);const count=countAdj(i);cells[i].classList.add('abierta');cells[i].textContent=count?count:'';if(count===0)neighbors(i).forEach(j=>open(j));updateScore();}
+function countAdj(i){let c=0;neighbors(i).forEach(j=>{if(mines.includes(j))c++;});return c;}
+function neighbors(i){const r=Math.floor(i/5),c=i%5,arr=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);}return arr;}
+function toggleFlag(i){if(opened.has(i))return;if(flagged.has(i)){flagged.delete(i);cells[i].classList.remove('bandera');}else{flagged.add(i);cells[i].classList.add('bandera');}}
+function updateScore(){document.getElementById('score').textContent=opened.size;}
+function reset(){opened.clear();flagged.clear();cells.forEach(d=>{d.className='c';d.textContent='';});document.getElementById('estado').textContent='';updateScore();}
+init();
+</script>
+</body>
+</html>

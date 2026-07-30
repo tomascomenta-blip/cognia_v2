@@ -1,0 +1,58 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f4f7;color:#333;display:flex;min-height:100vh;}
+header{background:#008080;color:#fff;padding:1rem;text-align:center;width:100%;}
+main{display:flex;flex:1;gap:1rem;padding:1rem;}
+.prod{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;width:calc(33.333%-1rem);}
+.prod .img{background:#ccc;height:80px;width:100%;border-radius:4px;}
+.prod h3{margin:0.5rem 0;font-size:1rem;}
+.prod p{margin:0.5rem 0;font-weight:bold;}
+.prod button{background:#008080;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;}
+.prod button:disabled{background:#aaa;}
+.cart{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1rem;width:250px;box-shadow:0 2px 8px rgba(0,0,0,.1);overflow-y:auto;}
+.linea{display:flex;justify-content:space-between;margin-bottom:0.5rem;}
+.linea button{background:none;border:none;color:#008080;cursor:pointer;}
+#line-total{font-weight:bold;margin-top:1rem;}
+</style>
+</head>
+<body>
+<header>Mi Tienda</header>
+<main>
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">
+<div class="img"></div>
+<h3>Producto 1</h3>
+<p>100 €</p>
+<button class="add" data-id="p1">Añadir</button>
+</div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">
+<div class="img"></div>
+<h3>Producto 2</h3>
+<p>50 €</p>
+<button class="add" data-id="p2">Añadir</button>
+</div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">
+<div class="img"></div>
+<h3>Producto 3</h3>
+<p>25 €</p>
+<button class="add" data-id="p3">Añadir</button>
+</div>
+<div class="cart">
+<h2>Carrito</h2>
+<div id="lines"></div>
+<div id="line-total">Total: <span id="total">0</span> €</div>
+</div>
+</main>
+<script>
+const cart={};
+function update(){const lines=document.getElementById('lines');lines.innerHTML='';let total=0;for(const id in cart){const qty=cart[id];const prod=document.querySelector(`.prod[data-id="${id}"]`);const price=parseFloat(prod.dataset.precio);total+=price*qty;lines.innerHTML+=`<div class="linea" data-id="${id}"><span>${id} x ${qty}</span><button class="quitar" data-id="${id}">-</button></div>`;const btn=prod.querySelector('.add');btn.disabled=qty>=parseInt(prod.dataset.stock);}document.getElementById('total').textContent=total.toLocaleString('es-ES',{minimumFractionDigits:2});}
+document.querySelectorAll('.add').forEach(b=>b.addEventListener('click',e=>{const id=e.target.dataset.id;const prod=document.querySelector(`.prod[data-id="${id}"]`);const stock=parseInt(prod.dataset.stock);cart[id]=(cart[id]||0)+1;if(cart[id]>stock)cart[id]=stock;update();}));
+document.addEventListener('click',e=>{if(e.target.classList.contains('quitar')){const id=e.target.dataset.id;cart[id]--;if(cart[id]<=0){delete cart[id];}update();}});
+update();
+</script>
+</body>
+</html>

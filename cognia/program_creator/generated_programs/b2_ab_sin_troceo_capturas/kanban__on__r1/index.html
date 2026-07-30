@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  /* ---------- Layout ---------- */
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#fafafa;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .board{
+    display:flex;
+    gap:15px;
+    padding:20px;
+    background:#e0e0e0;
+    border-radius:8px;
+    min-width:600px;
+    min-height:400px;
+    animation:fadeInBoard 1s forwards;
+  }
+  .col{
+    flex:1;
+    background:#fff;
+    padding:10px;
+    border-radius:4px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    display:flex;
+    flex-direction:column;
+  }
+  .col h2{
+    margin:0 0 10px;
+    font-size:1.2em;
+    display:flex;
+    align-items:center;
+  }
+  .col h2 span{
+    margin-left:8px;
+    font-size:.8em;
+    color:#555;
+  }
+  /* ---------- Cards ---------- */
+  .card{
+    background:#e3f2fd;
+    padding:8px 10px;
+    margin-bottom:8px;
+    border-radius:4px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:fadeInCard .5s ease forwards;
+    animation-delay:.2s;
+  }
+  .card button{
+    padding:2px 6px;
+    margin-left:4px;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:.8em;
+  }
+  .card button.mas{background:#388e3c;color:#fff;}
+  .card button.menos{background:#d32f2f;color:#fff;}
+  .card button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
+  /* ---------- Animations ---------- */
+  @keyframes fadeInBoard{
+    from{opacity:0;transform:translateX(-30px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  @keyframes fadeInCard{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+  // ---------- Config ----------
+  const columns = ['todo','doing','done'];
+  const maxDoing = 2; // WIP limit
+
+  // ---------- Helper Functions ----------
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.textContent = id;
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '+';
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '-';
+
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+
+    // Event listeners
+    btnMas.addEventListener('click', () => moveCard(card, 1));
+    btnMenos.addEventListener('click', () => moveCard(card, -1));
+
+    return card;
+  }
+
+  function moveCard(card, direction){
+    const currentCol = card.parentElement.parentElement.dataset.col;
+    const idx = columns.indexOf(currentCol);
+    const targetIdx = idx + direction;
+    if(targetIdx < 0 || targetIdx >= columns.length) return; // out of bounds
+
+    // WIP rule: cannot move to doing if full
+    if(columns[targetIdx] === 'doing' && getCardsInColumn('doing').length >= maxDoing) return;
+
+    const targetColDiv = document.querySelector(`.col[data-col="${columns[targetIdx]}"] .cards`);
+    targetColDiv.appendChild(card);
+    updateAll();
+  }
+
+  function getCardsInColumn(col){
+    return Array.from(document.querySelectorAll(`.col[data-col="${col}"] .card`));
+  }
+
+  function updateCounts(){
+    document.getElementById('cont-todo').textContent = getCardsInColumn('todo').length;
+    document.getElementById('cont-doing').textContent = getCardsInColumn('doing').length;
+    document.getElementById('cont-done').textContent = getCardsInColumn('done').length;
+  }
+
+  function updateButtons(){
+    getCardsInColumn('todo').forEach(card => {
+      const btnMas = card.querySelector('.mas');
+      const btnMenos = card.querySelector('.menos');
+      btnMenos.disabled = true; // cannot go left from todo
+      btnMas.disabled = getCardsInColumn('doing').length >= maxDoing; // WIP rule
+    });
+    getCardsInColumn('doing').forEach(card => {
+      const btnMas = card.querySelector('.mas');
+      const btnMenos = card.querySelector('.menos');
+      btnMas.disabled = false;
+      btnMenos.disabled = false;
+    });
+    getCardsInColumn('done').forEach(card => {
+      const btnMas = card.querySelector('.mas');
+      const btnMenos = card.querySelector('.menos');
+      btnMas.disabled = true; // cannot go right from done
+      btnMenos.disabled = false;
+    });
+  }
+
+  function updateAll(){
+    updateCounts();
+    updateButtons();
+  }
+
+  // ---------- Initial Load ----------
+  document.addEventListener('DOMContentLoaded', () => {
+    const todoCardsDiv = document.querySelector('.col[data-col="todo"] .cards');
+    ['t1','t2','t3'].forEach(id => {
+      todoCardsDiv.appendChild(createCard(id));
+    });
+    updateAll();
+  });
+</script>
+</body>
+</html>

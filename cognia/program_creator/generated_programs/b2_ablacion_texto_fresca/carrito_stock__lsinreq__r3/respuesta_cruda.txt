@@ -1,0 +1,158 @@
+Title: Carrito de compra con STOCK  
+Description: Un carrito de compra con stock limitado y carrito dinámico en una sola página HTML.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;color:#333;}
+  .container{display:flex;flex-wrap:wrap;min-height:100vh;}
+  .products{flex:1 1 60%;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;padding:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1rem;display:flex;flex-direction:column;align-items:center;}
+  .prod img{width:100%;height:auto;border-radius:4px;}
+  .prod h3{margin:0.5rem 0;font-size:1.1rem;}
+  .prod .price{font-weight:bold;color:#000;}
+  .prod .stock{font-size:0.9rem;color:#777;}
+  .prod .add{margin-top:auto;background:#008080;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;}
+  .prod .add:disabled{background:#aaa;cursor:not-allowed;}
+  .cart{flex:1 1 40%;background:#fff;border-left:1px solid #ddd;padding:1rem;position:sticky;top:0;max-height:100vh;overflow-y:auto;}
+  .cart h2{margin-top:0;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
+  .linea span{flex:1;}
+  .linea .cant{font-weight:bold;}
+  .linea .quitar{background:#008080;color:#fff;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;}
+  .linea .quitar:hover{background:#006666;}
+  .total{font-size:1.2rem;font-weight:bold;margin-top:1rem;}
+  @media(max-width:600px){
+    .container{flex-direction:column;}
+    .cart{border-left:none;border-top:1px solid #ddd;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2NjYyIvPjwvc3ZnPg==" alt="Producto 1">
+      <h3>Producto 1</h3>
+      <div class="price"></div>
+      <div class="stock">Stock: 2</div>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2NjYyIvPjwvc3ZnPg==" alt="Producto 2">
+      <h3>Producto 2</h3>
+      <div class="price"></div>
+      <div class="stock">Stock: 3</div>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2NjYyIvPjwvc3ZnPg==" alt="Producto 3">
+      <h3>Producto 3</h3>
+      <div class="price"></div>
+      <div class="stock">Stock: 1</div>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-items"></div>
+    <div class="total">Total: €<span id="total">0,00</span></div>
+  </div>
+</div>
+<script>
+class Cart {
+  constructor(){
+    this.items = {}; // id -> {qty, price, stock, name}
+    this.cartItemsDiv = document.getElementById('cart-items');
+    this.totalSpan = document.getElementById('total');
+    this.products = document.querySelectorAll('.prod');
+    this.products.forEach(prod=>{
+      const id = prod.dataset.id;
+      const price = parseFloat(prod.dataset.precio);
+      const stock = parseInt(prod.dataset.stock);
+      const name = prod.querySelector('h3').textContent;
+      this.items[id] = {qty:0, price, stock, name};
+      // set formatted price
+      prod.querySelector('.price').textContent = price.toLocaleString('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2});
+    });
+    this.addButtons = document.querySelectorAll('.add');
+    this.addButtons.forEach(btn=>{
+      btn.addEventListener('click',()=>this.addItem(btn.dataset.id));
+    });
+  }
+  addItem(id){
+    const item = this.items[id];
+    if(item.qty < item.stock){
+      item.qty++;
+      this.updateLine(id);
+      this.updateTotal();
+      this.updateAddButton(id);
+    }
+  }
+  removeItem(id){
+    const item = this.items[id];
+    if(item.qty > 0){
+      item.qty--;
+      this.updateLine(id);
+      this.updateTotal();
+      this.updateAddButton(id);
+    }
+  }
+  updateLine(id){
+    const item = this.items[id];
+    let line = this.cartItemsDiv.querySelector(`.linea[data-id="${id}"]`);
+    if(item.qty > 0){
+      if(!line){
+        line = document.createElement('div');
+        line.className='linea';
+        line.dataset.id=id;
+        const nameSpan=document.createElement('span');
+        nameSpan.textContent=item.name;
+        const cantSpan=document.createElement('span');
+        cantSpan.className='cant';
+        cantSpan.textContent=item.qty;
+        const quitarBtn=document.createElement('button');
+        quitarBtn.className='quitar';
+        quitarBtn.dataset.id=id;
+        quitarBtn.textContent='Quitar';
+        quitarBtn.addEventListener('click',()=>this.removeItem(id));
+        line.appendChild(nameSpan);
+        line.appendChild(cantSpan);
+        line.appendChild(quitarBtn);
+        this.cartItemsDiv.appendChild(line);
+      }else{
+        const cantSpan=line.querySelector('.cant');
+        cantSpan.textContent=item.qty;
+      }
+    }else{
+      if(line){
+        line.remove();
+      }
+    }
+  }
+  updateTotal(){
+    let total=0;
+    for(const id in this.items){
+      total+=this.items[id].price*this.items[id].qty;
+    }
+    this.totalSpan.textContent=total.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  updateAddButton(id){
+    const btn=document.querySelector(`.add[data-id="${id}"]`);
+    if(this.items[id].qty>=this.items[id].stock){
+      btn.disabled=true;
+    }else{
+      btn.disabled=false;
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{new Cart();});
+</script>
+</body>
+</html>
+```

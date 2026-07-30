@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body, html {margin:0; padding:0; font-family:Arial, sans-serif; background:#f0f0f0;}
+  .container {display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh;}
+  h1 {margin:0 0 10px; font-size:24px;}
+  p {margin:0 0 10px; font-size:14px;}
+  #grid {display:grid; grid-template-columns:repeat(5, 50px); grid-template-rows:repeat(5, 50px); gap:0;}
+  .c {width:50px; height:50px; border:1px solid #888; box-shadow:0 1px 2px rgba(0,0,0,0.2); background:#555; color:#fff; display:flex; justify-content:center; align-items:center; font-size:20px; cursor:pointer; user-select:none; transition:background 0.2s;}
+  .c:hover:not(.abierta) {box-shadow:0 0 5px #fff;}
+  .abierta {background:#e0f7ff; color:#333; cursor:default;}
+  .abierta.mine {background:#f00; color:#fff;}
+  .bandera {color:#f00;}
+  #estado {margin-top:10px; font-weight:bold;}
+  button {margin-top:10px; padding:5px 10px; font-size:16px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Minesweeper 5x5</h1>
+  <p>Haz clic para abrir, clic derecho para colocar bandera.</p>
+  <div id="grid"></div>
+  <div id="estado"></div>
+  <button id="reset">Reset</button>
+</div>
+
+<script>
+/* Constants */
+const MINE_POSITIONS = [6, 12, 18];
+const GRID_SIZE = 5;
+const CELL_COUNT = GRID_SIZE * GRID_SIZE;
+const CELL_SIZE = 50;
+
+/* State */
+let gameOver = false;
+const mineSet = new Set(MINE_POSITIONS);
+const adjacentCounts = new Array(CELL_COUNT).fill(0);
+const cells = [];
+
+/* Compute adjacent mine counts */
+for (const mine of MINE_POSITIONS) {
+  const r = Math.floor(mine / GRID_SIZE);
+  const c = mine % GRID_SIZE;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
+      const idx = nr * GRID_SIZE + nc;
+      adjacentCounts[idx]++;
+    }
+  }
+}
+
+/* Create grid */
+const grid = document.getElementById('grid');
+for (let i = 0; i < CELL_COUNT; i++) {
+  const div = document.createElement('div');
+  div.className = 'c';
+  div.dataset.i = i;
+  div.addEventListener('click', onCellClick);
+  div.addEventListener('contextmenu', onCellRightClick);
+  grid.appendChild(div);
+  cells.push(div);
+}
+
+/* Handlers */
+function onCellClick(e) {
+  if (gameOver) return;
+  const cell = e.currentTarget;
+  if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+  const idx = parseInt(cell.dataset.i, 10);
+  if (mineSet.has(idx)) {
+    openMine(cell);
+    loseGame();
+    return;
+  }
+  openRegion(idx);
+}
+
+function onCellRightClick(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const cell = e.currentTarget;
+  if (cell.classList.contains('abierta')) return;
+  if (cell.classList.contains('bandera')) {
+    cell.classList.remove('bandera');
+    cell.textContent = '';
+  } else {
+    cell.classList.add('bandera');
+    cell.textContent = '🚩';
+  }
+}
+
+/* Open a single cell */
+function openCell(idx) {
+  const cell = cells[idx];
+  if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  const count = adjacentCounts[idx];
+  cell.classList.add('abierta');
+  if (count > 0) cell.textContent = count;
+}
+
+/* Open region of zero cells */
+function openRegion(startIdx) {
+  const queue = [startIdx];
+  while (queue.length) {
+    const idx = queue.shift();
+    const cell = cells[idx];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+    const count = adjacentCounts[idx];
+    cell.classList.add('abierta');
+    if (count > 0) {
+      cell.textContent = count;
+    } else {
+      // enqueue neighbors
+      const r = Math.floor(idx / GRID_SIZE);
+      const c = idx % GRID_SIZE;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
+          const nIdx = nr * GRID_SIZE + nc;
+          if (mineSet.has(nIdx)) continue;
+          const nCell = cells[nIdx];
+          if (!nCell.classList.contains('abierta') && !nCell.classList.contains('bandera')) {
+            queue.push(nIdx);
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Open a mine cell */
+function openMine(cell) {
+  cell.classList.add('abierta', 'mine');
+  cell.textContent = '💣';
+}
+
+/* Lose the game */
+function loseGame() {
+  gameOver = true;
+  document.getElementById('estado').textContent = 'perdiste';
+  // reveal all mines
+  for (const mine of MINE_POSITIONS) {
+    const cell = cells[mine];
+    if (!cell.classList.contains('abierta')) {
+      openMine(cell);
+    }
+  }
+}
+
+/* Reset the game */
+document.getElementById('reset').addEventListener('click', () => {
+  gameOver = false;
+  document.getElementById('estado').textContent = '';
+  for (const cell of cells) {
+    cell.classList.remove('abierta', 'mine', 'bandera');
+    cell.textContent = '';
+  }
+});
+</script>
+</body>
+</html>

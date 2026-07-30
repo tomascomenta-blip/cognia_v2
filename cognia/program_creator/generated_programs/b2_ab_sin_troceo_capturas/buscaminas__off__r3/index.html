@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:20px;text-align:center;color:#333;}
+#grid{display:grid;grid-template-columns:repeat(5,50px);gap:0;margin:0 auto;}
+.c{width:50px;height:50px;display:flex;align-items:center;justify-content:center;background:#008080;color:white;font-weight:bold;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.2);user-select:none;}
+.c.abierta{background:#d3d3d3;color:#006666;cursor:default;}
+.c.bandera{background:#008080;color:yellow;}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,12,18]);
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+for(let i=0;i<25;i++){
+  const d=document.createElement('div');
+  d.className='c';d.dataset.i=i;
+  d.addEventListener('click',()=>open(i));
+  d.addEventListener('contextmenu',e=>{e.preventDefault();toggleFlag(i);});
+  grid.appendChild(d);
+}
+function neighbors(i){const r=Math.floor(i/5),c=i%5,arr=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);}return arr;}
+function countAdj(i){return neighbors(i).filter(n=>mines.has(n)).length;}
+function open(i){const d=document.querySelector(`.c[data-i="${i}"]`);if(d.classList.contains('bandera')||d.classList.contains('abierta'))return;if(mines.has(i)){d.textContent='💣';d.classList.add('abierta');estado.textContent='perdiste';return;}const cnt=countAdj(i);d.textContent=cnt?cnt:'';d.classList.add('abierta');if(cnt===0){neighbors(i).forEach(open);}}
+function toggleFlag(i){const d=document.querySelector(`.c[data-i="${i}"]`);if(d.classList.contains('abierta'))return;if(d.classList.contains('bandera')){d.classList.remove('bandera');d.textContent='';}else{d.classList.add('bandera');d.textContent='🚩';}}
+</script>
+</body>
+</html>

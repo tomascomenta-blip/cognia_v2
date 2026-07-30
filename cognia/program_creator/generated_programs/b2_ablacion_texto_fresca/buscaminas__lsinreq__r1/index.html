@@ -1,0 +1,223 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#f0f0f0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-height:100vh;
+}
+header{
+  margin-top:20px;
+  text-align:center;
+}
+header h1{
+  margin:0;
+  font-size:24px;
+}
+header p{
+  margin:5px 0 10px;
+  font-size:14px;
+}
+#grid{
+  display:grid;
+  grid-template-columns:repeat(5,50px);
+  grid-gap:2px;
+}
+.c{
+  width:50px;
+  height:50px;
+  background:#444;
+  border:1px solid #aaa;
+  box-shadow:0 1px 2px rgba(0,0,0,0.1);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:18px;
+  color:#fff;
+  cursor:pointer;
+  user-select:none;
+}
+.c:hover{
+  box-shadow:0 0 5px rgba(255,255,255,0.5);
+}
+.c.abierta{
+  background:#add8e6;
+  color:#333;
+  cursor:default;
+}
+.c.abierta .mine{
+  color:red;
+  font-size:24px;
+}
+.c.abierta .number{
+  font-weight:bold;
+}
+.c.bandera{
+  background:#444;
+  color:#fff;
+}
+.c.bandera::before{
+  content:"🚩";
+  font-size:24px;
+}
+#estado{
+  margin-top:10px;
+  font-size:18px;
+}
+button{
+  margin-top:10px;
+  padding:5px 10px;
+  font-size:16px;
+  cursor:pointer;
+}
+@media (max-width:320px){
+  #grid{grid-template-columns:repeat(5,40px);}
+  .c{width:40px;height:40px;font-size:14px;}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Buscaminas 5x5</h1>
+  <p>Haz clic para abrir, clic derecho para colocar bandera</p>
+</header>
+<div id="grid"></div>
+<div id="estado"></div>
+<button id="reset">Reiniciar</button>
+<script>
+const GRID_SIZE = 5;
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+const MINES = new Set([6,12,18]); // posiciones fijas
+let opened = new Set();
+let flagged = new Set();
+let lost = false;
+
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+const resetBtn = document.getElementById('reset');
+
+// crear casillas
+for (let i=0; i<TOTAL_CELLS; i++){
+  const div = document.createElement('div');
+  div.className = 'c';
+  div.dataset.i = i;
+  div.addEventListener('click', onCellClick);
+  div.addEventListener('contextmenu', onCellRightClick);
+  grid.appendChild(div);
+}
+
+function onCellClick(e){
+  const cell = e.currentTarget;
+  const i = parseInt(cell.dataset.i);
+  if (lost || opened.has(i) || flagged.has(i)) return;
+  openCell(i);
+  checkWin();
+}
+
+function onCellRightClick(e){
+  e.preventDefault();
+  const cell = e.currentTarget;
+  const i = parseInt(cell.dataset.i);
+  if (lost || opened.has(i)) return;
+  if (flagged.has(i)){
+    flagged.delete(i);
+    cell.classList.remove('bandera');
+  }else{
+    flagged.add(i);
+    cell.classList.add('bandera');
+  }
+}
+
+function openCell(i){
+  const cell = grid.children[i];
+  if (opened.has(i) || flagged.has(i)) return;
+  opened.add(i);
+  cell.classList.add('abierta');
+  if (MINES.has(i)){
+    const span = document.createElement('span');
+    span.className = 'mine';
+    span.textContent = '💣';
+    cell.appendChild(span);
+    lost = true;
+    estado.textContent = 'Perdiste';
+    // revelar todas las minas
+    MINES.forEach(m=>{
+      const mineCell = grid.children[m];
+      if (!mineCell.classList.contains('abierta')){
+        mineCell.classList.add('abierta');
+        const spanM = document.createElement('span');
+        spanM.className = 'mine';
+        spanM.textContent = '💣';
+        mineCell.appendChild(spanM);
+      }
+    });
+    return;
+  }
+  const count = countAdjacentMines(i);
+  if (count > 0){
+    const span = document.createElement('span');
+    span.className = 'number';
+    span.textContent = count;
+    cell.appendChild(span);
+  }else{
+    // cascada
+    getNeighbors(i).forEach(n=>openCell(n));
+  }
+}
+
+function countAdjacentMines(i){
+  let count = 0;
+  getNeighbors(i).forEach(n=>{
+    if (MINES.has(n)) count++;
+  });
+  return count;
+}
+
+function getNeighbors(i){
+  const neighbors = [];
+  const row = Math.floor(i / GRID_SIZE);
+  const col = i % GRID_SIZE;
+  for (let dr=-1; dr<=1; dr++){
+    for (let dc=-1; dc<=1; dc++){
+      if (dr===0 && dc===0) continue;
+      const r = row + dr;
+      const c = col + dc;
+      if (r>=0 && r<GRID_SIZE && c>=0 && c<GRID_SIZE){
+        neighbors.push(r*GRID_SIZE + c);
+      }
+    }
+  }
+  return neighbors;
+}
+
+function checkWin(){
+  if (lost) return;
+  if (opened.size + MINES.size === TOTAL_CELLS){
+    estado.textContent = '¡Ganaste!';
+  }
+}
+
+resetBtn.addEventListener('click', resetGame);
+
+function resetGame(){
+  opened.clear();
+  flagged.clear();
+  lost = false;
+  estado.textContent = '';
+  for (let i=0; i<TOTAL_CELLS; i++){
+    const cell = grid.children[i];
+    cell.className = 'c';
+    cell.innerHTML = '';
+  }
+}
+</script>
+</body>
+</html>

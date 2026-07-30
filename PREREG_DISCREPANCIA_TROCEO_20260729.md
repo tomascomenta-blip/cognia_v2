@@ -74,6 +74,32 @@ desacopladas + vigías; slots=1/ctx verificados por los runners.
 1 agente adversarial del prereg + el cambio `--materia` del runner de
 ablación ANTES de la etapa B (la etapa A no toca código). Enmiendas aquí.
 
+## RESULTADO (2026-07-29 ~18:15 — etapas A y B completas + diff, veredicto por umbrales pre-fijados)
+
+**Neto (L−REQ)−L en material FRESCO = +1 → rama "−2..+2": el +6 NO
+reproduce ⇒ H-MATERIAL.** 12 pares, 0 infra (etapa B). La ablación del
+troceo cobraba sobre el material del gate y no cobra sobre prompts
+frescos: **el efecto del troceo depende del material, no es una propiedad
+del troceo**. Junto con el −4 del lazo (fase 3), cierra la vía: no hay fix
+del troceo que adoptar.
+
+- Etapa A (re-medida direccional del lazo, n=3): neto ON = **0** (ON 11/12,
+  OFF 11/12) — no contradice en signo al −4 de n=6; ninguna conclusión de
+  contexto se firma sobre ella.
+- **Diff estructural gate-vs-hoy (el sospechoso NO aparece):** el material
+  fresco es casi idéntico al del gate en todas las dimensiones gruesas —
+  largo 6106 vs 5972, feromona 1649 vs 1454, brief 430 vs 437, 10
+  componentes de ~72 chars en ambos. **H-material queda confirmada como
+  lectura pero SIN mecanismo identificado**: no es tamaño, ni feromona, ni
+  brief. Lo que queda es contenido semántico fino o heterogeneidad
+  temporal del propio sistema.
+- **Hallazgo colateral que se llevó la noche:** al verificar las tasas
+  apareció que el replay rinde 42-46% donde el lazo con el MISMO prompt
+  rinde 79-92%. Eso pone en duda la VALIDEZ DEL INSTRUMENTO de todas las
+  sondas de replay, así que se abrió PREREG_LAZO_VS_REPLAY_20260729 (el
+  parseo ya quedó descartado como causa por medición offline: veredicto
+  estricto idéntico en 107/107 crudos).
+
 ## PRIMERA ENMIENDA (2026-07-29 ~17:45 — tras la revisión, etapa A ya en el aire)
 
 NO BLOQUEA (alineación verificada: con max_rondas=1 nada más pasa por el

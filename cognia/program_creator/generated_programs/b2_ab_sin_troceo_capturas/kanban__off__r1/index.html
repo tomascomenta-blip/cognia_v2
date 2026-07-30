@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  .board{display:flex;height:100vh;gap:10px;padding:10px;box-sizing:border-box;}
+  .col{flex:1;background:#fff;border-radius:4px;display:flex;flex-direction:column;overflow-y:auto;}
+  .col h2{margin:0;padding:10px;background:#e0e0e0;font-size:1.2em;text-align:center;}
+  .counter{font-size:0.9em;color:#555;margin:5px 10px;}
+  .card{background:#fafafa;border:1px solid #ddd;border-radius:4px;margin:10px;padding:10px;position:relative;}
+  .card .btns{display:flex;justify-content:flex-end;gap:5px;margin-bottom:5px;}
+  .card button{width:20px;height:20px;border:none;border-radius:50%;background:#008080;color:#fff;cursor:pointer;}
+  .card button:disabled{background:#ccc;cursor:not-allowed;}
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+    .col{height:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="counter">Tarjetas: <span id="cont-todo">3</span></div>
+    <div class="card" data-id="t1">
+      <div class="btns">
+        <button class="menos" disabled>-</button>
+        <button class="mas">+</button>
+      </div>
+      <p>tarea 1</p>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="btns">
+        <button class="menos" disabled>-</button>
+        <button class="mas">+</button>
+      </div>
+      <p>tarea 2</p>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="btns">
+        <button class="menos" disabled>-</button>
+        <button class="mas">+</button>
+      </div>
+      <p>tarea 3</p>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="counter">Tarjetas: <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="counter">Tarjetas: <span id="cont-done">0</span></div>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+
+function updateCounters(){
+  const todo = document.querySelectorAll('[data-col="todo"] .card').length;
+  const doing = document.querySelectorAll('[data-col="doing"] .card').length;
+  const done = document.querySelectorAll('[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent = todo;
+  document.getElementById('cont-doing').textContent = doing;
+  document.getElementById('cont-done').textContent = done;
+  updatePlusButtons();
+}
+
+function updatePlusButtons(){
+  const doingCount = document.querySelectorAll('[data-col="doing"] .card').length;
+  const todoCards = document.querySelectorAll('[data-col="todo"] .card .mas');
+  todoCards.forEach(btn => btn.disabled = doingCount >= MAX_DOING);
+}
+
+function updateButtons(card){
+  const col = card.parentElement.getAttribute('data-col');
+  const minus = card.querySelector('.menos');
+  const plus = card.querySelector('.mas');
+  minus.disabled = (col === 'todo');
+  plus.disabled = (col === 'done');
+}
+
+function moveCard(card, direction){
+  const currentCol = card.parentElement.getAttribute('data-col');
+  let targetCol;
+  if(direction === 'right'){
+    if(currentCol === 'todo'){
+      if(document.querySelectorAll('[data-col="doing"] .card').length >= MAX_DOING) return;
+      targetCol = 'doing';
+    } else if(currentCol === 'doing'){
+      targetCol = 'done';
+    } else return;
+  } else if(direction === 'left'){
+    if(currentCol === 'doing'){
+      targetCol = 'todo';
+    } else if(currentCol === 'done'){
+      targetCol = 'doing';
+    } else return;
+  }
+  const targetDiv = document.querySelector('[data-col="'+targetCol+'"]');
+  targetDiv.appendChild(card);
+  updateButtons(card);
+  updateCounters();
+}
+
+document.querySelectorAll('.card').forEach(card=>{
+  updateButtons(card);
+  card.querySelector('.mas').addEventListener('click',()=>moveCard(card,'right'));
+  card.querySelector('.menos').addEventListener('click',()=>moveCard(card,'left'));
+});
+updateCounters();
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Minesweeper 5x5</title><style>
+body{font-family:sans-serif;text-align:center;margin:0;padding:20px;background:#f0f0f0;}
+h1{margin:0 0 10px;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:300px;margin:auto;}
+.c{background:#ccc;border:1px solid #999;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;}
+.c.abierta{background:#ffeb3b;}
+.c.bandera{background:#ffeb3b;color:#f00;}
+#estado{margin-top:10px;font-weight:bold;}
+#counter{margin-top:5px;}
+button{margin-top:10px;padding:5px 10px;}
+</style></head><body>
+<h1>Minesweeper 5x5</h1>
+<button id="reset">Reiniciar</button>
+<div id="grid">
+<div class="c" data-i="0"></div>
+<div class="c" data-i="1"></div>
+<div class="c" data-i="2"></div>
+<div class="c" data-i="3"></div>
+<div class="c" data-i="4"></div>
+<div class="c" data-i="5"></div>
+<div class="c" data-i="6"></div>
+<div class="c" data-i="7"></div>
+<div class="c" data-i="8"></div>
+<div class="c" data-i="9"></div>
+<div class="c" data-i="10"></div>
+<div class="c" data-i="11"></div>
+<div class="c" data-i="12"></div>
+<div class="c" data-i="13"></div>
+<div class="c" data-i="14"></div>
+<div class="c" data-i="15"></div>
+<div class="c" data-i="16"></div>
+<div class="c" data-i="17"></div>
+<div class="c" data-i="18"></div>
+<div class="c" data-i="19"></div>
+<div class="c" data-i="20"></div>
+<div class="c" data-i="21"></div>
+<div class="c" data-i="22"></div>
+<div class="c" data-i="23"></div>
+<div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<div id="counter">Bandera: 0/3</div>
+<script>
+const mines=[6,12,18];
+const cells=document.querySelectorAll('.c');
+const counterEl=document.getElementById('counter');
+const estadoEl=document.getElementById('estado');
+let flags=0;
+function adj(i){let r=Math.floor(i/5),c=i%5, cnt=0;
+for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+if(dr===0&&dc===0)continue;
+let nr=r+dr,nc=c+dc;
+if(nr<0||nr>4||nc<0||nc>4)continue;
+if(mines.includes(nr*5+nc))cnt++;}return cnt;}
+function open(i){let cell=cells[i];
+if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+cell.classList.add('abierta');
+let n=adj(i);
+cell.textContent=n?n:'';
+if(mines.includes(i)){
+estadoEl.textContent='perdiste';
+cells.forEach(c=>{
+if(mines.includes(parseInt(c.dataset.i)))c.textContent='*';
+});return;}
+if(n===0){
+for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+if(dr===0&&dc===0)continue;
+let nr=Math.floor(i/5)+dr,nc=i%5+dc;
+if(nr<0||nr>4||nc<0||nc>4)continue;
+open(nr*5+nc);
+}}}
+cells.forEach((cell,i)=>{
+cell.addEventListener('click',()=>open(i));
+cell.addEventListener('contextmenu',e=>{
+e.preventDefault();
+if(cell.classList.contains('abierta'))return;
+if(cell.classList.toggle('bandera')){flags++;}else{flags--;}
+counterEl.textContent='Bandera: '+flags+'/3';
+});
+});
+document.getElementById('reset').addEventListener('click',()=>{
+cells.forEach(c=>{c.classList.remove('abierta','bandera');c.textContent='';});
+flags=0;counterEl.textContent='Bandera: 0/3';estadoEl.textContent='';
+});
+</script>
+</body></html>
