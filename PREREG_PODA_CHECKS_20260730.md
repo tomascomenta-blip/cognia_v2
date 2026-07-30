@@ -194,20 +194,58 @@ juzgando su propia página):
 | rotas aprobadas | 2/17 = **11.8%** |
 | | **ACUSA_SANOS 89.3 · DEJA_PASAR 11.8 · Youden J = −1.1** |
 
-**Aprueba sanas y rotas exactamente en la misma proporción.** No está "al
-nivel del azar" como decía la memoria: está **en el azar exacto**, con J
-negativo. Y eso invalida todo el diseño de raíz — mover un clasificador de
-J≈0 a lo largo del eje aprobar/reprobar produce **cualquier** par
-(ACUSA_SANOS, DEJA_PASAR) que se quiera sin ganar un gramo de información.
-Bajarle ACUSA_SANOS al CRUDO es gratis y no significa nada.
+**En ESTE corpus aprueba sanas y rotas en la misma proporción**, con J
+negativo.
+
+### 4bis. CORRECCIÓN INMEDIATA — ese −1.1 es el peor corpus, no el típico
+
+Nada más firmar el punto 4 medí el mismo J sobre **todos** los corpus
+congelados con `sello_lazo` y ground truth (`scripts/b2_j_contrato_interno.py`,
+cero GPU), y el número general es **más benigno**. Se corrige aquí en vez de
+dejarlo correr:
+
+| corpus | tareas | n | ACUSA_SANOS | DEJA_PASAR | **J** |
+|---|---|---|---|---|---|
+| b2_ab_lazo_facil | 6 | 70 | 67.2 | 0.0 | **+32.8** |
+| b2_ab_fix2 | 4 | 46 | 71.4 | 5.6 | +23.0 |
+| b2_ab_fix2_v3 | 4 | 38 | 73.9 | 6.7 | +19.4 |
+| b2_ab_gap | 4 | 19 | 83.3 | 0.0 | +16.7 |
+| b2_ab_sin_troceo | 4 | 37 | 85.2 | 0.0 | +14.8 |
+| b2_ab_idea_pelada (×3) | 4 | 105 | ~90 | 0.0 | +8 a +10 |
+| b2_ab_lazo | 4 | 39 | 89.7 | 20.0 | **−9.7** |
+| **b2_bon_heldout** | 4 | 73 | 89.3 | 11.8 | **−1.1** |
+| **AGREGADO** | **10** | **427** | **82.3** | **5.5** | **+12.2** |
+
+**Lo correcto es: J = +12.2 sobre 427 muestras y 10 tareas, con un rango de
+−9.7 a +32.8 entre corridas.** El contrato interno **informa poco, pero no es
+exactamente nulo**; decir "está en el azar exacto" a partir de un solo corpus
+era sobre-generalizar, y el corpus que elegí resultó ser el peor de diez.
+
+**Lo que el dato amplio SÍ fija, y es más útil que la frase anterior:** el
+modo de fallo dominante del contrato interno **no es aprobar basura, es
+CONDENAR SANOS** — aprueba solo el **17.7%** de las páginas que el juez a mano
+aprueba, mientras deja pasar apenas el 5.5% de las rotas. Es un examen
+brutalmente severo, no un examen ciego.
+
+Y el KILL de la poda **no se mueve**: se midió sobre la matriz cruzada, donde
+el CRUDO da J=11.7 (consistente con el +12.2 agregado) y la poda lo baja a
+7.4, dentro de la banda del azar. La poda relaja justo el eje en el que el
+contrato ya iba sobrado.
 
 ### Veredicto
 
-**KILL de la poda por fallo unánime.** Y el KILL es más profundo que la
-técnica: **no se puede mejorar por post-proceso un examen cuyo J es 0.** La
-poda, el consenso de votos y cualquier otra reponderación de los mismos
-checks reparten el mismo cero. Con un instrumento sin información, lo único
-que se elige es en qué dirección equivocarse.
+**KILL de la poda por fallo unánime.** El KILL es más profundo que la
+técnica: **una transformación que solo relaja no puede añadir información a
+un examen** — reparte el J que ya había (+12.2) moviéndolo de un eje al otro,
+y aquí lo repartió peor que el azar. La poda, el consenso de votos y
+cualquier otra reponderación de los mismos checks están en esa familia.
+
+**Y la dirección que el dato amplio sí señala:** el contrato interno condena
+al 82.3% de las páginas sanas. Cualquier vía que quiera cobrar tiene que
+atacar **por qué condena tanto** —es decir, la GENERACIÓN del contrato— y no
+reponderar sus checks a posteriori. Eso es exactamente lo que el adaptador
+anti-invención propone, y es la razón de que siga siendo la palanca
+pendiente con mejor argumento.
 
 ### Deuda de instrumentación que sí se salda (coste cero, valor alto)
 
