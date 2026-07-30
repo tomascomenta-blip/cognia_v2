@@ -41,6 +41,28 @@ observada es del generador y las conclusiones apareadas se sostienen.
 - Si una página cuelga el juez en una evaluación y no en otra, cuenta
   como no unánime (es varianza real del instrumento).
 
+## RESULTADO (2026-07-30 ~01:00 — completo, veredicto por umbrales pre-fijados)
+
+**JUEZ ESTABLE, en el extremo del rango: 0/24 páginas no unánimes (umbral
+≤1).** Ni por contrato original (0/24) ni por held-out (0/24), y **el
+conteo `checks_ok` es idéntico en las tres evaluaciones de las 24
+páginas** — o sea, no es que el binario aguante por suerte: el juez
+reproduce check a check.
+
+**Consecuencia (la que importa):** la varianza medida esta semana —
+concordancia 54% con el mismo prompt, ±34 pts entre corridas del mismo
+sistema — es **del GENERADOR, no del instrumento**. Por tanto:
+
+- Los netos apareados de toda la cadena (fases 1-3, discrepancia,
+  validez, los seis KILL de señal) **no están contaminados por ruido de
+  juez**: se sostienen tal cual.
+- La regla operativa se confirma sin matices: **apareado intra-corrida =
+  evidencia; niveles entre corridas = arena.**
+- Y refuerza el mecanismo del BoN: si el juez es exacto y la dispersión
+  es del generador, **elegir entre muestras es exactamente la palanca
+  correcta** (por eso K=4 lleva 71%→100%), y el cuello sigue siendo tener
+  con qué elegir en tareas nuevas.
+
 ## Presupuesto
 
 24 páginas × 2 evaluaciones × 2 contratos × ~12-25 s ≈ **25-40 min**, solo

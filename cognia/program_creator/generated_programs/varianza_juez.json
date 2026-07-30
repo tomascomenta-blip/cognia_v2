@@ -1,0 +1,682 @@
+{
+  "n": 24,
+  "no_unanimes": 0,
+  "no_unanimes_original": 0,
+  "no_unanimes_heldout": 0,
+  "checks_varian": 0,
+  "detalle_no_unanimes": [],
+  "filas": [
+    {
+      "pagina": "hoja_calculo:r1",
+      "tarea": "hoja_calculo",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\hoja_calculo__r1\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        27,
+        27
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "carrito_stock:r1",
+      "tarea": "carrito_stock",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\carrito_stock__r1\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "kanban:r1",
+      "tarea": "kanban",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\kanban__r1\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "buscaminas:r1",
+      "tarea": "buscaminas",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\buscaminas__r1\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "hoja_calculo:r2",
+      "tarea": "hoja_calculo",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\hoja_calculo__r2\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        22,
+        22
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "carrito_stock:r2",
+      "tarea": "carrito_stock",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\carrito_stock__r2\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "kanban:r2",
+      "tarea": "kanban",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\kanban__r2\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        11,
+        11
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "buscaminas:r2",
+      "tarea": "buscaminas",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\buscaminas__r2\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "hoja_calculo:r3",
+      "tarea": "hoja_calculo",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\hoja_calculo__r3\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        24,
+        24
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "carrito_stock:r3",
+      "tarea": "carrito_stock",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\carrito_stock__r3\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "kanban:r3",
+      "tarea": "kanban",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\kanban__r3\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        2,
+        2
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "buscaminas:r3",
+      "tarea": "buscaminas",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\buscaminas__r3\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        18,
+        18
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "hoja_calculo:r4",
+      "tarea": "hoja_calculo",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\hoja_calculo__r4\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": true,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        27,
+        27
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "carrito_stock:r4",
+      "tarea": "carrito_stock",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\carrito_stock__r4\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        18,
+        18
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "kanban:r4",
+      "tarea": "kanban",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\kanban__r4\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "buscaminas:r4",
+      "tarea": "buscaminas",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\buscaminas__r4\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": true,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "hoja_calculo:r5",
+      "tarea": "hoja_calculo",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\hoja_calculo__r5\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        26,
+        26
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "carrito_stock:r5",
+      "tarea": "carrito_stock",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\carrito_stock__r5\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        18,
+        18
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "kanban:r5",
+      "tarea": "kanban",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\kanban__r5\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        17,
+        17
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "buscaminas:r5",
+      "tarea": "buscaminas",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\buscaminas__r5\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "hoja_calculo:r6",
+      "tarea": "hoja_calculo",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\hoja_calculo__r6\\lazo\\index.html",
+      "eval1_estricto": false,
+      "eval1_orig": false,
+      "evals_estricto": [
+        false,
+        false,
+        false
+      ],
+      "evals_orig": [
+        false,
+        false,
+        false
+      ],
+      "evals_held": [
+        false,
+        false
+      ],
+      "checks_ok": [
+        24,
+        24
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "carrito_stock:r6",
+      "tarea": "carrito_stock",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\carrito_stock__r6\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "kanban:r6",
+      "tarea": "kanban",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\kanban__r6\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    },
+    {
+      "pagina": "buscaminas:r6",
+      "tarea": "buscaminas",
+      "ruta": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_lazo_vs_replay\\buscaminas__r6\\lazo\\index.html",
+      "eval1_estricto": true,
+      "eval1_orig": true,
+      "evals_estricto": [
+        true,
+        true,
+        true
+      ],
+      "evals_orig": [
+        true,
+        true,
+        true
+      ],
+      "evals_held": [
+        true,
+        true
+      ],
+      "checks_ok": [
+        19,
+        19
+      ],
+      "unanime": true,
+      "unanime_orig": true,
+      "unanime_held": true
+    }
+  ]
+}
