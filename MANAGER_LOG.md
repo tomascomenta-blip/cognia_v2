@@ -10044,3 +10044,89 @@ quedó a medias; no hay nada que reanudar.**
 (nueva), varianza-entre-corridas (nueva, con la fuente identificada),
 juez-colgado-js-bloqueante (de la matinal), bon-con-senal-real
 (actualizada con el goal y con el ladrón del envoltorio).
+
+## 2026-07-30 (matinal 05:40-12:30) — El goal aguanta un juez que muerde; y el techo que aparece es el del DISEÑADOR de exámenes
+
+Ventana del dueño ("hasta las 12:30"). Apagado 12:30 y aterrizaje 12:14
+armados al arrancar. Prereg antes de cada gasto; cero infra en las
+corridas salvo el cuelgue documentado abajo.
+
+1. **CAVEAT MÁS CARO DEL GOAL, CERRADO: el 8/8 sobrevive a un examen
+   endurecido.** El held-out del duro no discrepaba del original en 64
+   páginas, así que el "juez estricto" era de facto el contrato original.
+   **Causa encontrada, y era mía:** el v1 REPETÍA casos que el original ya
+   probaba (en `precedencia`, ambos contenían literalmente `7-2*3=1`). Se
+   escribió un held-out v2 que ataca SOLO huecos (que la tabla ORDENE y que
+   el 2º click INVIERTA; que C LIMPIE; la DIAGONAL; reset MIENTRAS corre;
+   coherencia largo↔celdas; bordes 0/50/100 y 7/8 chars, 120/121) y se
+   aplicó a las 64 páginas congeladas, cero GPU. **Original 59/64, v1
+   60/64, v2 62/64 y v2 CAZA 0** — ni un fallo que el original deje pasar;
+   ningún check del v2 falla siempre. Los 3 casos inversos son los que v2
+   deliberadamente no repite: es COMPLEMENTARIO, no más laxo.
+   **Re-medición con juez TRIPLE (original ∧ v1 ∧ v2): r1 y r2 dan control
+   7/8, MODO 8/8, techo 8/8 — idéntico al doble. El goal aguanta.**
+   *Fe de erratas:* mi primer cálculo del triple dio 7/8 en r1 por un error
+   MÍO (usar el `aprobado_heldout` vacío de r1 en vez de la elección
+   registrada); estuve a punto de firmar un "no sobrevive" falso.
+
+2. **EL BANCO DURO SE SATURÓ (pass@1 92%, 5 de 8 tareas al 100%)** — el
+   mismo diagnóstico que META hizo del banco de 6. El 8/8 sigue siendo
+   válido y replicado, pero mide un banco que el sistema ya domina.
+
+3. **CABECERA NUEVA: 3 de 9 tareas discriminan — y el hallazgo vale más que
+   la cabecera (PREREG_CABECERA_NUEVA, 2 tandas + re-calibración, 36
+   muestras).** Entran carrito_cupones (3/4), ascensor (3/4) y
+   turnos_capacidad (2/4): el mínimo exacto del criterio pre-registrado.
+   **Las otras 6 salen 4/4 A LA PRIMERA** (undo atómico de un reemplazo
+   masivo, solapamientos con el borde que toca, paréntesis ANIDADOS,
+   invariante que REVIERTE, precio por el mínimo entre dos cantidades,
+   inventario con reservas) y **ninguna cae en 0/4: cero evidencia de techo
+   de capacidad.** La hipótesis que guió la 2ª tanda ("discriminan las que
+   exigen un invariante global re-evaluado") quedó DESCARTADA por sus
+   propios casos puros. **Conclusión: no sé diseñar una tarea web
+   verificable por ejecución que este sistema no resuelva — el techo que se
+   alcanza primero es el del DISEÑADOR de exámenes, no el del sistema.**
+   Medir progreso exige cambiar de DOMINIO o de tipo de VERIFICACIÓN.
+   Límite declarado: con 3 tareas la cabecera ve cambios grandes, no
+   diferencias finas.
+
+4. **Dos correcciones honestas, ambas mías:** 2 tareas parecían difíciles y
+   en realidad mi enunciado no exigía estado inicial vacío (los productos
+   PRECARGAN ejemplos); corregido el enunciado subieron a 4/4 — se detectó
+   ABRIENDO las páginas, no leyendo los motivos. Y en turnos_capacidad se
+   verificó con la vía nativa (`select_option`, cero errores JS) que el
+   fallo restante SÍ es del producto.
+
+5. **Deuda saldada: `b2_bon_heldout.py` no tenía presupuesto de pared en el
+   juzgado** y una página con JS bloqueante colgó la re-calibración 13 min
+   (chromium a **719 s de CPU**, backend sano) — segunda vez del mismo
+   fallo en dos días (ayer, 595 s). Ambos juzgados van ya con tope de 300 s
+   y el desborde cae como infra. Suite verde tras tocar el runner: **5495
+   passed, 1 skipped**.
+
+### ATERRIZAJE (12:14) — estado exacto de reanudación
+
+**Todo COMPLETO y versionado; no hay nada que reanudar.**
+
+| corrida | estado | dónde |
+|---|---|---|
+| Validación held-out v2 (64 páginas) | completa | validacion_heldout_v2.json |
+| Cabecera 1ª tanda (5 tareas × 4) | 20/20 | b2_bon_heldout_cabecera |
+| Cabecera 2ª tanda (4 tareas × 4) | 16/16 | b2_bon_heldout_cabecera2 |
+| Re-calibración (enunciados corregidos) | 16/16 | b2_bon_heldout_cabecera2_recal |
+
+- Árbol limpio y 0 commits sin pushear (verificado en el aterrizaje).
+- Flota: gpt-oss-20b en :8080, slots=1 y ctx 16384 verificados.
+- `bbrain.md` regenerado por la suite (artefacto autogenerado, commiteado).
+
+**Lo primero de la próxima sesión, por valor:**
+1. **Decidir el cambio de terreno**: el hallazgo del punto 3 dice que subir
+   dificultad dentro del mismo molde no sirve. Opciones a evaluar con
+   prereg: otro dominio (no web), o verificación de otro tipo (propiedades
+   generadas, metamórfica, diferencial contra una referencia).
+2. El adaptador anti-invención (modo de fallo MEDIDO del contrato), con
+   evaluación leave-one-task-out y NUNCA sobre el constructor.
+3. Si se retoma el consenso: la variante medoide, con prereg propio.
+
+**Lecciones a memoria:** techo-del-disenador-de-examenes (nueva),
+goal-alcanzado-donde-hay-examen (actualizada con el juez triple).
