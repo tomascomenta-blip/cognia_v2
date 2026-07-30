@@ -91,6 +91,7 @@ def main(argv: list) -> int:
     from cognia.first_run import apply_config
     apply_config()
     from cognia.program_creator import juez_ejecutable
+    from cognia.presupuesto_pared import con_presupuesto
 
     replicas = (int(argv[argv.index("--replicas") + 1])
                 if "--replicas" in argv else 6)
@@ -247,8 +248,14 @@ def main(argv: list) -> int:
                 else:
                     (d / "index.html").write_text(html, encoding="utf-8")
                     try:
-                        v = juez_ejecutable.juzgar_web(d / "index.html",
-                                                       t["contrato"])
+                        # PRESUPUESTO DE PARED en el juzgado (2026-07-30):
+                        # una pagina con JS bloqueante cuelga page.evaluate
+                        # PARA SIEMPRE — medido dos veces (595 s y 719 s de
+                        # CPU de chromium). Este runner es anterior a esa
+                        # leccion y colgaba la corrida entera.
+                        # [[juez-colgado-js-bloqueante]]
+                        v = con_presupuesto(300, juez_ejecutable.juzgar_web,
+                                            d / "index.html", t["contrato"])
                         m.update(aprobado=v.aprobado, motivo=v.motivo[:100],
                                  checks_ok=sum(1 for c in v.checks if c.ok),
                                  checks=len(v.checks))
@@ -261,8 +268,9 @@ def main(argv: list) -> int:
                     try:
                         if t["id"] not in heldout:
                             raise KeyError("sin held-out (fase 1)")
-                        vh = juez_ejecutable.juzgar_web(d / "index.html",
-                                                        heldout[t["id"]])
+                        vh = con_presupuesto(
+                            300, juez_ejecutable.juzgar_web,
+                            d / "index.html", heldout[t["id"]])
                         m.update(aprobado_heldout=vh.aprobado,
                                  heldout_checks_ok=sum(
                                      1 for c in vh.checks if c.ok),
