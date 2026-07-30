@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Control de Stock con Reservas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;color:#333;}
+  .dashboard{display:flex;flex-direction:column;min-height:100vh;}
+  .header{background:#008080;color:#fff;padding:1rem;}
+  .kpi{display:flex;gap:1rem;justify-content:space-around;}
+  .kpi-item{background:#fff;color:#008080;padding:1rem;border-radius:8px;flex:1;text-align:center;}
+  .kpi-label{font-size:.9rem;margin-bottom:.5rem;}
+  .kpi-value{font-size:1.5rem;font-weight:bold;}
+  .reservations{flex:1;padding:1rem;overflow-y:auto;}
+  #reservas{display:flex;flex-direction:column;gap:.5rem;}
+  .res{background:#fff;padding:.75rem;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .control-panel{background:#fff;padding:1rem;border-top:1px solid #ddd;}
+  .control-group{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;}
+  .control-group label{min-width:80px;}
+  .control-group input{width:80px;padding:.3rem;}
+  .control-group button{padding:.4rem .8rem;background:#ff5722;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .control-group button:hover{background:#e64a19;}
+  @media (max-width:600px){
+    .kpi{flex-direction:column;}
+    .kpi-item{margin-bottom:.5rem;}
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <header class="header">
+    <div class="kpi">
+      <div class="kpi-item">
+        <div class="kpi-label">Stock</div>
+        <div class="kpi-value"><span id="stock">10</span></div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Disponible</div>
+        <div class="kpi-value"><span id="disponible">10</span></div>
+      </div>
+    </div>
+  </header>
+  <main class="reservations">
+    <div id="reservas"></div>
+  </main>
+  <footer class="control-panel">
+    <div class="control-group">
+      <label for="cant">Cantidad:</label>
+      <input id="cant" type="number" min="1" value="1">
+      <button id="reservar">Reservar</button>
+    </div>
+    <div class="control-group">
+      <label for="nuevo-stock">Nuevo Stock:</label>
+      <input id="nuevo-stock" type="number" min="0" value="10">
+      <button id="ajustar">Ajustar</button>
+    </div>
+    <div class="control-group">
+      <button id="cancelar">Cancelar Última Reserva</button>
+    </div>
+  </footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const stockEl = document.getElementById('stock');
+  const disponibleEl = document.getElementById('disponible');
+  const reservasEl = document.getElementById('reservas');
+  const cantInput = document.getElementById('cant');
+  const reservarBtn = document.getElementById('reservar');
+  const cancelarBtn = document.getElementById('cancelar');
+  const nuevoStockInput = document.getElementById('nuevo-stock');
+  const ajustarBtn = document.getElementById('ajustar');
+
+  let stock = 10;
+
+  function updateDisplay() {
+    stockEl.textContent = stock.toLocaleString('es-ES');
+    const sum = getSumReservations();
+    const disponible = stock - sum;
+    disponibleEl.textContent = disponible.toLocaleString('es-ES');
+  }
+
+  function getSumReservations() {
+    let sum = 0;
+    reservasEl.querySelectorAll('.res').forEach(el => {
+      const n = parseInt(el.dataset.n, 10);
+      if (!isNaN(n)) sum += n;
+    });
+    return sum;
+  }
+
+  reservarBtn.addEventListener('click', function() {
+    const qty = parseInt(cantInput.value, 10);
+    if (isNaN(qty) || qty <= 0) return;
+    const sum = getSumReservations();
+    if (stock - sum < qty) {
+      alert('Reserva rechazada: no hay suficiente stock disponible.');
+      return;
+    }
+    const div = document.createElement('div');
+    div.className = 'res';
+    div.dataset.n = qty;
+    div.textContent = 'Reserva: ' + qty.toLocaleString('es-ES');
+    reservasEl.appendChild(div);
+    updateDisplay();
+  });
+
+  cancelarBtn.addEventListener('click', function() {
+    const last = reservasEl.lastElementChild;
+    if (last) {
+      reservasEl.removeChild(last);
+      updateDisplay();
+    }
+  });
+
+  ajustarBtn.addEventListener('click', function() {
+    const newStock = parseInt(nuevoStockInput.value, 10);
+    if (isNaN(newStock) || newStock < 0) return;
+    const sum = getSumReservations();
+    if (newStock < sum) {
+      alert('Ajuste rechazado: el nuevo stock es menor que la suma de reservas.');
+      return;
+    }
+    stock = newStock;
+    updateDisplay();
+  });
+
+  updateDisplay();
+});
+</script>
+</body>
+</html>

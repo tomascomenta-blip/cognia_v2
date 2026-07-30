@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reparto de presupuesto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#333;background:#f0f4f7;}
+  .container{max-width:600px;width:90%;margin:20px auto;}
+  .card{background:#e0f2f1;border-radius:8px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  h1{font-size:1.8em;text-align:center;color:#006666;margin-bottom:20px;}
+  .total{font-size:1.5em;font-weight:bold;text-align:center;margin-bottom:20px;}
+  .parts{margin-bottom:20px;}
+  .part{display:flex;justify-content:space-between;align-items:center;background:#f0fff0;border-radius:6px;padding:10px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .part label{flex:1;font-weight:bold;}
+  .pct{width:60px;text-align:right;font-weight:bold;}
+  .eur{font-weight:bold;color:#006666;}
+  .libre{font-weight:bold;text-align:center;margin-top:10px;}
+  #aviso{font-weight:bold;text-align:center;color:#d32f2f;margin-top:10px;}
+  @media (max-width:480px){
+    .part{flex-direction:column;align-items:flex-start;}
+    .pct{margin-top:5px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>Reparto de presupuesto</h1>
+    <div class="total">Total: <span id="total">100,00 €</span></div>
+    <div class="parts">
+      <div class="part" data-id="a1">
+        <label>Part 1: <input class="pct" data-id="a1" type="number" value="30" min="0" max="100" step="0.01"> %</label>
+        <span class="eur" data-id="a1"></span>
+      </div>
+      <div class="part" data-id="a2">
+        <label>Part 2: <input class="pct" data-id="a2" type="number" value="30" min="0" max="100" step="0.01"> %</label>
+        <span class="eur" data-id="a2"></span>
+      </div>
+      <div class="part" data-id="a3">
+        <label>Part 3: <input class="pct" data-id="a3" type="number" value="40" min="0" max="100" step="0.01"> %</label>
+        <span class="eur" data-id="a3"></span>
+      </div>
+    </div>
+    <div class="libre">Libre: <span id="libre">0.00%</span></div>
+    <div id="aviso"></div>
+  </div>
+</div>
+<script>
+  const total = 100;
+  const prevValues = {};
+
+  function formatCurrency(val) {
+    return val.toLocaleString('es-ES', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function formatLibre(val) {
+    return val.toFixed(2) + '%';
+  }
+
+  function recalc() {
+    const inputs = document.querySelectorAll('.pct');
+    let sum = 0;
+    inputs.forEach(inp => {
+      sum += parseFloat(inp.value) || 0;
+    });
+
+    inputs.forEach(inp => {
+      const id = inp.dataset.id;
+      const percent = parseFloat(inp.value) || 0;
+      const eur = percent * total / 100;
+      const eurSpan = document.querySelector(`.eur[data-id="${id}"]`);
+      eurSpan.textContent = formatCurrency(eur);
+    });
+
+    const libre = 100 - sum;
+    document.getElementById('libre').textContent = formatLibre(libre);
+  }
+
+  function handleChange(e) {
+    const inp = e.target;
+    const id = inp.dataset.id;
+    const newVal = parseFloat(inp.value) || 0;
+    const oldVal = prevValues[id] || 0;
+
+    const inputs = document.querySelectorAll('.pct');
+    let sum = 0;
+    inputs.forEach(i => {
+      sum += parseFloat(i.value) || 0;
+    });
+
+    if (sum > 100) {
+      inp.value = oldVal;
+      document.getElementById('aviso').textContent = 'limite';
+    } else {
+      prevValues[id] = newVal;
+      document.getElementById('aviso').textContent = '';
+      recalc();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const inputs = document.querySelectorAll('.pct');
+    inputs.forEach(inp => {
+      prevValues[inp.dataset.id] = parseFloat(inp.value) || 0;
+      inp.addEventListener('change', handleChange);
+    });
+    recalc();
+  });
+</script>
+</body>
+</html>

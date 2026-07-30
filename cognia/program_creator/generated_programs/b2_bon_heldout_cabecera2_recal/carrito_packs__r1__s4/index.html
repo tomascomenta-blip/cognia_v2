@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Packs</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#333;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .cart{
+    background:#444;
+    padding:20px;
+    border-radius:10px;
+    width:90%;
+    max-width:400px;
+    box-sizing:border-box;
+  }
+  .row{
+    display:flex;
+    align-items:center;
+    margin-bottom:15px;
+  }
+  .row img{
+    width:50px;
+    height:50px;
+    margin-right:10px;
+  }
+  .row .info{
+    flex:1;
+  }
+  .row .info .name{
+    font-weight:bold;
+  }
+  .row .info .price{
+    color:#aaa;
+  }
+  .row button{
+    background:#008080;
+    color:#fff;
+    border:none;
+    padding:5px 10px;
+    margin:0 5px;
+    border-radius:5px;
+    cursor:pointer;
+    font-size:0.9em;
+  }
+  .row button.quitar{
+    background:#555;
+  }
+  .row .cant{
+    font-weight:bold;
+    margin:0 5px;
+  }
+  .totals{
+    display:flex;
+    justify-content:space-between;
+    margin-top:20px;
+    font-size:1.1em;
+  }
+  .totals span{
+    display:flex;
+    align-items:center;
+  }
+  .totals span span{
+    margin-left:5px;
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<div class="cart">
+  <!-- Producto Pan -->
+  <div class="row">
+    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjAwIi8+PC9zdmc+" alt="Pan">
+    <div class="info">
+      <div class="name">Pan</div>
+      <div class="price">2 €</div>
+    </div>
+    <button class="add" data-id="pan">Añadir</button>
+    <span class="cant" data-id="pan">0</span>
+    <button class="quitar" data-id="pan">Quitar</button>
+  </div>
+  <!-- Producto Leche -->
+  <div class="row">
+    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjMDBmIi8+PC9zdmc+" alt="Leche">
+    <div class="info">
+      <div class="name">Leche</div>
+      <div class="price">3 €</div>
+    </div>
+    <button class="add" data-id="leche">Añadir</button>
+    <span class="cant" data-id="leche">0</span>
+    <button class="quitar" data-id="leche">Quitar</button>
+  </div>
+  <!-- Totales -->
+  <div class="totals">
+    <span>Packs: <span id="packs">0</span></span>
+    <span>Total: <span id="total">0 €</span></span>
+  </div>
+</div>
+<script>
+  // Configurables
+  const prices = { pan: 2, leche: 3 };
+  const packPrice = 4;
+
+  // Estado inicial
+  const qty = { pan: 0, leche: 0 };
+
+  // Función de actualización
+  function update() {
+    // Actualizar cantidades
+    document.querySelectorAll('.cant').forEach(span => {
+      const id = span.dataset.id;
+      span.textContent = qty[id];
+    });
+
+    // Calcular packs y total
+    const packs = Math.min(qty.pan, qty.leche);
+    document.getElementById('packs').textContent = packs;
+
+    const total = packs * packPrice
+                + (qty.pan - packs) * prices.pan
+                + (qty.leche - packs) * prices.leche;
+
+    document.getElementById('total').textContent =
+      total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  }
+
+  // Añadir
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      qty[id]++;
+      update();
+    });
+  });
+
+  // Quitar
+  document.querySelectorAll('.quitar').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      if (qty[id] > 0) qty[id]--;
+      update();
+    });
+  });
+
+  // Estado inicial
+  update();
+</script>
+</body>
+</html>

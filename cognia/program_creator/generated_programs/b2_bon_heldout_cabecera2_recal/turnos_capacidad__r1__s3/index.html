@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Agenda de Turnos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#e0f7fa;
+    color:#004d40;
+  }
+  header{
+    background:#00695c;
+    color:#fff;
+    padding:1rem;
+    text-align:center;
+    font-size:1.5rem;
+  }
+  .card{
+    background:#fff;
+    margin:1rem auto;
+    max-width:600px;
+    padding:1.5rem;
+    border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,.1);
+  }
+  .form-group{
+    margin-bottom:1rem;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .form-group label{
+    flex:0 0 120px;
+    margin-right:0.5rem;
+  }
+  .form-group input, .form-group select{
+    flex:1 1 auto;
+    padding:0.5rem;
+    border:1px solid #b2dfdb;
+    border-radius:4px;
+  }
+  .form-group button{
+    padding:0.5rem 1rem;
+    margin-left:0.5rem;
+    background:#00897b;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .form-group button:hover{
+    background:#00695c;
+  }
+  .capacity-display{
+    font-size:1.2rem;
+    margin-bottom:1rem;
+  }
+  .occupation-display{
+    margin-top:0.5rem;
+    font-size:1rem;
+  }
+  .group-list{
+    max-height:300px;
+    overflow-y:auto;
+    margin-top:1rem;
+    border-top:1px solid #b2dfdb;
+    padding-top:1rem;
+  }
+  .grupo{
+    padding:0.75rem;
+    margin-bottom:0.5rem;
+    border-radius:4px;
+    background:#f1f8e9;
+    border:1px solid #c5e1a5;
+  }
+  .grupo[data-franja="manana"]{
+    background:#e8f5e9;
+    border-color:#a5d6a7;
+  }
+  .grupo[data-franja="tarde"]{
+    background:#e3f2fd;
+    border-color:#90caf9;
+  }
+</style>
+</head>
+<body>
+<header>Agenda de Turnos</header>
+<div class="card">
+  <div class="form-group">
+    <label for="franja">Franja:</label>
+    <select id="franja">
+      <option value="manana">Manana</option>
+      <option value="tarde">Tarde</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="personas">Personas:</label>
+    <input id="personas" type="number" min="1" value="1">
+    <button id="apuntar">APUNTAR</button>
+  </div>
+  <div class="capacity-display">
+    Capacidad: <span id="cap">6</span>
+  </div>
+  <div class="form-group">
+    <label for="nueva-cap">Nueva capacidad:</label>
+    <input id="nueva-cap" type="number" min="0" value="6">
+    <button id="set-cap">SET CAP</button>
+  </div>
+  <div class="occupation-display">
+    Ocupación mañana: <span id="ocupacion-manana">0</span> personas<br>
+    Ocupación tarde: <span id="ocupacion-tarde">0</span> personas
+  </div>
+  <div class="group-list" id="lista-grupos">
+    <!-- Grupos añadidos aparecerán aquí -->
+  </div>
+</div>
+
+<script>
+class Scheduler {
+  constructor() {
+    this.capacity = 6;
+    this.groups = []; // {franja, n, element}
+    this.updateCapacityDisplay();
+    this.updateOccupationDisplay();
+    this.attachEvents();
+  }
+  attachEvents() {
+    document.getElementById('apuntar').addEventListener('click', () => this.addGroup());
+    document.getElementById('set-cap').addEventListener('click', () => this.setCapacity());
+  }
+  addGroup() {
+    const franja = document.getElementById('franja').value;
+    const n = parseInt(document.getElementById('personas').value, 10);
+    if (isNaN(n) || n <= 0) {
+      alert('Ingrese un número válido de personas.');
+      return;
+    }
+    const current = this.getOccupation(franja);
+    if (current + n > this.capacity) {
+      alert('No se puede apuntar: excede la capacidad.');
+      return;
+    }
+    const div = document.createElement('div');
+    div.className = 'grupo';
+    div.dataset.franja = franja;
+    div.dataset.n = n;
+    const franjaCap = franja.charAt(0).toUpperCase() + franja.slice(1);
+    div.textContent = `${franjaCap}: ${n} persona${n > 1 ? 's' : ''}`;
+    document.getElementById('lista-grupos').appendChild(div);
+    this.groups.push({franja, n, element: div});
+    this.updateOccupationDisplay();
+  }
+  setCapacity() {
+    const newCap = parseInt(document.getElementById('nueva-cap').value, 10);
+    if (isNaN(newCap) || newCap < 0) {
+      alert('Ingrese una capacidad válida.');
+      return;
+    }
+    this.capacity = newCap;
+    this.updateCapacityDisplay();
+    this.enforceCapacity();
+  }
+  getOccupation(franja) {
+    return this.groups
+      .filter(g => g.franja === franja)
+      .reduce((sum, g) => sum + g.n, 0);
+  }
+  updateOccupationDisplay() {
+    document.getElementById('ocupacion-manana').textContent = this.getOccupation('manana');
+    document.getElementById('ocupacion-tarde').textContent = this.getOccupation('tarde');
+  }
+  updateCapacityDisplay() {
+    document.getElementById('cap').textContent = this.capacity;
+  }
+  enforceCapacity() {
+    ['manana', 'tarde'].forEach(franja => {
+      while (this.getOccupation(franja) > this.capacity) {
+        // Remove last group of this franja
+        for (let i = this.groups.length - 1; i >= 0; i--) {
+          if (this.groups[i].franja === franja) {
+            this.groups[i].element.remove();
+            this.groups.splice(i, 1);
+            break;
+          }
+        }
+      }
+    });
+    this.updateOccupationDisplay();
+  }
+}
+document.addEventListener('DOMContentLoaded', () => new Scheduler());
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Agenda de Turnos</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f4f7;color:#333;}
+  header{background:#444;color:#fff;padding:1rem;text-align:center;}
+  .card{background:#fff;max-width:400px;margin:2rem auto;padding:1.5rem;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.1);}
+  .control-group{margin-bottom:1rem;display:flex;flex-direction:column;}
+  .control-group label{margin-bottom:0.5rem;font-weight:600;}
+  .control-group input,.control-group select,.control-group button{padding:0.5rem;font-size:1rem;}
+  .control-group button{cursor:pointer;background:#008080;color:#fff;border:none;border-radius:4px;}
+  .control-group button:hover{background:#006666;}
+  #grupo-list{max-width:400px;margin:0 auto 2rem auto;padding:0 1rem;}
+  .grupo{background:#e0f2f1;padding:0.5rem;margin-bottom:0.5rem;border-radius:4px;font-size:0.9rem;}
+  @media (max-width:480px){.card,#grupo-list{width:90%;}}
+</style>
+</head>
+<body>
+<header><h1>Agenda de Turnos</h1></header>
+<main>
+<div class="card">
+  <div class="control-group">
+    <label for="franja">Franja:</label>
+    <select id="franja">
+      <option value="mañana">Mañana</option>
+      <option value="tarde">Tarde</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label for="personas">Personas:</label>
+    <input id="personas" type="number" min="1" value="1">
+  </div>
+  <div class="control-group">
+    <button id="apuntar">Apuntar</button>
+  </div>
+  <div class="control-group">
+    <label>Capacidad: <span id="cap">6</span></label>
+    <input id="nueva-cap" type="number" min="0" placeholder="Nueva capacidad">
+    <button id="set-cap">Set Cap</button>
+  </div>
+  <div class="control-group">
+    <label>Ocupación mañana: <span id="ocupacion-manana">0</span></label>
+  </div>
+  <div class="control-group">
+    <label>Ocupación tarde: <span id="ocupacion-tarde">0</span></label>
+  </div>
+</div>
+<section id="grupo-list">
+  <h2>Grupos</h2>
+  <div id="grupos-container"></div>
+</section>
+</main>
+<script>
+const INITIAL_CAPACITY = 6;
+const FRANJAS = ['mañana', 'tarde'];
+let capacity = INITIAL_CAPACITY;
+let groups = [];
+let groupIdCounter = 1;
+
+const franjaSelect = document.getElementById('franja');
+const personasInput = document.getElementById('personas');
+const apuntarBtn = document.getElementById('apuntar');
+const capSpan = document.getElementById('cap');
+const nuevaCapInput = document.getElementById('nueva-cap');
+const setCapBtn = document.getElementById('set-cap');
+const ocupacionMananaSpan = document.getElementById('ocupacion-manana');
+const ocupacionTardeSpan = document.getElementById('ocupacion-tarde');
+const gruposContainer = document.getElementById('grupos-container');
+
+function updateCapacityDisplay() {
+  capSpan.textContent = capacity;
+}
+
+function updateOcupacionDisplay() {
+  const occManana = groups
+    .filter(g => g.franja === 'mañana')
+    .reduce((sum, g) => sum + g.n, 0);
+  const occTarde = groups
+    .filter(g => g.franja === 'tarde')
+    .reduce((sum, g) => sum + g.n, 0);
+  ocupacionMananaSpan.textContent = occManana;
+  ocupacionTardeSpan.textContent = occTarde;
+}
+
+function addGroup() {
+  const franja = franjaSelect.value;
+  const n = parseInt(personasInput.value, 10);
+  if (isNaN(n) || n <= 0) {
+    alert('Ingrese un número válido de personas');
+    return;
+  }
+  const current = groups
+    .filter(g => g.franja === franja)
+    .reduce((sum, g) => sum + g.n, 0);
+  if (current + n > capacity) {
+    alert('No se puede agregar: excede la capacidad');
+    return;
+  }
+  const group = { id: groupIdCounter++, franja, n };
+  groups.push(group);
+  const div = document.createElement('div');
+  div.className = 'grupo';
+  div.dataset.franja = franja;
+  div.dataset.n = n;
+  div.dataset.id = group.id;
+  div.textContent = `Grupo ${group.id}: ${n} persona${n > 1 ? 's' : ''} - ${franja}`;
+  gruposContainer.appendChild(div);
+  updateOcupacionDisplay();
+}
+
+function setNewCapacity() {
+  const newCap = parseInt(nuevaCapInput.value, 10);
+  if (isNaN(newCap) || newCap < 0) {
+    alert('Ingrese una capacidad válida');
+    return;
+  }
+  if (newCap === capacity) return;
+  if (newCap < capacity) {
+    FRANJAS.forEach(f => {
+      let current = groups
+        .filter(g => g.franja === f)
+        .reduce((sum, g) => sum + g.n, 0);
+      while (current > newCap) {
+        for (let i = groups.length - 1; i >= 0; i--) {
+          if (groups[i].franja === f) {
+            const g = groups.splice(i, 1)[0];
+            const el = gruposContainer.querySelector(`.grupo[data-id='${g.id}']`);
+            if (el) el.remove();
+            current -= g.n;
+            break;
+          }
+        }
+      }
+    });
+  }
+  capacity = newCap;
+  updateCapacityDisplay();
+  updateOcupacionDisplay();
+}
+
+apuntarBtn.addEventListener('click', addGroup);
+setCapBtn.addEventListener('click', setNewCapacity);
+
+updateCapacityDisplay();
+updateOcupacionDisplay();
+</script>
+</body>
+</html>

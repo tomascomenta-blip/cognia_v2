@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Stock Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f4f8;
+    color:#333;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  h1{margin:20px 0 10px; font-size:2rem;}
+  #container{
+    width:100%;
+    max-width:600px;
+    padding:20px;
+    box-sizing:border-box;
+  }
+  #top-bar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    background:#e0f7fa;
+    padding:15px;
+    border-radius:8px;
+    margin-bottom:20px;
+  }
+  #top-bar > div{margin:5px 0;}
+  #stock{font-size:2.5rem;font-weight:bold;color:#00695c;}
+  #disponible{font-size:1.5rem;color:#004d40;}
+  #cant{width:60px;padding:4px;}
+  #reservar{background:#0288d1;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;}
+  #reservar:hover{background:#0277bd;}
+  #reservar:disabled{background:#90a4ae;cursor:not-allowed;}
+  #reservations{margin-bottom:20px;}
+  .res{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#b2ebf2;
+    padding:8px 12px;
+    border-radius:6px;
+    margin-bottom:8px;
+  }
+  .res span.badge{
+    background:#00796b;
+    color:#fff;
+    border-radius:12px;
+    padding:2px 6px;
+    font-size:0.9rem;
+    margin-right:8px;
+  }
+  .res span.qty{font-weight:bold;}
+  #cancelar{
+    background:#d32f2f;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;
+  }
+  #cancelar:hover{background:#c62828;}
+  #stock-adjust{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:flex-start;
+    background:#e0f2f1;
+    padding:15px;
+    border-radius:8px;
+  }
+  #nuevo-stock{width:60px;padding:4px;}
+  #ajustar{
+    background:#388e3c;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;
+  }
+  #ajustar:hover{background:#2e7d32;}
+  @media(max-width:480px){
+    #top-bar{flex-direction:column;align-items:flex-start;}
+    #stock{font-size:2rem;}
+    #disponible{font-size:1.2rem;}
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <h1>Stock Tracker</h1>
+  <div id="top-bar">
+    <div>Stock: <span id="stock">10</span></div>
+    <div>Disponible: <span id="disponible">10</span></div>
+    <div>
+      <input id="cant" type="number" min="1" placeholder="Qty">
+      <button id="reservar">Reservar</button>
+    </div>
+  </div>
+  <div id="reservations"></div>
+  <div id="stock-adjust">
+    <input id="nuevo-stock" type="number" min="0" placeholder="Nuevo stock">
+    <button id="ajustar">Ajustar</button>
+  </div>
+  <button id="cancelar">Cancelar última reserva</button>
+</div>
+
+<script>
+class StockController {
+  constructor() {
+    this.stock = 10;
+    this.reservations = []; // {id, qty}
+    this.nextId = 1;
+    this.cacheElements();
+    this.bindEvents();
+    this.updateUI();
+  }
+  cacheElements() {
+    this.stockEl = document.getElementById('stock');
+    this.disponibleEl = document.getElementById('disponible');
+    this.cantInput = document.getElementById('cant');
+    this.reservarBtn = document.getElementById('reservar');
+    this.cancelarBtn = document.getElementById('cancelar');
+    this.nuevoStockInput = document.getElementById('nuevo-stock');
+    this.ajustarBtn = document.getElementById('ajustar');
+    this.reservationsContainer = document.getElementById('reservations');
+  }
+  bindEvents() {
+    this.reservarBtn.addEventListener('click', () => this.addReservation());
+    this.cancelarBtn.addEventListener('click', () => this.cancelLastReservation());
+    this.ajustarBtn.addEventListener('click', () => this.adjustStock());
+  }
+  addReservation() {
+    const qty = parseInt(this.cantInput.value, 10);
+    if (isNaN(qty) || qty <= 0) return;
+    const available = this.getAvailable() - qty;
+    if (available < 0) {
+      alert('Reserva rechazada: no hay suficiente stock disponible.');
+      return;
+    }
+    this.reservations.push({ id: this.nextId++, qty });
+    this.cantInput.value = '';
+    this.updateUI();
+  }
+  cancelLastReservation() {
+    if (this.reservations.length === 0) return;
+    this.reservations.pop();
+    this.updateUI();
+  }
+  adjustStock() {
+    const newStock = parseInt(this.nuevoStockInput.value, 10);
+    if (isNaN(newStock) || newStock < 0) return;
+    const totalReserved = this.reservations.reduce((sum, r) => sum + r.qty, 0);
+    if (newStock < totalReserved) {
+      alert('Ajuste rechazado: el nuevo stock es menor que la reserva total.');
+      return;
+    }
+    this.stock = newStock;
+    this.nuevoStockInput.value = '';
+    this.updateUI();
+  }
+  getAvailable() {
+    const reserved = this.reservations.reduce((sum, r) => sum + r.qty, 0);
+    return Math.max(this.stock - reserved, 0);
+  }
+  updateUI() {
+    this.stockEl.textContent = this.stock.toLocaleString('es-ES');
+    this.disponibleEl.textContent = this.getAvailable().toLocaleString('es-ES');
+    this.renderReservations();
+  }
+  renderReservations() {
+    this.reservationsContainer.innerHTML = '';
+    this.reservations.forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'res';
+      div.dataset.n = r.id;
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = r.id;
+      const qty = document.createElement('span');
+      qty.className = 'qty';
+      qty.textContent = r.qty;
+      div.appendChild(badge);
+      div.appendChild(qty);
+      this.reservationsContainer.appendChild(div);
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded', () => new StockController());
+</script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda de Turnos con Capacidad</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f8ff; color:#333;}
+  .container {max-width:600px; margin:0 auto; padding:20px;}
+  h1 {text-align:center; color:#006666;}
+  form {display:flex; flex-direction:column; gap:10px;}
+  label {font-weight:bold;}
+  input, select {padding:8px; font-size:1rem; border:1px solid #ccc; border-radius:4px;}
+  button {padding:10px; font-size:1rem; background:#008080; color:#fff; border:none; border-radius:4px; cursor:pointer;}
+  button:hover {background:#006666;}
+  #grupos-container {margin-top:20px; max-height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; background:#fff;}
+  .grupo {padding:5px; margin-bottom:5px; background:#e0f7fa; border-radius:4px;}
+  @media (max-width:480px){ .container{padding:10px;} }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Agenda de Turnos</h1>
+  <form id="form-turno">
+    <label for="franja">Franja:</label>
+    <select id="franja">
+      <option value="manana">Mañana</option>
+      <option value="tarde">Tarde</option>
+    </select>
+
+    <label for="personas">Personas:</label>
+    <input id="personas" type="number" min="1" placeholder="Cantidad">
+
+    <button id="apuntar">APUNTAR</button>
+  </form>
+
+  <p>Capacidad: <span id="cap">6</span></p>
+
+  <label for="nueva-cap">Nueva capacidad:</label>
+  <input id="nueva-cap" type="number" min="1" placeholder="Capacidad">
+  <button id="set-cap">SET</button>
+
+  <p>Mañana ocupada: <span id="ocupacion-manana">0</span></p>
+  <p>Tarde ocupada: <span id="ocupacion-tarde">0</span></p>
+
+  <div id="grupos-container"></div>
+</div>
+
+<script>
+  // Constantes
+  const CAPACITY_INITIAL = 6;
+  const MIN_CAPACITY = 1;
+
+  // Estado
+  let capacity = CAPACITY_INITIAL;
+  let groups = []; // [{franja:'manana', n:3}, ...]
+
+  // Elementos
+  const capSpan = document.getElementById('cap');
+  const occManSpan = document.getElementById('ocupacion-manana');
+  const occTarSpan = document.getElementById('ocupacion-tarde');
+  const gruposContainer = document.getElementById('grupos-container');
+  const franjaSelect = document.getElementById('franja');
+  const personasInput = document.getElementById('personas');
+  const apuntarBtn = document.getElementById('apuntar');
+  const nuevaCapInput = document.getElementById('nueva-cap');
+  const setCapBtn = document.getElementById('set-cap');
+
+  // Funciones
+  function updateCapacityDisplay() {
+    capSpan.textContent = capacity;
+  }
+
+  function updateOccupancyDisplay() {
+    const occMan = groups
+      .filter(g => g.franja === 'manana')
+      .reduce((sum, g) => sum + g.n, 0);
+    const occTar = groups
+      .filter(g => g.franja === 'tarde')
+      .reduce((sum, g) => sum + g.n, 0);
+    occManSpan.textContent = occMan;
+    occTarSpan.textContent = occTar;
+  }
+
+  function addGroup() {
+    const franja = franjaSelect.value;
+    const n = parseInt(personasInput.value, 10);
+    if (isNaN(n) || n <= 0) return;
+
+    const currentOcc = groups
+      .filter(g => g.franja === franja)
+      .reduce((sum, g) => sum + g.n, 0);
+
+    if (currentOcc + n > capacity) {
+      alert('No se puede apuntar: excede la capacidad.');
+      return;
+    }
+
+    const group = { franja, n };
+    groups.push(group);
+
+    const div = document.createElement('div');
+    div.className = 'grupo';
+    div.dataset.franja = franja;
+    div.dataset.n = n;
+    div.textContent = `${franja.charAt(0).toUpperCase() + franja.slice(1)}: ${n} personas`;
+    gruposContainer.appendChild(div);
+
+    updateOccupancyDisplay();
+  }
+
+  function setCapacity() {
+    const newCap = parseInt(nuevaCapInput.value, 10);
+    if (isNaN(newCap) || newCap < MIN_CAPACITY) return;
+
+    capacity = newCap;
+    updateCapacityDisplay();
+
+    ['manana', 'tarde'].forEach(franja => {
+      let occ = groups
+        .filter(g => g.franja === franja)
+        .reduce((sum, g) => sum + g.n, 0);
+
+      while (occ > capacity) {
+        // Find last group of this franja
+        let idx = -1;
+        for (let i = groups.length - 1; i >= 0; i--) {
+          if (groups[i].franja === franja) {
+            idx = i;
+            break;
+          }
+        }
+        if (idx === -1) break; // no more groups of this franja
+
+        const removed = groups.splice(idx, 1)[0];
+
+        // Remove from DOM
+        const divs = gruposContainer.querySelectorAll('.grupo');
+        for (let i = divs.length - 1; i >= 0; i--) {
+          const d = divs[i];
+          if (d.dataset.franja === franja && parseInt(d.dataset.n, 10) === removed.n) {
+            gruposContainer.removeChild(d);
+            break;
+          }
+        }
+
+        occ -= removed.n;
+      }
+    });
+
+    updateOccupancyDisplay();
+  }
+
+  // Eventos
+  apuntarBtn.addEventListener('click', addGroup);
+  setCapBtn.addEventListener('click', setCapacity);
+
+  // Inicializar
+  updateCapacityDisplay();
+  updateOccupancyDisplay();
+</script>
+</body>
+</html>

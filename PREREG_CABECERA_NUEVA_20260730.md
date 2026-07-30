@@ -148,6 +148,41 @@ de tipo de verificación**, no subir la dificultad dentro del mismo molde.
 Y refuerza por tercera vía la conclusión de inversión de la semana: **no
 falta capacidad, falta señal.**
 
+## VEREDICTO FINAL DE LA CABECERA (2026-07-30 ~08:30, tras la re-calibración)
+
+**HAY CABECERA, con 3 tareas — el mínimo exacto que el criterio pedía.**
+
+| tarea | pass@1 | |
+|---|---|---|
+| carrito_cupones | 3/4 | **ENTRA** |
+| ascensor | 3/4 | **ENTRA** |
+| turnos_capacidad | 2/4 | **ENTRA** |
+| editor_undo_buscar, calendario_conflictos, parser_parentesis | 4/4 | saturadas |
+| presupuesto_reparto, carrito_packs, inventario_reservas | 4/4 | saturadas |
+
+Re-calibración de las dos corregidas: **inventario_reservas pasó de 2/4 a
+4/4** (confirmando que su "dificultad" era mi ambigüedad) y
+turnos_capacidad se mantiene en 2/4 con fallo REAL — verificado abriendo la
+página con la vía nativa (`select_option`, valor por defecto correcto, cero
+errores JS): el botón de apuntar simplemente no crea el grupo.
+
+**Coste de encontrarla: 9 tareas escritas, 6 saturadas.** Y la hipótesis
+que guió la segunda tanda quedó descartada por sus propios casos puros
+(presupuesto_reparto y carrito_packs, 4/4). **No sé predecir qué tarea será
+difícil para este sistema**: de nueve diseñadas con intención explícita,
+acerté tres, y las tres no comparten una propiedad obvia (interacción de
+reglas de precio; algoritmo con estado direccional; invariante retroactivo
+que expulsa lo ya aceptado).
+
+**Límite declarado de esta cabecera:** con 3 tareas y pass@1 entre 2/4 y
+3/4, su poder de discriminación es bajo — sirve para ver si algo mejora o
+empeora mucho, no para medir diferencias finas. Se usa sabiendo eso.
+
+**Deuda saldada por el camino:** `b2_bon_heldout.py` no tenía presupuesto
+de pared en el juzgado y una página con JS bloqueante colgó la
+re-calibración 13 minutos (chromium con 719 s de CPU, backend sano) — el
+mismo fallo que ayer con 595 s. Ya lo lleva.
+
 ## Lo que NO se hace aquí
 
 No se re-mide el goal contra el banco nuevo en esta sesión: primero hay que

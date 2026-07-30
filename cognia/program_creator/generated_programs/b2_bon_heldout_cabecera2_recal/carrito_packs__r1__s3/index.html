@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Packs</title>
+<style>
+:root{
+  --bg:#fdf6e3;
+  --primary:#b58900;
+  --secondary:#2aa198;
+  --text:#333;
+  --card-bg:#fff;
+  --card-shadow:rgba(0,0,0,0.1);
+}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+header{
+  background:var(--primary);
+  color:#fff;
+  padding:1rem;
+  text-align:center;
+  font-size:1.5rem;
+}
+main{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:1rem;
+  padding:1rem 1rem 3rem;
+}
+.card{
+  background:var(--card-bg);
+  box-shadow:0 2px 5px var(--card-shadow);
+  border-radius:8px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:1rem;
+}
+.card img{
+  width:100%;
+  height:auto;
+  border-radius:8px;
+}
+.card h2{
+  margin:0.5rem 0;
+  font-size:1.2rem;
+}
+.card .price{
+  font-size:1rem;
+  color:var(--secondary);
+}
+.buttons{
+  display:flex;
+  gap:0.5rem;
+  margin-top:1rem;
+}
+button{
+  padding:0.5rem 1rem;
+  border:none;
+  border-radius:4px;
+  background:var(--secondary);
+  color:#fff;
+  cursor:pointer;
+}
+button:hover{
+  background:#1c7a7a;
+}
+button.quitar{
+  background:var(--primary);
+}
+button.quitar:hover{
+  background:#a67c00;
+}
+footer{
+  position:fixed;
+  bottom:0;
+  width:100%;
+  background:var(--primary);
+  color:#fff;
+  padding:0.5rem 1rem;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:1rem;
+  z-index:10;
+}
+footer .summary{
+  display:flex;
+  gap:1rem;
+}
+footer .summary span{
+  background:#fff;
+  color:var(--primary);
+  border-radius:12px;
+  padding:0.2rem 0.6rem;
+  font-weight:bold;
+}
+@media(max-width:600px){
+  main{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<header>Mi Tienda</header>
+<main>
+  <div class="card" id="pan-card">
+    <img src='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="#f5deb3"/><text x="100" y="80" font-size="30" text-anchor="middle" fill="#000">Pan</text></svg>' alt="Pan">
+    <h2>Pan</h2>
+    <div class="price">2 €</div>
+    <div class="buttons">
+      <button class="add" data-id="pan">Añadir</button>
+      <button class="quitar" data-id="pan">Quitar</button>
+    </div>
+    <div class="quantity"><span class="cant" data-id="pan">0</span> unidades</div>
+  </div>
+  <div class="card" id="leche-card">
+    <img src='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="#fff"/><text x="100" y="80" font-size="30" text-anchor="middle" fill="#000">Leche</text></svg>' alt="Leche">
+    <h2>Leche</h2>
+    <div class="price">3 €</div>
+    <div class="buttons">
+      <button class="add" data-id="leche">Añadir</button>
+      <button class="quitar" data-id="leche">Quitar</button>
+    </div>
+    <div class="quantity"><span class="cant" data-id="leche">0</span> unidades</div>
+  </div>
+</main>
+<footer>
+  <div class="summary">
+    <span id="packs">0 packs</span>
+    <span id="total">0 €</span>
+  </div>
+</footer>
+<script>
+class Cart{
+  constructor(){
+    this.quantities={pan:0,leche:0};
+    this.prices={pan:2,leche:3};
+    this.packPrice=4;
+    this.update();
+  }
+  add(id){this.quantities[id]++;this.update();}
+  remove(id){if(this.quantities[id]>0){this.quantities[id]--;this.update();}}
+  update(){
+    const pan=this.quantities.pan, leche=this.quantities.leche;
+    const packs=Math.min(pan,leche);
+    const total=packs*this.packPrice+(pan-packs)*this.prices.pan+(leche-packs)*this.prices.leche;
+    document.querySelectorAll('.cant').forEach(el=>{
+      el.textContent=this.quantities[el.dataset.id];
+    });
+    document.getElementById('packs').textContent=packs+' packs';
+    document.getElementById('total').textContent=total.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+  }
+}
+const cart=new Cart();
+document.querySelectorAll('.add').forEach(btn=>{
+  btn.addEventListener('click',()=>{cart.add(btn.dataset.id);});
+});
+document.querySelectorAll('.quitar').forEach(btn=>{
+  btn.addEventListener('click',()=>{cart.remove(btn.dataset.id);});
+});
+</script>
+</body>
+</html>

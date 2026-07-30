@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Agenda de Turnos</title>
+<style>
+  body{
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    margin:0;padding:0;background:#f0f4f8;color:#1e293b;
+  }
+  .container{max-width:800px;margin:auto;padding:1rem;}
+  h1{font-size:1.75rem;margin-bottom:1rem;color:#1e3a8a;}
+  .controls{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;}
+  .controls > *{flex:1 1 150px;}
+  label{display:block;font-weight:600;margin-bottom:0.25rem;}
+  select,input[type=number],button{
+    padding:0.5rem;font-size:1rem;border-radius:4px;border:1px solid #cbd5e1;
+  }
+  button{background:#1e3a8a;color:white;cursor:pointer;}
+  button:hover{background:#1c2e7e;}
+  #cap{font-weight:600;color:#1e3a8a;}
+  #ocupacion-manana,#ocupacion-tarde{font-weight:600;color:#1e3a8a;}
+  .status{display:flex;gap:1rem;margin-bottom:1rem;}
+  .status span{font-size:1rem;}
+  #grupos{display:flex;flex-direction:column;gap:0.5rem;}
+  .grupo{
+    background:white;padding:0.75rem;border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;
+    justify-content:space-between;align-items:center;
+  }
+  .grupo span{font-size:1rem;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Agenda de Turnos</h1>
+  <div class="controls">
+    <div>
+      <label for="franja">Franja</label>
+      <select id="franja"><option value="manana">Mañana</option><option value="tarde">Tarde</option></select>
+    </div>
+    <div>
+      <label for="personas">Personas</label>
+      <input id="personas" type="number" min="1" value="1">
+    </div>
+    <div style="align-self:flex-end;">
+      <button id="apuntar">Apuntar</button>
+    </div>
+    <div>
+      <label>Capacidad</label>
+      <span id="cap">6</span>
+    </div>
+    <div>
+      <label for="nueva-cap">Nueva capacidad</label>
+      <input id="nueva-cap" type="number" min="1" value="6">
+    </div>
+    <div style="align-self:flex-end;">
+      <button id="set-cap">Set</button>
+    </div>
+  </div>
+  <div class="status">
+    <span>Ocupación mañana: <span id="ocupacion-manana">0</span></span>
+    <span>Ocupación tarde: <span id="ocupacion-tarde">0</span></span>
+  </div>
+  <div id="grupos"></div>
+</div>
+<script>
+  const franjaSelect = document.getElementById('franja');
+  const personasInput = document.getElementById('personas');
+  const apuntarBtn = document.getElementById('apuntar');
+  const capSpan = document.getElementById('cap');
+  const nuevaCapInput = document.getElementById('nueva-cap');
+  const setCapBtn = document.getElementById('set-cap');
+  const ocupacionMananaSpan = document.getElementById('ocupacion-manana');
+  const ocupacionTardeSpan = document.getElementById('ocupacion-tarde');
+  const gruposContainer = document.getElementById('grupos');
+
+  let capacity = 6;
+  let groups = []; // {franja, n, element}
+
+  function updateCapDisplay() { capSpan.textContent = capacity; }
+  function updateOcupacion() {
+    let occManana = 0, occTarde = 0;
+    for (const g of groups) {
+      if (g.franja === 'manana') occManana += g.n;
+      else if (g.franja === 'tarde') occTarde += g.n;
+    }
+    ocupacionMananaSpan.textContent = occManana;
+    ocupacionTardeSpan.textContent = occTarde;
+  }
+  function canAdd(franja, n) {
+    const occ = franja === 'manana' ? parseInt(ocupacionMananaSpan.textContent) : parseInt(ocupacionTardeSpan.textContent);
+    return occ + n <= capacity;
+  }
+  function addGroup(franja, n) {
+    const el = document.createElement('div');
+    el.className = 'grupo';
+    el.dataset.franja = franja;
+    el.dataset.n = n;
+    const label = document.createElement('span');
+    label.textContent = `${franja.charAt(0).toUpperCase() + franja.slice(1)}: ${n} persona${n>1?'s':''}`;
+    el.appendChild(label);
+    gruposContainer.appendChild(el);
+    groups.push({franja, n, element: el});
+    updateOcupacion();
+  }
+
+  apuntarBtn.addEventListener('click', () => {
+    const franja = franjaSelect.value;
+    const n = parseInt(personasInput.value);
+    if (isNaN(n) || n <= 0) { alert('Introduce un número válido de personas.'); return; }
+    if (!canAdd(franja, n)) { alert(`No se puede apuntar: la franja ${franja} superaría la capacidad.`); return; }
+    addGroup(franja, n);
+  });
+
+  setCapBtn.addEventListener('click', () => {
+    const newCap = parseInt(nuevaCapInput.value);
+    if (isNaN(newCap) || newCap <= 0) { alert('Introduce una capacidad válida.'); return; }
+    capacity = newCap;
+    updateCapDisplay();
+
+    // Remove groups from each franja if needed
+    let occManana = parseInt(ocupacionMananaSpan.textContent);
+    let occTarde = parseInt(ocupacionTardeSpan.textContent);
+
+    // Remove from mañana
+    for (let i = groups.length - 1; i >= 0 && occManana > capacity; i--) {
+      const g = groups[i];
+      if (g.franja === 'manana') {
+        occManana -= g.n;
+        gruposContainer.removeChild(g.element);
+        groups.splice(i, 1);
+      }
+    }
+    // Remove from tarde
+    for (let i = groups.length - 1; i >= 0 && occTarde > capacity; i--) {
+      const g = groups[i];
+      if (g.franja === 'tarde') {
+        occTarde -= g.n;
+        gruposContainer.removeChild(g.element);
+        groups.splice(i, 1);
+      }
+    }
+    updateOcupacion();
+  });
+
+  updateCapDisplay();
+  updateOcupacion();
+</script>
+</body>
+</html>

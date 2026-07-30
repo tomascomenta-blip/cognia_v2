@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reparto de presupuesto</title>
+<style>
+:root{
+  --primary-teal:#008080;
+  --soft-teal:#4db6ac;
+  --charcoal:#333;
+  --warning-bg:#f8d7da;
+  --warning-text:#721c24;
+}
+body{
+  font-family:system-ui,sans-serif;
+  background:#f5f5f5;
+  color:var(--charcoal);
+  margin:0;
+  padding:1rem;
+  display:flex;
+  justify-content:center;
+}
+.container{
+  max-width:400px;
+  width:100%;
+  background:#fff;
+  padding:1.5rem;
+  border-radius:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+h1{
+  text-align:center;
+  color:var(--primary-teal);
+  margin-top:0;
+}
+.part{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:1rem;
+}
+.part label{
+  flex:1;
+}
+.pct{
+  width:60px;
+  padding:4px;
+}
+.eur{
+  width:80px;
+  text-align:right;
+}
+#libre{
+  display:block;
+  margin-top:1rem;
+  font-weight:bold;
+  text-align:center;
+}
+#aviso{
+  margin-top:1rem;
+  padding:.5rem;
+  background:var(--warning-bg);
+  color:var(--warning-text);
+  border-radius:4px;
+  display:none;
+  text-align:center;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Presupuesto</h1>
+  <div class="total-row">
+    <span>Total: </span><span id="total"></span>
+  </div>
+  <div class="part" data-id="a1">
+    <label for="pct-a1">Partida 1</label>
+    <input class="pct" data-id="a1" id="pct-a1" type="number" min="0" max="100" step="1">
+    <span class="eur" data-id="a1"></span>
+  </div>
+  <div class="part" data-id="a2">
+    <label for="pct-a2">Partida 2</label>
+    <input class="pct" data-id="a2" id="pct-a2" type="number" min="0" max="100" step="1">
+    <span class="eur" data-id="a2"></span>
+  </div>
+  <div class="part" data-id="a3">
+    <label for="pct-a3">Partida 3</label>
+    <input class="pct" data-id="a3" id="pct-a3" type="number" min="0" max="100" step="1">
+    <span class="eur" data-id="a3"></span>
+  </div>
+  <span id="libre"></span>
+  <div id="aviso"></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const total = 100;
+  const totalSpan = document.getElementById('total');
+  const libreSpan = document.getElementById('libre');
+  const avisoDiv = document.getElementById('aviso');
+  const pctInputs = document.querySelectorAll('.pct');
+  const eurSpans = document.querySelectorAll('.eur');
+  const initial = [30,30,40];
+
+  pctInputs.forEach((input, idx)=>{
+    input.value = initial[idx];
+    input.dataset.prev = initial[idx];
+  });
+
+  function formatCurrency(val){
+    return val.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+  function formatPercent(val){
+    return val + '%';
+  }
+  function update(){
+    let sum = 0;
+    pctInputs.forEach(inp=>{ sum += Number(inp.value); });
+    const libre = total - sum;
+    libreSpan.textContent = formatPercent(libre);
+    pctInputs.forEach((inp, idx)=>{
+      const pct = Number(inp.value);
+      const eur = (pct * total) / 100;
+      eurSpans[idx].textContent = formatCurrency(eur);
+    });
+  }
+  function checkLimit(e){
+    const input = e.target;
+    const newVal = Number(input.value);
+    const prevVal = Number(input.dataset.prev);
+    let sum = 0;
+    pctInputs.forEach(inp=>{
+      sum += Number(inp === input ? newVal : inp.value);
+    });
+    if(sum > total){
+      input.value = prevVal;
+      avisoDiv.textContent = 'limite';
+      avisoDiv.style.display = 'block';
+    }else{
+      avisoDiv.style.display = 'none';
+      input.dataset.prev = newVal;
+    }
+    update();
+  }
+  pctInputs.forEach(inp=>{ inp.addEventListener('change', checkLimit); });
+  totalSpan.textContent = formatCurrency(total);
+  update();
+});
+</script>
+</body>
+</html>

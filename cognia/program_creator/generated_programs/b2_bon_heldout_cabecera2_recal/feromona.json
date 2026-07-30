@@ -1,0 +1,128 @@
+{
+  "idea_router": {
+    "discrepancias": [
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista d",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button c",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div ",
+        "experto": "python_module",
+        "heuristica": "web"
+      }
+    ],
+    "experto_acerto": 0,
+    "heuristica_acerto": 0
+  }
+}
