@@ -77,6 +77,35 @@ la medición decide.
 4 llamadas LLM (~2 min) + 96 ejecuciones Playwright (~25-40 min) ≈ **45
 min**. Cero generación de páginas.
 
+## RESULTADO (2026-07-29 ~23:45 — corrida completa, veredicto por umbrales pre-fijados)
+
+**Neto +2 (gana 2, pierde 0) → rama "+2/+3": MODERADA, sin adopción.**
+24 ensayos válidos; control s1 17/24, elegida 19/24, techo 24/24.
+**Ancla de validez PASA con holgura: 24/24 ensayos con ≥2 firmas
+distintas** (exigía ≥18) — el instrumento discrimina, así que el resultado
+es interpretable como "sin señal suficiente", no como "no medí nada".
+
+- **El mecanismo del fallo NO es el esperado.** El riesgo declarado era
+  co-failure (la mayoría bendice el bug): solo 3 casos. Y el selector
+  nunca elige peor que el control (**pierde 0**, asimetría 2-0). Lo que
+  falla es que **no hay mayoría que formar**: 13/24 ensayos con las 4
+  firmas DISTINTAS, tamaño medio del grupo 1.54 (reparto 13×1, 9×2, 2×3).
+- Eso encaja exactamente con la varianza medida hoy (54% de
+  reproducibilidad por celda): **las muestras no divergen solo en el
+  veredicto, divergen en el comportamiento**. No existe un "modo canónico"
+  de resolver la tarea del que la mayoría sea representativa.
+- Marca comparada: el consenso de contratos ciegos dio +2 (baseline) y +3
+  (mejor variante). El consenso conductual da +2 con asimetría 2-0:
+  **indistinguible**. Dos marcos muy distintos topan en el mismo techo.
+- Séptima vía que no llega. Se reporta, no se adopta. El KILL formal no
+  aplica (+2 es "moderada"), pero la lectura de inversión es la misma.
+- Anotado para quien lo retome: el cuello identificado (falta de mayoría,
+  no mala elección) señala una variante concreta — sustituir "mayoría
+  exacta" por **medoide** (la muestra más central por distancia entre
+  firmas), que decide también en los 13 ensayos sin grupo y cuyo techo no
+  está limitado a +5 porque puede elegir minorías. No se corre sin prereg
+  propio.
+
 ## PRIMERA ENMIENDA (2026-07-29 ~23:15 — tras la revisión, ANTES de correr las 96)
 
 La revisión ejecutó `_firma` sobre 4 ensayos reales y recomendó **NO

@@ -1,0 +1,1051 @@
+{
+  "ensayos": [
+    {
+      "ensayo": "buscaminas:r1",
+      "tarea": "buscaminas",
+      "rep": 1,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 3,
+      "faltantes": [
+        4
+      ],
+      "firmas_distintas": 3,
+      "muestras_ejecutadas": 3,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "a80f49be1bf7",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "0fd36a96538f",
+          "efectivas": 4,
+          "estricto": true
+        }
+      ],
+      "segundos": 14.1
+    },
+    {
+      "ensayo": "buscaminas:r2",
+      "tarea": "buscaminas",
+      "rep": 2,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "30f4a7932183",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "a80f49be1bf7",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "71d705df444e",
+          "efectivas": 4,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.9
+    },
+    {
+      "ensayo": "buscaminas:r3",
+      "tarea": "buscaminas",
+      "rep": 3,
+      "elegida_s": 3,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": false,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 3,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "2c0c7f65f8cb",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "36807d6acc47",
+          "efectivas": 3,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "36807d6acc47",
+          "efectivas": 3,
+          "estricto": true
+        }
+      ],
+      "segundos": 26.2
+    },
+    {
+      "ensayo": "buscaminas:r4",
+      "tarea": "buscaminas",
+      "rep": 4,
+      "elegida_s": 1,
+      "estricto_elegida": false,
+      "control": false,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 2,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": true,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "bae489ca241a",
+          "efectivas": 4,
+          "estricto": false
+        },
+        {
+          "s": 2,
+          "hash": "0fd36a96538f",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "bae489ca241a",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "0fd36a96538f",
+          "efectivas": 4,
+          "estricto": true
+        }
+      ],
+      "segundos": 19.0
+    },
+    {
+      "ensayo": "buscaminas:r5",
+      "tarea": "buscaminas",
+      "rep": 5,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 3,
+      "empate": false,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 2,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "4d69cf3c7331",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.9
+    },
+    {
+      "ensayo": "buscaminas:r6",
+      "tarea": "buscaminas",
+      "rep": 6,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 3,
+      "empate": false,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 2,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": true,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "36807d6acc47",
+          "efectivas": 3,
+          "estricto": false
+        },
+        {
+          "s": 4,
+          "hash": "0c109a67f0ca",
+          "efectivas": 4,
+          "estricto": false
+        }
+      ],
+      "segundos": 22.5
+    },
+    {
+      "ensayo": "carrito_stock:r1",
+      "tarea": "carrito_stock",
+      "rep": 1,
+      "elegida_s": 3,
+      "estricto_elegida": true,
+      "control": false,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": false,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 3,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": true,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "0897e7aefd58",
+          "efectivas": 6,
+          "estricto": false
+        },
+        {
+          "s": 2,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": false
+        },
+        {
+          "s": 3,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": false
+        }
+      ],
+      "segundos": 47.5
+    },
+    {
+      "ensayo": "carrito_stock:r2",
+      "tarea": "carrito_stock",
+      "rep": 2,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": false,
+      "n_muestras": 3,
+      "faltantes": [
+        3
+      ],
+      "firmas_distintas": 2,
+      "muestras_ejecutadas": 3,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "2fd77ebb9bce",
+          "efectivas": 6,
+          "estricto": true
+        }
+      ],
+      "segundos": 35.6
+    },
+    {
+      "ensayo": "carrito_stock:r3",
+      "tarea": "carrito_stock",
+      "rep": 3,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "93ad1d5a7cbd",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "54c19c74b5e9",
+          "efectivas": 6,
+          "estricto": true
+        }
+      ],
+      "segundos": 47.5
+    },
+    {
+      "ensayo": "carrito_stock:r4",
+      "tarea": "carrito_stock",
+      "rep": 4,
+      "elegida_s": 3,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": false,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 3,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "2fd77ebb9bce",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "2fd77ebb9bce",
+          "efectivas": 6,
+          "estricto": true
+        }
+      ],
+      "segundos": 47.6
+    },
+    {
+      "ensayo": "carrito_stock:r5",
+      "tarea": "carrito_stock",
+      "rep": 5,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 2,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": true
+        }
+      ],
+      "segundos": 47.5
+    },
+    {
+      "ensayo": "carrito_stock:r6",
+      "tarea": "carrito_stock",
+      "rep": 6,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 2,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "bd99e851feff",
+          "efectivas": 6,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "cc2d7a558c03",
+          "efectivas": 6,
+          "estricto": true
+        }
+      ],
+      "segundos": 47.5
+    },
+    {
+      "ensayo": "hoja_calculo:r1",
+      "tarea": "hoja_calculo",
+      "rep": 1,
+      "elegida_s": 1,
+      "estricto_elegida": false,
+      "control": false,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "5422c9b152ea",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 2,
+          "hash": "552ffebac68e",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "ade6a52db264",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "a702cc3f5930",
+          "efectivas": 7,
+          "estricto": false
+        }
+      ],
+      "segundos": 18.0
+    },
+    {
+      "ensayo": "hoja_calculo:r2",
+      "tarea": "hoja_calculo",
+      "rep": 2,
+      "elegida_s": 1,
+      "estricto_elegida": false,
+      "control": false,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "a75df153cf28",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 2,
+          "hash": "ecd4395a4466",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 3,
+          "hash": "106efcc9b429",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 4,
+          "hash": "eef7b4835484",
+          "efectivas": 7,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.0
+    },
+    {
+      "ensayo": "hoja_calculo:r3",
+      "tarea": "hoja_calculo",
+      "rep": 3,
+      "elegida_s": 3,
+      "estricto_elegida": true,
+      "control": false,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": false,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 3,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "c25c796afcae",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 2,
+          "hash": "4dbcdacac424",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "ade6a52db264",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "ade6a52db264",
+          "efectivas": 7,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.0
+    },
+    {
+      "ensayo": "hoja_calculo:r4",
+      "tarea": "hoja_calculo",
+      "rep": 4,
+      "elegida_s": 1,
+      "estricto_elegida": false,
+      "control": false,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "a23d259071f5",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 2,
+          "hash": "ade6a52db264",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "5d9f2cc84376",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 4,
+          "hash": "45ec70050e41",
+          "efectivas": 3,
+          "estricto": false
+        }
+      ],
+      "segundos": 136.6
+    },
+    {
+      "ensayo": "hoja_calculo:r5",
+      "tarea": "hoja_calculo",
+      "rep": 5,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "ade6a52db264",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "79d1d7d2ec96",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "b919c79273da",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "e6d9b674de83",
+          "efectivas": 7,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.0
+    },
+    {
+      "ensayo": "hoja_calculo:r6",
+      "tarea": "hoja_calculo",
+      "rep": 6,
+      "elegida_s": 1,
+      "estricto_elegida": false,
+      "control": false,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "bf3c2308787c",
+          "efectivas": 7,
+          "estricto": false
+        },
+        {
+          "s": 2,
+          "hash": "b919c79273da",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "147a174f1090",
+          "efectivas": 7,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "49275b20ef0b",
+          "efectivas": 7,
+          "estricto": false
+        }
+      ],
+      "segundos": 18.0
+    },
+    {
+      "ensayo": "kanban:r1",
+      "tarea": "kanban",
+      "rep": 1,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "795ada695275",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "b167ea7bc0b3",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "e370d32b6771",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "f61041145ec2",
+          "efectivas": 8,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.4
+    },
+    {
+      "ensayo": "kanban:r2",
+      "tarea": "kanban",
+      "rep": 2,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "e370d32b6771",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "b167ea7bc0b3",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "778110aeccf2",
+          "efectivas": 8,
+          "estricto": false
+        },
+        {
+          "s": 4,
+          "hash": "f61041145ec2",
+          "efectivas": 8,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.5
+    },
+    {
+      "ensayo": "kanban:r3",
+      "tarea": "kanban",
+      "rep": 3,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "8f0e22d1b7db",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "dd3c823f9a15",
+          "efectivas": 4,
+          "estricto": false
+        },
+        {
+          "s": 3,
+          "hash": "4bbeccedb91b",
+          "efectivas": 8,
+          "estricto": false
+        },
+        {
+          "s": 4,
+          "hash": "f61041145ec2",
+          "efectivas": 8,
+          "estricto": true
+        }
+      ],
+      "segundos": 33.1
+    },
+    {
+      "ensayo": "kanban:r4",
+      "tarea": "kanban",
+      "rep": 4,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "bacace66febe",
+          "efectivas": 2,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "f61041145ec2",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "e370d32b6771",
+          "efectivas": 8,
+          "estricto": false
+        },
+        {
+          "s": 4,
+          "hash": "9eeab900c13a",
+          "efectivas": 8,
+          "estricto": true
+        }
+      ],
+      "segundos": 40.3
+    },
+    {
+      "ensayo": "kanban:r5",
+      "tarea": "kanban",
+      "rep": 5,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 1,
+      "empate": true,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 4,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "3fa5ead13248",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "f7ec7cd262d1",
+          "efectivas": 3,
+          "estricto": false
+        },
+        {
+          "s": 3,
+          "hash": "497ebee414e6",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "b167ea7bc0b3",
+          "efectivas": 8,
+          "estricto": true
+        }
+      ],
+      "segundos": 36.6
+    },
+    {
+      "ensayo": "kanban:r6",
+      "tarea": "kanban",
+      "rep": 6,
+      "elegida_s": 1,
+      "estricto_elegida": true,
+      "control": true,
+      "techo": true,
+      "tam_mayoria": 2,
+      "empate": false,
+      "n_muestras": 4,
+      "faltantes": [],
+      "firmas_distintas": 3,
+      "muestras_ejecutadas": 4,
+      "mayoria_con_reprobada": false,
+      "firmas": [
+        {
+          "s": 1,
+          "hash": "f61041145ec2",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 2,
+          "hash": "b167ea7bc0b3",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 3,
+          "hash": "5e4fd39a8a33",
+          "efectivas": 8,
+          "estricto": true
+        },
+        {
+          "s": 4,
+          "hash": "f61041145ec2",
+          "efectivas": 8,
+          "estricto": true
+        }
+      ],
+      "segundos": 18.4
+    }
+  ],
+  "config": {
+    "fuente": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout",
+    "sondas": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_consenso_conductual\\sondas_por_tarea.json",
+    "huella_sondas": "eaaed698401a",
+    "max_pasos": 8,
+    "firmas_estables": 6
+  },
+  "resumen": {
+    "ensayos_validos": 24,
+    "neto": 2,
+    "control": "17/24",
+    "elegida": "19/24",
+    "techo": "24/24",
+    "gana": [
+      "carrito_stock:r1",
+      "hoja_calculo:r3"
+    ],
+    "pierde": [],
+    "ancla_firmas_distintas": "24/24",
+    "sin_mayoria": 13,
+    "co_failure": 3,
+    "tam_medio_mayoria": 1.54
+  }
+}
