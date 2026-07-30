@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f0f4f7;margin:0;display:flex;justify-content:center;align-items:center;height:100vh}
+#grid{display:grid;grid-template-columns:repeat(3,80px);gap:2px}
+.celda{width:80px;height:28px;border:1px solid #cbd5e0;background:#fff;padding:0 4px;font-size:14px;color:#2d3748}
+.celda:focus{outline:none;border-color:#3182ce}
+.celda.formula{font-weight:bold;color:#2d3748}
+.celda.formula::after{content:"ƒ";position:absolute;right:4px;top:4px;font-size:10px;color:#718096}
+.wrapper{position:relative}
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="wrapper"><input class="celda" data-ref="A1" placeholder="A1"></div>
+  <div class="wrapper"><input class="celda" data-ref="A2" placeholder="A2"></div>
+  <div class="wrapper"><input class="celda" data-ref="A3" placeholder="A3"></div>
+  <div class="wrapper"><input class="celda" data-ref="B1" placeholder="B1"></div>
+  <div class="wrapper"><input class="celda" data-ref="B2" placeholder="B2"></div>
+  <div class="wrapper"><input class="celda" data-ref="B3" placeholder="B3"></div>
+  <div class="wrapper"><input class="celda" data-ref="C1" placeholder="C1"></div>
+  <div class="wrapper"><input class="celda" data-ref="C2" placeholder="C2"></div>
+  <div class="wrapper"><input class="celda" data-ref="C3" placeholder="C3"></div>
+</div>
+<script>
+const cells=document.querySelectorAll('.celda');
+const map={};
+cells.forEach(c=>{map[c.dataset.ref]=c});
+function evalCell(ref,stack){const c=map[ref];if(!c)return 0;if(c.dataset.formula){if(stack.has(ref))return 'CIRC';stack.add(ref);const expr=c.dataset.formula.slice(1).replace(/[A-C][1-3]/g,r=>evalCell(r,stack));stack.delete(ref);if(expr==='CIRC')return 'CIRC';const val=parseFloat(eval(expr));return isNaN(val)?'':val.toString();}return c.value;}
+function recalc(){cells.forEach(c=>{if(c.dataset.formula){const val=evalCell(c.dataset.ref,new Set());c.value=val;}});}
+cells.forEach(c=>{c.addEventListener('input',e=>{const val=e.target.value;if(val.startsWith('=')){c.dataset.formula=val;recalc();}else{delete c.dataset.formula;e.target.value=val;recalc();}});});
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora de Descuento por Tramos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f8f9;
+    color:#333;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+  }
+  .container{
+    background:#fff;
+    padding:2rem;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    max-width:400px;
+    width:90%;
+    text-align:center;
+  }
+  h1{
+    margin:0 0 1rem 0;
+    font-size:1.5rem;
+    color:#2a4d5e;
+  }
+  input#cant{
+    width:100%;
+    padding:0.75rem;
+    font-size:1rem;
+    border:1px solid #b0c4d1;
+    border-radius:4px;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom:1rem;
+    transition:box-shadow 0.2s;
+  }
+  input#cant:focus{
+    outline:none;
+    box-shadow:0 0 5px rgba(42,77,94,0.3);
+  }
+  span#total{
+    display:block;
+    font-size:2.5rem;
+    font-weight:700;
+    color:#2a4d5e;
+    margin-top:0.5rem;
+  }
+  p.instruction{
+    font-size:0.9rem;
+    color:#666;
+    margin-top:0.5rem;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Calculadora de Descuento</h1>
+  <input id="cant" type="number" min="0" placeholder="Cantidad">
+  <span id="total">0.00</span>
+  <p class="instruction">Ingresa la cantidad y observa el total con descuentos progresivos.</p>
+</div>
+
+<script>
+'use strict';
+const UNIT_PRICE = 10;
+const THRESHOLD_1 = 10;
+const THRESHOLD_2 = 50;
+const DISCOUNT_1 = 0;      // 0% for first 10 units
+const DISCOUNT_2 = 0.10;   // 10% for units 11-50
+const DISCOUNT_3 = 0.20;   // 20% for units 51+
+
+function formatNumber(value){
+  return value.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function calculateTotal(cant){
+  const qty = Math.max(0, Math.floor(cant));
+  let total = 0;
+  if(qty <= THRESHOLD_1){
+    total = qty * UNIT_PRICE;
+  } else if(qty <= THRESHOLD_2){
+    total = THRESHOLD_1 * UNIT_PRICE;
+    total += (qty - THRESHOLD_1) * UNIT_PRICE * (1 - DISCOUNT_2);
+  } else {
+    total = THRESHOLD_1 * UNIT_PRICE;
+    total += (THRESHOLD_2 - THRESHOLD_1) * UNIT_PRICE * (1 - DISCOUNT_2);
+    total += (qty - THRESHOLD_2) * UNIT_PRICE * (1 - DISCOUNT_3);
+  }
+  return total;
+}
+
+function updateTotal(){
+  const cantInput = document.getElementById('cant');
+  const totalSpan = document.getElementById('total');
+  const total = calculateTotal(cantInput.value);
+  totalSpan.textContent = formatNumber(total);
+}
+
+document.getElementById('cant').addEventListener('input', updateTotal);
+window.addEventListener('load', updateTotal);
+</script>
+</body>
+</html>

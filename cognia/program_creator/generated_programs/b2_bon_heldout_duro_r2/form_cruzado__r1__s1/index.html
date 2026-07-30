@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Validación Cruzada de Formulario</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    background: #f0f0f0;
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  form {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-width: 400px;
+    width: 90%;
+  }
+  label {
+    display: block;
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 0.25rem;
+  }
+  input[type="password"],
+  input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+  button {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  button.btn-disabled {
+    background: #aaa;
+    cursor: not-allowed;
+  }
+  button.btn-enabled {
+    background: #008080; /* Teal */
+  }
+</style>
+</head>
+<body>
+<form id="registroForm" novalidate>
+  <label for="pass">Contraseña</label>
+  <input id="pass" type="password" autocomplete="new-password" required>
+
+  <label for="pass2">Confirmar Contraseña</label>
+  <input id="pass2" type="password" autocomplete="new-password" required>
+
+  <label for="edad">Edad</label>
+  <input id="edad" type="number" min="0" max="120" required>
+
+  <button id="enviar" class="btn-disabled" disabled>Enviar</button>
+</form>
+
+<script>
+  // Object-oriented design: FormValidator class
+  class FormValidator {
+    constructor(form) {
+      this.form = form;
+      this.passInput = document.getElementById('pass');
+      this.pass2Input = document.getElementById('pass2');
+      this.edadInput = document.getElementById('edad');
+      this.submitBtn = document.getElementById('enviar');
+
+      // Bind event listeners
+      this.passInput.addEventListener('input', () => this.validate());
+      this.pass2Input.addEventListener('input', () => this.validate());
+      this.edadInput.addEventListener('input', () => this.validate());
+
+      // Initial validation
+      this.validate();
+    }
+
+    validate() {
+      const pass = this.passInput.value;
+      const pass2 = this.pass2Input.value;
+      const edad = parseInt(this.edadInput.value, 10);
+
+      const isPassLengthValid = pass.length >= 8;
+      const isPassMatch = pass === pass2 && pass.length > 0;
+      const isEdadValid = !isNaN(edad) && edad >= 18 && edad <= 120;
+
+      const allValid = isPassLengthValid && isPassMatch && isEdadValid;
+
+      if (allValid) {
+        this.submitBtn.disabled = false;
+        this.submitBtn.classList.remove('btn-disabled');
+        this.submitBtn.classList.add('btn-enabled');
+      } else {
+        this.submitBtn.disabled = true;
+        this.submitBtn.classList.remove('btn-enabled');
+        this.submitBtn.classList.add('btn-disabled');
+      }
+    }
+  }
+
+  // Run demo automatically on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    new FormValidator(document.getElementById('registroForm'));
+  });
+</script>
+</body>
+</html>

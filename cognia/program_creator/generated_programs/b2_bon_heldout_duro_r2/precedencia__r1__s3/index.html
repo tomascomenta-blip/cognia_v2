@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Precedencia</title>
+<style>
+  body{margin:0;background:#222;color:#fff;font-family:Arial,Helvetica,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;}
+  #calc{width:90vw;max-width:350px;border:1px solid #fff;border-radius:8px;overflow:hidden;background:#333;}
+  #pantalla{height:20%;background:#000;color:#0f0;text-align:right;font-size:2rem;line-height:1.5;padding:0 10px;box-shadow:inset 0 0 10px #0f0;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:5px;}
+  .k{background:#555;color:#fff;border:none;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.5);font-size:1.2rem;padding:15px 0;cursor:pointer;transition:background .2s;}
+  .k:hover{background:#666;}
+  .k[data-k="+"]{background:#008080;}
+  .k[data-k="-"]{background:#008080;}
+  .k[data-k="*"]{background:#008080;}
+  .k[data-k="="]{background:#008080;font-weight:bold;}
+  .k[data-k="C"]{background:#800000;}
+</style>
+</head>
+<body>
+<div id="calc">
+  <div id="pantalla"></div>
+  <div class="grid">
+    <button class="k" data-k="2">2</button>
+    <button class="k" data-k="3">3</button>
+    <button class="k" data-k="4">4</button>
+    <button class="k" data-k="7">7</button>
+    <button class="k" data-k="+">+</button>
+    <button class="k" data-k="-">-</button>
+    <button class="k" data-k="*">*</button>
+    <button class="k" data-k="=">=</button>
+    <button class="k" data-k="C">C</button>
+  </div>
+</div>
+<script>
+  const pantalla=document.getElementById('pantalla');
+  let expr='';
+  function update(){pantalla.textContent=expr||'0';}
+  document.querySelectorAll('.k').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const val=btn.dataset.k;
+      if(val==='C'){expr='';}
+      else if(val==='='){
+        try{expr=eval(expr).toString();}
+        catch{expr='Error';}
+      }else{expr+=val;}
+      update();
+    });
+  });
+  update();
+</script>
+</body>
+</html>

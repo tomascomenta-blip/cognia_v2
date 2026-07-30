@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Juego de la serpiente 10x10</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    background:#333;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    position:relative;
+  }
+  #score{
+    position:fixed;
+    top:10px;
+    right:10px;
+    font-size:1.2rem;
+  }
+  #controls{
+    margin-bottom:10px;
+    font-size:1.5rem;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(10,1fr);
+    grid-auto-rows:1fr;
+    width:100%;
+    max-width:400px;
+    aspect-ratio:1;
+    border:2px solid #555;
+  }
+  .cel{
+    border:1px solid #555;
+    background:#222;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    aspect-ratio:1;
+  }
+  .snake{
+    background:#00bfa5;
+  }
+  .head{
+    background:#00e0e0;
+  }
+  .food{
+    background:#ff4444;
+    border-radius:50%;
+    width:60%;
+    height:60%;
+  }
+</style>
+</head>
+<body>
+<div id="score">0</div>
+<div id="controls">← ↑ → ↓</div>
+<div id="grid"></div>
+
+<script>
+(() => {
+  const GRID_SIZE = 10;
+  const gridEl = document.getElementById('grid');
+  const scoreEl = document.getElementById('score');
+
+  // Create grid cells
+  const cells = [];
+  for (let y = 0; y < GRID_SIZE; y++) {
+    for (let x = 0; x < GRID_SIZE; x++) {
+      const div = document.createElement('div');
+      div.classList.add('cel');
+      div.dataset.x = x;
+      div.dataset.y = y;
+      gridEl.appendChild(div);
+      cells.push(div);
+    }
+  }
+
+  // Helper to get cell element by coordinates
+  const getCell = (x, y) => cells.find(c => +c.dataset.x === x && +c.dataset.y === y);
+
+  // Game state
+  let snake = [{x: Math.floor(GRID_SIZE/2), y: Math.floor(GRID_SIZE/2)}];
+  let dir = 'right';
+  let food = null;
+
+  // Place food at random empty spot
+  const placeFood = () => {
+    let empty;
+    do {
+      const fx = Math.floor(Math.random()*GRID_SIZE);
+      const fy = Math.floor(Math.random()*GRID_SIZE);
+      empty = !snake.some(p => p.x===fx && p.y===fy);
+      if (empty) {
+        food = {x:fx, y:fy};
+      }
+    } while (!empty);
+  };
+
+  // Update visual grid
+  const updateGrid = () => {
+    cells.forEach(c => {
+      c.classList.remove('snake','head','food');
+    });
+    snake.forEach((p, idx) => {
+      const cell = getCell(p.x, p.y);
+      if (cell) {
+        cell.classList.add('snake');
+        if (idx===0) cell.classList.add('head');
+      }
+    });
+    if (food) {
+      const fcell = getCell(food.x, food.y);
+      if (fcell) fcell.classList.add('food');
+    }
+  };
+
+  // Update score and expose state
+  const updateState = () => {
+    scoreEl.textContent = snake.length;
+    window.juego = {
+      largo: snake.length,
+      x: snake[0].x,
+      y: snake[0].y,
+      dir: dir
+    };
+  };
+
+  // Move snake
+  const moveSnake = () => {
+    const head = snake[0];
+    let nx = head.x, ny = head.y;
+    if (dir==='up') ny--;
+    if (dir==='down') ny++;
+    if (dir==='left') nx--;
+    if (dir==='right') nx++;
+
+    // Check bounds
+    if (nx<0 || nx>=GRID_SIZE || ny<0 || ny>=GRID_SIZE) return; // ignore move
+
+    // Check self collision
+    if (snake.some(p => p.x===nx && p.y===ny)) return; // ignore move
+
+    const newHead = {x:nx, y:ny};
+    snake.unshift(newHead);
+
+    // Check food
+    if (food && nx===food.x && ny===food.y) {
+      placeFood(); // grow, no tail removal
+    } else {
+      snake.pop(); // normal move
+    }
+
+    updateGrid();
+    updateState();
+  };
+
+  // Key handling
+  const opposite = {up:'down', down:'up', left:'right', right:'left'};
+  const keyDir = {ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right'};
+  document.addEventListener('keydown', e => {
+    const ndir = keyDir[e.key];
+    if (!ndir) return;
+    if (ndir===opposite[dir]) return; // ignore 180° reverse
+    dir = ndir;
+    moveSnake();
+  });
+
+  // Initialize
+  placeFood();
+  updateGrid();
+  updateState();
+})();
+</script>
+</body>
+</html>

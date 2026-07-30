@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Precedencia</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#222;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;}
+  .calculator{background:#333;padding:20px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.5);width:320px;max-width:90%;animation:fadeIn 0.5s ease-out;}
+  #pantalla{background:linear-gradient(135deg,#444,#222);padding:20px;border-radius:5px;font-size:2rem;text-align:right;min-height:60px;margin-bottom:15px;overflow:hidden;}
+  .buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  button.k{padding:15px;font-size:1.2rem;border:none;border-radius:8px;cursor:pointer;transition:background 0.2s;}
+  button.k.num{background:#555;color:#fff;}
+  button.k.op{background:#0ff;color:#000;}
+  button.k.eq{background:#ff8c00;color:#fff;}
+  button.k.clear{background:#777;color:#fff;}
+  button.k:hover{filter:brightness(1.1);}
+  @keyframes fadeIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div id="pantalla"></div>
+  <div class="buttons">
+    <button class="k num" data-k="7">7</button>
+    <button class="k num" data-k="8">8</button>
+    <button class="k num" data-k="9">9</button>
+    <button class="k op" data-k="/">/</button>
+    <button class="k num" data-k="4">4</button>
+    <button class="k num" data-k="5">5</button>
+    <button class="k num" data-k="6">6</button>
+    <button class="k op" data-k="*">*</button>
+    <button class="k num" data-k="1">1</button>
+    <button class="k num" data-k="2">2</button>
+    <button class="k num" data-k="3">3</button>
+    <button class="k op" data-k="-">-</button>
+    <button class="k num" data-k="0">0</button>
+    <button class="k num" data-k=".">.</button>
+    <button class="k eq" data-k="=">=</button>
+    <button class="k clear" data-k="C">C</button>
+  </div>
+</div>
+<script>
+  const BUTTONS = [
+    {label:'7',value:'7',type:'num'},
+    {label:'8',value:'8',type:'num'},
+    {label:'9',value:'9',type:'num'},
+    {label:'/',value:'/',type:'op'},
+    {label:'4',value:'4',type:'num'},
+    {label:'5',value:'5',type:'num'},
+    {label:'6',value:'6',type:'num'},
+    {label:'*',value:'*',type:'op'},
+    {label:'1',value:'1',type:'num'},
+    {label:'2',value:'2',type:'num'},
+    {label:'3',value:'3',type:'num'},
+    {label:'-',value:'-',type:'op'},
+    {label:'0',value:'0',type:'num'},
+    {label:'.',value:'.',type:'num'},
+    {label:'=',value:'=',type:'eq'},
+    {label:'C',value:'C',type:'clear'}
+  ];
+  let expression = '';
+  const pantalla = document.getElementById('pantalla');
+  function updateScreen() {
+    pantalla.textContent = expression || '0';
+  }
+  function isOperator(c){return ['+','-','*','/'].includes(c);}
+  function handleButton(val){
+    if(val==='C'){
+      expression='';
+      updateScreen();
+    }else if(val==='='){
+      try{
+        const result = eval(expression);
+        expression = result.toString();
+        updateScreen();
+      }catch(e){
+        expression='Error';
+        updateScreen();
+        expression='';
+      }
+    }else{
+      if(expression.length>0 && isOperator(expression[expression.length-1]) && isOperator(val)){
+        expression=expression.slice(0,-1)+val;
+      }else{
+        expression+=val;
+      }
+      updateScreen();
+    }
+  }
+  document.querySelectorAll('.k').forEach(btn=>{
+    btn.addEventListener('click',()=>handleButton(btn.dataset.k));
+  });
+  window.addEventListener('DOMContentLoaded',updateScreen);
+</script>
+</body>
+</html>

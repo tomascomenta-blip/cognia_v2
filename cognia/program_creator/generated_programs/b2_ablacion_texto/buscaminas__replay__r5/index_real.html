@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Un buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #estado{
+    margin:10px;
+    font-size:1.2em;
+    color:#333;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90%;
+    max-width:400px;
+  }
+  .c{
+    position:relative;
+    aspect-ratio:1;
+    background:linear-gradient(#e0e0e0,#c0c0c0);
+    border:1px solid #555;
+    cursor:pointer;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:1.2em;
+    color:#333;
+  }
+  .c.abierta{
+    background:linear-gradient(#d0d0d0,#b0b0b0);
+    cursor:default;
+  }
+  .c.bandera{
+    cursor:default;
+  }
+  .c.bandera::after{
+    content:"🚩";
+    font-size:1.5em;
+  }
+  .number,.mine{
+    display:none;
+  }
+  .c.abierta .number{
+    display:block;
+  }
+  .c[data-mine="true"].abierta .mine{
+    display:block;
+  }
+  .mine{
+    color:#ff0000;
+    font-weight:bold;
+  }
+  .number{
+    color:#333;
+  }
+  .c[data-count="1"] .number{font-size:1.2em;}
+  .c[data-count="2"] .number{font-size:1.4em;}
+  .c[data-count="3"] .number{font-size:1.6em;}
+  .c[data-count="4"] .number{font-size:1.8em;}
+  .c[data-count="5"] .number{font-size:2em;}
+  .c[data-count="6"] .number{font-size:2.2em;}
+  .c[data-count="7"] .number{font-size:2.4em;}
+  .c[data-count="8"] .number{font-size:2.6em;}
+  .c:hover{filter:brightness(0.9);}
+  .c.abierta:hover{filter:none;}
+  .c.bandera:hover{filter:none;}
+</style>
+</head>
+<body>
+<div id="estado"></div>
+<div id="grid"></div>
+<script>
+  const mineIndices = new Set([6,12,18]);
+  const cells = [];
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  let lost = false;
+
+  for(let i=0;i<25;i++){
+    const c = document.createElement('div');
+    c.className='c';
+    c.dataset.i = i;
+    c.dataset.mine = mineIndices.has(i) ? 'true' : 'false';
+    c.dataset.count = '0';
+    const num = document.createElement('span');
+    num.className='number';
+    c.appendChild(num);
+    const mine = document.createElement('span');
+    mine.className='mine';
+    mine.textContent='❗';
+    c.appendChild(mine);
+    c.addEventListener('click', e=>{
+      if(lost || c.classList.contains('bandera') || c.classList.contains('abierta')) return;
+      if(c.dataset.mine==='true'){
+        c.classList.add('abierta');
+        estado.textContent='perdiste';
+        lost = true;
+        return;
+      }
+      openCell(i);
+    });
+    c.addEventListener('contextmenu', e=>{
+      e.preventDefault();
+      if(c.classList.contains('abierta')) return;
+      if(c.classList.contains('bandera')){
+        c.classList.remove('bandera');
+      }else{
+        c.classList.add('bandera');
+      }
+    });
+    grid.appendChild(c);
+    cells.push(c);
+  }
+
+  function countAdjacentMines(idx){
+    const r = Math.floor(idx/5);
+    const c = idx%5;
+    let cnt=0;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          const nIdx=nr*5+nc;
+          if(mineIndices.has(nIdx)) cnt++;
+        }
+      }
+    }
+    return cnt;
+  }
+
+  function getNeighbors(idx){
+    const r = Math.floor(idx/5);
+    const c = idx%5;
+    const neigh=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neigh.push(nr*5+nc);
+        }
+      }
+    }
+    return neigh;
+  }
+
+  function openCell(idx){
+    const cell = cells[idx];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    const cnt = countAdjacentMines(idx);
+    cell.dataset.count = cnt;
+    cell.classList.add('abierta');
+    if(cnt===0){
+      const queue=[idx];
+      const visited=new Set();
+      while(queue.length){
+        const cur=queue.shift();
+        if(visited.has(cur)) continue;
+        visited.add(cur);
+        const curCell=cells[cur];
+        const curCnt=parseInt(curCell.dataset.count,10);
+        if(curCnt===0){
+          const neigh=getNeighbors(cur);
+          neigh.forEach(n=>{
+            const nCell=cells[n];
+            if(!nCell.classList.contains('abierta') && !nCell.classList.contains('bandera')){
+              const nCnt=countAdjacentMines(n);
+              nCell.dataset.count=nCnt;
+              nCell.classList.add('abierta');
+              if(nCnt===0) queue.push(n);
+            }
+          });
+        }
+      }
+    }
+  }
+</script>
+</body>
+</html>

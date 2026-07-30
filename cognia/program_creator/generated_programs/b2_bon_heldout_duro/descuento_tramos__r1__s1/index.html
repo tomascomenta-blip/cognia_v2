@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora de Descuento por Tramos</title>
+<style>
+  :root {
+    --teal: #008080;
+    --gray: #f0f0f0;
+    --gold: #d4af37;
+    --bg: #ffffff;
+    --text: #333333;
+    --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  .container {
+    width: 90%;
+    max-width: 400px;
+    padding: 20px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+  }
+  label svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--teal);
+  }
+  input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 2px solid var(--teal);
+    border-radius: 4px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  .thresholds {
+    margin-top: 8px;
+    font-size: 0.9rem;
+    color: var(--gold);
+  }
+  #total-container {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    color: var(--teal);
+  }
+  #total {
+    font-size: 2.5rem;
+    font-weight: bold;
+    display: block;
+    margin-top: 8px;
+  }
+  @media (max-width: 480px) {
+    #total {
+      font-size: 2rem;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <label for="cant">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+      <line x1="3" y1="10" x2="21" y2="10"></line>
+      <line x1="8" y1="14" x2="16" y2="14"></line>
+    </svg>
+    Cantidad
+  </label>
+  <input id="cant" type="number" min="0" step="1" placeholder="0">
+  <div class="thresholds">10 | 50</div>
+  <div id="total-container">
+    Total:
+    <span id="total">0.00</span>
+  </div>
+</div>
+
+<script>
+  // Configurable constants
+  const UNIT_PRICE = 10;
+  const THRESHOLD_1 = 10;   // first 10 units no discount
+  const THRESHOLD_2 = 50;   // 11-50 units 10% discount
+  const DISCOUNT_1 = 0;     // 0% for first 10
+  const DISCOUNT_2 = 0.10;  // 10% for 11-50
+  const DISCOUNT_3 = 0.20;  // 20% for 51+
+
+  function calculateTotal() {
+    const qtyInput = document.getElementById('cant');
+    const totalSpan = document.getElementById('total');
+    let qty = parseInt(qtyInput.value, 10);
+    if (isNaN(qty) || qty < 0) qty = 0;
+
+    let total = 0;
+
+    // First segment
+    const firstQty = Math.min(qty, THRESHOLD_1);
+    total += firstQty * UNIT_PRICE * (1 - DISCOUNT_1);
+
+    // Second segment
+    if (qty > THRESHOLD_1) {
+      const secondQty = Math.min(qty - THRESHOLD_1, THRESHOLD_2 - THRESHOLD_1);
+      total += secondQty * UNIT_PRICE * (1 - DISCOUNT_2);
+    }
+
+    // Third segment
+    if (qty > THRESHOLD_2) {
+      const thirdQty = qty - THRESHOLD_2;
+      total += thirdQty * UNIT_PRICE * (1 - DISCOUNT_3);
+    }
+
+    // Format with two decimals and thousands separator
+    const formatted = total.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+    totalSpan.textContent = formatted;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const qtyInput = document.getElementById('cant');
+    qtyInput.addEventListener('input', calculateTotal);
+    calculateTotal(); // initial render
+  });
+</script>
+</body>
+</html>

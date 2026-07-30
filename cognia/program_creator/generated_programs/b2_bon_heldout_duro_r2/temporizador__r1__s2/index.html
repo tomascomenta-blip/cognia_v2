@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Cronómetro Minimalista</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    background:#222;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    text-align:center;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+  }
+  #t{
+    font-size:5rem;
+    font-weight:bold;
+    text-shadow:0 0 10px #fff;
+    margin-bottom:1rem;
+  }
+  .buttons{
+    display:flex;
+    gap:1rem;
+  }
+  button{
+    padding:0.75rem 1.5rem;
+    font-size:1rem;
+    border:none;
+    border-radius:0.5rem;
+    box-shadow:0 4px 6px rgba(0,0,0,0.3);
+    cursor:pointer;
+    color:#fff;
+  }
+  #start{background:#28a745;}
+  #pause{background:#ffc107;color:#000;}
+  #reset{background:#dc3545;}
+  button:focus{outline:none;}
+  @media(max-width:480px){
+    #t{font-size:3rem;}
+    button{font-size:0.9rem;padding:0.6rem 1.2rem;}
+  }
+</style>
+</head>
+<body>
+  <span id="t">0</span>
+  <div class="buttons">
+    <button id="start">Start</button>
+    <button id="pause">Pause</button>
+    <button id="reset">Reset</button>
+  </div>
+<script>
+  let counter = 0;
+  let interval = null;
+  const display = document.getElementById('t');
+  const startBtn = document.getElementById('start');
+  const pauseBtn = document.getElementById('pause');
+  const resetBtn = document.getElementById('reset');
+
+  function updateDisplay(){
+    display.textContent = counter;
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (!interval) {
+      interval = setInterval(() => {
+        counter++;
+        updateDisplay();
+      }, 1000);
+    }
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+    }
+    counter = 0;
+    updateDisplay();
+  });
+
+  // Initial display
+  updateDisplay();
+</script>
+</body>
+</html>

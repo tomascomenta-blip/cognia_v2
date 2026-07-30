@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f4f7;color:#333;}
+  .container{display:flex;flex-wrap:wrap;gap:20px;padding:20px;}
+  .products{display:flex;flex-wrap:wrap;gap:10px;flex:1;}
+  .prod{background:#fff;border:1px solid #d0d7de;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.05);padding:10px;width:150px;display:flex;flex-direction:column;align-items:center;}
+  .prod .image{width:100%;height:100px;background:#c0d8d8;border-radius:4px;margin-bottom:8px;}
+  .prod .name{font-weight:bold;margin-bottom:4px;text-align:center;}
+  .prod .price{color:#333;margin-bottom:4px;}
+  .prod .stock{font-size:.9em;color:#555;margin-bottom:8px;}
+  .prod .add{background:#008080;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;}
+  .prod .add:disabled{background:#a0a0a0;cursor:not-allowed;}
+  .cart{background:#fff;border:1px solid #d0d7de;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.05);flex:1;padding:10px;min-width:200px;}
+  .cart h2{margin-top:0;}
+  .linea{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #e0e0e0;}
+  .linea .cant{font-weight:bold;}
+  .linea .quitar{background:#d9534f;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;}
+  .cart-total{margin-top:10px;font-weight:bold;font-size:1.2em;text-align:right;}
+  #total{color:#008080;}
+  @media(max-width:600px){
+    .container{flex-direction:column;}
+    .products{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <div class="image"></div>
+      <div class="name">Producto 1</div>
+      <div class="price">Precio: 100 €</div>
+      <div class="stock">Stock: 2</div>
+      <button class="add" data-id="p1">Agregar</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <div class="image"></div>
+      <div class="name">Producto 2</div>
+      <div class="price">Precio: 50 €</div>
+      <div class="stock">Stock: 3</div>
+      <button class="add" data-id="p2">Agregar</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <div class="image"></div>
+      <div class="name">Producto 3</div>
+      <div class="price">Precio: 25 €</div>
+      <div class="stock">Stock: 1</div>
+      <button class="add" data-id="p3">Agregar</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <div class="cart-total">Total: <span id="total">0 €</span></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cart = {}; // {id: quantity}
+  const prices = {}; // {id: price}
+  const stocks = {}; // {id: stock}
+  const addButtons = document.querySelectorAll('.add');
+  const cartLines = document.getElementById('cart-lines');
+  const totalSpan = document.getElementById('total');
+
+  // Initialize data
+  addButtons.forEach(btn=>{
+    const id = btn.dataset.id;
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    prices[id] = parseFloat(prod.dataset.precio);
+    stocks[id] = parseInt(prod.dataset.stock,10);
+    btn.addEventListener('click', ()=>addToCart(id));
+  });
+
+  function addToCart(id){
+    const current = cart[id] || 0;
+    if(current < stocks[id]){
+      cart[id] = current + 1;
+      updateLine(id);
+      updateAddButton(id);
+      updateTotal();
+    }
+  }
+
+  function removeFromCart(id){
+    if(cart[id]){
+      cart[id] -= 1;
+      if(cart[id] <= 0){
+        delete cart[id];
+        removeLine(id);
+      } else {
+        updateLine(id);
+      }
+      updateAddButton(id);
+      updateTotal();
+    }
+  }
+
+  function updateAddButton(id){
+    const btn = document.querySelector(`.add[data-id="${id}"]`);
+    if(cart[id] >= stocks[id]){
+      btn.disabled = true;
+    } else {
+      btn.disabled = false;
+    }
+  }
+
+  function updateLine(id){
+    let line = document.querySelector(`.linea[data-id="${id}"]`);
+    if(!line){
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = document.querySelector(`.prod[data-id="${id}"] .name`).textContent;
+      const cantSpan = document.createElement('span');
+      cantSpan.className = 'cant';
+      const quitarBtn = document.createElement('button');
+      quitarBtn.className = 'quitar';
+      quitarBtn.dataset.id = id;
+      quitarBtn.textContent = 'Quitar';
+      quitarBtn.addEventListener('click', ()=>removeFromCart(id));
+      line.appendChild(nameSpan);
+      line.appendChild(cantSpan);
+      line.appendChild(quitarBtn);
+      cartLines.appendChild(line);
+    }
+    line.querySelector('.cant').textContent = cart[id];
+  }
+
+  function removeLine(id){
+    const line = document.querySelector(`.linea[data-id="${id}"]`);
+    if(line) line.remove();
+  }
+
+  function updateTotal(){
+    let sum = 0;
+    for(const id in cart){
+      sum += cart[id] * prices[id];
+    }
+    totalSpan.textContent = sum.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+});
+</script>
+</body>
+</html>

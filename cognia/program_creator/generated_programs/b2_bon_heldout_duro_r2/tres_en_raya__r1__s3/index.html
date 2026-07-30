@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tres en Raya</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Configurable constants */
+:root {
+  --accent: #008080;          /* Teal accent color */
+  --cell-bg: #f0f0f0;         /* Light gray cell background */
+  --cell-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle drop‑shadow */
+  --state-color: #333;        /* Dark font for state text */
+  --grid-gap: 5px;            /* Gap between cells */
+  --max-size: 300px;          /* Max width/height of the grid */
+}
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #fafafa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--grid-gap);
+  width: 90vw;
+  max-width: var(--max-size);
+  aspect-ratio: 1/1; /* Keeps the grid square */
+}
+.c {
+  background: var(--cell-bg);
+  box-shadow: var(--cell-shadow);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--accent);
+  cursor: pointer;
+  user-select: none;
+}
+.c.blocked {
+  pointer-events: none; /* Disable clicks after game over */
+}
+#estado {
+  margin-top: 10px;
+  font-weight: bold;
+  color: var(--state-color);
+  font-size: 1.2rem;
+}
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="grid">
+    <div class="c" data-i="0"></div>
+    <div class="c" data-i="1"></div>
+    <div class="c" data-i="2"></div>
+    <div class="c" data-i="3"></div>
+    <div class="c" data-i="4"></div>
+    <div class="c" data-i="5"></div>
+    <div class="c" data-i="6"></div>
+    <div class="c" data-i="7"></div>
+    <div class="c" data-i="8"></div>
+  </div>
+  <div id="estado">X</div>
+</div>
+<script>
+const WIN_COMBINATIONS = [
+  [0,1,2],[3,4,5],[6,7,8], // filas
+  [0,3,6],[1,4,7],[2,5,8], // columnas
+  [0,4,8],[2,4,6]          // diagonales
+];
+const CELLS = document.querySelectorAll('.c');
+const ESTADO = document.getElementById('estado');
+let currentPlayer = 'X';
+let gameOver = false;
+
+function checkWin() {
+  const board = Array.from(CELLS).map(c => c.textContent);
+  return WIN_COMBINATIONS.some(combo => {
+    const [a,b,c] = combo;
+    return board[a] && board[a] === board[b] && board[a] === board[c];
+  });
+}
+
+function checkTie() {
+  return Array.from(CELLS).every(c => c.textContent);
+}
+
+function handleClick(e) {
+  if (gameOver) return;
+  const cell = e.currentTarget;
+  if (cell.textContent) return; // already occupied
+  cell.textContent = currentPlayer;
+  if (checkWin()) {
+    ESTADO.textContent = 'gana';
+    gameOver = true;
+    CELLS.forEach(c => c.classList.add('blocked'));
+  } else if (checkTie()) {
+    ESTADO.textContent = 'empate';
+    gameOver = true;
+    CELLS.forEach(c => c.classList.add('blocked'));
+  } else {
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    ESTADO.textContent = currentPlayer;
+  }
+}
+
+CELLS.forEach(c => c.addEventListener('click', handleClick));
+</script>
+</body>
+</html>

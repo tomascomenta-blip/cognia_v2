@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un cronómetro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --accent: #008080;
+    --background: #f5f5f5;
+    --text: #333;
+    --button-start: #00b3b3;
+    --button-end: #008080;
+    --button-hover-start: #00d4d4;
+    --button-hover-end: #009999;
+  }
+  body {
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:var(--background);
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    height:100vh;
+    overflow:hidden;
+  }
+  #timer-container {
+    width:100%;
+    height:33vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #t {
+    font-size:10vw;
+    font-weight:bold;
+    color:var(--accent);
+  }
+  #buttons {
+    display:flex;
+    gap:1rem;
+    margin-top:2rem;
+  }
+  button {
+    background:linear-gradient(to bottom, var(--button-start), var(--button-end));
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:0.8rem 1.5rem;
+    font-size:1rem;
+    cursor:pointer;
+    transition:background 0.3s;
+  }
+  button:hover {
+    background:linear-gradient(to bottom, var(--button-hover-start), var(--button-hover-end));
+  }
+  @media (max-width: 600px) {
+    #t { font-size:12vw; }
+    button { padding:0.6rem 1.2rem; font-size:0.9rem; }
+  }
+</style>
+</head>
+<body>
+  <div id="timer-container">
+    <span id="t">0</span>
+  </div>
+  <div id="buttons">
+    <button id="start">Start</button>
+    <button id="pause">Pause</button>
+    <button id="reset">Reset</button>
+  </div>
+
+<script>
+  // Configurable constants
+  const ACCENT_COLOR = '#008080';
+  const BACKGROUND_COLOR = '#f5f5f5';
+  const TEXT_COLOR = '#333';
+  const BUTTON_START = '#00b3b3';
+  const BUTTON_END = '#008080';
+  const BUTTON_HOVER_START = '#00d4d4';
+  const BUTTON_HOVER_END = '#009999';
+
+  // Apply constants to CSS variables
+  document.documentElement.style.setProperty('--accent', ACCENT_COLOR);
+  document.documentElement.style.setProperty('--background', BACKGROUND_COLOR);
+  document.documentElement.style.setProperty('--text', TEXT_COLOR);
+  document.documentElement.style.setProperty('--button-start', BUTTON_START);
+  document.documentElement.style.setProperty('--button-end', BUTTON_END);
+  document.documentElement.style.setProperty('--button-hover-start', BUTTON_HOVER_START);
+  document.documentElement.style.setProperty('--button-hover-end', BUTTON_HOVER_END);
+
+  // Timer logic
+  let counter = 0;
+  let intervalId = null;
+  const t = document.getElementById('t');
+  const startBtn = document.getElementById('start');
+  const pauseBtn = document.getElementById('pause');
+  const resetBtn = document.getElementById('reset');
+
+  function updateDisplay() {
+    t.textContent = counter;
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (intervalId === null) {
+      intervalId = setInterval(() => {
+        counter++;
+        updateDisplay();
+      }, 1000);
+    }
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+    counter = 0;
+    updateDisplay();
+  });
+
+  // Initial display
+  updateDisplay();
+</script>
+</body>
+</html>

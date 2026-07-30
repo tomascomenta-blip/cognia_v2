@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calculadora Precedencia</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;background:#222;color:#eee;}
+  #container{display:flex;flex-direction:column;height:100%;align-items:center;justify-content:center;}
+  #pantalla{background:#0ff;color:#222;font-size:2.5rem;text-align:right;padding:10px 20px;width:100%;max-width:400px;border-radius:8px;margin-bottom:20px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:400px;width:100%;}
+  .k{display:flex;align-items:center;justify-content:center;height:80px;border-radius:10px;font-size:1.8rem;cursor:pointer;user-select:none;}
+  .k.number{background:#ddd;color:#222;}
+  .k.operator{background:#00f;color:#fff;}
+  .k.clear{background:#ff6600;color:#fff;font-weight:bold;font-size:2rem;}
+  @media(max-width:500px){
+    .k{height:60px;font-size:1.5rem;}
+    #pantalla{font-size:2rem;}
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="pantalla"></div>
+  <div class="grid">
+    <div class="k number" data-k="2">2</div>
+    <div class="k number" data-k="3">3</div>
+    <div class="k number" data-k="4">4</div>
+    <div class="k number" data-k="7">7</div>
+    <div class="k operator" data-k="+">+</div>
+    <div class="k operator" data-k="-">-</div>
+    <div class="k operator" data-k="*">×</div>
+    <div class="k operator" data-k="=">=</div>
+    <div class="k"></div>
+    <div class="k"></div>
+    <div class="k"></div>
+    <div class="k"></div>
+    <div class="k"></div>
+    <div class="k"></div>
+    <div class="k"></div>
+    <div class="k clear" data-k="C">C</div>
+  </div>
+</div>
+<script>
+(function(){
+  const pantalla = document.getElementById('pantalla');
+  let expr = '';
+  function updateDisplay() {
+    pantalla.textContent = expr || '0';
+  }
+  function safeEval(expression) {
+    // Only allow digits and operators + - * (no division)
+    if (!/^[0-9+\-*]+$/.test(expression)) return 'Error';
+    try {
+      // Evaluate respecting precedence
+      return eval(expression).toString();
+    } catch (e) {
+      return 'Error';
+    }
+  }
+  document.querySelectorAll('.k[data-k]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const val = btn.getAttribute('data-k');
+      if(val==='C'){
+        expr='';
+        updateDisplay();
+      }else if(val==='='){
+        const result = safeEval(expr);
+        expr = result;
+        updateDisplay();
+      }else{
+        expr += val;
+        updateDisplay();
+      }
+    });
+  });
+  updateDisplay();
+})();
+</script>
+</body>
+</html>

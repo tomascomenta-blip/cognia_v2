@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#2b2b2b;
+    color:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .card{
+    background:#1e1e1e;
+    border-radius:8px;
+    padding:20px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.5);
+    max-width:400px;
+    width:100%;
+  }
+  .table{
+    display:grid;
+    grid-template-columns:50px repeat(3,1fr);
+    grid-auto-rows:40px;
+    gap:2px;
+  }
+  .header{
+    background:linear-gradient(#3a3a3a,#1e1e1e);
+    font-size:0.9rem;
+    text-align:center;
+    line-height:40px;
+  }
+  .rowlabel{
+    background:linear-gradient(#3a3a3a,#1e1e1e);
+    font-size:0.9rem;
+    text-align:center;
+    line-height:40px;
+  }
+  .celda{
+    border:none;
+    border-radius:4px;
+    background:#fff;
+    color:#000;
+    font-size:1rem;
+    text-align:right;
+    padding-right:5px;
+    outline:none;
+    transition:box-shadow 0.2s;
+  }
+  .celda:focus{
+    box-shadow:0 0 4px #00ffff;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="table">
+    <div class="header"></div>
+    <div class="header">A</div><div class="header">B</div><div class="header">C</div>
+
+    <div class="rowlabel">1</div>
+    <input class="celda" data-ref="A1" value="5" data-value="5">
+    <input class="celda" data-ref="B1" value="10" data-value="10">
+    <input class="celda" data-ref="C1" data-formula="=A1+B1">
+
+    <div class="rowlabel">2</div>
+    <input class="celda" data-ref="A2" data-formula="=A1+B1">
+    <input class="celda" data-ref="B2" data-formula="=A2+5">
+    <input class="celda" data-ref="C2" data-formula="=B2-A1">
+
+    <div class="rowlabel">3</div>
+    <input class="celda" data-ref="A3" data-formula="=C2+1">
+    <input class="celda" data-ref="B3" data-formula="=A3+B1">
+    <input class="celda" data-ref="C3" data-formula="=B3-A2">
+  </div>
+</div>
+<script>
+  // Formatea números con separador de miles y 2 decimales
+  function formatNumber(num){
+    if(typeof num !== 'number' || isNaN(num)) return num;
+    return num.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+
+  // Evalúa una celda recursivamente, detectando ciclos
+  function evaluateCell(cell, visited){
+    if(visited.has(cell)) return 'CIRC';
+    visited.add(cell);
+    const formula = cell.dataset.formula;
+    if(!formula){
+      const val = cell.dataset.value;
+      const num = Number(val);
+      return isNaN(num)?0:num;
+    }
+    let expr = formula.slice(1); // quitar '='
+    expr = expr.replace(/[A-C][1-3]/g, ref=>{
+      const refCell = document.querySelector(`[data-ref="${ref}"]`);
+      if(!refCell) return '0';
+      const val = evaluateCell(refCell, visited);
+      if(val==='CIRC') return 'CIRC';
+      return val;
+    });
+    if(expr.includes('CIRC')) return 'CIRC';
+    try{
+      const result = eval(expr);
+      return result;
+    }catch(e){
+      return 'CIRC';
+    }
+  }
+
+  // Recalcula todas las celdas con fórmulas y actualiza valores mostrados
+  function recomputeAll(){
+    const cells = document.querySelectorAll('.celda');
+    cells.forEach(cell=>{
+      if(cell.dataset.formula){
+        const val = evaluateCell(cell, new Set());
+        if(val==='CIRC'){
+          cell.dataset.value='CIRC';
+          cell.value='CIRC';
+        }else{
+          cell.dataset.value=val;
+          cell.value=formatNumber(val);
+        }
+      }else{
+        const val = cell.dataset.value;
+        const num = Number(val);
+        cell.value=formatNumber(num);
+      }
+    });
+  }
+
+  // Maneja cambios de usuario
+  function onInput(e){
+    const cell=e.target;
+    const val=cell.value.trim();
+    if(val.startsWith('=')){
+      cell.dataset.formula=val;
+      cell.dataset.value='';
+    }else{
+      cell.dataset.formula='';
+      cell.dataset.value=val;
+    }
+    recomputeAll();
+  }
+
+  // Inicializa listeners y calcula valores iniciales
+  document.querySelectorAll('.celda').forEach(cell=>cell.addEventListener('input',onInput));
+  recomputeAll();
+</script>
+</body>
+</html>

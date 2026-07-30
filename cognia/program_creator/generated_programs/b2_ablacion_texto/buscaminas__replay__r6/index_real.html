@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#e0e0e0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #title{
+    margin-top:20px;
+    font-size:2rem;
+    font-weight:normal;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,80px);
+    grid-template-rows:repeat(5,80px);
+    gap:2px;
+    margin-top:20px;
+  }
+  .c{
+    width:80px;
+    height:80px;
+    background:linear-gradient(#f0f0f0,#d0d0d0);
+    border:1px solid #888;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#add8e6;
+    cursor:default;
+    font-weight:bold;
+  }
+  .c.bandera{
+    background:#f0f0f0;
+  }
+  .c.bandera::after{
+    content:"🚩";
+    font-size:1.5rem;
+  }
+  .c.mine::after{
+    content:"✖";
+    color:red;
+    font-size:1.5rem;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    color:red;
+  }
+  #reset{
+    margin-top:10px;
+    padding:5px 10px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="title">Minesweeper</div>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<button id="reset">Reset</button>
+
+<script>
+const GRID_SIZE = 5;
+const MINES = [6,12,18];
+const cells = document.querySelectorAll('.c');
+const cellCount = GRID_SIZE * GRID_SIZE;
+const adjacentMines = new Array(cellCount).fill(0);
+const opened = new Set();
+const flagged = new Set();
+const estado = document.getElementById('estado');
+const resetBtn = document.getElementById('reset');
+
+function computeAdjacentMines() {
+  for (let i=0;i<cellCount;i++) {
+    if (MINES.includes(i)) { adjacentMines[i] = -1; continue; }
+    let count=0;
+    const neighbors = getNeighbors(i);
+    for (const n of neighbors) if (MINES.includes(n)) count++;
+    adjacentMines[i] = count;
+  }
+}
+
+function getNeighbors(i) {
+  const r = Math.floor(i/GRID_SIZE);
+  const c = i%GRID_SIZE;
+  const neighbors=[];
+  for (let dr=-1;dr<=1;dr++) {
+    for (let dc=-1;dc<=1;dc++) {
+      if (dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if (nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE) {
+        neighbors.push(nr*GRID_SIZE+nc);
+      }
+    }
+  }
+  return neighbors;
+}
+
+function openCell(i) {
+  if (opened.has(i) || flagged.has(i)) return;
+  opened.add(i);
+  const cell = cells[i];
+  cell.classList.add('abierta');
+  if (MINES.includes(i)) {
+    cell.classList.add('mine');
+    estado.textContent='perdiste';
+    return;
+  }
+  const count = adjacentMines[i];
+  if (count>0) { cell.textContent = count; }
+  else { cell.textContent=''; openNeighborsCascade(i); }
+}
+
+function openNeighborsCascade(start) {
+  const queue=[start];
+  const visited=new Set();
+  while(queue.length){
+    const idx=queue.shift();
+    if(visited.has(idx)) continue;
+    visited.add(idx);
+    const neighbors=getNeighbors(idx);
+    for(const n of neighbors){
+      if(opened.has(n) || flagged.has(n) || MINES.includes(n)) continue;
+      opened.add(n);
+      const cell=cells[n];
+      cell.classList.add('abierta');
+      const cnt=adjacentMines[n];
+      if(cnt>0){ cell.textContent=cnt; }
+      else { cell.textContent=''; queue.push(n); }
+    }
+  }
+}
+
+function toggleFlag(i) {
+  if (opened.has(i)) return;
+  const cell=cells[i];
+  if(flagged.has(i)){
+    flagged.delete(i);
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  } else {
+    flagged.add(i);
+    cell.classList.add('bandera');
+    cell.textContent='';
+  }
+}
+
+function resetGame(){
+  opened.clear();
+  flagged.clear();
+  estado.textContent='';
+  cells.forEach(cell=>{
+    cell.classList.remove('abierta','bandera','mine');
+    cell.textContent='';
+  });
+}
+
+cells.forEach(cell=>{
+  const i=parseInt(cell.dataset.i);
+  cell.addEventListener('click',()=>{ openCell(i); });
+  cell.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    toggleFlag(i);
+  });
+});
+
+resetBtn.addEventListener('click',resetGame);
+
+computeAdjacentMines();
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cronómetro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{margin:0;font-family:Arial,sans-serif;background:#f0f0f0;}
+  .container{max-width:400px;margin:0 auto;padding:2rem;text-align:center;}
+  #t{font-size:4rem;font-weight:bold;color:#333;}
+  button{margin:0.5rem;padding:0.75rem 1.5rem;font-size:1rem;border:none;border-radius:5px;color:#fff;background:#008080;box-shadow:0 2px 4px rgba(0,0,0,0.2);cursor:pointer;}
+  #start{background:#006666;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="t">0</div>
+  <div>
+    <button id="start">Start</button>
+    <button id="pause">Pause</button>
+    <button id="reset">Reset</button>
+  </div>
+</div>
+<script>
+  let sec=0, timer=null;
+  const display=document.getElementById('t');
+  document.getElementById('start').onclick=function(){
+    if(timer===null){
+      timer=setInterval(()=>{sec++;display.textContent=sec;},1000);
+    }
+  };
+  document.getElementById('pause').onclick=function(){
+    if(timer!==null){clearInterval(timer);timer=null;}
+  };
+  document.getElementById('reset').onclick=function(){
+    if(timer!==null){clearInterval(timer);timer=null;}
+    sec=0;display.textContent=sec;
+  };
+</script>
+</body>
+</html>

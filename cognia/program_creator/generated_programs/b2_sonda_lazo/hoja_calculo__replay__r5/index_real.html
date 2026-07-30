@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#e0e0e0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    flex-direction:column;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    width:300px;
+    padding:20px;
+    background:#f9f9f9;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+  }
+  .celda{
+    width:100%;
+    box-sizing:border-box;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.1);
+    font-size:14px;
+    text-align:right;
+    background:#fff;
+    color:#333;
+    transition:all .2s;
+  }
+  .celda:focus{
+    outline:1px solid teal;
+    outline-offset:-1px;
+  }
+  .celda.formula{
+    font-weight:bold;
+    color:#222;
+  }
+  #recalc{
+    margin-top:12px;
+    padding:8px 16px;
+    background:#4caf50;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:14px;
+  }
+  #recalc:hover{background:#45a049;}
+</style>
+</head>
+<body>
+<div id="grid">
+  <input type="text" class="celda" data-ref="A1" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="B1" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="C1" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="A2" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="B2" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="C2" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="A3" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="B3" data-raw="" data-formula="">
+  <input type="text" class="celda" data-ref="C3" data-raw="" data-formula="">
+</div>
+<button id="recalc">Recalcular</button>
+<script>
+const cells = {};
+document.querySelectorAll('.celda').forEach(el=>{
+  cells[el.dataset.ref] = el;
+  el.addEventListener('input',()=>{handleInput(el);});
+});
+document.getElementById('recalc').addEventListener('click',recomputeAll);
+
+function handleInput(el){
+  const val = el.value.trim();
+  if(val.startsWith('=')){
+    el.dataset.formula = val;
+    el.dataset.raw = '';
+  }else{
+    el.dataset.formula = '';
+    el.dataset.raw = val;
+  }
+  recomputeAll();
+}
+
+function recomputeAll(){
+  Object.keys(cells).forEach(ref=>{evaluateCell(ref,[]);});
+}
+
+function evaluateCell(ref, stack){
+  const el = cells[ref];
+  const formula = el.dataset.formula;
+  if(!formula || !formula.startsWith('=')){
+    el.value = el.dataset.raw;
+    el.classList.remove('formula','circular');
+    return {value:el.dataset.raw, circular:false};
+  }
+  if(stack.includes(ref)){
+    el.value = 'CIRC';
+    el.classList.add('circular');
+    el.classList.remove('formula');
+    return {value:'CIRC', circular:true};
+  }
+  const expr = formula.slice(1);
+  const refs = expr.match(/[A-C][1-3]/g) || [];
+  let evalExpr = expr;
+  for(const r of refs){
+    const res = evaluateCell(r, stack.concat(ref));
+    if(res.circular){
+      el.value = 'CIRC';
+      el.classList.add('circular');
+      el.classList.remove('formula');
+      return {value:'CIRC', circular:true};
+    }
+    const num = parseFloat(res.value);
+    const val = isNaN(num)?0:num;
+    evalExpr = evalExpr.replaceAll(r, val);
+  }
+  try{
+    const result = eval(evalExpr);
+    const formatted = Number.isFinite(result)
+      ? result.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})
+      : 'CIRC';
+    el.value = formatted;
+    el.classList.add('formula');
+    el.classList.remove('circular');
+    return {value:formatted, circular:false};
+  }catch(e){
+    el.value = 'CIRC';
+    el.classList.add('circular');
+    el.classList.remove('formula');
+    return {value:'CIRC', circular:true};
+  }
+}
+recomputeAll();
+</script>
+</body>
+</html>

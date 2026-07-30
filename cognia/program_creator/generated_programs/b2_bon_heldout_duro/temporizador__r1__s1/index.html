@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Cronómetro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{margin:0;font-family:monospace;background:#f0f4f8;color:#333;text-align:center;}
+  #t{font-size:4rem;display:block;margin:2rem 0;}
+  .buttons{display:flex;justify-content:center;gap:1rem;}
+  .buttons button{
+    background:#008080;color:#fff;border:none;padding:.8rem 1.5rem;
+    border-radius:.3rem;box-shadow:0 2px 4px rgba(0,0,0,.2);font-size:1rem;
+    cursor:pointer;transition:background .2s;
+  }
+  .buttons button:hover{background:#006666;}
+</style>
+</head>
+<body>
+<span id="t">0</span>
+<div class="buttons">
+  <button id="start">Start</button>
+  <button id="pause">Pause</button>
+  <button id="reset">Reset</button>
+</div>
+<script>
+let counter=0, interval=null;
+const t=document.getElementById('t');
+function update(){counter++;t.textContent=counter;}
+document.getElementById('start').onclick=function(){
+  if(!interval){interval=setInterval(update,1000);}
+};
+document.getElementById('pause').onclick=function(){
+  if(interval){clearInterval(interval);interval=null;}
+};
+document.getElementById('reset').onclick=function(){
+  if(interval){clearInterval(interval);interval=null;}
+  counter=0;t.textContent=counter;
+};
+</script>
+</body>
+</html>

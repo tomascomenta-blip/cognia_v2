@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tic Tac Toe</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fafafa;color:#333;}
+  #wrapper{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
+  #turno{font-size:2rem;font-weight:bold;margin-bottom:10px;}
+  #game{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:90vw;max-width:400px;}
+  .c{background:#fff;border:1px solid #333;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:3rem;cursor:pointer;transition:border-color .3s;}
+  .c.win{border-color:red;}
+  #estado{margin-top:10px;font-size:1.2rem;color:#333;}
+  #estado.gana{color:red;}
+  #estado.empate{color:#555;}
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <div id="turno">X</div>
+  <div id="game">
+    <div class="c" data-i="0"></div>
+    <div class="c" data-i="1"></div>
+    <div class="c" data-i="2"></div>
+    <div class="c" data-i="3"></div>
+    <div class="c" data-i="4"></div>
+    <div class="c" data-i="5"></div>
+    <div class="c" data-i="6"></div>
+    <div class="c" data-i="7"></div>
+    <div class="c" data-i="8"></div>
+  </div>
+  <div id="estado"></div>
+</div>
+
+<script>
+(function(){
+  const cells=document.querySelectorAll('.c');
+  const turno=document.getElementById('turno');
+  const estado=document.getElementById('estado');
+  const board=Array(9).fill(null);
+  let current='X';
+  let gameOver=false;
+
+  const winCombos=[
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  function checkWin(){
+    for(const combo of winCombos){
+      const [a,b,c]=combo;
+      if(board[a] && board[a]===board[b] && board[a]===board[c]){
+        return combo;
+      }
+    }
+    return null;
+  }
+
+  function updateTurn(){
+    turno.textContent=current;
+  }
+
+  function endGame(msg){
+    gameOver=true;
+    estado.textContent=msg;
+    if(msg==='gana'){
+      estado.classList.add('gana');
+    }else if(msg==='empate'){
+      estado.classList.add('empate');
+    }
+  }
+
+  cells.forEach(cell=>{
+    cell.addEventListener('click',()=>{
+      if(gameOver) return;
+      const i=+cell.dataset.i;
+      if(board[i]) return;
+      board[i]=current;
+      cell.textContent=current;
+      const win=checkWin();
+      if(win){
+        win.forEach(idx=>cells[idx].classList.add('win'));
+        endGame('gana');
+      }else if(board.every(v=>v)){
+        endGame('empate');
+      }else{
+        current=current==='X'?'O':'X';
+        updateTurn();
+      }
+    });
+  });
+
+  // initial state
+  updateTurn();
+})();
+</script>
+</body>
+</html>

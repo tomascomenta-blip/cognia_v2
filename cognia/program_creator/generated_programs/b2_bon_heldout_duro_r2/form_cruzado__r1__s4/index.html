@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formulario Validación Cruzada</title>
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f5;margin:0;font-family:Arial,sans-serif;}
+.form-container{background:#fff;padding:2rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);width:90%;max-width:400px;text-align:center;}
+label{display:block;margin-bottom:0.5rem;color:#666;font-size:0.9rem;text-align:left;}
+input{width:100%;padding:0.75rem;margin-bottom:1rem;border:1px solid #ccc;border-radius:4px;font-size:1rem;}
+button{width:100%;padding:1rem;font-size:1rem;border:none;border-radius:4px;background:#ccc;color:#666;cursor:not-allowed;transition:background 0.3s,box-shadow 0.3s;}
+button.enabled{background:linear-gradient(to bottom,#00b3b3,#008080);color:#fff;cursor:pointer;box-shadow:0 0 10px rgba(0,179,179,0.5);}
+</style>
+</head>
+<body>
+<div class="form-container">
+<label for="pass">Contraseña</label>
+<input id="pass" type="password">
+<label for="pass2">Repetir Contraseña</label>
+<input id="pass2" type="password">
+<label for="edad">Edad</label>
+<input id="edad" type="number">
+<button id="enviar" disabled>Enviar</button>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const pass = document.getElementById('pass');
+  const pass2 = document.getElementById('pass2');
+  const edad = document.getElementById('edad');
+  const enviar = document.getElementById('enviar');
+  function validate() {
+    const passVal = pass.value;
+    const pass2Val = pass2.value;
+    const edadVal = parseInt(edad.value, 10);
+    const isPassLength = passVal.length >= 8;
+    const isPassMatch = passVal === pass2Val;
+    const isEdadValid = !isNaN(edadVal) && edadVal >= 18 && edadVal <= 120;
+    if (isPassLength && isPassMatch && isEdadValid) {
+      enviar.disabled = false;
+      enviar.classList.add('enabled');
+    } else {
+      enviar.disabled = true;
+      enviar.classList.remove('enabled');
+    }
+  }
+  pass.addEventListener('input', validate);
+  pass2.addEventListener('input', validate);
+  edad.addEventListener('input', validate);
+});
+</script>
+</body>
+</html>

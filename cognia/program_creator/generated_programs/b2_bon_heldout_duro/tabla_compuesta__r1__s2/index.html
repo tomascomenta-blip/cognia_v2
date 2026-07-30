@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tabla con filtro, orden y paginación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f4f7;color:#333;display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+.container{width:90%;max-width:800px;margin-top:20px;}
+.top-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;}
+.top-bar input[type="text"]{flex:1;padding:8px;border:1px solid #c0c0c0;border-radius:4px;background:#fff;}
+.top-bar button{padding:8px 12px;border:none;border-radius:4px;background:#4a90e2;color:#fff;cursor:pointer;}
+.top-bar button:disabled{background:#a0a0a0;cursor:default;}
+.top-bar button:hover:not(:disabled){background:#357ab8;}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #c0c0c0;}
+th,td{padding:8px;text-align:left;border-bottom:1px solid #e0e0e0;}
+th{background:#e0e8ed;font-weight:normal;color:#555;}
+tr.fila:hover{background:#d0d8dd;}
+.pagination{display:flex;align-items:center;gap:5px;margin-top:10px;}
+@media(max-width:480px){.top-bar{flex-direction:column;align-items:stretch;} .top-bar input[type="text"],.top-bar button{width:100%;}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="top-bar">
+<input id="q" type="text" placeholder="Buscar por nombre">
+<button id="ordenar">Ordena</button>
+<div class="pagination">
+<button id="prev">Prev</button>
+<span id="pagina">1</span>
+<button id="sig">Sig</button>
+</div>
+</div>
+<table>
+<thead>
+<tr><th>Nombre</th><th>Edad</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<script>
+class TableApp {
+constructor(){
+this.data=[
+{nombre:"Ana",edad:28},
+{nombre:"Luis",edad:34},
+{nombre:"María",edad:22},
+{nombre:"Carlos",edad:45},
+{nombre:"Elena",edad:31},
+{nombre:"Javier",edad:27},
+{nombre:"Sofía",edad:19},
+{nombre:"Pedro",edad:38},
+{nombre:"Lucía",edad:24},
+{nombre:"Miguel",edad:50},
+{nombre:"Isabel",edad:33},
+{nombre:"Fernando",edad:41},
+{nombre:"Patricia",edad:29},
+{nombre:"Antonio",edad:36},
+{nombre:"Laura",edad:23},
+{nombre:"David",edad:47},
+{nombre:"Marta",edad:30},
+{nombre:"Jorge",edad:55},
+{nombre:"Raquel",edad:26},
+{nombre:"Alberto",edad:39},
+{nombre:"Cristina",edad:21},
+{nombre:"Roberto",edad:44},
+{nombre:"Verónica",edad:32}
+];
+this.filteredData=[];
+this.currentPage=1;
+this.rowsPerPage=10;
+this.sortAscending=true;
+this.cacheElements();
+this.addEventListeners();
+this.applyFilter();
+this.renderTable();
+this.updatePaginationControls();
+}
+cacheElements(){
+this.$q=document.getElementById('q');
+this.$ordenar=document.getElementById('ordenar');
+this.$prev=document.getElementById('prev');
+this.$sig=document.getElementById('sig');
+this.$pagina=document.getElementById('pagina');
+this.$tbody=document.querySelector('tbody');
+}
+addEventListeners(){
+this.$q.addEventListener('input',()=>{this.currentPage=1;this.applyFilter();this.renderTable();this.updatePaginationControls();});
+this.$ordenar.addEventListener('click',()=>{this.sortAscending=!this.sortAscending;this.applySort();this.renderTable();this.updatePaginationControls();});
+this.$prev.addEventListener('click',()=>{if(this.currentPage>1){this.currentPage--;this.renderTable();this.updatePaginationControls();}});
+this.$sig.addEventListener('click',()=>{const maxPage=Math.ceil(this.filteredData.length/this.rowsPerPage);if(this.currentPage<maxPage){this.currentPage++;this.renderTable();this.updatePaginationControls();}});
+}
+applyFilter(){
+const query=this.$q.value.trim().toLowerCase();
+if(query===''){this.filteredData=[...this.data];}else{this.filteredData=this.data.filter(item=>item.nombre.toLowerCase().includes(query));}
+this.applySort();
+}
+applySort(){
+this.filteredData.sort((a,b)=>this.sortAscending?a.edad-b.edad:b.edad-a.edad);
+}
+renderTable(){
+const start=(this.currentPage-1)*this.rowsPerPage;
+const end=start+this.rowsPerPage;
+const pageData=this.filteredData.slice(start,end);
+this.$tbody.innerHTML='';
+for(const row of pageData){const tr=document.createElement('tr');tr.className='fila';tr.innerHTML=`<td>${row.nombre}</td><td>${row.edad}</td>`;this.$tbody.appendChild(tr);}
+this.$pagina.textContent=this.currentPage;
+}
+updatePaginationControls(){
+const maxPage=Math.ceil(this.filteredData.length/this.rowsPerPage)||1;
+this.$prev.disabled=this.currentPage<=1;
+this.$sig.disabled=this.currentPage>=maxPage;
+}
+}
+document.addEventListener('DOMContentLoaded',()=>{new TableApp();});
+</script>
+</body>
+</html>

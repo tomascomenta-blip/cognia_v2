@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;display:flex;flex-wrap:wrap}
+#products{flex:1;padding:10px}
+.prod{background:#fff;border:1px solid #ddd;border-radius:4px;margin-bottom:10px;padding:10px;transition:.2s}
+.prod:hover{background:#e9f5ff}
+.prod .price{color:#555}
+.add{background:#4a90e2;color:#fff;border:none;padding:5px 10px;border-radius:3px;cursor:pointer}
+.add:disabled{background:#aaa}
+#cart{position:fixed;right:0;top:0;width:280px;height:100%;background:#fff;border-left:1px solid #ddd;padding:10px;box-sizing:border-box;overflow-y:auto}
+#cart h2{margin-top:0}
+.linea{display:flex;align-items:center;margin-bottom:5px}
+.linea .cant{font-weight:700;margin:0 5px}
+.quitar{background:#e74c3c;color:#fff;border:none;padding:2px 6px;border-radius:3px;cursor:pointer}
+#total{font-weight:700;font-size:1.2em;margin-top:10px}
+@media(max-width:600px){body{flex-direction:column}#cart{position:static;width:100%;border-left:none;border-top:1px solid #ddd}}
+</style>
+</head>
+<body>
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <div>Producto 1</div>
+    <div class="price">100 €</div>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <div>Producto 2</div>
+    <div class="price">50 €</div>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <div>Producto 3</div>
+    <div class="price">25 €</div>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="lines"></div>
+  <div id="total">0 €</div>
+</div>
+<script>
+const cart={};
+function fmt(v){return v.toLocaleString('es-ES',{style:'currency',currency:'EUR'}).replace('€',' €')}
+function updateLine(id){
+  const prod=document.querySelector(`.prod[data-id="${id}"]`);
+  const stock=parseInt(prod.dataset.stock);
+  const qty=cart[id]||0;
+  const line=document.querySelector(`.linea[data-id="${id}"]`);
+  if(qty>0){
+    if(!line){const l=document.createElement('div');l.className='linea';l.dataset.id=id;
+      const c=document.createElement('span');c.className='cant';c.textContent=qty;
+      const b=document.createElement('button');b.className='quitar';b.dataset.id=id;b.textContent='-';
+      l.append(c,b);document.getElementById('lines').append(l);}
+    else{line.querySelector('.cant').textContent=qty;}
+    prod.querySelector('.add').disabled=qty>=stock;
+  }else{
+    if(line){line.remove();}
+    prod.querySelector('.add').disabled=false;
+  }
+}
+function updateTotal(){
+  let sum=0;
+  for(const id in cart){const prod=document.querySelector(`.prod[data-id="${id}"]`);
+    sum+=cart[id]*parseFloat(prod.dataset.precio);}
+  document.getElementById('total').textContent=fmt(sum);
+}
+document.querySelectorAll('.add').forEach(b=>{
+  b.addEventListener('click',e=>{
+    const id=b.dataset.id;
+    const prod=document.querySelector(`.prod[data-id="${id}"]`);
+    const stock=parseInt(prod.dataset.stock);
+    cart[id]=(cart[id]||0)+1;
+    if(cart[id]>stock)cart[id]=stock;
+    updateLine(id);updateTotal();
+  });
+});
+document.getElementById('lines').addEventListener('click',e=>{
+  if(e.target.classList.contains('quitar')){
+    const id=e.target.dataset.id;
+    cart[id]--;
+    if(cart[id]<=0)delete cart[id];
+    updateLine(id);updateTotal();
+  }
+});
+</script>
+</body>
+</html>

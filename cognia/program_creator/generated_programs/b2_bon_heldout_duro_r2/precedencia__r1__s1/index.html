@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calculadora con Precedencia</title>
+<style>
+  body{margin:0;font-family:Arial,sans-serif;background:#fff;}
+  .container{max-width:400px;margin:50px auto;padding:10px;display:flex;flex-direction:column;align-items:center;}
+  #pantalla{width:100%;background:#333;color:#0f0;font-size:2.5rem;padding:20px;border-radius:10px;text-align:right;box-shadow:0 0 10px #0f0;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;margin-top:20px;}
+  .k{background:#f0f0f0;color:#000;font-size:1.5rem;padding:20px;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 0 #bbb;transition:background 0.2s,transform 0.1s;}
+  .k:hover{background:#008080;color:#fff;transform:translateY(-2px);}
+  .k[data-k="+"],.k[data-k="-"],.k[data-k="*"]{background:#e0f7ff;color:#0066cc;}
+  .k[data-k="+"]:hover,.k[data-k="-"]:hover,.k[data-k="*"]:hover{background:#008080;color:#fff;}
+  .k[data-k="C"]{background:#ff4d4d;color:#fff;}
+  .k[data- k="C"]:hover{background:#ff1a1a;}
+  .k[data-k="="]{background:#ff8c00;color:#fff;grid-column:span 2;box-shadow:0 6px 0 #ff8c00;}
+  .k[data-k="="]:hover{background:#ffb84d;transform:translateY(-4px);}
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="pantalla"></div>
+  <div class="grid">
+    <div class="k" data-k="7">7</div>
+    <div class="k" data-k="2">2</div>
+    <div class="k" data-k="3">3</div>
+    <div class="k" data-k="4">4</div>
+    <div class="k" data-k="+">+</div>
+    <div class="k" data-k="-">-</div>
+    <div class="k" data-k="*">*</div>
+    <div class="k" data-k="=">=</div>
+    <div class="k" data-k="C">C</div>
+    <div></div><div></div><div></div>
+  </div>
+</div>
+<script>
+  const display = document.getElementById('pantalla');
+  let expr = '';
+  function update() { display.textContent = expr || '0'; }
+  function evalExpr() {
+    try {
+      const res = eval(expr);
+      expr = Number(res).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    } catch {
+      expr = 'Error';
+    }
+  }
+  function clearExpr() { expr = ''; }
+  document.querySelectorAll('.k').forEach(b => b.addEventListener('click', () => {
+    const v = b.dataset.k;
+    if (v === 'C') { clearExpr(); }
+    else if (v === '=') { evalExpr(); }
+    else { expr += v; }
+    update();
+  }));
+  update();
+</script>
+</body>
+</html>

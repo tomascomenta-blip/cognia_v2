@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:0;}
+.board{max-width:960px;margin:2rem auto;padding:1rem;background:#fff;display:flex;gap:1rem;}
+.col{flex:1;background:#fafafa;padding:.5rem;border-radius:4px;}
+.col h2{font-size:1rem;margin:0 0 .5rem 0;text-align:center;}
+.card{background:#e0e0e0;margin-bottom:.5rem;padding:.5rem;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);position:relative;}
+.card-id{font-weight:bold;}
+.card-actions{position:absolute;bottom:.5rem;right:.5rem;}
+button{background:#008080;color:#fff;border:none;border-radius:3px;font-size:.8rem;padding:0 4px;margin-left:2px;cursor:pointer;}
+button:disabled{background:#aaa;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h2>Todo (<span id="cont-todo"></span>)</h2>
+<div class="card" data-id="t1"><div class="card-id">t1</div><div class="card-actions"><button class="menos">←</button><button class="mas">→</button></div></div>
+<div class="card" data-id="t2"><div class="card-id">t2</div><div class="card-actions"><button class="menos">←</button><button class="mas">→</button></div></div>
+<div class="card" data-id="t3"><div class="card-id">t3</div><div class="card-actions"><button class="menos">←</button><button class="mas">→</button></div></div>
+</div>
+<div class="col" data-col="doing"><h2>Doing (<span id="cont-doing"></span>)</h2></div>
+<div class="col" data-col="done"><h2>Done (<span id="cont-done"></span>)</h2></div>
+</div>
+<script>
+function updateCounters(){['todo','doing','done'].forEach(c=>{document.getElementById('cont-'+c).textContent=document.querySelectorAll('.col[data-col="'+c+'"] .card').length;});}
+function move(card,dir){var col=card.parentElement,colName=col.dataset.col;if(colName==='todo'&&dir==='left'||colName==='done'&&dir==='right')return;var targetName=dir==='right'?'doing':'todo';if(dir==='right'){var doingCol=document.querySelector('.col[data-col="doing"]');if(doingCol.querySelectorAll('.card').length>=2)return;}var targetCol=document.querySelector('.col[data-col="'+targetName+'"]');targetCol.appendChild(card);updateCounters();}
+document.querySelectorAll('.mas').forEach(b=>b.addEventListener('click',e=>move(e.target.parentElement.parentElement,'right')));
+document.querySelectorAll('.menos').forEach(b=>b.addEventListener('click',e=>move(e.target.parentElement.parentElement,'left')));
+updateCounters();
+</script>
+</body>
+</html>

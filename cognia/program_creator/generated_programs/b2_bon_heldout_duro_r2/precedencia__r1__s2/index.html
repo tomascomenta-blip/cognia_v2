@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Precedencia</title>
+<style>
+:root {
+  --color-numbers: #008080;
+  --color-operators: #ffbf00;
+  --color-clear: #e74c3c;
+  --screen-bg: #fff;
+  --screen-text: #333;
+  --bg: #2c3e50;
+  --button-size: 70px;
+  --button-size-large: 80px;
+  --button-margin: 10px;
+  --screen-width: 260px;
+  --screen-height: 60px;
+}
+body {
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+}
+.calculator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 320px;
+  width: 100%;
+}
+#pantalla {
+  background: var(--screen-bg);
+  width: var(--screen-width);
+  height: var(--screen-height);
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 10px;
+  font-size: 1.5em;
+  color: var(--screen-text);
+  margin-bottom: 20px;
+}
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--button-margin);
+}
+.empty { visibility: hidden; }
+.k {
+  background: var(--color-numbers);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: var(--button-size);
+  height: var(--button-size);
+  font-size: 1.5em;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.k[data-k="+"],
+.k[data-k="-"],
+.k[data-k="*"],
+.k[data-k="="] {
+  background: var(--color-operators);
+  color: #333;
+  font-weight: bold;
+}
+.k[data-k="="] {
+  font-size: 1.5em;
+}
+.k[data-k="C"] {
+  background: var(--color-clear);
+  color: white;
+  width: var(--button-size-large);
+  height: var(--button-size-large);
+  font-size: 1.5em;
+}
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div id="pantalla"></div>
+  <div class="buttons">
+    <div class="empty"></div>
+    <div class="empty"></div>
+    <div class="empty"></div>
+    <button class="k" data-k="2">2</button>
+    <button class="k" data-k="3">3</button>
+    <button class="k" data-k="4">4</button>
+    <button class="k" data-k="7">7</button>
+    <button class="k" data-k="+">+</button>
+    <button class="k" data-k="-">-</button>
+    <button class="k" data-k="*">*</button>
+    <button class="k" data-k="=">=</button>
+    <button class="k" data-k="C">C</button>
+  </div>
+</div>
+<script>
+const config = {
+  colors: {
+    numbers: '#008080',
+    operators: '#ffbf00',
+    clear: '#e74c3c',
+    screenBg: '#fff',
+    screenText: '#333',
+    background: '#2c3e50'
+  },
+  buttonSize: 70,
+  buttonSizeLarge: 80,
+  buttonMargin: 10,
+  screen: { width: 260, height: 60 }
+};
+const root = document.documentElement;
+root.style.setProperty('--color-numbers', config.colors.numbers);
+root.style.setProperty('--color-operators', config.colors.operators);
+root.style.setProperty('--color-clear', config.colors.clear);
+root.style.setProperty('--screen-bg', config.colors.screenBg);
+root.style.setProperty('--screen-text', config.colors.screenText);
+root.style.setProperty('--bg', config.colors.background);
+root.style.setProperty('--button-size', config.buttonSize + 'px');
+root.style.setProperty('--button-size-large', config.buttonSizeLarge + 'px');
+root.style.setProperty('--button-margin', config.buttonMargin + 'px');
+root.style.setProperty('--screen-width', config.screen.width + 'px');
+root.style.setProperty('--screen-height', config.screen.height + 'px');
+
+const pantalla = document.getElementById('pantalla');
+let expression = '';
+let lastAction = null;
+
+function updateScreen() {
+  pantalla.textContent = expression || '';
+}
+
+function handleButtonClick(e) {
+  const value = e.target.dataset.k;
+  if (!value) return;
+  if (value === 'C') {
+    expression = '';
+    lastAction = 'clear';
+    updateScreen();
+    return;
+  }
+  if (value === '=') {
+    if (expression === '' || /[+\-*]$/.test(expression)) return;
+    try {
+      const result = eval(expression);
+      expression = String(result);
+      lastAction = 'equals';
+      updateScreen();
+    } catch {
+      expression = 'Error';
+      lastAction = 'error';
+      updateScreen();
+    }
+    return;
+  }
+  if (lastAction === 'equals') expression = '';
+  if (/[0-9]/.test(value)) {
+    expression += value;
+    lastAction = 'number';
+  } else if (/[+\-*]/.test(value)) {
+    if (/[+\-*]$/.test(expression)) {
+      expression = expression.slice(0, -1) + value;
+    } else {
+      expression += value;
+    }
+    lastAction = 'operator';
+  }
+  updateScreen();
+}
+
+document.querySelectorAll('.k').forEach(btn => btn.addEventListener('click', handleButtonClick));
+</script>
+</body>
+</html>

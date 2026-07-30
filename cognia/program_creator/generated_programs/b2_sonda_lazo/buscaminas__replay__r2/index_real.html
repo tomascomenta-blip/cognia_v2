@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:sans-serif;margin:20px;text-align:center;}
+  #top{display:flex;justify-content:center;gap:10px;margin-bottom:10px;}
+  #score{font-weight:bold;}
+  #reset{cursor:pointer;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:200px;margin:auto;}
+  .c{background:#e0e0e0;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.2);aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;}
+  .c.abierta{background:#fff;color:#333;}
+  .c.abierta.bomb{color:red;}
+  .c.bandera{color:red;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="top"><span id="score">0</span><button id="reset">Reset</button></div>
+<div id="estado"></div>
+<div id="grid"></div>
+<script>
+const mines=[6,12,18],grid=document.getElementById('grid'),scoreEl=document.getElementById('score'),estado=document.getElementById('estado');
+for(let i=0;i<25;i++){let d=document.createElement('div');d.className='c';d.dataset.i=i;if(mines.includes(i))d.dataset.mine=1;grid.appendChild(d);}
+let score=0;
+function upd(){scoreEl.textContent=score;}
+function open(c){if(c.classList.contains('abierta')||c.classList.contains('bandera'))return;const i=parseInt(c.dataset.i),r=Math.floor(i/5),col=i%5;if(c.dataset.mine){c.classList.add('abierta','bomb');c.textContent='💣';estado.textContent='perdiste';return;}let cnt=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=col+dc;if(nr<0||nr>4||nc<0||nc>4)continue;let idx=nr*5+nc;if(mines.includes(idx))cnt++;}if(cnt>0)c.textContent=cnt;c.classList.add('abierta');score++;upd();if(cnt===0){for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=col+dc;if(nr<0||nr>4||nc<0||nc>4)continue;let n=document.querySelector(`.c[data-i='${nr*5+nc}']`);if(n&&!n.classList.contains('abierta')&&!n.classList.contains('bandera'))open(n);}}}
+document.querySelectorAll('.c').forEach(c=>{
+  c.addEventListener('click',e=>{e.preventDefault();open(c);});
+  c.addEventListener('contextmenu',e=>{e.preventDefault();if(c.classList.contains('abierta'))return;c.classList.toggle('bandera');c.textContent=c.classList.contains('bandera')?'⚑':'';});
+});
+document.getElementById('reset').addEventListener('click',()=>{document.querySelectorAll('.c').forEach(c=>{c.classList.remove('abierta','bandera');c.textContent='';});score=0;upd();estado.textContent='';});
+</script>
+</body>
+</html>

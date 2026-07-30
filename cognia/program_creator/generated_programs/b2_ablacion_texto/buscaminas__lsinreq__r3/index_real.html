@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 con 3 minas fijas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    background:#222;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    border:2px solid #fff;
+    background:#222;
+    padding:2px;
+    max-width:400px;
+    width:100%;
+  }
+  .c{
+    background:#555;
+    box-shadow:inset 0 0 5px #000;
+    cursor:pointer;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2em;
+    font-weight:bold;
+    color:#fff;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#0ff;
+    box-shadow:0 0 10px #0ff;
+  }
+  .c.abierta.mina{
+    background:#f00;
+    color:#fff;
+  }
+  .c.bandera::before{
+    content:'🚩';
+  }
+  #estado{
+    margin-top:10px;
+    font-weight:bold;
+  }
+  .caption{
+    margin-top:10px;
+    font-size:0.9em;
+    color:#ccc;
+  }
+</style>
+</head>
+<body>
+<h1>Minesweeper 5x5</h1>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<p class="caption">Haz clic izquierdo para abrir, clic derecho para colocar bandera.</p>
+<script>
+(() => {
+  const mines = new Set([6,12,18]);
+  const adjacencyCounts = Array(25).fill(0);
+  const cells = Array.from(document.querySelectorAll('.c'));
+  const opened = new Set();
+  const flagged = new Set();
+  const estado = document.getElementById('estado');
+
+  function getNeighbors(i){
+    const r = Math.floor(i/5), c = i%5;
+    const neigh = [];
+    for(let dr=-1; dr<=1; dr++){
+      for(let dc=-1; dc<=1; dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neigh.push(nr*5+nc);
+        }
+      }
+    }
+    return neigh;
+  }
+
+  for(let i=0;i<25;i++){
+    if(mines.has(i)) continue;
+    const neigh = getNeighbors(i);
+    let cnt=0;
+    for(const n of neigh) if(mines.has(n)) cnt++;
+    adjacencyCounts[i]=cnt;
+  }
+
+  function openCell(idx){
+    if(opened.has(idx) || flagged.has(idx)) return;
+    opened.add(idx);
+    const el=cells[idx];
+    el.classList.add('abierta');
+    if(mines.has(idx)){
+      el.textContent='X';
+      el.classList.add('mina');
+      estado.textContent='perdiste';
+    }else{
+      const cnt=adjacencyCounts[idx];
+      if(cnt>0) el.textContent=cnt;
+      else el.textContent='';
+    }
+  }
+
+  function cascadeOpen(startIdx){
+    const queue=[startIdx];
+    while(queue.length){
+      const idx=queue.shift();
+      const neigh=getNeighbors(idx);
+      for(const n of neigh){
+        if(!opened.has(n) && !flagged.has(n)){
+          openCell(n);
+          if(adjacencyCounts[n]===0) queue.push(n);
+        }
+      }
+    }
+  }
+
+  cells.forEach((cell,idx)=>{
+    cell.addEventListener('click',e=>{
+      if(flagged.has(idx)||opened.has(idx)) return;
+      openCell(idx);
+      if(!mines.has(idx) && adjacencyCounts[idx]===0) cascadeOpen(idx);
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(opened.has(idx)) return;
+      if(flagged.has(idx)){
+        flagged.delete(idx);
+        cell.classList.remove('bandera');
+      }else{
+        flagged.add(idx);
+        cell.classList.add('bandera');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

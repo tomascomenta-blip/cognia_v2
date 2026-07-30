@@ -1,0 +1,137 @@
+{
+  "tareas": 8,
+  "control": 7,
+  "modo": 8,
+  "techo": 8,
+  "perdida_selector": 0,
+  "fallos_techo": [],
+  "fallos_seleccion": [],
+  "filas": [
+    {
+      "tarea": "undo_redo",
+      "k": 4,
+      "control": true,
+      "elegida_s": 1,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "motivo_elegida": "17/19 checks OK (14/15 del contrato)"
+    },
+    {
+      "tarea": "descuento_tramos",
+      "k": 4,
+      "control": true,
+      "elegida_s": 1,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "motivo_elegida": "11/12 checks OK (8/8 del contrato)"
+    },
+    {
+      "tarea": "form_cruzado",
+      "k": 4,
+      "control": true,
+      "elegida_s": 1,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "motivo_elegida": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "tarea": "tabla_compuesta",
+      "k": 4,
+      "control": false,
+      "elegida_s": 2,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        2,
+        3,
+        4
+      ],
+      "motivo_elegida": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "tarea": "precedencia",
+      "k": 4,
+      "control": true,
+      "elegida_s": 2,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "motivo_elegida": "19/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "tarea": "tres_en_raya",
+      "k": 4,
+      "control": true,
+      "elegida_s": 1,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "motivo_elegida": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "tarea": "temporizador",
+      "k": 4,
+      "control": true,
+      "elegida_s": 1,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "motivo_elegida": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "tarea": "serpiente",
+      "k": 4,
+      "control": true,
+      "elegida_s": 1,
+      "modo": true,
+      "techo": true,
+      "clase": "OK",
+      "estrictos": [
+        1,
+        2,
+        3
+      ],
+      "motivo_elegida": "13/14 checks OK (10/10 del contrato)"
+    }
+  ]
+}

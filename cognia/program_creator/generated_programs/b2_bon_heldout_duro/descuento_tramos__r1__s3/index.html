@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora de Descuento por Tramos</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f8ff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .container{
+    background:#fff;
+    padding:2rem;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    text-align:center;
+    max-width:320px;
+    width:100%;
+  }
+  input#cant{
+    width:100%;
+    padding:0.75rem;
+    font-size:1rem;
+    border:1px solid #ccc;
+    border-radius:4px;
+    margin-bottom:0.5rem;
+  }
+  .description{
+    font-size:0.9rem;
+    color:#555;
+    margin-bottom:1rem;
+  }
+  #total{
+    font-size:2.5rem;
+    font-weight:bold;
+    color:#008080;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <input id="cant" type="number" min="0" placeholder="Cantidad">
+  <p class="description">Ingresa la cantidad de unidades.</p>
+  <span id="total">0.00</span>
+</div>
+
+<script>
+  (function(){
+    const unitPrice = 10;
+    const input = document.getElementById('cant');
+    const totalEl = document.getElementById('total');
+
+    function calculate(){
+      const qty = parseInt(input.value,10) || 0;
+      let total = 0;
+      if(qty > 0){
+        const first = Math.min(qty,10);
+        total += first * unitPrice;
+        if(qty > 10){
+          const second = Math.min(qty-10,40);
+          total += second * (unitPrice * 0.9);
+          if(qty > 50){
+            const third = qty - 50;
+            total += third * (unitPrice * 0.8);
+          }
+        }
+      }
+      totalEl.textContent = total.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    input.addEventListener('input', calculate);
+    // initial calculation
+    calculate();
+  })();
+</script>
+</body>
+</html>

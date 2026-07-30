@@ -1,0 +1,288 @@
+{
+  "idea_router": {
+    "discrepancias": [
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la ca",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (emp",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">,",
+        "experto": "python_module",
+        "heuristica": "web"
+      }
+    ],
+    "experto_acerto": 0,
+    "heuristica_acerto": 0
+  }
+}

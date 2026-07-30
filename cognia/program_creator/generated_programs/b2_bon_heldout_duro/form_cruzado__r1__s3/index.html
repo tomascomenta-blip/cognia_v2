@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Formulario con Validación Cruzada</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .card{
+    background:#fff;
+    padding:2rem;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    max-width:400px;
+    width:90%;
+  }
+  .card h2{
+    margin-top:0;
+    margin-bottom:1.5rem;
+    text-align:center;
+    color:#333;
+  }
+  .field{
+    margin-bottom:1.5rem;
+  }
+  .field input{
+    width:100%;
+    padding:0.75rem;
+    border:1px solid #ccc;
+    border-radius:4px;
+    font-size:1rem;
+    transition:border-color 0.2s;
+  }
+  .field input:focus{
+    outline:none;
+    border-color:#008080;
+  }
+  .field input:hover{
+    border-color:#008080;
+  }
+  #enviar{
+    width:100%;
+    padding:0.75rem;
+    font-size:1rem;
+    background:#008080;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    opacity:0.6;
+    transition:opacity 0.2s;
+  }
+  #enviar:not([disabled]){
+    opacity:1;
+  }
+  #enviar:hover:not([disabled]){
+    background:#006666;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Registro</h2>
+  <div class="field">
+    <input id="pass" type="password" placeholder="Contraseña" autocomplete="new-password">
+  </div>
+  <div class="field">
+    <input id="pass2" type="password" placeholder="Confirmar Contraseña" autocomplete="new-password">
+  </div>
+  <div class="field">
+    <input id="edad" type="number" placeholder="Edad" min="0" max="120">
+  </div>
+  <button id="enviar" disabled>Enviar</button>
+</div>
+<script>
+  const pass = document.getElementById('pass');
+  const pass2 = document.getElementById('pass2');
+  const edad = document.getElementById('edad');
+  const enviar = document.getElementById('enviar');
+
+  function validar() {
+    const pwd = pass.value;
+    const pwd2 = pass2.value;
+    const age = parseInt(edad.value, 10);
+    const okPwd = pwd.length >= 8;
+    const okMatch = pwd === pwd2 && pwd2 !== '';
+    const okAge = !isNaN(age) && age >= 18 && age <= 120;
+    enviar.disabled = !(okPwd && okMatch && okAge);
+  }
+
+  [pass, pass2, edad].forEach(el => el.addEventListener('input', validar));
+</script>
+</body>
+</html>

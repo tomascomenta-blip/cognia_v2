@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con precedencia</title>
+<style>
+  body{
+    background:#121212;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+  }
+  #pantalla{
+    width:90%;
+    max-width:400px;
+    background:#222;
+    border-radius:12px;
+    padding:20px;
+    font-size:2rem;
+    text-align:right;
+    min-height:80px;
+    box-sizing:border-box;
+    margin-bottom:20px;
+  }
+  .calculator{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:90%;
+    max-width:400px;
+  }
+  .k{
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    background:#333;
+    color:#fff;
+    font-size:1.5rem;
+    border:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .2s;
+  }
+  .k:hover{background:#444;}
+  .k[data-k="C"]{background:#e53935;}
+  .k[data-k="="]{width:70px;height:70px;font-size:1.8rem;background:#4caf50;}
+  .k[data-k="="]:hover{background:#45a049;}
+  .k[data-k="*"], .k[data-k="+"], .k[data-k="-"]{background:#555;}
+</style>
+</head>
+<body>
+<div id="pantalla">0</div>
+<div class="calculator">
+  <button class="k" data-k="C">C</button>
+  <button class="k" data-k="7">7</button>
+  <button class="k" data-k="8">8</button>
+  <button class="k" data-k="9">9</button>
+  <button class="k" data-k="4">4</button>
+  <button class="k" data-k="5">5</button>
+  <button class="k" data-k="6">6</button>
+  <button class="k" data-k="-">-</button>
+  <button class="k" data-k="1">1</button>
+  <button class="k" data-k="2">2</button>
+  <button class="k" data-k="3">3</button>
+  <button class="k" data-k="+">+</button>
+  <button class="k" data-k="0">0</button>
+  <button class="k" data-k=".">.</button>
+  <button class="k" data-k="=">=</button>
+  <button class="k" data-k="*">*</button>
+</div>
+<script>
+  const pantalla = document.getElementById('pantalla');
+  let expr = '';
+  function update() { pantalla.textContent = expr || '0'; }
+  function click(e) {
+    const v = e.target.dataset.k;
+    if (!v) return;
+    if (v === 'C') { expr = ''; update(); }
+    else if (v === '=') {
+      try {
+        const r = eval(expr);
+        expr = r.toString();
+        update();
+      } catch {
+        expr = 'Error';
+        update();
+        expr = '';
+      }
+    } else {
+      expr += v;
+      update();
+    }
+  }
+  document.querySelectorAll('.k').forEach(b => b.addEventListener('click', click));
+  update();
+</script>
+</body>
+</html>

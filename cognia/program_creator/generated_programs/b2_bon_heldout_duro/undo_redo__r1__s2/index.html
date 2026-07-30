@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista con Undo/Redo</title>
+<style>
+  html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; background: #f0f4f8; }
+  body { display: flex; flex-direction: column; }
+  header, .toolbar { padding: 10px; background: #e0eaf4; display: flex; align-items: center; gap: 8px; }
+  header { flex-shrink: 0; }
+  .toolbar { flex-shrink: 0; }
+  #txt { flex: 1; padding: 6px; border: 1px solid #b0c4de; border-radius: 4px; }
+  button { padding: 6px 12px; border: none; border-radius: 4px; background: #007bff; color: #fff; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #list { flex: 1; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+  .it { padding: 8px 12px; border-bottom: 1px solid #d0e0f0; background: #fff; }
+</style>
+</head>
+<body>
+<header>
+  <input id="txt" type="text" placeholder="Escribe algo...">
+  <button id="add">Añadir</button>
+</header>
+<div class="toolbar">
+  <button id="undo" disabled>Undo</button>
+  <button id="redo" disabled>Redo</button>
+</div>
+<ul id="list"></ul>
+
+<script>
+  const txt = document.getElementById('txt');
+  const addBtn = document.getElementById('add');
+  const undoBtn = document.getElementById('undo');
+  const redoBtn = document.getElementById('redo');
+  const list = document.getElementById('list');
+
+  let actions = [];   // array of strings
+  let index = 0;      // points to next action to perform
+
+  function updateButtons() {
+    undoBtn.disabled = index === 0;
+    redoBtn.disabled = index === actions.length;
+  }
+
+  function renderList() {
+    // Clear and rebuild list up to current index
+    list.innerHTML = '';
+    for (let i = 0; i < index; i++) {
+      const li = document.createElement('li');
+      li.className = 'it';
+      li.textContent = actions[i];
+      list.appendChild(li);
+    }
+  }
+
+  addBtn.addEventListener('click', () => {
+    const text = txt.value.trim();
+    if (!text) return;
+    // If we are not at the end, discard redo branch
+    if (index < actions.length) {
+      actions = actions.slice(0, index);
+    }
+    actions.push(text);
+    index = actions.length;
+    renderList();
+    updateButtons();
+    txt.value = '';
+    txt.focus();
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (index === 0) return;
+    index--;
+    renderList();
+    updateButtons();
+  });
+
+  redoBtn.addEventListener('click', () => {
+    if (index === actions.length) return;
+    index++;
+    renderList();
+    updateButtons();
+  });
+
+  // Initial state
+  updateButtons();
+</script>
+</body>
+</html>

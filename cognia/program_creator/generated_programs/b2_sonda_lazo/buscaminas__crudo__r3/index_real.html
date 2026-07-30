@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+    animation: bgFade 2s ease-in-out forwards;
+  }
+  @keyframes bgFade{
+    from{background:#f0f0f0;}
+    to{background:#e0e0e0;}
+  }
+  #tablero{
+    display:grid;
+    grid-template-columns:repeat(5, 40px);
+    grid-gap:2px;
+    margin-bottom:20px;
+    opacity:0;
+    animation: gridFade 1s 0.5s forwards;
+  }
+  @keyframes gridFade{
+    to{opacity:1;}
+  }
+  .c{
+    width:40px;height:40px;
+    background:#bbb;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    cursor:pointer;
+    user-select:none;
+    transition:background 0.2s;
+  }
+  .c.abierta{
+    background:#ddd;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#f88;
+  }
+  #estado{
+    font-size:1.2em;
+    color:#900;
+  }
+</style>
+</head>
+<body>
+<div id="tablero"></div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const minas = [6,12,18];
+  const tablero = document.getElementById('tablero');
+  const estado = document.getElementById('estado');
+  const total = 25;
+  const grid = [];
+
+  // Crear las celdas
+  for(let i=0;i<total;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i = i;
+    div.dataset.opened = 'false';
+    div.dataset.flagged = 'false';
+    tablero.appendChild(div);
+    grid.push(div);
+  }
+
+  // Función para obtener vecinos
+  const vecinos = (i) => {
+    const r = Math.floor(i/5), c = i%5;
+    const res=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          res.push(nr*5+nc);
+        }
+      }
+    }
+    return res;
+  };
+
+  // Contar minas vecinas
+  const contar = (i) => {
+    return vecinos(i).filter(v=>minas.includes(v)).length;
+  };
+
+  // Abrir celda
+  const abrir = (i) => {
+    const cell = grid[i];
+    if(cell.dataset.opened==='true' || cell.dataset.flagged==='true') return;
+    cell.dataset.opened='true';
+    cell.classList.add('abierta');
+    const n = contar(i);
+    if(n>0) cell.textContent = n;
+    if(minas.includes(i)){
+      estado.textContent='perdiste';
+      // Revelar todas las minas
+      minas.forEach(m=>{
+        const mcell=grid[m];
+        if(!mcell.classList.contains('abierta')){
+          mcell.classList.add('abierta');
+          mcell.textContent='💣';
+        }
+      });
+      return;
+    }
+    if(n===0){
+      // BFS para abrir zona de ceros
+      const queue=[i];
+      while(queue.length){
+        const cur=queue.shift();
+        vecinos(cur).forEach(v=>{
+          const vcell=grid[v];
+          if(vcell.dataset.opened==='false' && vcell.dataset.flagged==='false'){
+            vcell.dataset.opened='true';
+            vcell.classList.add('abierta');
+            const nv=contar(v);
+            if(nv>0) vcell.textContent=nv;
+            if(nv===0) queue.push(v);
+          }
+        });
+      }
+    }
+  };
+
+  // Manejar click izquierdo
+  tablero.addEventListener('click', e=>{
+    if(e.target.classList.contains('c')){
+      abrir(parseInt(e.target.dataset.i));
+    }
+  });
+
+  // Manejar click derecho (bandera)
+  tablero.addEventListener('contextmenu', e=>{
+    e.preventDefault();
+    const cell=e.target;
+    if(cell.classList.contains('c')){
+      if(cell.dataset.opened==='true') return;
+      if(cell.dataset.flagged==='false'){
+        cell.dataset.flagged='true';
+        cell.classList.add('bandera');
+        cell.textContent='🚩';
+      }else{
+        cell.dataset.flagged='false';
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

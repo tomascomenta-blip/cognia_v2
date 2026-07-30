@@ -147,6 +147,47 @@ SOBREestimar la reproducibilidad. Se declara antes de ver el número.
 Se reporta también si el fallo (si lo hay) es de TECHO o de SELECCIÓN, y
 el control de r2 — que es la tasa base del sistema sin BoN.
 
+## RESULTADO DE LA RÉPLICA (2026-07-30 ~01:05, 32/32 muestras)
+
+**r2 = 8/8 → rama pre-fijada "goal alcanzado en 2 de 2 corridas".**
+
+| | r1 | r2 |
+|---|---|---|
+| CONTROL (s1) | 7/8 | 7/8 |
+| **MODO (el goal)** | **8/8** | **8/8** |
+| TECHO pass@4 | 8/8 | 8/8 |
+| pérdida del selector | 0 | 0 |
+| fallos por TECHO / SELECCIÓN | 0 / 0 | 0 / 0 |
+
+La estructura se reproduce **exactamente**: la misma tarea es la única que
+el control falla (`tabla_compuesta`, rescatada por el selector eligiendo
+s2 en ambas), y ninguna tarea falla por techo en ninguna corrida. En r2 el
+selector eligió s2 también en `precedencia` (donde s1 ya servía): eligió
+distinto sin perder nada — consistente con pérdida 0.
+
+**VEREDICTO: el goal de META —8/8 en el banco duro, con producto
+entregable y el sistema eligiendo su muestra— está ALCANZADO y REPLICADO.**
+
+**Y lo que sigue sin estar resuelto, dicho con la misma claridad** (los
+caveats 2 y 3 siguen en pie tras la réplica):
+
+1. **La ganancia atribuible al BoN es +1 tarea en ambas corridas.** El
+   sistema sin BoN entrega 7/8. El goal se cierra por un margen de una
+   tarea, no por un salto de capacidad.
+2. **El held-out del duro no discrepó del original en 64 páginas** (32 de
+   r1 + 32 de r2). En el banco brutal cazó 4 FP; aquí, cero. El "juez
+   estricto" fue de facto el contrato original, así que **este 8/8 se
+   apoya en un examen menos exigente de lo que su etiqueta sugiere.**
+   Trabajo pendiente honesto: endurecer los held-outs duros hasta que
+   discrepen, y re-medir. Mientras eso no pase, el 8/8 vale lo que vale
+   el contrato original de cada tarea.
+3. **Sigue sin haber señal para tareas NUEVAS.** El selector que hace
+   posible este 8/8 es un examen escrito A MANO por tarea. Las siete vías
+   de señal autogenerada probadas siguen muertas o moderadas. El goal
+   medido es "8/8 en un banco preparado", no "8/8 en lo que le eches".
+4. Caveat heredado de META: el banco lo diseñó la misma familia de
+   modelos que lo resuelve.
+
 ## Presupuesto
 
 Fase 1 ≈ 3-3.5 h (banco duro, ~6 min/muestra medidos). Validación y fase 3

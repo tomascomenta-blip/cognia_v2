@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Cronómetro</title>
+<style>
+  :root {
+    --bg-light: #f0f0f0;
+    --accent: #00aaff;
+    --text-dark: #333;
+  }
+  body {
+    margin: 0;
+    height: 100vh;
+    background: var(--bg-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--text-dark);
+  }
+  .container {
+    text-align: center;
+  }
+  #t {
+    display: block;
+    font-size: 4rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+  }
+  .buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  button:hover {
+    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+  }
+  button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  @media (max-width: 480px) {
+    #t { font-size: 3rem; }
+    button { padding: 0.6rem 1.2rem; font-size: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <span id="t">0</span>
+  <div class="buttons">
+    <button id="start">Start</button>
+    <button id="pause">Pause</button>
+    <button id="reset">Reset</button>
+  </div>
+</div>
+
+<script>
+  // Configurable constants
+  const INTERVAL_MS = 1000;          // Milliseconds per tick
+  const ACCENT_COLOR = '#00aaff';    // Electric blue accent
+
+  // Elements
+  const counterEl = document.getElementById('t');
+  const startBtn = document.getElementById('start');
+  const pauseBtn = document.getElementById('pause');
+  const resetBtn = document.getElementById('reset');
+
+  // State
+  let seconds = 0;
+  let intervalId = null;
+
+  // Update display immediately on load
+  counterEl.textContent = seconds;
+
+  // Helper to start counting
+  function startTimer() {
+    if (intervalId !== null) return; // Prevent multiple intervals
+    intervalId = setInterval(() => {
+      seconds++;
+      counterEl.textContent = seconds;
+    }, INTERVAL_MS);
+  }
+
+  // Helper to pause counting
+  function pauseTimer() {
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  // Helper to reset timer
+  function resetTimer() {
+    pauseTimer();
+    seconds = 0;
+    counterEl.textContent = seconds;
+  }
+
+  // Event listeners
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', resetTimer);
+</script>
+</body>
+</html>

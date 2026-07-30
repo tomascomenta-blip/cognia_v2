@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Juego de la serpiente 10x10</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:#f0f4f8;
+    font-family:sans-serif;
+  }
+  h1{
+    position:absolute;
+    top:1rem;
+    left:50%;
+    transform:translateX(-50%);
+    margin:0;
+    font-size:1.5rem;
+    color:#333;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(10,1fr);
+    width:80vmin;
+    height:80vmin;
+    max-width:400px;
+    max-height:400px;
+    position:relative;
+  }
+  .cel{
+    border:1px solid #ddd;
+    background:#e0e0e0;
+    box-sizing:border-box;
+  }
+  .food{
+    background:red;
+    border-radius:50%;
+    width:80%;
+    height:80%;
+    margin:auto;
+  }
+  #arrows{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    z-index:10;
+  }
+  .arrow{
+    font-size:2rem;
+    color:rgba(0,0,0,0.3);
+    margin:0 0.5rem;
+  }
+</style>
+</head>
+<body>
+<h1>Juego de la serpiente 10x10</h1>
+<div id="grid"></div>
+<div id="arrows">
+  <span class="arrow up">↑</span>
+  <span class="arrow left">←</span>
+  <span class="arrow right">→</span>
+  <span class="arrow down">↓</span>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const grid = document.getElementById('grid');
+  const size = 10;
+  const cells = [];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const div = document.createElement('div');
+      div.className = 'cel';
+      div.dataset.x = x;
+      div.dataset.y = y;
+      grid.appendChild(div);
+      cells.push(div);
+    }
+  }
+
+  let snake = [{x: Math.floor(size/2), y: Math.floor(size/2)}];
+  let dir = 'right';
+  let length = 1;
+  let food = null;
+
+  const getCell = (x, y) => cells.find(c => +c.dataset.x === x && +c.dataset.y === y);
+
+  const placeFood = () => {
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (!snake.some(s => s.x === x && s.y === y)) {
+          food = {x, y};
+          const cell = getCell(x, y);
+          cell.classList.add('food');
+          return;
+        }
+      }
+    }
+  };
+
+  const updateSnake = () => {
+    cells.forEach(c => c.classList.remove('snake'));
+    const brightness = Math.min(100, 50 + length * 5);
+    snake.forEach(s => {
+      const cell = getCell(s.x, s.y);
+      cell.classList.add('snake');
+      cell.style.backgroundColor = `hsl(120,70%,${brightness}%)`;
+    });
+  };
+
+  const updateWindowJuego = () => {
+    const head = snake[0];
+    window.juego = {largo: length, x: head.x, y: head.y, dir};
+  };
+
+  const move = () => {
+    const head = snake[0];
+    let nx = head.x, ny = head.y;
+    if (dir === 'up') ny--;
+    else if (dir === 'down') ny++;
+    else if (dir === 'left') nx--;
+    else if (dir === 'right') nx++;
+
+    if (nx < 0 || nx >= size || ny < 0 || ny >= size) return;
+    if (snake.some(s => s.x === nx && s.y === ny)) return;
+
+    const newHead = {x: nx, y: ny};
+    snake.unshift(newHead);
+
+    if (food && nx === food.x && ny === food.y) {
+      length++;
+      const foodCell = getCell(food.x, food.y);
+      foodCell.classList.remove('food');
+      placeFood();
+    } else {
+      snake.pop();
+    }
+
+    updateSnake();
+    updateWindowJuego();
+  };
+
+  const keyHandler = e => {
+    const keyMap = {
+      ArrowUp: 'up',
+      ArrowDown: 'down',
+      ArrowLeft: 'left',
+      ArrowRight: 'right'
+    };
+    const newDir = keyMap[e.key];
+    if (!newDir) return;
+    if ((dir === 'up' && newDir === 'down') ||
+        (dir === 'down' && newDir === 'up') ||
+        (dir === 'left' && newDir === 'right') ||
+        (dir === 'right' && newDir === 'left')) return;
+    dir = newDir;
+    move();
+  };
+
+  document.addEventListener('keydown', keyHandler);
+
+  updateSnake();
+  placeFood();
+  updateWindowJuego();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tabla con filtro, orden y paginación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f5f5;color:#333;}
+.container{max-width:800px;margin:0 auto;padding:20px;}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.toolbar input{padding:5px 10px;border:1px solid #ccc;border-radius:4px;}
+.toolbar button{padding:5px 10px;border:none;background:#008080;color:white;border-radius:4px;cursor:pointer;}
+.toolbar button:hover{background:#006666;}
+.toolbar button:disabled{background:#999;cursor:default;}
+.pagination{display:flex;align-items:center;gap:5px;}
+.table-container{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;background:white;}
+th,td{padding:8px 12px;text-align:left;}
+th{background:#e0e0e0;color:#555;}
+tr.fila:nth-child(even){background:#fafafa;}
+tr.fila:hover{background:#e6f7ff;}
+#pagina{font-weight:bold;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="toolbar">
+    <input type="text" id="q" placeholder="Buscar por nombre">
+    <button id="ordenar">Ordenar edad</button>
+    <div class="pagination">
+      <button id="prev">Prev</button>
+      <span id="pagina">1</span>
+      <button id="sig">Next</button>
+    </div>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Edad</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+<script>
+const data=[
+  {nombre:"Ana",edad:28},
+  {nombre:"Luis",edad:34},
+  {nombre:"María",edad:22},
+  {nombre:"Carlos",edad:45},
+  {nombre:"Elena",edad:31},
+  {nombre:"Javier",edad:27},
+  {nombre:"Sofía",edad:19},
+  {nombre:"Pedro",edad:38},
+  {nombre:"Lucía",edad:24},
+  {nombre:"Miguel",edad:41},
+  {nombre:"Isabel",edad:29},
+  {nombre:"Fernando",edad:36},
+  {nombre:"Patricia",edad:23},
+  {nombre:"Roberto",edad:50},
+  {nombre:"Ana María",edad:30},
+  {nombre:"Luis Miguel",edad:33},
+  {nombre:"María José",edad:26},
+  {nombre:"Carlos Alberto",edad:47},
+  {nombre:"Elena Sofía",edad:32},
+  {nombre:"Javier Luis",edad:28},
+  {nombre:"Sofía Isabel",edad:21},
+  {nombre:"Pedro Manuel",edad:39}
+];
+let currentPage=1;
+let sortAsc=true;
+const rowsPerPage=10;
+function render(){
+  const filter=document.getElementById('q').value.trim().toLowerCase();
+  let filtered=data.filter(item=>item.nombre.toLowerCase().includes(filter));
+  filtered.sort((a,b)=>sortAsc?a.edad-b.edad:b.edad-a.edad);
+  const totalPages=Math.ceil(filtered.length/rowsPerPage)||1;
+  if(currentPage>totalPages)currentPage=totalPages;
+  const start=(currentPage-1)*rowsPerPage;
+  const pageData=filtered.slice(start,start+rowsPerPage);
+  const tbody=document.getElementById('tbody');
+  tbody.innerHTML='';
+  pageData.forEach(item=>{
+    const tr=document.createElement('tr');
+    tr.className='fila';
+    tr.innerHTML=`<td>${item.nombre}</td><td>${item.edad}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('pagina').textContent=currentPage;
+  document.getElementById('prev').disabled=currentPage===1;
+  document.getElementById('sig').disabled=currentPage===totalPages;
+}
+document.getElementById('q').addEventListener('input',()=>{currentPage=1;render();});
+document.getElementById('ordenar').addEventListener('click',()=>{sortAsc=!sortAsc;render();});
+document.getElementById('prev').addEventListener('click',()=>{if(currentPage>1){currentPage--;render();}});
+document.getElementById('sig').addEventListener('click',()=>{const filter=document.getElementById('q').value.trim().toLowerCase();const filtered=data.filter(item=>item.nombre.toLowerCase().includes(filter));const totalPages=Math.ceil(filtered.length/rowsPerPage)||1;if(currentPage<totalPages){currentPage++;render();}});
+render();
+</script>
+</body>
+</html>

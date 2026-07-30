@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
+#top{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#ddd;}
+#score{font-size:1.2em;}
+#reset{padding:5px 10px;font-size:1em;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:10px;}
+.c{background:#ccc;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.2em;cursor:pointer;user-select:none;}
+.c.abierta{background:#fff;color:#333;}
+.c.abierta::after{content:attr(data-num);display:block;}
+.c.abierta[data-mine="true"]::after{content:"💣";color:red;}
+.c.bandera{background:#ffc;position:relative;}
+.c.bandera::after{content:"🚩";color:red;}
+#estado{padding:10px;text-align:center;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="top"><div id="score">0</div><button id="reset">Reiniciar</button></div>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=[6,12,18];
+const grid=document.getElementById('grid');
+const score=document.getElementById('score');
+const estado=document.getElementById('estado');
+function create(){grid.innerHTML='';for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;d.dataset.mine=mines.includes(i);d.dataset.num='';grid.appendChild(d);}update();}
+function update(){const counts=Array(25).fill(0);const cells=document.querySelectorAll('.c');cells.forEach(c=>{if(c.dataset.mine==='true'){const i=parseInt(c.dataset.i);const neighbors=getNeighbors(i);neighbors.forEach(n=>{counts[n]++;});}});cells.forEach((c,i)=>{c.dataset.num=counts[i]>0?counts[i]:'');});}
+function getNeighbors(i){const r=Math.floor(i/5),c=i%5;const ns=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5)ns.push(nr*5+nc);}return ns;}
+function open(i){const cell=document.querySelector(`.c[data-i="${i}"]`);if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;if(cell.dataset.mine==='true'){cell.classList.add('abierta');estado.textContent='perdiste';return;}cell.classList.add('abierta');score.textContent=parseInt(score.textContent)+1;if(cell.dataset.num===''){const queue=[i];while(queue.length){const idx=queue.shift();const neigh=getNeighbors(idx);neigh.forEach(n=>{const nb=document.querySelector(`.c[data-i="${n}"]`);if(!nb.classList.contains('abierta')&&!nb.classList.contains('bandera')&&nb.dataset.mine!=='true'){nb.classList.add('abierta');score.textContent=parseInt(score.textContent)+1;if(nb.dataset.num===''){queue.push(n);}}});}}}
+function toggleFlag(e){e.preventDefault();const cell=e.target;if(cell.classList.contains('abierta'))return;if(cell.classList.contains('bandera')){cell.classList.remove('bandera');}else{cell.classList.add('bandera');}}
+grid.addEventListener('click',e=>{if(e.target.classList.contains('c'))open(e.target.dataset.i);});
+grid.addEventListener('contextmenu',toggleFlag);
+document.getElementById('reset').addEventListener('click',create);
+create();
+</script>
+</body>
+</html>

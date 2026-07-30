@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3×3</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+.container{display:grid;grid-template-columns:repeat(3,80px);gap:10px;margin-top:50px;}
+.celda{width:80px;height:30px;padding:5px;text-align:right;border:1px solid #ccc;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);font-size:14px;}
+.celda:focus{outline:2px solid teal;}
+.celda.formula{font-weight:bold;color:#333;}
+button{margin-top:20px;padding:8px 16px;background:#008080;color:white;border:none;border-radius:4px;cursor:pointer;font-size:14px;}
+button:hover{background:#006666;}
+</style>
+</head>
+<body>
+<div class="container">
+<input class="celda" data-ref="A1" value="10">
+<input class="celda" data-ref="A2" value="20">
+<input class="celda" data-ref="A3" value="">
+<input class="celda" data-ref="B1" value="30">
+<input class="celda" data-ref="B2" data-formula="=A1+A2">
+<input class="celda" data-ref="B3" value="">
+<input class="celda" data-ref="C1" data-formula="=B1+1">
+<input class="celda" data-ref="C2" data-formula="=C1+1">
+<input class="celda" data-ref="C3" value="">
+</div>
+<button id="recalc">Recalcular</button>
+<script>
+const cells={};
+document.querySelectorAll('.celda').forEach(el=>{cells[el.dataset.ref]=el;});
+function evaluate(ref,vis){if(vis.has(ref))return'CIRC';vis.add(ref);const el=cells[ref],f=el.dataset.formula;let r; if(!f){const v=el.value.trim();r=v===''?'':v;}else{let e=f.slice(1),rs=e.match(/[A-C][1-3]/g)||[];let ev=e;for(const rref of rs){const v=evaluate(rref,vis);if(v==='CIRC'){vis.delete(ref);return'CIRC';}ev=ev.replace(new RegExp(rref,'g'),v===''?'0':v);}try{r=eval(ev).toString();}catch{r='ERR';}}vis.delete(ref);return r;}
+function recalc(){for(const r in cells){const v=evaluate(r,new Set());const el=cells[r];el.classList.toggle('formula',!!el.dataset.formula);el.value=v;}}
+let upd=false;
+document.querySelectorAll('.celda').forEach(el=>el.addEventListener('input',()=>{if(upd)return;upd=true;const v=el.value;if(v.startsWith('='))el.dataset.formula=v;else delete el.dataset.formula;recalc();upd=false;}));
+document.getElementById('recalc').addEventListener('click',recalc);
+recalc();
+</script>
+</body>
+</html>

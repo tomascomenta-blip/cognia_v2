@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban Board Demo</title>
+<style>
+/* Configurable constants */
+:root {
+  --max-doing: 2;
+  --color-header: #008080; /* teal */
+  --color-coral: #FF7F50; /* coral */
+  --color-muted: #555;
+  --color-card-bg: #e0e0e0;
+  --color-card-shadow: rgba(0,0,0,0.1);
+  --color-plus: #28a745; /* green */
+  --color-minus: #dc3545; /* red */
+  --color-disabled: #aaa;
+}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f0f0f0;
+}
+.header {
+  text-align: center;
+  font-size: 1.5rem;
+  color: var(--color-header);
+  padding: 1rem 0;
+}
+.board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  justify-content: center;
+}
+.col {
+  flex: 1 1 200px;
+  background: #fff;
+  border-radius: 4px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px var(--color-card-shadow);
+}
+.col-header {
+  font-weight: bold;
+  color: var(--color-muted);
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.card {
+  background: var(--color-card-bg);
+  border-radius: 4px;
+  padding: 0.5rem;
+  box-shadow: 0 1px 3px var(--color-card-shadow);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-id {
+  font-weight: bold;
+  color: var(--color-coral);
+}
+button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  color: #fff;
+}
+button.mas {
+  background: var(--color-plus);
+}
+button.menos {
+  background: var(--color-minus);
+}
+button:disabled {
+  background: var(--color-disabled);
+  cursor: not-allowed;
+}
+@media (max-width: 600px) {
+  .board {
+    flex-direction: column;
+  }
+}
+</style>
+</head>
+<body>
+<header class="header">Tablero Kanban</header>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo">3</span></div>
+    <div class="cards">
+      <div class="card" data-id="t1">
+        <span class="card-id">t1</span>
+        <div>
+          <button class="menos">-</button>
+          <button class="mas">+</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <span class="card-id">t2</span>
+        <div>
+          <button class="menos">-</button>
+          <button class="mas">+</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <span class="card-id">t3</span>
+        <div>
+          <button class="menos">-</button>
+          <button class="mas">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing">0</span></div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done">0</span></div>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+function updateCounters() {
+  const todo = document.querySelectorAll('.col[data-col="todo"] .card').length;
+  const doing = document.querySelectorAll('.col[data-col="doing"] .card').length;
+  const done = document.querySelectorAll('.col[data-col="done"] .card').length;
+  document.getElementById('cont-todo').textContent = todo;
+  document.getElementById('cont-doing').textContent = doing;
+  document.getElementById('cont-done').textContent = done;
+}
+function updateButtons() {
+  document.querySelectorAll('.card').forEach(card => {
+    const col = card.parentElement.parentElement.dataset.col;
+    const btnMas = card.querySelector('.mas');
+    const btnMenos = card.querySelector('.menos');
+    // Disable minus on todo
+    btnMenos.disabled = (col === 'todo');
+    // Disable plus on done
+    btnMas.disabled = (col === 'done');
+    // Disable plus on todo if doing full
+    if (col === 'todo') {
+      const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+      btnMas.disabled = (doingCount >= MAX_DOING);
+    }
+  });
+}
+function moveCard(card, direction) {
+  const currentCol = card.parentElement.parentElement; // .cards -> .col
+  const currentData = currentCol.dataset.col;
+  let targetColName;
+  if (direction === 'right') {
+    if (currentData === 'todo') targetColName = 'doing';
+    else if (currentData === 'doing') targetColName = 'done';
+    else return; // done cannot move right
+  } else if (direction === 'left') {
+    if (currentData === 'doing') targetColName = 'todo';
+    else if (currentData === 'done') targetColName = 'doing';
+    else return; // todo cannot move left
+  }
+  // Check WIP rule
+  if (targetColName === 'doing') {
+    const doingCards = document.querySelectorAll('.col[data-col="doing"] .card');
+    if (doingCards.length >= MAX_DOING) return; // cannot move
+  }
+  const targetCol = document.querySelector('.col[data-col="' + targetColName + '"] .cards');
+  targetCol.appendChild(card);
+  updateCounters();
+  updateButtons();
+}
+document.addEventListener('DOMContentLoaded', function() {
+  updateCounters();
+  updateButtons();
+  document.querySelectorAll('.card').forEach(card => {
+    const btnMas = card.querySelector('.mas');
+    const btnMenos = card.querySelector('.menos');
+    btnMas.addEventListener('click', () => moveCard(card, 'right'));
+    btnMenos.addEventListener('click', () => moveCard(card, 'left'));
+  });
+});
+</script>
+</body>
+</html>

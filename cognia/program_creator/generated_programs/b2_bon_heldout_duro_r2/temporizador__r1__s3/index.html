@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un cronometro en un solo archivo HTML</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#111;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    text-align:center;
+  }
+  .container{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #t{
+    font-size:clamp(3rem,10vw,6rem);
+    font-family:monospace;
+    color:#0ff;
+    margin-bottom:1rem;
+  }
+  .buttons{
+    display:flex;
+    gap:1rem;
+  }
+  button{
+    padding:.75rem 1.5rem;
+    font-size:1rem;
+    font-weight:bold;
+    color:#111;
+    background:#0ff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    box-shadow:0 2px 4px rgba(0,0,0,0.3);
+    transition:background .2s,transform .1s;
+  }
+  button:hover{
+    background:#0fff;
+    transform:translateY(-2px);
+  }
+  button:active{
+    transform:translateY(0);
+  }
+  button:focus{
+    outline:none;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <span id="t">0</span>
+  <div class="buttons">
+    <button id="start">start</button>
+    <button id="pause">pause</button>
+    <button id="reset">reset</button>
+  </div>
+</div>
+<script>
+  const INTERVAL_MS = 1000;
+  let seconds = 0;
+  let intervalId = null;
+  const timerEl = document.getElementById('t');
+  const startBtn = document.getElementById('start');
+  const pauseBtn = document.getElementById('pause');
+  const resetBtn = document.getElementById('reset');
+
+  function updateTimer() {
+    timerEl.textContent = seconds;
+  }
+
+  function startTimer() {
+    if (intervalId !== null) return;
+    intervalId = setInterval(() => {
+      seconds++;
+      updateTimer();
+    }, INTERVAL_MS);
+  }
+
+  function pauseTimer() {
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function resetTimer() {
+    pauseTimer();
+    seconds = 0;
+    updateTimer();
+  }
+
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', resetTimer);
+
+  // Initial render
+  updateTimer();
+</script>
+</body>
+</html>

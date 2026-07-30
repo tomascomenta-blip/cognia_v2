@@ -1,0 +1,228 @@
+{
+  "hoja_calculo": {
+    "pasos": [
+      {
+        "accion": "esperar",
+        "ms": 400,
+        "veces": 1
+      },
+      {
+        "accion": "escribir",
+        "selector": "[data-ref='A1']",
+        "texto": "5",
+        "veces": 1
+      },
+      {
+        "accion": "escribir",
+        "selector": "[data-ref='B1']",
+        "texto": "3",
+        "veces": 1
+      },
+      {
+        "accion": "escribir",
+        "selector": "[data-ref='C1']",
+        "texto": "=A1+B1",
+        "veces": 1
+      },
+      {
+        "accion": "escribir",
+        "selector": "[data-ref='A1']",
+        "texto": "10",
+        "veces": 1
+      },
+      {
+        "accion": "escribir",
+        "selector": "[data-ref='B2']",
+        "texto": "=C1-A1",
+        "veces": 1
+      },
+      {
+        "accion": "escribir",
+        "selector": "[data-ref='A2']",
+        "texto": "=B2",
+        "veces": 1
+      },
+      {
+        "accion": "escribir",
+        "selector": "[data-ref='B2']",
+        "texto": "=A2",
+        "veces": 1
+      }
+    ],
+    "observar": [
+      ".celda"
+    ],
+    "crudo": "{\"pasos\":[{\"accion\":\"esperar\",\"ms\":400},{\"accion\":\"escribir\",\"selector\":\"[data-ref='A1']\",\"texto\":\"5\"},{\"accion\":\"escribir\",\"selector\":\"[data-ref='B1']\",\"texto\":\"3\"},{\"accion\":\"escribir\",\"selector\":\"[data-ref='C1']\",\"texto\":\"=A1+B1\"},{\"accion\":\"escribir\",\"selector\":\"[data-ref='A1']\",\"texto\":\"10\"},{\"accion\":\"escribir\",\"selector\":\"[data-ref='B2']\",\"texto\":\"=C1-A1\"},{\"accion\":\"escribir\",\"selector\":\"[data-ref='A2']\",\"texto\":\"=B2\"},{\"accion\":\"escribir\",\"selector\":\"[data-ref='B2']\",\"texto\":\"=A2\"},{\"accion\":\"esperar\",\"ms\":400}],\"observar\":[\".celda\"]}"
+  },
+  "carrito_stock": {
+    "pasos": [
+      {
+        "accion": "click",
+        "selector": ".add",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".add",
+        "indice": 1,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".add",
+        "indice": 2,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".add",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".add",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".add",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".quitar",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".quitar",
+        "indice": 0,
+        "veces": 1
+      }
+    ],
+    "observar": [
+      ".linea",
+      "#total"
+    ],
+    "crudo": "{\"pasos\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1,\"veces\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2,\"veces\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0,\"veces\":1}],\"observar\":[\".linea\",\"#total\"]}"
+  },
+  "kanban": {
+    "pasos": [
+      {
+        "accion": "click",
+        "selector": ".mas",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".mas",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".mas",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".mas",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".menos",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".menos",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".menos",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".menos",
+        "indice": 0,
+        "veces": 1
+      }
+    ],
+    "observar": [
+      ".col[data-col='todo'] .card",
+      " .col[data-col='doing'] .card",
+      " .col[data-col='done'] .card",
+      " #cont-todo",
+      " #cont-doing",
+      " #cont-done"
+    ],
+    "crudo": "{\"pasos\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0,\"veces\":1},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0,\"veces\":1}],\"observar\":[\".col[data-col='todo'] .card\",\" .col[data-col='doing'] .card\",\" .col[data-col='done'] .card\",\" #cont-todo\",\" #cont-doing\",\" #cont-done\"]}"
+  },
+  "buscaminas": {
+    "pasos": [
+      {
+        "accion": "click",
+        "selector": ".c",
+        "indice": 0,
+        "veces": 1
+      },
+      {
+        "accion": "esperar",
+        "ms": 400,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".c",
+        "indice": 6,
+        "veces": 1
+      },
+      {
+        "accion": "esperar",
+        "ms": 400,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".c",
+        "indice": 2,
+        "veces": 1
+      },
+      {
+        "accion": "esperar",
+        "ms": 400,
+        "veces": 1
+      },
+      {
+        "accion": "click",
+        "selector": ".c",
+        "indice": 2,
+        "veces": 1
+      },
+      {
+        "accion": "esperar",
+        "ms": 400,
+        "veces": 1
+      }
+    ],
+    "observar": [
+      ".c",
+      "#estado"
+    ],
+    "crudo": "{\"pasos\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0,\"veces\":1},{\"accion\":\"esperar\",\"ms\":400},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6,\"veces\":1},{\"accion\":\"esperar\",\"ms\":400},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2,\"veces\":1},{\"accion\":\"esperar\",\"ms\":400},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":2,\"veces\":1},{\"accion\":\"esperar\",\"ms\":400},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":3,\"veces\":1},{\"accion\":\"esperar\",\"ms\":400}],\"observar\":[\".c\",\"#estado\"]}"
+  }
+}

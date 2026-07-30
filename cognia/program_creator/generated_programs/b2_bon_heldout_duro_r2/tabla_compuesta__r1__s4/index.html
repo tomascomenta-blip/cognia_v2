@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tabla con filtro, orden y paginación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f4f8;
+    color:#333;
+  }
+  #container{
+    max-width:1000px;
+    margin:auto;
+    padding:10px;
+  }
+  header{
+    background:#004080;
+    color:#fff;
+    padding:10px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  header input#q{
+    flex:1;
+    padding:6px 8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    font-size:1rem;
+  }
+  header button#ordenar{
+    background:#007bff;
+    color:#fff;
+    border:none;
+    padding:6px 12px;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  header button#ordenar:hover{
+    background:#0056b3;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+    background:#fff;
+  }
+  table thead{
+    background:#004080;
+    color:#fff;
+  }
+  table th, table td{
+    padding:8px 12px;
+    text-align:left;
+    border-bottom:1px solid #e0e0e0;
+  }
+  tr.fila:hover{
+    background:#e6f0ff;
+  }
+  #pagination{
+    margin-top:15px;
+    text-align:center;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  #pagination button{
+    background:#007bff;
+    color:#fff;
+    border:none;
+    padding:6px 12px;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  #pagination button:disabled{
+    background:#a0c4ff;
+    cursor:not-allowed;
+  }
+  #pagina{
+    font-size:1.2rem;
+    font-weight:bold;
+  }
+  @media(max-width:600px){
+    header{
+      flex-direction:column;
+      align-items:flex-start;
+    }
+    header input#q{
+      width:100%;
+    }
+    header button#ordenar{
+      width:100%;
+      margin-top:5px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <header>
+    <input type="text" id="q" placeholder="Buscar por nombre">
+    <button id="ordenar">Ordenar por edad</button>
+  </header>
+  <table>
+    <thead>
+      <tr><th>Nombre</th><th>Edad</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="pagination">
+    <button id="prev">Anterior</button>
+    <span id="pagina">1</span>
+    <button id="sig">Siguiente</button>
+  </div>
+</div>
+<script>
+  const data = [
+    {nombre:"Ana", edad:28},
+    {nombre:"Luis", edad:34},
+    {nombre:"Carlos", edad:45},
+    {nombre:"María", edad:22},
+    {nombre:"Pedro", edad:38},
+    {nombre:"Lucía", edad:31},
+    {nombre:"Javier", edad:50},
+    {nombre:"Sofía", edad:27},
+    {nombre:"Diego", edad:41},
+    {nombre:"Elena", edad:29},
+    {nombre:"Miguel", edad:36},
+    {nombre:"Patricia", edad:33},
+    {nombre:"Fernando", edad:47},
+    {nombre:"Laura", edad:24},
+    {nombre:"Jorge", edad:39},
+    {nombre:"Ana María", edad:26},
+    {nombre:"Carlos Alberto", edad:55},
+    {nombre:"María José", edad:23},
+    {nombre:"Pedro Luis", edad:42},
+    {nombre:"Lucía Gómez", edad:30},
+    {nombre:"Javier Torres", edad:48},
+    {nombre:"Sofía Ruiz", edad:35},
+    {nombre:"Diego Fernández", edad:44}
+  ];
+  let filteredData = [...data];
+  let currentPage = 1;
+  let sortAscending = true;
+  const rowsPerPage = 10;
+
+  function applyFilter(){
+    const query = document.getElementById('q').value.trim().toLowerCase();
+    filteredData = data.filter(item => item.nombre.toLowerCase().includes(query));
+    currentPage = 1;
+    applySort();
+    renderTable();
+    updatePagination();
+  }
+
+  function applySort(){
+    filteredData.sort((a,b)=> sortAscending ? a.edad - b.edad : b.edad - a.edad);
+  }
+
+  function renderTable(){
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    const start = (currentPage-1)*rowsPerPage;
+    const end = start + rowsPerPage;
+    const pageData = filteredData.slice(start, end);
+    for(const item of pageData){
+      const tr = document.createElement('tr');
+      tr.className = 'fila';
+      tr.innerHTML = `<td>${item.nombre}</td><td>${item.edad}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function updatePagination(){
+    const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+    document.getElementById('pagina').textContent = currentPage;
+    document.getElementById('prev').disabled = currentPage <= 1;
+    document.getElementById('sig').disabled = currentPage >= totalPages;
+  }
+
+  function goToPage(page){
+    const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+    if(page < 1) page = 1;
+    if(page > totalPages) page = totalPages;
+    currentPage = page;
+    renderTable();
+    updatePagination();
+  }
+
+  document.getElementById('q').addEventListener('input', applyFilter);
+  document.getElementById('ordenar').addEventListener('click', ()=>{
+    sortAscending = !sortAscending;
+    applySort();
+    renderTable();
+    updatePagination();
+  });
+  document.getElementById('prev').addEventListener('click', ()=>goToPage(currentPage-1));
+  document.getElementById('sig').addEventListener('click', ()=>goToPage(currentPage+1));
+
+  // Inicializar
+  applyFilter();
+</script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una página</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:0;
+  }
+  .board{
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    padding:20px;
+    animation:fadeIn 0.5s ease-in;
+  }
+  .col{
+    background:#fff;
+    border-radius:4px;
+    flex:1;
+    min-width:200px;
+    margin:0 10px;
+    display:flex;
+    flex-direction:column;
+  }
+  .col-header{
+    background:#cce5ff;
+    color:#004085;
+    padding:10px;
+    font-weight:bold;
+    text-align:center;
+    border-top-left-radius:4px;
+    border-top-right-radius:4px;
+  }
+  .col-body{
+    flex:1;
+    padding:10px;
+    min-height:200px;
+  }
+  .card{
+    background:#e9ecef;
+    border-radius:4px;
+    padding:10px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card-title{
+    flex:1;
+    margin-right:10px;
+  }
+  button{
+    width:24px;
+    height:24px;
+    border:none;
+    border-radius:50%;
+    font-size:14px;
+    color:#fff;
+    cursor:pointer;
+  }
+  button.mas{background:#28a745;}
+  button.menos{background:#dc3545;}
+  button:disabled{opacity:0.5;cursor:not-allowed;}
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">todo <span id="cont-todo"></span></div>
+    <div class="col-body" id="body-todo"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">doing <span id="cont-doing"></span></div>
+    <div class="col-body" id="body-doing"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">done <span id="cont-done"></span></div>
+    <div class="col-body" id="body-done"></div>
+  </div>
+</div>
+<script>
+  // Crear una tarjeta con botones
+  function createCard(id, title){
+    const card=document.createElement('div');
+    card.className='card';
+    card.dataset.id=id;
+    const titleSpan=document.createElement('span');
+    titleSpan.className='card-title';
+    titleSpan.textContent=title;
+    const btnMas=document.createElement('button');
+    btnMas.className='mas';
+    btnMas.textContent='→';
+    const btnMen=document.createElement('button');
+    btnMen.className='menos';
+    btnMen.textContent='←';
+    card.appendChild(titleSpan);
+    card.appendChild(btnMas);
+    card.appendChild(btnMen);
+    return card;
+  }
+
+  // Actualizar contadores de tarjetas
+  function updateCounters(){
+    const todo=document.querySelectorAll('#body-todo .card').length;
+    const doing=document.querySelectorAll('#body-doing .card').length;
+    const done=document.querySelectorAll('#body-done .card').length;
+    document.getElementById('cont-todo').textContent=todo;
+    document.getElementById('cont-doing').textContent=doing;
+    document.getElementById('cont-done').textContent=done;
+    updateButtons();
+  }
+
+  // Habilitar/Deshabilitar botones según reglas
+  function updateButtons(){
+    const doingCount=document.querySelectorAll('#body-doing .card').length;
+    // Deshabilitar botones mas en todo si doing está lleno
+    document.querySelectorAll('#body-todo .mas').forEach(btn=>{
+      btn.disabled = doingCount>=2;
+    });
+    // Deshabilitar botones menos en todo y mas en done
+    document.querySelectorAll('#body-todo .menos').forEach(btn=>btn.disabled=true);
+    document.querySelectorAll('#body-done .mas').forEach(btn=>btn.disabled=true);
+    // Deshabilitar botones menos en done
+    document.querySelectorAll('#body-done .menos').forEach(btn=>btn.disabled=true);
+    // Deshabilitar botones menos en todo (ya hecho) y mas en done (ya hecho)
+  }
+
+  // Mover tarjeta entre columnas
+  function moveCard(card, direction){
+    const currentCol=card.parentElement.parentElement.dataset.col;
+    let targetCol;
+    if(direction==='mas'){
+      if(currentCol==='todo'){
+        const doingCount=document.querySelectorAll('#body-doing .card').length;
+        if(doingCount>=2) return;
+        targetCol='doing';
+      }else if(currentCol==='doing'){
+        targetCol='done';
+      }else{
+        return;
+      }
+    }else if(direction==='menos'){
+      if(currentCol==='doing'){
+        targetCol='todo';
+      }else if(currentCol==='done'){
+        targetCol='doing';
+      }else{
+        return;
+      }
+    }
+    const targetBody=document.querySelector('#body-'+targetCol);
+    targetBody.appendChild(card);
+    updateCounters();
+  }
+
+  // Inicializar tablero
+  document.addEventListener('DOMContentLoaded',()=>{
+    const bodyTodo=document.getElementById('body-todo');
+    bodyTodo.appendChild(createCard('t1','t1'));
+    bodyTodo.appendChild(createCard('t2','t2'));
+    bodyTodo.appendChild(createCard('t3','t3'));
+    updateCounters();
+
+    // Delegación de eventos para botones
+    document.querySelector('.board').addEventListener('click',e=>{
+      if(e.target.classList.contains('mas')){
+        moveCard(e.target.parentElement,'mas');
+      }else if(e.target.classList.contains('menos')){
+        moveCard(e.target.parentElement,'menos');
+      }
+    });
+  });
+</script>
+</body>
+</html>

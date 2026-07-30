@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    grid-gap:5px;
+    animation:fadeIn 1s ease-out;
+  }
+  .celda{
+    width:80px;
+    height:30px;
+    text-align:right;
+    padding-right:5px;
+    font-size:14px;
+    border:1px solid #999;
+    border-radius:3px;
+    background:#fff;
+  }
+  @keyframes fadeIn{
+    0%{opacity:0;transform:scale(0.9);}
+    100%{opacity:1;transform:scale(1);}
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+
+<script>
+(() => {
+  const cells = {};          // ref -> input element
+  const rawValues = {};      // ref -> raw string (what the user typed)
+
+  // Initialize maps
+  document.querySelectorAll('.celda').forEach(inp => {
+    const ref = inp.dataset.ref;
+    cells[ref] = inp;
+    rawValues[ref] = inp.value;
+    inp.addEventListener('input', () => {
+      rawValues[ref] = inp.value;
+      recomputeAll();
+    });
+  });
+
+  // Evaluate a cell recursively, detecting circular refs
+  function evaluate(ref, visited = new Set()) {
+    if (visited.has(ref)) return 'CIRC';
+    const raw = rawValues[ref];
+    if (!raw) return '';
+    if (raw[0] !== '=') return raw; // not a formula
+
+    visited.add(ref);
+    const expr = raw.slice(1); // remove leading '='
+
+    // Replace cell references with their evaluated values
+    const replaced = expr.replace(/[A-C][1-3]/g, match => {
+      const val = evaluate(match, visited);
+      if (val === 'CIRC') return 'CIRC';
+      return val === '' ? '0' : val;
+    });
+
+    if (replaced.includes('CIRC')) return 'CIRC';
+
+    try {
+      const num = eval(replaced); // safe because only + and - are allowed
+      return num.toString();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // Recompute all cells
+  function recomputeAll() {
+    Object.keys(cells).forEach(ref => {
+      const inp = cells[ref];
+      const raw = rawValues[ref];
+      if (raw[0] === '=') {
+        const val = evaluate(ref);
+        inp.value = val;
+      } else {
+        inp.value = raw;
+      }
+    });
+  }
+
+  // Initial calculation
+  recomputeAll();
+})();
+</script>
+</body>
+</html>

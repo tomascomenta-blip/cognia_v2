@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tres en Raya</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#222;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  #wrapper{
+    text-align:center;
+  }
+  #estado-label{
+    font-weight:bold;
+    margin-bottom:5px;
+  }
+  #estado{
+    font-size:1.2em;
+    margin-bottom:20px;
+  }
+  #estado.win{color:green;}
+  #estado.draw{color:orange;}
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    grid-gap:0;
+    width:240px;
+    border:1px solid #fff;
+    box-shadow:0 0 5px rgba(0,0,0,0.5);
+  }
+  .c{
+    width:80px;
+    height:80px;
+    background:#444;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:48px;
+    color:#fff;
+    cursor:pointer;
+    user-select:none;
+    box-shadow:inset 0 0 3px rgba(0,0,0,0.5);
+    transition:background 0.2s;
+  }
+  .c:hover{background:#555;}
+  @media (max-width:320px){
+    #grid{grid-template-columns:repeat(3,60px); width:180px;}
+    .c{width:60px;height:60px;font-size:36px;}
+  }
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <div id="estado-label"><strong>Estado</strong></div>
+  <div id="estado">X</div>
+  <div id="grid">
+    <div class="c" data-i="0"></div>
+    <div class="c" data-i="1"></div>
+    <div class="c" data-i="2"></div>
+    <div class="c" data-i="3"></div>
+    <div class="c" data-i="4"></div>
+    <div class="c" data-i="5"></div>
+    <div class="c" data-i="6"></div>
+    <div class="c" data-i="7"></div>
+    <div class="c" data-i="8"></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const cells=document.querySelectorAll('.c');
+  const estado=document.getElementById('estado');
+  let board=Array(9).fill(null);
+  let turn='X';
+  let gameOver=false;
+  const winCombos=[
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  function checkWin(){
+    return winCombos.some(combo=>{
+      const [a,b,c]=combo;
+      return board[a] && board[a]===board[b] && board[a]===board[c];
+    });
+  }
+  function updateStatus(){
+    if(checkWin()){
+      estado.textContent='gana';
+      estado.classList.add('win');
+      gameOver=true;
+    }else if(board.every(v=>v)){
+      estado.textContent='empate';
+      estado.classList.add('draw');
+      gameOver=true;
+    }else{
+      turn=turn==='X'?'O':'X';
+      estado.textContent=turn;
+    }
+  }
+  cells.forEach(cell=>{
+    cell.addEventListener('click',function(){
+      if(gameOver||cell.textContent) return;
+      const i=parseInt(cell.dataset.i,10);
+      board[i]=turn;
+      cell.textContent=turn;
+      updateStatus();
+    });
+  });
+});
+</script>
+</body>
+</html>

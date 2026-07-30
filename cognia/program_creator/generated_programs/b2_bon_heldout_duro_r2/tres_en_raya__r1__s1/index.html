@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tres en Raya</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(3,100px);
+    gap:5px;
+  }
+  .c{
+    background:#fff;
+    border:2px solid #333;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:80px;
+    cursor:pointer;
+    animation:fadeIn 0.5s ease forwards;
+    opacity:0;
+  }
+  .c:nth-child(1){animation-delay:0.1s;}
+  .c:nth-child(2){animation-delay:0.2s;}
+  .c:nth-child(3){animation-delay:0.3s;}
+  .c:nth-child(4){animation-delay:0.4s;}
+  .c:nth-child(5){animation-delay:0.5s;}
+  .c:nth-child(6){animation-delay:0.6s;}
+  .c:nth-child(7){animation-delay:0.7s;}
+  .c:nth-child(8){animation-delay:0.8s;}
+  .c:nth-child(9){animation-delay:0.9s;}
+  #estado{
+    margin-top:20px;
+    font-size:24px;
+    text-align:center;
+  }
+  @keyframes fadeIn{
+    0%{transform:translateY(-20px);opacity:0;}
+    100%{transform:translateY(0);opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+</div>
+<div id="estado">X</div>
+
+<script>
+  const cells = document.querySelectorAll('.c');
+  const estado = document.getElementById('estado');
+  let turn = 'X';
+  let gameOver = false;
+  const winCombos = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  function checkWin() {
+    return winCombos.some(combo => {
+      const [a,b,c] = combo;
+      return cells[a].textContent &&
+             cells[a].textContent === cells[b].textContent &&
+             cells[a].textContent === cells[c].textContent;
+    });
+  }
+
+  function checkTie() {
+    return Array.from(cells).every(cell => cell.textContent);
+  }
+
+  cells.forEach(cell => {
+    cell.addEventListener('click', () => {
+      if (gameOver || cell.textContent) return;
+      cell.textContent = turn;
+      if (checkWin()) {
+        estado.textContent = 'gana';
+        gameOver = true;
+      } else if (checkTie()) {
+        estado.textContent = 'empate';
+        gameOver = true;
+      } else {
+        turn = turn === 'X' ? 'O' : 'X';
+        estado.textContent = turn;
+      }
+    });
+  });
+</script>
+</body>
+</html>

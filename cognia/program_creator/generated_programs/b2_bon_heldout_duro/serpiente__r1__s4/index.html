@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Snake 10x10</title>
+<style>
+body{margin:0;height:100vh;display:flex;justify-content:center;align-items:center;background:#111;}
+#grid{display:grid;grid-template-columns:repeat(10,30px);grid-template-rows:repeat(10,30px);gap:0;}
+.cel{width:30px;height:30px;background:#222;border:1px solid #333;box-sizing:border-box;display:flex;justify-content:center;align-items:center;}
+.cel:hover{box-shadow:0 0 5px #fff;}
+.snake{background:#0f0;}
+.snake.head{border-radius:50%;}
+.food{background:none;}
+.food::before{content:"";display:block;width:80%;height:80%;background:#f00;border-radius:50%;margin:auto;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script>
+(() => {
+  const size = 10;
+  const grid = document.getElementById('grid');
+  const cells = [];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const div = document.createElement('div');
+      div.className = 'cel';
+      div.dataset.x = x;
+      div.dataset.y = y;
+      grid.appendChild(div);
+      cells.push(div);
+    }
+  }
+  function getCell(x, y) { return cells[y * size + x]; }
+
+  let snake = [{ x: 5, y: 5 }];
+  let dir = 'right';
+  let growing = false;
+
+  function setSnake() {
+    cells.forEach(c => c.classList.remove('snake', 'head'));
+    snake.forEach((seg, i) => {
+      const c = getCell(seg.x, seg.y);
+      c.classList.add('snake');
+      if (i === snake.length - 1) c.classList.add('head');
+    });
+  }
+
+  function placeFood() {
+    let fx, fy;
+    do {
+      fx = Math.floor(Math.random() * size);
+      fy = Math.floor(Math.random() * size);
+    } while (snake.some(s => s.x === fx && s.y === fy));
+    const c = getCell(fx, fy);
+    c.classList.add('food');
+  }
+
+  function updateGameState() {
+    window.juego = {
+      largo: snake.length,
+      x: snake[snake.length - 1].x,
+      y: snake[snake.length - 1].y,
+      dir: dir
+    };
+  }
+
+  setSnake();
+  placeFood();
+  updateGameState();
+
+  document.addEventListener('keydown', e => {
+    const key = e.key;
+    const opposite = { up: 'down', down: 'up', left: 'right', right: 'left' };
+    if (key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight') {
+      const newDir = key.replace('Arrow', '').toLowerCase();
+      if (opposite[newDir] === dir) return;
+      dir = newDir;
+      const head = snake[snake.length - 1];
+      let nx = head.x, ny = head.y;
+      if (dir === 'up') ny--; if (dir === 'down') ny++; if (dir === 'left') nx--; if (dir === 'right') nx++;
+      if (nx < 0 || nx >= size || ny < 0 || ny >= size) return;
+      const target = getCell(nx, ny);
+      if (target.classList.contains('snake')) return;
+      const grow = target.classList.contains('food');
+      if (grow) {
+        target.classList.remove('food');
+        placeFood();
+      }
+      snake.push({ x: nx, y: ny });
+      if (!grow) {
+        const tail = snake.shift();
+        const tailCell = getCell(tail.x, tail.y);
+        tailCell.classList.remove('snake');
+      }
+      setSnake();
+      updateGameState();
+    }
+  });
+})();
+</script>
+</body>
+</html>

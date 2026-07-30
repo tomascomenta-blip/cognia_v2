@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Board</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:20px;box-sizing:border-box;}
+.board{display:flex;gap:20px;flex-wrap:wrap;max-width:1200px;width:100%;}
+.col{background:#fff;flex:1 1 300px;display:flex;flex-direction:column;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.header{background:#4a90e2;color:#fff;padding:10px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;border-top-left-radius:8px;border-top-right-radius:8px;}
+.cards{flex:1;padding:10px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;}
+.card{background:#f9f9f9;padding:10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.1);}
+.card .title{flex:1;margin-right:10px;}
+button{width:28px;height:28px;border:none;border-radius:50%;cursor:pointer;font-size:16px;display:flex;justify-content:center;align-items:center;}
+button.mas{background:#28a745;color:#fff;}
+button.menos{background:#dc3545;color:#fff;}
+button:disabled{opacity:0.5;cursor:not-allowed;}
+@media (max-width:600px){.board{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="header">Todo <span id="cont-todo"></span></div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="header">Doing <span id="cont-doing"></span></div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="header">Done <span id="cont-done"></span></div>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const colOrder = ['todo','doing','done'];
+  const colMap = {};
+  document.querySelectorAll('.col').forEach(col => {
+    colMap[col.dataset.col] = col;
+  });
+
+  function createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = id;
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '➜';
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '←';
+    card.appendChild(title);
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+    return card;
+  }
+
+  function updateCounters() {
+    document.getElementById('cont-todo').textContent = colMap['todo'].querySelectorAll('.card').length;
+    document.getElementById('cont-doing').textContent = colMap['doing'].querySelectorAll('.card').length;
+    document.getElementById('cont-done').textContent = colMap['done'].querySelectorAll('.card').length;
+  }
+
+  function updateButtonStates(card) {
+    const currentCol = card.parentElement.dataset.col;
+    const btnMas = card.querySelector('.mas');
+    const btnMenos = card.querySelector('.menos');
+    btnMenos.disabled = currentCol === 'todo';
+    btnMas.disabled = currentCol === 'done' || (currentCol === 'todo' && colMap['doing'].querySelectorAll('.card').length >= 2);
+  }
+
+  function updateAllButtonStates() {
+    document.querySelectorAll('.card').forEach(card => updateButtonStates(card));
+  }
+
+  function moveCard(card, direction) {
+    const currentCol = card.parentElement.dataset.col;
+    const currentIndex = colOrder.indexOf(currentCol);
+    const newIndex = currentIndex + direction;
+    if (newIndex < 0 || newIndex >= colOrder.length) return;
+    const newColName = colOrder[newIndex];
+    if (newColName === 'doing' && colMap['doing'].querySelectorAll('.card').length >= 2) return;
+    const newCol = colMap[newColName];
+    newCol.querySelector('.cards').appendChild(card);
+    updateCounters();
+    updateAllButtonStates();
+  }
+
+  function addButtonListeners(card) {
+    card.querySelector('.mas').addEventListener('click', () => moveCard(card, 1));
+    card.querySelector('.menos').addEventListener('click', () => moveCard(card, -1));
+  }
+
+  // Initialize cards
+  const todoCardsContainer = colMap['todo'].querySelector('.cards');
+  ['t1','t2','t3'].forEach(id => {
+    const card = createCard(id);
+    addButtonListeners(card);
+    todoCardsContainer.appendChild(card);
+    updateButtonStates(card);
+  });
+
+  updateCounters();
+  updateAllButtonStates();
+});
+</script>
+</body>
+</html>

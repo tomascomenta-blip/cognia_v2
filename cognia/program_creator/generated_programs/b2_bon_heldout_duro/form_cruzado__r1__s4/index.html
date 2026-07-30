@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Formulario con Validación Cruzada</title>
+<style>
+  body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  form{
+    background:white;
+    padding:2rem;
+    border-radius:8px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    width:90%;
+    max-width:400px;
+  }
+  h1{
+    margin:0 0 1.5rem 0;
+    font-size:1.5rem;
+    font-weight:bold;
+    text-align:center;
+  }
+  input[type="password"],
+  input[type="number"]{
+    width:100%;
+    padding:0.75rem;
+    margin-bottom:1rem;
+    border:1px solid #ccc;
+    border-radius:4px;
+    font-size:1rem;
+    transition:border-color 0.2s;
+  }
+  input[type="password"]:focus,
+  input[type="number"]:focus{
+    outline:none;
+    border-color:#4a90e2;
+  }
+  button{
+    width:100%;
+    padding:0.75rem;
+    font-size:1rem;
+    border:none;
+    border-radius:4px;
+    background:#b0b0b0;
+    color:white;
+    cursor:not-allowed;
+    transition:background 0.2s;
+  }
+  button.enabled{
+    background:#008080;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<form id="formulario" novalidate>
+  <h1>Registro</h1>
+  <input id="pass" type="password" placeholder="Contraseña" autocomplete="new-password">
+  <input id="pass2" type="password" placeholder="Confirmar Contraseña" autocomplete="new-password">
+  <input id="edad" type="number" placeholder="Edad" min="0" max="120">
+  <button id="enviar" disabled>Enviar</button>
+</form>
+<script>
+  (function(){
+    const pass=document.getElementById('pass');
+    const pass2=document.getElementById('pass2');
+    const edad=document.getElementById('edad');
+    const enviar=document.getElementById('enviar');
+
+    function validate(){
+      const pwd=pass.value;
+      const pwd2=pass2.value;
+      const age=parseInt(edad.value,10);
+      const okPwd=pwd.length>=8;
+      const okMatch=pwd===pwd2 && pwd2.length>0;
+      const okAge=Number.isInteger(age) && age>=18 && age<=120;
+      const all=okPwd && okMatch && okAge;
+      if(all){
+        enviar.disabled=false;
+        enviar.classList.add('enabled');
+      }else{
+        enviar.disabled=true;
+        enviar.classList.remove('enabled');
+      }
+    }
+
+    pass.addEventListener('input',validate);
+    pass2.addEventListener('input',validate);
+    edad.addEventListener('input',validate);
+  })();
+</script>
+</body>
+</html>

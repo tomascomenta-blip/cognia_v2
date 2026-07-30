@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tabla con Filtro, Orden y Paginación</title>
+<style>
+  body{
+    font-family:system-ui, sans-serif;
+    background:#f5f5f5;
+    margin:0;
+    padding:20px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+  }
+  .container{
+    max-width:600px;
+    width:100%;
+    background:#fff;
+    padding:20px;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  }
+  h1{
+    font-size:1.8rem;
+    margin-bottom:1rem;
+    color:#333;
+  }
+  .controls{
+    display:flex;
+    align-items:center;
+    margin-bottom:1rem;
+  }
+  #q{
+    flex:1;
+    padding:8px;
+    border:1px solid #007bff;
+    border-radius:4px;
+    font-size:1rem;
+  }
+  #ordenar{
+    margin-left:8px;
+    padding:8px 12px;
+    border:1px solid #007bff;
+    background:#fff;
+    color:#007bff;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  #ordenar:hover{
+    background:#e6f0ff;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:1rem;
+  }
+  th,td{
+    padding:8px;
+    text-align:left;
+    border-bottom:1px solid #e0e0e0;
+  }
+  th{
+    background:#f0f0f0;
+    font-weight:normal;
+    color:#555;
+  }
+  td:last-child{
+    text-align:right;
+  }
+  .pagination{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+  }
+  button{
+    padding:6px 12px;
+    margin:0 4px;
+    border:1px solid #007bff;
+    background:#fff;
+    color:#007bff;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  button:hover{
+    background:#e6f0ff;
+  }
+  button:disabled{
+    opacity:0.5;
+    cursor:default;
+  }
+  #pagina{
+    font-weight:bold;
+    margin:0 8px;
+  }
+  @media (max-width:480px){
+    .controls{
+      flex-direction:column;
+      align-items:flex-start;
+    }
+    #q{
+      width:100%;
+      margin-bottom:8px;
+    }
+    #ordenar{
+      margin-left:0;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Tabla de Personas</h1>
+  <div class="controls">
+    <input type="text" id="q" placeholder="Buscar por nombre">
+    <button id="ordenar">Ordenar por edad ↑</button>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Nombre</th><th>Edad</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="pagination">
+    <button id="prev">Prev</button>
+    <span id="pagina">1</span>
+    <button id="sig">Next</button>
+  </div>
+</div>
+<script>
+class TableApp {
+  constructor() {
+    this.data = [
+      {name:"Ana", age:25},
+      {name:"Luis", age:34},
+      {name:"Carlos", age:28},
+      {name:"María", age:22},
+      {name:"Juan", age:45},
+      {name:"Laura", age:31},
+      {name:"Pedro", age:39},
+      {name:"Sofía", age:27},
+      {name:"Miguel", age:33},
+      {name:"Elena", age:29},
+      {name:"Javier", age:41},
+      {name:"Isabel", age:36},
+      {name:"Roberto", age:38},
+      {name:"Patricia", age:30},
+      {name:"Fernando", age:42},
+      {name:"Ana María", age:24},
+      {name:"Luis Miguel", age:35},
+      {name:"Carlos Alberto", age:37},
+      {name:"María José", age:23},
+      {name:"Juan Carlos", age:44},
+      {name:"Laura Elena", age:32},
+      {name:"Pedro Luis", age:40},
+      {name:"Sofía María", age:26}
+    ];
+    this.filteredData = this.data.slice();
+    this.currentPage = 1;
+    this.pageSize = 10;
+    this.sortAscending = true;
+    this.tbody = document.getElementById('tbody');
+    this.pageSpan = document.getElementById('pagina');
+    this.prevBtn = document.getElementById('prev');
+    this.nextBtn = document.getElementById('sig');
+    this.searchInput = document.getElementById('q');
+    this.orderBtn = document.getElementById('ordenar');
+    this.attachEvents();
+    this.render();
+  }
+  attachEvents() {
+    this.searchInput.addEventListener('input', () => this.onFilter());
+    this.orderBtn.addEventListener('click', () => this.onOrder());
+    this.prevBtn.addEventListener('click', () => this.onPrev());
+    this.nextBtn.addEventListener('click', () => this.onNext());
+  }
+  onFilter() {
+    this.currentPage = 1;
+    this.applyFilter();
+    this.render();
+  }
+  onOrder() {
+    this.sortAscending = !this.sortAscending;
+    this.orderBtn.textContent = this.sortAscending ? 'Ordenar por edad ↑' : 'Ordenar por edad ↓';
+    this.applySort();
+    this.render();
+  }
+  onPrev() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.render();
+    }
+  }
+  onNext() {
+    const totalPages = Math.ceil(this.filteredData.length / this.pageSize);
+    if (this.currentPage < totalPages) {
+      this.currentPage++;
+      this.render();
+    }
+  }
+  applyFilter() {
+    const query = this.searchInput.value.trim().toLowerCase();
+    if (query === "") {
+      this.filteredData = this.data.slice();
+    } else {
+      this.filteredData = this.data.filter(item => item.name.toLowerCase().includes(query));
+    }
+    this.applySort();
+  }
+  applySort() {
+    this.filteredData.sort((a, b) => this.sortAscending ? a.age - b.age : b.age - a.age);
+  }
+  render() {
+    const totalPages = Math.ceil(this.filteredData.length / this.pageSize) || 1;
+    if (this.currentPage > totalPages) this.currentPage = totalPages;
+    const start = (this.currentPage - 1) * this.pageSize;
+    const pageData = this.filteredData.slice(start, start + this.pageSize);
+    this.tbody.innerHTML = pageData.map(row => `
+      <tr class="fila">
+        <td>${row.name}</td>
+        <td style="text-align:right">${row.age}</td>
+      </tr>
+    `).join('');
+    this.pageSpan.textContent = this.currentPage;
+    this.prevBtn.disabled = this.currentPage === 1;
+    this.nextBtn.disabled = this.currentPage === totalPages;
+  }
+}
+document.addEventListener('DOMContentLoaded', () => new TableApp());
+</script>
+</body>
+</html>

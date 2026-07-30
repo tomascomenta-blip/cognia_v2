@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tabla con filtro, orden y paginación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  font-family:Arial,Helvetica,sans-serif;
+  background:#fafafa;
+  color:#333;
+  margin:0;
+  padding:20px;
+}
+.container{
+  max-width:600px;
+  margin:0 auto;
+  background:#fff;
+  padding:20px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+  border-radius:8px;
+}
+.toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:12px;
+}
+.toolbar input{
+  flex:1 1 200px;
+  padding:6px 8px;
+  border:1px solid #ccc;
+  border-radius:4px;
+}
+.toolbar button{
+  padding:6px 12px;
+  border:none;
+  border-radius:4px;
+  background:#e0e0e0;
+  color:#333;
+  cursor:pointer;
+}
+.toolbar button:disabled{
+  opacity:0.5;
+  cursor:not-allowed;
+}
+.toolbar button.active{
+  background:#009688;
+  color:#fff;
+}
+.pagination{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+th{
+  text-align:left;
+  padding:8px;
+  background:#f5f5f5;
+  border-bottom:1px solid #ddd;
+}
+td{
+  padding:8px;
+  border-bottom:1px solid #eee;
+}
+.fila:hover{
+  background:#f9f9f9;
+}
+@media (max-width:480px){
+  .toolbar{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .pagination{
+    margin-top:8px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="toolbar">
+    <input id="q" placeholder="Buscar nombre">
+    <button id="ordenar">Ordenar por edad ↑</button>
+    <div class="pagination">
+      <button id="prev">Prev</button>
+      <span id="pagina">1</span>
+      <button id="sig">Next</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Nombre</th><th>Edad</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+<script>
+const data = [
+  {nombre:"Ana", edad:28},
+  {nombre:"Luis", edad:34},
+  {nombre:"María", edad:22},
+  {nombre:"Carlos", edad:45},
+  {nombre:"Elena", edad:31},
+  {nombre:"Javier", edad:38},
+  {nombre:"Sofía", edad:27},
+  {nombre:"Pedro", edad:50},
+  {nombre:"Lucía", edad:23},
+  {nombre:"Andrés", edad:41},
+  {nombre:"Isabel", edad:29},
+  {nombre:"Diego", edad:36},
+  {nombre:"Marta", edad:24},
+  {nombre:"Jorge", edad:47},
+  {nombre:"Patricia", edad:32},
+  {nombre:"Raúl", edad:39},
+  {nombre:"Laura", edad:26},
+  {nombre:"Fernando", edad:43},
+  {nombre:"Cristina", edad:30},
+  {nombre:"Alberto", edad:40},
+  {nombre:"Beatriz", edad:35},
+  {nombre:"Roberto", edad:48},
+  {nombre:"Santiago", edad:33}
+];
+let currentPage = 1;
+const pageSize = 10;
+let currentSortAsc = true;
+let filterText = "";
+const tbody = document.getElementById("tbody");
+const qInput = document.getElementById("q");
+const ordenarBtn = document.getElementById("ordenar");
+const prevBtn = document.getElementById("prev");
+const sigBtn = document.getElementById("sig");
+const paginaSpan = document.getElementById("pagina");
+
+function renderTable(){
+  const filtered = data.filter(item => item.nombre.toLowerCase().includes(filterText));
+  const sorted = filtered.sort((a,b)=> currentSortAsc ? a.edad-b.edad : b.edad-a.edad);
+  const totalPages = Math.max(1, Math.ceil(sorted.length/pageSize));
+  if(currentPage>totalPages) currentPage=totalPages;
+  const start = (currentPage-1)*pageSize;
+  const pageData = sorted.slice(start, start+pageSize);
+  tbody.innerHTML = "";
+  pageData.forEach(item=>{
+    const tr = document.createElement("tr");
+    tr.className="fila";
+    tr.innerHTML = `<td>${item.nombre}</td><td>${item.edad}</td>`;
+    tbody.appendChild(tr);
+  });
+  paginaSpan.textContent = currentPage;
+  prevBtn.disabled = currentPage===1;
+  sigBtn.disabled = currentPage===totalPages;
+}
+function updateSortButton(){
+  ordenarBtn.textContent = currentSortAsc ? "Ordenar por edad ↑" : "Ordenar por edad ↓";
+}
+qInput.addEventListener("input", e=>{
+  filterText = e.target.value.toLowerCase();
+  currentPage = 1;
+  renderTable();
+});
+ordenarBtn.addEventListener("click", ()=>{
+  currentSortAsc = !currentSortAsc;
+  updateSortButton();
+  renderTable();
+});
+prevBtn.addEventListener("click", ()=>{
+  if(currentPage>1){ currentPage--; renderTable(); }
+});
+sigBtn.addEventListener("click", ()=>{
+  const filtered = data.filter(item => item.nombre.toLowerCase().includes(filterText));
+  const totalPages = Math.max(1, Math.ceil(filtered.length/pageSize));
+  if(currentPage<totalPages){ currentPage++; renderTable(); }
+});
+document.addEventListener("DOMContentLoaded", ()=>{
+  updateSortButton();
+  renderTable();
+});
+</script>
+</body>
+</html>

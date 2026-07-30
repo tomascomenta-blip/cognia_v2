@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calculadora de Descuento por Tramos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  .card {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    width: 90%;
+    max-width: 400px;
+    box-sizing: border-box;
+  }
+  h1 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-align: center;
+  }
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 1rem;
+  }
+  input[type="number"]:focus {
+    outline: none;
+    border-color: #008080;
+    box-shadow: 0 0 4px rgba(0,128,128,0.3);
+  }
+  .total {
+    margin-top: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+  }
+  .total span {
+    color: #006400;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Calculadora de Descuento por Tramos</h1>
+  <label for="cant">Cantidad:</label>
+  <input id="cant" type="number" min="0" value="0">
+  <p class="total">Total: $<span id="total">0.00</span></p>
+</div>
+
+<script>
+  (function() {
+    const unitPrice = 10;
+    const input = document.getElementById('cant');
+    const totalSpan = document.getElementById('total');
+
+    function calculateTotal(q) {
+      const qty = Math.max(0, Math.floor(q));
+      let total = 0;
+
+      // First 10 units, no discount
+      const firstTier = Math.min(qty, 10);
+      total += firstTier * unitPrice;
+
+      // Units 11 to 50, 10% discount
+      if (qty > 10) {
+        const secondTier = Math.min(qty - 10, 40);
+        total += secondTier * (unitPrice * 0.9);
+      }
+
+      // Units 51 and above, 20% discount
+      if (qty > 50) {
+        const thirdTier = qty - 50;
+        total += thirdTier * (unitPrice * 0.8);
+      }
+
+      return total;
+    }
+
+    function updateTotal() {
+      const qty = parseInt(input.value, 10) || 0;
+      const total = calculateTotal(qty);
+      totalSpan.textContent = total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    input.addEventListener('input', updateTotal);
+
+    // Initial calculation
+    updateTotal();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Juego de la serpiente 10x10</title>
+<style>
+  body{
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    background:#2c3e50;
+    font-family:sans-serif;
+    color:#ecf0f1;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(10,1fr);
+    width:90vmin;
+    height:90vmin;
+    max-width:400px;
+    max-height:400px;
+    gap:1px;
+  }
+  .cel{
+    background:#7f8c8d;
+    border:1px solid #34495e;
+    width:100%;
+    height:100%;
+    box-sizing:border-box;
+  }
+  .snake{
+    background:#2ecc71;
+  }
+  .food{
+    background:#e74c3c;
+  }
+  #state{
+    margin-top:1rem;
+    padding:0.5rem;
+    background:#1a252f;
+    border-radius:4px;
+    max-width:90vmin;
+    overflow:auto;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<pre id="state"></pre>
+<script>
+(() => {
+  const size = 10;
+  const gridEl = document.getElementById('grid');
+  const stateEl = document.getElementById('state');
+  const cells = [];
+  // Create grid
+  for(let y=0;y<size;y++){
+    for(let x=0;x<size;x++){
+      const div = document.createElement('div');
+      div.className='cel';
+      div.dataset.x=x;
+      div.dataset.y=y;
+      gridEl.appendChild(div);
+      cells.push(div);
+    }
+  }
+  // Helper to get cell by coordinates
+  const getCell = (x,y)=> cells.find(c=> +c.dataset.x===x && +c.dataset.y===y);
+  // Initial snake and food
+  let snake = [{x:5,y:5}];
+  let dir = 'right';
+  let foodPos = {x:2,y:2};
+  const setFood = (pos)=>{foodPos=pos; getCell(pos.x,pos.y).classList.add('food');};
+  const clearFood = (pos)=>{getCell(pos.x,pos.y).classList.remove('food');};
+  // Place initial food
+  setFood(foodPos);
+  // Render snake
+  const render = () => {
+    // Clear all snake classes
+    cells.forEach(c=>c.classList.remove('snake'));
+    snake.forEach(p=>getCell(p.x,p.y).classList.add('snake'));
+    updateState();
+  };
+  // Update window.juego and state display
+  const updateState = () => {
+    const head = snake[0];
+    window.juego = {largo: snake.length, x: head.x, y: head.y, dir};
+    stateEl.textContent = JSON.stringify(window.juego, null, 2);
+  };
+  // Movement logic
+  const move = (newDir)=>{
+    // Prevent 180° reversal
+    if((dir==='left' && newDir==='right') ||
+       (dir==='right' && newDir==='left') ||
+       (dir==='up' && newDir==='down') ||
+       (dir==='down' && newDir==='up')){
+      return;
+    }
+    dir = newDir;
+    const head = snake[0];
+    let nx=head.x, ny=head.y;
+    if(dir==='left') nx--;
+    if(dir==='right') nx++;
+    if(dir==='up') ny--;
+    if(dir==='down') ny++;
+    // Wrap around edges
+    if(nx<0) nx=size-1;
+    if(nx>=size) nx=0;
+    if(ny<0) ny=size-1;
+    if(ny>=size) ny=0;
+    const newHead = {x:nx,y:ny};
+    // Check if food
+    const ate = (nx===foodPos.x && ny===foodPos.y);
+    if(ate){
+      clearFood(foodPos);
+      // Grow: don't remove tail
+      // Place new food deterministically
+      const nextFood = (foodPos.x===2 && foodPos.y===2)?{x:7,y:7}:{x:2,y:2};
+      setFood(nextFood);
+    }else{
+      // Remove tail
+      const tail = snake.pop();
+      getCell(tail.x,tail.y).classList.remove('snake');
+    }
+    snake.unshift(newHead);
+    render();
+  };
+  // Key handling
+  window.addEventListener('keydown',e=>{
+    const keyMap = {
+      ArrowLeft:'left',
+      ArrowRight:'right',
+      ArrowUp:'up',
+      ArrowDown:'down'
+    };
+    const newDir = keyMap[e.key];
+    if(newDir){
+      e.preventDefault();
+      move(newDir);
+    }
+  });
+  // Initial render
+  render();
+})();
+</script>
+</body>
+</html>

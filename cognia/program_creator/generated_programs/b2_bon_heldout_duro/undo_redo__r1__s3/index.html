@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista con Undo/Redo</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:0;}
+  .container{max-width:600px;margin:0 auto;padding:20px;text-align:center;}
+  #txt{width:100%;max-width:400px;border:none;border-bottom:1px solid #ccc;padding:6px 8px;font-size:16px;background:transparent;color:#333;}
+  .btn{background:none;border:none;padding:8px 12px;margin:0 4px;font-size:16px;color:#0066cc;cursor:pointer;border-radius:4px;transition:background .2s;}
+  .btn:disabled{color:#999;cursor:default;}
+  .btn:hover:not(:disabled){background:#e0e0e0;}
+  #list{list-style:none;padding:0;margin-top:20px;text-align:left;}
+  .it{background:#fafafa;border:1px solid #e0e0e0;border-radius:4px;padding:8px 12px;margin-bottom:8px;font-size:16px;color:#333;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+</style>
+</head>
+<body>
+<div class="container">
+  <input id="txt" type="text" placeholder="Añadir elemento">
+  <div>
+    <button id="add" class="btn">Añadir</button>
+    <button id="undo" class="btn" disabled>Deshacer</button>
+    <button id="redo" class="btn" disabled>Rehacer</button>
+  </div>
+  <ul id="list"></ul>
+</div>
+<script>
+  const txt = document.getElementById('txt');
+  const addBtn = document.getElementById('add');
+  const undoBtn = document.getElementById('undo');
+  const redoBtn = document.getElementById('redo');
+  const list = document.getElementById('list');
+  const undoStack = [];
+  const redoStack = [];
+
+  function updateButtons() {
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  function createItem(text) {
+    const li = document.createElement('li');
+    li.className = 'it';
+    li.textContent = text;
+    return li;
+  }
+
+  addBtn.addEventListener('click', () => {
+    const val = txt.value.trim();
+    if (!val) return;
+    const li = createItem(val);
+    list.appendChild(li);
+    undoStack.push(val);
+    redoStack.length = 0;
+    txt.value = '';
+    updateButtons();
+  });
+
+  txt.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addBtn.click();
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (!undoStack.length) return;
+    const val = undoStack.pop();
+    const lastLi = list.lastElementChild;
+    if (lastLi) list.removeChild(lastLi);
+    redoStack.push(val);
+    updateButtons();
+  });
+
+  redoBtn.addEventListener('click', () => {
+    if (!redoStack.length) return;
+    const val = redoStack.pop();
+    const li = createItem(val);
+    list.appendChild(li);
+    undoStack.push(val);
+    updateButtons();
+  });
+
+  // Initial state
+  updateButtons();
+</script>
+</body>
+</html>

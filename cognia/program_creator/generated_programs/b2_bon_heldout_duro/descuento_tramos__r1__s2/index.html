@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calculadora de Descuento</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    background:#f9f9f9;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#333;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+  }
+  .card{
+    background:#fff;
+    padding:2rem;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    text-align:center;
+    width:90%;
+    max-width:400px;
+  }
+  h1{
+    font-size:1.8rem;
+    margin-bottom:1.5rem;
+    font-weight:bold;
+  }
+  input#cant{
+    width:80%;
+    padding:0.75rem;
+    font-size:1rem;
+    border:2px solid #4cafab;
+    border-radius:4px;
+    outline:none;
+    transition:border-color .3s;
+  }
+  input#cant:focus{
+    border-color:#2e8b7e;
+  }
+  .progress{
+    width:80%;
+    height:4px;
+    background:#e0f2f1;
+    margin:0.5rem auto 0;
+    border-radius:2px;
+  }
+  .progress-fill{
+    height:100%;
+    background:#4cafab;
+    width:0%;
+    border-radius:2px;
+    transition:width .3s;
+  }
+  span#total{
+    display:block;
+    font-size:2.5rem;
+    font-weight:700;
+    margin-top:1.5rem;
+    color:#222;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Calculadora de Descuento</h1>
+  <input id="cant" type="number" min="0" value="0" placeholder="Cantidad">
+  <div class="progress"><div class="progress-fill"></div></div>
+  <span id="total">0.00</span>
+</div>
+<script>
+class DiscountCalculator{
+  constructor(inputId,totalId,progressSelector){
+    this.input=document.getElementById(inputId);
+    this.totalSpan=document.getElementById(totalId);
+    this.progressFill=document.querySelector(progressSelector);
+    this.unitPrice=10;
+    this.update();
+    this.input.addEventListener('input',()=>this.update());
+  }
+  update(){
+    const qty=Math.max(0,parseInt(this.input.value)||0);
+    const total=this.calculateTotal(qty);
+    this.totalSpan.textContent=total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const progress=Math.min(qty,100)/100*100;
+    this.progressFill.style.width=progress+'%';
+  }
+  calculateTotal(qty){
+    let total=0,remaining=qty;
+    if(remaining>0){
+      const first=Math.min(remaining,10);
+      total+=first*this.unitPrice;
+      remaining-=first;
+    }
+    if(remaining>0){
+      const second=Math.min(remaining,40);
+      total+=second*this.unitPrice*0.9;
+      remaining-=second;
+    }
+    if(remaining>0){
+      total+=remaining*this.unitPrice*0.8;
+    }
+    return total;
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new DiscountCalculator('cant','total','.progress-fill'));
+</script>
+</body>
+</html>

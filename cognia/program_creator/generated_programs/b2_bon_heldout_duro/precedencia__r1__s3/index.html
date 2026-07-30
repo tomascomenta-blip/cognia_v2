@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Precedencia</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .calc{
+    background:#fff;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,.1);
+    width:260px;
+    max-width:90vw;
+  }
+  #pantalla{
+    background:#333;
+    color:#fff;
+    font-size:2rem;
+    text-align:right;
+    padding:10px 15px;
+    border-radius:8px;
+    box-shadow:0 0 8px rgba(255,255,255,.3);
+    min-height:48px;
+    margin-bottom:15px;
+    overflow:hidden;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+  }
+  .k{
+    background:#555;
+    color:#fff;
+    font-size:1.5rem;
+    padding:15px 0;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    transition:.2s;
+  }
+  .k.operator{
+    background:#008080;
+  }
+  .k:active{
+    transform:scale(.95);
+  }
+</style>
+</head>
+<body>
+<div class="calc">
+  <div id="pantalla"></div>
+  <div class="grid">
+    <button class="k" data-k="2">2</button>
+    <button class="k" data-k="3">3</button>
+    <button class="k" data-k="4">4</button>
+    <button class="k operator" data-k="+">+</button>
+    <button class="k operator" data-k="-">-</button>
+    <button class="k operator" data-k="*">×</button>
+    <button class="k" data-k="7">7</button>
+    <button class="k" data-k="=">=</button>
+    <button class="k" data-k="C">C</button>
+    <!-- 3 celdas vacías para completar 3x4 -->
+    <div></div><div></div><div></div>
+  </div>
+</div>
+<script>
+  (function(){
+    const pantalla=document.getElementById('pantalla');
+    const buttons=document.querySelectorAll('.k');
+    let expr='';
+    function updateDisplay(val){ pantalla.textContent=val; }
+    function isOperator(ch){ return ['+','-','*'].includes(ch); }
+    buttons.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const val=btn.dataset.k;
+        if(val==='C'){
+          expr='';
+          updateDisplay('');
+        }else if(val==='='){
+          if(expr){
+            try{
+              const res=eval(expr);
+              expr=res.toString();
+              updateDisplay(expr);
+            }catch(e){ updateDisplay('Error'); expr=''; }
+          }
+        }else if(isOperator(val)){
+          if(expr && !isOperator(expr.slice(-1))){
+            expr+=val;
+          }else if(expr && isOperator(expr.slice(-1))){
+            expr=expr.slice(0,-1)+val;
+          }else if(expr===''){
+            // ignore leading operator
+          }
+          updateDisplay(expr);
+        }else{ // number
+          expr+=val;
+          updateDisplay(expr);
+        }
+      });
+    });
+  })();
+</script>
+</body>
+</html>

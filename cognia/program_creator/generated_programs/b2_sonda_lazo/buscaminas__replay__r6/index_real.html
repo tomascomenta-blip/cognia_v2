@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5 Fixed Mines</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  h1{
+    margin:20px 0 10px;
+    font-size:32px;
+    color:#333;
+  }
+  #grid{
+    width:400px;
+    display:flex;
+    flex-wrap:wrap;
+  }
+  .c{
+    width:80px;
+    height:80px;
+    border:1px solid #555;
+    background:linear-gradient(#eee,#ccc);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#add8e6;
+    border:1px solid #888;
+    color:#000;
+    font-weight:bold;
+  }
+  .c.bandera{
+    background:#ffeb3b;
+  }
+  #reset{
+    margin-top:10px;
+    padding:8px 16px;
+    font-size:16px;
+    cursor:pointer;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:18px;
+    color:red;
+  }
+</style>
+</head>
+<body>
+<h1>Minesweeper</h1>
+<div id="grid"></div>
+<button id="reset">Reset</button>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const GRID_SIZE = 5;
+  const TILE_SIZE = 80;
+  const MINE_POSITIONS = [6, 12, 18];
+
+  const gridEl = document.getElementById('grid');
+  const estadoEl = document.getElementById('estado');
+  const resetBtn = document.getElementById('reset');
+
+  // Pre‑compute mine status and adjacent mine counts
+  const isMine = i => MINE_POSITIONS.includes(i);
+  const getNeighbors = i => {
+    const neighbors = [];
+    const row = Math.floor(i / GRID_SIZE);
+    const col = i % GRID_SIZE;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+          neighbors.push(r * GRID_SIZE + c);
+        }
+      }
+    }
+    return neighbors;
+  };
+
+  const counts = new Array(GRID_SIZE * GRID_SIZE).fill(0);
+  for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+    if (isMine(i)) continue;
+    const neigh = getNeighbors(i);
+    let cnt = 0;
+    for (const n of neigh) if (isMine(n)) cnt++;
+    counts[i] = cnt;
+  }
+
+  // Build the grid
+  for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'c';
+    cell.dataset.i = i;
+    cell.style.width = TILE_SIZE + 'px';
+    cell.style.height = TILE_SIZE + 'px';
+    gridEl.appendChild(cell);
+  }
+
+  // Open a cell (and cascade if zero)
+  const openCell = i => {
+    const cell = document.querySelector(`.c[data-i="${i}"]`);
+    if (!cell || cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+
+    if (isMine(i)) {
+      cell.classList.add('abierta');
+      cell.textContent = '✖';
+      cell.style.color = 'red';
+      estadoEl.textContent = 'perdiste';
+      return;
+    }
+
+    const queue = [i];
+    const visited = new Set();
+
+    while (queue.length) {
+      const idx = queue.shift();
+      if (visited.has(idx)) continue;
+      visited.add(idx);
+
+      const cEl = document.querySelector(`.c[data-i="${idx}"]`);
+      if (!cEl || cEl.classList.contains('abierta') || cEl.classList.contains('bandera')) continue;
+
+      cEl.classList.add('abierta');
+      const cnt = counts[idx];
+      if (cnt > 0) {
+        cEl.textContent = cnt;
+      } else {
+        cEl.textContent = '';
+        const neigh = getNeighbors(idx);
+        for (const n of neigh) if (!visited.has(n)) queue.push(n);
+      }
+    }
+  };
+
+  // Toggle flag on right‑click
+  const toggleFlag = e => {
+    e.preventDefault();
+    const cell = e.target;
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')) {
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+    }
+  };
+
+  // Reset the game
+  const resetGame = () => {
+    document.querySelectorAll('.c').forEach(c => {
+      c.classList.remove('abierta', 'bandera');
+      c.textContent = '';
+    });
+    estadoEl.textContent = '';
+  };
+
+  // Attach event listeners
+  document.querySelectorAll('.c').forEach(cell => {
+    cell.addEventListener('click', () => openCell(parseInt(cell.dataset.i)));
+    cell.addEventListener('contextmenu', toggleFlag);
+  });
+
+  resetBtn.addEventListener('click', resetGame);
+})();
+</script>
+</body>
+</html>
