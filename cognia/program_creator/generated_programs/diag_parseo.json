@@ -1,0 +1,1078 @@
+{
+  "corridas": {
+    "b2_ablacion_texto_fresca": {
+      "n_crudos": 24,
+      "difieren": 24,
+      "rescates_del_parse_real": 0,
+      "perdidas_del_parse_real": 0,
+      "filas": [
+        {
+          "celda": "hoja_calculo__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 1913,
+          "real_chars": 1911,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 2239,
+          "real_chars": 2237,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', espe"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 2919,
+          "real_chars": 2917,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la cantidad es 2 (excepcion: Error: Page.evaluate: TypeError: Cannot read p"
+        },
+        {
+          "celda": "carrito_stock__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3255,
+          "real_chars": 0,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "el parse del LAZO rechaza (regenera)"
+        },
+        {
+          "celda": "kanban__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 4449,
+          "real_chars": 4447,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3495,
+          "real_chars": 3493,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 4649,
+          "real_chars": 4647,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: abrir una mina pierde ('Perdiste' no contiene 'perdiste')"
+        },
+        {
+          "celda": "buscaminas__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4562,
+          "real_chars": 4560,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la celda 11 dice 2 (vecinas de 6 y 12) (js='', esperaba '2'); la celda 7 di"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 3607,
+          "real_chars": 3605,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', espe"
+        },
+        {
+          "celda": "hoja_calculo__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3160,
+          "real_chars": 3158,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCA"
+        },
+        {
+          "celda": "carrito_stock__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 4941,
+          "real_chars": 4939,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 4429,
+          "real_chars": 4427,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3116,
+          "real_chars": 3114,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3698,
+          "real_chars": 3696,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 2475,
+          "real_chars": 0,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "el parse del LAZO rechaza (regenera)"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3139,
+          "real_chars": 3137,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4250,
+          "real_chars": 4248,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: C1 = B1+A1 = 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcu"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r3",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 4855,
+          "real_chars": 4853,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8.00', esperaba '8'); C1 = B1+A1 = 13 (js='13.00', espe"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r3",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 6047,
+          "real_chars": 6045,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 6465,
+          "real_chars": 6463,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        },
+        {
+          "celda": "kanban__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3404,
+          "real_chars": 3402,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r3",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3602,
+          "real_chars": 3600,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r3",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 2455,
+          "real_chars": 2453,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la re"
+        },
+        {
+          "celda": "buscaminas__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 2228,
+          "real_chars": 2226,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        }
+      ]
+    },
+    "b2_ablacion_texto": {
+      "n_crudos": 46,
+      "difieren": 46,
+      "rescates_del_parse_real": 0,
+      "perdidas_del_parse_real": 0,
+      "filas": [
+        {
+          "celda": "hoja_calculo__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3679,
+          "real_chars": 3677,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "29/30 checks OK (26/26 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 3859,
+          "real_chars": 3857,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', espe"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 5742,
+          "real_chars": 5740,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 5364,
+          "real_chars": 5362,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 2501,
+          "real_chars": 2499,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: t1 llega a done (js=0, esperaba 1); en done ya no avanza mas (js=0, esperab"
+        },
+        {
+          "celda": "kanban__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 2395,
+          "real_chars": 2393,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r1",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3989,
+          "real_chars": 3987,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r1",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4028,
+          "real_chars": 4026,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la celda 11 dice 2 (vecinas de 6 y 12) (js='', esperaba '2'); la celda 7 di"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 3715,
+          "real_chars": 3713,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8.00', esperaba '8'); C1 = B1+A1 = 13 (js='13.00', espe"
+        },
+        {
+          "celda": "hoja_calculo__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4669,
+          "real_chars": 4667,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='CIRC', esperaba '8'); C1 = B1+A1 = 13 (js='CIRC', esper"
+        },
+        {
+          "celda": "carrito_stock__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 5891,
+          "real_chars": 5889,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 6061,
+          "real_chars": 6059,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 4503,
+          "real_chars": 4501,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3717,
+          "real_chars": 3715,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: t3 NO entra,"
+        },
+        {
+          "celda": "buscaminas__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3126,
+          "real_chars": 3124,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: grilla 5x5 (count('.c')=0, esperaba 25); la celda 4 se abre (excepcion: Err"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r2",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3052,
+          "real_chars": 3050,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4110,
+          "real_chars": 4108,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='CIRC', esper"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r3",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 5801,
+          "real_chars": 5799,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4824,
+          "real_chars": 4822,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        },
+        {
+          "celda": "kanban__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3637,
+          "real_chars": 3635,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r3",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 5167,
+          "real_chars": 5165,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: IDA Y VUELTA: t3 vuelve a todo (js=2, esperaba 3); doing queda vacio (js=1,"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r3",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 4298,
+          "real_chars": 4296,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 5538,
+          "real_chars": 5536,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la re"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r4",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 3036,
+          "real_chars": 3034,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', e"
+        },
+        {
+          "celda": "hoja_calculo__replay__r4",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 2231,
+          "real_chars": 2229,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        },
+        {
+          "celda": "carrito_stock__replay__r4",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 4858,
+          "real_chars": 4856,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r4",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 4577,
+          "real_chars": 4575,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r4",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 5515,
+          "real_chars": 5513,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__replay__r4",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 5475,
+          "real_chars": 5473,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r4",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4746,
+          "real_chars": 4744,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la re"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r4",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 4484,
+          "real_chars": 4482,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r5",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 2323,
+          "real_chars": 2321,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "29/30 checks OK (26/26 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r5",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3493,
+          "real_chars": 3491,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__replay__r5",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3350,
+          "real_chars": 3348,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: total vuelve a 25 ('0,00 €' no contiene '25')"
+        },
+        {
+          "celda": "kanban__replay__r5",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3995,
+          "real_chars": 3993,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r5",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 4179,
+          "real_chars": 4177,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, e"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r5",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3692,
+          "real_chars": 3690,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r5",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4796,
+          "real_chars": 4794,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la celda 11 dice 2 (vecinas de 6 y 12) (js='❗', esperaba '2'); la celda 7 d"
+        },
+        {
+          "celda": "hoja_calculo__lsinreq__r6",
+          "brazo": "lsinreq",
+          "estricto_medido": false,
+          "fence_chars": 4886,
+          "real_chars": 4884,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8.00', esperaba '8'); C1 = B1+A1 = 13 (js='13.00', espe"
+        },
+        {
+          "celda": "hoja_calculo__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 5015,
+          "real_chars": 5013,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "29/30 checks OK (26/26 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3016,
+          "real_chars": 3014,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__lsinreq__r6",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3542,
+          "real_chars": 3540,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__lsinreq__r6",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 4082,
+          "real_chars": 4080,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3895,
+          "real_chars": 3893,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 5070,
+          "real_chars": 5068,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__lsinreq__r6",
+          "brazo": "lsinreq",
+          "estricto_medido": true,
+          "fence_chars": 3839,
+          "real_chars": 3837,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        }
+      ]
+    },
+    "b2_sonda_lazo": {
+      "n_crudos": 35,
+      "difieren": 35,
+      "rescates_del_parse_real": 0,
+      "perdidas_del_parse_real": 1,
+      "filas": [
+        {
+          "celda": "carrito_stock__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4631,
+          "real_chars": 4629,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        },
+        {
+          "celda": "kanban__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4028,
+          "real_chars": 4026,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, e"
+        },
+        {
+          "celda": "kanban__crudo__r2",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 4274,
+          "real_chars": 4272,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__crudo__r2",
+          "brazo": "crudo",
+          "estricto_medido": false,
+          "fence_chars": 4621,
+          "real_chars": 4619,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17"
+        },
+        {
+          "celda": "buscaminas__replay__r2",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 2519,
+          "real_chars": 2517,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__crudo__r3",
+          "brazo": "crudo",
+          "estricto_medido": false,
+          "fence_chars": 2695,
+          "real_chars": 2693,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCA"
+        },
+        {
+          "celda": "hoja_calculo__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 5298,
+          "real_chars": 5296,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', espe"
+        },
+        {
+          "celda": "carrito_stock__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 4917,
+          "real_chars": 4915,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__crudo__r3",
+          "brazo": "crudo",
+          "estricto_medido": false,
+          "fence_chars": 4108,
+          "real_chars": 4106,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la cantidad es 2 (js='p1 x 2 = $200', esperaba '2')"
+        },
+        {
+          "celda": "kanban__crudo__r3",
+          "brazo": "crudo",
+          "estricto_medido": false,
+          "fence_chars": 5160,
+          "real_chars": 5158,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: 3 tarjetas en todo (js=0, esperaba 3); el contador dice 3 ('0' no contiene "
+        },
+        {
+          "celda": "kanban__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4534,
+          "real_chars": 4532,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, e"
+        },
+        {
+          "celda": "buscaminas__replay__r3",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 5047,
+          "real_chars": 5045,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la re"
+        },
+        {
+          "celda": "buscaminas__crudo__r3",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 3872,
+          "real_chars": 3870,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__crudo__r4",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 2881,
+          "real_chars": 2879,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "29/30 checks OK (26/26 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__crudo__r4",
+          "brazo": "crudo",
+          "estricto_medido": false,
+          "fence_chars": 4762,
+          "real_chars": 4760,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        },
+        {
+          "celda": "carrito_stock__replay__r4",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 5333,
+          "real_chars": 5331,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__replay__r4",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3864,
+          "real_chars": 3862,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__crudo__r4",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 3845,
+          "real_chars": 3843,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__crudo__r4",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 4424,
+          "real_chars": 4422,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r4",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4638,
+          "real_chars": 4636,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la celda 11 dice 2 (vecinas de 6 y 12) (js='', esperaba '2'); la celda 7 di"
+        },
+        {
+          "celda": "hoja_calculo__crudo__r5",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 2777,
+          "real_chars": 2775,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "29/30 checks OK (26/26 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__replay__r5",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3945,
+          "real_chars": 3943,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', espe"
+        },
+        {
+          "celda": "carrito_stock__crudo__r5",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 4441,
+          "real_chars": 4439,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__crudo__r5",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 3688,
+          "real_chars": 3686,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "kanban__replay__r5",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 4717,
+          "real_chars": 4715,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r5",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 3534,
+          "real_chars": 3532,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__crudo__r5",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 3774,
+          "real_chars": 3772,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "hoja_calculo__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 4273,
+          "real_chars": 4271,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', espe"
+        },
+        {
+          "celda": "hoja_calculo__crudo__r6",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 3871,
+          "real_chars": 0,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "el parse del LAZO rechaza (regenera)"
+        },
+        {
+          "celda": "carrito_stock__crudo__r6",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 4899,
+          "real_chars": 4897,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "23/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "carrito_stock__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3519,
+          "real_chars": 3517,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: la cantidad es 2 (js='2 x 100,00\\xa0€', esperaba '2')"
+        },
+        {
+          "celda": "kanban__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": false,
+          "fence_chars": 3641,
+          "real_chars": 3639,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: IDA Y VUELTA: t3 vuelve a todo (js=2, esperaba 3); doing queda vacio (js=1,"
+        },
+        {
+          "celda": "kanban__crudo__r6",
+          "brazo": "crudo",
+          "estricto_medido": false,
+          "fence_chars": 4052,
+          "real_chars": 4050,
+          "iguales": false,
+          "estricto_real": false,
+          "motivo_real": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, e"
+        },
+        {
+          "celda": "buscaminas__crudo__r6",
+          "brazo": "crudo",
+          "estricto_medido": true,
+          "fence_chars": 4385,
+          "real_chars": 4383,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        },
+        {
+          "celda": "buscaminas__replay__r6",
+          "brazo": "replay",
+          "estricto_medido": true,
+          "fence_chars": 4481,
+          "real_chars": 4479,
+          "iguales": false,
+          "estricto_real": true,
+          "motivo_real": "22/23 checks OK (19/19 del contrato)"
+        }
+      ]
+    }
+  }
+}
