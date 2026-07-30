@@ -86,12 +86,20 @@ def main(argv=None) -> int:
                                 html, contrato)
             aprueba, motivo = bool(v.aprobado), v.motivo[:120]
             criticos = sum(1 for c in v.checks if c.critico)
+            # DETALLE POR CHECK: es el insumo de la etiqueta debil del
+            # adaptador ("este check falla en TODAS las paginas sanas de su
+            # enunciado" => candidato a valor inventado). Sin el, cualquier
+            # via sobre el contrato interno tendria que re-ejecutar todo.
+            detalle = [{"n": c.nombre, "ok": c.ok, "critico": c.critico}
+                       for c in v.checks]
         except (PresupuestoAgotado, Exception) as exc:      # noqa: B014
             aprueba, motivo, criticos = None, f"{type(exc).__name__}"[:120], 0
+            detalle = []
         res["filas"].append({
             "pagina": f["pagina"], "corpus": corpus, "tarea": f["tarea"],
             "interno_aprueba": aprueba, "criticos": criticos,
-            "gt": gt.get((corpus, carpeta)), "motivo": motivo})
+            "gt": gt.get((corpus, carpeta)), "motivo": motivo,
+            "detalle": detalle})
         f_out.write_text(json.dumps(res, ensure_ascii=False, indent=1),
                          encoding="utf-8")
         if k % 10 == 0 or k == len(pendientes):

@@ -146,6 +146,23 @@ cantidad", no ha aprendido nada.
 3. **El corpus lo diseñó la misma familia de modelos que lo resuelve** (caveat
    heredado de META, sigue vigente).
 
+## El DATASET, también construido esta noche
+
+`scripts/b2_etiqueta_debil.py` deriva la etiqueta automática sobre los 21
+enunciados (cero GPU), usando el detalle POR CHECK que ahora sí se persiste:
+
+- **INVENTADO-candidato**: el check falla en TODAS las páginas sanas de su
+  enunciado (ninguna implementación correcta acierta un valor que el enunciado
+  no fija).
+- **CORRECTO-candidato**: pasa en todas.
+- **MIXTO**: se excluye.
+
+Y separa automáticamente el **tipo (c)**, el ruido de API (`texto` sobre un
+`<input>`, que falla siempre porque `innerText` de un campo es vacío), para
+que no contamine el entrenamiento. Los tipos (a) *valor inventado* y (b)
+*check correcto no cubierto* **siguen exigiendo auditoría a mano**: eso no se
+salta, y el prereg lo mantiene como condición.
+
 ## Orden de ejecución, si se retoma
 
 1. Generar contratos para las 23 tareas restantes (~1-1.5 h GPU).
