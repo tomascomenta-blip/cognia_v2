@@ -9950,3 +9950,59 @@ carrusel: ±34 pts entre corridas y 54% de reproducibilidad por celda.
 
 **Lecciones a memoria:** varianza-entre-corridas (nueva),
 bon-con-senal-real (actualizada al cierre).
+
+### Cierre tarde-noche 29→30 (01:10) — EL GOAL: 8/8 en el banco DURO, replicado
+
+6. **EL GOAL DE META, MEDIDO POR PRIMERA VEZ Y REPLICADO
+   (PREREG_GOAL_DURO_20260730): MODO 8/8 en el banco duro, 2 de 2
+   corridas.** r1 y r2 idénticas: control (s1) 7/8 · MODO (BoN K=4 +
+   selector held-out) 8/8 · techo pass@4 8/8 · pérdida del selector 0 ·
+   **cero fallos por TECHO y cero por SELECCIÓN**. La estructura se
+   reproduce exacta: la misma tarea es la única que el control falla
+   (tabla_compuesta) y el selector la rescata las dos veces con s2.
+   El criterio de KILL que META tenía escrito ("si una tarea no sale NUNCA
+   en 8 muestras, el muestreo no la compra") **no se dispara en ninguna**.
+
+   **La brecha que lo impedía y que nadie había nombrado en semanas: el
+   banco DURO —el del goal— no tenía held-outs a mano** (brutal y fácil sí
+   los tenían), así que no existía juez estricto ni selector con señal
+   real y el número del goal era, literalmente, incalculable. Se
+   escribieron los 8 desde el enunciado (36 checks críticos, casos
+   distintos de los del contrato original) y se validaron contra las 32
+   páginas: 0 desacuerdos, 0 checks que fallen siempre, cobertura 4/4.
+   Un bug de sintaxis propio (`;` dentro del wrapper `() => (expr)`) se
+   cazó por LECTURA antes de generar las páginas afectadas.
+
+   **Los tres límites van con el número, no después:** (a) la ganancia
+   atribuible al BoN es **+1 tarea** en ambas corridas — sin BoN el
+   sistema ya entrega 7/8, coherente con el pass@1 ≈83% que META
+   registraba; (b) **el held-out del duro no discrepó del original en las
+   64 páginas** (en el brutal cazó 4 FP): el juez estricto fue de facto el
+   contrato original, así que este 8/8 se apoya en un examen menos
+   exigente de lo que su etiqueta sugiere — endurecerlos hasta que
+   discrepen y re-medir es trabajo pendiente; (c) **sigue sin haber señal
+   para tareas NUEVAS**: el selector es un examen escrito A MANO por
+   tarea. El goal medido es "8/8 en un banco preparado", no "8/8 en lo que
+   le eches".
+
+7. **Séptima vía de señal (consenso CONDUCTUAL sin contrato,
+   PREREG_CONSENSO_CONDUCTUAL): +2, MODERADA.** Se ejecuta la misma
+   secuencia en las K muestras y gana la mayoría; sin contratos, sin
+   aserciones, sin LLM decidiendo. Ancla de validez holgada (24/24 con ≥2
+   firmas distintas), **pierde 0**. El cuello no es el co-failure (3
+   casos) sino que **en 13 de 24 ensayos las 4 muestras dan 4 firmas
+   distintas**: no hay mayoría que formar. Marca idéntica al consenso de
+   contratos (+2/+3): dos marcos muy distintos topan en el mismo techo.
+   La revisión adversarial evitó un KILL falso — la firma agrupaba por
+   formato de moneda y nombres de tarjeta (markup, no comportamiento), la
+   sonda de buscaminas era ciega (6 de 25 celdas) y el umbral estaba
+   fijado contra un techo que la regla no puede alcanzar.
+
+8. **Estado del goal, honesto:** alcanzado y replicado donde hay examen a
+   mano; sin señal donde no lo hay. Las 7 vías de señal autogenerada
+   siguen muertas (6 KILL) o moderadas (+2/+3). La próxima palanca no
+   probada, con su argumento y sus condiciones, quedó discutida con el
+   dueño: un adaptador para el modo de fallo MEDIDO del contrato (inventar
+   valores que el enunciado no fija), evaluado leave-one-task-out — y
+   nunca en el constructor, porque el BoN vive de la diversidad que un
+   fine-tuning agudizaría.
