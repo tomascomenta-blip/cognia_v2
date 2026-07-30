@@ -66,19 +66,75 @@ def medoide(firmas: dict) -> int:
     return min(s for s in ss if medias[s] == mejor)
 
 
+def _cargar_gate_v2(raiz: Path) -> dict:
+    """
+    Corpus de la RÉPLICA (`b2_bon_gate_v2`). Otro formato: los ensayos traen
+    `orig` (contrato original por s) y `bon.muestras[]` (el held-out del
+    selector), y el HTML cuelga de <tarea>__r<N>/s<M>/index.html.
+
+    El estricto se deriva igual que en su propia corrida:
+        orig[s].aprobado  AND  bon.muestras[s].aprobado_sel
+    """
+    res = json.loads((raiz / "resultados.json").read_text(encoding="utf-8"))
+    por_ensayo: dict = {}
+    for e in res["ensayos"]:
+        sel = {int(m["s"]): m for m in (e.get("bon") or {}).get("muestras", [])}
+        muestras = []
+        for k, v in (e.get("orig") or {}).items():
+            s = int(k)
+            html = raiz / f"{e['tarea']}__r{e['rep']}" / f"s{s}" / "index.html"
+            if not html.is_file():
+                continue
+            muestras.append({
+                "tarea": e["tarea"], "rep": e["rep"], "s": s, "html": html,
+                "estricto": bool(v.get("aprobado")
+                                 and sel.get(s, {}).get("aprobado_sel")),
+            })
+        if muestras:
+            por_ensayo[(e["tarea"], int(e["rep"]))] = muestras
+    return por_ensayo
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reanudar", action="store_true")
+    ap.add_argument("--corpus", default="b2_bon_heldout",
+                    help="b2_bon_heldout (original) o b2_bon_gate_v2 (replica)")
+    ap.add_argument("--salida", default=None)
+    ap.add_argument("--agregar", nargs="*", default=None,
+                    help="junta varios resultados y resume el AGREGADO")
     args = ap.parse_args(argv)
 
+    if args.agregar is not None:
+        union = {"ensayos": []}
+        for j in args.agregar:
+            p = Path(j)
+            if not p.is_absolute():
+                p = SALIDA / j
+            trozo = json.loads(p.read_text(encoding="utf-8"))["ensayos"]
+            for e in trozo:                      # etiqueta el origen
+                e["ensayo"] = f"{p.stem}:{e['ensayo']}"
+            union["ensayos"] += trozo
+            print(f"  + {p.name}: {len(trozo)} ensayos")
+        print()
+        _resumir(union)
+        return 0
+
     sondas = json.loads(SONDAS.read_text(encoding="utf-8"))
-    fuente = json.loads((FUENTE / "resultados.json").read_text(encoding="utf-8"))
-    por_ensayo: dict = {}
-    for m in fuente["muestras"]:
-        por_ensayo.setdefault((m["tarea"], int(m["rep"])), []).append(m)
+    raiz = GENERADOS / args.corpus
+    if args.corpus == "b2_bon_gate_v2":
+        por_ensayo = _cargar_gate_v2(raiz)
+    else:
+        fuente = json.loads((raiz / "resultados.json").read_text(encoding="utf-8"))
+        por_ensayo = {}
+        for m in fuente["muestras"]:
+            m = {**m, "html": raiz / f"{m['tarea']}__r{m['rep']}__s{m['s']}"
+                 / "index.html"}
+            por_ensayo.setdefault((m["tarea"], int(m["rep"])), []).append(m)
 
     SALIDA.mkdir(parents=True, exist_ok=True)
-    f_res = SALIDA / "resultados.json"
+    f_res = (Path(args.salida) if args.salida
+             else SALIDA / f"resultados{'' if args.corpus == 'b2_bon_heldout' else '_' + args.corpus}.json")
     res = (json.loads(f_res.read_text(encoding="utf-8"))
            if args.reanudar and f_res.is_file() else {"ensayos": []})
     hechos = {e["ensayo"] for e in res["ensayos"]}
@@ -92,7 +148,7 @@ def main(argv=None) -> int:
         t0 = time.time()
         firmas, estricto, infra = {}, {}, []
         for m in sorted(muestras, key=lambda x: int(x["s"])):
-            d = FUENTE / f"{tarea}__r{rep}__s{m['s']}" / "index.html"
+            d = m["html"]
             if not d.is_file():
                 continue
             s = int(m["s"])
@@ -143,19 +199,24 @@ def _resumir(res: dict) -> None:
     if not ens:
         return
     n = len(ens)
+    # Un ensayo sin s1 (la muestra 1 no dejó HTML) NO tiene control con el que
+    # aparearse: entra en el x/n pero se excluye del NETO, que es apareado.
+    apar = [e for e in ens if e["control"] is not None]
+    sin_control = n - len(apar)
     ctrl = sum(1 for e in ens if e["control"])
     med = sum(1 for e in ens if e["estricto_elegida"])
     techo = sum(1 for e in ens if e["techo"])
-    rescata = [e["ensayo"] for e in ens
+    rescata = [e["ensayo"] for e in apar
                if e["estricto_elegida"] and not e["control"]]
-    estropea = [e["ensayo"] for e in ens
+    estropea = [e["ensayo"] for e in apar
                 if e["control"] and not e["estricto_elegida"]]
 
     print(f"\n{'='*66}")
     print(f"ENSAYOS {n} · CONTROL {ctrl}/{n} · MEDOIDE {med}/{n} · "
           f"TECHO {techo}/{n}")
     print(f"NETO APAREADO = {len(rescata) - len(estropea):+d}  "
-          f"(RESCATA {len(rescata)} · ESTROPEA {len(estropea)})")
+          f"(RESCATA {len(rescata)} · ESTROPEA {len(estropea)}"
+          f"{f' · {sin_control} sin control, excluidos del neto' if sin_control else ''})")
     if rescata:
         print(f"  rescata: {rescata}")
     if estropea:

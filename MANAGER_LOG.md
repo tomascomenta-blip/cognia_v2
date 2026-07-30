@@ -10207,3 +10207,64 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
    número sería memorización. La infra existe y es barata (LoRA de 1B: 11 min
    medidos, 0.67 s/paso con bs=2 + grad-checkpointing). Se entrega diseño +
    prereg con la condición de vida y el paso previo obligatorio.
+
+8. **Prioridad 4 (MEDOIDE del consenso conductual): GRIS, y el brazo nulo
+   reinterpreta toda la familia.** control 17/24 · **medoide 21/24** · techo
+   24/24 · **neto +4 (RESCATA 4, ESTROPEA 0)** — duplica la ganancia del
+   consenso por mayoría y confirma su mecanismo (resuelve justo los 13
+   ensayos que no formaban mayoría). Pero el umbral era neto ≥+5 **y**
+   superar el p95 del nulo, y falla los dos: **NULO media 18.46/24, p95=21,
+   P(azar ≥ medoide) = 0.100.**
+   **EL HALLAZGO: elegir AL AZAR ya da 18.46/24, MÁS que el control
+   (17/24).** Con techo 24/24 este banco tiene tantas muestras buenas que el
+   azar es rival duro ⇒ **medir un selector contra el CONTROL sobrestima su
+   mérito; la referencia honesta es el AZAR.** Releído así, **el "+2
+   moderada" del consenso por mayoría era +0.5 sobre el azar: ruido.**
+   Réplica pre-registrada y lanzada sobre `b2_bon_gate_v2` (24 ensayos más,
+   mismas tareas ⇒ sondas ya existentes, cero GPU). Se descartó replicar
+   sobre el banco DURO **antes** de gastar: está saturado (pass@1 92%,
+   control 7/8, techo 8/8) y habría diluido en vez de discriminar.
+
+9. **RÉPLICA DEL MEDOIDE: KILL, y con él cae la familia de consenso.** Se
+   replicó el mismo día sobre `b2_bon_gate_v2` (24 ensayos más, mismas tareas
+   ⇒ sondas ya existentes, cero GPU): **el +4 no reproduce — neto +0
+   (rescata 1, ESTROPEA 1**, la primera vez que una variante de consenso
+   estropea algo**), y el azar lo bate en el 85% de los sorteos.** Con el nulo
+   APAREADO —corrección de mi propio cálculo, que mezclaba los 5 ensayos sin
+   `s1` y favorecía al azar— el medoide no supera el p95 en ninguno de los
+   tres conjuntos (original P=0.101, réplica P=0.855, agregado P=0.359).
+
+10. **EL RESULTADO MÁS IMPORTANTE DE LA SESIÓN, y salió persiguiendo un
+    hallazgo lateral: el BoN SÍ selecciona (p=0.0001), pero el 8/8 del GOAL
+    no es lo que lo demuestra.** El medoide destapó que **elegir al azar bate
+    sistemáticamente al control s1**, así que el BoN podía estar cobrando por
+    *no usar s1* en vez de por seleccionar. Se separaron las tres referencias
+    (`scripts/b2_bon_vs_azar.py`, 10 000 réplicas):
+
+    | corpus | control | AZAR | BoN | P(azar ≥ BoN) |
+    |---|---|---|---|---|
+    | **GATE** (n=19, no saturado) | 12/19 | **13.18** | **19/19** | **0.0001** |
+    | GOAL duro r1 (n=8) | 7/8 | **7.26** | 8/8 | **0.376** |
+    | GOAL duro r2 (n=8) | 7/8 | **7.49** | 8/8 | **0.558** |
+
+    **(1) La sospecha queda descartada con margen**: el azar también evita s1
+    y se queda en 69%, mientras el selector llega al 100% — **+5.82 sobre el
+    azar con p=0.0001**. Es la primera validación del mecanismo del BoN contra
+    la referencia correcta en vez de contra el control.
+    **(2) Pero en el banco duro el azar saca 7.26-7.49 de 8**: más de una de
+    cada tres veces, elegir a ciegas también da 8/8. **El 8/8 del goal se
+    sostiene como ENTREGA, no como prueba del mecanismo** — la prueba está en
+    el gate. Cuarta vía que confirma que **el duro no sirve para medir
+    selectores**.
+    *Caveat declarado:* el ground truth del gate incluye `aprobado_sel`, que
+    es el examen que el propio selector usa, así que el 19/19 absoluto está
+    inflado; la comparación BoN-vs-AZAR sí es válida (mismo ground truth para
+    ambos), pero el acierto absoluto exigiría un tercer examen independiente.
+
+11. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
+   frente:** las dos vías se atascaron en **instrumentación, no en idea** —
+   el contrato autogenerado que los runners tiraban, y la firma conductual
+   guardada como `sha1[:12]` (que solo dice igual/distinto, así que no había
+   forma de calcular una distancia). En ambos casos el dato ya se producía y
+   solo había que no descartarlo. **Regla que sale de aquí: cuando un runner
+   compute algo intermedio, persistirlo aunque no se use hoy.**
