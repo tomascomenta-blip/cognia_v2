@@ -1,0 +1,59 @@
+{
+ "nombre": "Calculadora de descuento por tramos",
+ "pasos": [
+  {
+   "nombre": "Existe el selector de cantidad",
+   "accion": "existe",
+   "selector": "#cant",
+   "critico": true
+  },
+  {
+   "nombre": "Existe el span de total",
+   "accion": "existe",
+   "selector": "#total",
+   "critico": true
+  },
+  {
+   "nombre": "Valor inicial de cantidad es 0",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "0",
+   "critico": true
+  },
+  {
+   "nombre": "Valor inicial de total es 0.00",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "0.00",
+   "critico": true
+  },
+  {
+   "nombre": "Al ingresar 5 unidades, total es 50.00",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "5",
+   "critico": true
+  },
+  {
+   "nombre": "Al ingresar 15 unidades, total es 145.00",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "15",
+   "critico": true
+  },
+  {
+   "nombre": "Al ingresar 60 unidades, total es 540.00",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "60",
+   "critico": true
+  },
+  {
+   "nombre": "El total se actualiza al cambiar la cantidad",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "10",
+   "critico": true
+  }
+ ]
+}

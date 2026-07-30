@@ -1,0 +1,134 @@
+{
+ "nombre": "Validación cruzada de formulario de contraseña y edad",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del botón deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#enviar"
+    },
+    {
+     "accion": "existe",
+     "selector": "#pass"
+    },
+    {
+     "accion": "existe",
+     "selector": "#pass2"
+    },
+    {
+     "accion": "existe",
+     "selector": "#edad"
+    },
+    {
+     "accion": "existe",
+     "selector": ".form-container"
+    },
+    {
+     "accion": "no_existe",
+     "selector": "#enviar:not([disabled])"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseña de 8 caracteres",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseña repetida igual",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar edad mínima válida",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "18"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar botón habilitado tras cumplir condiciones",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#enviar:not([disabled])"
+    }
+   ]
+  },
+  {
+   "nombre": "Modificar edad fuera de rango",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "17"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar botón deshabilitado al incumplir edad",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "no_existe",
+     "selector": "#enviar:not([disabled])"
+    }
+   ]
+  },
+  {
+   "nombre": "Restablecer edad a rango válido y verificar botón habilitado nuevamente",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "18"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "existe",
+     "selector": "#enviar:not([disabled])"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "nombre": "Prueba de calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Contar botones con clase k",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 16,
+   "critico": true
+  },
+  {
+   "nombre": "Contar botones numéricos",
+   "accion": "contar",
+   "selector": ".num",
+   "esperado": 11,
+   "critico": false
+  },
+  {
+   "nombre": "Contar operadores",
+   "accion": "contar",
+   "selector": ".op",
+   "esperado": 5,
+   "critico": false
+  },
+  {
+   "nombre": "Evaluar operación 2+3*4",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar resultado 14",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "14",
+   "critico": true
+  },
+  {
+   "nombre": "Limpiar pantalla con C",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 9,
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar pantalla vacía tras limpiar",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "",
+   "critico": true
+  }
+ ]
+}

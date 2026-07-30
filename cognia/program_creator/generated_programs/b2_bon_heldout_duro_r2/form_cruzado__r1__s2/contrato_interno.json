@@ -1,0 +1,58 @@
+{
+ "nombre": "Validación cruzada de formulario con botón habilitado solo cuando se cumplen todas las condiciones",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: botón deshabilitado",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar"
+  },
+  {
+   "nombre": "Estado inicial: botón tiene atributo disabled",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar[disabled]"
+  },
+  {
+   "nombre": "Ingresar contraseña de 8 caracteres",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass",
+   "contiene": "12345678"
+  },
+  {
+   "nombre": "Ingresar contraseña repetida igual",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass2",
+   "contiene": "12345678"
+  },
+  {
+   "nombre": "Ingresar edad dentro del rango permitido",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#edad",
+   "contiene": "25"
+  },
+  {
+   "nombre": "Verificar que el botón se habilite tras las tres condiciones cumplidas",
+   "critico": true,
+   "accion": "no_existe",
+   "selector": "#enviar[disabled]"
+  },
+  {
+   "nombre": "Verificar que el botón sea clickeable",
+   "critico": true,
+   "accion": "click",
+   "selector": "#enviar",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el botón no se deshabilite al cambiar una condición",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass",
+   "contiene": "12345678"
+  }
+ ]
+}

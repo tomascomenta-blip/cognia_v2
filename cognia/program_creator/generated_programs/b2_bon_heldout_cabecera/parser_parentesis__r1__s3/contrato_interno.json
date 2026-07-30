@@ -1,0 +1,112 @@
+{
+ "nombre": "Validación de calculadora con paréntesis",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#pantalla"
+  },
+  {
+   "nombre": "Verificar existencia de botón 1",
+   "critico": true,
+   "accion": "existe",
+   "selector": "[data-k=\"1\"]"
+  },
+  {
+   "nombre": "Verificar existencia de botón +",
+   "critico": true,
+   "accion": "existe",
+   "selector": "[data-k=\"+\"]"
+  },
+  {
+   "nombre": "Verificar existencia de botón *",
+   "critico": true,
+   "accion": "existe",
+   "selector": "[data-k=\"*\"]"
+  },
+  {
+   "nombre": "Verificar existencia de botón ( y )",
+   "critico": true,
+   "accion": "existe",
+   "selector": "[data-k=\"(\"]"
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"(\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"1\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"+\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"2\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\")\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"*\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"3\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"=\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar resultado 9",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "9"
+  },
+  {
+   "nombre": "Limpiar pantalla con C",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k=\"C\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar pantalla vacía",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": ""
+  }
+ ]
+}

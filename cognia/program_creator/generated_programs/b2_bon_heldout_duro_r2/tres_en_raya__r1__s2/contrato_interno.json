@@ -1,0 +1,61 @@
+{
+ "nombre": "Tres en raya funcional en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Existe el contenedor de juego y los 9 casillas con data-i de 0 a 8",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#game .c",
+   "esperado": 9
+  },
+  {
+   "nombre": "El estado inicial muestra el turno de X y el estado está vacío",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#turno",
+   "contiene": "X"
+  },
+  {
+   "nombre": "El estado inicial no indica ganador ni empate",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": ""
+  },
+  {
+   "nombre": "Al hacer clic en una casilla vacía se coloca la marca X y el turno cambia a O",
+   "critico": true,
+   "accion": "click",
+   "selector": "#game .c",
+   "indice": 0
+  },
+  {
+   "nombre": "La casilla clickeada muestra la marca X y ya no es clickeable",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#game .c[data-i=\"0\"]",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Al hacer clic en otra casilla vacía se coloca la marca O y el turno vuelve a X",
+   "critico": true,
+   "accion": "click",
+   "selector": "#game .c",
+   "indice": 1
+  },
+  {
+   "nombre": "Cuando se completa una línea de tres marcas iguales, el estado muestra la palabra \"gana\" y las casillas quedan bloqueadas",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "gana"
+  },
+  {
+   "nombre": "Si se llenan las 9 casillas sin completar una línea, el estado muestra la palabra \"empate\"",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "empate"
+  }
+ ]
+}

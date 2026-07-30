@@ -1,0 +1,61 @@
+{
+ "nombre": "Prueba de funcionalidad Undo/Redo en lista",
+ "pasos": [
+  {
+   "nombre": "Estado inicial vacío",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list li",
+   "esperado": 0
+  },
+  {
+   "nombre": "Agregar primer elemento",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "Elemento 1"
+  },
+  {
+   "nombre": "Click add",
+   "critico": true,
+   "accion": "click",
+   "selector": "#add",
+   "indice": 0
+  },
+  {
+   "nombre": "Lista contiene un elemento",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list li",
+   "esperado": 1
+  },
+  {
+   "nombre": "Deshacer acción",
+   "critico": true,
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Lista vacía tras undo",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list li",
+   "esperado": 0
+  },
+  {
+   "nombre": "Rehacer acción",
+   "critico": true,
+   "accion": "click",
+   "selector": "#redo",
+   "indice": 0
+  },
+  {
+   "nombre": "Lista contiene el elemento nuevamente",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list li",
+   "esperado": 1
+  }
+ ]
+}

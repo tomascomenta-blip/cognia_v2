@@ -1,0 +1,61 @@
+{
+ "nombre": "Reparto de presupuesto en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de los tres bloques de partida",
+   "accion": "contar",
+   "selector": ".part",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que cada partida tiene su input de porcentaje y span de euros",
+   "accion": "contar",
+   "selector": ".pct",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Comprobar que el total inicial es 100 y los porcentajes iniciales son 30,30,40",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "100",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que el porcentaje libre inicial es 0",
+   "accion": "texto",
+   "selector": "#libre",
+   "contiene": "0",
+   "critico": true
+  },
+  {
+   "nombre": "Cambiar el primer porcentaje a 50 y esperar que se rechace por superar 100",
+   "accion": "texto",
+   "selector": ".pct[data-id='a1']",
+   "contiene": "50",
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que el aviso muestra la palabra 'limite' tras el rechazo",
+   "accion": "texto",
+   "selector": "#aviso",
+   "contiene": "limite",
+   "critico": true
+  },
+  {
+   "nombre": "Restablecer el primer porcentaje a 30 y verificar que los euros se recalculan correctamente",
+   "accion": "texto",
+   "selector": ".eur[data-id='a1']",
+   "contiene": "30",
+   "critico": true
+  },
+  {
+   "nombre": "Asegurar que el porcentaje libre vuelve a 0 después de un cambio válido",
+   "accion": "texto",
+   "selector": "#libre",
+   "contiene": "0",
+   "critico": true
+  }
+ ]
+}

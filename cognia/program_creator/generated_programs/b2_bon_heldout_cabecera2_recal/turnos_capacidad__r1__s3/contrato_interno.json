@@ -1,0 +1,268 @@
+{
+ "nombre": "Agenda de turnos con capacidad dinámica",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: capacidad 6 y sin grupos",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#cap",
+     "esperado": "6"
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-manana",
+     "esperado": "0"
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-tarde",
+     "esperado": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 3 personas a mañana",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "manana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "3"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-manana",
+     "esperado": "3"
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-tarde",
+     "esperado": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 4 personas a tarde",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "tarde"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "4"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 2
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-manana",
+     "esperado": "3"
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-tarde",
+     "esperado": "4"
+    }
+   ]
+  },
+  {
+   "nombre": "Intentar apuntar 4 personas a mañana (excede capacidad)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "manana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "4"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 2
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-manana",
+     "esperado": "3"
+    }
+   ]
+  },
+  {
+   "nombre": "Reducir capacidad a 5",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nueva-cap",
+     "contiene": "5"
+    },
+    {
+     "accion": "click",
+     "selector": "#set-cap",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#cap",
+     "esperado": "5"
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-manana",
+     "esperado": "3"
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-tarde",
+     "esperado": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Reducir capacidad a 2, eliminando grupos excedentes",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nueva-cap",
+     "contiene": "2"
+    },
+    {
+     "accion": "click",
+     "selector": "#set-cap",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#cap",
+     "esperado": "2"
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-manana",
+     "esperado": "0"
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-tarde",
+     "esperado": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 2 personas a mañana",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "manana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "2"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-manana",
+     "esperado": "2"
+    }
+   ]
+  },
+  {
+   "nombre": "Cambiar franja a tarde y apuntar 1 persona",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "tarde"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "1"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#lista-grupos .grupo",
+     "esperado": 2
+    },
+    {
+     "accion": "contar",
+     "selector": "#ocupacion-tarde",
+     "esperado": "1"
+    }
+   ]
+  }
+ ]
+}

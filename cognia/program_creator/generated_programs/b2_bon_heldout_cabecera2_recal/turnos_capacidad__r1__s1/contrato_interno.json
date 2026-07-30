@@ -1,0 +1,228 @@
+{
+ "nombre": "Validación de la agenda de turnos con capacidad dinámica",
+ "pasos": [
+  {
+   "nombre": "Estado inicial sin grupos y capacidad 6",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#cap",
+     "contiene": "6"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 3 personas a mañana",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "manana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "3"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-manana",
+     "contiene": "3"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 4 personas a tarde, rechazado por capacidad",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "tarde"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "4"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-tarde",
+     "contiene": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 3 personas a tarde, aceptado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "tarde"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "3"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 2
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-tarde",
+     "contiene": "3"
+    }
+   ]
+  },
+  {
+   "nombre": "Reducir capacidad a 5, elimina último grupo de tarde",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nueva-cap",
+     "contiene": "5"
+    },
+    {
+     "accion": "click",
+     "selector": "#set-cap",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-tarde",
+     "contiene": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Reducir capacidad a 2, elimina grupo de mañana",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nueva-cap",
+     "contiene": "2"
+    },
+    {
+     "accion": "click",
+     "selector": "#set-cap",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-manana",
+     "contiene": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 2 personas a mañana, aceptado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "manana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "2"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-manana",
+     "contiene": "2"
+    }
+   ]
+  },
+  {
+   "nombre": "Apuntar 1 persona a tarde, aceptado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "tarde"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "1"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 2
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-tarde",
+     "contiene": "1"
+    }
+   ]
+  }
+ ]
+}

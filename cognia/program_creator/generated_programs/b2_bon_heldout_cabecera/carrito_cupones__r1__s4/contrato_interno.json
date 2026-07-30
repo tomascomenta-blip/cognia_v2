@@ -1,0 +1,220 @@
+{
+ "nombre": "Carrito con cupón y envío",
+ "pasos": [
+  {
+   "nombre": "Estado inicial sin productos en carrito",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "0"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "0"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Agregar primer producto (30)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".add",
+     "indice": 0
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "30"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "5"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "35"
+    }
+   ]
+  },
+  {
+   "nombre": "Agregar segundo producto (40)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".add",
+     "indice": 1
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "70"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "5"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "75"
+    }
+   ]
+  },
+  {
+   "nombre": "Aplicar cupón inválido",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cupon",
+     "contiene": "INVALIDO"
+    },
+    {
+     "accion": "click",
+     "selector": "#aplicar"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "70"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "5"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "75"
+    }
+   ]
+  },
+  {
+   "nombre": "Aplicar cupón válido DESCUENTO20",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cupon",
+     "contiene": "DESCUENTO20"
+    },
+    {
+     "accion": "click",
+     "selector": "#aplicar"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "56"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "5"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "61"
+    }
+   ]
+  },
+  {
+   "nombre": "Agregar tercer producto (50) para alcanzar 60 con descuento",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".add",
+     "indice": 2
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "106"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "0"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "106"
+    }
+   ]
+  },
+  {
+   "nombre": "Eliminar primer producto (30) y verificar envío gratuito se mantiene",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".remove",
+     "indice": 0
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "76"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "0"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "76"
+    }
+   ]
+  },
+  {
+   "nombre": "Limpiar cupon y verificar envío gratuito se vuelve 5",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cupon",
+     "contiene": ""
+    },
+    {
+     "accion": "click",
+     "selector": "#aplicar"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#subtotal",
+     "esperado": "76"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#envio",
+     "esperado": "5"
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#total",
+     "esperado": "81"
+    }
+   ]
+  }
+ ]
+}

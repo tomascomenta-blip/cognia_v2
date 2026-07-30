@@ -1,0 +1,57 @@
+{
+ "nombre": "Validación cruzada de formulario de registro",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: botón deshabilitado",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar"
+  },
+  {
+   "nombre": "Estado inicial: botón tiene atributo disabled",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#enviar",
+   "contiene": "disabled"
+  },
+  {
+   "nombre": "Ingresar contraseña de 8 caracteres",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass",
+   "contiene": "abcdefgh"
+  },
+  {
+   "nombre": "Ingresar confirmación igual a contraseña",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass2",
+   "contiene": "abcdefgh"
+  },
+  {
+   "nombre": "Ingresar edad válida (ej. 25)",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#edad",
+   "contiene": "25"
+  },
+  {
+   "nombre": "Botón habilitado tras cumplir todas condiciones",
+   "critico": true,
+   "accion": "no_existe",
+   "selector": "#enviar[disabled]"
+  },
+  {
+   "nombre": "Botón sigue habilitado al cambiar contraseña a 7 caracteres",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar[disabled]"
+  },
+  {
+   "nombre": "Botón vuelve habilitado al corregir contraseña a 8 caracteres",
+   "critico": true,
+   "accion": "no_existe",
+   "selector": "#enviar[disabled]"
+  }
+ ]
+}

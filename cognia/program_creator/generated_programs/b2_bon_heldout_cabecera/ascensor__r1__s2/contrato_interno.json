@@ -1,0 +1,242 @@
+{
+ "nombre": "Simulador de ascensor en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#piso",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#dir",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#paso",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".call",
+     "esperado": 6
+    },
+    {
+     "accion": "contar",
+     "selector": ".calls",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#status",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#shaft",
+     "esperado": 1
+    },
+    {
+     "accion": "existe",
+     "selector": "#piso"
+    },
+    {
+     "accion": "existe",
+     "selector": "#dir"
+    },
+    {
+     "accion": "existe",
+     "selector": "#paso"
+    },
+    {
+     "accion": "existe",
+     "selector": "#shaft"
+    },
+    {
+     "accion": "existe",
+     "selector": "#status"
+    },
+    {
+     "accion": "existe",
+     "selector": "#calls"
+    }
+   ]
+  },
+  {
+   "nombre": "Piso inicial es 0",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Dirección inicial es parado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "parado"
+    }
+   ]
+  },
+  {
+   "nombre": "Llamada al piso 3 se registra y se atiende al instante",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 3
+    },
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "3"
+    },
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "parado"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length",
+     "esperado": 0
+    }
+   ]
+  },
+  {
+   "nombre": "Llamada al piso 5 se registra y se atiende al siguiente paso",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 5
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "4"
+    },
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "sube"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length",
+     "esperado": 1
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes[0]",
+     "esperado": 5
+    }
+   ]
+  },
+  {
+   "nombre": "Al avanzar al piso 5, la llamada se atiende y la dirección cambia a parado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "5"
+    },
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "parado"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length",
+     "esperado": 0
+    }
+   ]
+  },
+  {
+   "nombre": "Llamada al piso 2 se registra y se atiende al siguiente paso",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 2
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "4"
+    },
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "baja"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length",
+     "esperado": 1
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes[0]",
+     "esperado": 2
+    }
+   ]
+  },
+  {
+   "nombre": "Al avanzar al piso 2, la llamada se atiende y la dirección cambia a parado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "2"
+    },
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "parado"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length",
+     "esperado": 0
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,68 @@
+{
+ "nombre": "Control de stock con reservas",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#stock",
+   "esperado": 1
+  },
+  {
+   "nombre": "Stock inicial es 10",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#stock",
+   "contiene": "10"
+  },
+  {
+   "nombre": "Disponible inicial es 10",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#disponible",
+   "contiene": "10"
+  },
+  {
+   "nombre": "No hay reservas al inicio",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#reservas .res",
+   "esperado": 0
+  },
+  {
+   "nombre": "Reservar 3 unidades aumenta reserva y reduce disponible",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "3"
+  },
+  {
+   "nombre": "Click reservar",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reservar",
+   "indice": 0
+  },
+  {
+   "nombre": "Disponible actualizado a 7",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#disponible",
+   "contiene": "7"
+  },
+  {
+   "nombre": "Cancelar última reserva devuelve disponible a 10",
+   "critico": true,
+   "accion": "click",
+   "selector": "#cancelar",
+   "indice": 0
+  },
+  {
+   "nombre": "Disponible vuelve a 10",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#disponible",
+   "contiene": "10"
+  }
+ ]
+}

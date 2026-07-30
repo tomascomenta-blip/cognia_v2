@@ -1,0 +1,61 @@
+{
+ "nombre": "Reparto de presupuesto con validación de porcentajes",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de los tres bloques de partida",
+   "accion": "contar",
+   "selector": ".part",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que los inputs de porcentaje existen y tienen valor inicial 30,30,40",
+   "accion": "texto",
+   "selector": "#pct-a1",
+   "contiene": "30",
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que los inputs de porcentaje existen y tienen valor inicial 30,30,40",
+   "accion": "texto",
+   "selector": "#pct-a2",
+   "contiene": "30",
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que los inputs de porcentaje existen y tienen valor inicial 30,30,40",
+   "accion": "texto",
+   "selector": "#pct-a3",
+   "contiene": "40",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que el total fijo es 100 y se muestra en #total",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "100",
+   "critico": true
+  },
+  {
+   "nombre": "Cambiar el primer porcentaje a 50 y verificar que el cambio se rechaza y el input vuelve a 30",
+   "accion": "texto",
+   "selector": "#pct-a1",
+   "contiene": "30",
+   "critico": true
+  },
+  {
+   "nombre": "Cambiar el primer porcentaje a 20 y verificar que el cambio se acepta y el input muestra 20",
+   "accion": "texto",
+   "selector": "#pct-a1",
+   "contiene": "20",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que el aviso se muestra con la palabra 'limite' cuando se intenta exceder 100",
+   "accion": "texto",
+   "selector": "#aviso",
+   "contiene": "limite",
+   "critico": true
+  }
+ ]
+}

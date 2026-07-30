@@ -1,0 +1,59 @@
+{
+ "nombre": "Verificar juego de la serpiente en HTML",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".cel",
+   "esperado": 100
+  },
+  {
+   "nombre": "Solo una celda con comida",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".food",
+   "esperado": 1
+  },
+  {
+   "nombre": "Solo una celda con serpiente",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".snake",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar atributos data-x y data-y en celdas",
+   "critico": true,
+   "accion": "js",
+   "expr": "Array.from(document.querySelectorAll('.cel')).every(c=>c.dataset.x!==undefined && c.dataset.y!==undefined)",
+   "esperado": true
+  },
+  {
+   "nombre": "Estado inicial expuesto en window.juego",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego && typeof window.juego.largo==='number' && typeof window.juego.x==='number' && typeof window.juego.y==='number' && typeof window.juego.dir==='string'",
+   "esperado": true
+  },
+  {
+   "nombre": "Mover serpiente a la derecha con flecha",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowRight"
+  },
+  {
+   "nombre": "Verificar que la serpiente se haya movido una celda a la derecha",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego.x===1 && window.juego.y===0",
+   "esperado": true
+  },
+  {
+   "nombre": "Comer comida y crecer",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowRight"
+  }
+ ]
+}

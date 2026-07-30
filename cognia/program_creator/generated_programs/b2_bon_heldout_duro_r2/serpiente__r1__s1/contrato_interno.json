@@ -1,0 +1,58 @@
+{
+ "nombre": "Contrato de prueba para juego de la serpiente",
+ "pasos": [
+  {
+   "nombre": "Verificar estado inicial del tablero",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".cel",
+   "esperado": 100
+  },
+  {
+   "nombre": "Verificar que solo una celda tiene la serpiente",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".snake",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar que la cabeza está presente y es la única celda de la serpiente",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".head",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar que existe una celda de comida",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".food",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar que el estado expuesto en window.juego es correcto al inicio",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego && window.juego.largo===1 && window.juego.dir==='right'",
+   "esperado": true
+  },
+  {
+   "nombre": "Mover la serpiente a la derecha y verificar que la longitud sigue siendo 1 y la posición cambia",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowRight"
+  },
+  {
+   "nombre": "Mover la serpiente hacia la celda de comida y verificar que la longitud aumenta a 2 y la comida desaparece",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowRight"
+  },
+  {
+   "nombre": "Intentar invertir dirección 180 grados y verificar que la serpiente no cambia de dirección",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowLeft"
+  }
+ ]
+}

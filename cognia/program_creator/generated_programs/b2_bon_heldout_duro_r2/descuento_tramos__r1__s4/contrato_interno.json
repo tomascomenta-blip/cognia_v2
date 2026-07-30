@@ -1,0 +1,58 @@
+{
+ "nombre": "Validación de calculadora de descuento por tramos",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de contenedor principal",
+   "critico": true,
+   "accion": "existe",
+   "selector": ".container"
+  },
+  {
+   "nombre": "Confirmar que el input de cantidad existe y es de tipo number",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#cant"
+  },
+  {
+   "nombre": "Confirmar que el span de total existe",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#total"
+  },
+  {
+   "nombre": "Verificar que el total inicial sea 0.00 cuando la cantidad es 0",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "0.00"
+  },
+  {
+   "nombre": "Ingresar 5 unidades y comprobar que el total sea 50.00 (sin descuento)",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "5"
+  },
+  {
+   "nombre": "Ingresar 15 unidades y comprobar que el total sea 140.00 (10 unidades sin descuento + 5 con 10% de descuento)",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "15"
+  },
+  {
+   "nombre": "Ingresar 60 unidades y comprobar que el total sea 540.00 (10 unidades sin descuento + 40 con 10% + 10 con 20%)",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "60"
+  },
+  {
+   "nombre": "Verificar que el total se actualiza al cambiar la cantidad sin recargar la página",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "540.00"
+  }
+ ]
+}

@@ -1,0 +1,161 @@
+{
+ "nombre": "Verificar funcionamiento de la calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Estado inicial de la pantalla vacía",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^$"
+    }
+   ]
+  },
+  {
+   "nombre": "Contar botones de número",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"2\"]",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"3\"]",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"4\"]",
+     "esperado": 1
+    }
+   ],
+   "min": 3
+  },
+  {
+   "nombre": "Contar botones de operador y funcionalidad",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"+\"]",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"-\"]",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"*\"]",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"=\"]",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=\"C\"]",
+     "esperado": 1
+    }
+   ],
+   "min": 5
+  },
+  {
+   "nombre": "Evaluar expresión 2+3*4 con precedencia",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".k[data-k=\"2\"]",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=\"+\"]",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=\"3\"]",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=\"*\"]",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=\"4\"]",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=\"=\"]",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^14$"
+    }
+   ]
+  },
+  {
+   "nombre": "Limpiar pantalla con botón C",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".k[data-k=\"C\"]",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^$"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar que la pantalla no muestra texto visible antes de interacción",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "contar_visible",
+     "selector": "#pantalla",
+     "esperado": 0
+    }
+   ],
+   "min": 0
+  },
+  {
+   "nombre": "Confirmar que el número de botones .k es 16",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".k",
+     "esperado": 16
+    }
+   ],
+   "min": 16
+  },
+  {
+   "nombre": "Asegurar que el contenedor principal existe",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#container"
+    }
+   ]
+  }
+ ]
+}

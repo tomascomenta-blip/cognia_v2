@@ -1,0 +1,57 @@
+{
+ "nombre": "Cronómetro funcional en HTML",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del cronómetro",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "0"
+  },
+  {
+   "nombre": "Botón start visible y funcional",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#start"
+  },
+  {
+   "nombre": "Botón pause visible y funcional",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#pause"
+  },
+  {
+   "nombre": "Botón reset visible y funcional",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#reset"
+  },
+  {
+   "nombre": "Iniciar conteo aumenta el valor",
+   "critico": true,
+   "accion": "click",
+   "selector": "#start",
+   "indice": 0
+  },
+  {
+   "nombre": "Conteo continúa después de 2 segundos",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 2000
+  },
+  {
+   "nombre": "Pausar el conteo detiene el incremento",
+   "critico": true,
+   "accion": "click",
+   "selector": "#pause",
+   "indice": 0
+  },
+  {
+   "nombre": "Resetear vuelve a 0 y detiene el conteo",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reset",
+   "indice": 0
+  }
+ ]
+}

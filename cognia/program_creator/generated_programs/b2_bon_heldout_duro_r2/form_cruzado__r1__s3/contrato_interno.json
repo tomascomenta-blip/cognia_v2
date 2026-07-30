@@ -1,0 +1,71 @@
+{
+ "nombre": "Validación cruzada de formulario con botón habilitado solo cuando se cumplen todas las condiciones",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de los elementos obligatorios",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#pass"
+  },
+  {
+   "nombre": "Verificar existencia de los elementos obligatorios",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#pass2"
+  },
+  {
+   "nombre": "Verificar existencia de los elementos obligatorios",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#edad"
+  },
+  {
+   "nombre": "Verificar existencia de los elementos obligatorios",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar"
+  },
+  {
+   "nombre": "Estado inicial del botón debe estar deshabilitado",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar",
+   "esperado": "disabled"
+  },
+  {
+   "nombre": "Ingresar una contraseña de 8 caracteres y verificar que el botón sigue deshabilitado",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass",
+   "contiene": "abcdefgh"
+  },
+  {
+   "nombre": "Ingresar la misma contraseña en el segundo campo y verificar que el botón sigue deshabilitado porque la edad no está en rango",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass2",
+   "contiene": "abcdefgh"
+  },
+  {
+   "nombre": "Ingresar una edad fuera del rango (17) y verificar que el botón sigue deshabilitado",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#edad",
+   "contiene": "17"
+  },
+  {
+   "nombre": "Ingresar una edad dentro del rango (25) y verificar que el botón se habilita",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#edad",
+   "contiene": "25"
+  },
+  {
+   "nombre": "Verificar que el botón está habilitado",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar",
+   "esperado": "enabled"
+  }
+ ]
+}

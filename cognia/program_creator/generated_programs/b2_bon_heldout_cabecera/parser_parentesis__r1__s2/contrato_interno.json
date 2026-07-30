@@ -1,0 +1,173 @@
+{
+ "nombre": "Validación de calculadora con paréntesis y precedencia",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Contar botones con clase k",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 19,
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que cada botón tiene atributo data-k",
+   "accion": "contar",
+   "selector": "[data-k]",
+   "esperado": 19,
+   "critico": true
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k='(']",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k='1']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k='+']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k='2']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k=')']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k='*']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k='3']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación (1+2)*3",
+   "accion": "click",
+   "selector": "[data-k='=']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar resultado 9",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "9",
+   "critico": true
+  },
+  {
+   "nombre": "Limpiar pantalla con C",
+   "accion": "click",
+   "selector": "[data-k='C']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar pantalla vacía",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "",
+   "critico": true
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='2']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='*']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='(']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='3']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='+']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='(']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='4']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='-']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='1']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k=')']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k=')']",
+   "indice": 0
+  },
+  {
+   "nombre": "Probar operación 2*(3+(4-1))",
+   "accion": "click",
+   "selector": "[data-k='=']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar resultado 12",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "12",
+   "critico": true
+  }
+ ]
+}

@@ -1,0 +1,787 @@
+{
+ "filas": [
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 9,
+   "gt": true,
+   "motivo": "falla critica: Al introducir 5 unidades, total sin descuento es 50.00 ('' no contiene '5'); Al introducir 15 unidades, p"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Ingresar 60 en #cant y verificar total actualizado a 540.00 ('' no contiene '60'); Ingresar 10 en #cant y"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Comprobar valor inicial del total es 0.00 ('0,00' no contiene '0.00'); Ingresar 5 unidades y verificar to"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 11,
+   "gt": true,
+   "motivo": "falla critica: Introduce 5 unidades y espera recalculo ('' no contiene '5'); Verifica que el total sea 50.00 (5*10) ('0."
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Confirmar estado inicial del botón deshabilitado ('Enviar' no contiene 'disabled'); Ingresar contraseña c"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Ingresar contraseña de 8 caracteres ('' no contiene 'abcdefgh'); Ingresar contraseña repetida igual ('' n"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 7,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial: botón deshabilitado ('Enviar' no contiene 'disabled'); Ingresar contraseña de 8 caractere"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Confirmar que el botón está inicialmente deshabilitado ('Enviar' no contiene 'disabled'); Ingresar una co"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "interno_aprueba": false,
+   "criticos": 8,
+   "gt": true,
+   "motivo": "falla critica: Verificar resultado 14 ('7' no contiene '14')"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": false,
+   "motivo": "falla critica: Resultado correcto 14 ('789' no contiene '14')"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "interno_aprueba": false,
+   "criticos": 13,
+   "gt": true,
+   "motivo": "falla critica: Contar operadores visibles (excepcion: TypeError: int() argument must be a string, a bytes-like object or"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "interno_aprueba": false,
+   "criticos": 7,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial de la pantalla vacía ('0' no contiene '^$'); Evaluar expresión 2+3*4 con precedencia ('14'"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/serpiente__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "serpiente",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Verificar que la longitud aumentó en 1 (js=1, esperaba 2)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/serpiente__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "serpiente",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Verificar que el estado inicial expuesto en window.juego sea correcto (js=False, esperaba True); Verifica"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/serpiente__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "serpiente",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Verificar que la serpiente se haya movido una celda a la derecha (js=False, esperaba True)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tabla_compuesta__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tabla_compuesta",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": false,
+   "motivo": "falla critica: El campo de búsqueda filtra por nombre y vuelve a página 1 con filas filtradas visibles ('' no contiene '"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/temporizador__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "temporizador",
+   "interno_aprueba": true,
+   "criticos": 12,
+   "gt": true,
+   "motivo": "13/14 checks OK (10/10 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/temporizador__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "temporizador",
+   "interno_aprueba": false,
+   "criticos": 11,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial correcto (count('#t')=1, esperaba 0)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Reinicia el juego (simulando recarga) y verifica que el estado vuelve a X y todas las casillas están vací"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Confirmar que #estado contiene \"empate\" cuando todas las casillas están llenas sin ganador ('X' no contie"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Completar una línea horizontal con X y verificar que el estado indica ganancia y las casillas quedan bloq"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Verificar que el número de casillas visibles es 9 y que ninguna muestra texto después de la victoria (vis"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "interno_aprueba": false,
+   "criticos": 17,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial: botón undo deshabilitado (visibles('#undo')=1, esperaba 0); Estado inicial: botón redo de"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Agregar primer elemento ('' no contiene 'Elemento 1'); Verificar que el elemento aparece (visibles('#list"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Agregar primer elemento ('' no contiene 'Elemento 1'); Lista contiene un elemento (count('#list li')=0, e"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "interno_aprueba": false,
+   "criticos": 12,
+   "gt": true,
+   "motivo": "falla critica: Agregar primer elemento ('' no contiene 'Elemento 1'); Verificar que el elemento aparece (count('#list .i"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Al ingresar 5 unidades el total es 50.00 ('' no contiene '5'); Al ingresar 15 unidades el total es 135.00"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Al introducir 5 unidades el total es 50.00 ('' no contiene '5'); Al introducir 15 unidades el total es 14"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Valor inicial de cantidad es 0 ('' no contiene '0'); Valor inicial de total es 0.00 ('0,00' no contiene '"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Verificar que el total inicial sea 0.00 cuando la cantidad es 0 ('0,00' no contiene '0.00'); Ingresar 5 u"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial: botón tiene atributo disabled ('Enviar' no contiene 'disabled'); Ingresar contraseña de 8"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Ingresar contraseña de 8 caracteres ('' no contiene '12345678'); Ingresar contraseña repetida igual ('' n"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 12,
+   "gt": true,
+   "motivo": "falla critica: Ingresar una contraseña de 8 caracteres y verificar que el botón sigue deshabilitado ('' no contiene 'abc"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Ingresar contraseña de 8 caracteres ('' no contiene 'abcdefgh'); Ingresar contraseña repetida igual ('' n"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "interno_aprueba": true,
+   "criticos": 9,
+   "gt": true,
+   "motivo": "11/12 checks OK (8/8 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Los botones tienen los valores requeridos (accion desconocida: 'contiene'); Al pulsar 2, 3, 4, +, *, = la"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "interno_aprueba": false,
+   "criticos": 15,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial de pantalla vacío ('0' no contiene '^$'); Verificar que pantalla muestra 14 ('14' no conti"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Confirmar que la pantalla está vacía al inicio ('0' no contiene '^$')"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "serpiente",
+   "interno_aprueba": true,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "11/12 checks OK (8/8 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "serpiente",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Coordenadas iniciales de la serpiente ('' no contiene 'data-x=\"0\" data-y=\"0\"'); Dirección inicial es dere"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "serpiente",
+   "interno_aprueba": false,
+   "criticos": 6,
+   "gt": false,
+   "motivo": "falla critica: Verificar atributos de la celda inicial ('' no contiene '\"data-x\":\"0\",\"data-y\":\"0\"'); Mover la serpiente "
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tabla_compuesta",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: El botón \"prev\" no está visible en la primera página (existe '#prev' y no deberia); Al escribir \"Ana\" en "
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tabla_compuesta",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Filtrar por nombre que no coincide con ninguna fila ('' no contiene 'ZZZ'); Después del filtro, se muestr"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tabla_compuesta",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Aplicar filtro con texto que coincida con 5 nombres ('' no contiene 'A'); Verificar que la tabla muestra "
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/temporizador__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "temporizador",
+   "interno_aprueba": false,
+   "criticos": 11,
+   "gt": true,
+   "motivo": "falla critica: Verificar que el cronómetro no haya acelerado ('3' no contiene '2')"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/temporizador__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "temporizador",
+   "interno_aprueba": true,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "11/12 checks OK (8/8 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/temporizador__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "temporizador",
+   "interno_aprueba": true,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "11/12 checks OK (8/8 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Verificar que la casilla con data-i=0 esté vacía al inicio ('' no contiene '^$'); Verificar que el estado"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Cuando se completa una línea de tres marcas iguales, el estado muestra la palabra \"gana\" y las casillas q"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": true,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "11/12 checks OK (8/8 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Confirmar que el estado inicial muestra X ('' no contiene 'X'); Confirmar que todas las casillas quedan b"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/undo_redo__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "undo_redo",
+   "interno_aprueba": false,
+   "criticos": 14,
+   "gt": true,
+   "motivo": "falla critica: Agregar primer elemento ('' no contiene 'Elemento 1'); Verificar que el elemento aparece (visibles('#list"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/undo_redo__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "undo_redo",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Agregar primer elemento ('' no contiene 'Elemento 1'); Verificar que el elemento aparece en la lista (vis"
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/undo_redo__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "undo_redo",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Agregar primer elemento ('' no contiene 'Elemento 1'); Verificar que el elemento aparece (count('#list .i"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "ascensor",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Llamada al piso 3 se atiende al instante (js=False, esperaba True); Llamada al piso 1 cuando sube, se ati"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "ascensor",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial correcto (no existe '#calls'); Llamada al piso 3 se registra y se atiende al instante ('0'"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "ascensor",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Llamada a piso inferior se atiende al bajar (js=False, esperaba True); El ascensor atiende llamadas en se"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Crear evento válido 9-10 ('' no contiene '9'); Verificar evento añadido (count('#lista .ev')=0, esperaba "
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "interno_aprueba": false,
+   "criticos": 15,
+   "gt": true,
+   "motivo": "falla critica: Crear evento válido 9-10 ('' no contiene '9'); Crear evento válido 9-10 ('' no contiene '10'); Evento 9-1"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "interno_aprueba": false,
+   "criticos": 17,
+   "gt": true,
+   "motivo": "falla critica: Crear evento válido 9-10 ('' no contiene '9'); Crear evento válido 9-10 ('' no contiene '10'); Evento 9-1"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Evento 9-10 añadido (count('.ev')=0, esperaba 1); Evento 9-11 no añadido (count('.ev')=0, esperaba 1); Ev"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "carrito_cupones",
+   "interno_aprueba": false,
+   "criticos": 11,
+   "gt": true,
+   "motivo": "falla critica: Aplicar cupón DESCUENTO20 y comprobar que el subtotal se reduce a 24 (20% de descuento) ('' no contiene '"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "carrito_cupones",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial del carrito (visibles('#subtotal')=1, esperaba 0); Estado inicial del envío (visibles('#en"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "carrito_cupones",
+   "interno_aprueba": false,
+   "criticos": 8,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial sin productos en carrito (visibles('#subtotal')=1, esperaba 0); Agregar primer producto (3"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "interno_aprueba": false,
+   "criticos": 8,
+   "gt": true,
+   "motivo": "falla critica: Verificar estado inicial del textarea ('' no contiene 'gato perro gato loro gato'); Reemplazar todas las "
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "interno_aprueba": false,
+   "criticos": 14,
+   "gt": true,
+   "motivo": "falla critica: Verificar estado inicial del textarea ('' no contiene 'gato perro gato loro gato'); Reemplazar todas las "
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "interno_aprueba": false,
+   "criticos": 14,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial del textarea ('' no contiene 'gato perro gato loro gato'); Reemplazar todas las aparicione"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "interno_aprueba": false,
+   "criticos": 5,
+   "gt": true,
+   "motivo": "falla critica: Confirmar estado inicial del textarea ('' no contiene 'gato perro gato loro gato'); Verificar que el text"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Verificar que cada botón tiene el atributo data-k correcto (accion desconocida: 'contiene')"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "interno_aprueba": true,
+   "criticos": 9,
+   "gt": true,
+   "motivo": "31/31 checks OK (27/27 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "interno_aprueba": true,
+   "criticos": 18,
+   "gt": true,
+   "motivo": "20/20 checks OK (16/16 del contrato)"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "interno_aprueba": false,
+   "criticos": 9,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial: pantalla vacía ('' no contiene '^$'); Calcular (1+2)*3 = 9 ('9' no contiene '^9$'); Calcu"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial del carrito (visibles('#packs')=1, esperaba 0); Estado inicial del carrito (visibles('#tot"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Cantidad inicial de pan (visibles('.cant[data-id=\"pan\"]')=1, esperaba 0); Cantidad inicial de leche (visi"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "interno_aprueba": false,
+   "criticos": 21,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial del carrito (visibles('#packs')=1, esperaba 0); Estado inicial del carrito (visibles('#tot"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial del carrito (count('#packs')=1, esperaba 0); Estado inicial del carrito (count('#total')=1"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "inventario_reservas",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial correcto (count('#stock')=1, esperaba 10); Reservar 3 unidades ('' no contiene '3'); Inten"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "inventario_reservas",
+   "interno_aprueba": false,
+   "criticos": 11,
+   "gt": true,
+   "motivo": "falla critica: Reservar 3 unidades aumenta reserva y reduce disponible ('' no contiene '3'); Disponible actualizado a 7 "
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "inventario_reservas",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial correcto (visibles('#reservations')=0, esperaba 1); Reservar 3 unidades ('' no contiene '3"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Confirmar que los inputs de porcentaje existen y tienen valor inicial 30,30,40 ('' no contiene '30'); Con"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "interno_aprueba": false,
+   "criticos": 12,
+   "gt": true,
+   "motivo": "falla critica: Cambiar un porcentaje a 50 y verificar rechazo y aviso ('' no contiene '50'); Confirmar que el input vuel"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Cambiar el primer porcentaje a 50 y esperar que se rechace por superar 100 ('' no contiene '50'); Confirm"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Cambiar el primer porcentaje a 50 y verificar que el cambio sea rechazado y el aviso muestre 'limite' (''"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Apuntar 3 personas a mañana ('Mañana\nTarde' no contiene 'manana'); Apuntar 4 personas a tarde, rechazado "
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": false,
+   "motivo": "falla critica: Estado inicial correcto (count('#cap')=1, esperaba 6); Agregar grupo que no excede capacidad ('Mañana\nTar"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "interno_aprueba": false,
+   "criticos": 10,
+   "gt": true,
+   "motivo": "falla critica: Estado inicial: capacidad 6 y sin grupos (count('#cap')=1, esperaba 6); Apuntar 3 personas a mañana ('Man"
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "interno_aprueba": false,
+   "criticos": 5,
+   "gt": false,
+   "motivo": "falla critica: Estado inicial sin grupos y capacidad 6 (visibles('#cap')=1, esperaba 6); Agregar grupo mañana con 3 pers"
+  }
+ ]
+}

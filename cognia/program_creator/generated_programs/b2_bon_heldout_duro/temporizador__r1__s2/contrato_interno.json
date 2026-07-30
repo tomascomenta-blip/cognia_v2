@@ -1,0 +1,72 @@
+{
+ "nombre": "Cronómetro funcional en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar estado inicial del cronómetro",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "0"
+  },
+  {
+   "nombre": "Iniciar el cronómetro",
+   "critico": true,
+   "accion": "click",
+   "selector": "#start",
+   "indice": 0
+  },
+  {
+   "nombre": "Esperar 1 segundo y comprobar incremento",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1000
+  },
+  {
+   "nombre": "Verificar que el contador haya aumentado a 1",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "1"
+  },
+  {
+   "nombre": "Pulsar start nuevamente sin detener",
+   "critico": true,
+   "accion": "click",
+   "selector": "#start",
+   "indice": 0
+  },
+  {
+   "nombre": "Esperar 1 segundo y comprobar que el contador haya aumentado solo 1 vez",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1000
+  },
+  {
+   "nombre": "Verificar que el contador sea 2",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "2"
+  },
+  {
+   "nombre": "Reiniciar el cronómetro y comprobar que vuelva a 0 y se detenga",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reset",
+   "indice": 0
+  },
+  {
+   "nombre": "Esperar 1 segundo y verificar que el contador siga en 0",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1000
+  },
+  {
+   "nombre": "Verificar que el contador siga en 0",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "0"
+  }
+ ]
+}

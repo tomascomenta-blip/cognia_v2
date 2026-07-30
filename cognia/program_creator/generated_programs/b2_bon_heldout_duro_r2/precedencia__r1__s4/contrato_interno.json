@@ -1,0 +1,60 @@
+{
+ "nombre": "Verificar funcionamiento de calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Contar botones de la calculadora",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 16,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que la pantalla está vacía al inicio",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "^$",
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar expresión 2+3*4 y evaluar",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar +",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 3",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 2,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar *",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 4 y obtener resultado 14",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 4,
+   "critico": true
+  }
+ ]
+}

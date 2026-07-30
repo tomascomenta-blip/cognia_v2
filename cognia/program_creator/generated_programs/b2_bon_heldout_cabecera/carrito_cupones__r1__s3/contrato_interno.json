@@ -1,0 +1,61 @@
+{
+ "nombre": "Validación funcional del carrito con cupón y envío",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del carrito",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#subtotal",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Estado inicial del envío",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#envio",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Estado inicial del total",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Agregar primer producto (precio 30)",
+   "critico": true,
+   "accion": "click",
+   "selector": ".add",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar subtotal después de agregar 30",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#subtotal",
+   "contiene": "30"
+  },
+  {
+   "nombre": "Aplicar cupón inválido y verificar que no haya descuento",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#subtotal",
+   "contiene": "30"
+  },
+  {
+   "nombre": "Agregar segundo producto (precio 40) y verificar subtotal 70",
+   "critico": true,
+   "accion": "click",
+   "selector": ".add",
+   "indice": 1
+  },
+  {
+   "nombre": "Aplicar cupón válido DESCUENTO20 y verificar descuento 20% y envío gratuito",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "56"
+  }
+ ]
+}

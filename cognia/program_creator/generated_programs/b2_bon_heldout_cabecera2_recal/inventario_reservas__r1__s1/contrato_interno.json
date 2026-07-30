@@ -1,0 +1,213 @@
+{
+ "nombre": "Control de stock con reservas",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#stock",
+     "esperado": "10"
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": "10"
+    },
+    {
+     "accion": "contar",
+     "selector": "#reservas",
+     "esperado": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#cant",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#nuevo-stock",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#reservar",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#cancelar",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#ajustar",
+     "esperado": 1
+    }
+   ]
+  },
+  {
+   "nombre": "Reservar 3 unidades",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "3"
+    },
+    {
+     "accion": "click",
+     "selector": "#reservar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#reservas",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": "7"
+    }
+   ]
+  },
+  {
+   "nombre": "Intentar reservar 8 unidades (rechazo)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "8"
+    },
+    {
+     "accion": "click",
+     "selector": "#reservar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#reservas",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": "7"
+    }
+   ]
+  },
+  {
+   "nombre": "Reservar 2 unidades adicionales",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "2"
+    },
+    {
+     "accion": "click",
+     "selector": "#reservar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#reservas",
+     "esperado": 2
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": "5"
+    }
+   ]
+  },
+  {
+   "nombre": "Cancelar última reserva",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": "#cancelar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#reservas",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": "7"
+    }
+   ]
+  },
+  {
+   "nombre": "Ajustar stock a 12 (exitoso)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nuevo-stock",
+     "contiene": "12"
+    },
+    {
+     "accion": "click",
+     "selector": "#ajustar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#stock",
+     "esperado": "12"
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": "7"
+    }
+   ]
+  },
+  {
+   "nombre": "Intentar ajustar stock a 4 (rechazo)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nuevo-stock",
+     "contiene": "4"
+    },
+    {
+     "accion": "click",
+     "selector": "#ajustar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "#stock",
+     "esperado": "12"
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": "7"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar que no haya reservas vacías",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar_visible",
+     "selector": "#reservas .res",
+     "esperado": 1
+    }
+   ]
+  }
+ ]
+}

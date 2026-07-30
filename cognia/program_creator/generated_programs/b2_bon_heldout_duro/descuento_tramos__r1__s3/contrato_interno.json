@@ -1,0 +1,56 @@
+{
+ "nombre": "Calculadora de descuento por tramos",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de contenedor principal",
+   "accion": "existe",
+   "selector": ".container",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar existencia del selector de cantidad",
+   "accion": "existe",
+   "selector": "#cant",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar existencia del selector de total",
+   "accion": "existe",
+   "selector": "#total",
+   "critico": true
+  },
+  {
+   "nombre": "Comprobar valor inicial del total es 0.00",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "0.00",
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 5 unidades y verificar total sin descuento",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "5",
+   "critico": true
+  },
+  {
+   "nombre": "Esperar actualización del total y verificar 50.00",
+   "accion": "esperar",
+   "ms": 500,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 15 unidades y verificar descuento del 10% en tramo",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "15",
+   "critico": true
+  },
+  {
+   "nombre": "Esperar actualización del total y verificar 135.00",
+   "accion": "esperar",
+   "ms": 500,
+   "critico": true
+  }
+ ]
+}

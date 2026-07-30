@@ -1,0 +1,347 @@
+{
+ "nombre": "Calculadora con paréntesis y precedencia",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: pantalla vacía",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#pantalla",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^$"
+    }
+   ]
+  },
+  {
+   "nombre": "Botones de número y operador existen",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='1']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='2']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='3']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='4']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='6']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='+']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='-']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='*']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='(']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k=')']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='=']",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".k[data-k='C']",
+     "esperado": 1
+    }
+   ]
+  },
+  {
+   "nombre": "Calcular (1+2)*3 = 9",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".k[data-k='(']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='1']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='+']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='2']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=')']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='*']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='3']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='=']",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^9$"
+    }
+   ]
+  },
+  {
+   "nombre": "Calcular 2*(3+(4-1)) = 12",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".k[data-k='C']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='2']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='*']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='(']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='3']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='+']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='(']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='4']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='-']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='1']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=')']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=')']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='=']",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^12$"
+    }
+   ]
+  },
+  {
+   "nombre": "Limpiar pantalla con C",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".k[data-k='C']",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^$"
+    }
+   ]
+  },
+  {
+   "nombre": "Precedencia: 1+2*3 = 7",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".k[data-k='1']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='+']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='2']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='*']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='3']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='=']",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^7$"
+    }
+   ]
+  },
+  {
+   "nombre": "Paréntesis anidados: (1+2)*(3+4) = 21",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".k[data-k='C']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='(']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='1']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='+']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='2']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=')']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='*']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='(']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='3']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='+']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='4']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k=')']",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": ".k[data-k='=']",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#pantalla",
+     "contiene": "^21$"
+    }
+   ]
+  }
+ ]
+}

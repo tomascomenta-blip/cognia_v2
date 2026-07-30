@@ -1,0 +1,178 @@
+{
+ "nombre": "Agenda de turnos con capacidad controlada",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#cap",
+     "esperado": "6"
+    }
+   ]
+  },
+  {
+   "nombre": "No hay grupos al inicio",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#grupos-container .grupo",
+     "esperado": 0
+    }
+   ]
+  },
+  {
+   "nombre": "Ocupación inicial vacía",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-manana",
+     "contiene": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Agregar grupo que no excede capacidad",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "manana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "3"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar"
+    },
+    {
+     "accion": "contar",
+     "selector": "#grupos-container .grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-manana",
+     "contiene": "3"
+    }
+   ]
+  },
+  {
+   "nombre": "Rechazar grupo que excede capacidad",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "manana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "4"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar"
+    },
+    {
+     "accion": "contar",
+     "selector": "#grupos-container .grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-manana",
+     "contiene": "3"
+    }
+   ]
+  },
+  {
+   "nombre": "Reducir capacidad y eliminar grupos excedentes",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nueva-cap",
+     "contiene": "2"
+    },
+    {
+     "accion": "click",
+     "selector": "#set-cap"
+    },
+    {
+     "accion": "contar",
+     "selector": "#grupos-container .grupo",
+     "esperado": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-manana",
+     "contiene": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Agregar grupo en franja tarde",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "tarde"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "2"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar"
+    },
+    {
+     "accion": "contar",
+     "selector": "#grupos-container .grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-tarde",
+     "contiene": "2"
+    }
+   ]
+  },
+  {
+   "nombre": "Cambiar capacidad a 1 y eliminar grupo tarde",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nueva-cap",
+     "contiene": "1"
+    },
+    {
+     "accion": "click",
+     "selector": "#set-cap"
+    },
+    {
+     "accion": "contar",
+     "selector": "#grupos-container .grupo",
+     "esperado": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#ocupacion-tarde",
+     "contiene": "0"
+    }
+   ]
+  }
+ ]
+}

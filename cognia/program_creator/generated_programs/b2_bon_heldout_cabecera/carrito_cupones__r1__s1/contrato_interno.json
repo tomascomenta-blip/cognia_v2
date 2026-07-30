@@ -1,0 +1,66 @@
+{
+ "nombre": "Carrito con cupón y envío en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de los tres productos",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".prod",
+   "esperado": 3
+  },
+  {
+   "nombre": "Verificar que cada producto tiene su botón de añadir",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".add",
+   "esperado": 3
+  },
+  {
+   "nombre": "Verificar que los campos de subtotal, envío y total existen",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#subtotal"
+  },
+  {
+   "nombre": "Verificar que el campo de cupon y botón de aplicar existen",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#cupon"
+  },
+  {
+   "nombre": "Añadir el producto con precio 30 y comprobar que el subtotal aumenta a 30",
+   "critico": true,
+   "accion": "click",
+   "selector": ".add",
+   "indice": 0
+  },
+  {
+   "nombre": "Aplicar cupón DESCUENTO20 y comprobar que el subtotal se reduce a 24 (20% de descuento)",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#cupon",
+   "contiene": "DESCUENTO20"
+  },
+  {
+   "nombre": "Verificar que el envío se muestra como 5 cuando el subtotal con descuento es menor a 60",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#envio",
+   "contiene": "5"
+  },
+  {
+   "nombre": "Añadir productos hasta que el subtotal con descuento alcance 60 y comprobar que el envío se vuelve 0",
+   "critico": true,
+   "accion": "click",
+   "selector": ".add",
+   "indice": 1
+  },
+  {
+   "nombre": "Añadir el último producto y comprobar que el total se calcula correctamente como subtotal menos descuento más envío",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": ""
+  }
+ ]
+}

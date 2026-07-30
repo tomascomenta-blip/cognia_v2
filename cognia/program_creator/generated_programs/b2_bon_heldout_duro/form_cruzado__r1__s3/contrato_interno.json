@@ -1,0 +1,129 @@
+{
+ "nombre": "Validación cruzada de formulario de registro",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: botón deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#enviar"
+    },
+    {
+     "accion": "existe",
+     "selector": "#pass"
+    },
+    {
+     "accion": "existe",
+     "selector": "#pass2"
+    },
+    {
+     "accion": "existe",
+     "selector": "#edad"
+    },
+    {
+     "accion": "contar",
+     "selector": "#enviar",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#pass",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#pass2",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#edad",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseña de 8 caracteres",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "abcdefgh"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseña repetida igual",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "abcdefgh"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar edad dentro del rango (30)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "30"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "30"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar que botón se habilita",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#enviar"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled",
+     "esperado": false
+    }
+   ]
+  }
+ ],
+ "critico": true
+}

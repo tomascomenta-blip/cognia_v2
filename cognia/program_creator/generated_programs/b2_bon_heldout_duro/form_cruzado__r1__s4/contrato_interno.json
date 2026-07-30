@@ -1,0 +1,173 @@
+{
+ "nombre": "Validación cruzada de formulario con botón habilitado solo cuando se cumplen todas las condiciones",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de los elementos obligatorios",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#formulario"
+    },
+    {
+     "accion": "existe",
+     "selector": "#pass"
+    },
+    {
+     "accion": "existe",
+     "selector": "#pass2"
+    },
+    {
+     "accion": "existe",
+     "selector": "#edad"
+    },
+    {
+     "accion": "existe",
+     "selector": "#enviar"
+    }
+   ]
+  },
+  {
+   "nombre": "Confirmar que el botón está inicialmente deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar una contraseña de 7 caracteres y verificar que el botón sigue deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "1234567"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar una contraseña de 8 caracteres y una confirmación distinta, verificar botón deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "12345678"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "87654321"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar la misma contraseña de 8 caracteres en ambos campos y edad 17, verificar botón deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "12345678"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "12345678"
+    },
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "17"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar la misma contraseña de 8 caracteres en ambos campos y edad 18, verificar botón habilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "12345678"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "12345678"
+    },
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "18"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "enabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Cambiar la contraseña a 7 caracteres y verificar que el botón se deshabilita nuevamente",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "1234567"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar una contraseña de 8 caracteres, confirmación igual, edad 120, verificar botón habilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "120"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "enabled"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,61 @@
+{
+ "nombre": "Verificar carrito con packs",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del carrito",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".row",
+   "esperado": 2
+  },
+  {
+   "nombre": "Cantidad inicial de pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": ".cant[data-id=\"pan\"]",
+   "esperado": 0
+  },
+  {
+   "nombre": "Cantidad inicial de leche",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": ".cant[data-id=\"leche\"]",
+   "esperado": 0
+  },
+  {
+   "nombre": "Packs iniciales",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": 0
+  },
+  {
+   "nombre": "Total inicial",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": 0
+  },
+  {
+   "nombre": "Agregar un pan y verificar actualización",
+   "critico": true,
+   "accion": "click",
+   "selector": ".add[data-id=\"pan\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Agregar una leche y verificar packs y total",
+   "critico": true,
+   "accion": "click",
+   "selector": ".add[data-id=\"leche\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Quitar un pan y verificar packs y total",
+   "critico": true,
+   "accion": "click",
+   "selector": ".quitar[data-id=\"pan\"]",
+   "indice": 0
+  }
+ ]
+}

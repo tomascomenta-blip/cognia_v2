@@ -1,0 +1,109 @@
+{
+ "nombre": "Verificar funcionamiento de la agenda de turnos con capacidad dinámica",
+ "pasos": [
+  {
+   "nombre": "Estado inicial sin grupos y capacidad 6",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 0
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#cap",
+     "esperado": "6"
+    }
+   ]
+  },
+  {
+   "nombre": "Agregar grupo mañana con 3 personas",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "mañana"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "3"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "contiene",
+     "selector": "#ocupacion-manana",
+     "contiene": "3"
+    }
+   ]
+  },
+  {
+   "nombre": "Agregar grupo tarde con 4 personas, excediendo capacidad",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#franja",
+     "contiene": "tarde"
+    },
+    {
+     "accion": "texto",
+     "selector": "#personas",
+     "contiene": "4"
+    },
+    {
+     "accion": "click",
+     "selector": "#apuntar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 1
+    },
+    {
+     "accion": "contiene",
+     "selector": "#ocupacion-tarde",
+     "contiene": "0"
+    }
+   ]
+  },
+  {
+   "nombre": "Reducir capacidad a 4",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nueva-cap",
+     "contiene": "4"
+    },
+    {
+     "accion": "click",
+     "selector": "#set-cap",
+     "indice": 0
+    },
+    {
+     "accion": "contiene",
+     "selector": "#cap",
+     "contiene": "4"
+    },
+    {
+     "accion": "contar",
+     "selector": ".grupo",
+     "esperado": 0
+    }
+   ]
+  }
+ ]
+}

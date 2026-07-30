@@ -1,0 +1,74 @@
+{
+ "nombre": "Reparto de presupuesto con restricciones de porcentaje",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de contenedor principal",
+   "accion": "existe",
+   "selector": ".container",
+   "critico": true
+  },
+  {
+   "nombre": "Contar partes y elementos asociados",
+   "accion": "contar",
+   "selector": ".part",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Contar inputs de porcentaje",
+   "accion": "contar",
+   "selector": ".pct",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Contar spans de euros",
+   "accion": "contar",
+   "selector": ".eur",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar existencia de total, libre y aviso",
+   "accion": "contar",
+   "selector": "#total,#libre,#aviso",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Comprobar valores iniciales de porcentajes y euros",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "100",
+   "critico": true
+  },
+  {
+   "nombre": "Cambiar un porcentaje a 50 y verificar rechazo y aviso",
+   "accion": "texto",
+   "selector": ".pct[data-id=\"a1\"]",
+   "contiene": "50",
+   "critico": true
+  },
+  {
+   "nombre": "Confirmar que el input vuelve al valor anterior y aviso muestra \"limite\"",
+   "accion": "texto",
+   "selector": ".pct[data-id=\"a1\"]",
+   "contiene": "30",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que los spans de euros y libre se actualizan correctamente",
+   "accion": "texto",
+   "selector": ".eur[data-id=\"a1\"]",
+   "contiene": "30",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que el aviso está vacío cuando no hay límite",
+   "accion": "texto",
+   "selector": "#aviso",
+   "contiene": "",
+   "critico": true
+  }
+ ]
+}

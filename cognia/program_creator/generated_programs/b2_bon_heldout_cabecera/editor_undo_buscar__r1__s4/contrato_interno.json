@@ -1,0 +1,68 @@
+{
+ "nombre": "Editor de texto con buscar y reemplazar y undo funcional",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de elementos obligatorios",
+   "accion": "contar",
+   "selector": "#buscar",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar existencia de elementos obligatorios",
+   "accion": "contar",
+   "selector": "#reemplazo",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar existencia de elementos obligatorios",
+   "accion": "contar",
+   "selector": "#reemplazar",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar existencia de elementos obligatorios",
+   "accion": "contar",
+   "selector": "#undo",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar existencia de elementos obligatorios",
+   "accion": "contar",
+   "selector": "#doc",
+   "esperado": 1
+  },
+  {
+   "nombre": "Confirmar estado inicial del textarea",
+   "accion": "texto",
+   "selector": "#doc",
+   "contiene": "gato perro gato loro gato",
+   "critico": true
+  },
+  {
+   "nombre": "Ejecutar reemplazo de todas las apariciones",
+   "accion": "click",
+   "selector": "#reemplazar",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el texto se haya reemplazado correctamente",
+   "accion": "texto",
+   "selector": "#doc",
+   "contiene": "perro perro perro loro perro",
+   "critico": true
+  },
+  {
+   "nombre": "Ejecutar undo para revertir el último reemplazo",
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el texto se haya revertido al estado inicial",
+   "accion": "texto",
+   "selector": "#doc",
+   "contiene": "gato perro gato loro gato",
+   "critico": true
+  }
+ ]
+}

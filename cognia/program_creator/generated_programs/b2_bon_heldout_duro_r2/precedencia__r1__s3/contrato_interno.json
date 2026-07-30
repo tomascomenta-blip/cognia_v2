@@ -1,0 +1,94 @@
+{
+ "nombre": "Calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar existencia de botones con clase k",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 9,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que cada botón tiene atributo data-k",
+   "accion": "existe",
+   "selector": "[data-k]",
+   "critico": true
+  },
+  {
+   "nombre": "Estado inicial de pantalla vacío",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "^$",
+   "critico": true
+  },
+  {
+   "nombre": "Calcular 2+3*4 y verificar precedencia",
+   "accion": "click",
+   "selector": "[data-k=\"2\"]",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "click [data-k=\"+\"]",
+   "accion": "click",
+   "selector": "[data-k=\"+\"]",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "click [data-k=\"3\"]",
+   "accion": "click",
+   "selector": "[data-k=\"3\"]",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "click [data-k=\"*\"]",
+   "accion": "click",
+   "selector": "[data-k=\"*\"]",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "click [data-k=\"4\"]",
+   "accion": "click",
+   "selector": "[data-k=\"4\"]",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "click [data-k=\"=\"] y verificar resultado 14",
+   "accion": "click",
+   "selector": "[data-k=\"=\"]",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que pantalla muestra 14",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "^14$",
+   "critico": true
+  },
+  {
+   "nombre": "Limpiar pantalla con C",
+   "accion": "click",
+   "selector": "[data-k=\"C\"]",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar pantalla vacía tras limpiar",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "^$",
+   "critico": true
+  }
+ ]
+}

@@ -10261,7 +10261,25 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     inflado; la comparación BoN-vs-AZAR sí es válida (mismo ground truth para
     ambos), pero el acierto absoluto exigiría un tercer examen independiente.
 
-11. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
+11. **PASO PREVIO DEL ADAPTADOR, EJECUTADO: el corpus pasa de 4 a 21
+    enunciados.** El bloqueante no era la GPU sino tener contratos de solo 4
+    enunciados. Se levantó por la vía barata: **generar el contrato sobre las
+    páginas YA congeladas** en vez de generar páginas nuevas
+    (`generar_contrato` solo necesita enunciado + DOM). **100 páginas → 87
+    contratos (87%) en 8.4 min de GPU → 17 enunciados nuevos, todos
+    cubiertos.** El leave-one-task-out del adaptador pasa de 4 grupos a 21.
+    **Y la línea base replica el hallazgo en enunciados nunca medidos:
+    ACUSA_SANOS 88.2% (duro) y 93.5% (cabecera)** — `descuento_tramos`,
+    `form_cruzado`, `undo_redo` y `tabla_compuesta` reprueban el **100%** de
+    sus páginas sanas, y en la cabecera **8 de 9 enunciados están al 100%**.
+    El perfil "condena sanos" **no era del banco brutal: es del contrato
+    interno**. *Advertencia declarada:* los J de +11.8/+6.5 están inflados por
+    la ausencia de rotas (3 y 2), así que el número que se sostiene es
+    ACUSA_SANOS. El 13% de contratos fallidos no es un bug: es el descarte de
+    vacuos (ya en producción) más el fallo de emisión del pensador, con tasa
+    **mayor que el 11.4% histórico y concentrada en las tareas más complejas**.
+
+12. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
    frente:** las dos vías se atascaron en **instrumentación, no en idea** —
    el contrato autogenerado que los runners tiraban, y la firma conductual
    guardada como `sha1[:12]` (que solo dice igual/distinto, así que no había

@@ -1,0 +1,904 @@
+{
+ "filas": [
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 5.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.0
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 9,
+   "motivo": "",
+   "segundos": 4.5
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 6.5
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 5,
+   "motivo": "",
+   "segundos": 4.6
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 6.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 11,
+   "motivo": "",
+   "segundos": 4.4
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/precedencia__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 6.4
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/serpiente__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "serpiente",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.2
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/serpiente__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "serpiente",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.5
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/serpiente__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "serpiente",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.4
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/serpiente__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "serpiente",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tabla_compuesta__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tabla_compuesta",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 4.0
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tabla_compuesta__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tabla_compuesta",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 6.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tabla_compuesta__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tabla_compuesta",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 4.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tabla_compuesta__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tabla_compuesta",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.4
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/temporizador__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "temporizador",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/temporizador__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "temporizador",
+   "ok": true,
+   "pasos": 10,
+   "motivo": "",
+   "segundos": 4.3
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/temporizador__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "temporizador",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/temporizador__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "temporizador",
+   "ok": true,
+   "pasos": 9,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.6
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.5
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 5.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s1",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "ok": true,
+   "pasos": 15,
+   "motivo": "",
+   "segundos": 5.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s2",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s3",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.6
+  },
+  {
+   "pagina": "b2_bon_heldout_duro/undo_redo__r1__s4",
+   "corpus": "b2_bon_heldout_duro",
+   "tarea": "undo_redo",
+   "ok": true,
+   "pasos": 10,
+   "motivo": "",
+   "segundos": 4.2
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "descuento_tramos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.4
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.0
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 10,
+   "motivo": "",
+   "segundos": 4.6
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "form_cruzado",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 5.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.2
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 13,
+   "motivo": "",
+   "segundos": 5.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "precedencia",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "serpiente",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "serpiente",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "serpiente",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 8.4
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "serpiente",
+   "ok": true,
+   "pasos": 4,
+   "motivo": "",
+   "segundos": 4.3
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tabla_compuesta",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 4.9
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tabla_compuesta",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tabla_compuesta",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.0
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tabla_compuesta",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/temporizador__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "temporizador",
+   "ok": true,
+   "pasos": 9,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/temporizador__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "temporizador",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.6
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/temporizador__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "temporizador",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.5
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/temporizador__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "temporizador",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 3.6
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.6
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.1
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "tres_en_raya",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.5
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/undo_redo__r1__s1",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "undo_redo",
+   "ok": true,
+   "pasos": 12,
+   "motivo": "",
+   "segundos": 4.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/undo_redo__r1__s2",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "undo_redo",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 6.2
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/undo_redo__r1__s3",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "undo_redo",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.7
+  },
+  {
+   "pagina": "b2_bon_heldout_duro_r2/undo_redo__r1__s4",
+   "corpus": "b2_bon_heldout_duro_r2",
+   "tarea": "undo_redo",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "ascensor",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 8.1
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "ascensor",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 7.9
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "ascensor",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 9.9
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "ascensor",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 8.8
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 5.4
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "ok": true,
+   "pasos": 13,
+   "motivo": "",
+   "segundos": 5.1
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "ok": true,
+   "pasos": 15,
+   "motivo": "",
+   "segundos": 5.4
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "calendario_conflictos",
+   "ok": true,
+   "pasos": 14,
+   "motivo": "",
+   "segundos": 5.2
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "carrito_cupones",
+   "ok": true,
+   "pasos": 9,
+   "motivo": "",
+   "segundos": 4.6
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "carrito_cupones",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 4.3
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "carrito_cupones",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.0
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "carrito_cupones",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 7.4
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 5.9
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "ok": true,
+   "pasos": 12,
+   "motivo": "",
+   "segundos": 4.8
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "ok": true,
+   "pasos": 12,
+   "motivo": "",
+   "segundos": 4.7
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "editor_undo_buscar",
+   "ok": true,
+   "pasos": 10,
+   "motivo": "",
+   "segundos": 4.3
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.3
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "ok": true,
+   "pasos": 27,
+   "motivo": "",
+   "segundos": 8.3
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "ok": true,
+   "pasos": 16,
+   "motivo": "",
+   "segundos": 5.8
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera/parser_parentesis__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera",
+   "tarea": "parser_parentesis",
+   "ok": true,
+   "pasos": 7,
+   "motivo": "",
+   "segundos": 11.7
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.8
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "ok": true,
+   "pasos": 19,
+   "motivo": "",
+   "segundos": 6.8
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "carrito_packs",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "inventario_reservas",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 7.1
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "inventario_reservas",
+   "ok": false,
+   "pasos": 0,
+   "motivo": "",
+   "segundos": 7.1
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "inventario_reservas",
+   "ok": true,
+   "pasos": 9,
+   "motivo": "",
+   "segundos": 3.9
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "inventario_reservas",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 7.7
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.6
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "ok": true,
+   "pasos": 10,
+   "motivo": "",
+   "segundos": 4.6
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.5
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "presupuesto_reparto",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 4.3
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s1",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 7.6
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s2",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 6.3
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s3",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "ok": true,
+   "pasos": 8,
+   "motivo": "",
+   "segundos": 8.9
+  },
+  {
+   "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s4",
+   "corpus": "b2_bon_heldout_cabecera2_recal",
+   "tarea": "turnos_capacidad",
+   "ok": true,
+   "pasos": 4,
+   "motivo": "",
+   "segundos": 4.6
+  }
+ ]
+}

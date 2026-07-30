@@ -1,0 +1,61 @@
+{
+ "nombre": "Tres en raya funcional en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de 9 casillas con clase .c y data-i 0-8",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".c",
+   "esperado": 9
+  },
+  {
+   "nombre": "Confirmar que la casilla inicial está vacía y el turno es X",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Hacer clic en la casilla con data-i 0 y verificar que se coloca X y el turno cambia a O",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-i=\"0\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Hacer clic en la casilla con data-i 4 y verificar que se coloca O y el turno cambia a X",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-i=\"4\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Completar una línea de tres X (casillas 0,1,2) y verificar que #estado contiene \"gana\" y que las casillas quedan bloqueadas",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-i=\"1\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Intentar hacer clic en una casilla ya marcada y verificar que no cambia el contenido",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-i=\"0\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el número de casillas visibles es 9 y que ninguna muestra texto después de la victoria",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": ".c",
+   "esperado": 9
+  },
+  {
+   "nombre": "Reiniciar el juego (si aplica) y verificar que el estado vuelve a X y todas las casillas están vacías",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reiniciar",
+   "indice": 0
+  }
+ ]
+}

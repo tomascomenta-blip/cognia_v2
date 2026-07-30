@@ -1,0 +1,238 @@
+{
+ "nombre": "Control de stock con reservas",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#stock",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#disponible",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#reservations",
+     "esperado": 1
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#stock",
+     "esperado": 1
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#disponible",
+     "esperado": 1
+    },
+    {
+     "accion": "contar_visible",
+     "selector": "#reservations",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#stock",
+     "contiene": "10"
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "10"
+    },
+    {
+     "accion": "contar",
+     "selector": "div.res",
+     "esperado": 0
+    }
+   ]
+  },
+  {
+   "nombre": "Reservar 3 unidades",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "3"
+    },
+    {
+     "accion": "click",
+     "selector": "#reservar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "div.res",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "7"
+    },
+    {
+     "accion": "texto",
+     "selector": "div.res[data-n='1']",
+     "contiene": "3"
+    }
+   ]
+  },
+  {
+   "nombre": "Intentar reservar 8 unidades (rechazo)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "8"
+    },
+    {
+     "accion": "click",
+     "selector": "#reservar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "div.res",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "7"
+    }
+   ]
+  },
+  {
+   "nombre": "Cancelar última reserva",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": "#cancelar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "div.res",
+     "esperado": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "10"
+    }
+   ]
+  },
+  {
+   "nombre": "Ajustar stock a 15",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nuevo-stock",
+     "contiene": "15"
+    },
+    {
+     "accion": "click",
+     "selector": "#ajustar",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#stock",
+     "contiene": "15"
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "15"
+    }
+   ]
+  },
+  {
+   "nombre": "Intentar ajustar stock a 5 (rechazo)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nuevo-stock",
+     "contiene": "5"
+    },
+    {
+     "accion": "click",
+     "selector": "#ajustar",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#stock",
+     "contiene": "15"
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "15"
+    }
+   ]
+  },
+  {
+   "nombre": "Reservar 5 unidades",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "5"
+    },
+    {
+     "accion": "click",
+     "selector": "#reservar",
+     "indice": 0
+    },
+    {
+     "accion": "contar",
+     "selector": "div.res",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "10"
+    }
+   ]
+  },
+  {
+   "nombre": "Ajustar stock a 12 (aceptado)",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#nuevo-stock",
+     "contiene": "12"
+    },
+    {
+     "accion": "click",
+     "selector": "#ajustar",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#stock",
+     "contiene": "12"
+    },
+    {
+     "accion": "texto",
+     "selector": "#disponible",
+     "contiene": "7"
+    }
+   ]
+  }
+ ]
+}

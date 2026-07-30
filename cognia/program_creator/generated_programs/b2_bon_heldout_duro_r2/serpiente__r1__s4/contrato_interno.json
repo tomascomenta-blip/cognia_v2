@@ -1,0 +1,97 @@
+{
+ "nombre": "Verificar juego de la serpiente en una grilla 10x10",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del tablero",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".cel",
+     "esperado": 100
+    },
+    {
+     "accion": "contar",
+     "selector": ".food",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".snake",
+     "esperado": 1
+    },
+    {
+     "accion": "existe",
+     "selector": "#grid"
+    },
+    {
+     "accion": "existe",
+     "selector": "#score-bar"
+    },
+    {
+     "accion": "existe",
+     "selector": "#score"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar atributos de la celda inicial",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#grid .cel[data-x=\"0\"][data-y=\"0\"]",
+     "contiene": "\"data-x\":\"0\",\"data-y\":\"0\""
+    }
+   ]
+  },
+  {
+   "nombre": "Mover la serpiente a la derecha",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "esperar",
+     "ms": 200
+    },
+    {
+     "accion": "contar",
+     "selector": ".snake",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#grid .snake",
+     "contiene": "data-x=\"1\""
+    }
+   ]
+  },
+  {
+   "nombre": "Comer la comida y crecer",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "esperar",
+     "ms": 200
+    },
+    {
+     "accion": "contar",
+     "selector": ".snake",
+     "esperado": 2
+    },
+    {
+     "accion": "contar",
+     "selector": ".food",
+     "esperado": 0
+    }
+   ]
+  }
+ ]
+}

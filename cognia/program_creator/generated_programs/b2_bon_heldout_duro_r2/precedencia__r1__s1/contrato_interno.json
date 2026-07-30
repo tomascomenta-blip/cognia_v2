@@ -1,0 +1,60 @@
+{
+ "nombre": "Calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar existencia de botones con clase k y atributo data-k",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 9,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que cada botón tenga atributo data-k con valores esperados",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "",
+   "critico": false
+  },
+  {
+   "nombre": "Ingresar expresión 2+3*4 y evaluar precedencia",
+   "accion": "click",
+   "selector": ".k[data-k='2']",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar +",
+   "accion": "click",
+   "selector": ".k[data-k='+']",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 3",
+   "accion": "click",
+   "selector": ".k[data-k='3']",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar *",
+   "accion": "click",
+   "selector": ".k[data-k='*']",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 4 y obtener resultado 14",
+   "accion": "click",
+   "selector": ".k[data-k='=']",
+   "indice": 0,
+   "critico": true
+  }
+ ]
+}

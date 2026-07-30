@@ -1,0 +1,61 @@
+{
+ "nombre": "Tres en raya funcional",
+ "pasos": [
+  {
+   "nombre": "Verifica 9 casillas iniciales vacías",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".c",
+   "esperado": 9
+  },
+  {
+   "nombre": "Comprueba que el estado inicial indica turno X",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Marca casilla 0 con X al hacer clic",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 0
+  },
+  {
+   "nombre": "Verifica que la casilla 0 ahora contiene X",
+   "critico": true,
+   "accion": "texto",
+   "selector": ".c",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Comprueba que el turno cambia a O después del clic",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "O"
+  },
+  {
+   "nombre": "Marca casilla 1 con O y verifica que la casilla contiene O",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 1
+  },
+  {
+   "nombre": "Simula una secuencia que complete una línea y verifica que #estado contiene 'gana' y que las casillas ya no son clickeables",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 2
+  },
+  {
+   "nombre": "Verifica que al intentar marcar una casilla después de ganar no se cambia su contenido",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 3
+  }
+ ]
+}

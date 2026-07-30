@@ -1,0 +1,61 @@
+{
+ "nombre": "Tres en raya funcional",
+ "pasos": [
+  {
+   "nombre": "Verifica que existen 9 casillas con data-i 0-8",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".c",
+   "esperado": 9
+  },
+  {
+   "nombre": "Comprueba que el estado inicial es X",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Clic en la casilla 0 y verifica que se marca X y cambia turno a O",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 0
+  },
+  {
+   "nombre": "Clic en la casilla 1 y verifica que se marca O y cambia turno a X",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 1
+  },
+  {
+   "nombre": "Completa una línea horizontal con X y verifica que #estado contiene \"gana\"",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 2
+  },
+  {
+   "nombre": "Intenta marcar una casilla después de ganar y verifica que no cambia",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 3
+  },
+  {
+   "nombre": "Reinicia el juego (simulando recarga) y verifica que el estado vuelve a X y todas las casillas están vacías",
+   "critico": true,
+   "accion": "js",
+   "expr": "location.reload();",
+   "esperado": null
+  },
+  {
+   "nombre": "Llena todas las casillas sin línea y verifica que #estado contiene \"empate\"",
+   "critico": true,
+   "accion": "js",
+   "expr": "Array.from(document.querySelectorAll('.c')).forEach((el,i)=>{if(!el.textContent){el.click();}}); document.querySelector('#estado').textContent",
+   "esperado": "empate"
+  }
+ ]
+}

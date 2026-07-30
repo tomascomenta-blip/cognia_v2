@@ -1,0 +1,133 @@
+{
+ "nombre": "Calculadora de descuento por tramos",
+ "pasos": [
+  {
+   "nombre": "Estado inicial muestra 0 unidades y total 0.00",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#cant",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#total",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#total",
+     "contiene": "0.00"
+    }
+   ]
+  },
+  {
+   "nombre": "Al introducir 5 unidades, total sin descuento es 50.00",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "5"
+    },
+    {
+     "accion": "texto",
+     "selector": "#total",
+     "contiene": "50.00"
+    }
+   ]
+  },
+  {
+   "nombre": "Al introducir 15 unidades, primer tramo sin descuento y segundo con 10% de descuento, total 145.00",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "15"
+    },
+    {
+     "accion": "texto",
+     "selector": "#total",
+     "contiene": "145.00"
+    }
+   ]
+  },
+  {
+   "nombre": "Al introducir 60 unidades, tres tramos aplicados, total 540.00",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "60"
+    },
+    {
+     "accion": "texto",
+     "selector": "#total",
+     "contiene": "540.00"
+    }
+   ]
+  },
+  {
+   "nombre": "El total se actualiza en tiempo real al cambiar la cantidad",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "30"
+    },
+    {
+     "accion": "texto",
+     "selector": "#total",
+     "contiene": "285.00"
+    }
+   ]
+  },
+  {
+   "nombre": "El total siempre muestra dos decimales",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#total",
+     "contiene": "\\.00"
+    }
+   ]
+  },
+  {
+   "nombre": "El input #cant permite valores numéricos positivos y se actualiza al escribir",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "1"
+    },
+    {
+     "accion": "texto",
+     "selector": "#cant",
+     "contiene": "10"
+    }
+   ]
+  },
+  {
+   "nombre": "El contenedor .container y .thresholds existen y son visibles",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "contar_visible",
+     "selector": ".container",
+     "esperado": 1
+    },
+    {
+     "accion": "contar_visible",
+     "selector": ".thresholds",
+     "esperado": 1
+    }
+   ]
+  }
+ ]
+}

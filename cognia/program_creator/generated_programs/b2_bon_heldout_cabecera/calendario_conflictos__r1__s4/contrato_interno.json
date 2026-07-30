@@ -1,0 +1,103 @@
+{
+ "nombre": "Validación de agenda sin solapamientos",
+ "pasos": [
+  {
+   "nombre": "Estado inicial sin eventos",
+   "accion": "contar",
+   "selector": ".ev",
+   "esperado": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Crear evento válido 9-10",
+   "accion": "texto",
+   "selector": "#desde",
+   "contiene": "9",
+   "critico": false
+  },
+  {
+   "nombre": "Crear evento válido 9-10",
+   "accion": "texto",
+   "selector": "#hasta",
+   "contiene": "10",
+   "critico": false
+  },
+  {
+   "nombre": "Hacer clic en crear",
+   "accion": "click",
+   "selector": "#crear",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Evento 9-10 añadido",
+   "accion": "contar",
+   "selector": ".ev",
+   "esperado": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Crear evento solapado 9-11",
+   "accion": "texto",
+   "selector": "#desde",
+   "contiene": "9",
+   "critico": false
+  },
+  {
+   "nombre": "Crear evento solapado 9-11",
+   "accion": "texto",
+   "selector": "#hasta",
+   "contiene": "11",
+   "critico": false
+  },
+  {
+   "nombre": "Hacer clic en crear y verificar conflicto",
+   "accion": "click",
+   "selector": "#crear",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Aviso de conflicto aparece",
+   "accion": "texto",
+   "selector": "#aviso",
+   "contiene": "conflicto",
+   "critico": true
+  },
+  {
+   "nombre": "Evento 9-11 no añadido",
+   "accion": "contar",
+   "selector": ".ev",
+   "esperado": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Crear evento no solapado 10-12",
+   "accion": "texto",
+   "selector": "#desde",
+   "contiene": "10",
+   "critico": false
+  },
+  {
+   "nombre": "Crear evento no solapado 10-12",
+   "accion": "texto",
+   "selector": "#hasta",
+   "contiene": "12",
+   "critico": false
+  },
+  {
+   "nombre": "Hacer clic en crear",
+   "accion": "click",
+   "selector": "#crear",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Evento 10-12 añadido",
+   "accion": "contar",
+   "selector": ".ev",
+   "esperado": 2,
+   "critico": true
+  }
+ ]
+}

@@ -1,0 +1,61 @@
+{
+ "nombre": "Prueba funcional de Tic-Tac-Toe en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de 9 casillas y estado inicial",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".c",
+   "esperado": 9
+  },
+  {
+   "nombre": "Confirmar que el estado inicial muestra X",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Marcar primera casilla con X",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la casilla marcada contiene X y el turno pasa a O",
+   "critico": true,
+   "accion": "texto",
+   "selector": ".c",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Marcar segunda casilla con O",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 1
+  },
+  {
+   "nombre": "Completar línea horizontal con X y verificar estado gana",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 2
+  },
+  {
+   "nombre": "Confirmar que todas las casillas quedan bloqueadas tras ganar",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": ".c",
+   "esperado": 0
+  },
+  {
+   "nombre": "Verificar que el estado muestra la palabra 'gana'",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "gana"
+  }
+ ]
+}

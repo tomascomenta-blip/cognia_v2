@@ -1,0 +1,58 @@
+{
+ "nombre": "Verificar funcionalidad combinada de filtro, orden y paginación en tabla de 23 filas",
+ "pasos": [
+  {
+   "nombre": "Estado inicial muestra 10 filas y página 1",
+   "accion": "contar_visible",
+   "selector": ".fila",
+   "esperado": 10,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que el botón siguiente está habilitado y el previo deshabilitado",
+   "accion": "existe",
+   "selector": "#sig",
+   "critico": true
+  },
+  {
+   "nombre": "Aplicar filtro con texto que coincida con 5 nombres",
+   "accion": "texto",
+   "selector": "#q",
+   "contiene": "A",
+   "critico": true
+  },
+  {
+   "nombre": "Esperar actualización de tabla",
+   "accion": "esperar",
+   "ms": 500,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que la tabla muestra 5 filas filtradas y página 1",
+   "accion": "contar_visible",
+   "selector": ".fila",
+   "esperado": 5,
+   "critico": true
+  },
+  {
+   "nombre": "Hacer clic en botón de orden ascendente",
+   "accion": "click",
+   "selector": "#ordenar",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Esperar reordenamiento",
+   "accion": "esperar",
+   "ms": 500,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que la primera fila filtrada tiene la edad mínima entre los 5",
+   "accion": "texto",
+   "selector": "#tbody .fila:first-child .edad",
+   "contiene": "20",
+   "critico": true
+  }
+ ]
+}

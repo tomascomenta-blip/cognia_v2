@@ -1,0 +1,60 @@
+{
+ "nombre": "Verificar juego de la serpiente en HTML",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".cel",
+   "esperado": 100
+  },
+  {
+   "nombre": "Solo una celda con comida",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".food",
+   "esperado": 1
+  },
+  {
+   "nombre": "Solo una celda con serpiente",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".snake",
+   "esperado": 1
+  },
+  {
+   "nombre": "Variables de juego inicializadas",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego && typeof window.juego.largo === 'number' && typeof window.juego.x === 'number' && typeof window.juego.y === 'number' && typeof window.juego.dir === 'string'",
+   "esperado": true
+  },
+  {
+   "nombre": "Moverse a la derecha con flecha",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowRight"
+  },
+  {
+   "nombre": "Verificar que la serpiente se haya desplazado",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".snake",
+   "esperado": 1
+  },
+  {
+   "nombre": "Comer comida y crecer",
+   "critico": true,
+   "accion": "click",
+   "selector": ".food",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la longitud aumentó en 1",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego.largo",
+   "esperado": 2
+  }
+ ]
+}

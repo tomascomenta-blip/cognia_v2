@@ -1,0 +1,59 @@
+{
+ "nombre": "Tabla con filtro, orden y paginación combinados",
+ "pasos": [
+  {
+   "nombre": "Estado inicial muestra 10 filas",
+   "accion": "contar_visible",
+   "selector": ".fila",
+   "esperado": 10,
+   "critico": true
+  },
+  {
+   "nombre": "El botón de siguiente está habilitado",
+   "accion": "existe",
+   "selector": "#sig",
+   "critico": true
+  },
+  {
+   "nombre": "El botón de anterior está deshabilitado",
+   "accion": "existe",
+   "selector": "#prev",
+   "critico": true
+  },
+  {
+   "nombre": "El número de página inicial es 1",
+   "accion": "texto",
+   "selector": "#pagina",
+   "contiene": "1",
+   "critico": true
+  },
+  {
+   "nombre": "Filtrar por nombre que no coincide con ninguna fila",
+   "accion": "texto",
+   "selector": "#q",
+   "contiene": "ZZZ",
+   "critico": true
+  },
+  {
+   "nombre": "Después del filtro, se muestra 0 filas y página 1",
+   "accion": "contar_visible",
+   "selector": ".fila",
+   "esperado": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Ordenar por edad ascendente cambia el orden de las filas visibles",
+   "accion": "click",
+   "selector": "#ordenar",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Después de ordenar, la primera fila visible tiene la edad mínima de los datos",
+   "accion": "texto",
+   "selector": ".fila:first-child .edad",
+   "contiene": "18",
+   "critico": true
+  }
+ ]
+}

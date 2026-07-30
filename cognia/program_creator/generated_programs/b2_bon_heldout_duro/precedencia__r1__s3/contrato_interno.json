@@ -1,0 +1,83 @@
+{
+ "nombre": "Validación de calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Contar botones con clase k",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 9,
+   "critico": true
+  },
+  {
+   "nombre": "Contar operadores visibles",
+   "accion": "contar_visible",
+   "selector": ".operator",
+   "esperado": {
+    "min": 3
+   },
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar expresión 2+3*4 y evaluar",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar +",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 4,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 3",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar *",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 5,
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 4 y obtener 14",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 6,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar resultado 14 en pantalla",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "14",
+   "critico": true
+  },
+  {
+   "nombre": "Limpiar pantalla con C",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 8,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar pantalla vacía tras limpiar",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "",
+   "critico": true
+  }
+ ]
+}

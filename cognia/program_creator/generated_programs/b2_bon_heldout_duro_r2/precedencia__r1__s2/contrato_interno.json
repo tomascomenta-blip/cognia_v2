@@ -1,0 +1,60 @@
+{
+ "nombre": "Calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Existe la pantalla con id 'pantalla'",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Se muestran 9 botones con clase 'k' y atributo data-k",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 9,
+   "critico": true
+  },
+  {
+   "nombre": "Los botones tienen los valores requeridos",
+   "accion": "contiene",
+   "selector": ".k[data-k='2']",
+   "esperado": "2",
+   "critico": true
+  },
+  {
+   "nombre": "Al iniciar la pantalla está vacía",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "",
+   "critico": true
+  },
+  {
+   "nombre": "Al pulsar 2, 3, 4 y +, -, * y = se muestra la expresión y el resultado correcto",
+   "accion": "click",
+   "selector": ".k[data-k='2']",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Al pulsar 2, 3, 4, +, *, = la pantalla muestra 14",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "14",
+   "critico": true
+  },
+  {
+   "nombre": "Al pulsar C la pantalla se limpia",
+   "accion": "click",
+   "selector": ".k[data-k='C']",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Al pulsar C la pantalla vuelve a estar vacía",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "",
+   "critico": true
+  }
+ ]
+}

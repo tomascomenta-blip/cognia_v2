@@ -1,0 +1,61 @@
+{
+ "nombre": "Verificar carrito con packs y precios correctos",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del carrito",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Estado inicial del carrito",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Agregar un pan",
+   "critico": true,
+   "accion": "click",
+   "selector": "button.add[data-id='pan']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar cantidad de pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "span.cant[data-id='pan']",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar precio total tras pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "2"
+  },
+  {
+   "nombre": "Agregar una leche",
+   "critico": true,
+   "accion": "click",
+   "selector": "button.add[data-id='leche']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar packs y total tras pack",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar precio total tras pack",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "4"
+  }
+ ]
+}

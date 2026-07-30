@@ -1,0 +1,153 @@
+{
+ "nombre": "Editor de texto con buscar y reemplazar y undo",
+ "pasos": [
+  {
+   "nombre": "Verificar estado inicial del textarea",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#doc",
+     "contiene": "gato perro gato loro gato"
+    }
+   ]
+  },
+  {
+   "nombre": "Contar elementos obligatorios",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#doc",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#buscar",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#reemplazo",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#reemplazar",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#undo",
+     "esperado": 1
+    }
+   ]
+  },
+  {
+   "nombre": "Reemplazar todas las apariciones de \"gato\" por \"perro\"",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#buscar",
+     "contiene": "gato"
+    },
+    {
+     "accion": "texto",
+     "selector": "#reemplazo",
+     "contiene": "perro"
+    },
+    {
+     "accion": "click",
+     "selector": "#reemplazar",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#doc",
+     "contiene": "perro perro perro loro perro"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar que el reemplazo no afectó otros textos",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#doc",
+     "contiene": "loro"
+    }
+   ]
+  },
+  {
+   "nombre": "Realizar otro reemplazo de \"perro\" por \"gato\"",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#buscar",
+     "contiene": "perro"
+    },
+    {
+     "accion": "texto",
+     "selector": "#reemplazo",
+     "contiene": "gato"
+    },
+    {
+     "accion": "click",
+     "selector": "#reemplazar",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#doc",
+     "contiene": "gato gato gato loro gato"
+    }
+   ]
+  },
+  {
+   "nombre": "Deshacer el último reemplazo completo",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": "#undo",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#doc",
+     "contiene": "perro perro perro loro perro"
+    }
+   ]
+  },
+  {
+   "nombre": "Escribir manualmente \"hola\" en el textarea",
+   "critico": false,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#doc",
+     "contiene": "hola"
+    }
+   ]
+  },
+  {
+   "nombre": "Deshacer la escritura manual",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": "#undo",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#doc",
+     "contiene": "perro perro perro loro perro"
+    }
+   ]
+  }
+ ]
+}

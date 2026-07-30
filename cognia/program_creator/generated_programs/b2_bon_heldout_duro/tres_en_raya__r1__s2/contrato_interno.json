@@ -1,0 +1,61 @@
+{
+ "nombre": "Tres en raya funcionalidad completa",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de 9 casillas con data-i 0-8",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".c",
+   "esperado": 9
+  },
+  {
+   "nombre": "Confirmar que la casilla inicial está vacía y el estado muestra turno X",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "X"
+  },
+  {
+   "nombre": "Hacer clic en la casilla con data-i 0 y verificar que se marca X y el estado cambia a O",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 0
+  },
+  {
+   "nombre": "Hacer clic en la casilla con data-i 4 y verificar que se marca O y el estado vuelve a X",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 4
+  },
+  {
+   "nombre": "Completar una línea horizontal con X en data-i 0,1,2 y verificar que #estado contiene \"gana\"",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 1
+  },
+  {
+   "nombre": "Verificar que después de ganar no se pueden marcar casillas adicionales",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 3
+  },
+  {
+   "nombre": "Reiniciar el juego y llenar todas las casillas sin línea para obtener empate",
+   "critico": true,
+   "accion": "click",
+   "selector": ".c",
+   "indice": 3
+  },
+  {
+   "nombre": "Confirmar que #estado contiene \"empate\" cuando todas las casillas están llenas sin ganador",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "empate"
+  }
+ ]
+}

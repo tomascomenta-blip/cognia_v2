@@ -1,0 +1,74 @@
+{
+ "nombre": "Prueba funcional de lista con undo/redo",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: lista vacía",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list .it",
+   "esperado": 0
+  },
+  {
+   "nombre": "Agregar primer elemento",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "Elemento 1"
+  },
+  {
+   "nombre": "Hacer clic en add",
+   "critico": true,
+   "accion": "click",
+   "selector": "#add",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el elemento aparece",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list .it",
+   "esperado": 1
+  },
+  {
+   "nombre": "Deshacer la acción",
+   "critico": true,
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Confirmar que la lista está vacía y redo disponible",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list .it",
+   "esperado": 0
+  },
+  {
+   "nombre": "Rehacer la acción",
+   "critico": true,
+   "accion": "click",
+   "selector": "#redo",
+   "indice": 0
+  },
+  {
+   "nombre": "Agregar nuevo elemento después de undo, invalidando redo",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "Elemento 2"
+  },
+  {
+   "nombre": "Hacer clic en add para nuevo elemento",
+   "critico": true,
+   "accion": "click",
+   "selector": "#add",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que redo ya no está disponible",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#redo"
+  }
+ ]
+}

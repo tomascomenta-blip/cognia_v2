@@ -1,0 +1,60 @@
+{
+ "nombre": "Verificar funcionamiento de la calculadora con paréntesis",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#pantalla"
+  },
+  {
+   "nombre": "Verificar existencia de todos los botones requeridos",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 12
+  },
+  {
+   "nombre": "Verificar que cada botón tiene el atributo data-k correcto",
+   "critico": true,
+   "accion": "contiene",
+   "selector": "[data-k='1']",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar que la pantalla muestra el valor ingresado al presionar un número",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k='1']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la pantalla muestra el valor ingresado al presionar un operador",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k='+']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la pantalla muestra el resultado correcto al presionar '=' con paréntesis anidados",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k='(']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la pantalla muestra el resultado correcto al presionar '=' con expresión simple",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k='=']",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la pantalla se limpia al presionar 'C'",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-k='C']",
+   "indice": 0
+  }
+ ]
+}

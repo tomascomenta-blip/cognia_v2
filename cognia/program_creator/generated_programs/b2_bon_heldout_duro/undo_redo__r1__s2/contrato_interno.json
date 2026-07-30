@@ -1,0 +1,61 @@
+{
+ "nombre": "Verificar funcionalidad de lista con undo/redo",
+ "pasos": [
+  {
+   "nombre": "Estado inicial vacío",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list .it",
+   "esperado": 0
+  },
+  {
+   "nombre": "Agregar primer elemento",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "Elemento 1"
+  },
+  {
+   "nombre": "Hacer clic en add",
+   "critico": true,
+   "accion": "click",
+   "selector": "#add",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el elemento aparece",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list .it",
+   "esperado": 1
+  },
+  {
+   "nombre": "Realizar undo",
+   "critico": true,
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el elemento desaparece y redo disponible",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list .it",
+   "esperado": 0
+  },
+  {
+   "nombre": "Agregar nuevo elemento después del undo",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "Elemento 2"
+  },
+  {
+   "nombre": "Hacer clic en add y verificar que redo ya no está disponible",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#redo",
+   "esperado": 0
+  }
+ ]
+}

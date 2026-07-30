@@ -1,0 +1,66 @@
+{
+ "nombre": "Cronómetro funcional en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#t",
+   "esperado": 0
+  },
+  {
+   "nombre": "Botones visibles",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#start,#pause,#reset",
+   "esperado": 3
+  },
+  {
+   "nombre": "Start inicia conteo",
+   "critico": true,
+   "accion": "click",
+   "selector": "#start",
+   "indice": 0
+  },
+  {
+   "nombre": "Tiempo aumenta después de 1s",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1000
+  },
+  {
+   "nombre": "Valor incrementado a 1",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "1"
+  },
+  {
+   "nombre": "Pause detiene conteo",
+   "critico": true,
+   "accion": "click",
+   "selector": "#pause",
+   "indice": 0
+  },
+  {
+   "nombre": "Valor permanece al esperar 1s",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1000
+  },
+  {
+   "nombre": "Reset vuelve a 0 y detiene",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reset",
+   "indice": 0
+  },
+  {
+   "nombre": "Valor es 0 tras reset",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "0"
+  }
+ ]
+}

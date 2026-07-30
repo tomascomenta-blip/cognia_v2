@@ -1,0 +1,136 @@
+{
+ "nombre": "Agenda sin solapamientos",
+ "pasos": [
+  {
+   "nombre": "Estado inicial sin eventos",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#lista .ev",
+     "esperado": 0
+    }
+   ],
+   "esperado": "0"
+  },
+  {
+   "nombre": "Crear evento válido 9-10",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#desde",
+     "contiene": "9"
+    },
+    {
+     "accion": "texto",
+     "selector": "#hasta",
+     "contiene": "10"
+    },
+    {
+     "accion": "click",
+     "selector": "#crear"
+    }
+   ],
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar evento añadido",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#lista .ev",
+     "esperado": 1
+    },
+    {
+     "accion": "existe",
+     "selector": "#lista .ev[data-desde=\"9\"][data-hasta=\"10\"]"
+    }
+   ],
+   "esperado": "1"
+  },
+  {
+   "nombre": "Intentar crear evento solapado 9-11",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#desde",
+     "contiene": "9"
+    },
+    {
+     "accion": "texto",
+     "selector": "#hasta",
+     "contiene": "11"
+    },
+    {
+     "accion": "click",
+     "selector": "#crear"
+    }
+   ],
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar que no se añadió evento solapado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#lista .ev",
+     "esperado": 1
+    }
+   ],
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar aviso de conflicto",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#aviso",
+     "contiene": "conflicto"
+    }
+   ],
+   "esperado": "1"
+  },
+  {
+   "nombre": "Crear evento no solapado 10-12",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#desde",
+     "contiene": "10"
+    },
+    {
+     "accion": "texto",
+     "selector": "#hasta",
+     "contiene": "12"
+    },
+    {
+     "accion": "click",
+     "selector": "#crear"
+    }
+   ],
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar que se añadió evento no solapado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#lista .ev",
+     "esperado": 2
+    },
+    {
+     "accion": "existe",
+     "selector": "#lista .ev[data-desde=\"10\"][data-hasta=\"12\"]"
+    }
+   ],
+   "esperado": "2"
+  }
+ ]
+}

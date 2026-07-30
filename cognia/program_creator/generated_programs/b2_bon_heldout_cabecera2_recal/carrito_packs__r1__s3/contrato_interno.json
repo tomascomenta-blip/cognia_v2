@@ -1,0 +1,138 @@
+{
+ "nombre": "Verificar funcionalidad del carrito con packs",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del carrito",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Estado inicial del carrito",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Agregar un pan",
+   "critico": true,
+   "accion": "click",
+   "selector": "button.add[data-id=\"pan\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar cantidad de pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "span.cant[data-id=\"pan\"]",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar cantidad de leche",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "span.cant[data-id=\"leche\"]",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Verificar packs y total después de agregar pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Verificar packs y total después de agregar pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "2"
+  },
+  {
+   "nombre": "Agregar una leche",
+   "critico": true,
+   "accion": "click",
+   "selector": "button.add[data-id=\"leche\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar cantidad de leche",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "span.cant[data-id=\"leche\"]",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar packs y total después de agregar leche",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar packs y total después de agregar leche",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "4"
+  },
+  {
+   "nombre": "Agregar otro pan",
+   "critico": true,
+   "accion": "click",
+   "selector": "button.add[data-id=\"pan\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar cantidad de pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "span.cant[data-id=\"pan\"]",
+   "esperado": "2"
+  },
+  {
+   "nombre": "Verificar packs y total después de agregar otro pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar packs y total después de agregar otro pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "6"
+  },
+  {
+   "nombre": "Quitar un pan",
+   "critico": true,
+   "accion": "click",
+   "selector": "button.quitar[data-id=\"pan\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar cantidad de pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "span.cant[data-id=\"pan\"]",
+   "esperado": "1"
+  },
+  {
+   "nombre": "Verificar packs y total después de quitar pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#packs",
+   "esperado": "0"
+  },
+  {
+   "nombre": "Verificar packs y total después de quitar pan",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#total",
+   "esperado": "3"
+  }
+ ]
+}

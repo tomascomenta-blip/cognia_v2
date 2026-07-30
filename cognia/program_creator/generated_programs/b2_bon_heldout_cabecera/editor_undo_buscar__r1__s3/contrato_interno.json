@@ -1,0 +1,89 @@
+{
+ "nombre": "Editor de texto con buscar y reemplazar y undo",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del textarea",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#doc",
+   "contiene": "gato perro gato loro gato"
+  },
+  {
+   "nombre": "Contar elementos obligatorios",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#doc",
+   "esperado": 1
+  },
+  {
+   "nombre": "Contar elementos obligatorios",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#buscar",
+   "esperado": 1
+  },
+  {
+   "nombre": "Contar elementos obligatorios",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#reemplazo",
+   "esperado": 1
+  },
+  {
+   "nombre": "Contar elementos obligatorios",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#reemplazar",
+   "esperado": 1
+  },
+  {
+   "nombre": "Contar elementos obligatorios",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#undo",
+   "esperado": 1
+  },
+  {
+   "nombre": "Reemplazar todas las apariciones",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#buscar",
+   "contiene": "gato"
+  },
+  {
+   "nombre": "Reemplazar todas las apariciones",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#reemplazo",
+   "contiene": "perro"
+  },
+  {
+   "nombre": "Reemplazar todas las apariciones",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reemplazar",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar reemplazo completo",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#doc",
+   "contiene": "perro perro perro loro perro"
+  },
+  {
+   "nombre": "Deshacer último reemplazo",
+   "critico": true,
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar estado restaurado",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#doc",
+   "contiene": "gato perro gato loro gato"
+  }
+ ]
+}

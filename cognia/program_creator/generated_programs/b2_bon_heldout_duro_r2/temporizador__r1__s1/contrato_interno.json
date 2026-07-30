@@ -1,0 +1,66 @@
+{
+ "nombre": "Cronómetro funcional en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar estado inicial del cronómetro",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "0"
+  },
+  {
+   "nombre": "Iniciar el cronómetro",
+   "critico": true,
+   "accion": "click",
+   "selector": "#start",
+   "indice": 0
+  },
+  {
+   "nombre": "Esperar 1.5 segundos",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1500
+  },
+  {
+   "nombre": "Verificar que el cronómetro haya incrementado",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "1"
+  },
+  {
+   "nombre": "Pulsar start nuevamente sin detener",
+   "critico": true,
+   "accion": "click",
+   "selector": "#start",
+   "indice": 0
+  },
+  {
+   "nombre": "Esperar 1 segundo",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1000
+  },
+  {
+   "nombre": "Verificar que el cronómetro no haya acelerado",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "2"
+  },
+  {
+   "nombre": "Reiniciar el cronómetro",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reset",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el cronómetro esté detenido y en 0",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "0"
+  }
+ ]
+}

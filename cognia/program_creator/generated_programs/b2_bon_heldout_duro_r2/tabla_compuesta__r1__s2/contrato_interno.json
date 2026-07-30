@@ -1,0 +1,59 @@
+{
+ "nombre": "Tabla con filtro, orden y paginación combinados",
+ "pasos": [
+  {
+   "nombre": "Estado inicial muestra 10 filas y página 1",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": ".fila",
+   "esperado": 10
+  },
+  {
+   "nombre": "El botón \"siguiente\" está habilitado y el botón \"prev\" deshabilitado",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#sig"
+  },
+  {
+   "nombre": "El botón \"prev\" no está visible en la primera página",
+   "critico": true,
+   "accion": "no_existe",
+   "selector": "#prev"
+  },
+  {
+   "nombre": "El campo de búsqueda está vacío y no filtra nada",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#q",
+   "contiene": ""
+  },
+  {
+   "nombre": "Al escribir \"Ana\" en el filtro, aparecen 2 filas y página 1",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#q",
+   "contiene": "Ana"
+  },
+  {
+   "nombre": "Al hacer clic en \"ordenar\", las 2 filas se ordenan por edad descendente",
+   "critico": true,
+   "accion": "click",
+   "selector": "#ordenar",
+   "indice": 0
+  },
+  {
+   "nombre": "Al hacer clic en \"siguiente\", no hay más páginas porque solo hay 2 filas",
+   "critico": true,
+   "accion": "click",
+   "selector": "#sig",
+   "indice": 0
+  },
+  {
+   "nombre": "Al borrar el filtro, la tabla vuelve a mostrar 10 filas y página 1",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#q",
+   "contiene": ""
+  }
+ ]
+}

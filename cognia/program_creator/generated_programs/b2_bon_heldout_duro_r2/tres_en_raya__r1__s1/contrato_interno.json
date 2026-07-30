@@ -1,0 +1,61 @@
+{
+ "nombre": "Verificar funcionamiento de un juego de tres en raya en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de 9 casillas con data-i de 0 a 8",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".c",
+   "esperado": 9
+  },
+  {
+   "nombre": "Verificar que la casilla con data-i=0 esté vacía al inicio",
+   "critico": true,
+   "accion": "texto",
+   "selector": "[data-i=\"0\"]",
+   "contiene": "^$"
+  },
+  {
+   "nombre": "Verificar que el estado inicial sea X",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "^X$"
+  },
+  {
+   "nombre": "Hacer clic en la casilla con data-i=0 y verificar que se marque X y el turno cambie a O",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-i=\"0\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la casilla con data-i=0 ahora contenga X",
+   "critico": true,
+   "accion": "texto",
+   "selector": "[data-i=\"0\"]",
+   "contiene": "^X$"
+  },
+  {
+   "nombre": "Verificar que el estado cambie a O después del clic",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "^O$"
+  },
+  {
+   "nombre": "Completar una línea horizontal con X y verificar que el estado contenga \"gana\" y que las casillas estén bloqueadas",
+   "critico": true,
+   "accion": "click",
+   "selector": "[data-i=\"1\"]",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el estado contenga \"gana\" y que no se puedan marcar casillas adicionales",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#estado",
+   "contiene": "^gana$"
+  }
+ ]
+}

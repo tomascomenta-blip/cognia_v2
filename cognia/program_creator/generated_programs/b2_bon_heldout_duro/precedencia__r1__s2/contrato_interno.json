@@ -1,0 +1,60 @@
+{
+ "nombre": "Validación de calculadora con precedencia de operadores",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de pantalla",
+   "accion": "existe",
+   "selector": "#pantalla",
+   "critico": true
+  },
+  {
+   "nombre": "Contar botones con clase k",
+   "accion": "contar",
+   "selector": ".k",
+   "esperado": 16,
+   "critico": true
+  },
+  {
+   "nombre": "Contar botones numéricos",
+   "accion": "contar",
+   "selector": ".num",
+   "esperado": 11,
+   "critico": true
+  },
+  {
+   "nombre": "Contar operadores",
+   "accion": "contar",
+   "selector": ".op",
+   "esperado": 3,
+   "critico": true
+  },
+  {
+   "nombre": "Evaluar expresión 2+3*4",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 0,
+   "critico": true
+  },
+  {
+   "nombre": "Evaluar expresión 2+3*4",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Evaluar expresión 2+3*4",
+   "accion": "click",
+   "selector": ".k",
+   "indice": 2,
+   "critico": true
+  },
+  {
+   "nombre": "Resultado correcto 14",
+   "accion": "texto",
+   "selector": "#pantalla",
+   "contiene": "14",
+   "critico": true
+  }
+ ]
+}

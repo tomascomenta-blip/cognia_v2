@@ -1,0 +1,61 @@
+{
+ "nombre": "Prueba funcional de lista con undo/redo",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: lista vacía y botones deshabilitados",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 0
+  },
+  {
+   "nombre": "Agregar primer elemento",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "Elemento 1"
+  },
+  {
+   "nombre": "Hacer clic en add",
+   "critico": true,
+   "accion": "click",
+   "selector": "#add",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el elemento aparece en la lista",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 1
+  },
+  {
+   "nombre": "Deshacer la última acción",
+   "critico": true,
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la lista está vacía y redo habilitado",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 0
+  },
+  {
+   "nombre": "Rehacer la acción deshecha",
+   "critico": true,
+   "accion": "click",
+   "selector": "#redo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que el elemento reaparece en la lista",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 1
+  }
+ ]
+}

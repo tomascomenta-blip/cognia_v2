@@ -155,6 +155,80 @@ cantidad", no ha aprendido nada.
 4. Entrenar el clasificador con leave-one-task-out (~11 min por fold para 1B).
 5. Gate con brazo nulo.
 
+## EL PASO PREVIO, HECHO LA MISMA NOCHE (2026-07-30 ~18:00)
+
+No se entrena nada, pero **el bloqueante queda levantado**: se generó el
+contrato interno sobre las **páginas ya congeladas** en vez de generar páginas
+nuevas (`scripts/b2_generar_contratos.py`). El truco es que
+`generar_contrato(idea, html)` solo necesita enunciado y DOM, y de ambos había
+de sobra.
+
+| | |
+|---|---|
+| páginas procesadas | 100 (banco duro r1+r2, cabecera t1, cabecera2 recal) |
+| contratos obtenidos | **87 (87%)** en **8.4 min** de GPU |
+| **enunciados nuevos** | **17, todos con al menos un contrato** |
+| **corpus total del adaptador** | **de 4 a 21 enunciados** |
+
+Contratos OK por enunciado: `descuento_tramos` 8/8, `form_cruzado` 8/8,
+`precedencia` 8/8, `tres_en_raya` 8/8, `undo_redo` 7/8, `serpiente` 6/8,
+`temporizador` 5/8, `tabla_compuesta` 4/8, y 4/4 o 3/4 en las nueve de
+cabecera.
+
+**El 13% de fallos NO es un bug del script: es el sistema real**, y sus dos
+motivos están en el log — `contrato sin ningún paso crítico: aprobaría por
+vacuidad, se descarta` (el descarte que ya está en producción, funcionando) y
+`el pensador no devolvió JSON válido`. **La tasa de fallo es más alta que el
+11.4% histórico medido en el banco brutal**, y se concentra en las tareas más
+complejas (`tabla_compuesta` 4/8, `temporizador` 5/8): es un dato sobre el
+pensador, no ruido — **falla más al escribir el examen de lo que es difícil la
+tarea.**
+
+Con esto, el punto 2 del orden de ejecución (re-medir J por enunciado sobre
+21) ya es posible sin GPU, y el leave-one-task-out del adaptador tiene **21
+grupos en vez de 4**.
+
+## LÍNEA BASE MEDIDA EN LOS 17 ENUNCIADOS NUEVOS (fase 2, cero GPU)
+
+Se juzgó cada página con **su propio** contrato interno recién generado
+(`scripts/b2_j_ampliado.py`, 87 juicios bajo presupuesto de pared).
+
+| corpus | n | aprueba SANAS | aprueba ROTAS | ACUSA_SANOS | J |
+|---|---|---|---|---|---|
+| BANCO DURO (GT juez triple) | 54 | **11.8%** | 0.0% | **88.2** | +11.8 |
+| CABECERA (GT contrato original) | 33 | **6.5%** | 0.0% | **93.5** | +6.5 |
+
+**Por enunciado, que es donde se ve de verdad:**
+
+- **Duro:** `descuento_tramos`, `form_cruzado`, `undo_redo` y
+  `tabla_compuesta` reprueban el **100%** de sus páginas sanas;
+  `tres_en_raya` 87.5%, `precedencia` 85.7%, `serpiente` 80%. La única que
+  respira es `temporizador` (40%).
+- **Cabecera: OCHO DE NUEVE enunciados al 100%.** Solo `parser_parentesis`
+  baja al 50%.
+
+**El hallazgo replica en enunciados NUNCA medidos antes**: el perfil "condena
+sanos" no era una peculiaridad del banco brutal — **es del contrato interno en
+general**. En 14 de los 17 enunciados nuevos reprueba todas o casi todas las
+páginas que el juez a mano aprueba.
+
+**Y una advertencia sobre el J, para no leerlo mejor de lo que es:** +11.8 y
++6.5 están **inflados por la ausencia de páginas rotas** (solo 3 y 2). Con ese
+n, el `DEJA_PASAR = 0.0%` no es estimable y el J hereda el hueco. **El número
+que se sostiene es el otro: ACUSA_SANOS 88-94%.** Cualquier lectura de estos J
+como "el contrato informa" sería el mismo error de una-tasa-suelta que ya
+costó un KILL hoy.
+
+## Consecuencia para el diseño del adaptador
+
+La función objetivo queda fijada por el dato: **bajar ACUSA_SANOS sin subir
+DEJA_PASAR**. Y el gate necesita corpus con páginas ROTAS suficientes, que el
+duro y la cabecera **no tienen** (3 y 2). El banco con ambas clases pobladas
+sigue siendo el brutal (72/24) y el gate del BoN — así que el
+leave-one-task-out del adaptador tendrá **21 grupos para entrenar** pero el
+gate deberá evaluarse donde haya rotas.
+
 ## RESULTADO
 
-*(no se corre en esta sesión; esto es diseño + condición de vida)*
+*(el adaptador NO se entrena en esta sesión; esto es diseño + condición de
+vida + el paso previo ejecutado + la línea base medida)*

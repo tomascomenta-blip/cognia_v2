@@ -1,0 +1,110 @@
+{
+ "nombre": "Agenda sin solapamientos",
+ "pasos": [
+  {
+   "nombre": "Estado inicial sin eventos",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".ev",
+   "esperado": 0
+  },
+  {
+   "nombre": "Verificar campos de hora vacíos",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#desde",
+   "contiene": ""
+  },
+  {
+   "nombre": "Verificar campos de hora vacíos",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#hasta",
+   "contiene": ""
+  },
+  {
+   "nombre": "Crear evento válido 9-10",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#desde",
+   "contiene": "9"
+  },
+  {
+   "nombre": "Crear evento válido 9-10",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#hasta",
+   "contiene": "10"
+  },
+  {
+   "nombre": "Pulsar crear",
+   "critico": true,
+   "accion": "click",
+   "selector": "#crear",
+   "indice": 0
+  },
+  {
+   "nombre": "Evento 9-10 añadido",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".ev",
+   "esperado": 1
+  },
+  {
+   "nombre": "Crear evento solapado 9-11",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#desde",
+   "contiene": "9"
+  },
+  {
+   "nombre": "Crear evento solapado 9-11",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#hasta",
+   "contiene": "11"
+  },
+  {
+   "nombre": "Pulsar crear",
+   "critico": true,
+   "accion": "click",
+   "selector": "#crear",
+   "indice": 0
+  },
+  {
+   "nombre": "Aviso de conflicto mostrado",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#aviso",
+   "contiene": "conflicto"
+  },
+  {
+   "nombre": "Crear evento no solapado 10-12",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#desde",
+   "contiene": "10"
+  },
+  {
+   "nombre": "Crear evento no solapado 10-12",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#hasta",
+   "contiene": "12"
+  },
+  {
+   "nombre": "Pulsar crear",
+   "critico": true,
+   "accion": "click",
+   "selector": "#crear",
+   "indice": 0
+  },
+  {
+   "nombre": "Evento 10-12 añadido",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".ev",
+   "esperado": 2
+  }
+ ]
+}

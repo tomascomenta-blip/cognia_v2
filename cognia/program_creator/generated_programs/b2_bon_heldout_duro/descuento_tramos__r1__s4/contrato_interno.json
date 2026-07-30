@@ -1,0 +1,66 @@
+{
+ "nombre": "Calculadora de descuento por tramos",
+ "pasos": [
+  {
+   "nombre": "Verifica que el selector obligatorio #cant exista",
+   "accion": "existe",
+   "selector": "#cant",
+   "critico": true
+  },
+  {
+   "nombre": "Verifica que el selector obligatorio #total exista",
+   "accion": "existe",
+   "selector": "#total",
+   "critico": true
+  },
+  {
+   "nombre": "Comprueba que el estado inicial muestra 0 unidades y 0.00 total",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "0.00",
+   "critico": true
+  },
+  {
+   "nombre": "Introduce 5 unidades y espera recalculo",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "5",
+   "critico": true
+  },
+  {
+   "nombre": "Verifica que el total sea 50.00 (5*10)",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "50.00",
+   "critico": true
+  },
+  {
+   "nombre": "Introduce 15 unidades y espera recalculo",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "15",
+   "critico": true
+  },
+  {
+   "nombre": "Verifica que el total sea 140.00 (10*10 + 5*9)",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "140.00",
+   "critico": true
+  },
+  {
+   "nombre": "Introduce 60 unidades y espera recalculo",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "60",
+   "critico": true
+  },
+  {
+   "nombre": "Verifica que el total sea 540.00 (10*10 + 40*9 + 10*8)",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "540.00",
+   "critico": true
+  }
+ ]
+}

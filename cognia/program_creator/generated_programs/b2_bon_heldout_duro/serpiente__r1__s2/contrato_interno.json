@@ -1,0 +1,60 @@
+{
+ "nombre": "Verificar juego de la serpiente en HTML",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de la cuadrícula y celdas",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".cel",
+   "esperado": 100
+  },
+  {
+   "nombre": "Verificar que la serpiente inicial ocupa una celda",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".snake",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar que la comida inicial aparece en una celda distinta",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".food",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar que el estado inicial expuesto en window.juego sea correcto",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego && window.juego.largo===1 && window.juego.dir===null",
+   "esperado": true
+  },
+  {
+   "nombre": "Mover la serpiente a la derecha con la flecha derecha",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowRight"
+  },
+  {
+   "nombre": "Verificar que la serpiente se haya desplazado una celda a la derecha",
+   "critico": true,
+   "accion": "js",
+   "expr": "document.querySelector('.snake').dataset.x===String(parseInt(document.querySelector('.snake').dataset.x)+1)",
+   "esperado": true
+  },
+  {
+   "nombre": "Simular que la serpiente llega a la comida y crece",
+   "critico": true,
+   "accion": "click",
+   "selector": ".food",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la longitud de la serpiente haya aumentado en 1 y que el estado expuesto se actualice",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego.largo===2",
+   "esperado": true
+  }
+ ]
+}

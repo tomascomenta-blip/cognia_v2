@@ -1,0 +1,110 @@
+{
+ "nombre": "Prueba funcional de lista con undo/redo",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: lista vacía y botones deshabilitados",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#list li",
+   "esperado": 0
+  },
+  {
+   "nombre": "Estado inicial: botón undo deshabilitado",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#undo",
+   "esperado": 0
+  },
+  {
+   "nombre": "Estado inicial: botón redo deshabilitado",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#redo",
+   "esperado": 0
+  },
+  {
+   "nombre": "Agregar elemento 'A'",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "A"
+  },
+  {
+   "nombre": "Hacer clic en add",
+   "critico": true,
+   "accion": "click",
+   "selector": "#add",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la lista contiene un elemento con texto 'A'",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 1
+  },
+  {
+   "nombre": "Deshacer la última acción",
+   "critico": true,
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la lista está vacía y que el botón redo está habilitado",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 0
+  },
+  {
+   "nombre": "Rehacer la acción deshecha",
+   "critico": true,
+   "accion": "click",
+   "selector": "#redo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la lista contiene de nuevo el elemento 'A'",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 1
+  },
+  {
+   "nombre": "Agregar nuevo elemento 'B' después de un undo",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#txt",
+   "contiene": "B"
+  },
+  {
+   "nombre": "Hacer clic en add",
+   "critico": true,
+   "accion": "click",
+   "selector": "#add",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la lista contiene 'A' y 'B' y que el botón redo está deshabilitado",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 2
+  },
+  {
+   "nombre": "Deshacer la última acción (el agregado de 'B')",
+   "critico": true,
+   "accion": "click",
+   "selector": "#undo",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar que la lista contiene solo 'A' y que el botón redo está habilitado",
+   "critico": true,
+   "accion": "contar_visible",
+   "selector": "#list li",
+   "esperado": 1
+  }
+ ]
+}

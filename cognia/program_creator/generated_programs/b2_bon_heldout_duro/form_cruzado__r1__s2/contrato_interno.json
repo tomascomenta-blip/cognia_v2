@@ -1,0 +1,60 @@
+{
+ "nombre": "Validación cruzada de formulario de contraseña y edad",
+ "pasos": [
+  {
+   "nombre": "Estado inicial: botón deshabilitado",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar"
+  },
+  {
+   "nombre": "Verificar que botón está deshabilitado al cargar",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar",
+   "esperado": "disabled"
+  },
+  {
+   "nombre": "Ingresar contraseña de 8 caracteres",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass",
+   "contiene": "abcdefgh"
+  },
+  {
+   "nombre": "Ingresar contraseña repetida igual",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#pass2",
+   "contiene": "abcdefgh"
+  },
+  {
+   "nombre": "Ingresar edad dentro del rango permitido",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#edad",
+   "contiene": "25"
+  },
+  {
+   "nombre": "Verificar que botón se habilita tras cumplir condiciones",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar",
+   "esperado": "enabled"
+  },
+  {
+   "nombre": "Cambiar edad fuera del rango y comprobar botón deshabilitado",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#edad",
+   "contiene": "17"
+  },
+  {
+   "nombre": "Verificar que botón vuelve a estar deshabilitado tras cambio de edad",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#enviar",
+   "esperado": "disabled"
+  }
+ ]
+}

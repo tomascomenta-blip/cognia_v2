@@ -1,0 +1,229 @@
+{
+ "nombre": "Simulador de ascensor funcional",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#piso",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#dir",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "0"
+    },
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "parado"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='parado'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "Array.isArray(window.asc.pendientes) && window.asc.pendientes.length===0",
+     "esperado": true
+    }
+   ],
+   "esperar": 100
+  },
+  {
+   "nombre": "Botones de llamada visibles",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar_visible",
+     "selector": ".call",
+     "esperado": 6
+    }
+   ],
+   "esperar": 100
+  },
+  {
+   "nombre": "Llamada al piso 3 se atiende al instante",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 3
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(3)",
+     "esperado": true
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===3",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(3)===false",
+     "esperado": true
+    }
+   ],
+   "esperar": 100
+  },
+  {
+   "nombre": "Llamada al piso 1 cuando sube, se atiende después de 3",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 1
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===4",
+     "esperado": true
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===5",
+     "esperado": true
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===4",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(1)",
+     "esperado": true
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===3",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(1)===false",
+     "esperado": true
+    }
+   ],
+   "esperar": 100
+  },
+  {
+   "nombre": "Cambio de sentido cuando no hay pendientes arriba",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='baja'",
+     "esperado": true
+    }
+   ],
+   "esperar": 100
+  },
+  {
+   "nombre": "Llamada al piso 0 cuando baja se atiende inmediatamente",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 0
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(0)===false",
+     "esperado": true
+    }
+   ],
+   "esperar": 100
+  },
+  {
+   "nombre": "Estado expuesto en window.asc actualizado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "js",
+     "expr": "typeof window.asc==='object'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='parado'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "Array.isArray(window.asc.pendientes)",
+     "esperado": true
+    }
+   ],
+   "esperar": 100
+  },
+  {
+   "nombre": "No quedan llamadas pendientes tras atender todas",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length===0",
+     "esperado": true
+    }
+   ],
+   "esperar": 100
+  }
+ ]
+}

@@ -1,0 +1,57 @@
+{
+ "nombre": "Cronómetro funcional en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Estado inicial del cronómetro",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#t",
+   "contiene": "0"
+  },
+  {
+   "nombre": "Botón start visible y funcional",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#start"
+  },
+  {
+   "nombre": "Botón pause visible y funcional",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#pause"
+  },
+  {
+   "nombre": "Botón reset visible y funcional",
+   "critico": true,
+   "accion": "existe",
+   "selector": "#reset"
+  },
+  {
+   "nombre": "Iniciar conteo al hacer click en start",
+   "critico": true,
+   "accion": "click",
+   "selector": "#start",
+   "indice": 0
+  },
+  {
+   "nombre": "Verificar incremento de segundos después de 1 segundo",
+   "critico": true,
+   "accion": "esperar",
+   "ms": 1000
+  },
+  {
+   "nombre": "Detener conteo con pause y comprobar que el valor se mantiene",
+   "critico": true,
+   "accion": "click",
+   "selector": "#pause",
+   "indice": 0
+  },
+  {
+   "nombre": "Reiniciar cronómetro con reset y comprobar que vuelve a 0 y se detiene",
+   "critico": true,
+   "accion": "click",
+   "selector": "#reset",
+   "indice": 0
+  }
+ ]
+}

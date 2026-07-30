@@ -1,0 +1,138 @@
+{
+ "nombre": "Tres en raya funcionalidad básica",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de 9 casillas y estado inicial",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": ".c",
+     "esperado": 9
+    },
+    {
+     "accion": "contar_visible",
+     "selector": ".c",
+     "esperado": 0
+    },
+    {
+     "accion": "existe",
+     "selector": "#estado"
+    }
+   ]
+  },
+  {
+   "nombre": "Confirmar que el estado inicial muestra turno de X",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#estado",
+     "contiene": "X"
+    }
+   ]
+  },
+  {
+   "nombre": "Clicar en la casilla 0 y verificar que se coloca X y se cambia el turno",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".c",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#estado",
+     "contiene": "O"
+    }
+   ]
+  },
+  {
+   "nombre": "Clicar en la casilla 1 y verificar que se coloca O y se cambia el turno",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".c",
+     "indice": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#estado",
+     "contiene": "X"
+    }
+   ]
+  },
+  {
+   "nombre": "Completar una línea horizontal con X y verificar que el estado indica ganancia y las casillas quedan bloqueadas",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".c",
+     "indice": 2
+    },
+    {
+     "accion": "texto",
+     "selector": "#estado",
+     "contiene": "gana"
+    },
+    {
+     "accion": "existe",
+     "selector": "#estado"
+    }
+   ]
+  },
+  {
+   "nombre": "Intentar marcar una casilla después de ganar y verificar que no cambia",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".c",
+     "indice": 3
+    },
+    {
+     "accion": "texto",
+     "selector": "#c",
+     "indice": 3,
+     "contiene": ""
+    }
+   ]
+  },
+  {
+   "nombre": "Reiniciar juego y llenar todas las casillas sin línea para verificar empate",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "js",
+     "expr": "document.querySelectorAll('.c').forEach((el,i)=>{if(el.textContent==='')el.click();});",
+     "esperado": null
+    },
+    {
+     "accion": "texto",
+     "selector": "#estado",
+     "contiene": "empate"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar que después de empate no se pueden marcar casillas adicionales",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".c",
+     "indice": 0
+    },
+    {
+     "accion": "texto",
+     "selector": "#c",
+     "indice": 0,
+     "contiene": "X"
+    }
+   ]
+  }
+ ]
+}

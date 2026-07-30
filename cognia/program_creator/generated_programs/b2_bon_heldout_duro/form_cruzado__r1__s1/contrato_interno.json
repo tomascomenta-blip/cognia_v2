@@ -1,0 +1,184 @@
+{
+ "nombre": "Validación cruzada de formulario de registro",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de campos obligatorios",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#pass"
+    },
+    {
+     "accion": "existe",
+     "selector": "#pass2"
+    },
+    {
+     "accion": "existe",
+     "selector": "#edad"
+    },
+    {
+     "accion": "existe",
+     "selector": "#enviar"
+    }
+   ]
+  },
+  {
+   "nombre": "Confirmar estado inicial del botón deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "existe",
+     "selector": "#enviar"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseña corta y verificar botón sigue deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "1234567"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseña válida y distinta a la segunda, botón deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "12345678"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseñas iguales y edad fuera de rango, botón deshabilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "17"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "texto",
+     "selector": "#enviar",
+     "contiene": "disabled"
+    }
+   ]
+  },
+  {
+   "nombre": "Ingresar contraseñas iguales y edad dentro de rango, botón habilitado",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#pass",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "texto",
+     "selector": "#pass2",
+     "contiene": "abcdefgh"
+    },
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "25"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "no_existe",
+     "selector": "#enviar[disabled]"
+    }
+   ]
+  },
+  {
+   "nombre": "Verificar que el botón permanece habilitado al cambiar solo la edad fuera de rango",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "130"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "existe",
+     "selector": "#enviar[disabled]"
+    }
+   ]
+  },
+  {
+   "nombre": "Restablecer edad dentro de rango y confirmar botón habilitado nuevamente",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "texto",
+     "selector": "#edad",
+     "contiene": "30"
+    },
+    {
+     "accion": "tecla",
+     "key": "ArrowRight"
+    },
+    {
+     "accion": "no_existe",
+     "selector": "#enviar[disabled]"
+    }
+   ]
+  }
+ ]
+}

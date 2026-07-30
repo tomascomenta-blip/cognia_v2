@@ -1,0 +1,61 @@
+{
+ "nombre": "Reparto de presupuesto con validación de porcentajes",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de los contenedores y elementos obligatorios",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#total",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar existencia de los tres bloques de partida",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".part",
+   "esperado": 3
+  },
+  {
+   "nombre": "Verificar existencia de los inputs de porcentaje",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".pct",
+   "esperado": 3
+  },
+  {
+   "nombre": "Verificar existencia de los spans de euros",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".eur",
+   "esperado": 3
+  },
+  {
+   "nombre": "Verificar existencia del span de libre y aviso",
+   "critico": true,
+   "accion": "contar",
+   "selector": "#libre",
+   "esperado": 1
+  },
+  {
+   "nombre": "Verificar que el total inicial sea 100 y los porcentajes 30,30,40",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "100"
+  },
+  {
+   "nombre": "Cambiar el primer porcentaje a 50 y verificar que el cambio sea rechazado y el aviso muestre 'limite'",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#aviso",
+   "contiene": "limite"
+  },
+  {
+   "nombre": "Cambiar el segundo porcentaje a 20 y verificar que el total libre sea 10 y los euros se actualicen correctamente",
+   "critico": true,
+   "accion": "texto",
+   "selector": "#libre",
+   "contiene": "10"
+  }
+ ]
+}

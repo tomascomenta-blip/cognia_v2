@@ -1,0 +1,59 @@
+{
+ "nombre": "Verificar juego de serpiente en una grilla 10x10",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".cel",
+   "esperado": 100
+  },
+  {
+   "nombre": "Solo una serpiente al inicio",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".snake",
+   "esperado": 1
+  },
+  {
+   "nombre": "Solo una comida al inicio",
+   "critico": true,
+   "accion": "contar",
+   "selector": ".food",
+   "esperado": 1
+  },
+  {
+   "nombre": "Coordenadas iniciales de la serpiente",
+   "critico": true,
+   "accion": "texto",
+   "selector": ".snake",
+   "contiene": "data-x=\"0\" data-y=\"0\""
+  },
+  {
+   "nombre": "Dirección inicial es derecha",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego.dir",
+   "esperado": "right"
+  },
+  {
+   "nombre": "Moverse a la derecha aumenta x",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowRight"
+  },
+  {
+   "nombre": "Al comer la comida, longitud aumenta en 1",
+   "critico": true,
+   "accion": "js",
+   "expr": "window.juego.largo",
+   "esperado": 2
+  },
+  {
+   "nombre": "No puede invertir dirección 180 grados",
+   "critico": true,
+   "accion": "tecla",
+   "key": "ArrowLeft"
+  }
+ ]
+}

@@ -1,0 +1,59 @@
+{
+ "nombre": "Calculadora de descuento por tramos",
+ "pasos": [
+  {
+   "nombre": "Verificar existencia de selector obligatorio #cant",
+   "accion": "existe",
+   "selector": "#cant",
+   "critico": true
+  },
+  {
+   "nombre": "Verificar existencia de selector obligatorio #total",
+   "accion": "existe",
+   "selector": "#total",
+   "critico": true
+  },
+  {
+   "nombre": "Contar elementos .card",
+   "accion": "contar",
+   "selector": ".card",
+   "esperado": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Contar elementos .progress",
+   "accion": "contar",
+   "selector": ".progress",
+   "esperado": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Contar elementos .progress-fill",
+   "accion": "contar",
+   "selector": ".progress-fill",
+   "esperado": 1,
+   "critico": true
+  },
+  {
+   "nombre": "Verificar que el total inicial sea 0.00",
+   "accion": "texto",
+   "selector": "#total",
+   "contiene": "0.00",
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 60 en #cant y verificar total actualizado a 540.00",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "60",
+   "critico": true
+  },
+  {
+   "nombre": "Ingresar 10 en #cant y verificar total actualizado a 100.00",
+   "accion": "texto",
+   "selector": "#cant",
+   "contiene": "10",
+   "critico": true
+  }
+ ]
+}

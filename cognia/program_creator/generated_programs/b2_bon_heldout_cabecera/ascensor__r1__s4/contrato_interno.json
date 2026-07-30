@@ -1,0 +1,261 @@
+{
+ "nombre": "Simulador de ascensor en un solo archivo HTML",
+ "pasos": [
+  {
+   "nombre": "Estado inicial correcto",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "contar",
+     "selector": "#piso",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": "#dir",
+     "esperado": 1
+    },
+    {
+     "accion": "contar",
+     "selector": ".call",
+     "esperado": 6
+    },
+    {
+     "accion": "contar",
+     "selector": "#paso",
+     "esperado": 1
+    },
+    {
+     "accion": "texto",
+     "selector": "#piso",
+     "contiene": "0"
+    },
+    {
+     "accion": "texto",
+     "selector": "#dir",
+     "contiene": "parado"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='parado'",
+     "esperado": true
+    }
+   ]
+  },
+  {
+   "nombre": "Llamada al mismo piso se atiende inmediatamente",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 0
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='parado'",
+     "esperado": true
+    }
+   ]
+  },
+  {
+   "nombre": "Llamada a piso superior se atiende al subir",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 2
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===1",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='sube'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(2)",
+     "esperado": true
+    }
+   ]
+  },
+  {
+   "nombre": "Llamada a piso inferior se atiende al bajar",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 4
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===2",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='baja'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(4)",
+     "esperado": true
+    }
+   ]
+  },
+  {
+   "nombre": "El ascensor atiende llamadas en sentido actual",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 1
+    },
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 3
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===1",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='sube'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(3)",
+     "esperado": true
+    }
+   ]
+  },
+  {
+   "nombre": "Cambio de sentido cuando no quedan llamadas en sentido actual",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 5
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "click",
+     "selector": "#paso"
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===5",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='baja'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.includes(5)",
+     "esperado": true
+    }
+   ]
+  },
+  {
+   "nombre": "Llamada al piso donde ya está se atiende al momento",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 5
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===5",
+     "esperado": true
+    }
+   ]
+  },
+  {
+   "nombre": "Estado expuesto en window.asc actualizado tras cada interacción",
+   "critico": true,
+   "acciones": [
+    {
+     "accion": "click",
+     "selector": ".call",
+     "indice": 0
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.piso===0",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.dir==='parado'",
+     "esperado": true
+    },
+    {
+     "accion": "js",
+     "expr": "window.asc.pendientes.length===0",
+     "esperado": true
+    }
+   ]
+  }
+ ]
+}
