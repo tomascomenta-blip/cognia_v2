@@ -10130,3 +10130,80 @@ corridas salvo el cuelgue documentado abajo.
 
 **Lecciones a memoria:** techo-del-disenador-de-examenes (nueva),
 goal-alcanzado-donde-hay-examen (actualizada con el juez triple).
+
+## 2026-07-30 (tarde-noche 15:32→07:00) — El cambio de terreno: DOS KILL, y la frase que unifica las nueve vías
+
+Ventana del dueño con `[HORA]` sin rellenar en el prompt: se preguntó **solo
+eso** (armar un apagado a una hora inventada no es una decisión que me toque)
+y se trabajó autónomo desde ahí. Apagado 07:00 y aterrizaje 06:44 armados al
+arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
+
+1. **DECIDIDO EL CAMBIO DE TERRENO (la Prioridad 1) por la vía (b):
+   VERIFICACIÓN METAMÓRFICA.** El argumento para elegirla fue mecánico, no de
+   gusto: las 7 vías muertas comparten que **un LLM emite el examen**, y su
+   modo de fallo medido es *inventar valores que el enunciado no fija*. Una
+   relación metamórfica —*añadir un ítem y quitarlo devuelve el estado
+   anterior*— **no tiene valores que inventar**, así que ese modo de fallo
+   queda excluido por construcción; y no exige un examen por tarea, que es el
+   cuello del goal.
+
+2. **KILL del metamórfico (PREREG_METAMORFICO, 158 páginas, 0 infra).**
+   Disparado **en el lado de CALIBRACIÓN**, donde el prereg me permitía
+   ajustar: ningún umbral cruza los dos listones (bajo → ACUSA_SANOS 43.1%;
+   alto → DEJA_PASAR 50.0%; en el duro 31.6% y 28.6%). **El número que manda:
+   CERO pares inversos instanciados en 158 páginas congeladas** — R1/R3/R4 no
+   se instanciaron ni una vez y el catálogo se redujo a R0.
+   **Mecanismo: para saber qué acción deshace a cuál hay que LEER EL
+   ENUNCIADO.** Los dos caminos están cerrados: por léxico la cobertura es 0
+   (y donde el léxico sin podar sí encontraba par eran **calculadoras donde
+   `+` y `−` se CONCATENAN**, `expr += val` — correrlo así habría firmado un
+   KILL FALSO de la idea cuando moría el descubridor); por efecto medido es
+   **circular** (si el par se define como "el que devuelve el estado inicial",
+   R1 no puede fallar). Y R0, lo único instanciable, **no es señal nueva**: es
+   el check `interactivo` que el juez ya tiene, con DEJA_PASAR 50% — detecta
+   páginas MUERTAS, no INCORRECTAS.
+
+3. **KILL de la poda de checks ANTES DE CORRER (PREREG_PODA_CHECKS), con
+   brazo nulo.** La poda es **monótona por construcción** (quitar checks nunca
+   convierte APROBADO en REPROBADO), así que ACUSA_SANOS solo baja y
+   DEJA_PASAR solo sube con probabilidad 1, haya señal o no: **mi umbral no
+   medía si la poda acierta sino cuánto poda.** Medido y **reproducido por mí
+   de forma independiente**: poda 270/702 checks (38%), ACUSA_SANOS
+   81.9→11.9, DEJA_PASAR 6.5→80.6, **Youden J 11.7→7.4 (EMPEORA)**; el brazo
+   nulo podando el mismo número al azar da J medio 8.6 [2.9–14.6] y **la poda
+   real cae en el percentil 34**. No compra discriminación: compra
+   agresividad.
+
+4. **CORRECCIÓN QUE ME HICE A MÍ MISMO, media hora después de firmarla.**
+   Escribí que el contrato interno "está en el azar exacto" a partir del
+   J=−1.1 de `b2_bon_heldout`. Medido el mismo J sobre **todos** los corpus
+   congelados (`scripts/b2_j_contrato_interno.py`, 427 muestras, 10 tareas):
+   **J = +12.2, rango −9.7 a +32.8**. El −1.1 era el **peor de diez corpus**.
+   Lo que el dato amplio sí fija es más útil: **el modo de fallo dominante no
+   es aprobar basura sino CONDENAR SANOS** — aprueba el 17.7% de las páginas
+   que el juez a mano aprueba y deja pasar solo el 5.5% de las rotas. Es un
+   examen brutalmente severo, no ciego.
+
+5. **LA REVISIÓN ADVERSARIAL FUE LO MÁS RENTABLE DE LA SESIÓN: 13 BLOQUEA
+   antes de gastar, más un KILL entero.** Entre lo que cazó: las etiquetas
+   FP/FN **invertidas** respecto a la convención del repo (mi tabla comparaba
+   reject-healthy contra approve-bad: no comparaba nada); un umbral de fase 2
+   que **un selector aleatorio cruzaba el 21% de las veces**; la regla
+   anti-vacuidad **disparando al revés** (clicar "Añadir" con el input vacío
+   no hace nada en implementaciones CORRECTAS, `if(!text)return` en 4/4); y
+   un **bucle JS infinito real** en `turnos_capacidad__r1__s1`. En la segunda
+   revisión el agente **ejecutó el experimento** y mató la vía sin gastarla.
+
+6. **Deuda de instrumentación saldada (coste cero, valor alto):** los runners
+   escribían `index.html` y **tiraban el contrato autogenerado**, así que la
+   DIAGONAL —el contrato juzgando su propia página, que es lo que el sistema
+   vivo ejecuta— no estaba registrada en ningún sitio (**0 de 255 votos**).
+   Ahora `b2_sistema_real` lo devuelve en la meta, `b2_bon_heldout` lo
+   persiste en `contrato_interno.json` y guarda el **detalle por check**.
+
+7. **Prioridad 3 (adaptador anti-invención): NO se entrena, y la razón no es
+   la GPU.** Los 318 contratos en disco salen de **solo 4 enunciados**, así
+   que el held-out honesto —por enunciado— tendría 4 grupos y cualquier
+   número sería memorización. La infra existe y es barata (LoRA de 1B: 11 min
+   medidos, 0.67 s/paso con bs=2 + grad-checkpointing). Se entrega diseño +
+   prereg con la condición de vida y el paso previo obligatorio.
