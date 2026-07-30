@@ -1,0 +1,199 @@
+{
+  "_por_que": "Held-outs DUROS v2 — ENDURECIDOS (2026-07-30). El v1 no discrepo del contrato original en 64 paginas: al comparar los dos examenes paso a paso se vio por que — v1 repetia casos que el original YA probaba (precedencia: '7-2*3=1' esta en los DOS) y no cubria los huecos. v2 ataca SOLO lo que el original NO prueba, y todo sigue siendo consecuencia LOGICA del enunciado con selectores que el enunciado declara obligatorios. Huecos atacados, por tarea: undo/redo multiple hasta vaciar y undo sin nada que deshacer; bordes 0/50 del descuento; bordes de longitud y de edad (7/8 chars, 120/121); que la tabla ORDENE de verdad (el original solo comprueba que ordenar no rompe la paginacion, no que ordene); que C limpie la pantalla; la DIAGONAL y que no se pueda sobrescribir una casilla ocupada; reset MIENTRAS corre; y la coherencia largo<->celdas de la serpiente mas el movimiento vertical.",
+  "tareas": [
+    {
+      "id": "undo_redo",
+      "contrato": {
+        "nombre": "undo/redo HELD-OUT v2: undo multiple hasta vaciar, redo multiple y undo sobre vacio",
+        "pasos": [
+          {"accion": "escribir", "selector": "#txt", "texto": "uno"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "escribir", "selector": "#txt", "texto": "dos"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "escribir", "selector": "#txt", "texto": "tres"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "contar", "selector": ".it", "esperado": 3, "nombre": "tres add dan tres elementos", "critico": true},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "click", "selector": "#undo"},
+          {"_por_que": "HUECO del original, que solo prueba UN undo: deshacer tres veces tiene que vaciar la lista, porque el enunciado dice que la lista empieza vacia y que undo deshace la ultima accion.",
+           "accion": "contar", "selector": ".it", "esperado": 0, "nombre": "tres undo vacian la lista", "critico": true},
+          {"accion": "click", "selector": "#undo"},
+          {"_por_que": "Un undo de mas sobre la lista vacia no puede dejar la lista en un estado imposible (ni negativo ni resucitando elementos).",
+           "accion": "contar", "selector": ".it", "esperado": 0, "nombre": "undo sobre vacio no rompe", "critico": true},
+          {"accion": "click", "selector": "#redo"},
+          {"accion": "click", "selector": "#redo"},
+          {"_por_que": "HUECO: el original prueba UN redo. Dos redo tienen que rehacer dos acciones (la pila de rehacer se conserva mientras no haya accion nueva).",
+           "accion": "contar", "selector": ".it", "esperado": 2, "nombre": "dos redo rehacen dos acciones", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "descuento_tramos",
+      "contrato": {
+        "nombre": "descuento HELD-OUT v2: 0, borde 50 y 100 unidades (el original prueba 5/10/20/60)",
+        "pasos": [
+          {"accion": "escribir", "selector": "#cant", "texto": "0"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "HUECO: sin unidades el total es 0. Caza los productos que arrancan con un total fijo o que dividen por la cantidad.",
+           "accion": "js", "expr": "parseFloat(String(document.querySelector('#total').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'))===0", "esperado": true, "nombre": "0 unidades = 0", "critico": true},
+          {"accion": "escribir", "selector": "#cant", "texto": "50"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "HUECO: el borde SUPERIOR del segundo tramo. 10*10 + 40*9 = 460. El original prueba 20 (dentro del tramo) y 60 (ya en el tercero), nunca el borde exacto.",
+           "accion": "js", "expr": "Math.abs(parseFloat(String(document.querySelector('#total').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'))-460)<0.01", "esperado": true, "nombre": "50 unidades = 460 (borde del 2o tramo)", "critico": true},
+          {"accion": "escribir", "selector": "#cant", "texto": "100"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "10*10 + 40*9 + 50*8 = 860. Cantidad grande, bien dentro del tercer tramo.",
+           "accion": "js", "expr": "Math.abs(parseFloat(String(document.querySelector('#total').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'))-860)<0.01", "esperado": true, "nombre": "100 unidades = 860", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "form_cruzado",
+      "contrato": {
+        "nombre": "form cruzado HELD-OUT v2: bordes exactos 7/8 caracteres y 120/121 de edad",
+        "pasos": [
+          {"accion": "escribir", "selector": "#pass", "texto": "1234567"},
+          {"accion": "escribir", "selector": "#pass2", "texto": "1234567"},
+          {"accion": "escribir", "selector": "#edad", "texto": "30"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "HUECO: el borde INFERIOR de longitud. 7 caracteres NO cumple '8 o mas' aunque coincidan y la edad sea valida.",
+           "accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "7 caracteres: deshabilitado", "critico": true},
+          {"accion": "escribir", "selector": "#pass", "texto": "12345678"},
+          {"accion": "escribir", "selector": "#pass2", "texto": "12345678"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "8 EXACTOS cumple ('8 caracteres o mas' es inclusivo). Caza el off-by-one en la otra direccion.",
+           "accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": false, "nombre": "8 caracteres exactos: habilitado", "critico": true},
+          {"accion": "escribir", "selector": "#edad", "texto": "120"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "HUECO: el borde SUPERIOR de edad. 'entre 18 y 120' incluye el 120.",
+           "accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": false, "nombre": "edad 120: habilitado (borde inclusivo)", "critico": true},
+          {"accion": "escribir", "selector": "#edad", "texto": "121"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "edad 121: deshabilitado", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "tabla_compuesta",
+      "contrato": {
+        "nombre": "tabla HELD-OUT v2: que ORDENE de verdad (asc y desc) — el original solo mira que no rompa la paginacion",
+        "pasos": [
+          {"accion": "js", "expr": "[...document.querySelectorAll('.fila')].filter(f=>f.offsetParent!==null).length", "esperado": 10, "nombre": "pagina 1 con 10 filas", "critico": true},
+          {"accion": "click", "selector": "#ordenar"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "HUECO GRANDE: el enunciado exige que el boton ORDENE por edad, y el contrato original solo comprueba que al ordenar la paginacion no se rompa. Aqui se lee la columna de edades de las filas VISIBLES y se exige que este ordenada (asc o desc, el enunciado no fija cual es la primera pulsacion). La edad se extrae como el ultimo numero de cada fila para no depender del formato de la tabla.",
+           "accion": "js", "expr": "(()=>{const e=[...document.querySelectorAll('.fila')].filter(f=>f.offsetParent!==null).map(f=>{const m=String(f.innerText).match(/\\d+/g);return m?parseInt(m[m.length-1],10):NaN;});if(e.length<2||e.some(isNaN))return false;const asc=e.every((v,i)=>i===0||e[i-1]<=v),desc=e.every((v,i)=>i===0||e[i-1]>=v);return asc||desc;})()", "esperado": true, "nombre": "tras ordenar, las edades visibles estan ordenadas", "critico": true},
+          {"accion": "js", "expr": "(()=>{const e=[...document.querySelectorAll('.fila')].filter(f=>f.offsetParent!==null).map(f=>{const m=String(f.innerText).match(/\\d+/g);return m?parseInt(m[m.length-1],10):NaN;});window.__ord1=e.every((v,i)=>i===0||e[i-1]<=v)?'asc':'desc';return true;})()", "esperado": true, "nombre": "se anota el sentido del primer orden"},
+          {"accion": "click", "selector": "#ordenar"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "El enunciado dice que el boton ALTERNA ascendente/descendente: la segunda pulsacion tiene que dar el sentido CONTRARIO al de la primera.",
+           "accion": "js", "expr": "(()=>{const e=[...document.querySelectorAll('.fila')].filter(f=>f.offsetParent!==null).map(f=>{const m=String(f.innerText).match(/\\d+/g);return m?parseInt(m[m.length-1],10):NaN;});if(e.length<2||e.some(isNaN))return false;const s=e.every((v,i)=>i===0||e[i-1]<=v)?'asc':'desc';return s!==window.__ord1;})()", "esperado": true, "nombre": "el segundo click INVIERTE el orden", "critico": true},
+          {"accion": "escribir", "selector": "#q", "texto": "zzzzzz"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "HUECO: un filtro que no casa con nada tiene que dejar la tabla vacia (0 filas visibles), no mostrar el conjunto entero. Caza los filtros que no filtran.",
+           "accion": "js", "expr": "[...document.querySelectorAll('.fila')].filter(f=>f.offsetParent!==null).length", "esperado": 0, "nombre": "un filtro sin coincidencias deja 0 filas", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "precedencia",
+      "contrato": {
+        "nombre": "precedencia HELD-OUT v2: C limpia y 7+2*3 (el original ya probaba 2+3*4 Y 7-2*3)",
+        "pasos": [
+          {"accion": "click", "selector": "[data-k='7']"},
+          {"accion": "click", "selector": "[data-k='+']"},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='3']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "7+2*3 = 13 con precedencia; 27 evaluando de izquierda a derecha. Caso NUEVO: el original prueba 2+3*4 y 7-2*3, y el v1 repetia 7-2*3.",
+           "accion": "js", "expr": "/(^|[^0-9])13([^0-9]|$)/.test(document.querySelector('#pantalla').innerText)", "esperado": true, "nombre": "7+2*3 = 13", "critico": true},
+          {"accion": "click", "selector": "[data-k='C']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "HUECO: el enunciado exige que C limpie la pantalla y NINGUN examen lo comprobaba. Tras C no puede quedar el resultado anterior.",
+           "accion": "js", "expr": "!/13/.test(document.querySelector('#pantalla').innerText)", "esperado": true, "nombre": "C limpia el resultado anterior", "critico": true},
+          {"accion": "click", "selector": "[data-k='4']"},
+          {"accion": "click", "selector": "[data-k='-']"},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "4-2*2 = 0 con precedencia; 4 evaluando de izquierda a derecha. Ademas comprueba que tras la C la calculadora sigue operativa.",
+           "accion": "js", "expr": "/(^|[^0-9])0([^0-9]|$)/.test(document.querySelector('#pantalla').innerText)", "esperado": true, "nombre": "4-2*2 = 0 y la calculadora sigue viva tras C", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "tres_en_raya",
+      "contrato": {
+        "nombre": "tres en raya HELD-OUT v2: DIAGONAL, casilla ocupada y turno (el original prueba la fila; el v1, la columna)",
+        "pasos": [
+          {"accion": "click", "selector": "[data-i='0']"},
+          {"accion": "esperar", "ms": 200},
+          {"accion": "js", "expr": "(window.__m0=document.querySelector('[data-i=\"0\"]').innerText.trim(), true)", "esperado": true, "nombre": "se anota la marca de la casilla 0"},
+          {"accion": "click", "selector": "[data-i='0']"},
+          {"accion": "esperar", "ms": 200},
+          {"_por_que": "HUECO: ningun examen comprobaba que una casilla OCUPADA no se puede sobrescribir. El enunciado dice 'al clicar una casilla VACIA'. Si la marca cambiara, el turno se habria consumido dos veces.",
+           "accion": "js", "expr": "document.querySelector('[data-i=\"0\"]').innerText.trim()===window.__m0", "esperado": true, "nombre": "una casilla ocupada no se sobrescribe", "critico": true},
+          {"accion": "js", "expr": "[...document.querySelectorAll('.c')].filter(c=>c.innerText.trim()!=='').length", "esperado": 1, "nombre": "el click repetido no anadio marca", "critico": true},
+          {"accion": "click", "selector": "[data-i='1']"},
+          {"accion": "click", "selector": "[data-i='4']"},
+          {"accion": "click", "selector": "[data-i='2']"},
+          {"accion": "click", "selector": "[data-i='8']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "HUECO: la DIAGONAL 0-4-8. El original prueba la fila 0-1-2 y el v1 la columna 0-3-6; la diagonal no la comprobaba nadie. X ocupa 0,4,8 y O ocupa 1,2.",
+           "accion": "texto", "selector": "#estado", "contiene": "gana", "nombre": "la diagonal 0-4-8 gana", "critico": true},
+          {"accion": "js", "expr": "[...document.querySelectorAll('.c')].filter(c=>c.innerText.trim()!=='').length", "esperado": 5, "nombre": "hay 5 marcas al ganar por diagonal", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "temporizador",
+      "contrato": {
+        "nombre": "temporizador HELD-OUT v2: reset MIENTRAS corre y re-arranque desde 0",
+        "pasos": [
+          {"accion": "click", "selector": "#start"},
+          {"accion": "esperar", "ms": 2500},
+          {"_por_que": "HUECO: el original y el v1 hacen reset con el cronometro PAUSADO. Aqui se resetea EN MARCHA: el enunciado dice que reset lo pone a 0 y lo DETIENE.",
+           "accion": "click", "selector": "#reset"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "js", "expr": "parseInt(document.querySelector('#t').innerText,10)===0", "esperado": true, "nombre": "reset en marcha pone a 0", "critico": true},
+          {"accion": "esperar", "ms": 1800},
+          {"_por_que": "Y lo DETIENE: pasado mas de un segundo despues del reset sigue en 0. Caza el reset que pone a 0 pero deja el intervalo vivo.",
+           "accion": "js", "expr": "parseInt(document.querySelector('#t').innerText,10)===0", "esperado": true, "nombre": "reset en marcha tambien DETIENE", "critico": true},
+          {"accion": "click", "selector": "#start"},
+          {"accion": "esperar", "ms": 2200},
+          {"_por_que": "Tras el reset, start vuelve a contar DESDE 0 (no desde el valor previo al reset).",
+           "accion": "js", "expr": "(()=>{const v=parseInt(document.querySelector('#t').innerText,10);return v>=1&&v<=4;})()", "esperado": true, "nombre": "start tras reset cuenta desde 0", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "serpiente",
+      "contrato": {
+        "nombre": "serpiente HELD-OUT v2: coherencia largo<->celdas, movimiento VERTICAL y comida unica",
+        "pasos": [
+          {"_por_que": "HUECO: nadie comprobaba que el estado expuesto (window.juego.largo) COINCIDA con lo pintado (.cel.snake). Un producto puede mover un cuadrado y llevar un contador que no se corresponde con nada.",
+           "accion": "js", "expr": "window.juego.largo===document.querySelectorAll('.cel.snake').length", "esperado": true, "nombre": "el largo coincide con las celdas pintadas", "critico": true},
+          {"accion": "js", "expr": "document.querySelectorAll('.cel.food').length", "esperado": 1, "nombre": "hay exactamente una comida", "critico": true},
+          {"accion": "js", "expr": "(window.__y0=window.juego.y, window.__x0=window.juego.x, true)", "esperado": true, "nombre": "se anota la posicion inicial"},
+          {"accion": "tecla", "key": "ArrowDown"},
+          {"accion": "esperar", "ms": 700},
+          {"_por_que": "HUECO: el original solo prueba el movimiento HORIZONTAL (ArrowRight). El enunciado dice que se mueve con las flechas: la vertical tambien tiene que mover.",
+           "accion": "js", "expr": "window.juego.y!==window.__y0", "esperado": true, "nombre": "ArrowDown mueve en vertical", "critico": true},
+          {"accion": "tecla", "key": "ArrowUp"},
+          {"accion": "esperar", "ms": 700},
+          {"_por_que": "Yendo hacia abajo, ArrowUp es la inversion de 180 grados y se ignora: la y no puede volver hacia arriba.",
+           "accion": "js", "expr": "window.juego.y>=window.__y0", "esperado": true, "nombre": "la inversion vertical se ignora", "critico": true},
+          {"accion": "js", "expr": "window.juego.largo===document.querySelectorAll('.cel.snake').length && document.querySelectorAll('.cel.food').length===1", "esperado": true, "nombre": "tras moverse sigue coherente y con una comida", "critico": true}
+        ]
+      }
+    }
+  ]
+}
