@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reparto de presupuesto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;color:#333;margin:0;padding:20px;text-align:center;}
+.container{max-width:600px;margin:auto;}
+h1{font-size:4rem;margin:0 0 20px;}
+#total{font-weight:700;color:#0063a6;}
+.part{display:flex;align-items:center;background:#fff;border-radius:8px;padding:10px 15px;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+.part input.pct{width:60px;margin-right:10px;text-align:right;border:1px solid #ccc;border-radius:4px;padding:5px;font-size:1rem;color:#333;background:#fff;}
+.part span.eur{flex:1;text-align:right;font-weight:600;color:#0063a6;}
+.progress{width:100%;height:8px;background:#e0e0e0;border-radius:4px;margin-top:5px;}
+.progress .bar{height:100%;background:#0063a6;border-radius:4px;}
+#libre{font-size:1.2rem;margin-top:15px;}
+#aviso{color:#f44336;font-weight:bold;margin-top:10px;}
+input.pct.valid{border-color:#4caf50;}
+input.pct.warning{border-color:#f44336;}
+@media(max-width:480px){
+  h1{font-size:3rem;}
+  .part{flex-direction:column;align-items:flex-start;}
+  .part input.pct{margin-bottom:5px;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1><span id="total">100</span> €</h1>
+  <div class="part" data-id="a1">
+    <input class="pct" data-id="a1" type="number" min="0" max="100" step="1">
+    <span class="eur" data-id="a1"></span>
+    <div class="progress"><div class="bar"></div></div>
+  </div>
+  <div class="part" data-id="a2">
+    <input class="pct" data-id="a2" type="number" min="0" max="100" step="1">
+    <span class="eur" data-id="a2"></span>
+    <div class="progress"><div class="bar"></div></div>
+  </div>
+  <div class="part" data-id="a3">
+    <input class="pct" data-id="a3" type="number" min="0" max="100" step="1">
+    <span class="eur" data-id="a3"></span>
+    <div class="progress"><div class="bar"></div></div>
+  </div>
+  <span id="libre">Libre: 0,00%</span>
+  <div id="aviso"></div>
+</div>
+<script>
+const total = 100;
+const pctInputs = document.querySelectorAll('.pct');
+const libreSpan = document.getElementById('libre');
+const avisoDiv = document.getElementById('aviso');
+const prevValues = {};
+
+function formatCurrency(val){return val.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function formatPercent(val){return val.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';}
+
+function update(){
+  let sum=0;
+  pctInputs.forEach(inp=>{let v=parseFloat(inp.value)||0;sum+=v;});
+  pctInputs.forEach(inp=>{
+    let v=parseFloat(inp.value)||0;
+    let eur=(v/100)*total;
+    let span=document.querySelector(`.eur[data-id="${inp.dataset.id}"]`);
+    span.textContent=formatCurrency(eur);
+  });
+  let libre=total-sum;
+  libreSpan.textContent='Libre: '+formatPercent(libre);
+  pctInputs.forEach(inp=>{
+    let v=parseFloat(inp.value)||0;
+    let bar=inp.parentElement.querySelector('.bar');
+    if(bar)bar.style.width=v+'%';
+  });
+  pctInputs.forEach(inp=>{
+    let v=parseFloat(inp.value)||0;
+    if(v<=100){inp.classList.add('valid');inp.classList.remove('warning');}
+    else{inp.classList.add('warning');inp.classList.remove('valid');}
+  });
+}
+
+function init(){
+  pctInputs.forEach(inp=>{
+    let id=inp.dataset.id;
+    let initVal=id==='a3'?40:30;
+    inp.value=initVal;
+    prevValues[id]=initVal;
+  });
+  update();
+}
+
+pctInputs.forEach(inp=>{
+  inp.addEventListener('input',function(){
+    let id=inp.dataset.id;
+    let newVal=parseFloat(inp.value)||0;
+    let sum=0;
+    pctInputs.forEach(other=>{
+      let v=parseFloat(other.value)||0;
+      if(other===inp)sum+=newVal;
+      else sum+=v;
+    });
+    if(sum>100){
+      inp.value=prevValues[id];
+      avisoDiv.textContent='limite';
+      inp.classList.add('warning');
+      inp.classList.remove('valid');
+    }else{
+      avisoDiv.textContent='';
+      prevValues[id]=newVal;
+      inp.classList.add('valid');
+      inp.classList.remove('warning');
+    }
+    update();
+  });
+});
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

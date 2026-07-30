@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Packs</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#fff;color:#333;}
+  .container{display:flex;justify-content:center;gap:20px;padding:20px;flex-wrap:wrap;}
+  .product{border:1px solid #ddd;border-radius:8px;padding:20px;width:200px;text-align:center;}
+  .product h2{margin-top:0;}
+  .price{font-size:1.2em;margin:10px 0;}
+  button.add{background:#f5c518;color:#fff;border:none;padding:10px 20px;border-radius:4px;cursor:pointer;margin:5px;}
+  button.add-large{font-size:1.2em;padding:12px 24px;}
+  button.quitar{background:#4db6ac;color:#fff;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;margin:5px;}
+  .quantity-row{display:flex;align-items:center;justify-content:center;margin-top:10px;}
+  .quantity-row button{margin:0 5px;}
+  .quantity-row span.cant{font-size:1.2em;width:30px;text-align:center;}
+  .footer{display:flex;justify-content:flex-end;padding:10px 20px;font-weight:bold;color:#555;}
+  .footer span{margin-left:20px;}
+  @media(max-width:500px){.container{flex-direction:column;align-items:center;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="product" data-id="pan">
+    <h2>Pan</h2>
+    <p class="price">Precio: 2 €</p>
+    <button class="add add-large" data-id="pan">Añadir</button>
+    <div class="quantity-row">
+      <button class="quitar" data-id="pan">-</button>
+      <span class="cant" data-id="pan">0</span>
+      <button class="add" data-id="pan">+</button>
+    </div>
+  </div>
+  <div class="product" data-id="leche">
+    <h2>Leche</h2>
+    <p class="price">Precio: 3 €</p>
+    <button class="add add-large" data-id="leche">Añadir</button>
+    <div class="quantity-row">
+      <button class="quitar" data-id="leche">-</button>
+      <span class="cant" data-id="leche">0</span>
+      <button class="add" data-id="leche">+</button>
+    </div>
+  </div>
+</div>
+<div class="footer">
+  <span id="packs">Packs: 0</span>
+  <span id="total">Total: 0 €</span>
+</div>
+<script>
+  const prices = {pan:2, leche:3, pack:4};
+  let counts = {pan:0, leche:0};
+
+  function updateDisplay(){
+    document.querySelectorAll('.cant').forEach(el=>{
+      const id = el.dataset.id;
+      el.textContent = counts[id];
+    });
+    const packs = Math.min(counts.pan, counts.leche);
+    const total = packs*prices.pack + (counts.pan-packs)*prices.pan + (counts.leche-packs)*prices.leche;
+    document.getElementById('packs').textContent = `Packs: ${packs}`;
+    document.getElementById('total').textContent = `Total: ${total.toLocaleString('es-ES', {style:'currency', currency:'EUR'})}`;
+  }
+
+  document.querySelectorAll('.add').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      counts[id] = (counts[id]||0)+1;
+      updateDisplay();
+    });
+  });
+
+  document.querySelectorAll('.quitar').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      if(counts[id]>0){counts[id]--;updateDisplay();}
+    });
+  });
+
+  updateDisplay();
+</script>
+</body>
+</html>

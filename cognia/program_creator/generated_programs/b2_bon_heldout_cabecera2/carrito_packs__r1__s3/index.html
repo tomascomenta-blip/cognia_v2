@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Un carrito con PACKS</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f5dc;
+    color:#333;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  .store{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:20px;
+    margin-top:30px;
+    width:90%;
+    max-width:800px;
+  }
+  .card{
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,.1);
+    padding:20px;
+    flex:1 1 200px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+  }
+  .card h2{
+    margin:0 0 10px;
+    font-size:1.4rem;
+  }
+  .price{
+    font-size:1.2rem;
+    margin-bottom:15px;
+    color:#555;
+  }
+  button{
+    padding:10px 20px;
+    margin:5px;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  button.add{
+    background:#008080;
+    color:#fff;
+  }
+  button.quitar{
+    background:#bbb;
+    color:#333;
+  }
+  .counter{
+    margin:10px 0;
+    font-size:1.1rem;
+  }
+  .summary{
+    margin-top:30px;
+    width:90%;
+    max-width:400px;
+    background:#fff;
+    border-radius:8px;
+    padding:15px;
+    box-shadow:0 2px 6px rgba(0,0,0,.1);
+    text-align:center;
+  }
+  .summary p{
+    margin:10px 0;
+    font-size:1.2rem;
+  }
+  .summary span{
+    font-weight:bold;
+  }
+  @media(max-width:480px){
+    .store{
+      flex-direction:column;
+      align-items:center;
+    }
+  }
+</style>
+</head>
+<body>
+<h1>Carrito con Packs</h1>
+<div class="store">
+  <div class="card">
+    <h2>Pan</h2>
+    <div class="price">Precio: 2 €</div>
+    <button class="add" data-id="pan">Añadir pan</button>
+    <div class="counter">Cantidad: <span class="cant" data-id="pan">0</span></div>
+    <button class="quitar" data-id="pan">Quitar pan</button>
+  </div>
+  <div class="card">
+    <h2>Leche</h2>
+    <div class="price">Precio: 3 €</div>
+    <button class="add" data-id="leche">Añadir leche</button>
+    <div class="counter">Cantidad: <span class="cant" data-id="leche">0</span></div>
+    <button class="quitar" data-id="leche">Quitar leche</button>
+  </div>
+</div>
+<div class="summary">
+  <p>Packs: <span id="packs">0</span></p>
+  <p>Total: <span id="total">0 €</span></p>
+</div>
+
+<script>
+  class Cart {
+    constructor() {
+      this.items = { pan: 0, leche: 0 };
+      this.prices = { pan: 2, leche: 3 };
+      this.packPrice = 4;
+      this.updateUI();
+      this.bindEvents();
+    }
+    bindEvents() {
+      document.querySelectorAll('.add').forEach(btn => {
+        btn.addEventListener('click', () => this.add(btn.dataset.id));
+      });
+      document.querySelectorAll('.quitar').forEach(btn => {
+        btn.addEventListener('click', () => this.remove(btn.dataset.id));
+      });
+    }
+    add(id) {
+      if (this.items[id] !== undefined) {
+        this.items[id]++;
+        this.updateUI();
+      }
+    }
+    remove(id) {
+      if (this.items[id] !== undefined && this.items[id] > 0) {
+        this.items[id]--;
+        this.updateUI();
+      }
+    }
+    updateUI() {
+      // Update counters
+      Object.keys(this.items).forEach(id => {
+        const span = document.querySelector(`.cant[data-id="${id}"]`);
+        if (span) span.textContent = this.items[id];
+      });
+      // Calculate packs
+      const packs = Math.min(this.items.pan, this.items.leche);
+      document.getElementById('packs').textContent = packs;
+      // Calculate total
+      const panLeft = this.items.pan - packs;
+      const lecheLeft = this.items.leche - packs;
+      const total = packs * this.packPrice + panLeft * this.prices.pan + lecheLeft * this.prices.leche;
+      document.getElementById('total').textContent = total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+    }
+  }
+  // Initialize cart on page load
+  new Cart();
+</script>
+</body>
+</html>

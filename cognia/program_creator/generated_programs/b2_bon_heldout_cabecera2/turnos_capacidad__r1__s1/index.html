@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda de Turnos</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f5f5;color:#333;}
+  .top-bar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:#fff;border-bottom:1px solid #ddd;}
+  .top-bar label{margin-right:4px;}
+  .top-bar input[type=number]{width:60px;}
+  .top-bar select{padding:4px;}
+  .top-bar button{padding:4px 8px;}
+  .capacity{display:flex;align-items:center;gap:4px;}
+  .capacity span{font-weight:bold;}
+  .occupancy{display:flex;gap:12px;padding:12px;}
+  .occupancy span{font-weight:bold;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:12px;}
+  .franja-tile{background:#e3f2fd;border-radius:6px;padding:12px;min-height:200px;display:flex;flex-direction:column;gap:8px;}
+  .franja-tile.tarde{background:#e8f5e9;}
+  .grupo{background:#fff;border:1px solid #ddd;border-radius:4px;padding:8px;}
+  .grupo h4{margin:0 0 4px 0;font-size:1rem;}
+  .grupo ul{margin:0;padding-left:20px;}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <label for="franja">Franja:</label>
+  <select id="franja"><option value="manana">mañana</option><option value="tarde">tarde</option></select>
+  <label for="personas">Personas:</label>
+  <input id="personas" type="number" min="1" value="1">
+  <button id="apuntar">Apuntar</button>
+  <div class="capacity">Capacidad: <span id="cap">6</span></div>
+  <label for="nueva-cap">Nueva Capacidad:</label>
+  <input id="nueva-cap" type="number" min="1" value="6">
+  <button id="set-cap">Establecer</button>
+</div>
+<div class="occupancy">
+  <div>Ocupación mañana: <span id="ocupacion-manana">0</span></div>
+  <div>Ocupación tarde: <span id="ocupacion-tarde">0</span></div>
+</div>
+<div class="grid">
+  <div class="franja-tile mañana" id="franja-manana">
+    <h3>Mañana</h3>
+    <div id="grupos-manana"></div>
+  </div>
+  <div class="franja-tile tarde" id="franja-tarde">
+    <h3>Tarde</h3>
+    <div id="grupos-tarde"></div>
+  </div>
+</div>
+<script>
+  let capacity = 6;
+  let groupIdCounter = 1;
+  const groups = []; // {id, franja, participants: []}
+
+  function updateCapacityDisplay(){
+    document.getElementById('cap').textContent = capacity.toLocaleString('es-ES');
+  }
+
+  function updateOccupancy(){
+    let occManana = 0, occTarde = 0;
+    groups.forEach(g=>{
+      if(g.franja==='manana') occManana+=g.participants.length;
+      else occTarde+=g.participants.length;
+    });
+    document.getElementById('ocupacion-manana').textContent = occManana.toLocaleString('es-ES');
+    document.getElementById('ocupacion-tarde').textContent = occTarde.toLocaleString('es-ES');
+  }
+
+  function getOccupancy(franja){
+    return groups.filter(g=>g.franja===franja).reduce((sum,g)=>sum+g.participants.length,0);
+  }
+
+  function addGroup(franja, personas){
+    const occ = getOccupancy(franja);
+    if(occ + personas > capacity){
+      alert('No se puede agregar: capacidad excedida');
+      return;
+    }
+    const participants = [];
+    for(let i=1;i<=personas;i++){
+      participants.push('P'+groupIdCounter+'-'+i);
+    }
+    const group = {id: groupIdCounter++, franja, participants};
+    groups.push(group);
+    const container = document.getElementById('grupos-'+franja);
+    const div = document.createElement('div');
+    div.className='grupo';
+    div.dataset.franja=franja;
+    div.dataset.n=group.id;
+    div.innerHTML = '<h4>Grupo '+group.id+'</h4><ul>'+participants.map(p=>'<li>'+p+'</li>').join('')+'</ul>';
+    container.appendChild(div);
+    updateOccupancy();
+  }
+
+  function setCapacity(newCap){
+    capacity = newCap;
+    updateCapacityDisplay();
+    ['manana','tarde'].forEach(f=>{
+      while(getOccupancy(f)>capacity){
+        for(let i=groups.length-1;i>=0;i--){
+          if(groups[i].franja===f){
+            const g=groups[i];
+            groups.splice(i,1);
+            const dom = document.querySelector('.grupo[data-n="'+g.id+'"]');
+            if(dom) dom.remove();
+            break;
+          }
+        }
+      }
+    });
+    updateOccupancy();
+  }
+
+  document.getElementById('apuntar').addEventListener('click',()=>{
+    const franja=document.getElementById('franja').value;
+    const personas=parseInt(document.getElementById('personas').value)||0;
+    if(personas<=0){
+      alert('Ingrese número de personas mayor a 0');
+      return;
+    }
+    addGroup(franja,personas);
+  });
+
+  document.getElementById('set-cap').addEventListener('click',()=>{
+    const newCap=parseInt(document.getElementById('nueva-cap').value)||0;
+    if(newCap<=0){
+      alert('Capacidad debe ser mayor a 0');
+      return;
+    }
+    setCapacity(newCap);
+  });
+
+  function init(){
+    updateCapacityDisplay();
+    updateOccupancy();
+    // Sample data
+    addGroup('manana',2);
+    addGroup('manana',2);
+    addGroup('manana',2);
+    addGroup('tarde',2);
+  }
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda de Turnos</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f7fa;color:#333;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:#e0e5ec;border-bottom:1px solid #c0c8d5;}
+  .toolbar label{margin-right:4px;}
+  .toolbar input[type=number]{width:60px;}
+  .toolbar select{width:120px;}
+  .toolbar button{padding:6px 12px;background:#008080;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .toolbar button:hover{background:#006666;}
+  .toolbar span#cap{font-weight:bold;margin-left:8px;}
+  .list{padding:12px;overflow-y:auto;max-height:calc(100vh - 200px);}
+  .grupo{background:#fff;border:1px solid #c0c8d5;border-radius:6px;padding:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+  .grupo .badge{display:inline-block;background:#c0c8d5;color:#fff;padding:2px 6px;border-radius:12px;font-size:12px;margin-right:4px;}
+  .bottom{display:flex;gap:12px;padding:12px;background:#e0e5ec;border-top:1px solid #c0c8d5;}
+  .bottom .badge{background:#008080;color:#fff;padding:6px 12px;border-radius:12px;font-size:14px;}
+  @media(max-width:600px){
+    .toolbar{flex-direction:column;align-items:flex-start;}
+    .toolbar button{width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <label for="franja">Franja:</label>
+  <select id="franja"><option value="manana">Manana</option><option value="tarde">Tarde</option></select>
+  <label for="personas">Personas:</label>
+  <input id="personas" type="number" min="1" value="1">
+  <button id="apuntar">Apuntar</button>
+  <span>Capacidad: <span id="cap">6</span></span>
+  <label for="nueva-cap">Nueva Capacidad:</label>
+  <input id="nueva-cap" type="number" min="1" value="6">
+  <button id="set-cap">Set</button>
+</div>
+<div class="list" id="lista"></div>
+<div class="bottom">
+  <div class="badge">Manana: <span id="ocupacion-manana">0</span></div>
+  <div class="badge">Tarde: <span id="ocupacion-tarde">0</span></div>
+</div>
+<script>
+class Agenda {
+  constructor(){
+    this.capacity = 6;
+    this.groups = []; // {id, franja, n}
+    this.nextId = 1;
+    this.capSpan = document.getElementById('cap');
+    this.ocupMan = document.getElementById('ocupacion-manana');
+    this.ocupTar = document.getElementById('ocupacion-tarde');
+    this.lista = document.getElementById('lista');
+    this.bindEvents();
+    this.updateCapDisplay();
+    this.updateOccupancy();
+  }
+  bindEvents(){
+    document.getElementById('apuntar').addEventListener('click', ()=>this.addGroup());
+    document.getElementById('set-cap').addEventListener('click', ()=>this.setCapacity());
+  }
+  addGroup(){
+    const franja = document.getElementById('franja').value;
+    const n = parseInt(document.getElementById('personas').value,10);
+    if(isNaN(n)||n<=0){alert('Número de personas inválido');return;}
+    const current = this.getOccupancy(franja);
+    if(current + n > this.capacity){
+      alert('No se puede apuntar: excede la capacidad.');
+      return;
+    }
+    const group = {id:this.nextId++, franja, n};
+    this.groups.push(group);
+    this.renderGroup(group);
+    this.updateOccupancy();
+  }
+  setCapacity(){
+    const newCap = parseInt(document.getElementById('nueva-cap').value,10);
+    if(isNaN(newCap)||newCap<1){alert('Capacidad inválida');return;}
+    this.capacity = newCap;
+    this.updateCapDisplay();
+    this.enforceCapacity();
+    this.updateOccupancy();
+  }
+  enforceCapacity(){
+    const franjaList=['manana','tarde'];
+    franjaList.forEach(f=>{
+      let occ=this.getOccupancy(f);
+      while(occ>this.capacity){
+        // find last group in this franja
+        for(let i=this.groups.length-1;i>=0;i--){
+          if(this.groups[i].franja===f){
+            const g=this.groups[i];
+            this.groups.splice(i,1);
+            const el=document.querySelector('.grupo[data-id="'+g.id+'"]');
+            if(el) el.remove();
+            occ-=g.n;
+            break;
+          }
+        }
+      }
+    });
+  }
+  getOccupancy(f){
+    return this.groups.filter(g=>g.franja===f).reduce((s,g)=>s+g.n,0);
+  }
+  updateCapDisplay(){
+    this.capSpan.textContent = this.capacity;
+  }
+  updateOccupancy(){
+    this.ocupMan.textContent = this.getOccupancy('manana');
+    this.ocupTar.textContent = this.getOccupancy('tarde');
+  }
+  renderGroup(group){
+    const div=document.createElement('div');
+    div.className='grupo';
+    div.dataset.franja=group.franja;
+    div.dataset.n=group.n;
+    div.dataset.id=group.id;
+    div.innerHTML=`<span class="badge">${group.franja}</span>
+                   <span class="badge">${group.n}</span>`;
+    this.lista.appendChild(div);
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{new Agenda();});
+</script>
+</body>
+</html>

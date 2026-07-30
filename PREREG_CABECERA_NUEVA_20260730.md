@@ -108,6 +108,46 @@ re-evaluado" debería caer en la banda que discrimina.
 Las 2 tareas que entran quedan en `b1_tareas_cabecera.json` como semilla;
 el banco NO se usa para medir progreso hasta tener ≥3.
 
+## SEGUNDA TANDA — la hipótesis del "invariante global" NO se sostiene (2026-07-30 ~07:35)
+
+Se escribieron 4 tareas construidas ALREDEDOR del invariante que la
+primera tanda señalaba (`b1_tareas_cabecera2.json`) y se calibraron con el
+mismo criterio:
+
+| tarea | pass@1 | |
+|---|---|---|
+| presupuesto_reparto | **4/4** | SATURADA |
+| carrito_packs | **4/4** | SATURADA |
+| inventario_reservas | 2/4 | entra… pero por AMBIGÜEDAD MÍA (ver abajo) |
+| turnos_capacidad | 2/4 | entra… pero por AMBIGÜEDAD MÍA |
+
+**Las dos tareas limpias salen 4/4, así que la hipótesis queda
+DESCARTADA.** `presupuesto_reparto` (un cambio que rompe la suma REVIERTE
+al valor anterior) y `carrito_packs` (el precio depende del mínimo entre
+dos cantidades, así que quitar un pan DESHACE un pack y la leche pasa a
+cobrarse suelta) son exactamente el invariante-global-re-evaluado que
+predije que discriminaría. El sistema las resuelve a la primera, 4 de 4.
+
+**Y las dos que "discriminaban" no lo hacían por dificultad:** al abrir las
+páginas se vio que los productos PRECARGAN ejemplos (reservas, grupos) y
+**mi enunciado nunca exigió que la lista empezara vacía** — el `#disponible`
+y la `#ocupacion` eran correctos para SU estado inicial. Ambigüedad del
+enunciado, no del sistema. Corregido el ENUNCIADO (no el contrato) y
+re-calibrado; el número que vale es el de la re-calibración.
+
+**El balance de la mañana, dicho sin adornos: 9 tareas nuevas escritas
+para romper al sistema, 7 saturadas a la primera y 2 que solo fallaban por
+un defecto de redacción mío.** La conclusión ya no es sobre el banco:
+
+> **No sé diseñar una tarea web verificable por ejecución que este sistema
+> no resuelva.** El techo que se alcanzó primero no es el del sistema: es
+> el del diseñador de exámenes.
+
+Consecuencia para el goal: medir progreso aquí exige **cambiar de dominio o
+de tipo de verificación**, no subir la dificultad dentro del mismo molde.
+Y refuerza por tercera vía la conclusión de inversión de la semana: **no
+falta capacidad, falta señal.**
+
 ## Lo que NO se hace aquí
 
 No se re-mide el goal contra el banco nuevo en esta sesión: primero hay que

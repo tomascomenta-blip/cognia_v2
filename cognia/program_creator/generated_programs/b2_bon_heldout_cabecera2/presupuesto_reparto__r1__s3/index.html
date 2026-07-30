@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Presupuesto</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f4f7;color:#333;}
+  header{background:#004d6d;color:white;text-align:center;padding:1rem;font-size:1.5rem;}
+  .total-box{background:#007b8a;color:white;font-size:2rem;font-weight:bold;text-align:center;padding:1rem;margin:1rem auto;width:80%;max-width:400px;border-radius:8px;}
+  .part{display:flex;align-items:center;justify-content:space-between;margin:0.5rem 1rem;}
+  .pct{width:60px;margin-right:0.5rem;}
+  .eur{color:#007b8a;}
+  #libre{display:block;text-align:center;margin:1rem 0;color:#666;}
+  #aviso{background:#ffe0e0;color:#a00;text-align:center;padding:0.5rem;border-radius:4px;}
+</style>
+</head>
+<body>
+<header>Presupuesto</header>
+<div class="total-box"><span id="total">100</span></div>
+
+<div class="part" data-id="a1">
+  <label>Partida 1:</label>
+  <input class="pct" data-id="a1" type="number" value="30" min="0" max="100" step="1">
+  <span class="eur" data-id="a1"></span>
+</div>
+<div class="part" data-id="a2">
+  <label>Partida 2:</label>
+  <input class="pct" data-id="a2" type="number" value="30" min="0" max="100" step="1">
+  <span class="eur" data-id="a2"></span>
+</div>
+<div class="part" data-id="a3">
+  <label>Partida 3:</label>
+  <input class="pct" data-id="a3" type="number" value="40" min="0" max="100" step="1">
+  <span class="eur" data-id="a3"></span>
+</div>
+
+<span id="libre"></span>
+<div id="aviso"></div>
+
+<script>
+  const total = 100;
+  function updateValues(){
+    const inputs = document.querySelectorAll('.pct');
+    let sum = 0;
+    inputs.forEach(inp=>{
+      const val = parseFloat(inp.value)||0;
+      sum += val;
+    });
+    const libre = 100 - sum;
+    document.getElementById('libre').innerText = libre + '%';
+    inputs.forEach(inp=>{
+      const pct = parseFloat(inp.value)||0;
+      const eur = pct * total / 100;
+      const eurSpan = document.querySelector('.eur[data-id="'+inp.dataset.id+'"]');
+      eurSpan.innerText = eur.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+    });
+    document.getElementById('aviso').innerText = '';
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    const inputs = document.querySelectorAll('.pct');
+    inputs.forEach(inp=>{
+      inp.dataset.prev = inp.value;
+      inp.addEventListener('input',function(){
+        const newVal = parseFloat(this.value)||0;
+        let sum = 0;
+        inputs.forEach(i=>{
+          sum += (i===this)?newVal:parseFloat(i.value)||0;
+        });
+        if(sum>100){
+          this.value = this.dataset.prev;
+          document.getElementById('aviso').innerText = 'limite';
+        }else{
+          this.dataset.prev = this.value;
+          updateValues();
+        }
+      });
+    });
+    updateValues();
+  });
+</script>
+</body>
+</html>

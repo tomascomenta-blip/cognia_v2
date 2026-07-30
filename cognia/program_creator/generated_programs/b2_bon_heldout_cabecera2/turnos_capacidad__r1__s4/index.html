@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda de Turnos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f4f8;color:#333;}
+  header{background:#008080;color:white;padding:1rem;text-align:center;}
+  header h1{margin:0;font-size:1.5rem;font-weight:bold;}
+  .container{display:flex;flex-wrap:wrap;min-height:calc(100vh - 60px);}
+  aside{flex:0 0 250px;background:#e0e8f0;padding:1rem;box-sizing:border-box;}
+  main{flex:1;padding:1rem;box-sizing:border-box;}
+  label{display:block;margin-top:.5rem;font-weight:600;}
+  input[type=number],select{width:100%;padding:.4rem;margin-top:.2rem;border:1px solid #ccc;border-radius:4px;}
+  button{margin-top:.5rem;padding:.5rem 1rem;background:#00b3b3;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;}
+  button:hover{background:#009999;}
+  #cap,#ocupacion-manana,#ocupacion-tarde{font-weight:bold;}
+  #groups-container{display:flex;flex-wrap:wrap;gap:.5rem;}
+  .grupo{background:#d0e7ff;padding:.5rem 1rem;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .grupo span{display:block;font-size:.9rem;}
+  @media (max-width:600px){aside{flex:0 0 100%;}main{flex:1;}}
+</style>
+</head>
+<body>
+<header><h1>Agenda de Turnos</h1></header>
+<div class="container">
+  <aside>
+    <label for="franja">Franja:</label>
+    <select id="franja">
+      <option value="mañana">Mañana</option>
+      <option value="tarde">Tarde</option>
+    </select>
+    <label for="personas">Personas:</label>
+    <input id="personas" type="number" min="1" value="1">
+    <button id="apuntar">Apuntar</button>
+    <hr>
+    <label>Capacidad actual: <span id="cap">6</span></label>
+    <label for="nueva-cap">Nueva capacidad:</label>
+    <input id="nueva-cap" type="number" min="1" value="6">
+    <button id="set-cap">Set Cap</button>
+    <hr>
+    <label>Ocupación Mañana: <span id="ocupacion-manana">0</span></label>
+    <label>Ocupación Tarde: <span id="ocupacion-tarde">0</span></label>
+  </aside>
+  <main>
+    <div id="groups-container"></div>
+  </main>
+</div>
+<script>
+const DEFAULT_CAPACITY = 6;
+let capacity = DEFAULT_CAPACITY;
+let groups = []; // {id, franja, people}
+let groupIdCounter = 1;
+
+const franjaSelect = document.getElementById('franja');
+const personasInput = document.getElementById('personas');
+const apuntarBtn = document.getElementById('apuntar');
+const capSpan = document.getElementById('cap');
+const nuevaCapInput = document.getElementById('nueva-cap');
+const setCapBtn = document.getElementById('set-cap');
+const ocupacionMananaSpan = document.getElementById('ocupacion-manana');
+const ocupacionTardeSpan = document.getElementById('ocupacion-tarde');
+const groupsContainer = document.getElementById('groups-container');
+
+function updateCapacityDisplay(){capSpan.textContent = capacity;}
+function updateOccupancyDisplay(){
+  const morning = groups.reduce((s,g)=>g.franja==='mañana'?s+g.people:s,0);
+  const afternoon = groups.reduce((s,g)=>g.franja==='tarde'?s+g.people:s,0);
+  ocupacionMananaSpan.textContent = morning;
+  ocupacionTardeSpan.textContent = afternoon;
+}
+function renderGroups(){
+  groupsContainer.innerHTML='';
+  groups.forEach(g=>{
+    const div=document.createElement('div');
+    div.className='grupo';
+    div.dataset.franja=g.franja;
+    div.dataset.n=g.people;
+    div.innerHTML=`<strong>Grupo ${g.id}</strong><span>${g.people} personas</span>`;
+    groupsContainer.appendChild(div);
+  });
+}
+function canAddGroup(franja,people){
+  const current = franja==='mañana'?
+    groups.reduce((s,g)=>g.franja==='mañana'?s+g.people:s,0):
+    groups.reduce((s,g)=>g.franja==='tarde'?s+g.people:s,0);
+  return current+people<=capacity;
+}
+function addGroup(){
+  const franja=franjaSelect.value;
+  const people=parseInt(personasInput.value,10);
+  if(isNaN(people)||people<1){alert('Introduce un número válido de personas.');return;}
+  if(!canAddGroup(franja,people)){alert('No se puede agregar: excede la capacidad.');return;}
+  groups.push({id:groupIdCounter++,franja,people});
+  updateOccupancyDisplay();
+  renderGroups();
+}
+function adjustCapacity(newCap){
+  capacity=newCap;
+  ['mañana','tarde'].forEach(f=>{
+    let current=groups.reduce((s,g)=>g.franja===f?s+g.people:s,0);
+    while(current>capacity){
+      for(let i=groups.length-1;i>=0;i--){
+        if(groups[i].franja===f){
+          current-=groups[i].people;
+          groups.splice(i,1);
+          break;
+        }
+      }
+    }
+  });
+  updateOccupancyDisplay();
+  renderGroups();
+}
+apuntarBtn.addEventListener('click',addGroup);
+setCapBtn.addEventListener('click',()=>{
+  const newCap=parseInt(nuevaCapInput.value,10);
+  if(isNaN(newCap)||newCap<1){alert('Introduce una capacidad válida.');return;}
+  adjustCapacity(newCap);
+  updateCapacityDisplay();
+});
+updateCapacityDisplay();
+updateOccupancyDisplay();
+renderGroups();
+</script>
+</body>
+</html>

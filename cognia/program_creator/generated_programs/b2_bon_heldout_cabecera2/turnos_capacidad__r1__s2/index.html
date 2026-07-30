@@ -1,0 +1,189 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Agenda de Turnos con Capacidad</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f0f8ff;
+    opacity:0;
+    animation:fadeIn 1s forwards;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+  h1{margin-top:0;}
+  .control{
+    margin-bottom:15px;
+  }
+  label{margin-right:5px;}
+  input[type=number]{width:60px;}
+  button{margin-left:5px;}
+  #grupos{
+    margin-top:20px;
+    border-top:1px solid #ccc;
+    padding-top:10px;
+  }
+  .grupo{
+    background:#e6f7ff;
+    border:1px solid #91d5ff;
+    padding:5px 10px;
+    margin-bottom:5px;
+    border-radius:4px;
+    opacity:0;
+    animation:slideIn 0.4s forwards;
+  }
+  @keyframes slideIn{
+    to{opacity:1;}
+  }
+  .ocupacion{
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<h1>Agenda de Turnos</h1>
+
+<div class="control">
+  <label for="franja">Franja:</label>
+  <select id="franja">
+    <option value="manana">Mañana</option>
+    <option value="tarde">Tarde</option>
+  </select>
+
+  <label for="personas">Personas:</label>
+  <input id="personas" type="number" min="1" value="1">
+
+  <button id="apuntar">Apuntar</button>
+</div>
+
+<div class="control">
+  <span>Capacidad actual: <span id="cap">6</span></span>
+  <label for="nueva-cap">Nueva capacidad:</label>
+  <input id="nueva-cap" type="number" min="0" value="6">
+  <button id="set-cap">Set</button>
+</div>
+
+<div class="control">
+  <span>Mañana ocupada: <span id="ocupacion-manana" class="ocupacion">0</span></span>
+  <span style="margin-left:20px;">Tarde ocupada: <span id="ocupacion-tarde" class="ocupacion">0</span></span>
+</div>
+
+<div id="grupos">
+  <h2>Grupos apuntados</h2>
+</div>
+
+<script>
+  // Estado global
+  const grupos = []; // {franja, n, elem}
+  let capacidad = 6;
+
+  // Elementos del DOM
+  const capEl = document.getElementById('cap');
+  const ocupMananaEl = document.getElementById('ocupacion-manana');
+  const ocupTardeEl = document.getElementById('ocupacion-tarde');
+  const gruposEl = document.getElementById('grupos');
+  const franjaEl = document.getElementById('franja');
+  const personasEl = document.getElementById('personas');
+  const apuntarBtn = document.getElementById('apuntar');
+  const setCapBtn = document.getElementById('set-cap');
+  const nuevaCapEl = document.getElementById('nueva-cap');
+
+  // Actualiza la visualización de la capacidad
+  function actualizarCapacidad() {
+    capEl.textContent = capacidad;
+  }
+
+  // Calcula la ocupación actual de una franja
+  function ocupacion(f) {
+    return grupos.reduce((sum, g) => g.franja === f ? sum + g.n : sum, 0);
+  }
+
+  // Actualiza los contadores de ocupación
+  function actualizarOcupacion() {
+    ocupMananaEl.textContent = ocupacion('manana');
+    ocupTardeEl.textContent = ocupacion('tarde');
+  }
+
+  // Añade un grupo si no excede la capacidad
+  function apuntar() {
+    const f = franjaEl.value;
+    const n = parseInt(personasEl.value, 10);
+    if (isNaN(n) || n <= 0) { alert('Número de personas inválido'); return; }
+
+    const ocupActual = ocupacion(f);
+    if (ocupActual + n > capacidad) {
+      alert(`No se puede apuntar: la franja ${f} excedería la capacidad (${capacidad})`);
+      return;
+    }
+
+    // Crear elemento visual
+    const div = document.createElement('div');
+    div.className = 'grupo';
+    div.dataset.franja = f;
+    div.dataset.n = n;
+    div.textContent = `Grupo: ${n} personas en ${f}`;
+    gruposEl.appendChild(div);
+
+    // Guardar en el array
+    grupos.push({franja: f, n, elem: div});
+
+    actualizarOcupacion();
+  }
+
+  // Ajusta la capacidad y elimina grupos si es necesario
+  function setCapacidad() {
+    const nuevaCap = parseInt(nuevaCapEl.value, 10);
+    if (isNaN(nuevaCap) || nuevaCap < 0) { alert('Capacidad inválida'); return; }
+
+    capacidad = nuevaCap;
+    actualizarCapacidad();
+
+    // Para cada franja, eliminar grupos hasta cumplir la nueva capacidad
+    ['manana', 'tarde'].forEach(f => {
+      while (ocupacion(f) > capacidad) {
+        // Buscar último grupo de esa franja
+        for (let i = grupos.length - 1; i >= 0; i--) {
+          if (grupos[i].franja === f) {
+            // Eliminar del DOM y del array
+            grupos[i].elem.remove();
+            grupos.splice(i, 1);
+            break;
+          }
+        }
+      }
+    });
+
+    actualizarOcupacion();
+  }
+
+  // Animación de conteo de la capacidad al cargar
+  function animarCapacidad() {
+    let current = 0;
+    const target = capacidad;
+    const step = Math.max(1, Math.floor(target / 20));
+    const interval = setInterval(() => {
+      current += step;
+      if (current >= target) {
+        current = target;
+        clearInterval(interval);
+      }
+      capEl.textContent = current;
+    }, 30);
+  }
+
+  // Eventos
+  apuntarBtn.addEventListener('click', apuntar);
+  setCapBtn.addEventListener('click', setCapacidad);
+
+  // Inicializar
+  actualizarCapacidad();
+  actualizarOcupacion();
+  animarCapacidad();
+</script>
+</body>
+</html>

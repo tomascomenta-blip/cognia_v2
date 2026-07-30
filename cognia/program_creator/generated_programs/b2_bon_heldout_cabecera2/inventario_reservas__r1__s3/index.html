@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Control de Stock con Reservas</title>
+<style>
+  body{margin:0;font-family:system-ui,Arial,sans-serif;background:#f0f8ff;color:#333;}
+  header{background:#004c99;color:white;padding:1rem;text-align:center;font-weight:bold;}
+  main{padding:1rem;}
+  #reservations{display:flex;flex-direction:column;gap:0.5rem;}
+  .res{background:#e0f0ff;border-radius:4px;padding:0.5rem 1rem;display:flex;align-items:center;justify-content:space-between;}
+  .res span{font-weight:bold;}
+  .controls{margin-top:1rem;display:flex;flex-direction:column;gap:0.5rem;}
+  .controls input{padding:0.5rem;border:1px solid #ccc;border-radius:4px;}
+  .controls button{padding:0.5rem 1rem;background:#004c99;color:white;border:none;border-radius:4px;cursor:pointer;}
+  .controls button:hover{background:#003a75;}
+  @media (min-width:600px){
+    .controls{flex-direction:row;align-items:center;}
+    .controls input{flex:1;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <strong>Stock:</strong> <span id="stock">10</span> | <strong>Disponible:</strong> <span id="disponible">5</span>
+</header>
+<main>
+  <div id="reservations"></div>
+  <div class="controls">
+    <div>
+      <input id="cant" type="number" min="1" placeholder="Cantidad">
+      <button id="reservar">Reservar</button>
+    </div>
+    <div>
+      <button id="cancelar">Cancelar última reserva</button>
+    </div>
+    <div>
+      <input id="nuevo-stock" type="number" min="0" placeholder="Nuevo stock">
+      <button id="ajustar">Ajustar</button>
+    </div>
+  </div>
+</main>
+<script>
+  let stock = 10;
+  let reservations = [2,3]; // datos de muestra
+
+  function updateUI(){
+    document.getElementById('stock').textContent = stock.toLocaleString('es-ES');
+    const sum = reservations.reduce((a,b)=>a+b,0);
+    const disponible = stock - sum;
+    document.getElementById('disponible').textContent = disponible.toLocaleString('es-ES');
+    const container = document.getElementById('reservations');
+    container.innerHTML = '';
+    reservations.forEach((qty,idx)=>{
+      const div = document.createElement('div');
+      div.className = 'res';
+      div.dataset.n = qty;
+      div.innerHTML = `<span>Reserva ${idx+1}</span><span>${qty}</span>`;
+      container.appendChild(div);
+    });
+  }
+
+  document.getElementById('reservar').addEventListener('click',()=>{
+    const cantInput = document.getElementById('cant');
+    const qty = parseInt(cantInput.value,10);
+    if(isNaN(qty)||qty<=0){alert('Introduce una cantidad válida.');return;}
+    const sum = reservations.reduce((a,b)=>a+b,0);
+    if(sum + qty > stock){alert('No hay suficiente stock disponible.');return;}
+    reservations.push(qty);
+    cantInput.value='';
+    updateUI();
+  });
+
+  document.getElementById('cancelar').addEventListener('click',()=>{
+    if(reservations.length===0){alert('No hay reservas para cancelar.');return;}
+    reservations.pop();
+    updateUI();
+  });
+
+  document.getElementById('ajustar').addEventListener('click',()=>{
+    const newStockInput = document.getElementById('nuevo-stock');
+    const newStock = parseInt(newStockInput.value,10);
+    if(isNaN(newStock)||newStock<0){alert('Introduce un valor válido.');return;}
+    const sum = reservations.reduce((a,b)=>a+b,0);
+    if(newStock < sum){alert('El nuevo stock no puede ser menor a la cantidad ya reservada.');return;}
+    stock = newStock;
+    newStockInput.value='';
+    updateUI();
+  });
+
+  updateUI();
+</script>
+</body>
+</html>
