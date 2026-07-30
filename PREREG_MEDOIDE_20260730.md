@@ -92,6 +92,74 @@ que la juzga por su propio mecanismo.
   límites, incluida la sonda de buscaminas que la revisión anterior encontró
   ciega (6 de 25 celdas).
 
-## RESULTADO
+## RESULTADO (2026-07-30 ~17:30 — 24/24 ensayos, 0 infra, cero GPU)
 
-*(se rellena después; nada de esto se toca retroactivamente)*
+**GRIS por el criterio pre-registrado. No se adopta.**
+
+| | |
+|---|---|
+| control (s1) | 17/24 |
+| **MEDOIDE** | **21/24** |
+| techo pass@4 | 24/24 |
+| **NETO APAREADO** | **+4** (RESCATA 4 · **ESTROPEA 0**) |
+| rescata | `carrito_stock:r1`, `hoja_calculo:r1`, `hoja_calculo:r3`, `hoja_calculo:r6` |
+| referencia: consenso por MAYORÍA | 19/24 (neto +2), pierde 0 |
+
+El medoide **duplica la ganancia de la mayoría** (+2 → +4) y **sigue sin
+perder nada** (asimetría 4-0, igual que todas las variantes de consenso
+medidas). Eso es exactamente lo que el mecanismo predecía: los 13 ensayos sin
+mayoría dejaban de decidirse, y la centralidad sí decide en ellos.
+
+Pero el umbral de vida era **neto ≥ +5 y superar el p95 del brazo nulo**, y no
+cumple ninguno de los dos:
+
+```
+BRAZO NULO (1000 selectores uniformes, semilla 20260730):
+  media 18.46/24 · p95 = 21/24 · max 23/24
+  P(azar >= medoide) = 0.100     -> NO supera el p95
+```
+
+### El hallazgo del brazo nulo, que vale más que el veredicto
+
+**Elegir una muestra AL AZAR ya da 18.46/24 de media — más que el control
+(17/24).** Con techo 24/24, este banco tiene tantas muestras buenas por ensayo
+que el azar es un rival duro. Consecuencia inmediata y con efecto
+retroactivo:
+
+> **Medir un selector contra el CONTROL sobrestima su mérito.** La referencia
+> honesta es el AZAR, no s1 — porque s1 no es más que otra muestra arbitraria.
+
+Releídas contra esa referencia, las variantes de consenso de esta semana
+cambian de significado:
+
+| variante | resultado | contra el control | **contra el azar (18.46)** |
+|---|---|---|---|
+| consenso por mayoría | 19/24 | "+2, moderada" | **+0.5: ruido** |
+| consenso de contratos V1/V3 | +3 | "moderada" | probablemente ruido también |
+| **medoide** | **21/24** | +4 | **+2.5, percentil 90 — la mejor de todas, y aun así p=0.10** |
+
+**El "+2 moderada" del consenso conductual no era moderada: era
+indistinguible del azar.** El medoide es la única variante que se despega
+visiblemente, y ni así cruza el listón del 5%.
+
+### Lectura honesta
+
+Con n=24 ensayos y 4 enunciados, la diferencia entre +4 y +5 es **una tarea**,
+y el p=0.10 dice que una de cada diez veces el azar iguala este resultado. No
+se adopta nada con eso. Pero el perfil —**mejor variante medida, pierde 0,
+mecanismo confirmado (resuelve justo los ensayos sin mayoría)**— la deja como
+la única candidata viva de la familia si alguna vez hay banco para replicarla.
+
+**Condición para retomarla, pre-registrada ahora:** replicar sobre ≥40 ensayos
+o ≥8 enunciados distintos, con el mismo brazo nulo. Por debajo de eso no hay
+resolución para separar +4 de +2, y volver a medirlo con n=24 sería repetir
+esta misma ambigüedad.
+
+### Nota de instrumentación
+
+Lo que faltaba no era la idea sino **guardar la trayectoria en vez de su
+hash**: el runner original serializaba la firma a `sha1[:12]`, que solo dice
+igual/distinto y hace imposible cualquier noción de distancia. `_firma` ya
+devolvía la trayectoria completa; solo había que no tirarla. Es el segundo
+caso del día del mismo patrón — el otro fue el contrato autogenerado que los
+runners no persistían.
