@@ -1,0 +1,177 @@
+{
+  "_por_que": "CABECERA NUEVA (2026-07-30). El banco duro se saturo: pass@1 92%, 5 de 8 tareas al 100%. Estas 5 tareas suben el liston con un principio distinto: en el banco duro las reglas se COMPONEN (3-5 requisitos que conviven); aqui las reglas SE AFECTAN ENTRE SI, de modo que implementar cada una por separado no basta — hay que implementar su interaccion. Cada contrato esta escrito A MANO y sus checks criticos son consecuencias logicas del enunciado sobre selectores que el propio enunciado declara obligatorios. Criterio de admision pre-registrado en PREREG_CABECERA_NUEVA_20260730.md: entra la tarea cuyo pass@1 con n=4 caiga entre 1/4 y 3/4.",
+  "tareas": [
+    {
+      "id": "editor_undo_buscar",
+      "idea": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input id=\"buscar\">, <input id=\"reemplazo\">, <button id=\"reemplazar\"> y <button id=\"undo\">. El textarea empieza con el texto exacto: gato perro gato loro gato. El boton reemplazar sustituye TODAS las apariciones del texto de #buscar por el de #reemplazo dentro del textarea. REGLA CLAVE: undo deshace el ultimo reemplazo COMPLETO como UNA sola accion (no una aparicion cada vez), dejando el texto tal y como estaba antes de ese reemplazo. Escribir a mano en el textarea tambien cuenta como una accion que undo puede deshacer.",
+      "contrato": {
+        "nombre": "editor: reemplazo masivo y undo atomico",
+        "pasos": [
+          {"accion": "js", "expr": "document.querySelector('#doc').value.trim()==='gato perro gato loro gato'", "esperado": true, "nombre": "el texto inicial es el exacto del enunciado", "critico": true},
+          {"accion": "escribir", "selector": "#buscar", "texto": "gato"},
+          {"accion": "escribir", "selector": "#reemplazo", "texto": "pez"},
+          {"accion": "click", "selector": "#reemplazar"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "TODAS las apariciones: las tres 'gato' pasan a 'pez'. Un reemplazo que solo cambie la primera deja 'pez perro gato loro gato'.",
+           "accion": "js", "expr": "document.querySelector('#doc').value.trim()==='pez perro pez loro pez'", "esperado": true, "nombre": "reemplaza TODAS las apariciones", "critico": true},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "LA REGLA CLAVE: UN undo deshace el reemplazo ENTERO. Un editor que apile un cambio por aparicion dejaria 'pez perro pez loro gato' tras el primer undo.",
+           "accion": "js", "expr": "document.querySelector('#doc').value.trim()==='gato perro gato loro gato'", "esperado": true, "nombre": "un solo undo deshace el reemplazo COMPLETO", "critico": true},
+          {"accion": "escribir", "selector": "#buscar", "texto": "loro"},
+          {"accion": "escribir", "selector": "#reemplazo", "texto": "buho"},
+          {"accion": "click", "selector": "#reemplazar"},
+          {"accion": "esperar", "ms": 400},
+          {"accion": "js", "expr": "document.querySelector('#doc').value.includes('buho')", "esperado": true, "nombre": "el segundo reemplazo se aplica", "critico": true},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "Dos undo deshacen los dos reemplazos y devuelven el documento al texto inicial: la pila tiene que ser de ACCIONES, no de caracteres.",
+           "accion": "js", "expr": "document.querySelector('#doc').value.trim()==='gato perro gato loro gato'", "esperado": true, "nombre": "dos undo vuelven al texto inicial", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "carrito_cupones",
+      "idea": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" data-precio=\"P\"> con precios 30, 40 y 50, cada uno con un <button class=\"add\" data-id=\"pX\">; <span id=\"subtotal\">, <span id=\"envio\">, <span id=\"total\">, <input id=\"cupon\"> y <button id=\"aplicar\">. Al pulsar add se suma ese producto al carrito. El cupon valido es DESCUENTO20 y aplica un 20% de descuento sobre el subtotal; cualquier otro texto no descuenta nada. El envio cuesta 5, PERO es gratis (0) si el importe con el descuento YA APLICADO llega a 60 o mas. El total es el subtotal menos el descuento mas el envio. Todo se recalcula al instante.",
+      "contrato": {
+        "nombre": "carrito: el descuento decide el envio (las reglas se afectan)",
+        "pasos": [
+          {"accion": "click", "selector": "[data-id='p1'].add"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "30 < 60, sin cupon: envio 5, total 35.",
+           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(n('#subtotal')-30)<0.01&&Math.abs(n('#envio')-5)<0.01&&Math.abs(n('#total')-35)<0.01;})()", "esperado": true, "nombre": "30 sin cupon: envio 5, total 35", "critico": true},
+          {"accion": "click", "selector": "[data-id='p2'].add"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "30+40 = 70 >= 60 sin cupon: el envio pasa a gratis y el total es 70.",
+           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(n('#subtotal')-70)<0.01&&Math.abs(n('#envio'))<0.01&&Math.abs(n('#total')-70)<0.01;})()", "esperado": true, "nombre": "70 sin cupon: envio gratis, total 70", "critico": true},
+          {"accion": "escribir", "selector": "#cupon", "texto": "DESCUENTO20"},
+          {"accion": "click", "selector": "#aplicar"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "EL CASO QUE SEPARA LAS DOS IMPLEMENTACIONES: 70 con 20% queda en 56, que YA NO llega a 60, asi que el envio VUELVE a costar 5 y el total es 61. Un producto que evalue el umbral sobre el subtotal SIN descontar dejaria el envio gratis y daria 56. Es la interaccion que el enunciado exige y el unico paso que la comprueba.",
+           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(n('#envio')-5)<0.01&&Math.abs(n('#total')-61)<0.01;})()", "esperado": true, "nombre": "el descuento hace PERDER el envio gratis: 61, no 56", "critico": true},
+          {"accion": "click", "selector": "[data-id='p3'].add"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "30+40+50 = 120; con el 20% queda en 96, que vuelve a superar el umbral: el envio es gratis otra vez y el total 96. Comprueba que el umbral se re-evalua en los dos sentidos.",
+           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(n('#subtotal')-120)<0.01&&Math.abs(n('#envio'))<0.01&&Math.abs(n('#total')-96)<0.01;})()", "esperado": true, "nombre": "120 con cupon: 96 y el envio vuelve a ser gratis", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "calendario_conflictos",
+      "idea": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos.",
+      "contrato": {
+        "nombre": "agenda: solapamiento, borde que toca y rechazo",
+        "pasos": [
+          {"accion": "contar", "selector": ".ev", "esperado": 0, "nombre": "empieza sin eventos", "critico": true},
+          {"accion": "escribir", "selector": "#desde", "texto": "9"},
+          {"accion": "escribir", "selector": "#hasta", "texto": "11"},
+          {"accion": "click", "selector": "#crear"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "contar", "selector": ".ev", "esperado": 1, "nombre": "el primer evento se crea", "critico": true},
+          {"accion": "escribir", "selector": "#desde", "texto": "10"},
+          {"accion": "escribir", "selector": "#hasta", "texto": "12"},
+          {"accion": "click", "selector": "#crear"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "10-12 se solapa con 9-11: NO se anade y el aviso lo dice.",
+           "accion": "contar", "selector": ".ev", "esperado": 1, "nombre": "el evento solapado NO se anade", "critico": true},
+          {"accion": "texto", "selector": "#aviso", "contiene": "conflicto", "nombre": "el aviso anuncia el conflicto", "critico": true},
+          {"accion": "escribir", "selector": "#desde", "texto": "11"},
+          {"accion": "escribir", "selector": "#hasta", "texto": "13"},
+          {"accion": "click", "selector": "#crear"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "EL BORDE QUE SEPARA: 11-13 empieza justo cuando acaba 9-11. El enunciado dice que tocarse NO es solaparse, asi que este SI se crea. Un producto con la comparacion >= en vez de > lo rechaza.",
+           "accion": "contar", "selector": ".ev", "esperado": 2, "nombre": "tocarse en el extremo NO es solapar", "critico": true},
+          {"accion": "escribir", "selector": "#desde", "texto": "15"},
+          {"accion": "escribir", "selector": "#hasta", "texto": "14"},
+          {"accion": "click", "selector": "#crear"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "desde >= hasta es invalido: tampoco se anade.",
+           "accion": "contar", "selector": ".ev", "esperado": 2, "nombre": "un rango invertido no se anade", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "parser_parentesis",
+      "idea": "Una calculadora con PARENTESIS en un solo archivo HTML. OBLIGATORIO: <div id=\"pantalla\"> y botones con class=\"k\" y data-k con su valor: data-k=\"1\", data-k=\"2\", data-k=\"3\", data-k=\"4\", data-k=\"6\", data-k=\"+\", data-k=\"-\", data-k=\"*\", data-k=\"(\", data-k=\")\", data-k=\"=\" y data-k=\"C\". Respeta la precedencia (la multiplicacion antes que la suma) Y los parentesis, que pueden ir ANIDADOS. Ejemplos que deben cumplirse: (1+2)*3 = 9, y 2*(3+(4-1)) = 12. C limpia la pantalla.",
+      "contrato": {
+        "nombre": "parser: parentesis simples, anidados y precedencia",
+        "pasos": [
+          {"accion": "click", "selector": "[data-k='(']"},
+          {"accion": "click", "selector": "[data-k='1']"},
+          {"accion": "click", "selector": "[data-k='+']"},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k=')']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='3']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "(1+2)*3 = 9. Sin parentesis, la precedencia daria 1+6 = 7.",
+           "accion": "js", "expr": "/(^|[^0-9])9([^0-9]|$)/.test(document.querySelector('#pantalla').innerText)", "esperado": true, "nombre": "(1+2)*3 = 9", "critico": true},
+          {"accion": "click", "selector": "[data-k='C']"},
+          {"accion": "esperar", "ms": 200},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='(']"},
+          {"accion": "click", "selector": "[data-k='3']"},
+          {"accion": "click", "selector": "[data-k='+']"},
+          {"accion": "click", "selector": "[data-k='(']"},
+          {"accion": "click", "selector": "[data-k='4']"},
+          {"accion": "click", "selector": "[data-k='-']"},
+          {"accion": "click", "selector": "[data-k='1']"},
+          {"accion": "click", "selector": "[data-k=')']"},
+          {"accion": "click", "selector": "[data-k=')']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "ANIDADOS: 2*(3+(4-1)) = 2*6 = 12. Un parser que solo maneje un nivel de parentesis falla aqui.",
+           "accion": "js", "expr": "/(^|[^0-9])12([^0-9]|$)/.test(document.querySelector('#pantalla').innerText)", "esperado": true, "nombre": "2*(3+(4-1)) = 12 (anidados)", "critico": true},
+          {"accion": "click", "selector": "[data-k='C']"},
+          {"accion": "esperar", "ms": 200},
+          {"accion": "click", "selector": "[data-k='6']"},
+          {"accion": "click", "selector": "[data-k='-']"},
+          {"accion": "click", "selector": "[data-k='(']"},
+          {"accion": "click", "selector": "[data-k='1']"},
+          {"accion": "click", "selector": "[data-k='+']"},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k=')']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "6-(1+2) = 3. Comprueba que el parentesis a la derecha de una RESTA se evalua antes (no 6-1+2 = 7).",
+           "accion": "js", "expr": "/(^|[^0-9])3([^0-9]|$)/.test(document.querySelector('#pantalla').innerText)", "esperado": true, "nombre": "6-(1+2) = 3, no 7", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "ascensor",
+      "idea": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span id=\"dir\"> con el sentido actual (el texto sube, baja o parado), botones de llamada <button class=\"call\" data-p=\"N\"> para los pisos 0 a 5, y <button id=\"paso\"> que avanza la simulacion UN piso por pulsacion. El ascensor sirve las llamadas en el sentido en el que va: si esta subiendo, atiende primero las llamadas de pisos por encima en orden ascendente, y solo cuando no queda ninguna por encima cambia de sentido. Una llamada al piso donde ya esta se atiende al momento. Expone el estado en window.asc = {piso, dir, pendientes}.",
+      "contrato": {
+        "nombre": "ascensor: sirve por SENTIDO, no por orden de llamada",
+        "pasos": [
+          {"accion": "js", "expr": "document.querySelector('#piso').innerText.trim()==='0'", "esperado": true, "nombre": "empieza en el piso 0", "critico": true},
+          {"accion": "js", "expr": "typeof window.asc==='object' && window.asc!==null", "esperado": true, "nombre": "expone window.asc", "critico": true},
+          {"accion": "click", "selector": "[data-p='4'].call"},
+          {"accion": "click", "selector": "[data-p='2'].call"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "click", "selector": "#paso"},
+          {"accion": "click", "selector": "#paso"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "LA REGLA: se llamo primero al 4 y luego al 2, pero subiendo desde 0 el ascensor pasa por el 2 ANTES. Tras dos pasos tiene que estar en el 2, no camino del 4 saltandoselo. Un ascensor FIFO estaria en el 2 tambien de paso, pero el paso siguiente lo separa.",
+           "accion": "js", "expr": "parseInt(document.querySelector('#piso').innerText,10)===2", "esperado": true, "nombre": "dos pasos lo llevan al piso 2", "critico": true},
+          {"accion": "js", "expr": "/sube/i.test(document.querySelector('#dir').innerText)", "esperado": true, "nombre": "sigue subiendo", "critico": true},
+          {"accion": "click", "selector": "#paso"},
+          {"accion": "click", "selector": "#paso"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "Sirvio el 2 y sigue SUBIENDO hacia el 4: dos pasos mas y esta en el 4. Un ascensor que tras servir el 2 volviera a por la llamada mas antigua no llegaria.",
+           "accion": "js", "expr": "parseInt(document.querySelector('#piso').innerText,10)===4", "esperado": true, "nombre": "continua hasta el 4 en el mismo sentido", "critico": true},
+          {"accion": "js", "expr": "(window.asc.pendientes && window.asc.pendientes.length===0)||/parado/i.test(document.querySelector('#dir').innerText)", "esperado": true, "nombre": "sin llamadas pendientes queda parado", "critico": true},
+          {"accion": "click", "selector": "[data-p='1'].call"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "click", "selector": "#paso"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "Desde el 4, una llamada al 1 obliga a BAJAR: tras un paso esta en el 3.",
+           "accion": "js", "expr": "parseInt(document.querySelector('#piso').innerText,10)===3 && /baja/i.test(document.querySelector('#dir').innerText)", "esperado": true, "nombre": "cambia de sentido y baja hacia el 1", "critico": true}
+        ]
+      }
+    }
+  ]
+}

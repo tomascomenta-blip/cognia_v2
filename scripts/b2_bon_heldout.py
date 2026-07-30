@@ -41,6 +41,9 @@ BANCOS = {
     "brutal": ("b1_tareas_brutales.json", "b1_contratos_heldout.json"),
     "facil": ("b1_tareas.json", "b1_contratos_heldout_facil.json"),
     "duro": ("b1_tareas_duras.json", "b1_contratos_heldout_duras.json"),
+    # cabecera nueva: se CALIBRA (pass@1 por tarea) antes de usarse para
+    # medir progreso — PREREG_CABECERA_NUEVA_20260730.md
+    "cabecera": ("b1_tareas_cabecera.json", "b1_contratos_heldout_cabecera.json"),
 }
 
 
