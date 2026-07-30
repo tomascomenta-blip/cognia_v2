@@ -84,12 +84,34 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("json", help="salida del instrumento (calib_v2.json)")
     ap.add_argument("--umbrales", default="0.34,0.5,0.67,0.84,1.0")
+    ap.add_argument("--gt-duro", action="store_true",
+                    help="usa validacion_heldout_v2.json como ground truth "
+                         "(OBLIGATORIO para el banco duro: su resultados.json "
+                         "tiene estricto=false en las 32 de r1 porque el "
+                         "held-out no corrio en linea)")
     args = ap.parse_args(argv)
 
     p = Path(args.json)
     if not p.is_absolute():
         p = GENERADOS / "b2_metamorfico" / args.json
     filas = json.loads(p.read_text(encoding="utf-8"))["filas"]
+
+    if args.gt_duro:
+        gt = {}
+        for f in json.loads((GENERADOS / "validacion_heldout_v2.json")
+                            .read_text(encoding="utf-8"))["filas"]:
+            gt[(f["corpus"], f["pagina"])] = bool(f["orig"] and f["v1"] and f["v2"])
+        vivas = []
+        for f in filas:
+            partes = Path(f["html"]).parts
+            clave = (partes[-3], partes[-2])
+            if clave not in gt:
+                continue
+            f["estricto"] = gt[clave]
+            vivas.append(f)
+        print(f"[gt-duro] {len(vivas)}/{len(filas)} paginas cruzadas con el "
+              f"juez triple\n")
+        filas = vivas
 
     print(f"corpus: {p}   n={len(filas)}")
     gts = [f.get("estricto") if f.get("estricto") is not None

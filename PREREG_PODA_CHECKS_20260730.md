@@ -126,6 +126,97 @@ estricta donde el crudo no (RESCATA) y cuántas al revés (ESTROPEA).
   los inventos"**: se leerá como "se podaron los checks que ninguna página
   sana pasa", que es lo que literalmente hace.
 
-## RESULTADO
+## RESULTADO (2026-07-30 ~17:45) — KILL **antes de correr**, con brazo nulo
 
-*(se rellena después; nada de esto se toca retroactivamente)*
+La revisión adversarial no se limitó a señalar el fallo: **ejecutó el
+experimento** sobre la única matriz check×muestra que existe en el repo. Yo
+lo reproduje después de forma independiente y **los cuatro números salen
+idénticos**. La vía se mata sin gastar la corrida.
+
+### 1. La poda es MONÓTONA por construcción — el umbral primario era falso
+
+El veredicto es un AND sobre los checks críticos, así que **quitar checks
+nunca puede convertir un APROBADO en REPROBADO**: los aprobados del PODADO
+contienen siempre a los del CRUDO. Por tanto ACUSA_SANOS **solo puede bajar**
+y DEJA_PASAR **solo puede subir**, con probabilidad 1, exista o no señal.
+
+Mi umbral "ACUSA_SANOS baja ≥15 pts" no medía si la poda **acierta**: medía
+**cuánto poda**. Es el mismo error de diseño que la revisión de la mañana ya
+me había cazado en otro sitio, cometido otra vez con otra cara.
+
+| brazo | ACUSA_SANOS | DEJA_PASAR | **Youden J** |
+|---|---|---|---|
+| CRUDO | 81.9 | 6.5 | **11.7** |
+| PODADO (270/702 checks, 38%) | 11.9 | 80.6 | **7.4** |
+| delta | **−69.9** | **+74.2** | **−4.2** |
+
+Cruzaba mi umbral con margen de 4.7× **mientras destruía la capacidad de
+distinguir sanas de rotas**.
+
+### 2. Brazo nulo: la poda dirigida es PEOR que podar al azar
+
+Podando por contrato el **mismo número** de checks, elegidos uniformemente al
+azar (1000 réplicas, semilla 20260730):
+
+```
+NULO  J media 8.6  [p5=2.9  p95=14.6]
+REAL  J = 7.4      -> percentil 34 del azar
+```
+
+**La regla de "falla en todas las muestras" cae por debajo de la mediana del
+azar.** No compra discriminación; compra agresividad — poda justo los checks
+que fallaban, que es lo que sube la aprobación sin informar de nada.
+
+*Honestidad sobre lo que el nulo NO dice:* el azar no cruza trivialmente mi
+umbral de 15 pts (P=0.004). El problema no es que el umbral sea fácil, es que
+**no distingue la regla del azar en lo único que importa**.
+
+### 3. La matriz que el prereg daba por hecha NO EXISTE
+
+`0 de 255` votos tienen `s_contrato == s_muestra`. Lo que hay en disco es la
+matriz **cruzada** (contrato de una muestra evaluado sobre sus hermanas); la
+**diagonal** —el contrato juzgando SU PROPIA página, que es la configuración
+que el sistema vivo ejecuta— no está registrada por ningún runner. Las 94
+carpetas de `b2_bon_heldout` contienen **solo `index.html`**: el contrato
+autogenerado nunca se persiste, solo su veredicto agregado.
+
+Mi frase "cero GPU: todo lo que hace falta ya está en disco" era **falsa para
+el caso primario**. Escrita sin comprobarla.
+
+### 4. Y el hallazgo que más vale: el CRUDO no es un clasificador
+
+Sobre la diagonal real (vía `sello_lazo`, que sí es el contrato autogenerado
+juzgando su propia página):
+
+| | |
+|---|---|
+| sanas aprobadas | 6/56 = **10.7%** |
+| rotas aprobadas | 2/17 = **11.8%** |
+| | **ACUSA_SANOS 89.3 · DEJA_PASAR 11.8 · Youden J = −1.1** |
+
+**Aprueba sanas y rotas exactamente en la misma proporción.** No está "al
+nivel del azar" como decía la memoria: está **en el azar exacto**, con J
+negativo. Y eso invalida todo el diseño de raíz — mover un clasificador de
+J≈0 a lo largo del eje aprobar/reprobar produce **cualquier** par
+(ACUSA_SANOS, DEJA_PASAR) que se quiera sin ganar un gramo de información.
+Bajarle ACUSA_SANOS al CRUDO es gratis y no significa nada.
+
+### Veredicto
+
+**KILL de la poda por fallo unánime.** Y el KILL es más profundo que la
+técnica: **no se puede mejorar por post-proceso un examen cuyo J es 0.** La
+poda, el consenso de votos y cualquier otra reponderación de los mismos
+checks reparten el mismo cero. Con un instrumento sin información, lo único
+que se elige es en qué dirección equivocarse.
+
+### Deuda de instrumentación que sí se salda (coste cero, valor alto)
+
+`b2_bon_heldout.py` (y todos los runners) escriben `index.html` y tiran el
+contrato autogenerado. Persistirlo **no cuesta nada** y habría permitido
+medir la diagonal sin esta corrida. Se parchea ahora, no "algún día":
+cualquier vía futura sobre el contrato interno lo va a necesitar.
+
+*Lo que esta vía deja escrito para la próxima:* la métrica primaria de un
+examen es **Youden J (o balanced accuracy) apareado**, nunca una tasa sola —
+porque toda transformación que solo relaja o solo endurece mueve las dos
+tasas a la vez y cruza cualquier umbral de una sola.

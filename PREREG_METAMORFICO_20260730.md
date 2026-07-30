@@ -497,6 +497,101 @@ por léxico, y de esas solo sobrevive R1 podada.
 firma ningún FP/FN: se declara que la vía no es medible con este banco.** Eso
 también es un resultado, y es el que el revisor anticipa.
 
-## RESULTADO
+## RESULTADO (2026-07-30 ~17:30 — 158 páginas, 0 infra, cero GPU)
 
-*(se rellena después; nada de esto se toca retroactivamente)*
+### KILL, y disparado en el lado donde yo tenía permiso para ajustar
+
+| corpus | ACUSA_SANOS | DEJA_PASAR | NO_CONCLUYENTE |
+|---|---|---|---|
+| **CALIBRACIÓN** (brutal, 94 pág., 72/22) — umbral R0 0.34-0.50 | **43.1%** (31/72) | 36.4% (8/22) | 0 |
+| **CALIBRACIÓN** — umbral R0 0.67-1.00 | **18.1%** (13/72) | **50.0%** (11/22) | 0 |
+| MEDICIÓN duro r1 (32 pág., 29/3) | **31.6%** (6/19) | 66.7% (2/3) | 10 |
+| MEDICIÓN duro r2 (32 pág., 30/2) | **28.6%** (6/21) | 0.0% (0/1) | 10 |
+
+Umbrales pre-registrados: VIVE con ACUSA_SANOS ≤15% **y** DEJA_PASAR ≤20%;
+KILL con ACUSA_SANOS >15% **o** DEJA_PASAR >40%.
+
+**Ningún umbral de R0 cruza los dos listones, en ningún corpus.** Con umbral
+bajo se dispara ACUSA_SANOS (43%); con umbral alto se dispara DEJA_PASAR
+(50%). El KILL se cumple por ambos lados a la vez, y **ni siquiera en el lado
+de calibración** —donde el prereg me permitía retirar relaciones y mover el
+umbral— hay una configuración que sobreviva. No hubo nada que congelar.
+
+### El número que manda, y que la revisión pidió publicar sí o sí
+
+```
+pares inversos instanciados: 0 en 94 páginas del brutal
+                             0 en 64 páginas del duro
+                             -------------------------
+                             0 en 158 páginas congeladas
+```
+
+**R1 (inversa), R3 (reset) y R4 (determinismo) no se instanciaron NI UNA VEZ.**
+Sin R0, las 158 páginas salen NO_CONCLUYENTE. Y 20 de las 64 del duro (31%)
+no tienen ni un control descubrible.
+
+O sea: el catálogo metamórfico se redujo, en la práctica, **a una sola
+relación** — R0, "¿responde algún control?".
+
+### El mecanismo, que vale más que el veredicto
+
+**Para saber qué acción deshace a cuál hay que leer el enunciado.** El
+descubridor puede encontrar los controles (eso se arregló: `cursor:pointer`
+llevó las páginas de 4/4 NO_CONCLUYENTE a instanciar), pero **emparejarlos
+como inversos exige semántica**, y ahí solo caben dos caminos y los dos están
+cerrados:
+
+- **por LÉXICO** — cobertura 0 en 158 páginas. Y donde el léxico sin podar sí
+  encontraba par (19/100, medido por la revisión), eran **calculadoras donde
+  `+` y `−` no son inversas sino teclas que se concatenan** (`expr += val`).
+  Correrlo así habría dado ACUSA_SANOS ≈100% y habría firmado un KILL de *la
+  idea metamórfica* cuando lo que moría era *el descubridor*.
+- **por EFECTO MEDIDO** (probar qué botón deshace a cuál) — es **circular**:
+  si el par se define como "el que devuelve el estado inicial", R1 no puede
+  fallar nunca. Queda descartado por construcción, no por medición.
+
+Y lo único que quedó instanciable, R0, **no es señal nueva**: `_JS_HUELLA` +
+el check `interactivo` (clicar y ver si la huella cambia) ya forman parte del
+juez que produjo el ground truth. Su DEJA_PASAR de 50% dice exactamente qué
+es capaz de ver: **detecta páginas MUERTAS, no páginas INCORRECTAS.**
+
+### La conclusión general, con su alcance declarado
+
+> **Una verificación que no lee la especificación puede detectar
+> INACTIVIDAD, pero no INCORRECCIÓN.**
+
+Eso explica de una sola vez el patrón de las ocho vías: el contrato ciego, el
+consenso de contratos, la ejecución en el bucle, el consenso conductual y
+ahora el metamórfico **fallan todas en el mismo sitio**, y no por falta de
+ingenio en la implementación — les falta la información que dice qué debería
+pasar. La diferencia entre "la página hace algo" y "la página hace **lo
+correcto**" vive en el enunciado, y ningún instrumento que se niegue a leerlo
+la puede cruzar.
+
+*Alcance:* está medido sobre tareas web verificables por ejecución, con este
+catálogo de cuatro relaciones y este descubridor. No demuestra que ninguna
+relación metamórfica sirva en ningún dominio — el testing metamórfico funciona
+en dominios (compiladores, ML, motores de búsqueda) donde la relación viene
+dada por la MATEMÁTICA del problema y no hay que descubrirla del DOM. Lo que
+esta medición cierra es la vía *genérica y auto-descubierta* en este dominio.
+
+### Lo que NO se hizo, y por qué
+
+**FASE 2 no se corre.** Estaba condicionada a que la FASE 1 no muriera, y
+murió. Además habría sido inútil por construcción: con 0 relaciones en 10 de
+32 páginas por corrida y una sola relación en el resto, el selector se habría
+abstenido en la mayoría de tareas. El brazo nulo aleatorio queda implementado
+en `scripts/b2_metamorfico_selector.py` para quien lo necesite.
+
+### Coste y honestidad del gasto
+
+158 páginas juzgadas, **0 infra, 0 GPU**, ~50 min de CPU. El instrumento
+(`b2_metamorfico.py`), el analizador y el selector con brazo nulo quedan en el
+repo: si aparece un banco con pares inversos declarados por enunciado, la
+medición se repite cambiando una ruta.
+
+**Fe de erratas del camino:** el primer humo dio 4/4 NO_CONCLUYENTE y estuve a
+punto de leerlo como "las páginas no son interactivas". Era mi descubridor,
+que buscaba `<button>` en un `buscaminas` que pinta sus celdas como `<div>`.
+Dos arreglos después el instrumento veía los controles — y el resultado
+siguió siendo KILL, pero por una razón distinta y correcta.

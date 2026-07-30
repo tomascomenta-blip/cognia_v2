@@ -1,0 +1,96 @@
+[
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s1\\index.html",
+  "estado": "NO_CONCLUYENTE",
+  "violaciones": [],
+  "relaciones_instanciadas": 0,
+  "relaciones_ok": 0,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 4.6,
+  "detalle_acciones": {
+   "n_accionables": 0,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".c",
+    "li",
+    "td",
+    "tr"
+   ]
+  }
+ },
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s2\\index.html",
+  "estado": "NO_CONCLUYENTE",
+  "violaciones": [],
+  "relaciones_instanciadas": 0,
+  "relaciones_ok": 0,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 3.3,
+  "detalle_acciones": {
+   "n_accionables": 0,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".c",
+    "li",
+    "td",
+    "tr"
+   ]
+  }
+ },
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s1\\index.html",
+  "estado": "NO_CONCLUYENTE",
+  "violaciones": [],
+  "relaciones_instanciadas": 0,
+  "relaciones_ok": 0,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 3.3,
+  "detalle_acciones": {
+   "n_accionables": 3,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".add",
+    ".prod",
+    "li",
+    "td",
+    "tr"
+   ]
+  }
+ },
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s2\\index.html",
+  "estado": "NO_CONCLUYENTE",
+  "violaciones": [],
+  "relaciones_instanciadas": 0,
+  "relaciones_ok": 0,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 3.3,
+  "detalle_acciones": {
+   "n_accionables": 3,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".add",
+    ".prod",
+    "li",
+    "td",
+    "tr"
+   ]
+  }
+ }
+]

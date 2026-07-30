@@ -92,8 +92,16 @@ def correr_sistema(idea: str, destino: Path, *, candidatos: int = 1,
         # Meta del lazo para la salida: sello interno, rondas y BoN. Permite
         # atribuir el resultado (¿lo salvo el BoN? ¿remato una ronda extra?)
         # sin re-leer logs.
+        # El CONTRATO AUTOGENERADO viaja en la meta (2026-07-30). Hasta hoy se
+        # tiraba: los runners escribian index.html y solo el veredicto
+        # agregado, asi que la DIAGONAL —el contrato juzgando SU PROPIA
+        # pagina, que es la configuracion que el sistema vivo ejecuta— no
+        # estaba registrada en ningun sitio (0 de 255 votos en b2_consenso2).
+        # Persistirlo cuesta cero y es lo que cualquier via sobre el contrato
+        # interno necesita. PREREG_PODA_CHECKS_20260730.
         meta = {"rondas": res.rondas, "sello_lazo": res.sello,
-                "motivo_corte": res.motivo_corte, "bon": res.bon}
+                "motivo_corte": res.motivo_corte, "bon": res.bon,
+                "contrato": res.contrato}
         if html:
             return (html, time.time() - t0,
                     f"diseno_a_codigo ({res.rondas} rondas, "

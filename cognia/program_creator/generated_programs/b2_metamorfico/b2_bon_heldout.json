@@ -1,0 +1,1526 @@
+{
+ "corpus": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout",
+ "filas": [
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s1\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 1,
+   "s": 1,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s1\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.7,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s2\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 1,
+   "s": 2,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s2\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s3\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 1,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s3\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".precio",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s4\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 1,
+   "s": 4,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s4\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".precio",
+      ".prod",
+      ".stock",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s1\\index.html",
+   "tarea": "kanban",
+   "rep": 1,
+   "s": 1,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s1\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['◀', '◀', '◀']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".card",
+      ".col",
+      ".counter",
+      ".mas",
+      ".menos",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s2\\index.html",
+   "tarea": "kanban",
+   "rep": 1,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s2\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['←', '←', '←']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".btns",
+      ".card",
+      ".cards",
+      ".col",
+      ".mas",
+      ".menos",
+      "li",
+      "td"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s3\\index.html",
+   "tarea": "kanban",
+   "rep": 1,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s3\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['←', '←', '←']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".card",
+      ".cards",
+      ".col",
+      ".counter",
+      ".id",
+      ".mas",
+      ".menos",
+      "li"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s4\\index.html",
+   "tarea": "kanban",
+   "rep": 1,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s4\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['-', '-', '-']"
+     },
+     {
+      "relacion": "R1[mas/menos]",
+      "detalle": "A seguido de su inversa NO devuelve el estado inicial"
+     },
+     {
+      "relacion": "R1[mas/menos]",
+      "detalle": "A seguido de su inversa NO devuelve el estado inicial"
+     }
+    ],
+    "relaciones_instanciadas": 5,
+    "relaciones_ok": 2,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 28.6,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [
+      {
+       "directo": 0,
+       "inverso": 1,
+       "nombre": "mas/menos"
+      },
+      {
+       "directo": 2,
+       "inverso": 3,
+       "nombre": "mas/menos"
+      },
+      {
+       "directo": 4,
+       "inverso": 5,
+       "nombre": "mas/menos"
+      }
+     ],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".buttons",
+      ".card",
+      ".col",
+      ".mas",
+      ".menos",
+      ".title",
+      "li",
+      "td"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s1\\index.html",
+   "tarea": "buscaminas",
+   "rep": 1,
+   "s": 1,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s1\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s2\\index.html",
+   "tarea": "buscaminas",
+   "rep": 1,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s2\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s3\\index.html",
+   "tarea": "buscaminas",
+   "rep": 1,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s3\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s1\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 1,
+   "s": 1,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s1\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s2\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 1,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s2\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', '1', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s3\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 1,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s3\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s4\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 1,
+   "s": 4,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s4\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s1\\index.html",
+   "tarea": "kanban",
+   "rep": 2,
+   "s": 1,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s1\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['←', '←', '←']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".card",
+      ".col",
+      ".mas",
+      ".menos",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s2\\index.html",
+   "tarea": "kanban",
+   "rep": 2,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s2\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['←', '←', '←']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".card",
+      ".col",
+      ".mas",
+      ".menos",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s3\\index.html",
+   "tarea": "kanban",
+   "rep": 2,
+   "s": 3,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s3\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['←', '←', '←']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".card",
+      ".col",
+      ".mas",
+      ".menos",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s4\\index.html",
+   "tarea": "kanban",
+   "rep": 2,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r2__s4\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['←', '←', '←']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 6,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".card",
+      ".cards",
+      ".col",
+      ".mas",
+      ".menos",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s1\\index.html",
+   "tarea": "buscaminas",
+   "rep": 2,
+   "s": 1,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s1\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s2\\index.html",
+   "tarea": "buscaminas",
+   "rep": 2,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s2\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s3\\index.html",
+   "tarea": "buscaminas",
+   "rep": 2,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s3\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s4\\index.html",
+   "tarea": "buscaminas",
+   "rep": 2,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r2__s4\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s1\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 2,
+   "s": 1,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s1\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s2\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 2,
+   "s": 2,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s2\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s3\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 2,
+   "s": 3,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s3\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['5', '3', '2', '1,00', '2,00', '3,00']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      ".formula",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s4\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 2,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r2__s4\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['10', '20', '30', '11', '5', '12']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r2__s1\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 2,
+   "s": 1,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r2__s1\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".name",
+      ".price",
+      ".prod",
+      ".stock",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r2__s2\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 2,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r2__s2\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".img",
+      ".precio",
+      ".price",
+      ".prod",
+      ".stock",
+      ".title",
+      "li"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r2__s4\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 2,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r2__s4\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s1\\index.html",
+   "tarea": "buscaminas",
+   "rep": 3,
+   "s": 1,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s1\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s2\\index.html",
+   "tarea": "buscaminas",
+   "rep": 3,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s2\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s3\\index.html",
+   "tarea": "buscaminas",
+   "rep": 3,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s3\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s4\\index.html",
+   "tarea": "buscaminas",
+   "rep": 3,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r3__s4\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 25,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".c",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s1\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 3,
+   "s": 1,
+   "estricto": false,
+   "aprobado_orig": false,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s1\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['10', '20', '30,00', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.3,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s2\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 3,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s2\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['10', '20', '0', '0', '0', '0']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s3\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 3,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s3\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      ".cell",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s4\\index.html",
+   "tarea": "hoja_calculo",
+   "rep": 3,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r3__s4\\index.html",
+    "estado": "REPROBADO",
+    "violaciones": [
+     {
+      "relacion": "R0[actividad]",
+      "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+     }
+    ],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 0,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 16.2,
+    "detalle_acciones": {
+     "n_accionables": 9,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".celda",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 6
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s1\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 3,
+   "s": 1,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s1\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s2\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 3,
+   "s": 2,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s2\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".name",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s3\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 3,
+   "s": 3,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s3\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.8,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".precio",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  },
+  {
+   "html": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s4\\index.html",
+   "tarea": "carrito_stock",
+   "rep": 3,
+   "s": 4,
+   "estricto": true,
+   "aprobado_orig": true,
+   "meta": {
+    "pagina": "C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r3__s4\\index.html",
+    "estado": "APROBADO",
+    "violaciones": [],
+    "relaciones_instanciadas": 1,
+    "relaciones_ok": 1,
+    "animada": false,
+    "motivo_infra": "",
+    "segundos": 9.7,
+    "detalle_acciones": {
+     "n_accionables": 3,
+     "pares": [],
+     "resets": [],
+     "observar": [
+      "input,textarea,select",
+      "[id]",
+      ".add",
+      ".prod",
+      "li",
+      "td",
+      "tr"
+     ],
+     "controles_probados_r0": 3
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,113 @@
+[
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\buscaminas__r1__s1\\index.html",
+  "estado": "APROBADO",
+  "violaciones": [],
+  "relaciones_instanciadas": 1,
+  "relaciones_ok": 1,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 16.2,
+  "detalle_acciones": {
+   "n_accionables": 25,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".c",
+    "li",
+    "td",
+    "tr"
+   ],
+   "controles_probados_r0": 6
+  }
+ },
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\carrito_stock__r1__s1\\index.html",
+  "estado": "APROBADO",
+  "violaciones": [],
+  "relaciones_instanciadas": 1,
+  "relaciones_ok": 1,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 9.8,
+  "detalle_acciones": {
+   "n_accionables": 3,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".add",
+    ".prod",
+    "li",
+    "td",
+    "tr"
+   ],
+   "controles_probados_r0": 3
+  }
+ },
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\hoja_calculo__r1__s1\\index.html",
+  "estado": "REPROBADO",
+  "violaciones": [
+   {
+    "relacion": "R0[actividad]",
+    "detalle": "6/6 controles habilitados no producen ningun cambio observable: ['celda', 'celda', 'celda', 'celda', 'celda', 'celda']"
+   }
+  ],
+  "relaciones_instanciadas": 1,
+  "relaciones_ok": 0,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 16.3,
+  "detalle_acciones": {
+   "n_accionables": 9,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".celda",
+    "li",
+    "td",
+    "tr"
+   ],
+   "controles_probados_r0": 6
+  }
+ },
+ {
+  "pagina": "cognia\\program_creator\\generated_programs\\b2_bon_heldout\\kanban__r1__s1\\index.html",
+  "estado": "REPROBADO",
+  "violaciones": [
+   {
+    "relacion": "R0[actividad]",
+    "detalle": "3/6 controles habilitados no producen ningun cambio observable: ['◀', '◀', '◀']"
+   }
+  ],
+  "relaciones_instanciadas": 1,
+  "relaciones_ok": 0,
+  "animada": false,
+  "motivo_infra": "",
+  "segundos": 16.3,
+  "detalle_acciones": {
+   "n_accionables": 6,
+   "pares": [],
+   "resets": [],
+   "observar": [
+    "input,textarea,select",
+    "[id]",
+    ".card",
+    ".col",
+    ".counter",
+    ".mas",
+    ".menos",
+    "li",
+    "td",
+    "tr"
+   ],
+   "controles_probados_r0": 6
+  }
+ }
+]

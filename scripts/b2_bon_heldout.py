@@ -243,6 +243,15 @@ def main(argv: list) -> int:
                 m = {"tarea": t["id"], "rep": rep, "s": s,
                      "segundos": round(segs, 1), "como": como[:90],
                      "backend": backend_activo.ultimo(), **meta}
+                # El contrato autogenerado se guarda APARTE (no dentro de
+                # resultados.json, que se inflaria): sin el no se puede medir
+                # la diagonal contrato-juzga-su-propia-pagina. Ver
+                # PREREG_PODA_CHECKS_20260730, deuda de instrumentacion.
+                contrato_interno = m.pop("contrato", None)
+                if contrato_interno:
+                    (d / "contrato_interno.json").write_text(
+                        json.dumps(contrato_interno, ensure_ascii=False,
+                                   indent=1), encoding="utf-8")
                 if not html:
                     m.update(aprobado=False, motivo="sin HTML")
                 else:
@@ -258,7 +267,13 @@ def main(argv: list) -> int:
                                             d / "index.html", t["contrato"])
                         m.update(aprobado=v.aprobado, motivo=v.motivo[:100],
                                  checks_ok=sum(1 for c in v.checks if c.ok),
-                                 checks=len(v.checks))
+                                 checks=len(v.checks),
+                                 # detalle POR CHECK: es lo que permite medir
+                                 # un examen con Youden J en vez de con una
+                                 # tasa suelta, y no costaba nada guardarlo
+                                 detalle_checks=[
+                                     {"n": c.nombre, "ok": c.ok,
+                                      "critico": c.critico} for c in v.checks])
                     except Exception as exc:
                         m.update(aprobado=False,
                                  motivo=f"juez crasheo: {exc}"[:100])
