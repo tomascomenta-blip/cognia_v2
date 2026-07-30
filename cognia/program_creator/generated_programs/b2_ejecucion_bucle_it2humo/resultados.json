@@ -1,0 +1,5071 @@
+{
+  "filas": [
+    {
+      "tarea": "buscaminas",
+      "pagina": "buscaminas__crudo__r2",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"ver estado inicial sin celdas abiertas\",\"acciones\":[],\"observar\":[\".c\"]},{\"nombre\":\"click en celda 0 (sin minas adyacentes) abre cascada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":0}],\"observar\":[\".c\"]},{\"nombre\":\"click derecho en celda 6 (mina) muestra 'perdiste'\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6,\"veces\":1}],\"observar\":[\"#estado\"]},{\"nombre\":\"click en celda 6 con bandera no abre\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6,\"veces\":1},{\"accion\":\"click\",\"selector\":\".c\",\"indice\":6,\"veces\":1}],\"observar\":[\".c\"]},{\"nombre\":\"abrir celda 12 (mina) y verificar que no se abre ninguna otra celda\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":12}],\"observar\":[\".c\"]},{\"nombre\":\"click en celda 5 (vecina de 6) con bandera en 6, no se abre\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".c\",\"indice\":5}],\"observar\":[\".c\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "click en celda 0 (sin minas adyacentes) abre cascada",
+          "acciones_ok": [
+            "click '.c'[0]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "1",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c abierta",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "click derecho en celda 6 (mina) muestra 'perdiste'",
+          "acciones_ok": [
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            "#estado": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "perdiste"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "click en celda 6 con bandera no abre",
+          "acciones_ok": [
+            "click '.c'[6]: OK",
+            "click '.c'[6]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "abrir celda 12 (mina) y verificar que no se abre ninguna otra celda",
+          "acciones_ok": [
+            "click '.c'[12]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "click en celda 5 (vecina de 6) con bandera en 6, no se abre",
+          "acciones_ok": [
+            "click '.c'[5]: OK"
+          ],
+          "observado": {
+            ".c": {
+              "antes": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 25,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "0"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "c",
+                    "data": {
+                      "i": "4"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 3336,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        }
+      ],
+      "veredicto_marco": true,
+      "segundos": 21.7,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 9.4,
+      "backend": {
+        "t": "2026-07-29T22:15:13",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__crudo__r2",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 23.8,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Agregar producto p1 y verificar incremento de cantidad\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\"#lines .linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Intentar superar stock de p2 y comprobar deshabilitación del botón\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1}],\"observar\":[\".add[data-id=\\\"p2\\\"]\",\"#lines .linea[data-id=\\\"p2\\\"] .cant\",\"#total\"]},{\"nombre\":\"Eliminar unidades de p3 hasta que desaparezca la línea y el botón se habilite\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\"#lines .linea[data-id=\\\"p3\\\"]\",\".add[data-id=\\\"p3\\\"]\",\"#total\"]},{\"nombre\":\"Agregar p1, p2, p3 en secuencia y verificar total acumulado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2}],\"observar\":[\"#lines .linea[data-id=\\\"p1\\\"] .cant\",\"#lines .linea[data-id=\\\"p2\\\"] .cant\",\"#lines .linea[data-id=\\\"p3\\\"] .cant\",\"#total\"]},{\"nombre\":\"Agregar p1 hasta su stock, luego intentar un click extra y comprobar que no aumenta la cantidad ni el total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add[data-id=\\\"p1\\\"]\",\"#lines .linea[data-id=\\\"p1\\\"] .cant\",\"#total\"]},{\"nombre\":\"Agregar p2, quitar una unidad, agregar otra y verificar que la cantidad se mantiene correcta y el botón no se deshabilita prematuramente\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1}],\"observar\":[\"#lines .linea[data-id=\\\"p2\\\"] .cant\",\"#total\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Agregar producto p1 y verificar incremento de cantidad",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            "#lines .linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "200"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Intentar superar stock de p2 y comprobar deshabilitación del botón",
+          "acciones_ok": [
+            "click '.add'[1]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[1]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add[data-id=\"p2\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": true,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  }
+                ]
+              }
+            },
+            "#lines .linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "150"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Eliminar unidades de p3 hasta que desaparezca la línea y el botón se habilite",
+          "acciones_ok": [
+            "click '.add'[2]: OK",
+            "click '.quitar'[0]: OK",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#lines .linea[data-id=\"p3\"]": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            ".add[data-id=\"p3\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Agregar p1, p2, p3 en secuencia y verificar total acumulado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[2]: OK"
+          ],
+          "observado": {
+            "#lines .linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#lines .linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#lines .linea[data-id=\"p3\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "175"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Agregar p1 hasta su stock, luego intentar un click extra y comprobar que no aumenta la cantidad ni el total",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add[data-id=\"p1\"]": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": true,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              }
+            },
+            "#lines .linea[data-id=\"p1\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "200"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "Agregar p2, quitar una unidad, agregar otra y verificar que la cantidad se mantiene correcta y el botón no se deshabilit",
+          "acciones_ok": [
+            "click '.add'[1]: OK",
+            "click '.quitar'[0]: OK",
+            "click '.add'[1]: OK"
+          ],
+          "observado": {
+            "#lines .linea[data-id=\"p2\"] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "50"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 6,
+      "transcript_chars": 3788,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El comportamiento observado cumple con las reglas: la cantidad se incrementa a 2 sin crear una nueva línea y el total se recalcula a 200.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"Se alcanzó el stock máximo de 3 para p2, el botón quedó deshabilitado y la cantidad y total son correctos.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al eliminar la única unidad de p3, la línea desapareció y el botón quedó habilitado, con el total actualizado a 0.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"Se añadieron p1, p2 y p3 una vez cada uno, las cantidades son 1 y el total acumulado es 175, cumpliendo las reglas.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Se alcanzó el stock máximo de 2 para p1, el botón quedó deshabilitado y la cantidad y total permanecen correctos.\"},{\"sonda\":6,\"dictamen\":\"CORRECTO\",\"por_que\":\"Se añadió p2, se quitó una unidad y se añadió otra, resultando en una cantidad de 1 y un total de 50, sin deshabilitar el botón.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El comportamiento observado cumple con las reglas: la cantidad se incrementa a 2 sin crear una nueva línea y el total se recalcula a 200."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "Se alcanzó el stock máximo de 3 para p2, el botón quedó deshabilitado y la cantidad y total son correctos."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "Al eliminar la única unidad de p3, la línea desapareció y el botón quedó habilitado, con el total actualizado a 0."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "Se añadieron p1, p2 y p3 una vez cada uno, las cantidades son 1 y el total acumulado es 175, cumpliendo las reglas."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Se alcanzó el stock máximo de 2 para p1, el botón quedó deshabilitado y la cantidad y total permanecen correctos."
+        },
+        {
+          "sonda": 6,
+          "dictamen": "CORRECTO",
+          "por_que": "Se añadió p2, se quitó una unidad y se añadió otra, resultando en una cantidad de 1 y un total de 50, sin deshabilitar el botón."
+        }
+      ],
+      "veredicto_marco": true,
+      "segundos": 39.3,
+      "backend": {
+        "t": "2026-07-29T22:16:19",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__crudo__r2",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"carga inicial muestra valores vacíos\",\"acciones\":[{\"accion\":\"esperar\",\"ms\":500}],\"observar\":[\".celda\"]},{\"nombre\":\"ingresar valor numérico en A1 y verificar que se muestra\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"5\",\"indice\":0},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"escribir fórmula simple en B1 que suma A1 y A2\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"=A1+A2\",\"indice\":1},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"cambiar A2 y comprobar cascada a B1\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"3\",\"indice\":2},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"crear referencia circular entre C1 y B1 y verificar texto CIRC\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"=B1\",\"indice\":3},{\"accion\":\"tecla\",\"key\":\"Tab\"},{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"=C1\",\"indice\":1},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]},{\"nombre\":\"verificar que no se actualiza después de cambiar A1 cuando hay referencia circular\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"10\",\"indice\":0},{\"accion\":\"tecla\",\"key\":\"Tab\"}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "carga inicial muestra valores vacíos",
+          "acciones_ok": [
+            "esperar 500ms: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "ingresar valor numérico en A1 y verificar que se muestra",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "5",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "escribir fórmula simple en B1 que suma A1 y A2",
+          "acciones_ok": [
+            "escribir '=A1+A2' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "cambiar A2 y comprobar cascada a B1",
+          "acciones_ok": [
+            "escribir '3' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "3",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "crear referencia circular entre C1 y B1 y verificar texto CIRC",
+          "acciones_ok": [
+            "escribir '=B1' en '.celda': OK",
+            "tecla Tab: OK",
+            "escribir '=C1' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "0",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "=C1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "verificar que no se actualiza después de cambiar A1 cuando hay referencia circular",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "tecla Tab: OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 6,
+      "transcript_chars": 5412,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"La página contiene una grilla 3x3 de inputs con clase \\\"celda\\\" y data-ref correspondientes, y los valores iniciales están vacíos como se exige.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al escribir el número 5 en la celda A1, el valor mostrado es \\\"5\\\" y no se muestra ninguna fórmula ni texto especial, cumpliendo la regla de que una celda con valor numérico muestra ese valor.\"},{\"sonda\":3,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla exige que una fórmula que comienza con '=' calcule y muestre su resultado. Al escribir \\\"=A1+A2\\\" en B1, el valor mostrado es \\\"CIRC\\\" en lugar del resultado esperado (5+0=5), violando la regla de cálculo de fórmulas.\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al cambiar el valor de A2 a 3, la regla de cascada exige que B1 se recalculen y muestre el nuevo resultado (8). El valor observado muestra \\\"3\\\" en la primera celda (A1) y no actualiza B1, violando la regla de cascada.\"},{\"sonda\":5,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Al crear referencias circulares entre C1 y B1, la regla exige que la celda implicada muestre el texto \\\"CIRC\\\". El valor observado muestra \\\"0\\\" en la primera celda (A1) y no muestra \\\"CIRC\\\" en B1, violando la regla de manejo de ciclos.\"},{\"sonda\":6,\"dictamen\":\"INCORRECTO\",\"por_que\":\"Después de cambiar A1 a 10, la regla de que las celdas con referencia circular no se actualizan se viola porque B1 no muestra \\\"CIRC\\\" ni se actualiza, y el valor observado no refleja el comportamiento esperado.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "La página contiene una grilla 3x3 de inputs con clase \"celda\" y data-ref correspondientes, y los valores iniciales están vacíos como se exige."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "Al escribir el número 5 en la celda A1, el valor mostrado es \"5\" y no se muestra ninguna fórmula ni texto especial, cumpliendo la regla de que una celda con valor numérico muestra ese valor."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla exige que una fórmula que comienza con '=' calcule y muestre su resultado. Al escribir \"=A1+A2\" en B1, el valor mostrado es \"CIRC\" en lugar del resultado esperado (5+0=5), violando la regla d"
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al cambiar el valor de A2 a 3, la regla de cascada exige que B1 se recalculen y muestre el nuevo resultado (8). El valor observado muestra \"3\" en la primera celda (A1) y no actualiza B1, violando la r"
+        },
+        {
+          "sonda": 5,
+          "dictamen": "INCORRECTO",
+          "por_que": "Al crear referencias circulares entre C1 y B1, la regla exige que la celda implicada muestre el texto \"CIRC\". El valor observado muestra \"0\" en la primera celda (A1) y no muestra \"CIRC\" en B1, violand"
+        },
+        {
+          "sonda": 6,
+          "dictamen": "INCORRECTO",
+          "por_que": "Después de cambiar A1 a 10, la regla de que las celdas con referencia circular no se actualizan se viola porque B1 no muestra \"CIRC\" ni se actualiza, y el valor observado no refleja el comportamiento "
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 28.7,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 8.4,
+      "backend": {
+        "t": "2026-07-29T22:16:55",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "kanban",
+      "pagina": "kanban__crudo__r2",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 14,
+      "ctrl_segundos": 10.1,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"estado inicial\",\"acciones\":[],\"observar\":[\".col\",\".card\",\".mas\",\".menos\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"mover tarjeta de todo a doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"mover tarjeta de doing a done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"intentar avanzar tarjeta en done\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"intentar retroceder tarjeta en todo\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".menos\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]},{\"nombre\":\"cumplir límite WIP en doing\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".mas\",\"indice\":0}],\"observar\":[\".col\",\".card\",\"#cont-todo\",\"#cont-doing\",\"#cont-done\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "mover tarjeta de todo a doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt2\n+\n-\nt3\n+\n-\n2",
+                  "Doing\nt1\n+\n-\n1",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n+\n-",
+                  "t2\n+\n-",
+                  "t3\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t2\n+\n-",
+                  "t3\n+\n-",
+                  "t1\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  }
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "mover tarjeta de doing a done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt3\n+\n-\n1",
+                  "Doing\nt1\n+\n-\nt2\n+\n-\n2",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n+\n-",
+                  "t2\n+\n-",
+                  "t3\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t3\n+\n-",
+                  "t1\n+\n-",
+                  "t2\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  }
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "intentar avanzar tarjeta en done",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt3\n+\n-\n1",
+                  "Doing\nt1\n+\n-\nt2\n+\n-\n2",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n+\n-",
+                  "t2\n+\n-",
+                  "t3\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t3\n+\n-",
+                  "t1\n+\n-",
+                  "t2\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  }
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "intentar retroceder tarjeta en todo",
+          "acciones_ok": [
+            "click '.menos'[0]: OK",
+            "click '.menos'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n+\n-",
+                  "t2\n+\n-",
+                  "t3\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t1\n+\n-",
+                  "t2\n+\n-",
+                  "t3\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  }
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "cumplir límite WIP en doing",
+          "acciones_ok": [
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK",
+            "click '.mas'[0]: OK"
+          ],
+          "observado": {
+            ".col": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt1\n+\n-\nt2\n+\n-\nt3\n+\n-\n3",
+                  "Doing\n0",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Todo\nt3\n+\n-\n1",
+                  "Doing\nt1\n+\n-\nt2\n+\n-\n2",
+                  "Done\n0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "todo"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "doing"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "col",
+                    "data": {
+                      "col": "done"
+                    }
+                  }
+                ]
+              }
+            },
+            ".card": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "t1\n+\n-",
+                  "t2\n+\n-",
+                  "t3\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "t3\n+\n-",
+                  "t1\n+\n-",
+                  "t2\n+\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "card",
+                    "data": {
+                      "id": "t2"
+                    }
+                  }
+                ]
+              }
+            },
+            "#cont-todo": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "3"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "1"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-doing": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "2"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#cont-done": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "counter",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 7520,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El movimiento de la tarjeta t1 de la columna Todo a Doing se realizó correctamente y los contadores se actualizaron según lo especificado.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"El segundo intento de mover una tarjeta a la columna Doing no tuvo efecto porque la columna Doing ya contenía el número máximo permitido (2 tarjetas), cumpliendo la regla WIP.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"No había ninguna tarjeta en la columna Done para avanzar, por lo que la acción no violó la regla de que una tarjeta en Done no puede avanzar.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"No había ninguna tarjeta en la columna Todo que pudiera retroceder, por lo que la acción no violó la regla de que una tarjeta en Todo no puede retroceder.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El movimiento de la tarjeta t1 de la columna Todo a Doing se realizó correctamente y los contadores se actualizaron según lo especificado."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "El segundo intento de mover una tarjeta a la columna Doing no tuvo efecto porque la columna Doing ya contenía el número máximo permitido (2 tarjetas), cumpliendo la regla WIP."
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "No había ninguna tarjeta en la columna Done para avanzar, por lo que la acción no violó la regla de que una tarjeta en Done no puede avanzar."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "No había ninguna tarjeta en la columna Todo que pudiera retroceder, por lo que la acción no violó la regla de que una tarjeta en Todo no puede retroceder."
+        }
+      ],
+      "veredicto_marco": true,
+      "segundos": 24.5,
+      "backend": {
+        "t": "2026-07-29T22:17:30",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "hoja_calculo",
+      "pagina": "hoja_calculo__crudo__r3",
+      "banco": true,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"celdas iniciales vacías\",\"acciones\":[],\"observar\":[\".celda\"]},{\"nombre\":\"ingresar valor numérico en A1 y verificar que se muestra\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"5\",\"indice\":0}],\"observar\":[\".celda\"]},{\"nombre\":\"escribir fórmula en B1 que depende de A1 y verificar cálculo\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"=A1+3\",\"indice\":1}],\"observar\":[\".celda\"]},{\"nombre\":\"cambiar A1 y verificar cascada de recalculo en B1 y C1\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"10\",\"indice\":0},{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"=B1+2\",\"indice\":2}],\"observar\":[\".celda\"]},{\"nombre\":\"crear referencia circular entre B2 y C2 y verificar texto CIRC\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"=C2+1\",\"indice\":4},{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"=B2+1\",\"indice\":5}],\"observar\":[\".celda\"]},{\"nombre\":\"verificar que al cambiar A1 no se actualiza celda con referencia circular\",\"acciones\":[{\"accion\":\"escribir\",\"selector\":\".celda\",\"texto\":\"20\",\"indice\":0}],\"observar\":[\".celda\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "ingresar valor numérico en A1 y verificar que se muestra",
+          "acciones_ok": [
+            "escribir '5' en '.celda': OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "10"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "5",
+                  "20",
+                  "25",
+                  "6",
+                  "7"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "5"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "escribir fórmula en B1 que depende de A1 y verificar cálculo",
+          "acciones_ok": [
+            "escribir '=A1+3' en '.celda': OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "10"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "20",
+                  "CIRC",
+                  "CIRC",
+                  "CIRC"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "=A1+3"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "cambiar A1 y verificar cascada de recalculo en B1 y C1",
+          "acciones_ok": [
+            "escribir '10' en '.celda': OK",
+            "escribir '=B1+2' en '.celda': OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "10"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "20",
+                  "CIRC",
+                  "CIRC",
+                  "CIRC"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "=B1+2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "crear referencia circular entre B2 y C2 y verificar texto CIRC",
+          "acciones_ok": [
+            "escribir '=C2+1' en '.celda': OK",
+            "escribir '=B2+1' en '.celda': OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "10"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "CIRC",
+                  "20",
+                  "CIRC",
+                  "CIRC",
+                  "CIRC"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "=B2+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "verificar que al cambiar A1 no se actualiza celda con referencia circular",
+          "acciones_ok": [
+            "escribir '20' en '.celda': OK"
+          ],
+          "observado": {
+            ".celda": {
+              "antes": {
+                "n": 9,
+                "muestra": [
+                  "10",
+                  "20",
+                  "30",
+                  "11",
+                  "12"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "10"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 9,
+                "muestra": [
+                  "20",
+                  "20",
+                  "40",
+                  "21",
+                  "22"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A1",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A2",
+                      "formula": "20"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "A3",
+                      "formula": "=A1+A2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B1",
+                      "formula": "=A1+1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "celda",
+                    "data": {
+                      "ref": "B2",
+                      "formula": "=B1+1"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 5,
+      "transcript_chars": 5534,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":4,\"dictamen\":\"INCORRECTO\",\"por_que\":\"La regla exige que solo las celdas involucradas en una referencia circular muestren el texto \\\"CIRC\\\". En la observación de la sonda 4, la celda A1 (referencia \\\"A1\\\") muestra \\\"CIRC\\\", a pesar de no estar involucrada en la nueva referencia circular entre B2 y C2. El dato observado que viola la regla es el valor \\\"CIRC\\\" mostrado en la celda A1.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 4,
+          "dictamen": "INCORRECTO",
+          "por_que": "La regla exige que solo las celdas involucradas en una referencia circular muestren el texto \"CIRC\". En la observación de la sonda 4, la celda A1 (referencia \"A1\") muestra \"CIRC\", a pesar de no estar "
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        }
+      ],
+      "veredicto_marco": false,
+      "segundos": 23.5,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 9.0,
+      "backend": {
+        "t": "2026-07-29T22:18:01",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__crudo__r3",
+      "banco": true,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 9.7,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Agregar un producto y verificar línea y total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea\",\"#total\"]},{\"nombre\":\"Agregar el mismo producto sin crear nueva línea y verificar cantidad incrementada\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea\",\"#total\"]},{\"nombre\":\"Agregar hasta el stock máximo y verificar botón deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".add\",\".linea\"]},{\"nombre\":\"Quitar unidades hasta que la línea desaparezca y botón se habilite\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\".linea\",\".add\"]},{\"nombre\":\"Verificar que el total se recalcula correctamente tras varias adiciones y quitadas\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2}],\"observar\":[\"#total\"]},{\"nombre\":\"Secuencia larga: agregar, quitar y volver a agregar para probar historial y límites\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\".linea\",\".add\",\"#total\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Agregar un producto y verificar línea y total",
+          "acciones_ok": [
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "p1\n1\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 100"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Agregar el mismo producto sin crear nueva línea y verificar cantidad incrementada",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "p1\n2\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 200"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Agregar hasta el stock máximo y verificar botón deshabilitado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": true,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            },
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "p1\n2\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Quitar unidades hasta que la línea desaparezca y botón se habilite",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Verificar que el total se recalcula correctamente tras varias adiciones y quitadas",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.quitar'[0]: OK",
+            "click '.add'[2]: OK"
+          ],
+          "observado": {
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 75"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "Secuencia larga: agregar, quitar y volver a agregar para probar historial y límites",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click '.quitar'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - "
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "p1\n2\n-"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              }
+            },
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": true,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "Total: 0"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "Total: 200"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 6,
+      "transcript_chars": 4273,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":4,\"dictamen\":\"NO_CONCLUYENTE\",\"por_que\":\"No se ejecutó ninguna acción de quitar que permita verificar la eliminación de la línea ni el re‑habilitado del botón.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"},{\"sonda\":6,\"dictamen\":\"CORRECTO\",\"por_que\":\"\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 4,
+          "dictamen": "NO_CONCLUYENTE",
+          "por_que": "No se ejecutó ninguna acción de quitar que permita verificar la eliminación de la línea ni el re‑habilitado del botón."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        },
+        {
+          "sonda": 6,
+          "dictamen": "CORRECTO",
+          "por_que": ""
+        }
+      ],
+      "veredicto_marco": true,
+      "segundos": 45.7,
+      "backend": {
+        "t": "2026-07-29T22:19:00",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__full__r2",
+      "banco": false,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Añadir un producto y verificar línea y total\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"esperar\",\"ms\":500}],\"observar\":[\".linea\",\"#total\"]},{\"nombre\":\"Añadir el mismo producto sin crear nueva línea\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"esperar\",\"ms\":500}],\"observar\":[\".linea\",\".cant\",\"#total\"]},{\"nombre\":\"Superar stock y verificar botón deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"esperar\",\"ms\":500}],\"observar\":[\".add\",\".cant\",\"#total\"]},{\"nombre\":\"Quitar unidades hasta que la línea desaparezca y botón habilite\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"esperar\",\"ms\":500}],\"observar\":[\".linea\",\".add\",\"#total\"]},{\"nombre\":\"Agregar varios productos y verificar total acumulado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"esperar\",\"ms\":500}],\"observar\":[\".linea\",\"#total\"]},{\"nombre\":\"Repetir acciones largas para probar historial y límites\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"esperar\",\"ms\":500}],\"observar\":[\".linea\",\".cant\",\".add\",\"#total\"]}]}",
+      "n_sondas": 6,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Añadir un producto y verificar línea y total",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "esperar 500ms: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 1 = $100,00\nQuitar"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Añadir el mismo producto sin crear nueva línea",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "esperar 500ms: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 2 = $200,00\nQuitar"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p1"
+                    }
+                  }
+                ]
+              }
+            },
+            ".cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 2 = $200,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$200,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Superar stock y verificar botón deshabilitado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "esperar 500ms: OK"
+          ],
+          "observado": {
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": true,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            },
+            ".cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$100,00 x 2 = $200,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$200,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Quitar unidades hasta que la línea desaparezca y botón habilite",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click '.quitar'[0]: OK",
+            "click '.quitar'[0]: OK",
+            "esperar 500ms: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Agregar varios productos y verificar total acumulado",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[2]: OK",
+            "esperar 500ms: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "$100,00 x 1 = $100,00\nQuitar",
+                  "$50,00 x 1 = $50,00\nQuitar",
+                  "$25,00 x 1 = $25,00\nQuitar"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$175,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 6,
+          "nombre": "Repetir acciones largas para probar historial y límites",
+          "acciones_ok": [
+            "click '.add'[0]: OK",
+            "click '.add'[0]: OK",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click: excepcion TimeoutError: ElementHandle.click: Timeout 5000ms exceeded.\nCall log:\n  - ",
+            "click '.quitar'[0]: OK",
+            "click '.quitar'[0]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[1]: OK",
+            "click '.add'[1]: OK",
+            "esperar 500ms: OK"
+          ],
+          "observado": {
+            ".linea": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$50,00 x 3 = $150,00\nQuitar"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "linea",
+                    "data": {
+                      "id": "p2"
+                    }
+                  }
+                ]
+              }
+            },
+            ".cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$50,00 x 3 = $150,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "cant",
+                    "data": {}
+                  }
+                ]
+              }
+            },
+            ".add": {
+              "antes": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              },
+              "despues": {
+                "n": 3,
+                "muestra": [
+                  "Añadir",
+                  "Añadir",
+                  "Añadir"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p1"
+                    }
+                  },
+                  {
+                    "disabled": true,
+                    "clases": "add",
+                    "data": {
+                      "id": "p2"
+                    }
+                  },
+                  {
+                    "disabled": false,
+                    "clases": "add",
+                    "data": {
+                      "id": "p3"
+                    }
+                  }
+                ]
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 1,
+                "muestra": [
+                  "$0,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              },
+              "despues": {
+                "n": 1,
+                "muestra": [
+                  "$150,00"
+                ],
+                "estado": [
+                  {
+                    "disabled": false,
+                    "clases": "",
+                    "data": {}
+                  }
+                ]
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 6,
+      "transcript_chars": 5011,
+      "juicio_crudo": "{\"dictamenes\":[{\"sonda\":1,\"dictamen\":\"CORRECTO\",\"por_que\":\"El producto p1 se añadió correctamente, se creó una línea con cantidad 1 y el total se actualizó a $100,00, cumpliendo las reglas de creación de línea y cálculo de total.\"},{\"sonda\":2,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al añadir el mismo producto p1 nuevamente, la línea existente se actualizó a cantidad 2 sin crear una nueva línea, y el total se recalculó a $200,00, cumpliendo la regla de no duplicar líneas y actualización de cantidad.\"},{\"sonda\":3,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al intentar añadir p1 más allá de su stock máximo (2), el botón de añadir se deshabilitó correctamente, cumpliendo la regla de no superar el stock.\"},{\"sonda\":4,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al quitar dos unidades de p1, la línea desapareció y el botón de añadir se habilitó nuevamente, cumpliendo las reglas de eliminación de línea y reactivación del botón.\"},{\"sonda\":5,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al añadir p1, p2 y p3 una vez cada uno, se crearon tres líneas con cantidades 1 y el total acumulado fue $175,00, cumpliendo las reglas de acumulación de total y creación de líneas.\"},{\"sonda\":6,\"dictamen\":\"CORRECTO\",\"por_que\":\"Al añadir p2 tres veces, alcanzando su stock máximo, el botón de añadir se deshabilitó y el total se calculó correctamente a $150,00, cumpliendo las reglas de stock y cálculo de total.\"}]}",
+      "dictamenes": [
+        {
+          "sonda": 1,
+          "dictamen": "CORRECTO",
+          "por_que": "El producto p1 se añadió correctamente, se creó una línea con cantidad 1 y el total se actualizó a $100,00, cumpliendo las reglas de creación de línea y cálculo de total."
+        },
+        {
+          "sonda": 2,
+          "dictamen": "CORRECTO",
+          "por_que": "Al añadir el mismo producto p1 nuevamente, la línea existente se actualizó a cantidad 2 sin crear una nueva línea, y el total se recalculó a $200,00, cumpliendo la regla de no duplicar líneas y actual"
+        },
+        {
+          "sonda": 3,
+          "dictamen": "CORRECTO",
+          "por_que": "Al intentar añadir p1 más allá de su stock máximo (2), el botón de añadir se deshabilitó correctamente, cumpliendo la regla de no superar el stock."
+        },
+        {
+          "sonda": 4,
+          "dictamen": "CORRECTO",
+          "por_que": "Al quitar dos unidades de p1, la línea desapareció y el botón de añadir se habilitó nuevamente, cumpliendo las reglas de eliminación de línea y reactivación del botón."
+        },
+        {
+          "sonda": 5,
+          "dictamen": "CORRECTO",
+          "por_que": "Al añadir p1, p2 y p3 una vez cada uno, se crearon tres líneas con cantidades 1 y el total acumulado fue $175,00, cumpliendo las reglas de acumulación de total y creación de líneas."
+        },
+        {
+          "sonda": 6,
+          "dictamen": "CORRECTO",
+          "por_que": "Al añadir p2 tres veces, alcanzando su stock máximo, el botón de añadir se deshabilitó y el total se calculó correctamente a $150,00, cumpliendo las reglas de stock y cálculo de total."
+        }
+      ],
+      "veredicto_marco": true,
+      "segundos": 53.4,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 7,
+      "ctrl_segundos": 8.0,
+      "backend": {
+        "t": "2026-07-29T22:19:59",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    },
+    {
+      "tarea": "carrito_stock",
+      "pagina": "carrito_stock__full__r3",
+      "banco": false,
+      "ctrl_veredicto": false,
+      "ctrl_pasos": 8,
+      "ctrl_segundos": 10.1,
+      "sondeo_crudo": "{\"sondas\":[{\"nombre\":\"Estado inicial del carrito y botones\",\"acciones\":[],\"observar\":[\"#products .prod .add\",\"#products .prod .add[disabled]\",\"#products .linea\",\"#total\"]},{\"nombre\":\"Añadir un producto hasta su stock y verificar que no se crea nueva línea\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\"#products .prod[data-id='p1'] .add[disabled]\",\"#products .linea[data-id='p1'] .cant\",\"#total\"]},{\"nombre\":\"Intentar añadir más allá del stock y comprobar que el botón permanece deshabilitado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":0}],\"observar\":[\"#products .prod[data-id='p1'] .add[disabled]\",\"#products .linea[data-id='p1'] .cant\",\"#total\"]},{\"nombre\":\"Quitar unidades de un producto hasta que desaparezca la línea y el botón se habilite\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":0}],\"observar\":[\"#products .linea[data-id='p1']\",\"#products .prod[data-id='p1'] .add[disabled]\",\"#total\"]},{\"nombre\":\"Añadir varios productos diferentes y verificar el total acumulado\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":2}],\"observar\":[\"#products .linea[data-id='p2'] .cant\",\"#products .linea[data-id='p3'] .cant\",\"#total\"]},{\"nombre\":\"Secuencia larga: añadir, quitar y volver a añadir para comprobar consistencia del total y estado de botones\",\"acciones\":[{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".quitar\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1},{\"accion\":\"click\",\"selector\":\".add\",\"indice\":1}],\"observar\":[\"#products .linea[data-id='p2'] .cant\",\"#products .prod[data-id='p2'] .add[disabled]\",\"#total\"]}]}",
+      "n_sondas": 5,
+      "ejecucion": [
+        {
+          "sonda": 1,
+          "nombre": "Añadir un producto hasta su stock y verificar que no se crea nueva línea",
+          "acciones_ok": [
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#products .prod[data-id='p1'] .add[disabled]": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#products .linea[data-id='p1'] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 2,
+          "nombre": "Intentar añadir más allá del stock y comprobar que el botón permanece deshabilitado",
+          "acciones_ok": [
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#products .prod[data-id='p1'] .add[disabled]": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#products .linea[data-id='p1'] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 3,
+          "nombre": "Quitar unidades de un producto hasta que desaparezca la línea y el botón se habilite",
+          "acciones_ok": [
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[0]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#products .linea[data-id='p1']": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#products .prod[data-id='p1'] .add[disabled]": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 4,
+          "nombre": "Añadir varios productos diferentes y verificar el total acumulado",
+          "acciones_ok": [
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[2]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[2]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#products .linea[data-id='p2'] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#products .linea[data-id='p3'] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        },
+        {
+          "sonda": 5,
+          "nombre": "Secuencia larga: añadir, quitar y volver a añadir para comprobar consistencia del total y estado de botones",
+          "acciones_ok": [
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.quitar'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]",
+            "click '.add'[1]: no hay elemento (hay 0) [selector NO consta en el inventario del DOM: puede ser invento de la sonda]"
+          ],
+          "observado": {
+            "#products .linea[data-id='p2'] .cant": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#products .prod[data-id='p2'] .add[disabled]": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            },
+            "#total": {
+              "antes": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              },
+              "despues": {
+                "n": 0,
+                "muestra": [],
+                "estado": []
+              }
+            }
+          },
+          "errores_js_nuevos": []
+        }
+      ],
+      "n_ejecutadas": 0,
+      "veredicto_marco": null,
+      "motivo": "ninguna sonda ejecutada",
+      "segundos": 14.5,
+      "backend": {
+        "t": "2026-07-29T22:20:17",
+        "via": "ejecucion_bucle",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      }
+    }
+  ],
+  "config": {
+    "piloto": true,
+    "commit": "bc1daa4",
+    "n_paginas": 8,
+    "backend": {
+      "url": "http://127.0.0.1:8080",
+      "modelo": "gpt-oss-20b-MXFP4.gguf",
+      "puerto": 8080,
+      "avisos": []
+    },
+    "nota": "marco = sondear-observar-juzgar (effort=low, temp 0.2, max_tokens 12000); control = contrato ciego clasico concurrente intercalado; REPRUEBA <=> >=1 INCORRECTO"
+  },
+  "piloto": {
+    "n_plan": 8,
+    "ejecutables": 7,
+    "degenerado": false,
+    "veredicto": "SIGUE (bloque completo)"
+  },
+  "resumen": {
+    "paginas": 8,
+    "con_veredicto": 7,
+    "sin_veredicto": [
+      "carrito_stock__full__r3"
+    ],
+    "marco_aciertos": 4,
+    "marco_fn": "2/6",
+    "marco_fp": "1/1",
+    "complacencia": "1/1",
+    "control_aciertos": "2/8",
+    "control_fn": 6,
+    "control_fp": 0
+  }
+}

@@ -36,6 +36,7 @@ URL_BACKEND = "http://127.0.0.1:8080"
 CTX_MINIMO = 16384
 MAX_SONDAS = 6
 MAX_ACCIONES_POR_SONDA = 25     # a 400ms/accion, sondas patologicas comen pared
+MAX_ACCIONES_EFECTIVAS = 30     # tope tras expandir `veces` (it.2)
 # tope del transcript en chars, cortado por SONDAS ENTERAS (la revision cazo
 # que 16000 chars + max_tokens 12000 desbordaban ctx 16384 en silencio y el
 # fallo golpeaba justo a las paginas complejas)
@@ -63,10 +64,16 @@ deshacer, llegar a un tope) va ENTERA dentro de UNA sonda con todas sus
 acciones encadenadas.
 
 Acciones disponibles (solo estas):
-  {{"accion":"click","selector":".x","indice":0}}
+  {{"accion":"click","selector":".x","indice":0,"veces":1}}
   {{"accion":"escribir","selector":"#x","texto":"..."}}
-  {{"accion":"tecla","key":"ArrowRight"}}
+  {{"accion":"tecla","key":"ArrowRight","veces":1}}
   {{"accion":"esperar","ms":500}}
+
+"veces" (opcional, por defecto 1) REPITE la accion. Una regla de tope o
+de acumulacion NO se prueba con un solo click: si la regla dice "al
+llegar a 2 unidades el boton se deshabilita", la sonda tiene que hacer
+click las veces necesarias para LLEGAR al tope y una mas para probar que
+no pasa de ahi.
 
 "escribir" deja el campo enfocado: si el producto reacciona al salir del
 campo, añade despues {{"accion":"tecla","key":"Tab"}}.
@@ -83,9 +90,10 @@ IDEA PEDIDA: {idea}
 
 LO OBSERVADO (por sonda: acciones ejecutadas y estado de los selectores
 observados ANTES -> DESPUES; "n" = cuantos elementos hay, "muestra" = texto
-visible o value de los primeros). CADA SONDA partio de la pagina RECIEN
-CARGADA: el estado NO persiste de una sonda a la siguiente — no leas el
-"antes" de una sonda como continuacion de la anterior:
+visible o value de los primeros, "estado" = disabled/clases/data de los
+primeros). CADA SONDA partio de la pagina RECIEN CARGADA: el estado NO
+persiste de una sonda a la siguiente — no leas el "antes" de una sonda
+como continuacion de la anterior:
 {transcript}
 
 Por CADA sonda, un dictamen:
@@ -100,6 +108,13 @@ no observado. Una accion fallida ("no hay elemento...") sobre un selector
 que la idea EXIGE es evidencia real; una marcada "[selector NO consta en el
 inventario...]" es un invento de la sonda: NO_CONCLUYENTE.
 
+OBLIGATORIO — antes de escribir INCORRECTO, comprueba que las ACCIONES
+EJECUTADAS de esa sonda ejercitan de verdad la regla que vas a citar. Si
+la regla habla de llegar a un tope o de acumular y la sonda solo hizo UNA
+accion, la evidencia NO cubre la regla: el dictamen es NO_CONCLUYENTE, no
+INCORRECTO. Acusar al producto por algo que la prueba no ejercito es un
+error TUYO, no un fallo del producto.
+
 Responde SOLO este JSON:
 {{"dictamenes": [{{"sonda":1,"dictamen":"CORRECTO|INCORRECTO|NO_CONCLUYENTE","por_que":"..."}}, ...]}}
 """
@@ -112,7 +127,16 @@ _JS_SNAPSHOT = """(sel) => {
               return e.checked ? 'checked' : 'unchecked';
             return (e.matches('input,textarea,select')
                ? String(e.value) : (e.innerText || '').trim()).slice(0, 60);
-          })};
+          }),
+          // C1 (it.2): el estado que las reglas exigen comprobar vive en
+          // atributos y clases, no en el texto. La it.1 "verifico" un
+          // boton deshabilitado leyendo su TEXTO (que no cambia) y fallo
+          // el 100% de esas sondas.
+          estado: els.slice(0, 5).map(e => ({
+            disabled: !!(e.disabled || e.hasAttribute('disabled')),
+            clases: (e.className || '').toString().slice(0, 60),
+            data: Object.fromEntries(
+              Object.entries(e.dataset || {}).slice(0, 6))}))};
 }"""
 
 
@@ -147,6 +171,17 @@ def _sondas_validas(c) -> list:
                     if isinstance(a, dict)
                     and (a.get("accion") or "").strip() in ACCIONES_SONDA
                     ][:MAX_ACCIONES_POR_SONDA]
+        # C2 (it.2): `veces` expande acciones — se acota el TOTAL efectivo
+        # para que una sonda patologica no coma el presupuesto de pared
+        # (a 400 ms por accion, 30 son ~12 s de interaccion).
+        efectivas, recorte = 0, []
+        for a in acciones:
+            v = _veces(a)
+            if efectivas + v > MAX_ACCIONES_EFECTIVAS:
+                break
+            efectivas += v
+            recorte.append(a)
+        acciones = recorte
         observar = [o for o in (s.get("observar") or [])
                     if isinstance(o, str) and o.strip()][:8]
         if acciones and observar:
@@ -218,18 +253,37 @@ def _ejecutar_sondas(html: Path, sondas: list,
     return resultado
 
 
+def _veces(a: dict) -> int:
+    """C2 (it.2): repeticiones declaradas por la sonda, acotadas."""
+    try:
+        return max(1, min(int(a.get("veces", 1)), 12))
+    except (TypeError, ValueError):
+        return 1
+
+
 def _accion(page, a: dict) -> str:
     acc = (a.get("accion") or "").strip()
+    n_veces = _veces(a)
+    suf = f" x{n_veces}" if n_veces > 1 else ""
     try:
         if acc == "click":
             sel = a.get("selector", "")
-            elems = page.query_selector_all(sel)
             i = int(a.get("indice", 0))
-            if len(elems) <= i:
-                return f"click '{sel}'[{i}]: no hay elemento (hay {len(elems)})"
-            elems[i].click(timeout=5000)
-            page.wait_for_timeout(400)
-            return f"click '{sel}'[{i}]: OK"
+            hechos = 0
+            for _ in range(n_veces):
+                elems = page.query_selector_all(sel)     # el DOM cambia
+                if len(elems) <= i:
+                    if hechos == 0:
+                        return (f"click '{sel}'[{i}]{suf}: no hay elemento "
+                                f"(hay {len(elems)})")
+                    break
+                elems[i].click(timeout=5000)
+                page.wait_for_timeout(400)
+                hechos += 1
+            return (f"click '{sel}'[{i}]{suf}: OK"
+                    if hechos == n_veces else
+                    f"click '{sel}'[{i}]{suf}: solo {hechos} de {n_veces} "
+                    f"(el elemento dejo de estar disponible)")
         if acc == "escribir":
             sel = a.get("selector", "")
             el = page.query_selector(sel)
@@ -239,9 +293,10 @@ def _accion(page, a: dict) -> str:
             page.wait_for_timeout(400)
             return f"escribir {str(a.get('texto', ''))[:30]!r} en '{sel}': OK"
         if acc == "tecla":
-            page.keyboard.press(a.get("key", "Enter"))
-            page.wait_for_timeout(400)
-            return f"tecla {a.get('key')}: OK"
+            for _ in range(n_veces):
+                page.keyboard.press(a.get("key", "Enter"))
+                page.wait_for_timeout(400)
+            return f"tecla {a.get('key')}{suf}: OK"
         if acc == "esperar":
             page.wait_for_timeout(min(int(a.get("ms", 500)), 5000))
             return f"esperar {a.get('ms', 500)}ms: OK"
@@ -260,10 +315,23 @@ def _render_transcript(ejec: list) -> str:
         for det in fila["acciones_ok"]:
             partes.append(f"  accion: {det}")
         for sel, od in fila["observado"].items():
-            partes.append(f"  observar {sel!r}: "
-                          f"{json.dumps(od.get('antes'), ensure_ascii=False)}"
-                          f" -> "
-                          f"{json.dumps(od.get('despues'), ensure_ascii=False)}")
+            # el bloque `estado` solo se imprime cuando APORTA (algun
+            # disabled, alguna clase, algun data): si no, infla el
+            # transcript sin decir nada
+            def _compacto(snap):
+                if not isinstance(snap, dict):
+                    return snap
+                est = snap.get("estado") or []
+                util = any(e.get("disabled") or e.get("clases")
+                           or e.get("data") for e in est
+                           if isinstance(e, dict))
+                return snap if util else {k: v for k, v in snap.items()
+                                          if k != "estado"}
+            partes.append(
+                f"  observar {sel!r}: "
+                f"{json.dumps(_compacto(od.get('antes')), ensure_ascii=False)}"
+                f" -> "
+                f"{json.dumps(_compacto(od.get('despues')), ensure_ascii=False)}")
         if fila.get("errores_js_nuevos"):
             partes.append(f"  errores JS durante la sonda: "
                           f"{fila['errores_js_nuevos']}")
