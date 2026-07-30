@@ -9877,3 +9877,76 @@ gpt-oss en :8080 con --parallel 1 + ctx 16384 (verificado slots=1 en
 
 **Lecciones a memoria:** juez-colgado-js-bloqueante (nueva),
 bon-con-senal-real (actualizada: el ladrón identificado y fase 3 lista).
+
+## 2026-07-29/30 (tarde-noche, 15:37-04:30) — La cadena del troceo se cierra, el instrumento queda caracterizado y cae el SEXTO kill de la señal
+
+Ventana nueva del dueño ("hasta las 4:30", ultracode). Apagado 04:30 y
+aterrizaje 04:14 armados al arrancar. Prereg + revisión adversarial antes
+de cada gasto de GPU.
+
+1. **FASE 3 de la sonda del ladrón (PREREG_SIN_TROCEO_LAZO + 1 enmienda):
+   el fix NO cobra en el lazo — neto ON = −4 (estricto post-hoc −6).**
+   A/B del lazo completo con el instrumento CONGELADO (b2_ab_fix2 --var,
+   el mismo que midió v2/v3): ON 15/24 vs OFF 19/24, 24 pares, 0 infra, 0
+   sin_html (la sensibilidad pre-declarada da idéntico). **El troceo AYUDA
+   dentro del lazo.** Tercer caso del patrón "la sonda directa cobra y el
+   lazo lo mata" — esta vez con la sonda más fuerte posible. El fix
+   COGNIA_SIN_TROCEO queda env-gated APAGADO.
+
+2. **SONDA DE LA DISCREPANCIA (PREREG_DISCREPANCIA_TROCEO + 1 enmienda):
+   H-MATERIAL (+1) — el efecto del troceo no es propiedad del troceo.**
+   Etapa A capturó prompts frescos del lazo; la etapa B repitió la
+   ablación apareada sobre ellos y el +6 del gate NO reproduce. Pero el
+   diff estructural gate-vs-hoy **no encuentra al sospechoso**: material
+   fresco casi idéntico (largo 6106 vs 5972, feromona 1649 vs 1454, brief
+   430 vs 437, 10 componentes de ~72 chars). H-material queda como lectura
+   SIN mecanismo, y luego acotada (ver punto 3).
+
+3. **VALIDEZ DEL INSTRUMENTO (PREREG_LAZO_VS_REPLAY + 1 enmienda con 4
+   BLOQUEA): el replay SÍ representa al lazo — neto −1.** Nació de una
+   contradicción medida (el lazo a 79-92% y el replay del MISMO prompt a
+   42-46%). Apareado perfecto (mismo prompt, misma celda, mismo minuto):
+   LAZO 14/24 (58%) vs replay 15/24 (62%); co-primaria sin fallbacks −1;
+   **parseo neto 0** (la candidata #1 quedó enterrada antes de correr, con
+   una medición offline sobre los 107 crudos del repo: veredicto estricto
+   idéntico en todos). **El número de la noche: concordancia lazo↔replay
+   13/24 = 54%, y el mismo lazo midiendo 92/79/58% en la misma tarde —
+   ±34 pts entre corridas.** Consecuencia declarada: sostienen los netos
+   APAREADOS intra-corrida (todos los de la cadena); queda frágil comparar
+   niveles o netos ENTRE corridas — incluida mi propia H-material, acotada
+   en su prereg. La revisión cazó 4 BLOQUEA pre-GPU (el None del juez
+   contaba como reprobado y engordaba la primaria; la EXCEPCIÓN del lazo
+   no se detectaba como infra; --reanudar replayaba un prompt viejo; la
+   pata del lazo corría sin presupuesto de pared).
+
+4. **MARCO EJECUCIÓN-EN-EL-BUCLE: KILL en dos iteraciones, con una
+   CORRECCIÓN honesta en medio.** it.1 (bloque 24): aciertos 6/23, FN
+   17/19 → KILL. Mi primera lectura del mecanismo ("el enfermo es el
+   juicio, condena contra expectativas inventadas") **la refutó la
+   auditoría pre-declarada de los 21 dictámenes INCORRECTO**: el juicio
+   CITA REGLAS REALES del enunciado. Fallaba el INSTRUMENTO — sondas que
+   declaran "añadir dos veces" y ejecutan un click, y un snapshot ciego al
+   `disabled` que la regla exige. it.2 arregló las tres cosas (snapshot
+   con estado, `veces` expandido por el harness con tope efectivo,
+   NO_CONCLUYENTE obligatorio si la evidencia no cubre la regla) y
+   **cobró: 6/23 → 9/23 y FN 17/19 → 13/19 sobre el mismo corpus el mismo
+   día — pero 9 ≤ 11 = KILL DEFINITIVO por el umbral pre-fijado.**
+   Arreglar el instrumento acerca el marco al ciego concurrente (7/24), no
+   lo separa del azar. **SEXTO KILL de la señal autogenerada** (contrato
+   ciego ×4, votos ×2, ejecución en el bucle ×2). Los tres arreglos del
+   harness de sondeo quedan en el código.
+
+5. **Caracterización del instrumento, cierre (PREREG_VARIANZA_JUEZ):**
+   re-juzgado triple de 24 páginas congeladas para separar varianza de
+   GENERADOR y de JUEZ. Resultado en el cierre.
+
+**Estado del goal, honesto:** el muestreo alcanza el 8/8 y el BoN K=4 está
+cableado y confirmado, pero **solo paga donde hay señal real (held-outs a
+mano: banco y gates)**. Para tareas nuevas, seis vías de señal
+autogenerada están muertas con KILL pre-registrado. La cadena del troceo
+(el "ladrón del envoltorio") se cerró sin fix adoptable, y la
+caracterización del instrumento explica por qué la semana pareció un
+carrusel: ±34 pts entre corridas y 54% de reproducibilidad por celda.
+
+**Lecciones a memoria:** varianza-entre-corridas (nueva),
+bon-con-senal-real (actualizada al cierre).
