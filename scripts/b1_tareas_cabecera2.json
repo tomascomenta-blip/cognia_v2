@@ -7,102 +7,367 @@
       "contrato": {
         "nombre": "presupuesto: el invariante de la suma rechaza el cambio y revierte",
         "pasos": [
-          {"accion": "js", "expr": "(()=>{const p=[...document.querySelectorAll('.pct')].map(i=>parseFloat(i.value));return p.length===3&&Math.abs(p[0]+p[1]+p[2]-100)<0.01;})()", "esperado": true, "nombre": "los tres porcentajes suman 100 al inicio", "critico": true},
-          {"accion": "js", "expr": "Math.abs(parseFloat(String(document.querySelector('.eur[data-id=\"a3\"]').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'))-40)<0.01", "esperado": true, "nombre": "la tercera partida son 40 euros", "critico": true},
-          {"accion": "escribir", "selector": ".pct[data-id='a1']", "texto": "20"},
-          {"accion": "tecla", "key": "Tab"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "Bajar del 30 al 20 mantiene la suma en 90 (<=100): el cambio se acepta, los euros de a1 pasan a 20 y quedan 10 libres.",
-           "accion": "js", "expr": "(()=>{const e=parseFloat(String(document.querySelector('.eur[data-id=\"a1\"]').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));const l=parseFloat(String(document.querySelector('#libre').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(e-20)<0.01&&Math.abs(l-10)<0.01;})()", "esperado": true, "nombre": "bajar se acepta: 20 euros y 10 libres", "critico": true},
-          {"accion": "escribir", "selector": ".pct[data-id='a1']", "texto": "80"},
-          {"accion": "tecla", "key": "Tab"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "EL INVARIANTE: 80+30+40 = 150 > 100, asi que el cambio se RECHAZA y el input VUELVE a 20. Un producto que solo avise pero deje el 80 puesto rompe el invariante; uno que recorte a 30 tampoco cumple (el enunciado dice que vuelve al valor anterior, que es 20).",
-           "accion": "js", "expr": "Math.abs(parseFloat(document.querySelector('.pct[data-id=\"a1\"]').value)-20)<0.01", "esperado": true, "nombre": "el cambio que rompe el limite REVIERTE al valor anterior", "critico": true},
-          {"accion": "texto", "selector": "#aviso", "contiene": "limite", "nombre": "el aviso anuncia el limite", "critico": true},
-          {"_por_que": "Y como el cambio se revirtio, los euros y el libre siguen siendo los de 20, no los de 80.",
-           "accion": "js", "expr": "(()=>{const e=parseFloat(String(document.querySelector('.eur[data-id=\"a1\"]').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));const l=parseFloat(String(document.querySelector('#libre').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(e-20)<0.01&&Math.abs(l-10)<0.01;})()", "esperado": true, "nombre": "tras revertir, euros y libre no cambian", "critico": true},
-          {"accion": "escribir", "selector": ".pct[data-id='a1']", "texto": "40"},
-          {"accion": "tecla", "key": "Tab"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "40+30+40 = 110 > 100: tambien se rechaza. El borde exacto que SI cabe es 30 (suma 100), y se prueba en el paso siguiente.",
-           "accion": "js", "expr": "Math.abs(parseFloat(document.querySelector('.pct[data-id=\"a1\"]').value)-20)<0.01", "esperado": true, "nombre": "40 tambien rompe el limite y revierte", "critico": true},
-          {"accion": "escribir", "selector": ".pct[data-id='a1']", "texto": "30"},
-          {"accion": "tecla", "key": "Tab"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "30+30+40 = 100 EXACTO: el enunciado dice que no puede PASAR de 100, asi que 100 justo se acepta y no queda nada libre.",
-           "accion": "js", "expr": "(()=>{const v=parseFloat(document.querySelector('.pct[data-id=\"a1\"]').value);const l=parseFloat(String(document.querySelector('#libre').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(v-30)<0.01&&Math.abs(l)<0.01;})()", "esperado": true, "nombre": "sumar 100 EXACTO se acepta y deja 0 libre", "critico": true}
+          {
+            "accion": "js",
+            "expr": "(()=>{const p=[...document.querySelectorAll('.pct')].map(i=>parseFloat(i.value));return p.length===3&&Math.abs(p[0]+p[1]+p[2]-100)<0.01;})()",
+            "esperado": true,
+            "nombre": "los tres porcentajes suman 100 al inicio",
+            "critico": true
+          },
+          {
+            "accion": "js",
+            "expr": "Math.abs(parseFloat(String(document.querySelector('.eur[data-id=\"a3\"]').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'))-40)<0.01",
+            "esperado": true,
+            "nombre": "la tercera partida son 40 euros",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": ".pct[data-id='a1']",
+            "texto": "20"
+          },
+          {
+            "accion": "tecla",
+            "key": "Tab"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "Bajar del 30 al 20 mantiene la suma en 90 (<=100): el cambio se acepta, los euros de a1 pasan a 20 y quedan 10 libres.",
+            "accion": "js",
+            "expr": "(()=>{const e=parseFloat(String(document.querySelector('.eur[data-id=\"a1\"]').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));const l=parseFloat(String(document.querySelector('#libre').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(e-20)<0.01&&Math.abs(l-10)<0.01;})()",
+            "esperado": true,
+            "nombre": "bajar se acepta: 20 euros y 10 libres",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": ".pct[data-id='a1']",
+            "texto": "80"
+          },
+          {
+            "accion": "tecla",
+            "key": "Tab"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "EL INVARIANTE: 80+30+40 = 150 > 100, asi que el cambio se RECHAZA y el input VUELVE a 20. Un producto que solo avise pero deje el 80 puesto rompe el invariante; uno que recorte a 30 tampoco cumple (el enunciado dice que vuelve al valor anterior, que es 20).",
+            "accion": "js",
+            "expr": "Math.abs(parseFloat(document.querySelector('.pct[data-id=\"a1\"]').value)-20)<0.01",
+            "esperado": true,
+            "nombre": "el cambio que rompe el limite REVIERTE al valor anterior",
+            "critico": true
+          },
+          {
+            "accion": "texto",
+            "selector": "#aviso",
+            "contiene": "limite",
+            "nombre": "el aviso anuncia el limite",
+            "critico": true
+          },
+          {
+            "_por_que": "Y como el cambio se revirtio, los euros y el libre siguen siendo los de 20, no los de 80.",
+            "accion": "js",
+            "expr": "(()=>{const e=parseFloat(String(document.querySelector('.eur[data-id=\"a1\"]').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));const l=parseFloat(String(document.querySelector('#libre').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(e-20)<0.01&&Math.abs(l-10)<0.01;})()",
+            "esperado": true,
+            "nombre": "tras revertir, euros y libre no cambian",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": ".pct[data-id='a1']",
+            "texto": "40"
+          },
+          {
+            "accion": "tecla",
+            "key": "Tab"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "40+30+40 = 110 > 100: tambien se rechaza. El borde exacto que SI cabe es 30 (suma 100), y se prueba en el paso siguiente.",
+            "accion": "js",
+            "expr": "Math.abs(parseFloat(document.querySelector('.pct[data-id=\"a1\"]').value)-20)<0.01",
+            "esperado": true,
+            "nombre": "40 tambien rompe el limite y revierte",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": ".pct[data-id='a1']",
+            "texto": "30"
+          },
+          {
+            "accion": "tecla",
+            "key": "Tab"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "30+30+40 = 100 EXACTO: el enunciado dice que no puede PASAR de 100, asi que 100 justo se acepta y no queda nada libre.",
+            "accion": "js",
+            "expr": "(()=>{const v=parseFloat(document.querySelector('.pct[data-id=\"a1\"]').value);const l=parseFloat(String(document.querySelector('#libre').innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return Math.abs(v-30)<0.01&&Math.abs(l)<0.01;})()",
+            "esperado": true,
+            "nombre": "sumar 100 EXACTO se acepta y deja 0 libre",
+            "critico": true
+          }
         ]
       }
     },
     {
       "id": "inventario_reservas",
-      "idea": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10, <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia.",
+      "idea": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia.",
       "contrato": {
         "nombre": "inventario: el invariante disponible>=0 gobierna reservas Y ajustes",
         "pasos": [
-          {"accion": "js", "expr": "parseInt(document.querySelector('#disponible').innerText,10)===10", "esperado": true, "nombre": "disponible arranca en 10", "critico": true},
-          {"accion": "escribir", "selector": "#cant", "texto": "4"},
-          {"accion": "click", "selector": "#reservar"},
-          {"accion": "esperar", "ms": 300},
-          {"accion": "escribir", "selector": "#cant", "texto": "3"},
-          {"accion": "click", "selector": "#reservar"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "Dos reservas (4 y 3) dejan disponible 3 y dos elementos en la lista.",
-           "accion": "js", "expr": "document.querySelectorAll('.res').length===2 && parseInt(document.querySelector('#disponible').innerText,10)===3", "esperado": true, "nombre": "dos reservas dejan disponible 3", "critico": true},
-          {"accion": "escribir", "selector": "#cant", "texto": "5"},
-          {"accion": "click", "selector": "#reservar"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "EL INVARIANTE: 5 > 3 disponibles, asi que la reserva se rechaza y NO se anade a la lista.",
-           "accion": "js", "expr": "document.querySelectorAll('.res').length===2 && parseInt(document.querySelector('#disponible').innerText,10)===3", "esperado": true, "nombre": "la reserva que dejaria negativo se rechaza", "critico": true},
-          {"accion": "escribir", "selector": "#nuevo-stock", "texto": "5"},
-          {"accion": "click", "selector": "#ajustar"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "EL INVARIANTE POR EL OTRO LADO: ya hay 7 reservados; bajar el stock a 5 dejaria disponible en -2, asi que el AJUSTE se rechaza y el stock sigue en 10. Es el mismo invariante gobernando una accion distinta, que es lo que separa esta tarea de un control de stock corriente.",
-           "accion": "js", "expr": "parseInt(document.querySelector('#stock').innerText,10)===10 && parseInt(document.querySelector('#disponible').innerText,10)===3", "esperado": true, "nombre": "el ajuste que rompe el invariante se rechaza", "critico": true},
-          {"accion": "escribir", "selector": "#nuevo-stock", "texto": "8"},
-          {"accion": "click", "selector": "#ajustar"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "8 >= 7 reservados: el ajuste SI se acepta y el disponible se recalcula a 1.",
-           "accion": "js", "expr": "parseInt(document.querySelector('#stock').innerText,10)===8 && parseInt(document.querySelector('#disponible').innerText,10)===1", "esperado": true, "nombre": "un ajuste valido recalcula el disponible", "critico": true},
-          {"accion": "click", "selector": "#cancelar"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "Cancelar la ultima reserva (3) libera 3 sobre el stock NUEVO de 8: disponible 4, una reserva en la lista.",
-           "accion": "js", "expr": "document.querySelectorAll('.res').length===1 && parseInt(document.querySelector('#disponible').innerText,10)===4", "esperado": true, "nombre": "cancelar recalcula sobre el stock ajustado", "critico": true}
+          {
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#disponible').innerText,10)===10",
+            "esperado": true,
+            "nombre": "disponible arranca en 10",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": "#cant",
+            "texto": "4"
+          },
+          {
+            "accion": "click",
+            "selector": "#reservar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "accion": "escribir",
+            "selector": "#cant",
+            "texto": "3"
+          },
+          {
+            "accion": "click",
+            "selector": "#reservar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "Dos reservas (4 y 3) dejan disponible 3 y dos elementos en la lista.",
+            "accion": "js",
+            "expr": "document.querySelectorAll('.res').length===2 && parseInt(document.querySelector('#disponible').innerText,10)===3",
+            "esperado": true,
+            "nombre": "dos reservas dejan disponible 3",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": "#cant",
+            "texto": "5"
+          },
+          {
+            "accion": "click",
+            "selector": "#reservar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "EL INVARIANTE: 5 > 3 disponibles, asi que la reserva se rechaza y NO se anade a la lista.",
+            "accion": "js",
+            "expr": "document.querySelectorAll('.res').length===2 && parseInt(document.querySelector('#disponible').innerText,10)===3",
+            "esperado": true,
+            "nombre": "la reserva que dejaria negativo se rechaza",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": "#nuevo-stock",
+            "texto": "5"
+          },
+          {
+            "accion": "click",
+            "selector": "#ajustar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "EL INVARIANTE POR EL OTRO LADO: ya hay 7 reservados; bajar el stock a 5 dejaria disponible en -2, asi que el AJUSTE se rechaza y el stock sigue en 10. Es el mismo invariante gobernando una accion distinta, que es lo que separa esta tarea de un control de stock corriente.",
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#stock').innerText,10)===10 && parseInt(document.querySelector('#disponible').innerText,10)===3",
+            "esperado": true,
+            "nombre": "el ajuste que rompe el invariante se rechaza",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": "#nuevo-stock",
+            "texto": "8"
+          },
+          {
+            "accion": "click",
+            "selector": "#ajustar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "8 >= 7 reservados: el ajuste SI se acepta y el disponible se recalcula a 1.",
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#stock').innerText,10)===8 && parseInt(document.querySelector('#disponible').innerText,10)===1",
+            "esperado": true,
+            "nombre": "un ajuste valido recalcula el disponible",
+            "critico": true
+          },
+          {
+            "accion": "click",
+            "selector": "#cancelar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "Cancelar la ultima reserva (3) libera 3 sobre el stock NUEVO de 8: disponible 4, una reserva en la lista.",
+            "accion": "js",
+            "expr": "document.querySelectorAll('.res').length===1 && parseInt(document.querySelector('#disponible').innerText,10)===4",
+            "esperado": true,
+            "nombre": "cancelar recalcula sobre el stock ajustado",
+            "critico": true
+          }
         ]
       }
     },
     {
       "id": "turnos_capacidad",
-      "idea": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir.",
+      "idea": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir.",
       "contrato": {
         "nombre": "turnos: bajar la capacidad EXPULSA grupos hasta restaurar el invariante",
         "pasos": [
-          {"accion": "js", "expr": "parseInt(document.querySelector('#cap').innerText,10)===6", "esperado": true, "nombre": "la capacidad arranca en 6", "critico": true},
-          {"accion": "js", "expr": "(()=>{const s=document.querySelector('#franja');s.value='manana';s.dispatchEvent(new Event('change',{bubbles:true}));return true;})()", "esperado": true, "nombre": "se elige la franja de manana"},
-          {"accion": "escribir", "selector": "#personas", "texto": "4"},
-          {"accion": "click", "selector": "#apuntar"},
-          {"accion": "esperar", "ms": 300},
-          {"accion": "escribir", "selector": "#personas", "texto": "2"},
-          {"accion": "click", "selector": "#apuntar"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "4+2 = 6 = capacidad: cabe justo, dos grupos en manana.",
-           "accion": "js", "expr": "parseInt(document.querySelector('#ocupacion-manana').innerText,10)===6 && document.querySelectorAll('.grupo[data-franja=\"manana\"]').length===2", "esperado": true, "nombre": "manana llega a 6 con dos grupos", "critico": true},
-          {"accion": "escribir", "selector": "#personas", "texto": "1"},
-          {"accion": "click", "selector": "#apuntar"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "6+1 > 6: el grupo se rechaza y la ocupacion no cambia.",
-           "accion": "js", "expr": "parseInt(document.querySelector('#ocupacion-manana').innerText,10)===6 && document.querySelectorAll('.grupo[data-franja=\"manana\"]').length===2", "esperado": true, "nombre": "el grupo que pasa de la capacidad se rechaza", "critico": true},
-          {"accion": "escribir", "selector": "#nueva-cap", "texto": "5"},
-          {"accion": "click", "selector": "#set-cap"},
-          {"accion": "esperar", "ms": 500},
-          {"_por_que": "EL INVARIANTE RETROACTIVO, que es lo que hace dura esta tarea: bajar la capacidad a 5 deja manana en 6 > 5, asi que se elimina el ULTIMO grupo apuntado de esa franja (el de 2) y la ocupacion queda en 4, que ya cumple. Queda un solo grupo. Un producto que solo valide al apuntar (lo normal) deja la ocupacion en 6 y falla aqui.",
-           "accion": "js", "expr": "parseInt(document.querySelector('#cap').innerText,10)===5 && parseInt(document.querySelector('#ocupacion-manana').innerText,10)===4 && document.querySelectorAll('.grupo[data-franja=\"manana\"]').length===1", "esperado": true, "nombre": "bajar la capacidad EXPULSA el ultimo grupo hasta cumplir", "critico": true},
-          {"accion": "escribir", "selector": "#personas", "texto": "1"},
-          {"accion": "click", "selector": "#apuntar"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "Con capacidad 5 y ocupacion 4, un grupo de 1 cabe justo.",
-           "accion": "js", "expr": "parseInt(document.querySelector('#ocupacion-manana').innerText,10)===5", "esperado": true, "nombre": "tras la expulsion se puede volver a apuntar hasta la nueva capacidad", "critico": true}
+          {
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#cap').innerText,10)===6",
+            "esperado": true,
+            "nombre": "la capacidad arranca en 6",
+            "critico": true
+          },
+          {
+            "accion": "js",
+            "expr": "(()=>{const s=document.querySelector('#franja');s.value='manana';s.dispatchEvent(new Event('change',{bubbles:true}));return true;})()",
+            "esperado": true,
+            "nombre": "se elige la franja de manana"
+          },
+          {
+            "accion": "escribir",
+            "selector": "#personas",
+            "texto": "4"
+          },
+          {
+            "accion": "click",
+            "selector": "#apuntar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "accion": "escribir",
+            "selector": "#personas",
+            "texto": "2"
+          },
+          {
+            "accion": "click",
+            "selector": "#apuntar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "4+2 = 6 = capacidad: cabe justo, dos grupos en manana.",
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#ocupacion-manana').innerText,10)===6 && document.querySelectorAll('.grupo[data-franja=\"manana\"]').length===2",
+            "esperado": true,
+            "nombre": "manana llega a 6 con dos grupos",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": "#personas",
+            "texto": "1"
+          },
+          {
+            "accion": "click",
+            "selector": "#apuntar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "6+1 > 6: el grupo se rechaza y la ocupacion no cambia.",
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#ocupacion-manana').innerText,10)===6 && document.querySelectorAll('.grupo[data-franja=\"manana\"]').length===2",
+            "esperado": true,
+            "nombre": "el grupo que pasa de la capacidad se rechaza",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": "#nueva-cap",
+            "texto": "5"
+          },
+          {
+            "accion": "click",
+            "selector": "#set-cap"
+          },
+          {
+            "accion": "esperar",
+            "ms": 500
+          },
+          {
+            "_por_que": "EL INVARIANTE RETROACTIVO, que es lo que hace dura esta tarea: bajar la capacidad a 5 deja manana en 6 > 5, asi que se elimina el ULTIMO grupo apuntado de esa franja (el de 2) y la ocupacion queda en 4, que ya cumple. Queda un solo grupo. Un producto que solo valide al apuntar (lo normal) deja la ocupacion en 6 y falla aqui.",
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#cap').innerText,10)===5 && parseInt(document.querySelector('#ocupacion-manana').innerText,10)===4 && document.querySelectorAll('.grupo[data-franja=\"manana\"]').length===1",
+            "esperado": true,
+            "nombre": "bajar la capacidad EXPULSA el ultimo grupo hasta cumplir",
+            "critico": true
+          },
+          {
+            "accion": "escribir",
+            "selector": "#personas",
+            "texto": "1"
+          },
+          {
+            "accion": "click",
+            "selector": "#apuntar"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "Con capacidad 5 y ocupacion 4, un grupo de 1 cabe justo.",
+            "accion": "js",
+            "expr": "parseInt(document.querySelector('#ocupacion-manana').innerText,10)===5",
+            "esperado": true,
+            "nombre": "tras la expulsion se puede volver a apuntar hasta la nueva capacidad",
+            "critico": true
+          }
         ]
       }
     },
@@ -112,29 +377,93 @@
       "contrato": {
         "nombre": "carrito packs: el precio depende del MINIMO entre dos cantidades",
         "pasos": [
-          {"accion": "click", "selector": ".add[data-id='pan']"},
-          {"accion": "click", "selector": ".add[data-id='pan']"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "2 panes sin leche: 0 packs, total 4.",
-           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===0&&Math.abs(n('#total')-4)<0.01;})()", "esperado": true, "nombre": "2 panes: 0 packs, total 4", "critico": true},
-          {"accion": "click", "selector": ".add[data-id='leche']"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "EL INVARIANTE: 2 panes y 1 leche => min(2,1) = 1 pack (4) + 1 pan suelto (2) = 6. Un carrito que sume precios por unidad daria 7.",
-           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===1&&Math.abs(n('#total')-6)<0.01;})()", "esperado": true, "nombre": "2 pan + 1 leche = 1 pack + 1 suelto = 6", "critico": true},
-          {"accion": "click", "selector": ".add[data-id='leche']"},
-          {"accion": "esperar", "ms": 300},
-          {"_por_que": "2 y 2 => 2 packs = 8 (sin sueltos).",
-           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===2&&Math.abs(n('#total')-8)<0.01;})()", "esperado": true, "nombre": "2 pan + 2 leche = 2 packs = 8", "critico": true},
-          {"accion": "click", "selector": ".quitar[data-id='pan']"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "QUITAR RE-EVALUA EL INVARIANTE: 1 pan y 2 leches => min = 1 pack (4) + 1 leche suelta (3) = 7. Un producto que descuente el precio del pan del total (8-2 = 6) falla: al bajar el pan se DESHACE un pack y la leche que estaba dentro pasa a cobrarse suelta.",
-           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===1&&Math.abs(n('#total')-7)<0.01;})()", "esperado": true, "nombre": "quitar un pan deshace un pack: total 7, no 6", "critico": true},
-          {"accion": "click", "selector": ".quitar[data-id='pan']"},
-          {"accion": "esperar", "ms": 400},
-          {"_por_que": "Sin panes: 0 packs y 2 leches sueltas = 6.",
-           "accion": "js", "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===0&&Math.abs(n('#total')-6)<0.01;})()", "esperado": true, "nombre": "sin panes: 0 packs, 2 leches sueltas = 6", "critico": true}
+          {
+            "accion": "click",
+            "selector": ".add[data-id='pan']"
+          },
+          {
+            "accion": "click",
+            "selector": ".add[data-id='pan']"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "2 panes sin leche: 0 packs, total 4.",
+            "accion": "js",
+            "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===0&&Math.abs(n('#total')-4)<0.01;})()",
+            "esperado": true,
+            "nombre": "2 panes: 0 packs, total 4",
+            "critico": true
+          },
+          {
+            "accion": "click",
+            "selector": ".add[data-id='leche']"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "EL INVARIANTE: 2 panes y 1 leche => min(2,1) = 1 pack (4) + 1 pan suelto (2) = 6. Un carrito que sume precios por unidad daria 7.",
+            "accion": "js",
+            "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===1&&Math.abs(n('#total')-6)<0.01;})()",
+            "esperado": true,
+            "nombre": "2 pan + 1 leche = 1 pack + 1 suelto = 6",
+            "critico": true
+          },
+          {
+            "accion": "click",
+            "selector": ".add[data-id='leche']"
+          },
+          {
+            "accion": "esperar",
+            "ms": 300
+          },
+          {
+            "_por_que": "2 y 2 => 2 packs = 8 (sin sueltos).",
+            "accion": "js",
+            "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===2&&Math.abs(n('#total')-8)<0.01;})()",
+            "esperado": true,
+            "nombre": "2 pan + 2 leche = 2 packs = 8",
+            "critico": true
+          },
+          {
+            "accion": "click",
+            "selector": ".quitar[data-id='pan']"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "QUITAR RE-EVALUA EL INVARIANTE: 1 pan y 2 leches => min = 1 pack (4) + 1 leche suelta (3) = 7. Un producto que descuente el precio del pan del total (8-2 = 6) falla: al bajar el pan se DESHACE un pack y la leche que estaba dentro pasa a cobrarse suelta.",
+            "accion": "js",
+            "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===1&&Math.abs(n('#total')-7)<0.01;})()",
+            "esperado": true,
+            "nombre": "quitar un pan deshace un pack: total 7, no 6",
+            "critico": true
+          },
+          {
+            "accion": "click",
+            "selector": ".quitar[data-id='pan']"
+          },
+          {
+            "accion": "esperar",
+            "ms": 400
+          },
+          {
+            "_por_que": "Sin panes: 0 packs y 2 leches sueltas = 6.",
+            "accion": "js",
+            "expr": "(()=>{const n=s=>parseFloat(String(document.querySelector(s).innerText).replace(/[^0-9.,-]/g,'').replace(',','.'));return n('#packs')===0&&Math.abs(n('#total')-6)<0.01;})()",
+            "esperado": true,
+            "nombre": "sin panes: 0 packs, 2 leches sueltas = 6",
+            "critico": true
+          }
         ]
       }
     }
-  ]
+  ],
+  "_calibracion": "2026-07-30: al calibrar se vio que inventario_reservas y turnos_capacidad fallaban porque los productos PRECARGAN ejemplos y el enunciado no exigia estado inicial vacio — ambiguedad MIA, no dificultad. Corregido el enunciado (no el contrato) y RE-CALIBRADAS; el numero que vale es el de la re-calibracion."
 }
