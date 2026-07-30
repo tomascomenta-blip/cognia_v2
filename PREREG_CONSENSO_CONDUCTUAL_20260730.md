@@ -77,6 +77,51 @@ la medición decide.
 4 llamadas LLM (~2 min) + 96 ejecuciones Playwright (~25-40 min) ≈ **45
 min**. Cero generación de páginas.
 
+## PRIMERA ENMIENDA (2026-07-29 ~23:15 — tras la revisión, ANTES de correr las 96)
+
+La revisión ejecutó `_firma` sobre 4 ensayos reales y recomendó **NO
+correr tal como estaba**, con datos. Tres BLOQUEA, todos aplicados:
+
+1. **La firma agrupaba por MARKUP, no por comportamiento.** Medido:
+   `kanban:r3` metía en el mismo grupo a s2 (estricto False) y s4 (True)
+   porque compartían el TEXTO de las tarjetas, y dejaba fuera a s1
+   (correcta) por llamarlas distinto; `carrito:r1` particionaba por el
+   FORMATO DE MONEDA (`€0.00` vs `0,00 €`). **Fix:** normalización canónica
+   del snapshot — numérico → número (quitando moneda y unificando `,`/`.`),
+   texto ≤10 chars → minúsculas (conserva "perdiste", "CIRC", "8"), texto
+   largo → `T` (colapsa nombres y descripciones); y fuera `className`.
+2. **La sonda de buscaminas era ciega:** las 4 muestras daban firma
+   IDÉNTICA porque el snapshot solo miraba 6 de 25 celdas (las
+   discriminantes —6, 7, 11, 12— quedaban fuera de la ventana). **Fix:**
+   observar hasta 25 elementos. Declarado igualmente: la sonda abre una
+   mina en el paso 3 (índice 6 es mina), así que buscaminas puede aportar
+   poco; se declara ANTES, no después.
+3. **El umbral ≥+5 era inalcanzable por construcción.** El techo del
+   selector held-out (+7) NO es el techo de esta REGLA: la mayoría no
+   puede elegir minorías, y de las 7 celdas donde el control falla, 2 son
+   estructuralmente inganables (buscaminas:r4 con las 4 firmas iguales;
+   hoja:r2 donde la única buena es s4 en solitario). **Techo real de la
+   regla: +5 estructural.** Umbrales RE-FIJADOS: **≥+4 VIVA · +2/+3
+   moderada · ≤+1 KILL**, y el KILL cierra *"mayoría con desempate a s1"*,
+   NO toda forma de consenso entre muestras.
+
+**Arreglos adicionales:** el vector de acciones que ATERRIZARON entra en
+la firma (sin él, una muestra con 4/8 pasos ejecutados y otra con 8/8
+caían en el mismo grupo); las muestras con 0 acciones efectivas no votan;
+las sondas viven siempre en el dir base (con `--sufijo` se re-generaban
+con el LLM y se rompía el congelado) y su huella se guarda para abortar si
+cambian; los HTML faltantes (2 de 96, ambos reprobados) se registran en
+vez de saltarse en silencio.
+
+**Ancla de validez RE-FIJADA:** ≥2 firmas distintas en ≥18/24 ensayos
+(poder DISCRIMINANTE). La anterior ("≥3 muestras con ≥1 acción
+ejecutable") la pasaba incluso una sonda completamente ciega.
+
+**PASO 0 añadido:** antes de medir, se re-firman 6 muestras dos veces y se
+exige hash estable. Sin ese control, un neto ≈0 no se puede leer — "sin
+señal" e "instrumento roto" se confunden. (La revisión ya lo verificó a
+mano: 15/15 firmas estables con la versión anterior.)
+
 ## Revisión
 
 1 agente adversarial (diseño + implementación) ANTES de ejecutar las 96,
