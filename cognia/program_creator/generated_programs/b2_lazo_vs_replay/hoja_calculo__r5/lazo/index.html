@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  #grid{
+    width:90%;
+    max-width:400px;
+    margin-top:10vh;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    border:1px solid #b2d8d8;
+    padding:10px;
+    background:#fff;
+    box-shadow:0 4px 8px rgba(0,0,0,0.1);
+    border-radius:8px;
+  }
+  .cell{
+    position:relative;
+  }
+  .celda{
+    width:100%;
+    padding:10px;
+    font-size:1rem;
+    border:1px solid #ccc;
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    box-sizing:border-box;
+  }
+  .celda.computed{
+    box-shadow:0 0 5px 2px rgba(0,255,0,0.3);
+  }
+  .ref{
+    position:absolute;
+    top:4px;
+    left:4px;
+    font-size:0.7rem;
+    color:#888;
+    pointer-events:none;
+  }
+  #recalc{
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:none;
+    border:none;
+    font-size:1.5rem;
+    cursor:pointer;
+    color:#888;
+  }
+  #recalc:hover{color:#555;}
+</style>
+</head>
+<body>
+<button id="recalc" title="Recalcular">⟳</button>
+<div id="grid">
+  <div class="cell"><span class="ref">A1</span><input class="celda" data-ref="A1" value=""></div>
+  <div class="cell"><span class="ref">A2</span><input class="celda" data-ref="A2" value=""></div>
+  <div class="cell"><span class="ref">A3</span><input class="celda" data-ref="A3" value=""></div>
+  <div class="cell"><span class="ref">B1</span><input class="celda" data-ref="B1" value=""></div>
+  <div class="cell"><span class="ref">B2</span><input class="celda" data-ref="B2" value=""></div>
+  <div class="cell"><span class="ref">B3</span><input class="celda" data-ref="B3" value=""></div>
+  <div class="cell"><span class="ref">C1</span><input class="celda" data-ref="C1" value=""></div>
+  <div class="cell"><span class="ref">C2</span><input class="celda" data-ref="C2" value=""></div>
+  <div class="cell"><span class="ref">C3</span><input class="celda computed" data-ref="C3" data-formula="A1+B1-A2" value="0"></div>
+</div>
+<script>
+(function(){
+  const cells = {};
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  refs.forEach(r=>{
+    const el=document.querySelector(`input[data-ref="${r}"]`);
+    cells[r]=el;
+  });
+
+  function parseFormula(formula){
+    // replace references with computed values
+    const expr = formula.replace(/[A-C][1-3]/g, match=>{
+      const val = computeCell(match, new Set());
+      return val==='CIRC'?0:val;
+    });
+    try{
+      return Function('return '+expr)();
+    }catch(e){return 0;}
+  }
+
+  function computeCell(ref, visited){
+    if(visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const cell=cells[ref];
+    const formula=cell.dataset.formula;
+    let result;
+    if(formula){
+      result=parseFormula(formula);
+      if(isNaN(result)) result=0;
+    }else{
+      const val=cell.value.trim();
+      result=val=== ''?0:parseFloat(val);
+    }
+    visited.delete(ref);
+    return result;
+  }
+
+  function recalcAll(){
+    refs.forEach(ref=>{
+      const cell=cells[ref];
+      const formula=cell.dataset.formula;
+      if(formula){
+        const val=computeCell(ref,new Set());
+        if(val==='CIRC'){
+          cell.value='CIRC';
+          cell.classList.remove('computed');
+        }else{
+          cell.value=val;
+          cell.classList.add('computed');
+        }
+      }
+    });
+  }
+
+  function handleInput(e){
+    const cell=e.target;
+    const val=cell.value.trim();
+    if(val.startsWith('=')){
+      cell.dataset.formula=val.slice(1);
+    }else{
+      delete cell.dataset.formula;
+    }
+    recalcAll();
+  }
+
+  refs.forEach(ref=>{
+    const cell=cells[ref];
+    cell.addEventListener('input',handleInput);
+  });
+
+  document.getElementById('recalc').addEventListener('click',recalcAll);
+
+  // initial calculation
+  recalcAll();
+})();
+</script>
+</body>
+</html>

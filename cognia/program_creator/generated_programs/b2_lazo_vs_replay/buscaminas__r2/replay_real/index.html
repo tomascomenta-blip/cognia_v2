@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5×5</title>
+<style>
+  body{
+    font-family:sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    background:#f0f0f0;
+  }
+  #header{
+    width:100%;
+    max-width:320px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px;
+    background:#fff;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+  }
+  #counter{
+    font-size:24px;
+    font-weight:bold;
+  }
+  #reset{
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-size:18px;
+  }
+  #estado{
+    margin:5px;
+    font-size:18px;
+    color:red;
+  }
+  #grid{
+    width:320px;
+    display:flex;
+    flex-wrap:wrap;
+    background:#fff;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+  }
+  .c{
+    width:64px;
+    height:64px;
+    border:1px solid #999;
+    box-sizing:border-box;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:18px;
+    cursor:pointer;
+    user-select:none;
+    background:#d3d3d3;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.5),0 2px 5px rgba(0,0,0,0.2);
+  }
+  .c.abierta{
+    cursor:default;
+    background:#87cefa;
+    color:#000;
+  }
+  .c.abierta[data-number="0"]{background:#87cefa;}
+  .c.abierta[data-number="1"]{background:#a0c4ff;}
+  .c.abierta[data-number="2"]{background:#bde0fe;}
+  .c.abierta[data-number="3"]{background:#c7f9f5;}
+  .c.abierta[data-number="4"]{background:#caffbf;}
+  .c.abierta[data-number="5"]{background:#ffc6ff;}
+  .c.abierta[data-number="6"]{background:#ffadad;}
+  .c.abierta[data-number="7"]{background:#ffd6a5;}
+  .c.abierta[data-number="8"]{background:#fdffb6;}
+  .c.abierta[data-mine="true"]{background:#dc143c;color:#fff;}
+  .c.bandera{background:#d3d3d3;color:#000;}
+  #footer{
+    width:100%;
+    max-width:320px;
+    display:flex;
+    justify-content:center;
+    padding:10px;
+    background:#fff;
+    box-shadow:0 -2px 4px rgba(0,0,0,0.1);
+  }
+  #playagain{
+    font-size:18px;
+    padding:5px 10px;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <div id="counter">0</div>
+  <button id="reset">Reset</button>
+</div>
+<div id="estado"></div>
+<div id="grid"></div>
+<div id="footer">
+  <button id="playagain">Play Again</button>
+</div>
+
+<script>
+(() => {
+  const grid = document.getElementById('grid');
+  const counterEl = document.getElementById('counter');
+  const estadoEl = document.getElementById('estado');
+  const resetBtn = document.getElementById('reset');
+  const playBtn = document.getElementById('playagain');
+
+  const mines = new Set([6,12,18]); // fixed mines
+  const size = 5;
+  const total = size*size;
+  const cells = []; // array of cell elements
+  const numbers = new Array(total).fill(0); // adjacent mine counts
+
+  // Precompute adjacent mine counts
+  for (let i=0;i<total;i++){
+    if (mines.has(i)) continue;
+    let r = Math.floor(i/size), c = i%size;
+    let count = 0;
+    for (let dr=-1;dr<=1;dr++){
+      for (let dc=-1;dc<=1;dc++){
+        if (dr===0 && dc===0) continue;
+        let nr=r+dr, nc=c+dc;
+        if (nr>=0 && nr<size && nc>=0 && nc<size){
+          let idx = nr*size+nc;
+          if (mines.has(idx)) count++;
+        }
+      }
+    }
+    numbers[i] = count;
+  }
+
+  // Create cells
+  for (let i=0;i<total;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i = i;
+    div.addEventListener('click', () => handleClick(i));
+    div.addEventListener('contextmenu', (e)=>{e.preventDefault(); toggleFlag(i);});
+    grid.appendChild(div);
+    cells.push(div);
+  }
+
+  let openedCount = 0;
+  let gameOver = false;
+
+  function handleClick(i){
+    if (gameOver) return;
+    const cell = cells[i];
+    if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    if (mines.has(i)){
+      // Open mine
+      cell.classList.add('abierta');
+      cell.dataset.mine = 'true';
+      cell.textContent = '💣';
+      estadoEl.textContent = 'perdiste';
+      gameOver = true;
+      return;
+    }
+    openCell(i);
+    // If zero, cascade
+    if (numbers[i]===0){
+      cascadeOpen(i);
+    }
+  }
+
+  function openCell(i){
+    const cell = cells[i];
+    if (cell.classList.contains('abierta')) return;
+    cell.classList.add('abierta');
+    const num = numbers[i];
+    cell.dataset.number = num;
+    if (num>0) cell.textContent = num;
+    openedCount++;
+    counterEl.textContent = openedCount;
+  }
+
+  function cascadeOpen(start){
+    const queue = [start];
+    const visited = new Set();
+    visited.add(start);
+    while(queue.length){
+      const idx = queue.shift();
+      let r = Math.floor(idx/size), c = idx%size;
+      for (let dr=-1;dr<=1;dr++){
+        for (let dc=-1;dc<=1;dc++){
+          if (dr===0 && dc===0) continue;
+          let nr=r+dr, nc=c+dc;
+          if (nr>=0 && nr<size && nc>=0 && nc<size){
+            let nIdx = nr*size+nc;
+            if (visited.has(nIdx)) continue;
+            const nCell = cells[nIdx];
+            if (nCell.classList.contains('bandera')) continue;
+            openCell(nIdx);
+            if (numbers[nIdx]===0){
+              queue.push(nIdx);
+            }
+            visited.add(nIdx);
+          }
+        }
+      }
+    }
+  }
+
+  function toggleFlag(i){
+    const cell = cells[i];
+    if (cell.classList.contains('abierta')) return;
+    if (cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    } else {
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+    }
+  }
+
+  function resetGame(){
+    cells.forEach(cell=>{
+      cell.className='c';
+      cell.textContent='';
+      delete cell.dataset.number;
+      delete cell.dataset.mine;
+    });
+    openedCount = 0;
+    counterEl.textContent = openedCount;
+    estadoEl.textContent = '';
+    gameOver = false;
+  }
+
+  resetBtn.addEventListener('click', resetGame);
+  playBtn.addEventListener('click', resetGame);
+})();
+</script>
+</body>
+</html>

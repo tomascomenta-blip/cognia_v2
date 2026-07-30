@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#ccc;
+    font-family:sans-serif;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-template-rows:repeat(5,60px);
+    gap:0;
+    border:1px solid #555;
+    background:#eee;
+  }
+  .c{
+    width:60px;
+    height:60px;
+    background:white;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:1.2em;
+    color:#333;
+    user-select:none;
+    cursor:pointer;
+  }
+  .c:hover{
+    box-shadow:0 0 5px 2px rgba(0,0,255,0.3);
+  }
+  .c.abierta{
+    background:#d4f0d4;
+  }
+  .c.bandera{
+    background:#f0f0f0;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2em;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const GRID_SIZE = 5;
+const CELL_SIZE = 60;
+const MINES = [6,12,18];
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+const totalCells = GRID_SIZE * GRID_SIZE;
+
+// Create cells
+for (let i=0; i<totalCells; i++) {
+  const cell = document.createElement('div');
+  cell.classList.add('c');
+  cell.dataset.i = i;
+  cell.addEventListener('click', onCellClick);
+  cell.addEventListener('contextmenu', onCellRightClick);
+  grid.appendChild(cell);
+}
+
+// Precompute adjacent mine counts
+const mineSet = new Set(MINES);
+const adjCounts = new Array(totalCells).fill(0);
+for (let i=0; i<totalCells; i++) {
+  if (mineSet.has(i)) continue;
+  let count = 0;
+  const neighbors = getNeighbors(i);
+  for (const n of neighbors) if (mineSet.has(n)) count++;
+  adjCounts[i] = count;
+}
+
+function getNeighbors(idx) {
+  const neighbors = [];
+  const row = Math.floor(idx / GRID_SIZE);
+  const col = idx % GRID_SIZE;
+  for (let dr=-1; dr<=1; dr++) {
+    for (let dc=-1; dc<=1; dc++) {
+      if (dr===0 && dc===0) continue;
+      const r = row + dr;
+      const c = col + dc;
+      if (r>=0 && r<GRID_SIZE && c>=0 && c<GRID_SIZE) {
+        neighbors.push(r*GRID_SIZE + c);
+      }
+    }
+  }
+  return neighbors;
+}
+
+function onCellClick(e) {
+  const cell = e.currentTarget;
+  const idx = parseInt(cell.dataset.i);
+  if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  if (mineSet.has(idx)) {
+    cell.classList.add('abierta');
+    cell.textContent = '💣';
+    estado.textContent = 'perdiste';
+    return;
+  }
+  openCell(idx);
+}
+
+function onCellRightClick(e) {
+  e.preventDefault();
+  const cell = e.currentTarget;
+  if (cell.classList.contains('abierta')) return;
+  if (cell.classList.contains('bandera')) {
+    cell.classList.remove('bandera');
+    cell.textContent = '';
+  } else {
+    cell.classList.add('bandera');
+    cell.textContent = '🚩';
+  }
+}
+
+function openCell(idx) {
+  const cell = grid.children[idx];
+  if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  cell.classList.add('abierta');
+  const count = adjCounts[idx];
+  if (count > 0) {
+    cell.textContent = count;
+  } else {
+    cell.textContent = '';
+    const neighbors = getNeighbors(idx);
+    for (const n of neighbors) openCell(n);
+  }
+}
+</script>
+</body>
+</html>

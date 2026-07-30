@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+body{font-family:sans-serif;text-align:center;margin:0;padding:0;background:#f0f0f0;}
+h1{font-weight:bold;margin:1rem 0;}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);grid-auto-flow:column;width:90vmin;max-width:400px;margin:auto;}
+.c{background:#ccc;border:1px solid #000;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;user-select:none;}
+.c.abierta{background:#add8e6;color:#0000ff;}
+.c.bandera{background:#ffeb3b;}
+#estado{margin-top:1rem;font-weight:bold;}
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const mines=new Set([6,12,18]);const size=5;const cells=[];const opened=new Array(25).fill(false);const flagged=new Array(25).fill(false);const counts=new Array(25).fill(0);
+function init(){const grid=document.getElementById('grid');for(let i=0;i<25;i++){const d=document.createElement('div');d.className='c';d.dataset.i=i;grid.appendChild(d);cells[i]=d;d.addEventListener('click',()=>{if(flagged[i]||opened[i])return;open(i);});d.addEventListener('contextmenu',e=>{e.preventDefault();if(opened[i])return;flagged[i]=!flagged[i];d.classList.toggle('bandera');d.textContent=flagged[i]?'🚩':'';});}for(let i=0;i<25;i++){let r=Math.floor(i/size),c=i%size;let cnt=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr>=0&&nr<size&&nc>=0&&nc<size){let idx=nr*size+nc;if(mines.has(idx))cnt++;}}counts[i]=cnt;}}
+function open(i){if(opened[i]||flagged[i])return;opened[i]=true;const d=cells[i];d.classList.add('abierta');if(mines.has(i)){d.textContent='💣';document.getElementById('estado').textContent='perdiste';return;}if(counts[i]>0){d.textContent=counts[i];return;}d.textContent='';for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let r=Math.floor(i/size)+dr,c=i%size+dc;if(r>=0&&r<size&&c>=0&&c<size){open(r*size+c);}}}
+init();
+</script>
+</body>
+</html>

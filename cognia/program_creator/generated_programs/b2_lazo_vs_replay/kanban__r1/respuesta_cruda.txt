@@ -1,0 +1,127 @@
+**Title:** Kanban en una sola página  
+**Description:** Un tablero Kanban minimalista con 3 columnas y tarjetas que se mueven con botones, con contador de tarjetas y límite de 2 en la columna Doing.  
+
+**HTML Code:**
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:0;
+    background:#f5f5f5;
+    color:#333;
+  }
+  .container{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:20px;
+    padding:20px;
+    max-width:900px;
+    margin:0 auto;
+  }
+  .col{
+    background:#fff;
+    border-radius:4px;
+    padding:10px;
+    flex:1;
+    min-width:200px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+  }
+  .col h2{
+    margin-top:0;
+    font-weight:bold;
+    font-size:1.2em;
+    text-align:center;
+  }
+  .card{
+    background:#e0e0e0;
+    border:1px solid #ccc;
+    border-radius:4px;
+    padding:10px;
+    margin-bottom:10px;
+    position:relative;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+  }
+  .card .id{
+    display:block;
+    font-weight:normal;
+    font-size:0.9em;
+  }
+  .card button{
+    position:absolute;
+    bottom:5px;
+    width:20px;
+    height:20px;
+    border:none;
+    border-radius:50%;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .card button.mas{
+    right:5px;
+    background:#28a745;
+    color:#fff;
+  }
+  .card button.menos{
+    right:35px;
+    background:#dc3545;
+    color:#fff;
+  }
+  .counter{
+    text-align:center;
+    margin-top:5px;
+    font-size:0.9em;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="card" data-id="t1"><span class="id">t1</span><button class="menos">-</button><button class="mas">+</button></div>
+    <div class="card" data-id="t2"><span class="id">t2</span><button class="menos">-</button><button class="mas">+</button></div>
+    <div class="card" data-id="t3"><span class="id">t3</span><button class="menos">-</button><button class="mas">+</button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+  function updateCounters(){
+    document.querySelectorAll('.col').forEach(col=>{
+      const id = col.dataset.col;
+      const count = col.querySelectorAll('.card').length;
+      document.getElementById('cont-'+id).textContent = count;
+    });
+  }
+  function moveCard(card, dir){
+    const currentCol = card.parentElement;
+    const cols = Array.from(currentCol.parentElement.children);
+    const idx = cols.indexOf(currentCol);
+    const targetIdx = idx + dir;
+    if(targetIdx < 0 || targetIdx > 2) return;
+    const targetCol = cols[targetIdx];
+    // WIP: Doing max 2 cards
+    if(targetCol.dataset.col === 'doing' && targetCol.querySelectorAll('.card').length >= 2) return;
+    targetCol.appendChild(card);
+    updateCounters();
+  }
+  document.querySelectorAll('.card').forEach(card=>{
+    card.querySelector('.mas').addEventListener('click',()=>moveCard(card,1));
+    card.querySelector('.menos').addEventListener('click',()=>moveCard(card,-1));
+  });
+  updateCounters();
+</script>
+</body>
+</html>
+```

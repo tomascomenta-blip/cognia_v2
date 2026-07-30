@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  #grid-wrapper{
+    position:relative;
+    width:90vw;
+    max-width:400px;
+    height:60vh;
+    border:2px solid #b2d8d8;
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 4px 8px rgba(0,0,0,0.1);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    width:90%;
+    height:90%;
+    padding:10px;
+    box-sizing:border-box;
+  }
+  .celda{
+    width:100%;
+    height:100%;
+    font-size:1rem;
+    text-align:center;
+    border:1px solid #ccc;
+    border-radius:5px;
+    background:#fff;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    transition:box-shadow 0.2s;
+    padding:0;
+  }
+  .celda.computed{
+    box-shadow:0 0 5px 2px rgba(0,255,0,0.3);
+  }
+  #recalcBtn{
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:transparent;
+    border:none;
+    cursor:pointer;
+    width:24px;
+    height:24px;
+    padding:0;
+    fill:#888;
+    transition:fill 0.2s;
+    z-index:10;
+  }
+  #recalcBtn:hover{fill:#555;}
+</style>
+</head>
+<body>
+<div id="grid-wrapper">
+  <button id="recalcBtn" title="Recalcular">
+    <svg viewBox="0 0 24 24" width="24" height="24">
+      <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 .55-.05 1.09-.15 1.61l2.12 1.61c.53-1.07.88-2.28.88-3.61 0-4.42-3.58-8-8-8zM12 20v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-.55.05-1.09.15-1.61L5.88 9.38c-.53 1.07-.88 2.28-.88 3.61 0 4.42 3.58 8 8 8z"/>
+    </svg>
+  </button>
+  <div id="grid">
+    <input type="text" class="celda" data-ref="A1" value="5">
+    <input type="text" class="celda" data-ref="B1" value="=A1+1">
+    <input type="text" class="celda" data-ref="C1" value="=B1+1">
+    <input type="text" class="celda" data-ref="A2" value="2">
+    <input type="text" class="celda" data-ref="B2" value="">
+    <input type="text" class="celda" data-ref="C2" value="">
+    <input type="text" class="celda" data-ref="A3" value="">
+    <input type="text" class="celda" data-ref="B3" value="">
+    <input type="text" class="celda" data-ref="C3" value="=A1+B1-A2">
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cells = {};
+  const inputs = document.querySelectorAll('.celda');
+  inputs.forEach(inp=>{
+    cells[inp.dataset.ref] = inp;
+    inp.dataset.formula = inp.value;
+    inp.addEventListener('input', ()=>{
+      inp.dataset.formula = inp.value;
+      recalc();
+    });
+  });
+
+  function evaluateCell(ref, stack){
+    if(stack.includes(ref)) return 'CIRC';
+    stack.push(ref);
+    const cell = cells[ref];
+    const formula = cell.dataset.formula;
+    if(!formula || !formula.startsWith('=')){
+      stack.pop();
+      return formula;
+    }
+    const expr = formula.slice(1);
+    const result = evaluateExpression(expr, stack);
+    stack.pop();
+    return result;
+  }
+
+  function evaluateExpression(expr, stack){
+    let i=0;
+    let result=0;
+    let currentOp='+';
+    while(i<expr.length){
+      if(expr[i]===' ') {i++; continue;}
+      if(/[A-Z]/.test(expr[i])){
+        const ref = expr.substr(i,2);
+        i+=2;
+        const val = evaluateCell(ref, stack);
+        if(val==='CIRC') return 'CIRC';
+        const num = Number(val);
+        if(isNaN(num)) return 'CIRC';
+        if(currentOp==='+') result+=num;
+        else if(currentOp==='-') result-=num;
+      }else if(/[0-9]/.test(expr[i])||expr[i]==='.'){
+        let numStr='';
+        while(i<expr.length && /[0-9.]/.test(expr[i])){
+          numStr+=expr[i++];
+        }
+        const num = Number(numStr);
+        if(currentOp==='+') result+=num;
+        else if(currentOp==='-') result-=num;
+      }else if(expr[i]==='+'||expr[i]==='-'){
+        currentOp=expr[i++];
+      }else{
+        i++;
+      }
+    }
+    return result;
+  }
+
+  function recalc(){
+    inputs.forEach(inp=>{
+      const formula = inp.dataset.formula;
+      if(formula && formula.startsWith('=')){
+        const res = evaluateCell(inp.dataset.ref, []);
+        if(res==='CIRC'){
+          inp.value='CIRC';
+          inp.classList.remove('computed');
+        }else{
+          const formatted = Number(res).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+          inp.value=formatted;
+          inp.classList.add('computed');
+        }
+      }else{
+        inp.value=formula;
+        inp.classList.remove('computed');
+      }
+    });
+  }
+
+  document.getElementById('recalcBtn').addEventListener('click', recalc);
+  recalc();
+});
+</script>
+</body>
+</html>

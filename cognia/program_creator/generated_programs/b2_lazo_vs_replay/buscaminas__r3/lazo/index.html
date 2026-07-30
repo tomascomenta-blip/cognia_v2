@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un buscaminas 5x5</title>
+<style>
+body{background:#f0f0f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:sans-serif;}
+#container{display:flex;flex-direction:column;align-items:center;}
+#estado{margin-bottom:10px;font-size:18px;color:#333;}
+#grid{display:grid;grid-template-columns:repeat(5,40px);grid-template-rows:repeat(5,40px);gap:2px;grid-auto-flow:column;}
+.c{width:40px;height:40px;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:18px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);cursor:pointer;user-select:none;}
+.c.abierta{background:#e0e0e0;pointer-events:none;}
+.c.bandera{background:#ffe0e0;}
+.c.abierta.mine{color:red;font-weight:bold;}
+.c.bandera::after{content:"🚩";font-size:18px;color:red;}
+</style>
+</head>
+<body>
+<div id="container">
+<div id="estado"></div>
+<div id="grid">
+<div class="c" data-i="0"></div>
+<div class="c" data-i="1"></div>
+<div class="c" data-i="2"></div>
+<div class="c" data-i="3"></div>
+<div class="c" data-i="4"></div>
+<div class="c" data-i="5"></div>
+<div class="c" data-i="6"></div>
+<div class="c" data-i="7"></div>
+<div class="c" data-i="8"></div>
+<div class="c" data-i="9"></div>
+<div class="c" data-i="10"></div>
+<div class="c" data-i="11"></div>
+<div class="c" data-i="12"></div>
+<div class="c" data-i="13"></div>
+<div class="c" data-i="14"></div>
+<div class="c" data-i="15"></div>
+<div class="c" data-i="16"></div>
+<div class="c" data-i="17"></div>
+<div class="c" data-i="18"></div>
+<div class="c" data-i="19"></div>
+<div class="c" data-i="20"></div>
+<div class="c" data-i="21"></div>
+<div class="c" data-i="22"></div>
+<div class="c" data-i="23"></div>
+<div class="c" data-i="24"></div>
+</div>
+</div>
+<script>
+const mines=[6,12,18];
+const grid=document.querySelectorAll('.c');
+const estado=document.getElementById('estado');
+let gameOver=false;
+const counts=new Array(25).fill(0);
+for(let i=0;i<25;i++){
+  if(mines.includes(i)) continue;
+  const r=Math.floor(i/5),c=i%5;
+  let cnt=0;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0) continue;
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<5&&nc>=0&&nc<5){
+        const ni=nr*5+nc;
+        if(mines.includes(ni)) cnt++;
+      }
+    }
+  }
+  counts[i]=cnt;
+}
+function openCell(i){
+  const cell=grid[i];
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera')||gameOver) return;
+  if(mines.includes(i)){
+    cell.classList.add('abierta','mine');
+    cell.textContent='X';
+    estado.textContent='perdiste';
+    gameOver=true;
+    return;
+  }
+  cell.classList.add('abierta');
+  if(counts[i]>0) cell.textContent=counts[i];
+  if(counts[i]===0){
+    const queue=[i];
+    const visited=new Set();
+    visited.add(i);
+    while(queue.length){
+      const cur=queue.shift();
+      const r=Math.floor(cur/5),c=cur%5;
+      for(let dr=-1;dr<=1;dr++){
+        for(let dc=-1;dc<=1;dc++){
+          if(dr===0&&dc===0) continue;
+          const nr=r+dr,nc=c+dc;
+          if(nr>=0&&nr<5&&nc>=0&&nc<5){
+            const ni=nr*5+nc;
+            const ncell=grid[ni];
+            if(ncell.classList.contains('abierta')||ncell.classList.contains('bandera')) continue;
+            ncell.classList.add('abierta');
+            if(counts[ni]>0) ncell.textContent=counts[ni];
+            if(counts[ni]===0 && !visited.has(ni)){
+              visited.add(ni);
+              queue.push(ni);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+grid.forEach(cell=>{
+  const i=parseInt(cell.dataset.i,10);
+  cell.addEventListener('click',()=>{openCell(i);});
+  cell.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(cell.classList.contains('abierta')||gameOver) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+    }else{
+      cell.classList.add('bandera');
+    }
+  });
+});
+</script>
+</body>
+</html>

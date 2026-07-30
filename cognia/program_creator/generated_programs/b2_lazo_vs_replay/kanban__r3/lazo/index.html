@@ -1,0 +1,167 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f4f7;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+  }
+  #board{
+    display:flex;
+    gap:20px;
+    width:90%;
+    max-width:1200px;
+  }
+  .col{
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+    flex:1;
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    animation:slideIn 0.6s ease-out forwards;
+    opacity:0;
+  }
+  .col h2{
+    margin:0 0 10px;
+    font-size:1.2rem;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .cards{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    overflow-y:auto;
+  }
+  .card{
+    background:#e3f2fd;
+    border-radius:6px;
+    padding:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:fadeIn 0.4s ease-out forwards;
+    opacity:0;
+  }
+  .card span{
+    flex:1;
+  }
+  .card button{
+    margin-left:4px;
+    padding:2px 6px;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    font-size:0.9rem;
+  }
+  .mas{background:#4caf50;color:#fff;}
+  .menos{background:#f44336;color:#fff;}
+  @keyframes slideIn{
+    from{transform:translateX(-30px); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{transform:translateY(10px); opacity:0;}
+    to{transform:translateY(0); opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+  // Helper to create a card element
+  function createCard(id){
+    const card=document.createElement('div');
+    card.className='card';
+    card.dataset.id=id;
+    card.innerHTML=\`
+      <span>\${id}</span>
+      <button class="mas">→</button>
+      <button class="menos">←</button>
+    \`;
+    return card;
+  }
+
+  // Initialize board with 3 cards in Todo
+  const todoCol=document.querySelector('.col[data-col="todo"] .cards');
+  ['t1','t2','t3'].forEach(id=>{
+    const card=createCard(id);
+    todoCol.appendChild(card);
+  });
+
+  // Update counters
+  function updateCounters(){
+    ['todo','doing','done'].forEach(col=>{
+      const count=document.querySelector(\`.col[data-col="\${col}"] .cards\`).children.length;
+      document.getElementById('cont-'+col).textContent=count;
+    });
+  }
+
+  // Move card function
+  function moveCard(card, direction){
+    const currentCol=card.parentElement.parentElement.dataset.col;
+    let targetCol;
+    if(direction==='right'){
+      if(currentCol==='done') return; // cannot advance from done
+      if(currentCol==='todo') targetCol='doing';
+      else if(currentCol==='doing') targetCol='done';
+    }else if(direction==='left'){
+      if(currentCol==='todo') return; // cannot retreat from todo
+      if(currentCol==='doing') targetCol='todo';
+      else if(currentCol==='done') targetCol='doing';
+    }
+    // WIP rule: doing max 2 cards
+    if(targetCol==='doing'){
+      const doingCards=document.querySelector('.col[data-col="doing"] .cards').children.length;
+      if(doingCards>=2 && direction==='right') return;
+    }
+    const targetCards=document.querySelector(\`.col[data-col="\${targetCol}"] .cards\`);
+    targetCards.appendChild(card);
+    updateCounters();
+  }
+
+  // Attach event listeners to all cards
+  function attachListeners(){
+    document.querySelectorAll('.card').forEach(card=>{
+      card.querySelector('.mas').addEventListener('click',()=>moveCard(card,'right'));
+      card.querySelector('.menos').addEventListener('click',()=>moveCard(card,'left'));
+    });
+  }
+
+  // Initial setup
+  updateCounters();
+  attachListeners();
+
+  // Animate cards when they are added
+  const observer=new MutationObserver(()=>{attachListeners();});
+  observer.observe(document.getElementById('board'),{childList:true, subtree:true});
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en HTML</title>
+<style>
+/* Basic reset */
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;background:#fafafa;color:#333;padding:1rem;}
+h1{font-size:1.5rem;margin-bottom:1rem;text-align:center;}
+.board{display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;}
+.col{flex:1 1 30%;min-width:250px;background:#f8f9fa;border-radius:8px;padding:1rem;}
+.col h2{font-size:1.2rem;margin-bottom:0.5rem;font-weight:bold;}
+.col .counter{font-weight:normal;color:#555;}
+.card{background:#e0e0e0;border-radius:6px;padding:0.5rem;margin-bottom:0.5rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-weight:500;}
+button{background:#007bff;color:#fff;border:none;border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;margin-left:0.2rem;}
+button.menos{background:#6c757d;}
+button:disabled{background:#ccc;cursor:not-allowed;}
+@media(max-width:600px){
+  .col{flex:1 1 100%;}
+}
+</style>
+</head>
+<body>
+<h1>Kanban en HTML</h1>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span class="counter" id="cont-todo"></span></h2>
+    <div class="card" data-id="t1">
+      <div class="card-title">t1</div>
+      <div>
+        <button class="mas">+</button>
+        <button class="menos">-</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <div class="card-title">t2</div>
+      <div>
+        <button class="mas">+</button>
+        <button class="menos">-</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <div class="card-title">t3</div>
+      <div>
+        <button class="mas">+</button>
+        <button class="menos">-</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span class="counter" id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span class="counter" id="cont-done"></span></h2>
+  </div>
+</div>
+<script>
+const MAX_DOING = 2;
+const COL_ORDER = ['todo', 'doing', 'done'];
+
+function updateCounters() {
+  COL_ORDER.forEach(col => {
+    const count = document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
+    document.getElementById(`cont-${col}`).textContent = count;
+  });
+}
+
+function moveCard(card, direction) {
+  const currentCol = card.parentElement.parentElement.dataset.col;
+  const currentIndex = COL_ORDER.indexOf(currentCol);
+  let targetIndex = direction === 'right' ? currentIndex + 1 : currentIndex - 1;
+  if (targetIndex < 0 || targetIndex >= COL_ORDER.length) return;
+  const targetCol = COL_ORDER[targetIndex];
+  if (currentCol === 'done' && direction === 'right') return;
+  if (currentCol === 'todo' && direction === 'left') return;
+  if (currentCol === 'todo' && direction === 'right' && targetCol === 'doing') {
+    const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    if (doingCount >= MAX_DOING) return;
+  }
+  const targetElement = document.querySelector(`.col[data-col="${targetCol}"]`);
+  targetElement.appendChild(card);
+  updateCounters();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.mas').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.card');
+      moveCard(card, 'right');
+    });
+  });
+  document.querySelectorAll('.menos').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.card');
+      moveCard(card, 'left');
+    });
+  });
+  updateCounters();
+});
+</script>
+</body>
+</html>

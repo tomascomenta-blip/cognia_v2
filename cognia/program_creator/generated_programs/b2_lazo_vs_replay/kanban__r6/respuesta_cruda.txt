@@ -1,0 +1,229 @@
+Title: Kanban Board  
+Description: Un tablero kanban con tres columnas y tarjetas que se mueven entre ellas con reglas de WIP.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    font-family:system-ui,sans-serif;
+    background:#f5f5f5;
+    margin:0;
+    padding:20px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+  }
+  #board{
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+    max-width:1200px;
+    width:100%;
+  }
+  .col{
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:4px;
+    flex:1 1 30%;
+    min-width:250px;
+    display:flex;
+    flex-direction:column;
+    padding:10px;
+  }
+  .col h2{
+    margin:0 0 10px 0;
+    font-size:1.2em;
+    color:#333;
+  }
+  .card{
+    border:1px solid #444;
+    border-radius:4px;
+    margin-bottom:10px;
+    display:flex;
+    flex-direction:column;
+    background:#fff;
+  }
+  .card-header{
+    background:#333;
+    color:#fff;
+    padding:8px;
+    font-weight:bold;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card-body{
+    padding:8px;
+    background:#fafafa;
+  }
+  button{
+    background:#008080;
+    color:#fff;
+    border:none;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:12px;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-left:4px;
+  }
+  button:disabled{
+    background:#999;
+    cursor:not-allowed;
+  }
+  button.mas::after{content:"+";}
+  button.menos::after{content:"-";}
+  span.counter{
+    font-size:0.9em;
+    color:#666;
+    margin-top:5px;
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="card-list"></div>
+    <span id="cont-todo" class="counter"></span>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="card-list"></div>
+    <span id="cont-doing" class="counter"></span>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="card-list"></div>
+    <span id="cont-done" class="counter"></span>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const board = document.getElementById('board');
+  const todoCol = board.querySelector('[data-col="todo"]');
+  const doingCol = board.querySelector('[data-col="doing"]');
+  const doneCol = board.querySelector('[data-col="done"]');
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const header = document.createElement('div');
+    header.className = 'card-header';
+    header.textContent = id;
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    const btnMen = document.createElement('button');
+    btnMen.className = 'menos';
+
+    header.appendChild(btnMas);
+    header.appendChild(btnMen);
+
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    body.textContent = 'Contenido de ' + id;
+
+    card.appendChild(header);
+    card.appendChild(body);
+    return card;
+  }
+
+  ['t1','t2','t3'].forEach(id => {
+    todoCol.querySelector('.card-list').appendChild(createCard(id));
+  });
+
+  function updateCounters(){
+    const todoCount = todoCol.querySelectorAll('.card').length;
+    const doingCount = doingCol.querySelectorAll('.card').length;
+    const doneCount = doneCol.querySelectorAll('.card').length;
+
+    document.getElementById('cont-todo').textContent = todoCount;
+    document.getElementById('cont-doing').textContent = doingCount;
+    document.getElementById('cont-done').textContent = doneCount;
+
+    // Enable/disable buttons according to position and WIP rule
+    board.querySelectorAll('.card').forEach(card => {
+      const col = card.parentElement.parentElement.dataset.col; // card-list's parent
+      const masBtn = card.querySelector('.mas');
+      const menosBtn = card.querySelector('.menos');
+
+      if(col === 'todo'){
+        masBtn.disabled = false;
+        menosBtn.disabled = true;
+      } else if(col === 'doing'){
+        masBtn.disabled = false;
+        menosBtn.disabled = false;
+      } else if(col === 'done'){
+        masBtn.disabled = true;
+        menosBtn.disabled = false;
+      }
+
+      // WIP rule: if doing has 2 cards, disable mas on todo cards
+      if(col === 'todo' && doingCol.querySelectorAll('.card').length >= 2){
+        masBtn.disabled = true;
+      }
+    });
+  }
+
+  function moveCard(card, direction){
+    const currentCol = card.parentElement.parentElement; // card-list's parent
+    const currentData = currentCol.dataset.col;
+    let targetCol;
+
+    if(direction === 'right'){
+      if(currentData === 'todo'){
+        targetCol = doingCol;
+      } else if(currentData === 'doing'){
+        targetCol = doneCol;
+      } else {
+        return;
+      }
+    } else if(direction === 'left'){
+      if(currentData === 'doing'){
+        targetCol = todoCol;
+      } else if(currentData === 'done'){
+        targetCol = doingCol;
+      } else {
+        return;
+      }
+    }
+
+    // WIP rule: cannot move into doing if it already has 2 cards
+    if(targetCol === doingCol && doingCol.querySelectorAll('.card').length >= 2){
+      return;
+    }
+
+    targetCol.querySelector('.card-list').appendChild(card);
+    updateCounters();
+  }
+
+  board.addEventListener('click', function(e){
+    if(e.target.classList.contains('mas')){
+      const card = e.target.closest('.card');
+      moveCard(card, 'right');
+    } else if(e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      moveCard(card, 'left');
+    }
+  });
+
+  updateCounters();
+});
+</script>
+</body>
+</html>
+```

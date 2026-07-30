@@ -1,0 +1,149 @@
+Title: Mini Hoja de Cálculo 3x3  
+Description: Una mini hoja de cálculo con fórmulas y recálculo automático.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#fafafa;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .card{
+    background:#fff;
+    padding:20px;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+    max-width:400px;
+    width:100%;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+  }
+  td{
+    padding:0;
+  }
+  .celda{
+    width:100%;
+    height:40px;
+    box-sizing:border-box;
+    border:1px solid #ccc;
+    background:#f5f5f5;
+    text-align:right;
+    font-size:1rem;
+    padding-right:5px;
+    outline:none;
+  }
+  .celda:focus{
+    box-shadow:0 0 5px 2px #6ea8ff;
+  }
+  .celda[data-formula]{
+    font-weight:bold;
+    color:#333;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <table>
+    <tr>
+      <td><input type="text" class="celda" data-ref="A1"></td>
+      <td><input type="text" class="celda" data-ref="A2"></td>
+      <td><input type="text" class="celda" data-ref="A3"></td>
+    </tr>
+    <tr>
+      <td><input type="text" class="celda" data-ref="B1"></td>
+      <td><input type="text" class="celda" data-ref="B2"></td>
+      <td><input type="text" class="celda" data-ref="B3"></td>
+    </tr>
+    <tr>
+      <td><input type="text" class="celda" data-ref="C1"></td>
+      <td><input type="text" class="celda" data-ref="C2"></td>
+      <td><input type="text" class="celda" data-ref="C3"></td>
+    </tr>
+  </table>
+</div>
+<script>
+'use strict';
+const cells = document.querySelectorAll('.celda');
+const cellMap = {};
+cells.forEach(c => cellMap[c.dataset.ref] = c);
+
+// Inicializar valores
+cellMap['A1'].value = '5';
+cellMap['A1'].dataset.formula = '';
+cellMap['B1'].value = '3';
+cellMap['B1'].dataset.formula = '';
+cellMap['C3'].dataset.formula = '=A1+B1';
+cellMap['C3'].value = ''; // se calculará
+
+// Escuchar cambios
+cells.forEach(c => {
+  c.addEventListener('input', () => {
+    const v = c.value;
+    if (v.startsWith('=')) {
+      c.dataset.formula = v;
+    } else {
+      c.dataset.formula = '';
+    }
+    recalcAll();
+  });
+});
+
+function evaluateCell(ref, stack) {
+  const cell = cellMap[ref];
+  if (!cell) return 0;
+  const formula = cell.dataset.formula;
+  if (!formula) {
+    const num = parseFloat(cell.value);
+    return isNaN(num) ? 0 : num;
+  }
+  if (stack.includes(ref)) return 'CIRC';
+  stack.push(ref);
+  const expr = formula.slice(1); // quitar '='
+  const replaced = expr.replace(/[A-C][1-3]/g, m => {
+    const val = evaluateCell(m, stack);
+    if (val === 'CIRC') return 'CIRC';
+    return val;
+  });
+  if (replaced.includes('CIRC')) {
+    stack.pop();
+    return 'CIRC';
+  }
+  try {
+    const res = eval(replaced);
+    stack.pop();
+    return res;
+  } catch (e) {
+    stack.pop();
+    return 0;
+  }
+}
+
+function recalcAll() {
+  Object.keys(cellMap).forEach(ref => {
+    const cell = cellMap[ref];
+    if (cell.dataset.formula) {
+      const val = evaluateCell(ref, []);
+      cell.value = val === 'CIRC' ? 'CIRC' : val.toString();
+    }
+  });
+}
+
+// Calcular inicial
+recalcAll();
+</script>
+</body>
+</html>
+```

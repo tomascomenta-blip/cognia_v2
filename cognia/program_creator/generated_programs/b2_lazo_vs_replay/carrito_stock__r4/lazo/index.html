@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con stock</title>
+<style>
+:root{
+  --color-bg:#f5f5f5;
+  --color-add:#008080;
+  --color-add-disabled:#aaa;
+  --color-quitar:#ff6666;
+  --color-text:#333;
+  --color-muted:#555;
+}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--color-text);background:var(--color-bg);}
+.container{display:flex;height:100vh;overflow:hidden;}
+.sidebar{flex:0 0 30%;background:#fff;overflow-y:auto;padding:10px;}
+.main{flex:1;padding:10px;overflow-y:auto;}
+.prod{border:1px solid #ddd;padding:10px;margin-bottom:10px;background:#fff;}
+.prod h3{margin:0 0 5px;}
+.prod .price{font-size:0.9em;color:var(--color-muted);}
+.prod .stock{font-size:0.8em;color:var(--color-muted);}
+.add{background:var(--color-add);color:#fff;font-weight:bold;border:none;padding:5px 10px;cursor:pointer;}
+.add:disabled{background:var(--color-add-disabled);cursor:not-allowed;}
+.cart{background:#fff;border:1px solid #ddd;padding:10px;}
+.cart h2{margin-top:0;}
+.linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.linea .cant{font-weight:bold;}
+.quitar{background:var(--color-quitar);color:#fff;border:none;padding:3px 6px;cursor:pointer;}
+#total{font-size:1.5em;font-weight:bold;}
+@media(max-width:600px){
+  .container{flex-direction:column;}
+  .sidebar{flex:none;width:100%;}
+  .main{width:100%;}
+}
+</style>
+<script>
+/* Configurable constants */
+const COLORS = {
+  bg: '#f5f5f5',
+  add: '#008080',
+  addDisabled: '#aaa',
+  quitar: '#ff6666',
+  text: '#333',
+  muted: '#555'
+};
+document.addEventListener('DOMContentLoaded', () => {
+  // Apply CSS variables
+  const root = document.documentElement;
+  root.style.setProperty('--color-bg', COLORS.bg);
+  root.style.setProperty('--color-add', COLORS.add);
+  root.style.setProperty('--color-add-disabled', COLORS.addDisabled);
+  root.style.setProperty('--color-quitar', COLORS.quitar);
+  root.style.setProperty('--color-text', COLORS.text);
+  root.style.setProperty('--color-muted', COLORS.muted);
+
+  const addButtons = document.querySelectorAll('.add');
+  const cartItems = document.getElementById('cart-items');
+  const totalEl = document.getElementById('total');
+
+  function formatCurrency(val){
+    return val.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+
+  function updateTotal(){
+    let total = 0;
+    const lines = cartItems.querySelectorAll('.linea');
+    lines.forEach(line=>{
+      const id = line.dataset.id;
+      const qty = parseInt(line.querySelector('.cant').textContent,10);
+      const price = parseFloat(document.querySelector(`.prod[data-id="${id}"]`).dataset.precio);
+      total += qty * price;
+    });
+    totalEl.textContent = formatCurrency(total);
+  }
+
+  function addToCart(id){
+    const prodDiv = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prodDiv.dataset.stock,10);
+    const price = parseFloat(prodDiv.dataset.precio);
+    let line = cartItems.querySelector(`.linea[data-id="${id}"]`);
+    let qty = 0;
+    if(line){
+      qty = parseInt(line.querySelector('.cant').textContent,10);
+    }else{
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `<span class="cant">1</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+      cartItems.appendChild(line);
+    }
+    qty += 1;
+    line.querySelector('.cant').textContent = qty;
+    if(qty >= stock){
+      prodDiv.querySelector('.add').disabled = true;
+    }
+    updateTotal();
+  }
+
+  function removeFromCart(id){
+    const line = cartItems.querySelector(`.linea[data-id="${id}"]`);
+    if(!line) return;
+    let qty = parseInt(line.querySelector('.cant').textContent,10);
+    qty -= 1;
+    if(qty <= 0){
+      line.remove();
+      document.querySelector(`.prod[data-id="${id}"] .add`).disabled = false;
+    }else{
+      line.querySelector('.cant').textContent = qty;
+    }
+    updateTotal();
+  }
+
+  // Event delegation for add buttons
+  addButtons.forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const id = e.target.dataset.id;
+      addToCart(id);
+    });
+  });
+
+  // Event delegation for quitar buttons
+  cartItems.addEventListener('click', e=>{
+    if(e.target.classList.contains('quitar')){
+      const id = e.target.dataset.id;
+      removeFromCart(id);
+    }
+  });
+
+  // Initialize total
+  updateTotal();
+});
+</script>
+</head>
+<body>
+<div class="container">
+  <div class="sidebar">
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <h3>Producto 1</h3>
+      <div class="price">Precio: 100 €</div>
+      <div class="stock">Stock: 2</div>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <h3>Producto 2</h3>
+      <div class="price">Precio: 50 €</div>
+      <div class="stock">Stock: 3</div>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <h3>Producto 3</h3>
+      <div class="price">Precio: 25 €</div>
+      <div class="stock">Stock: 1</div>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="cart">
+      <h2>Carrito</h2>
+      <div id="cart-items"></div>
+      <div>Total: <span id="total">0</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

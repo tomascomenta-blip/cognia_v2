@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    grid-auto-rows:1fr;
+    grid-auto-flow:column;
+    gap:2px;
+    width:300px;
+    max-width:90vw;
+    aspect-ratio:1;
+  }
+  .c{
+    background:#fff;
+    border:1px solid #ccc;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  #estado{
+    margin-top:12px;
+    font-size:1.1rem;
+    color:#333;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+const mines = [6,12,18];
+const grid = document.getElementById('grid');
+const estado = document.getElementById('estado');
+
+function getNeighbors(i){
+  const neighbors=[];
+  const r=Math.floor(i/5), c=i%5;
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<5 && nc>=0 && nc<5){
+        neighbors.push(nr*5+nc);
+      }
+    }
+  }
+  return neighbors;
+}
+function countAdjMines(i){
+  return getNeighbors(i).filter(n=>mines.includes(n)).length;
+}
+function openCell(cell,i){
+  if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.textContent='X';
+    cell.style.color='red';
+    estado.textContent='perdiste';
+    return;
+  }
+  const count=countAdjMines(i);
+  cell.classList.add('abierta');
+  if(count>0) cell.textContent=count;
+  if(count===0){
+    const queue=[i];
+    const visited=new Set([i]);
+    while(queue.length){
+      const cur=queue.shift();
+      const curCell=grid.querySelector(`[data-i='${cur}']`);
+      const neigh=getNeighbors(cur);
+      neigh.forEach(n=>{
+        if(visited.has(n)) return;
+        const nCell=grid.querySelector(`[data-i='${n}']`);
+        if(nCell.classList.contains('abierta') || nCell.classList.contains('bandera')) return;
+        if(mines.includes(n)) return;
+        const nCount=countAdjMines(n);
+        nCell.classList.add('abierta');
+        if(nCount>0) nCell.textContent=nCount;
+        visited.add(n);
+        if(nCount===0) queue.push(n);
+      });
+    }
+  }
+}
+grid.addEventListener('click',e=>{
+  const cell=e.target.closest('.c');
+  if(!cell) return;
+  const i=parseInt(cell.dataset.i,10);
+  openCell(cell,i);
+});
+grid.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  const cell=e.target.closest('.c');
+  if(!cell) return;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.textContent='';
+  }else{
+    cell.classList.add('bandera');
+    cell.textContent='🚩';
+  }
+});
+</script>
+</body>
+</html>

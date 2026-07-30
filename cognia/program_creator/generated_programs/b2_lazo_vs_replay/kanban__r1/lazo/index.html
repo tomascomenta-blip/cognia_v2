@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  /* Reset y estilos básicos */
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;padding:20px;}
+  h2{font-size:1.2rem;margin-bottom:0.5rem;}
+  .board{display:flex;gap:1rem;justify-content:center;}
+  .col{background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);flex:1;padding:1rem;min-width:200px;animation:fadeIn 0.8s ease-out forwards;}
+  .col:nth-child(1){animation-delay:0.1s;}
+  .col:nth-child(2){animation-delay:0.3s;}
+  .col:nth-child(3){animation-delay:0.5s;}
+  .cards{min-height:50px;}
+  .card{background:#e3f2fd;border:1px solid #90caf9;border-radius:4px;padding:0.5rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;animation:slideIn 0.5s ease-out forwards;}
+  .card span{flex:1;}
+  .card button{background:#90caf9;color:#fff;border:none;border-radius:3px;padding:2px 6px;margin-left:4px;cursor:pointer;}
+  .card button:disabled{background:#cfd8dc;cursor:not-allowed;}
+  #cont-todo,#cont-doing,#cont-done{font-weight:bold;margin-left:0.5rem;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
+</style>
+</head>
+<body>
+<h1>Kanban</h1>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cols = Array.from(document.querySelectorAll('.col'));
+  const colMap = {todo:0, doing:1, done:2};
+
+  // Crear tarjetas iniciales en Todo
+  ['t1','t2','t3'].forEach(id => addCard(id, 'todo'));
+
+  // Actualizar contadores
+  updateCounts();
+
+  // Delegación de eventos
+  document.querySelector('.board').addEventListener('click', e => {
+    if(e.target.classList.contains('mas') || e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      const dir = e.target.classList.contains('mas') ? 1 : -1;
+      moveCard(card, dir);
+    }
+  });
+
+  function addCard(id, colName){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.innerHTML = `<span>${id}</span>
+                      <button class="mas">→</button>
+                      <button class="menos">←</button>`;
+    cols[colMap[colName]].querySelector('.cards').appendChild(card);
+  }
+
+  function moveCard(card, dir){
+    const currentCol = card.closest('.col');
+    const currentIdx = colMap[currentCol.dataset.col];
+    const targetIdx = currentIdx + dir;
+    if(targetIdx < 0 || targetIdx > 2) return; // fuera de rango
+
+    // Reglas de WIP y límites
+    if(dir === 1 && currentIdx === 0){ // moviendo de Todo a Doing
+      const doingCards = cols[colMap.doing].querySelectorAll('.card');
+      if(doingCards.length >= 2) return; // no puede avanzar
+    }
+    if(dir === -1 && currentIdx === 2){ // moviendo de Done a Doing
+      // no hay límite en Doing al retroceder
+    }
+
+    // Mover la tarjeta
+    const targetCards = cols[targetIdx].querySelector('.cards');
+    targetCards.appendChild(card);
+    updateCounts();
+  }
+
+  function updateCounts(){
+    cols.forEach(col => {
+      const count = col.querySelectorAll('.card').length;
+      const span = col.querySelector('span[id^="cont-"]');
+      if(span) span.textContent = count;
+    });
+  }
+});
+</script>
+</body>
+</html>

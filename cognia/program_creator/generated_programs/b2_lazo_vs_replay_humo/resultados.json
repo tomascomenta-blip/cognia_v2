@@ -1,0 +1,74 @@
+{
+  "celdas": [
+    {
+      "tarea": "kanban",
+      "rep": 1,
+      "segundos_lazo": 76.4,
+      "como_lazo": "diseno_a_codigo (1 rondas, nota_visual=N",
+      "backend": {
+        "t": "2026-07-29T20:45:51",
+        "via": "juez.generar_contrato",
+        "url": "http://127.0.0.1:8080",
+        "puerto": 8080,
+        "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "rol": ""
+      },
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null,
+      "estricto_lazo": false,
+      "orig_lazo": false,
+      "motivo_lazo": "falla critica: el contador dice 3 ('5' no contiene '3'); t1 pasa a doing (js=0, esperaba 1",
+      "segundos_replay": 46.7,
+      "crudo_chars": 3931,
+      "real_rechazado": false,
+      "parseos_iguales": true,
+      "estricto_replay_real": true,
+      "orig_replay_real": true,
+      "motivo_replay_real": "22/23 checks OK (19/19 del contrato)",
+      "estricto_replay_fence": true,
+      "orig_replay_fence": true,
+      "motivo_replay_fence": "22/23 checks OK (19/19 del contrato)"
+    }
+  ],
+  "config": {
+    "replicas": 1,
+    "commit": "3e84066",
+    "commits": [
+      "3e84066"
+    ],
+    "timeout_gen_s": 120,
+    "backend": {
+      "url": "http://127.0.0.1:8080",
+      "modelo": "gpt-oss-20b-MXFP4.gguf",
+      "puerto": 8080,
+      "avisos": []
+    },
+    "max_rondas_defecto": 1,
+    "nota": "apareado perfecto: el replay usa el prompt capturado de LA MISMA celda del lazo; dos parseos del mismo crudo"
+  },
+  "resumen": {
+    "pares": 1,
+    "tasas": {
+      "lazo": 0,
+      "replay_real": 1,
+      "replay_fence": 1
+    },
+    "neto_lazo_vs_replay_real": -1,
+    "neto_sin_fallbacks": -1,
+    "pares_sin_fallback": 1,
+    "gana_lazo": [],
+    "gana_replay_real": [
+      "kanban:r1"
+    ],
+    "neto_real_vs_fence": 0,
+    "gana_real": [],
+    "gana_fence": [],
+    "fallback_celdas": 0,
+    "fallback_aprobadas": 0,
+    "real_rechaza_crudo": 0,
+    "concordancia": "0/1",
+    "infra": []
+  }
+}

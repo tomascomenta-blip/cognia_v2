@@ -1,0 +1,204 @@
+Title: Kanban Board  
+Description: A self‑contained three‑column Kanban board with WIP limits and live counters.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban Board</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+  }
+  .board{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .col{
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    padding:10px;
+    width:200px;
+    min-height:300px;
+    display:flex;
+    flex-direction:column;
+  }
+  .col-header{
+    font-weight:bold;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .col-header span{
+    font-size:0.8em;
+    color:#666;
+  }
+  .card{
+    background:#fff;
+    border-radius:4px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.1);
+    padding:8px;
+    margin-bottom:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card button{
+    background:#007bff;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    width:24px;
+    height:24px;
+    font-weight:bold;
+    cursor:pointer;
+  }
+  .card button:disabled{
+    background:#ccc;
+    cursor:not-allowed;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">todo <span id="cont-todo">0</span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">doing <span id="cont-doing">0</span></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">done <span id="cont-done">0</span></div>
+  </div>
+</div>
+
+<script>
+class KanbanBoard {
+  constructor() {
+    this.board = document.querySelector('.board');
+    this.columns = {
+      todo: document.querySelector('.col[data-col="todo"]'),
+      doing: document.querySelector('.col[data-col="doing"]'),
+      done: document.querySelector('.col[data-col="done"]')
+    };
+    this.init();
+  }
+
+  init() {
+    // Create initial cards in todo
+    ['t1', 't2', 't3'].forEach(id => this.addCard(id, 'todo'));
+    this.updateCounters();
+    this.updateButtons();
+  }
+
+  createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+
+    const btnMinus = document.createElement('button');
+    btnMinus.className = 'menos';
+    btnMinus.textContent = '-';
+    btnMinus.addEventListener('click', e => this.handleMinus(e));
+
+    const btnPlus = document.createElement('button');
+    btnPlus.className = 'mas';
+    btnPlus.textContent = '+';
+    btnPlus.addEventListener('click', e => this.handlePlus(e));
+
+    card.appendChild(btnMinus);
+    card.appendChild(btnPlus);
+    return card;
+  }
+
+  addCard(id, colName) {
+    const card = this.createCard(id);
+    this.columns[colName].appendChild(card);
+  }
+
+  handlePlus(e) {
+    const card = e.target.closest('.card');
+    const currentCol = this.getCardColumn(card);
+    if (!currentCol) return;
+    const targetCol = this.getTargetColumn(currentCol, 'right');
+    if (!targetCol) return;
+    if (currentCol === 'todo' && this.isDoingFull()) return; // WIP limit
+    this.moveCard(card, targetCol);
+  }
+
+  handleMinus(e) {
+    const card = e.target.closest('.card');
+    const currentCol = this.getCardColumn(card);
+    if (!currentCol) return;
+    const targetCol = this.getTargetColumn(currentCol, 'left');
+    if (!targetCol) return;
+    this.moveCard(card, targetCol);
+  }
+
+  getCardColumn(card) {
+    const parent = card.parentElement;
+    return parent.dataset.col;
+  }
+
+  getTargetColumn(current, direction) {
+    const order = ['todo', 'doing', 'done'];
+    const idx = order.indexOf(current);
+    if (direction === 'right' && idx < order.length - 1) return order[idx + 1];
+    if (direction === 'left' && idx > 0) return order[idx - 1];
+    return null;
+  }
+
+  isDoingFull() {
+    return this.columns.doing.children.length >= 2;
+  }
+
+  moveCard(card, targetCol) {
+    this.columns[targetCol].appendChild(card);
+    this.updateCounters();
+    this.updateButtons();
+  }
+
+  updateCounters() {
+    ['todo', 'doing', 'done'].forEach(col => {
+      const count = this.columns[col].children.length - 1; // subtract header
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+
+  updateButtons() {
+    const cards = this.board.querySelectorAll('.card');
+    cards.forEach(card => {
+      const col = this.getCardColumn(card);
+      const minusBtn = card.querySelector('.menos');
+      const plusBtn = card.querySelector('.mas');
+
+      minusBtn.disabled = (col === 'todo');
+      plusBtn.disabled = (col === 'done');
+
+      // Disable plus on todo if doing is full
+      if (col === 'todo' && this.isDoingFull()) {
+        plusBtn.disabled = true;
+      }
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  new KanbanBoard();
+});
+</script>
+</body>
+</html>
+```

@@ -97,6 +97,44 @@ verificados al arrancar.
 ejecutadas) ANTES de encender; humo de 1 celda antes de la corrida
 completa. Enmiendas con fecha aquí.
 
+## RESULTADO (2026-07-29 ~22:10 — corrida completa, veredicto por umbrales pre-fijados)
+
+**Neto (lazo − replay_real) = −1; co-primaria sin fallbacks = −1 → rama
+"−1..+3": el flujo aporta poco. LA BRECHA 92-vs-42 ERA COMPARACIÓN ENTRE
+CORRIDAS DISTINTAS. El replay queda VALIDADO como instrumento.** 24 pares,
+0 infra.
+
+- LAZO **14/24 (58%)** vs replay_real **15/24 (62%)**: indistinguibles
+  (gana lazo 5, gana replay 6). El fallback del flujo apareció 3 veces (2
+  aprobadas) y la co-primaria que lo excluye da el mismo −1: el flujo no
+  compra nada medible por esa vía.
+- **Secundaria del parseo: neto 0, cero pares discordantes, 0 rechazos del
+  parse real** — confirma en vivo la medición offline (veredicto estricto
+  idéntico en 107/107 crudos). La candidata #1 queda enterrada.
+- **El número que se lleva la noche: concordancia lazo↔replay = 13/24
+  (54%).** Con el MISMO prompt, el mismo modelo y temp 0.2, el destino de
+  la celda cambia casi la mitad de las veces. Coincide con la
+  concordancia replay↔gate de fase 1 (12/23). **El prompt fija la TASA,
+  no el destino.**
+
+**Consecuencia metodológica (la más importante, y me obliga a acotar mis
+propias lecturas de hoy):** el LAZO midió 92% (etapa A, n=12), 79% (fase
+3, n=24) y 58% (aquí, n=24) **en la misma tarde-noche, con el mismo
+código**. Eso es ±34 pts de varianza entre corridas del mismo sistema.
+- Lo que se SOSTIENE: todo neto APAREADO dentro de una corrida (fase 1
+  −7, fase 2 +6, fase 3 −4, etapa B +1, este −1). El apareado es inmune a
+  esta varianza; por eso el método lo exige desde hace semanas.
+- Lo que queda FRÁGIL: cualquier lectura que compare NIVELES o NETOS entre
+  corridas distintas. En particular, la conclusión "H-material" de
+  PREREG_DISCREPANCIA_TROCEO (comparar +6 del gate contra +1 fresco) es
+  una comparación entre corridas y hereda esta fragilidad: sigue siendo
+  la mejor lectura disponible, pero **no está al nivel de evidencia de un
+  neto apareado**, y así queda anotado allí.
+- Regla operativa que sale de aquí: **una sola muestra por celda tiene
+  ~54% de reproducibilidad**; ninguna decisión debe apoyarse en una celda,
+  y las comparaciones entre corridas exigen control concurrente o no se
+  hacen.
+
 ## PRIMERA ENMIENDA (2026-07-29 ~19:00 — tras la revisión, ANTES de correr)
 
 **4 BLOQUEA aplicados** (todos verificados con mocks por el revisor):

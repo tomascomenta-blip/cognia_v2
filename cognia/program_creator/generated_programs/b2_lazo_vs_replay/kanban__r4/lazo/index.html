@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban</title>
+<style>
+body{
+  background:#e0e0e0;
+  font-family:system-ui,sans-serif;
+  margin:0;
+  padding:20px;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  min-height:100vh;
+  box-sizing:border-box;
+}
+.board{
+  display:flex;
+  flex-wrap:wrap;
+  gap:16px;
+  max-width:100%;
+}
+.col{
+  background:#f0f0f0;
+  border-radius:8px;
+  box-shadow:0 2px 4px rgba(0,0,0,.1);
+  flex:1 1 200px;
+  display:flex;
+  flex-direction:column;
+  padding:8px;
+  box-sizing:border-box;
+}
+.col-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+  font-weight:bold;
+  font-size:1.1rem;
+}
+.cards{
+  flex:1;
+}
+.card{
+  background:#fff;
+  border-radius:8px;
+  box-shadow:0 2px 4px rgba(0,0,0,.1);
+  padding:8px 12px;
+  margin-bottom:8px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.card + .card{margin-top:-8px;}
+button.menos,button.mas{
+  background:#007bff;
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  padding:4px 8px;
+  font-weight:bold;
+  cursor:pointer;
+  font-size:.9rem;
+}
+button.menos:hover,button.mas:hover{background:#0056b3;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">
+      <span class="col-title">todo</span>
+      <span id="cont-todo">0</span>
+    </div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">
+      <span class="col-title">doing</span>
+      <span id="cont-doing">0</span>
+    </div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">
+      <span class="col-title">done</span>
+      <span id="cont-done">0</span>
+    </div>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+class KanbanBoard{
+  constructor(){
+    this.columns={};
+    this.init();
+  }
+  init(){
+    const colEls=document.querySelectorAll('.col');
+    colEls.forEach(el=>{
+      const col=new Column(el);
+      this.columns[col.dataCol]=col;
+    });
+    const initialIds=['t1','t2','t3'];
+    initialIds.forEach(id=>{
+      const card=new Card(id,this);
+      this.columns['todo'].addCard(card);
+    });
+    this.updateCounters();
+  }
+  updateCounters(){
+    Object.values(this.columns).forEach(col=>{
+      const count=col.cards.length;
+      const counterEl=document.getElementById(`cont-${col.dataCol}`);
+      if(counterEl) counterEl.textContent=count;
+    });
+  }
+  moveCard(card,direction){
+    const currentCol=this.columns[card.currentCol];
+    let targetColName;
+    if(direction==='right'){
+      if(currentCol.dataCol==='todo'){
+        if(this.columns['doing'].cards.length>=2) return;
+        targetColName='doing';
+      }else if(currentCol.dataCol==='doing'){
+        targetColName='done';
+      }else return;
+    }else if(direction==='left'){
+      if(currentCol.dataCol==='done'){
+        targetColName='doing';
+      }else if(currentCol.dataCol==='doing'){
+        targetColName='todo';
+      }else return;
+    }else return;
+    const targetCol=this.columns[targetColName];
+    currentCol.removeCard(card);
+    targetCol.addCard(card);
+    this.updateCounters();
+  }
+}
+class Column{
+  constructor(el){
+    this.el=el;
+    this.dataCol=el.dataset.col;
+    this.cardsContainer=el.querySelector('.cards');
+    this.cards=[];
+  }
+  addCard(card){
+    this.cards.push(card);
+    card.currentCol=this.dataCol;
+    this.cardsContainer.appendChild(card.el);
+  }
+  removeCard(card){
+    const idx=this.cards.indexOf(card);
+    if(idx>-1){
+      this.cards.splice(idx,1);
+      this.cardsContainer.removeChild(card.el);
+    }
+  }
+}
+class Card{
+  constructor(id,board){
+    this.id=id;
+    this.el=document.createElement('div');
+    this.el.className='card';
+    this.el.dataset.id=id;
+    this.currentCol=null;
+    const minusBtn=document.createElement('button');
+    minusBtn.className='menos';
+    minusBtn.textContent='-';
+    minusBtn.addEventListener('click',()=>board.moveCard(this,'left'));
+    const plusBtn=document.createElement('button');
+    plusBtn.className='mas';
+    plusBtn.textContent='+';
+    plusBtn.addEventListener('click',()=>board.moveCard(this,'right'));
+    const content=document.createElement('span');
+    content.textContent=id;
+    this.el.appendChild(minusBtn);
+    this.el.appendChild(content);
+    this.el.appendChild(plusBtn);
+  }
+}
+let board;
+document.addEventListener('DOMContentLoaded',()=>{board=new KanbanBoard();});
+</script>
+</body>
+</html>

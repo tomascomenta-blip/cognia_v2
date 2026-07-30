@@ -93,6 +93,16 @@ del troceo que adoptar.
   lectura pero SIN mecanismo identificado**: no es tamaño, ni feromona, ni
   brief. Lo que queda es contenido semántico fino o heterogeneidad
   temporal del propio sistema.
+- **ACOTACIÓN posterior (2026-07-29 ~22:15, tras PREREG_LAZO_VS_REPLAY):**
+  la lectura H-material compara el +6 del gate con el +1 fresco, y eso es
+  una comparación ENTRE CORRIDAS. El experimento de validez midió que el
+  mismo sistema rinde 58-92% según la corrida (±34 pts) y que la
+  reproducibilidad de una celda es ~54%. H-material sigue siendo la mejor
+  lectura disponible y la vía del troceo sigue cerrada (el −4 del lazo es
+  apareado y no depende de esto), pero **este +1 vs +6 NO tiene el nivel
+  de evidencia de un neto apareado**: si alguien quisiera reabrir el
+  troceo, la vía sería una ablación apareada con material fresco a n≥24,
+  no esta comparación.
 - **Hallazgo colateral que se llevó la noche:** al verificar las tasas
   apareció que el replay rinde 42-46% donde el lazo con el MISMO prompt
   rinde 79-92%. Eso pone en duda la VALIDEZ DEL INSTRUMENTO de todas las

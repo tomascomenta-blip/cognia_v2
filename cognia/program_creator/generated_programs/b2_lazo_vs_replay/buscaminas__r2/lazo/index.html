@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5×5 con 3 minas fijas</title>
+<style>
+  body{
+    font-family:sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:0;
+    padding:20px;
+    background:#f0f0f0;
+  }
+  #top{
+    display:flex;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  #counter{
+    font-size:24px;
+    font-weight:bold;
+    margin-right:10px;
+  }
+  #reset{
+    font-size:18px;
+    cursor:pointer;
+    background:none;
+    border:none;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,64px);
+    grid-auto-rows:64px;
+    gap:2px;
+    margin-bottom:10px;
+  }
+  .c{
+    background:#d3d3d3;
+    width:64px;
+    height:64px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    cursor:pointer;
+    user-select:none;
+    box-shadow:0 2px 4px rgba(0,0,0,0.2);
+  }
+  .c.abierta{
+    background:#87ceeb;
+    box-shadow:none;
+  }
+  .c.n1{background:#b3e5fc;}
+  .c.n2{background:#81d4fa;}
+  .c.n3{background:#4fc3f7;}
+  .c.n4{background:#29b6f6;}
+  .c.n5{background:#03a9f4;}
+  .c.n6{background:#039be5;}
+  .c.n7{background:#0288d1;}
+  .c.n8{background:#0277bd;}
+  .c.mina{background:#dc143c;color:white;}
+  .c.bandera{background:#d3d3d3;color:transparent;position:relative;}
+  .c.bandera::after{content:"🚩";font-size:24px;color:red;}
+  #estado{
+    font-size:18px;
+    color:red;
+    margin-bottom:10px;
+  }
+  #bottom{
+    margin-top:10px;
+  }
+  @media (max-width:400px){
+    .c{width:48px;height:48px;font-size:14px;line-height:48px;}
+    #grid{grid-template-columns:repeat(5,48px);grid-auto-rows:48px;}
+  }
+</style>
+</head>
+<body>
+<div id="top">
+  <div id="counter">0</div>
+  <button id="reset">🔄</button>
+</div>
+<div id="grid"></div>
+<div id="estado"></div>
+<div id="bottom">
+  <button id="playagain">Play Again</button>
+</div>
+<script>
+let cells = [];
+let openedCount = 0;
+let gameOver = false;
+
+function initGame(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  cells = [];
+  openedCount = 0;
+  gameOver = false;
+  document.getElementById('estado').textContent = '';
+  document.getElementById('counter').textContent = '0';
+  for(let i=0;i<25;i++){
+    const div = document.createElement('div');
+    div.classList.add('c');
+    div.dataset.i = i;
+    div.dataset.opened = 'false';
+    div.dataset.flagged = 'false';
+    if([6,12,18].includes(i)) div.dataset.mine = 'true';
+    div.addEventListener('click', onCellClick);
+    div.addEventListener('contextmenu', onCellRightClick);
+    grid.appendChild(div);
+    cells.push(div);
+  }
+}
+
+function onCellClick(e){
+  if(gameOver) return;
+  const cell = e.currentTarget;
+  if(cell.dataset.flagged === 'true') return;
+  if(cell.dataset.opened === 'true') return;
+  openCell(cell);
+}
+
+function onCellRightClick(e){
+  e.preventDefault();
+  if(gameOver) return;
+  const cell = e.currentTarget;
+  if(cell.dataset.opened === 'true') return;
+  if(cell.dataset.flagged === 'true'){
+    cell.dataset.flagged = 'false';
+    cell.classList.remove('bandera');
+  }else{
+    cell.dataset.flagged = 'true';
+    cell.classList.add('bandera');
+  }
+}
+
+function openCell(cell){
+  if(cell.dataset.opened === 'true') return;
+  cell.dataset.opened = 'true';
+  cell.classList.add('abierta');
+  if(cell.dataset.mine === 'true'){
+    cell.classList.add('mina');
+    document.getElementById('estado').textContent = 'perdiste';
+    gameOver = true;
+    return;
+  }
+  const i = parseInt(cell.dataset.i);
+  const adj = countAdjacentMines(i);
+  if(adj > 0){
+    cell.textContent = adj;
+    cell.classList.add('n'+adj);
+  }else{
+    cell.textContent = '';
+    const queue = [i];
+    const visited = new Set();
+    visited.add(i);
+    while(queue.length){
+      const idx = queue.shift();
+      const neighbors = getNeighbors(idx);
+      for(const n of neighbors){
+        const ncell = cells[n];
+        if(ncell.dataset.opened === 'true' || ncell.dataset.flagged === 'true' || ncell.dataset.mine === 'true') continue;
+        ncell.dataset.opened = 'true';
+        ncell.classList.add('abierta');
+        const nAdj = countAdjacentMines(n);
+        if(nAdj > 0){
+          ncell.textContent = nAdj;
+          ncell.classList.add('n'+nAdj);
+        }else{
+          ncell.textContent = '';
+          if(!visited.has(n)){
+            queue.push(n);
+            visited.add(n);
+          }
+        }
+        openedCount++;
+      }
+    }
+  }
+  openedCount++;
+  document.getElementById('counter').textContent = openedCount.toString();
+}
+
+function countAdjacentMines(i){
+  const neighbors = getNeighbors(i);
+  let count = 0;
+  for(const n of neighbors){
+    if(cells[n].dataset.mine === 'true') count++;
+  }
+  return count;
+}
+
+function getNeighbors(i){
+  const row = Math.floor(i/5);
+  const col = i%5;
+  const neighbors = [];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0 && dc===0) continue;
+      const nr=row+dr;
+      const nc=col+dc;
+      if(nr>=0 && nr<5 && nc>=0 && nc<5){
+        neighbors.push(nr*5+nc);
+      }
+    }
+  }
+  return neighbors;
+}
+
+document.getElementById('reset').addEventListener('click', initGame);
+document.getElementById('playagain').addEventListener('click', initGame);
+window.addEventListener('load', initGame);
+</script>
+</body>
+</html>

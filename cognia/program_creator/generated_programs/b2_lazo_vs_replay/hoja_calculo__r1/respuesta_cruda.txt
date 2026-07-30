@@ -1,0 +1,213 @@
+Title: Mini Hoja de Cálculo 3x3  
+Description: Una hoja de cálculo 3x3 con fórmulas y recálculo automático.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  .container{
+    background:white;
+    border-radius:8px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    padding:20px;
+    max-width:400px;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr;
+    grid-auto-rows:40px;
+    gap:2px;
+  }
+  .header{
+    background:#fafafa;
+    color:#777;
+    font-weight:bold;
+    text-align:center;
+    line-height:40px;
+  }
+  .row-label{
+    background:#fafafa;
+    color:#777;
+    font-weight:bold;
+    text-align:center;
+    line-height:40px;
+  }
+  .celda{
+    border:1px solid #ccc;
+    border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    padding:0 5px;
+    font-size:1rem;
+    background:white;
+    text-align:right;
+    outline:none;
+    transition:background 0.2s,box-shadow 0.2s;
+  }
+  .celda:focus{
+    box-shadow:0 0 0 2px #4a90e2;
+  }
+  .celda:hover{
+    background:#f5f5f5;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="grid">
+    <div class="header"></div>
+    <div class="header">A</div>
+    <div class="header">B</div>
+    <div class="header">C</div>
+
+    <div class="row-label">1</div>
+    <input class="celda" data-ref="A1" value="">
+    <input class="celda" data-ref="B1" value="">
+    <input class="celda" data-ref="C1" value="">
+
+    <div class="row-label">2</div>
+    <input class="celda" data-ref="A2" value="">
+    <input class="celda" data-ref="B2" value="">
+    <input class="celda" data-ref="C2" value="">
+
+    <div class="row-label">3</div>
+    <input class="celda" data-ref="A3" value="">
+    <input class="celda" data-ref="B3" value="">
+    <input class="celda" data-ref="C3" value="">
+  </div>
+</div>
+
+<script>
+class Cell {
+  constructor(ref, el) {
+    this.ref = ref;
+    this.el = el;
+    this.formula = null; // string starting with '='
+    this.value = '';     // displayed value
+    this.deps = new Set();      // cells this cell depends on
+    this.dependents = new Set(); // cells that depend on this cell
+  }
+}
+
+class Spreadsheet {
+  constructor() {
+    this.cells = {}; // ref -> Cell
+    this.init();
+  }
+
+  init() {
+    const inputs = document.querySelectorAll('.celda');
+    inputs.forEach(el => {
+      const ref = el.dataset.ref;
+      const cell = new Cell(ref, el);
+      this.cells[ref] = cell;
+      el.addEventListener('input', () => this.onInput(cell));
+    });
+    // initial evaluation (all empty)
+    Object.values(this.cells).forEach(cell => this.evaluateCell(cell.ref));
+  }
+
+  onInput(cell) {
+    const val = cell.el.value;
+    if (val.startsWith('=')) {
+      cell.formula = val;
+    } else {
+      cell.formula = null;
+    }
+    this.evaluateCell(cell.ref);
+    this.propagate(cell.ref);
+  }
+
+  evaluateCell(ref, stack = new Set()) {
+    const cell = this.cells[ref];
+    if (!cell) return '';
+
+    if (stack.has(ref)) {
+      cell.value = 'CIRC';
+      cell.el.value = 'CIRC';
+      return 'CIRC';
+    }
+    stack.add(ref);
+
+    let result;
+    if (cell.formula && cell.formula.startsWith('=')) {
+      const expr = cell.formula.slice(1);
+      const refs = expr.match(/[A-C][1-3]/g) || [];
+      const newDeps = new Set();
+      refs.forEach(r => newDeps.add(r));
+
+      let evalExpr = expr;
+      let hasCirc = false;
+      refs.forEach(r => {
+        const val = this.evaluateCell(r, stack);
+        if (val === 'CIRC') {
+          hasCirc = true;
+        } else {
+          evalExpr = evalExpr.replaceAll(r, val);
+        }
+      });
+
+      if (hasCirc) {
+        result = 'CIRC';
+      } else {
+        try {
+          result = eval(evalExpr);
+          if (isNaN(result)) result = 'CIRC';
+        } catch (e) {
+          result = 'CIRC';
+        }
+      }
+
+      // Update dependencies
+      cell.deps.forEach(d => this.cells[d].dependents.delete(ref));
+      cell.deps = newDeps;
+      newDeps.forEach(d => this.cells[d].dependents.add(ref));
+    } else {
+      const val = cell.el.value.trim();
+      if (val === '') {
+        result = '';
+      } else if (!isNaN(val)) {
+        result = Number(val);
+      } else {
+        result = val;
+      }
+    }
+
+    cell.value = result;
+    cell.el.value = result;
+    stack.delete(ref);
+    return result;
+  }
+
+  propagate(ref) {
+    const cell = this.cells[ref];
+    if (!cell) return;
+    cell.dependents.forEach(dep => {
+      this.evaluateCell(dep);
+      this.propagate(dep);
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  new Spreadsheet();
+});
+</script>
+</body>
+</html>
+```

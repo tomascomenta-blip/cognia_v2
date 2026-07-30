@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#333;}
+  .spreadsheet{
+    display:grid;
+    grid-template-columns:30px repeat(3,80px);
+    grid-template-rows:30px repeat(3,40px);
+    gap:2px;
+    max-width:400px;
+    margin:50px auto;
+    border:1px solid #ccc;
+    background:#fff;
+  }
+  .label{display:flex;align-items:center;justify-content:center;font-weight:bold;color:#666;}
+  .celda{
+    width:100%;height:100%;box-sizing:border-box;
+    border:1px solid #ccc;padding:4px;font-size:14px;
+    background:#f9f9f9;color:#333;
+  }
+  .celda.formula{font-weight:bold;color:#000;}
+  .celda.active{background:#e0f7fa;border-color:#4db6ac;color:#004d40;font-weight:bold;}
+  .celda.circular{color:red;}
+</style>
+</head>
+<body>
+<div class="spreadsheet">
+  <div class="label"></div><div class="label">A</div><div class="label">B</div><div class="label">C</div>
+  <div class="label">1</div><input class="celda" data-ref="A1"><input class="celda" data-ref="B1"><input class="celda" data-ref="C1">
+  <div class="label">2</div><input class="celda" data-ref="A2"><input class="celda" data-ref="B2"><input class="celda" data-ref="C2">
+  <div class="label">3</div><input class="celda" data-ref="A3"><input class="celda" data-ref="B3"><input class="celda" data-ref="C3">
+</div>
+
+<script>
+(() => {
+  const cellsByRef = {};
+  const dependentsMap = {}; // ref -> Set of refs that depend on it
+  const referencesMap = {}; // ref -> Set of refs it references
+
+  // Initialize maps
+  document.querySelectorAll('.celda').forEach(el => {
+    const ref = el.dataset.ref;
+    cellsByRef[ref] = el;
+    dependentsMap[ref] = new Set();
+    referencesMap[ref] = new Set();
+    el.addEventListener('input', handleInput);
+    el.addEventListener('focus', () => el.classList.add('active'));
+    el.addEventListener('blur', () => el.classList.remove('active'));
+  });
+
+  function handleInput(e) {
+    const el = e.target;
+    const ref = el.dataset.ref;
+    const val = el.value.trim();
+
+    // Remove old dependencies
+    referencesMap[ref].forEach(r => dependentsMap[r].delete(ref));
+    referencesMap[ref].clear();
+
+    if (val.startsWith('=')) {
+      el.dataset.formula = val.slice(1);
+      const newRefs = new Set((val.slice(1).match(/[A-C][1-3]/g) || []));
+      newRefs.forEach(r => {
+        dependentsMap[r].add(ref);
+        referencesMap[ref].add(r);
+      });
+    } else {
+      delete el.dataset.formula;
+    }
+
+    recomputeCell(ref, new Set([ref]));
+  }
+
+  function evaluateFormula(formula, visited) {
+    const refs = formula.match(/[A-C][1-3]/g) || [];
+    for (const r of refs) {
+      if (visited.has(r)) return 'CIRC';
+    }
+    let expr = formula;
+    for (const r of refs) {
+      const val = cellsByRef[r].value.trim();
+      const num = parseFloat(val);
+      const numStr = isNaN(num) ? '0' : num.toString();
+      expr = expr.replaceAll(r, numStr);
+    }
+    try {
+      const result = Function('return ' + expr)();
+      return result.toString();
+    } catch {
+      return 'ERR';
+    }
+  }
+
+  function recomputeCell(ref, visited) {
+    const el = cellsByRef[ref];
+    const formula = el.dataset.formula;
+    if (formula !== undefined) {
+      const val = evaluateFormula(formula, visited);
+      el.value = val;
+      el.classList.add('formula');
+      if (val === 'CIRC') el.classList.add('circular');
+      else el.classList.remove('circular');
+    } else {
+      el.classList.remove('formula', 'circular');
+    }
+    dependentsMap[ref].forEach(dep => recomputeCell(dep, new Set(visited)));
+  }
+})();
+</script>
+</body>
+</html>

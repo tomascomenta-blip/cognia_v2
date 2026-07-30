@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  :root {
+    --accent: #008080;          /* Teal accent for active cells */
+    --bg: #ffffff;              /* White background */
+    --cell-bg: #f0f0f0;         /* Light gray cell background */
+    --cell-shadow: inset 0 0 2px #ccc;
+    --text: #555555;            /* Regular text color */
+    --formula-text: #000000;    /* Bold dark text for formulas */
+    --label-color: #888888;     /* Muted gray for labels */
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    font-family: Arial, Helvetica, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 400px;
+  }
+  th, td {
+    padding: 0;
+    margin: 0;
+  }
+  th {
+    text-align: center;
+    font-weight: normal;
+    color: var(--label-color);
+    font-size: 1.1rem;
+  }
+  .label-row th:first-child, .label-col td:first-child {
+    width: 30px;
+  }
+  .celda {
+    width: 80px;
+    height: 80px;
+    box-sizing: border-box;
+    border: none;
+    background: var(--cell-bg);
+    box-shadow: var(--cell-shadow);
+    text-align: center;
+    font-size: 1rem;
+    color: var(--text);
+    padding: 0;
+  }
+  .celda.formula {
+    font-weight: bold;
+    color: var(--formula-text);
+  }
+  .celda:focus {
+    outline: none;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+  }
+  @media (max-width: 500px) {
+    .celda {
+      width: 60px;
+      height: 60px;
+      font-size: 0.9rem;
+    }
+  }
+</style>
+</head>
+<body>
+<table>
+  <tr class="label-row">
+    <th></th>
+    <th>A</th>
+    <th>B</th>
+    <th>C</th>
+  </tr>
+  <tr>
+    <td class="label-col"><th>1</th></td>
+    <td><input type="text" class="celda" data-ref="A1" data-formula=""></td>
+    <td><input type="text" class="celda" data-ref="B1" data-formula=""></td>
+    <td><input type="text" class="celda" data-ref="C1" data-formula=""></td>
+  </tr>
+  <tr>
+    <td class="label-col"><th>2</th></td>
+    <td><input type="text" class="celda" data-ref="A2" data-formula=""></td>
+    <td><input type="text" class="celda" data-ref="B2" data-formula=""></td>
+    <td><input type="text" class="celda" data-ref="C2" data-formula=""></td>
+  </tr>
+  <tr>
+    <td class="label-col"><th>3</th></td>
+    <td><input type="text" class="celda" data-ref="A3" data-formula=""></td>
+    <td><input type="text" class="celda" data-ref="B3" data-formula=""></td>
+    <td><input type="text" class="celda" data-ref="C3" data-formula=""></td>
+  </tr>
+</table>
+
+<script>
+  // Configurable constants
+  const ACCENT_COLOR = '#008080';
+  const CIRC_TEXT = 'CIRC';
+
+  // Utility to format numbers
+  function formatNumber(num) {
+    if (isNaN(num)) return '';
+    return num.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+
+  // Get all cell inputs
+  const cells = Array.from(document.querySelectorAll('.celda'));
+
+  // Map ref -> input element
+  const refMap = {};
+  cells.forEach(cell => {
+    refMap[cell.dataset.ref] = cell;
+  });
+
+  // Evaluate a single cell (recursive)
+  function evaluateCell(ref, stack = []) {
+    const cell = refMap[ref];
+    const formula = cell.dataset.formula.trim();
+
+    if (!formula.startsWith('=')) {
+      // Not a formula
+      cell.classList.remove('formula');
+      cell.dataset.value = cell.value;
+      return;
+    }
+
+    // Detect circular reference
+    if (stack.includes(ref)) {
+      cell.value = CIRC_TEXT;
+      cell.classList.remove('formula');
+      cell.dataset.value = CIRC_TEXT;
+      return;
+    }
+
+    // Prepare expression by replacing references with numeric values
+    const expr = formula.slice(1).replace(/[A-C][1-3]/g, match => {
+      const target = refMap[match];
+      // Ensure target is evaluated first
+      evaluateCell(match, [...stack, ref]);
+      const val = parseFloat(target.dataset.value);
+      return isNaN(val) ? 0 : val;
+    });
+
+    // Evaluate expression safely
+    let result;
+    try {
+      // Only + and - operators are allowed
+      if (!/^[0-9+\-.\s]+$/.test(expr)) throw new Error('Invalid expression');
+      result = Function(`"use strict"; return (${expr})`)();
+    } catch (e) {
+      result = NaN;
+    }
+
+    if (isNaN(result)) {
+      cell.value = CIRC_TEXT;
+      cell.classList.remove('formula');
+      cell.dataset.value = CIRC_TEXT;
+    } else {
+      cell.value = formatNumber(result);
+      cell.classList.add('formula');
+      cell.dataset.value = result;
+    }
+  }
+
+  // Re-evaluate all cells (cascade)
+  function evaluateAll() {
+    cells.forEach(cell => {
+      evaluateCell(cell.dataset.ref);
+    });
+  }
+
+  // Attach event listeners
+  cells.forEach(cell => {
+    cell.addEventListener('input', () => {
+      // Store the raw input as data-formula
+      cell.dataset.formula = cell.value;
+      evaluateAll();
+    });
+  });
+
+  // Initial evaluation (none)
+  evaluateAll();
+</script>
+</body>
+</html>

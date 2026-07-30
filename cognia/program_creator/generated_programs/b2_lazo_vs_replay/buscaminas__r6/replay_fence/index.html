@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-gap:2px;
+    padding:2px;
+    border:1px solid #555;
+    background:#f0f0f0;
+    margin-top:20px;
+  }
+  .c{
+    width:60px;
+    height:60px;
+    background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    border:1px solid #ddd;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    color:#333;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c:hover{
+    box-shadow:0 0 5px rgba(0,0,255,.3);
+  }
+  .c.abierta{
+    background:#e0ffe0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ffe0e0;
+    color:#d00;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:18px;
+    color:#d00;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+/* CONFIGURABLE CONSTANTS */
+const GRID_SIZE = 5;
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+const MINES = [6,12,18]; // posiciones fijas de las minas
+
+/* UTILIDADES */
+function getNeighbors(i){
+  const neighbors = [];
+  const x = i % GRID_SIZE;
+  const y = Math.floor(i / GRID_SIZE);
+  for(let dy=-1;dy<=1;dy++){
+    for(let dx=-1;dx<=1;dx++){
+      if(dx===0 && dy===0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if(nx>=0 && nx<GRID_SIZE && ny>=0 && ny<GRID_SIZE){
+        neighbors.push(ny*GRID_SIZE + nx);
+      }
+    }
+  }
+  return neighbors;
+}
+
+/* CREAR GRID */
+const gridEl = document.getElementById('grid');
+const estadoEl = document.getElementById('estado');
+const cells = [];
+
+for(let i=0;i<TOTAL_CELLS;i++){
+  const cell = document.createElement('div');
+  cell.classList.add('c');
+  cell.dataset.i = i;
+  cell.dataset.mine = MINES.includes(i) ? 'true' : 'false';
+  // calcular minas adyacentes
+  const adj = getNeighbors(i).filter(n => MINES.includes(n)).length;
+  cell.dataset.adjacent = adj;
+  // eventos
+  cell.addEventListener('click', leftClick);
+  cell.addEventListener('contextmenu', rightClick);
+  gridEl.appendChild(cell);
+  cells.push(cell);
+}
+
+/* EVENTOS */
+function leftClick(e){
+  const cell = e.currentTarget;
+  if(cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+  openCell(cell);
+}
+
+function rightClick(e){
+  e.preventDefault();
+  const cell = e.currentTarget;
+  if(cell.classList.contains('abierta')) return;
+  if(cell.classList.contains('bandera')){
+    cell.classList.remove('bandera');
+    cell.textContent = '';
+  }else{
+    cell.classList.add('bandera');
+    cell.textContent = '🚩';
+  }
+}
+
+/* LÓGICA DE ABRIR */
+function openCell(cell){
+  if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+  if(cell.dataset.mine === 'true'){
+    cell.classList.add('abierta');
+    cell.textContent = '💣';
+    estadoEl.textContent = 'perdiste';
+    return;
+  }
+  cell.classList.add('abierta');
+  const adj = parseInt(cell.dataset.adjacent,10);
+  if(adj>0) cell.textContent = adj;
+  if(adj===0) cascadeOpen(cell);
+}
+
+function cascadeOpen(startCell){
+  const queue = [startCell];
+  const visited = new Set();
+  while(queue.length){
+    const cell = queue.shift();
+    const i = parseInt(cell.dataset.i,10);
+    const neighbors = getNeighbors(i);
+    for(const n of neighbors){
+      const neighborCell = cells[n];
+      if(neighborCell.classList.contains('abierta') || neighborCell.classList.contains('bandera')) continue;
+      if(neighborCell.dataset.mine === 'true') continue;
+      neighborCell.classList.add('abierta');
+      const adj = parseInt(neighborCell.dataset.adjacent,10);
+      if(adj>0) neighborCell.textContent = adj;
+      if(adj===0 && !visited.has(n)){
+        visited.add(n);
+        queue.push(neighborCell);
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>

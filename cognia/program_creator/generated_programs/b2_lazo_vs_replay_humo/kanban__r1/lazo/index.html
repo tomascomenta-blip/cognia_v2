@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en HTML</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f5f5;
+    color:#333;
+  }
+  .container{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px;
+    max-width:1200px;
+    margin:auto;
+  }
+  .col{
+    flex:1;
+    min-width:250px;
+    background:#fafafa;
+    padding:10px;
+    border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    display:flex;
+    flex-direction:column;
+  }
+  .col h2{
+    margin:0 0 8px;
+    font-size:1.2rem;
+  }
+  .col .counter{
+    margin-bottom:12px;
+    font-size:.9rem;
+    color:#666;
+  }
+  .card{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:8px;
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    margin-bottom:8px;
+  }
+  .card:last-child{margin-bottom:0;}
+  .card .title{flex:1;}
+  .card .btns{display:flex;gap:4px;}
+  .card button{
+    background:#4a90e2;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    padding:4px 8px;
+    cursor:pointer;
+    font-size:.9rem;
+  }
+  .card button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="counter">Tarjetas: <span id="cont-todo"></span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="counter">Tarjetas: <span id="cont-doing"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="counter">Tarjetas: <span id="cont-done"></span></div>
+  </div>
+</div>
+
+<script>
+/* CONFIGURABLE CONSTANTS */
+const MAX_DOING = 2;
+const INITIAL_TODO = ['t1', 't2', 't3'];
+
+/* SELECTORS */
+const columns = Array.from(document.querySelectorAll('.col'));
+const contTodo = document.getElementById('cont-todo');
+const contDoing = document.getElementById('cont-doing');
+const contDone = document.getElementById('cont-done');
+
+/* CREATE A CARD ELEMENT */
+function createCard(id){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = id;
+
+  const title = document.createElement('span');
+  title.className = 'title';
+  title.textContent = id;
+
+  const btns = document.createElement('div');
+  btns.className = 'btns';
+
+  const btnMas = document.createElement('button');
+  btnMas.className = 'mas';
+  btnMas.textContent = '+';
+  btnMas.addEventListener('click', () => moveCard(card, 1));
+
+  const btnMenos = document.createElement('button');
+  btnMenos.className = 'menos';
+  btnMenos.textContent = '-';
+  btnMenos.addEventListener('click', () => moveCard(card, -1));
+
+  btns.appendChild(btnMas);
+  btns.appendChild(btnMenos);
+
+  card.appendChild(title);
+  card.appendChild(btns);
+  return card;
+}
+
+/* MOVE CARD BETWEEN COLUMNS */
+function moveCard(card, dir){
+  const currentCol = card.parentElement;
+  const currentIdx = columns.findIndex(c => c === currentCol);
+  const targetIdx = currentIdx + dir;
+  if (targetIdx < 0 || targetIdx > 2) return; // out of bounds
+
+  /* Restrictions */
+  if (dir === 1 && currentCol.dataset.col === 'done') return; // can't advance from done
+  if (dir === -1 && currentCol.dataset.col === 'todo') return; // can't retreat from todo
+  if (dir === 1 && currentCol.dataset.col === 'todo' && columns[1].children.length >= MAX_DOING) return; // WIP limit
+
+  columns[targetIdx].appendChild(card);
+  updateCounts();
+  updateButtons();
+}
+
+/* UPDATE COUNTERS */
+function updateCounts(){
+  contTodo.textContent = columns[0].children.length;
+  contDoing.textContent = columns[1].children.length;
+  contDone.textContent = columns[2].children.length;
+}
+
+/* UPDATE BUTTON DISABLED STATES */
+function updateButtons(){
+  const doingCount = columns[1].children.length;
+
+  /* Todo column */
+  columns[0].querySelectorAll('.card').forEach(card => {
+    const btnMas = card.querySelector('.mas');
+    const btnMenos = card.querySelector('.menos');
+    btnMas.disabled = doingCount >= MAX_DOING;
+    btnMenos.disabled = true;
+  });
+
+  /* Doing column */
+  columns[1].querySelectorAll('.card').forEach(card => {
+    const btnMas = card.querySelector('.mas');
+    const btnMenos = card.querySelector('.menos');
+    btnMas.disabled = false;
+    btnMenos.disabled = false;
+  });
+
+  /* Done column */
+  columns[2].querySelectorAll('.card').forEach(card => {
+    const btnMas = card.querySelector('.mas');
+    const btnMenos = card.querySelector('.menos');
+    btnMas.disabled = true;
+    btnMenos.disabled = false;
+  });
+}
+
+/* INITIALIZE BOARD */
+function init(){
+  const todoCol = columns[0];
+  INITIAL_TODO.forEach(id => todoCol.appendChild(createCard(id)));
+  updateCounts();
+  updateButtons();
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

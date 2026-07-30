@@ -1,0 +1,236 @@
+Title: Minesweeper 5x5  
+Description: A 5x5 minesweeper with 3 fixed mines, fully functional in a single HTML file.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Minesweeper 5x5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{
+    margin:0;
+    font-family:sans-serif;
+    background:#f8f8f8;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  header{
+    width:100%;
+    max-width:320px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px;
+  }
+  header h1{
+    margin:0;
+    font-size:1.5rem;
+    font-weight:bold;
+  }
+  button#reset{
+    padding:5px 10px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:320px;
+    margin-top:10px;
+  }
+  .c{
+    background:#d3d3d3;
+    border:1px solid #aaa;
+    box-shadow:1px 1px 3px rgba(0,0,0,0.2);
+    height:0;
+    padding-bottom:100%;
+    position:relative;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c>span{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    font-size:1.2rem;
+    font-weight:bold;
+  }
+  .c.abierta{
+    background:#fff;
+    cursor:default;
+  }
+  .c.abierta span{
+    color:#008080;
+  }
+  .c.abierta .bomb{
+    color:red;
+    font-size:1.5rem;
+  }
+  .c.bandera::before{
+    content:"🚩";
+    color:red;
+    font-size:1.5rem;
+  }
+  #estado{
+    margin-top:10px;
+    font-weight:bold;
+    color:red;
+    min-height:1.2em;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Minesweeper 5x5</h1>
+  <button id="reset">Reset</button>
+</header>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+class MinesweeperGame{
+  constructor(){
+    this.grid=document.getElementById('grid');
+    this.estado=document.getElementById('estado');
+    this.resetButton=document.getElementById('reset');
+    this.mines=new Set([6,12,18]); // fixed mines
+    this.cells=[];
+    this.gameOver=false;
+    this.init();
+  }
+  init(){
+    this.grid.innerHTML='';
+    this.cells=[];
+    for(let i=0;i<25;i++){
+      const cell=document.createElement('div');
+      cell.classList.add('c');
+      cell.dataset.i=i;
+      const span=document.createElement('span');
+      cell.appendChild(span);
+      cell.addEventListener('click',e=>this.handleClick(e));
+      cell.addEventListener('contextmenu',e=>this.handleRightClick(e));
+      this.grid.appendChild(cell);
+      this.cells.push(cell);
+    }
+    this.computeAdjacents();
+    this.resetButton.addEventListener('click',()=>this.reset());
+    this.estado.textContent='';
+    this.gameOver=false;
+  }
+  computeAdjacents(){
+    this.adjacentCounts=new Array(25).fill(0);
+    for(let i=0;i<25;i++){
+      if(this.mines.has(i)) continue;
+      const neigh=this.getNeighbors(i);
+      let count=0;
+      for(const n of neigh) if(this.mines.has(n)) count++;
+      this.adjacentCounts[i]=count;
+    }
+  }
+  getNeighbors(idx){
+    const neigh=[];
+    const r=Math.floor(idx/5),c=idx%5;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0) continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5) neigh.push(nr*5+nc);
+      }
+    }
+    return neigh;
+  }
+  handleClick(e){
+    const cell=e.currentTarget;
+    const idx=parseInt(cell.dataset.i);
+    if(this.gameOver) return;
+    if(cell.classList.contains('bandera')) return;
+    if(cell.classList.contains('abierta')) return;
+    if(this.mines.has(idx)){
+      this.revealMine(idx);
+      this.endGame();
+    }else{
+      this.openCell(idx);
+    }
+  }
+  handleRightClick(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if(this.gameOver) return;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+    }else{
+      cell.classList.add('bandera');
+    }
+  }
+  openCell(idx){
+    const cell=this.cells[idx];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    const count=this.adjacentCounts[idx];
+    const span=cell.querySelector('span');
+    if(count>0){
+      span.textContent=count;
+    }else{
+      span.textContent='';
+      this.cascadeOpen(idx);
+    }
+  }
+  cascadeOpen(startIdx){
+    const queue=[startIdx];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      if(visited.has(idx)) continue;
+      visited.add(idx);
+      const cell=this.cells[idx];
+      if(cell.classList.contains('abierta')||cell.classList.contains('bandera')||this.mines.has(idx)) continue;
+      cell.classList.add('abierta');
+      const count=this.adjacentCounts[idx];
+      const span=cell.querySelector('span');
+      if(count>0){
+        span.textContent=count;
+      }else{
+        span.textContent='';
+        const neigh=this.getNeighbors(idx);
+        for(const n of neigh) if(!visited.has(n)) queue.push(n);
+      }
+    }
+  }
+  revealMine(idx){
+    const cell=this.cells[idx];
+    cell.classList.add('abierta');
+    const span=cell.querySelector('span');
+    span.innerHTML='<span class="bomb">💣</span>';
+  }
+  endGame(){
+    this.gameOver=true;
+    this.estado.textContent='perdiste';
+    for(const idx of this.mines){
+      const cell=this.cells[idx];
+      if(!cell.classList.contains('abierta')) this.revealMine(idx);
+    }
+  }
+  reset(){
+    for(const cell of this.cells){
+      cell.classList.remove('abierta','bandera');
+      const span=cell.querySelector('span');
+      span.textContent='';
+      span.innerHTML='';
+    }
+    this.estado.textContent='';
+    this.gameOver=false;
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new MinesweeperGame());
+</script>
+</body>
+</html>
+```

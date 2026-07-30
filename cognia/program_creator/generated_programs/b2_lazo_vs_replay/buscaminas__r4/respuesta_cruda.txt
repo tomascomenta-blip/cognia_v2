@@ -1,0 +1,151 @@
+Title: Un buscaminas 5x5  
+Description: 5x5 Minesweeper with 3 fixed mines, full functionality in one self‑contained HTML file.  
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un buscaminas 5x5</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:20px;
+    background:#222;
+    color:#eee;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    max-width:300px;
+    width:100%;
+  }
+  .c{
+    background:#333;
+    border:1px solid #555;
+    color:#0ff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    aspect-ratio:1/1;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#444;
+  }
+  .c.bandera{
+    border-color:#ffa500;
+    box-shadow:0 0 5px #ffa500;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    color:red;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // fixed mine positions
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const cells = [];
+  const counts = Array(25).fill(0);
+  const gameOver = {value:false};
+
+  // create cells
+  for(let i=0;i<25;i++){
+    const c=document.createElement('div');
+    c.className='c';
+    c.dataset.i=i;
+    grid.appendChild(c);
+    cells[i]=c;
+    c.addEventListener('click',handleClick);
+    c.addEventListener('contextmenu',handleRight);
+  }
+
+  // precompute adjacent mine counts
+  const neighbors = (i)=>{
+    const r=Math.floor(i/5),c=i%5;
+    const arr=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5)arr.push(nr*5+nc);
+      }
+    }
+    return arr;
+  };
+  for(const m of mines){
+    for(const n of neighbors(m)){
+      if(!mines.has(n))counts[n]++;
+    }
+  }
+
+  function openCell(i){
+    const cell=cells[i];
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;
+    cell.classList.add('abierta');
+    if(mines.has(i)){
+      cell.textContent='';
+      estado.textContent='perdiste';
+      gameOver.value=true;
+      return;
+    }
+    const cnt=counts[i];
+    cell.textContent=cnt>0?cnt:'';
+  }
+
+  function cascade(start){
+    const queue=[start];
+    while(queue.length){
+      const cur=queue.shift();
+      for(const n of neighbors(cur)){
+        const nc=cells[n];
+        if(nc.classList.contains('bandera')||nc.classList.contains('abierta')||mines.has(n))continue;
+        openCell(n);
+        if(counts[n]===0)queue.push(n);
+      }
+    }
+  }
+
+  function handleClick(e){
+    if(gameOver.value)return;
+    const i=parseInt(e.currentTarget.dataset.i);
+    if(cells[i].classList.contains('bandera')||cells[i].classList.contains('abierta'))return;
+    if(mines.has(i)){
+      openCell(i);
+    }else{
+      openCell(i);
+      if(counts[i]===0)cascade(i);
+    }
+  }
+
+  function handleRight(e){
+    e.preventDefault();
+    if(gameOver.value)return;
+    const i=parseInt(e.currentTarget.dataset.i);
+    const cell=cells[i];
+    if(cell.classList.contains('abierta'))return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+    }else{
+      cell.classList.add('bandera');
+    }
+  }
+})();
+</script>
+</body>
+</html>
+```
