@@ -210,9 +210,292 @@ Medición completa: CPU/Playwright, ~1-2 h, **cero GPU**. FASE 2 reusa las
 mismas ejecuciones. Aterrizaje 06:44; si el reloj corta, se reporta el
 PARCIAL con el n alcanzado y se declara como tal.
 
+## ENMIENDA 1 (2026-07-30 ~16:10) — lo que el HUMO obligó a cambiar
+
+Escrita **antes de ver ningún FP/FN**, con el instrumento corriendo sobre 4
+páginas del lado de CALIBRACIÓN. Tres cambios, los tres con su medición:
+
+**(a) El descubrimiento de acciones era ciego.** Con `button, [role=button],
+input[type=button], a[href]` el humo dio **4/4 NO_CONCLUYENTE: cero
+relaciones instanciadas**. Causa: un `buscaminas` correcto **no tiene un solo
+`<button>`** — pinta sus celdas como `<div class="c">`. Se añade la señal
+universal de "esto se clica" que el propio CSS del producto declara,
+`getComputedStyle(e).cursor === 'pointer'`, sobre los tags semánticos (no en
+su lugar), y se descartan los contenedores cuyo hijo también es accionable.
+Tras el cambio, las 4 páginas instancian.
+
+**(b) Los índices tenían que sobrevivir a la recarga.** Descubrir sobre una
+lista y clicar sobre otra recalculada habría clicado un elemento distinto del
+analizado. Cada accionable se marca con `data-mm-idx`, se re-marca tras cada
+`goto`, y si el producto re-pinta su lista y se lleva la marca por delante se
+re-marca y se reintenta **una** vez. *Límite declarado:* si la lista cambia de
+tamaño, el índice ya no significa lo mismo — es el mismo límite del
+emparejamiento posicional que ya estaba declarado.
+
+**(c) Se añade R0 ACTIVIDAD, y es la relación más importante del catálogo.**
+El humo destapó que las relaciones de PAR (R1, R3) solo instancian si el
+léxico encuentra la pareja, y **`carrito_stock` tiene botones `.add` y ningún
+inverso**: 0 pares, 0 relaciones. Un catálogo que solo sabe emparejar se queda
+mudo en media flota.
+
+> **R0: todo control HABILITADO y visible produce algún efecto observable.**
+
+No necesita par, ni léxico, ni enunciado, y ataca un modo de fallo **ya
+observado a mano en este repo**: en `turnos_capacidad`, *"el botón de apuntar
+simplemente no crea el grupo"*.
+
+*Riesgo declarado ANTES de medirlo, porque es evidente:* existen controles
+**legítimamente inertes** — un `◀` de kanban cuando la tarjeta ya está en la
+primera columna, un submit que la validación bloquea. Por eso R0 entra con un
+**umbral parametrizado** (`fracción de controles inertes que constituye
+violación`) que se **calibra en el lado de CALIBRACIÓN y se congela con un
+commit antes de tocar el lado de medición**. Si ningún umbral separa las
+clases en calibración, R0 se retira y se declara.
+
+Las relaciones que quedan activas para la calibración: **R0, R1, R3, R4**.
+R5 (conmutatividad) queda apagada por coste; R2 y R6 no se implementaron.
+
 ## CORPUS MEDIDO
 
-*(se rellena antes de correr, con el inventario real)*
+**Lado de CALIBRACIÓN** (se puede mirar, se pueden retirar relaciones y fijar
+umbrales):
+
+| corrida | banco | páginas | ground truth |
+|---|---|---|---|
+| `b2_bon_heldout` | BRUTAL (buscaminas, carrito_stock, hoja_calculo, kanban) | 94 con HTML de 96 muestras | `estricto` explícito por muestra: **72 aprobadas / 24 reprobadas** |
+
+Es el mejor corpus del repo para esto: el único grande con el AND
+original ∧ held-out ya calculado por muestra, y con **ambas clases bien
+pobladas** (25% de reprobadas).
+
+**Lado de MEDICIÓN** (se mira UNA vez, con el catálogo congelado):
+
+| corrida | banco | páginas | ground truth |
+|---|---|---|---|
+| `b2_bon_heldout_duro` (r1) | DURO (las 8 del goal) | 32 | estricto **solo vía `goal.json`** → `filas[].estrictos` |
+| `b2_bon_heldout_duro_r2` | DURO | 32 | estricto explícito + `goal.json` |
+| `b2_bon_heldout_cabecera` | cabecera t1 | 20 | **solo contrato original** (`aprobado_heldout=null`) |
+| `b2_bon_heldout_cabecera2` + `_recal` | cabecera t2 | 32 | **solo contrato original** |
+
+*Trampa documentada por el reconocimiento, anotada para no firmar un número
+falso:* en `b2_bon_heldout_duro` (r1) el `resultados.json` tiene
+`aprobado_heldout=null` y `estricto=false` en las 32 muestras
+(`heldout_crasheo=true`, "sin held-out (fase 1)"). El veredicto real se
+recuperó re-juzgando y vive en `goal.json`, escrito 21 minutos después, que
+**no reescribió** `resultados.json`. Los dos archivos del mismo directorio se
+contradicen: **hay que leer `goal.json`**. Leer el otro daría "las 32
+reprobadas" y un FN falso de manual.
+
+*Consecuencia para la cabecera:* sus 52 páginas no tienen juez estricto, solo
+el contrato original. Se usan **declarando que su ground truth es más débil**,
+y sus números se reportan por separado de los del banco duro, nunca fundidos.
+
+**El split es por TAREA y ninguna tarea aparece en los dos lados**: las 4
+brutales solo en calibración; las 8 duras y las 9 de cabecera solo en
+medición.
+
+**Poder estadístico, dicho antes:** el lado de medición tiene ~116 páginas
+pero solo ~13-18 reprobadas (el sistema aprueba el 92% del duro). Con menos de
+20 reprobadas **el FN se declara direccional**, como ya fijaba el prereg.
+
+## ENMIENDA 2 (2026-07-30 ~16:35) — la revisión adversarial, con 13 BLOQUEA
+
+Tres revisores independientes (lente de sesgo, lente de relaciones falsas,
+lente de viabilidad) sobre el prereg v1 + enmienda 1. Veredictos:
+**REDISEÑAR / REDISEÑAR / CORREGIR ANTES DE CORRER**. Casi todos los
+hallazgos vienen con evidencia de código congelado, no con especulación, y
+**varios los he verificado yo mismo antes de aceptarlos**. Se corrigen todos
+los que aplican; los que matan una pieza, la matan.
+
+### B1 — Las etiquetas FP/FN estaban INVERTIDAS respecto a la línea base
+
+El repo usa, desde `PREREG_CONTRATO_AMPLIO_20260727`, la convención
+*FP = el examen interno APRUEBA basura* (32-50%) y *FN = CONDENA sanos*
+(~50%). Mi prereg v1 llamaba FP a condenar sanos y lo comparaba contra el
+32-50%. **La tabla comparaba reject-healthy contra approve-bad: no comparaba
+nada, y el umbral "FN ≤35%" dejaba pasar un instrumento PEOR que el contrato
+ciego ya muerto.** Era un PASA falso construido con las etiquetas.
+
+Se renombran a nombres sin ambigüedad posible, y son los que se firman:
+
+| métrica | definición | baseline correctamente mapeado |
+|---|---|---|
+| **ACUSA_SANOS** | páginas GT-aprobadas que el metamórfico reprueba | contrato ciego ~50% |
+| **DEJA_PASAR** | páginas GT-reprobadas que el metamórfico aprueba | contrato ciego 32-50% |
+
+| resultado | veredicto |
+|---|---|
+| ACUSA_SANOS ≤ 15% y DEJA_PASAR ≤ 20% | **VIVE** (hay que MEJORAR el 32%, no empatarlo) |
+| ACUSA_SANOS ≤ 15% y DEJA_PASAR 21-40% | GRIS |
+| **ACUSA_SANOS > 15%** | **KILL** |
+| **DEJA_PASAR > 40%** | **KILL** |
+
+La línea base se midió en otro corpus y con otra tasa base: es referencia de
+**orden de magnitud, no comparación pareada**. Queda dicho.
+
+### B2 — El corpus de MEDICIÓN no puede estimar DEJA_PASAR. Verificado a mano
+
+`validacion_heldout_v2.json`, 64 filas, juez triple (orig ∧ v1 ∧ v2):
+**59 aprobadas y 5 reprobadas** — `precedencia r1s2`, `tabla_compuesta r1s1`,
+`tabla_compuesta r1s4`, `serpiente r2s4`, `tabla_compuesta r2s1`. Tres de las
+cinco son la misma tarea.
+
+**Con 5 reprobadas, DEJA_PASAR no es estimable en el lado de medición.** No
+se va a maquillar: se declara así y se reparten los ejes.
+
+- **ACUSA_SANOS se mide en MEDICIÓN** (59 páginas aprobadas del duro,
+  tareas nunca vistas en calibración). Es la primaria y decide VIVE/KILL.
+- **DEJA_PASAR se mide solo en CALIBRACIÓN** (banco brutal: 72/24, el único
+  corpus del repo con ambas clases pobladas) y **se declara como número de
+  calibración, no de held-out**.
+- **La CABECERA sale del corpus de medición**: sus 52 páginas tienen
+  `aprobado_heldout=null`, o sea no tienen juez estricto. No pueden aportar
+  ninguno de los dos ejes.
+- El ground truth del duro se lee de `validacion_heldout_v2.json`, no de
+  `resultados.json` (que tiene `estricto=false` en las 32 de r1 por el
+  held-out que no corrió) ni de `goal.json` (que da la elección del selector,
+  no el veredicto por página).
+
+### B3 — FASE 2: un selector ALEATORIO saca 8/8 el 21% de las veces
+
+Calculado sobre los estrictos reales: r1 tiene `tabla_compuesta` con 2 de 4
+muestras buenas y `precedencia` con 3 de 4 → P(azar acierte las 8) = 0.375;
+r2 → 0.5625; producto **0.211**. El umbral "8/8 = el goal deja de depender de
+un examen a mano" lo cruzaba el azar una de cada cinco veces.
+
+Correcciones pre-registradas:
+
+1. **Brazo NULO obligatorio**: 1000 selectores uniformes al azar sobre las
+   mismas muestras. Se reporta la distribución y **el percentil donde cae el
+   metamórfico**. El umbral pasa a ser **superar el percentil 95 del azar en
+   r1 y en r2**, no un 8/8 nominal.
+2. Se reporta **RESCATA vs ESTROPEA** sobre las 16 celdas tarea×corrida, que
+   es la métrica con resolución. El 8/8 agregado se reporta, pero no decide.
+3. r2 **no es independiente de r1** (reusa las semillas de feromona, ya
+   declarado en PREREG_GOAL_DURO). El "2 de 2" está correlacionado.
+4. **Una muestra sin relaciones instanciadas NO puede ganar.** En v1 tenía 0
+   violaciones y por tanto puntuación perfecta: el estado que el prereg
+   declara "no medible" era premiado en el uso real. Ahora la puntuación es
+   la **fracción violadas/instanciadas**, y cobertura 0 es **ABSTENCIÓN** →
+   se cae al control s1 y esa tarea se cuenta aparte.
+
+### B4 — La regla anti-vacuidad dispara AL REVÉS
+
+Verificado en las 4/4 muestras de `undo_redo`: `function addItem(text){ if(!text) return; ...}`.
+El instrumento clica a ciegas con los inputs **vacíos**, que es como los
+encuentra; una implementación **correcta** ignora la acción, el snapshot no
+cambia, y mi regla la marcaba REPROBADA por inactividad. Es el mismo modo de
+fallo (acusar en masa) que ya mató al modo `amplio` del contrato.
+
+**Fix — SEMBRADO declarado de antemano:** antes de instanciar ninguna
+relación se rellenan deterministamente todos los campos alcanzables
+(texto → `"mm1"`, número → `1`, select → segunda opción, checkbox → marcar) y
+se emite `Tab`. Y el resultado deja de ser binario: se distinguen **CAMBIA**
+(la relación aplica), **INERTE CON PRECONDICIONES SEMBRADAS** (candidata a
+inactividad) y **NO ALCANZABLE** (control `disabled` → cobertura no
+alcanzada, nunca violación).
+
+### B5 — Relaciones FALSAS por mandato del enunciado: se retiran ahora
+
+Cada una con su evidencia en enunciado y en código congelado:
+
+| relación | dónde es falsa | evidencia | decisión |
+|---|---|---|---|
+| R1 con `+/−` | `precedencia`, `parser_parentesis` | `expr += val` en 4/4: la pantalla va de `''` a `'+'` a `'+-'`. Son teclas de un teclado, no inversas | **fuera del léxico** |
+| R1 `iniciar/pausar` | `temporizador` | el enunciado ordena que *"pause lo detiene MANTENIENDO el valor"*: la inversa es falsa por mandato | **fuera del léxico** |
+| **R5 conmutatividad** | casi todo el banco | `tabla_compuesta` manda *"al filtrar se vuelve a la página 1"*; `tres_en_raya` y `ascensor` son por turnos/sentido | **RETIRADA del catálogo** |
+| **R6 monotonía** | `tabla_compuesta` | estando en la página 3 se ven 3 filas; al filtrar salta a la 1 y se ven 10. Filtrar AUMENTA lo visible | **RETIRADA** |
+| **R2 idempotencia** | `tabla_compuesta` | `#ordenar` es un TOGGLE: `ascending = !ascending` y cambia su propio texto | **RETIRADA** |
+
+La independencia de dos acciones es una propiedad **semántica del enunciado**
+— exactamente lo que este instrumento se niega a leer. R5 no es rescatable
+con ninguna heurística léxica, y se dice así.
+
+**Catálogo congelado: R0 (actividad), R1 (inversa, con léxico podado), R3
+(reset), R4 (determinismo).**
+
+### B6 — El emparejamiento por texto es inviable, y su fracaso produciría un KILL FALSO
+
+Medido por el revisor simulando el léxico sobre las 100 páginas: **31 sin un
+solo `<button>`, 50 con botones pero sin par, 19 con par** — y esas 19 son
+precisamente las calculadoras donde R1 es falsa. Si se corriera así, saldría
+`ACUSA_SANOS ≈ 100%` y se firmaría el KILL de *la idea metamórfica* cuando lo
+que muere es *el descubridor por léxico*. **Sería un KILL falso, y cerrar una
+vía todavía viva es el error más caro que se puede cometer aquí.**
+
+Fixes: emparejar por **`data-*` compartido o ancestro común más cercano**
+(nunca por texto global — verificado en `carrito_packs`, dos filas idénticas
+`pan`/`leche` con `.quitar`/`.add`, donde el emparejamiento posicional cruza
+filas); excluir tokens de un carácter dentro de un teclado (≥6 hermanos con
+la misma clase o el mismo `data-*`); si hay más de un candidato al mismo
+nivel, registrar **AMBIGUO** y contarlo aparte, nunca fundirlo con
+NO_CONCLUYENTE.
+
+### B7 — La máscara de volatilidad se deriva EMPÍRICAMENTE, por página
+
+Fuentes de ruido verificadas en el corpus: reloj de pared en el texto
+(`toLocaleTimeString` por fila), `Math.random` en el posicionado de
+`serpiente`, y clases transitorias (`li.className='it new'` +
+`setTimeout(()=>li.classList.remove('new'),1000)` en `undo_redo`). Comparar
+por igualdad estricta acusaría a páginas sanas.
+
+Protocolo fijado **antes** de correr: 3 snapshots sin tocar nada a
+**0 / 1500 / 4000 ms**; todo campo que difiera se marca VOLÁTIL y se excluye
+de las comparaciones **de esa página**, reportando cuántos se enmascararon.
+Si la máscara cubre >50% de los campos, la página es NO_CONCLUYENTE.
+Detección de ANIMADA también **post-acción**, no solo al cargar: el
+`setInterval` de `temporizador` no existe hasta pulsar Start.
+
+### B8 — La auditoría solo podía corregir el GT en la dirección que ayuda
+
+En v1, un ACUSA_SANOS reclasificado como "fallo real que el examen a mano
+dejó pasar" salía del numerador de la métrica primaria — y lo decidía el
+mismo autor, sin regla escrita. Se firman **dos números**:
+
+- **ACUSA_SANOS_CRUDO**, sin reclasificar nada: **es el que decide VIVE/KILL.**
+- ACUSA_SANOS_AJUSTADO, tras auditoría, aparte y con la lista nominal.
+
+Toda página reclasificada obliga a escribir el check concreto que le faltaba
+al contrato a mano. Y se audita además **una muestra ciega del mismo tamaño
+entre los acuerdos aprobada-aprobada**, para acotar el error del GT en la
+dirección que perjudica, no solo en la que favorece.
+
+### B9 — Independencia: R0 NO es señal nueva, y hay que decirlo
+
+`juez_ejecutable._JS_HUELLA` + el check `interactivo` (clicar y comprobar que
+la huella cambia) **ya forman parte del veredicto de referencia**. Mi R0 es
+casi esa misma prueba sin contrato. Todo acuerdo en páginas muertas está
+garantizado por construcción.
+
+Se reportan **dos acuerdos**: el total, y el que **excluye las páginas cuyo
+fallo en el GT vino del check `interactivo` o de `sin_errores_js`**. Solo el
+segundo cuenta como señal nueva.
+
+### B10 — Cuelgues: hay un bucle infinito REAL en el corpus
+
+`turnos_capacidad__r1__s1` tiene `while(getOccupancy(f)>capacity){ for(...){ ... break; } }`
+que **no termina** si no encuentra grupo de esa franja. El instrumento
+multiplica por ~10 las cargas respecto al juez, y cada cuelgue cuesta 300 s
+**más** un Chromium huérfano quemando CPU el resto de la corrida (es
+literalmente lo que produjo los 595 s y los 719 s ya documentados).
+
+Fijado: `page.set_default_timeout(5000)`, tope **por página** de 90 s además
+del de corrida, contexto de navegador nuevo y cerrado explícitamente, y
+**matar el Chromium por PID** al agotar el presupuesto en vez de solo
+abandonar el hilo. Un cuelgue es INFRA, nunca un veredicto.
+
+### Lo que esta enmienda NO arregla, y por qué se corre igual
+
+El revisor de relaciones propone que el gasto defendible es publicar **solo
+la tabla de cobertura**. Se acepta a medias: la cobertura se publica sí o sí
+—es un número real, barato y explica el resultado sin fabricarlo— **pero se
+corre también la medición**, porque con el catálogo podado y el sembrado el
+argumento del FP≈100% ya no se sostiene tal cual: se apoyaba en R1/R2/R5/R6
+por léxico, y de esas solo sobrevive R1 podada.
+
+**Si la cobertura resulta ser ~0 en el lado de medición, no hay corpus y no se
+firma ningún FP/FN: se declara que la vía no es medible con este banco.** Eso
+también es un resultado, y es el que el revisor anticipa.
 
 ## RESULTADO
 
