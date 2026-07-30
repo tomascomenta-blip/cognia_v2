@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Agenda sin solapamientos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+/* Reset y tipografía */
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  background:#f5f7fa;
+  margin:0;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+#panel{
+  background:#fff;
+  padding:20px;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  max-width:400px;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+#panel input[type=number]{
+  padding:8px;
+  border:1px solid #ccc;
+  border-radius:4px;
+  font-size:16px;
+}
+#panel button{
+  background:#5cb3d5;
+  color:#fff;
+  border:none;
+  padding:10px 16px;
+  border-radius:4px;
+  font-size:16px;
+  cursor:pointer;
+}
+#panel button:hover{
+  background:#4a9ec1;
+}
+#aviso{
+  min-height:20px;
+  color:#d03b3b;
+  font-weight:600;
+}
+#agenda{
+  margin-top:20px;
+  width:100%;
+  max-width:400px;
+}
+.ev{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-weight:600;
+  font-size:14px;
+  border-radius:4px;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+  background:linear-gradient(to right,#a0d8ef,#5cb3d5);
+  margin-bottom:8px;
+}
+</style>
+</head>
+<body>
+<div id="panel">
+  <input id="desde" type="number" min="0" max="23" placeholder="Desde (0‑23)">
+  <input id="hasta" type="number" min="0" max="23" placeholder="Hasta (0‑23)">
+  <button id="crear">Crear</button>
+  <div id="aviso"></div>
+</div>
+<div id="agenda"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const desdeInput=document.getElementById('desde');
+  const hastaInput=document.getElementById('hasta');
+  const crearBtn=document.getElementById('crear');
+  const aviso=document.getElementById('aviso');
+  const agenda=document.getElementById('agenda');
+
+  function clearAviso(){ aviso.textContent=''; }
+
+  function addEvent(desde,hasta){
+    const ev=document.createElement('div');
+    ev.className='ev';
+    ev.dataset.desde=desde;
+    ev.dataset.hasta=hasta;
+    ev.textContent=`${desde} - ${hasta}`;
+    const dur=hasta-desde;
+    ev.style.height=`${dur*30}px`; // 30px por hora
+    agenda.appendChild(ev);
+  }
+
+  function hasConflict(desde,hasta){
+    const evs=agenda.querySelectorAll('.ev');
+    for(const ev of evs){
+      const exDesde=parseInt(ev.dataset.desde,10);
+      const exHasta=parseInt(ev.dataset.hasta,10);
+      if(desde<exHasta && hasta>exDesde) return true;
+    }
+    return false;
+  }
+
+  crearBtn.addEventListener('click', function(){
+    clearAviso();
+    const desde=parseInt(desdeInput.value,10);
+    const hasta=parseInt(hastaInput.value,10);
+    if(isNaN(desde)||isNaN(hasta)){
+      aviso.textContent='Introduce valores válidos';
+      return;
+    }
+    if(desde>=hasta){
+      aviso.textContent='Desde debe ser menor que Hasta';
+      return;
+    }
+    if(hasConflict(desde,hasta)){
+      aviso.textContent='conflicto';
+      return;
+    }
+    addEvent(desde,hasta);
+  });
+});
+</script>
+</body>
+</html>

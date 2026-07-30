@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Editor de Texto con Buscar y Reemplazar</title>
+<style>
+  body{
+    margin:0;
+    height:100vh;
+    background:#2b2b2b;
+    color:#e0e0e0;
+    font-family:Arial,Helvetica,sans-serif;
+    overflow:hidden;
+  }
+  #container{
+    display:flex;
+    height:100%;
+  }
+  #doc{
+    flex:2;
+    padding:10px;
+    background:#1e1e1e;
+    color:#e0e0e0;
+    border:none;
+    resize:none;
+    font-size:1rem;
+    line-height:1.5;
+  }
+  #sidebar{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-around;
+    align-items:center;
+    background:#2b2b2b;
+    padding:10px;
+  }
+  input{
+    width:80%;
+    padding:5px;
+    margin:5px 0;
+    background:#3a3a3a;
+    color:#e0e0e0;
+    border:1px solid #555;
+    border-radius:3px;
+    font-size:1rem;
+  }
+  input:focus{
+    outline:none;
+    border-color:#4a90e2;
+  }
+  button{
+    width:80%;
+    padding:8px;
+    margin:5px 0;
+    background:#4a90e2;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  button:hover{
+    background:#357ab8;
+  }
+  @media (max-width:600px){
+    #container{flex-direction:column;}
+    #doc{flex:1;}
+    #sidebar{flex:0;}
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <textarea id="doc">gato perro gato loro gato</textarea>
+  <div id="sidebar">
+    <input id="buscar" placeholder="Buscar">
+    <input id="reemplazo" placeholder="Reemplazar">
+    <button id="reemplazar">Reemplazar</button>
+    <button id="undo">Undo</button>
+  </div>
+</div>
+<script>
+  (function(){
+    const doc = document.getElementById('doc');
+    const buscar = document.getElementById('buscar');
+    const reemplazo = document.getElementById('reemplazo');
+    const btnReemplazar = document.getElementById('reemplazar');
+    const btnUndo = document.getElementById('undo');
+    const stack = [];
+    let lastValue = doc.value;
+
+    doc.addEventListener('input', function(e){
+      stack.push(lastValue);
+      lastValue = e.target.value;
+    });
+
+    btnReemplazar.addEventListener('click', function(){
+      const txtBuscar = buscar.value;
+      const txtReemplazo = reemplazo.value;
+      if(txtBuscar === '') return;
+      stack.push(lastValue);
+      const newVal = lastValue.split(txtBuscar).join(txtReemplazo);
+      doc.value = newVal;
+      lastValue = newVal;
+    });
+
+    btnUndo.addEventListener('click', function(){
+      if(stack.length === 0) return;
+      const prev = stack.pop();
+      doc.value = prev;
+      lastValue = prev;
+    });
+  })();
+</script>
+</body>
+</html>

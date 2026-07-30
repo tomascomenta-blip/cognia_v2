@@ -1,0 +1,155 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Simulador de Ascensor</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:20px;}
+  #control{margin-bottom:20px;}
+  #control button{margin:2px;padding:5px 10px;}
+  #control span{font-weight:bold;margin-right:15px;}
+  #shaft{position:relative;width:120px;height:600px;margin:auto;background:#ddd;border:2px solid #999;}
+  .floor{position:absolute;width:100%;height:100px;border-top:1px solid #999;text-align:center;line-height:100px;font-size:18px;}
+  .floor:nth-child(1){top:500px;}
+  .floor:nth-child(2){top:400px;}
+  .floor:nth-child(3){top:300px;}
+  .floor:nth-child(4){top:200px;}
+  .floor:nth-child(5){top:100px;}
+  .floor:nth-child(6){top:0;}
+  #car{position:absolute;width:100%;height:80px;background:#4285f4;border:2px solid #000;top:520px;transition:top 0.5s;}
+  .call{background:#fff;border:1px solid #000;border-radius:4px;}
+  .call.pending{background:#ffeb3b;}
+</style>
+</head>
+<body>
+
+<div id="control">
+  <span>Piso: <span id="piso">0</span></span>
+  <span>Dirección: <span id="dir">parado</span></span>
+  <br>
+  <button class="call" data-p="0">0</button>
+  <button class="call" data-p="1">1</button>
+  <button class="call" data-p="2">2</button>
+  <button class="call" data-p="3">3</button>
+  <button class="call" data-p="4">4</button>
+  <button class="call" data-p="5">5</button>
+  <button id="paso">Avanzar 1 piso</button>
+</div>
+
+<div id="shaft">
+  <div class="floor" data-floor="0">0</div>
+  <div class="floor" data-floor="1">1</div>
+  <div class="floor" data-floor="2">2</div>
+  <div class="floor" data-floor="3">3</div>
+  <div class="floor" data-floor="4">4</div>
+  <div class="floor" data-floor="5">5</div>
+  <div id="car"></div>
+</div>
+
+<script>
+(function(){
+  const maxFloor = 5;
+  const minFloor = 0;
+  let state = {
+    piso: 0,
+    dir: 'parado', // 'sube', 'baja', 'parado'
+    pendientes: []
+  };
+
+  const pisoSpan = document.getElementById('piso');
+  const dirSpan = document.getElementById('dir');
+  const car = document.getElementById('car');
+  const callButtons = document.querySelectorAll('.call');
+
+  function updateDisplay(){
+    pisoSpan.textContent = state.piso;
+    dirSpan.textContent = state.dir;
+    // Update car position
+    const top = (maxFloor - state.piso) * 100 + 20; // 20px offset for car height
+    car.style.top = top + 'px';
+    // Update call button styles
+    callButtons.forEach(btn=>{
+      const floor = parseInt(btn.dataset.p,10);
+      if(state.pendientes.includes(floor)){
+        btn.classList.add('pending');
+      }else{
+        btn.classList.remove('pending');
+      }
+    });
+    // Expose state
+    window.asc = {
+      piso: state.piso,
+      dir: state.dir,
+      pendientes: [...state.pendientes]
+    };
+  }
+
+  function serveFloor(floor){
+    const idx = state.pendientes.indexOf(floor);
+    if(idx !== -1){
+      state.pendientes.splice(idx,1);
+    }
+  }
+
+  function decideDirection(){
+    if(state.pendientes.length===0){
+      state.dir = 'parado';
+      return;
+    }
+    const nearest = Math.min(...state.pendientes.map(f=>Math.abs(f-state.piso)));
+    const target = state.pendientes.find(f=>Math.abs(f-state.piso)===nearest);
+    state.dir = target>state.piso ? 'sube' : 'baja';
+  }
+
+  function step(){
+    if(state.dir==='parado'){
+      decideDirection();
+      if(state.dir==='parado') return; // no pending
+    }
+    if(state.dir==='sube'){
+      if(state.piso<maxFloor) state.piso++;
+      serveFloor(state.piso);
+      // Check if any pending above
+      const pendingAbove = state.pendientes.filter(f=>f>state.piso);
+      if(pendingAbove.length===0){
+        const pendingBelow = state.pendientes.filter(f=>f<state.piso);
+        state.dir = pendingBelow.length>0 ? 'baja' : 'parado';
+      }
+    }else if(state.dir==='baja'){
+      if(state.piso>minFloor) state.piso--;
+      serveFloor(state.piso);
+      const pendingBelow = state.pendientes.filter(f=>f<state.piso);
+      if(pendingBelow.length===0){
+        const pendingAbove = state.pendientes.filter(f=>f>state.piso);
+        state.dir = pendingAbove.length>0 ? 'sube' : 'parado';
+      }
+    }
+    updateDisplay();
+  }
+
+  // Call button handler
+  callButtons.forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const floor = parseInt(btn.dataset.p,10);
+      if(floor===state.piso){
+        serveFloor(floor);
+      }else if(!state.pendientes.includes(floor)){
+        state.pendientes.push(floor);
+      }
+      updateDisplay();
+    });
+  });
+
+  // Paso button
+  document.getElementById('paso').addEventListener('click',step);
+
+  // Auto-advance every 1.5s
+  setInterval(step,1500);
+
+  // Initial display
+  updateDisplay();
+})();
+</script>
+</body>
+</html>

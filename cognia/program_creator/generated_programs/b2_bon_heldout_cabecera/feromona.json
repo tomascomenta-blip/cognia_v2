@@ -1,0 +1,168 @@
+{
+  "idea_router": {
+    "discrepancias": [
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" da",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input",
+        "experto": "python_module",
+        "heuristica": "web"
+      }
+    ],
+    "experto_acerto": 0,
+    "heuristica_acerto": 0
+  }
+}

@@ -70,6 +70,44 @@ Redacción de tareas y contratos ~1.5 h (sin GPU). Calibración: 5 tareas ×
 4 muestras ≈ 50-70 min de GPU. Cierre estimado ~10:00, con el aterrizaje a
 las 12:14.
 
+## RESULTADO (2026-07-30 ~08:30 — 20/20 muestras, 0 infra)
+
+**CABECERA INSUFICIENTE por el criterio pre-registrado: solo 2 de 5 tareas
+discriminan (se exigían ≥3).**
+
+| tarea | pass@1 | decisión |
+|---|---|---|
+| editor_undo_buscar | **4/4** | SATURADA |
+| calendario_conflictos | **4/4** | SATURADA |
+| parser_parentesis | **4/4** | SATURADA |
+| carrito_cupones | 3/4 | ENTRA |
+| ascensor | 3/4 | ENTRA |
+
+**El dato que importa más que el veredicto:** tres tareas diseñadas
+explícitamente para romper al sistema —undo atómico de un reemplazo masivo,
+solapamientos con el borde que toca (el `>=` en vez de `>`), paréntesis
+anidados con precedencia— salen **4/4 a la primera**. Y **ninguna cae en
+0/4**: cero evidencia de techo de capacidad en este dominio.
+
+**Lectura honesta, que reencuadra el goal:** el 8/8 del banco duro no era
+el resultado de un banco fácil por accidente. **El sistema está por encima
+del nivel de dificultad que yo sé expresar en una tarea web verificable por
+ejecución.** Diseñé cinco tareas para superarlo y superó tres sin
+despeinarse. Esto refuerza, desde otro ángulo, la conclusión de inversión
+que la semana viene repitiendo: **no falta capacidad, falta señal.**
+
+**Hipótesis de diseño que sale de los datos (falsable, para la próxima
+tanda):** las dos que discriminan comparten una propiedad que las tres
+saturadas no tienen — exigen **un invariante GLOBAL que se re-evalúa
+cuando cambia otra cosa** (el umbral de envío que depende del descuento; el
+sentido de marcha que determina el orden de servicio). Las tres saturadas
+son transformaciones más locales, por complejas que parezcan. Si la
+hipótesis es buena, una tanda escrita alrededor de "invariante global
+re-evaluado" debería caer en la banda que discrimina.
+
+Las 2 tareas que entran quedan en `b1_tareas_cabecera.json` como semilla;
+el banco NO se usa para medir progreso hasta tener ≥3.
+
 ## Lo que NO se hace aquí
 
 No se re-mide el goal contra el banco nuevo en esta sesión: primero hay que

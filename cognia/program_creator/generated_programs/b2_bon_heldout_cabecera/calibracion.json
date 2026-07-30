@@ -1,0 +1,36 @@
+{
+  "entran": [
+    "carrito_cupones",
+    "ascensor"
+  ],
+  "saturadas": [
+    "editor_undo_buscar",
+    "calendario_conflictos",
+    "parser_parentesis"
+  ],
+  "fuera": [],
+  "incompletas": [],
+  "veredicto": "CABECERA INSUFICIENTE (el prereg exige >=3 que discriminen)",
+  "detalle": {
+    "editor_undo_buscar": {
+      "ok": 4,
+      "n": 4
+    },
+    "carrito_cupones": {
+      "ok": 3,
+      "n": 4
+    },
+    "calendario_conflictos": {
+      "ok": 4,
+      "n": 4
+    },
+    "parser_parentesis": {
+      "ok": 4,
+      "n": 4
+    },
+    "ascensor": {
+      "ok": 3,
+      "n": 4
+    }
+  }
+}

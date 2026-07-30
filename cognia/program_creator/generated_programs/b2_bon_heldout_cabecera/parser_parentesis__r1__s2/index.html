@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Paréntesis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{margin:0;background:#333;font-family:Arial,Helvetica,sans-serif;}
+  .calculator{max-width:400px;margin:2rem auto;background:#222;padding:20px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.5);}
+  #pantalla{height:60px;background:#111;color:#fff;font-size:2rem;font-weight:bold;text-align:right;padding:10px;border-radius:5px;overflow-x:auto;white-space:nowrap;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:20px;}
+  .k{width:60px;height:60px;border-radius:50%;border:none;font-size:1.5rem;cursor:pointer;transition:all .2s;box-shadow:0 2px 5px rgba(0,0,0,.3);user-select:none;}
+  .k[data-k="1"],.k[data-k="2"],.k[data-k="3"],.k[data-k="4"],.k[data-k="5"],.k[data-k="6"],.k[data-k="7"],.k[data-k="8"],.k[data-k="9"],.k[data-k="0"],.k[data-k="."]{background:#eee;color:#444;}
+  .k[data-k="+"],.k[data-k="-"],.k[data-k="*"],.k[data-k="/"],.k[data-k="("],.k[data-k=")"]{background:#008080;color:#fff;}
+  .k[data-k="="]{background:#006666;color:#fff;}
+  .k[data-k="C"]{background:#aa0000;color:#fff;}
+  .k:active{transform:scale(.95);box-shadow:0 0 10px #00ffff;}
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div id="pantalla"></div>
+  <div class="grid">
+    <button class="k" data-k="7">7</button>
+    <button class="k" data-k="8">8</button>
+    <button class="k" data-k="9">9</button>
+    <button class="k" data-k="/">/</button>
+    <button class="k" data-k="C">C</button>
+    <button class="k" data-k="4">4</button>
+    <button class="k" data-k="5">5</button>
+    <button class="k" data-k="6">6</button>
+    <button class="k" data-k="*">*</button>
+    <button class="k" data-k="(">(</button>
+    <button class="k" data-k="1">1</button>
+    <button class="k" data-k="2">2</button>
+    <button class="k" data-k="3">3</button>
+    <button class="k" data-k="-">-</button>
+    <button class="k" data-k=")">)</button>
+    <button class="k" data-k="0">0</button>
+    <button class="k" data-k=".">.</button>
+    <button class="k" data-k="=">=</button>
+    <button class="k" data-k="+">+</button>
+  </div>
+</div>
+<script>
+  const pantalla = document.getElementById('pantalla');
+  document.querySelectorAll('.k').forEach(btn=>{
+    btn.addEventListener('click',()=>{const v=btn.dataset.k;
+      if(v==='C'){pantalla.textContent='';}
+      else if(v==='='){try{pantalla.textContent=eval(pantalla.textContent)||'';}catch(e){pantalla.textContent='Error';}}
+      else{pantalla.textContent+=v;}
+    });
+  });
+</script>
+</body>
+</html>

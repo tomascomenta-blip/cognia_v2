@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Paréntesis</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#333;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  #calculator{
+    background:#222;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.5);
+    width:320px;
+    max-width:90%;
+  }
+  #pantalla{
+    background:#111;
+    color:#fff;
+    font-size:2rem;
+    padding:10px;
+    border-radius:5px;
+    text-align:right;
+    min-height:50px;
+    margin-bottom:15px;
+    overflow-x:auto;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  .k{
+    background:#444;
+    color:#fff;
+    font-size:1.5rem;
+    padding:15px;
+    border-radius:5px;
+    text-align:center;
+    cursor:pointer;
+    user-select:none;
+    box-shadow:0 2px 4px rgba(0,0,0,0.3);
+  }
+  .k:hover{background:#555;}
+  .k[data-k="+"],
+  .k[data-k="-"],
+  .k[data-k="*"],
+  .k[data-k="("],
+  .k[data-k=")"],
+  .k[data-k="="],
+  .k[data-k="C"]{color:#4a90e2;}
+  .k.empty{background:#222;cursor:default;}
+</style>
+</head>
+<body>
+<div id="calculator">
+  <div id="pantalla"></div>
+  <div class="grid">
+    <div class="k" data-k="1">1</div>
+    <div class="k" data-k="2">2</div>
+    <div class="k" data-k="3">3</div>
+    <div class="k" data-k="4">4</div>
+    <div class="k" data-k="6">6</div>
+    <div class="k" data-k="+">+</div>
+    <div class="k" data-k="-">-</div>
+    <div class="k" data-k="*">*</div>
+    <div class="k" data-k="(">(</div>
+    <div class="k" data-k=")">)</div>
+    <div class="k" data-k="=">=</div>
+    <div class="k empty"></div>
+    <div class="k empty"></div>
+    <div class="k empty"></div>
+    <div class="k empty"></div>
+    <div class="k" data-k="C">C</div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const pantalla = document.getElementById('pantalla');
+  const buttons = document.querySelectorAll('.k');
+  let expr = '';
+  const update = txt => pantalla.textContent = txt;
+  const clear = () => { expr = ''; update(''); };
+  const evaluate = () => {
+    try {
+      const res = eval(expr);
+      const formatted = Number(res).toLocaleString(undefined, {maximumFractionDigits:10});
+      update(formatted);
+      expr = formatted;
+    } catch {
+      update('Error');
+      expr = '';
+    }
+  };
+  buttons.forEach(b => {
+    b.addEventListener('click', () => {
+      const v = b.dataset.k;
+      if (!v) return;
+      if (v === 'C') clear();
+      else if (v === '=') evaluate();
+      else { expr += v; update(expr); }
+    });
+  });
+});
+</script>
+</body>
+</html>

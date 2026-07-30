@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Simulador de ascensor</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    font-weight:bold;
+    color:#fff;
+    background:#222;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+    justify-content:center;
+    gap:1rem;
+  }
+  #status{
+    text-align:center;
+  }
+  #piso{
+    font-size:2rem;
+  }
+  #dir{
+    font-size:1.2rem;
+    color:#0ff;
+  }
+  #shaft{
+    width:80px;
+    height:300px;
+    border:4px solid #fff;
+    background:#fff;
+    position:relative;
+  }
+  .calls{
+    display:flex;
+    gap:0.5rem;
+  }
+  .call{
+    background:#444;
+    color:#fff;
+    border:none;
+    padding:0.5rem 1rem;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .call.active{
+    background:#0ff;
+    color:#222;
+  }
+  #paso{
+    background:#444;
+    color:#fff;
+    border:none;
+    padding:0.5rem 1rem;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  #paso:hover{
+    background:#555;
+  }
+</style>
+</head>
+<body>
+<div id="status">
+  <span id="piso">0</span> <span id="dir">parado</span>
+</div>
+<div id="shaft"></div>
+<div class="calls">
+  <button class="call" data-p="0">0</button>
+  <button class="call" data-p="1">1</button>
+  <button class="call" data-p="2">2</button>
+  <button class="call" data-p="3">3</button>
+  <button class="call" data-p="4">4</button>
+  <button class="call" data-p="5">5</button>
+</div>
+<button id="paso">Siguiente piso</button>
+<script>
+const MIN_FLOOR = 0;
+const MAX_FLOOR = 5;
+let currentFloor = 0;
+let direction = 'parado';
+let pending = [];
+
+function updateUI(){
+  document.getElementById('piso').textContent = currentFloor;
+  document.getElementById('dir').textContent = direction;
+  document.querySelectorAll('.call').forEach(btn=>{
+    const f = parseInt(btn.dataset.p,10);
+    if(pending.includes(f)){
+      btn.classList.add('active');
+    }else{
+      btn.classList.remove('active');
+    }
+  });
+  window.asc = {
+    piso: currentFloor,
+    dir: direction,
+    pendientes: [...pending]
+  };
+}
+
+function addPending(floor){
+  if(!pending.includes(floor)){
+    pending.push(floor);
+    pending.sort((a,b)=>a-b);
+  }
+}
+
+function removePending(floor){
+  pending = pending.filter(f=>f!==floor);
+}
+
+function hasPendingAbove(){
+  return pending.some(f=>f>currentFloor);
+}
+
+function hasPendingBelow(){
+  return pending.some(f=>f<currentFloor);
+}
+
+function nextDirection(){
+  if(direction==='parado'){
+    if(hasPendingAbove()) return 'sube';
+    if(hasPendingBelow()) return 'baja';
+    return 'parado';
+  }else if(direction==='sube'){
+    if(hasPendingAbove()) return 'sube';
+    if(hasPendingBelow()) return 'baja';
+    return 'parado';
+  }else if(direction==='baja'){
+    if(hasPendingBelow()) return 'baja';
+    if(hasPendingAbove()) return 'sube';
+    return 'parado';
+  }
+}
+
+function moveOneFloor(){
+  if(direction==='parado'){
+    direction = nextDirection();
+    if(direction==='parado') return;
+  }
+  if(direction==='sube'){
+    if(currentFloor<MAX_FLOOR){
+      currentFloor++;
+    }else{
+      direction='baja';
+      currentFloor--;
+    }
+  }else if(direction==='baja'){
+    if(currentFloor>MIN_FLOOR){
+      currentFloor--;
+    }else{
+      direction='sube';
+      currentFloor++;
+    }
+  }
+  if(pending.includes(currentFloor)){
+    removePending(currentFloor);
+  }
+  direction = nextDirection();
+}
+
+document.querySelectorAll('.call').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const floor = parseInt(btn.dataset.p,10);
+    if(floor===currentFloor){
+      if(pending.includes(floor)){
+        removePending(floor);
+      }
+      direction = nextDirection();
+    }else{
+      if(pending.includes(floor)){
+        removePending(floor);
+      }else{
+        addPending(floor);
+      }
+    }
+    updateUI();
+  });
+});
+
+document.getElementById('paso').addEventListener('click',()=>{
+  moveOneFloor();
+  updateUI();
+});
+
+updateUI();
+</script>
+</body>
+</html>

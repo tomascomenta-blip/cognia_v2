@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Editor de Texto</title>
+<style>
+  body{
+    font-family: Arial, Helvetica, sans-serif;
+    background:#f5f5f5;
+    color:#333;
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .container{
+    width:90%;
+    max-width:800px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  textarea{
+    width:100%;
+    height:60vh;
+    resize:none;
+    padding:10px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    background:#fff;
+  }
+  .row{
+    display:flex;
+    gap:10px;
+  }
+  input{
+    flex:1;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    background:#fff;
+  }
+  button{
+    padding:8px 12px;
+    border:none;
+    background:#007bff;
+    color:#fff;
+    border-radius:4px;
+    cursor:pointer;
+    box-shadow:0 1px 2px rgba(0,0,0,0.1);
+    transition:background .2s;
+  }
+  button:hover{
+    background:#0056b3;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <textarea id="doc">gato perro gato loro gato</textarea>
+  <div class="row">
+    <input id="buscar" placeholder="Buscar">
+    <input id="reemplazo" placeholder="Reemplazo">
+    <button id="reemplazar">Reemplazar</button>
+    <button id="undo">Undo</button>
+  </div>
+</div>
+<script>
+class Editor{
+  constructor(){
+    this.textarea=document.getElementById('doc');
+    this.buscar=document.getElementById('buscar');
+    this.reemplazo=document.getElementById('reemplazo');
+    this.reemplazarBtn=document.getElementById('reemplazar');
+    this.undoBtn=document.getElementById('undo');
+    this.stack=[];
+    this.lastValue=this.textarea.value;
+    this.bind();
+  }
+  bind(){
+    this.reemplazarBtn.addEventListener('click',()=>this.replaceAll());
+    this.undoBtn.addEventListener('click',()=>this.undo());
+    this.textarea.addEventListener('input',()=>this.handleInput());
+  }
+  handleInput(){
+    this.stack.push(this.lastValue);
+    this.lastValue=this.textarea.value;
+  }
+  replaceAll(){
+    const buscar=this.buscar.value;
+    const reemplazo=this.reemplazo.value;
+    if(!buscar)return;
+    this.stack.push(this.textarea.value);
+    const escaped=this.escapeRegExp(buscar);
+    const regex=new RegExp(escaped,'g');
+    const newText=this.textarea.value.replace(regex,reemplazo);
+    this.textarea.value=newText;
+    this.lastValue=newText;
+  }
+  undo(){
+    if(this.stack.length===0)return;
+    const prev=this.stack.pop();
+    this.textarea.value=prev;
+    this.lastValue=prev;
+  }
+  escapeRegExp(str){
+    return str.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>new Editor());
+</script>
+</body>
+</html>

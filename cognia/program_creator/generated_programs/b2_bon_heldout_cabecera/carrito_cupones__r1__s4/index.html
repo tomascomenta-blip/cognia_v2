@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con cupón y envío</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;color:#333;}
+  .container{display:flex;flex-wrap:wrap;max-width:1200px;margin:auto;padding:20px;}
+  .products{flex:1 1 60%;display:flex;flex-wrap:wrap;gap:20px;}
+  .prod{background:#fff;border-radius:8px;padding:15px;box-shadow:0 2px 5px rgba(0,0,0,.1);flex:1 1 calc(33% - 20px);box-sizing:border-box;}
+  .prod h3{margin-top:0;font-size:1.2em;color:#444;}
+  .add{background:#009688;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;}
+  .add:hover{background:#00796b;}
+  .cart-summary{flex:1 1 30%;background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 5px rgba(0,0,0,.1);position:sticky;top:20px;box-sizing:border-box;}
+  .cart-summary h2{margin-top:0;color:#009688;}
+  .cart-summary p{margin:10px 0;font-size:1em;}
+  .cart-summary input{width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;margin-bottom:10px;}
+  .cart-summary button{background:#009688;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;}
+  .cart-summary button:hover{background:#00796b;}
+  @media(max-width:800px){
+    .container{flex-direction:column;}
+    .products{flex:1 1 100%;}
+    .cart-summary{flex:1 1 100%;margin-top:20px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="products">
+    <div class="prod" data-id="p1" data-precio="30">
+      <h3>Producto 1</h3>
+      <p>Precio: <span class="price">€30.00</span></p>
+      <button class="add" data-id="p1">Agregar</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="40">
+      <h3>Producto 2</h3>
+      <p>Precio: <span class="price">€40.00</span></p>
+      <button class="add" data-id="p2">Agregar</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="50">
+      <h3>Producto 3</h3>
+      <p>Precio: <span class="price">€50.00</span></p>
+      <button class="add" data-id="p3">Agregar</button>
+    </div>
+  </div>
+  <div class="cart-summary">
+    <h2>Resumen del carrito</h2>
+    <p>Subtotal: <span id="subtotal">€0.00</span></p>
+    <p>Envío: <span id="envio">€5.00</span></p>
+    <p>Total: <span id="total">€5.00</span></p>
+    <input type="text" id="cupon" placeholder="Código de cupón">
+    <button id="aplicar">Aplicar</button>
+  </div>
+</div>
+<script>
+(() => {
+  const cart = {}; // id -> quantity
+  let cuponValid = false;
+  const SHIPPING_COST = 5;
+  const FREE_SHIPPING_THRESHOLD = 60;
+  const DISCOUNT_RATE = 0.20;
+  const currency = 'EUR';
+  const locale = 'es-ES';
+
+  const subtotalEl = document.getElementById('subtotal');
+  const envioEl = document.getElementById('envio');
+  const totalEl = document.getElementById('total');
+  const cuponInput = document.getElementById('cupon');
+  const aplicarBtn = document.getElementById('aplicar');
+
+  function formatMoney(value) {
+    return value.toLocaleString(locale, { style: 'currency', currency: currency });
+  }
+
+  function calculateSubtotal() {
+    let sum = 0;
+    for (const id in cart) {
+      const prodEl = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prodEl.dataset.precio);
+      sum += price * cart[id];
+    }
+    return sum;
+  }
+
+  function calculateDiscount(subtotal) {
+    return cuponValid ? subtotal * DISCOUNT_RATE : 0;
+  }
+
+  function calculateShipping(subtotalAfterDiscount) {
+    return subtotalAfterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+  }
+
+  function updateCart() {
+    const subtotal = calculateSubtotal();
+    const discount = calculateDiscount(subtotal);
+    const subtotalAfterDiscount = subtotal - discount;
+    const shipping = calculateShipping(subtotalAfterDiscount);
+    const total = subtotalAfterDiscount + shipping;
+
+    subtotalEl.textContent = formatMoney(subtotal);
+    envioEl.textContent = formatMoney(shipping);
+    totalEl.textContent = formatMoney(total);
+  }
+
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      cart[id] = (cart[id] || 0) + 1;
+      updateCart();
+    });
+  });
+
+  aplicarBtn.addEventListener('click', () => {
+    const code = cuponInput.value.trim();
+    cuponValid = (code === 'DESCUENTO20');
+    updateCart();
+  });
+
+  // Initial render
+  updateCart();
+})();
+</script>
+</body>
+</html>

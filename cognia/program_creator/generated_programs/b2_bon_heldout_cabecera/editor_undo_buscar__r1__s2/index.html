@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Editor con Buscar y Reemplazar</title>
+<style>
+  body{
+    margin:0;
+    font-family:sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    height:100vh;
+  }
+  textarea#doc{
+    width:90%;
+    max-width:800px;
+    height:60vh;
+    margin-top:2vh;
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:4px;
+    padding:10px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    resize:none;
+  }
+  .controls{
+    display:flex;
+    gap:10px;
+    margin-top:1vh;
+  }
+  .controls input{
+    padding:5px;
+    border:1px solid #ccc;
+    border-radius:4px;
+  }
+  #buscar{width:120px;}
+  #reemplazo{width:180px;}
+  .controls button{
+    padding:5px 10px;
+    border:none;
+    border-radius:4px;
+    color:#fff;
+    background:#008080;
+    font-weight:bold;
+    cursor:pointer;
+  }
+  .controls button:hover{background:#006666;}
+  @media (max-width:600px){
+    textarea#doc{height:50vh;}
+  }
+</style>
+</head>
+<body>
+<textarea id="doc">gato perro gato loro gato</textarea>
+<div class="controls">
+  <input id="buscar" placeholder="Buscar">
+  <input id="reemplazo" placeholder="Reemplazo">
+  <button id="reemplazar">Reemplazar</button>
+  <button id="undo">Undo</button>
+</div>
+<script>
+  const textarea=document.getElementById('doc');
+  const buscar=document.getElementById('buscar');
+  const reemplazo=document.getElementById('reemplazo');
+  const reemplazarBtn=document.getElementById('reemplazar');
+  const undoBtn=document.getElementById('undo');
+  let undoStack=[];
+  let isProgrammatic=false;
+  let prevValue=textarea.value;
+
+  // Capture user edits
+  textarea.addEventListener('input',()=>{
+    if(isProgrammatic) return;
+    undoStack.push(prevValue);
+    prevValue=textarea.value;
+  });
+
+  // Replace all occurrences
+  reemplazarBtn.addEventListener('click',()=>{
+    const search=buscar.value;
+    if(search==='') return;
+    undoStack.push(textarea.value);
+    const regex=new RegExp(search,'g');
+    isProgrammatic=true;
+    textarea.value=textarea.value.replace(regex,reemplazo.value);
+    isProgrammatic=false;
+    prevValue=textarea.value;
+  });
+
+  // Undo last action
+  undoBtn.addEventListener('click',()=>{
+    if(undoStack.length===0) return;
+    const state=undoStack.pop();
+    isProgrammatic=true;
+    textarea.value=state;
+    prevValue=state;
+    isProgrammatic=false;
+  });
+</script>
+</body>
+</html>

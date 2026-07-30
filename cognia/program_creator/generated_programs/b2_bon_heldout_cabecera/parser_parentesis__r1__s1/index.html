@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Paréntesis</title>
+<style>
+:root {
+  --color-slate: #2c3e50;
+  --color-frame: #111;
+  --color-display: #333;
+  --color-glow: #000;
+  --color-text: #fff;
+  --color-teal: #008080;
+  --color-amber: #ffbf00;
+  --font-family: system-ui, sans-serif;
+}
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-family);
+  background: var(--color-slate);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#calculator {
+  width: 90%;
+  max-width: 320px;
+  background: var(--color-slate);
+  border: 4px solid var(--color-frame);
+  border-radius: 12px;
+  box-shadow: 0 0 10px var(--color-glow);
+  padding: 10px;
+  box-sizing: border-box;
+}
+#pantalla {
+  width: 100%;
+  height: 80px;
+  background: var(--color-display);
+  border-radius: 8px;
+  box-shadow: inset 0 0 5px var(--color-glow);
+  color: var(--color-text);
+  font-size: 2rem;
+  text-align: right;
+  padding: 10px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.k {
+  width: 100%;
+  height: 60px;
+  background: var(--color-teal);
+  color: var(--color-text);
+  font-size: 1.5rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.k[data-k="="], .k[data-k="C"] {
+  background: var(--color-amber);
+}
+.k:hover {
+  filter: brightness(1.1);
+}
+.k:active {
+  filter: brightness(0.9);
+}
+.k:focus {
+  outline: none;
+}
+.empty {
+  width: 100%;
+  height: 60px;
+}
+</style>
+</head>
+<body>
+<div id="calculator">
+  <div id="pantalla">0</div>
+  <div class="grid">
+    <button class="k" data-k="1">1</button>
+    <button class="k" data-k="2">2</button>
+    <button class="k" data-k="3">3</button>
+    <button class="k" data-k="+">+</button>
+    <button class="k" data-k="4">4</button>
+    <button class="k" data-k="6">6</button>
+    <button class="k" data-k="*">*</button>
+    <button class="k" data-k="-">-</button>
+    <button class="k" data-k="(">(</button>
+    <button class="k" data-k=")">)</button>
+    <button class="k" data-k="=">=</button>
+    <button class="k" data-k="C">C</button>
+    <div class="empty"></div>
+    <div class="empty"></div>
+    <div class="empty"></div>
+    <div class="empty"></div>
+  </div>
+</div>
+<script>
+const pantalla = document.getElementById('pantalla');
+let rawExpression = '';
+let displayExpression = '';
+let lastAction = null;
+
+function updateDisplay() {
+  pantalla.textContent = displayExpression || '0';
+}
+
+function formatNumber(num) {
+  if (typeof num !== 'number' || !isFinite(num)) return num;
+  if (Number.isInteger(num)) {
+    return num.toLocaleString();
+  } else {
+    return num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+}
+
+function handleButtonClick(e) {
+  const value = e.target.dataset.k;
+  if (!value) return;
+
+  if (value === 'C') {
+    rawExpression = '';
+    displayExpression = '';
+    lastAction = 'clear';
+    updateDisplay();
+    return;
+  }
+
+  if (value === '=') {
+    if (rawExpression.trim() === '') return;
+    try {
+      const result = eval(rawExpression);
+      const formatted = formatNumber(result);
+      rawExpression = result.toString();
+      displayExpression = formatted;
+      lastAction = 'equals';
+    } catch (err) {
+      displayExpression = 'Error';
+      lastAction = 'error';
+    }
+    updateDisplay();
+    return;
+  }
+
+  // For digits, operators, parentheses
+  if (lastAction === 'equals' || lastAction === 'clear' || lastAction === 'error') {
+    rawExpression = '';
+    displayExpression = '';
+  }
+
+  rawExpression += value;
+  displayExpression += value;
+  lastAction = 'input';
+  updateDisplay();
+}
+
+document.querySelectorAll('.k').forEach(btn => btn.addEventListener('click', handleButtonClick));
+updateDisplay();
+</script>
+</body>
+</html>

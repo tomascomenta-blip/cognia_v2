@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Paréntesis</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#2f2f2f;
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+  }
+  #calculator{
+    background:#2f2f2f;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.5);
+    width:100%;
+    max-width:400px;
+  }
+  #pantalla{
+    background:#111;
+    color:#0f0;
+    font-family:monospace;
+    font-size:2rem;
+    text-align:right;
+    padding:10px;
+    border-radius:5px;
+    margin-bottom:15px;
+    min-height:50px;
+    box-sizing:border-box;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  .k{
+    width:100%;
+    padding-top:100%; /* square */
+    position:relative;
+    border-radius:50%;
+    background:linear-gradient(145deg,#444,#222);
+    color:#fff;
+    font-size:1.5rem;
+    font-weight:bold;
+    cursor:pointer;
+    user-select:none;
+    transition:background .2s;
+  }
+  .k span{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+  }
+  .k[data-k="+"],
+  .k[data-k="-"],
+  .k[data-k="*"],
+  .k[data-k="("],
+  .k[data-k=")"],
+  .k[data-k="="]{
+    color:#ff8800;
+  }
+  .k[data-k="C"]{
+    color:#ff4444;
+  }
+  .k:hover{
+    background:linear-gradient(145deg,#555,#333);
+  }
+  #demo{
+    margin-top:15px;
+    color:#ccc;
+    font-size:.9rem;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div id="calculator">
+  <div id="pantalla"></div>
+  <div class="grid">
+    <button class="k" data-k="1"><span>1</span></button>
+    <button class="k" data-k="2"><span>2</span></button>
+    <button class="k" data-k="3"><span>3</span></button>
+    <button class="k" data-k="4"><span>4</span></button>
+    <button class="k" data-k="6"><span>6</span></button>
+    <button class="k" data-k="+"><span>+</span></button>
+    <button class="k" data-k="-"><span>-</span></button>
+    <button class="k" data-k="*"><span>*</span></button>
+    <button class="k" data-k="("><span>(</span></button>
+    <button class="k" data-k=")"><span>)</span></button>
+    <button class="k" data-k="="><span>=</span></button>
+    <button class="k" data-k="C"><span>C</span></button>
+    <button class="k" data-k="1"><span>1</span></button>
+    <button class="k" data-k="1"><span>1</span></button>
+    <button class="k" data-k="1"><span>1</span></button>
+    <button class="k" data-k="1"><span>1</span></button>
+  </div>
+  <div id="demo">Ejemplo: (1+2)*3 = 9, 2*(3+(4-1)) = 12</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const pantalla=document.getElementById('pantalla');
+  document.querySelectorAll('.k').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const val=btn.dataset.k;
+      if(val==='C'){pantalla.textContent='';}
+      else if(val==='='){
+        try{pantalla.textContent=eval(pantalla.textContent);}
+        catch(e){pantalla.textContent='Error';}
+      }else{pantalla.textContent+=val;}
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Cupón y Envío</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f4f8;color:#333;margin:0;padding:20px;}
+  .products{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;}
+  .prod{background:#fff;border:1px solid #ddd;border-radius:8px;padding:20px;width:200px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+  .price{font-size:1.5em;font-weight:bold;margin:10px 0;}
+  .add{background:#008080;color:#fff;border:none;border-radius:4px;padding:8px 12px;cursor:pointer;font-weight:bold;}
+  .add:hover{background:#006666;}
+  .cart-summary{max-width:400px;margin:30px auto;display:flex;flex-direction:column;gap:10px;background:#fff;padding:20px;border-radius:8px;border:1px solid #ddd;}
+  .row{display:flex;justify-content:space-between;font-size:1.1em;}
+  .row strong{font-weight:bold;}
+  .coupon{display:flex;gap:8px;margin-top:10px;}
+  .coupon input{flex:1;padding:6px;border:1px solid #ddd;border-radius:4px;}
+  .coupon button{background:#008080;color:#fff;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-weight:bold;}
+  .coupon button:hover{background:#006666;}
+  @media(max-width:480px){
+    .products{flex-direction:column;align-items:center;}
+    .prod{width:90%;}
+  }
+</style>
+</head>
+<body>
+<div class="products">
+  <div class="prod" data-id="p1" data-precio="30">
+    <p class="price">€30.00</p>
+    <button class="add" data-id="p1">Add</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="40">
+    <p class="price">€40.00</p>
+    <button class="add" data-id="p2">Add</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="50">
+    <p class="price">€50.00</p>
+    <button class="add" data-id="p3">Add</button>
+  </div>
+</div>
+<div class="cart-summary">
+  <div class="row"><span>Subtotal:</span> <span id="subtotal">€0.00</span></div>
+  <div class="row"><span>Envío:</span> <span id="envio">€5.00</span></div>
+  <div class="row"><strong>Total:</strong> <span id="total">€5.00</span></div>
+  <div class="coupon">
+    <input type="text" id="cupon" placeholder="Cupón">
+    <button id="aplicar">Aplicar</button>
+  </div>
+</div>
+<script>
+  (function(){
+    const subtotalEl=document.getElementById('subtotal');
+    const envioEl=document.getElementById('envio');
+    const totalEl=document.getElementById('total');
+    const cuponInput=document.getElementById('cupon');
+    const aplicarBtn=document.getElementById('aplicar');
+    const addButtons=document.querySelectorAll('.add');
+    let subtotal=0;
+    let discountRate=0;
+    function formatCurrency(val){return val.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+    function recalc(){
+      const discount= subtotal*discountRate;
+      const subtotalAfterDiscount= subtotal - discount;
+      const envio= subtotalAfterDiscount>=60?0:5;
+      const total= subtotalAfterDiscount + envio;
+      subtotalEl.textContent= formatCurrency(subtotal);
+      envioEl.textContent= formatCurrency(envio);
+      totalEl.textContent= formatCurrency(total);
+    }
+    addButtons.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const price=parseFloat(btn.closest('.prod').dataset.precio);
+        subtotal+=price;
+        recalc();
+      });
+    });
+    aplicarBtn.addEventListener('click',()=>{
+      const code=cuponInput.value.trim();
+      discountRate= (code==='DESCUENTO20')?0.20:0;
+      recalc();
+    });
+  })();
+</script>
+</body>
+</html>

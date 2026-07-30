@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenda sin solapamientos</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0faf5;color:#333;}
+  .container{display:flex;flex-direction:column;height:100vh;}
+  .header{background:#e0f2e9;padding:10px;display:flex;align-items:center;gap:10px;animation:slideIn 0.5s ease-out;}
+  .header input{width:60px;padding:5px;border:1px solid #b0d8b0;border-radius:4px;text-align:center;}
+  .header button{padding:6px 12px;background:#4caf50;color:white;border:none;border-radius:4px;cursor:pointer;transition:background .3s;}
+  .header button:hover{background:#45a049;}
+  #aviso{margin:5px 10px;min-height:20px;color:#d32f2f;font-weight:500;}
+  .agenda{flex:1;padding:10px;overflow-y:auto;animation:fadeIn 0.5s ease-out;}
+  .ev{background:#e8f5e9;padding:10px;margin-bottom:8px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,.1);font-weight:500;}
+  .ev strong{font-weight:600;}
+  @keyframes slideIn{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <label for="desde">Desde:</label>
+    <input id="desde" type="number" min="0" max="23" step="1" placeholder="0">
+    <label for="hasta">Hasta:</label>
+    <input id="hasta" type="number" min="0" max="23" step="1" placeholder="23">
+    <button id="crear">Crear</button>
+  </div>
+  <div id="aviso"></div>
+  <div id="agenda" class="agenda"></div>
+</div>
+<script>
+document.getElementById('crear').addEventListener('click', function() {
+  const desde = parseInt(document.getElementById('desde').value, 10);
+  const hasta = parseInt(document.getElementById('hasta').value, 10);
+  const aviso = document.getElementById('aviso');
+  aviso.textContent = '';
+  if (isNaN(desde) || isNaN(hasta) || desde < 0 || desde > 23 || hasta < 0 || hasta > 23) {
+    aviso.textContent = 'conflicto';
+    return;
+  }
+  if (desde >= hasta) {
+    aviso.textContent = 'conflicto';
+    return;
+  }
+  const eventos = document.querySelectorAll('.ev');
+  for (let ev of eventos) {
+    const eDesde = parseInt(ev.dataset.desde, 10);
+    const eHasta = parseInt(ev.dataset.hasta, 10);
+    if (!(hasta <= eDesde || desde >= eHasta)) {
+      aviso.textContent = 'conflicto';
+      return;
+    }
+  }
+  const evDiv = document.createElement('div');
+  evDiv.className = 'ev';
+  evDiv.dataset.desde = desde;
+  evDiv.dataset.hasta = hasta;
+  evDiv.innerHTML = `<strong>${desde}:00 - ${hasta}:00</strong>`;
+  document.getElementById('agenda').appendChild(evDiv);
+});
+</script>
+</body>
+</html>
