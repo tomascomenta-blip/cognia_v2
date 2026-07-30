@@ -60,6 +60,34 @@ sondear; idea + observaciones para juzgar), misma regla de veredicto
   si C3 funciona), nº de sondas con repeticiones declaradas (C2), y
   cuántos FN de la it.1 se convierten en aciertos.
 
+## RESULTADO (2026-07-30 ~00:15 — bloque completo, veredicto por umbrales pre-fijados)
+
+**KILL DEFINITIVO de la vía "ejecución en el bucle": aciertos 9/23
+(umbral ≤11).** FN 13/19, FP 1/4, complacencia 1/4, 1 página sin
+veredicto. Control ciego concurrente 7/24 — dentro del rango declarado
+(6-12), así que la lectura es válida y no direccional.
+
+- **Los arreglos del instrumento SÍ funcionaron, y eso es lo que hace
+  honesto el KILL:** contra la it.1 sobre el MISMO corpus y el mismo día,
+  aciertos 6/23 → **9/23** y FN 17/19 → **13/19**. La causa que la
+  auditoría identificó (snapshot ciego + sondas que no ejecutan lo que
+  declaran) era real y se corrigió. La mejora es exactamente +3, el borde
+  de lo que el prereg declaró "no es señal del arreglo" — y aun con el
+  beneficio de la duda no llega a GRIS (12-15), menos aún a VIVA (≥16).
+- El marco supera al ciego concurrente (9 vs 7) por un margen dentro del
+  ruido: **arreglar el instrumento acerca el marco al ciego, no lo separa
+  del azar.** El FN sigue en 68%: el pensador, viendo comportamiento real
+  y citando reglas reales, sigue condenando dos de cada tres páginas sanas.
+- **Sexto KILL de la señal autogenerada** (contrato ciego ×4, consenso de
+  votos ×2 vueltas, ejecución en el bucle ×2 iteraciones). La conclusión
+  de inversión no cambia y ahora tiene una vía menos: **para tareas nuevas
+  no hay señal autogenerada; los held-outs A MANO siguen siendo la única
+  señal real, y el BoN K=4 solo paga donde existen** (banco, gates).
+- Lo que NO se cierra: los tres arreglos del instrumento (snapshot con
+  estado, repeticiones verificadas, NO_CONCLUYENTE obligatorio) son
+  mejoras reales del harness de sondeo y quedan en el código para
+  cualquier uso futuro de sondas ejecutadas.
+
 ## Piloto
 
 No hay piloto de aptitud: la aptitud ya está demostrada (it.1 ejecutó
