@@ -33,6 +33,16 @@ HELDOUT = RAIZ / "scripts" / "b1_contratos_heldout.json"
 SALIDA = (RAIZ / "cognia" / "program_creator" / "generated_programs"
           / "b2_bon_heldout")
 
+# --banco duro|facil|brutal: el goal se define sobre el banco DURO (8
+# tareas) y el modo BoN solo se habia medido en brutal. El held-out puede
+# faltar al generar (fase 1) y aplicarse despues (fase 2, --solo-juzgar):
+# asi la GPU no espera a que los contratos a mano esten escritos.
+BANCOS = {
+    "brutal": ("b1_tareas_brutales.json", "b1_contratos_heldout.json"),
+    "facil": ("b1_tareas.json", "b1_contratos_heldout_facil.json"),
+    "duro": ("b1_tareas_duras.json", "b1_contratos_heldout_duras.json"),
+}
+
 
 def _cargar_b2():
     spec = importlib.util.spec_from_file_location(
@@ -87,7 +97,19 @@ def main(argv: list) -> int:
     solo_resumen = "--solo-resumen" in argv
     if solo_resumen:
         reanudar = True
-    global SALIDA
+    global SALIDA, TAREAS, HELDOUT
+    banco = (argv[argv.index("--banco") + 1]
+             if "--banco" in argv else "brutal")
+    if banco not in BANCOS:
+        sys.exit(f"--banco {banco}: usa uno de {sorted(BANCOS)}")
+    if banco != "brutal":
+        f_t, f_h = BANCOS[banco]
+        TAREAS = RAIZ / "scripts" / f_t
+        HELDOUT = RAIZ / "scripts" / f_h
+        SALIDA = SALIDA.with_name(SALIDA.name + "_" + banco)
+    # --sin-heldout: fase 1 (generar) sin exigir los contratos a mano; el
+    # juez estricto se aplica despues con --solo-juzgar.
+    sin_heldout = "--sin-heldout" in argv
     if "--sufijo" in argv:
         SALIDA = SALIDA.with_name(
             SALIDA.name + "_" + argv[argv.index("--sufijo") + 1])
@@ -112,11 +134,16 @@ def main(argv: list) -> int:
     from cognia import backend_activo
 
     tareas = json.loads(TAREAS.read_text(encoding="utf-8"))["tareas"]
-    heldout = {t["id"]: t["contrato"]
-               for t in json.loads(HELDOUT.read_text(encoding="utf-8"))["tareas"]}
+    heldout = ({t["id"]: t["contrato"] for t in
+                json.loads(HELDOUT.read_text(encoding="utf-8"))["tareas"]}
+               if HELDOUT.is_file() else {})
     faltan = [t["id"] for t in tareas if t["id"] not in heldout]
-    if faltan:
+    if faltan and not sin_heldout:
         sys.exit(f"sin held-out para {faltan}: el juez estricto no existe")
+    if faltan:
+        print(f"[fase 1] SIN held-out para {len(faltan)} tareas: se GENERA y "
+              f"se juzga con el contrato original; el juez estricto se "
+              f"aplica despues con --solo-juzgar\n", flush=True)
 
     SALIDA.mkdir(parents=True, exist_ok=True)
     fichero_res = SALIDA / "resultados.json"
@@ -227,6 +254,8 @@ def main(argv: list) -> int:
                     # (no solo las aprobadas): el selector necesita su
                     # ranking completo y la métrica D necesita los dos lados.
                     try:
+                        if t["id"] not in heldout:
+                            raise KeyError("sin held-out (fase 1)")
                         vh = juez_ejecutable.juzgar_web(d / "index.html",
                                                         heldout[t["id"]])
                         m.update(aprobado_heldout=vh.aprobado,

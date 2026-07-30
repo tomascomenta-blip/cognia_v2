@@ -1,0 +1,193 @@
+{
+  "_por_que": "Held-outs A MANO del banco DURO (el banco del GOAL: 8/8). Escritos el 2026-07-30 sin mirar ninguna pagina generada, solo el ENUNCIADO. Regla de diseno (la misma que en brutal y facil): cada paso critico verifica una CONSECUENCIA LOGICA del enunciado con los selectores que el propio enunciado declara OBLIGATORIOS, y NUNCA un valor que el enunciado no fija (nada de literales de estilo, textos libres ni posiciones). Los casos son DISTINTOS de los del contrato original: si el original prueba 60 unidades, el held-out prueba 11 y 51. Un producto que pase los dos examenes ha demostrado la mecanica, no haber acertado un caso.",
+  "tareas": [
+    {
+      "id": "undo_redo",
+      "contrato": {
+        "nombre": "undo/redo HELD-OUT: la rama rehacible se pierde tras una accion nueva",
+        "pasos": [
+          {"accion": "contar", "selector": ".it", "esperado": 0, "nombre": "la lista empieza vacia", "critico": true},
+          {"accion": "escribir", "selector": "#txt", "texto": "alfa"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "escribir", "selector": "#txt", "texto": "beta"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "contar", "selector": ".it", "esperado": 2, "nombre": "dos add dan dos elementos", "critico": true},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "contar", "selector": ".it", "esperado": 1, "nombre": "undo deshace la ultima accion", "critico": true},
+          {"accion": "escribir", "selector": "#txt", "texto": "gamma"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "contar", "selector": ".it", "esperado": 2, "nombre": "una accion nueva tras undo deja 2 elementos", "critico": true},
+          {"accion": "click", "selector": "#redo"},
+          {"_por_que": "LA REGLA CLAVE del enunciado: tras una accion NUEVA el redo deja de estar disponible, o sea que este redo NO puede resucitar 'beta'. Se comprueba por conteo (sigue 2) y porque el texto de la lista no contiene 'beta'.",
+           "accion": "contar", "selector": ".it", "esperado": 2, "nombre": "el redo ya no rehace: la rama se perdio", "critico": true},
+          {"accion": "js", "expr": "[...document.querySelectorAll('.it')].map(e=>e.innerText).join('|').includes('beta')", "esperado": false, "nombre": "'beta' no vuelve tras perderse la rama", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "descuento_tramos",
+      "contrato": {
+        "nombre": "descuento por tramos HELD-OUT: bordes 11 y 51 (marginal, no escalonado)",
+        "pasos": [
+          {"accion": "escribir", "selector": "#cant", "texto": "10"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "10 unidades caen enteras en el primer tramo: 10*10 = 100. Si el producto aplicara el descuento a TODO al pasar de tramo (escalonado en vez de marginal) este caso aun coincidiria, por eso se comprueba tambien 11 y 51.",
+           "accion": "texto", "selector": "#total", "contiene": "100", "nombre": "10 unidades = 100", "critico": true},
+          {"accion": "escribir", "selector": "#cant", "texto": "11"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "MARGINAL: 10*10 + 1*9 = 109. Un producto que aplique el 10% a las 11 unidades daria 99: el caso separa marginal de escalonado.",
+           "accion": "texto", "selector": "#total", "contiene": "109", "nombre": "11 unidades = 109 (marginal, no 99)", "critico": true},
+          {"accion": "escribir", "selector": "#cant", "texto": "51"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "10*10 + 40*9 + 1*8 = 468. El escalonado daria 51*8 = 408.",
+           "accion": "texto", "selector": "#total", "contiene": "468", "nombre": "51 unidades = 468 (tercer tramo marginal)", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "form_cruzado",
+      "contrato": {
+        "nombre": "form cruzado HELD-OUT: cada condicion por separado desactiva el boton",
+        "pasos": [
+          {"accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "arranca deshabilitado", "critico": true},
+          {"accion": "escribir", "selector": "#pass", "texto": "12345678"},
+          {"accion": "escribir", "selector": "#pass2", "texto": "12345678"},
+          {"accion": "escribir", "selector": "#edad", "texto": "17"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "Pass OK y coincidentes, pero 17 esta FUERA de [18,120]: el enunciado exige que se cumpla TODO a la vez.",
+           "accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "edad 17 mantiene el boton deshabilitado", "critico": true},
+          {"accion": "escribir", "selector": "#edad", "texto": "18"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "18 es el borde INCLUSIVO segun 'entre 18 y 120'. Con las tres condiciones cumplidas, el boton se habilita.",
+           "accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": false, "nombre": "con las tres condiciones el boton se habilita", "critico": true},
+          {"accion": "escribir", "selector": "#pass2", "texto": "1234567X"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "Misma longitud pero YA NO COINCIDEN: el estado se actualiza en cada pulsacion, asi que vuelve a deshabilitarse.",
+           "accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "si dejan de coincidir vuelve a deshabilitarse", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "tabla_compuesta",
+      "contrato": {
+        "nombre": "tabla compuesta HELD-OUT: la ultima pagina tiene 3 filas y el filtro reinicia a 1",
+        "pasos": [
+          {"accion": "contar_visible", "selector": ".fila", "esperado": 10, "nombre": "la pagina 1 muestra 10 filas", "critico": true},
+          {"accion": "texto", "selector": "#pagina", "contiene": "1", "nombre": "empieza en la pagina 1", "critico": true},
+          {"accion": "click", "selector": "#sig"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "contar_visible", "selector": ".fila", "esperado": 10, "nombre": "la pagina 2 muestra 10 filas", "critico": true},
+          {"accion": "click", "selector": "#sig"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "23 filas con 10 por pagina => la tercera pagina tiene EXACTAMENTE 3. Es consecuencia aritmetica del enunciado, no un valor inventado.",
+           "accion": "contar_visible", "selector": ".fila", "esperado": 3, "nombre": "la pagina 3 muestra las 3 filas restantes", "critico": true},
+          {"accion": "escribir", "selector": "#q", "texto": "a"},
+          {"accion": "esperar", "ms": 400},
+          {"_por_que": "LA COMBINACION que el enunciado exige: al filtrar se vuelve a la pagina 1. No se comprueba CUANTAS filas casan (depende de los nombres que genere el producto), solo que la paginacion se reinicia y no excede el tamano de pagina.",
+           "accion": "texto", "selector": "#pagina", "contiene": "1", "nombre": "al filtrar se vuelve a la pagina 1", "critico": true},
+          {"accion": "js", "expr": "[...document.querySelectorAll('.fila')].filter(f=>f.offsetParent!==null).length<=10", "esperado": true, "nombre": "el filtro respeta el tamano de pagina", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "precedencia",
+      "contrato": {
+        "nombre": "precedencia HELD-OUT: 7-2*3=1 y 2*3+4=10 (el original prueba 2+3*4)",
+        "pasos": [
+          {"accion": "click", "selector": "[data-k='C']"},
+          {"accion": "click", "selector": "[data-k='7']"},
+          {"accion": "click", "selector": "[data-k='-']"},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='3']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "7-2*3 = 7-6 = 1 con precedencia correcta; evaluando de izquierda a derecha daria (7-2)*3 = 15. Caso distinto del original (2+3*4) y con resta, que ademas descarta la conmutatividad accidental.",
+           "accion": "texto", "selector": "#pantalla", "contiene": "1", "nombre": "7-2*3 = 1, no 15", "critico": true},
+          {"accion": "js", "expr": "document.querySelector('#pantalla').innerText.includes('15')", "esperado": false, "nombre": "no evalua de izquierda a derecha", "critico": true},
+          {"accion": "click", "selector": "[data-k='C']"},
+          {"accion": "esperar", "ms": 200},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='3']"},
+          {"accion": "click", "selector": "[data-k='+']"},
+          {"accion": "click", "selector": "[data-k='4']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "2*3+4 = 10 con el producto ANTES de la suma; es el caso simetrico del original, que pone la multiplicacion a la derecha.",
+           "accion": "texto", "selector": "#pantalla", "contiene": "10", "nombre": "2*3+4 = 10", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "tres_en_raya",
+      "contrato": {
+        "nombre": "tres en raya HELD-OUT: victoria en COLUMNA y bloqueo posterior",
+        "pasos": [
+          {"accion": "click", "selector": "[data-i='0']"},
+          {"accion": "click", "selector": "[data-i='1']"},
+          {"accion": "click", "selector": "[data-i='3']"},
+          {"accion": "click", "selector": "[data-i='2']"},
+          {"accion": "click", "selector": "[data-i='6']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "X en 0,3,6 es la COLUMNA izquierda (el contrato original prueba la fila). Empieza X segun el enunciado, asi que los clicks alternan X,O,X,O,X.",
+           "accion": "texto", "selector": "#estado", "contiene": "gana", "nombre": "tres en columna gana", "critico": true},
+          {"accion": "js", "expr": "[...document.querySelectorAll('.c')].filter(c=>c.innerText.trim()!=='').length", "esperado": 5, "nombre": "hay 5 marcas al ganar", "critico": true},
+          {"accion": "click", "selector": "[data-i='4']"},
+          {"accion": "esperar", "ms": 300},
+          {"_por_que": "LA REGLA: tras la victoria las casillas quedan bloqueadas, asi que el numero de marcas NO puede subir a 6.",
+           "accion": "js", "expr": "[...document.querySelectorAll('.c')].filter(c=>c.innerText.trim()!=='').length", "esperado": 5, "nombre": "tras ganar no se pueden poner mas marcas", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "temporizador",
+      "contrato": {
+        "nombre": "temporizador HELD-OUT: pause MANTIENE y start reanuda desde ahi",
+        "pasos": [
+          {"accion": "texto", "selector": "#t", "contiene": "0", "nombre": "empieza en 0", "critico": true},
+          {"accion": "click", "selector": "#start"},
+          {"accion": "esperar", "ms": 2500},
+          {"accion": "click", "selector": "#pause"},
+          {"accion": "esperar", "ms": 200},
+          {"_por_que": "Tras ~2.5 s de conteo el valor tiene que haber subido; se exige >=1 para no depender del redondeo exacto, que el enunciado no fija.",
+           "accion": "js", "expr": "parseInt(document.querySelector('#t').innerText,10)>=1", "esperado": true, "nombre": "start hace avanzar el contador", "critico": true},
+          {"accion": "js", "expr": "window.__hv=parseInt(document.querySelector('#t').innerText,10); true", "esperado": true, "nombre": "se anota el valor pausado"},
+          {"accion": "esperar", "ms": 1600},
+          {"_por_que": "PAUSE MANTIENE: pasado mas de un segundo en pausa el valor no puede haber cambiado.",
+           "accion": "js", "expr": "parseInt(document.querySelector('#t').innerText,10)===window.__hv", "esperado": true, "nombre": "en pausa el valor no cambia", "critico": true},
+          {"accion": "click", "selector": "#start"},
+          {"accion": "esperar", "ms": 1600},
+          {"_por_que": "REANUDA DESDE ESE VALOR: al volver a arrancar tiene que ser mayor que el pausado (no volver a 0 ni quedarse quieto).",
+           "accion": "js", "expr": "parseInt(document.querySelector('#t').innerText,10)>window.__hv", "esperado": true, "nombre": "start reanuda desde el valor pausado", "critico": true},
+          {"accion": "click", "selector": "#reset"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "js", "expr": "parseInt(document.querySelector('#t').innerText,10)===0", "esperado": true, "nombre": "reset vuelve a 0", "critico": true}
+        ]
+      }
+    },
+    {
+      "id": "serpiente",
+      "contrato": {
+        "nombre": "serpiente HELD-OUT: no invierte 180 y el estado vive en window.juego",
+        "pasos": [
+          {"accion": "js", "expr": "typeof window.juego==='object' && window.juego!==null", "esperado": true, "nombre": "window.juego existe", "critico": true},
+          {"accion": "js", "expr": "window.juego.largo", "esperado": 1, "nombre": "empieza con longitud 1", "critico": true},
+          {"accion": "contar", "selector": ".cel", "esperado": 100, "nombre": "grilla de 10x10", "critico": true},
+          {"accion": "tecla", "key": "ArrowRight"},
+          {"accion": "esperar", "ms": 600},
+          {"accion": "js", "expr": "window.__hx=window.juego.x; window.__hd=String(window.juego.dir); true", "esperado": true, "nombre": "se anota el estado tras ir a la derecha"},
+          {"accion": "tecla", "key": "ArrowLeft"},
+          {"accion": "esperar", "ms": 600},
+          {"_por_que": "LA REGLA CLAVE: yendo a la derecha, la flecha izquierda se IGNORA. Se comprueba por la direccion (no puede haber pasado a apuntar a la izquierda) sin exigir un formato concreto de 'dir', que el enunciado no fija: basta con que no describa el sentido contrario.",
+           "accion": "js", "expr": "!/left|izq|-1,0|\\[-1|'-1'/i.test(String(window.juego.dir)) && !(window.juego.dir && window.juego.dir.x===-1)", "esperado": true, "nombre": "la inversion de 180 grados se ignora", "critico": true},
+          {"accion": "js", "expr": "window.juego.x>=window.__hx", "esperado": true, "nombre": "la serpiente no retrocede tras la flecha opuesta", "critico": true},
+          {"accion": "js", "expr": "document.querySelectorAll('.cel.snake').length>=1 && document.querySelectorAll('.cel.food').length>=1", "esperado": true, "nombre": "hay serpiente y comida en la grilla", "critico": true}
+        ]
+      }
+    }
+  ]
+}
