@@ -10006,3 +10006,41 @@ bon-con-senal-real (actualizada al cierre).
    valores que el enunciado no fija), evaluado leave-one-task-out — y
    nunca en el constructor, porque el BoN vive de la diversidad que un
    fine-tuning agudizaría.
+
+### ATERRIZAJE (2026-07-30 04:14) — estado exacto de reanudación
+
+**Todas las unidades de la ventana están COMPLETAS y versionadas. Nada
+quedó a medias; no hay nada que reanudar.**
+
+| corrida | estado | dónde |
+|---|---|---|
+| A/B COGNIA_SIN_TROCEO en el lazo (fase 3) | 48/48 celdas | b2_ab_sin_troceo |
+| Sonda de la discrepancia (etapas A y B) | 24 + 24 celdas | b2_ab_sin_troceo_capturas, b2_ablacion_texto_fresca |
+| Validez del instrumento (lazo vs replay) | 24/24 pares | b2_lazo_vs_replay |
+| Varianza del juez (re-juzgado triple) | 24 páginas × 3 | varianza_juez.json |
+| Marco ejecución-en-el-bucle it.1 e it.2 | 24 + 24 páginas | b2_ejecucion_bucle, _it2 |
+| Consenso conductual | 24 ensayos | b2_consenso_conductual |
+| **GOAL banco duro r1 y r2** | **32 + 32 muestras** | **b2_bon_heldout_duro, _r2** |
+
+- Árbol limpio, 0 commits sin pushear (verificado en el aterrizaje).
+- Flota: gpt-oss-20b en :8080 con --parallel 1 y ctx 16384; el chequeo de
+  slots del arranque funcionó toda la sesión (0 incidencias de infra).
+- Procesos de corrida detenidos con gracia; 0 chromium huérfanos.
+
+**Lo primero de la próxima sesión, por valor:**
+1. **Endurecer los held-outs del banco DURO hasta que discrepen del
+   contrato original** (hoy: 0 desacuerdos en 64 páginas) y RE-MEDIR el
+   8/8. Mientras no discrepen, el goal vale lo que valga el contrato
+   original de cada tarea — es el caveat más caro que queda vivo.
+2. Diseñar el adaptador anti-invención (el modo de fallo MEDIDO del
+   contrato: valores que el enunciado no fija), con evaluación
+   leave-one-task-out y NUNCA sobre el constructor (el BoN vive de la
+   diversidad que un fine-tuning agudizaría). Discutido con el dueño esta
+   noche; sin prereg todavía.
+3. Si se retoma el consenso: la variante medoide (el mecanismo medido
+   señala falta de mayoría, no mala elección), con prereg propio.
+
+**Lecciones a memoria (escritas):** goal-alcanzado-donde-hay-examen
+(nueva), varianza-entre-corridas (nueva, con la fuente identificada),
+juez-colgado-js-bloqueante (de la matinal), bon-con-senal-real
+(actualizada con el goal y con el ladrón del envoltorio).
