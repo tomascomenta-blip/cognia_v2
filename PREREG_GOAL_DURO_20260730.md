@@ -81,6 +81,72 @@ contra el held-out; nº de muestras infra/sin HTML; tiempos.
   alta: **un 8/8 aquí sería el goal alcanzado en una corrida, y exigiría
   réplica antes de declararlo estable.**
 
+## RESULTADO — corrida 1 (2026-07-30 ~00:05, 32/32 muestras, 0 sin HTML)
+
+**MODO = 8/8 → GOAL ALCANZADO en esta corrida.** Control (s1) 7/8, techo
+pass@4 8/8, **pérdida del selector = 0**, 0 fallos por TECHO y 0 por
+SELECCIÓN.
+
+| tarea | ctrl | MODO | techo | elegida | muestras estrictas |
+|---|---|---|---|---|---|
+| undo_redo | OK | OK | OK | s1 | 1,2,3,4 |
+| descuento_tramos | OK | OK | OK | s1 | 1,2,3,4 |
+| form_cruzado | OK | OK | OK | s1 | 1,2,3,4 |
+| **tabla_compuesta** | **--** | **OK** | OK | **s2** | 2,3 |
+| precedencia | OK | OK | OK | s1 | 1,3,4 |
+| tres_en_raya | OK | OK | OK | s1 | 1,2,3,4 |
+| temporizador | OK | OK | OK | s1 | 1,2,3,4 |
+| serpiente | OK | OK | OK | s1 | 1,2,3,4 |
+
+**Lo que este número SÍ dice:**
+- Ninguna tarea del banco duro es inalcanzable para el muestreo: techo
+  8/8, **0 fallos por TECHO**. El criterio de KILL que META tenía escrito
+  ("si una tarea no sale NUNCA en 8 muestras, el muestreo no la compra")
+  **no se dispara en ninguna**.
+- El selector held-out no perdió nada (pérdida 0) y rescató la única tarea
+  que el control fallaba (tabla_compuesta, eligiendo s2).
+
+**Lo que este número NO dice — los tres caveats que impiden declararlo
+estable, en voz alta:**
+1. **n=1 réplica: es una FOTO, no una tasa.** Con la varianza medida esta
+   misma noche (±34 pts entre corridas, 54% de reproducibilidad por
+   celda), otra corrida podría dar 6/8 o 7/8 sin que nada haya cambiado.
+   Réplica pre-registrada abajo y lanzada de inmediato.
+2. **La ganancia del BoN aquí es +1 tarea, no siete.** El control ya
+   entregaba 7/8 — el banco duro está mucho más cerca del alcance del
+   sistema sin BoN de lo que sugería el marco mental "17 puntos de hueco".
+   Coherente con el pass@1 ≈83% que META ya registraba.
+3. **El held-out NO demostró independencia en este banco: 0 desacuerdos
+   con el contrato original en las 32 páginas** (en el brutal cazó 4 FP).
+   O sea, el "juez estricto = original ∧ held-out" fue de facto el
+   contrato original. El examen es más blando de lo que la etiqueta
+   sugiere, y así queda declarado. (Validación: 0 desacuerdos, 0 checks
+   que fallen siempre, cobertura 4/4 en las 8 tareas.)
+
+Caveat heredado de META que sigue vigente: el banco lo diseñó la misma
+familia de modelos que lo resuelve.
+
+## RÉPLICA DE CONFIRMACIÓN — umbral fijado ANTES de correrla (00:10)
+
+Se lanza en directorio propio (`--sufijo r2 --replicas 1`): 32 muestras
+nuevas. **Desviación declarada:** el runner impide `--reanudar` con otro
+número de réplicas (guarda contra mezclar configuraciones), así que la
+réplica reusa la etiqueta rep=1 y, con ella, **las mismas semillas de
+hints de feromona que r1**. La generación sigue siendo estocástica y la
+varianza dominante es del generador (medido hoy: 54% de reproducibilidad
+con el prompt EXACTAMENTE igual), así que la réplica es legítima — pero es
+menos independiente que si los hints difirieran, y eso podría
+SOBREestimar la reproducibilidad. Se declara antes de ver el número.
+
+| resultado de r2 | lectura |
+|---|---|
+| 8/8 | **goal alcanzado en 2 de 2 corridas**: se declara alcanzado, con los caveats 2 y 3 en pie |
+| 6-7/8 | el 8/8 de r1 fue una FOTO: se declara "8/8 en 1 de 2 corridas" y el número honesto del goal es el par (r1, r2), nunca solo el mejor |
+| ≤5/8 | r1 fue atípica; el goal NO está alcanzado y manda r2 |
+
+Se reporta también si el fallo (si lo hay) es de TECHO o de SELECCIÓN, y
+el control de r2 — que es la tasa base del sistema sin BoN.
+
 ## Presupuesto
 
 Fase 1 ≈ 3-3.5 h (banco duro, ~6 min/muestra medidos). Validación y fase 3
