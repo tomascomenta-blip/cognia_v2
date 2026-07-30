@@ -188,6 +188,64 @@ caveats 2 y 3 siguen en pie tras la réplica):
 4. Caveat heredado de META: el banco lo diseñó la misma familia de
    modelos que lo resuelve.
 
+## ENDURECIMIENTO DEL JUEZ (2026-07-30 ~06:20) — el caveat 2, atacado y RESUELTO en parte
+
+El caveat 2 decía: *el held-out no discrepó del original en 64 páginas, así
+que el juez estricto fue de facto el contrato original*. Se atacó de la
+única forma que valía: **escribiendo un SEGUNDO held-out (v2) diseñado para
+romper**, y aplicándolo a las 64 páginas congeladas (cero GPU).
+
+**Por qué el v1 no discrepaba — causa encontrada, y era mía:** al comparar
+los dos exámenes paso a paso, el v1 **repetía casos que el original ya
+probaba** en vez de cubrir huecos. En `precedencia`, ambos exámenes
+contenían literalmente `7-2*3 = 1`.
+
+**El v2 ataca SOLO huecos** (todo consecuencia lógica del enunciado):
+que `tabla_compuesta` **ordene de verdad** y que el 2º click **invierta**
+(el original solo comprobaba que ordenar no rompiera la paginación) y que
+un filtro sin coincidencias deje 0 filas; que `C` **limpie la pantalla** en
+precedencia; la **diagonal** y la casilla ocupada en tres_en_raya; **reset
+mientras corre** en temporizador; coherencia `largo`↔celdas y movimiento
+vertical en serpiente; undo múltiple hasta vaciar; bordes 0/50/100 del
+descuento y 7/8 chars y 120/121 de edad en el formulario.
+
+**RESULTADO sobre las 64 páginas:** original aprueba 59/64, v1 60/64,
+**v2 62/64** — y **v2 CAZA 0**: no encontró ni un solo fallo que el
+original deje pasar. Ningún check del v2 falla siempre (descartado bug
+mío). Los 3 casos donde v2 aprueba y el original no son casos que el v2
+deliberadamente NO repite (la página 3 de la tabla, el ArrowRight de la
+serpiente): **el v2 es COMPLEMENTARIO, no más laxo**.
+
+**RE-MEDICIÓN DEL GOAL CON JUEZ TRIPLE (original ∧ v1 ∧ v2):**
+
+| | r1 | r2 |
+|---|---|---|
+| CONTROL | 7/8 | 7/8 |
+| **MODO** | **8/8** | **8/8** |
+| TECHO | 8/8 | 8/8 |
+
+**Idéntico al juez doble: el 8/8 SOBREVIVE al examen endurecido en las dos
+corridas.**
+
+**Qué queda del caveat 2, dicho con precisión:** ya no es "el examen es
+blando y no se ha probado otra cosa" — dos exámenes independientes escritos
+a mano, con ~20 checks críticos nuevos atacando ángulos que el original no
+toca, **no rompen ninguna página que el original apruebe**. Eso es
+evidencia positiva real. El límite que permanece es de naturaleza distinta
+y hay que nombrarlo: los tres exámenes miden **lo mismo en el fondo** —
+comportamiento observable con Playwright sobre los selectores que el
+enunciado declara — y los escribió la misma mano. No prueban corrección
+general; prueban que tres ángulos distintos de la misma lente no encuentran
+fallos.
+
+*Fe de erratas de este análisis:* el primer cálculo del juez triple dio
+7/8 en r1 por un error MÍO, no del sistema — usé el `aprobado_heldout` de
+`resultados.json`, que en r1 está vacío (la fase 1 corrió sin held-out y el
+re-juzgado no lo persistió), así que mi selector caía a s1 por defecto. Con
+la elección REAL del selector (registrada en `goal.json`), r1 da 8/8.
+Anotado porque el error tardó dos minutos en aparecer y podría haber
+firmado un "el goal no sobrevive" falso.
+
 ## Presupuesto
 
 Fase 1 ≈ 3-3.5 h (banco duro, ~6 min/muestra medidos). Validación y fase 3

@@ -1,0 +1,612 @@
+{
+  "n": 64,
+  "caza": [],
+  "inversos": [
+    {
+      "pagina": "tabla_compuesta__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tabla_compuesta",
+      "orig": false,
+      "v1": false,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "serpiente",
+      "orig": false,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tabla_compuesta",
+      "orig": false,
+      "v1": false,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    }
+  ],
+  "filas": [
+    {
+      "pagina": "descuento_tramos__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "descuento_tramos__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "descuento_tramos__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "descuento_tramos__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "precedencia__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "precedencia",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "23/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "pagina": "precedencia__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "precedencia",
+      "orig": false,
+      "v1": false,
+      "v2": false,
+      "motivo_v2": "falla critica: 7+2*3 = 13 (js=False, esperaba True)"
+    },
+    {
+      "pagina": "precedencia__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "precedencia",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "23/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "pagina": "precedencia__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "precedencia",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "22/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "serpiente",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "serpiente",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "serpiente",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "serpiente",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tabla_compuesta",
+      "orig": false,
+      "v1": false,
+      "v2": false,
+      "motivo_v2": "falla critica: pagina 1 con 10 filas (js=0, esperaba 10); tras ordenar, las edades visibles estan or"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tabla_compuesta",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tabla_compuesta",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tabla_compuesta",
+      "orig": false,
+      "v1": false,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s1",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s2",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s3",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s4",
+      "corpus": "b2_bon_heldout_duro",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    },
+    {
+      "pagina": "descuento_tramos__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "descuento_tramos__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "descuento_tramos__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "descuento_tramos__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "descuento_tramos",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "15/16 checks OK (12/12 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "form_cruzado__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "form_cruzado",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/19 checks OK (15/15 del contrato)"
+    },
+    {
+      "pagina": "precedencia__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "precedencia",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "22/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "pagina": "precedencia__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "precedencia",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "23/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "pagina": "precedencia__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "precedencia",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "23/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "pagina": "precedencia__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "precedencia",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "22/23 checks OK (19/19 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "serpiente",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "serpiente",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "serpiente",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "serpiente__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "serpiente",
+      "orig": false,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tabla_compuesta",
+      "orig": false,
+      "v1": false,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tabla_compuesta",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tabla_compuesta",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "tabla_compuesta__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tabla_compuesta",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "14/15 checks OK (11/11 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "temporizador__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "temporizador",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "13/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "tres_en_raya__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "tres_en_raya",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "17/18 checks OK (14/14 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s1",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s2",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s3",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    },
+    {
+      "pagina": "undo_redo__r1__s4",
+      "corpus": "b2_bon_heldout_duro_r2",
+      "tarea": "undo_redo",
+      "orig": true,
+      "v1": true,
+      "v2": true,
+      "motivo_v2": "18/20 checks OK (15/16 del contrato)"
+    }
+  ],
+  "checks_siempre_fallan": []
+}
