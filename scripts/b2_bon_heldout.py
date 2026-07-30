@@ -44,6 +44,8 @@ BANCOS = {
     # cabecera nueva: se CALIBRA (pass@1 por tarea) antes de usarse para
     # medir progreso — PREREG_CABECERA_NUEVA_20260730.md
     "cabecera": ("b1_tareas_cabecera.json", "b1_contratos_heldout_cabecera.json"),
+    # 2a tanda: test de la hipotesis "invariante global re-evaluado"
+    "cabecera2": ("b1_tareas_cabecera2.json", "b1_contratos_heldout_cabecera2.json"),
 }
 
 
