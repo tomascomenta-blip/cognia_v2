@@ -228,18 +228,32 @@ despegaba, y no aguanta una réplica.
 
 ### El hallazgo que se queda, y es sobre el SISTEMA, no sobre el método
 
-**Elegir una muestra AL AZAR bate sistemáticamente al control**: neto medio
-del azar **+1.49** (original), **+1.16** (réplica), **+2.70** (agregado),
-siempre positivo. Es decir, **`s1` es peor que una muestra cualquiera del
-mismo ensayo.**
+**Elegir una muestra AL AZAR tiende a batir al control**: neto medio del azar
+**+1.50** (original), **+1.16** (réplica), **+2.70** (agregado), positivo en
+los tres.
 
-No tengo mecanismo para eso con estos datos, y no voy a inventarlo. Pero
-tiene una consecuencia práctica inmediata y barata: **el "control" contra el
-que se han medido todos los selectores de esta semana no es una referencia
-neutra, sino una por debajo del azar.** Cualquier neto medido contra `s1`
-—incluidos el +2 del consenso por mayoría y el +3 de los votos— hay que
-releerlo con eso delante. **La referencia honesta para un selector es el
-azar, no la primera muestra.**
+**CORRECCIÓN INMEDIATA — "sistemáticamente" era demasiado fuerte.** Lo escribí
+así y al comprobarlo (20 000 réplicas por conjunto) **la diferencia NO es
+significativa**:
+
+| conjunto | neto del azar vs control | p5–p95 | **P(azar NO bate al control)** |
+|---|---|---|---|
+| original (24) | +1.50 | −1 … +4 | **0.265** |
+| réplica (19) | +1.16 | −1 … +4 | **0.335** |
+| agregado (43) | +2.70 | −1 … +6 | **0.162** |
+
+La dirección es consistente en los tres, pero incluso agregando, **una de cada
+seis veces el azar no bate al control**. Lo honesto es: **`s1` no es mejor que
+una muestra cualquiera, y podría ser peor; que sea peor es direccional, no
+demostrado.**
+
+**Lo que SÍ se sostiene, y es lo que importa para el método:** el neto del
+azar contra el control tiene **media +1.2 a +2.7 y p95 de +4 a +6**. O sea,
+**un "+2" o un "+3" contra el control está dentro de la banda de lo que hace
+el azar**, y eso no depende de la corrección de arriba. Los netos pequeños de
+esta semana —el +2 del consenso por mayoría, el +3 de los votos— **no se
+distinguen del ruido**, y la referencia correcta para un selector es el azar,
+no la primera muestra.
 
 *Y una posibilidad que merece una sonda barata antes que ninguna vía nueva:*
 si `s1` es sistemáticamente peor, **el BoN podría estar cobrando parte de su

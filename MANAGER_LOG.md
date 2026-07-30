@@ -10236,9 +10236,16 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
 
 10. **EL RESULTADO MÁS IMPORTANTE DE LA SESIÓN, y salió persiguiendo un
     hallazgo lateral: el BoN SÍ selecciona (p=0.0001), pero el 8/8 del GOAL
-    no es lo que lo demuestra.** El medoide destapó que **elegir al azar bate
-    sistemáticamente al control s1**, así que el BoN podía estar cobrando por
-    *no usar s1* en vez de por seleccionar. Se separaron las tres referencias
+    no es lo que lo demuestra.** El medoide destapó que **el azar tiende a batir
+    al control s1**, así que el BoN podía estar cobrando por *no usar s1* en
+    vez de por seleccionar. *(Corrección que me hice al comprobarlo con 20 000
+    réplicas: la dirección es consistente —neto del azar +1.50/+1.16/+2.70—
+    pero **NO es significativa**: P(el azar no bate al control) =
+    0.265/0.335/0.162. Escribí "sistemáticamente" y era pasarse. Lo que sí se
+    sostiene: **el neto del azar tiene p95 de +4 a +6, así que un "+2" o "+3"
+    contra el control está DENTRO de la banda del azar** — el +2 del consenso
+    por mayoría y el +3 de los votos no se distinguen del ruido.)*
+    Se separaron las tres referencias
     (`scripts/b2_bon_vs_azar.py`, 10 000 réplicas):
 
     | corpus | control | AZAR | BoN | P(azar ≥ BoN) |
