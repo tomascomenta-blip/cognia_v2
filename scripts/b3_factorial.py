@@ -39,8 +39,14 @@ from b3_oficial import SYSTEM_OFICIAL, casos_oficiales, juzga_oficial, \
     prompt_oficial
 
 DESDE, HASTA = "2024-08-01", "2025-01-31"     # ventana de la referencia
-CELDAS = [("mio", "low"), ("oficial", "low"),
-          ("mio", "high"), ("oficial", "high")]
+# ENMIENDA 2 (2026-07-31 09:50), por RELOJ y por CONTEXTO, antes de que hubiera
+# ninguna lectura: se cae la celda (mio, high). Las dos celdas `high` cuestan
+# ~4x las `low` y con 4 celdas el ritmo medido era 4.3 min/tarea => ~30 tareas
+# en la ventana, por debajo del N_min=35 que necesita LA celda que da el
+# derecho a comparar. Con tres celdas se conserva el eje PROMPT (a esfuerzo
+# low, que es donde es barato) y el eje ESFUERZO (con el prompt oficial, que es
+# el que importa), y la celda (oficial, high) llega a su N.
+CELDAS = [("mio", "low"), ("oficial", "low"), ("oficial", "high")]
 
 
 def _prepara(t: dict) -> dict:

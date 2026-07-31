@@ -134,6 +134,37 @@ mío o suyo.
 
 *(se appendean con fecha y hora; nunca se edita lo de arriba)*
 
+### ENMIENDA 2 (2026-07-31 09:50) — el 8º caso de "presupuesto de pensamiento", y el rediseño que obliga
+
+**La amenaza 1 se disparó, medida en corrida:** con `max_tokens = 15000` sobre
+`n_ctx = 16384`, las celdas `high` **truncaron el 33.3%** de las muestras —muy
+por encima del 15% que las declara no concluyentes—, porque con esfuerzo alto
+el modelo piensa más de 15.000 tokens. Es el **8º caso** del mismo bug en este
+repo, y aquí habría hecho que `high` pareciera peor de lo que es **por el cap,
+no por el modelo**. La referencia usaba **64k**.
+
+**Y la restricción de 16 GB resultó no ser la que yo daba por hecha:** medido,
+`gpt-oss-20b` con **`n_ctx = 32768`** ocupa **12.819 MiB de 16.311**, apenas
+**+400 MiB** sobre la configuración de 16k. **Cabe.** Se sube el contexto a
+32.768 y `max_tokens` a **30.000**. *(Sigue siendo la mitad de los 64k de la
+referencia, y eso se declara.)*
+
+**Rediseño por RELOJ, escrito antes de que hubiera ninguna lectura.** Con
+cuatro celdas el ritmo medido era **4,3 min/tarea** ⇒ ~30 tareas en la ventana,
+**por debajo del `N_min = 35`** que necesita justo **la celda que da el derecho
+a comparar**. Se cae la celda **`(mío, high)`**, que es la única que no
+alimenta ninguna pregunta del prereg:
+
+| eje | cómo queda |
+|---|---|
+| **PROMPT** | `mío_low` vs `oficial_low` — a esfuerzo bajo, que es donde es barato |
+| **ESFUERZO** | `oficial_low` vs `oficial_high` — con el prompt oficial, que es el que importa |
+| **EVALUADOR** | ya medido aparte, sin GPU: **−2.7 pts** |
+| **la celda comparable** | `(oficial, high, juez oficial)` — **es la que se protege** |
+
+Lo que se pierde y se dice: **no habrá interacción prompt×esfuerzo**. Si el
+efecto del prompt fuera distinto a esfuerzo alto, este diseño no lo vería.
+
 ### ENMIENDA 1 (2026-07-31 06:31) — la sonda de esfuerzo, PASADA
 
 Amenaza 2 cerrada con número. `b3_factorial.py --sonda` sobre una tarea real:

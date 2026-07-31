@@ -4,7 +4,7 @@
  "temp": 0.8,
  "semilla": 20260731,
  "n_pedidas": 60,
- "max_tokens": 15000,
+ "max_tokens": 30000,
  "ventana": [
   "2024-08-01",
   "2025-01-31"
@@ -28,10 +28,10 @@
    "instrumento": "",
    "juez_mio": "",
    "juez_oficial": "",
-   "segundos": 4.7,
-   "chars": 378,
+   "segundos": 2.5,
+   "chars": 494,
    "prompt_chars": 1216,
-   "crudo": "```python\nimport sys\n\ndef main():\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    cards = list(map(int, data))\n    from collections import Counter\n    freq = Counter(cards)\n    counts = sorted(freq.values())\n    if counts == [1, 3] or counts == [2, 2]:\n        print(\"Yes\")\n    else:\n        print(\"No\")\n\nif __name__ == \"__main__\":\n    main()\n```"
+   "crudo": "```python\nimport sys\n\ndef main():\n    data = list(map(int, sys.stdin.read().split()))\n    if len(data) != 4:\n        return\n    freq = {}\n    for x in data:\n        freq[x] = freq.get(x, 0) + 1\n\n    for v in range(1, 14):\n        new_freq = freq.copy()\n        new_freq[v] = new_freq.get(v, 0) + 1\n        counts = sorted([c for c in new_freq.values() if c > 0])\n        if counts == [2, 3]:\n            print(\"Yes\")\n            return\n    print(\"No\")\n\nif __name__ == \"__main__\":\n    main()\n```"
   },
   {
    "tarea": "abc386_a",
@@ -51,33 +51,10 @@
    "instrumento": "",
    "juez_mio": "",
    "juez_oficial": "",
-   "segundos": 3.1,
-   "chars": 729,
+   "segundos": 2.8,
+   "chars": 763,
    "prompt_chars": 1493,
-   "crudo": "```python\nimport sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    a, b, c, d = map(int, data)\n    cards = [a, b, c, d]\n    # count occurrences of each value\n    from collections import Counter\n    base_counts = Counter(cards)\n\n    def is_full_house(cnt: Counter) -> bool:\n        # consider only values with non-zero count\n        freq = sorted(v for v in cnt.values() if v > 0)\n        return freq == [2, 3]\n\n    # try adding each possible card value 1..13\n    for x in range(1, 14):\n        cnt = base_counts.copy()\n        cnt[x] += 1\n        if is_full_house(cnt):\n            print(\"Yes\")\n            return\n    print(\"No\")\n\nif __name__ == \"__main__\":\n    solve()\n```"
-  },
-  {
-   "tarea": "abc386_a",
-   "celda": "mio_high",
-   "prompt": "mio",
-   "esfuerzo": "high",
-   "dificultad": "easy",
-   "fecha": "2024-12-28",
-   "plataforma": "atcoder",
-   "mio_pasa": true,
-   "mio_vis_ok": 5,
-   "mio_vis_n": 5,
-   "mio_oc_ok": 15,
-   "mio_oc_n": 15,
-   "oficial_pasa": true,
-   "oficial_n_casos": 45,
-   "instrumento": "",
-   "juez_mio": "",
-   "juez_oficial": "",
-   "segundos": 26.0,
-   "chars": 356,
-   "prompt_chars": 1216,
-   "crudo": "```python\nimport sys\nfrom collections import Counter\n\ndef solve():\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    nums = list(map(int, data))\n    cnt = Counter(nums)\n    vals = sorted(cnt.values())\n    if vals in ([1,3], [2,2]):\n        print(\"Yes\")\n    else:\n        print(\"No\")\n\nif __name__ == \"__main__\":\n    solve()\n```"
+   "crudo": "```python\n# Solution to the Full House problem\n\ndef solve() -> None:\n    import sys\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    cards = list(map(int, data))\n    from collections import Counter\n    base_counts = Counter(cards)\n\n    # Try adding each possible value (1-13)\n    for v in range(1, 14):\n        new_counts = base_counts.copy()\n        new_counts[v] += 1\n        # Check if we have exactly two distinct values\n        if len(new_counts) != 2:\n            continue\n        # Get the frequencies\n        freq = sorted(new_counts.values())\n        # Full house requires frequencies 2 and 3\n        if freq == [2, 3]:\n            print(\"Yes\")\n            return\n    print(\"No\")\n\nif __name__ == \"__main__\":\n    solve()\n```"
   },
   {
    "tarea": "abc386_a",
@@ -97,10 +74,10 @@
    "instrumento": "",
    "juez_mio": "",
    "juez_oficial": "",
-   "segundos": 44.8,
-   "chars": 541,
+   "segundos": 35.4,
+   "chars": 402,
    "prompt_chars": 1493,
-   "crudo": "```python\n# Solution to determine if a Full House can be formed by adding one card.\nimport sys\nfrom collections import Counter\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    # Only the first four numbers are relevant\n    nums = list(map(int, data[:4]))\n    cnt = Counter(nums)\n    if len(cnt) == 2:\n        freqs = sorted(cnt.values())\n        if freqs == [1, 3] or freqs == [2, 2]:\n            print(\"Yes\")\n            return\n    print(\"No\")\n\nif __name__ == \"__main__\":\n    solve()\n```"
+   "crudo": "```python\nimport sys\n\ndef solve():\n    tokens = sys.stdin.read().split()\n    if len(tokens) < 4:\n        return\n    a, b, c, d = map(int, tokens[:4])\n    freq = {}\n    for x in (a, b, c, d):\n        freq[x] = freq.get(x, 0) + 1\n    counts = sorted(freq.values())\n    if counts == [1, 3] or counts == [2, 2]:\n        print(\"Yes\")\n    else:\n        print(\"No\")\n\nif __name__ == \"__main__\":\n    solve()\n```"
   },
   {
    "tarea": "abc381_c",
@@ -120,10 +97,10 @@
    "instrumento": "",
    "juez_mio": "",
    "juez_oficial": "",
-   "segundos": 5.5,
-   "chars": 888,
+   "segundos": 5.4,
+   "chars": 1194,
    "prompt_chars": 1445,
-   "crudo": "```python\nimport sys\n\ndef main():\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    n = int(data[0])\n    s = data[1]\n    left = [0]*n\n    right = [0]*n\n    # left[i] = count of consecutive '1's ending at i-1\n    for i in range(1, n):\n        if s[i-1] == '1':\n            left[i] = left[i-1] + 1\n    # right[i] = count of consecutive '2's starting at i+1\n    for i in range(n-2, -1, -1):\n        if s[i+1] == '2':\n            right[i] = right[i+1] + 1\n    ans = 0\n    for i, ch in enumerate(s):\n        if ch == '/':\n            l = left[i]\n            r = right[i]\n            length = l + 1 + r\n            if (l + r) % 2 == 1:\n                # reduce one side if possible\n                if l > 0 or r > 0:\n                    length -= 1\n            if length > ans:\n                ans = length\n    print(ans)\n\nif __name__ == \"__main__\":\n    main()\n```"
+   "crudo": "```python\ndef main():\n    import sys\n    input = sys.stdin.readline\n    N = int(input().strip())\n    S = input().strip()\n    left_ones = [0]*N\n    right_twos = [0]*N\n    # left_ones[i]: consecutive ones ending at i (including i if S[i]=='1')\n    cnt = 0\n    for i,ch in enumerate(S):\n        if ch=='1':\n            cnt+=1\n        else:\n            cnt=0\n        left_ones[i]=cnt\n    # right_twos[i]: consecutive twos starting at i (including i if S[i]=='2')\n    cnt = 0\n    for i in range(N-1,-1,-1):\n        ch = S[i]\n        if ch=='2':\n            cnt+=1\n        else:\n            cnt=0\n        right_twos[i]=cnt\n    ans = 1  # at least one slash\n    for i,ch in enumerate(S):\n        if ch!='/':\n            continue\n        L = left_ones[i-1] if i>0 else 0\n        R = right_twos[i+1] if i+1<N else 0\n        total = L+R\n        if total % 2 == 0:\n            cur = total + 1\n        else:\n            # reduce one from side with positive count\n            if L>0:\n                cur = (L-1)+R+1\n            elif R>0:\n                cur = L+(R-1)+1\n            else:\n                cur = 1\n        if cur>ans:\n            ans=cur\n    print(ans)\n\nif __name__==\"__main__\":\n    main()\n```"
   },
   {
    "tarea": "abc381_c",
@@ -143,33 +120,10 @@
    "instrumento": "",
    "juez_mio": "",
    "juez_oficial": "",
-   "segundos": 4.2,
-   "chars": 1143,
+   "segundos": 4.9,
+   "chars": 1007,
    "prompt_chars": 1722,
-   "crudo": "```python\n# Solution for the 11/22 string maximum length problem\n\nimport sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().split())\n    N = int(next(it))\n    S = next(it).strip()\n\n    # Precompute consecutive ones ending at each position\n    left_ones = [0] * N\n    cnt = 0\n    for i, ch in enumerate(S):\n        if ch == '1':\n            cnt += 1\n        else:\n            cnt = 0\n        left_ones[i] = cnt\n\n    # Precompute consecutive twos starting at each position\n    right_twos = [0] * N\n    cnt = 0\n    for i in range(N - 1, -1, -1):\n        if S[i] == '2':\n            cnt += 1\n        else:\n            cnt = 0\n        right_twos[i] = cnt\n\n    ans = 1  # at least one '/' exists, so length 1 is always possible\n    for i, ch in enumerate(S):\n        if ch != '/':\n            continue\n        # number of ones immediately to the left of slash\n        left = left_ones[i - 1] if i > 0 else 0\n        # number of twos immediately to the right of slash\n        right = right_twos[i + 1] if i + 1 < N else 0\n        k = min(left, right)\n        ans = max(ans, 2 * k + 1)\n\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()\n```"
-  },
-  {
-   "tarea": "abc381_c",
-   "celda": "mio_high",
-   "prompt": "mio",
-   "esfuerzo": "high",
-   "dificultad": "medium",
-   "fecha": "2024-11-22",
-   "plataforma": "atcoder",
-   "mio_pasa": false,
-   "mio_vis_ok": 0,
-   "mio_vis_n": 5,
-   "mio_oc_ok": 0,
-   "mio_oc_n": 15,
-   "oficial_pasa": false,
-   "oficial_n_casos": 43,
-   "instrumento": "truncado_por_longitud",
-   "juez_mio": "sin_codigo",
-   "juez_oficial": "sin_codigo",
-   "segundos": 122.3,
-   "chars": 0,
-   "prompt_chars": 1445,
-   "crudo": ""
+   "crudo": "```python\nimport sys\n\ndef solve() -> None:\n    input_data = sys.stdin.read().strip().split()\n    if not input_data:\n        return\n    N = int(input_data[0])\n    S = input_data[1]\n    left = [0] * N\n    right = [0] * N\n\n    cnt = 0\n    for i, ch in enumerate(S):\n        if ch == '1':\n            cnt += 1\n        else:\n            # at slash or '2', store count of preceding 1's\n            left[i] = cnt\n            cnt = 0\n    # trailing 1's after last slash don't affect any slash\n\n    cnt = 0\n    for i in range(N - 1, -1, -1):\n        ch = S[i]\n        if ch == '2':\n            cnt += 1\n        else:\n            # at slash or '1', store count of following 2's\n            right[i] = cnt\n            cnt = 0\n\n    ans = 1  # at least one slash\n    for i, ch in enumerate(S):\n        if ch == '/':\n            l = left[i]\n            r = right[i]\n            length = 2 * min(l, r) + 1\n            if length > ans:\n                ans = length\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()\n```"
   }
  ]
 }

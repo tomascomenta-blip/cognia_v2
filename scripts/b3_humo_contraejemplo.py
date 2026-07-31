@@ -87,6 +87,42 @@ check("sin flag: mismo motivo", motivo5 == "", f"motivo={motivo5!r}")
 check("sin detalle: contraejemplo vacío (no se inventa '(no output)')",
       contraejemplo({}, casos, [False, False], {}) == {})
 
+# --- 7. RECORTE: el control positivo original no lo cazaba porque todos sus
+# casos eran de 4 caracteres. La revisión adversarial midió que con la política
+# vieja el 24.4% de los contraejemplos llegaba con la entrada truncada Y SIN
+# MARCA, y 6 de 41 con el patrón patológico (entrada cortada + salida esperada
+# completa). Esto lo fija en el instrumento.
+from b3_reparacion import TOPE_CAMPO, prompt_reparar
+
+largo = "9 " * 4000                       # ~8000 chars, muy por encima del tope
+casos_l = [{"input": largo, "output": "0\n"},
+           {"input": "1 2\n", "output": "3\n"}]
+malo_l = "import sys\nsys.stdin.read()\nprint(-1)"
+det7 = {}
+res7, _ = _ejecuta_lote(malo_l, casos_l, "stdin", timeout=30, detalle=det7)
+ce7 = contraejemplo({}, casos_l, res7, det7)
+check("recorte: elige el caso de entrada MAS CORTA, no el primero",
+      ce7.get("i") == 1, f"i={ce7.get('i')} (0 = el largo, 1 = el corto)")
+check("recorte: el corto NO va marcado como recortado",
+      ce7.get("recortado") is False, f"recortado={ce7.get('recortado')}")
+
+# y si el UNICO fallo es el largo, tiene que ir MARCADO en el prompt
+det8 = {}
+res8, _ = _ejecuta_lote(malo_l, casos_l[:1], "stdin", timeout=30, detalle=det8)
+ce8 = contraejemplo({}, casos_l[:1], res8, det8)
+check("recorte: cuando no hay alternativa, marca recortado=True",
+      ce8.get("recortado") is True, f"recortado={ce8.get('recortado')}")
+check("recorte: guarda la longitud REAL de la entrada",
+      ce8.get("entrada_len") == len(largo),
+      f"entrada_len={ce8.get('entrada_len')} vs real {len(largo)}")
+check("recorte: la entrada guardada esta capada al tope",
+      len(ce8.get("entrada", "")) == TOPE_CAMPO,
+      f"len={len(ce8.get('entrada',''))}")
+p8 = prompt_reparar({"enunciado": "x", "starter_code": ""}, "codigo", ce8)
+check("recorte: la MARCA aparece en el prompt que ve el modelo",
+      "ENTRADA RECORTADA" in p8 and str(len(largo)) in p8,
+      f"...{p8[p8.find('Input:'):p8.find('Input:')+90]}...")
+
 print()
 if fallos:
     print(f"CONTROL DEL CONTRAEJEMPLO: FALLA ({len(fallos)}): {fallos}")

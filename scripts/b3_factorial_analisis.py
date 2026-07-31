@@ -20,7 +20,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 SALIDA = RAIZ / "b3_codigo"
 REPLICAS = 10000
-CELDAS = ["mio_low", "oficial_low", "mio_high", "oficial_high"]
+CELDAS = ["mio_low", "oficial_low", "oficial_high"]
 PUBLICADO = 70.0            # blog.collinear.ai, LCB v6, 2024-08→2025-01,
                             # 3 muestras, reasoning HIGH, 64k
 
@@ -97,21 +97,18 @@ def analiza(res: dict) -> dict:
         difs = [int(v[a][k]) - int(v[b][k]) for v in completas.values()]
         return sum(difs), _perm(difs)
 
-    print(f"\n  --- LOS TRES EJES, apareados a nivel tarea ---")
+    print(f"\n  --- LOS EJES, apareados a nivel tarea ---")
     ejes = {}
     for juez in ("mio", "oficial"):
         d1, p1 = neto("oficial_low", "mio_low", juez)
-        d2, p2 = neto("oficial_high", "mio_high", juez)
-        e1, q1 = neto("mio_high", "mio_low", juez)
         e2, q2 = neto("oficial_high", "oficial_low", juez)
-        ejes[juez] = {"prompt_en_low": [d1, p1], "prompt_en_high": [d2, p2],
-                      "esfuerzo_en_mio": [e1, q1],
+        ejes[juez] = {"prompt_en_low": [d1, p1],
                       "esfuerzo_en_oficial": [e2, q2]}
         print(f"  juez {juez.upper()}:")
-        print(f"    PROMPT  (oficial-mio)  en low  {d1:+3d}  P {_fmt_p(p1)}"
-              f"   |  en high {d2:+3d}  P {_fmt_p(p2)}")
-        print(f"    ESFUERZO(high-low)     con mio {e1:+3d}  P {_fmt_p(q1)}"
-              f"   |  con ofi {e2:+3d}  P {_fmt_p(q2)}")
+        print(f"    PROMPT  (oficial-mio), a esfuerzo low   {d1:+3d}  "
+              f"P {_fmt_p(p1)}")
+        print(f"    ESFUERZO(high-low), con prompt oficial  {e2:+3d}  "
+              f"P {_fmt_p(q2)}")
     ev = {}
     for c in CELDAS:
         difs = [int(v[c]["oficial_pasa"]) - int(v[c]["mio_pasa"])

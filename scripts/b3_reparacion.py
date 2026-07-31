@@ -91,7 +91,11 @@ def contraejemplo(t: dict, casos: list, res_por_caso: list,
         "i": i,
         "entrada": ent[:TOPE_CAMPO], "entrada_len": len(ent),
         "esperada": esp[:TOPE_CAMPO], "esperada_len": len(esp),
-        "obtenida": obt[:TOPE_CAMPO], "obtenida_len": len(obt),
+        # la longitud REAL viene del arnés (`obtenido_len`): ahí dentro ya se
+        # capó a 1200, así que `len(obt)` nunca la superaría y la marca de
+        # recorte de este campo sería código muerto.
+        "obtenida": obt[:TOPE_CAMPO],
+        "obtenida_len": d.get("obtenido_len") or len(obt),
         "excepcion": (d.get("excepcion") or "")[:TOPE_CAMPO],
         "recortado": bool(len(ent) > TOPE_CAMPO or len(esp) > TOPE_CAMPO
                           or len(obt) > TOPE_CAMPO),

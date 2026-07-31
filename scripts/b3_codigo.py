@@ -165,6 +165,9 @@ _TOPE_DET = 1200                       # se capa aqui, no en el consumidor
 for _i, _c in enumerate(_casos):
     _ok = False
     _obtenido = ""
+    _obtenido_len = 0        # longitud PRE-cap: sin esto, un consumidor no
+                             # puede saber que la salida obtenida venia
+                             # recortada y la ensena como si fuera entera
     _excepcion = ""
     try:
         _g = {"__name__": "__main__"}
@@ -189,7 +192,8 @@ for _i, _c in enumerate(_casos):
                 _val = _f(*_args)
                 _ok = bool(_val == _esp)
                 if not _ok:
-                    _obtenido = repr(_val)[:_TOPE_DET]
+                    _r = repr(_val)
+                    _obtenido, _obtenido_len = _r[:_TOPE_DET], len(_r)
             elif _modo == "assert":
                 exec(compile(_c["assert"], "<t>", "exec"), _g)
                 _ok = True
@@ -200,7 +204,7 @@ for _i, _c in enumerate(_casos):
                                  (_c.get("output") or "").strip().splitlines())
                 _ok = (_got == _esp)
                 if not _ok:
-                    _obtenido = _got[:_TOPE_DET]
+                    _obtenido, _obtenido_len = _got[:_TOPE_DET], len(_got)
         finally:
             sys.stdout, sys.stdin = _so, _si
     except BaseException as _e:
@@ -213,7 +217,8 @@ for _i, _c in enumerate(_casos):
     print("__B3__%d:%d" % (_i, 1 if _ok else 0), flush=True)
     if _detalle and not _ok:
         print("__B3D__%d:%s" % (_i, json.dumps(
-            {"obtenido": _obtenido, "excepcion": _excepcion})), flush=True)
+            {"obtenido": _obtenido, "obtenido_len": _obtenido_len,
+             "excepcion": _excepcion})), flush=True)
     if _parar and not _ok:
         break
 '''
