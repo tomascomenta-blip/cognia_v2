@@ -1,0 +1,70 @@
+{
+ "n": 60,
+ "salud": {
+  "mio_low": {
+   "truncadas": 0,
+   "instrumento": 2,
+   "pct_truncadas": 0.0,
+   "seg_medio": 10.2,
+   "chars_medio": 761
+  },
+  "oficial_low": {
+   "truncadas": 0,
+   "instrumento": 4,
+   "pct_truncadas": 0.0,
+   "seg_medio": 9.9,
+   "chars_medio": 1286
+  }
+ },
+ "tabla": {
+  "mio_low": {
+   "mio": 34,
+   "oficial": 26,
+   "n": 60,
+   "mio_pct": 56.7,
+   "oficial_pct": 43.3
+  },
+  "oficial_low": {
+   "mio": 34,
+   "oficial": 26,
+   "n": 60,
+   "mio_pct": 56.7,
+   "oficial_pct": 43.3
+  }
+ },
+ "ejes": {
+  "mio": {
+   "prompt_en_low": [
+    0,
+    1.0,
+    5,
+    5
+   ]
+  },
+  "oficial": {
+   "prompt_en_low": [
+    0,
+    1.0,
+    4,
+    4
+   ]
+  }
+ },
+ "evaluador": {
+  "mio_low": [
+   -8,
+   0.0079,
+   8
+  ],
+  "oficial_low": [
+   -8,
+   0.0079,
+   8
+  ]
+ },
+ "publicado": 70.0,
+ "celda_comparable": {
+  "corrida": false,
+  "derecho_a_comparar": false
+ }
+}

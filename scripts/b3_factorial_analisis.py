@@ -47,6 +47,13 @@ def analiza(res: dict) -> dict:
     por = defaultdict(dict)
     for m in res["muestras"]:
         por[m["tarea"]][m["celda"]] = m
+    # las celdas se DEDUCEN de los datos: el diseño se recortó dos veces por
+    # reloj (enmiendas 2 y 3) y cablearlas aquí haría que el análisis mintiera
+    # sobre qué se corrió.
+    global CELDAS
+    presentes = {c for v in por.values() for c in v}
+    CELDAS = [c for c in ("mio_low", "oficial_low", "mio_high",
+                          "oficial_high") if c in presentes]
     completas = {t: c for t, c in por.items()
                  if len(c) == len(CELDAS)}
     n = len(completas)
@@ -93,33 +100,59 @@ def analiza(res: dict) -> dict:
 
     # --- los tres ejes, apareados ----------------------------------------
     def neto(a, b, juez):
+        """Devuelve (neto, P, gana, pierde). Los DISCORDANTES van siempre: un
+        neto de 0 con 10 discordantes (5-5) y un neto de 0 con 0 discordantes
+        son resultados distintos, y el segundo no existe casi nunca."""
         k = "mio_pasa" if juez == "mio" else "oficial_pasa"
         difs = [int(v[a][k]) - int(v[b][k]) for v in completas.values()]
-        return sum(difs), _perm(difs)
+        return (sum(difs), _perm(difs), sum(1 for x in difs if x > 0),
+                sum(1 for x in difs if x < 0))
 
     print(f"\n  --- LOS EJES, apareados a nivel tarea ---")
     ejes = {}
     for juez in ("mio", "oficial"):
-        d1, p1 = neto("oficial_low", "mio_low", juez)
-        e2, q2 = neto("oficial_high", "oficial_low", juez)
-        ejes[juez] = {"prompt_en_low": [d1, p1],
-                      "esfuerzo_en_oficial": [e2, q2]}
+        ejes[juez] = {}
         print(f"  juez {juez.upper()}:")
-        print(f"    PROMPT  (oficial-mio), a esfuerzo low   {d1:+3d}  "
-              f"P {_fmt_p(p1)}")
-        print(f"    ESFUERZO(high-low), con prompt oficial  {e2:+3d}  "
-              f"P {_fmt_p(q2)}")
+        if "oficial_low" in CELDAS and "mio_low" in CELDAS:
+            d1, p1, g1, l1 = neto("oficial_low", "mio_low", juez)
+            ejes[juez]["prompt_en_low"] = [d1, p1, g1, l1]
+            print(f"    PROMPT  (oficial-mio), a esfuerzo low   {d1:+3d}  "
+                  f"(gana {g1}, pierde {l1}, discordantes {g1+l1})  "
+                  f"P {_fmt_p(p1)}")
+        if "oficial_high" in CELDAS and "oficial_low" in CELDAS:
+            e2, q2, g2, l2 = neto("oficial_high", "oficial_low", juez)
+            ejes[juez]["esfuerzo_en_oficial"] = [e2, q2, g2, l2]
+            print(f"    ESFUERZO(high-low), con prompt oficial  {e2:+3d}  "
+                  f"(gana {g2}, pierde {l2}, discordantes {g2+l2})  "
+                  f"P {_fmt_p(q2)}")
     ev = {}
     for c in CELDAS:
         difs = [int(v[c]["oficial_pasa"]) - int(v[c]["mio_pasa"])
                 for v in completas.values()]
-        ev[c] = [sum(difs), _perm(difs)]
+        ev[c] = [sum(difs), _perm(difs), sum(1 for x in difs if x < 0)]
     print(f"    EVALUADOR (oficial-mio), mismas muestras:")
     for c in CELDAS:
-        print(f"      {c:<13} {ev[c][0]:+3d}  P {_fmt_p(ev[c][1])}")
+        print(f"      {c:<13} {ev[c][0]:+3d}  P {_fmt_p(ev[c][1])}   "
+              f"(el oficial reprueba {ev[c][2]} que el mio aprueba; "
+              f"al reves es imposible: mi oculto es SUBCONJUNTO del suyo)")
 
     # --- la celda que gana (o no) el derecho a comparar -------------------
     c = "oficial_high"
+    if c not in CELDAS:
+        print(f"\n  {'='*66}")
+        print(f"  LA CELDA COMPARABLE (prompt oficial + esfuerzo high) NO SE "
+              f"CORRIO.")
+        print(f"  {'='*66}")
+        print(f"  Motivo medido (enmienda 3): con n_ctx=32768 y "
+              f"max_tokens=30000 truncaba el 60%")
+        print(f"  de las muestras, a 205.8 s cada una. NO SE COMPARA con el "
+              f"{PUBLICADO:.0f} publicado,")
+        print(f"  que es lo que el prereg manda cuando esa celda no se puede "
+              f"medir.")
+        return {"n": n, "salud": salud, "tabla": tabla, "ejes": ejes,
+                "evaluador": ev, "publicado": PUBLICADO,
+                "celda_comparable": {"corrida": False,
+                                     "derecho_a_comparar": False}}
     ms = [v[c] for v in completas.values()]
     trunc_pct = salud[c]["pct_truncadas"]
     ofi_pct = tabla[c]["oficial_pct"]
