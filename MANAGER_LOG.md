@@ -11429,3 +11429,39 @@ para la sonda `high`: con menos, lo que se mide es el contexto, no el modelo.
 en cada commit con cÃ³digo (**5495 passed, 1 skipped**, corrida dos veces).
 **0 chromium** en toda la sesiÃ³n. Backend bajado al cerrar.
 
+
+### CIERRE 12:46 â€” verificaciÃ³n propia del nÃºmero del revisor, y una correcciÃ³n
+
+**1. El Ãºnico nÃºmero de la bitÃ¡cora que habÃ­a medido un SUBAGENTE y no yo,
+verificado con cÃ³digo propio** (`b3_verificar_recorte.py`, replay sobre las
+muestras `s=1` de `lcb_hard_r2.json` con el mismo RNG de split):
+
+```
+contraejemplos construibles                       : 41
+politica VIEJA (primer visible fallido) recortados: 10/41 = 24.4%   [el revisor dijo 24.4%]
+   de esos, patron PATOLOGICO (entrada cortada + esperada ENTERA): 6
+politica NUEVA (entrada mas corta)      recortados:  2/41 =  4.9%   [el revisor dijo  4.9%]
+```
+
+**Reproduce exacto, incluidos los 6 patolÃ³gicos.** La regla â€”*verificar uno
+mismo lo que devuelven los subagentes*â€” se cumpliÃ³ aquÃ­ y en los otros tres
+BLOQUEA (potencia, fuga y prompt mutilado), que ya se habÃ­an medido con cÃ³digo
+propio antes de aceptarlos.
+
+**2. CORRECCIÃ“N a la tabla del aterrizaje de las 11:55.** AllÃ­ figura la sonda
+del eje ESFUERZO con timeout 1.500 s como **"4 tareas"**. Se ampliÃ³ despuÃ©s, en
+los Ãºltimos 40 minutos de reloj: **son 9 muestras**, con `5/9 (56%) truncadas`
+y las 4 completas en 13 Â· 30 Â· 75 Â· 158 s. El fichero es el mismo
+(`b3_codigo/factorial_high2.json`) y el comando de reanudaciÃ³n no cambia.
+
+**3. Estado final verificado, no supuesto:**
+
+| | |
+|---|---|
+| corridas de fondo vivas | **0** (los `python` que quedan son del dueÃ±o) |
+| `llama-server` | **0** â€” GPU en **850 MiB de 16.311** |
+| `chromium` en toda la sesiÃ³n | **0** |
+| Ã¡rbol de git | limpio, **0 commits sin pushear** |
+| suite completa | **5495 passed, 1 skipped** (corrida dos veces) |
+| apagado | armado a las **13:00** |
+
