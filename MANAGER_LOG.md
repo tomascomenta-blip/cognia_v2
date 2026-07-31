@@ -10702,3 +10702,74 @@ su juez es `subprocess + timeout`, no Playwright: se acabaron los cuelgues.
     las líneas"), que es trabajo nuevo, no reutilización. *Límite declarado:*
     solo 2 pares comparables, porque pocas familias tienen ≥2 miembros con
     held-out a mano; la dirección es clara, la magnitud no está establecida.
+
+### EL RESULTADO DE LA SESIÓN — el BoN REPLICA en terreno público
+
+12. **B-LCB completo: 167 tareas × 4 = 668 muestras, LiveCodeBench
+    `test6.jsonl`, problemas de 2025-01-04 a 2025-04-06 — todos POSTERIORES
+    al corte de entrenamiento del 20B (junio 2024).** El examen no lo escribí
+    yo: son los `private_test_cases` del propio benchmark, partidos 5
+    visibles / 15 ocultos con RNG determinista por tarea, y **ninguno aparece
+    en ningún prompt**.
+
+    ```
+    pass@1 (juez OCULTO)      51.8%     ADMISION [20%,80%]: ENTRA
+    tareas DISCRIMINANTES      53/167 (32%)
+    tareas con EMPATE visible   79/167 (47%)  <- ahi el BoN cae en s1 y NO PUEDE ganar
+
+    PRIMARIA (150 tareas sin fallo de instrumento):
+      CONTROL(s1) 92 · AZAR 85.00 · BoN 106 · TECHO 110 · p95 del nulo 90
+      NETO BoN - AZAR = +21.00     P < 1e-4     VIVE
+    ```
+
+    **Y supera los TRES nulos, que es lo que MBPP no hacía:**
+
+    | nulo | neto | P |
+    |---|---|---|
+    | AZAR simple | **+21.00** | < 1e-4 |
+    | AZAR-CON-CÓDIGO (descarta basura) | **+21.00** | < 1e-4 |
+    | **AZAR-1-TEST** (ya usa el examen) | **+17.67** | **< 1e-4** |
+
+    En MBPP el hueco contra AZAR-1-TEST era +2.17 (P=0.18, no vivía). **Aquí
+    +17.67 con P < 1e-4: el selector no está cobrando por el primer bit de
+    señal, está eligiendo de verdad entre candidatos plausibles.** La
+    diferencia tiene mecanismo: el juez oculto de MBPP es 1 assert y
+    `P(oculto|visibles)=0.849`; el de B-LCB son 15 casos que el generador
+    nunca vio.
+
+13. **El efecto CRECE con la dificultad, que es lo contrario de un artefacto:**
+
+    ```
+    easy    n=43  pass@1 94.8%   AZAR 40.75  BoN 43  TECHO 43   neto  +2.25  P=0.039
+    medium  n=51  pass@1 54.4%   AZAR 27.75  BoN 35  TECHO 35   neto  +7.25  P<1e-4
+    hard    n=73  pass@1 24.7%   AZAR 18.00  BoN 31  TECHO 35   neto +13.00  P<1e-4
+    ```
+
+    En `easy` el banco está saturado (94.8%) y el selector no tiene margen —
+    exactamente lo que el criterio de admisión predice. **Todo el valor está
+    donde el modelo falla a menudo.** Y de paso: el estrato `hard` por sí solo
+    entra en banda con holgura, así que hay recorrido para varias sesiones.
+
+14. **Controles que el resultado pasa:**
+    - **Robusto a los fallos de instrumento**: excluyendo TODAS las muestras
+      con cualquier motivo (n=142 tareas) el neto es **+21.75, P < 1e-4**.
+      No depende de las muestras dudosas.
+    - **Muestras independientes**: BoN con desempate AL AZAR da 107.10 (20
+      sorteos) contra 109 del BoN real, **dif +1.90** — si el backend estuviera
+      devolviendo clones, esto se habría disparado.
+    - **Pérdida del selector = 4**: de las 110 tareas que el techo acierta, el
+      BoN captura 106.
+    - **El examen partido es bueno**: ACUSA_SANOS **2.0%**, DEJA_PASAR
+      **13.4%**, J **+84.6** (descriptiva interna, NO comparable con el J del
+      contrato autogenerado: unidades distintas).
+
+15. **Lo que esto significa, dicho con precisión.** El BoN estaba validado
+    solo en bancos web con exámenes escritos por mí (+5.82 y +5.50 sobre el
+    azar). **Ahora replica en un banco público, con tests que no escribí, en
+    problemas posteriores al corte del modelo, y contra la referencia
+    correcta.** Deja de ser un resultado de mi propio instrumento.
+    **Lo que NO dice:** nada sobre el pass@1 absoluto comparado con tablas
+    publicadas — el prompt, el evaluador y el cap de la enmienda 2 son míos, y
+    la enmienda 1.8 ya prohibió esa comparación. Y sigue siendo un selector
+    que necesita **tests**: en el dominio web, donde no los hay, el cuello
+    (fabricar señal para tareas nuevas) **no se ha movido**.
