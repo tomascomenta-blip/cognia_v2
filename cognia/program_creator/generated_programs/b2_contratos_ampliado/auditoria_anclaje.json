@@ -1,0 +1,632 @@
+[
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+  "check": "Reservar 3 unidades",
+  "literal": "3",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "editor_undo_buscar",
+  "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s1",
+  "check": "Deshacer el último reemplazo completo",
+  "literal": "perro perro perro loro perro",
+  "anclado_literal": false,
+  "enunciado": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input id=\"buscar\">, <input id=\"reemplazo\">, <button id=\"reemplazar\"> y <button id=\"undo\">. El textarea empieza con el texto exacto: gato perro gato loro gato. El boton reemplazar sustituye TODAS las apariciones del texto de #buscar por el de #reemplazo dentro del textarea. REGLA CLAVE: undo deshace el ultimo reemplazo COMPLETO como UNA sola accion (no una aparicion cada vez), dejando el texto tal y como estaba antes de ese reemplazo. Escribir a mano en el textarea tambien cuenta como una accion que undo puede deshacer."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "precedencia",
+  "pagina": "b2_bon_heldout_duro/precedencia__r1__s4",
+  "check": "Evaluar expresión 2+3*4 con precedencia",
+  "literal": "^14$",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora que respeta la PRECEDENCIA de operadores, en un solo archivo HTML. OBLIGATORIO: <div id=\"pantalla\"> y botones con class=\"k\" y atributo data-k con su valor: data-k=\"2\", data-k=\"3\", data-k=\"4\", data-k=\"7\", data-k=\"+\", data-k=\"-\", data-k=\"*\", data-k=\"=\", data-k=\"C\". La multiplicacion se evalua ANTES que la suma: 2+3*4 debe dar 14, NO 20. C limpia la pantalla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s1",
+  "check": "El total se actualiza en tiempo real al cambiar la cantidad",
+  "literal": "285.00",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s3",
+  "check": "Crear evento no solapado 10-12",
+  "literal": "12",
+  "anclado_literal": false,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "precedencia",
+  "pagina": "b2_bon_heldout_duro/precedencia__r1__s4",
+  "check": "Estado inicial de la pantalla vacía",
+  "literal": "^$",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora que respeta la PRECEDENCIA de operadores, en un solo archivo HTML. OBLIGATORIO: <div id=\"pantalla\"> y botones con class=\"k\" y atributo data-k con su valor: data-k=\"2\", data-k=\"3\", data-k=\"4\", data-k=\"7\", data-k=\"+\", data-k=\"-\", data-k=\"*\", data-k=\"=\", data-k=\"C\". La multiplicacion se evalua ANTES que la suma: 2+3*4 debe dar 14, NO 20. C limpia la pantalla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s4",
+  "check": "Introduce 5 unidades y espera recalculo",
+  "literal": "5",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+  "check": "Intentar ajustar stock a 5 (rechazo)",
+  "literal": "15",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "carrito_cupones",
+  "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s4",
+  "check": "Agregar segundo producto (40)",
+  "literal": "75",
+  "anclado_literal": false,
+  "enunciado": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" data-precio=\"P\"> con precios 30, 40 y 50, cada uno con un <button class=\"add\" data-id=\"pX\">; <span id=\"subtotal\">, <span id=\"envio\">, <span id=\"total\">, <input id=\"cupon\"> y <button id=\"aplicar\">. Al pulsar add se suma ese producto al carrito. El cupon valido es DESCUENTO20 y aplica un 20% de descuento sobre el subtotal; cualquier otro texto no descuenta nada. El envio cuesta 5, PERO es gratis (0) si el importe con el descuento YA APLICADO llega a 60 o mas. El total es el subtotal menos el descuento mas el envio. Todo se recalcula al instante."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "tres_en_raya",
+  "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s1",
+  "check": "Verificar que la casilla con data-i=0 ahora contenga X",
+  "literal": "^X$",
+  "anclado_literal": false,
+  "enunciado": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"> con el estado. Empieza X. Al clicar una casilla vacia se pone la marca y pasa el turno. Al completar tres en linea, #estado contiene la palabra \"gana\" y NO se pueden poner mas marcas (las casillas quedan bloqueadas). Si se llenan las 9 sin linea, #estado contiene \"empate\"."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "carrito_cupones",
+  "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s4",
+  "check": "Agregar segundo producto (40)",
+  "literal": "70",
+  "anclado_literal": false,
+  "enunciado": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" data-precio=\"P\"> con precios 30, 40 y 50, cada uno con un <button class=\"add\" data-id=\"pX\">; <span id=\"subtotal\">, <span id=\"envio\">, <span id=\"total\">, <input id=\"cupon\"> y <button id=\"aplicar\">. Al pulsar add se suma ese producto al carrito. El cupon valido es DESCUENTO20 y aplica un 20% de descuento sobre el subtotal; cualquier otro texto no descuenta nada. El envio cuesta 5, PERO es gratis (0) si el importe con el descuento YA APLICADO llega a 60 o mas. El total es el subtotal menos el descuento mas el envio. Todo se recalcula al instante."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "editor_undo_buscar",
+  "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s1",
+  "check": "Reemplazar todas las apariciones de \"gato\" por \"perro\"",
+  "literal": "perro perro perro loro perro",
+  "anclado_literal": false,
+  "enunciado": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input id=\"buscar\">, <input id=\"reemplazo\">, <button id=\"reemplazar\"> y <button id=\"undo\">. El textarea empieza con el texto exacto: gato perro gato loro gato. El boton reemplazar sustituye TODAS las apariciones del texto de #buscar por el de #reemplazo dentro del textarea. REGLA CLAVE: undo deshace el ultimo reemplazo COMPLETO como UNA sola accion (no una aparicion cada vez), dejando el texto tal y como estaba antes de ese reemplazo. Escribir a mano en el textarea tambien cuenta como una accion que undo puede deshacer."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s1",
+  "check": "Ingresar contraseñas iguales y edad fuera de rango, botón deshabilitado",
+  "literal": "abcdefgh",
+  "anclado_literal": false,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "turnos_capacidad",
+  "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s3",
+  "check": "Apuntar 2 personas a mañana",
+  "literal": "2",
+  "anclado_literal": false,
+  "enunciado": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s3",
+  "check": "Evento 10-12 añadido",
+  "literal": "2",
+  "anclado_literal": false,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s3",
+  "check": "Ingresar una edad fuera del rango (17) y verificar que el botón sigue deshabilitado",
+  "literal": "17",
+  "anclado_literal": false,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "carrito_cupones",
+  "pagina": "b2_bon_heldout_cabecera/carrito_cupones__r1__s4",
+  "check": "Aplicar cupón válido DESCUENTO20",
+  "literal": "56",
+  "anclado_literal": false,
+  "enunciado": "Un carrito con CUPON y ENVIO en un solo archivo HTML. OBLIGATORIO: tres productos como <div class=\"prod\" data-id=\"pX\" data-precio=\"P\"> con precios 30, 40 y 50, cada uno con un <button class=\"add\" data-id=\"pX\">; <span id=\"subtotal\">, <span id=\"envio\">, <span id=\"total\">, <input id=\"cupon\"> y <button id=\"aplicar\">. Al pulsar add se suma ese producto al carrito. El cupon valido es DESCUENTO20 y aplica un 20% de descuento sobre el subtotal; cualquier otro texto no descuenta nada. El envio cuesta 5, PERO es gratis (0) si el importe con el descuento YA APLICADO llega a 60 o mas. El total es el subtotal menos el descuento mas el envio. Todo se recalcula al instante."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "turnos_capacidad",
+  "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s3",
+  "check": "Apuntar 4 personas a tarde",
+  "literal": "4",
+  "anclado_literal": false,
+  "enunciado": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s2",
+  "check": "Intentar crear evento solapado 9-11",
+  "literal": "9",
+  "anclado_literal": false,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s1",
+  "check": "Intentar crear evento solapado 9-11",
+  "literal": "11",
+  "anclado_literal": false,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "precedencia",
+  "pagina": "b2_bon_heldout_duro_r2/precedencia__r1__s4",
+  "check": "Confirmar que la pantalla está vacía al inicio",
+  "literal": "^$",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora que respeta la PRECEDENCIA de operadores, en un solo archivo HTML. OBLIGATORIO: <div id=\"pantalla\"> y botones con class=\"k\" y atributo data-k con su valor: data-k=\"2\", data-k=\"3\", data-k=\"4\", data-k=\"7\", data-k=\"+\", data-k=\"-\", data-k=\"*\", data-k=\"=\", data-k=\"C\". La multiplicacion se evalua ANTES que la suma: 2+3*4 debe dar 14, NO 20. C limpia la pantalla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s1",
+  "check": "Ingresar contraseñas iguales y edad dentro de rango, botón habilitado",
+  "literal": "abcdefgh",
+  "anclado_literal": false,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "turnos_capacidad",
+  "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s1",
+  "check": "Apuntar 3 personas a mañana",
+  "literal": "3",
+  "anclado_literal": false,
+  "enunciado": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s3",
+  "check": "Crear evento válido 9-10",
+  "literal": "9",
+  "anclado_literal": false,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s1",
+  "check": "Al ingresar 15 unidades el total es 135.00 (10*10 + 5*9)",
+  "literal": "15",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "presupuesto_reparto",
+  "pagina": "b2_bon_heldout_cabecera2_recal/presupuesto_reparto__r1__s1",
+  "check": "Cambiar el primer porcentaje a 20 y verificar que el cambio se acepta y el input muestra 20",
+  "literal": "20",
+  "anclado_literal": false,
+  "enunciado": "Un reparto de presupuesto en un solo archivo HTML. OBLIGATORIO: <span id=\"total\"> con 100 fijo, tres partidas como <div class=\"part\" data-id=\"aX\"> cada una con un <input class=\"pct\" data-id=\"aX\" type=\"number\"> y un <span class=\"eur\" data-id=\"aX\">, mas <span id=\"libre\"> y <div id=\"aviso\">. Los porcentajes empiezan en 30, 30 y 40. INVARIANTE: la suma de los tres porcentajes nunca puede pasar de 100; si al cambiar uno la suma pasara de 100, el cambio se RECHAZA y el input vuelve a su valor anterior, y #aviso contiene la palabra limite. Cada <span class=\"eur\"> muestra los euros de esa partida (porcentaje por total dividido 100) y #libre muestra el porcentaje sin asignar. Todo se recalcula en cada cambio."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro_r2/form_cruzado__r1__s1",
+  "check": "Ingresar contraseña de 8 caracteres",
+  "literal": "abcdefgh",
+  "anclado_literal": false,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "serpiente",
+  "pagina": "b2_bon_heldout_duro_r2/serpiente__r1__s2",
+  "check": "Coordenadas iniciales de la serpiente",
+  "literal": "data-x=\"0\" data-y=\"0\"",
+  "anclado_literal": false,
+  "enunciado": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div class=\"cel\"> con data-x y data-y; la serpiente ocupa celdas con class=\"cel snake\" y la comida es class=\"cel food\". La serpiente empieza con longitud 1 y se mueve con las flechas del teclado. Al comer la comida CRECE en 1. NO puede invertir el sentido 180 grados en un solo paso (si va a la derecha, la flecha izquierda se ignora). Expone el estado en window.juego = {largo, x, y, dir}."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "undo_redo",
+  "pagina": "b2_bon_heldout_duro/undo_redo__r1__s1",
+  "check": "Verificar que la lista contiene de nuevo el elemento 'A'",
+  "literal": "1",
+  "anclado_literal": false,
+  "enunciado": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">, <button id=\"redo\">, y una lista donde cada elemento es <li class=\"it\">. Al pulsar add se anade el texto del input. undo deshace la ultima accion; redo la rehace. REGLA CLAVE: si despues de un undo se hace una accion NUEVA, el redo deja de estar disponible (se pierde la rama rehacible). La lista empieza vacia."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "undo_redo",
+  "pagina": "b2_bon_heldout_duro/undo_redo__r1__s3",
+  "check": "Agregar primer elemento",
+  "literal": "Elemento 1",
+  "anclado_literal": false,
+  "enunciado": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">, <button id=\"redo\">, y una lista donde cada elemento es <li class=\"it\">. Al pulsar add se anade el texto del input. undo deshace la ultima accion; redo la rehace. REGLA CLAVE: si despues de un undo se hace una accion NUEVA, el redo deja de estar disponible (se pierde la rama rehacible). La lista empieza vacia."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "tres_en_raya",
+  "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s1",
+  "check": "Verificar que el estado cambie a O después del clic",
+  "literal": "^O$",
+  "anclado_literal": false,
+  "enunciado": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"> con el estado. Empieza X. Al clicar una casilla vacia se pone la marca y pasa el turno. Al completar tres en linea, #estado contiene la palabra \"gana\" y NO se pueden poner mas marcas (las casillas quedan bloqueadas). Si se llenan las 9 sin linea, #estado contiene \"empate\"."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+  "check": "Reservar 3 unidades",
+  "literal": "7",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s3",
+  "check": "Al ingresar 15 unidades, total es 145.00",
+  "literal": "15",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "undo_redo",
+  "pagina": "b2_bon_heldout_duro/undo_redo__r1__s4",
+  "check": "Agregar nuevo elemento después de undo, invalidando redo",
+  "literal": "Elemento 2",
+  "anclado_literal": false,
+  "enunciado": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">, <button id=\"redo\">, y una lista donde cada elemento es <li class=\"it\">. Al pulsar add se anade el texto del input. undo deshace la ultima accion; redo la rehace. REGLA CLAVE: si despues de un undo se hace una accion NUEVA, el redo deja de estar disponible (se pierde la rama rehacible). La lista empieza vacia."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s1",
+  "check": "Ingresar contraseñas iguales y edad dentro de rango, botón habilitado",
+  "literal": "abcdefgh",
+  "anclado_literal": false,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s3",
+  "check": "Reservar 3 unidades aumenta reserva y reduce disponible",
+  "literal": "3",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s1",
+  "check": "Ingresar contraseñas iguales y edad fuera de rango, botón deshabilitado",
+  "literal": "17",
+  "anclado_literal": false,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s1",
+  "check": "Verificar que se añadió evento no solapado",
+  "literal": "2",
+  "anclado_literal": false,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "tabla_compuesta",
+  "pagina": "b2_bon_heldout_duro_r2/tabla_compuesta__r1__s4",
+  "check": "Verificar que la tabla muestra 5 filas filtradas y página 1",
+  "literal": "5",
+  "anclado_literal": false,
+  "enunciado": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos en JS con campos nombre y edad; se muestran como <tr class=\"fila\"> dentro de un tbody. Paginacion de 10 por pagina con <button id=\"sig\"> y <button id=\"prev\">, y <span id=\"pagina\"> con el numero de pagina actual empezando en 1. <input id=\"q\"> filtra por nombre. <button id=\"ordenar\"> alterna el orden por edad ascendente/descendente. LOS TRES SE COMBINAN: al filtrar, la paginacion se recalcula sobre el resultado filtrado y se vuelve a la pagina 1."
+ },
+ {
+  "_muestra": "ausente_NO_anclado",
+  "tarea": "tres_en_raya",
+  "pagina": "b2_bon_heldout_duro_r2/tres_en_raya__r1__s1",
+  "check": "Verificar que la casilla con data-i=0 esté vacía al inicio",
+  "literal": "^$",
+  "anclado_literal": false,
+  "enunciado": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"> con el estado. Empieza X. Al clicar una casilla vacia se pone la marca y pasa el turno. Al completar tres en linea, #estado contiene la palabra \"gana\" y NO se pueden poner mas marcas (las casillas quedan bloqueadas). Si se llenan las 9 sin linea, #estado contiene \"empate\"."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro_r2/descuento_tramos__r1__s2",
+  "check": "Al introducir 60 unidades el total es 540.00",
+  "literal": "60",
+  "anclado_literal": true,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s3",
+  "check": "Crear evento válido 9-10",
+  "literal": "10",
+  "anclado_literal": true,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s2",
+  "check": "Aviso de conflicto aparece",
+  "literal": "conflicto",
+  "anclado_literal": true,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "carrito_packs",
+  "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s3",
+  "check": "Verificar packs y total después de agregar leche",
+  "literal": "1",
+  "anclado_literal": true,
+  "enunciado": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button class=\"add\" data-id=\"leche\">, con <span class=\"cant\" data-id=\"pan\"> y <span class=\"cant\" data-id=\"leche\"> mostrando cuantos hay de cada uno; <button class=\"quitar\" data-id=\"pan\"> y <button class=\"quitar\" data-id=\"leche\">; <span id=\"packs\"> y <span id=\"total\">. El pan cuesta 2 y la leche 3. INVARIANTE DE PRECIO: cada pareja formada por 1 pan y 1 leche es un PACK y cuesta 4 en vez de 5; el numero de packs es el minimo entre las cantidades de pan y de leche, y las unidades sobrantes se cobran a su precio normal. #packs muestra cuantos packs hay y #total el precio total. Se recalcula al anadir y al quitar."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s3",
+  "check": "Crear evento no solapado 10-12",
+  "literal": "10",
+  "anclado_literal": true,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s4",
+  "check": "Verifica que el total sea 50.00 (5*10)",
+  "literal": "50.00",
+  "anclado_literal": true,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "calendario_conflictos",
+  "pagina": "b2_bon_heldout_cabecera/calendario_conflictos__r1__s2",
+  "check": "Crear evento válido 9-10",
+  "literal": "10",
+  "anclado_literal": true,
+  "enunciado": "Una agenda que RECHAZA solapamientos, en un solo archivo HTML. OBLIGATORIO: <input id=\"desde\" type=\"number\">, <input id=\"hasta\" type=\"number\"> (horas enteras de 0 a 23), <button id=\"crear\">, <div id=\"aviso\"> y una lista de eventos donde cada uno es <div class=\"ev\" data-desde=\"H\" data-hasta=\"H\">. Al pulsar crear se anade el evento SOLO si no se solapa con ninguno existente y si desde es menor que hasta; si se solapa, NO se anade y #aviso contiene la palabra conflicto. Dos eventos que solo se tocan en el extremo (uno acaba a las 10 y el otro empieza a las 10) NO se solapan y ambos son validos."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "tres_en_raya",
+  "pagina": "b2_bon_heldout_duro/tres_en_raya__r1__s1",
+  "check": "Llena todas las casillas sin línea y verifica que #estado contiene \"empate\"",
+  "literal": "empate",
+  "anclado_literal": true,
+  "enunciado": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"> con el estado. Empieza X. Al clicar una casilla vacia se pone la marca y pasa el turno. Al completar tres en linea, #estado contiene la palabra \"gana\" y NO se pueden poner mas marcas (las casillas quedan bloqueadas). Si se llenan las 9 sin linea, #estado contiene \"empate\"."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s4",
+  "check": "Introduce 60 unidades y espera recalculo",
+  "literal": "60",
+  "anclado_literal": true,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "ascensor",
+  "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s2",
+  "check": "Llamada al piso 2 se registra y se atiende al siguiente paso",
+  "literal": "baja",
+  "anclado_literal": true,
+  "enunciado": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span id=\"dir\"> con el sentido actual (el texto sube, baja o parado), botones de llamada <button class=\"call\" data-p=\"N\"> para los pisos 0 a 5, y <button id=\"paso\"> que avanza la simulacion UN piso por pulsacion. El ascensor sirve las llamadas en el sentido en el que va: si esta subiendo, atiende primero las llamadas de pisos por encima en orden ascendente, y solo cuando no queda ninguna por encima cambia de sentido. Una llamada al piso donde ya esta se atiende al momento. Expone el estado en window.asc = {piso, dir, pendientes}."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s4",
+  "check": "Verifica que el total sea 540.00 (10*10 + 40*9 + 10*8)",
+  "literal": "540.00",
+  "anclado_literal": true,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s1",
+  "check": "Confirmar estado inicial del botón deshabilitado",
+  "literal": "disabled",
+  "anclado_literal": true,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s4",
+  "check": "Ingresar la misma contraseña de 8 caracteres en ambos campos y edad 18, verificar botón habilitado",
+  "literal": "18",
+  "anclado_literal": true,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s4",
+  "check": "Ingresar una contraseña de 8 caracteres y una confirmación distinta, verificar botón deshabilitado",
+  "literal": "disabled",
+  "anclado_literal": true,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "ausente_anclado_CONTROL",
+  "tarea": "form_cruzado",
+  "pagina": "b2_bon_heldout_duro/form_cruzado__r1__s4",
+  "check": "Ingresar la misma contraseña de 8 caracteres en ambos campos y edad 17, verificar botón deshabilitado",
+  "literal": "disabled",
+  "anclado_literal": true,
+  "enunciado": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+  "check": "Estado inicial correcto",
+  "literal": "10",
+  "anclado_literal": true,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "turnos_capacidad",
+  "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s3",
+  "check": "Estado inicial: capacidad 6 y sin grupos",
+  "literal": "0",
+  "anclado_literal": false,
+  "enunciado": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "ascensor",
+  "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s2",
+  "check": "Al avanzar al piso 2, la llamada se atiende y la dirección cambia a parado",
+  "literal": "0",
+  "anclado_literal": true,
+  "enunciado": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span id=\"dir\"> con el sentido actual (el texto sube, baja o parado), botones de llamada <button class=\"call\" data-p=\"N\"> para los pisos 0 a 5, y <button id=\"paso\"> que avanza la simulacion UN piso por pulsacion. El ascensor sirve las llamadas en el sentido en el que va: si esta subiendo, atiende primero las llamadas de pisos por encima en orden ascendente, y solo cuando no queda ninguna por encima cambia de sentido. Una llamada al piso donde ya esta se atiende al momento. Expone el estado en window.asc = {piso, dir, pendientes}."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "editor_undo_buscar",
+  "pagina": "b2_bon_heldout_cabecera/editor_undo_buscar__r1__s1",
+  "check": "Reemplazar todas las apariciones de \"gato\" por \"perro\"",
+  "literal": "perro",
+  "anclado_literal": true,
+  "enunciado": "Un editor de texto con BUSCAR Y REEMPLAZAR y con UNDO, en un solo archivo HTML. OBLIGATORIO: <textarea id=\"doc\">, <input id=\"buscar\">, <input id=\"reemplazo\">, <button id=\"reemplazar\"> y <button id=\"undo\">. El textarea empieza con el texto exacto: gato perro gato loro gato. El boton reemplazar sustituye TODAS las apariciones del texto de #buscar por el de #reemplazo dentro del textarea. REGLA CLAVE: undo deshace el ultimo reemplazo COMPLETO como UNA sola accion (no una aparicion cada vez), dejando el texto tal y como estaba antes de ese reemplazo. Escribir a mano en el textarea tambien cuenta como una accion que undo puede deshacer."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "carrito_packs",
+  "pagina": "b2_bon_heldout_cabecera2_recal/carrito_packs__r1__s3",
+  "check": "Estado inicial del carrito",
+  "literal": "0",
+  "anclado_literal": false,
+  "enunciado": "Un carrito con PACKS en un solo archivo HTML. OBLIGATORIO: dos productos, <button class=\"add\" data-id=\"pan\"> y <button class=\"add\" data-id=\"leche\">, con <span class=\"cant\" data-id=\"pan\"> y <span class=\"cant\" data-id=\"leche\"> mostrando cuantos hay de cada uno; <button class=\"quitar\" data-id=\"pan\"> y <button class=\"quitar\" data-id=\"leche\">; <span id=\"packs\"> y <span id=\"total\">. El pan cuesta 2 y la leche 3. INVARIANTE DE PRECIO: cada pareja formada por 1 pan y 1 leche es un PACK y cuesta 4 en vez de 5; el numero de packs es el minimo entre las cantidades de pan y de leche, y las unidades sobrantes se cobran a su precio normal. #packs muestra cuantos packs hay y #total el precio total. Se recalcula al anadir y al quitar."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "descuento_tramos",
+  "pagina": "b2_bon_heldout_duro/descuento_tramos__r1__s1",
+  "check": "Al introducir 5 unidades, total sin descuento es 50.00",
+  "literal": "5",
+  "anclado_literal": false,
+  "enunciado": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00"
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "ascensor",
+  "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s2",
+  "check": "Llamada al piso 3 se registra y se atiende al instante",
+  "literal": "0",
+  "anclado_literal": true,
+  "enunciado": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span id=\"dir\"> con el sentido actual (el texto sube, baja o parado), botones de llamada <button class=\"call\" data-p=\"N\"> para los pisos 0 a 5, y <button id=\"paso\"> que avanza la simulacion UN piso por pulsacion. El ascensor sirve las llamadas en el sentido en el que va: si esta subiendo, atiende primero las llamadas de pisos por encima en orden ascendente, y solo cuando no queda ninguna por encima cambia de sentido. Una llamada al piso donde ya esta se atiende al momento. Expone el estado en window.asc = {piso, dir, pendientes}."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "turnos_capacidad",
+  "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s3",
+  "check": "Estado inicial: capacidad 6 y sin grupos",
+  "literal": "0",
+  "anclado_literal": false,
+  "enunciado": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+  "check": "Estado inicial correcto",
+  "literal": "1",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "turnos_capacidad",
+  "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s1",
+  "check": "Apuntar 4 personas a tarde, rechazado por capacidad",
+  "literal": "tarde",
+  "anclado_literal": true,
+  "enunciado": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "ascensor",
+  "pagina": "b2_bon_heldout_cabecera/ascensor__r1__s2",
+  "check": "Llamada al piso 5 se registra y se atiende al siguiente paso",
+  "literal": "1",
+  "anclado_literal": false,
+  "enunciado": "Un simulador de ascensor en un solo archivo HTML. OBLIGATORIO: <span id=\"piso\"> con el piso actual (empieza en 0), <span id=\"dir\"> con el sentido actual (el texto sube, baja o parado), botones de llamada <button class=\"call\" data-p=\"N\"> para los pisos 0 a 5, y <button id=\"paso\"> que avanza la simulacion UN piso por pulsacion. El ascensor sirve las llamadas en el sentido en el que va: si esta subiendo, atiende primero las llamadas de pisos por encima en orden ascendente, y solo cuando no queda ninguna por encima cambia de sentido. Una llamada al piso donde ya esta se atiende al momento. Expone el estado en window.asc = {piso, dir, pendientes}."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s1",
+  "check": "Estado inicial correcto",
+  "literal": "0",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "turnos_capacidad",
+  "pagina": "b2_bon_heldout_cabecera2_recal/turnos_capacidad__r1__s1",
+  "check": "Reducir capacidad a 2, elimina grupo de mañana",
+  "literal": "0",
+  "anclado_literal": false,
+  "enunciado": "Una agenda de turnos con CAPACIDAD en un solo archivo HTML. OBLIGATORIO: <select id=\"franja\"> con las opciones manana y tarde, <input id=\"personas\" type=\"number\">, <button id=\"apuntar\">, <span id=\"cap\"> que empieza en 6, <input id=\"nueva-cap\" type=\"number\"> con <button id=\"set-cap\">, una lista de grupos que empieza VACIA (sin ningun grupo precargado), donde cada grupo es <div class=\"grupo\" data-franja=\"F\" data-n=\"N\">, y <span id=\"ocupacion-manana\"> y <span id=\"ocupacion-tarde\"> con las personas apuntadas en cada franja. INVARIANTE: la ocupacion de CADA franja nunca puede superar la capacidad; un grupo que la superaria se rechaza. Al bajar la capacidad con set-cap, los grupos YA apuntados que dejen alguna franja por encima del nuevo limite se ELIMINAN empezando por el ultimo apuntado de esa franja, hasta que la franja vuelva a cumplir."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s4",
+  "check": "Reservar 3 unidades",
+  "literal": "1",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ },
+ {
+  "_muestra": "selector_equivocado_CONTROL",
+  "tarea": "inventario_reservas",
+  "pagina": "b2_bon_heldout_cabecera2_recal/inventario_reservas__r1__s1",
+  "check": "Estado inicial correcto",
+  "literal": "1",
+  "anclado_literal": false,
+  "enunciado": "Un control de stock con RESERVAS en un solo archivo HTML. OBLIGATORIO: <span id=\"stock\"> que empieza en 10 y una lista de reservas que empieza VACIA (sin ninguna reserva precargada), <span id=\"disponible\">, una lista de reservas donde cada una es <div class=\"res\" data-n=\"N\">, <input id=\"cant\" type=\"number\">, <button id=\"reservar\">, <button id=\"cancelar\"> que cancela la ULTIMA reserva, y <input id=\"nuevo-stock\" type=\"number\"> con <button id=\"ajustar\"> para cambiar el stock total. INVARIANTE: disponible = stock menos la suma de todas las reservas, y NUNCA puede ser negativo. Una reserva que dejaria el disponible en negativo se rechaza (no se anade). Y si se ajusta el stock a un valor MENOR que lo ya reservado, el ajuste se rechaza y el stock no cambia."
+ }
+]

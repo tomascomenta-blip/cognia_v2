@@ -1,0 +1,90 @@
+{
+ "banco": "mbpp",
+ "k": 2,
+ "temp": 0.8,
+ "semilla": 20260730,
+ "n_pedidas": 3,
+ "max_tokens": 4096,
+ "reasoning_effort": "low",
+ "prereg": "PREREG_BANCO_CODIGO_20260730.md",
+ "muestras": [
+  {
+   "tarea": "38",
+   "s": 1,
+   "vis_ok": 2,
+   "vis_n": 2,
+   "oc_ok": 1,
+   "oc_n": 1,
+   "pasa_vis": true,
+   "pasa_oc": true,
+   "instrumento": "",
+   "segundos": 1.7,
+   "crudo": "```python\ndef div_even_odd(lst):\n    first_odd = next((x for x in lst if x % 2 != 0), None)\n    first_even = next((x for x in lst if x % 2 == 0), None)\n    if first_odd is None or first_even is None:\n        raise ValueError(\"List must contain at least one odd and one even number.\")\n    return first_even / first_odd\n```"
+  },
+  {
+   "tarea": "38",
+   "s": 2,
+   "vis_ok": 2,
+   "vis_n": 2,
+   "oc_ok": 1,
+   "oc_n": 1,
+   "pasa_vis": true,
+   "pasa_oc": true,
+   "instrumento": "",
+   "segundos": 2.1,
+   "crudo": "```python\ndef div_even_odd(numbers):\n    \"\"\"Return the division of the first even number by the first odd number in the list.\"\"\"\n    first_even = next((n for n in numbers if n % 2 == 0), None)\n    first_odd = next((n for n in numbers if n % 2 != 0), None)\n    if first_even is None or first_odd is None:\n        raise ValueError(\"List must contain at least one even and one odd number.\")\n    return first_even / first_odd\n```"
+  },
+  {
+   "tarea": "381",
+   "s": 1,
+   "vis_ok": 2,
+   "vis_n": 2,
+   "oc_ok": 1,
+   "oc_n": 1,
+   "pasa_vis": true,
+   "pasa_oc": true,
+   "instrumento": "",
+   "segundos": 0.8,
+   "crudo": "```python\ndef index_on_inner_list(lst, idx):\n    return sorted(lst, key=lambda x: x[idx])\n```"
+  },
+  {
+   "tarea": "381",
+   "s": 2,
+   "vis_ok": 2,
+   "vis_n": 2,
+   "oc_ok": 1,
+   "oc_n": 1,
+   "pasa_vis": true,
+   "pasa_oc": true,
+   "instrumento": "",
+   "segundos": 0.6,
+   "crudo": "```python\ndef index_on_inner_list(data, idx):\n    return sorted(data, key=lambda x: x[idx])\n```"
+  },
+  {
+   "tarea": "233",
+   "s": 1,
+   "vis_ok": 0,
+   "vis_n": 2,
+   "oc_ok": 0,
+   "oc_n": 1,
+   "pasa_vis": false,
+   "pasa_oc": false,
+   "instrumento": "",
+   "segundos": 0.8,
+   "crudo": "```python\nimport math\n\ndef lateralsuface_cylinder(radius, height):\n    return 2 * math.pi * radius * height\n```"
+  },
+  {
+   "tarea": "233",
+   "s": 2,
+   "vis_ok": 0,
+   "vis_n": 2,
+   "oc_ok": 0,
+   "oc_n": 1,
+   "pasa_vis": false,
+   "pasa_oc": false,
+   "instrumento": "",
+   "segundos": 0.7,
+   "crudo": "```python\nimport math\n\ndef lateralsuface_cylinder(radius, height):\n    return 2 * math.pi * radius * height\n```"
+  }
+ ]
+}

@@ -1,0 +1,46 @@
+[
+ {
+  "etiqueta": "mbpp",
+  "banco": "mbpp",
+  "n": 200,
+  "k": 4,
+  "pass1": 0.7638,
+  "admite": true,
+  "cuenta_como_replica": false,
+  "instrumento_gen": 5,
+  "instrumento_juez": 0,
+  "lotes_expirados": 0,
+  "muestras": 800,
+  "discriminantes": 36,
+  "empate_visibles": 154,
+  "todo": {
+   "n": 200,
+   "control": 155,
+   "azar": 152.75,
+   "bon": 165,
+   "techo": 171,
+   "p95": 157,
+   "p": 0.0,
+   "vive": true
+  },
+  "primaria_limpias": {
+   "n": 195,
+   "control": 155,
+   "azar": 152.25,
+   "bon": 163,
+   "techo": 169,
+   "p95": 157,
+   "p": 0.0,
+   "vive": true
+  },
+  "neto_bon_azar": 12.25,
+  "neto_bon_control": 10,
+  "perdida_selector": 6,
+  "examen": {
+   "acusa_sanos": 6.5,
+   "deja_pasar": 23.3,
+   "youden_j": 70.2,
+   "nota": "no comparable con el contrato interno"
+  }
+ }
+]

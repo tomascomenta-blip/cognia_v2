@@ -119,3 +119,6 @@ cognia_desktop/shot_*.js
 cognia_v3/training/**/*.jsonl
 # Adapters HF completos en results_* (pesos + tokenizer.json ~11MB c/u)
 cognia_v3/training/cognia3b/results_*/adapters/
+
+# Datasets publicos descargables (MBPP, LiveCodeBench) - no se versionan
+datos_bancos/
