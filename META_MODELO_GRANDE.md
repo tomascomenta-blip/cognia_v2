@@ -140,15 +140,31 @@ tareas (11.4%)** tenían un caso visible cuya entrada se repite entre los
 ocultos (dos tareas, los CINCO). Re-juzgado sin gastar GPU: **+21.00 → +21.25**
 (`hard` +13.00 → +13.50). La fuga no lo sostenía.
 
-**5. Prioridad 2, primer tramo cerrado: el EVALUADOR explica 2.7 puntos, no
-20.** Las mismas 668 muestras re-juzgadas con el evaluador **oficial** de
-LiveCodeBench (todos los casos, sin cap): sobre las 619 juzgables en esta
-máquina, **mío 51.2% · oficial 48.5% · neto −2.7**. Control de validez: 46
-muestras pasan el mío y no el oficial, **0 al revés** (es un teorema — mi
-oculto es subconjunto del suyo — así que sirve de chequeo del arnés, no de
-confirmación). **De la distancia hasta el `70` publicado, los ~21 puntos
-restantes tienen que salir del PROMPT, del ESFUERZO (`high` contra mi `low`),
-de la VENTANA y de k=1 contra sus 3 muestras.**
+**5. Prioridad 2: NO SE GANA el derecho a comparar, y el motivo es el
+hallazgo.** De la distancia entre mi `51.8%` y el `70` publicado, dos ejes ya
+están medidos y **suman ~3 puntos**:
+
+- **EVALUADOR −2.7** (mismas 668 muestras, evaluador oficial de LCB; sobre las
+  619 juzgables aquí: mío 51.2% · oficial 48.5%). Control: 46 pasan el mío y no
+  el oficial, **0 al revés** — teorema, no evidencia.
+- **PROMPT +0** (60 tareas, el template `### Question/Format/Answer` literal
+  contra el mío). Y el cero **no** es coincidencia tarea a tarea: **10
+  discordantes con reparto 5-5**.
+
+**El eje ESFUERZO no se pudo medir, y ahí está la lección: eran TRES capas de
+mi propio instrumento, una detrás de otra, y las tres se leían como "el modelo
+no puede".** Cap de tokens (truncaba 33%) → `n_ctx` (seguía truncando 60%) →
+`TIMEOUT_HTTP` (7 de 11 muestras muertas a los **300,0 s exactos**).
+**Y llegué a escribir que `high` "no es medible en 16 GB": es falso.**
+`n_ctx = 65536` —el contexto exacto de la referencia— ocupa **13.487 MiB de
+16.311**; el KV cuesta **~25 MiB por 1k de contexto**. *El muro era mi
+configuración, no el hardware.*
+
+Con las tres capas fuera, el coste REAL: **2 de cada 4 problemas `hard` se
+pasan de 60.000 tokens de pensamiento, a ~9,5 min por muestra**. Replicar la
+referencia (3 muestras × 211 problemas) costaría **decenas de horas** aquí:
+factible, no imposible, y no cabía en esta sesión. **Veredicto pre-registrado:
+NO SE COMPARA** — y se dice que no se comparó.
 
 ### DÓNDE ESTAMOS — síntesis del 2026-07-31 de MADRUGADA (historia; la de arriba manda)
 

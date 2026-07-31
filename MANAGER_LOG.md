@@ -11271,3 +11271,107 @@ funciona.
   CÃ“MO se gasta casi da igual.* Eso refuerza el BoN como mecanismo y quita
   urgencia a buscar estrategias mÃ¡s listas de gasto.
 
+
+### PRIORIDAD 2 â€” el derecho a comparar NO se gana, y el motivo es el hallazgo
+
+El goal es *"igualar a un modelo grande desde 16 GB"*, y anoche me prohibÃ­
+comparar mi `pass@1` con ninguna tabla porque el prompt, el evaluador y el cap
+eran mÃ­os. **Una prohibiciÃ³n asÃ­ no se levanta escribiendo que ya no aplica.**
+
+**La referencia, verificada en red y con sus lÃ­mites por delante:** gpt-oss-20b
+**pass@1 = 70 en LCB v6**, ventana 2024-08-01â†’2025-01-31, **3 muestras**,
+**reasoning HIGH**, 64k de secuencia (`blog.collinear.ai/p/gpt-oss-lcb`). **No
+es el leaderboard oficial, no declara temperatura, y el model card de OpenAI
+(arXiv:2508.10925) NO trae ninguna cifra de LiveCodeBench** â€” comprobado, no
+supuesto. Es la mejor referencia que existe, no una buena referencia.
+**Solape medido:** 211 de las 342 tareas del banco ampliado (61.7%) caen en su
+ventana; **mi banco no cubre 2024-08-01â†’09-21**, y eso se declara.
+
+**Las condiciones oficiales, leÃ­das de su repo** (`lcb_runner/prompts/â€¦` y
+`evaluation/compute_code_generation_metrics.py`): system y plantilla
+`### Question/Format/Answer` literales; juez = **todos** los casos sin cap;
+`timeout = (6+1)Â·n + 5`.
+
+#### Eje EVALUADOR: âˆ’2.7 puntos, y con coste GPU CERO
+
+Las mismas 668 muestras de anoche re-juzgadas con el evaluador oficial:
+
+```
+juez MIO     (5 vis / 15 oc capados)   346/668  51.8%
+juez OFICIAL (todos los casos)         300/668  44.9%
+  NO JUZGABLES aqui (lote >8 MB)        33/668   4.9%   <- tests de RENDIMIENTO
+  lotes EXPIRADOS                       16/668   2.4%
+sobre las 619 JUZGABLES de verdad:
+  MIO 317 (51.2%)   OFICIAL 300 (48.5%)   NETO -2.7 pts
+```
+
+**46 muestras pasan el mÃ­o y no el oficial; CERO al revÃ©s** â€” y eso es un
+**teorema**, no evidencia (mi conjunto oculto es subconjunto del suyo), asÃ­ que
+vale como chequeo del arnÃ©s, no como confirmaciÃ³n del resultado.
+
+#### Eje PROMPT: +0, con 10 tareas discordantes
+
+60 tareas de la ventana de la referencia, 120 muestras, 0 truncadas, 20 min:
+
+| celda | juez MÃO | juez OFICIAL |
+|---|---|---|
+| `mio_low` | 34/60 (56.7%) | 26/60 (43.3%) |
+| `oficial_low` | 34/60 (56.7%) | 26/60 (43.3%) |
+
+`PROMPT (oficial âˆ’ mÃ­o)` **= +0**, y **no porque coincidan tarea a tarea**: hay
+**10 discordantes** con reparto **5-5** (8 y 4-4 con el juez oficial).
+*Verificado que los prompts son distintos de verdad (1.216 vs 1.493 caracteres)
+antes de firmar el cero.* Potencia: con 10 discordantes harÃ­an falta 9
+victorias, asÃ­ que esto **excluye un efecto GRANDE del prompt**, no uno
+pequeÃ±o.
+
+#### Eje ESFUERZO: TRES capas de mi propio instrumento, una detrÃ¡s de otra
+
+AquÃ­ estÃ¡ el hallazgo. Cada vez que quitÃ© una barrera apareciÃ³ la siguiente, y
+**las tres se leÃ­an como "el modelo no puede"**:
+
+| capa | quÃ© medÃ­ | quÃ© era |
+|---|---|---|
+| **1. cap de tokens** | `high` truncaba el **33%** con `max_tokens=15000` | mi cap |
+| **2. contexto** | seguÃ­a truncando el **60% (3/5)** con 30.000 sobre `n_ctx=32768` | mi `n_ctx` |
+| **3. timeout HTTP** | **7 de 11** muestras muertas a los **300,0 s EXACTOS** | mi `TIMEOUT_HTTP` |
+
+Y una correcciÃ³n que me hago a mÃ­ mismo por escrito: **lleguÃ© a escribir que la
+celda `high` "no es medible en 16 GB"**. Medido: **`n_ctx = 65536` â€”el contexto
+EXACTO de la referenciaâ€” ocupa 13.487 MiB de 16.311**, con `total_slots=1`
+verificado. **Cabe, con 2,8 GB de holgura.** La progresiÃ³n del KV es
+16kâ†’12.413 Â· 32kâ†’12.819 Â· 64kâ†’13.487, o sea **~25 MiB por cada 1.000 tokens**:
+el contexto es **barato** en este modelo. *El muro era mi configuraciÃ³n, no el
+hardware* â€” y esa distinciÃ³n es una conclusiÃ³n sobre el goal, no un detalle.
+
+**Con las tres capas fuera** (64k de contexto, 60.000 tokens de presupuesto,
+timeout de 1.500 s), lo que queda es el coste REAL:
+
+```
+abc386_a    29,8 s   ->  resuelve
+abc381_c   157,7 s   ->  resuelve   <- esta MURIO antes por mi timeout de 300 s
+arc188_a   566,5 s   ->  TRUNCA a los 60.000 tokens
+arc186_d   567,9 s   ->  TRUNCA a los 60.000 tokens
+```
+
+> **A `reasoning_effort=high`, 2 de cada 4 problemas `hard` de LiveCodeBench se
+> pasan de 60.000 tokens de pensamiento, a ~9,5 minutos por muestra.** Con 3
+> muestras por problema y 211 problemas en la ventana, replicar la referencia
+> costarÃ­a del orden de **decenas de horas** en esta mÃ¡quina. Es factible, no
+> es imposible, y **no cabÃ­a en esta sesiÃ³n**.
+
+#### El veredicto pre-registrado
+
+> **NO SE COMPARA.** La celda `(prompt oficial, esfuerzo high, juez oficial)`
+> no llegÃ³ a medirse en condiciones honestas, y el prereg ya decÃ­a quÃ© hacer
+> entonces: *"si esa celda no llega a correrse, no se compara, y se dice que no
+> se comparÃ³"*. **Lo que se entrega en su lugar es POR QUÃ‰ no se puede, con
+> nÃºmeros** â€” que es lo que permite a la prÃ³xima sesiÃ³n hacerlo bien y saber
+> cuÃ¡nto reloj cuesta.
+
+**Lo que sÃ­ queda medido de camino:** el evaluador vale **âˆ’2.7 pts** y el
+prompt **+0**. De la distancia entre mi `51.8%` y el `70` publicado, esos dos
+ejes explican **~3 puntos**. El resto tiene que estar en el **esfuerzo**, en la
+**ventana** y en **k=1 contra sus 3 muestras** â€” y el esfuerzo es, por lo
+medido hoy, el candidato grande.
+
