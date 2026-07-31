@@ -134,6 +134,39 @@ mío o suyo.
 
 *(se appendean con fecha y hora; nunca se edita lo de arriba)*
 
+### ENMIENDA 3 (2026-07-31 10:12) — la celda `high` NO es medible en esta máquina, y ese ES el resultado
+
+Con el contexto ya subido a 32.768 y `max_tokens = 30.000`, la celda
+`oficial_high` **siguió truncando el 60% de las muestras (3 de 5)**, a **205,8
+segundos por muestra**. Desglose medido por celda:
+
+| celda | truncadas | s/muestra | chars de respuesta |
+|---|---|---|---|
+| `mio_low` | **0/6 (0%)** | 8,2 | 664 |
+| `oficial_low` | **0/6 (0%)** | 11,0 | 1.296 |
+| **`oficial_high`** | **3/5 (60%)** | **205,8** | 304 |
+
+**A esfuerzo `high`, gpt-oss-20b se pasa de 30.000 tokens de pensamiento en la
+mayoría de los problemas `hard` de LiveCodeBench.** Con el 60% truncado la
+celda no mide capacidad: mide mi cap. Y a 206 s/muestra tampoco cabe en el
+reloj.
+
+**Decisión, tomada antes de mirar ninguna comparación:** se cae la celda
+`oficial_high` de la corrida principal, que pasa a **dos celdas**
+(`mio_low`, `oficial_low`) — el eje PROMPT con N grande y barato. Y **el muro
+se mide aparte y a propósito**, porque es una respuesta al goal y no un
+estorbo:
+
+1. ¿Cabe `n_ctx = 65536` (el contexto de la referencia) en 16 GB? Se **mide**,
+   no se extrapola desde el +400 MiB que costó pasar de 16k a 32k.
+2. ¿Cuánto trunca `high` con el presupuesto de la referencia? Sonda dedicada.
+
+> **Consecuencia para el derecho a comparar: NO se compara.** La celda que lo
+> concedía no se puede medir aquí en condiciones honestas, y el prereg ya decía
+> qué hacer entonces: *"Si esa celda no llega a correrse, no se compara, y se
+> dice que no se comparó."* Lo que se entrega en su lugar es **por qué** no se
+> puede, con números.
+
 ### ENMIENDA 2 (2026-07-31 09:50) — el 8º caso de "presupuesto de pensamiento", y el rediseño que obliga
 
 **La amenaza 1 se disparó, medida en corrida:** con `max_tokens = 15000` sobre

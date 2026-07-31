@@ -127,7 +127,18 @@ def analiza(res: dict) -> dict:
     print(f"  LA CELDA COMPARABLE: prompt oficial + esfuerzo high + juez "
           f"oficial")
     print(f"  {'='*66}")
-    print(f"  pass@1 = {ofi_pct:.1f}%   (n={len(ms)} tareas, k=1)")
+    # Intervalo de Wilson al 95%: con k=1 y n~35 el punto es GRUESO, y darlo
+    # pelado invita a leer una diferencia que el diseño no resuelve.
+    k_ok = sum(1 for m in ms if m["oficial_pasa"])
+    nn = max(1, len(ms))
+    ph = k_ok / nn
+    z = 1.96
+    den = 1 + z * z / nn
+    centro = (ph + z * z / (2 * nn)) / den
+    medio = z * ((ph * (1 - ph) / nn + z * z / (4 * nn * nn)) ** 0.5) / den
+    lo, hi = 100 * (centro - medio), 100 * (centro + medio)
+    print(f"  pass@1 = {ofi_pct:.1f}%   (n={len(ms)} tareas, k=1)   "
+          f"IC95% Wilson [{lo:.1f}%, {hi:.1f}%]")
     print(f"  referencia publicada = {PUBLICADO:.0f}   "
           f"[blog.collinear.ai, LCB v6, 2024-08-01..2025-01-31, 3 muestras, "
           f"reasoning high, 64k]")
@@ -139,8 +150,14 @@ def analiza(res: dict) -> dict:
         print(f"    - yo mido k=1; la referencia promedia 3 muestras")
         print(f"    - la referencia no declara temperatura; yo uso "
               f"{res['temp']}")
-        print(f"    - su contexto era 64k; el mío 16k "
+        print(f"    - su contexto era 64k; el mío 32k "
               f"({trunc_pct:.1f}% truncadas)")
+        if not (lo <= PUBLICADO <= hi):
+            print(f"    -> el {PUBLICADO:.0f} publicado queda FUERA de mi "
+                  f"IC95% [{lo:.1f}, {hi:.1f}]")
+        else:
+            print(f"    -> el {PUBLICADO:.0f} publicado CAE DENTRO de mi "
+                  f"IC95% [{lo:.1f}, {hi:.1f}]: con este n no se distinguen")
     else:
         motivo = (f"n={n} < 35" if n < 35
                   else f"{trunc_pct:.1f}% truncadas > 15%")

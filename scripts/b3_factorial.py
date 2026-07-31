@@ -49,6 +49,20 @@ DESDE, HASTA = "2024-08-01", "2025-01-31"     # ventana de la referencia
 CELDAS = [("mio", "low"), ("oficial", "low"), ("oficial", "high")]
 
 
+def celdas_de(spec: str) -> list:
+    """`--celdas mio_low,oficial_low`: recortar el diseño por RELOJ sin editar
+    el fichero. Cada recorte se registra como enmienda del prereg."""
+    if not spec:
+        return list(CELDAS)
+    out = []
+    for x in spec.split(","):
+        x = x.strip()
+        if x:
+            p, e = x.rsplit("_", 1)
+            out.append((p, e))
+    return out
+
+
 def _prepara(t: dict) -> dict:
     t["_id"] = str(t["task_id"])
     t["_p_mio"] = prompt_lcb(t)
@@ -99,6 +113,8 @@ def main():
     ap.add_argument("--max-tokens", dest="max_tokens", type=int, default=15000)
     ap.add_argument("--sufijo", default="")
     ap.add_argument("--sonda", action="store_true")
+    ap.add_argument("--celdas", default="",
+                    help="subconjunto de celdas, p.ej. 'mio_low,oficial_low'")
     ap.add_argument("--minutos", type=int, default=0,
                     help="corte por RELOJ: para ANTES de empezar una tarea "
                          "nueva, para que el diseno quede BALANCEADO (las 4 "
@@ -106,8 +122,10 @@ def main():
     ap.add_argument("--reanudar", action="store_true")
     args = ap.parse_args()
 
+    celdas = celdas_de(args.celdas)
     SALIDA.mkdir(exist_ok=True)
     fichero = SALIDA / f"factorial{args.sufijo}.json"
+    print(f"[fac] celdas: {['%s_%s' % c for c in celdas]}", flush=True)
     tareas = carga_ventana(args.n, args.semilla)
     print(f"[fac] tareas={len(tareas)} ventana {DESDE}..{HASTA}", flush=True)
     if args.sonda:
@@ -137,7 +155,7 @@ def main():
     por_tarea = {}
     for m in res["muestras"]:
         por_tarea.setdefault(m["tarea"], set()).add(m["celda"])
-    hechas = {t for t, c in por_tarea.items() if len(c) == len(CELDAS)}
+    hechas = {t for t, c in por_tarea.items() if len(c) == len(celdas)}
     antes = len(res["muestras"])
     res["muestras"] = [m for m in res["muestras"] if m["tarea"] in hechas]
     if antes != len(res["muestras"]):
@@ -159,7 +177,7 @@ def main():
                   f"{len(hechas)} tareas de 4 celdas", flush=True)
             break
         oficiales = casos_oficiales(t)
-        for prom, esf in CELDAS:
+        for prom, esf in celdas:
             ts = time.time()
             p = t["_p_oficial"] if prom == "oficial" else t["_p_mio"]
             sysmsg = SYSTEM_OFICIAL if prom == "oficial" else SYSTEM_COD
