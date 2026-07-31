@@ -476,3 +476,35 @@ global** — solo dice si el efecto en `hard` sobrevive a volver a generar.
 **Análisis:** idéntico y ya pre-registrado (primaria = neto BoN−AZAR sobre
 tareas sin fallo de instrumento, contra el p95 del nulo apareado, y los tres
 nulos). **Se reporta salga como salga.**
+
+---
+
+### ENMIENDA 4 — 2026-07-31 ~01:46, banco AMPLIADO (preparado, sin medir)
+
+Se descarga `test5.jsonl` (557 MB) y `carga_lcb` pasa a unir los incrementos
+disponibles, deduplicando por `question_id` (los incrementos se solapan).
+
+**La ventana real, MEDIDA — no firmada:**
+
+| | antes (`test6`) | ahora (`test5`+`test6`) |
+|---|---|---|
+| tareas utilizables | 175 | **342** |
+| ventana | 2025-01-04 → 2025-04-06 | **2024-09-22 → 2025-04-06** |
+| meses | 4 | **6.5** |
+| easy / medium / hard | 43 / 52 / 80 | **84 / 104 / 154** |
+
+**No son los 10 meses que firmé en el prereg original.** Para llegar a
+jul-2024 haría falta `test4.jsonl` (1.2 GB). Sigue siendo **entera posterior
+al corte del 20B** (junio 2024), que es lo que importa.
+
+**Validado, no medido:** controles positivos repetidos sobre el banco
+ampliado (MBPP referencia 40/40, negativo 10/10; arnés LCB stdin 40/40,
+functional 31/31, roto 0/71, y las dos regresiones de `pow(a,b,MOD)` y
+`sys.stdin.buffer` 40/40). **No se ha generado ni una muestra sobre él**:
+1368 muestras no caben en el reloj que queda, y empezar una corrida que el
+apagado corta a la mitad valdría menos que dejar el banco listo.
+
+**Para la próxima sesión:** el orden barajado con la semilla fija CAMBIA al
+ampliar el pool, así que `lcb.json` (167 tareas del banco viejo) **no es
+prefijo** del banco nuevo. O se corre el banco de 342 entero, o se sigue con
+el de 175 declarándolo.

@@ -296,21 +296,45 @@ def juzga_mbpp(code: str, t: dict, asserts: list) -> tuple:
 
 
 # ------------------------------------------------------- LiveCodeBench
-def carga_lcb(desde: str = "2024-06-30") -> list:
-    """test6.jsonl filtrado a contest_date POSTERIOR al corte de
-    entrenamiento del 20B (junio 2024, model card verificada en red)."""
+def carga_lcb(desde: str = "2024-06-30", ficheros: tuple = ()) -> list:
+    """Problemas de LiveCodeBench con `contest_date` POSTERIOR al corte de
+    entrenamiento del 20B (junio 2024, model card verificada en red).
+
+    Por defecto usa los incrementos que estén descargados. `test6.jsonl` son
+    175 problemas de 2025-01 a 2025-04; `test5.jsonl` añade la mitad que
+    faltaba (jul-2024 → ene-2025) para cubrir la ventana entera. Se declara
+    porque yo mismo firmé "~10 meses" cuando solo tenía los 4 últimos.
+    """
     import base64
     import pickle
     import zlib
 
+    if not ficheros:
+        ficheros = tuple(n for n in ("lcb_test5.jsonl", "lcb_test6.jsonl")
+                         if (DATOS / n).exists())
     tareas = []
-    with open(DATOS / "lcb_test6.jsonl", encoding="utf-8") as f:
+    vistos = set()
+    for nombre in ficheros:
+      with open(DATOS / nombre, encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
-            o = json.loads(line)
+            try:
+                o = json.loads(line)
+            except ValueError:
+                # fichero a medias (descarga en curso) o línea corrupta: se
+                # salta en vez de tumbar la carga entera. Se avisa, porque
+                # una degradación silenciosa aquí daría un banco más pequeño
+                # sin que nadie lo note.
+                print(f"[carga_lcb] linea ilegible en {nombre}, saltada",
+                      flush=True)
+                continue
             if (o.get("contest_date") or "")[:10] <= desde:
                 continue
+            # los incrementos se solapan: un problema puede estar en varios
+            if o.get("question_id") in vistos:
+                continue
+            vistos.add(o.get("question_id"))
             try:
                 pub = json.loads(o["public_test_cases"])
             except Exception:
