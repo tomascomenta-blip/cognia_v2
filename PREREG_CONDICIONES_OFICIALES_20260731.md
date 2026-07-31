@@ -133,3 +133,22 @@ mío o suyo.
 ## ENMIENDAS
 
 *(se appendean con fecha y hora; nunca se edita lo de arriba)*
+
+### ENMIENDA 1 (2026-07-31 06:31) — la sonda de esfuerzo, PASADA
+
+Amenaza 2 cerrada con número. `b3_factorial.py --sonda` sobre una tarea real:
+
+| esfuerzo | segundos | chars de respuesta | código |
+|---|---|---|---|
+| `low` | **8.6** | 602 | sí |
+| `high` | **36.2** | 379 | sí |
+
+**`high` tarda 4.2× más y devuelve MENOS texto**: los tokens extra se van al
+razonamiento, que es exactamente lo que tiene que pasar. El knob
+`chat_template_kwargs.reasoning_effort` **sí actúa** (a diferencia de la línea
+`"Reasoning: high"` en el system, que en este repo está medida como inerte 3/3).
+
+**Consecuencia para el reloj, declarada aquí:** las dos celdas `high` cuestan
+~4× las `low`. Con 60 tareas eso son ~100 minutos para el factorial entero. Si
+el reloj no llega, el corte deja el diseño **balanceado** porque las cuatro
+celdas se generan intercaladas por tarea.

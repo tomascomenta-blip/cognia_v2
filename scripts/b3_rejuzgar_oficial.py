@@ -102,6 +102,8 @@ def main():
     solo_of = sum(1 for j in juicios if j["oficial_pasa"]
                   and not j["mio_pasa"])
     exp = sum(1 for j in juicios if j["oficial_motivo"] == "lote_expirado")
+    grandes = sum(1 for j in juicios
+                  if str(j["oficial_motivo"]).startswith("demasiado_grande"))
     print(f"\n{'='*66}")
     print(f"EJE EVALUADOR — mismas {n} muestras, dos jueces")
     print(f"{'='*66}")
@@ -116,6 +118,19 @@ def main():
     print(f"  pasa el oficial y NO el mio          : {solo_of}")
     print(f"  lotes EXPIRADOS con el juez oficial  : {exp}/{n} "
           f"({exp/max(1,n):.1%})  [instrumento, no fallo del modelo]")
+    print(f"  NO JUZGABLES aqui (lote >8 MB)       : {grandes}/{n} "
+          f"({grandes/max(1,n):.1%})  [limite de ESTA maquina, no del modelo:"
+          f" son tests de RENDIMIENTO]")
+    limpio = [j for j in juicios
+              if not str(j["oficial_motivo"]).startswith("demasiado_grande")
+              and j["oficial_motivo"] != "lote_expirado"]
+    if limpio:
+        m2 = sum(1 for j in limpio if j["mio_pasa"])
+        o2 = sum(1 for j in limpio if j["oficial_pasa"])
+        print(f"  --- SOLO las juzgables de verdad (n={len(limpio)}) ---")
+        print(f"  juez MIO {m2}/{len(limpio)} ({m2/len(limpio):.1%})   "
+              f"juez OFICIAL {o2}/{len(limpio)} ({o2/len(limpio):.1%})   "
+              f"NETO {(o2-m2)/len(limpio)*100:+.1f} pts")
     # por tarea, para saber si el sesgo se concentra
     por = defaultdict(list)
     for j in juicios:

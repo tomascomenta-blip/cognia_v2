@@ -10975,3 +10975,197 @@ Completar las 9 tareas que faltan es opcional.
 **Estado del árbol al cerrar:** 0 ficheros modificados, **0 commits sin
 pushear**, 13 commits en la sesión. **0 llama-server, 0 chromium, 0 procesos
 python residuales.** Apagado a las 04:30 confirmado armado.
+
+---
+
+## 2026-07-31 (maÃ±ana 05:41â†’12:44) â€” La reparaciÃ³n se reabre con derecho, y dos errores SIMÃ‰TRICOS de facturaciÃ³n
+
+SesiÃ³n autÃ³noma con deadline 13:00 (apagado armado a las 05:41 tras comprobar
+que no quedaba ninguno de la anterior; aterrizaje programado a las 12:44).
+
+### Por quÃ© se reabre una vÃ­a que YO MISMO suspendÃ­
+
+La reparaciÃ³n guiada era la prioridad #1 de `META_MODELO_GRANDE.md` y la
+**suspendÃ­ el 2026-07-28 con evidencia propia**: dos A/B intercalados mostraron
+que las rondas RESTABAN (banco brutal âˆ’3, banco fÃ¡cil âˆ’7; `semaforo` perdÃ­a 6/6
+al reparar). Pero la suspensiÃ³n llevaba **una condiciÃ³n escrita**:
+
+> *"TDDev/self-repair ganan con un verificador FIABLE; la nuestra no lo es
+> todavÃ­a."*
+
+Esa condiciÃ³n **se cumple hoy por primera vez, y estÃ¡ medida**. El verificador
+ya no es el contrato interno autogenerado (ACUSA_SANOS 88-94%, J +12.2) sino
+los tests del propio benchmark (**ACUSA_SANOS 2.0%, DEJA_PASAR 13.4%,
+J +84.6**, medido anoche sobre 668 muestras). Reparar contra un examen que
+acusa al 90% de los sanos es perseguir ruido; contra uno que acusa al 2% es
+otra cosa.
+
+1. **`PREREG_REPARACION_CONTRAEJEMPLO_20260731` escrito ANTES de generar una
+   sola muestra**, con **TRES brazos que comparten la misma raÃ­z `s1`, el mismo
+   presupuesto (4 candidatos) y la MISMA polÃ­tica de selecciÃ³n** (la literal de
+   `bon.py`): `BoN` (muestras independientes), `REP` (cadena con el
+   contraejemplo: entrada, salida esperada, salida obtenida) y **`PLACEBO`**
+   (la misma cadena y el mismo cÃ³digo roto, **sin** el contraejemplo).
+   El PLACEBO no es opcional: un estudio con placebo (arXiv:2606.31511)
+   encontrÃ³ que devolver la traza o el cÃ³digo fallido **empata con un placebo
+   sin contenido**. Sin Ã©l, un `REP > BoN` no distingue *"el contraejemplo
+   informa"* de *"reintentar diversifica"*.
+
+2. **El arnÃ©s NO tenÃ­a el contraejemplo** â€” la premisa de arranque decÃ­a que sÃ­,
+   y era falsa: `_ejecuta_lote` solo devolvÃ­a bools por caso, nunca la salida
+   obtenida. Se aÃ±adiÃ³ (flag `detalle`, sentinela `__B3D__`), **opt-in**, con
+   control positivo propio de 15 comprobaciones (`b3_humo_contraejemplo.py`) y
+   sin mover un byte del comportamiento anterior (regresiÃ³n `b3_humo_lcb.py`:
+   40/40, 31/31, roto 0/71).
+
+### La revisiÃ³n adversarial: 62 hallazgos, 24 BLOQUEA, **2 confirmados**
+
+Cuatro revisores con lentes distintas (diseÃ±o, bugs del runner, instrumento,
+anÃ¡lisis) + una fase de refutaciÃ³n adversarial por cada BLOQUEA. **Los dos
+confirmados eran el mismo problema**, y los verificadores midieron el arreglo
+que yo habÃ­a aplicado mientras revisaban:
+
+| contraejemplos con ENTRADA recortada | |
+|---|---|
+| polÃ­tica vieja (el PRIMER visible fallido) | **24.4%** (10/41), 6 con el patrÃ³n patolÃ³gico *entrada truncada + salida esperada COMPLETA* |
+| polÃ­tica nueva (el de entrada MÃS CORTA + marca de recorte) | **4.9%** (2/41), los dos **marcados en el prompt y registrados** |
+
+Caso real (`arc194_c`): entrada de **67.496 caracteres**, se mostraban **1.200
+(1.8%)** sin marca, con la salida esperada entera debajo y la instrucciÃ³n
+explÃ­cita de producirla. **No es un contraejemplo: es un par imposible.**
+
+**Y cuatro BLOQUEA mÃ¡s que sÃ­ cambiaron el experimento, todos reproducidos por
+mÃ­ antes de aceptarlos:**
+
+- **El bug que habrÃ­a medido otra cosa, y era mÃ­o.** `prompt_reparar` construÃ­a
+  la cabecera con `t['enunciado']` **pelado**, mientras BoN recibe
+  `prompt_lcb(t)` â€” con el `starter_code` y las instrucciones de E/S. **REP y
+  PLACEBO competÃ­an con MENOS informaciÃ³n que el control.**
+- **Fuga por CONTENIDO en el split** (ver abajo).
+- **El iso-cÃ³mputo no se mide en RELOJ**: BoN repite el mismo prompt y se come
+  el cachÃ© de prefill; REP manda uno nuevo cada vez. Pasa a medirse en
+  **tokens generados**.
+- **POTENCIA** (ver abajo): el hallazgo mÃ¡s caro.
+
+### La potencia, que casi firma un KILL falso
+
+Verificado por mÃ­ sobre `lcb_uniforme.json` (`b3_potencia_apareado.py`). Una
+tarea solo puede DISCORDAR entre brazos si `s1` falla los visibles **y** algÃºn
+candidato puede mover el veredicto oculto:
+
+| estrato | n | s1 falla vis | discriminantes | con instrumento | **puede discordar** |
+|---|---|---|---|---|---|
+| easy | 43 | 2% | 14% | 0% | **2%** |
+| medium | 51 | 37% | 31% | 0% | **12%** |
+| **hard** | 73 | **66%** | **42%** | 23% | **18%** |
+
+Con N=70 en `hard` eso son ~13 discordantes, y un sign-flip apareado con 13
+discordantes **exige 10 victorias de 13** para P<0.05: **un efecto real de +4
+tareas netas habrÃ­a salido Pâ‰ˆ0.17 y se habrÃ­a firmado KILL por falta de
+potencia, no por ausencia de efecto.** Tres cambios: N sube a **las 154 tareas
+`hard`** con corte por reloj pre-registrado, **la potencia se reporta siempre**
+(discordantes, victorias necesarias, efecto mÃ­nimo detectable), y se aÃ±ade el
+veredicto **`SIN POTENCIA`**, que **sustituye al KILL** cuando el efecto mÃ­nimo
+detectable supera Â±6 tareas netas.
+
+> **Un diseÃ±o que no distingue "no hay efecto" de "no lo verÃ­amos aunque lo
+> hubiera" no tiene derecho a matar una vÃ­a.**
+
+### LOS DOS ERRORES SIMÃ‰TRICOS DE FACTURACIÃ“N
+
+Es el hallazgo conceptual de la sesiÃ³n, y saliÃ³ de mirar la corrida **a los 4
+minutos** en vez de dejarla correr.
+
+**Anoche:** 107 muestras (16%) contadas como fallo del MODELO eran del ENTORNO.
+Reproducir una a mano cambiÃ³ 48 veredictos y subiÃ³ el pass@1 siete puntos.
+
+**Hoy:** la tasa de instrumento marcaba **28.6%**, muy por encima del 8% que
+obliga a parar. ParÃ© y reproduje los casos a mano. El texto crudo decÃ­a:
+
+```
+'Sorry, I cannot provide a solution.'      1426 tokens de razonamiento,
+                                          finish_reason normal, respuesta completa
+```
+
+**No era el arnÃ©s fallando: era el modelo rindiÃ©ndose.** Marcarlo como
+instrumento habrÃ­a sido el error **simÃ©trico**, y peor por dÃ³nde pega: habrÃ­a
+expulsado de la primaria **justo las tareas mÃ¡s difÃ­ciles**, que es donde vive
+el efecto. Se separan tres cosas que colapsaban en una:
+
+| marca | quÃ© es | cuenta como |
+|---|---|---|
+| `instrumento` | vacÃ­a, truncada, HTTP, presupuesto, `sin_contraejemplo` | **ARNÃ‰S** |
+| `sin_codigo_modelo` | respuesta completa y no truncada, sin cÃ³digo | **MODELO** |
+| `no_generado` | la cadena REP/PLA no tiene nada que reparar | **MÃ‰TODO** (fuera del pool) |
+
+> **La lecciÃ³n no es "no factures instrumento al modelo": es que la frontera
+> tiene DOS lados y cruzarla en cualquier direcciÃ³n falsea el nÃºmero. Y el lado
+> nuevo es el peligroso, porque sesga la muestra hacia lo fÃ¡cil.**
+
+### La FUGA por contenido, medida y corregida HACIA ATRÃS
+
+El split de B-LCB era disjunto **por Ã­ndice**, pero no por contenido
+(`b3_fuga_split.py`):
+
+| banco | tareas con algÃºn visible duplicado entre los ocultos |
+|---|---|
+| `test6` (el de anoche) | **20/175 (11.4%)** â€” y **dos tareas con los CINCO** |
+| `hard` del ampliado | **12/154 (7.8%)** |
+
+EnseÃ±arle a un brazo la salida esperada de ese visible **le regala la del
+oculto**: la selecciÃ³n dejarÃ­a de medir generalizaciÃ³n y medirÃ­a identidad.
+Corregido para adelante (`tests_lcb(sin_fuga=True)`) y **re-juzgado hacia
+atrÃ¡s** sin gastar GPU (el cÃ³digo estaba en disco): 80 muestras re-juzgadas,
+**3 veredictos cambian**.
+
+```
+                       anoche      sin fuga
+neto BoN - AZAR        +21.00      +21.25     P < 1e-4
+  hard                 +13.00      +13.50
+  medium                +7.25       +7.25
+AZAR-1-TEST            +17.67      +17.92
+```
+
+**El +21.00 no lo estaba sosteniendo la fuga.** *Nota honesta:* el control de
+independencia de muestras pasa de +1.90 a **+2.30**, justo por encima de su
+umbral de aviso de 2 puntos.
+
+### Prioridad 3(a), cerrada
+
+`lcb_r2` (la rÃ©plica de generaciÃ³n del banco global, cortada anoche por reloj a
+158/167 tareas) **completada: 668/668 muestras, pass@1 52.4%, instrumento
+3.9%**.
+
+### Prioridad 2 â€” ganarse el derecho a comparar
+
+`PREREG_CONDICIONES_OFICIALES_20260731`. Anoche me prohibÃ­ comparar mi pass@1
+con ninguna tabla porque el prompt, el evaluador y el cap eran mÃ­os. Una
+prohibiciÃ³n asÃ­ no se levanta escribiendo que ya no aplica.
+
+- **Condiciones oficiales verificadas EN RED** contra el repo de LiveCodeBench
+  (`lcb_runner/prompts/code_generation.py` y
+  `evaluation/compute_code_generation_metrics.py`): system y plantilla
+  `### Question/Format/Answer` literales; juez = **todos** los casos (pÃºblicos +
+  privados) sin cap, `timeout = (6+1)Â·n + 5`, pasa solo si pasan todos.
+- **La referencia publicada, con sus lÃ­mites por delante:** gpt-oss-20b
+  **pass@1 = 70 en LCB v6**, ventana 2024-08-01â†’2025-01-31, **3 muestras**,
+  **reasoning HIGH**, 64k de secuencia (`blog.collinear.ai/p/gpt-oss-lcb`).
+  **No es el leaderboard oficial, no declara temperatura, y el model card de
+  OpenAI (arXiv:2508.10925) NO trae ninguna cifra de LiveCodeBench**
+  (comprobado, no supuesto). Es la mejor referencia que existe, no una buena
+  referencia.
+- **Solape medido** (`b3_ventana.py`, no declarado): **211/342 tareas (61.7%)**
+  del banco ampliado caen dentro de esa ventana. **Mi banco no cubre
+  2024-08-01â†’2024-09-21**, y eso se declara en vez de disimularse.
+- **Sonda de esfuerzo PASADA:** `high` tarda **4.2Ã—** lo que `low` (36.2 s vs
+  8.6 s) y devuelve menos texto â€” los tokens extra se van al razonamiento. El
+  knob actÃºa de verdad.
+- DiseÃ±o: **factorial 2Ã—2 (prompt mÃ­o|oficial Ã— esfuerzo low|high) leÃ­do con
+  DOS evaluadores** sobre las mismas muestras, celdas **intercaladas por tarea**
+  para que un corte por reloj deje el diseÃ±o balanceado. La regla
+  pre-registrada es sobre **el derecho a comparar**: solo se pone un nÃºmero
+  mÃ­o al lado del 70 si sale de la celda (prompt oficial, esfuerzo high, juez
+  oficial, ventana del solape) **y la frase enumera las diferencias residuales
+  en la misma lÃ­nea**. Si esa celda no llega a correrse, **no se compara y se
+  dice**.
+

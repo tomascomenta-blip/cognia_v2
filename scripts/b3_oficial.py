@@ -61,6 +61,18 @@ _FMT_STDIN = (
 SEG_POR_TEST_OFICIAL = 6
 MARGEN_OFICIAL = 5
 
+# TOPE DE TAMAÑO DEL LOTE, y por qué existe (medido el 2026-07-31).
+# El juez oficial no capa nada, y 37 de 167 tareas traen >1 MB de entradas
+# (máximo 19 MB): son tests de RENDIMIENTO. Serializar ese lote a JSON para el
+# subproceso se come cientos de MB y minutos de reloj — una corrida se quedó
+# 12 minutos en una sola muestra, con el proceso hijo a 849 MB.
+# No se puede replicar su infraestructura en esta máquina, así que **se
+# declara**: por encima de este tope la muestra NO se juzga y se marca
+# `demasiado_grande`. Es un límite del banco de pruebas, no un veredicto sobre
+# el modelo, y el análisis lo cuenta aparte en vez de disfrazarlo de fallo.
+MAX_BYTES_LOTE = 8_000_000
+SEG_MAX_LOTE = 120
+
 
 def prompt_oficial(t: dict) -> str:
     """El template literal de lcb_runner. La diferencia con `prompt_lcb` (el
@@ -96,10 +108,16 @@ def juzga_oficial(code: str, t: dict, casos: list = None) -> tuple:
         return False, "sin_codigo"
     if not casos:
         return False, "sin_tests"
+    bytes_lote = sum(len(c.get("input") or "") + len(c.get("output") or "")
+                     for c in casos)
+    if bytes_lote > MAX_BYTES_LOTE:
+        return False, f"demasiado_grande:{bytes_lote}"
     modo = "functional" if (casos[0].get("testtype") == "functional"
                             or t.get("func_name")) else "stdin"
-    # la fórmula LITERAL del oficial: (timeout + 1) * n_casos + 5
-    tope = (SEG_POR_TEST_OFICIAL + 1) * len(casos) + MARGEN_OFICIAL
+    # la fórmula LITERAL del oficial: (timeout + 1) * n_casos + 5, pero con un
+    # techo de pared propio: sin él una sola muestra se lleva el reloj.
+    tope = min(SEG_MAX_LOTE,
+               (SEG_POR_TEST_OFICIAL + 1) * len(casos) + MARGEN_OFICIAL)
     res, motivo = _ejecuta_lote(code, casos, modo, t.get("func_name", ""),
                                 timeout=tope, parar_al_fallar=True)
     return (all(res) and len(res) == len(casos)), motivo
