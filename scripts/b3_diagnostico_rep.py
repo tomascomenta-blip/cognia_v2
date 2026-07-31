@@ -65,3 +65,20 @@ print(dict(Counter(m["brazo"] for m in gen)))
 print(f"instrumento: {sum(1 for m in gen if m['instrumento'])}  "
       f"se rinde: {sum(1 for m in gen if m.get('sin_codigo_modelo'))}  "
       f"cortes: {sum(1 for m in d['muestras'] if m.get('no_generado'))}")
+
+# ¿Se rinde MÁS cuando se le pide reparar? Es mecanismo, no un corte post-hoc:
+# si el prompt de reparación dispara la negativa, el brazo REP se queda sin
+# cadena y gasta MENOS cómputo que BoN — o sea, el experimento deja de ser
+# iso-cómputo por una razón que hay que nombrar.
+print(f"\n--- ¿se rinde mas al REPARAR? (por brazo) ---")
+for b in ("raiz", "bon", "rep", "pla"):
+    sub = [m for m in gen if m["brazo"] == b]
+    if not sub:
+        continue
+    r = sum(1 for m in sub if m.get("sin_codigo_modelo"))
+    print(f"  {b:<5} {r:>3}/{len(sub):<4} = {r/len(sub):>5.1%}   "
+          f"tokens de salida {sum(m.get('tok_salida') or 0 for m in sub):>7}")
+cortes = [m for m in d["muestras"] if m.get("no_generado")]
+print(f"\n--- cortes de cadena, por brazo y motivo ---")
+print(dict(Counter((m["brazo"], m.get("corte") or m.get("instrumento"))
+                   for m in cortes)))
