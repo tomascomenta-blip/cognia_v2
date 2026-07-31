@@ -59,6 +59,9 @@ EXEC_TIMEOUT = 8                # segundos por lote de asserts (MBPP)
 SEG_POR_TEST = 6                # LCB: presupuesto POR TEST (su estándar)
 TOPE_LOTE = 240                 # techo de pared del lote, pase lo que pase
 LCB_VISIBLES = 5                # privados sorteados que ve el selector
+MAX_BYTES_CASO = 100_000        # ENMIENDA 2: casos mayores son tests de
+MAX_OCULTOS = 15                # RENDIMIENTO y se comen el reloj (ver
+                                # tests_lcb); aquí se mide SELECCIÓN.
 
 # MBPP: dos tareas del slice 11-510 cuya solución de REFERENCIA no pasa sus
 # propios asserts (180: precisión de float; 367: le falta test_setup_code).
@@ -391,13 +394,23 @@ def tests_lcb(t: dict, rng: random.Random) -> tuple:
     aparecen en ningún prompt: **5 sorteados con semilla fija como VISIBLES,
     el resto como OCULTOS**, disjuntos por construcción.
     """
-    priv = list(t["privados"])
+    # ENMIENDA 2: se descartan los casos con entrada > MAX_BYTES_CASO y se
+    # capan los ocultos a MAX_OCULTOS. Motivo medido: 37 de 167 tareas (22%)
+    # traen >1 MB de entradas ocultas (máx 19 MB) — son tests de RENDIMIENTO,
+    # y a 210 s de tope por lote se comían el reloj de la noche (ritmo
+    # observado: 0.57 muestras/min, ~17 h para la corrida).
+    # Aquí se mide SELECCIÓN, no eficiencia, y el mismo recorte se aplica a
+    # los cuatro brazos, así que no sesga el contraste. Todas las muestras
+    # se RE-JUZGAN con este criterio al final, para que el instrumento sea
+    # uniforme en toda la corrida.
+    priv = [c for c in t["privados"]
+            if len(c.get("input") or "") <= MAX_BYTES_CASO]
     if len(priv) < LCB_VISIBLES + 2:
         return [], []                      # sin margen para partir
     idx = list(range(len(priv)))
     rng.shuffle(idx)
     vis = [priv[i] for i in idx[:LCB_VISIBLES]]
-    oc = [priv[i] for i in idx[LCB_VISIBLES:]]
+    oc = [priv[i] for i in idx[LCB_VISIBLES:LCB_VISIBLES + MAX_OCULTOS]]
     return vis, oc
 
 

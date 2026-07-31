@@ -380,6 +380,8 @@ intentos, ningún otro corte** (ni plataforma, ni fecha, ni `starter_code`).
 
 #### 1.9 — Lo que la revisión confirmó que está BIEN
 
+_(sigue en la ENMIENDA 2, más abajo)_
+
 - La banda de admisión es **bilateral**: ninguna transformación monótona la
   cruza en una sola dirección. Es justo el diseño correcto contra el fallo de
   la poda del 2026-07-30.
@@ -391,3 +393,58 @@ intentos, ningún otro corte** (ni plataforma, ni fecha, ni `starter_code`).
   yo"**, que era el vicio de las 10 vías.
 - La política del selector citada coincide **literalmente** con
   `bon.py:157-160`.
+
+---
+
+### ENMIENDA 2 — 2026-07-31 ~22:02, por COSTE de reloj (no por resultado)
+
+**Qué se cambia:** en B-LCB se descartan los casos de test con entrada
+`> 100 KB` y se capan los OCULTOS a **15** por tarea (los VISIBLES siguen
+siendo 5).
+
+**Por qué, con el número que lo motivó.** El ritmo se desplomó a **0.57
+muestras/min** (≈17 h para la corrida, que no cabe en la ventana). Causa
+medida, no supuesta:
+
+```
+bytes de entradas OCULTAS por tarea (167 tareas, sin cap):
+  mediana 28.771 · p75 547.796 · p90 5.304.919 · max 19.097.371
+  tareas con >1 MB: 37/167 (22%)
+```
+
+Esas 37 tareas son **tests de RENDIMIENTO**: con 35 casos de varios MB, cada
+lote agotaba su tope de 210 s aunque el código fuera correcto. Ejemplo real de
+la corrida: la muestra `3674` costó **249 s**.
+
+**Por qué NO invalida el contraste:**
+
+- Aquí se mide **SELECCIÓN, no eficiencia**. Un código correcto pero lento
+  dejaba de contar como correcto por una razón que no es la que se estudia.
+- El recorte se aplica **idéntico a los cuatro brazos** (control, azar, BoN,
+  techo), así que no puede favorecer a ninguno.
+- **TODAS las muestras se RE-JUZGAN con este criterio al final**
+  (`b3_resplit.py` con el split original, sobre el código ya guardado), de
+  modo que el instrumento es **uniforme en toda la corrida**. No hay mezcla
+  de muestras juzgadas con criterios distintos: la generación no se repite,
+  solo el juicio.
+- El cambio se decide **por el reloj y por el tamaño de las entradas**, dos
+  cantidades que **no dependen del veredicto**. Lo único que se había mirado
+  del prefijo era la comprobación de instrumento (pass@1 56.2%, sin fallos de
+  juez), nunca el neto.
+
+**Efecto del cap, verificado antes de reanudar:**
+
+```
+                     antes            despues
+p90 de bytes         5.304.919        102.134
+maximo               19.097.371       349.322
+tareas con >1 MB     37/167           0/167
+tareas utilizables   167              167     (sin cambio)
+ocultos por tarea    26-35            15 (uniforme)
+```
+
+**Límite declarado:** con 15 casos ocultos el juez es más laxo que con 35, así
+que el `pass@1` absoluto de B-LCB **sube** respecto a lo que daría LCB oficial,
+y **no es comparable con ninguna tabla publicada** — cosa que la enmienda 1.8
+ya prohibía por otras tres razones. El contraste BoN-vs-AZAR, que es lo que
+decide, no se ve afectado.

@@ -57,12 +57,20 @@ def _brazos(tareas: dict, k: int) -> dict:
     # un sorteo metería ruido gratis en la primaria.
     azar = sum(sum(1 for m in v if m["pasa_oc"]) / k for v in tareas.values())
 
-    # AZAR-VÁLIDAS: uniforme entre las muestras que al menos pasan UN test
-    # visible. Separa "el selector ELIGE entre candidatos plausibles" de "el
-    # selector solo DESCARTA lo que no compila" — que sería otra vez detectar
-    # INACTIVIDAD en vez de incorrección.
-    azar_val = 0.0
+    # DOS nulos por encima del simple, y NO son lo mismo:
+    #
+    #   AZAR-CON-CÓDIGO : uniforme entre las que produjeron código extraíble.
+    #       Es el análogo exacto del `con_html` del BoN web. Mide cuánto se
+    #       gana SOLO por descartar basura, sin mirar el examen.
+    #   AZAR-1-TEST     : uniforme entre las que pasan >=1 test visible.
+    #       OJO: este YA USA EL EXAMEN, así que no es "descartar basura" — es
+    #       un selector débil. Su hueco contra el BoN mide cuánto añade
+    #       exigir TODOS los visibles sobre exigir solo el primer bit de
+    #       señal. Confundirlos sería firmar una interpretación falsa.
+    azar_cod = azar_val = 0.0
     for v in tareas.values():
+        con_cod = [m for m in v if not m["instrumento"]] or v
+        azar_cod += sum(1 for m in con_cod if m["pasa_oc"]) / len(con_cod)
         vivas = [m for m in v if m["vis_ok"] > 0] or v
         azar_val += sum(1 for m in vivas if m["pasa_oc"]) / len(vivas)
 
@@ -84,6 +92,7 @@ def _brazos(tareas: dict, k: int) -> dict:
 
     return {"n": len(tareas), "control": control, "azar": azar, "bon": bon,
             "techo": techo, "p95": p95, "p": p, "vive": bool(bon > p95),
+            "azar_con_codigo": azar_cod,
             "azar_validas": azar_val, "p95_validas": p95_v, "p_validas": p_v,
             "vive_validas": bool(bon > p95_v)}
 
@@ -159,10 +168,13 @@ def analiza(res: dict, etiqueta: str) -> dict:
         print(f"  P(azar >= BoN)               : {_fmt_p(L['p'])}")
         print(f"  VEREDICTO (BoN > p95 nulo)   : "
               f"{'VIVE' if L['vive'] else 'NO SUPERA EL NULO'}")
-        print(f"  -- control anti-'solo descarta basura' --")
-        print(f"  AZAR-VÁLIDAS (>=1 test vis.) : {L['azar_validas']:.2f}"
-              f"   p95 {L['p95_validas']}")
-        print(f"  NETO BoN - AZAR-VÁLIDAS      : "
+        print(f"  -- los otros dos nulos (NO son lo mismo) --")
+        print(f"  AZAR-CON-CÓDIGO (descarta basura, sin mirar el examen)")
+        print(f"     {L['azar_con_codigo']:.2f}   neto "
+              f"{L['bon'] - L['azar_con_codigo']:+.2f}")
+        print(f"  AZAR-1-TEST (>=1 visible; YA USA EL EXAMEN, es un selector"
+              f" débil)")
+        print(f"     {L['azar_validas']:.2f}   p95 {L['p95_validas']}   neto "
               f"{L['bon'] - L['azar_validas']:+.2f}   "
               f"P {_fmt_p(L['p_validas'])}   "
               f"{'VIVE' if L['vive_validas'] else 'NO supera este nulo'}")
@@ -201,7 +213,35 @@ def analiza(res: dict, etiqueta: str) -> dict:
           f"por PÁGINA contra un juez a mano; esto es por MUESTRA y "
           f"tests-contra-tests. Descriptiva interna del banco.]")
 
+    # --- desglose por dificultad (solo LCB): ¿discrimina en algún estrato? ---
+    estratos = {}
+    if res.get("banco") == "lcb":
+        try:
+            sys.path.insert(0, str(RAIZ / "scripts"))
+            from b3_codigo import carga_lcb
+            meta = {str(t["task_id"]): t for t in carga_lcb()}
+            print(f"  --- por DIFICULTAD (¿discrimina en algún estrato?) ---")
+            for dif in ("easy", "medium", "hard"):
+                sub = {t: v for t, v in tareas.items()
+                       if meta.get(t, {}).get("dificultad") == dif}
+                if len(sub) < 5:
+                    continue
+                E = _brazos(sub, k)
+                p1 = sum(1 for v in sub.values() for m in v
+                         if m["pasa_oc"]) / (len(sub) * k)
+                estratos[dif] = {"n": E["n"], "pass1": round(p1, 3),
+                                 "azar": round(E["azar"], 2), "bon": E["bon"],
+                                 "techo": E["techo"], "p": E["p"],
+                                 "vive": E["vive"]}
+                print(f"  {dif:<7} n={E['n']:>3}  pass@1 {p1:>5.1%}  "
+                      f"AZAR {E['azar']:>6.2f}  BoN {E['bon']:>3}  "
+                      f"TECHO {E['techo']:>3}  neto {E['bon']-E['azar']:+6.2f}"
+                      f"  P {_fmt_p(E['p'])}")
+        except Exception as exc:
+            print(f"  [desglose por dificultad no disponible: {exc}]")
+
     return {"etiqueta": etiqueta, "banco": res["banco"], "n": n, "k": k,
+            "estratos": estratos,
             "pass1": round(pass1, 4), "admite": bool(admite),
             "cuenta_como_replica": bool(admite and res["banco"] != "mbpp"),
             "instrumento_gen": inst, "instrumento_juez": inst_juez,
