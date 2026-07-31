@@ -135,6 +135,19 @@ un artefacto: `easy +2.25 (P=0.039, banco saturado al 94.8%) · medium +7.25
 menudo**, y el estrato `hard` solo (pass@1 24.7%) da recorrido para varias
 sesiones.
 
+**3-bis. Y REPLICA con otro examen, que es lo que lo convierte en mecanismo.**
+Se re-juzgaron las MISMAS 668 muestras con otro sorteo del split (semilla
+21730), sin repetir una sola generación:
+
+| | original | réplica |
+|---|---|---|
+| AZAR | 85.00 | 85.50 |
+| **BoN** | **106** | **104** |
+| neto vs AZAR | **+21.00** (P<1e-4) | **+18.50** (P<1e-4) |
+| neto vs AZAR-1-TEST | **+17.67** (P<1e-4) | **+14.00** (P<1e-4) |
+
+Con `hard` **idéntico** en las dos (+13.00). El neto no depende del sorteo.
+
 **4. Lo que este resultado NO dice.** Nada sobre el pass@1 absoluto frente a
 tablas publicadas: el prompt, el evaluador y el cap de tests son míos.
 Y **el BoN sigue necesitando TESTS**: en el dominio web, donde no los hay, el

@@ -10773,3 +10773,59 @@ su juez es `subprocess + timeout`, no Playwright: se acabaron los cuelgues.
     la enmienda 1.8 ya prohibió esa comparación. Y sigue siendo un selector
     que necesita **tests**: en el dominio web, donde no los hay, el cuello
     (fabricar señal para tareas nuevas) **no se ha movido**.
+
+16. **LA RÉPLICA CONFIRMA: es un mecanismo, no una tirada del sorteo.** El
+    neto de B-LCB depende de qué 5 casos privados cayeron del lado VISIBLE.
+    Si solo existiera con ese sorteo, no sería un selector. Se re-juzgaron
+    **las mismas 668 muestras con OTRO split** (semilla 21730), sin repetir
+    una sola generación — apareado perfecto: mismo modelo, mismo minuto, lo
+    único que cambia es el EXAMEN.
+
+    | | original (20260730) | réplica (21730) |
+    |---|---|---|
+    | pass@1 | 51.8% | 52.1% |
+    | discriminantes | 53/167 (32%) | 57/167 (34%) |
+    | AZAR | 85.00 | 85.50 |
+    | **BoN** | **106** | **104** |
+    | TECHO | 110 | 112 |
+    | **neto vs AZAR** | **+21.00** (P<1e-4) | **+18.50** (P<1e-4) |
+    | **neto vs AZAR-1-TEST** | **+17.67** (P<1e-4) | **+14.00** (P<1e-4) |
+
+    Y el desglose por dificultad reproduce el patrón, con `hard` **idéntico**:
+    `easy +2.25→+1.50 · medium +7.25→+5.50 · hard +13.00→+13.00`.
+    *(La réplica NO lleva la recuperación de muestras del punto 17, así que
+    sus 36 fallos de instrumento cuentan como fallo: es la lectura
+    conservadora, y aun así vive con holgura.)*
+
+17. **UN FALLO DE INSTRUMENTO QUE HABRÍA FALSEADO EL NÚMERO, cazado por
+    mirarlo en vez de firmarlo.** El primer análisis daba **20.4% de fallos
+    de instrumento del juez**, y el grueso eran **107 muestras (16%) con
+    `sin_sentinel`**: el subprocess del arnés no llegó a imprimir ni una
+    línea. **Reproducido A MANO uno de esos casos: funciona perfectamente**
+    (`rc=0`, sentinel presente) ⇒ **no era una propiedad del código juzgado,
+    era transitorio del entorno** (el harness mató procesos de fondo en esa
+    ventana). Contarlas como fallo habría sido facturar INSTRUMENTO al
+    modelo — el error que esta misma sesión ya cazó tres veces en el arnés.
+    Se re-juzgaron **solo esas** (`scripts/b3_recuperar.py`):
+
+    ```
+    recuperadas 102/116 · instrumento del juez 20.4% -> 2.1% · 48 VEREDICTOS CAMBIAN
+    pass@1 44.6% -> 51.8%      neto BoN-AZAR +14.00 -> +21.00
+    ```
+
+    **Sin esa comprobación habría publicado un pass@1 siete puntos por debajo
+    del real y un neto un tercio menor.** El resultado ya vivía con los datos
+    sucios (+14.00, P<1e-4), así que no cambia el veredicto — cambia el
+    número, y el número se firma.
+
+18. **TABLA FINAL DE LA SESIÓN.**
+
+    | banco | n | pass@1 | banda | discrim. | s1 | AZAR | BoN | techo | neto vs AZAR | P | neto vs AZAR-1-TEST | P | ¿réplica? |
+    |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+    | MBPP | 200 | 76.4% | sí | 18% | 155 | 152.25 | 163 | 169 | +10.75 | <1e-4 | +2.17 | 0.177 | no (humo) |
+    | **B-LCB** | **167** | **51.8%** | **sí** | **32%** | 91 | 85.00 | **106** | 110 | **+21.00** | **<1e-4** | **+17.67** | **<1e-4** | **SÍ** |
+    | B-LCB réplica | 167 | 52.1% | sí | 34% | 89 | 85.50 | 104 | 112 | +18.50 | <1e-4 | +14.00 | <1e-4 | SÍ |
+
+    El contraste entre las dos primeras filas es el resultado: **en MBPP el
+    BoN solo cobra el primer bit de señal (+2.17 contra el nulo que ya usa el
+    examen, no significativo); en B-LCB elige de verdad (+17.67, P<1e-4).**

@@ -448,3 +448,31 @@ que el `pass@1` absoluto de B-LCB **sube** respecto a lo que daría LCB oficial,
 y **no es comparable con ninguna tabla publicada** — cosa que la enmienda 1.8
 ya prohibía por otras tres razones. El contraste BoN-vs-AZAR, que es lo que
 decide, no se ve afectado.
+
+---
+
+### ENMIENDA 3 — 2026-07-31 ~00:17, réplica INDEPENDIENTE de generación
+
+**Declarada como POST-HOC, porque lo es:** se decide DESPUÉS de ver el
+resultado de B-LCB. Se registra aquí para que nadie la lea como
+pre-registrada.
+
+**Qué falta y por qué.** El `+21.00` está replicado contra **otro examen**
+(otro sorteo del split, +18.50), pero las **muestras son las mismas**. La
+memoria `varianza-entre-corridas` mide ±34 puntos entre corridas del mismo
+lazo, así que una réplica que no vuelve a generar **no controla esa fuente**.
+
+**Qué se corre:** el estrato `hard` (73 tareas × K=4 = 292 muestras),
+**generación nueva**, con el **mismo examen** (el split es determinista por
+tarea, así que no cambia). Eso aísla la varianza de GENERACIÓN.
+
+**Por qué `hard` y no el banco entero:** es donde el efecto vive (+13.00 en
+las dos réplicas de examen) y donde el banco tiene recorrido (pass@1 24.7%);
+`easy` está saturado al 94.8% y no puede informar. **Elegir el estrato después
+de ver los datos es un grado de libertad, y por eso el resultado de esta
+enmienda NO puede leerse como una confirmación independiente del +21.00
+global** — solo dice si el efecto en `hard` sobrevive a volver a generar.
+
+**Análisis:** idéntico y ya pre-registrado (primaria = neto BoN−AZAR sobre
+tareas sin fallo de instrumento, contra el p95 del nulo apareado, y los tres
+nulos). **Se reporta salga como salga.**

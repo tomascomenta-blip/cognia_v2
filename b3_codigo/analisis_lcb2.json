@@ -1,0 +1,85 @@
+[
+ {
+  "etiqueta": "lcb_split2",
+  "banco": "lcb",
+  "n": 167,
+  "k": 4,
+  "estratos": {
+   "easy": {
+    "n": 43,
+    "pass1": 0.942,
+    "azar": 40.5,
+    "bon": 42,
+    "techo": 43,
+    "p": 0.2025,
+    "vive": false
+   },
+   "medium": {
+    "n": 51,
+    "pass1": 0.559,
+    "azar": 28.5,
+    "bon": 34,
+    "techo": 36,
+    "p": 0.0027,
+    "vive": true
+   },
+   "hard": {
+    "n": 73,
+    "pass1": 0.247,
+    "azar": 18.0,
+    "bon": 31,
+    "techo": 36,
+    "p": 0.0,
+    "vive": true
+   }
+  },
+  "pass1": 0.521,
+  "admite": true,
+  "cuenta_como_replica": true,
+  "instrumento_gen": 20,
+  "instrumento_juez": 36,
+  "lotes_expirados": 10,
+  "muestras": 668,
+  "discriminantes": 57,
+  "empate_visibles": 80,
+  "todo": {
+   "n": 167,
+   "control": 90,
+   "azar": 87.0,
+   "bon": 107,
+   "techo": 115,
+   "p95": 93,
+   "p": 0.0,
+   "vive": true,
+   "azar_con_codigo": 87.5,
+   "azar_validas": 92.5,
+   "p95_validas": 98,
+   "p_validas": 0.0,
+   "vive_validas": true
+  },
+  "primaria_limpias": {
+   "n": 150,
+   "control": 89,
+   "azar": 85.5,
+   "bon": 104,
+   "techo": 112,
+   "p95": 91,
+   "p": 0.0,
+   "vive": true,
+   "azar_con_codigo": 85.5,
+   "azar_validas": 90.0,
+   "p95_validas": 95,
+   "p_validas": 0.0,
+   "vive_validas": true
+  },
+  "neto_bon_azar": 20.0,
+  "neto_bon_control": 17,
+  "perdida_selector": 8,
+  "examen": {
+   "acusa_sanos": 0.9,
+   "deja_pasar": 16.2,
+   "youden_j": 82.9,
+   "nota": "no comparable con el contrato interno"
+  }
+ }
+]
