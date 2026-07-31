@@ -93,6 +93,10 @@ def main():
     ap.add_argument("--max-tokens", dest="max_tokens", type=int, default=15000)
     ap.add_argument("--sufijo", default="")
     ap.add_argument("--sonda", action="store_true")
+    ap.add_argument("--minutos", type=int, default=0,
+                    help="corte por RELOJ: para ANTES de empezar una tarea "
+                         "nueva, para que el diseno quede BALANCEADO (las 4 "
+                         "celdas de cada tarea, o ninguna)")
     ap.add_argument("--reanudar", action="store_true")
     args = ap.parse_args()
 
@@ -144,6 +148,10 @@ def main():
     for i, t in enumerate(tareas):
         if t["_id"] in hechas:
             continue
+        if args.minutos and (time.time() - t0) / 60 >= args.minutos:
+            print(f"[fac] CORTE POR RELOJ a los {args.minutos} min con "
+                  f"{len(hechas)} tareas de 4 celdas", flush=True)
+            break
         oficiales = casos_oficiales(t)
         for prom, esf in CELDAS:
             ts = time.time()
@@ -180,6 +188,7 @@ def main():
                 "crudo": texto[:6000],
             })
             guardar()
+        hechas.add(t["_id"])
         n_h = len({m["tarea"] for m in res["muestras"]})
         ms = res["muestras"]
         trunc = sum(1 for m in ms
