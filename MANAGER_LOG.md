@@ -11375,3 +11375,57 @@ ejes explican **~3 puntos**. El resto tiene que estar en el **esfuerzo**, en la
 **ventana** y en **k=1 contra sus 3 muestras** â€” y el esfuerzo es, por lo
 medido hoy, el candidato grande.
 
+
+### ATERRIZAJE 11:55 â€” estado exacto y cÃ³mo se reanuda
+
+| corrida | estado | fichero |
+|---|---|---|
+| `lcb_r2` (rÃ©plica de generaciÃ³n, banco global) | **COMPLETA 668/668**, pass@1 52.4% | `b3_codigo/lcb_r2.json` |
+| Re-juicio SIN FUGA del banco de anoche | **COMPLETO**, 80 muestras, 3 veredictos cambian | `b3_codigo/lcb_sinfuga.json` |
+| Eje EVALUADOR (juez oficial de LCB) | **COMPLETO 668/668** | `b3_codigo/lcb_juez_oficial.json` |
+| **ReparaciÃ³n 3 brazos** (`hard`) | **135 de 138 tareas**, corte por reloj pre-registrado | `b3_codigo/reparacion.json` |
+| Factorial, eje PROMPT (2 celdas) | **COMPLETO 60/60**, 120 muestras | `b3_codigo/factorial.json` |
+| Sonda ESFUERZO `high` (timeout 300 s) | 11 tareas, **7 muertas por mi timeout** | `b3_codigo/factorial_high.json` |
+| Sonda ESFUERZO `high` (timeout 1500 s) | 4 tareas, **2 truncan a 60.000 tokens** | `b3_codigo/factorial_high2.json` |
+| AnÃ¡lisis | 3 ficheros | `b3_codigo/analisis_{reparacion,factorial,sinfuga}.json` |
+
+**Reanudaciones (los comandos exactos, con lo que es OBLIGATORIO fijar):**
+
+```
+:: reparacion â€” quedan 3 tareas de 138
+venv312\Scripts\python.exe scripts\b3_reparacion.py --n 154 --minutos 30 ^
+    --pared 240 --reanudar
+
+:: sonda de esfuerzo high â€” EXIGE n_ctx 65536 en el backend y el timeout subido
+venv312\Scripts\python.exe scripts\servir_modelo.py --modelo gpt-oss ^
+    --sin-draft --ctx 65536
+set COGNIA_TIMEOUT_HTTP=1500
+venv312\Scripts\python.exe scripts\b3_factorial.py --n 24 --minutos 120 ^
+    --max-tokens 60000 --pared 1500 --celdas oficial_high --sufijo _high2 ^
+    --reanudar
+```
+
+**`--ficheros` NO hace falta en `b3_reparacion.py`** (lo lleva fijado por
+defecto a `lcb_test5,lcb_test6`), pero **el backend a 65536 sÃ­ es obligatorio**
+para la sonda `high`: con menos, lo que se mide es el contexto, no el modelo.
+
+**Lo primero de la prÃ³xima sesiÃ³n, por valor:**
+
+1. **La reparaciÃ³n con FALLBACK.** El resultado de hoy dice que reparar no bate
+   a remuestrear, pero tambiÃ©n que **el contraejemplo triplica la negativa del
+   modelo (5.3% â†’ 15.8%) y corta 34 cadenas**. Una cadena que cae de vuelta a
+   generaciÃ³n fresca cuando el modelo se niega es un experimento distinto y
+   barato (el arnÃ©s ya estÃ¡), y es el Ãºnico cabo suelto de la vÃ­a.
+2. **El eje ESFUERZO, que es el candidato grande.** EstÃ¡ medido cuÃ¡nto cuesta:
+   **~9,5 min/muestra y 2 de cada 4 problemas `hard` se pasan de 60.000 tokens**.
+   Con 24 tareas Ã— 1 muestra son ~4 h de una sesiÃ³n nocturna; con eso el eje
+   queda cerrado y **se sabrÃ¡ si el derecho a comparar se gana o no**.
+3. **Y una advertencia que se ganÃ³ a pulso hoy:** antes de atribuir cualquier
+   lÃ­mite al hardware, **medir el hardware**. Hoy hicieron falta tres capas
+   â€”cap de tokens, `n_ctx`, `TIMEOUT_HTTP`â€” para llegar al modelo, y las tres
+   se leÃ­an igual desde fuera.
+
+**Estado del Ã¡rbol:** limpio, **0 commits sin pushear**. Suite completa verde
+en cada commit con cÃ³digo (**5495 passed, 1 skipped**, corrida dos veces).
+**0 chromium** en toda la sesiÃ³n. Backend bajado al cerrar.
+
