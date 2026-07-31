@@ -1,0 +1,4579 @@
+{
+ "inventado": [
+  {
+   "tarea": "descuento_tramos",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al introducir 5 unidades, total sin descuento es 50.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al introducir 15 unidades, primer tramo sin descuento y segundo con 10% de descuento, total 145.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al introducir 60 unidades, tres tramos aplicados, total 540.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total se actualiza en tiempo real al cambiar la cantidad",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total siempre muestra dos decimales",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El input #cant permite valores numéricos positivos y se actualiza al escribir",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Ingresar 60 en #cant y verificar total actualizado a 540.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Ingresar 10 en #cant y verificar total actualizado a 100.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Ingresar 5 unidades y verificar total sin descuento",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Ingresar 15 unidades y verificar descuento del 10% en tramo",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Introduce 5 unidades y espera recalculo",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verifica que el total sea 50.00 (5*10)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Introduce 15 unidades y espera recalculo",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verifica que el total sea 140.00 (10*10 + 5*9)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Introduce 60 unidades y espera recalculo",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verifica que el total sea 540.00 (10*10 + 40*9 + 10*8)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Confirmar estado inicial del botón deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar contraseña corta y verificar botón sigue deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar contraseña válida y distinta a la segunda, botón deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar contraseñas iguales y edad fuera de rango, botón deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar contraseñas iguales y edad dentro de rango, botón habilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que el botón permanece habilitado al cambiar solo la edad fuera de rango",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Restablecer edad dentro de rango y confirmar botón habilitado nuevamente",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar contraseña de 8 caracteres",
+   "critico": true,
+   "n_sanas": 40,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar contraseña repetida igual",
+   "critico": true,
+   "n_sanas": 32,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar edad dentro del rango permitido",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Cambiar edad fuera del rango y comprobar botón deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar edad dentro del rango (30)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que botón se habilita",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Confirmar que el botón está inicialmente deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar una contraseña de 7 caracteres y verificar que el botón sigue deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar una contraseña de 8 caracteres y una confirmación distinta, verificar botón deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar la misma contraseña de 8 caracteres en ambos campos y edad 17, verificar botón deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar la misma contraseña de 8 caracteres en ambos campos y edad 18, verificar botón habilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Cambiar la contraseña a 7 caracteres y verificar que el botón se deshabilita nuevamente",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar una contraseña de 8 caracteres, confirmación igual, edad 120, verificar botón habilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar resultado 14",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Resultado correcto 14",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Contar operadores visibles",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar resultado 14 en pantalla",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Estado inicial de la pantalla vacía",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Evaluar expresión 2+3*4 con precedencia",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Limpiar pantalla con botón C",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 30,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la longitud aumentó en 1",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que el estado inicial expuesto en window.juego sea correcto",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la serpiente se haya desplazado una celda a la derecha",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la longitud de la serpiente haya aumentado en 1 y que el estado expuesto se actualice",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la serpiente se haya movido una celda a la derecha",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El campo de búsqueda filtra por nombre y vuelve a página 1 con filas filtradas visibles",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Al filtrar después de ordenar, la paginación se recalcula y vuelve a página 1 con filas filtradas visibles",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 25,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Estado inicial correcto",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Reinicia el juego (simulando recarga) y verifica que el estado vuelve a X y todas las casillas están vacías",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Llena todas las casillas sin línea y verifica que #estado contiene \"empate\"",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Confirmar que #estado contiene \"empate\" cuando todas las casillas están llenas sin ganador",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Completar una línea horizontal con X y verificar que el estado indica ganancia y las casillas quedan bloqueadas",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Intentar marcar una casilla después de ganar y verificar que no cambia",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Reiniciar juego y llenar todas las casillas sin línea para verificar empate",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que después de empate no se pueden marcar casillas adicionales",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que el número de casillas visibles es 9 y que ninguna muestra texto después de la victoria",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Reiniciar el juego (si aplica) y verificar que el estado vuelve a X y todas las casillas están vacías",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 49,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Estado inicial: botón undo deshabilitado",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Estado inicial: botón redo deshabilitado",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar elemento 'A'",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista contiene un elemento con texto 'A'",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Deshacer la última acción",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Rehacer la acción deshecha",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista contiene de nuevo el elemento 'A'",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar nuevo elemento 'B' después de un undo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista contiene 'A' y 'B' y que el botón redo está deshabilitado",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Deshacer la última acción (el agregado de 'B')",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista contiene solo 'A' y que el botón redo está habilitado",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar primer elemento",
+   "critico": true,
+   "n_sanas": 42,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que el elemento aparece",
+   "critico": true,
+   "n_sanas": 28,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Realizar undo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar nuevo elemento después del undo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Hacer clic en add y verificar que redo ya no está disponible",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Lista contiene un elemento",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Deshacer acción",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Rehacer acción",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Lista contiene el elemento nuevamente",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Deshacer la acción",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Rehacer la acción",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar nuevo elemento después de undo, invalidando redo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al ingresar 5 unidades el total es 50.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al ingresar 15 unidades el total es 135.00 (10*10 + 5*9)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al ingresar 60 unidades el total es 540.00 (10*10 + 40*9 + 10*8)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al introducir 5 unidades el total es 50.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al introducir 15 unidades el total es 140.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al introducir 60 unidades el total es 540.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total cambia cuando se modifica la cantidad",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total se muestra con dos decimales",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Valor inicial de cantidad es 0",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al ingresar 5 unidades, total es 50.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al ingresar 15 unidades, total es 145.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al ingresar 60 unidades, total es 540.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total se actualiza al cambiar la cantidad",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Ingresar 5 unidades y comprobar que el total sea 50.00 (sin descuento)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Ingresar 15 unidades y comprobar que el total sea 140.00 (10 unidades sin descuento + 5 con 10% de descuento)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Ingresar 60 unidades y comprobar que el total sea 540.00 (10 unidades sin descuento + 40 con 10% + 10 con 20%)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar que el total se actualiza al cambiar la cantidad sin recargar la página",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar confirmación igual a contraseña",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar edad válida (ej. 25)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Botón habilitado tras cumplir todas condiciones",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Botón vuelve habilitado al corregir contraseña a 8 caracteres",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que el botón se habilite tras las tres condiciones cumplidas",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que el botón sea clickeable",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que el botón no se deshabilite al cambiar una condición",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar una contraseña de 8 caracteres y verificar que el botón sigue deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar la misma contraseña en el segundo campo y verificar que el botón sigue deshabilitado porque la edad no está en rango",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar una edad fuera del rango (17) y verificar que el botón sigue deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar una edad dentro del rango (25) y verificar que el botón se habilita",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar edad mínima válida",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar botón habilitado tras cumplir condiciones",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Modificar edad fuera de rango",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Restablecer edad a rango válido y verificar botón habilitado nuevamente",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Los botones tienen los valores requeridos",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Al pulsar 2, 3, 4, +, *, = la pantalla muestra 14",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Estado inicial de pantalla vacío",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar que pantalla muestra 14",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Confirmar que la pantalla está vacía al inicio",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Coordenadas iniciales de la serpiente",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Al comer la comida, longitud aumenta en 1",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Estado inicial del tablero",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar atributos de la celda inicial",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Mover la serpiente a la derecha",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Comer la comida y crecer",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón \"prev\" no está visible en la primera página",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Al escribir \"Ana\" en el filtro, aparecen 2 filas y página 1",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Filtrar por nombre que no coincide con ninguna fila",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Después del filtro, se muestra 0 filas y página 1",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Después de ordenar, la primera fila visible tiene la edad mínima de los datos",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Aplicar filtro con texto que coincida con 5 nombres",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Verificar que la tabla muestra 5 filas filtradas y página 1",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Verificar que la primera fila filtrada tiene la edad mínima entre los 5",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar que el cronómetro no haya acelerado",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que la casilla con data-i=0 esté vacía al inicio",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que el estado inicial sea X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que la casilla con data-i=0 ahora contenga X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que el estado cambie a O después del clic",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que el estado contenga \"gana\" y que no se puedan marcar casillas adicionales",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Cuando se completa una línea de tres marcas iguales, el estado muestra la palabra \"gana\" y las casillas quedan bloqueadas",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Si se llenan las 9 casillas sin completar una línea, el estado muestra la palabra \"empate\"",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Confirmar que todas las casillas quedan bloqueadas tras ganar",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que el estado muestra la palabra 'gana'",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar nuevo elemento después de undo, invalidar redo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista contiene ambos elementos y redo no disponible",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Intentar click en redo y verificar que no cambia la lista",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista sigue con dos elementos",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que el elemento aparece en la lista",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que el elemento reaparece en la lista",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que el elemento reaparece tras redo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso 3 se atiende al instante",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso 1 cuando sube, se atiende después de 3",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Cambio de sentido cuando no hay pendientes arriba",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso 0 cuando baja se atiende inmediatamente",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Estado expuesto en window.asc actualizado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "No quedan llamadas pendientes tras atender todas",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso 3 se registra y se atiende al instante",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso 5 se registra y se atiende al siguiente paso",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Al avanzar al piso 5, la llamada se atiende y la dirección cambia a parado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso 2 se registra y se atiende al siguiente paso",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Al avanzar al piso 2, la llamada se atiende y la dirección cambia a parado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada a piso inferior se atiende al bajar",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "El ascensor atiende llamadas en sentido actual",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Cambio de sentido cuando no quedan llamadas en sentido actual",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso donde ya está se atiende al momento",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Estado expuesto en window.asc actualizado tras cada interacción",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Verificar evento añadido",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Verificar que no se añadió evento solapado",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Verificar aviso de conflicto",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Crear evento no solapado 10-12",
+   "critico": true,
+   "n_sanas": 20,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Verificar que se añadió evento no solapado",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Evento 9-10 añadido",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Evento 10-11 añadido",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Crear evento solapado 9-11",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Evento 10-12 añadido",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Evento 9-11 no añadido",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Aplicar cupón DESCUENTO20 y comprobar que el subtotal se reduce a 24 (20% de descuento)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Estado inicial del carrito",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Estado inicial del envío",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Estado inicial del total",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Aplicar cupón válido DESCUENTO20 y verificar descuento 20% y envío gratuito",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Estado inicial sin productos en carrito",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Agregar primer producto (30)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Agregar segundo producto (40)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Aplicar cupón inválido",
+   "critico": false,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Aplicar cupón válido DESCUENTO20",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Agregar tercer producto (50) para alcanzar 60 con descuento",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Eliminar primer producto (30) y verificar envío gratuito se mantiene",
+   "critico": false,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Limpiar cupon y verificar envío gratuito se vuelve 5",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar estado inicial del textarea",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Reemplazar todas las apariciones de \"gato\" por \"perro\"",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar que el reemplazo no afectó otros textos",
+   "critico": false,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Realizar otro reemplazo de \"perro\" por \"gato\"",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Deshacer el último reemplazo completo",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Escribir manualmente \"hola\" en el textarea",
+   "critico": false,
+   "n_sanas": 4,
+   "ruido_api": true
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Deshacer la escritura manual",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar reemplazo completo",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar estado restaurado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Estado inicial del textarea",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": true
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Confirmar estado inicial del textarea",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": true
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar que el texto se haya reemplazado correctamente",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar que el texto se haya revertido al estado inicial",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar que cada botón tiene el atributo data-k correcto",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Estado inicial: pantalla vacía",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Calcular (1+2)*3 = 9",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Calcular 2*(3+(4-1)) = 12",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Precedencia: 1+2*3 = 7",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Paréntesis anidados: (1+2)*(3+4) = 21",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar precio total tras pan",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar precio total tras pack",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Cantidad inicial de pan",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Cantidad inicial de leche",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Packs iniciales",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Total inicial",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar packs y total después de agregar pan",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar packs y total después de quitar pan",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Reservar 3 unidades",
+   "critico": true,
+   "n_sanas": 6,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Intentar reservar 8 unidades (rechazo)",
+   "critico": true,
+   "n_sanas": 6,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Reservar 2 unidades adicionales",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Ajustar stock a 12 (exitoso)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Intentar ajustar stock a 4 (rechazo)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Verificar que no haya reservas vacías",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Reservar 3 unidades aumenta reserva y reduce disponible",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Disponible actualizado a 7",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Ajustar stock a 15",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Intentar ajustar stock a 5 (rechazo)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Reservar 5 unidades",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Ajustar stock a 12 (aceptado)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Confirmar que los inputs de porcentaje existen y tienen valor inicial 30,30,40",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Cambiar el primer porcentaje a 50 y verificar que el cambio se rechaza y el input vuelve a 30",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": true
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Cambiar el primer porcentaje a 20 y verificar que el cambio se acepta y el input muestra 20",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": true
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar que el aviso se muestra con la palabra 'limite' cuando se intenta exceder 100",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Cambiar un porcentaje a 50 y verificar rechazo y aviso",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Confirmar que el input vuelve al valor anterior y aviso muestra \"limite\"",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": true
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Cambiar el primer porcentaje a 50 y esperar que se rechace por superar 100",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Confirmar que el aviso muestra la palabra 'limite' tras el rechazo",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Cambiar el primer porcentaje a 50 y verificar que el cambio sea rechazado y el aviso muestre 'limite'",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Cambiar el segundo porcentaje a 20 y verificar que el total libre sea 10 y los euros se actualicen correctamente",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Apuntar 3 personas a mañana",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Apuntar 4 personas a tarde, rechazado por capacidad",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Apuntar 3 personas a tarde, aceptado",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Reducir capacidad a 5, elimina último grupo de tarde",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Reducir capacidad a 2, elimina grupo de mañana",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Apuntar 2 personas a mañana, aceptado",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Apuntar 1 persona a tarde, aceptado",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Estado inicial correcto",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Agregar grupo que no excede capacidad",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Rechazar grupo que excede capacidad",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Reducir capacidad y eliminar grupos excedentes",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Agregar grupo en franja tarde",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Cambiar capacidad a 1 y eliminar grupo tarde",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Estado inicial: capacidad 6 y sin grupos",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Apuntar 4 personas a tarde",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Intentar apuntar 4 personas a mañana (excede capacidad)",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Reducir capacidad a 5",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Reducir capacidad a 2, eliminando grupos excedentes",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Apuntar 2 personas a mañana",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Cambiar franja a tarde y apuntar 1 persona",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Agregar grupo mañana con 3 personas",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Agregar grupo tarde con 4 personas, excediendo capacidad",
+   "critico": false,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Reducir capacidad a 4",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  }
+ ],
+ "correcto": [
+  {
+   "tarea": "descuento_tramos",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar existencia de selector obligatorio #cant",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar existencia de selector obligatorio #total",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar existencia del selector de cantidad",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar existencia del selector de total",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Esperar actualización del total y verificar 50.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Esperar actualización del total y verificar 135.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verifica que el selector obligatorio #cant exista",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verifica que el selector obligatorio #total exista",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar existencia de campos obligatorios",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que botón está deshabilitado al cargar",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que botón se habilita tras cumplir condiciones",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que botón vuelve a estar deshabilitado tras cambio de edad",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 56,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 56,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 56,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar existencia de pantalla",
+   "critico": true,
+   "n_sanas": 42,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Evaluar operación 2+3*4",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Confirmar pantalla vacía tras limpiar",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Evaluar expresión 2+3*4",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Ingresar expresión 2+3*4 y evaluar",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Ingresar +",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Ingresar 3",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Ingresar *",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Ingresar 4 y obtener 14",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Contar botones de número",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Contar botones de operador y funcionalidad",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 30,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 30,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 30,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Estado inicial correcto",
+   "critico": true,
+   "n_sanas": 15,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Solo una celda con comida",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Solo una celda con serpiente",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Variables de juego inicializadas",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Moverse a la derecha con flecha",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la serpiente se haya desplazado",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Comer comida y crecer",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar existencia de la cuadrícula y celdas",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la serpiente inicial ocupa una celda",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la comida inicial aparece en una celda distinta",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Mover la serpiente a la derecha con la flecha derecha",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Simular que la serpiente llega a la comida y crece",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar atributos data-x y data-y en celdas",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Estado inicial expuesto en window.juego",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Mover serpiente a la derecha con flecha",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Estado inicial muestra 10 filas y página 1",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón \"siguiente\" avanza a página 2 con 10 filas visibles",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón \"previo\" regresa a página 1 con 10 filas visibles",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón de ordenar alterna el orden por edad ascendente y muestra filas en ese orden",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón de ordenar alterna el orden por edad descendente y muestra filas en ese orden",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El número de página se actualiza correctamente al navegar entre páginas",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 25,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 25,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 25,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar estado inicial del cronómetro",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Iniciar el cronómetro",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Esperar 1 segundo y comprobar incremento",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar que el contador haya aumentado a 1",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Pulsar start nuevamente sin detener",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Esperar 1 segundo y comprobar que el contador haya aumentado solo 1 vez",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar que el contador sea 2",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Reiniciar el cronómetro y comprobar que vuelva a 0 y se detenga",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Esperar 1 segundo y verificar que el contador siga en 0",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar que el contador siga en 0",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Botones visibles",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Start inicia conteo",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Tiempo aumenta después de 1s",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Valor incrementado a 1",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Pause detiene conteo",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Valor permanece al esperar 1s",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Reset vuelve a 0 y detiene",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Valor es 0 tras reset",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verifica que existen 9 casillas con data-i 0-8",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Clic en la casilla 0 y verifica que se marca X y cambia turno a O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Clic en la casilla 1 y verifica que se marca O y cambia turno a X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Completa una línea horizontal con X y verifica que #estado contiene \"gana\"",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Intenta marcar una casilla después de ganar y verifica que no cambia",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar existencia de 9 casillas con data-i 0-8",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Hacer clic en la casilla con data-i 0 y verificar que se marca X y el estado cambia a O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Hacer clic en la casilla con data-i 4 y verificar que se marca O y el estado vuelve a X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Completar una línea horizontal con X en data-i 0,1,2 y verificar que #estado contiene \"gana\"",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que después de ganar no se pueden marcar casillas adicionales",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Reiniciar el juego y llenar todas las casillas sin línea para obtener empate",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar existencia de 9 casillas y estado inicial",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar existencia de 9 casillas con clase .c y data-i 0-8",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Hacer clic en la casilla con data-i 0 y verificar que se coloca X y el turno cambia a O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Hacer clic en la casilla con data-i 4 y verificar que se coloca O y el turno cambia a X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Completar una línea de tres X (casillas 0,1,2) y verificar que #estado contiene \"gana\" y que las casillas quedan bloqueadas",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Intentar hacer clic en una casilla ya marcada y verificar que no cambia el contenido",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 49,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 49,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 49,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Estado inicial: lista vacía y botones deshabilitados",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Hacer clic en add",
+   "critico": true,
+   "n_sanas": 49,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista está vacía y que el botón redo está habilitado",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Estado inicial vacío",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que el elemento desaparece y redo disponible",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Click add",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Lista vacía tras undo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Estado inicial: lista vacía",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Confirmar que la lista está vacía y redo disponible",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Hacer clic en add para nuevo elemento",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que redo ya no está disponible",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El input de cantidad está presente y es numérico",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El span de total está presente",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Existe el selector obligatorio #cant",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Existe el selector obligatorio #total",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Existe el selector de cantidad",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Existe el span de total",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Confirmar que el input de cantidad existe y es de tipo number",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Confirmar que el span de total existe",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Botón sigue habilitado al cambiar contraseña a 7 caracteres",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Estado inicial del botón debe estar deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que el botón está habilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar botón deshabilitado al incumplir edad",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar que cada botón tenga atributo data-k con valores esperados",
+   "critico": false,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Ingresar expresión 2+3*4 y evaluar precedencia",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Ingresar 4 y obtener resultado 14",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Existe la pantalla con id 'pantalla'",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Al iniciar la pantalla está vacía",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Al pulsar 2, 3, 4 y +, -, * y = se muestra la expresión y el resultado correcto",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Al pulsar C la pantalla se limpia",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Al pulsar C la pantalla vuelve a estar vacía",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar que cada botón tiene atributo data-k",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Calcular 2+3*4 y verificar precedencia",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "click [data-k=\"+\"]",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "click [data-k=\"3\"]",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "click [data-k=\"*\"]",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "click [data-k=\"4\"]",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "click [data-k=\"=\"] y verificar resultado 14",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar estado inicial del tablero",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que solo una celda tiene la serpiente",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que existe una celda de comida",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Mover la serpiente a la derecha y verificar que la longitud sigue siendo 1 y la posición cambia",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Mover la serpiente hacia la celda de comida y verificar que la longitud aumenta a 2 y la comida desaparece",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Intentar invertir dirección 180 grados y verificar que la serpiente no cambia de dirección",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Solo una serpiente al inicio",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Solo una comida al inicio",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Moverse a la derecha aumenta x",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "No puede invertir dirección 180 grados",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón \"siguiente\" está habilitado y el botón \"prev\" deshabilitado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El campo de búsqueda está vacío y no filtra nada",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Al hacer clic en \"ordenar\", las 2 filas se ordenan por edad descendente",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Al hacer clic en \"siguiente\", no hay más páginas porque solo hay 2 filas",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Al borrar el filtro, la tabla vuelve a mostrar 10 filas y página 1",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Estado inicial muestra 10 filas",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón de siguiente está habilitado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El botón de anterior está deshabilitado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "El número de página inicial es 1",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Ordenar por edad ascendente cambia el orden de las filas visibles",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Verificar que el botón siguiente está habilitado y el previo deshabilitado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Esperar actualización de tabla",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Hacer clic en botón de orden ascendente",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "Esperar reordenamiento",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Esperar 1.5 segundos",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar que el cronómetro haya incrementado",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Esperar 1 segundo",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Reiniciar el cronómetro",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar que el cronómetro esté detenido y en 0",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Estado inicial del cronómetro",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Botón start visible y funcional",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Botón pause visible y funcional",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Botón reset visible y funcional",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Iniciar conteo al hacer click en start",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Verificar incremento de segundos después de 1 segundo",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Detener conteo con pause y comprobar que el valor se mantiene",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Reiniciar cronómetro con reset y comprobar que vuelve a 0 y se detiene",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Iniciar conteo aumenta el valor",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Conteo continúa después de 2 segundos",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Pausar el conteo detiene el incremento",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Resetear vuelve a 0 y detiene el conteo",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar existencia de 9 casillas con data-i de 0 a 8",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Hacer clic en la casilla con data-i=0 y verificar que se marque X y el turno cambie a O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Completar una línea horizontal con X y verificar que el estado contenga \"gana\" y que las casillas estén bloqueadas",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "El estado inicial no indica ganador ni empate",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verifica 9 casillas iniciales vacías",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Marca casilla 0 con X al hacer clic",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verifica que la casilla 0 ahora contiene X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Marca casilla 1 con O y verifica que la casilla contiene O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Simula una secuencia que complete una línea y verifica que #estado contiene 'gana' y que las casillas ya no son clickeables",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verifica que al intentar marcar una casilla después de ganar no se cambia su contenido",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Marcar primera casilla con X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que la casilla marcada contiene X y el turno pasa a O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Marcar segunda casilla con O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Completar línea horizontal con X y verificar estado gana",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista está vacía y redo disponible",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Verificar que la lista está vacía y redo habilitado",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Hacer click en add",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Confirmar que la lista está vacía tras undo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Botones de llamada visibles",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Piso inicial es 0",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Dirección inicial es parado",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al mismo piso se atiende inmediatamente",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada a piso superior se atiende al subir",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Estado inicial sin eventos",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Verificar campos de hora vacíos",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Pulsar crear",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Hacer clic en crear",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Hacer clic en crear y verificar conflicto",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Verificar existencia de los tres productos",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Verificar que cada producto tiene su botón de añadir",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Verificar que los campos de subtotal, envío y total existen",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Verificar que el campo de cupon y botón de aplicar existen",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": true
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Añadir el producto con precio 30 y comprobar que el subtotal aumenta a 30",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Verificar que el envío se muestra como 5 cuando el subtotal con descuento es menor a 60",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Añadir productos hasta que el subtotal con descuento alcance 60 y comprobar que el envío se vuelve 0",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Añadir el último producto y comprobar que el total se calcula correctamente como subtotal menos descuento más envío",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Agregar primer producto (precio 30)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Verificar subtotal después de agregar 30",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Aplicar cupón inválido y verificar que no haya descuento",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Agregar segundo producto (precio 40) y verificar subtotal 70",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Contar elementos obligatorios",
+   "critico": true,
+   "n_sanas": 44,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Deshacer último reemplazo",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar existencia de elementos obligatorios",
+   "critico": false,
+   "n_sanas": 20,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Ejecutar reemplazo de todas las apariciones",
+   "critico": false,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Ejecutar undo para revertir el último reemplazo",
+   "critico": false,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar existencia de pantalla",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar que la pantalla muestra el valor ingresado al presionar un número",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar que la pantalla muestra el valor ingresado al presionar un operador",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar que la pantalla muestra el resultado correcto al presionar '=' con paréntesis anidados",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar que la pantalla muestra el resultado correcto al presionar '=' con expresión simple",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar que la pantalla se limpia al presionar 'C'",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Probar operación (1+2)*3",
+   "critico": true,
+   "n_sanas": 32,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar resultado 9",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar pantalla vacía",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Probar operación 2*(3+(4-1))",
+   "critico": false,
+   "n_sanas": 48,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar resultado 12",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar existencia de botón 1",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar existencia de botón +",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar existencia de botón *",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar existencia de botón ( y )",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Evaluar expresión (1+2)*3",
+   "critico": true,
+   "n_sanas": 32,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Agregar un pan",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Agregar una leche",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar packs y total tras pack",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Agregar un pan y verificar actualización",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Agregar una leche y verificar packs y total",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Quitar un pan y verificar packs y total",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Agregar otro pan",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Quitar un pan",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Stock inicial es 10",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Disponible inicial es 10",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "No hay reservas al inicio",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Click reservar",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Cancelar última reserva devuelve disponible a 10",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Disponible vuelve a 10",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia de los tres bloques de partida",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar que el total fijo es 100 y se muestra en #total",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia de contenedor principal",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Contar partes y elementos asociados",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Contar inputs de porcentaje",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Contar spans de euros",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia de total, libre y aviso",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Comprobar valores iniciales de porcentajes y euros",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar que los spans de euros y libre se actualizan correctamente",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar que el aviso está vacío cuando no hay límite",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Confirmar que cada partida tiene su input de porcentaje y span de euros",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": true
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Comprobar que el total inicial es 100 y los porcentajes iniciales son 30,30,40",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar que el porcentaje libre inicial es 0",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Restablecer el primer porcentaje a 30 y verificar que los euros se recalculan correctamente",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Asegurar que el porcentaje libre vuelve a 0 después de un cambio válido",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia de los contenedores y elementos obligatorios",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia de los inputs de porcentaje",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia de los spans de euros",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia del span de libre y aviso",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar que el total inicial sea 100 y los porcentajes 30,30,40",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "sin_errores_js",
+   "critico": false,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "No hay grupos al inicio",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Ocupación inicial vacía",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  }
+ ],
+ "mixto": [
+  {
+   "tarea": "descuento_tramos",
+   "check": "Estado inicial muestra 0 unidades y total 0.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El contenedor .container y .thresholds existen y son visibles",
+   "critico": false,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Contar elementos .card",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Contar elementos .progress",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Contar elementos .progress-fill",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar que el total inicial sea 0.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar existencia de contenedor principal",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Comprobar valor inicial del total es 0.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Comprueba que el estado inicial muestra 0 unidades y 0.00 total",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Estado inicial: botón deshabilitado",
+   "critico": true,
+   "n_sanas": 32,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar existencia de los elementos obligatorios",
+   "critico": true,
+   "n_sanas": 40,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 56,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Contar botones con clase k",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Contar botones numéricos",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Contar operadores",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Limpiar pantalla con C",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar pantalla vacía tras limpiar",
+   "critico": true,
+   "n_sanas": 14,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar que la pantalla no muestra texto visible antes de interacción",
+   "critico": false,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Confirmar que el número de botones .k es 16",
+   "critico": false,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Asegurar que el contenedor principal existe",
+   "critico": false,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Comprueba que el estado inicial es X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Confirmar que la casilla inicial está vacía y el estado muestra turno X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Confirmar que el estado inicial muestra turno de X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Clicar en la casilla 0 y verificar que se coloca X y se cambia el turno",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Clicar en la casilla 1 y verificar que se coloca O y se cambia el turno",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Confirmar que la casilla inicial está vacía y el turno es X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Existe el contenedor principal",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total inicial muestra 0.00 cuando la cantidad es 0",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total inicial muestra 0.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Valor inicial de total es 0.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar que el total inicial sea 0.00 cuando la cantidad es 0",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Estado inicial: botón tiene atributo disabled",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Estado inicial del botón deshabilitado",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar existencia de botones con clase k y atributo data-k",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Se muestran 9 botones con clase 'k' y atributo data-k",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar existencia de botones con clase k",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Contar botones de la calculadora",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que la cabeza está presente y es la única celda de la serpiente",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar que el estado expuesto en window.juego es correcto al inicio",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Dirección inicial es derecha",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Existe el contenedor de juego y los 9 casillas con data-i de 0 a 8",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "El estado inicial muestra el turno de X y el estado está vacío",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Al hacer clic en una casilla vacía se coloca la marca X y el turno cambia a O",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "La casilla clickeada muestra la marca X y ya no es clickeable",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Al hacer clic en otra casilla vacía se coloca la marca O y el turno vuelve a X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Comprueba que el estado inicial indica turno X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Comprueba que el turno cambia a O después del clic",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Confirmar que el estado inicial muestra X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Estado inicial correcto",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Crear evento válido 9-10",
+   "critico": true,
+   "n_sanas": 32,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Intentar crear evento solapado 9-11",
+   "critico": true,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Aviso de conflicto aparece",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Intentar crear evento no solapado 10-11",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Aviso de conflicto mostrado",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Reemplazar todas las apariciones",
+   "critico": true,
+   "n_sanas": 24,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar existencia de todos los botones requeridos",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Contar botones con clase k",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Confirmar que cada botón tiene atributo data-k",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Limpiar pantalla con C",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Botones de número y operador existen",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 16,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Estado inicial del carrito",
+   "critico": true,
+   "n_sanas": 28,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar cantidad de pan",
+   "critico": true,
+   "n_sanas": 20,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar cantidad de leche",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar packs y total después de agregar leche",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar packs y total después de agregar otro pan",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_packs",
+   "check": "Verificar packs y total",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Estado inicial correcto",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Cancelar última reserva",
+   "critico": true,
+   "n_sanas": 6,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Estado inicial sin grupos y capacidad 6",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  }
+ ]
+}

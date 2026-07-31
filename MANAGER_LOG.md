@@ -10286,7 +10286,24 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     vacuos (ya en producción) más el fallo de emisión del pensador, con tasa
     **mayor que el 11.4% histórico y concentrada en las tareas más complejas**.
 
-12. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
+12. **EL DATASET DEL ADAPTADOR, CONSTRUIDO: 582 ejemplos sobre 17
+    enunciados.** La etiqueta débil (*"el check falla en TODAS las páginas
+    sanas de su enunciado ⇒ candidato a valor inventado"*) sobre la diagonal
+    daba solo 152 checks evaluables con **501 descartados por n<2** — juzgando
+    cada página con su propio contrato, cada check se observa una vez. Se
+    añadió la **matriz cruzada** (cada contrato contra las demás páginas de su
+    enunciado: **418 celdas, 40.3 min, 0 chromium huérfanos**) y quedó en
+    **653 evaluables, 0 descartados: 275 INVENTADO (42.1%) · 307 CORRECTO
+    (47.0%) · 71 mixtos**, con 262 candidatos reales tras quitar los 13 de
+    ruido de API.
+    **Y ese 42.1% CIERRA EL CÍRCULO MECÁNICO del día:** con un AND sobre
+    checks críticos y 4 de cada 10 fallando siempre contra páginas sanas,
+    **casi ninguna sana puede aprobar** — el ACUSA_SANOS de 88-94% no era un
+    misterio, era su consecuencia aritmética. Queda dicho *qué* falla (condena
+    sanos), *dónde* vive (en los valores, no en los selectores) y *cuánto*
+    pesa (42% de los checks).
+
+13. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
    frente:** las dos vías se atascaron en **instrumentación, no en idea** —
    el contrato autogenerado que los runners tiraban, y la firma conductual
    guardada como `sha1[:12]` (que solo dice igual/distinto, así que no había

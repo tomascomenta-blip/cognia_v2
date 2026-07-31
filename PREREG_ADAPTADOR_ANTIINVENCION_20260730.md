@@ -163,6 +163,41 @@ que no contamine el entrenamiento. Los tipos (a) *valor inventado* y (b)
 *check correcto no cubierto* **siguen exigiendo auditoría a mano**: eso no se
 salta, y el prereg lo mantiene como condición.
 
+### El dataset, construido (2026-07-30 ~20:15, cero GPU)
+
+La primera pasada sobre la **diagonal** dejó solo 152 checks evaluables y
+**501 descartados por n<2**: juzgando cada página con su propio contrato, cada
+check se observa UNA vez. Se añadió la **matriz cruzada** —cada contrato
+contra las demás páginas de su enunciado, **418 celdas en 40.3 min, 0 chromium
+huérfanos**— y el resultado cambia de escala:
+
+| | diagonal sola | **+ matriz cruzada** |
+|---|---|---|
+| checks evaluables | 152 | **653** |
+| descartados por n<2 | 501 | **0** |
+| INVENTADO-candidato | 36 | **275 (42.1%)** |
+| CORRECTO-candidato | 95 | **307 (47.0%)** |
+| MIXTO (se excluye) | 21 | 71 (10.9%) |
+| con firma de ruido de API | 1 | 13 (4.7% de los inventados) |
+| **candidatos REALES a valor inventado** | 35 | **262** |
+
+**Dataset final: 582 ejemplos etiquetados sobre 17 enunciados**, con
+leave-one-task-out de 17 grupos. Es lo que hacía falta y no existía esta
+mañana.
+
+### Y el número explica el ACUSA_SANOS, mecánicamente
+
+**El 42.1% de los checks del contrato interno falla en TODAS las páginas sanas
+de su enunciado.** Como el veredicto es un AND sobre los checks críticos, con
+esa proporción **casi ninguna página sana puede aprobar**: el ACUSA_SANOS de
+88-94% medido antes no es un misterio, es su consecuencia aritmética. El
+círculo queda cerrado — *qué* falla (condena sanos), *dónde* vive (en los
+valores, no en los selectores) y *cuánto* pesa (42% de los checks).
+
+La variación por enunciado es grande y es información para el adaptador:
+`form_cruzado` 36 inventados contra 11 correctos y `descuento_tramos` 34/19,
+frente a `temporizador` 3/38 o `precedencia` 12/29.
+
 ## Orden de ejecución, si se retoma
 
 1. Generar contratos para las 23 tareas restantes (~1-1.5 h GPU).
