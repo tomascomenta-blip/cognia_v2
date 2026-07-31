@@ -147,6 +147,29 @@
    "chars": 1143,
    "prompt_chars": 1722,
    "crudo": "```python\n# Solution for the 11/22 string maximum length problem\n\nimport sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().split())\n    N = int(next(it))\n    S = next(it).strip()\n\n    # Precompute consecutive ones ending at each position\n    left_ones = [0] * N\n    cnt = 0\n    for i, ch in enumerate(S):\n        if ch == '1':\n            cnt += 1\n        else:\n            cnt = 0\n        left_ones[i] = cnt\n\n    # Precompute consecutive twos starting at each position\n    right_twos = [0] * N\n    cnt = 0\n    for i in range(N - 1, -1, -1):\n        if S[i] == '2':\n            cnt += 1\n        else:\n            cnt = 0\n        right_twos[i] = cnt\n\n    ans = 1  # at least one '/' exists, so length 1 is always possible\n    for i, ch in enumerate(S):\n        if ch != '/':\n            continue\n        # number of ones immediately to the left of slash\n        left = left_ones[i - 1] if i > 0 else 0\n        # number of twos immediately to the right of slash\n        right = right_twos[i + 1] if i + 1 < N else 0\n        k = min(left, right)\n        ans = max(ans, 2 * k + 1)\n\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()\n```"
+  },
+  {
+   "tarea": "abc381_c",
+   "celda": "mio_high",
+   "prompt": "mio",
+   "esfuerzo": "high",
+   "dificultad": "medium",
+   "fecha": "2024-11-22",
+   "plataforma": "atcoder",
+   "mio_pasa": false,
+   "mio_vis_ok": 0,
+   "mio_vis_n": 5,
+   "mio_oc_ok": 0,
+   "mio_oc_n": 15,
+   "oficial_pasa": false,
+   "oficial_n_casos": 43,
+   "instrumento": "truncado_por_longitud",
+   "juez_mio": "sin_codigo",
+   "juez_oficial": "sin_codigo",
+   "segundos": 122.3,
+   "chars": 0,
+   "prompt_chars": 1445,
+   "crudo": ""
   }
  ]
 }

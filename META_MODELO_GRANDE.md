@@ -95,7 +95,62 @@ marginal, bordes de tramo) · `form_cruzado` (tres reglas simultáneas) ·
 
 ## LA META
 
-### DÓNDE ESTAMOS — síntesis del 2026-07-31 (manda sobre todo lo de abajo)
+### DÓNDE ESTAMOS — síntesis del 2026-07-31 por la MAÑANA (manda sobre todo lo de abajo)
+
+**1. LA PRIORIDAD #1 HISTÓRICA SE PROBÓ EN SU MEJOR TERRENO Y NO COBRÓ.**
+La reparación guiada llevaba suspendida desde el 2026-07-28 con una condición
+escrita: *"gana con un verificador FIABLE; la nuestra no lo es todavía"*. En
+LiveCodeBench el verificador **sí** es fiable (ACUSA_SANOS 2.0%), así que la
+condición se cumplió por primera vez. Medido sobre **135 tareas `hard`, 695
+generaciones, tres brazos que comparten la misma raíz y la misma política de
+selección**:
+
+| brazo | aciertos | tokens de salida |
+|---|---|---|
+| RAÍZ `s1` sola | 39 (28.9%) | 149.523 |
+| **BoN** | **59 (43.7%)** | 317.802 |
+| **REP** (contraejemplo) | **57 (42.2%)** | 187.235 |
+| **PLACEBO** (sin contraejemplo) | **55 (40.7%)** | 231.909 |
+
+`REP − BoN = −2` (P=0.75). **Y a iso-cómputo el empate es EXACTO:** REP con K=4
+saca 57 con 337k tokens; BoN con K=3 saca **los mismos 57** con 385k.
+**Reparar y remuestrear compran lo mismo por token.**
+
+*Veredicto pre-registrado: `SIN POTENCIA`* — con 20 discordantes el diseño solo
+podía detectar ±10 tareas, así que **no se firma KILL**. Lo que sí se firma:
+**no hay desbloqueo grande**, y el contraejemplo **no es el ingrediente activo**
+(+2 sobre el placebo, P=0.41).
+
+**2. EL ÚNICO EFECTO GRANDE DEL CONTRAEJEMPLO ES EL CONTRARIO DEL BUSCADO:
+TRIPLICA LA NEGATIVA DEL MODELO.** Tasa de *"el modelo se rinde"* (respuesta
+completa, no truncada, sin código): BoN **5.3%**, PLACEBO **8.8%**, REP
+**15.8%** (`rep−bon +10.5 pts, P=0.0009`). 34 cadenas de REP se cortan por no
+tener nada que reparar. **Una cadena de reparación necesita fallback a
+generación fresca**; sin él la vía se penaliza a sí misma por algo que no tiene
+que ver con si reparar funciona.
+
+**3. Y LO QUE MANDA EN ESA TABLA NO ES LA COMPARACIÓN, ES EL SALTO:** de
+**28.9% con una muestra a 40-44% con cuatro**, en los tres brazos.
+**Gastar más cómputo compra 12-15 puntos; CÓMO se gasta casi da igual.** Eso
+refuerza el BoN y quita urgencia a buscar estrategias de gasto más listas.
+
+**4. El +21.00 de anoche SOBREVIVE a una fuga que no había visto.** El split
+visible/oculto era disjunto por índice pero no por contenido: **20 de 175
+tareas (11.4%)** tenían un caso visible cuya entrada se repite entre los
+ocultos (dos tareas, los CINCO). Re-juzgado sin gastar GPU: **+21.00 → +21.25**
+(`hard` +13.00 → +13.50). La fuga no lo sostenía.
+
+**5. Prioridad 2, primer tramo cerrado: el EVALUADOR explica 2.7 puntos, no
+20.** Las mismas 668 muestras re-juzgadas con el evaluador **oficial** de
+LiveCodeBench (todos los casos, sin cap): sobre las 619 juzgables en esta
+máquina, **mío 51.2% · oficial 48.5% · neto −2.7**. Control de validez: 46
+muestras pasan el mío y no el oficial, **0 al revés** (es un teorema — mi
+oculto es subconjunto del suyo — así que sirve de chequeo del arnés, no de
+confirmación). **De la distancia hasta el `70` publicado, los ~21 puntos
+restantes tienen que salir del PROMPT, del ESFUERZO (`high` contra mi `low`),
+de la VENTANA y de k=1 contra sus 3 muestras.**
+
+### DÓNDE ESTAMOS — síntesis del 2026-07-31 de MADRUGADA (historia; la de arriba manda)
 
 **Lo del 30 sigue en pie. Lo que cambia es DÓNDE SE MIDE — y el resultado que
 salió de cambiarlo.**
