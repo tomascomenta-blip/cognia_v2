@@ -4,6 +4,7 @@
   "banco": "mbpp",
   "n": 200,
   "k": 4,
+  "estratos": {},
   "pass1": 0.7638,
   "admite": true,
   "cuenta_como_replica": false,
@@ -21,7 +22,12 @@
    "techo": 171,
    "p95": 157,
    "p": 0.0,
-   "vive": true
+   "vive": true,
+   "azar_con_codigo": 152.91666666666669,
+   "azar_validas": 162.83333333333334,
+   "p95_validas": 166,
+   "p_validas": 0.1775,
+   "vive_validas": false
   },
   "primaria_limpias": {
    "n": 195,
@@ -31,7 +37,12 @@
    "techo": 169,
    "p95": 157,
    "p": 0.0,
-   "vive": true
+   "vive": true,
+   "azar_con_codigo": 152.25,
+   "azar_validas": 160.83333333333334,
+   "p95_validas": 164,
+   "p_validas": 0.1769,
+   "vive_validas": false
   },
   "neto_bon_azar": 12.25,
   "neto_bon_control": 10,

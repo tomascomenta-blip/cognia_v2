@@ -10461,3 +10461,244 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
 *Nota de método para el que siga:* la simulación "cuántas páginas se salvarían
 arreglando el tipo X" **no vale como predicción** y ya engañó una vez esta
 noche; solo cuenta la medición real (reescribir y volver a juzgar).
+
+## 2026-07-30/31 (tarde-noche 20:54→04:30) — El cambio de terreno se ejecuta: benchmarks públicos de código, y el examen deja de escribirlo yo
+
+Sesión autónoma con deadline 04:30 (apagado armado al arrancar tras cancelar
+con `shutdown /a` el de las 07:00 de la anterior; aterrizaje a las 04:14).
+**Primera sesión que depende de INTERNET**: se verificó la conexión antes de
+comprometer nada.
+
+### Por qué esta sesión cambia de sitio, no de idea
+
+El diagnóstico que manda estaba cerrado y no se re-litigó: el sistema
+**construye** (techo pass@4 = 100% en los dos bancos web) y **sabe elegir
+cuando tiene examen** (BoN +5.8 y +5.5 sobre el AZAR, p~1e-4). Lo perdido era
+**la regla de medir**: banco duro saturado (pass@1 92%, donde un selector al
+azar saca 8/8 el 38-56% de las veces), 6 de 9 tareas nuevas resueltas 4/4 a la
+primera, y **10 vías** de señal autogenerada muertas bajo una sola frase —
+*una verificación que no lee la especificación detecta INACTIVIDAD, no
+INCORRECCIÓN*.
+
+**La razón de ir a benchmarks de código no es tener tareas nuevas: es que
+TRAEN LOS TESTS**, justo la pieza que las 10 vías no consiguieron fabricar. Y
+su juez es `subprocess + timeout`, no Playwright: se acabaron los cuelgues.
+
+1. **PREREG_BANCO_CODIGO_20260730 escrito ANTES de generar una sola muestra**,
+   con las dos trampas declaradas (contaminación: el número absoluto de MBPP
+   no se interpreta, el gate es el delta pareado; saturación: banda de
+   admisión `[20%,80%]`, la misma que se usó para la cabecera).
+
+2. **Verificado EN RED antes de fijar nada** (mi información podía estar
+   vieja): corte de entrenamiento de gpt-oss-20b = **junio 2024** (model card,
+   arXiv:2508.10925); `livecodebench/code_generation_lite` llega a
+   **release_v6** y es descargable **sin cuenta y sin pagar**.
+
+3. **Instrumento portado y VALIDADO antes de gastar GPU.** `ecod_kernel.py`
+   estaba escrito para Kaggle (`OUT=/kaggle/working`, modelo por
+   transformers); se portó a `scripts/b3_codigo.py` (backend llama-server,
+   desacoplado, guardado incremental atómico, `--reanudar`, presupuesto de
+   pared por muestra). Controles: **MBPP referencia 498/500**, arnés LCB
+   **stdin 40/40 · functional 31/31 · rota 0/71**. Flota levantada verificando
+   `/props`: `total_slots=1`, `n_ctx=16384`.
+
+4. **LA REVISIÓN ADVERSARIAL VOLVIÓ A SER LO MÁS RENTABLE: 13 BLOQUEA antes de
+   gastar la GPU grande**, y los cinco de hecho **los reproduje yo mismo**
+   antes de aceptarlos. Tres eran bugs del arnés que **facturaban instrumento
+   al modelo**:
+   - `from math import *` **sombrea el builtin `pow`** ⇒ `pow(2,10,7)` lanza
+     `TypeError`, y **18/175 tareas (10.3%)** piden resultado módulo
+     1e9+7 / 998244353.
+   - `sys.stdin = io.StringIO(...)` **no tiene `.buffer`** ⇒ muere
+     `sys.stdin.buffer.read()`, el idioma de entrada rápida de AtCoder, y
+     **112/175 (64%)** del banco es AtCoder.
+   - preludio **concatenado** al fuente ⇒ `from __future__ import` da
+     `SyntaxError`.
+   Los tres arreglados **con test de regresión** (`b3_humo_lcb.py`): sin el
+   fix 0/40, con él 40/40.
+
+5. **EL BLOQUEA QUE TUMBÓ EL EJE DEL PREREG, y era mi frase.** Yo había
+   escrito que *"B-LCB no tiene ninguno de los dos problemas"* de MBPP.
+   Medido por mí: **361/463 casos públicos (78.0%)** y **135/175 problemas
+   (77.1%)** tienen sus `public_test_cases` impresos **dentro del
+   `question_content`** — que es lo que va al prompt. **El generador veía el
+   examen del selector**: el vicio `aprobado_sel` del gate en su forma peor. Y
+   42/175 (24.0%) tenían además algún público dentro de `private`.
+   **Split rehecho**: los `public` **no se usan**; VISIBLES = 5 casos
+   sorteados de `private_test_cases` con RNG determinista por tarea, OCULTOS =
+   el resto. Disjuntos por construcción y **ninguno aparece en ningún prompt**.
+
+6. **Y una ventana temporal que firmé sin medir.** Escribí *"~10 meses,
+   jul-2024 → abr-2025"*. El fichero en disco tiene **175 problemas, todos
+   entre 2025-01-04 y 2025-04-06**, y el filtro `contest_date > 2024-06-30`
+   **elimina 0: es un no-op**. `test6.jsonl` es el incremento v5→v6, no el v6
+   completo. La ventana **sigue siendo posterior al corte del 20B**, así que
+   el propósito se mantiene; lo falso era su tamaño. **Es el mismo error que
+   costó tres números falsos ayer: declarar sin medir.**
+
+7. **La regla que impide elegir con los datos delante, escrita ANTES de mirar
+   el resultado final** (ENMIENDA 1): un banco que no entra en banda reporta
+   su neto como **descriptivo y no cuenta como réplica**; y **MBPP no cuenta
+   como réplica ni entrando en banda**, porque su juez oculto es **1 solo
+   assert en 489/500 (97.8%)** y **P(pasa el oculto | pasa los visibles) =
+   0.849** — en el 90% de las tareas el oculto no puede contradecir al
+   selector. El fallback de B-LCB quedó **cerrado y ordenado** (un único slice
+   de repuesto, `easy+medium`; si tampoco entra, el veredicto es "sin banco",
+   no un veredicto sobre el BoN). Además: pool común para los cuatro brazos
+   sin filtrar, primaria sobre las tareas **sin fallo de instrumento** (si el
+   efecto solo vive incluyéndolos, lo medido es inactividad), y se **retiró**
+   la comparación del Youden J con el contrato interno por no ser comparable
+   (unidades de PÁGINA contra unidades de MUESTRA — el mismo error de tabla
+   que la revisión cazó ayer).
+
+### El humo del motor, y el nulo que obligó a corregirme
+
+8. **HUMO (P1.1) — MBPP, 200 tareas × 4 = 800 muestras en 20 min.**
+   `pass@1 = 76.4%` (entra en banda por poco; el estimador **derivó** de 80.2%
+   a 76.4% durante la corrida, que es justo por qué la regla del punto 7 tenía
+   que escribirse antes de mirar). Con la primaria pre-registrada (195 tareas
+   sin fallo de instrumento): **AZAR 152.25 · BoN 163 · TECHO 169 · p95 del
+   nulo 157 ⇒ neto +10.75, P < 1e-4, VIVE.** Instrumento 5/800 (0.6%), 0
+   fallos de juez, 0 lotes expirados. **El motor funciona end-to-end** — pero
+   por su propia regla esto es humo, no réplica.
+
+9. **LOS TRES NULOS, Y ME CORREGÍ A MÍ MISMO EN EL SITIO.** Añadí un nulo más
+   exigente y escribí que *"casi toda la ganancia del BoN en MBPP es descartar
+   basura"*. **Era falso, y lo dijo la medición:**
+
+   ```
+   BoN - AZAR simple     = +10.75   P < 1e-4
+   BoN - AZAR-CON-CODIGO = +10.75   identico
+   BoN - AZAR-1-TEST     =  +2.17   P = 0.18
+   ```
+
+   Con código extraíble en el **99.4%** de las muestras **no hay basura que
+   descartar**, así que AZAR-CON-CÓDIGO coincide con el simple. Y
+   **AZAR-1-TEST (uniforme entre las que pasan ≥1 test visible) YA USA EL
+   EXAMEN**: no es un nulo de basura, es **un selector débil**.
+   > Lectura correcta: **de los +10.75, unos +8.58 los captura ya el PRIMER
+   > BIT del examen (¿pasa algún test?), y exigir que pase TODOS los visibles
+   > añade solo +2.17.** Coherente con que el juez oculto de MBPP sea 1 assert
+   > y `P(oculto|visibles) = 0.849`.
+   **Regla que queda: todo neto de un selector se reporta contra los TRES
+   nulos**, y no se llama "descartar basura" a un nulo que consulta el examen.
+
+10. **Y esa duda, aplicada hacia atrás, DEFIENDE el resultado web.** Si el
+    BoN cobrara por descartar basura, el `+5.82` del gate habría que
+    reinterpretarlo. Medido sobre el corpus congelado
+    (`scripts/b3_nulo_validas_web.py`, n=19):
+
+    ```
+    muestras SIN HTML: 2/76 (2.6%)
+    NULO-VALIDAS (solo con HTML): +5.82   P < 1e-4
+    NULO-TODAS   (las K siempre): +6.24   P < 1e-4      separacion 0.42
+    ```
+
+    **Apenas hay basura que descartar y los dos nulos casi coinciden: el
+    +5.82 del BoN en web es SELECCIÓN real.** *Pendiente declarado:* no se
+    midió su análogo de AZAR-1-TEST (uniforme entre las que pasan ≥1 check
+    del contrato selector).
+
+11. **ENMIENDA 2 al prereg, por COSTE de reloj y no por resultado.** La
+    corrida de B-LCB se desplomó a **0.57 muestras/min** (≈17 h: no cabe).
+    Causa medida: **37 de 167 tareas (22%) traen más de 1 MB de entradas
+    ocultas** (mediana 28 KB, p90 5.3 MB, **máx 19 MB**) — son **tests de
+    RENDIMIENTO**, y con 35 casos cada lote agotaba su tope de 210 s aunque el
+    código fuera correcto (la muestra `3674` costó **249 s**).
+    Se descartan los casos con entrada >100 KB y se capan los ocultos a 15:
+
+    ```
+                      antes         despues
+    p90 de bytes      5.304.919     102.134
+    maximo            19.097.371    349.322
+    tareas con >1 MB  37/167        0/167
+    tareas usables    167           167
+    ```
+
+    **Por qué no invalida el contraste:** aquí se mide **selección, no
+    eficiencia**; el recorte es **idéntico para los cuatro brazos**; se decide
+    por el **reloj y el tamaño de las entradas**, dos cantidades que **no
+    dependen del veredicto** (del prefijo solo se había mirado la comprobación
+    de instrumento, nunca el neto); y **todas las muestras se RE-JUZGAN con
+    este criterio al final** (`b3_rejuzgar.py`, sobre el código ya guardado),
+    así que el instrumento queda uniforme y la generación no se repite.
+    *Límite declarado:* con 15 ocultos el juez es más laxo, así que el pass@1
+    absoluto **no es comparable con ninguna tabla publicada** — cosa que la
+    enmienda 1.8 ya prohibía por otras tres razones.
+
+### Prioridad 2 (cero GPU) — se cierra el 67.5%, y cae la QUINTA hipótesis
+
+9. **Separado "valor inventado" de "secuencia rota"**
+   (PREREG_INVENCION_VS_SECUENCIA, criterio escrito antes de mirar, muestra
+   con semilla fija, **los dos lados auditados**). La regla automática de
+   anclaje literal solo alcanza **69/293 (23.5%)**, y el aviso pre-registrado
+   se cumplió: el **51%** de esos tiene un literal de 1-2 caracteres, así que
+   la regla sola sobrestima el anclaje. **Auditoría a mano de 40 no anclados:
+   32 (80%) son valores ANCLADOS O DERIVABLES del enunciado y 8 (20%) no
+   están fijados por él.** Las dos predicciones registradas aciertan.
+   **Y el detalle que importa: 21 de los 40 (52.5%) son valores de ENTRADA que
+   el propio examen dice escribir.** Que no aparezcan *ni tras ejecutar el
+   check* no es una invención: es que la escritura no ocurrió. Los 8
+   inventados son de dos tipos — aritmética mal hecha (`285.00`, que no
+   corresponde a ninguna cantidad entera del enunciado) y detalles que el
+   enunciado deja libres (dónde empieza la serpiente, los datos de la tabla,
+   el formato exacto de `#estado`).
+   > **La función objetivo no puede ser "no inventes valores": eso ataca un
+   > quinto del problema. Es "no exijas valores que el producto no muestra
+   > donde miras".**
+
+10. **LA HIPÓTESIS QUE SALIÓ DE LA AUDITORÍA — Y QUE LA MEDICIÓN MATÓ.**
+    Auditando apareció un patrón con toda la pinta de causa raíz, literal del
+    corpus: `{"nombre": "Al introducir 5 unidades, total sin descuento es
+    50.00", "acciones": [texto #cant contiene "5", texto #total contiene
+    "50.00"]}` — **el paso dice "al introducir" y no introduce nada**, y el
+    juez había registrado exactamente `('' no contiene '5')`.
+    Medido sobre los **782 checks** de los 87 contratos
+    (`scripts/b3_checks_mudos.py`): **343 (43.9%) describen una interacción en
+    su nombre y 280 de ellos (81.6%) NO la ejecutan**; **272 críticos mudos =
+    36.9% de los críticos**, en **64/87 páginas (73.6%)**, mediana 4 por
+    página. **El hecho estructural es enorme y es nuevo.**
+    **Y no es lo que los hace fallar.** Cruzado con el veredicto real del juez
+    en páginas SANAS: MUDO falla **50.5%**, los que **SÍ interactúan fallan
+    94.6%**. Como eso está confundido por tarea (viven casi todos en
+    `turnos_capacidad` e `inventario_reservas`), se hizo **apareado dentro de
+    tarea**: **−42.9 pts de media, misma dirección en las 5 tareas** con ≥3 de
+    cada clase; y MUDO contra "no describe interacción" solo **+7.7 pts**.
+    > **KILL con brazo apareado: la mudez no causa el fallo. Cuando el
+    > contrato SÍ intenta manipular la página, se equivoca casi siempre.** Ser
+    > mudo es una forma degradada pero más *segura* de examen: comprueba
+    > estado estático y acierta la mitad de las veces.
+    Es la **quinta** hipótesis de causa única que cae sobre este examen
+    (`texto`-en-`input`, selector equivocado, valores inventados, poda,
+    mudez), y refuerza lo ya escrito: no es un bug con fix, son **fallos
+    múltiples y simultáneos por página** bajo un AND.
+    *Lección, la misma de ayer:* la hipótesis venía de UN caso leído a mano y
+    era convincentísima. **Auditar un solo lado habría firmado una causa raíz
+    falsa.**
+
+### Prioridad 3 — un examen por FAMILIA no se obtiene reutilizando los held-outs
+
+11. **El paso barato fue primero, y decidió.** La idea era: si un examen a
+    mano escrito **una vez por familia** de tarea conservara el poder de
+    selección, el coste bajaría de O(tareas) a O(familias) y el dominio web
+    volvería a ser medible sin tests públicos. Antes de ejecutar nada contra
+    páginas se comprobó lo obvio: **¿es el held-out de una tarea siquiera
+    INSTANCIABLE en su hermana?**
+    Medido (`scripts/b3_familia.py`, 18 held-outs a mano, 27 enunciados):
+    **cobertura de selectores 12% de media, 0/2 pares con cobertura total**
+    (`tres_en_raya`→`serpiente` 2/11 = 18%; `serpiente`→`tres_en_raya`
+    1/15 = 7%).
+    **Causa estructural: los held-outs se escriben contra los selectores
+    OBLIGATORIOS que declara cada enunciado (`#cant`, `#total`, `.prod`), y
+    esos no se comparten entre hermanas.** El held-out de A no *reprueba* a
+    B: **no aplica**.
+    > Medir el J sin comprobar esto habría dado ~100% de acusación a sanos y
+    > un **KILL falso** de la idea de examen-por-familia — el mismo modo de
+    > fallo que el descubridor metamórfico, donde moría el instrumento y no la
+    > idea.
+    **Lo que queda vivo (y lo que NO):** reutilizar held-outs entre hermanas
+    está descartado con número. Un examen por familia exigiría escribirlo a
+    un nivel que **abstraiga el selector** ("el total mostrado es la suma de
+    las líneas"), que es trabajo nuevo, no reutilización. *Límite declarado:*
+    solo 2 pares comparables, porque pocas familias tienen ≥2 miembros con
+    held-out a mano; la dirección es clara, la magnitud no está establecida.
