@@ -95,7 +95,59 @@ marginal, bordes de tramo) · `form_cruzado` (tres reglas simultáneas) ·
 
 ## LA META
 
-### DÓNDE ESTAMOS — síntesis del 2026-07-30 (leer esto antes que lo de abajo)
+### DÓNDE ESTAMOS — síntesis del 2026-07-31 (manda sobre todo lo de abajo)
+
+**Lo del 30 sigue en pie. Lo que cambia es DÓNDE SE MIDE — y el resultado que
+salió de cambiarlo.**
+
+**1. EL BoN REPLICA EN TERRENO PÚBLICO.** Hasta hoy estaba validado solo en
+bancos web con exámenes escritos por mí (+5.82 y +5.50 sobre el azar). Medido
+en **LiveCodeBench `test6`, 167 tareas × 4 = 668 muestras**, problemas de
+**2025-01 a 2025-04**, todos **posteriores al corte de entrenamiento del 20B**
+(junio 2024, model card verificada en red):
+
+```
+pass@1 51.8%  ->  ENTRA en la banda [20,80]     53/167 discriminantes (32%)
+PRIMARIA (150 tareas sin fallo de instrumento):
+  s1 91 · AZAR 85.00 · BoN 106 · TECHO 110 · p95 del nulo 90
+  NETO BoN - AZAR = +21.00     P < 1e-4     VIVE
+```
+
+El examen **no lo escribí yo**: son los `private_test_cases` del propio
+benchmark, partidos 5 visibles / 15 ocultos con RNG determinista por tarea, y
+**ninguno aparece en ningún prompt**.
+
+**2. Supera los TRES nulos, y eso es lo que lo hace un resultado y no un
+artefacto.**
+
+| nulo | neto | P |
+|---|---|---|
+| AZAR simple | +21.00 | < 1e-4 |
+| AZAR-CON-CÓDIGO (descartar basura) | +21.00 | < 1e-4 |
+| **AZAR-1-TEST** (uniforme entre las que pasan ≥1 visible; **ya usa el examen**) | **+17.67** | **< 1e-4** |
+
+En MBPP ese tercer nulo dejaba el neto en **+2.17 (P=0.18, no vivía)**: allí el
+selector solo cobraba el primer bit de señal. Aquí no.
+
+**3. Y el efecto CRECE con la dificultad**, que es lo contrario de lo que haría
+un artefacto: `easy +2.25 (P=0.039, banco saturado al 94.8%) · medium +7.25
+(P<1e-4) · hard +13.00 (P<1e-4)`. **Todo el valor está donde el modelo falla a
+menudo**, y el estrato `hard` solo (pass@1 24.7%) da recorrido para varias
+sesiones.
+
+**4. Lo que este resultado NO dice.** Nada sobre el pass@1 absoluto frente a
+tablas publicadas: el prompt, el evaluador y el cap de tests son míos.
+Y **el BoN sigue necesitando TESTS**: en el dominio web, donde no los hay, el
+cuello —fabricar señal para tareas nuevas— **no se ha movido**.
+
+**5. Método que queda fijado:** un nulo no basta, van tres; un banco fuera de
+banda no cuenta como réplica; MBPP no cuenta como réplica ni entrando en banda
+(su juez oculto es 1 assert en el 97.8% y `P(oculto|visibles)=0.849`); y todo
+número se acompaña de lo que saca el AZAR en ese mismo banco.
+
+---
+
+### DÓNDE ESTAMOS — síntesis del 2026-07-30 (historia; la de arriba manda)
 
 Lo de más abajo sigue siendo válido como historia, pero el estado real es
 este:
