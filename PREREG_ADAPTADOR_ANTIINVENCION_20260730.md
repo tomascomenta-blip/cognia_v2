@@ -296,6 +296,65 @@ manda. Eso es un **error de razonamiento**, no un valor inventado.
 > **La auditoría hizo su trabajo: costó una tarde sin GPU y evitó entrenar un
 > adaptador contra el modo de fallo equivocado.**
 
+## SONDA DEL 41% — umbral fijado ANTES de correrla (2026-07-30 ~19:30)
+
+La auditoría deja una pregunta con respuesta barata: **¿cuánto del ACUSA_SANOS
+de 88-94% lo explica solo el bug de forma?** Se responde sin GPU: se reescriben
+mecánicamente los checks `TEXTO_EN_INPUT` para que lean `.value` con `js` en
+vez de `innerText` con `texto`, y se re-juzgan las mismas 87 páginas.
+
+**Es una transformación puramente sintáctica**: no cambia qué se comprueba ni
+contra qué valor, solo *cómo se lee el campo*. Cualquier cambio en el veredicto
+es atribuible al instrumento, no al contenido del examen.
+
+| resultado | lectura |
+|---|---|
+| ACUSA_SANOS baja **≥30 pts** | el bug de forma explica la mayor parte: el contrato interno es mucho mejor de lo que parecía y el problema es de PLANTILLA |
+| baja **10-30 pts** | contribuye, pero debajo hay más (lo que la auditoría sugiere) |
+| baja **<10 pts** | el bug de forma es ruido a nivel de veredicto: basta un check malo de otro tipo para reprobar la página, y los hay |
+
+**Predicción registrada antes de medir** (para no racionalizar después): espero
+la banda **<10 pts**, porque el veredicto es un AND y a estas páginas les
+sobran checks fallidos de otras categorías. Si sale ≥30, mi lectura de la
+auditoría estaba equivocada y habrá que decirlo.
+
+*Relación con el KILL del modo `corregido`:* aquel arreglaba lo mismo pero
+**regenerando** el contrato con otro prompt, así que mezclaba el fix con un
+contrato distinto. Esta sonda es más limpia: **mismo contrato, misma página,
+solo cambia la forma de leer el campo.**
+
+### RESULTADO DE LA SONDA (2026-07-30 ~19:45): **0.0 puntos**
+
+| corpus | páginas sanas | aprueba ANTES | aprueba DESPUÉS | Δ ACUSA_SANOS |
+|---|---|---|---|---|
+| BANCO DURO | 51 | 6 (88.2) | 6 (88.2) | **0.0** |
+| CABECERA | 31 | 2 (93.5) | 2 (93.5) | **0.0** |
+| solo las tocadas por el fix | 41 | 0 | 0 | **0.0** |
+
+**176 checks reescritos en 44 de 87 páginas y NI UN SOLO veredicto cambió.**
+
+**La predicción registrada antes de medir (banda <10 pts) se cumple**, y por
+la razón que se anticipó: el veredicto es un **AND** sobre los checks
+críticos, y a estas páginas **les sobran checks fallidos de otras
+categorías** — arreglar el 41% no rescata ninguna porque siempre queda otro
+que falla.
+
+**Lo que esto cierra:**
+
+1. **El bug de forma es masivo a nivel de CHECK (41%) e irrelevante a nivel de
+   VEREDICTO (0 pts).** Las dos cosas son ciertas a la vez, y confundirlas
+   habría llevado a "arreglando esto se arregla el contrato".
+2. **Explica el doble KILL del modo `corregido`** sin necesidad de apelar a
+   ruido: ese modo arreglaba justo esto, y esto no mueve el veredicto.
+3. **Y dice qué clase de problema es el contrato interno**: no un bug puntual
+   con un fix, sino **fallos múltiples y simultáneos por página**. Mientras
+   cada página acumule varios checks malos de tipos distintos, cualquier
+   arreglo de un solo tipo dará exactamente 0.
+
+**Consecuencia para cualquier vía futura sobre el contrato:** la métrica de
+progreso no puede ser "% de checks arreglados" — tiene que ser **páginas
+sanas que pasan a aprobar**, porque el AND se come todo lo demás.
+
 ## Orden de ejecución, si se retoma
 
 1. Generar contratos para las 23 tareas restantes (~1-1.5 h GPU).

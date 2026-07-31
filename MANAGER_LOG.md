@@ -10326,7 +10326,24 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     **Coste: una tarde sin GPU. Evitó entrenar contra el modo de fallo
     equivocado.**
 
-14. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
+14. **SONDA DEL 41%: 0.0 PUNTOS. Predicción acertada y hilo cerrado.**
+    Con la predicción registrada ANTES ("baja <10 pts"), se reescribieron
+    mecánicamente los **176 checks `texto`-sobre-`input`** en 44 de 87 páginas
+    —misma página, mismo contrato, solo cambia cómo se lee el campo— y el
+    **ACUSA_SANOS bajó 0.0 pts** en los dos corpus y también en el subconjunto
+    de páginas tocadas. **Ni un solo veredicto cambió.**
+    Razón anticipada: el veredicto es un **AND** y a estas páginas les sobran
+    checks fallidos de otras categorías. **Las dos cosas son ciertas a la vez:
+    el bug de forma es masivo a nivel de CHECK (41%) e irrelevante a nivel de
+    VEREDICTO (0 pts)** — confundirlas habría llevado a "arreglando esto se
+    arregla el contrato". Explica el doble KILL del modo `corregido` sin
+    apelar a ruido, y caracteriza el problema: **no es un bug puntual con fix,
+    son fallos MÚLTIPLES y simultáneos por página.**
+    **Consecuencia de método:** la métrica de progreso sobre el contrato no
+    puede ser "% de checks arreglados" sino **páginas sanas que pasan a
+    aprobar**; el AND se come todo lo demás.
+
+15. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
    frente:** las dos vías se atascaron en **instrumentación, no en idea** —
    el contrato autogenerado que los runners tiraban, y la firma conductual
    guardada como `sha1[:12]` (que solo dice igual/distinto, así que no había
