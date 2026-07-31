@@ -265,8 +265,16 @@ def main():
         except PresupuestoAgotado:
             texto, motivo = "", f"presupuesto_pared_{args.pared}s"
         code = extract_code(texto)
-        if not code and not motivo:
-            motivo = "sin_codigo_extraible"
+        # EL MODELO SE RINDE != EL ARNÉS FALLA. Reproducido a mano el
+        # 2026-07-31 sobre esta misma corrida: las muestras marcadas
+        # `sin_codigo_extraible` decían literalmente *"Sorry, I cannot provide
+        # a solution."* con 1426 tokens de razonamiento y finish_reason
+        # normal. No hay nada que extraer porque el modelo no escribió código,
+        # no porque el extractor falle. Contarlo como INSTRUMENTO sería el
+        # error SIMÉTRICO del de anoche —facturarle al instrumento un fallo
+        # del modelo— y encima expulsaría de la primaria justo las tareas más
+        # difíciles, que es donde vive el efecto.
+        sin_codigo_modelo = bool(not code and not motivo)
         det = {}
         vis_ok, m_vis = juzga_lcb(code, t, t["_vis"], detalle=det)
         # por caso, para saber CUÁL falló (el sumatorio no basta)
@@ -282,7 +290,9 @@ def main():
             "oc_ok": oc_ok, "oc_n": len(t["_oc"]),
             "pasa_vis": vis_ok == len(t["_vis"]) and len(t["_vis"]) > 0,
             "pasa_oc": oc_ok == len(t["_oc"]) and len(t["_oc"]) > 0,
-            "instrumento": motivo, "juez_vis": m_vis, "juez_oc": m_oc,
+            "instrumento": motivo,
+            "sin_codigo_modelo": sin_codigo_modelo,
+            "juez_vis": m_vis, "juez_oc": m_oc,
             "segundos": round(time.time() - ts, 1),
             "prompt_chars": len(prompt),
             "tok_prompt": uso.get("prompt_tokens"),
@@ -330,9 +340,18 @@ def main():
                     if not codigo:
                         # no hay nada que reparar: se corta y se marca como
                         # instrumento en vez de inventar una reparación
+                        # NO es instrumento: es una propiedad REAL del método.
+                        # Si el candidato anterior no trae código, no hay nada
+                        # que reparar y la cadena se acaba — mientras que BoN
+                        # simplemente genera otra muestra. Esa asimetría es
+                        # parte de lo que se está midiendo, así que se marca
+                        # `no_generado` (el análisis lo saca del pool) y no se
+                        # disfraza de fallo del arnés.
                         res["muestras"].append({
                             "tarea": t["_id"], "brazo": brazo, "idx": s,
-                            "instrumento": "sin_codigo_previo",
+                            "instrumento": "", "no_generado": True,
+                            "corte": "sin_codigo_previo",
+                            "sin_codigo_modelo": False,
                             "vis_ok": 0, "vis_n": len(t["_vis"]),
                             "oc_ok": 0, "oc_n": len(t["_oc"]),
                             "pasa_vis": False, "pasa_oc": False,
@@ -344,9 +363,16 @@ def main():
                     if brazo == "rep":
                         ce = actual.get("contraejemplo") or {}
                         if not ce:
+                            # ESTE SÍ es instrumento: hay código y falla algún
+                            # visible, pero el arnés no dejó la salida
+                            # obtenida de ninguno (lote expirado o arnés
+                            # reventado). El brazo REP se queda sin su
+                            # ingrediente por culpa del juez, no del modelo.
                             res["muestras"].append({
                                 "tarea": t["_id"], "brazo": brazo, "idx": s,
                                 "instrumento": "sin_contraejemplo",
+                                "no_generado": True,
+                                "sin_codigo_modelo": False,
                                 "vis_ok": 0, "vis_n": len(t["_vis"]),
                                 "oc_ok": 0, "oc_n": len(t["_oc"]),
                                 "pasa_vis": False, "pasa_oc": False,

@@ -20,8 +20,19 @@ sys.path.insert(0, str(RAIZ / "scripts"))
 
 from b3_codigo import carga_lcb, tests_lcb
 
-tareas = [t for t in carga_lcb(ficheros=("lcb_test5.jsonl", "lcb_test6.jsonl"))
-          if t["dificultad"] == "hard"]
+import argparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--ficheros", default="lcb_test5.jsonl,lcb_test6.jsonl")
+ap.add_argument("--dificultad", default="hard",
+                help="'todas' para medir el banco entero")
+args = ap.parse_args()
+_todas = args.dificultad.lower() in ("", "todas")
+
+tareas = [t for t in carga_lcb(ficheros=tuple(
+    x.strip() for x in args.ficheros.split(",") if x.strip()))
+          if _todas or t["dificultad"] == args.dificultad]
+print(f"banco: {args.ficheros}  dificultad: {args.dificultad or 'TODAS'}")
 
 con_fuga = []
 tot_vis = tot_dup = 0

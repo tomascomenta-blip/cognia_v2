@@ -51,11 +51,18 @@ def pools_por_tarea(res: dict) -> dict:
             continue
         d = {}
         for b in BRAZOS:
-            propios = sorted([m for m in ms if m["brazo"] == b],
+            # `no_generado`: registros de CORTE de cadena, sin generación
+            # detrás. No son candidatos y no pueden entrar en el pool: si
+            # entraran, el brazo parecería tener más candidatos de los que
+            # tuvo y los nulos de "presupuesto entero" contarían mal.
+            propios = sorted([m for m in ms
+                              if m["brazo"] == b and not m.get("no_generado")],
                              key=lambda m: m["idx"])
             d[b] = raiz + propios
         d["_raiz"] = raiz[0]
-        d["_todas"] = [m for m in ms if not m.get("cierre")]
+        d["_todas"] = [m for m in ms
+                       if not m.get("cierre") and not m.get("no_generado")]
+        d["_cortes"] = [m for m in ms if m.get("no_generado")]
         out[t] = d
     return out
 
@@ -140,16 +147,26 @@ def analiza(res: dict) -> dict:
 
     todas_m = [m for p in pools.values() for m in p["_todas"]]
 
+    # `sin_codigo`/`sin_tests` del juez NO son fallos del juez: son la
+    # consecuencia de que el modelo no escribiera código. Meterlos aquí
+    # marcaría como "instrumento" justo las tareas donde el modelo se rinde.
+    JUEZ_OK = ("", "sin_codigo", "sin_tests")
+
     def _sucia(m):
         """Instrumento = generación MAL (vacía, truncada, HTTP, presupuesto)
-        O juez MAL (lote expirado, arnés reventado). La primera versión solo
-        miraba `instrumento` y dejaba entrar los fallos del JUEZ como si
-        fueran fallos del modelo — el error que costó 48 veredictos anoche,
-        cazado esta vez por la revisión adversarial antes de gastar la GPU."""
-        return bool(m["instrumento"] or m.get("juez_vis")
-                    or m.get("juez_oc"))
+        O juez MAL (lote expirado, arnés reventado).
+
+        Lo que NO es instrumento, medido a mano el 2026-07-31: una respuesta
+        completa y no truncada que dice *"Sorry, I cannot provide a solution."*
+        Eso es el MODELO rindiéndose y cuenta como fallo suyo (`sin_codigo_modelo`).
+        """
+        return bool(m["instrumento"]
+                    or m.get("juez_vis") not in JUEZ_OK
+                    or m.get("juez_oc") not in JUEZ_OK)
 
     n_inst = sum(1 for m in todas_m if _sucia(m))
+    n_rinde = sum(1 for m in todas_m if m.get("sin_codigo_modelo"))
+    n_cortes = sum(len(p["_cortes"]) for p in pools.values())
     limpias_set = {t for t, p in pools.items()
                    if not any(_sucia(m) for m in p["_todas"])}
 
@@ -172,6 +189,10 @@ def analiza(res: dict) -> dict:
     print(f"  fallos de INSTRUMENTO         : {n_inst}/{len(todas_m)} "
           f"({n_inst/max(1,len(todas_m)):.1%})"
           f"   {'<< PARA Y REPRODUCE UN CASO A MANO' if n_inst/max(1,len(todas_m)) > 0.08 else ''}")
+    print(f"  el MODELO se rinde (sin codigo): {n_rinde}/{len(todas_m)} "
+          f"({n_rinde/max(1,len(todas_m)):.1%})   [fallo suyo, NO instrumento]")
+    print(f"  cadenas CORTADAS sin generar   : {n_cortes}   "
+          f"[REP/PLA sin nada que reparar: propiedad del metodo]")
     print(f"  PRIMARIA = TODAS las tareas   : {n}   "
           f"(limpias, secundaria: {len(limpias)})")
 
@@ -288,7 +309,12 @@ def analiza(res: dict) -> dict:
     tok_bon = gasto["bon"]["tokens_salida_con_raiz"]
     ratio = tok_rep / max(1.0, tok_bon)          # ISO-CÓMPUTO EN TOKENS
     ratio_reloj = seg_rep / max(1.0, seg_bon)
-    gana_pla = comp["rep_menos_pla"]["neto"] > 0
+    # El PASA exige que REP gane al PLACEBO **con test**, no solo por signo.
+    # Sin esto, con 2-4 discordantes un +1 de ruido bastaba para firmar que
+    # "el contraejemplo informa" — un PASA degenerado. Umbral 0.10 y no 0.05
+    # porque es la secundaria, y se declara.
+    cp = comp["rep_menos_pla"]
+    gana_pla = cp["neto"] > 0 and cp["p_una_cola"] < 0.10
     if minimas is None:
         veredicto = "SIN POTENCIA"
     elif c["neto"] <= 0 or c["p_una_cola"] >= 0.05:
@@ -371,6 +397,7 @@ def analiza(res: dict) -> dict:
 
     return {"n": n, "n_limpias": len(limpias), "k": k,
             "generaciones": len(todas_m), "instrumento": n_inst,
+            "modelo_se_rinde": n_rinde, "cadenas_cortadas": n_cortes,
             "raiz_ok": raiz_ok, "niveles": niveles, "techo": techo,
             "gasto": gasto, "comparaciones": comp,
             "comparacion_limpias": comp_limpias, "nulos": nulos,

@@ -307,6 +307,60 @@ Tres cambios:
    distingue "no hay efecto" de "no lo veríamos aunque lo hubiera" no tiene
    derecho a matar una vía.*
 
+### ENMIENDA 5 (2026-07-31 06:26) — cierre de la revisión, y un fallo del instrumento cazado A MANO
+
+**La revisión terminó con 62 hallazgos, 24 BLOQUEA propuestos y solo 2
+CONFIRMADOS tras la fase de refutación** — y los dos eran el mismo:
+**el contraejemplo se truncaba en silencio**. Los verificadores midieron el
+tamaño del problema y el efecto del arreglo que yo ya había aplicado mientras
+revisaban:
+
+| | contraejemplos con entrada recortada |
+|---|---|
+| política vieja (el PRIMER visible fallido) | **24.4%** (10/41), 6 de ellos con el patrón patológico entrada-truncada + salida-esperada-completa |
+| **política nueva** (el visible fallido de entrada MÁS CORTA, + marca de recorte) | **4.9%** (2/41), **los dos marcados en el prompt y registrados** |
+
+Caso concreto que lo ilustra (`arc194_c`): entrada de **67.496 caracteres**, se
+le mostraban **1.200 (1.8%)** sin marca, y debajo la salida esperada COMPLETA.
+Eso no es un contraejemplo: es un par imposible de satisfacer, con la
+instrucción explícita de satisfacerlo. Con KILL como resultado esperado, un
+KILL habría sido **facturar instrumento al modelo en 1 de cada 4 rondas REP**.
+
+**Residuo declarado que NO se arregla en esta corrida:** el arnés capa la
+salida OBTENIDA a 1200 caracteres *dentro* del subproceso, así que
+`obtenida_len` nunca la supera y la marca de recorte de ese campo concreto es
+código muerto. Impacto bajo (al modelo no se le pide reproducir su propia
+salida) y la corrida ya está lanzada; se arregla después y se dice.
+
+**Y un fallo que la revisión no vio y salió de mirar la corrida a los 4
+minutos.** La tasa de instrumento marcaba **28.6%**, muy por encima del 8% que
+obliga a parar. Paré, y **reproduje los casos a mano**: el texto crudo decía
+literalmente
+
+> `'Sorry, I cannot provide a solution.'` — 1426 tokens de razonamiento,
+> `finish_reason` normal, respuesta completa.
+
+**No era el arnés fallando: era el modelo rindiéndose.** Eso es un fallo del
+MODELO y tiene que contar como tal. Marcarlo como instrumento habría sido el
+error **simétrico** al de anoche —facturarle al instrumento un fallo del
+modelo— y, peor, habría expulsado de la primaria justo las tareas más
+difíciles, que es donde vive el efecto. Se separan tres cosas que colapsaban
+en una:
+
+| marca | qué es | cuenta como |
+|---|---|---|
+| `instrumento` | respuesta vacía, truncada, HTTP, presupuesto de pared, `sin_contraejemplo` | fallo del ARNÉS |
+| `sin_codigo_modelo` | respuesta completa y no truncada, sin código | **fallo del MODELO** |
+| `no_generado` (`sin_codigo_previo`) | la cadena REP/PLA no tiene nada que reparar | **propiedad del MÉTODO** (y se saca del pool) |
+
+Además, `sin_codigo`/`sin_tests` del juez dejan de contar como fallo del juez:
+son la consecuencia de que no hubiera código, no una avería.
+
+**Y se cierra un PASA degenerado** que la revisión sí cazó: `REP > PLACEBO` no
+llevaba test, así que con 2-4 discordantes un `+1` de ruido bastaba para firmar
+"el contraejemplo informa". Ahora exige además **P < 0.10 de una cola** en su
+propio test apareado.
+
 ### ENMIENDA 2 (2026-07-31 06:05) — una predicción de MECANISMO, escrita antes de que existan datos
 
 El brazo REP recibe **el test visible que falló**. Puede por tanto aprender a
