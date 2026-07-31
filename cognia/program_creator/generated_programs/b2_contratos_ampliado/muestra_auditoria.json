@@ -1,0 +1,321 @@
+{
+ "inventado": [
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar nuevo elemento después de undo, invalidando redo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "serpiente",
+   "check": "Verificar atributos de la celda inicial",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Lista contiene el elemento nuevamente",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "interactivo",
+   "critico": false,
+   "n_sanas": 64,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Deshacer el último reemplazo completo",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar que botón se habilita",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Rehacer la acción",
+   "critico": true,
+   "n_sanas": 21,
+   "ruido_api": false
+  },
+  {
+   "tarea": "ascensor",
+   "check": "Llamada al piso 2 se registra y se atiende al siguiente paso",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Reducir capacidad a 2, elimina grupo de mañana",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Ajustar stock a 12 (aceptado)",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Evento 10-11 añadido",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Cambiar la contraseña a 7 caracteres y verificar que el botón se deshabilita nuevamente",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Confirmar que la pantalla está vacía al inicio",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "undo_redo",
+   "check": "Agregar nuevo elemento después de undo, invalidar redo",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Evento 10-12 añadido",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Al ingresar 15 unidades, total es 145.00",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Ingresar la misma contraseña en el segundo campo y verificar que el botón sigue deshabilitado porque la edad no está en rango",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": true
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Deshacer la escritura manual",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Verificar que el estado inicial sea X",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Verificar que pantalla muestra 14",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Cambiar franja a tarde y apuntar 1 persona",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "calendario_conflictos",
+   "check": "Verificar que no se añadió evento solapado",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verifica que el total sea 540.00 (10*10 + 40*9 + 10*8)",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Los botones tienen los valores requeridos",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "El total se muestra con dos decimales",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "turnos_capacidad",
+   "check": "Estado inicial correcto",
+   "critico": true,
+   "n_sanas": 2,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tres_en_raya",
+   "check": "Llena todas las casillas sin línea y verifica que #estado contiene \"empate\"",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "descuento_tramos",
+   "check": "Verificar que el total se actualiza al cambiar la cantidad sin recargar la página",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar que el texto se haya revertido al estado inicial",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "editor_undo_buscar",
+   "check": "Verificar reemplazo completo",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  }
+ ],
+ "correcto": [
+  {
+   "tarea": "ascensor",
+   "check": "contenido",
+   "critico": true,
+   "n_sanas": 9,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar que la pantalla se limpia al presionar 'C'",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "inventario_reservas",
+   "check": "Disponible inicial es 10",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "carrito_cupones",
+   "check": "Añadir el último producto y comprobar que el total se calcula correctamente como subtotal menos descuento más envío",
+   "critico": true,
+   "n_sanas": 3,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Evaluar operación 2+3*4",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Reiniciar cronómetro con reset y comprobar que vuelve a 0 y se detiene",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "tabla_compuesta",
+   "check": "carga",
+   "critico": true,
+   "n_sanas": 12,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Iniciar el cronómetro",
+   "critico": true,
+   "n_sanas": 10,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Esperar 1 segundo y comprobar incremento",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "click [data-k=\"*\"]",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "form_cruzado",
+   "check": "Verificar botón deshabilitado al incumplir edad",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  },
+  {
+   "tarea": "precedencia",
+   "check": "Al pulsar C la pantalla se limpia",
+   "critico": true,
+   "n_sanas": 7,
+   "ruido_api": false
+  },
+  {
+   "tarea": "temporizador",
+   "check": "Pausar el conteo detiene el incremento",
+   "critico": true,
+   "n_sanas": 5,
+   "ruido_api": false
+  },
+  {
+   "tarea": "presupuesto_reparto",
+   "check": "Verificar existencia de los spans de euros",
+   "critico": true,
+   "n_sanas": 4,
+   "ruido_api": false
+  },
+  {
+   "tarea": "parser_parentesis",
+   "check": "Verificar resultado 9",
+   "critico": true,
+   "n_sanas": 8,
+   "ruido_api": false
+  }
+ ]
+}

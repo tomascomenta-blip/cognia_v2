@@ -198,6 +198,104 @@ La variación por enunciado es grande y es información para el adaptador:
 `form_cruzado` 36 inventados contra 11 correctos y `descuento_tramos` 34/19,
 frente a `temporizador` 3/38 o `precedencia` 12/29.
 
+## AUDITORÍA DE LA ETIQUETA — criterio fijado ANTES de mirar ningún check
+
+La etiqueta débil no basta (mezcla tres cosas). Se audita una **muestra
+aleatoria con semilla fija** para estimar su precisión, con este criterio
+escrito antes:
+
+Para cada check se lee **solo el enunciado y el texto del check**, y se
+clasifica en:
+
+- **ANCLADO** — el valor que exige es **consecuencia lógica del enunciado**:
+  aparece literalmente en él, o se deduce sin ambigüedad de una regla que el
+  enunciado fija. *(Es la misma regla que se usa para escribir los held-outs a
+  mano, así que es consistente con el resto del repo.)*
+- **INVENTADO** — el valor **no está fijado** por el enunciado: el contrato
+  eligió un número, un texto o un estado que el enunciado deja libre.
+- **RUIDO_API** — el check no puede pasar por una limitación del instrumento,
+  con independencia del valor (el caso conocido: aserción de `texto` sobre un
+  `<input>`, porque `innerText` de un campo es siempre vacío).
+- **NO_DECIDIBLE** — el nombre del check no permite saber qué valor exige.
+
+**Muestra:** 30 de los 275 etiquetados INVENTADO-candidato y 15 de los 307
+etiquetados CORRECTO-candidato (semilla 20260730). Los dos lados, para poder
+medir los dos errores y no solo el que conviene.
+
+**Qué se reporta:** la **precisión de la etiqueta débil** en cada lado
+—cuántos de los "inventado" son realmente INVENTADO, y cuántos de los
+"correcto" son realmente ANCLADO— y la proporción de RUIDO_API que la firma
+automática no atrapó.
+
+**Lo que esto NO es:** no es un gate del adaptador ni decide entrenarlo. Es
+la medición de calidad del insumo, sin la cual entrenar sería a ciegas.
+
+## RESULTADO DE LA AUDITORÍA — la premisa del adaptador NO se sostiene
+
+Se auditó primero a mano la muestra (45 checks) y después, para no depender de
+mi ojo, se clasificó **estructuralmente** el contenido de los 582 checks
+(`scripts/b2_taxonomia_checks.py`, sin juicio subjetivo: solo lo que dice el
+JSON del paso).
+
+| categoría | INVENTADO-cand (275) | CORRECTO-cand (307) |
+|---|---|---|
+| **TEXTO_EN_INPUT** | **113 (41.1%)** | 0 |
+| CON_VALOR (tiene un literal) | 124 (45.1%) | 93 (30.3%) |
+| **SIN_ASERCION** (solo acciones) | 10 (3.6%) | **114 (37.1%)** |
+| SELECTOR_NO_DECLARADO | 8 (2.9%) | 1 |
+| VACUO (`contiene: ""`) | 2 | 11 (3.6%) |
+| OTRA / no hallado | 18 | 88 |
+
+### Las tres cosas que esto rompe
+
+**1. El modo de fallo dominante NO es "inventar valores": es una aserción de
+`texto` sobre un `<input>` — 113 de 275 (41.1%).** `innerText` de un campo de
+formulario es siempre vacío, así que ese check **no puede pasar jamás**, dé
+igual el valor. Es un bug de FORMA, no de contenido. El repo ya lo tenía
+medido (55/55 FN) pero **nunca se había visto que explicara el 41% de los
+fallos**. Mi firma automática por el nombre solo atrapaba 13 (4.7%); la
+detección estructural sube a 113.
+
+**2. El 37% de los "CORRECTO-candidato" no son checks: son acciones**
+(`click`, `escribir`, `esperar`) sin ninguna aserción. Pasan siempre porque no
+comprueban nada. Sumados a los 11 vacuos (`contiene: ""`, que toda cadena
+satisface), **el lado "correcto" de la etiqueta está contaminado por checks
+que no verifican**.
+
+**3. Por tanto la etiqueta débil NO sirve como insumo del adaptador.** No
+separa *inventado* de *anclado*: separa **"falla siempre" de "pasa siempre"**,
+y ambos lados están dominados por artefactos. Entrenar un clasificador con
+ella habría producido un detector de `texto`-sobre-`input` disfrazado de
+detector de invenciones.
+
+**Y ni siquiera el 45.1% restante está demostrado**: `CON_VALOR` significa
+"tiene un literal", no "el literal está inventado". Distinguirlo exige leer
+enunciado y check uno a uno, y la muestra que hice a mano sugiere que **la
+mayoría de esos literales SÍ están anclados** (`total 540.00` con el ejemplo
+del enunciado, `pantalla muestra 14` con `2+3*4=14`), fallando por otra razón:
+la **secuencia** que los precede. El caso más claro que encontré es
+`editor_undo_buscar`, donde el check exige que **después del undo** el texto
+sea el **ya reemplazado** — pide justo lo contrario de lo que el enunciado
+manda. Eso es un **error de razonamiento**, no un valor inventado.
+
+### Qué hacer con esto (y qué NO)
+
+- **NO entrenar el adaptador anti-invención tal como está diseñado.** Ataca un
+  modo de fallo que resulta ser minoritario y mal aislado. La condición de
+  vida del prereg sigue en pie, pero la **premisa** no: hay que rehacer el
+  diagnóstico antes de la función objetivo.
+- **El fix de forma ya se intentó y murió**: el modo `corregido` (F2: usar
+  `js .value` en vez de `texto` para campos) es exactamente el arreglo de los
+  113, y dio **KILL dos veces** a nivel de veredicto de página. Eso ahora se
+  entiende mejor: arregla el 41% de los checks fallidos pero **debajo quedan
+  errores de secuencia y de razonamiento** que ningún cambio de forma toca.
+- **Lo que sí está listo y no se pierde**: el corpus de 21 enunciados, los 87
+  contratos, la matriz cruzada de 418 celdas y el detalle por check. Cualquier
+  diagnóstico futuro parte de ahí sin volver a gastar GPU.
+
+> **La auditoría hizo su trabajo: costó una tarde sin GPU y evitó entrenar un
+> adaptador contra el modo de fallo equivocado.**
+
 ## Orden de ejecución, si se retoma
 
 1. Generar contratos para las 23 tareas restantes (~1-1.5 h GPU).

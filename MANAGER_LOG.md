@@ -10303,7 +10303,30 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     sanos), *dónde* vive (en los valores, no en los selectores) y *cuánto*
     pesa (42% de los checks).
 
-13. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
+13. **LA AUDITORÍA TUMBÓ LA PREMISA DEL ADAPTADOR, antes de entrenar nada.**
+    Se auditó la etiqueta a mano (45 checks) y luego **estructuralmente los
+    582** (`b2_taxonomia_checks.py`, sin juicio subjetivo). **De los 275 que
+    fallan en TODAS las sanas: 113 (41.1%) son una aserción de `texto` sobre
+    un `<input>`** — no pueden pasar jamás porque `innerText` de un campo es
+    vacío, **dé igual el valor**: es un bug de FORMA, no de contenido. Solo
+    124 (45.1%) tienen siquiera un literal que *podría* estar inventado.
+    **Y el lado bueno está igual de contaminado: 114 de 307 (37.1%) son solo
+    ACCIONES sin aserción**, que pasan siempre porque no comprueban nada.
+    **La etiqueta no separa inventado de anclado: separa "falla siempre" de
+    "pasa siempre".** Entrenar con ella habría producido un detector de
+    `texto`-sobre-`input` disfrazado de detector de invenciones.
+    Y la muestra a mano apunta a que la mayoría de los literales **sí están
+    anclados** (`540.00`, `14` salen del enunciado) y fallan por la SECUENCIA:
+    en `editor_undo_buscar` el check exige que **tras el undo** el texto sea
+    el **ya reemplazado** — lo contrario de lo que manda el enunciado. Eso es
+    un error de razonamiento, no un valor inventado.
+    **Encaja con un KILL previo:** el modo `corregido` (usar `js .value` en
+    vez de `texto`) es justo el arreglo de esos 113 y murió dos veces; ahora
+    se entiende — arregla el 41% pero debajo quedan errores de secuencia.
+    **Coste: una tarde sin GPU. Evitó entrenar contra el modo de fallo
+    equivocado.**
+
+14. **Patrón que se repitió DOS veces el mismo día y conviene mirar de
    frente:** las dos vías se atascaron en **instrumentación, no en idea** —
    el contrato autogenerado que los runners tiraban, y la firma conductual
    guardada como `sha1[:12]` (que solo dice igual/distinto, así que no había
