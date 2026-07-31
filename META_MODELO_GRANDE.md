@@ -95,6 +95,50 @@ marginal, bordes de tramo) · `form_cruzado` (tres reglas simultáneas) ·
 
 ## LA META
 
+### DÓNDE ESTAMOS — síntesis del 2026-07-30 (leer esto antes que lo de abajo)
+
+Lo de más abajo sigue siendo válido como historia, pero el estado real es
+este:
+
+**1. El objetivo original está ALCANZADO… y el número que lo mide ya no
+sirve para validar el mecanismo.** El sistema entrega **8/8 en el banco duro,
+replicado**, con producto entregable y eligiendo su muestra. Pero el banco
+**se saturó** (pass@1 92%) y esta noche se midió lo que eso implica:
+**P(un selector AL AZAR saque 8/8) = 0.38 y 0.56**. El 8/8 se sostiene como
+**entrega**, no como prueba de que el selector seleccione.
+
+**2. El mecanismo del BoN SÍ está validado, pero en otro sitio.** Contra la
+referencia correcta (el azar, no `s1`) y en **dos corpus independientes**:
+`b2_bon_gate_v2` +5.82 con **p=0.0001** y `b2_bon_heldout` +5.50 con
+**P=2.3e-4**. Ahí está la evidencia, no en el duro.
+
+**3. El cuello sigue siendo la SEÑAL, y van DIEZ vías.** Contrato ciego (×4),
+consenso de contratos (×2), ejecución en el bucle (×2), consenso conductual,
+metamórfico, poda de checks, medoide. Todas muertas o dentro del ruido del
+azar. Y ahora hay una frase que las explica de una vez:
+
+> **Una verificación que no lee la especificación puede detectar
+> INACTIVIDAD, pero no INCORRECCIÓN.**
+
+**4. Y el examen interno está caracterizado de punta a punta**: reprueba el
+**88-94% de las páginas SANAS**; el **42.1%** de sus checks falla en TODAS las
+sanas de su enunciado; su fallo #1 por volumen es **`texto` sobre un
+`<input>` (41%)**… que al arreglarlo mueve el veredicto **0.0 puntos**, porque
+los fallos son **múltiples y simultáneos por página** y el veredicto es un AND.
+
+### Lo que esto fija para la próxima sesión
+
+- **Un banco saturado no puede validar un selector.** Cualquier medición de
+  selección va al gate del BoN o a un banco con recorrido, nunca al duro.
+- **La referencia de un selector es el AZAR**, no `s1`; y la primaria de un
+  examen es **Youden J apareado**, nunca una tasa suelta.
+- **La métrica de progreso sobre el contrato es "páginas sanas que pasan a
+  aprobar"**, no "% de checks arreglados".
+- **No se entrena el adaptador anti-invención tal como estaba diseñado**: su
+  premisa (el fallo es inventar valores) no sobrevivió a la auditoría. Lo que
+  sí queda listo y no hay que volver a gastar: **corpus de 21 enunciados, 87
+  contratos, matriz cruzada de 418 celdas y detalle por check**.
+
 ### El horizonte, MEDIDO (2026-07-25)
 
 Faltaba el número que importa. Un contexto **fresco** recibió solo los 8

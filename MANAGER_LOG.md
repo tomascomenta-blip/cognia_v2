@@ -10350,3 +10350,19 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
    forma de calcular una distancia). En ambos casos el dato ya se producía y
    solo había que no descartarlo. **Regla que sale de aquí: cuando un runner
    compute algo intermedio, persistirlo aunque no se use hoy.**
+
+16. **TRES AUTO-CORRECCIONES, todas antes de que echaran raíces.** (a) Firmé
+    que el contrato interno "está en el azar exacto" desde el J=−1.1 de un
+    corpus; medido sobre los diez, el real es **+12.2** y el −1.1 era el peor.
+    (b) Escribí que el azar bate al control "sistemáticamente"; con 20 000
+    réplicas la dirección es consistente pero **no significativa**
+    (P=0.16-0.34). (c) La premisa del adaptador (el fallo es inventar valores)
+    **no sobrevivió a mi propia auditoría**. En los tres casos el error era
+    generalizar desde una muestra que yo mismo había elegido.
+
+17. **META actualizada con una síntesis de dónde estamos**, porque su sección
+    de prioridades seguía describiendo el 25 de julio. Queda escrito lo que
+    fija esta sesión: un banco saturado no valida un selector; la referencia
+    de un selector es el AZAR y no s1; la primaria de un examen es Youden J
+    apareado; y la métrica de progreso sobre el contrato es **páginas sanas
+    que pasan a aprobar**, no % de checks arreglados.
