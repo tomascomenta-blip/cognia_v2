@@ -10429,15 +10429,31 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     interactuar". Cerrarlo es barato y sin GPU — volcar el DOM **al final de
     cada check fallido** en vez de en reposo; el juez ya ejecuta las acciones.
 
+20. **CERRADA la medición que yo mismo había dejado pendiente
+    (`b2_invencion_real.py`), y mi cautela era infundada.** Sin tocar el juez
+    de producción: por cada check crítico fallido, un contrato con **ese check
+    más un paso final que vuelca el DOM**, de modo que el volcado captura el
+    estado **justo después de ejecutar sus acciones** (279 checks, 434
+    literales). **Resultado idéntico al de la medición en reposo: 32.5%
+    SELECTOR_EQUIVOCADO y 67.5% ausente** (frente a 32.7% / 67.3%).
+    **Ejecutar el check NO hace aparecer los valores**, así que la limitación
+    que declaré —"el 67% está inflado por valores que solo se ven tras
+    interactuar"— **queda descartada por medición, no por argumento**.
+    **Diagnóstico final del contrato interno:** 32.5% el producto SÍ genera el
+    valor y el examen lo busca donde no es (**el producto está bien y el
+    examen mal**); 67.5% el valor no existe en la página en ningún momento —
+    y **esta medición NO separa "inventado" de "secuencia rota"**, porque un
+    check que escribe en el selector equivocado tampoco produce el estado que
+    luego comprueba. Decirlo importa.
+
 **Lo primero de la próxima sesión, por valor:**
-1. **Cerrar la medición de invención**: volcar el DOM al final de cada check
-   fallido (el juez ya hace las acciones) y convertir el 67.3% de
-   "VALOR_AUSENTE" en una separación real entre *valor inventado* y *valor
-   que aparece tras interactuar*. Sin GPU. **Es el único número que falta
-   para decidir la función objetivo del adaptador**, que hoy ya no puede ser
-   "no inventes valores" (la premisa se cayó) y apunta a "elige el selector
-   correcto" — más fácil de supervisar, porque el enunciado DECLARA los
-   selectores obligatorios.
+1. **Separar invención de secuencia rota dentro del 67.5%**: es lo único que
+   queda y exige comparar, check a check, el valor esperado contra lo que el
+   enunciado fija — la auditoría a mano que sigue pendiente. Con eso, la
+   función objetivo del adaptador queda decidida; hoy ya se sabe que **no
+   puede ser solo "no inventes valores" ni solo "elige el selector correcto"**
+   (un tercio cada cosa), sino **"no exijas valores que el producto no muestra
+   donde miras"**.
 2. **Si se quiere medir selección**, hacerlo en el gate del BoN o en un banco
    con recorrido, con brazo nulo aleatorio. El duro ya no sirve.
 3. El adaptador **no se entrena** hasta que (1) diga contra qué.

@@ -434,6 +434,42 @@ DOM **al final de cada check fallido** en vez de en reposo — el juez ya ejecut
 las acciones, solo hay que volcar el estado en ese punto. Eso convertiría el
 67.3% en una medición real de invención.
 
+### CERRADO LA MISMA NOCHE (`b2_invencion_real.py`): mi cautela era infundada
+
+Se hizo sin tocar el juez de producción: por cada check crítico fallido, un
+contrato con **ese check más un paso final que vuelca el DOM**, de modo que el
+volcado captura el estado **justo después de ejecutar sus acciones**. 279
+checks sondeados, 434 literales.
+
+| | en reposo | **tras ejecutar el check** |
+|---|---|---|
+| SELECTOR_EQUIVOCADO | 32.7% | **32.5%** (141) |
+| valor ausente | 67.3% | **67.5%** (293) |
+
+**Idéntico.** Ejecutar las acciones del check **no hace aparecer los valores**:
+el 67.5% no está en la página ni antes ni después. La limitación que yo mismo
+había declarado —"el 67% está inflado por valores que solo aparecen tras
+interactuar"— **queda descartada por medición**, no por argumento.
+
+**El diagnóstico final del contrato interno, con números:**
+
+- **32.5% — SELECTOR EQUIVOCADO**: el producto SÍ genera el valor, el check lo
+  busca donde no es (`'Ana'` en `#q`, `'2'` en el botón `.k`, `'5'` en el
+  input de cantidad). **Aquí el producto está bien y el examen mal.**
+- **67.5% — el valor no existe en la página en ningún momento**: o el contrato
+  lo inventó, o su propia secuencia no lleva al producto al estado donde
+  aparecería. **Esta medición NO separa esas dos**, y decirlo importa: un
+  check que escribe en el selector equivocado tampoco produce el estado que
+  luego comprueba, así que ambos efectos se confunden.
+
+**Lo que esto fija para la función objetivo del adaptador:** no puede ser solo
+"no inventes valores" (la premisa original) ni solo "elige el selector
+correcto" (un tercio). Lo que el contrato hace mal, medido, es **escribir
+exámenes cuyos valores el producto no muestra donde el examen mira** — y eso
+cubre las dos categorías. Separar invención de secuencia rota exige comparar
+el valor esperado con lo que el enunciado fija, check a check, que es
+precisamente la auditoría a mano que sigue pendiente.
+
 ## Orden de ejecución, si se retoma
 
 1. Generar contratos para las 23 tareas restantes (~1-1.5 h GPU).
