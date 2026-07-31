@@ -490,6 +490,10 @@ def main():
                     help="lcb: filtrar a easy|medium|hard (coma-separado)")
     ap.add_argument("--max-tokens", dest="max_tokens", type=int, default=0,
                     help="0 = MAX_TOKENS (4096); LCB usa 8192 por prereg")
+    ap.add_argument("--ficheros", default="",
+                    help="lcb: incrementos a usar, coma-separados. Fijarlo "
+                         "es OBLIGATORIO para reproducir una corrida previa: "
+                         "ampliar el pool cambia el orden barajado")
     args = ap.parse_args()
     if args.banco == "lcb" and not args.max_tokens:
         # Presupuesto de PENSAMIENTO: LCB es competitiva y las respuestas son
@@ -513,7 +517,8 @@ def main():
             t["_prompt"] = prompt_mbpp(t)
             t["_vis"], t["_oc"] = tests_mbpp(t)
     else:
-        pool = carga_lcb()
+        pool = carga_lcb(ficheros=tuple(
+            x.strip() for x in args.ficheros.split(",") if x.strip()))
         if args.dificultad:
             pool = [t for t in pool
                     if t["dificultad"] in args.dificultad.split(",")]

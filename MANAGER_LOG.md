@@ -10390,6 +10390,38 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     mismo efecto** fue lo que destapó que mi taxonomía etiquetaba mal. Sin la
     sonda, la simulación habría pasado por diagnóstico.
 
+20. **Banco AMPLIADO, validado y NO medido** (enmienda 4). Se bajó
+    `test5.jsonl` (557 MB) y `carga_lcb` pasa a unir los incrementos
+    disponibles deduplicando por `question_id`. La ventana real, **medida**:
+
+    | | antes (`test6`) | ahora (`test5`+`test6`) |
+    |---|---|---|
+    | tareas utilizables | 175 | **342** |
+    | ventana | 2025-01→2025-04 | **2024-09-22 → 2025-04-06** |
+    | meses | 4 | **6.5** |
+    | easy/medium/hard | 43/52/80 | **84/104/154** |
+
+    **Siguen sin ser los 10 meses que firmé**: para llegar a jul-2024 haría
+    falta `test4.jsonl` (1.2 GB). Es la **segunda vez** que este número se
+    corrige midiendo en vez de declarando. Toda la ventana es posterior al
+    corte del 20B, que es lo que importa.
+    Controles positivos repetidos sobre el banco ampliado (MBPP 40/40 y
+    10/10; arnés LCB 40/40, 31/31, roto 0/71, y las dos regresiones 40/40).
+    **No se generó ni una muestra sobre él**: 1368 no caben en el reloj, y
+    una corrida que el apagado corta a la mitad vale menos que un banco
+    listo. *Aviso para el que siga:* ampliar el pool **cambia el orden
+    barajado**, así que `lcb.json` no es prefijo del banco nuevo — por eso el
+    runner tiene ahora `--ficheros`, que reproduce el banco exacto.
+
+21. **RÉPLICA DE GENERACIÓN DEL BANCO COMPLETO, lanzada al final.** La del
+    punto 19 solo cubre `hard` (estrato elegido tras ver los datos). Con
+    reloj de sobra se lanzó la del banco entero —167 tareas × 4, muestras
+    NUEVAS, mismo examen, `--ficheros lcb_test6.jsonl` para reproducir el
+    banco exacto (verificado: 167 tareas, misma ventana)— con **corte
+    automático por reloj a las 03:15** y análisis del prefijo, que es la
+    regla pre-registrada. Su resultado, si llegó a tiempo, está en
+    `b3_codigo/lcb_r2.json` y en la última fila del log.
+
 ### ATERRIZAJE — estado exacto de reanudación
 
 **Todo COMPLETO y versionado. Nada quedó a medias; no hay nada que reanudar.**
