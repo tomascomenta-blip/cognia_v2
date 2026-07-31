@@ -10934,3 +10934,44 @@ su juez es `subprocess + timeout`, no Playwright: se acabaron los cuelgues.
 3. **El cuello del goal NO se ha movido**: el BoN necesita TESTS. Donde no los
    hay (web), sigue sin haber señal para tareas nuevas — y van 10 vías
    muertas con un argumento estructural de por qué.
+
+### CIERRE 04:14 — qué quedó a medias y cómo se reanuda
+
+**Una sola corrida quedó incompleta, y por diseño**: la réplica de generación
+del banco global se cortó **por RELOJ** a las 03:15, que es la regla
+pre-registrada (`N_min = 100` tareas completas, corte por el reloj sobre el
+orden ya barajado, análisis del prefijo).
+
+| corrida | estado | reanudación |
+|---|---|---|
+| `lcb_r2` (réplica de GENERACIÓN, banco global) | **634/668 muestras · 158/167 tareas completas** | ver comando abajo |
+
+```
+venv312/Scripts/python.exe scripts/b3_codigo.py --banco lcb --n 175 --k 4 ^
+    --pared 240 --ficheros lcb_test6.jsonl --sufijo _r2 --reanudar
+```
+
+**`--ficheros lcb_test6.jsonl` es OBLIGATORIO al reanudarla**: el banco se
+amplió a 342 tareas esta misma noche y, sin fijar el incremento, el orden
+barajado cambia y el fichero deja de ser el mismo experimento. El runner
+aborta si detecta `k`, `semilla`, `temp` o `banco` distintos, pero **no puede
+detectar un pool distinto** — por eso se deja escrito aquí.
+
+*El corte no invalida nada:* 158 tareas están muy por encima del `N_min` de
+100, y el análisis del prefijo ya está hecho y publicado (+17.75, P<1e-4).
+Completar las 9 tareas que faltan es opcional.
+
+**Todo lo demás está COMPLETO:**
+
+| corrida | estado |
+|---|---|
+| MBPP (humo del motor) | 800/800 |
+| B-LCB generación | 668/668 |
+| B-LCB re-juicio uniforme + recuperación | 668/668 |
+| B-LCB réplica de EXAMEN | 668/668 |
+| B-LCB réplica de GENERACIÓN (`hard`) | 292/292 |
+| Auditorías del contrato (P2) y familias (P3) | completas |
+
+**Estado del árbol al cerrar:** 0 ficheros modificados, **0 commits sin
+pushear**, 13 commits en la sesión. **0 llama-server, 0 chromium, 0 procesos
+python residuales.** Apagado a las 04:30 confirmado armado.
