@@ -161,6 +161,19 @@ varianza entre corridas (±34 pts medidos). 292 muestras NUEVAS del estrato
 **Las tres coinciden.** *(El estrato se eligió tras ver los datos: confirma
 estabilidad en `hard`, no es confirmación independiente del +21.00 global.)*
 
+**Y el BANCO GLOBAL también replica volviendo a generar** (634 muestras
+nuevas, 158 tareas completas, mismo examen, corte por reloj a las 03:15):
+
+```
+                original   otro EXAMEN   otras MUESTRAS
+neto vs AZAR     +21.00      +18.50         +17.75      todas P < 1e-4
+vs AZAR-1-TEST   +17.67      +14.00         +12.50      todas P < 1e-4
+pass@1            51.8%       52.1%          52.5%
+```
+
+**Tres lecturas independientes del mismo banco, tres veces el mismo
+resultado.**
+
 **4. Lo que este resultado NO dice.** Nada sobre el pass@1 absoluto frente a
 tablas publicadas: el prompt, el evaluador y el cap de tests son míos.
 Y **el BoN sigue necesitando TESTS**: en el dominio web, donde no los hay, el

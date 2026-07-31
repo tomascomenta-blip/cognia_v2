@@ -10413,14 +10413,33 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     barajado**, así que `lcb.json` no es prefijo del banco nuevo — por eso el
     runner tiene ahora `--ficheros`, que reproduce el banco exacto.
 
-21. **RÉPLICA DE GENERACIÓN DEL BANCO COMPLETO, lanzada al final.** La del
-    punto 19 solo cubre `hard` (estrato elegido tras ver los datos). Con
-    reloj de sobra se lanzó la del banco entero —167 tareas × 4, muestras
-    NUEVAS, mismo examen, `--ficheros lcb_test6.jsonl` para reproducir el
-    banco exacto (verificado: 167 tareas, misma ventana)— con **corte
-    automático por reloj a las 03:15** y análisis del prefijo, que es la
-    regla pre-registrada. Su resultado, si llegó a tiempo, está en
-    `b3_codigo/lcb_r2.json` y en la última fila del log.
+21. **RÉPLICA DE GENERACIÓN DEL BANCO COMPLETO: el +21.00 aguanta con
+    muestras nuevas.** La del punto 19 solo cubría `hard` (estrato elegido
+    tras ver los datos). Con reloj de sobra se corrió la del banco entero:
+    muestras **NUEVAS**, mismo examen, `--ficheros lcb_test6.jsonl` para
+    reproducir el banco exacto (verificado: 167 tareas, misma ventana), con
+    **corte automático por reloj a las 03:15** y análisis del prefijo — la
+    regla pre-registrada. Cortó con **634 muestras / 158 tareas completas**,
+    muy por encima del `N_min` de 100.
+
+    | | original | réplica de GENERACIÓN |
+    |---|---|---|
+    | n (primaria) | 150 | 136 |
+    | pass@1 | 51.8% | **52.5%** |
+    | AZAR | 85.00 | 81.25 |
+    | **BoN** | 106 | **99** |
+    | TECHO | 110 | 106 |
+    | **neto vs AZAR** | **+21.00** | **+17.75** (P<1e-4) |
+    | **vs AZAR-1-TEST** | +17.67 | **+12.50** (P<1e-4) |
+    | desempate al azar | +1.90 | −0.20 |
+
+    **Y esta corrida salió con CERO `sin_sentinel`**, el fallo transitorio del
+    punto 17: confirma que era del entorno y no del instrumento.
+
+    **Las TRES lecturas del banco global coinciden: +21.00 · +18.50 (otro
+    examen) · +17.75 (otras muestras), todas con P < 1e-4.** El efecto no
+    depende del sorteo del examen ni de la tirada de generación, que es la
+    fuente que [[varianza-entre-corridas]] mide en ±34 puntos.
 
 ### ATERRIZAJE — estado exacto de reanudación
 
