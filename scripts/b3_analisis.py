@@ -46,6 +46,27 @@ def selector_bon(muestras: list) -> dict:
                                            -m["vis_ok"], m["s"]))[0]
 
 
+def _bon_desempate_azar(tareas: dict, semilla: int) -> int:
+    """El mismo selector pero rompiendo los empates AL AZAR en vez de por
+    'índice más temprano'. Con K muestras i.i.d. los dos son intercambiables,
+    así que una diferencia grande y sistemática delataría que el backend NO
+    está dando muestras independientes (caché, context-shift): el mismo tipo
+    de degradación silenciosa que ya costó una corrida entera aquí."""
+    rng = random.Random(semilla)
+    ok = 0
+    for v in tareas.values():
+        mejor = min(m["s"] for m in v
+                    if (not m["pasa_vis"], -m["vis_ok"]) ==
+                    min((not x["pasa_vis"], -x["vis_ok"]) for x in v))
+        empatados = [m for m in v
+                     if (not m["pasa_vis"], -m["vis_ok"]) ==
+                     min((not x["pasa_vis"], -x["vis_ok"]) for x in v)]
+        elegido = rng.choice(empatados) if len(empatados) > 1 else \
+            [m for m in v if m["s"] == mejor][0]
+        ok += bool(elegido["pasa_oc"])
+    return ok
+
+
 def _brazos(tareas: dict, k: int) -> dict:
     """Los cuatro brazos sobre el MISMO pool de K, sin filtrar (enmienda 1.7:
     una muestra sin código cuenta como fallo en los cuatro; ningún ensayo se
@@ -188,6 +209,12 @@ def analiza(res: dict, etiqueta: str) -> dict:
           f"[descriptivo: s1 y AZAR son la misma distribución aquí]")
     print(f"  perdida del selector         : {techo - bon} "
           f"(techo acierta y BoN no)")
+    # control de independencia de las muestras (MENOR-9 de la revisión)
+    des = [_bon_desempate_azar(tareas, 1000 + i) for i in range(20)]
+    md = sum(des) / len(des)
+    print(f"  BoN con desempate AL AZAR    : {md:.2f} (20 sorteos)   "
+          f"dif vs BoN {bon - md:+.2f}   "
+          f"{'OK' if abs(bon - md) <= 2 else 'ATENCIÓN: >2 pts sugiere que las muestras NO son independientes'}")
     if not admite:
         print(f"  >> REGLA (enmienda 1.6): el banco NO entra en banda, así "
               f"que su neto es DESCRIPTIVO y NO cuenta como réplica.")
