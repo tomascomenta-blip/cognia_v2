@@ -152,12 +152,20 @@ class _Stdin(io.StringIO):
 _cfg = json.loads(open(sys.argv[1], encoding="utf-8").read())
 _code, _casos, _modo = _cfg["code"], _cfg["casos"], _cfg["modo"]
 _parar = _cfg.get("parar_al_fallar", False)
+# `detalle` (2026-07-31): ademas del bool por caso, emitir la salida OBTENIDA
+# de los casos que fallan. Es la materia prima del CONTRAEJEMPLO que come el
+# brazo de reparacion (PREREG_REPARACION_CONTRAEJEMPLO_20260731). Por defecto
+# False: sin el flag la salida del arnes es byte a byte la de antes.
+_detalle = _cfg.get("detalle", False)
+_TOPE_DET = 1200                       # se capa aqui, no en el consumidor
 
 # Una linea POR CASO, flusheada: si el lote expira, los casos ya resueltos
 # siguen contando y solo se pierde el que estaba en vuelo. Con un unico
 # print al final, un caso lento anulaba los otros 39 en silencio.
 for _i, _c in enumerate(_casos):
     _ok = False
+    _obtenido = ""
+    _excepcion = ""
     try:
         _g = {"__name__": "__main__"}
         # exec del preludio SOBRE los globals (no concatenado al fuente):
@@ -178,7 +186,10 @@ for _i, _c in enumerate(_casos):
                 _fn = _cfg["func_name"]
                 _cls = _g.get("Solution")
                 _f = getattr(_cls(), _fn) if _cls is not None else _g[_fn]
-                _ok = bool(_f(*_args) == _esp)
+                _val = _f(*_args)
+                _ok = bool(_val == _esp)
+                if not _ok:
+                    _obtenido = repr(_val)[:_TOPE_DET]
             elif _modo == "assert":
                 exec(compile(_c["assert"], "<t>", "exec"), _g)
                 _ok = True
@@ -188,18 +199,29 @@ for _i, _c in enumerate(_casos):
                 _esp = "\n".join(l.rstrip() for l in
                                  (_c.get("output") or "").strip().splitlines())
                 _ok = (_got == _esp)
+                if not _ok:
+                    _obtenido = _got[:_TOPE_DET]
         finally:
             sys.stdout, sys.stdin = _so, _si
-    except BaseException:
+    except BaseException as _e:
         _ok = False
+        # El tipo+mensaje, NO la traza: el estudio con placebo
+        # (arXiv:2606.31511) encontro que la traza empata con un placebo sin
+        # contenido. Se marca aparte para poder reportar en cuantas muestras
+        # el "contraejemplo" degrado a esto.
+        _excepcion = ("%s: %s" % (type(_e).__name__, _e))[:_TOPE_DET]
     print("__B3__%d:%d" % (_i, 1 if _ok else 0), flush=True)
+    if _detalle and not _ok:
+        print("__B3D__%d:%s" % (_i, json.dumps(
+            {"obtenido": _obtenido, "excepcion": _excepcion})), flush=True)
     if _parar and not _ok:
         break
 '''
 
 
 def _ejecuta_lote(code: str, casos: list, modo: str, func_name: str = "",
-                  timeout: int = 60, parar_al_fallar: bool = False) -> tuple:
+                  timeout: int = 60, parar_al_fallar: bool = False,
+                  detalle: dict = None) -> tuple:
     """Evalúa `casos` contra `code` en UN subprocess.
 
     Devuelve `(resultados, motivo)`: una lista de bools del largo de `casos`
@@ -210,6 +232,12 @@ def _ejecuta_lote(code: str, casos: list, modo: str, func_name: str = "",
 
     Un caso resuelto ANTES del timeout cuenta: el arnés emite una línea por
     caso, así que un cuelgue solo pierde el caso en vuelo.
+
+    `detalle`: dict de SALIDA (se rellena in situ) `{i: {"obtenido", "excepcion"}}`
+    con lo que produjo el código en los casos que FALLARON. Se pasa como
+    parámetro de salida en vez de cambiar el tipo de retorno para no tocar a
+    los tres llamadores que ya existen. Sin él, el arnés corre exactamente
+    como antes.
     """
     if not code.strip() or not casos:
         return [False] * len(casos), ("sin_codigo" if not code.strip() else "")
@@ -219,7 +247,8 @@ def _ejecuta_lote(code: str, casos: list, modo: str, func_name: str = "",
         with os.fdopen(fd_c, "w", encoding="utf-8") as f:
             json.dump({"code": code, "casos": casos, "modo": modo,
                        "func_name": func_name,
-                       "parar_al_fallar": parar_al_fallar}, f)
+                       "parar_al_fallar": parar_al_fallar,
+                       "detalle": detalle is not None}, f)
         with os.fdopen(fd_a, "w", encoding="utf-8") as f:
             f.write(_ARNES)
         motivo = ""
@@ -236,7 +265,14 @@ def _ejecuta_lote(code: str, casos: list, modo: str, func_name: str = "",
         out = [False] * len(casos)
         vistos = 0
         for linea in salida.splitlines():
-            if linea.startswith("__B3__"):
+            if linea.startswith("__B3D__"):
+                if detalle is not None:
+                    try:
+                        i, v = linea[7:].split(":", 1)
+                        detalle[int(i)] = json.loads(v)
+                    except (ValueError, IndexError):
+                        pass
+            elif linea.startswith("__B3__"):
                 try:
                     i, v = linea[6:].split(":")
                     out[int(i)] = (v.strip() == "1")
@@ -384,7 +420,7 @@ def prompt_lcb(t: dict) -> str:
 
 
 def juzga_lcb(code: str, t: dict, casos: list,
-              parar_al_fallar: bool = False) -> tuple:
+              parar_al_fallar: bool = False, detalle: dict = None) -> tuple:
     """(nº de casos que pasan, motivo). `stdin`: se alimenta por stdin y se
     compara la salida normalizada. `functional`: se llama a func_name con
     los args.
@@ -400,11 +436,12 @@ def juzga_lcb(code: str, t: dict, casos: list,
                             or t.get("func_name")) else "stdin"
     tope = min(TOPE_LOTE, max(30, SEG_POR_TEST * len(casos)))
     res, motivo = _ejecuta_lote(code, casos, modo, t.get("func_name", ""),
-                                timeout=tope, parar_al_fallar=parar_al_fallar)
+                                timeout=tope, parar_al_fallar=parar_al_fallar,
+                                detalle=detalle)
     return sum(res), motivo
 
 
-def tests_lcb(t: dict, rng: random.Random) -> tuple:
+def tests_lcb(t: dict, rng: random.Random, sin_fuga: bool = False) -> tuple:
     """Split de B-LCB, ENMENDADO tras la revisión adversarial.
 
     Los `public_test_cases` NO sirven como examen del selector: están
@@ -435,22 +472,42 @@ def tests_lcb(t: dict, rng: random.Random) -> tuple:
     rng.shuffle(idx)
     vis = [priv[i] for i in idx[:LCB_VISIBLES]]
     oc = [priv[i] for i in idx[LCB_VISIBLES:LCB_VISIBLES + MAX_OCULTOS]]
+    if sin_fuga:
+        # FUGA POR CONTENIDO, medida el 2026-07-31 (b3_fuga_split.py): el
+        # split es disjunto por ÍNDICE, pero **12 de 154 tareas hard (7.8%)**
+        # tienen algún caso visible cuya ENTRADA se repite entre los ocultos
+        # (23 de 690 visibles, 3.3%). Enseñarle a un brazo la salida esperada
+        # de ese visible le regala la del oculto: la selección dejaría de
+        # medir generalización y mediría identidad.
+        # Se quita del OCULTO, no del visible, para no tocar el examen que ve
+        # el selector. Opt-in: las corridas anteriores no cambian.
+        ent_vis = {(c.get("input") or "") for c in vis}
+        oc = [c for c in oc if (c.get("input") or "") not in ent_vis]
     return vis, oc
 
 
 # ------------------------------------------------------------ generación
-def genera(prompt: str, temperature: float, max_tokens: int = 0) -> tuple:
+def genera(prompt: str, temperature: float, max_tokens: int = 0,
+           esfuerzo: str = "", system: str = "", uso: dict = None) -> tuple:
     """Devuelve (texto, motivo). motivo != '' marca FALLO DE INSTRUMENTO
     (sin respuesta, truncado por longitud, HTTP): se cuenta aparte y NUNCA
     como fallo del modelo — la degradación silenciosa es el modo de fallo
-    característico de este repo."""
+    característico de este repo.
+
+    `esfuerzo` y `system` son parámetros desde el 2026-07-31 (factorial de
+    condiciones oficiales): la referencia publicada mide con `high` y con el
+    system de LiveCodeBench, y sin poder variarlos no se puede separar cuánto
+    del hueco es capacidad y cuánto es configuración. Por defecto valen lo de
+    siempre, así que ninguna corrida anterior cambia.
+    """
     payload = {
         "model": "local",
-        "messages": [{"role": "system", "content": SYSTEM_COD},
+        "messages": [{"role": "system", "content": system or SYSTEM_COD},
                      {"role": "user", "content": prompt}],
         "temperature": temperature,
         "max_tokens": max_tokens or MAX_TOKENS,
-        "chat_template_kwargs": {"reasoning_effort": REASONING_EFFORT},
+        "chat_template_kwargs": {
+            "reasoning_effort": esfuerzo or REASONING_EFFORT},
     }
     req = urllib.request.Request(
         BACKEND + "/v1/chat/completions",
@@ -467,6 +524,16 @@ def genera(prompt: str, temperature: float, max_tokens: int = 0) -> tuple:
         fin = ch.get("finish_reason", "")
     except Exception as exc:
         return "", f"formato: {exc}"[:120]
+    if uso is not None:
+        # ISO-CÓMPUTO EN TOKENS, no en reloj (revisión adversarial 2026-07-31).
+        # El reloj de pared miente al comparar brazos: un brazo que repite el
+        # MISMO prompt K veces se beneficia del caché de prefill del servidor
+        # y otro que manda un prompt nuevo cada vez no. Los tokens GENERADOS
+        # son la unidad honesta de "cuánto cómputo se gastó".
+        u = data.get("usage") or {}
+        uso.update({"prompt_tokens": u.get("prompt_tokens"),
+                    "completion_tokens": u.get("completion_tokens"),
+                    "total_tokens": u.get("total_tokens")})
     if fin == "length":
         return texto, "truncado_por_longitud"
     if not texto:
