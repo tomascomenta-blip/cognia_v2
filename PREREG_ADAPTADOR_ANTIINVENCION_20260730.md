@@ -399,6 +399,41 @@ selector del check y el selector donde el enunciado pone ese valor coinciden.
 del mismo efecto** es lo que destapó que mi taxonomía etiquetaba mal. Sin la
 sonda, la simulación habría pasado por diagnóstico.
 
+### PRUEBA DE LA HIPÓTESIS (`b2_selector_equivocado.py`, cero GPU)
+
+Para cada literal de un check **crítico fallido** en una página **sana**, se
+buscó si ese valor aparece **en algún sitio** de la página:
+
+| | | |
+|---|---|---|
+| literales examinados | **434** | |
+| **SELECTOR_EQUIVOCADO** | **142 (32.7%)** | el valor SÍ está en la página, pero no donde el check mira |
+| VALOR_AUSENTE | 292 (67.3%) | no aparece en ninguna parte |
+
+**La hipótesis se confirma pero explica un tercio, no el 41% que yo
+esperaba.** Ejemplos, todos del mismo patrón *"mira el control en vez del
+display"*:
+
+- `tabla_compuesta` espera `'Ana'` **mirando en `#q`** — el input del filtro.
+- `precedencia` espera `'2'` **mirando en `.k[data-k='2']`** — el botón que se
+  pulsa, en vez de la pantalla.
+
+**LÍMITE IMPORTANTE, declarado antes de que alguien lea el 67.3% como
+"invenciones":** esta prueba mira la página **en reposo, sin ejecutar las
+acciones previas del check**. Un valor como `540.00` solo aparece **después**
+de escribir 60 en `#cant`, así que cuenta como ausente aunque el producto lo
+genere perfectamente. Por tanto:
+
+- **32.7% es una COTA INFERIOR** de "selector equivocado" — esos 142 están
+  confirmados.
+- **67.3% NO es "valor inventado"**: es "no visible sin interactuar", y mezcla
+  invenciones con valores perfectamente correctos que aparecen tras la acción.
+
+**Cómo cerrarlo del todo (para la próxima, barato y sin GPU):** capturar el
+DOM **al final de cada check fallido** en vez de en reposo — el juez ya ejecuta
+las acciones, solo hay que volcar el estado en ese punto. Eso convertiría el
+67.3% en una medición real de invención.
+
 ## Orden de ejecución, si se retoma
 
 1. Generar contratos para las 23 tareas restantes (~1-1.5 h GPU).

@@ -10413,15 +10413,30 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
   de gastar GPU, y se bajó al terminar. **Gasto total de GPU en la sesión:
   8.4 min** (los 87 contratos); todo lo demás fue CPU sobre lo congelado.
 
+19. **HIPÓTESIS PROBADA LA MISMA NOCHE (`b2_selector_equivocado.py`): se
+    confirma, pero explica UN TERCIO.** Para cada literal de un check crítico
+    fallido en página sana se buscó si el valor aparece en algún sitio de la
+    página: **434 literales → SELECTOR_EQUIVOCADO 142 (32.7%)**, VALOR_AUSENTE
+    292 (67.3%). Ejemplos del mismo patrón *"mira el control en vez del
+    display"*: `tabla_compuesta` espera `'Ana'` **mirando en `#q`** (el input
+    del filtro) y `precedencia` espera `'2'` **mirando en el botón**
+    `.k[data-k='2']` en vez de la pantalla.
+    **LÍMITE que hay que leer antes que el número:** la prueba mira la página
+    **en reposo, sin ejecutar las acciones previas del check**, así que un
+    `540.00` que solo aparece tras escribir 60 cuenta como ausente aunque el
+    producto lo genere bien. Por eso **32.7% es COTA INFERIOR** de selector
+    equivocado y **el 67.3% NO es "invención"**: es "no visible sin
+    interactuar". Cerrarlo es barato y sin GPU — volcar el DOM **al final de
+    cada check fallido** en vez de en reposo; el juez ya ejecuta las acciones.
+
 **Lo primero de la próxima sesión, por valor:**
-1. **Probar la hipótesis "APUNTA AL SITIO EQUIVOCADO"**, que es lo que salió
-   del diagnóstico de esta noche y sustituye a "inventa valores". Es barata y
-   sin GPU: por cada check fallido con literal, comprobar si **el selector que
-   usa coincide con el que el enunciado asocia a ese valor** (`#cant` es el
-   input de entrada; el total vive en `#total`). Si la hipótesis aguanta,
-   **la función objetivo del adaptador deja de ser "no inventes valores" y
-   pasa a ser "elige el selector correcto para lo que quieres comprobar"** —
-   que además es más fácil de supervisar, porque el enunciado declara los
+1. **Cerrar la medición de invención**: volcar el DOM al final de cada check
+   fallido (el juez ya hace las acciones) y convertir el 67.3% de
+   "VALOR_AUSENTE" en una separación real entre *valor inventado* y *valor
+   que aparece tras interactuar*. Sin GPU. **Es el único número que falta
+   para decidir la función objetivo del adaptador**, que hoy ya no puede ser
+   "no inventes valores" (la premisa se cayó) y apunta a "elige el selector
+   correcto" — más fácil de supervisar, porque el enunciado DECLARA los
    selectores obligatorios.
 2. **Si se quiere medir selección**, hacerlo en el gate del BoN o en un banco
    con recorrido, con brazo nulo aleatorio. El duro ya no sirve.
