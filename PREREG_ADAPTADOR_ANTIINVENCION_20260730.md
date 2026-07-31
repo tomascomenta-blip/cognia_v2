@@ -355,6 +355,50 @@ que falla.
 progreso no puede ser "% de checks arreglados" — tiene que ser **páginas
 sanas que pasan a aprobar**, porque el AND se come todo lo demás.
 
+### CORRECCIÓN (la cuarta del día): lo que llamé "bug de forma" es un SELECTOR EQUIVOCADO
+
+Al hacer el diagnóstico por página apareció una **discrepancia**: la
+simulación decía que arreglar `TEXTO_EN_INPUT` salvaría **+8 páginas**, y la
+sonda real había medido **+0**. Una de las dos estaba mal, así que se abrieron
+los casos concretos (8 páginas donde ese es el ÚNICO tipo que falla).
+
+**La sonda tenía razón, y la causa cambia el diagnóstico.** El check real es:
+
+```
+"Ingresar 60 en #cant y verificar total actualizado a 540.00"
+   -> accion: texto, selector: "#cant", contiene: "540.00"
+```
+
+`#cant` es el `<input>` **donde se escribe el 60**. El total vive en
+`<span id="total">`. **El contrato está mirando el campo de ENTRADA para
+comprobar un valor de SALIDA.** Reescribirlo a `.value` no lo salva: `540.00`
+no va a estar en `#cant` ni leyéndolo bien.
+
+**Qué se corrige de lo que firmé antes:**
+
+- **NO es (solo) un bug de instrumento.** Es un error de **contenido**: el
+  pensador **confunde dónde mirar el resultado**. La firma "`texto` sobre un
+  `<input>`" era el síntoma, no la enfermedad.
+- **La simulación "arreglando N tipos" NO es válida como predicción.**
+  Asume que arreglar la categoría hace pasar el check, y aquí no lo hace:
+  "arreglar un tipo" no es una operación bien definida cuando la categoría
+  describe la forma y el fallo está en el contenido. Los números de la
+  simulación (45%, 77%, 87%) se retiran como predicción y quedan solo como
+  descripción del reparto.
+- **Lo que SÍ se sostiene, y ahora con mecanismo:** la sonda dio 0.0 pts
+  porque el fix de forma **no toca la causa real**. Y el doble KILL del modo
+  `corregido` se explica igual de bien.
+
+**El modo de fallo que queda mejor caracterizado del contrato interno es
+"apunta al sitio equivocado":** el 41.3% de los checks críticos fallidos
+compara un valor de salida contra un campo de entrada. Eso es una hipótesis
+mucho más concreta que "inventa valores" — y comprobable: bastaría ver si el
+selector del check y el selector donde el enunciado pone ese valor coinciden.
+
+*Y la lección de método:* **contrastar una simulación con una medición real
+del mismo efecto** es lo que destapó que mi taxonomía etiquetaba mal. Sin la
+sonda, la simulación habría pasado por diagnóstico.
+
 ## Orden de ejecución, si se retoma
 
 1. Generar contratos para las 23 tareas restantes (~1-1.5 h GPU).

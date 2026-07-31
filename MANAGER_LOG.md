@@ -10367,6 +10367,29 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     apareado; y la métrica de progreso sobre el contrato es **páginas sanas
     que pasan a aprobar**, no % de checks arreglados.
 
+18. **DIAGNÓSTICO POR PÁGINA + la CUARTA auto-corrección: no es un bug de
+    forma, es un SELECTOR EQUIVOCADO.** Se hizo el diagnóstico que yo mismo
+    había dejado como "lo primero de la próxima sesión" (82 páginas sanas:
+    **mediana 4 checks críticos fallidos, media 3.9, máximo 11**; solo 8
+    páginas con 0). Al simular cuántas se salvarían arreglando cada tipo
+    apareció una **discrepancia con la sonda real**: la simulación decía +8
+    para `TEXTO_EN_INPUT` y la sonda había medido **+0**.
+    **Se abrieron los 8 casos y la sonda tenía razón.** El check real es
+    *"Ingresar 60 en #cant y verificar total actualizado a 540.00"* y comprueba
+    `contiene "540.00"` **sobre `#cant`, que es el campo donde se ESCRIBE el
+    60** — el total vive en `<span id="total">`. **El contrato mira el campo de
+    ENTRADA para comprobar un valor de SALIDA**; leerlo bien no lo salva.
+    Se retira la simulación "arreglando N tipos" como predicción (45/77/87%):
+    asume que arreglar la categoría hace pasar el check, y eso es falso cuando
+    la categoría describe la FORMA y el fallo está en el CONTENIDO.
+    **Queda una hipótesis mucho mejor que "inventa valores": el contrato
+    APUNTA AL SITIO EQUIVOCADO en el 41.3% de sus checks críticos fallidos**,
+    y es comprobable (¿coincide el selector del check con el que el enunciado
+    asocia a ese valor?).
+    *Lección de método:* **contrastar una simulación con una medición real del
+    mismo efecto** fue lo que destapó que mi taxonomía etiquetaba mal. Sin la
+    sonda, la simulación habría pasado por diagnóstico.
+
 ### ATERRIZAJE — estado exacto de reanudación
 
 **Todo COMPLETO y versionado. Nada quedó a medias; no hay nada que reanudar.**
@@ -10391,12 +10414,19 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
   8.4 min** (los 87 contratos); todo lo demás fue CPU sobre lo congelado.
 
 **Lo primero de la próxima sesión, por valor:**
-1. **Rehacer el diagnóstico del contrato interno antes de proponer ningún
-   arreglo.** Lo que hay: falla por causas múltiples y simultáneas, y el
-   veredicto es un AND que anula cualquier fix de un solo tipo. Hace falta una
-   taxonomía *por página* (cuántos y de qué tipo fallan a la vez), no por
-   check — el dataset y la matriz cruzada ya están en disco para hacerlo sin
-   gastar nada.
+1. **Probar la hipótesis "APUNTA AL SITIO EQUIVOCADO"**, que es lo que salió
+   del diagnóstico de esta noche y sustituye a "inventa valores". Es barata y
+   sin GPU: por cada check fallido con literal, comprobar si **el selector que
+   usa coincide con el que el enunciado asocia a ese valor** (`#cant` es el
+   input de entrada; el total vive en `#total`). Si la hipótesis aguanta,
+   **la función objetivo del adaptador deja de ser "no inventes valores" y
+   pasa a ser "elige el selector correcto para lo que quieres comprobar"** —
+   que además es más fácil de supervisar, porque el enunciado declara los
+   selectores obligatorios.
 2. **Si se quiere medir selección**, hacerlo en el gate del BoN o en un banco
    con recorrido, con brazo nulo aleatorio. El duro ya no sirve.
 3. El adaptador **no se entrena** hasta que (1) diga contra qué.
+
+*Nota de método para el que siga:* la simulación "cuántas páginas se salvarían
+arreglando el tipo X" **no vale como predicción** y ya engañó una vez esta
+noche; solo cuenta la medición real (reescribir y volver a juzgar).
