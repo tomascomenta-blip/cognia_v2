@@ -11169,3 +11169,105 @@ prohibiciÃ³n asÃ­ no se levanta escribiendo que ya no aplica.
   en la misma lÃ­nea**. Si esa celda no llega a correrse, **no se compara y se
   dice**.
 
+
+### EL RESULTADO â€” la reparaciÃ³n con contraejemplo NO desbloquea nada que el remuestreo no diera
+
+**135 tareas `hard` completas de 138** (corte por reloj pre-registrado a los
+170 min), **695 generaciones**, instrumento **7.3%** (por debajo del 8% que
+obliga a parar), 0 crasheos.
+
+| brazo | aciertos (135 tareas) | generaciones | tokens de salida |
+|---|---|---|---|
+| RAÃZ `s1` sola *(descriptivo)* | **39 (28.9%)** | 135 | 149.523 |
+| **BoN** (muestras independientes) | **59 (43.7%)** | 227 | 317.802 |
+| **REP** (contraejemplo) | **57 (42.2%)** | 152 | 187.235 |
+| **PLACEBO** (sin contraejemplo) | **55 (40.7%)** | 181 | 231.909 |
+| TECHO (uniÃ³n de los tres) | 74 (54.8%) | | |
+
+**Los tres contrastes apareados, con su potencia:**
+
+| contraste | neto | gana/pierde | discordantes | P (1 cola) |
+|---|---|---|---|---|
+| **PRIMARIA** REP âˆ’ BoN | **âˆ’2** | 9 / 11 | 20 | 0.752 |
+| SECUND. 1 REP âˆ’ PLACEBO | +2 | 10 / 8 | 18 | 0.407 |
+| SECUND. 2 PLACEBO âˆ’ BoN | âˆ’4 | 10 / 14 | 24 | 0.840 |
+
+**Potencia (se reporta siempre, por la enmienda 4):** 20 discordantes exigen
+**15 victorias de 20** para P<0.05, o sea un **efecto mÃ­nimo detectable de +10
+tareas netas**. Veredicto pre-registrado: **`SIN POTENCIA`** â€” el diseÃ±o no
+distingue "no hay efecto" de "no lo verÃ­amos aunque lo hubiera", **y por eso NO
+se firma KILL**.
+
+**Pero sÃ­ se puede decir esto, y es lo que importa:** el diseÃ±o **habrÃ­a visto**
+una ganancia de +10 tareas, y midiÃ³ **âˆ’2**. *La reparaciÃ³n no es un desbloqueo
+grande.* Lo que queda sin resolver es si hay un efecto pequeÃ±o (<10 tareas).
+
+### Y a ISO-CÃ“MPUTO el empate es EXACTO
+
+El prereg comparaba a iso-**presupuesto** (4 candidatos cada brazo). El gasto
+REALIZADO saliÃ³ muy distinto, asÃ­ que se reconstruyÃ³ la curva de BoN con
+presupuestos K=1..4 **sobre las mismas muestras ya generadas** (truncar el pool
+no requiere generar nada) y se situÃ³ REP encima. *Descriptivo y post-hoc, y
+etiquetado como tal.*
+
+| brazo | presup. | aciertos | tokens de salida | aciertos / 100k tok |
+|---|---|---|---|---|
+| BoN | K=1 | 39 | 149.523 | 26.08 |
+| BoN | K=2 | 52 | 276.706 | 18.79 |
+| **BoN** | **K=3** | **57** | **385.464** | 14.79 |
+| BoN | K=4 | 59 | 467.325 | 12.63 |
+| **REP** | **K=4** | **57** | **336.758** | **16.93** |
+| PLACEBO | K=4 | 55 | 381.432 | 14.42 |
+
+> **A gasto comparable, REP y BoN empatan EXACTAMENTE: 57 y 57.** REP llega ahÃ­
+> con **48.706 tokens menos (âˆ’13%)**. No es que reparar rinda mÃ¡s: es que
+> **reparar y remuestrear compran lo mismo por token**, y la curva de BoN ya
+> estaba plana (K=3â†’4 solo aporta +2 tareas).
+
+### EL MECANISMO QUE SÃ APARECIÃ“, y no es el que la vÃ­a prometÃ­a
+
+El contraejemplo **no informa mÃ¡s que el placebo** (+2, P=0.41), pero **sÃ­ tiene
+un efecto grande y medible: dispara la NEGATIVA del modelo.**
+
+| tasa de "el modelo se rinde" (respuesta completa, no truncada, sin cÃ³digo) | |
+|---|---|
+| BoN (el enunciado, otra vez) | **5.3%** (12/227) |
+| PLACEBO (cÃ³digo roto, sin contraejemplo) | **8.8%** (16/181) |
+| **REP (cÃ³digo roto + CONTRAEJEMPLO)** | **15.8%** (24/152) |
+
+Test de permutaciÃ³n de dos proporciones (10.000 rÃ©plicas, dos colas):
+
+```
+rep - bon  : +10.5 pts   P = 0.0009
+rep - pla  :  +6.9 pts   P = 0.0627
+pla - bon  :  +3.6 pts   P = 0.1644
+```
+
+**EnseÃ±arle al 20B el caso concreto que falla TRIPLICA la probabilidad de que
+conteste "Sorry, I cannot provide a solution."** El coste no es solo la ronda
+perdida: **34 cadenas de REP se cortan** por no tener nada que reparar, y por
+eso REP gasta un 28% menos de cÃ³mputo que BoN sin haberlo decidido nadie.
+
+*Corolario de diseÃ±o para la prÃ³xima vez:* una cadena de reparaciÃ³n necesita
+**fallback a generaciÃ³n fresca** cuando el modelo se niega. Sin Ã©l, la vÃ­a se
+penaliza a sÃ­ misma por una razÃ³n que no tiene nada que ver con si reparar
+funciona.
+
+### Lo que esto cierra, y lo que no
+
+- **La condiciÃ³n de la suspensiÃ³n se cumpliÃ³ y la vÃ­a siguiÃ³ sin cobrar.** El
+  verificador era fiable por primera vez (ACUSA_SANOS 2.0%) y aun asÃ­ reparar
+  no batiÃ³ a remuestrear. La prioridad #1 histÃ³rica de META queda **sin
+  respaldo tambiÃ©n en el dominio donde tenÃ­a su mejor oportunidad**.
+- **No se firma KILL**, porque el diseÃ±o solo podÃ­a ver Â±10 tareas. Lo que se
+  firma es: *no hay desbloqueo grande, y el contraejemplo no es el ingrediente
+  activo que la literatura de TDD prometÃ­a.*
+- **La predicciÃ³n de sobreajuste al examen visible NO se cumpliÃ³** (enmienda 2):
+  el `DEJA_PASAR` de los brazos es prÃ¡cticamente idÃ©ntico â€” BoN 21.4%, REP
+  23.2%, PLACEBO 21.2%. Reparar contra el test visible **no** hace trampas
+  contra el oculto de forma medible.
+- **Y el resultado grande de la tabla es otro:** los tres brazos pasan de
+  **28.9% (una muestra) a 40-44%**. *Gastar mÃ¡s cÃ³mputo compra 12-15 puntos;
+  CÃ“MO se gasta casi da igual.* Eso refuerza el BoN como mecanismo y quita
+  urgencia a buscar estrategias mÃ¡s listas de gasto.
+

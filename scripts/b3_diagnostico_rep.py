@@ -78,6 +78,37 @@ for b in ("raiz", "bon", "rep", "pla"):
     r = sum(1 for m in sub if m.get("sin_codigo_modelo"))
     print(f"  {b:<5} {r:>3}/{len(sub):<4} = {r/len(sub):>5.1%}   "
           f"tokens de salida {sum(m.get('tok_salida') or 0 for m in sub):>7}")
+# Test de dos proporciones para la negativa: el numero se calcula, no se
+# estima a ojo. Permutacion sobre las etiquetas de brazo (10.000 replicas),
+# que no asume normalidad ni tamanos grandes.
+import random as _r
+
+
+def _perm_prop(a_ok, a_n, b_ok, b_n, semilla=20260731, reps=10000):
+    obs = a_ok / a_n - b_ok / b_n
+    bolsa = [1] * (a_ok + b_ok) + [0] * ((a_n - a_ok) + (b_n - b_ok))
+    rng = _r.Random(semilla)
+    ge = 0
+    for _ in range(reps):
+        rng.shuffle(bolsa)
+        d1 = sum(bolsa[:a_n]) / a_n
+        d2 = sum(bolsa[a_n:]) / b_n
+        if abs(d1 - d2) >= abs(obs):
+            ge += 1
+    return obs, ge / reps
+
+
+print(f"\n--- ¿el CONTRAEJEMPLO dispara la negativa? (permutacion, 2 colas) ---")
+cuentas = {}
+for b in ("bon", "rep", "pla"):
+    sub = [m for m in gen if m["brazo"] == b]
+    cuentas[b] = (sum(1 for m in sub if m.get("sin_codigo_modelo")), len(sub))
+for x, y in (("rep", "bon"), ("rep", "pla"), ("pla", "bon")):
+    dif, p = _perm_prop(cuentas[x][0], cuentas[x][1],
+                        cuentas[y][0], cuentas[y][1])
+    print(f"  {x} - {y}: {dif*100:+5.1f} pts   P = "
+          f"{'< 1e-4' if p <= 1e-4 else f'{p:.4f}'}")
+
 cortes = [m for m in d["muestras"] if m.get("no_generado")]
 print(f"\n--- cortes de cadena, por brazo y motivo ---")
 print(dict(Counter((m["brazo"], m.get("corte") or m.get("instrumento"))

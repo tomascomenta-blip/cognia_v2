@@ -1,0 +1,199 @@
+{
+ "n": 135,
+ "n_limpias": 112,
+ "k": 4,
+ "generaciones": 695,
+ "instrumento": 51,
+ "modelo_se_rinde": 61,
+ "cadenas_cortadas": 63,
+ "raiz_ok": 39,
+ "niveles": {
+  "bon": 59,
+  "rep": 57,
+  "pla": 55
+ },
+ "techo": 74,
+ "gasto": {
+  "bon": {
+   "generaciones_propias": 227,
+   "generaciones_con_raiz": 362,
+   "segundos_propios": 3711.9,
+   "segundos_con_raiz": 5354.9,
+   "prompt_chars_medio": 1784,
+   "tokens_salida_propios": 317802,
+   "tokens_salida_con_raiz": 467325
+  },
+  "rep": {
+   "generaciones_propias": 152,
+   "generaciones_con_raiz": 287,
+   "segundos_propios": 2241.9,
+   "segundos_con_raiz": 3884.9,
+   "prompt_chars_medio": 3586,
+   "tokens_salida_propios": 187235,
+   "tokens_salida_con_raiz": 336758
+  },
+  "pla": {
+   "generaciones_propias": 181,
+   "generaciones_con_raiz": 316,
+   "segundos_propios": 2995.5,
+   "segundos_con_raiz": 4638.5,
+   "prompt_chars_medio": 3331,
+   "tokens_salida_propios": 231909,
+   "tokens_salida_con_raiz": 381432
+  }
+ },
+ "comparaciones": {
+  "rep_menos_bon": {
+   "neto": -2,
+   "gana": 9,
+   "pierde": 11,
+   "discordantes": 20,
+   "p_una_cola": 0.752,
+   "p_dos_colas": 0.8213
+  },
+  "rep_menos_pla": {
+   "neto": 2,
+   "gana": 10,
+   "pierde": 8,
+   "discordantes": 18,
+   "p_una_cola": 0.4066,
+   "p_dos_colas": 0.8209
+  },
+  "pla_menos_bon": {
+   "neto": -4,
+   "gana": 10,
+   "pierde": 14,
+   "discordantes": 24,
+   "p_una_cola": 0.8395,
+   "p_dos_colas": 0.5481
+  }
+ },
+ "comparacion_limpias": {
+  "rep_menos_bon": {
+   "neto": 0,
+   "gana": 7,
+   "pierde": 7,
+   "discordantes": 14,
+   "p_una_cola": 0.6056,
+   "p_dos_colas": 1.0
+  }
+ },
+ "nulos": {
+  "bon": {
+   "presupuesto_entero": {
+    "n": 67,
+    "elegido": 6,
+    "azar": 2.0,
+    "azar_con_codigo": 2.0,
+    "azar_1test": 2.92,
+    "p95": 4,
+    "p": 0.0022,
+    "neto_azar": 4.0,
+    "neto_azar_codigo": 4.0,
+    "neto_azar_1test": 3.08,
+    "vive": true
+   },
+   "todas_descriptivo": {
+    "n": 135,
+    "elegido": 59,
+    "azar": 47.0,
+    "azar_con_codigo": 47.17,
+    "azar_1test": 52.08,
+    "p95": 51,
+    "p": 0.0,
+    "neto_azar": 12.0,
+    "neto_azar_codigo": 11.83,
+    "neto_azar_1test": 6.92,
+    "vive": true
+   }
+  },
+  "rep": {
+   "presupuesto_entero": {
+    "n": 33,
+    "elegido": 5,
+    "azar": 1.5,
+    "azar_con_codigo": 1.5,
+    "azar_1test": 2.25,
+    "p95": 3,
+    "p": 0.0038,
+    "neto_azar": 3.5,
+    "neto_azar_codigo": 3.5,
+    "neto_azar_1test": 2.75,
+    "vive": true
+   },
+   "todas_descriptivo": {
+    "n": 135,
+    "elegido": 57,
+    "azar": 45.83,
+    "azar_con_codigo": 45.83,
+    "azar_1test": 50.42,
+    "p95": 49,
+    "p": 0.0,
+    "neto_azar": 11.17,
+    "neto_azar_codigo": 11.17,
+    "neto_azar_1test": 6.58,
+    "vive": true
+   }
+  },
+  "pla": {
+   "presupuesto_entero": {
+    "n": 48,
+    "elegido": 5,
+    "azar": 2.0,
+    "azar_con_codigo": 2.0,
+    "azar_1test": 3.08,
+    "p95": 4,
+    "p": 0.0104,
+    "neto_azar": 3.0,
+    "neto_azar_codigo": 3.0,
+    "neto_azar_1test": 1.92,
+    "vive": true
+   },
+   "todas_descriptivo": {
+    "n": 135,
+    "elegido": 55,
+    "azar": 45.17,
+    "azar_con_codigo": 45.17,
+    "azar_1test": 49.25,
+    "p95": 49,
+    "p": 0.0,
+    "neto_azar": 9.83,
+    "neto_azar_codigo": 9.83,
+    "neto_azar_1test": 5.75,
+    "vive": true
+   }
+  }
+ },
+ "potencia": {
+  "discordantes": 20,
+  "victorias_para_p05": 15,
+  "efecto_minimo_detectable": 10
+ },
+ "ratio_tokens": 0.721,
+ "ratio_reloj": 0.725,
+ "veredicto": "SIN POTENCIA",
+ "sobreajuste_visible": {
+  "bon": {
+   "elegidos_que_pasan_visibles": 70,
+   "de_esos_fallan_oculto": 15,
+   "deja_pasar_pct": 21.4
+  },
+  "rep": {
+   "elegidos_que_pasan_visibles": 69,
+   "de_esos_fallan_oculto": 16,
+   "deja_pasar_pct": 23.2
+  },
+  "pla": {
+   "elegidos_que_pasan_visibles": 66,
+   "de_esos_fallan_oculto": 14,
+   "deja_pasar_pct": 21.2
+  }
+ },
+ "contraejemplos": 173,
+ "contraejemplos_excepcion": 4,
+ "paradas_tempranas": {
+  "bon": 68,
+  "rep": 102,
+  "pla": 87
+ }
+}
