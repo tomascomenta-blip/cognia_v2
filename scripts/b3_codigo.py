@@ -54,7 +54,14 @@ MAX_TOKENS = 4096
 REASONING_EFFORT = "low"        # se fija por chat_template_kwargs, NO por el
                                 # system: "Reasoning: low" en el system NO
                                 # hace nada (medido 3/3).
-TIMEOUT_HTTP = 300
+# TIMEOUT_HTTP: es POR OPERACIÓN de socket, no de la petición entera. A
+# `reasoning_effort=high` el modelo puede pensar más de 5 minutos ANTES de
+# emitir el primer byte, y entonces este timeout mata la muestra y la marca
+# como fallo de instrumento: 7 de 11 muestras murieron a los 300,0 s exactos
+# el 2026-07-31. Es la TERCERA capa del mismo muro (cap de tokens -> n_ctx ->
+# timeout HTTP): cada vez que se quita una aparece la siguiente, y las tres
+# parecían "el modelo no puede".
+TIMEOUT_HTTP = int(os.environ.get("COGNIA_TIMEOUT_HTTP", "300"))
 EXEC_TIMEOUT = 8                # segundos por lote de asserts (MBPP)
 SEG_POR_TEST = 6                # LCB: presupuesto POR TEST (su estándar)
 TOPE_LOTE = 240                 # techo de pared del lote, pase lo que pase
