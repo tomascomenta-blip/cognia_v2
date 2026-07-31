@@ -10829,3 +10829,57 @@ su juez es `subprocess + timeout`, no Playwright: se acabaron los cuelgues.
     El contraste entre las dos primeras filas es el resultado: **en MBPP el
     BoN solo cobra el primer bit de señal (+2.17 contra el nulo que ya usa el
     examen, no significativo); en B-LCB elige de verdad (+17.67, P<1e-4).**
+
+19. **EL CONTROL DEFINITIVO: el efecto no depende NI del examen NI de la
+    tirada de generación** (ENMIENDA 3, declarada post-hoc). La réplica del
+    punto 16 cambiaba el examen pero **usaba las mismas muestras**, así que no
+    tocaba la varianza que `varianza-entre-corridas` mide en **±34 puntos**.
+    Se generaron **292 muestras NUEVAS** del estrato `hard` (73 tareas × 4),
+    con el **mismo examen**, para aislar exactamente esa fuente:
+
+    | fuente de variación | n | pass@1 | AZAR | BoN | techo | neto | P | vs AZAR-1-TEST |
+    |---|---|---|---|---|---|---|---|---|
+    | original (examen A, muestras A) | 56 | 29.5% | 16.50 | 28 | 32 | **+11.50** | <1e-4 | +9.67 |
+    | réplica de EXAMEN (B, A) | 56 | 29.5% | 16.50 | 28 | 33 | **+11.50** | <1e-4 | +8.42 |
+    | **réplica de GENERACIÓN (A, B)** | 56 | 30.8% | 17.25 | **30** | 31 | **+12.75** | **<1e-4** | **+9.50** |
+
+    **Las tres lecturas coinciden** (+11.50 / +11.50 / +12.75), y las tres
+    superan también el nulo que ya usa el examen (+9.67 / +8.42 / +9.50).
+    *Límite que va con el número:* el estrato se eligió **después** de ver los
+    datos, así que esto confirma la **estabilidad** del efecto en `hard`, no
+    es una confirmación independiente del +21.00 global.
+
+### ATERRIZAJE — estado exacto de reanudación
+
+**Todo COMPLETO y versionado. No hay nada a medias.**
+
+| corrida | estado | dónde |
+|---|---|---|
+| MBPP (humo del motor) | 800/800 muestras | `b3_codigo/mbpp.json` |
+| B-LCB generación | 668/668 (167 tareas × 4) | `b3_codigo/lcb.json` |
+| B-LCB re-juicio uniforme + recuperación | 668/668 | `b3_codigo/lcb_uniforme.json` |
+| B-LCB réplica de EXAMEN | 668/668 | `b3_codigo/lcb_split2.json` |
+| B-LCB réplica de GENERACIÓN (`hard`) | 292/292 | `b3_codigo/lcb_hard_r2.json` |
+| Análisis | 3 ficheros | `b3_codigo/analisis_{mbpp,lcb,lcb2}.json` |
+| Auditoría del contrato (P2) | 70 filas + 782 checks | `b2_contratos_ampliado/{auditoria_anclaje,checks_mudos}.json` |
+
+- **Suite completa verde en cada commit con código: 5495 passed, 1 skipped**
+  (corrida dos veces: antes del commit de infraestructura y antes del final).
+- Árbol limpio y **0 commits sin pushear**.
+- **0 chromium** en toda la sesión (el juez es `subprocess`, no Playwright:
+  ese era medio motivo del cambio de terreno).
+- Flota: gpt-oss-20b levantado con **slots=1 y n_ctx=16384 VERIFICADOS en
+  `/props`** antes de gastar GPU.
+- Datasets (MBPP 563 KB, LCB `test6` 134 MB) en `datos_bancos/`, **fuera de
+  git** por `.gitignore` — son públicos y re-descargables.
+
+**Lo primero de la próxima sesión, por valor:**
+1. **El banco tiene recorrido y está medido**: `hard` da pass@1 24.7% con 73
+   tareas. Ahí es donde se mide de ahora en adelante; `easy` está saturado
+   (94.8%) y no informa.
+2. **Ampliar la ventana temporal** bajando `test5.jsonl` (557 MB) para cubrir
+   jul–dic 2024 y pasar de 175 a ~350 problemas post-corte. Es lo que da
+   potencia para diferencias finas.
+3. **El cuello del goal NO se ha movido**: el BoN necesita TESTS. Donde no los
+   hay (web), sigue sin haber señal para tareas nuevas — y van 10 vías
+   muertas con un argumento estructural de por qué.

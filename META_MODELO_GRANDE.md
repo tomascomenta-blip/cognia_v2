@@ -148,6 +148,19 @@ Se re-juzgaron las MISMAS 668 muestras con otro sorteo del split (semilla
 
 Con `hard` **idéntico** en las dos (+13.00). El neto no depende del sorteo.
 
+**Y replica también volviendo a GENERAR**, que es lo único que controla la
+varianza entre corridas (±34 pts medidos). 292 muestras NUEVAS del estrato
+`hard`, mismo examen:
+
+| fuente de variación | neto | P | vs AZAR-1-TEST |
+|---|---|---|---|
+| original (examen A, muestras A) | +11.50 | <1e-4 | +9.67 |
+| réplica de EXAMEN (B, A) | +11.50 | <1e-4 | +8.42 |
+| **réplica de GENERACIÓN (A, B)** | **+12.75** | **<1e-4** | **+9.50** |
+
+**Las tres coinciden.** *(El estrato se eligió tras ver los datos: confirma
+estabilidad en `hard`, no es confirmación independiente del +21.00 global.)*
+
 **4. Lo que este resultado NO dice.** Nada sobre el pass@1 absoluto frente a
 tablas publicadas: el prompt, el evaluador y el cap de tests son míos.
 Y **el BoN sigue necesitando TESTS**: en el dominio web, donde no los hay, el
