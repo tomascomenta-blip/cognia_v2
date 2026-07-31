@@ -10366,3 +10366,37 @@ arrancar. Cero GPU en toda la sesión: **todo se midió sobre lo congelado.**
     de un selector es el AZAR y no s1; la primaria de un examen es Youden J
     apareado; y la métrica de progreso sobre el contrato es **páginas sanas
     que pasan a aprobar**, no % de checks arreglados.
+
+### ATERRIZAJE — estado exacto de reanudación
+
+**Todo COMPLETO y versionado. Nada quedó a medias; no hay nada que reanudar.**
+
+| corrida | estado | dónde |
+|---|---|---|
+| Metamórfico, calibración (brutal) | 94/94 | `b2_metamorfico/calib_v2.json` |
+| Metamórfico, medición (duro r1+r2) | 32+32 | `b2_metamorfico/b2_bon_heldout_duro*.json` |
+| Medoide, original | 24/24 ensayos | `b2_medoide/resultados.json` |
+| Medoide, réplica | 24/24 ensayos | `b2_medoide/resultados_b2_bon_gate_v2.json` |
+| Contratos sobre páginas congeladas | 100 → 87 OK | `b2_contratos_ampliado/indice.json` |
+| Juicios con detalle por check | 87/87 | `b2_contratos_ampliado/juicios.json` |
+| Matriz cruzada | 418/418 celdas | `b2_contratos_ampliado/matriz_cruzada.json` |
+| Dataset con etiqueta débil | 653 checks | `b2_contratos_ampliado/dataset_etiqueta_debil.json` |
+| Sonda del bug de forma | 87/87 | `b2_contratos_ampliado/sonda_texto_input.json` |
+
+- Árbol limpio y **0 commits sin pushear** (verificado).
+- **Suite completa verde en cada commit con código: 5495 passed, 1 skipped.**
+- **0 infra en todas las corridas**; 0 chromium huérfanos al cerrar.
+- Flota: gpt-oss-20b se levantó con **slots=1 y n_ctx=16384 verificados** antes
+  de gastar GPU, y se bajó al terminar. **Gasto total de GPU en la sesión:
+  8.4 min** (los 87 contratos); todo lo demás fue CPU sobre lo congelado.
+
+**Lo primero de la próxima sesión, por valor:**
+1. **Rehacer el diagnóstico del contrato interno antes de proponer ningún
+   arreglo.** Lo que hay: falla por causas múltiples y simultáneas, y el
+   veredicto es un AND que anula cualquier fix de un solo tipo. Hace falta una
+   taxonomía *por página* (cuántos y de qué tipo fallan a la vez), no por
+   check — el dataset y la matriz cruzada ya están en disco para hacerlo sin
+   gastar nada.
+2. **Si se quiere medir selección**, hacerlo en el gate del BoN o en un banco
+   con recorrido, con brazo nulo aleatorio. El duro ya no sirve.
+3. El adaptador **no se entrena** hasta que (1) diga contra qué.
