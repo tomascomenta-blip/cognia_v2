@@ -134,6 +134,161 @@ mío o suyo.
 
 *(se appendean con fecha y hora; nunca se edita lo de arriba)*
 
+### ENMIENDA 5 (2026-07-31 19:30) — lo que tumbó la revisión adversarial de la enmienda 4, ANTES de la muestra 10
+
+Tres revisores (diseño, instrumento, honestidad) + refutación adversarial por
+BLOQUEA: **9 confirmados que convergen en 4 temas**, varios reproducidos en
+sandbox por los refutadores y el primero por mí. Todo arreglado ANTES de
+gastar GPU.
+
+**1. Las condiciones "obligatorias" eran PROSA.** El runner no comprobaba ni
+`/props` ni `COGNIA_TIMEOUT_HTTP` (default 300 silencioso = la capa 3
+reentrando), y un backend a ctx corto habría producido `truncado_por_longitud`
+FALSO, indistinguible del real en el fichero. Arreglo (verificado ejecutando
+los dos abortos): `preflight()` en `b3_factorial.py` aborta si el backend no
+responde, si `total_slots != 1`, si hay celdas high y `n_ctx != 65536`, o si
+`TIMEOUT_HTTP < --pared`; y cada muestra persiste ahora
+`tok_prompt`/`tok_salida` (sin tokens, una truncada a 60k no se puede
+distinguir a posteriori de una truncada por contexto).
+
+**2. La reanudación era DESTRUCTIVA.** Reproducido en sandbox: el comando del
+tramo 2 tal como estaba abreviado en la enmienda 4 habría descartado las 120
+muestras del eje PROMPT de `factorial.json` (los ABORTA no saltan: sus
+parámetros coinciden con los defaults), y reanudar `_high2` sin `--celdas`
+habría descartado las 9 muestras (47 min de GPU). Arreglo: `celdas` se
+persiste y se valida al reanudar (ficheros viejos exigen `--celdas` explícito
+para adoptarse); `pared`/`timeout_http`/`n_ctx_backend` se persisten;
+`n_pedidas` se actualiza al reanudar. Copias de seguridad hechas en
+`b3_codigo/backup_20260731_noche/`. **Los comandos de tramos son ESTOS,
+LITERALES** (con `COGNIA_TIMEOUT_HTTP=1500` exportada antes):
+
+    :: tramo 1
+    venv312\Scripts\python.exe scripts\b3_factorial.py --n 24 --minutos 150
+        --max-tokens 60000 --pared 1500 --celdas oficial_high
+        --sufijo _high2 --reanudar
+    :: tramo 2 (solo si el reloj da) — IDÉNTICO salvo --n 36
+    venv312\Scripts\python.exe scripts\b3_factorial.py --n 36 --minutos 150
+        --max-tokens 60000 --pared 1500 --celdas oficial_high
+        --sufijo _high2 --reanudar
+    :: réplica low intra-config (tras high; ~7-11 min de GPU)
+    venv312\Scripts\python.exe scripts\b3_factorial.py --n 36 --minutos 30
+        --max-tokens 60000 --pared 1500 --celdas oficial_low
+        --sufijo _low2
+
+**3. Mi juez "oficial" NO es el oficial.** `juzga_oficial` reprueba
+automáticamente los lotes > 8 MB (`demasiado_grande`) y capa el timeout a
+120 s frente a la fórmula oficial (~306 s): **2 de las 24 tareas del tramo 1
+(abc382_d, abc386_d) y 5 de las 36 del tramo 2 no las puede aprobar NUNCA**
+(techo estructural 91.7% / 86.1%), y `abc382_d` ya está en disco con
+`mio_pasa=True, oficial_pasa=False`. Reproducido por mí. Decisión:
+`demasiado_grande`/`lote_expirado` son fallo de MI instrumento — estrato
+aparte, pass@1 oficial CON y SIN, enumerado en la frase de comparación, y la
+potencia del eje se corrige: el lado ganable de high son **11 tareas, no 13**
+(esas 2 son fallo concordante forzado; n efectivo del contraste 22).
+
+**4. La comparación puntual falseaba la precisión.** Con n=36 el error de
+muestreo (~±16 pts al 95%) es mayor que el hueco a medir. La frase de
+comparación lleva SIEMPRE n, semilla e IC95 Wilson, y además (avisos
+adoptados): el sorteo es del solape FILTRADO (198 de 211: el filtro de
+`tests_lcb` excluye 13 tareas, 10 hard, ~1-2 pts A MI FAVOR — el único sesgo
+direccional a mi favor y por eso el primero que se declara), "mi banco local"
+en vez de implicar equivalencia con v6, la mezcla de dificultades del tramo
+(24: 7e/6m/11h; 36: 7e/10m/19h — el tramo 2 es MÁS duro y baja el pass@1 por
+composición), y mi extractor toma el PRIMER bloque de código mientras el
+oficial toma el ÚLTIMO (antes del análisis se escanean los crudos
+multi-bloque; hoy 0 de 4 completas).
+
+**Decisiones de análisis fijadas AHORA (antes del contraste):** la P que
+decide el eje es de UNA COLA en la dirección pre-declarada `high > low` (es
+el candidato de los ~18 pts); la de dos colas se reporta al lado, y el MDE se
+calcula BILATERAL y se dice (la enmienda 4 mezclaba convenciones: los
+"±7 netas" eran unilaterales; el MDE bilateral real con d=13 es ±9). Las tres
+lecturas de truncadas son fallo (principal) / pase (cota superior REAL) /
+excluidas (descriptiva) — "excluidas" NO es cota y deja de llamarse así. En
+la principal, truncada se FUERZA a fallo aunque trajera código extraíble.
+Análisis: `scripts/b3_esfuerzo_analisis.py` (no `b3_factorial_analisis.py`,
+que codifica el prereg viejo).
+
+**Blindaje del contraste entre corridas (aviso adoptado):** el par
+high(noche)/low(mañana) cruza corridas Y configs de backend. Se pre-registra
+la réplica `oficial_low` fresca bajo el backend de 65536 (`factorial_low2`,
+comando arriba, se corre DESPUÉS de high para no robarle reloj): el contraste
+principal del eje pasa a ser high vs low2 (intra-config) con high vs
+low(mañana) al lado como réplica; si discrepan en signo, se dice y no se
+firma ninguno.
+
+**Congelado:** `lcb_test5.jsonl` SHA256 7F77571C2A6DF0C2…,
+`lcb_test6.jsonl` BB4C364F71921C44… (los tramos exigen que no cambien).
+Humo del preflight PASADO: aborta sin la env var (capa 3) y sin `--celdas`
+(fichero pre-arreglo); con backend 65536+slots=1+timeout 1500 arranca y
+reanuda las 9.
+
+### ENMIENDA 4 (2026-07-31 19:15) — CERRAR el eje ESFUERZO por tramos, con las tres capas de instrumento ya fuera
+
+**Escrita ANTES de generar la muestra 10.** La enmienda 3 declaró la celda
+`oficial_high` no medible; era falso en dos de sus tres motivos (el contexto y
+el timeout eran MÍOS, no del hardware — medido por la tarde: `n_ctx=65536`
+ocupa 13.487 de 16.311 MiB). Con las tres capas fuera, la celda se corre.
+
+**Condiciones del instrumento, verificadas ANTES de gastar (obligatorio):**
+
+- Backend `--ctx 65536`, `total_slots=1` y `n_ctx=65536` confirmados en
+  `/props` — con menos contexto lo que se mide es mi configuración.
+- `COGNIA_TIMEOUT_HTTP=1500` en el ENTORNO del runner (la capa 3 mataba a los
+  300,0 s exactos), `--pared 1500`, `--max-tokens 60000`.
+- Fichero: `factorial_high2.json` (semilla 20260731, temp 0.8, max_tokens
+  60000 — el runner ABORTA si difieren). `factorial_high.json` es la sonda
+  vieja con timeout 300 y **NO se mezcla**.
+- Ya hay **9 muestras** en el fichero (4 completas, 5 truncadas a 60k),
+  generadas ayer en estas mismas condiciones: se reanudan, no se regeneran.
+
+**QUÉ SE HACE CON LAS MUESTRAS QUE TRUNCAN A 60.000 TOKENS — decidido AHORA,
+con 9 muestras vistas pero el contraste sin mirar:** contarlas como fallo a
+secas es el error que ayer se cazó dos veces; excluirlas expulsa justo las
+tareas más difíciles (el lado B). Lo pre-registrado:
+
+1. `truncado_por_longitud` se reporta como **ESTRATO APARTE** con su tasa.
+2. El pass@1 de la celda se da **CON ellas contadas como fallo** (lectura
+   principal) **y SIN ellas** (cota optimista), siempre juntas.
+3. **Por qué "truncada = fallo" es la lectura principal y no un cap mío:** la
+   referencia corre con 64k de secuencia TOTAL; su techo efectivo de
+   pensamiento+respuesta es ~63k. Mi presupuesto (60.000 de `max_tokens`
+   dentro de `n_ctx=65536`) está ~3k por debajo de ese techo, y esa
+   diferencia residual **se enumera en la frase de comparación**. Un problema
+   que exige >60k de pensamiento está, a efectos de esta celda, en el mismo
+   régimen que tendría en la referencia.
+
+**Contraste del eje (descriptivo, apareado):** `oficial_high − oficial_low`
+por tarea, juez OFICIAL como primaria del eje y juez mío al lado, sobre las
+tareas con ambas celdas. **Potencia calculada ANTES con datos en disco:**
+`oficial_low` pasa 11/24 de estas tareas (juez oficial), así que hay a lo sumo
+13 tareas donde `high` puede ganar y 11 donde puede perder; con d discordantes
+el sign-flip exige las victorias de siempre (d=8→8, d=10→9, d=13→10). Con
+n=24 el **efecto mínimo detectable rondará ±7 tareas netas (~29 pts)**: esto
+NO es un gate y no puede matar nada — es la MEDICIÓN del eje, y el MDE se
+reporta junto al resultado. De las 9 muestras ya en disco hay 1 discordante
+(3721: low pasa, high trunca) — se declara que se vio antes de escribir esto.
+
+**TRAMOS, con corte por reloj pre-registrado en cada uno:**
+
+- **Tramo 1:** `--n 24 --minutos 150` (~15 tareas pendientes × ~6-10 min).
+  Cierra el eje con potencia mínima.
+- **Tramo 2 (solo si el reloj da):** `--n 36 --minutos 150 --reanudar` — la
+  semilla fija hace que las 24 primeras tareas sean las mismas, así que
+  ampliar N no cambia el experimento. **36 ≥ N_min=35**: solo entonces la
+  celda gana el derecho a comparar del §5.
+- **Tramo 3 (solo si sobra aún):** ampliar hacia k=3 NO se improvisa: exigiría
+  su propia enmienda (el fichero es k=1 por tarea y mezclar k cambia el
+  análisis).
+
+**La comparación con el 70 publicado** solo se emite si el tramo 2 completa
+≥35 tareas, desde la celda `(prompt oficial, high, juez oficial)`, y la frase
+enumera en la misma línea: mi banco no cubre 2024-08-01→09-21, k=1 contra sus
+3 muestras, temperatura 0.8 contra no declarada, techo de pensamiento 60k
+contra ~63k, y las tareas truncadas contadas como fallo. **Si el tramo 2 no
+llega, no se compara y se dice** — el tramo 1 solo cierra el EJE, no la
+comparación.
+
 ### ENMIENDA 3 (2026-07-31 10:12) — la celda `high` NO es medible en esta máquina, y ese ES el resultado
 
 Con el contexto ya subido a 32.768 y `max_tokens = 30.000`, la celda

@@ -194,6 +194,56 @@ ver los números. Un corte post-hoc, si aparece, se etiqueta **descriptivo** y
 
 *(se appendean con fecha y hora; nunca se edita lo de arriba)*
 
+### ENMIENDA 6 (2026-07-31 19:40) — REP-F (fallback a generación fresca): la potencia se calculó ANTES, y la vía queda SUSPENDIDA CON NÚMERO, sin gastar GPU
+
+El corolario de diseño del resultado de la mañana pedía un brazo **REP-F**:
+la cadena de reparación que cae a muestra independiente cuando el modelo se
+niega o no hay nada que reparar (el contraejemplo triplica la negativa,
+5.3%→15.8%, y 34 cadenas se cortaron sin gastar su presupuesto). Antes de
+correrlo se calculó la potencia sobre `reparacion.json`
+(`scripts/b3_potencia_repf.py`), y el cálculo pasó por verificación
+adversarial independiente (2 agentes con recomputo propio).
+
+**Primero, un error MÍO que la verificación cazó y se registra:** mi primera
+cota decía *"+1 neto con fallback perfecto"*. Estaba **mal sumada**: solo
+contaba las 3 tareas rescatables donde BoN también falla, y omitía que las 6
+rescatables donde BoN pasa también suben el neto (+1 cada una: el discordante
+a favor de BoN pasa a empate). Los dos verificadores reprodujeron mis números
+crudos (135 tareas; BoN 59, REP 57; 39 cadenas cortadas = 34
+`sin_codigo_previo` + 5 `sin_contraejemplo`; 9 rescatables por pool, 3 con
+BoN fallando) y corrigieron la contabilidad. El script queda arreglado.
+
+**Los números que valen (recomputados por mí y por los verificadores):**
+
+| | |
+|---|---|
+| neto hoy REP − BoN | **−2** (20 discordantes, 9/11) |
+| techo con fallback PERFECTO vía pool | **+7** (d=17, victorias 12/17) |
+| P (1 cola) del TECHO | **0.0717** — a UNA victoria del umbral |
+| victorias necesarias / MDE (1 cola, d=17) | 13 → **+9 netas** |
+| mecanismo FRESCO fuera del pool | ~73 eslabones × P(4º acierta \| 3 fallan) = **2/62 = 3.2%** → ~1-2.3 aciertos esperados; con UNO, 13/18 → P = 0.0481 |
+
+**Lectura honesta de ese cuadro:** el techo del fallback PERFECTO no alcanza
+la significación (0.0717), y solo la cruza el escenario perfecto + suerte en
+el mecanismo fresco. La esperanza REALISTA es mucho menor: en las 3 tareas
+que moverían el neto contra BoN, el único candidato del pool que acierta es
+de la cadena PLACEBO (ningún fresco), y la tasa fresca condicional es 3.2%
+por muestra → neto esperado realista **+0 a +3, contra un MDE de +9**.
+
+**DECISIÓN (antes de gastar nada):** REP-F **NO se corre esta noche**. No es
+un KILL (sería matar la vía con un diseño que no puede verla — la enmienda 4
+lo prohíbe) ni un "cierre por cota" (mi +1 era falso): es **SIN POTENCIA
+ALCANZABLE en este banco**, decidido a coste cero. La GPU de la sesión va al
+eje ESFUERZO (prioridad 1, candidato de ~18 pts). Condición de reapertura,
+escrita: un banco `hard` sustancialmente mayor (154 tareas no dan más d), un
+presupuesto k mayor que suba los discordantes, o evidencia externa de que
+reparar-tras-fresco (el mecanismo que la cota del pool no contempla) rinde.
+
+**Y la lección de método, otra vez:** la primera cota subcontaba en la
+dirección que favorecía mi conclusión ("no correr"). La verificación
+independiente del número de un solo agente —yo— no es opcional ni cuando el
+número lo produje yo mismo.
+
 ### ENMIENDA 1 (2026-07-31 06:05) — antes de generar nada
 
 Tres grados de libertad que el texto de arriba dejaba abiertos. Se cierran

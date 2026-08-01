@@ -33,8 +33,8 @@ sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
 from cognia.presupuesto_pared import PresupuestoAgotado, con_presupuesto
-from b3_codigo import (SALIDA, SYSTEM_COD, carga_lcb, extract_code, genera,
-                       juzga_lcb, prompt_lcb, tests_lcb)
+from b3_codigo import (BACKEND, SALIDA, SYSTEM_COD, TIMEOUT_HTTP, carga_lcb,
+                       extract_code, genera, juzga_lcb, prompt_lcb, tests_lcb)
 from b3_oficial import SYSTEM_OFICIAL, casos_oficiales, juzga_oficial, \
     prompt_oficial
 
@@ -104,6 +104,51 @@ def sonda_esfuerzo(tareas: list) -> None:
               f"code={'si' if extract_code(texto) else 'NO'}")
 
 
+def preflight(celdas: list, pared: int, ctx_exigido: int) -> int:
+    """Las condiciones del instrumento, EJECUTABLES y no en prosa (revisión
+    adversarial del 2026-07-31, tres BLOQUEA convergentes: una enmienda que
+    declara condiciones 'obligatorias' que nadie comprueba es una lección en
+    prosa, y una lección en prosa no impide nada).
+
+    - Si hay alguna celda `high`, el backend TIENE que estar al contexto
+      pre-registrado: con menos, llama-server corta con finish_reason='length'
+      y el registro sale `truncado_por_longitud` INDISTINGUIBLE de una
+      truncada legítima a 60k — falsea el estrato primario en silencio.
+    - TIMEOUT_HTTP < pared reintroduce la capa 3 (muertes a los 300,0 s
+      exactos facturadas como http:).
+    Devuelve el n_ctx del backend para persistirlo junto a las muestras.
+    """
+    import urllib.request
+    hay_high = any(e == "high" for _, e in celdas)
+    try:
+        with urllib.request.urlopen(BACKEND + "/props", timeout=5) as r:
+            props = json.loads(r.read().decode("utf-8"))
+    except Exception as exc:
+        print(f"ABORTA preflight: {BACKEND}/props no responde ({exc}). "
+              f"Sin backend no se gasta nada.", flush=True)
+        sys.exit(2)
+    n_ctx = (props.get("default_generation_settings") or {}).get("n_ctx", 0)
+    slots = props.get("total_slots", 0)
+    if slots != 1:
+        print(f"ABORTA preflight: total_slots={slots}, se exige 1.",
+              flush=True)
+        sys.exit(2)
+    if hay_high and n_ctx != ctx_exigido:
+        print(f"ABORTA preflight: n_ctx={n_ctx} y las celdas high exigen "
+              f"{ctx_exigido}. Con menos, lo que se mide es mi contexto.",
+              flush=True)
+        sys.exit(2)
+    if hay_high and TIMEOUT_HTTP < pared:
+        print(f"ABORTA preflight: COGNIA_TIMEOUT_HTTP={TIMEOUT_HTTP} < "
+              f"--pared {pared}. Es la capa 3 (muertes a los 300,0 s "
+              f"exactos) reentrando: exporta la variable ANTES de importar.",
+              flush=True)
+        sys.exit(2)
+    print(f"[fac] preflight OK: n_ctx={n_ctx} slots={slots} "
+          f"timeout_http={TIMEOUT_HTTP}", flush=True)
+    return n_ctx
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=60)
@@ -123,9 +168,11 @@ def main():
     args = ap.parse_args()
 
     celdas = celdas_de(args.celdas)
+    celdas_str = ",".join("%s_%s" % c for c in celdas)
     SALIDA.mkdir(exist_ok=True)
     fichero = SALIDA / f"factorial{args.sufijo}.json"
     print(f"[fac] celdas: {['%s_%s' % c for c in celdas]}", flush=True)
+    n_ctx = preflight(celdas, args.pared, ctx_exigido=65536)
     tareas = carga_ventana(args.n, args.semilla)
     print(f"[fac] tareas={len(tareas)} ventana {DESDE}..{HASTA}", flush=True)
     if args.sonda:
@@ -136,6 +183,8 @@ def main():
            "prereg": "PREREG_CONDICIONES_OFICIALES_20260731.md",
            "temp": args.temp, "semilla": args.semilla, "n_pedidas": args.n,
            "max_tokens": args.max_tokens, "ventana": [DESDE, HASTA],
+           "celdas": celdas_str, "pared": args.pared,
+           "timeout_http": TIMEOUT_HTTP, "n_ctx_backend": n_ctx,
            "muestras": []}
     if fichero.exists():
         if not args.reanudar:
@@ -149,6 +198,28 @@ def main():
                 print(f"ABORTA: el fichero tiene {campo}={res.get(campo)!r} y "
                       f"se pide {valor!r}.", flush=True)
                 sys.exit(2)
+        # `celdas` no se persistía y reanudar sin --celdas usaba el diseño de
+        # 3 celdas, declaraba INCOMPLETAS todas las tareas del fichero y las
+        # DESCARTABA en el primer guardar() (revisión adversarial 2026-07-31,
+        # reproducido en sandbox: factorial.json habría perdido las 120
+        # muestras del eje PROMPT). Ficheros viejos sin el campo: se exige
+        # --celdas explícito y se adopta.
+        if res.get("celdas") is None:
+            if not args.celdas:
+                print(f"ABORTA: {fichero.name} no registra sus celdas "
+                      f"(fichero de antes del arreglo). Pasa --celdas "
+                      f"explícito para adoptarlo.", flush=True)
+                sys.exit(2)
+            res["celdas"] = celdas_str
+        elif res["celdas"] != celdas_str:
+            print(f"ABORTA: el fichero tiene celdas={res['celdas']!r} y se "
+                  f"pide {celdas_str!r}; reanudar con otro diseño descarta "
+                  f"muestras en silencio.", flush=True)
+            sys.exit(2)
+        res["n_pedidas"] = max(res.get("n_pedidas", 0), args.n)
+        res["pared"] = args.pared
+        res["timeout_http"] = TIMEOUT_HTTP
+        res["n_ctx_backend"] = n_ctx
         print(f"[fac] reanudando: {len(res['muestras'])} muestras", flush=True)
     # una tarea solo cuenta si tiene sus CUATRO celdas: el balance del diseño
     # es lo que hace legible un corte por reloj
@@ -181,10 +252,11 @@ def main():
             ts = time.time()
             p = t["_p_oficial"] if prom == "oficial" else t["_p_mio"]
             sysmsg = SYSTEM_OFICIAL if prom == "oficial" else SYSTEM_COD
+            uso = {}
             try:
                 texto, motivo = con_presupuesto(
                     args.pared, genera, p, args.temp, args.max_tokens,
-                    esf, sysmsg)
+                    esf, sysmsg, uso)
             except PresupuestoAgotado:
                 texto, motivo = "", f"presupuesto_pared_{args.pared}s"
             code = extract_code(texto)
@@ -209,6 +281,10 @@ def main():
                 "juez_oficial": m_of,
                 "segundos": round(time.time() - ts, 1),
                 "chars": len(texto), "prompt_chars": len(p),
+                # sin los tokens, una truncada a 60k y una truncada por un
+                # backend a ctx corto son INDISTINGUIBLES en el fichero
+                "tok_prompt": uso.get("prompt_tokens"),
+                "tok_salida": uso.get("completion_tokens"),
                 "crudo": texto[:6000],
             })
             guardar()
