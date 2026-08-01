@@ -95,7 +95,115 @@ marginal, bordes de tramo) · `form_cruzado` (tres reglas simultáneas) ·
 
 ## LA META
 
-### DÓNDE ESTAMOS — síntesis del 2026-08-01 de MADRUGADA (manda sobre todo lo de abajo)
+## EL GOAL, RESPONDIDO — ¿iguala el 20B+cómputo al frontier? (2026-08-01 por la MAÑANA; manda sobre todo lo de abajo)
+
+*Análisis formal sobre datos ya en disco (`ANALISIS_GOAL_RESPONDIDO_20260801.md`
+con enmienda 1, `scripts/b3_goal_analisis.py`, `b3_codigo/analisis_goal.json`).
+Cero GPU nueva. Números verificados por recomputo independiente ×2 (0
+discrepancias) y DOS revisiones adversariales (del análisis: 7 advertencias,
+aplicadas; del informe: 1 BLOQUEA — un "mitad" que era "un tercio", a favor
+del 20B — y 9 advertencias, aplicadas). Primaria: 80 tareas hard comunes
+reparacion∩frontier (81 − arc191_d, instrumento del plan), mismo examen
+oculto en ambos lados (frontier re-juzgado bajo el split sin_fuga de
+reparacion: **0 de 81 veredictos cambian** — `frontier_hard_sinfuga.json`).*
+
+### La tabla que responde el goal (hard, n=80, IC95 Wilson)
+
+| brazo | pasa | IC95 | tokens salida |
+|---|---|---|---|
+| frontier opus-5, k=1 | **76/80 (95.0%)** | [87.8, 98.0] | — |
+| 20B k=1 (raíz s1) | 25/80 (31.2%) | [22.2, 42.1] | 85k |
+| 20B BoN@4 realizable | 37/80 (46.2%) | [35.7, 57.1] | 271k |
+| 20B techo pool BoN@4 (selector perfecto) | 38/80 (47.5%) | [36.9, 58.3] | 271k |
+| 20B techo pool TOTAL (~10 cand., 3 brazos) | 46/80 (57.5%) | [46.6, 67.7] | 496k |
+
+**Todos los contrastes apareados salen 100% a favor del frontier** (sign-flip
++ binomial 1 cola en la dirección pre-especificada; MDE de cada uno): C1 (vs
+k=1) **+51 (51/0, P=4.4e-16, MDE +13)**; **PRIMARIA C2 (vs BoN@4 realizable)
++39 (39/0, P=1.8e-12, MDE +13)**; C3 (vs techo BoN) +38 (38/0, P=3.6e-12,
+MDE +12); C4 (vs techo TOTAL) **+30 (30/0, P=9.3e-10, MDE +10)**. El
+frontier no pierde NI UNA tarea contra NINGUNA palanca del 20B.
+
+**Sensibilidades (ninguna mueve el veredicto):** arc191_d contado como fallo
+del frontier (n=81): +39 (39/0, MDE +13). Split con fuga: +39 (39/0).
+Excluyendo las 3 tareas con candidato 20B instrumentado (la asimetría de
+instrumento entre brazos, declarada): +37 (37/0, P=7.3e-12, MDE +11). **Cota
+peor-caso de la parada temprana** (el pool BoN se trunca al pasar visibles;
+5 tareas pararon en un falso positivo sin éxito oculto — regalándoselas
+TODAS al 20B): C4 peor-caso **51/80 (63.8%) → +25 (25/0, P=3.0e-08,
+MDE +11)**. El "no puede" sobrevive el peor caso.
+
+### La lectura, con los umbrales pre-fijados en el plan
+
+- **hard: NO PUEDE, con las palancas medidas.** Con verificador PERFECTO
+  (oráculo) y **5.8× el cómputo** de k=1, el 20B llega a 57.5% donde el
+  frontier hace 95.0% a k=1 — cociente puntual 1.65 (1.49 en el peor caso de
+  la cota; sin IC, no decide nada). De las 34 tareas fuera del alcance del
+  pool total, el frontier resuelve 30 a la primera. La curva BoN se aplana
+  (realizable 25→33→35→37: el último paso compra +2), el selector perfecto
+  compra +1, y los knobs están cerrados por separado (esfuerzo +4 con MDE
+  ±8; presupuesto XL 1/12). Alcance declarado: el pool 20B es effort
+  low/8192 — quedan sin medir la interacción BoN×esfuerzo/presupuesto altos
+  y el traslado al 20B del harness agéntico en el que corrió el frontier;
+  lo que sí está medido es que ni esfuerzo ni presupuesto mueven el k=1 en
+  hard.
+- **easy: sin hueco medible.** Hueco k=1 en las 198: +2/52 (frontier 52/52
+  vs 50/52). BoN@4 en el banco propio: 43/43. Apareado en el solape: 0
+  discordantes en n=12 (SIN POTENCIA formal, y mezcla splits — frontier con
+  fuga, 20B sin fuga; el 0/81 de cambios que lo mitiga se midió en hard —
+  no se firma "iguala"; se firma que no queda hueco que el diseño pueda
+  ver).
+- **medium: el hueco NO se cierra con lo medido.** Hueco k=1 en las 198:
+  +24/63 (94% vs 56%) — ese nivel ya basta para "no se cierra". El uplift
+  BoN medido (banco propio, effort low/8k, descriptivo): +11.8 pts — **un
+  tercio** del hueco de 38. El apareado del solape (+4, 4/0, P=0.0625,
+  n=13) es SIN POTENCIA con splits mezclados: se lista, no se lee.
+
+### Qué compraría cada palanca restante (todo medido)
+
+| palanca | compra | estado |
+|---|---|---|
+| esfuerzo high | +4 (MDE ±8) | cerrado 2026-07-31 |
+| presupuesto 110k | 1/12 tareas | cerrado 2026-08-01 |
+| BoN k=3→4 | +2 (curva aplanándose) | medido aquí |
+| selector perfecto sobre BoN@4 | +1 | medido aquí |
+| diversidad de brazos (pool ~10, 1.8× tokens) | +8 sobre el TECHO BoN@4 (oráculo a oráculo; +9 sobre el realizable) | medido aquí |
+| rescate del peor-caso de parada | +5 (cota, no medida) | acotado aquí |
+| varianza del frontier (k=3) | enmienda 5 del DISEÑO frontier, corriendo | P2 de hoy |
+
+### Limitaciones firmadas con el número
+
+Apareado ENTRE corridas/configs (20B: effort low, 8k tok, temp 0.8, prompt
+single-shot de bon.py; frontier: harness de Claude Code con effort high, sin
+temperatura controlable — parte del nivel frontier puede ser harness, y eso
+también es cómputo en inferencia: interpretación alternativa declarada, no
+descartada) — mitigante medido: raíz k=1 en las 81 (30.9%) ≈ oficial_low
+hard a 60k (30.1%), y la XL midió que el presupuesto compra 1/12 en hard.
+Instrumento asimétrico entre brazos (frontier: 1 tarea excluida; 20B: 6
+candidatos raiz/bon fallan por instrumento, 17 en total con rep/pla) —
+cubierto por las dos sensibilidades. Contaminación de entrenamiento del
+frontier más plausible y sin cota (nivel = techo optimista; lo firmado es el
+apareado). Oráculos sobre pool con parada temprana = cota inferior (peor
+caso publicado). k=1 del frontier: la varianza se está midiendo hoy
+(enmienda 5 del diseño frontier, P2).
+
+### El veredicto del goal
+
+> **En este banco (código con tests ejecutables) y con las palancas medidas,
+> el hueco restante en hard NO es del cómputo: es del modelo o de palancas
+> sin medir (BoN a esfuerzo/presupuesto altos; harness agéntico para el
+> 20B).** El cómputo en inferencia con verificador SÍ compra capacidad — en
+> hard: primaria 31.2→46.2% (+15.0) y banco lcb propio 22/73→32/73 (+13.7);
+> en el banco público, +21 sobre el AZAR (otra métrica y otro baseline,
+> firmada aparte) — pero NO alcanza al frontier donde el goal lo
+> necesitaba: en hard, el techo de TODO lo medido (57.5% con oráculo y 5.8×
+> cómputo; 63.8% regalando el peor caso) queda a 31-37 puntos del frontier
+> a k=1 (95.0%). En easy no queda hueco medible; en medium el hueco es 38
+> pts y lo medido cubre un tercio. Lo que quedaría: un modelo base mejor en
+> 16 GB, las interacciones no medidas de arriba, o cambiar el terreno
+> (fabricar señal donde no hay tests — el cuello histórico del goal).
+
+### DÓNDE ESTAMOS — síntesis del 2026-08-01 de MADRUGADA (historia; lo de arriba manda)
 
 **1. EL TECHO DEL 20B TIENE TRES PISOS Y EL PRESUPUESTO NO ERA LA LLAVE.**
 La celda XL (las 12 truncadas re-corridas con 110k tokens y n_ctx=131072 —

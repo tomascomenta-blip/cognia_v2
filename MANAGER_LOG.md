@@ -11693,3 +11693,81 @@ red de seguridad; el apagado de las 08:00 NO se toca.
 
 El aterrizaje real fue a las 02:16; este pase del cron confirma que nada
 cambió en las 5,5 horas de espera pasiva.
+
+
+## 2026-08-01 (mañana 09:05→en curso) — EL GOAL, RESPONDIDO: el análisis formal que faltaba
+
+Sesión autónoma (Fable 5, ultracode). Deadline del prompt como placeholder
+literal → sin apagado armado, aterrizaje autogestionado (como el 2026-07-31).
+Sin shutdown previo que desarmar. Cero GPU en toda la mañana: la P1 era
+análisis de lo ya en disco, la P2 va por plan (subagentes).
+
+### P1 — el análisis formal del goal (plan → jueces alineados → verificación ×2 → refutación)
+
+Plan pre-escrito ANTES del cómputo formal (ANALISIS_GOAL_RESPONDIDO_20260801.md,
+con declaración de honestidad: la exploración de estructura ya había visto los
+niveles gruesos). El paso nuevo que exigía la primaria: reparacion.json se
+juzgó con split sin_fuga y el frontier con el del factorial — se re-juzgó el
+código crudo del frontier en las 81 hard comunes bajo sin_fuga
+(scripts/b3_frontier_rejuzga_sinfuga.py → frontier_hard_sinfuga.json):
+**0 de 81 veredictos cambian**; la amenaza del split no se materializó.
+
+**El resultado (n=80, arc191_d excluida por instrumento del plan):** frontier
+95.0% [87.8, 98.0] contra 20B k=1 31.2% · BoN@4 realizable 46.2% · techo pool
+BoN 47.5% · techo pool TOTAL (~10 candidatos, 5.8× cómputo) 57.5%. **Los
+cuatro contrastes apareados salen 100% a favor del frontier** — primaria
+F−BoN@4: +39 (39/0, P=1.8e-12, MDE +13); incluso contra el techo total: +30
+(30/0, P=9.3e-10, MDE +10). Curva BoN 25→33→35→37 (se aplana). Informe entero
+con sensibilidades y cota peor-caso firmado en META ("EL GOAL, RESPONDIDO").
+
+**La verificación pagó otra vez, en las dos direcciones:**
+- Recomputo independiente ×2 (agentes con código propio, sin leer mi script):
+  **coincidencia exacta, 0 discrepancias**.
+- Refutación adversarial del análisis: 7 ADVERTENCIAS, 0 BLOQUEA — entre
+  ellas, mi P de 1 cola usaba la dirección OBSERVADA (anticonservador
+  latente; corregido a la pre-especificada), y la cota peor-caso de la
+  parada temprana había que publicarla con número: 5 tareas pararon en falso
+  positivo; regalándolas TODAS, C4 = 51/80 (63.8%) → +25 (25/0, P=3.0e-08).
+  El "no puede" en hard sobrevive el peor caso. Mi primer filtro de esa cota
+  encontraba 4 tareas: la condición correcta (la parada la dispara CUALQUIER
+  candidato, no solo la raíz — arc190_d) da 5. Otra vez: el recomputo
+  independiente no es opcional ni para mis números.
+- Refutación adversarial del INFORME (2 lectores hostiles): **1 BLOQUEA
+  real** — escribí que el uplift BoN en medium cubría "la mitad" del hueco y
+  es UN TERCIO (11.8/38.1) — más 9 advertencias de precisión (MDE en la
+  primaria, oráculo-vs-realizable en la tabla de palancas, alcance del
+  veredicto sintácticamente inseparable). El error iba A FAVOR del 20B:
+  corregirlo refuerza el veredicto, pero un número inflado es un número
+  inflado. Todo aplicado antes de firmar.
+
+### P2 — varianza del denominador: enmiendas 5/5.1 y las corridas k=3
+
+Autorización del plan vigente (2026-07-31, no retirada). Enmienda 5 escrita
+ANTES de gastar; la revisión adversarial pre-gasto (2 refutadores) cazó
+**4 BLOQUEA reales antes del primer agente:**
+1. la regla "promedia sobre las que tenga" contradecía cómo se firmó s=1
+   (arc191_d = FALLO) y sesgaba al alza justo en hard → regla uniforme:
+   perdida/vacía/64k = FALLO con estrato declarado;
+2. el estadístico del apareado actualizado no estaba pre-registrado (¿cómo
+   cuentan los {0, 1/3, 2/3, 1}?) → test de signos sobre D_t no nulas, y el
+   promedio SUSTITUYE al k=1 sea cual sea la dirección;
+3. el juez k3 juzgaba duplicados (tarea,s) DOS VECES en silencio (hechas
+   congelado) → dedup con ABORTA + validación contra las 83 + sha256;
+4. la colección del raw no tenía clave (id,s) ni regla del piloto → colector
+   b3_frontier_k3_recoge.py con dedup, escritura atómica y gate; el piloto
+   es definitivo por escrito.
+
+**Piloto 6/6 con gate pasado** (2 tool uses exactos por agente, modelo
+claude-opus-5[1m], 0 vacías, juez sin excepción, 6/6 aprueban). Lote
+principal de 160 agentes (80 tareas × s=2,s=3, orden aleatorizado semilla
+20260801, frontier_k3_orden.json) lanzado y en curso al escribir esto.
+
+### Método
+
+- Suite completa **5495 passed / 1 skipped** antes de este commit. (El
+  primer pase en background dio 1 fallo en test_repl_piped: reproducido en
+  primer plano → pasa; era el entorno de invocación sin consola, no el
+  código. Reproducir antes de atribuir, también con los tests.)
+- Los tres workflows de revisión/verificación de la mañana: 13 agentes, 4
+  BLOQUEA cazados pre-gasto, 1 BLOQUEA cazado pre-firma, 0 números erróneos
+  publicados.

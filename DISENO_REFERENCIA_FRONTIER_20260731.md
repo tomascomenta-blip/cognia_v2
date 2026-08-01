@@ -179,6 +179,92 @@ Autorización vigente ("continúa con eso"). ANTES de generar:
 - **Reloj:** si el aterrizaje (07:44) corta algo, el análisis usa el
   prefijo de tareas con AMBOS brazos completos, y se dice.
 
+### ENMIENDA 5 (2026-08-01 mañana) — VARIANZA del denominador: k=3 en las 83 hard, vía plan
+
+Autorización del plan vigente (dada el 2026-07-31, no retirada; P2 del prompt
+de arranque de hoy). ANTES de generar:
+
+- **Qué:** 2 muestras NUEVAS por tarea (s=2, s=3) sobre las **83 hard** del
+  solape filtrado ⇒ **166 agentes** opus-5, effort high, MISMA mecánica de las
+  enmiendas 2-3 (prompt por fichero byte-exacto `b3_codigo/frontier_prompts/`,
+  un único Read + salida estructurada `{codigo}`, prohibido usar otras
+  herramientas). Las muestras s=1 ya firmadas NO se tocan ni se re-litigan:
+  ficheros nuevos `frontier_k3_raw.json` / `frontier_k3_resultados.json`.
+- **Por qué:** el denominador frontier está medido a k=1; sin varianza, el
+  apareado hard (78/83 vs 25/83) no distingue "nivel estable" de "sorteo
+  afortunado". Sin semilla de sampling en el harness, las 3 muestras son
+  sorteos intercambiables de la MISMA política — exactamente lo que la
+  varianza necesita medir.
+- **Lectura pre-registrada:** (a) **pass@1 promedio** por tarea = media de
+  los 3 veredictos (ese promedio actualiza el apareado contra
+  `oficial_low` en las 83 — NUNCA el mejor-de-3, que sería ratchet);
+  (b) proporción de tareas con veredicto NO unánime (la varianza que
+  importa); (c) pass@3 como descriptivo etiquetado (cota, no primaria);
+  (d) para el informe del goal: lo mismo bajo split `sin_fuga` en las 81
+  comunes con reparacion.
+- **Juez:** el MÍO (5 vis + 15 oc, mismo split con fuga del factorial para
+  el apareado contra oficial_low; y oc `sin_fuga` para el goal). El juez
+  oficial-con-mis-topes NO se corre para s=2,3 (su estrato
+  `demasiado_grande` es instrumento de mi juez, ya declarado; se dice).
+- **Instrumento del PLAN, estrato declarado:** tope de salida de 64k del
+  harness (arc191_d ya cayó ahí en s=1) y agentes muertos/vacíos. Una tarea
+  con muestras perdidas promedia sobre las que tenga, y se reporta la lista.
+- **Piloto:** 6 agentes (3 tareas × 2) → verificar mecánica y obediencia en
+  el journal → resto. Revisión adversarial de esta enmienda ANTES de lanzar.
+
+### ENMIENDA 5.1 (2026-08-01) — correcciones de la revisión adversarial pre-gasto (2 refutadores, 4 BLOQUEA), ANTES del primer agente
+
+1. **Muestras perdidas — regla UNIFORME y la misma que firmó s=1** (BLOQUEA
+   A1/B4): agente muerto, código vacío o salida cortada por el tope de 64k
+   del harness = **veredicto FALLO** con `instrumento` anotado (estrato
+   declarado del PLAN), NUNCA exclusión del promedio — la pérdida por 64k no
+   es aleatoria (correlaciona con dificultad) y excluirla inflaría el
+   promedio hard. La frase "promedia sobre las que tenga" de la enmienda 5
+   queda **retirada**. La lectura con exclusión se relega a sensibilidad
+   etiquetada. Reintento: un (tarea,s) caído por criterio objetivo
+   (muerto/vacío) se relanza UNA vez con la misma clave y se registra; si
+   tras el reintento caen >8% (>13 de 166), se PARA sin promediar y se
+   reportan cotas [perdida=fallo, perdida=excluida].
+2. **Estadístico del apareado actualizado, pre-registrado** (BLOQUEA A2):
+   por tarea, D_t = media de los 3 veredictos frontier − veredicto
+   oficial_low ∈ {−1, −2/3, …, +1}. **Primaria: test de signos sobre las
+   D_t no nulas** (cada una cuenta con su signo, la magnitud no pondera;
+   es el estadístico de la casa y su MDE se reporta en n=83), P a 1 cola en
+   la dirección pre-especificada frontier>20B. Secundaria descriptiva: media
+   de D_t (el "neto fraccionario") y Wilcoxon de rangos con signo. **El
+   promedio k=3 SUSTITUYE al número hard k=1 en el informe del goal sea cual
+   sea la dirección del movimiento** (anti-cherry-pick).
+3. **Colección del raw con clave única y piloto definitivo** (BLOQUEA B2):
+   `frontier_k3_raw.json` se escribe con clave (id, s) única, dedup validado
+   al juzgar (el juez ABORTA ante duplicados del mismo fichero — corregido
+   en `b3_frontier_k3_juzga.py`, que además valida contra la lista de las 83
+   hard y guarda sha256 del código por registro). **Las 6 muestras del
+   piloto SON las s=2/s=3 definitivas de sus 3 tareas** (no se re-generan:
+   la condición ya es la byte-exacta de la enmienda 2). Reanudación =
+   lanzar SOLO los (id,s) ausentes del raw.
+4. **Orden de lanzamiento y corte parcial** (ADV): tareas en orden
+   aleatorizado con semilla 20260801, s=2 y s=3 de cada tarea intercalados
+   en el mismo lote; si cuota o reloj cortan a mitad, **el análisis usa solo
+   tareas con s=2 Y s=3 completas** y lista el resto.
+5. **No-unanimidad** (ADV): denominador = tareas con 3 veredictos válidos;
+   cada no-unánime se desglosa por causa (instrumento vs respuesta
+   incorrecta). Chequeo de deriva pre-registrado: si
+   discordancia(s1 vs s2/s3) ≫ discordancia(s2 vs s3), lo medido incluye
+   deriva del harness entre días y la lectura se degrada a "2 sorteos
+   intercambiables + s1 como condición hermana" — se dice.
+6. **Identidad del instrumento** (ADV): el juez de s=2/3 es el MISMO código
+   que juzgó s=1 (`tests_lcb`/`juzga_lcb` sin cambios; los re-juicios de la
+   enmienda 4 viven en fichero aparte). Del journal de cada agente se
+   verifica: modelo exacto, effort high, y exactamente 2 tool uses
+   (Read + StructuredOutput); tasa de obediencia reportada. El snapshot del
+   lado del servidor de opus-5 entre el 07-31 y hoy no es controlable — se
+   declara junto a la no-unanimidad. La varianza medida es la del brazo
+   FRONTIER únicamente (el 25/83 del 20B sigue a k=1) — limitación en la
+   misma frase del resultado.
+7. **Gate del piloto** (ADV): 6/6 agentes con exactamente 2 tool uses,
+   código no vacío y juez sin excepción; si no, se para y se corrige antes
+   del resto.
+
 ### ENMIENDA 4 (2026-07-31 22:20) — re-juicio de los lotes `demasiado_grande` con tope alto (vía c, sin GPU)
 
 Mi juez "oficial" capa lotes a 8 MB/120 s; el oficial real no. Se re-juzgan

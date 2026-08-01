@@ -1,0 +1,261 @@
+{
+ "analisis": "ANALISIS_GOAL_RESPONDIDO_20260801.md",
+ "universo": {
+  "comunes": 81,
+  "primaria_n": 80,
+  "excluida_instrumento_plan": "arc191_d"
+ },
+ "niveles": {
+  "frontier_k1": {
+   "ok": 76,
+   "n": 80,
+   "pct": 95.0,
+   "ic95": [
+    87.8,
+    98.0
+   ]
+  },
+  "raiz_k1": {
+   "ok": 25,
+   "n": 80,
+   "pct": 31.2,
+   "ic95": [
+    22.2,
+    42.1
+   ]
+  },
+  "bon4": {
+   "ok": 37,
+   "n": 80,
+   "pct": 46.2,
+   "ic95": [
+    35.7,
+    57.1
+   ]
+  },
+  "pool_bon4": {
+   "ok": 38,
+   "n": 80,
+   "pct": 47.5,
+   "ic95": [
+    36.9,
+    58.3
+   ]
+  },
+  "pool_total": {
+   "ok": 46,
+   "n": 80,
+   "pct": 57.5,
+   "ic95": [
+    46.6,
+    67.7
+   ]
+  }
+ },
+ "contrastes": {
+  "c1_f_menos_k1": {
+   "etiqueta": "C1  F − 20B k=1",
+   "n": 80,
+   "neto": 51,
+   "gana": 51,
+   "pierde": 0,
+   "discordantes": 51,
+   "p_una_cola": 4.440892098500626e-16,
+   "p_dos_colas": 0.0,
+   "mde": 13
+  },
+  "c2_f_menos_bon4": {
+   "etiqueta": "C2* F − 20B BoN@4 realizable (PRIMARIA)",
+   "n": 80,
+   "neto": 39,
+   "gana": 39,
+   "pierde": 0,
+   "discordantes": 39,
+   "p_una_cola": 1.8189894035458565e-12,
+   "p_dos_colas": 0.0,
+   "mde": 13
+  },
+  "c3_f_menos_pool4": {
+   "etiqueta": "C3  F − techo pool BoN@4",
+   "n": 80,
+   "neto": 38,
+   "gana": 38,
+   "pierde": 0,
+   "discordantes": 38,
+   "p_una_cola": 3.637978807091713e-12,
+   "p_dos_colas": 0.0,
+   "mde": 12
+  },
+  "c4_f_menos_pooltotal": {
+   "etiqueta": "C4  F − techo pool TOTAL",
+   "n": 80,
+   "neto": 30,
+   "gana": 30,
+   "pierde": 0,
+   "discordantes": 30,
+   "p_una_cola": 9.313225746154785e-10,
+   "p_dos_colas": 0.0,
+   "mde": 10
+  }
+ },
+ "sensibilidad_arc191d": {
+  "etiqueta": "C2 sensib. arc191_d=fallo frontier (n=81)",
+  "n": 81,
+  "neto": 39,
+  "gana": 39,
+  "pierde": 0,
+  "discordantes": 39,
+  "p_una_cola": 1.8189894035458565e-12,
+  "p_dos_colas": 0.0,
+  "mde": 13
+ },
+ "sensibilidad_confuga": {
+  "etiqueta": "C2 sensib. frontier con fuga",
+  "n": 80,
+  "neto": 39,
+  "gana": 39,
+  "pierde": 0,
+  "discordantes": 39,
+  "p_una_cola": 1.8189894035458565e-12,
+  "p_dos_colas": 0.0,
+  "mde": 13
+ },
+ "cota_peor_caso_parada": {
+  "tareas_fp": [
+   "3658",
+   "3687",
+   "abc384_e",
+   "arc189_c",
+   "arc190_d"
+  ],
+  "c4_peor": 51,
+  "contraste": {
+   "etiqueta": "C4 peor-caso (FP de parada rescatados)",
+   "n": 80,
+   "neto": 25,
+   "gana": 25,
+   "pierde": 0,
+   "discordantes": 25,
+   "p_una_cola": 2.9802322387695312e-08,
+   "p_dos_colas": 0.0,
+   "mde": 11
+  }
+ },
+ "sensibilidad_inst_20b": {
+  "tareas": [
+   "3608",
+   "arc184_d",
+   "arc186_a"
+  ],
+  "contraste": {
+   "etiqueta": "C2 sensib. sin 3 tareas inst. 20B",
+   "n": 77,
+   "neto": 37,
+   "gana": 37,
+   "pierde": 0,
+   "discordantes": 37,
+   "p_una_cola": 7.275957614183426e-12,
+   "p_dos_colas": 0.0,
+   "mde": 11
+  }
+ },
+ "veredictos_cambia_split": [],
+ "curva_bon": [
+  {
+   "k": 1,
+   "realizable": 25,
+   "oraculo": 25,
+   "tokens": 84988
+  },
+  {
+   "k": 2,
+   "realizable": 33,
+   "oraculo": 33,
+   "tokens": 161160
+  },
+  {
+   "k": 3,
+   "realizable": 35,
+   "oraculo": 36,
+   "tokens": 221810
+  },
+  {
+   "k": 4,
+   "realizable": 37,
+   "oraculo": 38,
+   "tokens": 270792
+  }
+ ],
+ "s2_lcb_estratos": {
+  "easy": {
+   "n": 43,
+   "k1": 42,
+   "bon4": 43,
+   "oraculo4": 43
+  },
+  "medium": {
+   "n": 51,
+   "k1": 29,
+   "bon4": 35,
+   "oraculo4": 35
+  },
+  "hard": {
+   "n": 73,
+   "k1": 22,
+   "bon4": 32,
+   "oraculo4": 36
+  }
+ },
+ "s2_k1_198": {
+  "easy": {
+   "n": 52,
+   "frontier": 52,
+   "low": 50
+  },
+  "medium": {
+   "n": 63,
+   "frontier": 59,
+   "low": 35
+  },
+  "hard": {
+   "n": 83,
+   "frontier": 78,
+   "low": 25
+  }
+ },
+ "s2_apareado_solape": {
+  "easy": {
+   "etiqueta": "S2  F − BoN@4(lcb) easy (n=12)",
+   "n": 12,
+   "neto": 0,
+   "gana": 0,
+   "pierde": 0,
+   "discordantes": 0,
+   "p_una_cola": 1.0,
+   "p_dos_colas": 1.0,
+   "mde": null
+  },
+  "medium": {
+   "etiqueta": "S2  F − BoN@4(lcb) medium (n=13)",
+   "n": 13,
+   "neto": 4,
+   "gana": 4,
+   "pierde": 0,
+   "discordantes": 4,
+   "p_una_cola": 0.0625,
+   "p_dos_colas": 0.1304,
+   "mde": null
+  }
+ },
+ "factores": {
+  "raiz_k1": 3.04,
+  "bon4": 2.06,
+  "pool_bon4": 2.0,
+  "pool_total": 1.65
+ },
+ "gasto_tokens": {
+  "raiz": 84988,
+  "bon4": 270792,
+  "pool_total": 496185
+ }
+}
