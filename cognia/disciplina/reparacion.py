@@ -43,6 +43,11 @@ VENTANA = 20
 # encima de parche". Ningun detector de OpenHands lo ve.
 HUELLA_REPETIDA_CORTA = 2
 
+# Donde viven los JSONL append-only (relativo al cwd del proyecto que usa el
+# disyuntor, igual que .git): los del CLI por comando, los del bucle de
+# sintesis por herramienta. De aqui sale la calibracion del modo sombra.
+DIR_ESTADO = Path(".disciplina")
+
 
 # ── Normalizacion ──────────────────────────────────────────────────────────
 # Obligatoria. Sin esto la huella nunca coincide consigo misma y el disyuntor
@@ -203,6 +208,27 @@ class Disyuntor:
         self.ruta_log.parent.mkdir(parents=True, exist_ok=True)
         linea = json.dumps(
             {"tarea": self.tarea, **asdict(intento)}, ensure_ascii=False
+        )
+        with self.ruta_log.open("a", encoding="utf-8") as f:
+            f.write(linea + "\n")
+
+    def persistir_evento(self, evento: str, **datos) -> None:
+        """
+        Persiste un evento que NO es un intento: "disparo" (el disyuntor corto
+        de verdad) o "disparo_sombra" (habria cortado, pero el modo sombra
+        registra sin actuar).
+
+        Sin esto los DISPAROS no quedaban en el JSONL — solo los intentos — y
+        la pregunta de calibracion del modo sombra ("¿que fraccion de disparos
+        precedio a un bucle realmente esteril?") era incontestable con datos
+        propios. Es el pendiente del plan INVESTIGACION_Y_ANTIRUIDO.
+        """
+        if not self.ruta_log:
+            return
+        self.ruta_log.parent.mkdir(parents=True, exist_ok=True)
+        linea = json.dumps(
+            {"evento": evento, "tarea": self.tarea, "t": time.time(), **datos},
+            ensure_ascii=False,
         )
         with self.ruta_log.open("a", encoding="utf-8") as f:
             f.write(linea + "\n")

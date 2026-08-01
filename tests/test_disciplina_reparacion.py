@@ -267,6 +267,10 @@ class _OrchRoto:
 def _aislar(tmp_path, monkeypatch):
     monkeypatch.setattr(TS, "GENERATED_DIR", tmp_path / "gen")
     monkeypatch.setattr(TS, "MANIFEST_PATH", tmp_path / "gen" / "_manifest.json")
+    # El disyuntor del bucle ahora persiste sus disparos: sin esto, los tests
+    # escribirian .disciplina/ en el cwd del repo.
+    monkeypatch.setattr(TS, "DISCIPLINA_DIR", tmp_path / "disciplina")
+    monkeypatch.delenv("COGNIA_DISCIPLINA_SOMBRA", raising=False)
 
 
 def _spec():

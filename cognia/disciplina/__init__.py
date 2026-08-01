@@ -26,6 +26,7 @@ ESTRUCTURAL, no como prompt.
 """
 
 from .reparacion import (
+    DIR_ESTADO,
     Disyuntor,
     HuellaSintoma,
     Intento,
@@ -37,6 +38,7 @@ from .reparacion import (
 )
 
 __all__ = [
+    "DIR_ESTADO",
     "Disyuntor",
     "HuellaSintoma",
     "Intento",

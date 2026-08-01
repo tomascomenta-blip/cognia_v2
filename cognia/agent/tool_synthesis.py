@@ -24,15 +24,25 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from cognia.disciplina import Disyuntor, huella_de_texto
+from cognia.disciplina import DIR_ESTADO, Disyuntor, huella_de_texto
 from cognia.program_creator.sandbox_runner import run_in_sandbox
 
 GENERATED_DIR = Path(__file__).parent / "generated_tools"
 MANIFEST_PATH = GENERATED_DIR / "_manifest.json"
+
+# JSONL append-only del disyuntor (calibracion del modo sombra). Relativo al
+# cwd, como .git — module-level para que los tests lo puedan aislar.
+DISCIPLINA_DIR = DIR_ESTADO
+
+# Con COGNIA_DISCIPLINA_SOMBRA=1 el disyuntor del bucle REGISTRA sus disparos
+# pero no actua (ni reinicio limpio ni parada): el bucle se comporta como si
+# no existiera, y el JSONL acumula los datos que piden los umbrales.
+_SOMBRA_ENV = "COGNIA_DISCIPLINA_SOMBRA"
 
 # Tool names must be simple identifiers (also used as filenames).
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
@@ -536,7 +546,9 @@ def synthesize_and_register(spec: ToolSpec, orch=None, code: str = None,
     # que Laban et al. midieron (arXiv:2505.06120): los modelos "dependen en
     # exceso de intentos de respuesta previos incorrectos". Aqui eso significa
     # que un mal primer intento contamina los tres.
-    disyuntor = Disyuntor(tarea=f"tool:{spec.name}", max_intentos=max_attempts)
+    disyuntor = Disyuntor(tarea=f"tool:{spec.name}", max_intentos=max_attempts,
+                          ruta_log=DISCIPLINA_DIR / f"tool_{spec.name}.jsonl")
+    sombra = bool(os.environ.get(_SOMBRA_ENV, "").strip())
     reinicios_limpios = 0
 
     last_reason, prev_code = "", ""
@@ -561,10 +573,19 @@ def synthesize_and_register(spec: ToolSpec, orch=None, code: str = None,
         last_reason, prev_code = reason, cand
 
         motivo = disyuntor.motivo_corte()
-        if motivo and reinicios_limpios == 0:
+        if motivo and sombra:
+            # MODO SOMBRA: el disparo queda en el JSONL (para el informe de
+            # aceptacion) pero el bucle sigue como si el disyuntor no
+            # existiera. Ni reinicio limpio ni parada.
+            disyuntor.persistir_evento("disparo_sombra", motivo=motivo,
+                                       intento=attempt + 1)
+        elif motivo and reinicios_limpios == 0:
             # El respiro profundo, como corte estructural y no como prompt:
             # el sintoma no se movio, asi que reparar desde este codigo esta
             # demostrado que no funciona. Se tira y se regenera de cero.
+            disyuntor.persistir_evento("disparo", motivo=motivo,
+                                       intento=attempt + 1,
+                                       accion="reinicio_limpio")
             disyuntor.anotar_corte()
             disyuntor.reiniciar_limpio()
             prev_code = ""
@@ -572,6 +593,8 @@ def synthesize_and_register(spec: ToolSpec, orch=None, code: str = None,
         elif motivo:
             # Segundo disparo en la misma tarea: insistir rinde mucho menos.
             # Se para y se dice la verdad en vez de gastar el intento que queda.
+            disyuntor.persistir_evento("disparo", motivo=motivo,
+                                       intento=attempt + 1, accion="parada")
             return {
                 "ok": False,
                 "name": spec.name,
