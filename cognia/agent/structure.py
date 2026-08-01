@@ -96,6 +96,15 @@ def auto_fix(action: str, args: str) -> str:
         m = re.fullmatch(r"[`\"']+(.*?)[`\"']+", fixed)
         if m:
             fixed = m.group(1).strip()
+    # separador SOBRANTE en los BORDES: tras un error "espera N partes" el
+    # retry tipico del modelo es ANTEPONER '| ' a args que ya tenian sus
+    # partes ('| juego.py | desc') -> parte 0 vacia -> mismo error -> misma
+    # respuesta -> estancamiento. Cazado 2026-08-01 con qwen14b (el juego de
+    # insectos: 3 intentos identicos hasta el cierre honesto). Los segmentos
+    # vacios del MEDIO siguen siendo error real (parte vacia legitima).
+    if "parts" in rule and "|" in fixed:
+        fixed = re.sub(r"^\s*\|\s*", "", fixed)
+        fixed = re.sub(r"\s*\|\s*$", "", fixed).strip()
     # '|' faltante en tools de 2 partes cuya parte 0 es una ruta
     if rule.get("parts") == 2 and rule.get("path0") and "|" not in fixed:
         lines = fixed.split("\n", 1)

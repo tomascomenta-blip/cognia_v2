@@ -11929,3 +11929,30 @@ Verificado: suite 5538/0; e2e real — búsqueda viva (MCP) con 2 válidos por
 Chromium, trampa local envenenada BLOQUEADA sin fuga del payload, Wikipedia
 extraída vía chromium, auditoría escrita. Este commit incluye además el
 registro opt-in de repo_a_prompt (unidad anterior; tools.py mezclaba ambas).
+
+## 2026-08-01 (noche) — Estancamiento del agente en la sesión remota: diagnosticado, reproducido y fix
+
+Reporte del dueño: en la sesión remota, "crear juego HTML de insectos" terminó
+en "Agente estancado (accion repetida)" dos veces; capturas de pantalla en vez
+de juego. Diagnóstico por REPRODUCCIÓN (regla de la casa), no por conjetura:
+
+1. Reproducido en local por la misma vía (REPL + stdin) CON los flags nuevos y
+   SIN ellos → se estanca IGUAL en ambos: las tools nuevas NO son la causa.
+2. La traza no se veía (los pasos solo iban a _actions_trace, y [detail] se
+   suprime en modo sencillo) → añadido COGNIA_TRACE=1: print plano de cada
+   paso ACCION → resultado. Con eso el bucle quedó visible:
+   generar_codigo falló 3 veces por FORMATO: tras el error "espera 2 partes
+   separadas por '|'", el retry del 14B ANTEPONE '| ' a args que ya tenían sus
+   partes → parte 0 vacía → mismo error → misma respuesta → stuck-stop.
+3. Fix determinista en structure.auto_fix: quitar separadores vacíos en los
+   BORDES (los del medio siguen siendo error real). Regresión en
+   test_agent_structure (16 passed). Suite completa 5539/0.
+4. Re-reproducido post-fix: generar_codigo OK → juego_insectos.py con el juego
+   HTML REAL adentro (flechas + insecto IA). Quedan DOS fallos de modelo, no
+   de instrumento: escribe el placeholder literal '<html_content>' al extraer
+   el HTML, y repite 'recordar' hasta el stuck. Anotados, no parcheados a lo
+   loco: son el techo del 14B en el paso ReAct, el mismo perfil que motivó el
+   few-shot ACCION (+62pp).
+
+Las sesiones remotas NUEVAS heredan el fix (cada sesión es un subproceso
+fresco); las viejas siguen con el código cargado al arrancar.

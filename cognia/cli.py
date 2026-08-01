@@ -9078,6 +9078,14 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             "ok": not re.search(r"\bERROR\b", result[:120]),
             "result_head": result[:160],
         })
+        # Observabilidad opt-in (COGNIA_TRACE=1): un diagnostico de estancamiento
+        # sin ver QUE accion se repite es adivinar (asi se diagnostico el
+        # estancamiento del 2026-08-01: la traza existia y no habia como verla).
+        if os.environ.get("COGNIA_TRACE") == "1":
+            # print plano, NO _print_fn: el modo sencillo suprime [detail] y
+            # una traza opt-in que no se ve no diagnostica nada.
+            print(f"TRAZA paso {len(_actions_trace)}: ACCION {action} "
+                  f"{args[:100]!r} -> {result[:100]!r}", flush=True)
         # Corte por NO-PROGRESO (cazado 2026-07-10): el stuck-detector cuenta
         # (action,args) IDENTICOS, pero en tareas de busqueda el 3B DEGENERA y
         # genera nombres de tool BASURA distintos cada paso ('start_busqueda_

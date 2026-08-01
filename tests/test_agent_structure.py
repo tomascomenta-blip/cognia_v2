@@ -30,6 +30,25 @@ def test_autofix_no_inventa_pipe_sin_ruta_clara():
     assert "|" not in auto_fix("escribir_archivo", args)
 
 
+def test_autofix_quita_pipe_sobrante_en_bordes():
+    """Tras 'espera 2 partes' el retry tipico ANTEPONE '| ' a args ya
+    completos -> parte 0 vacia -> mismo error -> estancamiento. Cazado
+    2026-08-01 (qwen14b, juego de insectos): 3 intentos identicos de
+    generar_codigo '| juego.py | desc' hasta el cierre honesto."""
+    args = "| juego_insectos.py | Crea `juego_insectos(args)` que genere HTML"
+    fixed = auto_fix("generar_codigo", args)
+    assert fixed.startswith("juego_insectos.py |")
+    assert validate_action("generar_codigo", fixed) is None
+    # pipe sobrante al FINAL tambien
+    assert auto_fix("escribir_archivo", "x.md | contenido |") == "x.md | contenido"
+    # los vacios del MEDIO siguen siendo error real (tool de 3 partes: en las
+    # de 2 el maxsplit hace que '| y' sea contenido legal de la parte 2)
+    assert validate_action("kg_agregar",
+                           auto_fix("kg_agregar", "a | | c")) is not None
+    # sin regla de partes: no se toca
+    assert auto_fix("responder", "| texto |") == "| texto |"
+
+
 def test_autofix_quita_comillas_envolventes():
     assert auto_fix("leer_archivo", '"notas/plan.md"') == "notas/plan.md"
     assert auto_fix("leer_archivo", "`x.py`") == "x.py"
