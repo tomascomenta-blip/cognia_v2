@@ -11827,3 +11827,55 @@ commit con código (5495/1 y 5506/1). Deadline placeholder → sin apagado
 armado, aterrizaje autogestionado, registrado aquí. Workflows de la sesión:
 6 (3 de revisión/verificación con 18 agentes, 3 de generación con 168
 agentes útiles + ~500 del incidente). GPU usada: cero.
+
+
+## 2026-08-01 (tarde) — LoRAs públicos para la flota: inventario, tres gates medidos, y un KILL limpio
+
+Autorización del dueño en vivo ("investiga muchos loras... y haz pruebas").
+Todo con prereg (PREREG_LORAS_20260801.md, 3 enmiendas) y revisión
+adversarial pre-gasto que cazó **3 BLOQUEA** antes de la primera descarga:
+el peor, mi umbral de "VIVE" era batible por la heurística gratuita
+"elegir el último candidato generado" (19/37 — el bucle de reparación para
+al acertar y enriquece la última posición); los otros dos, mecánica
+(--lora-scaled revienta con rutas Windows; pools grandes no caben en ctx
+8192 → prohibido truncar, exclusión entera + nulos recomputados).
+
+**Inventario** (workflow de 8 agentes, 188 tool uses): 7 candidatos
+rankeados. Huecos que pesan más que los hallazgos: NO existe adapter público
+de código para gpt-oss-20b (todo lo etiquetado era modelo fusionado);
+competitive coding sobre Qwen-Coder vacío; los jueces VL sin banco de pares
+control quedan bloqueados.
+
+**F0 (Deepthink/7B) — PASS**: pipeline GGUF-LoRA + hot-swap de escala
+probado end-to-end contra el no-op silencioso. Hallazgo de instrumento:
+--lora-init-without-apply en b10066 arranca YA aplicado (enmienda 2, cazado
+porque A==B byte-exacto y C difería).
+
+**F1 (RankEF como señal sin ejecutar) — KILL por las dos lecturas.** La
+corrida 1 (completion crudo) disparó el PARAR pre-registrado (11% no
+parseable); la reproducción a mano diagnosticó DESAJUSTE DE PLANTILLA (el
+adapter es de llama-factory con chat template) → enmienda 3 y corrida 2 con
+chat template en ambos brazos. Resultado: BASE 14/37 en ambos formatos,
+ADAPTER 6/37 con parsing perfecto (POR DEBAJO del azar 10.45; p95=15;
+listón de utilidad = último-generado 19), ADAPTER_FB degenera (30%
+inválidos: alucina candidatos, bucles — reproducido). Y cacé un bug MÍO
+igual al que el refutador avisó: mi nulo "último" de la corrida 1 iba sobre
+el orden barajado (11) en vez del de generación (19) — corregido antes de
+leer nada. La señal sin sandbox sigue sin existir en esta flota.
+
+**F2 (gpt-oss + MXFP4) — medido en dos mitades**: adapter público con
+tensores de expertos (target_parameters de PEFT): el conversor b10066
+REVIENTA ruidoso — ruta cerrada limpiamente. Solo-atención (quimera
+declarada, 192/192 tensores): **gate de actividad PASS sobre MXFP4** — la
+ruta para entrenar adapters propios del pensador está ABIERTA y probada,
+donde upstream no había ni un issue.
+
+Ficheros: b4_loras/{f0_gate,f1_rankef,f1_rankef_v2,f2_gate}.json ·
+scripts/b4_lora_{f0_gate,f1_rankef}.py · adapters en ~/.cognia/loras/.
+GPU bajada al cierre (779 MiB). Sin código de producto tocado (la suite
+5506/1 es del commit de mediodía y nada suyo cambió).
+
+> La frase que queda: **descargar capacidad no funcionó (y el diseño lo
+> anticipaba); lo que se compró es el INSTRUMENTO verificado para
+> entrenarla** — pipeline PEFT→GGUF→hot-swap y ruta MXFP4+atención, con
+> el banco propio como examen. La vía siguiente es LoRA propio, no catálogo.

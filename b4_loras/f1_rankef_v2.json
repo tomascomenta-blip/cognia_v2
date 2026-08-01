@@ -1,0 +1,781 @@
+{
+ "prereg": "PREREG_LORAS_20260801.md (enmiendas 1-2)",
+ "nulos": {
+  "n": 37,
+  "azar_esperado": 10.45,
+  "azar_p95": 15,
+  "azar_p99": 16,
+  "ultimo_generado": 19,
+  "mas_largo": 14,
+  "primero": 2
+ },
+ "excluidos": [],
+ "brazos": {
+  "BASE_FA": {
+   "aciertos": 14,
+   "invalidos": 0,
+   "n": 37,
+   "detalle": [
+    {
+     "tarea": "3562",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "3608",
+     "eleccion": 3,
+     "acierto": true
+    },
+    {
+     "tarea": "3680",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "3690",
+     "eleccion": 6,
+     "acierto": true
+    },
+    {
+     "tarea": "3733",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "3765",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "3777",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "3781",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "3783",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "3784",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc374_f",
+     "eleccion": 7,
+     "acierto": true
+    },
+    {
+     "tarea": "abc375_e",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "abc377_e",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "abc377_f",
+     "eleccion": 7,
+     "acierto": true
+    },
+    {
+     "tarea": "abc379_f",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc380_e",
+     "eleccion": 1,
+     "acierto": true
+    },
+    {
+     "tarea": "abc381_d",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc381_e",
+     "eleccion": 4,
+     "acierto": true
+    },
+    {
+     "tarea": "abc383_e",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc384_f",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "abc384_g",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "abc388_f",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_e",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_f",
+     "eleccion": 1,
+     "acierto": true
+    },
+    {
+     "tarea": "abc390_e",
+     "eleccion": 4,
+     "acierto": true
+    },
+    {
+     "tarea": "abc390_f",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc391_e",
+     "eleccion": 3,
+     "acierto": true
+    },
+    {
+     "tarea": "abc394_f",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc394_g",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc397_f",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc398_f",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc399_f",
+     "eleccion": 6,
+     "acierto": true
+    },
+    {
+     "tarea": "arc186_e",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "arc188_a",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "arc190_c",
+     "eleccion": 4,
+     "acierto": true
+    },
+    {
+     "tarea": "arc192_b",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "arc194_d",
+     "eleccion": 2,
+     "acierto": false
+    }
+   ],
+   "lee_senal_sobre_azar": false,
+   "lee_util_para_goal": false
+  },
+  "BASE_FB": {
+   "aciertos": 14,
+   "invalidos": 1,
+   "n": 37,
+   "detalle": [
+    {
+     "tarea": "3562",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "3608",
+     "eleccion": 3,
+     "acierto": true
+    },
+    {
+     "tarea": "3680",
+     "eleccion": 5,
+     "acierto": true
+    },
+    {
+     "tarea": "3690",
+     "eleccion": 6,
+     "acierto": true
+    },
+    {
+     "tarea": "3733",
+     "eleccion": 9,
+     "acierto": false
+    },
+    {
+     "tarea": "3765",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "3777",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "3781",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "3783",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "3784",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc374_f",
+     "eleccion": 7,
+     "acierto": true
+    },
+    {
+     "tarea": "abc375_e",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc377_e",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "abc377_f",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "abc379_f",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc380_e",
+     "eleccion": 1,
+     "acierto": true
+    },
+    {
+     "tarea": "abc381_d",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc381_e",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc383_e",
+     "eleccion": null
+    },
+    {
+     "tarea": "abc384_f",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "abc384_g",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "abc388_f",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_e",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_f",
+     "eleccion": 1,
+     "acierto": true
+    },
+    {
+     "tarea": "abc390_e",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "abc390_f",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc391_e",
+     "eleccion": 1,
+     "acierto": true
+    },
+    {
+     "tarea": "abc394_f",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc394_g",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc397_f",
+     "eleccion": 1,
+     "acierto": true
+    },
+    {
+     "tarea": "abc398_f",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc399_f",
+     "eleccion": 6,
+     "acierto": true
+    },
+    {
+     "tarea": "arc186_e",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "arc188_a",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "arc190_c",
+     "eleccion": 4,
+     "acierto": true
+    },
+    {
+     "tarea": "arc192_b",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "arc194_d",
+     "eleccion": 2,
+     "acierto": false
+    }
+   ],
+   "lee_senal_sobre_azar": false,
+   "lee_util_para_goal": false
+  },
+  "ADAPTER_FA": {
+   "aciertos": 6,
+   "invalidos": 0,
+   "n": 37,
+   "detalle": [
+    {
+     "tarea": "3562",
+     "eleccion": 10,
+     "acierto": false
+    },
+    {
+     "tarea": "3608",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "3680",
+     "eleccion": 5,
+     "acierto": true
+    },
+    {
+     "tarea": "3690",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "3733",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "3765",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "3777",
+     "eleccion": 8,
+     "acierto": false
+    },
+    {
+     "tarea": "3781",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "3783",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "3784",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc374_f",
+     "eleccion": 8,
+     "acierto": false
+    },
+    {
+     "tarea": "abc375_e",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc377_e",
+     "eleccion": 5,
+     "acierto": true
+    },
+    {
+     "tarea": "abc377_f",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "abc379_f",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc380_e",
+     "eleccion": 10,
+     "acierto": false
+    },
+    {
+     "tarea": "abc381_d",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc381_e",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc383_e",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc384_f",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc384_g",
+     "eleccion": 5,
+     "acierto": true
+    },
+    {
+     "tarea": "abc388_f",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_e",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_f",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "abc390_e",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc390_f",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc391_e",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "abc394_f",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc394_g",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc397_f",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc398_f",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc399_f",
+     "eleccion": 5,
+     "acierto": true
+    },
+    {
+     "tarea": "arc186_e",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "arc188_a",
+     "eleccion": 2,
+     "acierto": true
+    },
+    {
+     "tarea": "arc190_c",
+     "eleccion": 4,
+     "acierto": true
+    },
+    {
+     "tarea": "arc192_b",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "arc194_d",
+     "eleccion": 5,
+     "acierto": false
+    }
+   ],
+   "lee_senal_sobre_azar": false,
+   "lee_util_para_goal": false
+  },
+  "ADAPTER_FB": {
+   "aciertos": 3,
+   "invalidos": 11,
+   "n": 37,
+   "detalle": [
+    {
+     "tarea": "3562",
+     "eleccion": 10,
+     "acierto": false
+    },
+    {
+     "tarea": "3608",
+     "eleccion": 2,
+     "acierto": false
+    },
+    {
+     "tarea": "3680",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "3690",
+     "eleccion": null
+    },
+    {
+     "tarea": "3733",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "3765",
+     "eleccion": 8,
+     "acierto": false
+    },
+    {
+     "tarea": "3777",
+     "eleccion": null
+    },
+    {
+     "tarea": "3781",
+     "eleccion": 8,
+     "acierto": false
+    },
+    {
+     "tarea": "3783",
+     "eleccion": null
+    },
+    {
+     "tarea": "3784",
+     "eleccion": null
+    },
+    {
+     "tarea": "abc374_f",
+     "eleccion": 8,
+     "acierto": false
+    },
+    {
+     "tarea": "abc375_e",
+     "eleccion": null
+    },
+    {
+     "tarea": "abc377_e",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "abc377_f",
+     "eleccion": 8,
+     "acierto": false
+    },
+    {
+     "tarea": "abc379_f",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc380_e",
+     "eleccion": 1,
+     "acierto": true
+    },
+    {
+     "tarea": "abc381_d",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc381_e",
+     "eleccion": 7,
+     "acierto": false
+    },
+    {
+     "tarea": "abc383_e",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "abc384_f",
+     "eleccion": 6,
+     "acierto": true
+    },
+    {
+     "tarea": "abc384_g",
+     "eleccion": 3,
+     "acierto": false
+    },
+    {
+     "tarea": "abc388_f",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_e",
+     "eleccion": 8,
+     "acierto": false
+    },
+    {
+     "tarea": "abc389_f",
+     "eleccion": null
+    },
+    {
+     "tarea": "abc390_e",
+     "eleccion": 5,
+     "acierto": false
+    },
+    {
+     "tarea": "abc390_f",
+     "eleccion": null
+    },
+    {
+     "tarea": "abc391_e",
+     "eleccion": 4,
+     "acierto": false
+    },
+    {
+     "tarea": "abc394_f",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "abc394_g",
+     "eleccion": 9,
+     "acierto": false
+    },
+    {
+     "tarea": "abc397_f",
+     "eleccion": null
+    },
+    {
+     "tarea": "abc398_f",
+     "eleccion": null
+    },
+    {
+     "tarea": "abc399_f",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "arc186_e",
+     "eleccion": 6,
+     "acierto": false
+    },
+    {
+     "tarea": "arc188_a",
+     "eleccion": 1,
+     "acierto": false
+    },
+    {
+     "tarea": "arc190_c",
+     "eleccion": 4,
+     "acierto": true
+    },
+    {
+     "tarea": "arc192_b",
+     "eleccion": null
+    },
+    {
+     "tarea": "arc194_d",
+     "eleccion": null
+    }
+   ],
+   "lee_senal_sobre_azar": false,
+   "lee_util_para_goal": false
+  }
+ },
+ "parado_por_invalidos": "ADAPTER_FB",
+ "corrida": "2 (chat template, enmienda 3)"
+}
