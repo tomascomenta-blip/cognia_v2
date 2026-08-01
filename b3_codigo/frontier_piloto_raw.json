@@ -1,0 +1,54 @@
+{
+ "muestras": [
+  {
+   "id": "abc386_a",
+   "dificultad": "easy",
+   "codigo": "from collections import Counter\nimport sys\n\ndef main():\n    vals = list(map(int, sys.stdin.read().split()))\n    for v in range(1, 14):\n        c = Counter(vals + [v])\n        if sorted(c.values()) == [2, 3]:\n            print(\"Yes\")\n            return\n    print(\"No\")\n\nmain()\n"
+  },
+  {
+   "id": "abc381_c",
+   "dificultad": "medium",
+   "codigo": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    s = data[1] if len(data) > 1 else \"\"\n    n = len(s)\n    left = [0] * n   # count of consecutive '1' ending at i-1\n    for i in range(n):\n        if i == 0:\n            left[i] = 0\n        else:\n            left[i] = left[i-1] + 1 if s[i-1] == '1' else 0\n    right = [0] * n  # count of consecutive '2' starting at i+1\n    for i in range(n - 1, -1, -1):\n        if i == n - 1:\n            right[i] = 0\n        else:\n            right[i] = right[i+1] + 1 if s[i+1] == '2' else 0\n    ans = 0\n    for i in range(n):\n        if s[i] == '/':\n            v = 2 * min(left[i], right[i]) + 1\n            if v > ans:\n                ans = v\n    print(ans)\n\nmain()\n"
+  },
+  {
+   "id": "arc188_a",
+   "dificultad": "hard",
+   "codigo": "import sys\nfrom collections import defaultdict\n\ndef main():\n    data = sys.stdin.read().split()\n    N = int(data[0]); K = int(data[1]); S = data[2]\n    MOD = 998244353\n    emap = {'A': 1, 'B': 2, 'C': 3}\n    B = 52\n    delta = [4, 4 * B, 4 * B * B, 0]\n\n    # key = cur + 4*(m0 + B*(m1 + B*m2)) ; m3 implicit\n    # start: prefix 0, class 0, m0 = 1\n    cur_states = {0 + 4 * 1: 1}\n\n    for i in range(N):\n        ch = S[i]\n        moves = (1, 2, 3) if ch == '?' else (emap[ch],)\n        nxt = defaultdict(int)\n        for key, v in cur_states.items():\n            cur = key & 3\n            base = key - cur\n            for ee in moves:\n                c2 = cur ^ ee\n                nk = base + c2 + delta[c2]\n                nxt[nk] = (nxt[nk] + v) % MOD\n        cur_states = nxt\n\n    total = N + 1\n    ans = 0\n    BB = B * B\n    for key, v in cur_states.items():\n        t = key >> 2\n        m0 = t % B\n        m1 = (t // B) % B\n        m2 = t // BB\n        m3 = total - m0 - m1 - m2\n        score = (m0 * (m0 - 1) + m1 * (m1 - 1) + m2 * (m2 - 1) + m3 * (m3 - 1)) // 2\n        if score >= K:\n            ans = (ans + v) % MOD\n    print(ans % MOD)\n\nmain()"
+  },
+  {
+   "id": "arc186_d",
+   "dificultad": "hard",
+   "codigo": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    N = int(data[0])\n    A = data[1:1 + N]\n    MOD = 998244353\n\n    MX = 2 * N + 10\n    fact = [1] * MX\n    f = 1\n    for i in range(1, MX):\n        f = f * i % MOD\n        fact[i] = f\n    inv_fact = [1] * MX\n    inv_fact[MX - 1] = pow(fact[MX - 1], MOD - 2, MOD)\n    for i in range(MX - 1, 0, -1):\n        inv_fact[i - 1] = inv_fact[i] * i % MOD\n    inv = [0] * MX\n    if MX > 1:\n        inv[1] = 1\n    for i in range(2, MX):\n        inv[i] = (MOD - (MOD // i) * inv[MOD % i]) % MOD\n\n    def ff(n, j):\n        # [z^n] C(z)^j  where C is the Catalan GF (plane forests: n nodes, j roots)\n        if j < 1 or j > n:\n            return 0\n        a = 2 * n - j - 1\n        b = n - 1\n        return j * inv[n] % MOD * (fact[a] * inv_fact[b] % MOD * inv_fact[a - b] % MOD) % MOD\n\n    c = 1\n    ans = 0\n    polish = False\n    for i in range(1, N + 1):\n        a = int(A[i - 1])\n        n = N - i + 1\n        if i == N:\n            if c == 1 and a >= 1:\n                ans += 1\n        else:\n            if a > 0:\n                lo = c if c >= 2 else 2\n                ans += ff(n, lo) - ff(n, c + a)\n        ans %= MOD\n        c += a - 1\n        if c <= 0:\n            if c == 0 and i == N:\n                polish = True\n            break\n\n    if polish:\n        ans += 1\n    print(ans % MOD)\n\nmain()\n"
+  },
+  {
+   "id": "3634",
+   "dificultad": "medium",
+   "codigo": "class Solution:\n    def calculateScore(self, s: str) -> int:\n        stacks = [[] for _ in range(26)]\n        total = 0\n        for i, ch in enumerate(s):\n            c = ord(ch) - 97\n            m = 25 - c\n            if stacks[m]:\n                j = stacks[m].pop()\n                total += i - j\n            else:\n                stacks[c].append(i)\n        return total\n"
+  },
+  {
+   "id": "abc378_f",
+   "dificultad": "hard",
+   "codigo": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n = int(data[0])\n    m = n - 1\n    deg = [0] * (n + 1)\n    us = [0] * m\n    vs = [0] * m\n    idx = 1\n    for i in range(m):\n        u = int(data[idx]); v = int(data[idx + 1]); idx += 2\n        us[i] = u; vs[i] = v\n        deg[u] += 1\n        deg[v] += 1\n\n    parent = list(range(n + 1))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for i in range(m):\n        u = us[i]; v = vs[i]\n        if deg[u] == 3 and deg[v] == 3:\n            ru = find(u); rv = find(v)\n            if ru != rv:\n                parent[ru] = rv\n\n    cnt = [0] * (n + 1)\n    for i in range(m):\n        u = us[i]; v = vs[i]\n        du = deg[u]; dv = deg[v]\n        if du == 2 and dv == 3:\n            cnt[find(v)] += 1\n        elif du == 3 and dv == 2:\n            cnt[find(u)] += 1\n\n    ans = 0\n    for x in range(1, n + 1):\n        k = cnt[x]\n        if k > 1:\n            ans += k * (k - 1) // 2\n    sys.stdout.write(str(ans) + \"\\n\")\n\nmain()\n"
+  },
+  {
+   "id": "3721",
+   "dificultad": "medium",
+   "codigo": "from typing import List\n\n\nclass Solution:\n    def countMentions(self, numberOfUsers: int, events: List[List[str]]) -> List[int]:\n        mentions = [0] * numberOfUsers\n        offline_until = [-1] * numberOfUsers\n\n        # OFFLINE events (and returning online) are processed before MESSAGE\n        # events at the same timestamp.\n        ordered = sorted(\n            events,\n            key=lambda e: (int(e[1]), 0 if e[0] == \"OFFLINE\" else 1),\n        )\n\n        for typ, ts, data in ordered:\n            t = int(ts)\n            if typ == \"OFFLINE\":\n                offline_until[int(data)] = t + 60\n            else:\n                for token in data.split():\n                    if token == \"ALL\":\n                        for i in range(numberOfUsers):\n                            mentions[i] += 1\n                    elif token == \"HERE\":\n                        for i in range(numberOfUsers):\n                            if offline_until[i] <= t:\n                                mentions[i] += 1\n                    elif token.startswith(\"id\"):\n                        idx = int(token[2:])\n                        if 0 <= idx < numberOfUsers:\n                            mentions[idx] += 1\n\n        return mentions\n"
+  },
+  {
+   "id": "abc382_d",
+   "dificultad": "hard",
+   "codigo": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    N = int(data[0]); M = int(data[1])\n    res = []\n    cur = [0]*N\n    def dfs(i, low):\n        if i == N:\n            res.append(' '.join(map(str, cur)))\n            return\n        hi = M - (N-1-i)*10\n        for v in range(low, hi+1):\n            cur[i] = v\n            dfs(i+1, v+10)\n    dfs(0, 1)\n    out = [str(len(res))]\n    out.extend(res)\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\nmain()\n"
+  },
+  {
+   "id": "abc381_b",
+   "dificultad": "easy",
+   "codigo": "import sys\nfrom collections import Counter\n\ndef main():\n    s = sys.stdin.readline().strip()\n    n = len(s)\n    if n % 2 != 0:\n        print(\"No\")\n        return\n    for i in range(0, n, 2):\n        if s[i] != s[i+1]:\n            print(\"No\")\n            return\n    c = Counter(s)\n    for v in c.values():\n        if v != 2:\n            print(\"No\")\n            return\n    print(\"Yes\")\n\nmain()\n"
+  },
+  {
+   "id": "arc186_a",
+   "dificultad": "hard",
+   "codigo": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n = int(data[0]); q = int(data[1])\n    NN = n * n\n    dp = [[0] * (n + 1) for _ in range(n + 1)]\n    dp[0][0] = 1\n    for r in range(n + 1):\n        row = dp[r]\n        for c in range(n + 1):\n            cur = row[c]\n            if not cur:\n                continue\n            for a in range(2, n - r + 1):\n                tgt = dp[r + a]\n                for b in range(2, n - c + 1):\n                    tgt[c + b] |= cur << (a * b)\n    mask = 0\n    for r in range(n + 1):\n        for c in range(n + 1):\n            mask |= dp[r][c]\n    out = []\n    for i in range(q):\n        k = int(data[2 + i])\n        s = NN - k\n        out.append(\"Yes\" if 0 <= s <= NN and (mask >> s) & 1 else \"No\")\n    sys.stdout.write(\"\\n\".join(out) + \"\\n\")\n\nmain()\n"
+  }
+ ]
+}
