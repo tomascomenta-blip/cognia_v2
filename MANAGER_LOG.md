@@ -11956,3 +11956,24 @@ de juego. Diagnóstico por REPRODUCCIÓN (regla de la casa), no por conjetura:
 
 Las sesiones remotas NUEVAS heredan el fix (cada sesión es un subproceso
 fresco); las viejas siguen con el código cargado al arrancar.
+
+## 2026-08-01 (noche-2) — /crear crasheaba DESPUÉS de guardar: null en el índice
+
+Reporte del dueño: "EL ARCHIVO PROHIBIDO" (juego HTML gigante) terminó en
+"[ERROR] '<' not supported between instances of 'NoneType' and 'float'" y
+"No se logró completar la tarea". Reproducido con traceback completo: el
+juego SÍ se generó, pasó el navegador, el crítico (5.5/10) y se GUARDÓ; el
+crash era de storage.auto_cleanup: 19/78 entradas del índice real tienen
+total_score=null (importes legacy "de construidos/") y .get('total_score', 0)
+no protege de un null explícito → sorted() comparó None < float → el /crear
+entero devolvió [ERROR] tras haber guardado. Fix: _score_num() en storage
+(sort de protección, candidatos, replace_if_better y el print de borrado que
+también reventaba con :.1f sobre null). Regresión con índice con nulls.
+Suite completa 5540/0. De paso: el llama-server de :8080 murió durante la
+sesión del dueño (WinError 10054) — relanzado con la config de config.env.
+
+Contexto honesto para el dueño: el pedido era un juego "premium de 6-10
+horas" — eso está en la franja HARD donde el goal firmado 2026-08-01 midió
+frontier 95% vs 20B 31-57%: el 14B local entrega un mini-juego funcional
+(su crítico le puso 5.3-5.5/10), no un indie comercial. El sistema ahora
+reporta ese resultado en vez de tirarlo por un null de hace una semana.

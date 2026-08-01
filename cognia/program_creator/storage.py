@@ -82,6 +82,17 @@ def _save_index(storage_dir: Path, index: list) -> None:
     with open(storage_dir / INDEX_FILE, "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=2)
 
+
+def _score_num(e: dict) -> float:
+    """total_score como numero SIEMPRE. El indice real tiene entradas legacy
+    con total_score=null (19/78 al 2026-08-01: importes 'de construidos/' y
+    migraciones) y `.get('total_score', 0)` NO protege de un null explicito:
+    la clave existe. El sort de auto_cleanup comparaba None < float y tiraba
+    TODO el /crear DESPUES de haber guardado el programa (cazado 2026-08-01,
+    sesion remota 'EL ARCHIVO PROHIBIDO')."""
+    v = e.get("total_score")
+    return float(v) if isinstance(v, (int, float)) else 0.0
+
 def _load_deletion_log(storage_dir: Path) -> list:
     p = storage_dir / DELETION_LOG_FILE
     if not p.exists(): return []
@@ -138,7 +149,7 @@ def delete_program(program_id: str, reason: str = "manual deletion",
         log.append({**entry, "deleted_at": datetime.now().isoformat(), "reason": reason})
         _save_deletion_log(storage_dir, log)
         print(f"[storage] 🗑️  Eliminado: '{entry.get('title', program_id)}' "
-              f"(score={entry.get('total_score', '?'):.1f}) — {reason}")
+              f"(score={_score_num(entry):.1f}) — {reason}")
     return True
 
 
@@ -159,19 +170,19 @@ def auto_cleanup(storage_dir: Path = None, keep_minimum: int = 10,
         print(f"[storage] 🔍 Revisando biblioteca ({len(index)} programas)...")
 
     # Proteger los top-5
-    sorted_index  = sorted(index, key=lambda e: e.get("total_score", 0), reverse=True)
+    sorted_index  = sorted(index, key=_score_num, reverse=True)
     protected_ids = {e["id"] for e in sorted_index[:5]}
 
     candidates = sorted(
         [e for e in index
-         if e.get("total_score", 0) < survival_score and e.get("id") not in protected_ids],
-        key=lambda e: (e.get("total_score", 0), e.get("created_at", ""))
+         if _score_num(e) < survival_score and e.get("id") not in protected_ids],
+        key=lambda e: (_score_num(e), e.get("created_at", ""))
     )
 
     deleted = 0
     for entry in candidates:
         if len(index) - deleted <= keep_minimum: break
-        reason = (f"auto-cleanup: score {entry.get('total_score', 0):.1f} "
+        reason = (f"auto-cleanup: score {_score_num(entry):.1f} "
                   f"< survival threshold {survival_score}")
         if delete_program(entry["id"], reason=reason, storage_dir=storage_dir):
             deleted += 1
@@ -195,14 +206,14 @@ def replace_if_better(new_program: GeneratedProgram, new_eval: EvaluationResult,
     index = _load_index(storage_dir)
     same_cat = [
         e for e in index
-        if e.get("category", "").lower() == new_program.category.lower()
-        and e.get("total_score", 0) < new_eval.total_score - 1.0
+        if (e.get("category") or "").lower() == new_program.category.lower()
+        and _score_num(e) < new_eval.total_score - 1.0
     ]
     if not same_cat: return False
 
-    worst  = min(same_cat, key=lambda e: e.get("total_score", 0))
+    worst  = min(same_cat, key=_score_num)
     reason = (f"replaced by '{new_program.title}' "
-              f"(score {new_eval.total_score:.1f} > {worst.get('total_score', 0):.1f})")
+              f"(score {new_eval.total_score:.1f} > {_score_num(worst):.1f})")
     return delete_program(worst["id"], reason=reason, storage_dir=storage_dir)
 
 

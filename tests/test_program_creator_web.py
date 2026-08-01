@@ -274,3 +274,33 @@ class TestEvaluacionYGuardado:
         assert guardado.lstrip().startswith("<!--")   # cabecera que no rompe el HTML
         assert "<!DOCTYPE html>" in guardado
         assert "setInterval" in guardado
+
+
+# ── Regresion 2026-08-01: auto_cleanup con total_score=null en el indice ──
+# El indice REAL tiene entradas legacy con total_score=null (importes "de
+# construidos/"); .get('total_score', 0) no protege de un null explicito y el
+# sort comparaba None < float -> TypeError que tiraba TODO el /crear DESPUES
+# de guardar el programa (sesion remota "EL ARCHIVO PROHIBIDO").
+
+def test_auto_cleanup_sobrevive_scores_null(tmp_path):
+    import json
+    from cognia.program_creator import storage as st
+
+    index = [{"id": f"p{i}", "title": f"P{i}", "total_score": 5.0 + i,
+              "created_at": "2026-07-01", "category": "juego"}
+             for i in range(6)]
+    index += [{"id": "legacy1", "title": "Legacy", "total_score": None,
+               "created_at": "", "category": ""},
+              {"id": "legacy2", "title": "Legacy2", "total_score": None,
+               "created_at": "2026-07-24", "category": "(de construidos/)"}]
+    (tmp_path / st.INDEX_FILE).write_text(
+        json.dumps(index), encoding="utf-8")
+
+    # pre-fix esto levantaba TypeError en el sorted() de proteccion top-5
+    borrados = st.auto_cleanup(storage_dir=tmp_path, keep_minimum=1,
+                               survival_score=-1.0, verbose=False)
+    assert isinstance(borrados, int)
+    # y el orden de proteccion trata null como 0 (los numericos van arriba)
+    assert st._score_num({"total_score": None}) == 0.0
+    assert st._score_num({"total_score": 7.5}) == 7.5
+    assert st._score_num({}) == 0.0
