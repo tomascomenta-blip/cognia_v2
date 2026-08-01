@@ -11679,3 +11679,17 @@ mueve nada. Fallos reales del frontier: 9/198 (4.5%).
 Suite corriendo para la compuerta de commits; quedan commits finales,
 síntesis de META, memorias y bajar el backend. El cron de las 07:44 es la
 red de seguridad; el apagado de las 08:00 NO se toca.
+
+### CIERRE 07:44 (cron de aterrizaje) — verificación final antes del apagado de las 08:00
+
+| | |
+|---|---|
+| corridas GPU y workflows vivos | **0** (los ollama y python que quedan son del dueño) |
+| llama-server | **0** — GPU en **1.009 MiB** |
+| árbol de git | limpio, **0 commits sin pushear** (HEAD 963ef0ef) |
+| números de subagentes | todos verificados en sesión (recomputos, controles 3/3, binomiales a mano) |
+| bitácora, META y memorias | al día desde las 02:16 |
+| apagado 08:00 | ARMADO, no se toca |
+
+El aterrizaje real fue a las 02:16; este pase del cron confirma que nada
+cambió en las 5,5 horas de espera pasiva.
