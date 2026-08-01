@@ -1,0 +1,61 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+You are given two positive integers A and B.
+Output the square of A + B.
+
+Input
+
+The input is given from Standard Input in the following format:
+A B
+
+Output
+
+Print the answer.
+
+Constraints
+
+
+- 1 \leq A,B \leq 2025
+- All input values are integers.
+
+Sample Input 1
+
+20 25
+
+Sample Output 1
+
+2025
+
+(20+25)^2=2025.
+
+Sample Input 2
+
+30 25
+
+Sample Output 2
+
+3025
+
+Sample Input 3
+
+45 11
+
+Sample Output 3
+
+3136
+
+Sample Input 4
+
+2025 1111
+
+Sample Output 4
+
+9834496
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

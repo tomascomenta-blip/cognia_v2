@@ -157,3 +157,35 @@ entrenamiento es MÁS plausible que en gpt-oss** (ventana 2024-09→2025-01,
 anterior al corte de Opus 5) — el 96.7% es techo optimista y así se lee. El
 contraste apareado con juez idéntico en ambos brazos es lo que se firma, no
 el nivel absoluto.
+
+### ENMIENDA 3 (2026-07-31 22:20) — ampliación a las 198 del solape filtrado, con el brazo del 20B
+
+Autorización vigente ("continúa con eso"). ANTES de generar:
+
+- **Frontier:** las **138 tareas restantes** del solape filtrado (198 − las
+  60 ya corridas), MISMAS condiciones de la enmienda 2 (opus-5, k=1, effort
+  high, prompt por fichero byte-exacto con un único Read, salida
+  estructurada). Prompts exportados por script a
+  `b3_codigo/frontier_prompts/` antes de lanzar.
+- **El brazo del 20B:** `oficial_low` de gpt-oss sobre las MISMAS 138
+  (celda estándar, `factorial_low198.json`, max_tokens 60000 como `low2`,
+  n_ctx del backend vigente — low no se acerca a ningún techo: 0 truncadas
+  en 96 muestras low hasta hoy). ~1 h de GPU.
+- **Primaria sin cambio:** apareado `frontier − gpt-oss(oficial_low)` con
+  juez MÍO, ahora sobre n=198; estratos y topes idénticos en ambos brazos.
+  Los netos de las 60 ya firmados NO se re-litigan: la ampliación añade
+  potencia y representatividad (el sorteo de 198 ES el marco completo del
+  solape filtrado — desaparece el sesgo de muestra de 60).
+- **Reloj:** si el aterrizaje (07:44) corta algo, el análisis usa el
+  prefijo de tareas con AMBOS brazos completos, y se dice.
+
+### ENMIENDA 4 (2026-07-31 22:20) — re-juicio de los lotes `demasiado_grande` con tope alto (vía c, sin GPU)
+
+Mi juez "oficial" capa lotes a 8 MB/120 s; el oficial real no. Se re-juzgan
+**solo las tareas con `demasiado_grande`/`lote_expirado`** en cualquier celda
+(`factorial*.json`, `frontier_resultados.json`) con **tope 64 MB y el timeout
+de la fórmula oficial completa (7n+5, sin cap de 120 s)**, en fichero APARTE
+(`rejuicio_grandes.json`) sin tocar los originales. Control positivo
+pre-registrado: 2 tareas normales re-juzgadas con el tope alto deben
+reproducir el veredicto del juez capado. Lectura: pass@1 oficial de cada
+celda CON el estrato resuelto, al lado del capado (nunca en su lugar).

@@ -1,0 +1,66 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+You are given a 6-digit positive integer N.
+Determine whether N satisfies all of the following conditions.
+
+- Among the digits of N, the digit 1 appears exactly once.
+- Among the digits of N, the digit 2 appears exactly twice.
+- Among the digits of N, the digit 3 appears exactly three times.
+
+Input
+
+The input is given from Standard Input in the following format:
+N
+
+Output
+
+Print Yes if N satisfies all the conditions described in the problem statement, and No otherwise, in one line.
+
+Constraints
+
+
+- N is an integer satisfying 100000 \le N \le 999999.
+
+Sample Input 1
+
+123233
+
+Sample Output 1
+
+Yes
+
+123233 satisfies the conditions in the problem statement, so print Yes.
+
+Sample Input 2
+
+123234
+
+Sample Output 2
+
+No
+
+123234 does not satisfy the conditions in the problem statement, so print No.
+
+Sample Input 3
+
+323132
+
+Sample Output 3
+
+Yes
+
+Sample Input 4
+
+500000
+
+Sample Output 4
+
+No
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

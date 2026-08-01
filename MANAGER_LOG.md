@@ -11595,3 +11595,87 @@ autorización del plan, pero el diseño documenta la alternativa de pago.
 `f240925f` (datos high2 36/36 + low2). Suite completa **5495 passed /
 1 skipped** corrida DOS veces (antes de cada commit con código). 0 commits
 sin pushear al escribir esto.
+
+## 2026-08-01 (madrugada 22:07→~02:30) — El techo del 20B tiene tres pisos, y el frontier a marco completo
+
+Continuación autorizada en vivo ("continúa con eso... y programa un apagado a
+las 8 am"). **Apagado armado a las 08:00** (35.549 s) y cron de aterrizaje a
+las 07:44. Backend a **n_ctx=131072 MEDIDO: 15.251 de 16.311 MiB — cabe**
+(~27 MiB/1k, consistente con los ~25 medidos ayer).
+
+### El método primero: la revisión pre-gasto volvió a pagar
+
+Workflow de 2 lentes + refutadores sobre el paquete nocturno (celda XL,
+frontier 198, re-juicio de grandes): **3 BLOQUEA confirmados** antes de
+gastar un token de GPU:
+
+1. **Sin semilla de sampling, un pase en XL puede ser RE-SORTEO** — con
+   contraejemplo en disco: 3 de las 12 truncadas ya pasaban en `low2` (una
+   con 640 tokens). La lectura se re-definió ANTES de correr (enmienda 7):
+   *resuelta POR PRESUPUESTO* = pasa **y** `tok_salida > 60000`; el resto es
+   re-sorteo y va aparte. La frase "convierte la cota en medida" se retiró.
+2. **El re-juicio de grandes no cubría los ficheros de la propia noche**
+   (low198, highxl, mio_low) y envenenaba su reanudación (las no-rejuzgables
+   quedaban "hechas" para siempre). Corregido + control positivo reforzado
+   (2 pasa + 1 falla obligatorios).
+3. `--solo-tareas` no se persistía: un `--reanudar` olvidadizo habría
+   ampliado la XL a las 24 no-truncadas (~4 h no pre-registradas). Ahora se
+   persiste y valida.
+
+### CORRIDAS (todas con preflight OK y FIN limpio)
+
+| corrida | resultado | reloj |
+|---|---|---|
+| `low198` (20B, 138 tareas nuevas) | 138/138, 0 truncadas — mío 76/138 (55.1%), oficial 69/138 | 41 min |
+| **celda XL** (12 truncadas, 110k tok, ctx 131k) | 12/12 | 136 min |
+| frontier-138 (opus-5 vía plan) | 137/138 (1 instrumento del PLAN: `arc191_d` excedió el tope de salida de 64k del harness) | 55 min |
+| re-juicio grandes (tope 64MB, CPU) | 62 muestras, controles 3/3 OK | ~25 min |
+
+### LA CELDA XL — el techo del 20B tiene TRES pisos, y el presupuesto no era la llave
+
+De las 12 tareas que truncaban a 60k, con 110.000 tokens y 131k de contexto:
+
+| destino | n | tareas |
+|---|---|---|
+| resuelta **POR PRESUPUESTO** (pasa, tok>60k) | **1** | 3638 (93.123 tok) |
+| re-sorteo (pasa con ≤60k) | 3 | 3634 (¡2.683 tok!), 3721 (51k), abc387_f (54k) |
+| **TRUNCA también a 110k** | **4** | arc186_d, arc186_a, arc189_d, arc187_b (todas ~1.195 s) |
+| se rinde (respuesta vacía) | 2 | arc188_a (13k), abc378_f (22k) |
+| completa y FALLA | 2 | arc185_c (53k), abc386_f (65k) |
+
+> **El presupuesto extra de pensamiento compra UNA tarea de doce.** La "cota
+> superior real" del 83.3% era mayormente ilusión compuesta de re-sorteo +
+> segundo muro + rendición. Compuesta `pass@1_36_XL` (juez oficial-con-topes,
+> 12/12 re-corridas, NO COMPARABLE con el 70, ratchet declarado): **22/36
+> (61.1%)**. El hueco con el 70 publicado NO es de presupuesto: es del
+> modelo en `hard`.
+
+### EL FRONTIER A MARCO COMPLETO (n=198, TODO el solape filtrado)
+
+opus-5 (k=1, effort high, prompt por fichero byte-exacto): **189/198 (95.5%)
+con mi juez**; 170/198 con el oficial-capado, que sube a **~187/198 (94.4%)
+con el estrato de lotes grandes re-juzgado a 64 MB** (17 de 20 aprueban; el
+20B solo rescata 2/14 en las suyas — la asimetría es real, no del juez).
+
+| PRIMARIA frontier − 20B(oficial_low), 198 apareadas | juez mío | juez oficial |
+|---|---|---|
+| neto | **+79** | +75 |
+| gana / pierde | **80 / 1** | 76 / 1 |
+| P (1 cola) | 3.4e-23 | 5.2e-22 |
+
+Por estrato (mío): easy 52/52 vs 50/52 · medium 59/63 vs 35/63 ·
+**hard 78/83 vs 25/83 (94% vs 30%)**. Netos por lote consistentes
+(+24/60 y +55/138): el confound de configs del brazo low, declarado, no
+mueve nada. Fallos reales del frontier: 9/198 (4.5%).
+
+> **El goal queda medido de punta a punta sobre banco propio:** el 20B local
+> hace ~50-55% a k=1 donde el frontier hace ~95%, el esfuerzo no lo
+> arregla (+4), el presupuesto tampoco (1/12), y BoN sí compra +12-15 pts.
+> Las limitaciones del denominador frontier (harness, contaminación
+> plausible) viajan firmadas con el número.
+
+### Estado al escribir esto
+
+Suite corriendo para la compuerta de commits; quedan commits finales,
+síntesis de META, memorias y bajar el backend. El cron de las 07:44 es la
+red de seguridad; el apagado de las 08:00 NO se toca.

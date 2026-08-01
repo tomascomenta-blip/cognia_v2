@@ -1,0 +1,61 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+You are given a sequence A = (A_1, A_2, \dots, A_N) of N non-negative integers, and a positive integer M.
+Find the following value:
+\[
+\sum_{1 \leq l \leq r \leq N} \left( \left(\sum_{l \leq i \leq r} A_i\right) \mathbin{\mathrm{mod}} M \right).
+\]
+Here, X \mathbin{\mathrm{mod}} M denotes the remainder when the non-negative integer X is divided by M.
+
+Input
+
+The input is given from Standard Input in the following format:
+N M
+A_1 A_2 \dots A_N
+
+Output
+
+Print the answer.
+
+Constraints
+
+
+- 1 \leq N \leq 2 \times 10^5
+- 1 \leq M \leq 2 \times 10^5
+- 0 \leq A_i \leq 10^9
+
+Sample Input 1
+
+3 4
+2 5 0
+
+Sample Output 1
+
+10
+
+
+- A_1 \mathbin{\mathrm{mod}} M = 2
+- (A_1+A_2) \mathbin{\mathrm{mod}} M = 3
+- (A_1+A_2+A_3) \mathbin{\mathrm{mod}} M = 3
+- A_2 \mathbin{\mathrm{mod}} M = 1
+- (A_2+A_3) \mathbin{\mathrm{mod}} M = 1
+- A_3 \mathbin{\mathrm{mod}} M = 0
+
+The answer is the sum of these values, 10. Note that the outer sum is not taken modulo M.
+
+Sample Input 2
+
+10 100
+320 578 244 604 145 839 156 857 556 400
+
+Sample Output 2
+
+2736
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

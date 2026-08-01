@@ -1,0 +1,73 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+The AtCoder company office is represented as a grid of H rows and W columns. Let (i, j) denote the cell at the i-th row from the top and j-th column from the left.
+The state of each cell is represented by a character S_{i,j}. If S_{i,j} is #, that cell has a wall; if S_{i,j} is ., that cell is a floor; if S_{i,j} is H, that cell has a humidifier placed on a floor cell.
+A certain cell is considered humidified if it can be reached from at least one humidifier cell by at most D moves up, down, left, or right without passing through a wall. Note that any cell with a humidifier is always humidified.
+Find the number of humidified floor cells.
+
+Input
+
+The input is given from Standard Input in the following format:
+H W D
+S_{1,1}S_{1,2}\cdotsS_{1,W}
+S_{2,1}S_{2,2}\cdotsS_{2,W}
+\vdots
+S_{H,1}S_{H,2}\cdotsS_{H,W}
+
+Output
+
+Print the answer.
+
+Constraints
+
+
+- 1 \leq H \leq 1000
+- 1 \leq W \leq 1000
+- 0 \leq D \leq H\times W
+- S_{i,j} is #, ., or H. (1 \leq i \leq H, 1 \leq j \leq W)
+- All input numbers are integers.
+
+Sample Input 1
+
+3 4 1
+H...
+#..H
+.#.#
+
+Sample Output 1
+
+5
+
+Five cells (1,1), (1,2), (1,4), (2,3), (2,4) are humidified.
+
+Sample Input 2
+
+5 6 2
+##...H
+H.....
+..H.#.
+.HH...
+.###..
+
+Sample Output 2
+
+21
+
+Sample Input 3
+
+1 6 3
+...#..
+
+Sample Output 3
+
+0
+
+It is possible that no cells are humidified.
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

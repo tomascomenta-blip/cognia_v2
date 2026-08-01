@@ -1,0 +1,45 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+You are given a string word, and an integer numFriends.
+Alice is organizing a game for her numFriends friends. There are multiple rounds in the game, where in each round:
+
+word is split into numFriends non-empty strings, such that no previous round has had the exact same split.
+All the split words are put into a box.
+
+Find the lexicographically largest string from the box after all the rounds are finished.
+ 
+Example 1:
+
+Input: word = "dbca", numFriends = 2
+Output: "dbc"
+Explanation: 
+All possible splits are:
+
+"d" and "bca".
+"db" and "ca".
+"dbc" and "a".
+
+
+Example 2:
+
+Input: word = "gggg", numFriends = 4
+Output: "g"
+Explanation: 
+The only possible split is: "g", "g", "g", and "g".
+
+ 
+Constraints:
+
+1 <= word.length <= 5 * 10^3
+word consists only of lowercase English letters.
+1 <= numFriends <= word.length
+
+### Format: You will use the following starter code to write the solution to the problem and enclose your code within delimiters.
+```python
+class Solution:
+    def answerString(self, word: str, numFriends: int) -> str:
+        
+```
+
+### Answer: (use the provided format with backticks)

@@ -79,7 +79,17 @@ def contraste(fro, base, etiqueta):
 
 def main():
     fro = _carga("frontier_resultados.json", "frontier_opus5")
+    # el brazo low del 20B a n=198: las 60 de factorial.json + las 138 de
+    # low198 (enmienda 3; lotes DISTINTOS de corrida/config — declarado: el
+    # efecto medido con low2 es ±1/36, y el neto por lote se reporta aparte)
     low = _carga("factorial.json", "oficial_low")
+    low198 = _carga("factorial_low198.json", "oficial_low")
+    solape = set(low) & set(low198)
+    if solape:
+        print(f"[!] tareas en AMBOS ficheros low ({len(solape)}): se usa "
+              f"factorial.json y se declara")
+    for t, m in low198.items():
+        low.setdefault(t, m)
     high = _carga("factorial_high2.json", "oficial_high")
 
     n = len(fro)
@@ -100,6 +110,14 @@ def main():
     print(f"  fallos REALES (juez mío): {fallos_reales}")
 
     contraste(fro, low, "gpt-oss oficial_low (PRIMARIA)")
+    # neto por LOTE al lado del pool (enmienda 7.4: el low de las 60 corrió
+    # a 15000/backend viejo; el de las 138 a 60000/131072)
+    lote60 = {t: m for t, m in low.items() if t not in low198 or t in solape}
+    lote138 = {t: m for t, m in low.items()
+               if t in low198 and t not in solape}
+    if lote60 and lote138:
+        contraste(fro, lote60, "lote de las 60 (low a 15000/backend viejo)")
+        contraste(fro, lote138, "lote de las 138 (low a 60000/131072)")
     if high:
         contraste(fro, high, "gpt-oss oficial_high (descriptiva; "
                   "truncadas de high cuentan como fallo)")

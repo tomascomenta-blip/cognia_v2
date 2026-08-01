@@ -23,18 +23,33 @@ from b3_oficial import SYSTEM_OFICIAL
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    # enmienda 3 del diseño: --n 198 amplía al marco completo del solape
+    # filtrado. El sorteo es determinista: las 60 primeras no cambian.
+    ap.add_argument("--n", type=int, default=60)
+    args = ap.parse_args()
+
     fac = json.loads((RAIZ / "b3_codigo" / "factorial.json")
                      .read_text(encoding="utf-8"))
     orden = []
     for m in fac["muestras"]:
         if m["tarea"] not in orden:
             orden.append(m["tarea"])
-    tareas = {t["_id"]: t for t in carga_ventana(60, fac["semilla"])}
+    ventana = carga_ventana(args.n, fac["semilla"])
+    tareas = {t["_id"]: t for t in ventana}
+    # prefijo verificado: las tareas de factorial.json tienen que ser las
+    # primeras del sorteo ampliado, en el mismo orden
+    ids_v = [t["_id"] for t in ventana]
+    if ids_v[:len(orden)] != orden:
+        print("[!] el sorteo ampliado NO conserva el prefijo de "
+              "factorial.json: ABORTA")
+        sys.exit(2)
     out = []
-    for tid in orden:
+    for tid in ids_v:
         t = tareas.get(tid)
         if t is None:
-            print(f"[!] {tid} no está en carga_ventana(60): ABORTA "
+            print(f"[!] {tid} no está en carga_ventana({args.n}): ABORTA "
                   f"(los bancos habrían cambiado)")
             sys.exit(2)
         out.append({"id": tid, "dificultad": t["dificultad"],

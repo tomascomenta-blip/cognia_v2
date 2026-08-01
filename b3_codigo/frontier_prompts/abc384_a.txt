@@ -1,0 +1,70 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+You are given a string S of length N consisting of lowercase English letters, along with lowercase English letters c_1 and c_2.
+Find the string obtained by replacing every character of S that is not c_1 with c_2.
+
+Input
+
+The input is given in the following format from Standard Input:
+N c_1 c_2
+S
+
+Output
+
+Print the answer.
+
+Constraints
+
+
+- 1\le N\le 100
+- N is an integer.
+- c_1 and c_2 are lowercase English letters.
+- S is a string of length N consisting of lowercase English letters.
+
+Sample Input 1
+
+3 b g
+abc
+
+Sample Output 1
+
+gbg
+
+Replacing a and c (which are not b) with g in S= abc results in gbg, so print gbg.
+
+Sample Input 2
+
+1 s h
+s
+
+Sample Output 2
+
+s
+
+It is possible that the resulting string after replacement is the same as the original string.
+
+Sample Input 3
+
+7 d a
+atcoder
+
+Sample Output 3
+
+aaaadaa
+
+Sample Input 4
+
+10 b a
+acaabcabba
+
+Sample Output 4
+
+aaaabaabba
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

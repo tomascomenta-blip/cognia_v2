@@ -95,7 +95,47 @@ marginal, bordes de tramo) · `form_cruzado` (tres reglas simultáneas) ·
 
 ## LA META
 
-### DÓNDE ESTAMOS — síntesis del 2026-07-31 por la NOCHE (manda sobre todo lo de abajo)
+### DÓNDE ESTAMOS — síntesis del 2026-08-01 de MADRUGADA (manda sobre todo lo de abajo)
+
+**1. EL TECHO DEL 20B TIENE TRES PISOS Y EL PRESUPUESTO NO ERA LA LLAVE.**
+La celda XL (las 12 truncadas re-corridas con 110k tokens y n_ctx=131072 —
+MEDIDO que cabe: 15.251/16.311 MiB) responde la última pregunta abierta del
+eje: **solo 1 de 12 se resuelve POR PRESUPUESTO** (3638, 93k tok); 3 son
+re-sorteo (una con 2.683 tok); **4 truncan también a 110k** (segundo muro);
+2 se rinden vacías; 2 completan y fallan. Compuesta `pass@1_36_XL` = 22/36
+(61.1%), NO COMPARABLE con el 70 (ratchet y jueces declarados). **El hueco
+con el 70 no es de presupuesto ni de esfuerzo: es del modelo en `hard`.**
+
+**2. EL FRONTIER A MARCO COMPLETO (n=198, todo el solape filtrado):**
+opus-5 vía plan **189/198 (95.5%) juez mío**; con el estrato de lotes >8MB
+re-juzgado a 64 MB, el oficial da ~187/198 (94.4%) — 17/20 grandes aprueban,
+mientras el 20B solo rescata 2/14 de las suyas. **PRIMARIA apareada: +79
+netas (80 gana / 1 pierde, P=3.4e-23); en hard 78/83 vs 25/83 (94% vs
+30%).** Netos por lote consistentes; limitaciones (harness, contaminación
+plausible) firmadas con el número.
+
+**3. LA FOTO COMPLETA DEL GOAL, toda sobre banco propio:** 20B local k=1
+~50-55% · +BoN k=4 +12-15 pts · esfuerzo +4 · presupuesto XL +1/12 tareas ·
+frontier ~95%. **Reparto del hueco 20B→frontier: capacidad en hard, no
+configuración** — las tres capas de instrumento están fuera y medidas
+(contexto/timeout/presupuesto) y los dos knobs (esfuerzo, presupuesto) están
+agotados. Lo que sí escala en el 20B es el CÓMPUTO por remuestreo con
+verificador (BoN), que era la tesis original del goal.
+
+**4. Método que volvió a pagar esta madrugada:** la revisión pre-gasto cazó
+que un pase en la XL podía ser RE-SORTEO (sin seed de sampling; 3
+contraejemplos en disco) y la lectura se re-definió ANTES de correr —
+`tok_salida > 60000` como criterio de atribución. Sin eso, la celda habría
+"resuelto" 4 tareas y atribuido al presupuesto lo que era ruido de sampling.
+
+**5. Punteros:** enmiendas 6-7 del prereg de condiciones; enmiendas 1-4 del
+diseño frontier; `factorial_highxl.json`, `factorial_low198.json`,
+`frontier_138_raw.json`, `rejuicio_grandes.json`. Próxima frontera del goal
+si se quiere seguir: k>1 en el frontier (varianza del denominador), la
+referencia por API limpia (~$31-78, diseño listo), o volver al cuello real
+del goal (fabricar señal donde no hay tests).
+
+### DÓNDE ESTAMOS — síntesis del 2026-07-31 por la NOCHE (historia; la de arriba manda)
 
 **1. EL EJE ESFUERZO ESTÁ CERRADO, Y NO ERA EL CANDIDATO GRANDE.** Celda
 comparable medida entera (prompt oficial, `reasoning_effort=high`, n=36,

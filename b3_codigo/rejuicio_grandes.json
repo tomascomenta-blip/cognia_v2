@@ -1,0 +1,642 @@
+{
+ "experimento": "rejuicio_demasiado_grande",
+ "diseno": "DISENO_REFERENCIA_FRONTIER (enmienda 4)",
+ "max_bytes": 64000000,
+ "seg_max": "formula 7n+5 sin cap",
+ "muestras": [
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc382_d",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:13505782",
+   "segundos": 0.6
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3620",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "lote_expirado",
+   "segundos": 265.0
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc386_d",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:33009285",
+   "segundos": 0.2
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc377_c",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:41832989",
+   "segundos": 9.3
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc377_d",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:35429119",
+   "segundos": 1.6
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3720",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:8081556",
+   "segundos": 0.9
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc386_e",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:10320249",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc377_e",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "demasiado_grande:87905612",
+   "antes": "demasiado_grande:87905612",
+   "segundos": 0.0
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3639",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9271999",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3674",
+   "celda": "mio_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "lote_expirado",
+   "antes": "demasiado_grande:9260093",
+   "segundos": 299.0
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc382_d",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:13505782",
+   "segundos": 0.6
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3725",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "lote_expirado",
+   "antes": "lote_expirado",
+   "segundos": 299.0
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc386_d",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:33009285",
+   "segundos": 0.2
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc377_c",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:41832989",
+   "segundos": 9.5
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc377_d",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:35429119",
+   "segundos": 1.1
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3720",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:8081556",
+   "segundos": 0.8
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc386_e",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:10320249",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "abc377_e",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "demasiado_grande:87905612",
+   "antes": "demasiado_grande:87905612",
+   "segundos": 0.0
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3639",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9271999",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "factorial.json",
+   "tarea": "3674",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9260093",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "factorial_low2.json",
+   "tarea": "abc382_d",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:13505782",
+   "segundos": 0.6
+  },
+  {
+   "fichero": "factorial_low2.json",
+   "tarea": "abc386_d",
+   "celda": "oficial_low",
+   "rejuzgable": false,
+   "motivo": "crudo_truncado"
+  },
+  {
+   "fichero": "factorial_low2.json",
+   "tarea": "abc377_c",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:41832989",
+   "segundos": 9.5
+  },
+  {
+   "fichero": "factorial_low2.json",
+   "tarea": "abc377_d",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:35429119",
+   "segundos": 1.8
+  },
+  {
+   "fichero": "factorial_low2.json",
+   "tarea": "3720",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:8081556",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "3657",
+   "celda": "oficial_low",
+   "rejuzgable": false,
+   "motivo": "crudo_truncado"
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc390_g",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "lote_expirado",
+   "antes": "lote_expirado",
+   "segundos": 306.0
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "3603",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:11876749",
+   "segundos": 0.9
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "arc189_c",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:12550960",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc384_e",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:15574393",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc377_f",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "lote_expirado",
+   "antes": "lote_expirado",
+   "segundos": 306.0
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "3649",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "lote_expirado",
+   "antes": "lote_expirado",
+   "segundos": 299.0
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "arc190_c",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:25165430",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc375_c",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "demasiado_grande:80120171",
+   "antes": "demasiado_grande:80120171",
+   "segundos": 0.0
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "3715",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "lote_expirado",
+   "antes": "lote_expirado",
+   "segundos": 299.0
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc379_c",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:8911310",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc378_c",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9338596",
+   "segundos": 0.2
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc388_d",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:16390577",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "abc388_f",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "lote_expirado",
+   "antes": "lote_expirado",
+   "segundos": 306.0
+  },
+  {
+   "fichero": "factorial_low198.json",
+   "tarea": "3648",
+   "celda": "oficial_low",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9302874",
+   "segundos": 0.7
+  },
+  {
+   "fichero": "factorial_high2.json",
+   "tarea": "abc382_d",
+   "celda": "oficial_high",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:13505782",
+   "segundos": 0.6
+  },
+  {
+   "fichero": "factorial_high2.json",
+   "tarea": "abc386_d",
+   "celda": "oficial_high",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:33009285",
+   "segundos": 1.0
+  },
+  {
+   "fichero": "factorial_high2.json",
+   "tarea": "abc377_c",
+   "celda": "oficial_high",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:41832989",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "factorial_high2.json",
+   "tarea": "abc377_d",
+   "celda": "oficial_high",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:35429119",
+   "segundos": 1.1
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc382_d",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:13505782",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc386_d",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:33009285",
+   "segundos": 1.0
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc377_c",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:41832989",
+   "segundos": 5.9
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc377_d",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:35429119",
+   "segundos": 1.0
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "3720",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:8081556",
+   "segundos": 0.5
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc386_e",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:10320249",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc377_e",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "demasiado_grande:87905612",
+   "antes": "demasiado_grande:87905612",
+   "segundos": 0.0
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "3639",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9271999",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "3674",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9260093",
+   "segundos": 0.4
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "3657",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9798767",
+   "segundos": 0.4
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "3603",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:11876749",
+   "segundos": 1.0
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "arc189_c",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:12550960",
+   "segundos": 0.5
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc384_e",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:15574393",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "arc190_c",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:25165430",
+   "segundos": 4.1
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc375_c",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "demasiado_grande:80120171",
+   "antes": "demasiado_grande:80120171",
+   "segundos": 0.0
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc379_c",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:8911310",
+   "segundos": 0.5
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc378_c",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9338596",
+   "segundos": 0.3
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "abc388_d",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:16390577",
+   "segundos": 0.6
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "arc188_c",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": false,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:13311049",
+   "segundos": 0.1
+  },
+  {
+   "fichero": "frontier_resultados.json",
+   "tarea": "3648",
+   "celda": "frontier_opus5",
+   "rejuzgable": true,
+   "oficial_pasa_xl": true,
+   "motivo_xl": "",
+   "antes": "demasiado_grande:9302874",
+   "segundos": 0.5
+  }
+ ]
+}

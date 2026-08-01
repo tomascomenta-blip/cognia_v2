@@ -1,0 +1,73 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+KEYENCE has a culture of reporting things as they are, whether good or bad.
+So we want to check whether the reported content is exactly the same as the original text.
+
+You are given two strings S and T, consisting of lowercase English letters.
+If S and T are equal, print 0; otherwise, print the position of the first character where they differ.
+Here, if the i-th character exists in only one of S and T, consider that the i-th characters are different.
+More precisely, if S and T are not equal, print the smallest integer i satisfying one of the following conditions:
+
+- 1\leq i\leq |S|, 1\leq i\leq |T|, and S_i\neq T_i.
+- |S| < i \leq |T|.
+- |T| < i \leq |S|.
+
+Here, |S| and |T| denote the lengths of S and T, respectively, and S_i and T_i denote the i-th characters of S and T, respectively.
+
+Input
+
+The input is given from Standard Input in the following format:
+S
+T
+
+Output
+
+If S and T are equal, print 0; otherwise, print the position of the first character where they differ.
+
+Constraints
+
+
+- S and T are strings of length between 1 and 100, inclusive, consisting of lowercase English letters.
+
+Sample Input 1
+
+abcde
+abedc
+
+Sample Output 1
+
+3
+
+We have S= abcde and T= abedc.
+S and T have the same first and second characters, but differ at the third character, so print 3.
+
+Sample Input 2
+
+abcde
+abcdefg
+
+Sample Output 2
+
+6
+
+We have S= abcde and T= abcdefg.
+S and T are equal up to the fifth character, but only T has a sixth character, so print 6.
+
+Sample Input 3
+
+keyence
+keyence
+
+Sample Output 3
+
+0
+
+S and T are equal, so print 0.
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

@@ -95,28 +95,34 @@ def casos_oficiales(t: dict) -> list:
     return list(t.get("publicos") or []) + list(t.get("privados") or [])
 
 
-def juzga_oficial(code: str, t: dict, casos: list = None) -> tuple:
+def juzga_oficial(code: str, t: dict, casos: list = None,
+                  max_bytes: int = None, seg_max: int = None) -> tuple:
     """(pasa, motivo) con el presupuesto oficial.
 
     Se corta al primer fallo (`parar_al_fallar`): el veredicto oficial es un
     AND sobre todos los casos, así que parar en el primer fallo da EXACTAMENTE
     el mismo veredicto y ahorra horas de CPU. Lo que se pierde es el recuento
     de cuántos pasaron, que aquí no se usa.
+
+    `max_bytes`/`seg_max` (enmienda 4 del diseño frontier): el re-juicio de
+    los lotes `demasiado_grande` los sube a 64 MB / fórmula completa. Los
+    defaults son los topes de siempre — sin pasarlos, byte a byte lo mismo.
     """
     casos = casos_oficiales(t) if casos is None else casos
     if not code.strip():
         return False, "sin_codigo"
     if not casos:
         return False, "sin_tests"
+    tope_bytes = MAX_BYTES_LOTE if max_bytes is None else max_bytes
     bytes_lote = sum(len(c.get("input") or "") + len(c.get("output") or "")
                      for c in casos)
-    if bytes_lote > MAX_BYTES_LOTE:
+    if bytes_lote > tope_bytes:
         return False, f"demasiado_grande:{bytes_lote}"
     modo = "functional" if (casos[0].get("testtype") == "functional"
                             or t.get("func_name")) else "stdin"
     # la fórmula LITERAL del oficial: (timeout + 1) * n_casos + 5, pero con un
     # techo de pared propio: sin él una sola muestra se lleva el reloj.
-    tope = min(SEG_MAX_LOTE,
+    tope = min(SEG_MAX_LOTE if seg_max is None else seg_max,
                (SEG_POR_TEST_OFICIAL + 1) * len(casos) + MARGEN_OFICIAL)
     res, motivo = _ejecuta_lote(code, casos, modo, t.get("func_name", ""),
                                 timeout=tope, parar_al_fallar=True)

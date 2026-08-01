@@ -1,0 +1,55 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+There is a calculator with the buttons 00, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.
+When a string x is displayed on this calculator and you press a button b, the resulting displayed string becomes the string x with b appended to its end.
+Initially, the calculator displays the empty string (a string of length 0).
+Find the minimum number of button presses required to display the string S on this calculator.
+
+Input
+
+The input is given from Standard Input in the following format:
+S
+
+Output
+
+Print the answer as an integer.
+
+Constraints
+
+
+- S is a string of length at least 1 and at most 1000, consisting of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.
+- The first character of S is not 0.
+
+Sample Input 1
+
+1000000007
+
+Sample Output 1
+
+6
+
+To display 1000000007, you can press the buttons 1, 00, 00, 00, 00, 7 in this order. The total number of button presses is 6, and this is the minimum possible.
+
+Sample Input 2
+
+998244353
+
+Sample Output 2
+
+9
+
+Sample Input 3
+
+32000
+
+Sample Output 3
+
+4
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

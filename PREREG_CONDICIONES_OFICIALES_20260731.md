@@ -134,6 +134,78 @@ mío o suyo.
 
 *(se appendean con fecha y hora; nunca se edita lo de arriba)*
 
+### ENMIENDA 7 (2026-07-31 23:05) — lo que la revisión adversarial tumbó de la enmienda 6, ANTES de gastar
+
+Dos revisores + refutadores: 3 BLOQUEA confirmados, 8 avisos. Correcciones
+pre-registradas ANTES de generar nada en la celda XL:
+
+1. **Sin semilla de sampling, un pase en XL puede ser RE-SORTEO, no
+   presupuesto** (`genera()` no pasa seed; el `--semilla` solo baraja tareas;
+   la frase "semilla y split idénticos" de la enmienda 6 era prosa que no
+   correspondía al sampling — se retira). Contraejemplo EN DISCO: de las 12
+   truncadas, **3 pasan en `low2`** (3634, 3721 con 640 tokens, abc378_f).
+   **Lectura (1) re-definida:** una tarea cuenta como *resuelta POR
+   PRESUPUESTO* solo si su muestra XL **pasa Y `tok_salida` > 60000**; si
+   pasa con ≤60000 es *re-sorteo* y va en estrato aparte. La frase
+   *"convierte la cota 83.3% en MEDIDA"* queda RETIRADA: la cota no se
+   convierte, se acota mejor.
+2. **La compuesta `pass@1_36_XL`** se precisa: juez = **oficial-con-mis-topes**
+   (el del 83.3% citado); si el corte de reloj deja tareas de las 12 sin
+   muestra XL, quedan en fallo y la compuesta se etiqueta "x/12
+   re-corridas"; el registro de 3720 (`respuesta_vacia`, no truncada) queda
+   entre las 24 como está y SE DECLARA. El **ratchet estructural** se
+   declara: la compuesta solo puede subir desde 50.0% porque solo se
+   re-corren fallos; la etiqueta **NO COMPARABLE viaja pegada al número**
+   cada vez que se escriba (que 36≥35 no invite al pattern-match con el §5).
+3. **El re-juicio de grandes** (`b3_rejuzga_grandes.py`) se corrigió: cubre
+   TODAS las celdas de la noche (incl. `mio_low`, `low198`, `highxl` y el
+   raw de las 138), las entradas no-rejuzgables se reintentan, y el control
+   pasa a **2 pasa + 1 falla obligatorios** (aborta si <3). El estrato se
+   reporta como **PARCIALMENTE resuelto**: abc377_e (87.9 MB) supera también
+   el tope XL de 64 MB, y los `lote_expirado` pueden volver a expirar a
+   7n+5. **Se corre AL FINAL, nunca en paralelo con corridas GPU** (la
+   contención escribiría timeouts espurios en ficheros primarios).
+4. **Orden y reloj:** `low198` PRIMERO (~30-45 min, alimenta la primaria de
+   la enmienda 3 del diseño frontier, con `--solo-tareas` las 138 — sin él
+   se regenerarían las 60 firmadas creando un brazo duplicado); la XL
+   después con `--minutos` ajustado al reloj restante (el fin real puede
+   exceder el corte en ~1 h: pared 3600 + juicio). `solo_tareas` se
+   persiste y se valida al reanudar. **Declarado además** (residuo del
+   BLOQUEA refutado): el `oficial_low` de las 60 corrió a max_tokens=15000
+   con el backend viejo; medido con `low2` que el efecto corrida+config es
+   ±1 tarea/36 — el neto por lote se reporta al lado del pool de 198.
+
+### ENMIENDA 6 (2026-07-31 22:15) — la celda XL: presupuesto de pensamiento POR ENCIMA de la referencia
+
+**Escrita ANTES de generar nada en esta celda, con el eje ya cerrado.** El
+resultado de la noche dice que el 33% de las muestras `high` se pasa de
+60.000 tokens y que el presupuesto —no el knob— es lo que come el hueco. La
+pregunta nueva, que ya NO es replicar la referencia sino medir el TECHO del
+modelo: **¿cuántas de las 12 tareas truncadas resuelve el 20B si se le da
+sitio para pensar?**
+
+- **Celda `oficial_high` XL** en fichero aparte (`factorial_highxl.json`):
+  SOLO las tareas cuyo registro en `factorial_high2.json` es
+  `truncado_por_longitud` (12 tareas — las únicas donde el presupuesto ata).
+  `max_tokens = 110000`, pared 3600 s, `COGNIA_TIMEOUT_HTTP=3600`, `n_ctx`
+  el mayor que QUEPA medido en `/props` + VRAM antes de correr (131072 si
+  entra; si no, 98304 — se registra el medido). Temperatura 0.8, semilla y
+  split idénticos.
+- **Lecturas pre-registradas:** (1) tasa de resolución de las 12 con
+  presupuesto XL (el número que convierte la "cota superior real" 83.3% de
+  la celda comparable en MEDIDA o la desmiente); (2) la compuesta
+  `pass@1_36_XL` = aciertos de las 24 no-truncadas a 60k + aciertos de las
+  12 con XL, **etiquetada NO COMPARABLE con el 70** (presupuesto y contexto
+  por encima de la referencia — es el techo del modelo, no la réplica);
+  (3) tokens de pensamiento reales de las que resuelvan y de las que vuelvan
+  a truncar (¿hay un segundo muro a 110k?).
+- **Instrumento:** el preflight del runner exige hoy `n_ctx==65536` para
+  celdas high; se parametriza (`--ctx-exigido`) manteniendo el default
+  actual — el cambio pasa por la suite y por revisión antes de gastar.
+- **Corte por reloj 240 min** (12 × ~18 min ≈ 3.6 h el peor caso). Si el
+  reloj corta, el prefijo de tareas completas se analiza igual (las 12 van
+  en el orden del fichero high2).
+
 ### ENMIENDA 5 (2026-07-31 19:30) — lo que tumbó la revisión adversarial de la enmienda 4, ANTES de la muestra 10
 
 Tres revisores (diseño, instrumento, honestidad) + refutación adversarial por

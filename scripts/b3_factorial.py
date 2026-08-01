@@ -164,6 +164,15 @@ def main():
                     help="corte por RELOJ: para ANTES de empezar una tarea "
                          "nueva, para que el diseno quede BALANCEADO (las 4 "
                          "celdas de cada tarea, o ninguna)")
+    ap.add_argument("--ctx-exigido", dest="ctx_exigido", type=int,
+                    default=65536,
+                    help="n_ctx que el preflight EXIGE al backend para "
+                         "celdas high (enmienda 6: la celda XL corre a "
+                         "131072, MEDIDO que cabe: 15.251 de 16.311 MiB)")
+    ap.add_argument("--solo-tareas", dest="solo_tareas", default="",
+                    help="lista de ids separada por comas: restringe la "
+                         "corrida a esas tareas (enmienda 6: las 12 "
+                         "truncadas). El sorteo y el split no cambian.")
     ap.add_argument("--reanudar", action="store_true")
     args = ap.parse_args()
 
@@ -172,9 +181,19 @@ def main():
     SALIDA.mkdir(exist_ok=True)
     fichero = SALIDA / f"factorial{args.sufijo}.json"
     print(f"[fac] celdas: {['%s_%s' % c for c in celdas]}", flush=True)
-    n_ctx = preflight(celdas, args.pared, ctx_exigido=65536)
+    n_ctx = preflight(celdas, args.pared, ctx_exigido=args.ctx_exigido)
     tareas = carga_ventana(args.n, args.semilla)
     print(f"[fac] tareas={len(tareas)} ventana {DESDE}..{HASTA}", flush=True)
+    if args.solo_tareas:
+        quiere = {x.strip() for x in args.solo_tareas.split(",") if x.strip()}
+        tareas = [t for t in tareas if t["_id"] in quiere]
+        faltan = quiere - {t["_id"] for t in tareas}
+        if faltan:
+            print(f"ABORTA: --solo-tareas pide ids fuera del sorteo: "
+                  f"{sorted(faltan)}", flush=True)
+            sys.exit(2)
+        print(f"[fac] restringido a {len(tareas)} tareas por --solo-tareas",
+              flush=True)
     if args.sonda:
         sonda_esfuerzo(tareas)
         return
@@ -185,7 +204,7 @@ def main():
            "max_tokens": args.max_tokens, "ventana": [DESDE, HASTA],
            "celdas": celdas_str, "pared": args.pared,
            "timeout_http": TIMEOUT_HTTP, "n_ctx_backend": n_ctx,
-           "muestras": []}
+           "solo_tareas": args.solo_tareas, "muestras": []}
     if fichero.exists():
         if not args.reanudar:
             print(f"ABORTA: {fichero} existe y sin --reanudar lo "
@@ -215,6 +234,15 @@ def main():
             print(f"ABORTA: el fichero tiene celdas={res['celdas']!r} y se "
                   f"pide {celdas_str!r}; reanudar con otro diseño descarta "
                   f"muestras en silencio.", flush=True)
+            sys.exit(2)
+        # `solo_tareas` también se valida: reanudar la celda XL sin repetir
+        # --solo-tareas ampliaría la corrida a las 24 no-truncadas a 110k
+        # tokens en silencio (~4h de GPU no pre-registradas — revisión
+        # adversarial del 2026-07-31 noche).
+        if res.get("solo_tareas", "") != args.solo_tareas:
+            print(f"ABORTA: el fichero tiene "
+                  f"solo_tareas={res.get('solo_tareas', '')!r} y se pide "
+                  f"{args.solo_tareas!r}.", flush=True)
             sys.exit(2)
         res["n_pedidas"] = max(res.get("n_pedidas", 0), args.n)
         res["pared"] = args.pared
