@@ -67,3 +67,93 @@ contraste, no en el nivel).
 - No sustituye el eje ESFUERZO (ese mide el 20B contra su propia referencia).
 - No se corre sin OK explícito del dueño, y el piloto también cuenta como
   gasto real.
+
+---
+
+## ENMIENDA 1 (2026-07-31 20:00) — AUTORIZADO por el dueño, vía PLAN de Claude (no API de pago)
+
+El dueño autoriza en vivo: *"para el benchmarks puedes usar este plan de
+Claude, autorizo"*. Cambia el instrumento y se pre-registra ANTES de generar:
+
+| | diseño original (API) | lo que se corre (plan) |
+|---|---|---|
+| vía | API Anthropic + Batches | **subagentes de Claude Code** (plan Max de la sesión) |
+| modelo | Sonnet 5 / Opus 5 | **claude-opus-5** (referencia frontier canónica; Fable orquesta y no se gasta en generar) |
+| system | ninguno / el mío | **el del harness de Claude Code** (no controlable) — DIFERENCIA DECLARADA |
+| salida | texto libre | **salida estructurada** `{codigo}` (equivale al "Return ONLY a Python code block"; se declara) |
+| temperatura | no aplica | no aplica (no controlable) |
+| esfuerzo | effort high | **effort high** (`opts.effort`) |
+| k | 3 | **k=1** — la comparación primaria es contra MI `oficial_low` (k=1), no contra el 70 de collinear |
+| banco | 198 del solape | **las 60 tareas de `factorial.json`** (prompt oficial idéntico, apareado perfecto tarea a tarea); ampliable a las 198 si cuota y reloj dan |
+
+**Primaria:** neto apareado `frontier − gpt-oss-20b(oficial_low)` sobre las 60
+tareas, juez MÍO y juez oficial-con-mis-topes, los mismos estratos
+(`demasiado_grande`/`lote_expirado` idénticos en ambos brazos: se cancelan en
+el contraste). Discordantes, victorias y MDE reportados como siempre.
+
+**Amenazas nuevas declaradas:** (a) el system prompt del harness puede ayudar
+o estorbar — no medible, se declara; (b) contaminación de entrenamiento MÁS
+probable que en gpt-oss (corte más tardío) — se reporta por estrato de
+dificultad; (c) el agente podría intentar usar herramientas (ejecutar código
+para verificarse): **se le prohíbe en el prompt y se registra si lo hace** —
+un frontier CON herramientas sería otra condición (se etiquetaría aparte,
+no se mezcla).
+
+**Orden:** piloto 10 tareas → verificar mecánica (extracción, juez, tasa de
+obediencia sin herramientas) → resto (50) → análisis apareado. El juicio es
+LOCAL (subprocesos CPU del venv312): no toca la GPU ni el backend del eje
+ESFUERZO, que sigue corriendo en paralelo.
+
+### ENMIENDA 2 (2026-07-31 20:40) — fallo de FIDELIDAD cazado, y el arreglo
+
+**El error, mío:** al transcribir los prompts al workflow (piloto y lote A)
+recorté explicaciones de ejemplos en varias tareas. Los agentes veían un
+prompt DISTINTO del oficial que vio gpt-oss — rompe el apareado. El lote A se
+PARÓ a mitad (sus resultados se descartan); el piloto queda apartado como
+`frontier_sonda_inline.json` (sonda de mecánica: 10/10 con mi juez, 0 usos de
+herramientas, juez verificado con control negativo — pero NO se mezcla con el
+benchmark).
+
+**El arreglo:** los prompts ya no pasan por transcripción. Cada tarea está en
+`b3_codigo/frontier_prompts/<id>.txt` (system oficial + prompt EXACTOS,
+escritos por script desde `frontier_tareas.json`). El agente recibe la RUTA y
+la instrucción de leerla con UN Read y resolver sin más herramientas. La
+condición pasa a ser *"prompt entregado vía lectura de fichero"* — uniforme
+para las 60 tareas (las 10 del piloto se RE-generan bajo esta condición),
+verificable (el fichero es el prompt, byte a byte), y con obediencia
+comprobable en el journal (2 tool calls esperados: Read + StructuredOutput).
+
+### RESULTADO (2026-07-31 21:05) — corrido y juzgado
+
+**Instrumento:** 60/60 generadas, 0 errores, ~10 min, ~1.76M tokens de
+subagentes; obediencia perfecta (120 tool uses / 60 agentes = exactamente
+Read + StructuredOutput por agente). Juez verificado antes con control
+negativo (un `print` fijo reprueba) y conteo de casos ejecutados (5 vis + 15
+oc + ~43 oficiales por tarea).
+
+| claude-opus-5 (k=1, effort high) | |
+|---|---|
+| juez MÍO | **58/60 (96.7%)** — fallos reales solo `arc185_c` y `3613` |
+| juez oficial-con-mis-topes | 49/60 (81.7%) — los 11 "no" incluyen **9 `demasiado_grande`** (mi tope de 8 MB, estrato declarado) |
+
+**PRIMARIA — frontier − gpt-oss-20b(oficial_low), 60 tareas apareadas:**
+
+| juez | neto | gana/pierde | P (1 cola) |
+|---|---|---|---|
+| MÍO | **+24** | 24 / **0** | 6.0e-08 |
+| oficial-con-mis-topes | +23 | 23 / 0 | 1.2e-07 |
+
+Por estrato (juez mío): easy 19/19 vs 18/19 · medium 14/15 vs 11/15 ·
+**hard 25/26 vs 5/26** — el hueco con el frontier vive casi entero en `hard`.
+
+**Descriptiva — contra oficial_high (25 tareas apareadas, truncadas de high
+= fallo):** neto **+9 (9/0, P=0.004)**; en hard 11/11 vs 5/11. Ni el esfuerzo
+alto de gpt-oss cierra el hueco.
+
+**Limitaciones en la misma frase:** condición vía harness de Claude Code
+(system del harness + entrega por Read + salida estructurada, no la API
+pura); k=1; sin temperatura controlable; y **la contaminación de
+entrenamiento es MÁS plausible que en gpt-oss** (ventana 2024-09→2025-01,
+anterior al corte de Opus 5) — el 96.7% es techo optimista y así se lee. El
+contraste apareado con juez idéntico en ambos brazos es lo que se firma, no
+el nivel absoluto.

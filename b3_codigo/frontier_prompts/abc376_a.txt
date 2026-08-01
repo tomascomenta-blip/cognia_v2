@@ -1,0 +1,71 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+There is a mysterious button.
+When you press this button, you receive one candy, unless less than C seconds have elapsed since you last received a candy.
+Takahashi decided to press this button N times.
+He will press the button for the i-th time T_i seconds from now.
+How many candies will he receive?
+
+Input
+
+The input is given from Standard Input in the following format:
+N C
+T_1 T_2 \dots T_N
+
+Output
+
+Print the number of candies that Takahashi will receive.
+
+Constraints
+
+
+- 1 \leq N \leq 100
+- 1 \leq C \leq 1000
+- 0 \leq T_1 < T_2 < \dots < T_N \leq 1000
+- All input values are integers.
+
+Sample Input 1
+
+6 5
+1 3 7 8 10 12
+
+Sample Output 1
+
+3
+
+Takahashi will press the button six times.
+
+- 1st press (1 second from now): You always receive a candy when pressing the button for the first time.
+- 2nd press (3 seconds from now): 3 - 1 = 2 < C seconds have elapsed since he last received a candy, so he does not receive a candy.
+- 3rd press (7 seconds from now): 7 - 1 = 6 \geq C seconds have elapsed since he last received a candy, so he receives a candy.
+- 4th press (8 seconds from now): 8 - 7 = 1 < C second has elapsed since he last received a candy, so he does not receive a candy.
+- 5th press (10 seconds from now): 10 - 7 = 3 < C seconds have elapsed since he last received a candy, so he does not receive a candy.
+- 6th press (12 seconds from now): 12 - 7 = 5 \geq C seconds have elapsed since he last received a candy, so he receives a candy.
+
+Therefore, he receives three candies.
+
+Sample Input 2
+
+3 2
+0 2 4
+
+Sample Output 2
+
+3
+
+Sample Input 3
+
+10 3
+0 3 4 6 9 12 15 17 19 20
+
+Sample Output 3
+
+7
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)

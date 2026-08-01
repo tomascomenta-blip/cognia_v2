@@ -1,0 +1,60 @@
+You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests.
+
+### Question:
+Takahashi has N teeth arranged in a single row from left to right. The current condition of his teeth is represented by a string S.
+If the i-th character of S is O, it means that the i-th tooth from the left is healthy. If it is X, it means that the i-th tooth has a cavity. Healthy teeth do not have cavities.
+When he has K consecutive healthy teeth, he can eat one strawberry using those K teeth. After eating a strawberry, those K teeth develop cavities and become unhealthy.
+Find the maximum number of strawberries he can eat.
+
+Input
+
+The input is given from Standard Input in the following format:
+N K
+S
+
+Output
+
+Print the answer.
+
+Constraints
+
+
+- 1 \leq K \leq N \leq 100
+- N and K are integers.
+- S is a string of length N consisting of O and X.
+
+Sample Input 1
+
+7 3
+OOXOOOO
+
+Sample Output 1
+
+1
+
+He can eat one strawberry by using the three consecutive healthy teeth from the 4th to 6th tooth from the left. After this, he cannot eat any more strawberries. Besides, there is no way for him to eat more than one strawberry. Therefore, print 1.
+
+Sample Input 2
+
+12 2
+OXXOOOXOOOOX
+
+Sample Output 2
+
+3
+
+Sample Input 3
+
+22 5
+XXOOOOOOOOXXOOOOOXXXXX
+
+Sample Output 3
+
+2
+
+### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.
+```python
+# YOUR CODE HERE
+```
+
+### Answer: (use the provided format with backticks)
