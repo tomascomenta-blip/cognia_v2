@@ -1,0 +1,40 @@
+{
+ "diseno": "enmiendas 5/5.1",
+ "n_completas": 83,
+ "incompletas": [],
+ "niveles_por_s": [
+  78,
+  79,
+  77
+ ],
+ "promedio": 0.9397590361445783,
+ "pass3": 79,
+ "no_unanimes": [
+  "abc374_g",
+  "arc188_c"
+ ],
+ "no_unanimes_instrumento": [],
+ "deriva": {
+  "d12": 1,
+  "d13": 1,
+  "d23": 2,
+  "degradada": false
+ },
+ "apareado_low": {
+  "n": 83,
+  "media_D": 0.6385542168674698,
+  "gana": 54,
+  "pierde": 0,
+  "p1_signos": 5.551115123125783e-17,
+  "mde": 14,
+  "p_signflip": 0.0
+ },
+ "goal_sinfuga": {
+  "n": 81,
+  "promedio": 0.9382716049382716
+ },
+ "sensibilidad_excluida": {
+  "promedio": 0.9397590361445783,
+  "tareas_instrumento": 1
+ }
+}

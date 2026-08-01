@@ -11771,3 +11771,59 @@ principal de 160 agentes (80 tareas × s=2,s=3, orden aleatorizado semilla
 - Los tres workflows de revisión/verificación de la mañana: 13 agentes, 4
   BLOQUEA cazados pre-gasto, 1 BLOQUEA cazado pre-firma, 0 números erróneos
   publicados.
+
+
+### P2 CERRADA (mediodía) — la varianza del denominador: el 94% no era sorteo
+
+Las corridas k=3 completas: piloto 6/6 + lote 160/160 (tras el incidente de
+abajo) + reintento único de arc191_d. 166 muestras juzgadas con el mismo juez
+que s=1, bajo los dos splits. Resultado (analisis_k3.json, verificado por
+recomputo independiente ×2):
+
+| | |
+|---|---|
+| pass@1 s1/s2/s3 | 94.0% / 95.2% / 92.8% — **promedio 94.0%** |
+| no-unánimes | **2/83 (2.4%)**, ambas del modelo, 0 instrumento |
+| deriva s1(07-31) vs s2/s3(hoy) | ninguna (d12=1, d13=1, d23=2) |
+| apareado media-k3 − oficial_low | +0.639, **54/0**, P=5.6e-17, MDE +14 |
+| arc191_d | 4/5 muestras al tope de 64k del harness (instrumento del PLAN, estrato declarado); el reintento que completó falla ocultos → tarea 0/3 |
+
+El compromiso anti-cherry-pick de la enmienda 5.1 (el promedio sustituye al
+k=1 sea cual sea la dirección) se cumplió sin coste: la dirección fue "no se
+mueve". META actualizada (sección "La varianza del denominador, medida").
+
+**El incidente que hay que contar: ~500 agentes basura por `args` como
+string.** El primer lanzamiento del lote pasó los 80 ids vía el parámetro
+`args` del workflow; llegaron como STRING JSON-encodeado y el `for (const id
+of args)` iteró CARACTERES: agentes pidiendo `frontier_prompts/6.txt`,
+`4.txt`... Se detectó por conteo anómalo en el journal (497 results donde
+debía haber ≤160), se paró el workflow, y se relanzó con los ids EMBEBIDOS en
+el script (como el piloto, que por eso funcionó) más un guard que aborta si
+`trabajos.length !== 160`. Coste: ~1-2M tokens de subagentes en respuestas
+de error; cero datos corrompidos (la colección por clave (id,s) con dedup
+hizo su trabajo: nada de aquello tocó el raw). La lección operativa: los
+argumentos de un workflow se verifican DENTRO del script con un guard de
+forma y tamaño antes de gastar el primer agente — la misma clase de defensa
+que el preflight ejecutable del runner.
+
+### P3 — modo sombra del disyuntor, entregado (commit 878a065a)
+
+El pendiente del plan antiruido: `verificar --sombra` y
+`COGNIA_DISCIPLINA_SOMBRA=1` registran los disparos sin actuar; los disparos
+reales también se persisten (antes no quedaban en el JSONL y la calibración
+era incontestable); `sombra-informe` computa la aceptación con definición
+operativa fijada antes de los datos (FP = el primer parche posterior era el
+bueno; umbral 60%; n<10 orientativo). 11 tests nuevos; CLI ejercitado de
+verdad; suite 5506/1. Queda acumular disparos reales (.disciplina/ nacía
+vacío). El otro pendiente (query_planner tira términos distintivos) quedó
+REPRODUCIDO contra el código actual y documentado con sus casos en la
+memoria: dos diseños rápidos rompían regresiones escritas — no se rusheó.
+
+### CIERRE de la sesión
+
+Commits de la mañana: 322230b1 (EL GOAL, RESPONDIDO) · 878a065a (modo
+sombra) · el final de esta entrada (k=3 + META). Suite corrida antes de cada
+commit con código (5495/1 y 5506/1). Deadline placeholder → sin apagado
+armado, aterrizaje autogestionado, registrado aquí. Workflows de la sesión:
+6 (3 de revisión/verificación con 18 agentes, 3 de generación con 168
+agentes útiles + ~500 del incidente). GPU usada: cero.

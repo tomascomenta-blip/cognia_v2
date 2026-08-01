@@ -42,7 +42,13 @@ def main():
     ap.add_argument("journal")
     ap.add_argument("--salida", default="frontier_k3_raw.json")
     ap.add_argument("--gate", action="store_true")
+    # enmienda 5.1 punto 1: un (id,s) caído se relanza UNA vez aparte. Para
+    # que el lote y su reintento no colisionen en el raw, el lote se
+    # colecciona omitiendo esas claves y el reintento se colecciona después.
+    ap.add_argument("--omitir", default="",
+                    help="ids a saltar (coma; 'arc191_d' salta todos sus s)")
     args = ap.parse_args()
+    omitidos = {x.strip() for x in args.omitir.split(",") if x.strip()}
 
     out = json.loads(Path(args.task_output).read_text(encoding="utf-8"))
     progreso = [p for p in out.get("workflowProgress", [])
@@ -81,6 +87,9 @@ def main():
     for aid, info in sorted(por_agente.items(), key=lambda kv: (kv[1]["id"],
                                                                 kv[1]["s"])):
         clave = (info["id"], info["s"])
+        if info["id"] in omitidos:
+            print(f"[rec] omitida ({clave[0]}, s={clave[1]}) por --omitir")
+            continue
         if clave in claves:
             print(f"ABORTA: ({clave[0]}, s={clave[1]}) ya está en "
                   f"{destino.name}; un (id,s) no se colecciona dos veces.")

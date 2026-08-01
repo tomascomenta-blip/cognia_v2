@@ -169,7 +169,31 @@ MDE +11)**. El "no puede" sobrevive el peor caso.
 | selector perfecto sobre BoN@4 | +1 | medido aquí |
 | diversidad de brazos (pool ~10, 1.8× tokens) | +8 sobre el TECHO BoN@4 (oráculo a oráculo; +9 sobre el realizable) | medido aquí |
 | rescate del peor-caso de parada | +5 (cota, no medida) | acotado aquí |
-| varianza del frontier (k=3) | enmienda 5 del DISEÑO frontier, corriendo | P2 de hoy |
+| varianza del frontier (k=3) | **medida: el 94% NO era sorteo** (ver abajo) | cerrado 2026-08-01 |
+
+### La varianza del denominador, medida (k=3, enmiendas 5/5.1 del diseño frontier)
+
+166 muestras nuevas de opus-5 vía plan (83 hard × s=2,s=3, prompts
+byte-exactos, obediencia 165/166 verificada por journal, modelo único
+`claude-opus-5[1m]`), juzgadas con el MISMO juez que s=1. Compromiso
+pre-registrado cumplido: el promedio SUSTITUYE al k=1, fuera cual fuera la
+dirección — y la dirección fue "no se mueve":
+
+| | |
+|---|---|
+| pass@1 por muestra (s1/s2/s3) | 94.0% / 95.2% / 92.8% |
+| **pass@1 PROMEDIO (el nuevo denominador hard)** | **94.0%** (sin_fuga en las 81 comunes: 93.8%) |
+| pass@3 (descriptivo, cota) | 79/83 (95.2%) |
+| tareas NO unánimes | **2/83 (2.4%)** — abc374_g, arc188_c; ambas del modelo, 0 por instrumento |
+| deriva entre días (s1 del 07-31 vs s2/s3 de hoy) | ninguna: d(s1,s2)=1, d(s1,s3)=1, d(s2,s3)=2 |
+| apareado actualizado frontier(media k=3) − oficial_low (n=83) | media D_t **+0.639**, 54 gana / 0 pierde, P=5.6e-17, MDE +14 |
+| instrumento del plan | arc191_d, 4/5 muestras al tope de 64k (estrato declarado; reintento único registrado — el que completó falla los ocultos: la tarea queda 0/3) |
+
+> **El 94-95% del frontier en hard no era un sorteo afortunado de k=1: es un
+> nivel estable (±1 tarea entre muestras), medido con 3 sorteos
+> intercambiables y sin deriva del harness entre días.** La limitación
+> "varianza sin medir" del informe de arriba queda cerrada; la del brazo 20B
+> (su 25/83 sigue siendo UNA muestra) permanece y se declara.
 
 ### Limitaciones firmadas con el número
 
@@ -184,8 +208,9 @@ candidatos raiz/bon fallan por instrumento, 17 en total con rep/pla) —
 cubierto por las dos sensibilidades. Contaminación de entrenamiento del
 frontier más plausible y sin cota (nivel = techo optimista; lo firmado es el
 apareado). Oráculos sobre pool con parada temprana = cota inferior (peor
-caso publicado). k=1 del frontier: la varianza se está midiendo hoy
-(enmienda 5 del diseño frontier, P2).
+caso publicado). k=1 del frontier: varianza MEDIDA el mismo día (sección
+siguiente): promedio k=3 = 94.0%, no-unanimidad 2/83 — el nivel firmado no
+era sorteo. La del brazo 20B (una muestra) permanece.
 
 ### El veredicto del goal
 
