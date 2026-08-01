@@ -11465,3 +11465,133 @@ y las 4 completas en 13 Â· 30 Â· 75 Â· 158 s. El fichero es el mismo
 | suite completa | **5495 passed, 1 skipped** (corrida dos veces) |
 | apagado | armado a las **13:00** |
 
+
+## 2026-07-31 (noche 19:05→22:10) — El eje ESFUERZO se cierra, y el primer frontier de primera mano
+
+Sesión autónoma nocturna. El prompt de arranque traía el deadline como
+placeholder literal ("hasta las HH:MM"), así que **no se armó apagado de
+máquina a una hora inventada**; aterrizaje autogestionado al cerrar las
+prioridades. Sin shutdown previo que desarmar.
+
+### PRIORIDAD 2, cerrada SIN GASTAR GPU: REP-F nace sin potencia alcanzable
+
+La potencia se calculó ANTES de correr (`b3_potencia_repf.py`) y el número
+pasó por verificación adversarial independiente (2 recomputadores). **La
+verificación cazó un error MÍO: mi cota decía +1 y estaba mal sumada** —
+omitía que arreglar una tarea donde BoN gana también sube el neto apareado.
+Los números que valen (enmienda 6 del prereg de reparación): techo con
+fallback PERFECTO **+7 (d=17, 12/17, P=0.0717)** contra un MDE de +9;
+mecanismo fresco ~1-2 aciertos esperados (2/62 = 3.2% condicional);
+esperanza realista **+0..+3**. Decisión: NO se corre; la vía queda suspendida
+con número y condición de reapertura escrita. *La lección nueva: una cota
+calculada por quien ya prefiere una conclusión subcuenta hacia esa
+conclusión — el recomputo independiente no es opcional ni para mis números.*
+
+### PRIORIDAD 1 — el eje ESFUERZO, cerrado con n=36 y réplica intra-config
+
+Antes de gastar: revisión adversarial por workflow (3 lentes + refutadores,
+13 agentes) → **9 BLOQUEA confirmados** en 4 temas, TODOS arreglados y
+verificados antes de la muestra 10 (enmienda 5): preflight EJECUTABLE en el
+runner (aborta sin backend correcto o sin `COGNIA_TIMEOUT_HTTP`; humo con
+los dos abortos PASADO), reanudación blindada (persistencia+validación de
+`celdas`/`pared`; el comando abreviado del tramo 2 habría DESTRUIDO
+factorial.json — reproducido en sandbox), `demasiado_grande`/`lote_expirado`
+como estrato (mi juez "oficial" reprueba solo los lotes >8MB), y comparación
+siempre con IC. Backups en `b3_codigo/backup_20260731_noche/`.
+
+**Corridas: tramo 1 (24/24, 66 min) + tramo 2 (36/36, 81 min) + réplica
+`low2` (36/36, 5 min, 0 truncadas), todas con preflight OK y FIN limpio.**
+
+| celda oficial_high (n=36) | juez oficial-con-mis-topes | juez mío |
+|---|---|---|
+| truncadas=FALLO (principal) | **18/36 (50.0%)** IC95 [34.5, 65.5] | 21/36 (58.3%) |
+| truncadas=PASE (cota superior real) | 30/36 (83.3%) | 33/36 (91.7%) |
+| truncadas EXCLUIDAS (descriptiva) | 18/24 (75.0%) | 21/24 (87.5%) |
+
+Estratos: **12/36 truncadas a 60k (33.3%)**, 4 no-juzgables por mi tope de
+8MB, 1 instrumento (3720). 331 s/muestra de media.
+
+**El contraste del eje** (la primaria intra-config, high − low2): **+4
+(gana 7, pierde 3, P 1 cola = 0.17, MDE bilateral ±8)**; contra el low de la
+mañana: +5 (P=0.06). Réplica low2−low(mañana): **+1** — la amenaza de cruzar
+corridas no se materializó. Descriptivo sin truncadas: +6/+7 con 0 derrotas.
+
+> **El veredicto del eje: el esfuerzo NO es el candidato grande bajo un techo
+> de 60.000 tokens.** Excluye un efecto ≥8 tareas; lo observado es +4. La
+> mitad de las muestras high que fallan, fallan por TRUNCAR (33%): el hueco
+> no lo come el knob, lo come el PRESUPUESTO de pensamiento — y 60k es
+> prácticamente el techo de la referencia (~63k en 64k de secuencia). El
+> "candidato de ~18 pts" de la mañana era en realidad el par
+> (esfuerzo, presupuesto), y el presupuesto está agotado a 64k de contexto.
+
+**La comparación pre-registrada, GANADA (n=36 ≥ 35) y HECHA:** pass@1 =
+**50.0% IC95 [34.5, 65.5] contra el 70 publicado — el 70 queda FUERA del
+IC** — con las residuales en la misma frase: muestra de 36 del solape
+filtrado (198/211, filtro ~1-2 pts a mi favor), banco local sin cubrir
+2024-08→09-21, k=1 vs 3 muestras, temp 0.8 vs no declarada, techo 60k vs
+~63k, 12 truncadas y 4 no-juzgables contadas como fallo, extractor
+primer-bloque vs último. La escalera de atribución completa del hueco
+51.8→70: EVALUADOR −2.7, PROMPT +0, ESFUERZO +4..+5 — **el resto es
+presupuesto de pensamiento, juez capado, k y banco, no capacidad pura.**
+
+### AUTORIZACIÓN EN VIVO — referencia frontier de primera mano (vía plan)
+
+El dueño autorizó a las ~20:00: *"para el benchmarks puedes usar este plan de
+Claude, autorizo"*. Diseño enmendado ANTES de gastar (enmienda 1: condiciones
+reales — subagentes de Claude Code, claude-opus-5, k=1, effort high, salida
+estructurada, system del harness declarado).
+
+**Y un fallo de FIDELIDAD, cazado y corregido a mitad (enmienda 2):** al
+transcribir los prompts al workflow recorté explicaciones de ejemplos — los
+agentes veían un prompt DISTINTO del que vio gpt-oss. El lote se PARÓ, la
+sonda inline quedó apartada (`frontier_sonda_inline.json`, no se mezcla), y
+la entrega pasó a **ficheros byte-exactos** (`b3_codigo/frontier_prompts/`)
+leídos por cada agente con un único Read. Obediencia verificada en el
+journal: **120 tool uses / 60 agentes = exactamente Read + StructuredOutput.**
+
+**Instrumento verificado antes de firmar:** juez local con control negativo
+(un `print` fijo reprueba 4/5 y 11/15) y ~63 casos ejecutados por tarea;
+mismo split y mismos jueces que factorial.json (apareado perfecto).
+
+| RESULTADO (60 tareas, k=1) | |
+|---|---|
+| claude-opus-5, juez mío | **58/60 (96.7%)** — fallos reales solo arc185_c y 3613 |
+| **PRIMARIA** frontier − gpt-oss(oficial_low) | **+24 (24 gana / 0 pierde, P=6e-8)** |
+| por estrato (hard) | **25/26 vs 5/26** — el hueco vive en hard |
+| vs oficial_high (36 apareadas) | **+14 (14/0, P=6e-5)**; hard 18/19 vs 9/19 |
+
+*Limitaciones firmadas junto al número:* harness de Claude Code (no la API
+pura), contaminación de entrenamiento MÁS plausible que en gpt-oss (ventana
+anterior al corte de Opus 5) — el 96.7% es techo optimista; lo que se firma
+es el contraste apareado con juez idéntico.
+
+> **Para el goal, el denominador cambió de categoría: ya no es un blog de
+> terceros, es un frontier medido por MÍ sobre MI banco con MI juez.** El
+> hueco real del 20B local contra un frontier, en hard y a k=1, es ~4x
+> (19% vs 96%), y ni el esfuerzo alto lo mueve (+14 sin una sola derrota).
+
+### P3(b) — diseño frontier por API: entregado y NO corrido
+
+`DISENO_REFERENCIA_FRONTIER_20260731.md` §1-5: presupuesto por API
+(Sonnet 5 por Batches ~$31 en intro, Opus 5 ~$78) — quedó superado por la
+autorización del plan, pero el diseño documenta la alternativa de pago.
+
+### Método: lo que pagó esta noche
+
+1. **La revisión adversarial pre-gasto pagó dos veces**: 9 BLOQUEA reales en
+   el eje (uno habría destruido datos; otro habría falseado el estrato
+   primario en silencio) y la corrección de mi cota de REP-F (+1 → +7).
+2. **La fidelidad del instrumento se verifica en bytes, no en intenciones**:
+   mi transcripción "inofensiva" de prompts rompía el apareado; la entrega
+   por fichero la hace verificable.
+3. **El preflight ejecutable funcionó a la primera**: los dos abortos
+   dispararon en el humo y las tres corridas pasaron con n_ctx/slots/timeout
+   correctos. Una lección en prosa no impide nada; un sys.exit(2) sí.
+
+### Estado del árbol y commits
+
+`36835c97` (eje blindado + REP-F cerrado + diseño frontier),
+`0eea32bd` (frontier corrido y juzgado, 68 ficheros),
+`f240925f` (datos high2 36/36 + low2). Suite completa **5495 passed /
+1 skipped** corrida DOS veces (antes de cada commit con código). 0 commits
+sin pushear al escribir esto.

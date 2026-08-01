@@ -95,7 +95,55 @@ marginal, bordes de tramo) · `form_cruzado` (tres reglas simultáneas) ·
 
 ## LA META
 
-### DÓNDE ESTAMOS — síntesis del 2026-07-31 por la MAÑANA (manda sobre todo lo de abajo)
+### DÓNDE ESTAMOS — síntesis del 2026-07-31 por la NOCHE (manda sobre todo lo de abajo)
+
+**1. EL EJE ESFUERZO ESTÁ CERRADO, Y NO ERA EL CANDIDATO GRANDE.** Celda
+comparable medida entera (prompt oficial, `reasoning_effort=high`, n=36,
+n_ctx=65536, presupuesto 60k, timeout 1500 — las tres capas de instrumento
+fuera y verificadas por preflight ejecutable). El contraste apareado
+intra-config `high − low` da **+4 (P 1 cola 0.17, MDE ±8)**: excluye un
+efecto grande. **El 33% de las muestras high se pasa de 60.000 tokens
+pensando**, y de las que terminan acierta el 87-94%: el hueco no lo come el
+knob de esfuerzo, lo come el PRESUPUESTO de pensamiento — que a 64k de
+contexto ya está en su techo (~63k la referencia). La réplica `low2`
+intra-config reprodujo el low de la mañana (+1).
+
+**2. LA COMPARACIÓN PRE-REGISTRADA SE GANÓ (n=36≥35) Y SE HIZO:**
+**pass@1 = 50.0% IC95 [34.5, 65.5] contra el 70 publicado — el 70 queda
+FUERA del IC**, con las residuales en la misma frase (muestra 36/198
+filtrada ~1-2 pts a mi favor; banco local sin 2024-08→09-21; k=1 vs 3; temp
+0.8 vs no declarada; techo 60k vs ~63k; 12 truncadas + 4 no-juzgables por mi
+juez de 8MB contadas como fallo; extractor primer vs último bloque). La
+escalera de atribución del hueco 51.8→70: **EVALUADOR −2.7 · PROMPT +0 ·
+ESFUERZO +4..+5 · el resto = presupuesto de pensamiento, juez capado, k y
+banco.**
+
+**3. EL PRIMER FRONTIER DE PRIMERA MANO (autorizado por el dueño, vía plan
+de Claude): claude-opus-5 sobre MIS 60 tareas con MI juez: 58/60 (96.7%).**
+Contraste apareado: **+24 sobre gpt-oss oficial_low (24/0, P=6e-8)** y
+**+14 sobre oficial_high (14/0, P=6e-5)**. En `hard`: **25/26 vs 5/26** —
+el hueco del 20B local contra un frontier es ~4x en hard y el esfuerzo alto
+no lo mueve. *Limitaciones firmadas:* harness de Claude Code (no API pura) y
+contaminación más plausible que en gpt-oss — el nivel es techo optimista; lo
+que vale es el apareado con juez idéntico. **El goal tiene por fin un
+denominador propio, no un blog de terceros.**
+
+**4. REP-F (reparación con fallback) SE CERRÓ SIN GASTAR GPU:** techo
+aritmético con fallback perfecto **+7 < MDE +9 (P=0.0717 en el mejor caso)**,
+esperanza realista +0..+3. No es KILL: es SIN POTENCIA ALCANZABLE, decidido a
+coste cero, con condición de reapertura escrita (enmienda 6). Y la
+verificación adversarial corrigió mi propia cota (+1 mal sumada → +7): **el
+recomputo independiente tampoco es opcional para mis números.**
+
+**5. Las prioridades que quedan para la próxima sesión:** (a) si se quiere
+cerrar el hueco de presupuesto, el experimento es subir `max_tokens` por
+encima de 60k con contexto >64k — pero eso ya NO es replicar la referencia,
+es superarla, y hay que decidir si informa al goal; (b) el frontier por API
+(diseño §1-5, ~$31-78) daría el nivel sin el system del harness si el dueño
+quiere el número limpio; (c) `demasiado_grande`: subir el tope del juez
+oficial (8MB→64MB) re-juzgaría 4-9 tareas sin GPU.
+
+### DÓNDE ESTAMOS — síntesis del 2026-07-31 por la MAÑANA (historia; la de arriba manda)
 
 **1. LA PRIORIDAD #1 HISTÓRICA SE PROBÓ EN SU MEJOR TERRENO Y NO COBRÓ.**
 La reparación guiada llevaba suspendida desde el 2026-07-28 con una condición
