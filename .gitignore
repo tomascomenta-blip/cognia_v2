@@ -122,3 +122,6 @@ cognia_v3/training/cognia3b/results_*/adapters/
 
 # Datasets publicos descargables (MBPP, LiveCodeBench) - no se versionan
 datos_bancos/
+
+# Clones superficiales de repo_a_prompt (ingenieria inversa de repos)
+.repo_reverse/

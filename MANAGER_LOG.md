@@ -11879,3 +11879,27 @@ GPU bajada al cierre (779 MiB). Sin código de producto tocado (la suite
 > anticipaba); lo que se compró es el INSTRUMENTO verificado para
 > entrenarla** — pipeline PEFT→GGUF→hot-swap y ruta MXFP4+atención, con
 > el banco propio como examen. La vía siguiente es LoRA propio, no catálogo.
+
+## 2026-08-01 (tarde) — repo_a_prompt: gitreverse portado y MEJORADO como tool de Cognia
+
+Pedido del dueño: investigar gitreverse (filiksyos/gitreverse, web Next.js que
+convierte un repo GitHub en su "prompt original" con árbol+README+LLM externo)
+e implementarlo mejorado en Cognia. Hallazgo clave de la investigación: el
+original NO lee código fuente — una sola pasada de LLM sobre árbol y README.
+
+Lo entregado (workflow de 9 agentes, 1 ronda de corrección, aprobado):
+- `cognia/knowledge/repo_reverse.py` — análisis REAL del repo (repo_map/
+  code_nav: PageRank de módulos, entry points, deps, muestras) + render de la
+  especificación en 8 secciones. Acepta ruta local O URL GitHub (clone cacheado
+  en .repo_reverse/, gitignoreado). Modo heurístico SIN LLM nunca vacío.
+- `cognia/agent/repo_reverse_tool.py` — tool `repo_a_prompt`, opt-in
+  COGNIA_REPO_REVERSE=1 (el techo de tools del 3B es real). Restricción del
+  dueño cumplida: el refinado va por LA PROPIA Cognia (_orch(ctx).infer, la
+  misma vía de _resumir/_generar_codigo) — cero cliente LLM propio, cero HTTP.
+- `tests/test_repo_reverse.py` — 13 tests sin red/LLM.
+
+Verificado: suite 5517/0; e2e real sobre cognia_v2 (44.787 chars, datos
+reales) y sobre el clon de gitreverse; vía LLM viva con qwen2.5-coder-14b en
+:8080 (modo=llm, 4.9 s — clave: apply_config() antes del orquestador en
+scripts sueltos). Pendientes menores anotados: typo de ruta relativa →
+intento de clone; clone parcial reusable como caché; deps truncadas a 20.
