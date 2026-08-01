@@ -11903,3 +11903,29 @@ reales) y sobre el clon de gitreverse; vía LLM viva con qwen2.5-coder-14b en
 :8080 (modo=llm, 4.9 s — clave: apply_config() antes del orquestador en
 scripts sueltos). Pendientes menores anotados: typo de ruta relativa →
 intento de clone; clone parcial reusable como caché; deps truncadas a 20.
+
+## 2026-08-01 (tarde-2) — Navegador del agente + centinela web anti-inyección
+
+Pedido del dueño: un browser PARA el agente (no para humanos) — Chromium que
+busca, entra a los resultados y extrae el texto — con un CENTINELA que
+verifique que lo extraído es seguro y viene al tema; si no, descarta ese
+resultado y sigue con el siguiente (defensa contra prompt injection).
+
+Lo entregado:
+- `cognia/knowledge/navegador.py` — buscar_en_web (ddgs → Chromium headless
+  playwright → innerText del body; fallback httpx+bs4 con vía declarada) y
+  abrir_url. No repite el fracaso del raspado HTML de busqueda_web.py: el DOM
+  lo resuelve Chromium y el parser de resultados lo mantiene ddgs. Bonus: el
+  innerText excluye display:none — el texto oculto (vector clásico) ni entra.
+- Centinela web EN sentinel.py (aditivo, determinista, cero LLM): patrones de
+  inyección ES/EN, gramática ACCION del propio agente, exceso de invisibles/
+  bidi, relevancia al tema insensible a acentos. Cada veredicto auditado en
+  sentinel_audit.jsonl (accion="web"). La razón que ve el modelo es GENÉRICA:
+  citar el match re-inyectaba el payload (lo cazó un test propio).
+- Tools `web_buscar`/`web_abrir` opt-in COGNIA_BROWSER=1, contenido marcado
+  como DATOS citados; ocultas en modo sencillo. 21 tests sin red.
+
+Verificado: suite 5538/0; e2e real — búsqueda viva (MCP) con 2 válidos por
+Chromium, trampa local envenenada BLOQUEADA sin fuga del payload, Wikipedia
+extraída vía chromium, auditoría escrita. Este commit incluye además el
+registro opt-in de repo_a_prompt (unidad anterior; tools.py mezclaba ambas).

@@ -201,3 +201,129 @@ def evaluar_shell(cmd: str, ctx: dict = None) -> tuple:
                    f"Sin canal de confirmación disponible; para permitir "
                    f"comandos de riesgo desconocido en modo desatendido, "
                    f"COGNIA_AUTONOMOUS=1.")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Centinela WEB — contenido de páginas ANTES de que llegue al modelo
+# (mandato 2026-08-01: el navegador del agente descarta resultados
+# envenenados o fuera de tema y sigue buscando; nunca en silencio).
+# Determinista, cero LLM, como clasificar_shell: un juez LLM aquí
+# repetiría el cuelgue de "juez-colgado-js-bloqueante" y además el
+# contenido hostil podría inyectarse en el propio juez.
+# ══════════════════════════════════════════════════════════════════════
+
+# Invisibles/bidi: los usan para esconder instrucciones al ojo humano y
+# para partir palabras y evadir matcheo por substring. Se cuentan ANTES
+# de normalizar y se quitan ANTES de matchear patrones.
+_WEB_INVISIBLES = re.compile(
+    "[\u200b-\u200f\u2060\ufeff\u202a-\u202e\u2066-\u2069]")
+
+# Patrones de inyección (ES+EN) sobre texto ya normalizado (minúsculas,
+# sin invisibles, espacios colapsados). Substrings para lo literal,
+# regex para lo que flexiona.
+_WEB_INJ_SUB = [
+    "<|im_start|>", "<|system|>", "<<sys>>", "[inst]", "### instruction",
+    "### system", "you are now", "pretend you are", "jailbreak",
+    "developer mode enabled", "do not tell the user", "no le digas al usuario",
+    "hidden instruction", "instruccion oculta", "instrucción oculta",
+]
+_WEB_INJ_RE = [
+    re.compile(r"ignor\w*\s+(?:all\s+|any\s+)?(?:previous|prior|above|earlier)"
+               r"\s+(?:instruction|prompt|rule|direction)", re.I),
+    re.compile(r"ignora\w*\s+(?:todas?\s+)?(?:las?\s+)?(?:instrucciones|reglas|"
+               r"indicaciones)\s+(?:anteriores|previas|del sistema)", re.I),
+    re.compile(r"(?:disregard|forget|override)\s+(?:all\s+)?(?:your|previous|"
+               r"the)\s+(?:instructions?|prompts?|rules?)", re.I),
+    re.compile(r"olvida\s+(?:todas?\s+)?(?:tus|las)\s+(?:instrucciones|reglas)",
+               re.I),
+    re.compile(r"(?:system|assistant)\s*prompt", re.I),
+    re.compile(r"prompt\s+del?\s+sistema", re.I),
+    re.compile(r"(?:new|nuevas?)\s+(?:instructions?|instrucciones)\s*:", re.I),
+    # exfiltración: pedir claves/tokens o mandarlos a otro sitio
+    re.compile(r"(?:reveal|print|send|share|leak)\s+.{0,40}(?:api\s*key|"
+               r"password|secret|token|credential)", re.I),
+    re.compile(r"(?:env[ií]a|manda|comparte|filtra|exfiltra)\s+.{0,40}"
+               r"(?:clave|token|contrase|secreto|credencial)", re.I),
+    # imita la gramática ReAct de Cognia ("ACCION: <tool> <args>"): una
+    # página legítima no tiene por qué traer líneas de acción del agente.
+    re.compile(r"^\s*ACCION\s*:\s*\w+", re.M),
+]
+
+# Stopwords mínimas para la relevancia (no exhaustivo a propósito: solo
+# quitar conectores que inflarían el denominador).
+_WEB_STOP = {
+    "para", "como", "cómo", "sobre", "entre", "donde", "dónde", "cuando",
+    "cuándo", "cual", "cuál", "esta", "este", "esto", "with", "from",
+    "what", "when", "where", "which", "that", "this", "does", "tiene",
+    "hace", "mejor", "best",
+}
+
+
+def _sin_acentos(t: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", t)
+                   if unicodedata.category(c) != "Mn")
+
+
+def sanear_texto_web(texto: str) -> str:
+    """Texto web listo para el modelo: sin invisibles/bidi, espacios
+    colapsados por línea (se preservan los saltos), acentos INTACTOS."""
+    texto = _WEB_INVISIBLES.sub("", texto or "")
+    lineas = [re.sub(r"[ \t]+", " ", ln).strip() for ln in texto.splitlines()]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lineas)).strip()
+
+
+def evaluar_contenido_web(texto: str, tema: str = None,
+                          fuente: str = "") -> tuple:
+    """(nivel, razon) para TEXTO extraído de la web, antes del modelo.
+
+    BLOCK si huele a inyección de prompt (patrones ES/EN, gramática ACCION
+    del agente, exceso de invisibles) o si no tiene relación con `tema`.
+    ALLOW en el resto. Audita cada veredicto (accion='web') en el mismo
+    jsonl que los comandos de shell. Determinista: mismo texto, mismo
+    veredicto."""
+    crudo = texto or ""
+    if not crudo.strip():
+        _audit("web", fuente, BLOCK, "página sin texto extraíble")
+        return BLOCK, "página sin texto extraíble"
+
+    n_invis = len(_WEB_INVISIBLES.findall(crudo))
+    # >5: los invisibles sueltos existen en páginas legítimas (emoji ZWJ,
+    # marcas RTL); decenas seguidas solo las he visto escondiendo texto.
+    if n_invis > 5:
+        razon = f"exceso de caracteres invisibles/bidi ({n_invis})"
+        _audit("web", fuente, BLOCK, razon)
+        return BLOCK, razon
+
+    # La razón devuelta es GENÉRICA a propósito: citar el texto que casó
+    # re-inyectaría el payload en el contexto del modelo vía el mensaje de
+    # bloqueo (lo cazó test_tool_web_abrir_bloqueado). La cita exacta va
+    # SOLO a la auditoría.
+    norm = re.sub(r"[ \t]+", " ", _WEB_INVISIBLES.sub("", crudo).lower())
+    for s in _WEB_INJ_SUB:
+        if s in norm:
+            _audit("web", fuente, BLOCK, f"patrón de inyección: '{s}'")
+            return BLOCK, "patrón de inyección de prompt detectado"
+    for rx in _WEB_INJ_RE:
+        m = rx.search(_WEB_INVISIBLES.sub("", crudo))
+        if m:
+            _audit("web", fuente, BLOCK,
+                   f"patrón de inyección: '{m.group(0)[:60]}'")
+            return BLOCK, "patrón de inyección de prompt detectado"
+
+    if tema:
+        base = _sin_acentos(tema.lower())
+        palabras = [w for w in re.findall(r"[a-z0-9]{4,}", base)
+                    if w not in {_sin_acentos(s) for s in _WEB_STOP}]
+        if palabras:
+            cuerpo = _sin_acentos(norm)
+            hits = sum(1 for w in palabras if w in cuerpo)
+            necesarios = max(1, round(0.2 * len(palabras)))
+            if hits < necesarios:
+                razon = (f"irrelevante para '{tema}': {hits}/{len(palabras)} "
+                         f"palabras clave presentes")
+                _audit("web", fuente, BLOCK, razon)
+                return BLOCK, razon
+
+    _audit("web", fuente, ALLOW, "contenido limpio y en tema")
+    return ALLOW, "contenido limpio y en tema"

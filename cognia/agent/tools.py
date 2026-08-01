@@ -1612,3 +1612,29 @@ if os.environ.get("COGNIA_IMG_TOOLS") == "1":
             ROLE_TOOLS["implementador"].add(_t)
     except Exception:
         pass
+
+
+# ── Navegador del agente (opt-in COGNIA_BROWSER=1) ─────────────────────
+# Chromium headless + centinela anti-inyeccion (sentinel.evaluar_contenido_web).
+# Opt-in duro como imagen\pantalla: tools default-ON degradan al 3B
+# (A\B 2026-07-25: camino feliz 4.25/5 -> 2.5/5).
+if os.environ.get("COGNIA_BROWSER") == "1":
+    try:
+        from cognia.agent import browser_tool as _browser_tool
+        _browser_tool.register(tool)
+        for _t in ("web_buscar", "web_abrir"):
+            ROLE_TOOLS["investigador"].add(_t)
+    except Exception:
+        pass
+
+
+# ── Ingenieria inversa de repos (opt-in COGNIA_REPO_REVERSE=1) ──────────
+# Opt-in duro como imagen/pantalla: tools default-ON degradan al 3B
+# (A/B 2026-07-25: camino feliz 4.25/5 -> 2.5/5).
+if os.environ.get("COGNIA_REPO_REVERSE") == "1":
+    try:
+        from cognia.agent import repo_reverse_tool as _repo_reverse_tool
+        _repo_reverse_tool.register(tool)
+        ROLE_TOOLS["investigador"].add("repo_a_prompt")
+    except Exception:
+        pass

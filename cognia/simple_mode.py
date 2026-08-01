@@ -36,6 +36,11 @@ HIDDEN_IN_SIMPLE = frozenset({
     # diagnostico del pipeline de escena (util para una IA/dev, ruido para el
     # usuario comun, que solo quiere crear/editar la escena):
     "atribuir_fallo", "reejecutar_etapa",
+    # ingenieria inversa de repos (opt-in COGNIA_REPO_REVERSE=1): defensa
+    # doble por si algun dia pasa a default-ON.
+    "repo_a_prompt",
+    # navegador del agente (opt-in COGNIA_BROWSER=1): misma defensa doble.
+    "web_buscar", "web_abrir",
 })
 
 
