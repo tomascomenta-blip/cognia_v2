@@ -2,6 +2,41 @@
 
 ---
 
+## [4.5.0] - 2026-08-02
+
+### Estilo conversacional del REPL + system prompt configurable
+
+La interfaz del CLI adopta una filosofía conversacional: minimalismo, espacio
+en blanco como jerarquía y la conversación como foco. El banner y los colores
+del producto quedan intactos.
+
+- **Respuestas sin panel (solo terminal).** Aire arriba y abajo, sangría de 2
+  y líneas con tope de 100 columnas; el footer queda en una línea tenue
+  (`1.2s · ~n tokens`) y se omite en turnos de <1s. El control REMOTO conserva
+  sus marcos: son el contrato con el clasificador del móvil (2026-07-25).
+- **Herramientas como parte de la conversación.** Cada tool del agente se ve
+  como `· Leyendo x…` mientras corre y `⏺ Leyendo x` al terminar, visible
+  también en modo sencillo. El envoltorio es no-lanzante por contrato: un
+  fallo de presentación jamás re-ejecuta una tool con efectos.
+- **Streaming suave.** Los tokens se agrupan en trozos de palabra
+  (`FlujoSuave`), con flush garantizado incluso en streams cortados.
+- **Menú de autocompletado compacto** (columna simple) y aire antes de cada
+  prompt.
+- **System prompt configurable.** `~/.cognia/system_prompt.md` se crea al
+  arrancar con el default del producto (identidad local, conducta, límites,
+  bienestar, memoria; ~3 KB). Si existe con contenido reemplaza el prompt del
+  CEREBRO; el AGENTE nunca lo ve (A/B 2026-07-23: texto extra degrada su gate
+  de 10/10 a 3/5). Comando `/prompt [editar|set|reset|off|on]`; kill-switch
+  `COGNIA_PROMPT_USUARIO=0`.
+- **Bugfix:** recursión infinita latente en el fallback de
+  `adaptive_prompt._base()`.
+
+Suite completa: 5941 passed / 0 failed. Verificación real: chat streaming
+end-to-end, `/prompt` en el REPL vivo, agente con tools reales
+(GoalContract 1/1).
+
+---
+
 ## [4.4.0] - 2026-08-02
 
 ### Barrido total de funciones huérfanas + selector de modelos en el CLI
