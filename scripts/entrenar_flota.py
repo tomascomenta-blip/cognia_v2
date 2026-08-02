@@ -248,66 +248,9 @@ def _baseline_idioma(golden: list[tuple[str, int]]) -> float:
     return aciertos / len(golden)
 
 
-def _datos_pide_grafico() -> tuple[list[str], list[int], list[tuple[str, int]]]:
-    """0=no pide grafico, 1=si. Baseline: program_creator._idea_pide_grafico."""
-    rng = random.Random(SEMILLA)
-    temas = ["ventas", "inversiones", "clima", "gastos", "usuarios",
-             "sensores", "acciones", "consumo", "trafico", "notas",
-             "temperatura", "visitas", "energia", "pedidos", "descargas",
-             "ingresos", "latencia", "memoria", "errores", "clientes"]
-    con = [
-        "dashboard de {t} con grafico animado",
-        "pagina con una grafica de {t} en tiempo real",
-        "visualizacion de {t} con chart de lineas",
-        "web que muestre un graph de {t}",
-        "panel de {t} con sparklines por fila",
-        "a {t} page with an animated chart",
-        "grafico de barras de {t} que se actualice",
-        "curva de {t} dibujada en svg",
-        "web con la evolucion de {t} en una linea de tiempo",
-        "monitor de {t} con su grafica historica",
-        "a live {t} graph with moving average",
-        "pagina que dibuje la serie temporal de {t}",
-    ]
-    sin = [
-        "lista de {t} con filtros",
-        "tabla de {t} ordenable",
-        "formulario para registrar {t}",
-        "buscador de {t} con resultados en tarjetas",
-        "a {t} page with cards and a search box",
-        "editor de {t} con guardado automatico",
-        "galeria de {t} con imagenes",
-        "contador de {t} con boton de reinicio",
-        "web de {t} con acordeones y pestanas",
-        "directorio de {t} con paginacion",
-        "a {t} form with validation messages",
-        "kanban de {t} con arrastrar y soltar",
-    ]
-    textos, clases = [], []
-    for lista, clase in ((con, 1), (sin, 0)):
-        for tpl in lista:
-            for t in temas:
-                textos.append(tpl.format(t=t)); clases.append(clase)
-    pares = list(zip(textos, clases)); rng.shuffle(pares)
-    textos, clases = [p[0] for p in pares], [p[1] for p in pares]
-    golden = [
-        ("pagina web que simule un dashboard de inversiones con movimiento: "
-         "cotizaciones que cambian solas, grafico animado y variaciones en "
-         "verde y rojo", 1),
-        ("una pagina web con animaciones", 0),
-        ("landing page para un producto", 0),
-        ("web con una curva de temperatura por hora", 1),
-        ("tabla de posiciones con precios en vivo", 0),
-        ("panel con sparkline de cpu", 1),
-    ]
-    return textos, clases, golden
-
-
-def _baseline_pide_grafico(golden: list[tuple[str, int]]) -> float:
-    from cognia.program_creator.program_creator import _idea_pide_grafico
-    aciertos = sum(1 for t, c in golden
-                   if _idea_pide_grafico(t) == bool(c))
-    return aciertos / len(golden)
+# El microexperto 'pide_grafico' se retiro (KILL pre-registrado; la carpeta
+# cognia/microexpertos/pide_grafico se borro): su baseline determinista
+# (_idea_pide_grafico) ya cubre el caso sin pesos que mantener.
 
 
 # ── La flota, declarativa ──────────────────────────────────────────────────
@@ -325,13 +268,6 @@ FLOTA = {
         "clases": ["es", "en"],
         "datos": _datos_idioma,
         "baseline": _baseline_idioma,
-        "gate_heldout": 0.95,
-    },
-    "pide_grafico": {
-        "descripcion": "si una idea web pide un grafico: 0=no, 1=si",
-        "clases": ["no", "si"],
-        "datos": _datos_pide_grafico,
-        "baseline": _baseline_pide_grafico,
         "gate_heldout": 0.95,
     },
 }

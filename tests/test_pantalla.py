@@ -13,7 +13,6 @@ import pytest
 
 from cognia.pantalla.cambios import (UMBRAL_HAMMING, DetectorCambios, dhash,
                                      distancia_hamming)
-from cognia.pantalla.vigia import Vigia
 
 
 def _frame(valor=0, alto=120, ancho=160):
@@ -127,58 +126,6 @@ class TestDetectorCambios:
         assert estricto.es_cambio(b) is False
 
 
-class _CapturadorFalso:
-    """Fuente de frames guionada, para no depender de la pantalla real."""
-
-    def __init__(self, frames):
-        self.frames = list(frames)
-        self.i = 0
-
-    def frame(self):
-        f = self.frames[min(self.i, len(self.frames) - 1)]
-        self.i += 1
-        return f
-
-    def abrir(self):
-        pass
-
-    def cerrar(self):
-        pass
-
-    def guardar_png(self, ruta, frame=None):
-        from PIL import Image
-        Image.fromarray(self.frames[0][:, :, [2, 1, 0]]).save(str(ruta))
-        return str(ruta)
-
-
-class TestVigia:
-    def test_entrega_solo_los_frames_que_cambiaron(self):
-        a, b = _frame_estructurado(10), _frame_estructurado(110)
-        # a a a b b b -> dos momentos: el primer a y el primer b. Los cuatro
-        # frames repetidos se descartan, que es todo el punto del subsistema.
-        cam = _CapturadorFalso([a, a, a, b, b, b])
-        vig = Vigia(fps=1000, max_momentos=2)
-        momentos = list(vig.mirar(segundos=5, _capturador=cam))
-        assert len(momentos) == 2
-        assert momentos[0].distancia is None          # el primero no compara
-        assert momentos[1].distancia >= UMBRAL_HAMMING
-        assert vig.estadisticas()["descartados"] >= 2
-
-    def test_respeta_max_momentos(self):
-        frames = [_frame_estructurado(i) for i in range(20)]
-        cam = _CapturadorFalso(frames)
-        vig = Vigia(fps=1000, umbral=1, max_momentos=3)
-        assert len(list(vig.mirar(segundos=5, _capturador=cam))) == 3
-
-    def test_guarda_png_cuando_se_pide(self, tmp_path):
-        a = _frame_estructurado(11)
-        cam = _CapturadorFalso([a])
-        vig = Vigia(fps=1000, max_momentos=1, guardar_en=tmp_path)
-        momentos = list(vig.mirar(segundos=5, _capturador=cam))
-        assert len(momentos) == 1
-        assert momentos[0].ruta is not None
-        assert list(tmp_path.glob("*.png"))
-
-    def test_fps_invalido_falla_temprano(self):
-        with pytest.raises(ValueError):
-            Vigia(fps=0)
+# TestVigia y su _CapturadorFalso se eliminaron con cognia/pantalla/vigia.py
+# (subsistema superado por cognia/vision/percepcion.ServicioPercepcion, que
+# ademas hace la pausa por ventana sensible que Vigia declaraba faltante).
