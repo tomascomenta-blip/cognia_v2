@@ -17,6 +17,7 @@ class ContextInjector:
     def __init__(self) -> None:
         self._goal_tracker = None
         self._curiosity_engine = None
+        self._goal_suggester = None
         self._available = False
         try:
             from cognia.goals.goal_tracker import GoalTracker
@@ -26,8 +27,15 @@ class ContextInjector:
             self._available = True
         except Exception:
             pass
+        # GoalSuggester en un try APARTE: si falla no debe tumbar goals+curiosity.
+        try:
+            from cognia.goals.goal_suggester import GoalSuggester
+            self._goal_suggester = GoalSuggester()
+        except Exception:
+            self._goal_suggester = None
 
-    def get_context_block(self, user_id: str = "local") -> str:
+    def get_context_block(self, user_id: str = "local",
+                          last_user_text: str = "") -> str:
         """
         Retorna bloque de contexto para inyectar antes del prompt del LLM.
         Si no hay nada relevante retorna "".
@@ -63,6 +71,33 @@ class ContextInjector:
                     parts.append("Conocimiento reciente: " + ", ".join(questions[:3]))
         except Exception:
             pass
+
+        # Sugerencias de metas — basadas en perfil del usuario, sin LLM.
+        # getattr: los tests construyen la instancia via __new__ y no setean
+        # este atributo; degradar a None en vez de reventar.
+        _suggester = getattr(self, "_goal_suggester", None)
+        if _suggester is not None:
+            try:
+                sug = _suggester.get_suggestions_context(user_id)
+                if sug:
+                    parts.append(sug)
+            except Exception:
+                pass
+
+        # Progreso de metas detectado en el ULTIMO mensaje del usuario.
+        # Solo corre si se pasa last_user_text (el llamador en language_engine
+        # aun pasa solo user_id, asi que queda inerte hasta que lo cablee).
+        if last_user_text and self._goal_tracker is not None:
+            try:
+                progreso = self._goal_tracker.auto_detect_progress(user_id, last_user_text)
+                if progreso:
+                    titulos = ", ".join(
+                        p.get("title", "") for p in progreso if p.get("title")
+                    )
+                    if titulos:
+                        parts.append("Metas en progreso: [" + titulos + "]")
+            except Exception:
+                pass
 
         if not parts:
             return ""

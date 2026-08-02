@@ -243,6 +243,20 @@ class Cognia:
             self._profile_manager  = None
             self.cognitive_profile = None
 
+        # ── PASOS 7+8: GoalAndPatternEngine (objetivos + patrones) ──────
+        # Modulo entero que estaba huerfano: se instancia guarded (None si
+        # falla) y se cablea en observe()/sleep(). Nunca puede tumbar el ciclo.
+        try:
+            from .goal_and_pattern_engine import GoalAndPatternEngine
+            self._goal_engine = GoalAndPatternEngine(db_path)
+            print("[OK] GoalAndPatternEngine PASOS 7+8 activo")
+        except Exception as _gpe_exc:
+            logger.warning(
+                "GoalAndPatternEngine no pudo inicializarse",
+                extra={"op": "cognia.__init__", "context": f"err={_gpe_exc}"},
+            )
+            self._goal_engine = None
+
         self.interaction_count       = 0
         self._session_observations   = 0
         self.consolidation_interval  = 8
@@ -669,6 +683,13 @@ class Cognia:
         vec = features["vector"]
         emotion = features["emotion"]
 
+        # ── PASO 7: detectar/actualizar objetivo del usuario (solo lee input) ──
+        if self._goal_engine:
+            try:
+                self._goal_engine.pre_observe(observation, vec)
+            except Exception:
+                pass  # nunca bloquear el ciclo por el motor de objetivos
+
         working_hits = self.working_mem.find_similar_in_buffer(vec, threshold=0.7)
 
         top_k = adaptations["top_k_retrieval"]
@@ -1020,6 +1041,14 @@ class Cognia:
         if self._consolidation_engine is not None:
             try:
                 self._consolidation_engine.tick(self.interaction_count)
+            except Exception:
+                pass
+
+        # ── PASOS 7+8: enriquecer result con el objetivo activo + tick ──
+        if self._goal_engine:
+            try:
+                self._goal_engine.post_observe(observation, result)
+                self._goal_engine.tick(self.interaction_count)
             except Exception:
                 pass
 
@@ -1679,6 +1708,57 @@ class Cognia:
         except Exception:
             pass
 
+        # ── PASO 8: aprendizaje por patrones (co-ocurrencias -> semantica) ──
+        # Llena pattern_info que ya se concatena en el string de retorno.
+        if self._goal_engine:
+            try:
+                pattern_info = self._goal_engine.run_pattern_batch(
+                    semantic_memory=self.semantic) or ""
+            except Exception as _gpe_e:
+                logger.warning("sleep: run_pattern_batch fallo: %s", _gpe_e)
+
+        # ── ContinuousLearning: ciclo lento (consolidacion + decay reales) ──
+        try:
+            from cognia.learning.continuous_learning import ContinuousLearning
+            ContinuousLearning(db_path=self.db).consolidate_slow()
+        except Exception as _cl_e:
+            logger.warning("sleep: continuous_learning fallo: %s", _cl_e)
+
+        # ── StalenessDetector: decaer hechos KG obsoletos ──
+        try:
+            from cognia.knowledge.staleness_detector import StalenessDetector
+            StalenessDetector(self.db).apply_decay()
+        except Exception as _sd_e:
+            logger.warning("sleep: staleness_detector fallo: %s", _sd_e)
+
+        # ── GoalSystem: cerrar objetivos cuya condicion ya no aplica ──
+        # meta_state viene de metacog.introspect() arriba en este mismo ciclo.
+        try:
+            for _g in self.goal_system.get_active_goals(top_k=20):
+                _gt = _g.get("type")
+                _close = False
+                if _gt == "resolver_contradiccion":
+                    _close = meta_state.get("contradictions_pending", 0) == 0
+                elif _gt == "repasar_memoria":
+                    _close = meta_state.get("due_for_review", 0) <= 3
+                elif _gt == "consolidar_memoria":
+                    _close = not (meta_state.get("active_memories", 0) > 20
+                                  and meta_state.get("concepts", 0) < 5)
+                elif _gt == "aprender_nuevo":
+                    _close = meta_state.get("error_rate", 0.0) <= 0.4
+                if _close:
+                    self.goal_system.resolve_goal(_g["id"])
+        except Exception as _gs_e:
+            logger.warning("sleep: resolve_goal fallo: %s", _gs_e)
+
+        # ── Fatiga: reset tras el ciclo de sueno (lo pide su docstring). ──
+        # DEBE ir al final: el bloque del architect arriba lee _fatigue_score.
+        if self.fatigue:
+            try:
+                self.fatigue.reset_state()
+            except Exception:
+                pass
+
         return (f"[zz] CICLO DE SUENO v3 completado ({duration_ms}ms):\n"
                 f"   Consolidación:  {consolidation['concepts_consolidated']} conceptos, "
                 f"{consolidation['associations_created']} asociaciones\n"
@@ -2014,6 +2094,25 @@ class Cognia:
                     context_tags = ["feedback", "correction" if not correct else "confirmation"],
                 )
                 self.working_mem.add(correction_text, None, vec, emotion, 0.8)
+
+        # ── Perfil cognitivo v2: evolucionar con los datos de esta interaccion ──
+        # Se cablea aqui (bucle real de feedback de respuesta) porque es donde
+        # existen los datos de interaccion (correct / correction_text).
+        # apply_cognitive_feedback() se invoca desde cli.py (fuera de territorio).
+        # getattr defensivo: apply_feedback se ejerce en tests con un self
+        # SimpleNamespace (sin cognitive_profile); acceder al atributo directo
+        # rompia el rate-limit de feedback (regresion 2026-08-02).
+        _cog_profile = getattr(self, "cognitive_profile", None)
+        if HAS_USER_PROFILE_V2 and _cog_profile is not None:
+            try:
+                _changed = _cog_profile.evolve({
+                    "was_followed_up": bool(correction_text),
+                    "had_correction":  bool(correction_text) and not correct,
+                })
+                if _changed and getattr(self, "_profile_manager", None):
+                    self._profile_manager.save(_cog_profile)
+            except Exception:
+                pass  # la evolucion del perfil nunca puede romper el feedback
 
         # ── Mensaje de retorno informativo ────────────────────────────
         ep_n  = summary.get("ep_ids_affected", 0)
