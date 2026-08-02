@@ -523,6 +523,9 @@ def _slash_perfil(nombre: str) -> None:
     hint = restart_backend_hint()
     if hint:
         print(hint)
+    # Ofrecer el reinicio del backend en un paso: /cpu reiniciar | /gpu reiniciar
+    # mata el llama-server para que tome el perfil recien aplicado.
+    print(f"Para reiniciar el backend y aplicarlo: /{nombre} reiniciar")
 
 
 def _slash_shells(args: str) -> None:
@@ -718,10 +721,13 @@ _CMD_DESCRIPTIONS = {
     "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
     "/arbitro":         "Estado del arbitro de colisiones entre generadores (incidentes, modo)",
     "/ver":             "Cognia MIRA tu pantalla y la describe; con pregunta, te responde sobre lo que ve  [pregunta]",
+    "/vigilar":         "Vigila la pantalla en DRY-RUN (sombra), describiendo N pasos sin actuar  [n]",
+    "/biblioteca":      "Ver la biblioteca de programas del hobby; /biblioteca ver <id> muestra el codigo",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
     "/mapa-codigo":     "Mapa del codigo         [ruta|buscar <t>|depende|usan <mod>]",
     "/mcp":             "Servidores MCP libres   [herramientas|probar <servidor>]",
     "/encolar":         "Encolar idea para sleep <idea>",
+    "/ideas":           "Listar las ideas disponibles del hobby; /ideas limpiar vacia la cola propia",
     "/corregir":        "Corregir error          <obs> | <mal> | <bien>",
     "/hipotesis":       "Generar hipótesis       <A> | <B>",
     "/experimento":     "Probar afirmacion empiricamente (sandbox)  <afirmacion>",
@@ -734,6 +740,9 @@ _CMD_DESCRIPTIONS = {
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
+    "/grafo-html":      "Exportar el knowledge graph a HTML y abrirlo en el navegador  [proyecto]",
+    "/indexar-codigo":  "Indexar el codigo del repo al knowledge graph (define/importa/llama_a)",
+    "/atencion":        "Explicar como se descompone la atencion de un episodio  <id>",
     "/hecho":           "Agregar hecho al grafo  <subj> | <pred> | <obj>",
     "/objetivos":       "Ver objetivos cognitivos",
     "/predecir":        "Predicciones temporales <concepto>",
@@ -2392,11 +2401,26 @@ def _slash_estado(args: str) -> None:
     for t in threads:
         t.join(timeout=3)
 
+    # Backend LLM local (no depende de la app Desktop): una linea de diagnostico
+    # con el motor de inferencia en uso. describir() ya existia sin puerta REPL.
+    _backend_line = None
+    try:
+        from cognia.llm_local import describir as _describir_backend
+        _backend_line = _describir_backend()
+    except Exception:
+        _backend_line = None
+
     if not results and errors:
+        if _backend_line:
+            print("Estado de Cognia:")
+            print(f"  Backend LLM: {_backend_line}")
+            print()
         print("Servicio no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
         return
 
     print("Estado de Cognia:")
+    if _backend_line:
+        print(f"  Backend LLM: {_backend_line}")
     if "notas" in results:
         n = results["notas"]
         print(f"  Notas      : {n.get('total',0)} total, {n.get('pinned',0)} fijadas")
@@ -2929,10 +2953,22 @@ def _slash_digest(args: str) -> None:
         if resp.status_code == 200:
             digest_text = resp.json().get("digest", "")
             print(digest_text if digest_text else "Digest no disponible.")
-        else:
-            print(f"Error: {resp.status_code}")
+            return
+        print(f"Error: {resp.status_code}")
+        return
     except Exception:
-        print("Servicio de digest no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
+        pass
+    # Fallback LOCAL: la app Desktop no responde en 127.0.0.1:8765. DailyDigest
+    # agrega las MISMAS metricas leyendo la DB local directamente, sin depender
+    # del servicio (get_digest_text ya existia; antes el /digest moria sin el).
+    print("Servicio de digest no disponible (la app Cognia Desktop no responde "
+          "en 127.0.0.1:8765). Digest local:")
+    try:
+        from cognia.social.daily_digest import DailyDigest
+        _dd_db = str(Path(__file__).resolve().parent.parent / "cognia_desktop_chat.db")
+        print(DailyDigest(db_path=_dd_db).get_digest_text())
+    except Exception as _dd_e:
+        print(f"  (fallback de digest local no disponible: {_dd_e})")
 
 
 def _slash_cognia_info(args: str) -> None:
@@ -6407,8 +6443,28 @@ def repl():
             # el handler real _slash_modelo era codigo muerto y el usuario
             # recibia el usage de expertos (huerfana cazada 2026-08-01).
             _slash_modelos(ai, raw.split(" ", 1)[1] if " " in raw else "")
-        elif raw in ("/cpu", "/gpu"):
-            _slash_perfil(raw[1:])
+        elif raw in ("/cpu", "/gpu") or raw.startswith("/cpu ") or raw.startswith("/gpu "):
+            _perf_name = raw.split()[0][1:]                 # cpu | gpu
+            _perf_rest = (raw.split(" ", 1)[1].strip().lower()
+                          if " " in raw else "")
+            _slash_perfil(_perf_name)
+            if _perf_rest in ("reiniciar", "restart", "kill"):
+                # Tras aplicar el perfil, reiniciar el backend para que tome los
+                # nuevos parametros: mata el llama-server (se relanza solo/con la
+                # flota). kill_llama_server ya existia sin puerta en el REPL.
+                try:
+                    from cognia.perf_profiles import kill_llama_server
+                    if kill_llama_server():
+                        _print_line("[ok_cl]Backend llama-server terminado; "
+                                    "reinicia la flota para aplicar el perfil.[/ok_cl]")
+                    else:
+                        _print_line("[detail]No habia llama-server corriendo "
+                                    "(nada que reiniciar).[/detail]")
+                except Exception as _pk_e:
+                    _print_line(f"[err_cl]No pude reiniciar el backend: {_pk_e}[/err_cl]")
+            elif _perf_rest:
+                _print_line("[detail]Sugerencia: /"+_perf_name+" reiniciar  "
+                            "para matar el backend y que tome el perfil.[/detail]")
         elif raw == "/shells" or raw.startswith("/shells "):
             _slash_shells(raw[len("/shells"):])
         elif raw.startswith("/shell-kill"):
@@ -6536,6 +6592,25 @@ def repl():
                 _run(raw, lambda: show_research_history(ai.db), color="cyan")
             else:
                 _print_line("[warn_cl][WARN] Modulo de investigacion no disponible.[/warn_cl]")
+        elif (raw.startswith("/biblioteca ver ") or raw.startswith("/library ver ")
+              or raw.startswith("/programs ver ")):
+            # Ver el CODIGO de un programa guardado por id. storage sabia cargarlo
+            # (load_program_code) pero no habia como pedirlo desde el REPL.
+            _bib_id = raw.split("ver ", 1)[1].strip()
+            if not HAS_PROGRAM_CREATOR:
+                _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
+            elif not _bib_id:
+                _print_line("[warn_cl]Uso: /biblioteca ver <id>[/warn_cl]")
+            else:
+                try:
+                    from cognia.program_creator.storage import load_program_code
+                    _bib_code = load_program_code(_bib_id)
+                    if not _bib_code:
+                        _print_line(f"[warn_cl]sin codigo para {_escape(_bib_id)}[/warn_cl]")
+                    else:
+                        _show_response(_bib_code[:6000], "cyan")
+                except Exception as _bv_e:
+                    _print_line(f"[err_cl]biblioteca ver no disponible: {_bv_e}[/err_cl]")
         elif raw in ("/programs", "/library", "/biblioteca"):
             if HAS_PROGRAM_CREATOR:
                 from cognia.program_creator import show_library
@@ -6567,6 +6642,47 @@ def repl():
                 _run(raw, lambda: _mirar(_ver_q, ai), color="cyan")
             except Exception as _v_e:
                 _print_line(f"[err_cl]vision no disponible: {_v_e}[/err_cl]")
+        elif raw == "/vigilar" or raw.startswith("/vigilar "):
+            # OJOS PASIVOS: mira la pantalla durante N pasos SIN actuar
+            # (AgentePantalla en modo sombra, ejecutar=False). La politica no
+            # propone acciones -> cada paso solo percibe y describe. El agente
+            # de pantalla ya sabia mirar/actuar pero no habia puerta al modo
+            # sombra desde el REPL (huerfana). Sin VLM: describe el arbol UIA.
+            _vg_arg = raw[len("/vigilar "):].strip() if raw.startswith("/vigilar ") else ""
+            try:
+                _vg_n = max(1, int(_vg_arg)) if _vg_arg else 5
+            except ValueError:
+                _vg_n = 5
+            try:
+                from cognia.vision.agente_pantalla import AgentePantalla
+                _ag_vg = AgentePantalla(ejecutar=False)   # DRY-RUN (sombra)
+                _vg_out = []
+                for _vg_i, _vg_reg in enumerate(
+                        _ag_vg.bucle(lambda p: None, max_pasos=_vg_n), 1):
+                    _vg_txt = (getattr(_vg_reg, "percepcion_txt", "") or "").strip()
+                    _vg_line = f"[{_vg_i}] {getattr(_vg_reg, 'ventana', '?')}: {_vg_txt[:200]}"
+                    _vg_motivo = getattr(_vg_reg, "motivo", "") or ""
+                    if _vg_motivo and "no propuso" not in _vg_motivo:
+                        _vg_line += f"  ({_vg_motivo})"
+                    _vg_out.append(_vg_line)
+                _show_response("\n".join(_vg_out) if _vg_out
+                               else "Sin percepciones.", "cyan")
+            except Exception as _vg_e:
+                _print_line(f"[err_cl]vigilar no disponible: {_vg_e}[/err_cl]")
+        elif raw.startswith("/arbitro ") or raw.startswith("/árbitro "):
+            # Consulta de DUENO: /arbitro <ruta> dice que generador es dueno de
+            # esa ruta segun el registro de propiedad (o si no tiene dueno).
+            _ar_ruta = raw.split(" ", 1)[1].strip()
+            try:
+                from cognia.arbitro import dueno_de
+                _ar_dueno = dueno_de(_ar_ruta)
+                if _ar_dueno:
+                    _show_response(f"{_ar_ruta}\n  dueno: {_ar_dueno}", "cyan")
+                else:
+                    _show_response(f"{_ar_ruta}\n  sin dueno registrado "
+                                   f"(ningun generador la reclamo)", "cyan")
+            except Exception as _ar_e:
+                _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
         elif raw == "/arbitro" or raw == "/árbitro":
             # Estado del arbitro de colisiones (solo lectura). Util para calibrar
             # los umbrales viendo que incidentes acumulo en modo sombra antes de
@@ -6787,6 +6903,30 @@ def repl():
                 _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
         elif raw == "/encolar":
             _print_line("[warn_cl]Uso: /encolar <idea>  — ejemplo: /encolar juego de tetris ASCII[/warn_cl]")
+        elif raw == "/ideas" or raw.startswith("/ideas "):
+            # Ver las ideas del hobby (propias encoladas + fallback por categoria)
+            # o vaciar la cola propia. get_all_ideas/clear_custom_ideas ya vivian
+            # en generator.py pero no tenian puerta en el REPL (huerfanas).
+            if not HAS_PROGRAM_CREATOR:
+                _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
+            else:
+                _ideas_arg = raw[len("/ideas "):].strip() if raw.startswith("/ideas ") else ""
+                try:
+                    from cognia.program_creator.generator import (
+                        clear_custom_ideas, get_all_ideas)
+                    if _ideas_arg == "limpiar":
+                        _n_borr = clear_custom_ideas()
+                        _show_response(
+                            f"Cola de ideas propias vaciada ({_n_borr} borrada(s)).",
+                            "bright_green")
+                    else:
+                        _todas = get_all_ideas()
+                        _lst = "\n".join(f"  {_i+1}. {_idea}"
+                                         for _i, _idea in enumerate(_todas[:40]))
+                        _show_response(
+                            f"Ideas disponibles ({len(_todas)}):\n{_lst}", "cyan")
+                except Exception as _id_e:
+                    _print_line(f"[err_cl]ideas no disponible: {_id_e}[/err_cl]")
         elif raw.startswith("/observar "):
             texto = raw[len("/observar "):].strip()
             _run(raw, lambda: ai.process(texto), color="cyan")
@@ -6861,6 +7001,75 @@ def repl():
             _run(raw, lambda: ai.show_graph(concepto), color="cyan")
         elif raw == "/grafo":
             _print_line("[warn_cl]Uso: /grafo <concepto>[/warn_cl]")
+        elif raw == "/grafo-html" or raw.startswith("/grafo-html "):
+            # Exporta el KG a un HTML interactivo y lo abre. graph_view.export ya
+            # renderizaba/abria pero no se alcanzaba desde el REPL (huerfana).
+            _gh_proj = raw[len("/grafo-html "):].strip() if raw.startswith("/grafo-html ") else ""
+            try:
+                from cognia.knowledge.graph_view import export as _kg_export_html
+                _gh_ruta = _kg_export_html(kg=ai.kg, project=(_gh_proj or None),
+                                           open_browser=True)
+                _show_response(
+                    f"Grafo exportado y abierto en el navegador:\n  {_gh_ruta}",
+                    "cyan")
+            except Exception as _gh_e:
+                _print_line(f"[err_cl]grafo-html no disponible: {_gh_e}[/err_cl]")
+        elif raw == "/indexar-codigo":
+            # Indexa el codigo del repo al KG (define/importa/llama_a/tiene_metodo).
+            # indexar_codigo ya existia en code_graph pero sin puerta en el REPL.
+            try:
+                from cognia.knowledge.code_graph import indexar_codigo
+                _ix_m = indexar_codigo(kg=ai.kg)
+                _show_response(
+                    "Codigo indexado al knowledge graph:\n"
+                    f"  modulos:          {_ix_m.get('modulos', 0)}\n"
+                    f"  triples:          {_ix_m.get('triples', 0)}\n"
+                    f"  borrados previos: {_ix_m.get('borrados_previos', 0)}\n"
+                    f"  tiempo:           {_ix_m.get('secs', 0)}s", "cyan")
+            except Exception as _ix_e:
+                _print_line(f"[err_cl]indexar-codigo no disponible: {_ix_e}[/err_cl]")
+        elif raw == "/atencion" or raw == "/atención":
+            _print_line("[warn_cl]Uso: /atencion <id>  (id de un episodio de memoria)[/warn_cl]")
+        elif raw.startswith("/atencion ") or raw.startswith("/atención "):
+            # Explica como se DESCOMPONE la atencion de un episodio (semantica +
+            # emocion + recencia + frecuencia). Sin consulta se usa la propia
+            # similitud del episodio (=1.0): el desglose muestra los pesos y las
+            # otras senales reales. explain_attention vive en ai.attention.
+            _at_raw = raw.split(" ", 1)[1].strip()
+            try:
+                _at_id = int(_at_raw)
+            except ValueError:
+                _print_line("[warn_cl]Uso: /atencion <id>  -- el id debe ser un numero[/warn_cl]")
+            else:
+                try:
+                    from storage.db_pool import db_connect_pooled as _dcp
+                    _at_conn = _dcp(ai.db)
+                    _at_cur = _at_conn.cursor()
+                    _at_cur.execute(
+                        "SELECT id, observation, label, access_count, last_access, "
+                        "importance, emotion_score, emotion_label "
+                        "FROM episodic_memory WHERE id=?", (_at_id,))
+                    _at_row = _at_cur.fetchone()
+                    _at_conn.close()
+                    if not _at_row:
+                        _print_line(f"[warn_cl]No existe el episodio #{_at_id}.[/warn_cl]")
+                    else:
+                        _at_ep = {
+                            "id": _at_row[0], "observation": _at_row[1],
+                            "label": _at_row[2], "access_count": _at_row[3] or 0,
+                            "last_access": _at_row[4] or "",
+                            "importance": _at_row[5] if _at_row[5] is not None else 1.0,
+                            "emotion": {"score": _at_row[6] or 0.0,
+                                        "label": _at_row[7] or "neutral"},
+                            "similarity": 1.0,
+                        }
+                        _at_expl = ai.attention.explain_attention(_at_ep, query_vector=[])
+                        _at_obs = (_at_row[1] or "")[:80]
+                        _show_response(
+                            f"Episodio #{_at_id} ({_at_row[2] or 'sin etiqueta'}): "
+                            f"{_at_obs}\n{_at_expl}", "cyan")
+                except Exception as _at_e:
+                    _print_line(f"[err_cl]atencion no disponible: {_at_e}[/err_cl]")
         elif raw.startswith("/hecho ") and raw.count("|") >= 2:
             partes = raw[len("/hecho "):].split("|")
             _run(raw, lambda: ai.add_fact(
@@ -7501,24 +7710,46 @@ def repl():
                     _print_line(f"[err_cl]Error en flujo: {_fe}[/err_cl]")
 
         # -- Proyectos: estado persistente de flujos /flujo (FASE 6, nivel O2) ----
-        elif raw == "/proyectos" or raw.startswith("/proyectos"):
+        elif raw == "/proyectos" or raw.startswith("/proyectos "):
+            _proy_arg = raw[len("/proyectos "):].strip() if raw.startswith("/proyectos ") else ""
             try:
                 from cognia.memory.project_memory import get_project_memory
                 _pm = get_project_memory(getattr(ai, "db", None) or "cognia_memory.db")
-                _flows = _pm.recent(8)
-                if not _flows:
-                    _print_line("[detail]Sin flujos registrados todavia (usa /flujo <objetivo>).[/detail]")
+                if _proy_arg:
+                    # DETALLE de un flujo por id (get_flow ya existia sin puerta REPL).
+                    try:
+                        _fid = int(_proy_arg)
+                    except ValueError:
+                        _print_line("[warn_cl]Uso: /proyectos [id]  -- el id debe ser un numero[/warn_cl]")
+                    else:
+                        _flow = _pm.get_flow(_fid)
+                        if not _flow:
+                            _print_line(f"[warn_cl]No existe el flujo #{_fid}.[/warn_cl]")
+                        else:
+                            _fd, _ft = len(_flow["stages_done"]), len(_flow["route"])
+                            _print_line(f"[bold]Flujo #{_flow['id']}[/bold] [{_flow['status']}]")
+                            _print_line(f"  objetivo: {_flow['goal']}")
+                            _print_line(f"  ruta: {' -> '.join(_flow['route']) or '(sin ruta)'}")
+                            _print_line(f"  etapas hechas: {_fd}/{_ft} "
+                                        f"({', '.join(_flow['stages_done']) or 'ninguna'})")
+                            if _flow.get("score") is not None:
+                                _print_line(f"  score: {_flow['score']}")
                 else:
-                    _print_line("[bold]Proyectos / flujos recientes:[/bold]")
-                    for _f in _flows:
-                        _done, _tot = len(_f["stages_done"]), len(_f["route"])
-                        _sc = f" score={_f['score']}" if _f.get("score") is not None else ""
-                        _print_line(f"  #{_f['id']} [{_f['status']}] {_f['goal'][:60]} "
-                                    f"({_done}/{_tot} etapas{_sc})")
-                    _pend = _pm.latest_unfinished()
-                    if _pend:
-                        _print_line(f"[detail]Sin terminar: #{_pend['id']} -- retomar con "
-                                    f"/flujo {_pend['goal'][:60]}[/detail]")
+                    _flows = _pm.recent(8)
+                    if not _flows:
+                        _print_line("[detail]Sin flujos registrados todavia (usa /flujo <objetivo>).[/detail]")
+                    else:
+                        _print_line("[bold]Proyectos / flujos recientes:[/bold]")
+                        for _f in _flows:
+                            _done, _tot = len(_f["stages_done"]), len(_f["route"])
+                            _sc = f" score={_f['score']}" if _f.get("score") is not None else ""
+                            _print_line(f"  #{_f['id']} [{_f['status']}] {_f['goal'][:60]} "
+                                        f"({_done}/{_tot} etapas{_sc})")
+                        _pend = _pm.latest_unfinished()
+                        if _pend:
+                            _print_line(f"[detail]Sin terminar: #{_pend['id']} -- retomar con "
+                                        f"/flujo {_pend['goal'][:60]}[/detail]")
+                        _print_line("[detail]Detalle de un flujo: /proyectos <id>[/detail]")
             except Exception as _pe:
                 _print_line(f"[err_cl]Error leyendo proyectos: {_pe}[/err_cl]")
 
@@ -8673,6 +8904,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # turno de chat anterior tiene que volver a verse en esta corrida del agente.
     # Los sub-agentes tambien cuentan como turno propio (delegation_depth>0).
     _nuevo_turno_degradado()
+    # El tope de acciones de pantalla (screen_tools) es un contador de PROCESO
+    # que se acumulaba entre tareas: una corrida gastaba el presupuesto de la
+    # siguiente. Se resetea al arrancar cada tarea de nivel superior (no en los
+    # sub-agentes, que comparten el presupuesto de su tarea padre). Best-effort.
+    if delegation_depth == 0:
+        try:
+            from cognia.agent.screen_tools import reset_contador as _reset_screen
+            _reset_screen()
+        except Exception:
+            pass
     from cognia.agent.tools import run_tool, build_tools_doc
     from cognia.compresion_salidas import comprimir
     from cognia.agent.loop import (
@@ -9407,7 +9648,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _task_ok = None
     try:
         from cognia.agents.goal_contract import (
-            GoalContract, derive_criteria_from_task,
+            GoalContract, derive_criteria_from_task, format_status,
         )
         _criteria = derive_criteria_from_task(task)
         # Skill CON verificacion (auditoria F2): escribir-tests entrego un test
@@ -9432,6 +9673,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         if _criteria:
             _st = GoalContract.from_spec(task[:120], _criteria).check()
             _task_ok = _st.complete
+            # Desglose completo del contrato (formateo canonico de goal_contract,
+            # antes solo usado en su _demo): va en [detail] para no tapar el
+            # resumen ok/warn de abajo, escapado para que los marcadores [OK]/[--]
+            # no los interprete rich como estilos.
+            try:
+                _fs_txt = format_status(_st)
+                _print_fn("[detail]" + (_escape(_fs_txt) if _HAS_RICH else _fs_txt)
+                          + "[/detail]")
+            except Exception:
+                pass
             if _st.complete:
                 _print_fn(f"[ok_cl]Objetivo verificado: {_st.satisfied_count}/"
                           f"{_st.total} criterios reales cumplidos[/ok_cl]")
