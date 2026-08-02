@@ -408,7 +408,12 @@ class KnowledgeGraph:
             nodes = c.fetchone()[0]
         finally:
             conn.close()
-        return {"total_edges": total, "nodes": nodes, "by_relation": by_rel}
+        # auto_facts / recent_auto_facts: los dos contadores de auto-extraccion
+        # existian desde 2026-07 pero nadie los exponia — el panel remoto y los
+        # benchmarks consumen stats(), asi que este es su punto de salida.
+        return {"total_edges": total, "nodes": nodes, "by_relation": by_rel,
+                "auto_facts": self.get_auto_facts_count(),
+                "recent_auto_facts": self.get_recent_auto_facts(limit=5)}
 
     # ── Auto-extraction from text ─────────────────────────────────────
 

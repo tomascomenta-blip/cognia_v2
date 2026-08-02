@@ -478,3 +478,14 @@ class TestShatteringOrchestrator:
         orch = self._orch(tmpdir)
         s = orch.status()
         assert s["manifest"] == "cognia_desktop"
+
+    def test_status_sin_bloque_moe_muerto(self, tmpdir):
+        """Regresion 2026-08-01: status() importaba shattering.moe_layer en
+        cada llamada para un 'moe_balance' siempre vacio (patch_shard_engine
+        es experimental y nada de produccion lo invoca). El bloque se quito."""
+        import inspect
+        from shattering.orchestrator import ShatteringOrchestrator
+        src = inspect.getsource(ShatteringOrchestrator.status)
+        assert "from shattering.moe_layer import" not in src
+        s = self._orch(tmpdir).status()
+        assert "moe_balance" not in s

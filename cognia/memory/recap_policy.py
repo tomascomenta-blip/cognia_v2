@@ -20,7 +20,9 @@ RECAP_MAX_GOALS         = 3
 # Taxonomia canonica O2: nivel del objetivo -> pieza real existente (NO duplicar).
 MEMORY_LEVELS = {
     "inmediata": "context/band_router.py banda LOCAL (fast-path de la respuesta actual)",
-    "sesion":    "cli.py _history + memory/conversation_memory.py (buffer de turnos)",
+    # OJO: memory/conversation_memory.py NO existe en el repo; el buffer real
+    # de turnos persistente es memory/chat.py ChatHistory (tabla chat_history).
+    "sesion":    "cli.py _history + memory/chat.py ChatHistory (buffer de turnos)",
     "trabajo":   "goals/goal_tracker.py (objetivos/tareas activos)",
     "proyectos": "memory/project_memory.py project_flows (estado persistente de flujos /flujo, "
                  "retomable entre sesiones) + agents/task_queue.py agent_tasks (tareas)",

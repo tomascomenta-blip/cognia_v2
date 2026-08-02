@@ -152,20 +152,6 @@ class ContextMap:
                  time.time()),
             )
 
-    def uncovered(self, source_ref):
-        with get_pool(self.db_path).get() as conn:
-            row = conn.execute(
-                "SELECT indexed_through, total_chars FROM context_coverage "
-                "WHERE project = ? AND source_ref = ?",
-                (self.project, source_ref),
-            ).fetchone()
-        if row is None:
-            return None
-        indexed_through, total_chars = row
-        if total_chars > indexed_through:
-            return (indexed_through, total_chars)
-        return None
-
     def uncovered_sources(self, project=None):
         """Sources of `project` with an unindexed tail, for gap-filling.
         Returns a list of (source_ref, indexed_through, total_chars) where

@@ -3,13 +3,12 @@ Regresion del router de modelo por dificultad (corrida-2 tarea 4).
 
 Fija: (1) el estimador de dificultad correlaciona con las etiquetas
 easy<medium<hard de las tasks embebidas; (2) el umbral 0.30 rutea easy->3B
-(barato) y hard->7B; (3) route_tasks parte bien.
+(barato) y hard->7B; (3) route_tasks fue ELIMINADA (huerfana 2026-08-01:
+su unico caller eran estos tests) y no debe volver sin un caller real.
 """
 import statistics
 
-from cognia.agent.model_router import (
-    estimate_difficulty, pick_model, route_tasks,
-)
+from cognia.agent.model_router import estimate_difficulty, pick_model
 from cognia_v3.eval.benchmark_code import TASKS
 
 
@@ -37,14 +36,12 @@ def test_easy_va_barato_hard_va_caro():
     assert hard_to_7b >= 1
 
 
-def test_route_tasks_particiona():
-    r = route_tasks(TASKS)
-    p = r["partition"]
-    assert len(p["3b"]) + len(p["7b"]) == len(TASKS)
-    # la mayoria de las embebidas (easy/medium) va al barato
-    assert len(p["3b"]) > len(p["7b"])
-    # cada task tiene su dificultad registrada
-    assert len(r["difficulty"]) == len(TASKS)
+def test_route_tasks_eliminada():
+    # regresion de la limpieza de huerfanas: el particionador por lotes quedo
+    # superado por hybrid_router.route_profile; si alguien lo re-agrega debe
+    # venir con un caller de produccion (y borrar este test conscientemente).
+    import cognia.agent.model_router as mr
+    assert not hasattr(mr, "route_tasks")
 
 
 def test_pick_model_umbral():

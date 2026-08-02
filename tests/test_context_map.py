@@ -38,11 +38,13 @@ def test_msg_pointer_placeholder(db_path):
 
 
 def test_coverage_and_uncovered(db_path):
+    # uncovered() por-fuente fue eliminado (huerfana): uncovered_sources cubre
+    # el caso listando (source_ref, indexed_through, total_chars) con hueco.
     cm = ContextMap(db_path=db_path)
     cm.mark_coverage("/x", indexed_through=100, total_chars=300)
-    assert cm.uncovered("/x") == (100, 300)
+    assert ("/x", 100, 300) in cm.uncovered_sources()
     cm.mark_coverage("/x", 300, 300)
-    assert cm.uncovered("/x") is None
+    assert all(src != "/x" for (src, _it, _tc) in cm.uncovered_sources())
 
 
 def test_schema_idempotent(db_path):

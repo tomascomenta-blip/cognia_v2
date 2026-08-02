@@ -77,6 +77,7 @@ def test_ingest_marks_coverage(tmp_path):
         from pathlib import Path
         stored_ref = str(Path(str(ruta)).expanduser().resolve())
         cm = ContextMap(db_path=db, project="documento:doc")
-        assert cm.uncovered(stored_ref) is None
+        assert all(src != stored_ref
+                   for (src, _it, _tc) in cm.uncovered_sources())
     finally:
         close_pool(db)

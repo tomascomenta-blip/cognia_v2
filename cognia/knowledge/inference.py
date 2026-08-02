@@ -43,6 +43,21 @@ class InferenceEngine:
                                         visited=visited)
             inferences.extend(chain)
 
+        # Reglas explicitas (add_rule): hasta 2026-08-01 dormian en la tabla
+        # inference_rules sin que NADIE las leyera — infer() solo hacia
+        # transitividad y apply_stored_rules era rama muerta. Se mapean al
+        # MISMO contrato de dict que las demas inferencias (los consumidores
+        # en cognia.py leen justification/confidence/type con .get()).
+        for r in self.apply_stored_rules(concept):
+            inferences.append({
+                "conclusion_subject": concept.lower().strip(),
+                "conclusion_predicate": "rule",
+                "conclusion_object": r["conclusion"],
+                "confidence": r["confidence"],
+                "justification": r["rule"],
+                "type": "stored_rule",
+            })
+
         seen = set()
         unique = []
         for inf in inferences:
@@ -139,6 +154,10 @@ class InferenceEngine:
 
     def add_rule(self, premise_a: str, pred_a: str, premise_b: str,
                  pred_b: str, conclusion: str, confidence: float = 0.7):
+        # Normalizar como almacena el KG (add_triple guarda en minusculas):
+        # sin esto una regla creada con 'Python' jamas casaria con los hechos.
+        premise_a = (premise_a or "").lower().strip()
+        premise_b = (premise_b or "").lower().strip()
         conn = db_connect(self.db)
         c = conn.cursor()
         c.execute("""
@@ -151,14 +170,21 @@ class InferenceEngine:
         conn.close()
 
     def apply_stored_rules(self, concept: str) -> list:
+        concept = (concept or "").lower().strip()
         conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute("""
-            SELECT premise_a, predicate_a, premise_b, predicate_b, conclusion, confidence
-            FROM inference_rules WHERE premise_a=?
-        """, (concept,))
-        rows = c.fetchall()
-        conn.close()
+        try:
+            c = conn.cursor()
+            c.execute("""
+                SELECT premise_a, predicate_a, premise_b, predicate_b, conclusion, confidence
+                FROM inference_rules WHERE premise_a=?
+            """, (concept,))
+            rows = c.fetchall()
+        except Exception:
+            # DB minima sin la tabla inference_rules (init_db no corrio):
+            # sin reglas que aplicar. No debe tumbar infer().
+            rows = []
+        finally:
+            conn.close()
 
         results = []
         for p_a, pred_a, p_b, pred_b, conclusion, conf in rows:

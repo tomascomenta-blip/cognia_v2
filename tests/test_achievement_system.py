@@ -90,3 +90,12 @@ def test_get_all_with_status_shows_locked_and_unlocked(ach):
     assert len(unlocked_items) == 1
     assert len(locked_items) == 9
     assert unlocked_items[0]["id"] == "first_export"
+
+
+def test_get_stats_points_equals_get_points(ach):
+    """Regresion 2026-08-01: get_stats() usa get_points() como unica fuente
+    de verdad para los puntos (antes duplicaba el SQL de suma)."""
+    ach.check_and_unlock("user7", "message_sent", count=1)   # 10 pts
+    ach.check_and_unlock("user7", "goal_created", count=1)   # 15 pts
+    stats = ach.get_stats("user7")
+    assert stats["points"] == ach.get_points("user7") == 25

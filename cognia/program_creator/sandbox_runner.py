@@ -294,6 +294,34 @@ def _ast_scan(code: str) -> Tuple[List[str], str]:
     return visitor.violations, ""
 
 
+# ── Seleccion de backend de contencion ─────────────────────────────────────────
+
+def _appcontainer_activo() -> bool:
+    """
+    True si el codigo generado debe correr detras del kernel (os_sandbox,
+    Windows AppContainer) en vez del guard in-process de este modulo.
+
+    POR QUE: la advertencia de la cabecera es explicita — el guard in-process
+    NO contiene a un adversario (11 escapes medidos). El AppContainer SI: el SO
+    niega por ACL escribir fuera del workspace y abrir la red. Cuando esta
+    disponible es la ruta por defecto; el guard queda como fallback best-effort
+    (otros SO, perfil de container roto, o opt-out explicito).
+
+    COGNIA_SANDBOX_GUARD=1 fuerza el guard: lo usan los tests que pinnean la
+    semantica del guard (test_sandbox_runner.py) y sirve para depurar.
+
+    Import perezoso a proposito: os_sandbox importa ExecutionResult de ESTE
+    modulo — importarlo arriba seria un import circular.
+    """
+    if os.environ.get("COGNIA_SANDBOX_GUARD") == "1":
+        return False
+    try:
+        from cognia.program_creator import os_sandbox
+        return os_sandbox.is_available()
+    except Exception:
+        return False
+
+
 # ── Ejecucion en subproceso ────────────────────────────────────────────────────
 
 def _armar_workspace(directorio: str, code: str,
@@ -541,6 +569,35 @@ def run_in_sandbox(code: str,
                                execution_errors="Sandbox violation: " + violations[0],
                                exit_code=-2, timed_out=False,
                                blocked_imports=violations, code_length=len(code))
+
+    # ── Contencion DURA primero (2026-08-01) ───────────────────────────────
+    # Si el SO ofrece AppContainer, el codigo generado corre detras del kernel
+    # de Windows (os_sandbox.run_in_appcontainer): aislamiento REAL, no el
+    # guard best-effort de abajo. El scan AST de arriba aplica a ambas rutas
+    # (defensa en profundidad). Fallback al guard solo si el container ni
+    # arranca (exit -4 / excepcion de setup) — en ese caso el programa no llego
+    # a ejecutarse, asi que reintentar en el guard no repite efectos a medias.
+    if _appcontainer_activo():
+        resultado = None
+        try:
+            from cognia.program_creator import os_sandbox
+            resultado = os_sandbox.run_in_appcontainer(
+                code, extra_files=extra_files, timeout_sec=timeout_sec)
+        except Exception:
+            resultado = None
+        if resultado is not None and resultado.exit_code != -4:
+            # La regla "tests en rojo pesan mas que el exit code" vale igual
+            # dentro del container: unittest tampoco propaga el fallo alli.
+            if resultado.success:
+                rojo = detectar_tests_fallando(resultado.execution_output,
+                                               resultado.execution_errors)
+                if rojo:
+                    resultado.success = False
+                    resultado.execution_errors = (
+                        (resultado.execution_errors + "\n"
+                         if resultado.execution_errors else "")
+                        + f"Tests en rojo: {rojo}")
+            return resultado
 
     workspace = None
     try:

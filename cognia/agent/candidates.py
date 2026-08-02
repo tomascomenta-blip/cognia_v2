@@ -29,12 +29,16 @@ SAMPLE_TEMPERATURE = 0.7
 
 # ── Generacion de candidatos ────────────────────────────────────────────
 
-def generate_candidates(gen_fn, prompt, n=DEFAULT_N, seed=42):
+def generate_candidates(gen_fn, prompt, n=DEFAULT_N, seed=42, previos=None):
     """N respuestas del modelo: candidato 0 greedy (temp 0, reproducible),
     el resto a temp 0.7 con seeds consecutivas distintas. Devuelve la lista
-    de textos CRUDOS (el caller extrae el codigo con su propio parser)."""
-    outs = []
-    for i in range(max(1, n)):
+    de textos CRUDOS (el caller extrae el codigo con su propio parser).
+
+    ``previos``: prefijo YA generado (misma convencion temp/seed por indice);
+    se completa desde ahi sin regenerar. Lo usa best_of_n, que genera el
+    greedy solo primero (early-stop) y aqui completa el pool."""
+    outs = list(previos or [])
+    for i in range(len(outs), max(1, n)):
         temp = 0.0 if i == 0 else SAMPLE_TEMPERATURE
         s = (seed + i) if seed is not None else None
         outs.append(gen_fn(prompt, temperature=temp, seed=s) or "")
@@ -218,10 +222,9 @@ def best_of_n(gen_fn, prompt, task_prompt, entry_point, extract_code_fn,
                 "n_unique": 1,
             }
 
-    # Camino completo: generar el resto del pool (el 0 ya esta) y rankear.
-    for i in range(1, max(1, n)):
-        s = (seed + i) if seed is not None else None
-        raws.append(gen_fn(prompt, temperature=SAMPLE_TEMPERATURE, seed=s) or "")
+    # Camino completo: generar el resto del pool (el 0 ya esta, entra como
+    # prefijo `previos` -- mismas temps/seeds que siempre) y rankear.
+    raws = generate_candidates(gen_fn, prompt, n=n, seed=seed, previos=raws)
     codes = [extract_code_fn(r) for r in raws]
     best_idx, ranking, mode = rank_candidates(codes, visible, entry_point,
                                               bpb_fn=bpb_fn)

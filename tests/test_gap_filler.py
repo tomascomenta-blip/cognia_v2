@@ -82,7 +82,7 @@ def test_index_source_range_lossless(tmp_path, db_path):
         assert cm.resolve(p["id"]) == full[p["char_start"]:p["char_end"]]
     assert any("NEEDLE-7741" in (cm.resolve(p["id"]) or "") for p in ptrs)
 
-    assert cm.uncovered(str(ruta)) is None
+    assert all(src != str(ruta) for (src, _it, _tc) in cm.uncovered_sources())
 
 
 def test_fill_gaps_indexes_tail(tmp_path, db_path):
@@ -121,6 +121,26 @@ def test_query_with_gap_fill(tmp_path, db_path):
     res = query_with_gap_fill(cm, ai, "donde esta el NEEDLE", embed_fn, min_score=0.5)
     assert res
     assert "NEEDLE" in res[0]["text"]
+
+
+def test_query_with_gap_fill_hybrid_ondisk(tmp_path, db_path):
+    """Modo hybrid+ondisk (el que usa context_engine.retrieve): la consulta
+    hibrida no encuentra nada bueno, el relleno on-disk indexa la cola del
+    archivo y el reintento trae el NEEDLE."""
+    ruta = tmp_path / "doc.txt"
+    ruta.write_text(_CONTENT, encoding="utf-8")
+    cm = ContextMap(db_path=db_path)
+    ai = FakeAI(db_path)
+
+    # Cobertura parcial sin punteros de cola: el needle no esta en el indice.
+    k = len(_HEAD)
+    cm.mark_coverage(str(ruta), indexed_through=k, total_chars=len(_CONTENT))
+
+    res = query_with_gap_fill(cm, ai, "NEEDLE-7741", embed_fn, min_score=0.5,
+                              hybrid=True, ondisk=True)
+    assert res
+    assert any("NEEDLE-7741" in r["text"] for r in res)
+    assert "bm25_score" in res[0]  # vino del camino hibrido, no del vectorial puro
 
 
 def test_add_pointer_accepts_numpy(db_path):

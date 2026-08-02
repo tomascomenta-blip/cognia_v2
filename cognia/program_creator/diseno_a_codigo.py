@@ -256,6 +256,18 @@ def _juez_del_lazo(idea: str, codigo_render: str, tmp_dir: Path,
                 return None
             res.contrato_intentos += 1
             res.contrato = juez_ejecutable.generar_contrato(idea, html)
+            if res.contrato is not None:
+                # El contrato queda escrito junto al HTML juzgado
+                # (.contrato.json): permite re-juzgar el producto con el CLI
+                # del juez y auditar QUE se le exigio a esta corrida. Era una
+                # huerfana: solo el subcomando `contrato` del CLI lo llamaba,
+                # el lazo generaba contratos que morian en memoria.
+                # Best-effort: un fallo de disco no tumba el lazo.
+                try:
+                    juez_ejecutable.escribir_contrato(tmp_dir, res.contrato)
+                except OSError as e_c:
+                    logger.debug("diseno_a_codigo: contrato no escrito (%s)",
+                                 e_c)
         except Exception as e:
             logger.warning("diseno_a_codigo: generar_contrato fallo (%s)", e)
         if res.contrato is None:

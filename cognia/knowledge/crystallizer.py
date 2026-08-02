@@ -163,7 +163,19 @@ class CrystallizationWorker:
     def _run(self) -> None:
         while True:
             time.sleep(self._interval)
-            try:
-                self._crystallizer.crystallize_frequent()
-            except Exception:
-                pass  # non-fatal — never crash the daemon
+            self._tick()
+
+    def _tick(self) -> None:
+        """Un ciclo de mantenimiento: promueve frecuentes Y degrada stale.
+
+        decrystallize_stale existia desde el principio pero nadie la llamaba:
+        la cristalizacion solo crecia y un hecho promovido quedaba inyectado
+        en el prompt para siempre aunque llevara meses sin accederse. El mismo
+        tick que promueve ahora tambien degrada (>30 dias sin acceso).
+        Extraido de _run para poder testearlo sin arrancar el hilo.
+        """
+        try:
+            self._crystallizer.crystallize_frequent()
+            self._crystallizer.decrystallize_stale()
+        except Exception:
+            pass  # non-fatal — never crash the daemon

@@ -375,3 +375,13 @@ class TestNormalize:
         # 75 is halfway between 50 and 100 → normalized to 0.75
         result = CognitiveFatigueMonitor._normalize(75.0, 10.0, 50.0, 100.0)
         assert abs(result - 0.75) < 1e-9
+
+
+class TestDecoradorBorrado:
+    def test_track_cognitive_cost_removido(self):
+        """Regresion 2026-08-01: el decorador track_cognitive_cost fue borrado
+        (superado por la instrumentacion manual start_cycle/end_cycle de
+        cognia.py, que pasa contadores reales; el decorador ademas corrompia
+        la medicion si envolvia algo dentro del ciclo observe)."""
+        import cognia.fatiga_cognitiva as fc
+        assert not hasattr(fc, "track_cognitive_cost")

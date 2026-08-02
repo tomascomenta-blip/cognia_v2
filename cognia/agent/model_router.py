@@ -66,20 +66,14 @@ def pick_model(task: str, threshold: float = 0.30,
                cheap: str = "3b", expensive: str = "7b") -> str:
     """Clave del GGUF a usar: 'expensive' si la dificultad supera el umbral,
     'cheap' si no. threshold calibrado (0.30) contra las etiquetas de las
-    tasks embebidas (ver test_model_router)."""
+    tasks embebidas (ver test_model_router). Caller vivo:
+    cognia_v3/eval/router_sim.py (el ruteo del agente en produccion es
+    hybrid_router.route_profile, que consume estimate_difficulty directo)."""
     return expensive if estimate_difficulty(task) >= threshold else cheap
 
 
-def route_tasks(tasks: list, threshold: float = 0.30) -> dict:
-    """Parte una lista de tasks (dicts con 'prompt') en {'3b': [...], '7b':
-    [...]} por dificultad. Devuelve tambien la dificultad por id para el log.
-    Sirve para correr cada partición en su modelo con UN solo swap (no
-    swap-por-tarea, que thrashea el llama-server)."""
-    partition = {"3b": [], "7b": []}
-    difficulty = {}
-    for tk in tasks:
-        d = estimate_difficulty(tk.get("prompt", ""))
-        m = "7b" if d >= threshold else "3b"
-        partition[m].append(tk)
-        difficulty[tk.get("id", "?")] = {"difficulty": d, "model": m}
-    return {"partition": partition, "difficulty": difficulty}
+# NOTA: route_tasks (particionar una lista de tasks en {'3b','7b'} para correr
+# cada mitad con UN swap del llama-server) se elimino 2026-08-01: su unico
+# caller eran sus propios tests. El patron swap-por-lote quedo superado por el
+# ruteo por perfil (hybrid_router.route_profile) + la cascada REACTIVA de
+# generar_codigo (3B -> 7B -> q35), que nunca particiona por adelantado.

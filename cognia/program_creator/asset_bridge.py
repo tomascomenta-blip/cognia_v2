@@ -114,9 +114,16 @@ _WIRING = (
 )
 
 
-def inyectar_assets(html: str, assets: dict) -> str:
+def inyectar_assets(html: str, assets: dict, animacion: dict = None,
+                    **anim_kw) -> str:
     """Inyecta en el HTML el objeto global ASSETS (name -> data URI) al inicio del
     <head> y el cableado de src al final del <body>. Devuelve el HTML resultante.
+
+    animacion: tabla horneada por cognia.anim.engine.bake() (F5). Si viene, la
+    animacion se compone en la MISMA pagina con los MISMOS sprites (F4+F5=F6):
+    cognia.anim.insertar_animacion agrega el <canvas>, el runtime Canvas2D y los
+    datos, todo inline (offline). anim_kw se reenvia (canvas_id, origen, escala).
+    Antes ese puente no existia: anim/ era una isla que solo los tests tocaban.
 
     Determinista y puro (sin GPU): testeable en CPU."""
     lib = "<script>window.ASSETS=" + json.dumps(assets) + ";</script>"
@@ -139,23 +146,17 @@ def inyectar_assets(html: str, assets: dict) -> str:
         html = html[:mb.start()] + wire + html[mb.start():]
     else:
         html = html + wire
+
+    # F5/F6: la animacion horneada viaja con los mismos sprites que F4. Import
+    # perezoso: sin animacion este modulo no arrastra cognia.anim.
+    if animacion:
+        from cognia.anim import insertar_animacion
+        html = insertar_animacion(html, animacion, assets, **anim_kw)
     return html
 
-
-def generar_web_con_assets(category: str, specs: list, llm, *,
-                           extra_hint: str = "", gen_kw: dict = None):
-    """E2E: genera los sprites, pide la página al LLM y embebe los sprites.
-
-    llm: LlmFn (prompt, system, max_tokens, temperature) -> str|None (backend real).
-    Devuelve dict {html, assets, title, description} o None si el LLM no respondió.
-    """
-    from cognia.program_creator.generator import _SISTEMA_WEB, _parse_response
-    assets = preparar_assets(specs, **(gen_kw or {}))
-    prompt = build_prompt_web_con_assets(category, specs, extra_hint)
-    raw = llm(prompt, _SISTEMA_WEB, 6000, 0.9)
-    prog = _parse_response(raw, category, lenguaje="html")
-    if prog is None:
-        return None
-    html = inyectar_assets(prog.code, assets)
-    return {"html": html, "assets": assets,
-            "title": prog.title, "description": prog.description}
+# NOTA (2026-08-01): aqui vivia generar_web_con_assets(), un E2E de una sola
+# pasada (sprites -> prompt -> LLM -> inyectar). Se elimino por DUPLICADO
+# muerto: cero llamadores y cero tests en el repo, y el flujo vivo es
+# diseno_a_codigo.construir_para_mockup, que hace exactamente lo mismo
+# (build_prompt_web_con_assets + _call_llm + _parse_response + inyectar_assets)
+# pero ademas con juez ejecutable, best-of-N y lazo de reparacion.

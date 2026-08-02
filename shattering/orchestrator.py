@@ -519,7 +519,11 @@ class ShatteringOrchestrator:
                 self._fragments.load_all(specs)
 
     def status(self) -> dict:
-        from shattering.moe_layer import MoELayer
+        # Nota 2026-08-01: aca habia un bloque "moe_balance" que importaba
+        # shattering.moe_layer en CADA status() para un resultado siempre vacio:
+        # patch_shard_engine (MoE) es codigo experimental que nada del camino de
+        # carga invoca (solo scripts/tests lo usan). Si algun dia se activa MoE
+        # en produccion, reintroducir el reporte con su test de suite verde.
         sub_models = {f.sub_model for f in self._manifest.all_fragments()}
         result = {
             "manifest":  self._manifest.app_id,
@@ -530,20 +534,6 @@ class ShatteringOrchestrator:
                 for sm in sub_models
             },
         }
-        # Include MoE load balance if any loaded engine has a MoE layer attached
-        loaded = self._fragments._engines
-        moe_balance: Dict[str, dict] = {}
-        for key, engine in loaded.items():
-            layers = getattr(engine, "_layers", [])
-            for layer in layers:
-                mlp = getattr(layer, "mlp", None)
-                inner = getattr(mlp, "_moe", None) or mlp
-                if isinstance(inner, MoELayer):
-                    sm = key.split("/")[0]
-                    moe_balance[sm] = inner.check_balance()
-                    break
-        if moe_balance:
-            result["moe_balance"] = moe_balance
         # Evict stale MLA KV-cache entries from any loaded engine
         self._evict_mla_caches()
         return result

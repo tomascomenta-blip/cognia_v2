@@ -140,3 +140,29 @@ class TestEnElBucleDelAgente:
         """Comprimir lo que ya cabe solo anadiria ruido."""
         corta = "RESULTADO tests: 12 passed"
         assert comprimir(corta, max_lineas=25) == corta
+
+
+class TestAhorroCableado:
+    """ahorro() es la metrica del modulo: se emite (DEBUG) en el mismo punto
+    donde se comprime, para que el caller vea cuanto contexto se salvo."""
+
+    def test_ahorro_se_reporta_al_recortar(self, caplog):
+        import logging
+        texto = "\n".join(f"linea distinta {i}" for i in range(200))
+        with caplog.at_level(logging.DEBUG, logger="cognia.compresion_salidas"):
+            out = comprimir(texto, max_lineas=20)
+        assert len(out) < len(texto)
+        assert any("ahorro" in r.getMessage() for r in caplog.records)
+
+    def test_sin_compresion_no_hay_reporte(self, caplog):
+        import logging
+        with caplog.at_level(logging.DEBUG, logger="cognia.compresion_salidas"):
+            comprimir("uno\ndos\ntres", max_lineas=25)
+        assert not any("ahorro" in r.getMessage() for r in caplog.records)
+
+    def test_ahorro_se_reporta_en_comprimir_error(self, caplog):
+        import logging
+        largo = "\n".join(f"linea distinta numero {i}" for i in range(500))
+        with caplog.at_level(logging.DEBUG, logger="cognia.compresion_salidas"):
+            comprimir_error(largo, max_chars=800)
+        assert any("ahorro" in r.getMessage() for r in caplog.records)

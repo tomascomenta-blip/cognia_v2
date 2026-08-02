@@ -144,6 +144,27 @@ def test_juez_del_lazo_sin_backend_no_insiste(tmp_path):
     gc.assert_not_called()                   # sin backend ni se intenta
 
 
+def test_contrato_generado_queda_escrito_junto_al_html(tmp_path):
+    """Cableado 2026-08-01: escribir_contrato era una huerfana (solo el
+    subcomando CLI `contrato` la usaba) y el lazo generaba contratos que morian
+    en memoria. Ahora el contrato queda en disco (.contrato.json) junto al HTML
+    juzgado: re-juzgable con el CLI del juez y auditable."""
+    import json as _json
+
+    from cognia.program_creator import juez_ejecutable as je
+
+    contrato = {"idea": "un contador", "pasos": [{"accion": "carga"}]}
+    res = d2c.ResultadoDiseno(idea="un contador")
+    with patch("cognia.llm_local.disponible", return_value=True), \
+         patch.object(je, "generar_contrato", return_value=contrato), \
+         patch.object(je, "juzgar_web", return_value=_veredicto(True)):
+        v = d2c._juez_del_lazo("un contador", "<html></html>", tmp_path, 1, res)
+    assert v is not None and v.aprobado
+    f = tmp_path / je.NOMBRE_CONTRATO
+    assert f.exists(), "el contrato debe quedar escrito junto al HTML juzgado"
+    assert _json.loads(f.read_text(encoding="utf-8")) == contrato
+
+
 def test_contrato_fallido_paga_un_reintento_y_solo_uno(tmp_path):
     """El pensador falla por la cola de su razonamiento ~1 de 2 veces (medido
     2026-07-26): un None no puede condenar la construccion entera a salir sin

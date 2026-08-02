@@ -15,15 +15,14 @@ import threading
 import time
 from typing import List, Dict, Any
 
-try:
-    from cognia.context.context_window_manager import (
-        ContextBlock,
-        ContextWindowManager,
-        get_context_window_manager,
-    )
-    _HAS_CWM = True
-except ImportError:
-    _HAS_CWM = False
+# Import directo: context_window_manager vive en este mismo paquete
+# (cognia/context/), asi que el import NUNCA es opcional dentro del repo.
+# El try/except ImportError original creaba una rama legacy muerta en
+# prioritize() que jamas se ejecutaba.
+from cognia.context.context_window_manager import (
+    ContextBlock,
+    get_context_window_manager,
+)
 
 # Maps InjectionPrioritizer block types to CWM source strings
 _TYPE_TO_SOURCE: Dict[str, str] = {
@@ -107,59 +106,29 @@ class InjectionPrioritizer:
         -------
         Selected blocks in descending score order.
         """
-        # Phase 56 fast path: use CWM for richer scoring when available
-        if _HAS_CWM:
-            context_dict = {
-                b.get("type", "unknown"): b.get("content", "")
-                for b in blocks
-                if b.get("content", "").strip()
-            }
-            cwm_blocks = self.build_blocks(query, context_dict)
-            cwm = get_context_window_manager()
-            # Respect max_blocks by temporarily noting it is advisory
-            chosen = cwm.select(query, cwm_blocks)[:max_blocks]
-            # Convert back to legacy dict format
-            selected = [
-                {"type": cb.source, "content": cb.text}
-                for cb in chosen
-            ]
-            chars_used = sum(len(b["content"]) for b in selected)
-            with self._lock:
-                self._call_count += 1
-                self._total_blocks_selected += len(selected)
-                self._total_chars_selected += chars_used
-            return selected
-
-        scored = [
-            (self.score_block(b.get("type", ""), b.get("content", ""), query), b)
+        # Phase 56: CWM es el UNICO camino (la rama legacy que puenteaba un
+        # import fallido era codigo muerto — el import es intra-paquete).
+        # max_total_chars se conserva en la firma por compatibilidad; el
+        # presupuesto real lo impone ContextWindowManager.MAX_TOKENS.
+        context_dict = {
+            b.get("type", "unknown"): b.get("content", "")
             for b in blocks
             if b.get("content", "").strip()
+        }
+        cwm_blocks = self.build_blocks(query, context_dict)
+        cwm = get_context_window_manager()
+        # Respect max_blocks by temporarily noting it is advisory
+        chosen = cwm.select(query, cwm_blocks)[:max_blocks]
+        # Convert back to legacy dict format
+        selected = [
+            {"type": cb.source, "content": cb.text}
+            for cb in chosen
         ]
-        scored.sort(key=lambda x: x[0], reverse=True)
-
-        selected: List[Dict[str, Any]] = []
-        chars_used = 0
-        for score, block in scored:
-            if len(selected) >= max_blocks:
-                break
-            content = block.get("content", "")
-            if chars_used + len(content) > max_total_chars:
-                # Try a truncated version to fill remaining budget
-                remaining = max_total_chars - chars_used
-                if remaining > 20:
-                    truncated = dict(block)
-                    truncated["content"] = content[:remaining]
-                    selected.append(truncated)
-                    chars_used += remaining
-                break
-            selected.append(block)
-            chars_used += len(content)
-
+        chars_used = sum(len(b["content"]) for b in selected)
         with self._lock:
             self._call_count += 1
             self._total_blocks_selected += len(selected)
             self._total_chars_selected += chars_used
-
         return selected
 
     # ------------------------------------------------------------------
@@ -189,18 +158,13 @@ class InjectionPrioritizer:
         -------
         List of ContextBlock objects ready for ContextWindowManager.select().
         """
-        if not _HAS_CWM:
-            return []
         blocks: List[ContextBlock] = []
         for block_type, content in context_dict.items():
             if not content or not content.strip():
                 continue
-            base_relevance = _PRIORITY_WEIGHTS.get(block_type, 0.3)
-            # Apply same relevance boost as score_block()
-            for word in query.split():
-                if len(word) > 3 and word.lower() in content.lower():
-                    base_relevance = min(base_relevance * 1.5, 1.0)
-                    break
+            # score_block es la UNICA fuente de la formula base*boost (antes
+            # estaba duplicada aqui inline y podia desincronizarse).
+            base_relevance = self.score_block(block_type, content, query)
             source = _TYPE_TO_SOURCE.get(block_type, "system")
             blocks.append(
                 ContextBlock(

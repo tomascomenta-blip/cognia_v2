@@ -81,3 +81,23 @@ def test_build_context_string_joins_correctly():
     ]
     result = p.build_context_string(blocks)
     assert result == "line one\nline two\nline three", f"Unexpected result: {result!r}"
+
+
+# ── Test 6: la rama legacy (import opcional de CWM) fue eliminada ────────────
+
+def test_no_legacy_branch():
+    """El import de context_window_manager es intra-paquete: nunca es opcional,
+    asi que la bandera _HAS_CWM y la rama legacy de prioritize() se borraron."""
+    import cognia.context.injection_prioritizer as ip
+    assert not hasattr(ip, "_HAS_CWM")
+
+
+# ── Test 7: build_blocks usa score_block (formula unica, no duplicada) ───────
+
+def test_build_blocks_relevance_es_score_block():
+    p = _make_prioritizer()
+    content = "user likes cooking"          # sin boost para el query "python"
+    blocks = p.build_blocks("python", {"user_facts": content})
+    assert len(blocks) == 1
+    assert blocks[0].relevance == p.score_block("user_facts", content, "python")
+    assert blocks[0].source == "memory"

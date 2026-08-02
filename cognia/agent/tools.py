@@ -71,7 +71,8 @@ ROLE_TOOLS = {
     "implementador": {"leer_archivo", "listar", "buscar", "repo_map",
                       "code_grafo", "escribir_archivo", "editar_archivo",
                       "apendar_archivo",
-                      "copiar_archivo", "generar_codigo", "py_validar",
+                      "copiar_archivo", "generar_codigo", "contratos",
+                      "py_validar",
                       "json_validar", "tests", "ejecutar", "notas", "anotar",
                       "responder"},
 }
@@ -1636,6 +1637,58 @@ def _generar_codigo(args, ctx):
             f"{len(code)} chars){_tag7}")
 
 
+# Contratos por etapa del pipeline plan->design->code->test (contracts.py,
+# AG-ARB): la cascada attribute_failure estaba escrita y medida
+# (bench_arbitro) pero NINGUNA tool la exponia al loop -- y skill_capture ya
+# tenia registrado el reconocedor _recognize_contratos_pasan esperando una
+# tool cuyo nombre contenga 'contrat' (rama muerta dependiente). Determinista,
+# cero LLM: entidades por parseo, firmas por ast, tests en el sandbox real.
+@tool("contratos",
+      "contratos <plan> | <firmas del design> | <ruta.py o codigo> | <asserts>  "
+      "-- verifica el pipeline plan->design->code->test y atribuye la etapa que falla")
+def _contratos(args, ctx):
+    parts = re.split(r"\s*\|\s*", args or "", maxsplit=3)
+    if len(parts) != 4 or not parts[2].strip():
+        return ("RESULTADO contratos ERROR: formato (plan | firmas del design | "
+                "ruta.py o codigo | asserts), 4 partes separadas por '|'")
+    plan_txt, design_txt, code_arg, tests_txt = (p.strip() for p in parts)
+    # code: una ruta .py (relativa al workspace del agente, donde escribe
+    # generar_codigo) o el codigo en linea.
+    code_src = code_arg
+    if code_arg.endswith(".py") and "\n" not in code_arg:
+        cpath = Path(code_arg)
+        if not cpath.is_file():
+            try:
+                from cognia.agents.workers.dev_tools import _root_actual
+                cpath = Path(_root_actual()) / code_arg
+            except Exception:
+                pass
+        try:
+            code_src = cpath.read_text(encoding="utf-8")
+        except OSError:
+            return f"RESULTADO contratos ERROR: no pude leer '{code_arg}'"
+    from cognia.agent.contracts import attribute_failure
+    from cognia.agent.stepwise import extract_entry_point
+    entry = (extract_entry_point(design_txt) or extract_entry_point(tests_txt)
+             or extract_entry_point(plan_txt) or "")
+    firmas = [s.strip() for s in re.split(r"[;\n]+", design_txt) if s.strip()]
+    pipeline = {
+        "plan": {"text": plan_txt},
+        "design": {"text": design_txt, "signatures": firmas},
+        "code": {"code": code_src, "entry_point": entry},
+        "test": {"tests": tests_txt, "entry_point": entry},
+    }
+    try:
+        r = attribute_failure(pipeline)
+    except Exception as exc:
+        return f"RESULTADO contratos ERROR: {exc}"
+    if r["stage"] is None:
+        # literal que reconoce skill_capture._recognize_contratos_pasan
+        return "RESULTADO contratos: todos los contratos pasan"
+    return (f"RESULTADO contratos: FALLA en etapa '{r['stage']}' "
+            f"(contrato {r['contract']}): {r['reason']}")
+
+
 # HERMES self-tooling EN VIVO: el agente puede pedir una tool nueva sin salir
 # del loop /hacer. Reusa el mismo pipeline generar->scan->sandbox->registrar
 # de cognia.agent.tool_synthesis (regla 8 CLAUDE.md: nada auto-generado se
@@ -1666,6 +1719,30 @@ def _crear_herramienta(args, ctx):
     return (f"RESULTADO crear_herramienta: '{nombre}' creada y verificada "
             f"(version {res.get('version', '?')}, tier {res.get('tier', 'staged')}). "
             "Ya es invocable con su nombre.")
+
+
+# Ciclo de vida COMPLETO del self-tooling: _write_verified preserva cada
+# version anterior en _history/ justamente "para permitir rollback_tool si la
+# nueva version sale peor", pero rollback_tool no tenia llamador -- una
+# actualizacion mala era irreversible desde el loop. danger=True: reemplaza
+# codigo ejecutable registrado (misma categoria que crear_herramienta).
+@tool("revertir_herramienta",
+      "revertir_herramienta <nombre> | <version>  -- restaura una tool creada "
+      "con crear_herramienta a una version previa guardada en _history",
+      danger=True)
+def _revertir_herramienta(args, ctx):
+    parts = re.split(r"\s*\|\s*", args or "", maxsplit=1)
+    if len(parts) != 2 or any(not p.strip() for p in parts):
+        return ("RESULTADO revertir_herramienta ERROR: formato "
+                "(nombre | version), p.ej.: mi_tool | 0.1.0")
+    nombre, version = (p.strip() for p in parts)
+    from cognia.agent.tool_synthesis import load_generated_tools, rollback_tool
+    res = rollback_tool(nombre, version)
+    if not res.get("ok"):
+        return f"RESULTADO revertir_herramienta ERROR: {res.get('reason', '?')}"
+    load_generated_tools()  # recarga la version restaurada en TOOLS
+    return (f"RESULTADO revertir_herramienta: '{nombre}' restaurada a la "
+            f"version {version} (tier staged, contadores de uso en 0)")
 
 
 # Sub-agente acotado: delega una SUBTAREA a una corrida anidada de _run_agent_task
@@ -1764,7 +1841,10 @@ except Exception:
 try:
     from cognia.agent import flows as _flows
     _flows.register(tool)
-    ROLE_TOOLS["implementador"].add("crear_flujo")
+    # ejecutar_flujo cierra el ciclo: crear_flujo persistia .flujo.json y
+    # NADIE lo consumia (motor flows.ejecutar sin llamador de produccion).
+    for _t in ("crear_flujo", "ejecutar_flujo"):
+        ROLE_TOOLS["implementador"].add(_t)
 except Exception:
     pass
 

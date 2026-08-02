@@ -7,18 +7,15 @@ expone tool-calling (el rol "tooling/workflows"), que el cerebro 14B puede deleg
 El LoRA por rol (QLoRA con Unsloth) y el ruteo desde fleet_router llegan encima
 de esto; aquí queda la pieza que de verdad CORRE el modelo.
 
-MiniCPM5-1B es un modelo de RAZONAMIENTO (emite <think>...</think>). Para tooling
-conviene `pensar=False` (más rápido y, medido, menos alucinación de parámetros en
-el 1B). Emite las llamadas en su formato XML nativo:
-    <function name="F"><param name="A">valor</param></function>
-`_parsear_tool_calls` lo convierte a [{'name': F, 'arguments': {A: valor}}].
-
-LIMITACIÓN medida (2026-07-22, verificación GPU): el BASE tool-callea pero de forma
-IMPERFECTA — ~2/3 en pedidos mixtos, y flojea en ESPAÑOL (leyó "comprar pan" como
-"pan of food" en inglés y no reconoció crear_reminder aun estando disponible). Emite
-y parsea bien las llamadas correctas; lo que falta es FIABILIDAD. Eso es justo lo que
-endurece el LoRA de tooling del plan (adapter de openbmb/MiniCPM4-MCP, que bate a
-GPT-4o, o QLoRA con xLAM/Glaive). Esta pieza sirve el base; el LoRA por rol va encima.
+PODA 2026-08-01 (limpieza de huerfanas): el camino de tool-calling XML del BASE
+(`generar`, `tool_call`, `_parsear_tool_calls`) se ELIMINO. Razones: (a) cero
+llamadores en el repo — el unico rol cableado a produccion es "tooling" via
+`generar_accion` (cli.py:_run_agent_task, opt-in COGNIA_MINICPM_TOOLING=1);
+(b) el protocolo del loop es texto ACCION + GBNF (tools_grammar), no tools
+OpenAI/XML — cablear el XML exigiria un camino de decision NUEVO en cli.py;
+(c) el BASE tool-calleaba IMPERFECTO (medido 2026-07-22: ~2/3 en pedidos
+mixtos, flojo en español) mientras el LoRA de tooling mide 97% tool-match.
+Si F4-F6 del plan de assets necesita el XML, esta en git (pre 2026-08-01).
 
 Diseño (igual que cognia/assets): imports de torch/transformers PEREZOSOS -> importar
 este módulo en un nodo CPU no carga nada; modelo cacheado; GPU-only (coherente con
@@ -94,33 +91,8 @@ def _cargar():
     return _MODEL, _TOK
 
 
-# --- parseo de tool-calls (formato XML nativo de MiniCPM5). Puro texto: testeable
-#     sin GPU. ---
-_FUNC_RE = re.compile(r'<function\s+name="([^"]+)"\s*>(.*?)</function>', re.DOTALL)
-_PARAM_RE = re.compile(r'<param\s+name="([^"]+)"\s*>(.*?)</param>', re.DOTALL)
-_CDATA_RE = re.compile(r'^\s*<!\[CDATA\[(.*?)\]\]>\s*$', re.DOTALL)
-
-
-def _desenvolver_cdata(v: str) -> str:
-    m = _CDATA_RE.match(v)
-    return m.group(1) if m else v.strip()
-
-
-def _parsear_tool_calls(texto: str) -> list:
-    """Extrae las llamadas del formato XML de MiniCPM5 ->
-    [{'name': str, 'arguments': {str: str}}]. Lista vacía si no hay ninguna."""
-    llamadas = []
-    for nombre, cuerpo in _FUNC_RE.findall(texto or ""):
-        args = {k: _desenvolver_cdata(v) for k, v in _PARAM_RE.findall(cuerpo)}
-        llamadas.append({"name": nombre, "arguments": args})
-    return llamadas
-
-
-def _quitar_think(texto: str) -> str:
-    """Quita un bloque <think>...</think> inicial (modo razonamiento)."""
-    return re.sub(r"^\s*<think>.*?</think>\s*", "", texto or "", flags=re.DOTALL).strip()
-
-
+# Formato de accion del protocolo REAL de Cognia (documenta lo que emite el
+# LoRA de tooling; el parseo de produccion lo hace loop.first_action_block).
 _ACCION_RE = re.compile(r"ACCI[OÓ]N:\s*(\w+)\s*(.*)", re.IGNORECASE | re.DOTALL)
 
 
@@ -179,62 +151,3 @@ def generar_accion(agent_prompt: str, *, system: str = None,
     except Exception:
         pass
     return texto
-
-
-# Tokens de control de chat a quitar cuando conservamos los tags de función.
-_CTRL_TOKENS = ("<|im_end|>", "<|im_start|>", "<|endoftext|>")
-
-
-def _generar_raw(mensajes, tools=None, max_tokens=256, temperature=0.0,
-                 pensar=False, conservar_tags=False) -> str:
-    """Corre el modelo sobre mensajes (+tools opcional) y devuelve el texto crudo.
-
-    conservar_tags: MiniCPM5 registra <function>/<param> como tokens ESPECIALES;
-    skip_special_tokens=True los borraría y rompería el parseo del tool-call. Para
-    tool-calling decodificamos SIN saltar especiales y quitamos solo los tokens de
-    control de chat, preservando la estructura XML de la llamada."""
-    import torch
-    model, tok = _cargar()
-    inputs = tok.apply_chat_template(
-        mensajes, tools=tools, tokenize=True, add_generation_prompt=True,
-        return_tensors="pt", return_dict=True, enable_thinking=pensar).to("cuda")
-    with torch.no_grad():
-        out = model.generate(
-            **inputs, max_new_tokens=int(max_tokens), do_sample=temperature > 0,
-            temperature=temperature or None, top_p=0.9,
-            pad_token_id=tok.eos_token_id)
-    n = inputs["input_ids"].shape[1]
-    texto = tok.decode(out[0, n:], skip_special_tokens=not conservar_tags)
-    if conservar_tags:
-        for t in _CTRL_TOKENS:
-            texto = texto.replace(t, "")
-    return texto.strip()
-
-
-def generar(prompt: str, *, system: str = "", max_tokens: int = 256,
-            temperature: float = 0.0, pensar: bool = False) -> str:
-    """Completion de chat con MiniCPM5-1B. Compatible con el patrón LlmFn del repo
-    (prompt, system, max_tokens, temperature). `pensar=True` deja el razonamiento
-    <think>; por defecto se descarta y se devuelve solo la respuesta."""
-    mensajes = []
-    if system:
-        mensajes.append({"role": "system", "content": system})
-    mensajes.append({"role": "user", "content": prompt})
-    texto = _generar_raw(mensajes, max_tokens=max_tokens, temperature=temperature,
-                         pensar=pensar)
-    return texto if pensar else _quitar_think(texto)
-
-
-def tool_call(prompt: str, tools: list, *, system: str = "", max_tokens: int = 256,
-              temperature: float = 0.0, pensar: bool = False) -> list:
-    """Pide al experto que elija herramienta(s) para el pedido y devuelve las
-    llamadas parseadas: [{'name', 'arguments'}]. `tools` en formato OpenAI
-    (type/function/parameters). Lista vacía si el modelo no llamó a ninguna."""
-    mensajes = []
-    if system:
-        mensajes.append({"role": "system", "content": system})
-    mensajes.append({"role": "user", "content": prompt})
-    texto = _generar_raw(mensajes, tools=tools, max_tokens=max_tokens,
-                         temperature=temperature, pensar=pensar,
-                         conservar_tags=True)
-    return _parsear_tool_calls(texto)

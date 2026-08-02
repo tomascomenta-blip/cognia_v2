@@ -9,6 +9,9 @@ class WebSearch:
 
     _DDGO_URL = "https://api.duckduckgo.com/"
     _TIMEOUT = 5
+    # Tope de entradas vivas en el cache. Sin tope, el dict crecia sin limite
+    # en procesos largos (la desktop API mantiene UNA instancia global).
+    _CACHE_MAX = 128
 
     def __init__(self):
         self._cache: dict = {}  # {query_lower: (result, timestamp)}
@@ -63,6 +66,7 @@ class WebSearch:
                 real = self._buscar_de_verdad(query, max_results)
                 if real is not None:
                     result = real
+            self._prune_cache()
             self._cache[query_lower] = (result, time.time())
             return result
 
@@ -130,6 +134,25 @@ class WebSearch:
             "cached": False,
             "error": None
         }
+
+    def _prune_cache(self) -> None:
+        """Mantiene el cache acotado antes de insertar una entrada nueva.
+
+        1) Expira las entradas vencidas (>_cache_ttl); antes quedaban en el
+           dict para siempre porque el TTL solo se miraba al LEER esa clave.
+        2) Si aun asi hay >= _CACHE_MAX vivas, vacia todo con clear_cache()
+           (las vivas se rehidratan solas al proximo search; mas simple y
+           honesto que un LRU para un cache de 10 minutos).
+        """
+        if len(self._cache) < self._CACHE_MAX:
+            return
+        now = time.time()
+        vencidas = [k for k, (_, ts) in self._cache.items()
+                    if now - ts >= self._cache_ttl]
+        for k in vencidas:
+            del self._cache[k]
+        if len(self._cache) >= self._CACHE_MAX:
+            self.clear_cache()
 
     def clear_cache(self) -> None:
         self._cache.clear()

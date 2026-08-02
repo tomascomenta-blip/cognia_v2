@@ -70,12 +70,28 @@ def fill_gaps_ondisk(cm, ai, project=None, max_sources=50):
 
 
 def query_with_gap_fill(cm, ai, query_text, embed_fn, budget_tokens=4000,
-                        top_k=50, min_score=0.5):
+                        top_k=50, min_score=0.5, hybrid=False, ondisk=False):
     """Query the index; if the best score < min_score (nothing good found),
-    fill the known gaps and retry ONCE. Returns the query() result list."""
-    res = cm.query_text(query_text, embed_fn, budget_tokens=budget_tokens, top_k=top_k)
+    fill the known gaps and retry ONCE. Returns the query result list.
+
+    hybrid=True usa query_text_hybrid (BM25+vector) en vez de query_text
+    (solo vector). ondisk=True rellena huecos por tamano real en disco
+    (fill_gaps_ondisk) en vez de por coverage almacenado (fill_gaps).
+    Es el UNICO punto donde vive el patron consultar->rellenar->reintentar:
+    context_engine.retrieve() delega aqui en vez de reimplementarlo."""
+    def _q():
+        if hybrid:
+            return cm.query_text_hybrid(query_text, embed_fn,
+                                        budget_tokens=budget_tokens, top_k=top_k)
+        return cm.query_text(query_text, embed_fn,
+                             budget_tokens=budget_tokens, top_k=top_k)
+
+    res = _q()
     top = res[0]["score"] if res else -1.0
     if top >= min_score:
         return res
-    fill_gaps(cm, ai, cm.project)
-    return cm.query_text(query_text, embed_fn, budget_tokens=budget_tokens, top_k=top_k)
+    if ondisk:
+        fill_gaps_ondisk(cm, ai, cm.project)
+    else:
+        fill_gaps(cm, ai, cm.project)
+    return _q()

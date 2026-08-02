@@ -185,11 +185,12 @@ class ScaleManager:
     def get_config(self) -> LevelConfig:
         return LEVEL_CONFIGS[self.level - 1]
 
-    def select_model(self) -> str:
-        return self.get_config().model
-
-    def get_timeout(self) -> int:
-        return self.get_config().timeout_s
+    # NOTA 2026-08-01: select_model()/get_timeout() borrados. Eran alias de
+    # get_config().model/.timeout_s sin ningun llamador en produccion, y sus
+    # nombres de modelo (llama3.2/mixtral, era Ollama) no existen en la flota
+    # actual (node/fleet.py): cablearlos al router real habria sido una
+    # regresion. El modulo queda en su contrato declarado: "solo informa"
+    # (status() para /escalar y app/routes/status.py).
 
     def status(self) -> dict:
         cfg = self.get_config()

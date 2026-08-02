@@ -3,6 +3,11 @@ tests/test_consolidation.py
 ============================
 Test suite for schema migration (database.py) and ConsolidationEngine phases.
 
+2026-08-01: apunta al motor de PRODUCCION (cognia_v3.memory.consolidation_engine).
+El gemelo divergente cognia.consolidation_engine (numpy BLAS + decay dinamico,
+nunca cableado a produccion) fue borrado; este archivo cubre las fases genericas
+del motor real y test_consolidation_v3.py cubre el resto.
+
 Uses temporary SQLite files — no in-memory DB because some phases
 open their own connections and need a real file path.
 All temp files are cleaned up after each test.
@@ -123,7 +128,14 @@ def _unlink_db(path: str) -> None:
 
     WAL mode creates -wal and -shm files that keep Windows file locks open.
     Switching back to DELETE journal mode checkpoints WAL before removal.
+    El motor v3 usa storage/db_pool (conexiones vivas por path): hay que
+    drenar el pool ANTES del unlink o Windows bloquea el borrado.
     """
+    try:
+        from storage.db_pool import close_pool
+        close_pool(path)
+    except Exception:
+        pass
     try:
         _c = sqlite3.connect(path)
         _c.execute("PRAGMA wal_checkpoint(FULL)")
@@ -162,7 +174,7 @@ def _insert_episode(conn, *, observation="test", label="test",
 
 def _make_engine(db_path: str):
     """Create a ConsolidationEngine without calling __init__ (avoids _init_schema)."""
-    from cognia.consolidation_engine import ConsolidationEngine
+    from cognia_v3.memory.consolidation_engine import ConsolidationEngine
     eng = object.__new__(ConsolidationEngine)
     eng.db_path = db_path
     eng._lock   = threading.RLock()
@@ -189,7 +201,7 @@ class TestInitDb:
             conn.close()
             assert "feedback_weight" in cols
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_old_db_missing_column_gets_migrated(self):
         path = _temp_db()
@@ -206,7 +218,7 @@ class TestInitDb:
             conn.close()
             assert "feedback_weight" in cols
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_migration_idempotent(self):
         """Running init_db twice should not raise."""
@@ -220,7 +232,7 @@ class TestInitDb:
             conn.close()
             assert "feedback_weight" in cols
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_schema_version_table_created(self):
         path = _temp_db()
@@ -234,7 +246,7 @@ class TestInitDb:
             conn.close()
             assert "schema_version" in tables
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -268,7 +280,7 @@ class TestPhasePurge:
             assert purged >= 1
             assert row[0] == 1
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_purge_spares_recent_episodes(self):
         recent_ts = datetime.now().isoformat()
@@ -287,7 +299,7 @@ class TestPhasePurge:
             assert purged == 0
             assert row[0] == 0
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_purge_spares_protected_labels(self):
         old_ts = _days_ago_iso(10)
@@ -305,7 +317,7 @@ class TestPhasePurge:
             _c.close()
             assert row[0] == 0
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_purge_spares_high_confidence_episodes(self):
         old_ts = _days_ago_iso(10)
@@ -323,7 +335,7 @@ class TestPhasePurge:
             _c.close()
             assert row[0] == 0
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -351,10 +363,10 @@ class TestPhaseWeaken:
             assert weakened >= 1
             assert row[0] < 1.5
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_weaken_does_not_drop_below_minimum(self):
-        from cognia.consolidation_engine import WEAKEN_IMPORTANCE_MIN
+        from cognia_v3.memory.consolidation_engine import WEAKEN_IMPORTANCE_MIN
         path = _temp_db()
         try:
             conn = sqlite3.connect(path)
@@ -371,7 +383,7 @@ class TestPhaseWeaken:
             _c.close()
             assert row[0] >= WEAKEN_IMPORTANCE_MIN
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_weaken_skips_high_weight_episodes(self):
         path = _temp_db()
@@ -385,7 +397,7 @@ class TestPhaseWeaken:
             weakened = eng._phase_weaken()
             assert weakened == 0
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -424,7 +436,7 @@ class TestPhaseConsolidate:
             assert merged >= 1
             assert forgotten_count >= 1
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_consolidate_ignores_dissimilar_episodes(self):
         path = _temp_db()
@@ -444,7 +456,7 @@ class TestPhaseConsolidate:
 
             assert merged == 0
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
     def test_consolidate_empty_db_no_crash(self):
         path = _temp_db()
@@ -456,7 +468,7 @@ class TestPhaseConsolidate:
             merged = eng._phase_consolidate()
             assert merged == 0
         finally:
-            os.unlink(path)
+            _unlink_db(path)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -475,7 +487,7 @@ class TestRunFullCycle:
         path, conn = self._build_db()
         conn.close()
         try:
-            from cognia.consolidation_engine import ConsolidationEngine
+            from cognia_v3.memory.consolidation_engine import ConsolidationEngine
             eng = ConsolidationEngine(db_path=path)
             result = eng.run_full_cycle()
             assert result is not None
@@ -483,11 +495,11 @@ class TestRunFullCycle:
             _unlink_db(path)
 
     def test_full_cycle_returns_consolidation_result(self):
-        from cognia.consolidation_engine import ConsolidationResult
+        from cognia_v3.memory.consolidation_engine import ConsolidationResult
         path, conn = self._build_db()
         conn.close()
         try:
-            from cognia.consolidation_engine import ConsolidationEngine
+            from cognia_v3.memory.consolidation_engine import ConsolidationEngine
             eng = ConsolidationEngine(db_path=path)
             result = eng.run_full_cycle()
             assert isinstance(result, ConsolidationResult)
@@ -498,7 +510,7 @@ class TestRunFullCycle:
         path, conn = self._build_db()
         conn.close()
         try:
-            from cognia.consolidation_engine import ConsolidationEngine
+            from cognia_v3.memory.consolidation_engine import ConsolidationEngine
             eng = ConsolidationEngine(db_path=path)
             result = eng.run_full_cycle()
             assert hasattr(result, "purged")
@@ -519,7 +531,7 @@ class TestRunFullCycle:
                             feedback_weight=1.0, timestamp=old_ts)
         conn.close()
         try:
-            from cognia.consolidation_engine import ConsolidationEngine
+            from cognia_v3.memory.consolidation_engine import ConsolidationEngine
             eng = ConsolidationEngine(db_path=path)
             result = eng.run_full_cycle()
             assert result is not None
@@ -530,7 +542,7 @@ class TestRunFullCycle:
         path, conn = self._build_db()
         conn.close()
         try:
-            from cognia.consolidation_engine import ConsolidationEngine
+            from cognia_v3.memory.consolidation_engine import ConsolidationEngine
             eng = ConsolidationEngine(db_path=path)
             result = eng.run_full_cycle()
             assert result.cycle_type == "full"

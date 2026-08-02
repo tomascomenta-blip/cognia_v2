@@ -211,3 +211,67 @@ def test_reset_failures_permite_reintento(monkeypatch, tmp_path):
     fr.reset_failures()
     fr.load_manifest(force=True)
     assert fr.fleet_backend("a") is not None
+
+
+# ------------------------------------------------- expanduser + harmony (2026-08-01)
+def test_manifest_expande_tilde_en_gguf_y_lora(monkeypatch, tmp_path):
+    """El manifest del repo referencia ~/.cognia/models con '~': load_manifest
+    debe expandirlo (sin esto, fleet30.json no puede apuntar a la instalacion
+    del usuario de forma portable)."""
+    home = tmp_path / "casa"
+    home.mkdir()
+    (home / "m.gguf").write_bytes(b"x")
+    (home / "l.gguf").write_bytes(b"x")
+    monkeypatch.setenv("USERPROFILE", str(home))   # Path.home() en Windows
+    monkeypatch.setenv("HOME", str(home))          # y en POSIX
+    mf = _write_manifest(tmp_path, [
+        {"key": "a", "gguf": "~/m.gguf", "lora": "~/l.gguf"}])
+    monkeypatch.setenv("COGNIA_FLEET30_MANIFEST", str(mf))
+    m = fr.load_manifest(force=True)["a"]
+    assert m["gguf"] == home / "m.gguf"
+    assert m["gguf"].is_file()
+    assert m["lora"] == home / "l.gguf"
+
+
+def test_template_harmony_para_gptoss(monkeypatch, tmp_path):
+    """gpt-oss usa formato Harmony, no chatml (regla del repo: todo max_tokens
+    y template del pensador van explicitos)."""
+    gguf = tmp_path / "g.gguf"
+    gguf.write_bytes(b"x")
+    mf = _write_manifest(tmp_path, [
+        {"key": "g", "gguf": "g.gguf", "template": "harmony"}])
+    monkeypatch.setenv("COGNIA_FLEET30_MANIFEST", str(mf))
+    fr.load_manifest(force=True)
+    p = fr.format_prompt("g", "SIS", "USR")
+    assert p.startswith("<|start|>system<|message|>SIS<|end|>")
+    assert "<|start|>user<|message|>USR<|end|>" in p
+    assert p.endswith("<|start|>assistant")
+
+
+def test_manifest_real_del_repo_carga_y_sus_gguf_existen(monkeypatch):
+    """El fleet30.json del repo (reapuntado 2026-08-01) debe cargar y apuntar a
+    GGUF reales SI la instalacion ~/.cognia/models existe en esta maquina."""
+    from pathlib import Path
+    repo_mf = Path(fr.__file__).resolve().parent.parent / "shattering" / "manifests" / "fleet30.json"
+    monkeypatch.setenv("COGNIA_FLEET30_MANIFEST", str(repo_mf))
+    manifest = fr.load_manifest(force=True)
+    assert {"nextcoder7b", "qwen3_4b", "qwen35_4b"} <= set(manifest)
+    if not (Path.home() / ".cognia" / "models").is_dir():
+        import pytest
+        pytest.skip("sin instalacion ~/.cognia/models en esta maquina")
+    faltan = [k for k, m in manifest.items() if not m["gguf"].is_file()]
+    assert faltan == [], f"manifest desincronizado del disco: {faltan}"
+
+
+def test_miembro_sin_gguf_se_saltea_pero_no_rompe(monkeypatch, tmp_path):
+    """El manifest real usa entradas SIN campo 'gguf' (qwen3_embed) para que la
+    oficina conserve al miembro sin que doctor lo cuente como faltante: el
+    registry debe saltearlas en silencio."""
+    gguf = tmp_path / "a.gguf"
+    gguf.write_bytes(b"x")
+    mf = _write_manifest(tmp_path, [
+        {"key": "a", "gguf": "a.gguf"},
+        {"key": "sin_gguf", "role": "embedder", "nota": "sin modelo"}])
+    monkeypatch.setenv("COGNIA_FLEET30_MANIFEST", str(mf))
+    m = fr.load_manifest(force=True)
+    assert "a" in m and "sin_gguf" not in m

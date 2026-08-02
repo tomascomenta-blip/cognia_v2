@@ -26,6 +26,17 @@ import pytest
 from cognia.program_creator.sandbox_runner import run_in_sandbox
 
 
+@pytest.fixture(autouse=True)
+def _forzar_guard(monkeypatch):
+    # Estos tests pinnean la semantica del GUARD IN-PROCESS (la ruta fallback).
+    # Desde 2026-08-01 run_in_sandbox prefiere el AppContainer de Windows cuando
+    # esta disponible, y alli las neutralizaciones del guard (os.system,
+    # __import__ dinamico) las reemplaza el kernel con OTRA semantica: sin este
+    # env los tests medirian el container y no el guard. La seleccion de ruta
+    # se prueba aparte en test_sandbox_ruta_os.py con is_available mockeado.
+    monkeypatch.setenv("COGNIA_SANDBOX_GUARD", "1")
+
+
 class TestPilaresStdlib:
     """Los cuatro modulos que un programa complejo necesita, antes rotos."""
 

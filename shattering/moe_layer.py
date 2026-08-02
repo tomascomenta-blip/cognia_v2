@@ -26,6 +26,13 @@ Integration path:
      layer's .mlp for a MoELayer that copies the original weights to the primary
      expert and adds random-init copies for the others.
   3. Fine-tune to specialize experts per domain.
+
+ESTADO (2026-08-01): codigo EXPERIMENTAL, no cableado al camino de carga.
+Nada de produccion llama a patch_shard_engine()/convert_ffn_to_moe(); solo
+tests ejercitan MoELayer en simulacion. El bloque "moe_balance" de
+orchestrator.status() se quito por muerto (importaba este modulo en cada
+status() para un resultado siempre vacio). NO activar MoE en el camino de
+carga sin un test que pruebe la suite verde con el parche puesto.
 """
 
 from __future__ import annotations

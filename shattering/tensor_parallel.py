@@ -35,6 +35,12 @@ INT4 compatibility (verified, bit-exact — see SHATTERING_V2_DESIGN.md):
 This module runs all T ranks in-process (the all-reduce is just a sum). Phase 2
 replaces the in-process sum with a centralized socket reducer; the math here is
 the golden reference that the networked version must reproduce.
+
+ESTADO (2026-08-01): codigo de INVESTIGACION de Shattering v2 — se conserva a
+proposito. tp_forward_layer_distributed() no tiene caller de produccion: lo
+ejercitan tests/test_tp_allreduce.py, tests/test_tp_generate_distributed.py y
+los demos scripts/tp_two_proc_demo.py / scripts/tp_generate_demo.py (la version
+en red debe reproducir esta referencia bit a bit).
 """
 
 from __future__ import annotations

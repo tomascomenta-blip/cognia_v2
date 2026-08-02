@@ -1,6 +1,15 @@
 """
 cognia/pantalla/vigia.py
 ========================
+SUPERADO (2026-08-01): usar cognia.vision.percepcion.ServicioPercepcion, que
+hace lo mismo (captura + deteccion de cambios a fps bajo) Y ADEMAS pausa sobre
+ventanas sensibles — la proteccion que este modulo declara abajo como faltante.
+Ningun codigo de produccion importa Vigia/Momento (solo tests). PENDIENTE DE
+BORRADO: lo bloquea el re-export en cognia/pantalla/__init__.py (linea
+`from cognia.pantalla.vigia import Vigia` y su entrada en __all__), archivo
+prohibido para esta sesion; ver needs_wiring del reporte 2026-08-01. Al quitar
+ese re-export, borrar este archivo y las clases TestVigia de test_pantalla.py.
+
 Ata captura y deteccion de cambios: mira la pantalla a un ritmo bajo y entrega
 SOLO los frames en los que algo cambio de verdad
 (planes/JARVIS_COGNIA.md 4.3).

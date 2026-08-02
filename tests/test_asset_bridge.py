@@ -62,3 +62,32 @@ def test_build_prompt_lista_sprites():
 def test_wiring_es_idempotente_en_forma():
     # el cableado no debe romper si ASSETS no existe (usa window.ASSITS||{})
     assert "window.ASSETS||{}" in ab._WIRING
+
+
+# ── Puente F4+F5 (2026-08-01): la animacion horneada entra por el mismo lugar ──
+
+def _baked_minimo():
+    # Tabla horneada con la forma que consume el runtime (anim/runtime.py):
+    # frames = lista de capas [{asset, m, w, h, ax, ay}].
+    return {"fps": 30, "loop": True,
+            "frames": [[{"asset": "hero", "m": [1, 0, 0, 1, 0, 0],
+                         "w": 10, "h": 10, "ax": 0.5, "ay": 0.5}]]}
+
+
+def test_inyectar_assets_con_animacion_compone_f4_y_f5():
+    html = "<html><head></head><body><img data-asset=\"hero\"></body></html>"
+    out = ab.inyectar_assets(html, {"hero": "data:image/png;base64,AAA"},
+                             animacion=_baked_minimo(), canvas_id="mi_anim")
+    # F4 intacto: ASSETS + cableado de src siguen presentes
+    assert "window.ASSETS=" in out
+    assert "querySelectorAll('[data-asset]')" in out
+    # F5 compuesto: canvas, runtime y arranque, todo antes de </body>
+    assert 'id="mi_anim"' in out
+    assert "cogniaAnim.reproducir" in out
+    assert out.index("cogniaAnim.reproducir") < out.index("</body>")
+
+
+def test_inyectar_assets_sin_animacion_no_arrastra_anim():
+    out = ab.inyectar_assets("<html><head></head><body></body></html>",
+                             {"x": "data:image/png;base64,Q"})
+    assert "cogniaAnim" not in out

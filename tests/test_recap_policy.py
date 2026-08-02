@@ -46,6 +46,16 @@ def test_memory_levels_has_five_canonical_levels():
     assert set(MEMORY_LEVELS) == {"inmediata", "sesion", "trabajo", "proyectos", "historica"}
 
 
+def test_memory_levels_sesion_apunta_a_pieza_existente():
+    """Regresion: 'sesion' referenciaba memory/conversation_memory.py, que NO
+    existe en el repo. El buffer real de turnos persistente es
+    memory/chat.py ChatHistory."""
+    from cognia.memory.recap_policy import MEMORY_LEVELS
+    assert "conversation_memory" not in MEMORY_LEVELS["sesion"]
+    assert "chat.py" in MEMORY_LEVELS["sesion"]
+    assert (ROOT / "cognia" / "memory" / "chat.py").exists()
+
+
 # ── Integracion CLI (O3 automatico) ──────────────────────────────────────────
 
 def test_recap_command_registered():

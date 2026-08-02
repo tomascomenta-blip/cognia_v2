@@ -59,6 +59,11 @@ PROMPT_TEMPLATES = {
                "<|start_header_id|>assistant<|end_header_id|>\n\n"),
     # Phi-4 family
     "phi": ("<|system|>{system}<|end|><|user|>{user}<|end|><|assistant|>"),
+    # gpt-oss (formato Harmony): el assistant abre sin canal fijo para que el
+    # modelo elija analysis/final por su cuenta.
+    "harmony": ("<|start|>system<|message|>{system}<|end|>"
+                "<|start|>user<|message|>{user}<|end|>"
+                "<|start|>assistant"),
 }
 
 # Estado del registry: singletons por key + fallas cacheadas + orden LRU.
@@ -110,13 +115,16 @@ def load_manifest(force: bool = False) -> dict:
                 gguf = m.get("gguf", "")
                 if not key or not gguf:
                     continue
-                g = Path(gguf)
+                # "~" apunta a la instalacion del usuario (~/.cognia/models);
+                # sin expanduser el manifest del repo no puede referenciarla
+                # de forma portable (desync cazada 2026-08-01).
+                g = Path(gguf).expanduser()
                 if not g.is_absolute():
                     g = path.parent / g
                 m = dict(m, gguf=g)
                 lora = m.get("lora")
                 if lora:
-                    lp = Path(lora)
+                    lp = Path(lora).expanduser()
                     m["lora"] = lp if lp.is_absolute() else path.parent / lp
                 members[key] = m
         except Exception as exc:

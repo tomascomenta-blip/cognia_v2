@@ -296,7 +296,7 @@ class TestVectorCacheHash:
         finally:
             from storage.db_pool import close_pool
             close_pool(path)
-            os.unlink(path)
+            _cleanup_db(path)
 
     def test_hash_xor_cambia_con_nuevos_episodios(self):
         path, conn = self._shared_db()
@@ -320,7 +320,7 @@ class TestVectorCacheHash:
             conn.close()
             from storage.db_pool import close_pool
             close_pool(path)
-            os.unlink(path)
+            _cleanup_db(path)
 
     def test_needs_rebuild_si_hash_cambia(self):
         from cognia.memory.episodic_fast import VectorCache
@@ -343,9 +343,12 @@ class TestVectorCacheHash:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _temp_db_with_data(setup_fn):
-    """Crea DB temporal, llama setup_fn(conn), retorna (path, engine)."""
+    """Crea DB temporal, llama setup_fn(conn), retorna (path, engine).
+
+    2026-08-01: apunta al motor de PRODUCCION (cognia_v3.memory); el gemelo
+    divergente cognia.consolidation_engine fue borrado."""
     import threading
-    from cognia.consolidation_engine import ConsolidationEngine
+    from cognia_v3.memory.consolidation_engine import ConsolidationEngine
 
     tf = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tf.close()
@@ -389,6 +392,21 @@ def _temp_db_with_data(setup_fn):
     return path, engine
 
 
+def _cleanup_db(path: str) -> None:
+    """El motor v3 usa storage/db_pool: drenar el pool antes del unlink
+    (Windows bloquea el borrado con conexiones vivas)."""
+    try:
+        from storage.db_pool import close_pool
+        close_pool(path)
+    except Exception:
+        pass
+    for suffix in ("", "-wal", "-shm"):
+        try:
+            os.unlink(path + suffix)
+        except FileNotFoundError:
+            pass
+
+
 class TestPhaseDecay:
 
     def test_decay_reduce_importancia(self):
@@ -410,59 +428,12 @@ class TestPhaseDecay:
             assert decayed >= 1
             assert row[0] < 2.0
         finally:
-            os.unlink(path)
+            _cleanup_db(path)
 
-    def test_decay_alta_emocion_decae_mas_lento(self):
-        old_ts = (datetime.now() - timedelta(days=20)).isoformat()
-
-        def setup(conn):
-            conn.execute(
-                "INSERT INTO episodic_memory (timestamp, observation, importance, "
-                "emotion_score, access_count, last_access, forgotten) "
-                "VALUES (?, 'emocional', 2.0, 0.8, 0, ?, 0)", (old_ts, old_ts))
-            conn.execute(
-                "INSERT INTO episodic_memory (timestamp, observation, importance, "
-                "emotion_score, access_count, last_access, forgotten) "
-                "VALUES (?, 'neutro', 2.0, 0.0, 0, ?, 0)", (old_ts, old_ts))
-            conn.commit()
-
-        path, engine = _temp_db_with_data(setup)
-        try:
-            engine._phase_decay()
-            _c = sqlite3.connect(path)
-            rows = {r[0]: r[1] for r in _c.execute(
-                "SELECT observation, importance FROM episodic_memory"
-            ).fetchall()}
-            _c.close()
-            assert rows["emocional"] > rows["neutro"]
-        finally:
-            os.unlink(path)
-
-    def test_decay_sin_accesos_decae_mas_rapido(self):
-        old_ts = (datetime.now() - timedelta(days=20)).isoformat()
-
-        def setup(conn):
-            conn.execute(
-                "INSERT INTO episodic_memory (timestamp, observation, importance, "
-                "emotion_score, access_count, last_access, forgotten) "
-                "VALUES (?, 'nunca', 2.0, 0.0, 0, ?, 0)", (old_ts, old_ts))
-            conn.execute(
-                "INSERT INTO episodic_memory (timestamp, observation, importance, "
-                "emotion_score, access_count, last_access, forgotten) "
-                "VALUES (?, 'accedido', 2.0, 0.0, 5, ?, 0)", (old_ts, old_ts))
-            conn.commit()
-
-        path, engine = _temp_db_with_data(setup)
-        try:
-            engine._phase_decay()
-            _c = sqlite3.connect(path)
-            rows = {r[0]: r[1] for r in _c.execute(
-                "SELECT observation, importance FROM episodic_memory"
-            ).fetchall()}
-            _c.close()
-            assert rows["nunca"] < rows["accedido"]
-        finally:
-            os.unlink(path)
+    # NOTA 2026-08-01: los tests de decay DINAMICO (alta emocion decae mas
+    # lento / sin accesos decae mas rapido) se borraron junto con el gemelo
+    # cognia.consolidation_engine: esa modulacion existia solo en el gemelo
+    # nunca cableado; el motor de produccion (v3) usa la formula uniforme.
 
     def test_decay_no_toca_episodios_recientes(self):
         reciente = datetime.now().isoformat()
@@ -479,10 +450,10 @@ class TestPhaseDecay:
             decayed = engine._phase_decay()
             assert decayed == 0
         finally:
-            os.unlink(path)
+            _cleanup_db(path)
 
     def test_decay_no_baja_del_minimo(self):
-        from cognia.consolidation_engine import DECAY_IMPORTANCE_MIN
+        from cognia_v3.memory.consolidation_engine import DECAY_IMPORTANCE_MIN
         old_ts = (datetime.now() - timedelta(days=200)).isoformat()
 
         def setup(conn):
@@ -501,4 +472,4 @@ class TestPhaseDecay:
             _c.close()
             assert row[0] >= DECAY_IMPORTANCE_MIN
         finally:
-            os.unlink(path)
+            _cleanup_db(path)

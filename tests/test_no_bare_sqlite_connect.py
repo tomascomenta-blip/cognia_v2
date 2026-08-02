@@ -62,8 +62,8 @@ KNOWN_BARE_SQLITE = {
     "coordinator/contributor.py",
     "coordinator/federated_store.py",
     "coordinator/registry.py",
-    # Pre-existing debt (raw sqlite3; GC-closed, commits audited 2026-06-16/17).
-    "cognia/consolidation_engine.py",
+    # cognia/consolidation_engine.py borrado 2026-08-01 (gemelo divergente del
+    # motor v3; produccion importa cognia_v3.memory.consolidation_engine).
     # cognia/migrations/runner.py migrado a db_connect_pooled el 2026-08-01.
     "cognia_public_api/key_store.py",
     "tools/auto_editor.py",

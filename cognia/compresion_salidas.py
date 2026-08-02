@@ -23,8 +23,10 @@ Sin dependencias externas: solo stdlib.
 
 from __future__ import annotations
 
-import re
+import logging
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 # Cuantas lineas se dejan antes de recortar el medio.
 MAX_LINEAS_DEFECTO = 40
@@ -62,17 +64,28 @@ def comprimir(texto: str, max_lineas: int = MAX_LINEAS_DEFECTO) -> str:
 
     lineas = _colapsar_repetidas(texto.splitlines())
     if len(lineas) <= max_lineas:
-        return "\n".join(lineas)
+        resultado = "\n".join(lineas)
+        if len(resultado) < len(texto):
+            # Hubo colapso de repetidas: reportar la metrica del modulo.
+            logger.debug("comprimir: colapso de repetidas, ahorro %.1f%%",
+                         ahorro(texto, resultado) * 100)
+        return resultado
 
     n_final   = max(1, int(max_lineas * PROPORCION_FINAL))
     n_inicio  = max(1, max_lineas - n_final)
     recortadas = len(lineas) - n_inicio - n_final
 
-    return "\n".join(
+    resultado = "\n".join(
         lineas[:n_inicio]
         + [MARCA_RECORTE.format(n=recortadas)]
         + lineas[-n_final:]
     )
+    # ahorro() es la metrica del modulo: se emite en el MISMO punto donde se
+    # comprime, para que cualquier caller (cli, program_creator) vea en el log
+    # cuanto contexto se salvo sin tener que recalcularlo.
+    logger.debug("comprimir: %d lineas recortadas, ahorro %.1f%%",
+                 recortadas, ahorro(texto, resultado) * 100)
+    return resultado
 
 
 def comprimir_error(texto: str, max_chars: int = 1200) -> str:
@@ -98,7 +111,9 @@ def comprimir_error(texto: str, max_chars: int = 1200) -> str:
     espacio = max_chars - len(cola) - len(MARCA_RECORTE)
     cabeza  = texto[:max(0, espacio)]
 
-    return f"{cabeza}\n{MARCA_RECORTE.format(n='?')}\n{cola}"
+    resultado = f"{cabeza}\n{MARCA_RECORTE.format(n='?')}\n{cola}"
+    logger.debug("comprimir_error: ahorro %.1f%%", ahorro(texto, resultado) * 100)
+    return resultado
 
 
 def ahorro(original: str, comprimido: str) -> float:

@@ -291,20 +291,35 @@ def evaluar_contenido_web(texto: str, tema: str = None,
     BLOCK si huele a inyección de prompt (patrones ES/EN, gramática ACCION
     del agente, exceso de invisibles) o si no tiene relación con `tema`.
     ALLOW en el resto. Audita cada veredicto (accion='web') en el mismo
-    jsonl que los comandos de shell. Determinista: mismo texto, mismo
-    veredicto."""
+    jsonl que los comandos de shell y lo publica en el bus (evento
+    'sentinel.evaluada', como evaluar_shell) para que el panel de analytics
+    lo cuente. Determinista: mismo texto, mismo veredicto."""
+
+    def _veredicto(nivel, razon_audit, razon_publica=None):
+        # razon_publica: la que ve el modelo/el bus. En inyecciones es
+        # GENÉRICA a propósito — citar el texto que casó re-inyectaría el
+        # payload (misma regla que el mensaje de bloqueo del navegador);
+        # la cita exacta va SOLO a la auditoría jsonl.
+        razon = razon_publica or razon_audit
+        _audit("web", fuente, nivel, razon_audit)
+        try:
+            from cognia.events import emit
+            emit("sentinel.evaluada", accion="web", veredicto=nivel,
+                 razon=razon, fuente=(fuente or "")[:120])
+        except Exception:
+            pass
+        return nivel, razon
+
     crudo = texto or ""
     if not crudo.strip():
-        _audit("web", fuente, BLOCK, "página sin texto extraíble")
-        return BLOCK, "página sin texto extraíble"
+        return _veredicto(BLOCK, "página sin texto extraíble")
 
     n_invis = len(_WEB_INVISIBLES.findall(crudo))
     # >5: los invisibles sueltos existen en páginas legítimas (emoji ZWJ,
     # marcas RTL); decenas seguidas solo las he visto escondiendo texto.
     if n_invis > 5:
-        razon = f"exceso de caracteres invisibles/bidi ({n_invis})"
-        _audit("web", fuente, BLOCK, razon)
-        return BLOCK, razon
+        return _veredicto(BLOCK,
+                          f"exceso de caracteres invisibles/bidi ({n_invis})")
 
     # La razón devuelta es GENÉRICA a propósito: citar el texto que casó
     # re-inyectaría el payload en el contexto del modelo vía el mensaje de
@@ -313,14 +328,14 @@ def evaluar_contenido_web(texto: str, tema: str = None,
     norm = re.sub(r"[ \t]+", " ", _WEB_INVISIBLES.sub("", crudo).lower())
     for s in _WEB_INJ_SUB:
         if s in norm:
-            _audit("web", fuente, BLOCK, f"patrón de inyección: '{s}'")
-            return BLOCK, "patrón de inyección de prompt detectado"
+            return _veredicto(BLOCK, f"patrón de inyección: '{s}'",
+                              "patrón de inyección de prompt detectado")
     for rx in _WEB_INJ_RE:
         m = rx.search(_WEB_INVISIBLES.sub("", crudo))
         if m:
-            _audit("web", fuente, BLOCK,
-                   f"patrón de inyección: '{m.group(0)[:60]}'")
-            return BLOCK, "patrón de inyección de prompt detectado"
+            return _veredicto(BLOCK,
+                              f"patrón de inyección: '{m.group(0)[:60]}'",
+                              "patrón de inyección de prompt detectado")
 
     if tema:
         base = _sin_acentos(tema.lower())
@@ -331,10 +346,8 @@ def evaluar_contenido_web(texto: str, tema: str = None,
             hits = sum(1 for w in palabras if w in cuerpo)
             necesarios = max(1, round(0.2 * len(palabras)))
             if hits < necesarios:
-                razon = (f"irrelevante para '{tema}': {hits}/{len(palabras)} "
-                         f"palabras clave presentes")
-                _audit("web", fuente, BLOCK, razon)
-                return BLOCK, razon
+                return _veredicto(
+                    BLOCK, f"irrelevante para '{tema}': {hits}/{len(palabras)} "
+                           f"palabras clave presentes")
 
-    _audit("web", fuente, ALLOW, "contenido limpio y en tema")
-    return ALLOW, "contenido limpio y en tema"
+    return _veredicto(ALLOW, "contenido limpio y en tema")

@@ -272,3 +272,46 @@ def test_facade_delega_al_impl():
     assert fb.fleet_experts == ["accion"]
     assert fb.activate_expert("accion") is True
     assert fb.active_expert == "accion"
+
+
+# ----------------------------------------- fallback ~/.cognia/loras (2026-08-01)
+def test_fallback_adapters_en_loras_dir(tmp_path, monkeypatch):
+    """Sin adapters.json junto al GGUF, se busca en el dir de LoRAs del usuario
+    (COGNIA_LORAS_DIR / ~/.cognia/loras); 'file' relativo resuelve contra el
+    dir del propio adapters.json."""
+    modelos = tmp_path / "modelos"
+    modelos.mkdir()
+    gguf = _mk_model_dir(modelos)
+    loras = tmp_path / "loras"
+    loras.mkdir()
+    (loras / "rankef-coder14b-f16.gguf").write_bytes(b"x")
+    (loras / "adapters.json").write_text(json.dumps(
+        {"adapters": [{"name": "rankef", "file": "rankef-coder14b-f16.gguf"}]}),
+        encoding="utf-8")
+    monkeypatch.setenv("COGNIA_LORAS_DIR", str(loras))
+    fleet = _fleet_manifest(gguf)
+    assert [a["name"] for a in fleet] == ["rankef"]
+    assert fleet[0]["path"] == loras / "rankef-coder14b-f16.gguf"
+
+
+def test_adapters_junto_al_gguf_tiene_precedencia(tmp_path, monkeypatch):
+    modelos = tmp_path / "modelos"
+    modelos.mkdir()
+    gguf = _mk_model_dir(
+        modelos,
+        manifest={"adapters": [{"name": "local", "file": "a.gguf"}]},
+        adapter_files=["a.gguf"],
+    )
+    loras = tmp_path / "loras"
+    loras.mkdir()
+    (loras / "b.gguf").write_bytes(b"x")
+    (loras / "adapters.json").write_text(json.dumps(
+        {"adapters": [{"name": "global", "file": "b.gguf"}]}), encoding="utf-8")
+    monkeypatch.setenv("COGNIA_LORAS_DIR", str(loras))
+    assert [a["name"] for a in _fleet_manifest(gguf)] == ["local"]
+
+
+def test_sin_loras_dir_sigue_vacio(tmp_path, monkeypatch):
+    monkeypatch.setenv("COGNIA_LORAS_DIR", str(tmp_path / "no_existe"))
+    gguf = _mk_model_dir(tmp_path)
+    assert _fleet_manifest(gguf) == []

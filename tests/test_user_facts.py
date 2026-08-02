@@ -64,3 +64,26 @@ def test_forget_fact_returns_true_on_existing(facts_db):
     # Confirm it is gone
     remaining = facts_db.get_facts(limit=100, min_confidence=0.0)
     assert all(f["id"] != fact_id for f in remaining)
+
+
+def test_get_context_marks_facts_as_referenced(facts_db):
+    """Regresion 2026-08-01: inyectar un hecho en el prompt (get_context)
+    incrementa times_referenced y actualiza last_seen (antes la columna
+    quedaba muerta y reference_fact era huerfana)."""
+    fact_id = facts_db.add_fact("El usuario vive en Bogota", source="declared")
+    before = [f for f in facts_db.get_facts(limit=10, min_confidence=0.0)
+              if f["id"] == fact_id][0]
+    assert before["times_referenced"] == 0
+
+    ctx = facts_db.get_context(limit=5)
+    assert "Bogota" in ctx
+
+    after = [f for f in facts_db.get_facts(limit=10, min_confidence=0.0)
+             if f["id"] == fact_id][0]
+    assert after["times_referenced"] == 1
+    assert after["last_seen"] >= before["last_seen"]
+
+
+def test_get_context_empty_db_does_not_reference(facts_db):
+    """get_context() sobre DB vacia devuelve '' y no rompe la contabilidad."""
+    assert facts_db.get_context(limit=5) == ""

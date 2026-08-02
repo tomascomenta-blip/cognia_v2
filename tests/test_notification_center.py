@@ -113,3 +113,23 @@ class TestQualityAlert:
     def test_boundary_score_040_creates_no_notification(self, nc):
         nc.create_quality_alert("u1", 0.4)
         assert nc.get_unread_count("u1") == 0
+
+
+class TestGetAllDelegatesToGetUnread:
+    """Regresion 2026-08-01: get_all(include_read=False) delega en get_unread()
+    (antes duplicaba el mismo SQL; get_unread quedaba huerfana)."""
+
+    def test_same_rows_same_order(self, nc):
+        nc.create("u1", "A")
+        n2 = nc.create("u1", "B")
+        nc.create("u1", "C")
+        nc.mark_read(n2["id"], "u1")
+        via_get_all = nc.get_all("u1", limit=10, include_read=False)
+        via_unread = nc.get_unread("u1", limit=10)
+        assert via_get_all == via_unread
+        assert all(not n["read"] for n in via_get_all)
+
+    def test_respects_limit(self, nc):
+        for i in range(5):
+            nc.create("u1", f"N{i}")
+        assert len(nc.get_all("u1", limit=3, include_read=False)) == 3

@@ -190,7 +190,39 @@ def from_json(texto: str) -> dict:
     return f
 
 
-# ── tool `crear_flujo` (Cognia organiza el flujo desde NL) ──────────────────
+# ── resolucion de la ruta de un flujo guardado (para ejecutar_flujo) ────────
+def _resolver_ruta_flujo(args: str):
+    """Ruta del .flujo.json a ejecutar. Sin args -> el .flujo.json del
+    workspace (donde persiste crear_flujo). Con args: ruta literal si existe,
+    si no se busca en el workspace (con y sin el sufijo .flujo.json).
+    Devuelve un Path existente o None."""
+    from pathlib import Path
+    nombre = (args or "").strip()
+    candidatos = []
+    try:
+        from cognia.agents.workers.dev_tools import _root_actual
+        root = Path(_root_actual())
+    except Exception:
+        root = None
+    if not nombre:
+        if root is not None:
+            candidatos.append(root / ".flujo.json")
+    else:
+        candidatos.append(Path(nombre))
+        if root is not None:
+            candidatos.append(root / nombre)
+            if not nombre.endswith(".flujo.json"):
+                candidatos.append(root / f"{nombre}.flujo.json")
+    for c in candidatos:
+        try:
+            if c.is_file():
+                return c
+        except OSError:
+            continue
+    return None
+
+
+# ── tools `crear_flujo` + `ejecutar_flujo` ──────────────────────────────────
 def register(tool_decorator) -> None:
     @tool_decorator(
         "crear_flujo",
@@ -212,9 +244,64 @@ def register(tool_decorator) -> None:
             dest = Path(_root_actual()) / ".flujo.json"
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(to_json(flujo), encoding="utf-8")
+            # lienzo visual estilo n8n al lado del JSON (flow_view.export
+            # estaba escrito y sin llamador de produccion): best-effort, el
+            # flujo queda usable aunque el HTML falle.
+            try:
+                from cognia.agent.flow_view import export as _export_html
+                _export_html(flujo, str(dest.with_suffix("")) + ".html",
+                             title=f"Cognia · Flujo: {texto[:50]}")
+            except Exception:
+                pass
         except Exception:
             pass
         pasos = "\n".join(f"  {i+1}. [{n['tool']}] {n['args'][:60]}"
                           for i, n in enumerate(flujo["nodos"]))
         return (f"RESULTADO crear_flujo: {len(flujo['nodos'])} pasos\n{pasos}\n"
-                "(guardado en .flujo.json)")
+                "(guardado en .flujo.json; lienzo en .flujo.html)")
+
+    @tool_decorator(
+        "ejecutar_flujo",
+        "ejecutar_flujo <nombre|ruta.flujo.json> -- ejecuta un flujo guardado "
+        "(DAG de tools) en orden topologico; sin args usa el .flujo.json del "
+        "workspace",
+        danger=False)
+    def _t_ejecutar_flujo(args, ctx):
+        ctx = ctx if isinstance(ctx, dict) else {}
+        # guardia anti-recursion: un flujo cuyo nodo llama ejecutar_flujo se
+        # ejecutaria a si mismo sin fin (run_tool despacha cualquier tool).
+        if ctx.get("_flujo_en_curso"):
+            return ("RESULTADO ejecutar_flujo ERROR: ya hay un flujo en "
+                    "ejecucion (un flujo no puede ejecutar otro flujo)")
+        ruta = _resolver_ruta_flujo(args)
+        if ruta is None:
+            return ("RESULTADO ejecutar_flujo ERROR: no encontre el flujo "
+                    f"'{(args or '').strip() or '.flujo.json'}' (crealo antes "
+                    "con crear_flujo)")
+        try:
+            flujo = from_json(ruta.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return f"RESULTADO ejecutar_flujo ERROR: {ruta.name} invalido: {exc}"
+        # dispatcher REAL del registro: import local (tools.py importa este
+        # modulo al registrar -> import a nivel de modulo seria un ciclo).
+        from cognia.agent.tools import TOOLS, run_tool
+        log = ctx.get("print_fn") if callable(ctx.get("print_fn")) else None
+        ctx["_flujo_en_curso"] = True
+        try:
+            res = ejecutar(flujo, ctx, run_tool,
+                           tool_existe=lambda n: n in TOOLS, log=log)
+        except FlowError as exc:
+            return f"RESULTADO ejecutar_flujo ERROR: {exc}"
+        finally:
+            ctx.pop("_flujo_en_curso", None)
+        lineas = []
+        for nid in res["orden"]:
+            estado = ("saltado" if nid in res["saltados"]
+                      else "error" if nid in res["errores"] else "ok")
+            lineas.append(f"  {nid}: {estado} - "
+                          f"{str(res['salidas'].get(nid, ''))[:80]}")
+        n_err = len(res["errores"])
+        cabeza = (f"RESULTADO ejecutar_flujo {ruta.name}: "
+                  f"{len(res['orden'])} nodos, {n_err} con error, "
+                  f"{len(res['saltados'])} saltados")
+        return cabeza + "\n" + "\n".join(lineas)

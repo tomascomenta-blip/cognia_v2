@@ -172,9 +172,19 @@ class UserFactsMemory:
         """Return a formatted string for injection into the system prompt.
 
         Returns "" if no facts are stored.
+
+        Cada hecho inyectado se marca como referenciado (times_referenced+1,
+        last_seen=ahora): inyectarlo en el prompt ES usarlo, y sin esta marca
+        la columna times_referenced quedaba muerta y el orden de get_facts()
+        (times_referenced DESC) no reflejaba el uso real.
         """
         facts = self.get_facts(limit=limit, min_confidence=0.5)
         if not facts:
             return ""
+        for f in facts:
+            try:
+                self.reference_fact(f["id"])
+            except Exception:
+                pass  # best-effort: la inyeccion no se cae por la contabilidad
         lines = "\n".join(f"  - {f['fact']}" for f in facts)
         return f"Lo que Cognia sabe de ti:\n{lines}"

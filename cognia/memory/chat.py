@@ -31,6 +31,12 @@ class ChatHistory:
     def log(self, role: str, content: str, label_used: str = None,
             confidence: float = 0.0, response_id: str = None,
             session_id: str = None, cwd: str = None):
+        """Inserta el mensaje y devuelve su id (rowid de chat_history).
+
+        Devolver el id permite que el caller cree punteros 'msg' en el context
+        map (context_engine.record_conversation con user_msg_id/assistant_msg_id)
+        sin duplicar el texto. Retrocompatible: los callers que ignoran el
+        retorno siguen funcionando igual."""
         conn = db_connect(self.db)
         try:
             c = conn.cursor()
@@ -42,6 +48,7 @@ class ChatHistory:
             """, (datetime.now().isoformat(), role, content, label_used, confidence,
                   response_id, session_id or self._session_id, cwd or self._cwd))
             conn.commit()
+            return c.lastrowid
         finally:
             conn.close()
 

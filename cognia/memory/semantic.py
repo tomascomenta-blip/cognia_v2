@@ -36,6 +36,21 @@ class SemanticMemory:
             )
             return
         vector = list(vector)
+        # Deteccion de contradicciones ANTES de abrir la conexion de escritura
+        # (detect_contradiction -> get_concept abre y devuelve su propia conexion
+        # del pool; no anidar acquires). Si la nueva evidencia contradice un
+        # concepto establecido (similitud < 0.2 con confianza > 0.6), la
+        # actualizacion RESTA confianza en vez de sumarla: el concepto queda
+        # marcado como dudoso hasta que nueva evidencia consistente lo repare.
+        contradiction = None
+        try:
+            contradiction = self.detect_contradiction(concept, description, vector)
+        except Exception as exc:
+            logger.warning(
+                "detect_contradiction fallo, se continua sin penalizar",
+                extra={"op": "semantic.update_concept",
+                       "context": f"concept={concept} err={exc}"},
+            )
         conn = None
         try:
             conn = db_connect(self.db)
@@ -61,7 +76,12 @@ class SemanticMemory:
                 old_emo  = row[4] or 0.0
                 alpha    = 1.0 / support
                 new_vec  = [alpha * n + (1 - alpha) * o for n, o in zip(vector, old_vec)]
-                new_conf = min(1.0, old_conf + confidence_delta)
+                if contradiction is not None:
+                    # Evidencia contradictoria: baja la confianza en la misma
+                    # magnitud que una confirmacion la subiria.
+                    new_conf = max(0.0, old_conf - abs(confidence_delta))
+                else:
+                    new_conf = min(1.0, old_conf + confidence_delta)
                 new_emo  = (old_emo * (support - 1) + emotion_score) / support
                 c.execute("""
                     UPDATE semantic_memory

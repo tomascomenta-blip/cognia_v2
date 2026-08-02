@@ -297,17 +297,27 @@ def _find_gguf() -> Optional[Path]:
 # ── LoRA adapter args ─────────────────────────────────────────────────────────
 
 def _fleet_manifest(gguf_path: Optional[Path]) -> list:
-    """Manifiesto del fleet: adapters.json junto al GGUF, o [].
+    """Manifiesto del fleet: adapters.json junto al GGUF o en ~/.cognia/loras, o [].
 
     Formato: {"adapters": [{"name": "accion", "file": "cognia3b_v1_f16.gguf"}]}
-    "file" es relativo al dir del GGUF (o absoluto). Entradas con archivo
-    inexistente se saltean con warning (el server arranca igual con el resto).
-    El ORDEN de la lista define los ids que llama-server les asigna (0..n-1).
+    "file" es relativo al dir del PROPIO adapters.json (o absoluto). Entradas con
+    archivo inexistente se saltean con warning (el server arranca igual con el
+    resto). El ORDEN de la lista define los ids que llama-server asigna (0..n-1).
+
+    Busqueda (primero que exista):
+      1. <dir del GGUF>/adapters.json  — layout historico junto al modelo
+      2. ~/.cognia/loras/adapters.json — donde viven los LoRA reales del usuario
+         (el layout model_shards/qwen-coder-3b-q4/ ya no se crea; desync cazada
+         2026-08-01). COGNIA_LORAS_DIR la overridea (tests/instalaciones raras).
     """
     if gguf_path is None:
         return []
-    manifest = Path(gguf_path).parent / "adapters.json"
-    if not manifest.is_file():
+    loras_dir = Path(os.environ.get("COGNIA_LORAS_DIR", "").strip()
+                     or Path.home() / ".cognia" / "loras")
+    candidatos = [Path(gguf_path).parent / "adapters.json",
+                  loras_dir / "adapters.json"]
+    manifest = next((c for c in candidatos if c.is_file()), None)
+    if manifest is None:
         return []
     try:
         data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -321,9 +331,9 @@ def _fleet_manifest(gguf_path: Optional[Path]) -> list:
         if not name or not file_:
             logger.warning("[llama_backend] adapters.json: entrada sin name/file: %r", entry)
             continue
-        p = Path(file_)
+        p = Path(file_).expanduser()
         if not p.is_absolute():
-            p = Path(gguf_path).parent / p
+            p = manifest.parent / p
         if not p.is_file():
             logger.warning("[llama_backend] adapters.json: no existe %s (salteado)", p)
             continue

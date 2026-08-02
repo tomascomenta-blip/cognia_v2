@@ -48,6 +48,17 @@ def test_get_recent_turns_roundtrip_full_content_in_order(chat_db):
     assert len(turns[1]["content"]) == 300
 
 
+def test_log_devuelve_el_id_de_la_fila(chat_db):
+    """log() devuelve el rowid insertado: es lo que permite crear punteros
+    'msg' en el context map (context_engine.record_conversation con
+    user_msg_id/assistant_msg_id) sin duplicar el texto."""
+    ch = ChatHistory(chat_db)
+    mid_1 = ch.log(role="user", content="primer mensaje")
+    mid_2 = ch.log(role="assistant", content="segundo mensaje")
+    assert isinstance(mid_1, int) and isinstance(mid_2, int)
+    assert mid_2 > mid_1
+
+
 def test_get_recent_turns_respects_limit_keeps_latest(chat_db):
     ch = ChatHistory(chat_db)
     for i in range(10):

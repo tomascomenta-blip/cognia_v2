@@ -53,6 +53,27 @@ class MultiHopEngine:
         if source == target:
             return []
 
+        # Fast-path networkx: KnowledgeGraph.graph_path resuelve el camino en
+        # el grafo EN MEMORIA (una sola carga) en vez de una query SQL por
+        # vecino del BFS. Si no hay networkx, el camino no existe o algun hop
+        # no se puede etiquetar con su relacion, cae al BFS de siempre.
+        fast = getattr(self._kg, "graph_path", None)
+        node_path = fast(source, target) if callable(fast) else None
+        if isinstance(node_path, list) and 2 <= len(node_path) <= max_hops + 1:
+            triples: list = []
+            for a, b in zip(node_path, node_path[1:]):
+                rel = next((nb.get("relation", "related_to")
+                            for nb in self._kg.get_neighbors(a)
+                            if nb.get("concept") == b), None)
+                if rel is None:
+                    # el borde existe en networkx pero get_neighbors no lo
+                    # devolvio (corte de LIMIT): BFS decide, no inventamos
+                    triples = []
+                    break
+                triples.append((a, rel, b))
+            if triples:
+                return triples
+
         # BFS: each queue entry = (current_concept, path_so_far)
         # path_so_far is a list of (subject, predicate, object) triples
         queue: deque = deque()

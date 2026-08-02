@@ -189,13 +189,6 @@ class AchievementSystem:
                 "SELECT COUNT(*) FROM user_achievements WHERE user_id = ?",
                 (user_id,),
             ).fetchone()
-            points_row = conn.execute(
-                "SELECT COALESCE(SUM(c.points), 0) "
-                "FROM user_achievements ua "
-                "JOIN achievements_catalog c ON c.id = ua.achievement_id "
-                "WHERE ua.user_id = ?",
-                (user_id,),
-            ).fetchone()
             latest_row = conn.execute(
                 "SELECT c.name FROM user_achievements ua "
                 "JOIN achievements_catalog c ON c.id = ua.achievement_id "
@@ -207,6 +200,7 @@ class AchievementSystem:
         return {
             "unlocked": int(unlocked_row[0]) if unlocked_row else 0,
             "total":    int(total_row[0]) if total_row else 0,
-            "points":   int(points_row[0]) if points_row else 0,
+            # puntos: una sola fuente de verdad (get_points), no SQL duplicado
+            "points":   self.get_points(user_id),
             "latest":   latest_row[0] if latest_row else None,
         }

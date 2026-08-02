@@ -126,22 +126,17 @@ class NotificationCenter:
     def get_all(
         self, user_id: str, limit: int = 50, include_read: bool = True
     ) -> list[dict]:
-        if include_read:
-            sql = (
-                "SELECT id, user_id, title, body, level, read, created_at, source "
-                "FROM notifications WHERE user_id = ? "
-                "ORDER BY created_at DESC LIMIT ?"
-            )
-            params = (user_id, limit)
-        else:
-            sql = (
-                "SELECT id, user_id, title, body, level, read, created_at, source "
-                "FROM notifications WHERE user_id = ? AND read = 0 "
-                "ORDER BY created_at DESC LIMIT ?"
-            )
-            params = (user_id, limit)
+        # La rama sin leidas ES get_unread(): delegar en vez de duplicar el SQL
+        # (asi el CLI /notif y la API de escritorio pasan por la misma consulta).
+        if not include_read:
+            return self.get_unread(user_id, limit=limit)
+        sql = (
+            "SELECT id, user_id, title, body, level, read, created_at, source "
+            "FROM notifications WHERE user_id = ? "
+            "ORDER BY created_at DESC LIMIT ?"
+        )
         with get_pool(self._db).get() as conn:
-            rows = conn.execute(sql, params).fetchall()
+            rows = conn.execute(sql, (user_id, limit)).fetchall()
         return [_row_to_dict(r) for r in rows]
 
     def mark_read(self, notification_id: int, user_id: str) -> bool:

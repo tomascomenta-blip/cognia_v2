@@ -132,3 +132,52 @@ def test_record_conversation(db_path):
     # un turno con assistant vacio -> solo cuenta el user
     n2 = ce.record_conversation(ai, "otra pregunta", "")
     assert n2 == 1
+
+
+def test_record_conversation_with_msg_ids(db_path):
+    """Consolidacion: record_conversation delega en record_message cuando el
+    caller pasa los ids de chat_history -> punteros 'msg' losslesss, sin
+    duplicar el texto."""
+    from storage.db_pool import get_pool
+    with get_pool(db_path).get() as conn:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS chat_history ("
+            "id INTEGER PRIMARY KEY, role TEXT, content TEXT)"
+        )
+        conn.execute("INSERT INTO chat_history (id, role, content) "
+                     "VALUES (10, 'user', 'pregunta con id')")
+        conn.execute("INSERT INTO chat_history (id, role, content) "
+                     "VALUES (11, 'assistant', 'respuesta con id')")
+
+    ai = FakeAI(db_path)
+    n = ce.record_conversation(ai, "pregunta con id", "respuesta con id",
+                               user_msg_id=10, assistant_msg_id=11)
+    assert n == 2
+
+    cm = ContextMap(db_path=db_path, project="conversacion")
+    ptrs = cm.pointers()
+    assert len(ptrs) == 2
+    assert all(p["source_kind"] == "msg" for p in ptrs)
+    assert {p["source_ref"] for p in ptrs} == {"10", "11"}
+    assert all(p["inline_text"] is None for p in ptrs)
+    # lossless: el texto se resuelve leyendo chat_history por id
+    assert {cm.resolve(p["id"]) for p in ptrs} == \
+        {"pregunta con id", "respuesta con id"}
+
+
+def test_retrieve_delegates_to_query_with_gap_fill(db_path, monkeypatch):
+    """retrieve() ya no reimplementa consultar->rellenar->reintentar: delega en
+    gap_filler.query_with_gap_fill con hybrid+ondisk."""
+    ai = FakeAI(db_path)
+    llamadas = {}
+
+    def fake_qwgf(cm, _ai, query, embed, **kw):
+        llamadas["query"] = query
+        llamadas["hybrid"] = kw.get("hybrid")
+        llamadas["ondisk"] = kw.get("ondisk")
+        return [{"id": 1, "score": 1.0, "text": "sentinela"}]
+
+    monkeypatch.setattr(ce, "query_with_gap_fill", fake_qwgf)
+    res = ce.retrieve(ai, "consulta")
+    assert res[0]["text"] == "sentinela"
+    assert llamadas == {"query": "consulta", "hybrid": True, "ondisk": True}

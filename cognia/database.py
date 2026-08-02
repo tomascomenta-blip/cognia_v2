@@ -8,6 +8,9 @@ import logging as _log
 import os as _os
 import sqlite3
 from datetime import datetime, timedelta
+
+from storage.db_pool import db_connect_pooled
+
 from .config import DB_PATH, KG_STOPWORDS
 
 _encrypt_warned = False
@@ -52,17 +55,21 @@ def _run_migrations(conn: sqlite3.Connection):
     current = row[0] if row else 0
 
     # Migration 1: add feedback_weight to episodic_memory
+    # NOTA: sin `with conn:` — la conexion puede venir del pool
+    # (_PooledConnection.__exit__ la DEVUELVE al pool al salir del with, y el
+    # resto de la funcion seguiria escribiendo sobre una conexion liberada).
+    # Commit explicito inmediato para conservar la atomicidad practica.
     if current < 1:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(episodic_memory)").fetchall()}
-        with conn:
-            if "feedback_weight" not in cols:
-                conn.execute(
-                    "ALTER TABLE episodic_memory ADD COLUMN feedback_weight REAL DEFAULT 1.0"
-                )
-            if row:
-                conn.execute("UPDATE schema_version SET version = 1")
-            else:
-                conn.execute("INSERT INTO schema_version (version) VALUES (1)")
+        if "feedback_weight" not in cols:
+            conn.execute(
+                "ALTER TABLE episodic_memory ADD COLUMN feedback_weight REAL DEFAULT 1.0"
+            )
+        if row:
+            conn.execute("UPDATE schema_version SET version = 1")
+        else:
+            conn.execute("INSERT INTO schema_version (version) VALUES (1)")
+        conn.commit()
 
     # chat_history: ensure session_id + cwd exist (per-session /resume).
     # Deliberately version-AGNOSTIC and idempotent rather than gated on
@@ -78,11 +85,10 @@ def _run_migrations(conn: sqlite3.Connection):
     if has_chat:
         cols = {r[1] for r in conn.execute(
             "PRAGMA table_info(chat_history)").fetchall()}
-        with conn:
-            if "session_id" not in cols:
-                conn.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT")
-            if "cwd" not in cols:
-                conn.execute("ALTER TABLE chat_history ADD COLUMN cwd TEXT")
+        if "session_id" not in cols:
+            conn.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT")
+        if "cwd" not in cols:
+            conn.execute("ALTER TABLE chat_history ADD COLUMN cwd TEXT")
 
     conn.commit()
 
@@ -99,7 +105,10 @@ def init_db(path: str = DB_PATH):
             "Run: python scripts/migrate_db_encrypt.py"
         )
         _encrypt_warned = True
-    conn = db_connect(path)
+    # Migrado al pool (deuda 2026-07-16): init_db abre y cierra en la misma
+    # funcion, el caso seguro para poolear. close() devuelve la conexion al
+    # pool en vez de cerrarla; los commits explicitos de abajo se conservan.
+    conn = db_connect_pooled(path)
     c = conn.cursor()
 
     # ── Tablas heredadas de v2 ─────────────────────────────────────────
@@ -286,7 +295,8 @@ def limpiar_episodios_ruido(path: str = DB_PATH) -> dict:
       1. Marca como olvidados episodios sin label + importancia baja + >7 días
       2. Elimina triples KG con stopwords o tokens muy cortos
     """
-    conn = db_connect(path)
+    # Migrado al pool: abre y cierra en la misma funcion (patron seguro).
+    conn = db_connect_pooled(path)
     c = conn.cursor()
     cutoff = (datetime.now() - timedelta(days=7)).isoformat()
     c.execute("""

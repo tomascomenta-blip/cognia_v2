@@ -12,7 +12,7 @@ were never fully indexed) and retries once. See cognia/context/CONTEXT_MAP_DESIG
 
 from cognia.context.context_map import ContextMap
 from cognia.context.context_session import record_message
-from cognia.context.gap_filler import fill_gaps_ondisk
+from cognia.context.gap_filler import query_with_gap_fill
 
 
 def _embed_fn(ai):
@@ -32,15 +32,17 @@ def retrieve(ai, query, project="default", budget_tokens=4000, top_k=50,
              min_score=0.25, gap_fill=True):
     """Recupera spans relevantes (hibrido BM25+vector). Si el mejor score < min_score
     y gap_fill, indexa huecos on-disk de las fuentes conocidas y reintenta UNA vez.
-    Devuelve la lista de query_hybrid ({id,score,text,...})."""
+    Devuelve la lista de query_hybrid ({id,score,text,...}).
+
+    El patron consultar->rellenar->reintentar vive en gap_filler.query_with_gap_fill
+    (hybrid+ondisk); aqui solo se arma el ContextMap y el embedder."""
     cm = ContextMap(db_path=getattr(ai, "db", None), project=project)
     embed = _embed_fn(ai)
-    res = cm.query_text_hybrid(query, embed, budget_tokens=budget_tokens, top_k=top_k)
-    top = res[0]["score"] if res else -1.0
-    if gap_fill and top < min_score:
-        fill_gaps_ondisk(cm, ai, project)
-        res = cm.query_text_hybrid(query, embed, budget_tokens=budget_tokens, top_k=top_k)
-    return res
+    if gap_fill:
+        return query_with_gap_fill(cm, ai, query, embed, budget_tokens=budget_tokens,
+                                   top_k=top_k, min_score=min_score,
+                                   hybrid=True, ondisk=True)
+    return cm.query_text_hybrid(query, embed, budget_tokens=budget_tokens, top_k=top_k)
 
 
 def list_projects(ai):
@@ -85,15 +87,25 @@ def stats(ai, project="default"):
     return ContextMap(db_path=getattr(ai, "db", None), project=project).stats()
 
 
-def record_conversation(ai, user_text, assistant_text, project="conversacion"):
-    """Guarda el turno (user + assistant) como punteros 'text' inline rankeables.
+def record_conversation(ai, user_text, assistant_text, project="conversacion",
+                        user_msg_id=None, assistant_msg_id=None):
+    """Guarda el turno (user + assistant) como punteros rankeables.
+    Si el caller pasa el id de chat_history del mensaje (user_msg_id /
+    assistant_msg_id), delega en record_message: puntero 'msg' que apunta a la
+    fila existente SIN duplicar el texto (lossless). Sin id, guarda un puntero
+    'text' inline (comportamiento historico).
     Best-effort: try/except -> 0; nunca levanta. Devuelve cuantos punteros agrego."""
     n = 0
     try:
         cm = ContextMap(db_path=getattr(ai, "db", None), project=project)
         embed = _embed_fn(ai)
-        for role, txt in (("user", user_text), ("assistant", assistant_text)):
+        for role, txt, mid in (("user", user_text, user_msg_id),
+                               ("assistant", assistant_text, assistant_msg_id)):
             if not txt or not txt.strip():
+                continue
+            if mid is not None:
+                if record_message(cm, ai, mid, txt, project=project) is not None:
+                    n += 1
                 continue
             vec = embed(txt)
             cm.add_pointer("text", "", inline_text=txt, vector=vec,

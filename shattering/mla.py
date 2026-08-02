@@ -24,6 +24,11 @@ Integration:
   2. Call patch_shard_engine_mla(engine) to replace each layer's self_attn.
   3. Thread session_id through forward() calls — ShardEngine.forward() gains
      a session_id parameter; ShardEngine.clear_cache(session_id) on expiry.
+
+ESTADO (2026-08-01): codigo EXPERIMENTAL, no cableado al camino de carga.
+Nada de produccion llama a patch_shard_engine_mla(); solo tests. NO activarlo
+en ShardEngine/orchestrator sin un test que pruebe la suite verde con el parche
+puesto (regla del repo: nada experimental en el camino de carga sin gate).
 """
 
 from __future__ import annotations

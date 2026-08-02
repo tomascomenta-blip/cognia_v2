@@ -648,32 +648,12 @@ def get_fatigue_monitor() -> CognitiveFatigueMonitor:
     return _global_monitor
 
 
-# ══════════════════════════════════════════════════════════════════════
-# DECORADOR DE CONVENIENCIA
-# ══════════════════════════════════════════════════════════════════════
-
-def track_cognitive_cost(func):
-    """
-    Decorador que mide el costo cognitivo de una función.
-    Úsalo en métodos costosos de Cognia para alimentar el monitor.
-    
-    Ejemplo:
-        @track_cognitive_cost
-        def observe(self, observation):
-            ...
-    """
-    def wrapper(*args, **kwargs):
-        monitor = get_fatigue_monitor()
-        monitor.start_cycle()
-        try:
-            result = func(*args, **kwargs)
-            monitor.end_cycle(ops_count=1)
-            return result
-        except Exception:
-            monitor.end_cycle(ops_count=1)
-            raise
-    wrapper.__name__ = func.__name__
-    return wrapper
+# NOTA 2026-08-01: el decorador track_cognitive_cost fue borrado (superado).
+# cognia.py instrumenta el ciclo a mano (start_cycle en observe() y end_cycle
+# con ops_count/cache_hits/cache_misses/expensive reales), que es mas rico que
+# el ops_count=1 fijo del decorador; y decorar cualquier funcion que corra
+# DENTRO del ciclo observe habria pisado _cycle_start y corrompido la medicion
+# del ciclo exterior. Cero llamadores en el repo (verificado por grep).
 
 
 # ══════════════════════════════════════════════════════════════════════
