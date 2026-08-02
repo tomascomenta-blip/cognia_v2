@@ -152,7 +152,7 @@ _BANNER_RAW = """
 ╚██████╗   ╚██████╔╝   ╚██████╔╝   ██║ ╚████║   ██║   ██║  ██║
  ╚═════╝    ╚═════╝     ╚═════╝    ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝
 
-  v3.2 · Fases 1-13 · Sistema cognitivo local
+  Sistema cognitivo local · memoria + grafo + agente
   /ayuda para todos los comandos
 """
 
@@ -1609,37 +1609,64 @@ def _print_startup_panel():
 
     right_text = Text()
     _r = right_text.append
-    _r("Slash commands\n",              "bold cyan")
-    _r("─" * 33 + "\n",               "dim bright_green")
-    _r("  /yo          ",              "cyan");  _r("introspección\n",          "dim white")
-    _r("  /dormir      ",              "cyan");  _r("ciclo de sueño\n",         "dim white")
-    _r("  /observar    ",              "cyan");  _r("<texto>\n",                "dim white")
-    _r("  /aprender    ",              "cyan");  _r("<texto> | <label>\n",      "dim white")
-    _r("  /grafo       ",              "cyan");  _r("<concepto>\n",             "dim white")
-    _r("  /inferir     ",              "cyan");  _r("<concepto>\n",             "dim white")
-    _r("  /memoria     ",              "cyan");  _r("estado de memoria\n",      "dim white")
-    _r("  /modulos     ",              "cyan");  _r("modulos activos\n",        "dim white")
-    _r("  /exportar    ",              "cyan");  _r("exportar historial\n",     "dim white")
-    _r("  /debug       ",              "cyan");  _r("toggle logs INFO\n",       "dim white")
-    _r("  /tema        ",              "cyan");  _r("ciclar tema visual\n",     "dim white")
+    # Comandos de arranque: un set curado y ACTUAL (antes listaba comandos
+    # viejos y omitia /modelo, /hacer, /crear). El catalogo completo: /ayuda.
+    _r("Para empezar\n",                "bold bright_green")
+    _r("─" * 34 + "\n",                "dim bright_green")
+    _r("  chat        ", "bold cyan"); _r("escribe y conversa\n",      "dim white")
+    _r("  /hacer      ", "bold cyan"); _r("<tarea> agente autonomo\n", "dim white")
+    _r("  /crear      ", "bold cyan"); _r("<idea> genera un programa\n","dim white")
+    _r("  /modelo     ", "bold cyan"); _r("elegir modelo o flota\n",   "dim white")
+    _r("  /memoria    ", "bold cyan"); _r("estado de memoria\n",       "dim white")
+    _r("  /grafo      ", "bold cyan"); _r("<concepto> del saber\n",    "dim white")
+    _r("  /tutor      ", "bold cyan"); _r("aprende cualquier tema\n",  "dim white")
+    _r("  /doctor     ", "bold cyan"); _r("diagnostico del sistema\n", "dim white")
     _r("\n", "")
-    _r("  Texto libre ", "dim");        _r("->", "bright_green"); _r(" chat cognitivo\n", "dim")
-    _r("  Tab ", "dim bright_green");   _r("autocompletar  ", "dim")
-    _r("↑↓ ", "dim bright_green");      _r("historial\n", "dim")
-    _r("\n", "")
-    _r("  Escribe ", "dim");            _r("/ayuda", "bold bright_green"); _r(" para todo.\n", "dim")
+    _r("  Tab ", "bright_green");   _r("completar   ", "dim")
+    _r("↑↓ ", "bright_green"); _r("historial   ", "dim")
+    _r("/ayuda ", "bold bright_green"); _r("todo\n", "dim")
 
-    grid = Table.grid(expand=True, padding=(0, 2))
-    grid.add_column(ratio=3, overflow="fold")
-    grid.add_column(ratio=2)
-    grid.add_row(left_text, right_text)
+    try:
+        from cognia import __version__ as _ver
+    except Exception:
+        _ver = "4"
+
+    # Responsivo: el gato Braille mide ~63 columnas; con la columna de
+    # comandos (~34) la vista a dos columnas necesita ~100. En terminales
+    # angostas se apilan (banner arriba, comandos abajo) en vez de romperse.
+    _ancho = getattr(_console, "width", 80) or 80
+    if _ancho >= 100:
+        cuerpo = Table.grid(expand=True, padding=(0, 2))
+        cuerpo.add_column(ratio=3, overflow="crop", no_wrap=True)
+        cuerpo.add_column(ratio=2)
+        cuerpo.add_row(left_text, right_text)
+    else:
+        cuerpo = Table.grid(expand=True)
+        cuerpo.add_column()
+        cuerpo.add_row(left_text)
+        cuerpo.add_row(right_text)
 
     _console.print(Panel(
-        grid,
-        title="[bright_green]Cognia v3.2[/bright_green]",
+        cuerpo,
+        title=f"[bright_green]COGNIA[/bright_green] [dim bright_green]v{_ver}[/dim bright_green]",
+        subtitle="[dim bright_green]sistema cognitivo local[/dim bright_green]",
         border_style="bright_green",
         padding=(0, 1),
     ))
+    # Linea de estado compacta (barata, sin red): modelo elegido + modo. Da
+    # contexto inmediato de que backend hablara, al estilo de gh/charm.
+    try:
+        _gguf = os.environ.get("LLAMA_GGUF_PATH", "").strip()
+        _modelo = Path(_gguf).stem if _gguf else "auto-deteccion"
+        _modo = _load_config().get("modelo_modo", "flota")
+        _console.print(
+            f"  [dim]modelo[/dim] [cyan]{_escape(_modelo)}[/cyan]   "
+            f"[dim]modo[/dim] [cyan]{_modo}[/cyan]   "
+            f"[dim]tema[/dim] [cyan]{_THEME_ORDER[_theme_idx]}[/cyan]",
+            highlight=False,
+        )
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
