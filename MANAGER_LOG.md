@@ -12027,3 +12027,35 @@ COMPUESTO (0,55·sim + 0,20·confianza + 0,15·importancia) y los 104 hechos
 enciclopédicos del seed llevan confianza/importancia altas: la memoria del
 usuario cae por debajo del puesto 25. NO se tocó la fórmula: cambiar pesos de
 ranking exige medición pre-registrada, no un parche al cierre de sesión.
+
+## 2026-08-01 (noche-4) — Modo TUTOR: Cognia enseña cualquier tema, en localhost
+
+Pedido del dueño: "crea un localhost con Cognia que sea modo DeepTutor: que el
+modelo tutor sea Cognia y pueda aprender cualquier tema con esa herramienta".
+
+Entregado `cognia/tutor/` + `python -m cognia.tutor` → http://127.0.0.1:8899
+- `motor.py`: estudiar_tema / responder_duda / evaluar_respuesta. El material
+  NO sale de la memoria paramétrica del modelo: se INVESTIGA con
+  knowledge/navegador.py (Chromium + centinela anti-inyección) y la lección se
+  sintetiza SOLO sobre ese material citado. Esa es la parte que permite
+  enseñar un tema que el modelo no vio en el entrenamiento.
+- `servidor.py` + UI de un archivo. Loopback a propósito (el remoto de :8777
+  está expuesto a la LAN y por eso exige token; este es local).
+- Reutiliza lo que YA existía y solo alcanzaba el CLI: las tarjetas van a
+  learning/spaced_repetition.py (SM-2), así el tutor no se olvida al cerrar.
+- Degradación honesta en 3 niveles: con LLM+web / sin material (no se llama al
+  modelo: no se fabrica autoridad) / sin LLM (material real sin sintetizar,
+  declarado). Ninguna ruta devuelve vacío.
+
+E2E REAL verificado (red + 14B vivo): tema "protocolo QUIC" → modo=llm+web,
+3 fuentes reales (ionos, humanlevel, xataka), 2 páginas DESCARTADAS por el
+centinela, 4 puntos, 5 preguntas, 4 tarjetas creadas; duda respondida anclada
+(modo=llm); respuesta del alumno corregida (calidad 3/5, retro específica) y
+el repaso SM-2 se actualizó (7 pendientes). Acentos verificados en bytes.
+
+De paso, un falso positivo cazado: la guarda test_no_bare_sqlite_connect
+escaneaba `.repo_reverse/` (los clones AJENOS que cachea repo_a_prompt) y
+reportaba los sqlite3.connect() DE DEEPTUTOR como violaciones de este repo —
+usar una herramienta nuestra rompía la suite entera. Excluido, con regresión.
+
+Suite completa: 5761 passed / 0 failed.

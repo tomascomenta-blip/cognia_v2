@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cognia Tutor</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --linea:#262d36; --txt:#e6edf3;
+    --tenue:#8b949e; --acento:#4f9cf9; --ok:#3fb950; --mal:#f85149;
+    --aviso:#d29922;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{padding:18px 22px;border-bottom:1px solid var(--linea);
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{font-size:19px;margin:0;font-weight:600}
+  .estado{font-size:12.5px;color:var(--tenue)}
+  main{max-width:920px;margin:0 auto;padding:22px}
+  .caja{background:var(--panel);border:1px solid var(--linea);
+    border-radius:10px;padding:18px;margin-bottom:18px}
+  .fila{display:flex;gap:10px;flex-wrap:wrap}
+  input,textarea{flex:1;min-width:200px;background:#0d1117;color:var(--txt);
+    border:1px solid var(--linea);border-radius:8px;padding:11px 13px;
+    font:inherit}
+  textarea{min-height:74px;resize:vertical}
+  button{background:var(--acento);color:#06121f;border:0;border-radius:8px;
+    padding:11px 18px;font:inherit;font-weight:600;cursor:pointer}
+  button:hover{filter:brightness(1.1)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.sec{background:transparent;color:var(--acento);
+    border:1px solid var(--linea)}
+  h2{font-size:15px;margin:0 0 12px;color:var(--tenue);
+    text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+  .punto{border-left:3px solid var(--acento);padding:4px 0 4px 13px;
+    margin-bottom:14px}
+  .punto b{display:block;margin-bottom:3px}
+  .preg{border-top:1px solid var(--linea);padding-top:14px;margin-top:14px}
+  .retro{margin-top:9px;padding:11px 13px;border-radius:8px;font-size:14px}
+  .retro.ok{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.35)}
+  .retro.mal{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.35)}
+  .aviso{background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.35);
+    padding:10px 13px;border-radius:8px;font-size:13.5px;margin-bottom:14px}
+  a{color:var(--acento)}
+  .fuente{font-size:13px;color:var(--tenue);margin-bottom:5px}
+  .desc{font-size:12.5px;color:var(--mal);margin-top:8px}
+  .pill{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:99px;
+    border:1px solid var(--linea);color:var(--tenue);margin-left:8px}
+  .cargando{color:var(--tenue);font-style:italic}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cognia Tutor</h1>
+  <span class="estado" id="estado">cargando…</span>
+</header>
+<main>
+  <div class="caja">
+    <h2>Estudiar un tema</h2>
+    <div class="fila">
+      <input id="tema" placeholder="cualquier tema: 'transformers', 'la guerra de los mil días', 'fotosíntesis'…" />
+      <button id="btn-estudiar">Estudiar</button>
+    </div>
+    <div id="progreso" style="margin-top:10px"></div>
+  </div>
+
+  <div id="leccion"></div>
+
+  <div class="caja" id="caja-duda" style="display:none">
+    <h2>Pregúntale al tutor</h2>
+    <div class="fila">
+      <input id="duda" placeholder="¿qué no entendiste?" />
+      <button id="btn-duda">Preguntar</button>
+    </div>
+    <div id="respuesta-duda"></div>
+  </div>
+
+  <div class="caja">
+    <h2>Repaso pendiente <span class="pill" id="pill-repaso">—</span></h2>
+    <button class="sec" id="btn-repaso">Ver qué toca repasar hoy</button>
+    <div id="repaso"></div>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = t => String(t ?? "").replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let LEC = null;
+
+async function api(ruta, datos){
+  const op = datos ? {method:'POST', headers:{'Content-Type':'application/json'},
+                      body: JSON.stringify(datos)} : {};
+  const r = await fetch(ruta, op);
+  const j = await r.json().catch(() => ({error:'respuesta no-JSON del servidor'}));
+  if(!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+
+api('/api/estado').then(e => {
+  $('#estado').textContent = 'backend: ' + e.backend;
+}).catch(() => $('#estado').textContent = 'sin conexión con el servidor');
+
+$('#btn-estudiar').onclick = async () => {
+  const tema = $('#tema').value.trim();
+  if(!tema) return;
+  $('#btn-estudiar').disabled = true;
+  $('#progreso').innerHTML = '<span class="cargando">investigando en la web, ' +
+    'filtrando con el centinela y preparando la lección… (puede tardar ~1 min)</span>';
+  $('#leccion').innerHTML = '';
+  try{
+    LEC = await api('/api/estudiar', {tema});
+    pintar(LEC);
+    $('#caja-duda').style.display = '';
+    $('#progreso').innerHTML = '';
+  }catch(e){
+    $('#progreso').innerHTML = '<div class="aviso">No se pudo estudiar: ' +
+      esc(e.message) + '</div>';
+  }
+  $('#btn-estudiar').disabled = false;
+};
+
+function pintar(l){
+  let h = '<div class="caja"><h2>' + esc(l.tema) +
+    '<span class="pill">' + esc(l.modo) + '</span></h2>';
+  if(l.aviso) h += '<div class="aviso">' + esc(l.aviso) + '</div>';
+  h += '<p>' + esc(l.resumen) + '</p>';
+  (l.puntos || []).forEach(p => {
+    h += '<div class="punto"><b>' + esc(p.titulo) + '</b>' +
+         esc(p.explicacion) + '</div>';
+  });
+  if(l.fuentes && l.fuentes.length){
+    h += '<h2 style="margin-top:18px">Fuentes</h2>';
+    l.fuentes.forEach(f => {
+      h += '<div class="fuente">· <a href="' + esc(f.url) +
+        '" target="_blank" rel="noopener">' + esc(f.titulo) + '</a> [' +
+        esc(f.via) + ']</div>';
+    });
+  }
+  if(l.descartadas && l.descartadas.length){
+    h += '<div class="desc">Descartadas por el centinela: ' +
+      l.descartadas.length + ' — ' +
+      esc(l.descartadas.map(d => d.razon).join(' | ').slice(0,220)) + '</div>';
+  }
+  h += '</div>';
+
+  if(l.preguntas && l.preguntas.length){
+    h += '<div class="caja"><h2>Comprueba lo que entendiste</h2>';
+    l.preguntas.forEach((q, i) => {
+      h += '<div class="preg"><b>' + (i+1) + '. ' + esc(q.pregunta) + '</b>' +
+challenge_placeholder(i) + '</div>';
+    });
+    h += '</div>';
+  }
+  $('#leccion').innerHTML = h;
+
+  (l.preguntas || []).forEach((q, i) => {
+    const b = document.getElementById('bq' + i);
+    if(b) b.onclick = () => corregir(i);
+  });
+}
+
+function challenge_placeholder(i){
+  return '<div class="fila" style="margin-top:9px">' +
+    '<textarea id="rq' + i + '" placeholder="tu respuesta…"></textarea>' +
+    '<button id="bq' + i + '">Corregir</button></div>' +
+    '<div id="fq' + i + '"></div>';
+}
+
+async function corregir(i){
+  const btn = document.getElementById('bq' + i);
+  btn.disabled = true;
+  try{
+    const r = await api('/api/responder',
+      {indice: i, respuesta: document.getElementById('rq' + i).value});
+    document.getElementById('fq' + i).innerHTML =
+      '<div class="retro ' + (r.correcto ? 'ok' : 'mal') + '">' +
+      '<b>' + (r.correcto ? '✓' : '✗') + ' calidad ' + r.calidad + '/5</b> — ' +
+      esc(r.retro) + (r.repaso_actualizado ?
+        ' <span class="pill">repaso actualizado</span>' : '') + '</div>';
+  }catch(e){
+    document.getElementById('fq' + i).innerHTML =
+      '<div class="retro mal">' + esc(e.message) + '</div>';
+  }
+  btn.disabled = false;
+}
+
+$('#btn-duda').onclick = async () => {
+  const duda = $('#duda').value.trim();
+  if(!duda) return;
+  $('#btn-duda').disabled = true;
+  $('#respuesta-duda').innerHTML = '<p class="cargando">pensando…</p>';
+  try{
+    const r = await api('/api/preguntar', {duda});
+    $('#respuesta-duda').innerHTML = '<div class="retro ok">' +
+      esc(r.respuesta).replace(/\n/g,'<br>') +
+      '<span class="pill">' + esc(r.modo) + '</span></div>';
+  }catch(e){
+    $('#respuesta-duda').innerHTML = '<div class="retro mal">' +
+      esc(e.message) + '</div>';
+  }
+  $('#btn-duda').disabled = false;
+};
+
+$('#btn-repaso').onclick = async () => {
+  try{
+    const r = await api('/api/repaso');
+    const p = r.pendientes || [];
+    $('#pill-repaso').textContent = p.length + ' hoy';
+    $('#repaso').innerHTML = p.length
+      ? p.map(c => '<div class="punto"><b>' + esc(c.front) + '</b>' +
+          esc(c.back).slice(0,300) + '</div>').join('')
+      : '<p class="cargando">Nada pendiente. Estudia un tema y vuelve mañana.</p>';
+  }catch(e){
+    $('#repaso').innerHTML = '<div class="retro mal">' + esc(e.message) + '</div>';
+  }
+};
+</script>
+</body>
+</html>

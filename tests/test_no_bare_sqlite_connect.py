@@ -35,10 +35,14 @@ ROOT = Path(__file__).resolve().parent.parent
 #     2026-07-20 al pedirle a Cognia un gestor de tareas con SQLite: cumplio el
 #     encargo y el guardian marco su salida como violacion del repo.
 #   generated_games/ - lo mismo, salida de game_manager.
+#   .repo_reverse/ - clones AJENOS que cachea repo_a_prompt para analizar
+#     repos de terceros. Cazado 2026-08-01: analizar HKUDS/DeepTutor dejo su
+#     codigo ahi y el guardian reporto los sqlite3.connect() DE DEEPTUTOR
+#     como violaciones de ESTE repo.
 _EXCLUDE_DIR_PARTS = {
     ".git", "__pycache__", "node_modules", "venv", ".venv",
     "tests", "scripts", "build", "dist",
-    "generated_programs", "generated_games",
+    "generated_programs", "generated_games", ".repo_reverse",
 }
 
 
@@ -129,3 +133,12 @@ def test_baseline_has_no_stale_entries():
         "from KNOWN_BARE_SQLITE so the baseline ratchets down: "
         + ", ".join(sorted(cleaned))
     )
+
+
+def test_clones_ajenos_de_repo_reverse_excluidos():
+    """Regresion 2026-08-01: repo_a_prompt cachea clones de repos DE TERCEROS
+    en .repo_reverse/ para analizarlos. Analizar HKUDS/DeepTutor dejo su
+    codigo ahi y el guardian marco los sqlite3.connect() de DeepTutor como
+    violaciones de este repo — un falso positivo que rompe la suite entera
+    solo por haber usado una herramienta nuestra."""
+    assert _is_excluded_part(".repo_reverse")
