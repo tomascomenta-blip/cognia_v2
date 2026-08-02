@@ -688,8 +688,11 @@ _CMD_DESCRIPTIONS = {
     "/shell-kill":      "Matar shell en background       <id>",
     "/monitores":       "Monitores en background  [salida <id> <regex> | archivo <ruta> | url <url> [caida] | stop <id>]",
     "/modo-permiso":    "Ver o cambiar modo de permisos  [automatico|manual|bypass]",
+    "/modo":            "Modo de UI: sencillo (default) | avanzado (muestra logs y todas las tools)",
     "/velocidad":       "Mecanismo de decode  [clasico|dspark|gemma|difusion-dspark]; sin arg = estado",
     "/hibrido":         "Velocidad hibrida on|off (Cognia elige el modo por operacion; profundo=clasico)",
+    "/chimera":         "Loop cognitivo end-to-end sobre una consulta  <consulta>",
+    "/tutor":           "Abrir el tutor web (localhost:8899) que ensena cualquier tema  [--lan]",
     "/tareas":          "Tablero de tareas con checkboxes (alias de /tarea-lista)",
     # Memoria y aprendizaje
     "/yo":              "Mostrar perfil de usuario",
@@ -6835,7 +6838,10 @@ def repl():
             partes = raw[len("/hecho "):].split("|")
             _run(raw, lambda: ai.add_fact(
                 partes[0].strip(), partes[1].strip(), partes[2].strip()), color="bright_green")
-        elif raw.startswith("/hecho"):
+        elif raw.startswith("/hecho") and not raw.startswith("/hechos-"):
+            # `and not /hechos-`: sin la guarda este catch-all capturaba
+            # /hechos-solidos (empieza por "/hecho") y su rama real quedaba
+            # inalcanzable (mismo patron que /plan vs /plan-, /meta vs /meta-).
             _print_line("[warn_cl]Uso: /hecho <sujeto> | <predicado> | <objeto>[/warn_cl]")
         elif raw.startswith("/predecir "):
             concepto = raw[len("/predecir "):].strip()
@@ -6933,9 +6939,14 @@ def repl():
                 _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
         elif raw == "/estilo_info":
             try:
+                # StyleEngine no tiene __init__(db) ni get_style_info(): la API
+                # real es load(user_id, db_path) + stats() (bug cazado
+                # 2026-08-01, antes esta rama siempre caia al except).
                 from cognia.learning.style_engine import StyleEngine
-                se   = StyleEngine(ai.db)
-                info = se.get_style_info()
+                uid  = getattr(ai.cognitive_profile, "user_id", "default") \
+                    if getattr(ai, "cognitive_profile", None) else "default"
+                se   = StyleEngine.load(uid, ai.db)
+                info = se.stats()
                 _show_response("\n".join(f"{k}: {v}" for k, v in info.items()), "cyan")
             except Exception as e:
                 _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
@@ -7273,6 +7284,37 @@ def repl():
             else:
                 _print_line(f"[warn_cl]Modo actual: {get_ui_mode()}. "
                             f"Uso: /modo sencillo | /modo avanzado[/warn_cl]")
+
+        # -- Chimera: loop cognitivo end-to-end sobre una consulta -----------
+        elif raw == "/chimera" or raw.startswith("/chimera "):
+            _q = raw[len("/chimera "):].strip() if raw.startswith("/chimera ") else ""
+            if not _q:
+                _print_line("[warn_cl]Uso: /chimera <consulta>[/warn_cl]")
+            else:
+                try:
+                    from cognia.chimera import ChimeraSystem
+                    _sys = ChimeraSystem(db_path=ai.db)
+                    _res = _sys.run(_q)
+                    _show_response(_sys.format_report(_res), "cyan", respuesta_final=True)
+                except Exception as _ce:
+                    _print_line(f"[warn_cl]Chimera no disponible: {_escape(str(_ce))}[/warn_cl]")
+
+        # -- Tutor: servidor web que ensena cualquier tema (localhost:8899) ---
+        elif raw == "/tutor" or raw.startswith("/tutor "):
+            _tut_arg = raw[len("/tutor "):].strip() if raw.startswith("/tutor ") else ""
+            _tut_scr = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "cognia", "tutor", "__main__.py")
+            try:
+                import subprocess
+                _cmd = [sys.executable, "-m", "cognia.tutor"]
+                if _tut_arg:
+                    _cmd += _tut_arg.split()
+                _print_line("[detail]Abriendo el tutor en http://localhost:8899 "
+                            "(Ctrl-C para volver al REPL)...[/detail]")
+                subprocess.run(_cmd)
+            except Exception as _te:
+                _print_line(f"[warn_cl]No se pudo abrir el tutor: {_escape(str(_te))}[/warn_cl]")
 
         # -- Estado del subsistema agente (daemon, tools generadas, wishlist) --
         elif raw == "/agente" or raw == "/agente estado" or raw.startswith("/agente "):

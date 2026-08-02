@@ -23,6 +23,9 @@ Adding a new migration:
 import sqlite3
 import logging
 
+from storage import db_pool
+from storage.db_pool import db_connect_pooled, close_pool
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,19 +93,42 @@ class MigrationRunner:
         row = conn.execute("SELECT version FROM schema_version").fetchone()
         return row[0] if row else 0
 
+    @staticmethod
+    def _app_version() -> str:
+        """Version de Cognia que aplica la migracion (para la columna app_version)."""
+        try:
+            from cognia import __version__
+            return __version__
+        except Exception:
+            return "desconocida"
+
     def _set_version(self, conn: sqlite3.Connection, version: int) -> None:
+        # Una DB vieja puede tener schema_version(version) a secas:
+        # applied_at/app_version recien existen tras la migracion 3. Escribir
+        # esas columnas a ciegas reventaba aqui ("no such column: applied_at")
+        # ANTES de llegar a la migracion 3, que era justo la que las creaba.
+        # Por eso se detectan las columnas reales y solo se escriben las que hay.
         from datetime import datetime, timezone
-        now = datetime.now(timezone.utc).isoformat()
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(schema_version)").fetchall()}
+        campos = {"version": version}
+        if "applied_at" in cols:
+            campos["applied_at"] = datetime.now(timezone.utc).isoformat()
+        if "app_version" in cols:
+            campos["app_version"] = self._app_version()
+
         existing = conn.execute("SELECT version FROM schema_version").fetchone()
         if existing:
+            asignaciones = ", ".join(f"{c}=?" for c in campos)
             conn.execute(
-                "UPDATE schema_version SET version=?, applied_at=?",
-                (version, now),
+                f"UPDATE schema_version SET {asignaciones}",
+                tuple(campos.values()),
             )
         else:
+            nombres = ", ".join(campos)
+            marcas = ", ".join("?" for _ in campos)
             conn.execute(
-                "INSERT INTO schema_version (version) VALUES (?)",
-                (version,),
+                f"INSERT INTO schema_version ({nombres}) VALUES ({marcas})",
+                tuple(campos.values()),
             )
 
     def run(self) -> int:
@@ -110,10 +136,18 @@ class MigrationRunner:
         Apply all pending migrations.
         Returns the number of migrations applied.
         """
-        conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        conn.text_factory = str
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
+        # Regla del repo: sin sqlite3.connect() directo -> storage/db_pool.
+        # El pool ya aplica WAL/foreign_keys/text_factory al crear la conexion,
+        # asi que los PRAGMA que vivian aqui sobran.
+        #
+        # RIESGO MEDIDO del pool aqui: crear el pool retiene 5 conexiones
+        # abiertas al archivo, y este runner corre one-shot en init_db sobre
+        # paths que el caller puede borrar/mover despues (en Windows el unlink
+        # falla con WinError 32; lo cazaron 2 tests de test_consolidation.py).
+        # Por eso: si el pool para este path NO existia antes, se drena al
+        # terminar (close_pool). Si ya existia, otros lo usan y se deja vivo.
+        pool_preexistente = self._db_path in db_pool._pools
+        conn = db_connect_pooled(self._db_path)
 
         try:
             current = self._current_version(conn)
@@ -140,8 +174,22 @@ class MigrationRunner:
 
             return applied
 
+        except Exception:
+            # close() devuelve la conexion al pool SIN rollback: si una
+            # migracion falla a mitad, la transaccion abierta la heredaria
+            # el proximo caller del pool. Rollback explicito antes de soltar.
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise
+
         finally:
             conn.close()
+            if not pool_preexistente:
+                # Migracion one-shot: no dejar 5 handles retenidos sobre un
+                # archivo que el caller puede querer borrar (ver nota arriba).
+                close_pool(self._db_path)
 
 
 def run_migrations(db_path: str) -> int:

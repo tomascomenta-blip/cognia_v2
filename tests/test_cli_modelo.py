@@ -96,37 +96,41 @@ class TestSlashModelo(unittest.TestCase):
     """(b)-(d) comportamiento del comando sin servidor."""
 
     def test_sin_args_no_revienta_sin_servidor(self):
+        # Nuevo contrato (2026-08-01): /modelo sin args lista los GGUF REALES
+        # de ~/.cognia/models via discover_gguf_registry (registry dinamico),
+        # con el modo (flota/unico) y sin reventar sin server/orquestador.
         import cognia.cli as cli_mod
         with patch.dict(os.environ):
             os.environ.pop("LLAMA_GGUF_PATH", None)
             out = _capture(cli_mod._slash_modelo, _ai_sin_orquestador(), "")
         self.assertIn("Modelo activo", out)
-        self.assertIn("3b", out)
-        self.assertIn("7b", out)
-        # Marcadores ASCII de existencia en disco
-        self.assertTrue("[OK]" in out or "[NO]" in out)
+        self.assertIn("Modo:", out)
+        self.assertIn("Disponibles en disco", out)
 
-    def test_clave_invalida_error_claro_sin_tocar_env(self):
+    def test_patron_sin_match_error_claro_sin_tocar_env(self):
+        # Un patron que no matchea ningun GGUF avisa y NO toca el env.
         import cognia.cli as cli_mod
         with patch.dict(os.environ):
             os.environ.pop("LLAMA_GGUF_PATH", None)
-            out = _capture(cli_mod._slash_modelo, _ai_sin_orquestador(), "13b")
+            out = _capture(cli_mod._slash_modelo, _ai_sin_orquestador(),
+                           "modelo-que-no-existe-xyz")
             self.assertIsNone(os.environ.get("LLAMA_GGUF_PATH"),
-                              "clave invalida no debe setear LLAMA_GGUF_PATH")
-        self.assertIn("desconocida", out)
-        self.assertIn("13b", out)
+                              "patron sin match no debe setear LLAMA_GGUF_PATH")
+        self.assertIn("Ningun GGUF matchea", out)
 
-    def test_gguf_ausente_en_disco_no_toca_env(self):
+    def test_directorio_vacio_no_toca_env(self, ):
+        # Con COGNIA_MODELS_DIR apuntando a un dir vacio no hay candidatos:
+        # cualquier patron avisa y no toca el env.
+        import tempfile
         import cognia.cli as cli_mod
-        import shattering.model_constants as mc
-        with patch.dict(mc.MODEL_GGUF_REGISTRY,
-                        {"fake": "model_shards/no_existe/fake.gguf"}):
+        with tempfile.TemporaryDirectory() as d:
             with patch.dict(os.environ):
+                os.environ["COGNIA_MODELS_DIR"] = d
                 os.environ.pop("LLAMA_GGUF_PATH", None)
                 out = _capture(cli_mod._slash_modelo, _ai_sin_orquestador(), "fake")
                 self.assertIsNone(os.environ.get("LLAMA_GGUF_PATH"),
-                                  "GGUF ausente no debe setear LLAMA_GGUF_PATH")
-        self.assertIn("no encontrado", out)
+                                  "sin candidatos no debe setear LLAMA_GGUF_PATH")
+        self.assertIn("Ningun GGUF matchea", out)
 
     def test_registrado_en_help_y_dispatch(self):
         import cognia.cli as cli_mod

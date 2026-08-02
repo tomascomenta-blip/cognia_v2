@@ -72,11 +72,15 @@ class CacheAnalytics:
             hits_last_hour = sum(1 for ts in self._hit_timestamps if ts > one_hour_ago)
 
             cache_size = 0
-            if self._cache and hasattr(self._cache, "_entries"):
+            if self._cache is not None:
                 try:
-                    cache_size = len(self._cache._entries)
+                    # API publica real: SemanticResponseCache.stats() devuelve
+                    # {"entries": int, "total_hits": int, "hit_rate": float}.
+                    # El atributo privado _entries no existe (el cache vive en
+                    # SQLite), por eso antes siempre reportaba 0.
+                    cache_size = int(self._cache.stats().get("entries", 0))
                 except Exception:
-                    pass
+                    cache_size = 0
 
         return {
             "total_hits": total_hits,

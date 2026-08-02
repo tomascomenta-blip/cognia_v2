@@ -501,6 +501,10 @@ Comandos:
   contribucion       Tu ledger en la economia del enjambre (tier, params, RPM)
   bbrain             Regenerar bbrain.md (doc viva del repo y su entorno)
   fleet              Estado de la flota local de modelos GGUF
+  tui                Interfaz TUI a pantalla completa (textual)
+  voz                Asistente de voz Jarvis (requiere extra [voz])
+  remoto             Servidor de control remoto desde el movil
+  tutor              Tutor web que ensena cualquier tema (localhost:8899)  [--lan]
   help / --help      Mostrar esta ayuda
 
 Opciones de install-weights:
@@ -575,6 +579,18 @@ def main() -> None:
         _cmd_bbrain()
     elif cmd == "fleet":
         _cmd_fleet()
+    elif cmd == "tui":
+        from cognia.tui.__main__ import main as _tui_main
+        _tui_main()
+    elif cmd == "voz":
+        from cognia.voz.jarvis import main as _voz_main
+        raise SystemExit(_voz_main(sys.argv[2:]))
+    elif cmd == "remoto":
+        from cognia.remoto.servidor import main as _remoto_main
+        raise SystemExit(_remoto_main())
+    elif cmd in ("tutor", "estudiar"):
+        from cognia.tutor.servidor import main as _tutor_main
+        raise SystemExit(_tutor_main(sys.argv[2:]))
     elif cmd == "":
         from cognia.first_run import run_wizard
         run_wizard(force=False)

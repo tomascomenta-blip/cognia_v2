@@ -12,7 +12,10 @@ Mejoras implementadas:
 
 from flask import Flask, request, jsonify, render_template_string, session
 import os, sys, json, threading, time
+import logging
 from datetime import datetime
+
+logger = logging.getLogger("cognia.web_app")
 
 # -- Config -------------------------------------------------------------------
 try:
@@ -1201,10 +1204,12 @@ def _basic_autonomous_cycle():
             pending = ai.curiosity_engine.get_pending_proposals()
             if pending:
                 proposal = pending[0]
-                from researcher import research_question
+                # Ruta real de los modulos: viven en cognia.research_engine,
+                # no como modulos top-level (import roto detectado en auditoria)
+                from cognia.research_engine.researcher import research_question
                 result = research_question(proposal)
                 if result:
-                    from knowledge_integrator import integrate_research
+                    from cognia.research_engine.knowledge_integrator import integrate_research
                     db = getattr(ai.episodic, "db", "cognia_memory.db")
                     integration = integrate_research(result, ai, db)
                     return {
@@ -1212,8 +1217,11 @@ def _basic_autonomous_cycle():
                         "message":      "Investigue: " + str(result.topic) + " (+" + str(integration.triples_added) + " triples)",
                         "searches_done": 1
                     }
-    except Exception:
-        pass
+    except ImportError as exc:
+        # Antes un `except Exception: pass` ancho tragaba el ImportError en
+        # silencio y el ciclo degradaba a sleep sin dejar rastro. Se estrecha
+        # a ImportError y se loguea para que un import roto futuro sea visible.
+        logger.error("Ciclo autonomo basico: import roto, se degrada a sleep: %s", exc)
 
     try:
         ai._sleep_sync()

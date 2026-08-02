@@ -388,6 +388,34 @@ def check_fleet30() -> bool:
     return _ok(f"fleet30: {len(manifest)} miembros con GGUF en disco")
 
 
+def check_sentinel() -> bool:
+    """El centinela (cognia/agent/sentinel.py) es el cerebro antidanios: una
+    compuerta determinista pre-accion, default-ON. Nada lo verificaba (no
+    tenia check propio, auditoria 2026-08-01), asi que una desactivacion o una
+    regresion en su clasificacion pasaba inadvertida. Aca: (1) reporta si esta
+    ON/OFF, (2) smoke determinista de que un `rm -rf /` se clasifica BLOCK, y
+    (3) el estado de la auditoria ~/.cognia/sentinel_audit.jsonl."""
+    try:
+        from cognia.agent.sentinel import (
+            sentinel_enabled, clasificar_shell, BLOCK,
+        )
+    except Exception as exc:
+        return _warn("centinela no importable", str(exc))
+    nivel, _ = clasificar_shell("rm -rf /")
+    if nivel != BLOCK:
+        # Regresion real: el guard dejo de bloquear un comando destructivo.
+        return _fail("centinela: 'rm -rf /' NO se clasifica BLOCK",
+                     f"clasificado como {nivel!r} -- revisar _BLOCK_SUB/_BLOCK_RE")
+    estado = "ON" if sentinel_enabled() else "OFF (COGNIA_SENTINEL=0)"
+    path = os.path.join(os.path.expanduser("~"), ".cognia", "sentinel_audit.jsonl")
+    aud = ""
+    if os.path.isfile(path):
+        aud = f" -- auditoria: {os.path.getsize(path)} bytes"
+    if not sentinel_enabled():
+        return _warn(f"centinela {estado}", "el guard anti-danios esta apagado" + aud)
+    return _ok(f"centinela {estado}, 'rm -rf /' -> BLOCK{aud}")
+
+
 def run_all() -> int:
     # config.env ANTES de cualquier check. El bloque __main__ de abajo ya lo
     # hacia, pero el wrapper scripts/cognia_doctor.py y el /doctor del CLI
@@ -410,6 +438,7 @@ def run_all() -> int:
         ("Backend LLM",       check_llm_backend),
         ("Flota por roles",   check_flota),
         ("Auditoria de backend", check_backend_audit),
+        ("Centinela (anti-danios)", check_sentinel),
         ("FLEET-30",          check_fleet30),
         ("Configuracion",     check_env),
         ("Base de datos",     check_db),

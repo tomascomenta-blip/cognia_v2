@@ -115,3 +115,36 @@ def test_hit_rate_zero_with_no_records():
     assert result["hit_rate"] == 0.0
     assert result["total_hits"] == 0
     assert result["total_misses"] == 0
+
+
+def test_cache_size_reads_real_semantic_cache(tmp_path):
+    # Regresion: get_analytics leia self._cache._entries (atributo privado que
+    # SemanticResponseCache NO tiene: las entradas viven en SQLite), por lo que
+    # cache_size siempre reportaba 0. El fix usa la API publica stats()["entries"].
+    from storage.db_pool import SQLitePool, close_pool
+    from cognia.semantic_cache import SemanticResponseCache
+
+    db_file = str(tmp_path / "analytics_src.db")
+    pool = SQLitePool(db_file)
+    try:
+        src = SemanticResponseCache(db_pool=pool)
+        src.store("que es python", "un lenguaje de programacion", model="test")
+        src.store("capital de francia", "paris", model="test")
+
+        a = CacheAnalytics(cache_instance=src)
+        result = a.get_analytics()
+
+        assert src.stats()["entries"] == 2
+        assert result["cache_size"] == 2
+    finally:
+        close_pool(db_file)
+
+
+def test_cache_size_zero_si_el_cache_no_expone_stats():
+    # Un cache sin stats() no debe romper get_analytics: cae a 0 en silencio
+    class _SinStats:
+        pass
+
+    a = CacheAnalytics(cache_instance=_SinStats())
+    result = a.get_analytics()
+    assert result["cache_size"] == 0
