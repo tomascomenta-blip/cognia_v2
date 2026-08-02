@@ -76,6 +76,7 @@ from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from cognia.monitoring.metrics_collector import MetricsCollector as _MetricsCollector
+from cognia.ux.messages import UXMessages as _UX  # strings de usuario (no filtrar excepciones)
 
 _metrics = _MetricsCollector()
 
@@ -780,8 +781,10 @@ async def infer(req: InferRequest, request: Request, response: "fastapi.Response
     try:
         result = await _orch.ainfer(_infer_prompt)
     except Exception as exc:
+        # El detalle interno queda en el log; al cliente se le da un mensaje
+        # generico (no filtrar texto de excepcion al exterior).
         _api_logger.error("Inference failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_UX.API_UNAVAILABLE)
 
     # Store in semantic cache — safe fallback
     try:
@@ -3242,6 +3245,13 @@ def critique_score():
         trend = "declining"
     else:
         trend = "stable"
+    # Dispara una alerta de calidad si la media cae (create_quality_alert era
+    # huerfana; el metodo ya filtra internamente los scores >= umbral).
+    try:
+        if _notification_center is not None and avg_7d is not None:
+            _notification_center.create_quality_alert("default", float(avg_7d))
+    except Exception:
+        pass
     return {"avg_score_7d": avg_7d, "trend": trend}
 
 

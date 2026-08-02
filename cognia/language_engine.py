@@ -1100,13 +1100,29 @@ class LanguageEngine:
         else:
             final_prompt = optimized.prompt
 
-        # Inyectar contexto de metas y curiosity — fire-and-forget safe
+        # Inyectar contexto de metas y curiosity — fire-and-forget safe.
+        # last_user_text=question activa GoalTracker.auto_detect_progress (detecta
+        # avance de metas a partir del mensaje actual). Para usuario sin metas /
+        # sin coincidencias, get_context_block devuelve "" -> no-op.
         if _context_injector is not None:
             _ctx_block = _context_injector.get_context_block(
-                getattr(self, "_user_id", "local")
+                getattr(self, "_user_id", "local"),
+                last_user_text=question,
             )
             if _ctx_block:
                 final_prompt = _ctx_block + "\n\n" + final_prompt
+
+        # Inyectar objetivo activo del usuario (GoalAndPatternEngine, PASO 7).
+        # active_goal_hint() devuelve "" si no hay objetivo activo o es debil,
+        # y ai puede no exponer _goal_engine -> ambos casos son no-op.
+        try:
+            _goal_engine = getattr(ai, "_goal_engine", None)
+            if _goal_engine is not None:
+                _goal_hint = _goal_engine.active_goal_hint()
+                if _goal_hint:
+                    final_prompt = _goal_hint + "\n\n" + final_prompt
+        except Exception:
+            pass
 
         # Inyectar temas recurrentes consolidados desde memoria a largo plazo
         try:
@@ -1410,6 +1426,19 @@ class LanguageEngine:
             if _persona_instr:
                 system_prompt = _persona_instr + "\n\n" + system_prompt
 
+        # style instruction — estilo de escritura aprendido del usuario
+        # (StyleEngine, Fase 6). get_prompt_instruction() devuelve "" mientras
+        # no haya estilo aprendido (usuario nuevo): en ese caso el prompt no
+        # cambia (inyeccion aditiva, no-op).
+        try:
+            from cognia.learning.style_engine import StyleEngine as _StyleEngine
+            _se = _StyleEngine.load(getattr(self, "_user_id", "local"), self.db_path)
+            _style_instr = _se.get_prompt_instruction()
+            if _style_instr:
+                system_prompt = system_prompt + " " + _style_instr
+        except Exception:
+            pass
+
         # ── Collect injection blocks then prioritize ──────────────────
         _injection_blocks = []
 
@@ -1446,6 +1475,15 @@ class LanguageEngine:
             try:
                 from cognia.context.injection_prioritizer import InjectionPrioritizer as _IP
                 _selected = _IP().prioritize(_injection_blocks, query=query_hint, max_blocks=4)
+                # NOTA: ContextWindowManager.format_context NO se cablea aqui a
+                # proposito. format_context antepone prefijos genericos [SOURCE]
+                # (MEMORY/KG/SYSTEM) que colisionan con las etiquetas semanticas
+                # ya embebidas en el contenido ("[Ajuste adaptativo]:",
+                # "[Autocritica previa]:", "[Conocimiento cristalizado]:") y con
+                # el colapso de tipos que hace _TYPE_TO_SOURCE, produciendo
+                # etiquetas dobles/generias que podrian confundir al modelo. No es
+                # un reemplazo equivalente-o-mejor de build_context_string, asi que
+                # se mantiene el join simple. (CWM ya participa via prioritize()).
                 _injected = _IP().build_context_string(_selected)
             except Exception:
                 # Fallback: concatenate all blocks (original behavior)
