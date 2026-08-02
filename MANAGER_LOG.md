@@ -12059,3 +12059,54 @@ reportaba los sqlite3.connect() DE DEEPTUTOR como violaciones de este repo —
 usar una herramienta nuestra rompía la suite entera. Excluido, con regresión.
 
 Suite completa: 5761 passed / 0 failed.
+
+## [2026-08-02] Barrido total de huerfanas + CLI selector de modelos (corrida nocturna)
+
+Objetivo del dueno: revisar TODAS las opciones/funciones de Cognia desde su
+creacion, conectar las huerfanas, CLI funcional con selector de modelos
+(flota o un solo modelo default, adaptable a Qwythos 9B abliterated), pulir lo
+visual. Modo ultracode + autonomia hasta las 7am.
+
+Metodo: workflow de 7 shards buscar->verificar (revision adversarial) = 125
+hallazgos confirmados / 4 refutados. Reparacion por territorios de archivos
+disjuntos (agentes en paralelo) + wiring serial de cli.py/cognia.py por el
+manager, cada unidad con test de regresion y verificacion real.
+
+Entregado (10 commits, main d0ec7f6a):
+- Qwythos-9B-abliterated Q4_K descargado (5.78 GB, ~/.cognia/models) y detectado
+  por el selector.
+- Economia enjambre: 6 cortes de cadena cerrados (node_id efimero, premium
+  inalcanzable/403, token descartado por 3 clientes, evict_stale huerfana,
+  etc.) + primer tests/test_contributor.py.
+- Economia Desktop: 4 huerfanas de monetizacion con enforcement real +
+  tests/test_monetization_enforcement.py.
+- Bugs reales: /hechos-solidos misroute, /estilo_info, imports rotos de
+  web_app, cache_analytics, migrations _set_version/_migration_3.
+- CLI: selector de modelos dinamico (discover_gguf_registry, /modelo
+  <patron>|unico|flota con persistencia, combo `solo` en servir_flota);
+  13 slash commands huerfanos cableados; /chimera, /tutor; subcomandos cognia
+  tui|voz|remoto|tutor; doctor.check_sentinel (el antidanios no se autoverificaba).
+- Pulido visual del banner (responsivo, version dinamica, linea de estado).
+- 6 territorios de huerfanas conectadas/podadas (knowledge, memoria/contexto,
+  agent-tools con 3 @tool nuevas, flota-red con fleet30 reapuntado + node/client
+  borrado, motores con consolidation_engine duplicado borrado, creador-vision
+  con os_sandbox AppContainer como aislamiento real del codigo generado).
+- Ciclo observe/sleep de cognia.py: 7 subsistemas activados (goal_and_pattern,
+  continuous_learning, staleness, resolve_goal, fatigue.reset_state,
+  cognitive_profile.evolve, goal_suggester/tracker), todos guardados.
+- language_engine: inyeccion de estilo + hint de objetivo + auto_detect_progress
+  (aditivas, no-op sin datos). UXMessages (fuga de excepcion en /infer) y
+  create_quality_alert conectados.
+- Borrados por superados/duplicados: vigia.py, microexperto pide_grafico,
+  consolidation_engine (gemelo de v3), node/client.py, asset_bridge duplicado,
+  minicpm XML muerto, model_router.route_tasks.
+
+Deferido con razon (honestidad): secure_storage.reencrypt_all (/rotar-clave)
+NO cableado -> rotar clave de cifrado sin test de ida-y-vuelta = riesgo de
+perdida de datos (linea dura). context_window_manager.format_context NO
+cableado (colisiona con las etiquetas semanticas del contexto).
+
+Verificacion: suite completa 5924 passed / 0 failed / 1 skipped; GATE camino
+feliz con modelo real (coder-14b) /hacer 5/5 OK (repetido tras los cambios de
+prompt); CLI arranca, banner nuevo, /modelo lista los 11 GGUF reales incl.
+Qwythos. Todo pusheado a origin/main.
