@@ -2,6 +2,43 @@
 
 ---
 
+## [4.4.0] - 2026-08-02
+
+### Barrido total de funciones huérfanas + selector de modelos en el CLI
+
+Auditoría adversarial de todo el repo (125 hallazgos confirmados) y reparación
+por subsistemas: funciones que existían pero nadie llamaba quedaron conectadas
+con utilidad real, o se borraron por duplicadas/superadas. Cada cambio con test
+de regresión. Suite completa 5924 passed / 0 failed; gate de camino feliz
+`/hacer` 5/5 con modelo real.
+
+- **Selector de modelos en el CLI.** `/modelo <patrón>` sobre un registro
+  DINÁMICO que lista los GGUF reales de `~/.cognia/models` (el registro estático
+  apuntaba a archivos inexistentes y no dejaba cambiar a nada). `/modelo unico
+  [patrón]` (un solo modelo hace todo, apaga los desvíos por rol) vs `/modelo
+  flota` (ruteo por roles), persistido. Nuevo combo `servir_flota.py solo
+  [patrón]`. Adaptable a cualquier GGUF nuevo que se suelte en la carpeta.
+- **Economía del enjambre y del Desktop reparada.** Se cerraron los cortes de
+  cadena que la hacían inoperante (node_id efímero que impedía acumular
+  contribución, tier premium inalcanzable que daba 403 a contribuidores reales,
+  token descartado por 3 de 5 clientes, fuga de memoria en el rate limiter) y se
+  conectaron las huérfanas de monetización con enforcement real.
+- **Bugs reales cazados:** `/hechos-solidos` inalcanzable (misroute), `/estilo_info`
+  siempre en error, imports rotos del ciclo autónomo de `web_app`, `cache_analytics`
+  que siempre reportaba 0, una migración de esquema muerta.
+- **Subsistemas antes sin puerta:** 13 slash commands nuevos, `/chimera`,
+  `/tutor`, subcomandos `cognia tui|voz|remoto|tutor`, y un check del centinela
+  anti-daños en `/doctor`. Se activaron 7 subsistemas en el ciclo observe/sleep
+  y 3 inyecciones de contexto (estilo, hint de objetivo, detección de avance),
+  todas aditivas y no-op cuando no aportan.
+- **Aislamiento real del código generado:** `run_in_appcontainer` pasa a ser la
+  ruta por defecto del sandbox (el guard in-process era escapable).
+- **Pulido visual del banner:** responsivo, versión dinámica, línea de estado.
+- **Podado:** `vigia.py`, un `consolidation_engine` gemelo de la v3, `node/client.py`,
+  un microexperto muerto y código XML de minicpm sin uso.
+
+---
+
 ## [4.3.1] - 2026-07-24
 
 ### Deuda técnica: cinco fallos silenciosos, y los ojos por fin conectados
