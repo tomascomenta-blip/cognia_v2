@@ -869,6 +869,7 @@ _CMD_DESCRIPTIONS = {
     "/debug":           "Toggle: mostrar logs INFO",
     "/costo":           "Tokens y tiempo de sesión",
     "/tema":            "Tema visual: /tema cicla, /tema <oscuro|claro|alto_contraste> fija (persiste)",
+    "/prompt":          "System prompt del cerebro: /prompt [editar | set <texto> | reset | off | on]",
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
@@ -1348,6 +1349,7 @@ HELP_TEXT = """
     /debug                          Toggle: mostrar logs INFO
     /costo                          Tokens y tiempo de sesion
     /tema                           Ciclar tema visual
+    /prompt [sub]                   System prompt del cerebro (editar|set|reset|off|on)
 
   CONFIGURACION:
     /config              Mostrar configuracion actual
@@ -1533,19 +1535,36 @@ def _show_response(text, color="cyan", respuesta_final=False):
         print(f"\n{text.strip()}\n", flush=True)
         return
     if _HAS_RICH and _console:
-        _console.print(Panel(_escape(text.strip()), border_style=color, padding=(0, 1)))
+        # En el REMOTO el marco NO es ruido: es el contrato con el clasificador
+        # del movil (2026-07-25) — lo enmarcado se pliega a "Actividad" y solo
+        # la respuesta final (arriba) va plana al chat. Quitar el panel aca
+        # mandaria el chrome al chat del movil (regresion cazada por
+        # test_remoto_respuesta_visible en la suite del 2026-08-02).
+        if os.environ.get("COGNIA_REMOTO", "").strip() == "1":
+            _console.print(Panel(_escape(text.strip()), border_style=color, padding=(0, 1)))
+            return
+        # Estilo conversacional (2026-08-02), solo terminal: la respuesta va
+        # SIN panel — aire arriba, sangria de 2, ancho comodo, aire abajo. El
+        # espacio en blanco delimita; el borde era ruido. Fallback al panel.
+        try:
+            from cognia.ux.estilo import respuesta as _respuesta_estilo
+            _respuesta_estilo(text, console=_console, color=color)
+        except Exception:
+            _console.print(Panel(_escape(text.strip()), border_style=color, padding=(0, 1)))
     else:
         print(f"\n{text}\n")
 
 
 def _show_footer(elapsed, text):
+    # Metadatos al minimo (estilo conversacional 2026-08-02): una sola linea
+    # tenue alineada con la respuesta, sin marca de version. En turnos rapidos
+    # (<1s) no aporta nada y no se imprime: menos ruido entre turnos.
     text   = _to_str(text)
     tokens = max(1, len(text) // 4)
+    if elapsed < 1.0:
+        return
     if _HAS_RICH and _console:
-        _console.print(
-            f"[footer]tokens ~{tokens}  ·  {elapsed:.2f}s  ·  Cognia v3.2[/footer]",
-            justify="right",
-        )
+        _console.print(f"[footer]  {elapsed:.1f}s · ~{tokens} tokens[/footer]")
 
 
 class _VerboseFilter(logging.Filter):
@@ -5106,6 +5125,73 @@ def _slash_color(arg: str = ""):
         print(f"Color de acento: {color} (guardado)")
 
 
+def _slash_prompt(arg: str = ""):
+    """Administra el system prompt configurable del CEREBRO (2026-08-02).
+
+    El prompt vive en ~/.cognia/system_prompt.md (texto plano) y, si existe
+    con contenido, reemplaza el prompt integrado del rol cerebro. El agente
+    NUNCA lo ve (A/B 2026-07-23: texto extra degrada su gate de 10/10 a 3/5).
+
+      /prompt                 -> estado (fuente, ruta, tamano, primeras lineas)
+      /prompt editar          -> abrir el archivo en el editor del sistema
+      /prompt set <texto>     -> reemplazar el contenido con <texto>
+      /prompt reset           -> volver al default del producto
+      /prompt off | on        -> apagar/prender sin borrar el archivo (persiste)
+    """
+    from cognia.system_prompt import (asegurar_prompt_usuario, prompt_usuario,
+                                      restaurar_prompt_usuario,
+                                      ruta_prompt_usuario)
+    partes = (arg or "").strip().split(None, 1)
+    sub = partes[0].lower() if partes else ""
+    resto = partes[1] if len(partes) > 1 else ""
+    ruta = ruta_prompt_usuario()
+    try:
+        if sub == "editar":
+            asegurar_prompt_usuario()
+            if sys.platform == "win32":
+                os.startfile(str(ruta))            # editor asociado a .md
+            else:
+                subprocess.Popen([os.environ.get("EDITOR", "nano"), str(ruta)])
+            _print_line(f"[ok]Abierto:[/ok] [mod]{_escape(str(ruta))}[/mod]  "
+                        "[detail](los cambios aplican en el proximo turno)[/detail]")
+        elif sub == "set":
+            if not resto.strip():
+                _print_line("[warn_cl]Uso: /prompt set <texto del prompt>[/warn_cl]")
+                return
+            ruta.parent.mkdir(parents=True, exist_ok=True)
+            ruta.write_text(resto.strip() + "\n", encoding="utf-8")
+            _print_line(f"[ok]Prompt personalizado guardado[/ok] "
+                        f"[detail]({len(resto)} caracteres)[/detail]")
+        elif sub == "reset":
+            restaurar_prompt_usuario()
+            _print_line("[ok]Prompt restaurado al default del producto.[/ok]")
+        elif sub in ("off", "on"):
+            _persist_setting("COGNIA_PROMPT_USUARIO", "0" if sub == "off" else "1")
+            _print_line(f"[ok]Prompt personalizado: {sub}[/ok] "
+                        "[detail](el archivo no se toca)[/detail]")
+        elif sub:
+            _print_line("[warn_cl]Uso: /prompt [editar | set <texto> | reset | "
+                        "off | on][/warn_cl]")
+        else:
+            # OJO: estado con estilos VISIBLES ([mod]/[info_dim]), no [detail]:
+            # el modo sencillo suprime [detail] y /prompt quedaba mudo (cazado
+            # en la verificacion real del 2026-08-02).
+            activo = prompt_usuario()
+            fuente = "personalizado" if activo else "integrado (system_prompt.py)"
+            _print_line(f"[mod]Prompt del cerebro:[/mod] {fuente}")
+            _print_line(f"[info_dim]Archivo: {_escape(str(ruta))}"
+                        f"{'' if ruta.exists() else '  (no existe aun)'}[/info_dim]")
+            if activo:
+                cabeza = "\n".join(activo.splitlines()[:6])
+                _print_line(f"[info_dim]{len(activo)} caracteres. "
+                            f"Primeras lineas:[/info_dim]\n"
+                            f"[info_dim]{_escape(cabeza)}[/info_dim]")
+            _print_line("[info_dim]Subcomandos: editar · set <texto> · reset · "
+                        "off · on[/info_dim]")
+    except Exception as e:
+        _print_line(f"[err_cl]/prompt fallo: {type(e).__name__}: {e}[/err_cl]")
+
+
 def _slash_memoria_limite(arg: str, ai):
     """
     Ver o fijar el tope de memoria. Persiste y aplica al instante.
@@ -6296,6 +6382,16 @@ def repl():
     except Exception:
         pass
 
+    # System prompt configurable (2026-08-02): si ~/.cognia/system_prompt.md
+    # no existe, se crea con el default del producto — el prompt "agregable y
+    # cambiable" arranca activo desde la primera sesion. Idempotente (no pisa
+    # ediciones) y best-effort: un disco raro jamas rompe el arranque.
+    try:
+        from cognia.system_prompt import asegurar_prompt_usuario
+        asegurar_prompt_usuario()
+    except Exception:
+        pass
+
     # Capture Cognia() init output for animated replay
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -6359,7 +6455,10 @@ def repl():
                 history=InMemoryHistory(),
                 completer=_CogniaCompleter(),
                 complete_while_typing=True,
-                complete_style=CompleteStyle.MULTI_COLUMN,
+                # COLUMN (lista simple, una por fila) en vez de MULTI_COLUMN:
+                # el menu de /comandos queda liviano y compacto, nunca tapa la
+                # conversacion (estilo conversacional 2026-08-02).
+                complete_style=CompleteStyle.COLUMN,
                 complete_in_thread=True,
                 key_bindings=_kb,
                 style=_pt_style,
@@ -6383,6 +6482,8 @@ def repl():
         def _get_input():
             if _inyectadas:
                 return _inyectadas.pop(0)
+            # Aire antes del prompt: cada turno respira (estilo 2026-08-02).
+            print()
             line = session.prompt("cognia> ").strip()
             while line.endswith("\\"):
                 continuation = session.prompt("  ").strip()
@@ -6506,6 +6607,8 @@ def repl():
             _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
         elif raw == "/color" or raw.startswith("/color "):
             _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
+        elif raw == "/prompt" or raw.startswith("/prompt "):
+            _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):
             _slash_memoria_limite(
                 raw[len("/memoria-limite "):] if raw.startswith("/memoria-limite ") else "", ai)
@@ -8655,15 +8758,30 @@ def repl():
                                     _formatted, max_tokens=_effort_max_tokens,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             _tokens_buf = []
+                            # Streaming SUAVE (estilo conversacional 2026-08-02):
+                            # los tokens se agrupan en trozos de palabra en vez de
+                            # imprimirse gota a gota — se siente escrito, no
+                            # teletipeado. Best-effort: sin estilo, gota a gota.
+                            _flujo = None
+                            try:
+                                from cognia.ux.estilo import FlujoSuave as _FS
+                                _flujo = _FS(console=_console if _HAS_RICH else None,
+                                             style=_ACCENT)
+                            except Exception:
+                                _flujo = None
                             t0 = time.time()
                             try:
                                 print("", flush=True)
                                 for _tok in _stream_src():
                                     _tokens_buf.append(_tok)
-                                    if _HAS_RICH and _console:
+                                    if _flujo is not None:
+                                        _flujo.escribir(_tok)
+                                    elif _HAS_RICH and _console:
                                         _console.print(_tok, end="", style=_ACCENT, highlight=False)
                                     else:
                                         print(_tok, end="", flush=True)
+                                if _flujo is not None:
+                                    _flujo.cerrar()
                                 print()
                                 _full_response = "".join(_tokens_buf).strip()
                                 # An empty stream (backend hiccup) is NOT a real answer:
@@ -8697,6 +8815,11 @@ def repl():
                                        "sin tokens, cae al camino articulado"))
                                 if _tokens_buf:
                                     _streamed = True  # partial stream — don't retry
+                                try:
+                                    if _flujo is not None:
+                                        _flujo.cerrar()   # vaciar el trozo pendiente
+                                except Exception:
+                                    pass
                                 print()
                 except Exception as _e_fast:
                     # ESTE es el except caro: envuelve TODO el fast-path. Cuando
@@ -9563,7 +9686,30 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # de arriba ya conto esta accion, asi que no puede ciclar gratis).
             result = f"RESULTADO {action} ERROR: {_struct['error']}"
         else:
-            result = run_tool(action, args, ctx)
+            # Estilo conversacional (2026-08-02): la herramienta se ve como
+            # parte de la conversacion — '· Leyendo motor.py…' mientras corre
+            # (spinner efimero) y un resumen compacto '⏺ Leyendo motor.py' al
+            # terminar. Visible tambien en modo sencillo (no es [detail]: es
+            # LA actividad actual, no un log). Best-effort: sin estilo, la
+            # tool corre igual que siempre.
+            try:
+                from cognia.ux import estilo as _estilo
+            except Exception:
+                _estilo = None
+            if _estilo is not None:
+                # actividad() es NO-LANZANTE por contrato: la tool corre UNA
+                # sola vez, sin fallback que pueda re-ejecutarla.
+                with _estilo.actividad(action, args,
+                                       console=_console if _HAS_RICH else None):
+                    result = run_tool(action, args, ctx)
+                try:
+                    _print_fn(_estilo.resumen_hecho(
+                        action, args,
+                        ok=not re.search(r"\bERROR\b", result[:120])))
+                except Exception:
+                    pass
+            else:
+                result = run_tool(action, args, ctx)
         history.append(result)
         # Traza para el trigger de skills nivel-2 (CP2): un paso es 'ok' si el
         # resultado no es un ERROR de la tool/validador. Se usa \bERROR\b (borde

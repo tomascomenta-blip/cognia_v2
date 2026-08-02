@@ -1396,3 +1396,46 @@ live, skills (oráculos pluggables, uso/decay, similitud semántica), HERMES
 (wishlist->ideas, crear_herramienta live, rollback, repair-on-live-failure),
 monitores (GoalContract), delegar_subtarea. Este archivo se actualiza al
 cierre de la corrida.
+
+## 2026-08-02 — Estilo conversacional del REPL + system prompt configurable
+
+Pedido del dueno: rediseñar la UX del CLI con la filosofia de las CLIs
+agenticas modernas (minimalismo, espacio en blanco como jerarquia, la
+conversacion como foco, tools como parte de la conversacion) SIN tocar el
+banner ni los colores del producto; y un system prompt "agregable y
+cambiable" con un default de producto adaptado.
+
+Entregado:
+- cognia/ux/estilo.py (nuevo): capa de presentacion. respuesta() sin panel
+  (aire + sangria 2 + ancho comodo tope 100 cols), actividad()/resumen_hecho()
+  para ver cada tool como "· Leyendo x…" -> "⏺ Leyendo x" (visible en modo
+  sencillo; actividad() es NO-LANZANTE por contrato para que la tool jamas se
+  re-ejecute por un fallo del adorno), FlujoSuave (streaming en trozos de
+  palabra, no teletipo). Todo degradable sin rich.
+- cli.py: _show_response sin panel EN TERMINAL (el REMOTO conserva el marco:
+  es el contrato con el clasificador del movil del 2026-07-25 — la primera
+  corrida de la suite cazo la regresion y se restauro); footer sutil
+  ("  1.2s · ~n tokens", omitido <1s); streaming via FlujoSuave (flush
+  garantizado tambien en stream parcial); menu de autocompletado COLUMN
+  (compacto); aire antes de cada prompt; wire de actividad compacta en el
+  loop del agente.
+- System prompt configurable: ~/.cognia/system_prompt.md (se crea con el
+  default del producto al arrancar; idempotente). Si existe con contenido,
+  reemplaza el prompt del CEREBRO; el AGENTE nunca lo ve (A/B 2026-07-23:
+  texto extra degrada su gate 10/10 -> 3/5). Kill-switch
+  COGNIA_PROMPT_USUARIO=0; override de ruta para tests
+  COGNIA_PROMPT_USUARIO_PATH (aislado en conftest). Comando /prompt
+  [editar|set|reset|off|on]. Default adaptado a Cognia (~3 KB: identidad
+  local, conducta, limites, bienestar, memoria, prohibicion de <voice_note>).
+- Bug cazado de paso: adaptive_prompt._base() recursaba infinito en su
+  fallback (return _base()); ahora devuelve COGNIA_SYSTEM_PROMPT.
+
+Verificacion REAL: turno de chat streaming end-to-end con el 9B (respuesta
+sangrada + footer nuevo, 28.8s); /prompt en el REPL real (salida visible en
+modo sencillo — la primera version usaba [detail] y quedaba muda, corregido);
+agente con tools reales y LLM scripteado (⏺ Escribiendo, TRAZA 1 paso,
+GoalContract 1/1, archivo real verificado). /hacer con el Qwythos 9B en modo
+unico cierra por prosa (el 9B emite <think> en vez de ACCION:) — condicion
+preexistente del modelo/config, anotada, no regresion. Suite completa:
+1a corrida 5939 passed / 2 failed (el de remoto = regresion real arriba,
+corregida; test_db_pool_gc_reclaim flaky bajo carga, verde aislado).

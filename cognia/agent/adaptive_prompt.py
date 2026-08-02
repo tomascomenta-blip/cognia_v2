@@ -33,7 +33,10 @@ def _base() -> str:
         from cognia.system_prompt import build_system_prompt
         return build_system_prompt(rol="cerebro")
     except Exception:
-        return _base()
+        # BUG cazado 2026-08-02: esto decia `return _base()` — recursion
+        # infinita si build_system_prompt falla siempre. El "ultimo recurso"
+        # del docstring siempre fue la constante; ahora lo es de verdad.
+        return COGNIA_SYSTEM_PROMPT
 
 # Profile keys we manage (namespaced so we never collide with other code).
 _K_NAME = "adapt_nombre"

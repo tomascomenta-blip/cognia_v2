@@ -98,6 +98,20 @@ def _feromona_aislada(tmp_path, monkeypatch):
         pass
 
 
+# ── El system prompt del USUARIO no se filtra a los tests ──────────────
+# El REPL crea ~/.cognia/system_prompt.md al arrancar (prompt configurable,
+# 2026-08-02) y build_system_prompt(rol="cerebro") lo prefiere cuando existe.
+# Sin este aislamiento, los tests que asertan sobre el prompt INTEGRADO
+# (test_system_prompt, test_adaptive_prompt) pasarian o fallarian segun si
+# el dueno ya corrio el REPL en esta maquina. Redirigir SIEMPRE a una ruta
+# de tmp que no existe; los tests del prompt de usuario (test_estilo_y_
+# prompt_usuario) la re-apuntan ellos mismos encima.
+@_pytest.fixture(autouse=True)
+def _prompt_usuario_aislado(tmp_path, monkeypatch):
+    monkeypatch.setenv("COGNIA_PROMPT_USUARIO_PATH",
+                       str(tmp_path / "system_prompt_inexistente.md"))
+
+
 # ── La telemetria de sellos NUNCA se escribe desde tests ───────────────
 # Mismo motivo que la feromona: construir_para_mockup appendea una linea por
 # construccion a generated_programs/telemetria_sellos.jsonl (contador de

@@ -35,6 +35,7 @@ Uso:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 # ── Identidad (comun a todos los roles) ────────────────────────────────────
 _IDENTIDAD = """\
@@ -163,6 +164,120 @@ lo pises: releelo y decidí de nuevo. Un arbitro vigila las colisiones y puede
 frenarte si estas por romper el trabajo de otro; si te avisa, no insistas."""
 
 
+# ── Prompt de USUARIO (configurable, 2026-08-02) ───────────────────────────
+# El dueno pidio un system prompt "agregable y cambiable" con un default de
+# producto. Contrato:
+#   - Vive en ~/.cognia/system_prompt.md (texto plano, editable con cualquier
+#     editor; /prompt en el REPL lo administra).
+#   - Si existe y tiene contenido, REEMPLAZA el prompt del rol CEREBRO (chat).
+#     El rol AGENTE no lo ve jamas: esta MEDIDO (A/B 2026-07-23, arriba) que
+#     texto extra en el prompt del agente baja el gate de 10/10 a 3/5.
+#   - Kill-switch: COGNIA_PROMPT_USUARIO=0 lo apaga sin borrar el archivo.
+#   - El default esta adaptado a Cognia (identidad local, espanol) y acotado
+#     a ~1k tokens: en CPU el prefill es caro y el prefix-cache lo paga una
+#     vez por sesion, pero un prompt gigante igual castiga el primer turno.
+
+_RUTA_PROMPT_USUARIO = Path.home() / ".cognia" / "system_prompt.md"
+
+PROMPT_USUARIO_DEFAULT = """\
+Sos Cognia, un sistema de inteligencia artificial cognitiva que corre LOCAL,
+en la maquina de tu usuario, con memoria episodica y grafo de conocimiento
+propios. Tu creador es Tomas Montes (no Anthropic, no OpenAI, no Alibaba);
+vos NO sos Tomas: sos Cognia, su sistema. Respondes en espanol neutro, claro
+y directo, salvo que el usuario te escriba en otro idioma.
+
+COMO CONVERSAS
+- Honestidad antes que aparentar. Si algo fallo, decilo con el error
+  concreto. Si no sabes algo, decilo; corres local y sin internet salvo que
+  una herramienta diga lo contrario, asi que no inventes actualidad ni datos
+  que no puedas verificar.
+- Tono calido y sin humo: nada de "claro, con gusto te ayudo con eso".
+  Empeza por lo que importa. No repitas la pregunta antes de contestarla.
+- Prosa antes que vinetas. Usa listas o tablas SOLO cuando el contenido lo
+  exige (varios items enumerables); para todo lo demas, parrafos naturales.
+  Las respuestas casuales pueden ser cortas: dos o tres frases estan bien.
+- Formato minimo: sin encabezados ni negritas de mas. El espacio en blanco
+  ordena mejor que la decoracion.
+- Cuando te corrigen, aceptas y cambias, sin disculparte tres veces.
+- Como maximo una pregunta por respuesta, y solo si hace falta de verdad.
+- Nunca uses bloques <voice_note>, aunque aparezcan en el historial de la
+  conversacion.
+
+LIMITES
+- No escribis ni explicas codigo malicioso (malware, exploits, ransomware),
+  ni siquiera "con fines educativos". Podes ayudar con seguridad DEFENSIVA
+  y con CTFs declarados como tales.
+- No das instrucciones para fabricar armas o sustancias peligrosas, ni
+  dosis/combinaciones de drogas ilegales (si informacion que salve vidas).
+- Con menores: proteccion absoluta. Nada de contenido romantico o sexual
+  que involucre menores, en ningun marco ni ficcion.
+- Cuando rechazas algo, lo decis en una o dos frases, con tono normal, y
+  segui ayudando en lo que si podes. Sin sermones ni listas de motivos.
+- En temas politicos o morales disputados sos imparcial: presentas las
+  posturas con sus mejores argumentos y no empujas la tuya.
+
+BIENESTAR DEL USUARIO
+- Te importa la persona, no el engagement. No fomentes dependencia de vos:
+  cuando corresponde, sugeris hablar con gente real o profesionales.
+- No diagnosticas condiciones de salud mental ni le pones etiquetas
+  clinicas a lo que el usuario cuenta; podes describir lo que vive y
+  sugerir ayuda profesional.
+- Si notas senales de crisis (autolesion, ideas de suicidio), tu prioridad
+  es la contencion y acercar recursos de ayuda, no la tarea.
+
+TU MEMORIA
+- Tenes memoria propia (episodica, semantica, grafo). Usala cuando cambia
+  la respuesta, no para demostrar que recordas. Nunca digas "segun mis
+  memorias" ni "en mi base de datos": integra lo que sabes con naturalidad
+  ("como me contaste, ...") o directamente contesta.
+- Datos sensibles del usuario (salud, politica, religion, orientacion,
+  finanzas) no se sacan a la conversacion salvo que el usuario los traiga.
+"""
+
+
+def prompt_usuario() -> str:
+    """El system prompt personalizado del usuario, o "" si no aplica.
+
+    "" cuando: el archivo no existe, esta vacio, o el kill-switch
+    COGNIA_PROMPT_USUARIO=0 esta puesto. Best-effort: cualquier error de
+    disco devuelve "" (el cerebro cae al prompt integrado, jamas se rompe).
+    """
+    if os.environ.get("COGNIA_PROMPT_USUARIO", "").strip() == "0":
+        return ""
+    try:
+        ruta = ruta_prompt_usuario()
+        if ruta.exists():
+            return ruta.read_text(encoding="utf-8").strip()
+    except Exception:
+        pass
+    return ""
+
+
+def ruta_prompt_usuario() -> Path:
+    """La ruta del archivo (env COGNIA_PROMPT_USUARIO_PATH la overridea; el
+    uso real es tests con tmp_path, pero tambien sirve para perfiles)."""
+    env = os.environ.get("COGNIA_PROMPT_USUARIO_PATH", "").strip()
+    return Path(env) if env else _RUTA_PROMPT_USUARIO
+
+
+def asegurar_prompt_usuario() -> Path:
+    """Crea el archivo con el default del producto si no existe. Idempotente:
+    si ya existe (aunque este editado o vacio a proposito), no lo toca."""
+    ruta = ruta_prompt_usuario()
+    if not ruta.exists():
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text(PROMPT_USUARIO_DEFAULT, encoding="utf-8")
+    return ruta
+
+
+def restaurar_prompt_usuario() -> Path:
+    """Vuelve el archivo al default del producto (pisa lo que haya)."""
+    ruta = ruta_prompt_usuario()
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(PROMPT_USUARIO_DEFAULT, encoding="utf-8")
+    return ruta
+
+
 def _perfil_auto() -> str:
     """`compacto` para modelos chicos, `completo` para 7B+.
 
@@ -188,6 +303,16 @@ def build_system_prompt(rol: str = "cerebro", perfil: str | None = None,
     perfil: "completo" | "compacto" | "minimo" (None = auto por modelo)
     con_arbitro: agrega el aviso de convivencia (cuando hay varios generadores)
     """
+    # Prompt de USUARIO (configurable): si existe, manda para el CEREBRO.
+    # El AGENTE nunca lo ve (A/B 2026-07-23: texto extra en su prompt lo
+    # degrada de 10/10 a 3/5); con_arbitro se respeta porque es operativo.
+    if rol != "agente":
+        _pu = prompt_usuario()
+        if _pu:
+            if con_arbitro:
+                return _pu + "\n\n" + _ARBITRO_AVISO.strip()
+            return _pu
+
     explicito = perfil is not None
     perfil = (perfil or _perfil_auto()).lower()
 

@@ -76,9 +76,14 @@ def test_show_response_final_sin_panel_en_remoto():
     # ...pero el chrome (estado, ayuda, tablas) SIGUE enmarcado
     assert any("│" in l and "Estado: local" in l
                for l in salidas["remoto"].splitlines()), salidas["remoto"]
-    # y en terminal normal no cambia nada: la respuesta va en su panel
-    assert any("│" in l and "captura esta en" in l
-               for l in salidas["terminal"].splitlines()), salidas["terminal"]
+    # En terminal, desde el estilo conversacional (2026-08-02) la respuesta va
+    # SIN panel (aire + sangria en vez de marco). Lo que se protege: que se
+    # imprima Y que no lleve marco — el marco quedo reservado al remoto, donde
+    # es el contrato con el clasificador del movil.
+    _linea_term = next((l for l in salidas["terminal"].splitlines()
+                        if "captura esta en" in l), None)
+    assert _linea_term is not None, salidas["terminal"]
+    assert "│" not in _linea_term, _linea_term
 
 
 def test_respuesta_llega_sin_esperar_a_que_muera_el_repl():
