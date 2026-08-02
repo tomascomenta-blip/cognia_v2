@@ -143,15 +143,20 @@ class NodeRegistry:
     # ── Registro de nodo nuevo ────────────────────────────────────────
 
     def register(self, hardware_info: str = "",
-                 model_name: str = DEFAULT_MODEL) -> dict:
+                 model_name: str = DEFAULT_MODEL,
+                 node_id: Optional[str] = None) -> dict:
         """
         Registra un nodo nuevo. Asigna el shard con menos réplicas activas.
         Retorna {node_id, shard, model_config}.
+
+        node_id: si se pasa (re-registro con token válido), se conserva la
+        identidad — así el ledger de contribución ACUMULA sobre la misma fila
+        en vez de crear un uuid nuevo por cada registro.
         """
         cfg = MODELS.get(model_name, MODELS[DEFAULT_MODEL])
         n_shards = cfg["n_shards"]
 
-        node_id = uuid.uuid4().hex
+        node_id = node_id or uuid.uuid4().hex
         now     = time.time()
 
         shard = self._pick_shard(n_shards, model_name)

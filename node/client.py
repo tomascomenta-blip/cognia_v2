@@ -43,13 +43,13 @@ WEIGHTS_BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "model_shards")
 # HTTP HELPER (sin dependencias extra)
 # ══════════════════════════════════════════════════════════════════════
 
-def _post(url: str, body: dict, timeout: int = 10) -> dict:
+def _post(url: str, body: dict, timeout: int = 10,
+          headers: Optional[dict] = None) -> dict:
     data = json.dumps(body).encode("utf-8")
-    req  = urllib.request.Request(
-        url, data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    hdrs = {"Content-Type": "application/json"}
+    if headers:
+        hdrs.update(headers)
+    req  = urllib.request.Request(url, data=data, headers=hdrs, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8"))
@@ -96,6 +96,7 @@ class SwarmClient:
         # Estado (se completan al registrarse)
         self.node_id:     Optional[str] = None
         self.shard:       Optional[int] = None
+        self.contributor_token: str = ""
         self.engine:      Optional[ShardEngine] = None
         self.status:      str = "unregistered"
         self._stop_event  = threading.Event()
@@ -130,15 +131,26 @@ class SwarmClient:
     # ── Registro ──────────────────────────────────────────────────────
 
     def _register(self):
+        # Re-registro con token: conserva el node_id y la contribución
+        # acumula en el ledger (antes el token se descartaba y cada arranque
+        # era un contribuidor nuevo desde cero).
+        prev_token = self.contributor_token or os.environ.get(
+            "COGNIA_CONTRIBUTOR_TOKEN", "")
+        headers = {"X-Contributor-Token": prev_token} if prev_token else None
         result = _post(
             f"{self.coordinator_url}/api/node/register",
             {"hardware_info": self.hardware_info, "model_name": self.model_name},
+            headers=headers,
         )
         self.node_id = result["node_id"]
         self.shard   = result["shard"]
         self._model_config = result["model_config"]
+        self.contributor_token = result.get("contributor_token", prev_token)
+        if self.contributor_token:
+            os.environ["COGNIA_CONTRIBUTOR_TOKEN"] = self.contributor_token
+        tier = result.get("tier", "")
         print(f"[SwarmClient] Registrado → node_id={self.node_id[:8]}... "
-              f"shard={self.shard}")
+              f"shard={self.shard}" + (f" tier={tier}" if tier else ""))
 
     # ── Heartbeat en hilo de fondo ────────────────────────────────────
 

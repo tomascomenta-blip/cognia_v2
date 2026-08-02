@@ -50,18 +50,58 @@ HEARTBEAT_EVERY  = 30   # seconds
 
 # ── HTTP helpers ──────────────────────────────────────────────────────────────
 
-def _http(method: str, url: str, body: dict | None = None, timeout: int = 10) -> dict:
+def _http(method: str, url: str, body: dict | None = None, timeout: int = 10,
+          headers: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body else None
-    req  = urllib.request.Request(
-        url, data=data,
-        headers={"Content-Type": "application/json"} if data else {},
-        method=method,
-    )
+    hdrs = {"Content-Type": "application/json"} if data else {}
+    if headers:
+        hdrs.update(headers)
+    req  = urllib.request.Request(url, data=data, headers=hdrs, method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"HTTP {e.code}: {e.read().decode(errors='replace')}")
+
+
+# ── Contributor token ─────────────────────────────────────────────────────────
+# El coordinador emite un contributor_token en el registro: es lo que da
+# acceso a la economía (tier, RPM, /api/federated/*). Antes este runner lo
+# DESCARTABA y el nodo quedaba fuera de la economía para siempre.
+
+_CONFIG_ENV = os.path.join(os.path.expanduser("~"), ".cognia", "config.env")
+
+
+def _load_saved_token() -> str:
+    tok = os.environ.get("COGNIA_CONTRIBUTOR_TOKEN", "")
+    if tok:
+        return tok
+    try:
+        with open(_CONFIG_ENV, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("COGNIA_CONTRIBUTOR_TOKEN="):
+                    return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return ""
+
+
+def _persist_token(token: str):
+    """Actualiza/agrega COGNIA_CONTRIBUTOR_TOKEN en ~/.cognia/config.env."""
+    try:
+        os.makedirs(os.path.dirname(_CONFIG_ENV), exist_ok=True)
+        lines: list[str] = []
+        try:
+            with open(_CONFIG_ENV, encoding="utf-8") as f:
+                lines = [l for l in f.read().splitlines()
+                         if not l.startswith("COGNIA_CONTRIBUTOR_TOKEN=")]
+        except OSError:
+            pass
+        lines.append(f"COGNIA_CONTRIBUTOR_TOKEN={token}")
+        with open(_CONFIG_ENV, "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join(lines) + "\n")
+    except OSError as e:
+        print(f"[node] Aviso: no se pudo persistir el contributor token: {e}")
 
 
 # ── Hardware detection ────────────────────────────────────────────────────────
@@ -137,13 +177,25 @@ class ShardNode:
                 pass  # coordinator unreachable or node expired — fall through to fresh register
 
         print(f"[node] Registrando en {COORDINATOR_URL}...")
+        # Con token previo el coordinador conserva el node_id y la
+        # contribución acumula (tier sube con cada shard servido).
+        saved_token = _load_saved_token()
+        headers = {"X-Contributor-Token": saved_token} if saved_token else None
         result = _http("POST", f"{COORDINATOR_URL}/api/node/register", {
             "hardware_info": _detect_hardware(),
             "model_name":    MODEL_NAME,
-        })
+        }, headers=headers)
         self.node_id = result["node_id"]
         self.shard   = result["shard"]
-        print(f"[node] Registrado — shard asignado: {self.shard}")
+        token = result.get("contributor_token", "")
+        if token:
+            os.environ["COGNIA_CONTRIBUTOR_TOKEN"] = token
+            _persist_token(token)
+            tier = result.get("tier", "?")
+            print(f"[node] Registrado — shard {self.shard} | tier {tier} "
+                  f"(token guardado en {_CONFIG_ENV})")
+        else:
+            print(f"[node] Registrado — shard asignado: {self.shard}")
 
     # ── Engine load ────────────────────────────────────────────────────
 

@@ -264,6 +264,68 @@ def _cmd_leave() -> None:
     print()
 
 
+def _cmd_contribucion() -> None:
+    """
+    Estado de la contribucion de este nodo en la economia del enjambre.
+
+    Consulta /api/contribution/{node_id} (ledger propio: params aportados,
+    tier, requests servidos) y /api/tiers (que desbloquea cada tier).
+    """
+    from cognia.first_run import _load_config
+
+    config      = _load_config()
+    coord_url   = (config.get("COGNIA_COORDINATOR_URL", "")
+                   or os.environ.get("COGNIA_COORDINATOR_URL", "")).rstrip("/")
+    node_id     = config.get("COGNIA_NODE_ID", "") or os.environ.get("COGNIA_NODE_ID", "")
+    contrib_tok = (config.get("COGNIA_CONTRIBUTOR_TOKEN", "")
+                   or os.environ.get("COGNIA_CONTRIBUTOR_TOKEN", ""))
+
+    if not coord_url:
+        print("Sin coordinador configurado (COGNIA_COORDINATOR_URL).")
+        print("Registra este equipo primero: cognia install-weights --coordinator <URL>")
+        return
+
+    # Tabla de tiers (que gana cada nivel de contribucion)
+    try:
+        with urllib.request.urlopen(f"{coord_url}/api/tiers", timeout=5) as r:
+            tiers = json.loads(r.read()).get("tiers", {})
+        print(f"Tiers de contribucion ({coord_url})")
+        print("-" * 64)
+        for name, t in tiers.items():
+            modelos = ", ".join(t["allowed_models"]) if t["allowed_models"] else "-"
+            if modelos == "*":
+                modelos = "todos"
+            print(f"  {name:<9} >={t['min_params_b']:.1f}B  {t['rpm']:>3} RPM  modelos: {modelos}")
+    except Exception as exc:
+        print(f"No se pudo consultar los tiers: {exc}")
+        return
+
+    # Ledger propio (requiere estar registrado)
+    if not node_id:
+        print()
+        print("Este equipo no esta registrado como nodo (sin COGNIA_NODE_ID).")
+        return
+    try:
+        req = urllib.request.Request(
+            f"{coord_url}/api/contribution/{node_id}",
+            headers={"X-Contributor-Token": contrib_tok} if contrib_tok else {},
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            entry = json.loads(r.read())
+        print()
+        print(f"Tu contribucion (node {node_id[:12]}...)")
+        print("-" * 64)
+        print(f"  Parametros aportados : {entry['total_params_b']:.3f}B")
+        print(f"  Tier                 : {entry['tier']}")
+        print(f"  Requests servidos    : {entry['requests_served']}")
+        rpm = entry.get("tier_info", {}).get("rpm")
+        if rpm is not None:
+            print(f"  Limite               : {rpm} RPM")
+    except Exception as exc:
+        print()
+        print(f"No se pudo consultar tu ledger: {exc}")
+
+
 def _cmd_modo() -> None:
     """
     Ver o cambiar el modo de uso y la personalizacion.
@@ -436,6 +498,7 @@ Comandos:
   coordinator        Iniciar coordinador del swarm (puerto 8001)
   status             Estado del backend local (GGUF), swarm y Ollama
   leave              Salir de la red y liberar el fragmento alojado
+  contribucion       Tu ledger en la economia del enjambre (tier, params, RPM)
   bbrain             Regenerar bbrain.md (doc viva del repo y su entorno)
   fleet              Estado de la flota local de modelos GGUF
   help / --help      Mostrar esta ayuda
@@ -506,6 +569,8 @@ def main() -> None:
         _cmd_status()
     elif cmd == "leave":
         _cmd_leave()
+    elif cmd in ("contribucion", "contribution"):
+        _cmd_contribucion()
     elif cmd == "bbrain":
         _cmd_bbrain()
     elif cmd == "fleet":

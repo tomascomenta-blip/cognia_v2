@@ -200,10 +200,16 @@ def register_with_coordinator(
         return PhaseResult(ok=False, detail=detail)
 
     # Persist node identity so heartbeat can reuse it across restarts
-    _append_env(env_path, {
+    node_env = {
         "COGNIA_NODE_ID":    str(node_id),
         "COGNIA_NODE_SHARD": str(shard),
-    })
+    }
+    # El contributor_token es la llave de la economía (tier/RPM/federated):
+    # sin persistirlo el nodo quedaba registrado pero sin acceso a nada.
+    token = body.get("contributor_token", "")
+    if token:
+        node_env["COGNIA_CONTRIBUTOR_TOKEN"] = token
+    _append_env(env_path, node_env)
 
     emit({"phase": "register_node", "status": "ok",
           "detail": f"shard {shard} asignado", "shard": shard})

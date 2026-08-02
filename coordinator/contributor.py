@@ -32,8 +32,15 @@ TIERS: dict = {
     "basic": {
         "min_params_b":   0.5,
         "rpm":            10,
-        "allowed_models": ["qwen-coder-3b-q4"],
-        "description":    ">=0.5B params. Standard model, 10 RPM.",
+        "allowed_models": [
+            "qwen-coder-3b-q4",
+            # Los sub-modelos Shattering que un contribuidor basic sirve de
+            # verdad: /api/shattering/infer construye "<sub>-3.2-3b-q4" y sin
+            # estas entradas TODO contribuidor real recibía 403 en el único
+            # endpoint que ejerce la economía.
+            "logos-3.2-3b-q4", "techne-3.2-3b-q4", "rhetor-3.2-3b-q4",
+        ],
+        "description":    ">=0.5B params. Standard + Shattering models, 10 RPM.",
     },
     "standard": {
         "min_params_b":   1.0,

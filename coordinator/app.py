@@ -253,15 +253,29 @@ def require_contributor_or_admin(
 
 @app.post("/api/node/register")
 @limiter.limit("200/minute")
-async def register_node(request: Request, req: RegisterRequest):
+async def register_node(
+    request: Request,
+    req: RegisterRequest,
+    x_contributor_token: Optional[str] = Header(None),
+):
     """
     Registra un nodo nuevo en el swarm.
     Retorna el shard asignado, la configuración del modelo y,
     cuando COORDINATOR_KEY esta configurado, un contributor_token.
+
+    Re-registro: si el nodo presenta su X-Contributor-Token, conserva su
+    node_id y la contribución ACUMULA en la misma fila del ledger. Sin token
+    cada registro creaba un uuid nuevo y ningún nodo pasaba de su primera
+    cuota de shard (premium era inalcanzable por construcción).
     """
+    prev_node_id = None
+    if COORDINATOR_KEY and x_contributor_token:
+        prev_node_id = validate_token(COORDINATOR_KEY, x_contributor_token)
+
     result = registry.register(
         hardware_info=req.hardware_info,
         model_name=req.model_name,
+        node_id=prev_node_id,
     )
 
     cfg       = result["model_config"]
@@ -296,6 +310,9 @@ def node_heartbeat(request: Request, req: HeartbeatRequest):
         raise HTTPException(status_code=404, detail=result["error"])
     # SAR: node is alive again — clear any pending debt entry
     _shard_registry.clear_debt(req.node_id)
+    # Limpieza oportunista de ventanas viejas del rate limiter: sin esto
+    # _windows crecía sin cota (un node_id nuevo por cada registro sin token).
+    _rate_limiter.evict_stale()
     return result
 
 
