@@ -681,7 +681,7 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
 _CMD_DESCRIPTIONS = {
     # Expertos, perfiles y consola
     "/modelos":         "Expertos y sus modelos. Uso: /modelos [agregar [peticion] | quitar <id> | activar <id> | desactivar <id>]",
-    "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)",
+    "/modelo":          "Ver/cambiar modelo GGUF del backend  [patron | unico [patron] | flota]",
     "/cpu":             "Aplicar perfil de optimizacion CPU (default)",
     "/gpu":             "Aplicar perfil de optimizacion GPU (RTX: todas las capas)",
     "/shells":          "Listar shells en background     [id para ver output]",
@@ -709,7 +709,7 @@ _CMD_DESCRIPTIONS = {
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
     "/construir":       "Construir web con arbitro visual (VLM)  [--mockup] [--sprites] <idea>",
-    "/flota":           "Cambiar el combo de modelos servidos  [construir|construir-ui|pensar|pensar-en-lazo|juzgar|parar|estado]",
+    "/flota":           "Cambiar el combo de modelos servidos  [construir|construir-ui|pensar|pensar-en-lazo|juzgar|solo [patron]|parar|estado]",
     "/pulir":           "LOOP THINKING: construir->juzgar->pensar en ciclos hasta pulir  [goal] (sin goal: el modelo suena uno)",
     "/fatiga":          "Estado del monitor de fatiga cognitiva",
     "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
@@ -1072,10 +1072,13 @@ _CMD_DETAILS = {
     ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
-        "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
-        "server actual, recarga con el GGUF elegido y verifica via /props. "
-        "Medido: 3b 40% pass@1 ~8tok/s, 7b 50% ~2.2tok/s, cascada 60%. "
-        "Ejemplo: /modelo 7b"
+        "Sin args lista el activo y TODOS los GGUF de ~/.cognia/models "
+        "(soltar un GGUF nuevo ahi basta para que aparezca). Con patron "
+        "(clave exacta o substring) para el server actual, recarga con el "
+        "GGUF elegido, verifica via /props y persiste la eleccion. "
+        "/modelo unico [patron]: un solo modelo hace todo (apaga los desvios "
+        "por rol). /modelo flota: vuelve al ruteo por roles. "
+        "Ejemplo: /modelo gpt-oss  |  /modelo unico qwythos"
     ),
     "/meta": (
         "Crea un nuevo objetivo de usuario persistente en la base de datos. "
@@ -3234,6 +3237,7 @@ _CONFIG_DEFAULTS: dict = {
     "recordar_sesion":  "true",
     "nivel_detalle":    "normal",
     "esfuerzo":         "medio",   # nivel /esfuerzo (ver cognia/effort_levels.py)
+    "modelo_modo":      "flota",   # "flota" (ruteo por roles) | "unico" (/modelo unico)
 }
 
 
@@ -4234,18 +4238,42 @@ def _modelo_activo_nombre(_llama) -> str:
             f"(default registry, server no arrancado)")
 
 
+_MODO_UNICO_ENV = {
+    # Kill-switches del modo MODELO UNICO: todo pasa por el GGUF de :8080.
+    "COGNIA_FLEET30":        "0",  # sin miembros por rol (node/fleet_registry)
+    "COGNIA_RAZONA_4B":      "0",  # sin desvio al razonador 4B
+    "COGNIA_SUPERORGANISMO": "0",  # la colonia depende de miembros de flota
+}
+
+
+def _aplicar_modo_modelo(modo: str) -> None:
+    """Aplica al proceso los kill-switches del modo de modelos.
+
+    'unico': un solo GGUF hace todo (chat, codigo, razonamiento) — se apagan
+    los desvios por rol. 'flota': se quitan los overrides y cada subsistema
+    decide solo (fleet_router / fleet30 / superorganismo)."""
+    for k, v in _MODO_UNICO_ENV.items():
+        if modo == "unico":
+            os.environ[k] = v
+        else:
+            os.environ.pop(k, None)
+
+
 def _slash_modelo(ai, args: str) -> None:
     """
-    /modelo [3b|7b]: ver o conmutar en caliente el modelo GGUF del backend.
+    /modelo [patron|unico|flota]: ver o conmutar el modelo GGUF del backend.
 
-    Sin args: muestra el modelo activo y los del registry con su existencia
-    en disco ([OK]/[NO]). Con clave: para el llama-server actual, setea
-    LLAMA_GGUF_PATH a la ruta absoluta del GGUF elegido y re-dispara la carga
-    via ShatteringOrchestrator.reload_llama(), verificando por GET /props que
-    el modelo cargado es el pedido. ASCII puro (consola Windows CP1252).
+    Sin args: modelo activo + TODOS los GGUF reales en ~/.cognia/models
+    (registry dinamico: soltar un GGUF nuevo en la carpeta basta para que
+    aparezca). Con patron: matchea por clave exacta o substring, para el
+    llama-server actual, setea LLAMA_GGUF_PATH, re-dispara la carga via
+    ShatteringOrchestrator.reload_llama() verificando por GET /props, y
+    PERSISTE la eleccion en ~/.cognia/config.env (sobrevive reinicios).
+    /modelo unico [patron] | /modelo flota: modo un-solo-modelo-hace-todo
+    vs flota por roles. ASCII puro (consola Windows CP1252).
     """
     from shattering.model_constants import (
-        MODEL_GGUF_REGISTRY, resolve_gguf_path,
+        discover_gguf_registry, match_gguf_key,
     )
 
     # Backend actual: solo el orquestador YA cacheado en ai (no construir uno
@@ -4253,32 +4281,62 @@ def _slash_modelo(ai, args: str) -> None:
     _orch  = getattr(ai, '_orchestrator', None)
     _llama = getattr(_orch, '_llama', None) if _orch is not None else None
 
-    key = args.strip().split()[0].lower() if args.strip() else ""
+    registro = discover_gguf_registry()
+    partes   = args.strip().split()
+    key      = partes[0].lower() if partes else ""
+
+    # ── Modo unico/flota ──────────────────────────────────────────────
+    if key in ("unico", "flota"):
+        cfg = _load_config()
+        cfg["modelo_modo"] = key
+        _save_config(cfg)
+        _aplicar_modo_modelo(key)
+        if key == "unico":
+            _print_line("[ok]Modo MODELO UNICO: un solo GGUF hace todo "
+                        "(sin desvios por rol).[/ok]")
+            # /modelo unico <patron>: ademas conmuta a ese GGUF
+            if len(partes) > 1:
+                _slash_modelo(ai, " ".join(partes[1:]))
+            else:
+                _print_line(f"[detail]Modelo del modo unico: "
+                            f"{_modelo_activo_nombre(_llama)}[/detail]")
+        else:
+            _print_line("[ok]Modo FLOTA: ruteo por roles activo "
+                        "(/flota <combo> para servir el combo).[/ok]")
+        return
+
     if not key:
+        modo = _load_config().get("modelo_modo", "flota")
         lines = [f"Modelo activo: {_modelo_activo_nombre(_llama)}",
-                 "Disponibles (registry):"]
-        for k, rel in MODEL_GGUF_REGISTRY.items():
-            p = resolve_gguf_path(k)
-            tag = "[OK]" if (p is not None and p.is_file()) else "[NO]"
-            lines.append(f"  {tag} {k} -> {rel}")
-        lines.append("Uso: /modelo <clave>  -- ejemplo: /modelo 7b")
+                 f"Modo: {modo} (/modelo unico | /modelo flota)",
+                 f"Disponibles en disco ({len(registro)}):"]
+        activo = _modelo_activo_nombre(_llama)
+        for k, ruta in registro.items():
+            try:
+                gb = Path(ruta).stat().st_size / 1e9
+                tam = f"{gb:5.1f} GB"
+            except OSError:
+                tam = "   ?   "
+            marca = "*" if Path(ruta).name in activo else " "
+            lines.append(f"  {marca} {tam}  {k}")
+        lines.append("Uso: /modelo <clave-o-substring>  -- ej: /modelo gpt-oss")
         _show_response("\n".join(lines), "cyan")
         return
 
-    if key not in MODEL_GGUF_REGISTRY:
-        validas = ", ".join(sorted(MODEL_GGUF_REGISTRY))
-        _print_line(f"[err_cl]Clave de modelo desconocida: '{key}'. "
-                    f"Validas: {validas}[/err_cl]")
+    candidatas = match_gguf_key(key, registro)
+    if not candidatas:
+        _print_line(f"[err_cl]Ningun GGUF matchea '{key}'. "
+                    f"Mira la lista con /modelo (hay {len(registro)}).[/err_cl]")
+        return
+    if len(candidatas) > 1:
+        _print_line("[warn_cl]Patron ambiguo, matchean "
+                    f"{len(candidatas)}: {', '.join(candidatas)}[/warn_cl]")
         return
 
-    # resolve_gguf_path devuelve None cuando el GGUF no existe en NINGUNA de
-    # las ubicaciones (repo ni ~/.cognia/models): sin la guarda de None esto
-    # reventaba con AttributeError en vez de avisar. Se imprime la ruta
-    # RELATIVA del registry, no `target`, para no mostrar "None" al usuario.
-    target = resolve_gguf_path(key)
-    if target is None or not target.is_file():
+    target = Path(registro[candidatas[0]])
+    if not target.is_file():
         _print_line(f"[err_cl]GGUF no encontrado en disco: "
-                    f"{MODEL_GGUF_REGISTRY[key]} -- no se cambia nada.[/err_cl]")
+                    f"{target} -- no se cambia nada.[/err_cl]")
         return
 
     # Ya activo? Solo si hay un server VIVO que reporta ese GGUF por /props
@@ -4363,6 +4421,15 @@ def _slash_modelo(ai, args: str) -> None:
         real = str(gp) if gp else None
     if real and Path(real).name == target.name:
         _print_line(f"[ok]Modelo activo: {Path(real).name}[/ok]")
+        # Persistir: sin esto la eleccion vivia solo en os.environ y el
+        # proximo arranque volvia al modelo anterior (auditoria 2026-08-01).
+        try:
+            from cognia.first_run import set_config_value
+            set_config_value("LLAMA_GGUF_PATH", str(target))
+            _print_line("[detail]Eleccion guardada en ~/.cognia/config.env "
+                        "(persiste entre sesiones).[/detail]")
+        except Exception as _pe:
+            _print_line(f"[warn_cl]No se pudo persistir la eleccion: {_pe}[/warn_cl]")
     else:
         _print_line(f"[warn_cl]Backend cargado pero el modelo reportado no "
                     f"coincide (esperado {target.name}, server reporta "
@@ -6140,6 +6207,16 @@ def repl():
 
     _session_start = time.time()
 
+    # Modo de modelos persistido (/modelo unico): aplicar los kill-switches
+    # ANTES de construir Cognia() para que los routers por rol vean el modo
+    # correcto desde el primer turno. Con modo "flota" NO se toca el entorno:
+    # un pop aca pisaria kill-switches que el usuario seteo a mano en .env.
+    try:
+        if _load_config().get("modelo_modo", "flota") == "unico":
+            _aplicar_modo_modelo("unico")
+    except Exception:
+        pass
+
     # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
     # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
     # mas de 24h para que siempre refleje el entorno real. try/except total:
@@ -6294,8 +6371,11 @@ def repl():
             _run(raw, ai.introspect, color="cyan")
         elif raw == "/modulos":
             _slash_modulos()
-        elif raw == "/modelos" or raw.startswith("/modelos ") \
-                or raw == "/modelo" or raw.startswith("/modelo "):
+        elif raw == "/modelos" or raw.startswith("/modelos "):
+            # OJO: solo /modelos (expertos). /modelo (GGUF del backend) tiene
+            # su propia rama mas abajo; cuando esta condicion lo capturaba,
+            # el handler real _slash_modelo era codigo muerto y el usuario
+            # recibia el usage de expertos (huerfana cazada 2026-08-01).
             _slash_modelos(ai, raw.split(" ", 1)[1] if " " in raw else "")
         elif raw in ("/cpu", "/gpu"):
             _slash_perfil(raw[1:])
@@ -6636,13 +6716,16 @@ def repl():
             # Cambia el COMBO de modelos servidos (flota por roles 2026-07-24).
             # El REPL habla con :8080 via llm_local: cambiar el combo cambia el
             # cerebro EN CALIENTE sin reiniciar el REPL. Sin args: estado.
-            _fl_modo = raw[len("/flota "):].strip() if raw.startswith("/flota ") else "estado"
+            _fl_args = (raw[len("/flota "):].strip().split()
+                        if raw.startswith("/flota ") else ["estado"])
+            _fl_modo = _fl_args[0]
             _fl_scr = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "scripts", "servir_flota.py")
             if os.path.isfile(_fl_scr):
                 import subprocess
-                subprocess.run([sys.executable, _fl_scr, _fl_modo])
+                # "solo <patron>" lleva el patron como argv extra
+                subprocess.run([sys.executable, _fl_scr] + _fl_args)
                 if _fl_modo not in ("estado", "parar"):
                     # llm_local cachea el backend detectado: forzar re-sondeo
                     # para que el REPL vea el cerebro nuevo YA.

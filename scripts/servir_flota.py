@@ -12,6 +12,8 @@ modo de fallo de Cognia es degradar en silencio cuando falta un backend.
     python scripts/servir_flota.py pensar          # gpt-oss-20b :8080 (GPU entera)
     python scripts/servir_flota.py pensar-en-lazo  # OpenReasoning-Nemotron-14B :8080 + VL-3B :8081
     python scripts/servir_flota.py juzgar          # VL-7B :8081 (juez fino, solo)
+    python scripts/servir_flota.py solo [patron]   # UN solo modelo que hace todo en :8080
+                                                   #   (sin patron: el default de servir_modelo)
     python scripts/servir_flota.py parar           # detiene todos los llama-server
     python scripts/servir_flota.py estado          # que responde en 8080/8081
 
@@ -67,6 +69,12 @@ COMBOS = {
     "juzgar": [
         ("servir_vlm.py", ["--modelo", "VL-7B"]),
     ],
+    # Modo MODELO UNICO: un solo GGUF en :8080 hace todo (chat, codigo,
+    # razonamiento). El patron del modelo se agrega en main() (argv[2]);
+    # --sin-draft porque el draft 0.5b solo ayuda a la familia coder.
+    "solo": [
+        ("servir_modelo.py", ["--sin-draft"]),
+    ],
 }
 
 
@@ -95,7 +103,7 @@ def estado() -> int:
 
 
 def main() -> int:
-    if len(sys.argv) != 2 or sys.argv[1] in ("-h", "--help"):
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print(__doc__)
         return 1
     modo = sys.argv[1]
@@ -107,13 +115,23 @@ def main() -> int:
         print(f"Modo desconocido: {modo!r}. Validos: "
               f"{sorted(COMBOS) + ['parar', 'estado']}", file=sys.stderr)
         return 1
+    if modo != "solo" and len(sys.argv) != 2:
+        print(f"El modo {modo!r} no lleva argumentos extra.", file=sys.stderr)
+        return 1
+
+    combo = COMBOS[modo]
+    if modo == "solo" and len(sys.argv) > 2:
+        # patron de modelo elegido por el usuario (match por substring en
+        # servir_modelo.elegir): "solo qwythos", "solo gpt-oss", etc.
+        combo = [(script, ["--modelo", sys.argv[2]] + args)
+                 for script, args in combo]
 
     # Cambiar de combo con restos del anterior = OOM confuso. Se para primero.
     if _responde(8080) or _responde(8081):
         print("Habia servidores vivos: los detengo antes del combo nuevo.")
         parar()
 
-    for script, args in COMBOS[modo]:
+    for script, args in combo:
         orden = [sys.executable, str(AQUI / script)] + args
         print(f"-> {script} {' '.join(args)}")   # ascii: la consola es cp1252
         r = subprocess.run(orden)

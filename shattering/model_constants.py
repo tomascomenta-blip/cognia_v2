@@ -196,6 +196,64 @@ def resolve_gguf_path(key: str):
     return None
 
 
+import re as _re
+
+# Parte 2..N de un GGUF multiparte ("-00002-of-00003"): llama-server carga la
+# parte 00001 y encuentra el resto solo; listarlas como modelos era ruido.
+_RE_PARTE = _re.compile(r"-(\d{5})-of-(\d{5})$", _re.IGNORECASE)
+
+
+def discover_gguf_registry() -> dict:
+    """Registry DINAMICO para /modelo: los GGUF que existen DE VERDAD en disco.
+
+    El registry estatico de arriba quedo desincronizado de la flota real
+    (3b/7b no estan instalados desde 2026-07) y /modelo listaba solo [NO]:
+    el usuario no podia cambiar a NADA aunque tuviera 14 GGUFs servibles en
+    ~/.cognia/models (auditoria selector 2026-08-01).
+
+    Escanea ~/.cognia/models (override: COGNIA_MODELS_DIR), excluyendo los
+    proyectores VLM (mmproj-*) y las partes 2..N de GGUFs multiparte. La
+    clave es el nombre del archivo sin extension en minusculas (para la
+    parte 00001 se recorta el sufijo "-00001-of-NNNNN"). Cualquier GGUF que
+    el usuario suelte en la carpeta aparece sin tocar codigo — asi un modelo
+    nuevo (p.ej. un 9B abliterated) es utilizable al instante.
+
+    Devuelve {clave: ruta_absoluta_str}, ordenado por clave.
+    """
+    from pathlib import Path
+    import os as _os
+    modelos_dir = Path(_os.environ.get("COGNIA_MODELS_DIR", "")) \
+        if _os.environ.get("COGNIA_MODELS_DIR") \
+        else Path.home() / ".cognia" / "models"
+    registro: dict = {}
+    if modelos_dir.is_dir():
+        for cand in sorted(modelos_dir.rglob("*.gguf")):
+            stem = cand.stem
+            if stem.lower().startswith("mmproj-"):
+                continue
+            m = _RE_PARTE.search(stem)
+            if m:
+                if m.group(1) != "00001":
+                    continue
+                stem = stem[:m.start()]
+            registro[stem.lower()] = str(cand)
+    # Las claves estaticas (3b/7b) se mantienen si resuelven a un archivo real
+    for key in MODEL_GGUF_REGISTRY:
+        p = resolve_gguf_path(key)
+        if p is not None and p.is_file():
+            registro.setdefault(key, str(p))
+    return dict(sorted(registro.items()))
+
+
+def match_gguf_key(patron: str, registro: dict) -> list:
+    """Claves del registro que matchean `patron`: exacta primero; si no,
+    por substring case-insensitive. Devuelve lista (0, 1 o N candidatas)."""
+    patron = patron.strip().lower()
+    if patron in registro:
+        return [patron]
+    return [k for k in registro if patron in k]
+
+
 # HuggingFace dataset that hosts the pre-converted INT4 .npz shards.
 # Upload once with: huggingface-cli upload Acua124298042/cognia-shards
 # Nodes download only their assigned shard (~300MB) from this URL.
