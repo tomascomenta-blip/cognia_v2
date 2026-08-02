@@ -77,6 +77,11 @@ class DesktopRateLimiter:
         with self._lock:
             self._custom_limits[key] = limit
 
+    def get_custom_limit(self, key: str):
+        """Return the per-key override set via set_limit, or None if absent."""
+        with self._lock:
+            return self._custom_limits.get(key)
+
     def get_stats(self, key: str) -> dict:
         """Return current window stats for key."""
         now = time.monotonic()

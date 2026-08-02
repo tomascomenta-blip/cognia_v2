@@ -185,7 +185,12 @@ from cognia.auth.rate_limiter import DesktopRateLimiter as _DesktopRateLimiter
 _rate_limiter: _DesktopRateLimiter = _DesktopRateLimiter(window_s=60)
 
 # ── Tier Config ───────────────────────────────────────────────────────
-from cognia.auth.tier_config import get_rate_limit as _get_rate_limit, TIERS as _TIERS
+from cognia.auth.tier_config import (
+    get_rate_limit as _get_rate_limit,
+    get_tier_config as _get_tier_config,
+    check_feature as _check_feature,
+    TIERS as _TIERS,
+)
 
 
 def get_api_key_manager() -> _APIKeyManager:
@@ -253,13 +258,16 @@ async def _api_key_middleware(request: Request, call_next):
         request.state.user_id = "local"
         request.state.tier = "local"
     else:
-        user_id = _api_key_manager.validate_key(raw_key)
-        if user_id is None:
+        # Una sola consulta: valida la clave y trae user_id + tier juntos
+        _key_info = _api_key_manager.validate_key_full(raw_key)
+        if _key_info is None:
             return _JSONResponse(status_code=401, content={"detail": "Invalid or revoked API key"})
-        request.state.user_id = user_id
-        request.state.tier = _api_key_manager.get_key_tier(user_id)
+        request.state.user_id = _key_info["user_id"]
+        request.state.tier = _key_info["tier"]
 
-    _tier_limit = _get_rate_limit(request.state.tier)
+    # El override por clave (set_limit) gana sobre el default del tier
+    _custom_limit = _rate_limiter.get_custom_limit(request.state.user_id)
+    _tier_limit = _custom_limit if _custom_limit is not None else _get_rate_limit(request.state.tier)
     _allowed, _retry = _rate_limiter.check(request.state.user_id, limit=_tier_limit)
     if not _allowed:
         return _JSONResponse(
@@ -1548,8 +1556,19 @@ class _GoalProgressRequest(BaseModel):
 
 
 @app.post("/goals")
-def create_goal(req: _GoalCreateRequest):
-    """Create a new goal for a user. Returns the created goal dict."""
+def create_goal(req: _GoalCreateRequest, request: Request):
+    """Create a new goal for a user. Returns the created goal dict. Enforces tier max_goals."""
+    # Enforcement de max_goals del tier del caller (0 o -1 = ilimitado)
+    tier = getattr(request.state, "tier", "local")
+    max_goals = _get_tier_config(tier)["max_goals"]
+    if max_goals > 0:
+        active_goals = len(_goal_tracker.get_goals(req.user_id, status="active"))
+        if active_goals >= max_goals:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Tier '{tier}' allows at most {max_goals} active goals "
+                       f"(user '{req.user_id}' already has {active_goals})",
+            )
     goal = _goal_tracker.create_goal(req.user_id, req.title, req.description)
     _webhook_manager.fire("goal.created", {"goal_id": goal.get("id"), "title": req.title, "user_id": req.user_id})
     if _analytics is not None:
@@ -1643,8 +1662,19 @@ class _WebhookCreateRequest(BaseModel):
 
 
 @app.post("/webhooks")
-def webhooks_create(req: _WebhookCreateRequest):
-    """Register a new webhook. Returns the webhook dict with id."""
+def webhooks_create(req: _WebhookCreateRequest, request: Request):
+    """Register a new webhook. Returns the webhook dict with id. Enforces tier max_webhooks."""
+    # Enforcement de max_webhooks del tier del caller (0 o -1 = ilimitado)
+    tier = getattr(request.state, "tier", "local")
+    max_webhooks = _get_tier_config(tier)["max_webhooks"]
+    if max_webhooks > 0:
+        active_webhooks = len(_webhook_manager.list_webhooks())
+        if active_webhooks >= max_webhooks:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Tier '{tier}' allows at most {max_webhooks} active webhooks "
+                       f"({active_webhooks} already registered)",
+            )
     try:
         return _webhook_manager.register(req.url, req.events, req.secret)
     except ValueError as exc:
@@ -1942,7 +1972,18 @@ def auth_create_key(
     req: _CreateKeyRequest,
     mgr: _APIKeyManager = Depends(get_api_key_manager),
 ):
-    """Create a new API key for user_id. Returns plaintext key once."""
+    """Create a new API key for user_id. Returns plaintext key once. Enforces tier max_keys."""
+    # Enforcement de max_keys del tier del usuario (0 o -1 = ilimitado)
+    tier = mgr.get_key_tier(req.user_id)
+    max_keys = _get_tier_config(tier)["max_keys"]
+    if max_keys > 0:
+        active_count = sum(1 for k in mgr.list_keys(req.user_id) if k["active"])
+        if active_count >= max_keys:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Tier '{tier}' allows at most {max_keys} active API keys "
+                       f"(user '{req.user_id}' already has {active_count})",
+            )
     raw_key = mgr.create_key(req.user_id, req.label)
     # Retrieve the new row id via list_keys (last entry for this user)
     keys = mgr.list_keys(req.user_id)
@@ -1964,16 +2005,38 @@ def auth_revoke_key(
     key_id: int,
     mgr: _APIKeyManager = Depends(get_api_key_manager),
 ):
-    """Revoke an API key by its integer id."""
+    """Revoke an API key by its integer id. Clears the owner's rate-limit window."""
+    owner = mgr.get_key_user(key_id)
     ok = mgr.revoke_key(key_id)
     if not ok:
         raise HTTPException(status_code=404, detail="key not found")
+    # Al revocar, limpiar la ventana del rate limiter para no dejar estado fantasma
+    if owner is not None:
+        _rate_limiter.reset(owner)
     return {"revoked": True, "id": key_id}
 
 
 @app.get("/auth/rate-limit/{user_id}")
 def auth_rate_limit_stats(user_id: str):
     """Return sliding-window rate limit stats for user_id."""
+    return _rate_limiter.get_stats(user_id)
+
+
+class _RateLimitSetRequest(BaseModel):
+    limit: int = Field(..., ge=0, le=1_000_000)  # 0 = ilimitado
+
+
+@app.put("/auth/rate-limit/{user_id}")
+def auth_rate_limit_set(user_id: str, body: _RateLimitSetRequest, request: Request):
+    """Set a per-key custom rate limit (overrides tier default; 0 = unlimited).
+    Requires X-Admin-Key header == COGNIA_ADMIN_KEY."""
+    admin_key = os.getenv("COGNIA_ADMIN_KEY", "")
+    if not admin_key:
+        return _JSONResponse({"error": "admin_not_configured"}, status_code=503)
+    provided = request.headers.get("X-Admin-Key", "")
+    if not hmac.compare_digest(admin_key, provided):
+        return _JSONResponse({"error": "unauthorized"}, status_code=401)
+    _rate_limiter.set_limit(user_id, body.limit)
     return _rate_limiter.get_stats(user_id)
 
 
@@ -2623,6 +2686,7 @@ async def debug_state(request: Request):
     Full system snapshot for enterprise debugging.
     Requires X-Admin-Key header == COGNIA_ADMIN_KEY env var.
     Returns 503 if COGNIA_ADMIN_KEY is not configured.
+    Requires a tier with debug_endpoint=True (enterprise).
     """
     admin_key = os.getenv("COGNIA_ADMIN_KEY", "")
     if not admin_key:
@@ -2630,6 +2694,9 @@ async def debug_state(request: Request):
     provided = request.headers.get("X-Admin-Key", "")
     if not hmac.compare_digest(admin_key, provided):
         return _JSONResponse({"error": "unauthorized"}, status_code=401)
+    # Gate por tier: solo tiers con debug_endpoint=True acceden (enterprise)
+    if not _check_feature(getattr(request.state, "tier", "local"), "debug_endpoint"):
+        return _JSONResponse({"error": "debug_not_in_tier"}, status_code=403)
     return _state_inspector.full_snapshot(_APP_CONTEXT)
 
 

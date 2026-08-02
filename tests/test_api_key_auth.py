@@ -53,6 +53,49 @@ class TestValidateKey:
         assert mgr.validate_key("sk_notcognia_abc123") is None
 
 
+class TestValidateKeyFull:
+    """Regresion: el middleware usa validate_key_full (una sola consulta)."""
+
+    def test_valid_key_returns_user_and_tier(self, mgr):
+        key = mgr.create_key("alice", tier="pro")
+        info = mgr.validate_key_full(key)
+        assert info == {"user_id": "alice", "tier": "pro"}
+
+    def test_default_tier_is_free(self, mgr):
+        key = mgr.create_key("bob")
+        info = mgr.validate_key_full(key)
+        assert info == {"user_id": "bob", "tier": "free"}
+
+    def test_invalid_key_returns_none(self, mgr):
+        assert mgr.validate_key_full("cognia_sk_totally_fake_key_1234567890") is None
+
+    def test_wrong_prefix_returns_none(self, mgr):
+        assert mgr.validate_key_full("sk_notcognia_abc123") is None
+
+    def test_revoked_key_returns_none(self, mgr):
+        key = mgr.create_key("carol")
+        key_id = mgr.list_keys("carol")[0]["id"]
+        assert mgr.validate_key_full(key) is not None
+        mgr.revoke_key(key_id)
+        assert mgr.validate_key_full(key) is None
+
+
+class TestGetKeyUser:
+    def test_returns_owner_user_id(self, mgr):
+        mgr.create_key("dave")
+        key_id = mgr.list_keys("dave")[0]["id"]
+        assert mgr.get_key_user(key_id) == "dave"
+
+    def test_returns_owner_even_if_revoked(self, mgr):
+        mgr.create_key("erin")
+        key_id = mgr.list_keys("erin")[0]["id"]
+        mgr.revoke_key(key_id)
+        assert mgr.get_key_user(key_id) == "erin"
+
+    def test_unknown_id_returns_none(self, mgr):
+        assert mgr.get_key_user(999999) is None
+
+
 class TestRevokeKey:
     def test_revoke_makes_key_invalid(self, mgr):
         key = mgr.create_key("bob")

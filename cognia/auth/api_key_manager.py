@@ -118,6 +118,15 @@ class APIKeyManager:
             return "free"
         return row[0] or "free"
 
+    def get_key_user(self, key_id: int) -> Optional[str]:
+        """Return the user_id owning key_id (active or not), or None if it does not exist."""
+        with get_pool(self._db_path).get() as conn:
+            row = conn.execute(
+                "SELECT user_id FROM api_keys WHERE id = ?",
+                (key_id,),
+            ).fetchone()
+        return row[0] if row else None
+
     def revoke_key(self, key_id: int) -> bool:
         """Deactivate a key by id. Returns True if a row was updated."""
         with get_pool(self._db_path).get() as conn:

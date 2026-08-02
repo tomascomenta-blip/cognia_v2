@@ -80,6 +80,17 @@ def test_set_limit_override():
     assert retry > 0.0
 
 
+def test_get_custom_limit_none_when_unset():
+    rl = DesktopRateLimiter()
+    assert rl.get_custom_limit("nobody") is None
+
+
+def test_get_custom_limit_returns_override():
+    rl = DesktopRateLimiter()
+    rl.set_limit("premium_user", 42)
+    assert rl.get_custom_limit("premium_user") == 42
+
+
 def test_set_limit_lower_than_default():
     rl = DesktopRateLimiter()
     rl.set_limit("restricted", 2)

@@ -40,7 +40,10 @@ TIERS = {
         "max_webhooks": -1,
         "web_search": True,
         "export_history": True,
-        "debug_endpoint": False,
+        # True desde que /debug/state ENFORCEA este campo (2026-08-01): es la
+        # propia maquina del usuario y el curl local sin API key esta
+        # documentado en COMERCIAL_INVENTORY; False rompia ese uso.
+        "debug_endpoint": True,
         "max_keys": -1,
     },
 }
