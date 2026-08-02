@@ -47,6 +47,34 @@ _OWNER_REPO = re.compile(r"^([\w.-]+)/([\w.-]+?)(?:\.git)?$")
 # línea que es SOLO una URL (p.ej. el asset github.com/user-attachments/...
 # que algunos README ponen antes de la primera frase): no es prosa
 _SOLO_URL = re.compile(r"^<?(?:https?://|www\.)\S+>?$")
+# CHROME del README que no es descripcion del proyecto. Cazado 2026-08-01
+# sobre HKUDS/DeepTutor: el "Objetivo" salio siendo la barra de navegacion
+# ("[Features](#-key-features) · [Get Started](...) · ...") y las notas de
+# version, porque eran las primeras lineas sin '#'. Una linea es chrome si
+# es mayoritariamente enlaces/badges, una cita de anuncio, un separador, o
+# una entrada de changelog con fecha.
+_ENLACE_MD = re.compile(r"\[[^\]]*\]\([^)]*\)")
+
+
+def _es_chrome_readme(ln: str) -> bool:
+    s = ln.strip()
+    if not s or s in ("---", "***", "___"):
+        return True
+    if s.startswith((">", "|", "!", "*Note", "_Note")):   # citas, tablas, notas
+        return True
+    enlaces = _ENLACE_MD.findall(s)
+    if enlaces:
+        # nav bar / fila de badges: casi todo el texto es enlaces, o hay 3+
+        # enlaces separados por bullets tipicos de barra de navegacion
+        largo_enlaces = sum(len(e) for e in enlaces)
+        if largo_enlaces > 0.6 * len(s) or (len(enlaces) >= 3
+                                            and ("·" in s or "|" in s
+                                                 or "•" in s)):
+            return True
+    # entrada de changelog: "[2026.7.31] v1.5.7 — ..." o "vX.Y.Z"
+    if re.match(r"^\**\[?\d{4}[.\-/]\d", s) or re.match(r"^v\d+\.\d+", s):
+        return True
+    return False
 
 
 def _saltar_dir(nombre: str) -> bool:
@@ -367,7 +395,8 @@ def _objetivo_de(analisis: dict) -> str:
         # líneas que son solo una URL, p.ej. assets al tope del README)
         prosa = [ln.strip() for ln in readme.splitlines()
                  if ln.strip() and not ln.strip().startswith(("#", "[!", "<"))
-                 and not _SOLO_URL.match(ln.strip())]
+                 and not _SOLO_URL.match(ln.strip())
+                 and not _es_chrome_readme(ln)]
         if prosa:
             partes.append(" ".join(prosa[:4])[:600])
     desc = (analisis.get("manifiestos", {}).get("pyproject", {})

@@ -239,3 +239,38 @@ def test_e2e_sobre_cognia_v2():
     assert res["analisis"]["entry_points"]        # __main__.py / console_script
     assert any("cognia" in e for e in res["analisis"]["entry_points"])
     assert len(cuerpo) > 1500
+
+
+# ── Regresion 2026-08-01: el "Objetivo" agarraba el chrome del README ──
+# Cazado corriendo repo_a_prompt sobre HKUDS/DeepTutor: la seccion Objetivo
+# salio siendo la barra de navegacion y las notas de version, porque eran
+# las primeras lineas que no empezaban por '#'.
+
+def test_objetivo_ignora_navbar_badges_y_changelog(tmp_path):
+    _limpiar_caches()
+    (tmp_path / "README.md").write_text(
+        "# MiProyecto\n\n"
+        "[Features](#-key-features) · [Get Started](#-get-started) · "
+        "[CLI](#-cli) · [Community](#-community)\n\n"
+        "---\n\n"
+        "> 🤝 **We welcome any kinds of contributing!** Vote on roadmap.\n\n"
+        "**[2026.7.31]** [v1.5.7](https://x/releases/tag/v1.5.7) — cambios\n\n"
+        "MiProyecto es un gestor de tareas con sincronización en la nube.\n",
+        encoding="utf-8")
+    a = rr.analizar_repo(tmp_path)
+    obj = rr._objetivo_de(a)
+    assert "gestor de tareas" in obj                 # la prosa real SI entra
+    assert "Get Started" not in obj                  # navbar fuera
+    assert "welcome any kinds" not in obj            # cita de anuncio fuera
+    assert "v1.5.7" not in obj                       # changelog fuera
+
+
+def test_es_chrome_readme_discrimina():
+    assert rr._es_chrome_readme("[A](#a) · [B](#b) · [C](#c)")
+    assert rr._es_chrome_readme("> nota de anuncio")
+    assert rr._es_chrome_readme("---")
+    assert rr._es_chrome_readme("**[2026.7.31]** v1.5.7 — release")
+    # prosa legitima que MENCIONA un enlace no es chrome
+    assert not rr._es_chrome_readme(
+        "Una herramienta para analizar repos, ver la [guia](docs/guia.md) "
+        "para empezar a usarla en tu proyecto.")
