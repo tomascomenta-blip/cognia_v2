@@ -54,11 +54,16 @@ def test_resolve_gguf_fallback_home(tmp_path, monkeypatch):
     assert p == gguf
 
 
-def test_resolve_gguf_sin_nada_devuelve_ruta_repo(tmp_path, monkeypatch):
+def test_resolve_gguf_sin_nada_devuelve_none(tmp_path, monkeypatch):
     from pathlib import Path as _P
     import shattering.model_constants as mc
     monkeypatch.setattr(_P, "home",
                         classmethod(lambda cls: tmp_path / "vacio"))
-    p = mc.resolve_gguf_path("7b")
-    # contrato previo intacto: devuelve la ruta del repo (exista o no)
-    assert p is not None and "model_shards" in str(p)
+    # clave con ruta repo-relativa que NO existe (hermetico: no depende de si
+    # esta maquina tiene los 3b/7b reales en model_shards)
+    monkeypatch.setitem(mc.MODEL_GGUF_REGISTRY, "test_nada",
+                        "model_shards/no_existe/Nada-Q4.gguf")
+    # Contrato nuevo (auditoria fase 2 2026-08-01): sin GGUF en repo NI en
+    # ~/.cognia/models devuelve None, no la ruta fantasma del repo (que hacia
+    # que los callers mostraran como modelo una ruta que jamas existio).
+    assert mc.resolve_gguf_path("test_nada") is None

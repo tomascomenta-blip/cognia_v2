@@ -16,6 +16,7 @@ Este módulo las ORQUESTA en un cuaderno único, sin duplicar almacenamiento:
 Es una CAPACIDAD INTERNA (para que Cognia la use como tool), no una UI: el
 agente puede tomar notas, sumar fuentes y consultarlas dentro de una tarea.
 """
+import re
 from typing import Optional
 
 TIPO_FUENTE = "fuente"
@@ -64,26 +65,53 @@ class Cuaderno:
 
     # ── consulta (RAG de recuperación, sin LLM) ─────────────────────────
     def consultar(self, pregunta: str, top_k: int = 5) -> list:
-        """Fragmentos más relevantes de la memoria para la pregunta. Barato:
-        búsqueda vectorial (episodic_fast ~2ms), sin generación."""
-        if self.ai is None:
-            return []
-        try:
-            from cognia.vectors import text_to_vector
-        except ImportError:
-            from vectors import text_to_vector
-        vec = text_to_vector(pregunta.strip())
-        hits = self.ai.episodic.retrieve_similar(vec, top_k=top_k)
-        # retrieve_similar devuelve dicts con 'observation'/'similarity'
-        # (misma forma que consume la tool `recordar`). Piso de coseno
-        # conservador: descarta el ruido ~0 y ordena por similitud.
+        """Fragmentos más relevantes para la pregunta: memoria episódica
+        (vectorial, episodic_fast ~2ms) + notas del cuaderno (léxica).
+        Barato: sin generación LLM."""
+        res = []
+        if self.ai is not None:
+            try:
+                from cognia.vectors import text_to_vector
+            except ImportError:
+                from vectors import text_to_vector
+            vec = text_to_vector(pregunta.strip())
+            hits = self.ai.episodic.retrieve_similar(vec, top_k=top_k)
+            # retrieve_similar devuelve dicts con 'observation'/'similarity'
+            # (misma forma que consume la tool `recordar`).
+            res = [{"texto": h.get("observation", ""),
+                    "score": round(h.get("similarity", 0.0), 3)}
+                   for h in (hits or []) if isinstance(h, dict)]
+        # Las notas de smart_notes eran de SOLO ESCRITURA: anotar() guardaba
+        # material que consultar() jamás devolvía (solo miraba la episódica).
+        # No tienen vector, así que la búsqueda es léxica.
+        res += self._buscar_notas(pregunta, top_k)
+        # Piso conservador: descarta el ruido ~0 y ordena por relevancia.
         SIM_FLOOR = 0.1
-        rel = sorted((h for h in (hits or [])
-                      if isinstance(h, dict)
-                      and h.get("similarity", 0.0) >= SIM_FLOOR),
-                     key=lambda h: h.get("similarity", 0.0), reverse=True)
-        return [{"texto": h.get("observation", ""),
-                 "score": round(h.get("similarity", 0.0), 3)} for h in rel]
+        rel = sorted((r for r in res if r.get("score", 0.0) >= SIM_FLOOR),
+                     key=lambda r: r.get("score", 0.0), reverse=True)
+        return rel[:top_k]
+
+    def _buscar_notas(self, pregunta: str, top_k: int) -> list:
+        """Notas de smart_notes relevantes: LIKE por palabra (>=3 letras) y
+        score = fracción de palabras de la pregunta presentes en la nota.
+        Excluye las de tipo 'fuente': son el índice del cuaderno y su
+        contenido real ya está en la memoria episódica."""
+        palabras = [w for w in re.findall(r"\w+", pregunta.lower())
+                    if len(w) >= 3]
+        if not palabras:
+            return []
+        vistos, out = set(), []
+        for w in palabras:
+            for n in self._notas.search_notes(w, limit=top_k * 2):
+                if n["id"] in vistos or n.get("note_type") == TIPO_FUENTE:
+                    continue
+                vistos.add(n["id"])
+                contenido = (n.get("content") or "").lower()
+                score = (sum(1 for p in palabras if p in contenido)
+                         / len(palabras))
+                out.append({"texto": n.get("content", ""),
+                            "score": round(score, 3), "origen": "nota"})
+        return out
 
     def resumen(self) -> dict:
         notas = self.notas(limite=1000)

@@ -27,12 +27,15 @@ que benchmark_code.run_task_tests).
 from __future__ import annotations
 
 import ast
+import logging
 import re
 import subprocess
 import sys
 import tempfile
 from collections import Counter
 from pathlib import Path
+
+_LOG = logging.getLogger("cognia.exec_consensus")
 
 _INPUT_GEN_SYSTEM = ("You are an expert Python tester. Reply with ONLY calls "
                      "to the function, one per line. No asserts, no expected "
@@ -52,18 +55,53 @@ def build_input_gen_prompt(task_prompt, entry_point, k=6):
                                     entry_point=entry_point)
 
 
+def _call_dentro_de_assert(line, entry_point):
+    """De ``assert entry(...) == <lo que sea>`` devuelve ``entry(...)``; None
+    si la línea no tiene esa forma.
+
+    POR QUÉ: el generador de inputs se le pide a un modelo que muchas veces
+    corre con un system prompt "responde SOLO con asserts" (así lo llama el
+    bench y el agente para el paso test-first). Con eso el modelo devuelve
+    `assert entry(2) == 4` en vez de `entry(2)` y el consenso se quedaba con
+    CERO inputs — muerte silenciosa medida el 2026-08-01 contra :8080. El
+    valor esperado del assert se DESCARTA (sería un oráculo-LLM, prohibido
+    por P8): acá solo se rescata la LLAMADA, que es lo único que el consenso
+    necesita para ejecutar y comparar comportamientos."""
+    try:
+        nodo = ast.parse(line)
+    except SyntaxError:
+        return None
+    if not nodo.body or not isinstance(nodo.body[0], ast.Assert):
+        return None
+    test = nodo.body[0].test
+    cand = test.left if isinstance(test, ast.Compare) else test
+    if not isinstance(cand, ast.Call):
+        return None
+    if not (isinstance(cand.func, ast.Name) and cand.func.id == entry_point):
+        return None
+    try:
+        return ast.unparse(cand)
+    except Exception:                              # pragma: no cover (py<3.9)
+        return None
+
+
 def extract_input_calls(text, entry_point, max_calls=8):
     """Líneas que son UNA llamada a entry_point, sintácticamente válidas.
-    Filtra asserts, prosa, fences. Deduplica preservando orden."""
+    Filtra prosa y fences; de los asserts rescata SOLO la llamada (ver
+    _call_dentro_de_assert). Deduplica preservando orden."""
     if not text:
         return []
     out, seen = [], set()
     for line in text.splitlines():
         line = line.strip()
-        if line.startswith("assert ") or not line:
+        if not line:
             continue
         # tolerar fences / prefijos tipo ">>> "
         line = line.lstrip("> ").strip("`").strip()
+        if line.startswith("assert "):
+            line = _call_dentro_de_assert(line, entry_point)
+            if not line:
+                continue
         if not line.startswith(entry_point + "("):
             continue
         try:
@@ -145,8 +183,14 @@ def consensus_pick(codes, input_calls, entry_point, tied_idxs=None):
     ganador es por idx menor (reproducible; respeta el greedy=0)."""
     idxs = tied_idxs if tied_idxs is not None else list(range(len(codes)))
     info = {"n_considered": len(idxs), "n_valid": 0, "n_clusters": 0,
-            "winner_size": 0, "n_inputs": len(input_calls)}
-    if not input_calls or len(idxs) < 2:
+            "winner_size": 0, "n_inputs": len(input_calls), "reason": None}
+    # `reason` SIEMPRE poblado: sin el, "desempate" y "no pude desempatar"
+    # se veian IGUAL desde afuera y el caller caia al indice en silencio.
+    if not input_calls:
+        info["reason"] = "sin_inputs"        # el generador no dio llamadas
+        return None, info
+    if len(idxs) < 2:
+        info["reason"] = "sin_empate"
         return None, info
     sigs = {}
     for i in idxs:
@@ -155,6 +199,7 @@ def consensus_pick(codes, input_calls, entry_point, tied_idxs=None):
             sigs[i] = sig
     info["n_valid"] = len(sigs)
     if len(sigs) < 2:
+        info["reason"] = "unico_ejecutable" if sigs else "sin_firmas_validas"
         return (next(iter(sigs)) if sigs else None), info
     counts = Counter(sigs.values())
     info["n_clusters"] = len(counts)
@@ -162,9 +207,25 @@ def consensus_pick(codes, input_calls, entry_point, tied_idxs=None):
     info["winner_size"] = top_n
     # empate de clusters (todos distintos, o dos parejos) => sin señal
     if top_n < 2:
+        info["reason"] = "sin_moda"
         return None, info
     ganador = min(i for i in sigs if sigs[i] == top_sig)   # idx menor
+    info["reason"] = "consenso"
     return ganador, info
+
+
+def _declarar(info):
+    """Deja constancia RUIDOSA de que el consenso no pudo desempatar.
+
+    Sin esto el caller cae al desempate por indice y el resultado es
+    indistinguible de "el consenso eligio ese candidato": exactamente el
+    modo de fallo prohibido (degradar en silencio). Va por logging.WARNING,
+    que sin handlers configurados igual sale por stderr (lastResort)."""
+    _LOG.warning("consenso NO desempata: reason=%s n_inputs=%s n_valid=%s "
+                 "n_clusters=%s%s", info.get("reason"), info.get("n_inputs"),
+                 info.get("n_valid"), info.get("n_clusters"),
+                 (" raw=" + repr(info["raw_preview"][:80]))
+                 if info.get("raw_preview") else "")
 
 
 def consensus_tiebreak(codes, tied_idxs, gen_fn, task_prompt, entry_point,
@@ -179,11 +240,25 @@ def consensus_tiebreak(codes, tied_idxs, gen_fn, task_prompt, entry_point,
     gen_fn(prompt, temperature, seed) -> str (mismo contrato que candidates).
     El caller envuelve el prompt en su template; acá se pasa crudo."""
     if len(tied_idxs) < 2:
-        return None, {"n_considered": len(tied_idxs), "reason": "sin_empate"}
+        return None, {"n_considered": len(tied_idxs), "reason": "sin_empate",
+                      "n_inputs": 0}
     try:
         raw = gen_fn(build_input_gen_prompt(task_prompt, entry_point, k_inputs),
                      temperature=0.0, seed=seed) or ""
-    except Exception:
-        return None, {"reason": "gen_fn_fallo"}
+    except Exception as exc:
+        info = {"n_considered": len(tied_idxs), "reason": "gen_fn_fallo",
+                "n_inputs": 0, "error": f"{type(exc).__name__}: {exc}"[:200]}
+        _declarar(info)
+        return None, info
     inputs = extract_input_calls(raw, entry_point)
-    return consensus_pick(codes, inputs, entry_point, tied_idxs=tied_idxs)
+    idx, info = consensus_pick(codes, inputs, entry_point,
+                               tied_idxs=tied_idxs)
+    info["inputs"] = inputs
+    if not inputs:
+        # Muestra del crudo: si el generador vino con el system prompt
+        # equivocado (p.ej. "responde SOLO con asserts") esto lo delata en
+        # el JSON del bench en vez de dejarlo morir en silencio.
+        info["raw_preview"] = raw.strip()[:200]
+    if idx is None:
+        _declarar(info)
+    return idx, info

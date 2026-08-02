@@ -174,6 +174,155 @@ def test_best_of_n_early_stop_no_aplica_con_bpb():
     assert out["n_generated"] == 3              # pool completo, sin corte
 
 
+def test_best_of_n_empate_lo_rompe_el_consenso_de_ejecucion():
+    """Regresión A14 (descablado): en un empate del top score de visibles,
+    best_of_n elegía por idx menor — a ciegas. Ahora exec_consensus genera
+    inputs, EJECUTA los empatados y gana la moda de comportamiento: entre
+    un buggy (idx 1) y dos correctos (idx 2 y 3) que empatan 1/1, el
+    consenso elige un correcto. Sin el wiring, best_idx sería 1."""
+    TRIPLE = "def double(n):\n    return n * 3\n"      # pasa double(0)==0
+    GOOD2 = "def double(n):\n    return n + n\n"       # correcto, otra forma
+    responses = iter([
+        # 1) test-first: un solo assert DEBIL (0 lo delata a greedy, no a n*3)
+        "assert double(0) == 0",
+        # 2) greedy: buggy que FALLA el visible (evita el early-stop)
+        "```python\n" + BAD_CODE + "```",
+        # 3) candidato 1: buggy que PASA el visible (n*3)
+        "```python\n" + TRIPLE + "```",
+        # 4) candidato 2: correcto
+        "```python\n" + GOOD_CODE + "```",
+        # 5) candidato 3: correcto, otra forma (misma firma que el 2)
+        "```python\n" + GOOD2 + "```",
+        # 6) generacion de inputs distinguidores (consensus_tiebreak)
+        "double(2)\ndouble(5)\ndouble(-1)",
+    ])
+
+    def fake_gen(prompt, temperature, seed):
+        return next(responses)
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(fake_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=4, seed=7)
+    assert out["rank_mode"] == "tests+consensus"
+    assert out["best_idx"] in (2, 3)            # un correcto, no el n*3
+    assert out["consensus"]["winner_size"] == 2  # cluster de los 2 correctos
+
+
+def _pool_empatado():
+    """Generador enlatado que produce un EMPATE en visibles (1/1) entre un
+    buggy (idx 1) y dos correctos (idx 2 y 3) -> obliga al consenso."""
+    TRIPLE = "def double(n):\n    return n * 3\n"
+    GOOD2 = "def double(n):\n    return n + n\n"
+    return iter([
+        "assert double(0) == 0",                 # visible debil
+        "```python\n" + BAD_CODE + "```",        # greedy: falla el visible
+        "```python\n" + TRIPLE + "```",
+        "```python\n" + GOOD_CODE + "```",
+        "```python\n" + GOOD2 + "```",
+    ])
+
+
+def test_best_of_n_usa_el_input_gen_fn_para_el_consenso():
+    """Regresion 2026-08-01: el bench pasaba SOLO test_gen_fn (system
+    'responde SOLO con asserts') y best_of_n lo reusaba para pedir los
+    inputs del consenso -> el modelo devolvia asserts, 0 inputs, consenso
+    None SIEMPRE. Ahora el consenso tiene su propio generador y se declara
+    cual se uso."""
+    responses = _pool_empatado()
+    usados = []
+
+    def code_gen(prompt, temperature, seed):
+        usados.append("code")
+        return next(responses)
+
+    def test_gen(prompt, temperature, seed):
+        usados.append("test")
+        return next(responses)                   # el primer enlatado
+
+    def input_gen(prompt, temperature, seed):
+        usados.append("input")
+        assert "Do NOT write the expected result" in prompt
+        return "double(2)\ndouble(5)\ndouble(-1)"
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(code_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=4, seed=7, test_gen_fn=test_gen,
+                    input_gen_fn=input_gen)
+    assert usados.count("input") == 1            # se llamo al generador propio
+    assert out["rank_mode"] == "tests+consensus"
+    assert out["consensus"]["input_gen"] == "input_gen_fn"
+    assert out["consensus"]["reason"] == "consenso"
+    assert out["best_idx"] in (2, 3)
+
+
+def test_best_of_n_declara_cuando_el_consenso_no_puede():
+    """Si el consenso se INTENTA y no desempata, el pick sale por indice —
+    y eso ya no se disfraza de 'tests': rank_mode lo dice y consensus.reason
+    explica por que. Sin el fix, rank_mode quedaba 'tests' (indistinguible
+    de un consenso exitoso) y el modo de fallo era invisible."""
+    responses = _pool_empatado()
+
+    def code_gen(prompt, temperature, seed):
+        return next(responses)
+
+    def test_gen(prompt, temperature, seed):
+        return next(responses)
+
+    def input_gen(prompt, temperature, seed):
+        return "Sure, here are some ideas for tests."   # cero llamadas
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(code_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=4, seed=7, test_gen_fn=test_gen,
+                    input_gen_fn=input_gen)
+    assert out["rank_mode"] == "tests+consenso_nulo"
+    assert out["consensus"]["reason"] == "sin_inputs"
+    assert out["best_idx"] == 1                  # desempate por indice, visible
+
+
+def test_best_of_n_sin_input_gen_fn_lo_declara_como_fallback():
+    """Sin input_gen_fn el consenso reusa test_gen_fn (system de asserts) y
+    lo DECLARA: el caller queda advertido en el JSON."""
+    responses = _pool_empatado()
+
+    def code_gen(prompt, temperature, seed):
+        return next(responses)
+
+    def test_gen(prompt, temperature, seed):
+        try:
+            return next(responses)
+        except StopIteration:                    # la llamada del consenso
+            return "assert double(2) == 4\nassert double(5) == 10"
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(code_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=4, seed=7, test_gen_fn=test_gen)
+    assert out["consensus"]["input_gen"] == "test_gen_fn(fallback)"
+    # y aun asi decide: de los asserts se rescata la llamada
+    assert out["rank_mode"] == "tests+consensus"
+    assert out["best_idx"] in (2, 3)
+
+
+def test_best_of_n_sin_empate_no_llama_al_consenso():
+    """Con un ganador claro en visibles no hay empate: el consenso NI se
+    invoca (cero llamadas extra al modelo) y rank_mode queda 'tests'."""
+    responses = iter([
+        "assert double(2) == 4\nassert double(5) == 10",
+        "```python\n" + BAD_CODE + "```",       # greedy: 1/2
+        "```python\n" + GOOD_CODE + "```",      # candidato 1: 2/2 (gana solo)
+    ])
+
+    def fake_gen(prompt, temperature, seed):
+        return next(responses)                  # StopIteration si llamara mas
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(fake_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=2, seed=7)
+    assert out["rank_mode"] == "tests"
+    assert out["best_idx"] == 1
+    assert out["consensus"] is None
+
+
 def test_best_of_n_sin_tests_visibles_corta_en_greedy():
     """Sin oraculo el ranking siempre elige el primer unico no-vacio (=el
     greedy): generar N-1 extra es CPU tirada. Corta y lo declara."""

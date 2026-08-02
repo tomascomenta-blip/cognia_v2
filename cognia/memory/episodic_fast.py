@@ -21,6 +21,7 @@ USO:
 """
 
 import json
+import os
 import threading
 import time
 import numpy as np
@@ -55,6 +56,101 @@ class VectorCache:
         self._dirty_since: float = 0.0
         self._faiss_index = None     # IndexFlatIP built by _build_locked() if faiss-cpu installed
         self._lock = threading.RLock()
+        # Persistencia en disco: evita el build completo (50s / +293MB medidos
+        # con 65k vectores) DENTRO del primer turno de cada proceso nuevo.
+        self._tried_persisted = False   # solo un intento de carga por proceso
+        self._persisted_max_id = None   # max_id de la ultima persistencia
+
+    # Cuantas altas nuevas justifican re-persistir tras un refresh incremental
+    # (escribir ~100MB por cada episodio nuevo seria peor que el problema).
+    _PERSIST_EVERY_N = 200
+
+    def _persist_paths(self) -> tuple:
+        """(ruta_matriz.npy, ruta_meta.json) junto a la DB (aisla los tests)."""
+        base = os.path.join(os.path.dirname(os.path.abspath(self.db_path)),
+                            "vector_cache")
+        return base + ".npy", base + ".meta.json"
+
+    def _persist_locked(self):
+        """Guarda matriz normalizada + meta en disco (escritura atomica).
+        Fallos no fatales: el cache en disco es solo una optimizacion."""
+        if self._matrix is None or getattr(self, "_max_id_visto", None) is None:
+            return
+        npy_path, meta_path = self._persist_paths()
+        try:
+            t0 = time.perf_counter()
+            tmp_npy = npy_path + ".tmp.npy"
+            np.save(tmp_npy, self._matrix)
+            os.replace(tmp_npy, npy_path)
+            header = {
+                "max_id": int(self._max_id_visto),
+                "n_hasta_max": int(getattr(self, "_n_hasta_max", 0)),
+                "include_forgotten": bool(getattr(self, "_built_include_forgotten", False)),
+                "n": len(self._meta),
+            }
+            tmp_meta = meta_path + ".tmp"
+            with open(tmp_meta, "w", encoding="utf-8") as fh:
+                json.dump({"header": header, "meta": self._meta}, fh, ensure_ascii=False)
+            os.replace(tmp_meta, meta_path)
+            self._persisted_max_id = self._max_id_visto
+            logger.info(
+                f"VectorCache persistido: {len(self._meta)} vectores en "
+                f"{(time.perf_counter()-t0)*1000:.1f}ms",
+                extra={"op": "vector_cache.persist", "context": f"n={len(self._meta)}"}
+            )
+        except Exception as exc:
+            logger.warning(f"VectorCache: fallo al persistir ({exc})",
+                           extra={"op": "vector_cache.persist", "context": "error"})
+
+    def _load_persisted_locked(self, include_forgotten: bool = False) -> bool:
+        """Carga matriz + meta desde disco si son de la misma vista.
+        La VALIDACION contra la DB (filas viejas intactas) la hace el caller
+        (_refresh_locked): aqui solo se restaura el estado en memoria."""
+        npy_path, meta_path = self._persist_paths()
+        if not (os.path.exists(npy_path) and os.path.exists(meta_path)):
+            return False
+        try:
+            t0 = time.perf_counter()
+            with open(meta_path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            header = data.get("header", {})
+            meta = data.get("meta", [])
+            if bool(header.get("include_forgotten", False)) != bool(include_forgotten):
+                return False
+            matrix = np.load(npy_path)
+            if matrix.ndim != 2 or matrix.shape[0] != len(meta) or len(meta) != header.get("n"):
+                return False
+            self._matrix = matrix.astype(np.float32, copy=False)
+            self._meta = meta
+            self._db_count = len(meta)
+            self._max_id_visto = int(header["max_id"])
+            self._n_hasta_max = int(header["n_hasta_max"])
+            self._built_include_forgotten = include_forgotten
+            self._persisted_max_id = self._max_id_visto
+            self._faiss_index = None
+            try:
+                import faiss as _faiss
+                _fi = _faiss.IndexFlatIP(int(matrix.shape[1]))
+                _fi.add(self._matrix)
+                self._faiss_index = _fi
+            except Exception:
+                pass
+            logger.info(
+                f"VectorCache cargado de disco: {len(meta)} vectores en "
+                f"{(time.perf_counter()-t0)*1000:.1f}ms",
+                extra={"op": "vector_cache.load", "context": f"n={len(meta)}"}
+            )
+            return True
+        except Exception as exc:
+            logger.warning(f"VectorCache: cache en disco invalido ({exc})",
+                           extra={"op": "vector_cache.load", "context": "error"})
+            return False
+
+    def warm(self, include_forgotten: bool = False):
+        """Precalienta el cache FUERA del turno (llamar en un hilo al arrancar):
+        carga la version persistida y la pone al dia, o hace el build completo."""
+        with self._lock:
+            self._refresh_locked(include_forgotten)
 
     def _needs_rebuild(self, current_hash: int) -> bool:
         """Reconstruir si el hash cambió o el cache está vacío."""
@@ -237,10 +333,21 @@ class VectorCache:
         self._hash_cache_ts = 0.0
 
         elapsed = (time.perf_counter() - t0) * 1000
-        logger.info(
-            f"VectorCache construido: {len(rows)} vectores en {elapsed:.1f}ms",
-            extra={"op": "vector_cache.build", "context": f"n={len(rows)}"}
-        )
+        if elapsed > 2000:
+            # Un build de este tamano NO debe pagarse dentro del turno: si
+            # aparece este warning, el warm() del arranque no corrio o el
+            # cache persistido quedo invalido.
+            logger.warning(
+                f"VectorCache: build completo de {elapsed:.0f}ms en caliente "
+                f"({len(rows)} vectores) -- deberia venir del cache persistido",
+                extra={"op": "vector_cache.build", "context": f"slow n={len(rows)}"}
+            )
+        else:
+            logger.info(
+                f"VectorCache construido: {len(rows)} vectores en {elapsed:.1f}ms",
+                extra={"op": "vector_cache.build", "context": f"n={len(rows)}"}
+            )
+        self._persist_locked()
 
     # Cuantos episodios recientes refrescan sus escalares (confidence,
     # importance, feedback_weight) en un refresco incremental. Cubre de sobra
@@ -261,6 +368,12 @@ class VectorCache:
         episodios activos con id <= max_id_visto sin cambios (si bajo, hubo
         olvidos/borrados y la matriz vieja ya no vale -> build completo).
         Ante cualquier duda o error: build completo."""
+        # Primer uso del proceso: intentar restaurar la matriz persistida en
+        # disco ANTES de pagar el build completo. La validacion de abajo
+        # (n_viejos) decide si sigue siendo valida frente a la DB real.
+        if self._matrix is None and not self._tried_persisted:
+            self._tried_persisted = True
+            self._load_persisted_locked(include_forgotten)
         if (self._matrix is None or not self._meta
                 or getattr(self, "_max_id_visto", None) is None
                 or getattr(self, "_built_include_forgotten", None) != include_forgotten):
@@ -351,6 +464,12 @@ class VectorCache:
         self._db_count = len(self._meta)
         self._db_hash = self._get_db_hash()
         self._hash_cache_ts = 0.0
+        # Re-persistir solo cuando se acumulo bastante (escribir ~100MB por
+        # episodio seria peor que el rebuild que se quiere evitar); el proximo
+        # proceso paga como mucho un incremental de _PERSIST_EVERY_N filas.
+        if (vectores and self._persisted_max_id is not None
+                and self._max_id_visto - self._persisted_max_id >= self._PERSIST_EVERY_N):
+            self._persist_locked()
         logger.info(
             f"VectorCache incremental: +{len(vectores)} vectores "
             f"(total {len(self._meta)}) en {(time.perf_counter()-t0)*1000:.1f}ms",

@@ -26,6 +26,7 @@ rondas, o el disyuntor detecta que insistir no avanza (regla 11 del repo).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -36,7 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from ..disciplina import Disyuntor, huella_de_texto
+from ..disciplina import DIR_ESTADO, Disyuntor, huella_de_texto
 from . import mockup as _mockup
 from .arbitro_visual import arbitrar_desde_informe
 from .generator import (GeneratedProgram, _es_idea_web, generate_program,
@@ -46,6 +47,14 @@ from .vista_navegador import InformeVisual, revisar_en_navegador
 logger = logging.getLogger(__name__)
 
 LlmFn = Callable[[str, str, int, float], Optional[str]]
+
+
+# Ruta del JSONL append-only del disyuntor, en .disciplina/ del cwd (mismo
+# criterio que cognia/disciplina/__main__.py y program_creator._ruta_disyuntor).
+# Sin ruta_log el corte no dejaba rastro calibrable para el modo sombra.
+def _ruta_disyuntor(tarea: str) -> Path:
+    h = hashlib.sha1(tarea.encode("utf-8")).hexdigest()[:10]
+    return DIR_ESTADO / f"pc_{h}.jsonl"
 
 # Nota de fidelidad a partir de la cual se acepta la pagina sin mas rondas. El
 # arbitro puntua 0-10 el parecido al mockup; 7.0 es "fiel en lo estructural, con
@@ -538,7 +547,8 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
         res.program = program
 
         # ── 4. Lazo: render -> arbitro -> reparar -> repetir ───────────────
-        disyuntor = Disyuntor(f"mockup: {idea[:40]}")
+        tarea_d2c = f"mockup: {idea[:40]}"
+        disyuntor = Disyuntor(tarea_d2c, ruta_log=_ruta_disyuntor(tarea_d2c))
         with tempfile.TemporaryDirectory(prefix="cognia_d2c_") as tmp:
             tmp_dir = Path(tmp)
 
@@ -657,6 +667,10 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                     hubo_cambio=(ronda > 1))
                 motivo = disyuntor.motivo_corte()
                 if motivo:
+                    # El disparo queda en el JSONL para la calibracion del
+                    # modo sombra (mismo patron que tool_synthesis.py).
+                    disyuntor.persistir_evento("disparo", motivo=motivo,
+                                               intento=len(disyuntor.intentos))
                     res.motivo_corte = f"disyuntor {motivo}"
                     if verbose:
                         print(f"   ⛔ Disyuntor ({motivo}): dejo de parchear a ciegas.")

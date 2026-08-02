@@ -23,7 +23,10 @@ def _get_default_db() -> str:
             from cognia.config import DB_PATH
             _DEFAULT_DB = DB_PATH
         except ImportError:
-            _DEFAULT_DB = "cognia_memory.db"
+            # fallback ANCLADO a ~/.cognia: un path relativo creaba una DB
+            # nueva en el cwd de turno en vez de usar la del usuario
+            from pathlib import Path
+            _DEFAULT_DB = str(Path.home() / ".cognia" / "cognia_memory.db")
     return _DEFAULT_DB
 
 

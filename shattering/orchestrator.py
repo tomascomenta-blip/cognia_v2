@@ -437,14 +437,30 @@ class ShatteringOrchestrator:
                     return
                 if item[0] == "__error__":
                     logger.warning("[Orchestrator] llama.cpp stream error: %s; falling back", item[1])
-                    # self._llama = None apaga llama.cpp para el resto de la
-                    # instancia y el chat pasa a shards numpy (otra calidad,
-                    # otra velocidad) sin que nada lo diga en la salida.
-                    _gritar_degradado(
-                        "orchestrator.astream",
-                        f"stream llama.cpp fallo ({item[1]}); DESHABILITO llama.cpp "
-                        f"en esta instancia y caigo a shards numpy")
-                    self._llama = None
+                    # Mismo criterio que _local_infer (A1 2026-08-01): solo se
+                    # apaga llama.cpp si el server realmente NO esta; un blip
+                    # con el server vivo ('ok'/'cargando') degrada SOLO esta
+                    # peticion y el proximo turno reintenta.
+                    estado = "ausente"
+                    try:
+                        fn = getattr(self._llama, "server_state", None)
+                        if callable(fn):
+                            estado = fn()
+                    except Exception:
+                        pass
+                    if estado in ("ok", "cargando", "in-process"):
+                        _gritar_degradado(
+                            "orchestrator.astream",
+                            f"stream llama.cpp fallo ({item[1]}) con el server "
+                            f"'{estado}': caigo a shards numpy SOLO esta peticion")
+                    else:
+                        _gritar_degradado(
+                            "orchestrator.astream",
+                            f"stream llama.cpp fallo ({item[1]}) y el server no "
+                            f"responde /health; deshabilito llama.cpp, RE-SONDEO "
+                            f"en el proximo turno y caigo a shards numpy")
+                        self._llama = None
+                        self._llama_checked = False   # re-sondear el proximo turno
                     break
                 yield item[0], None
             else:
@@ -768,16 +784,41 @@ class ShatteringOrchestrator:
                 real = getattr(self._llama, "last_tokens_predicted", None)
                 toks = real if real is not None else max(1, len(result) // 4)
                 return result, "llama.cpp", toks
-            # llama.cpp failed mid-session — disable and fall through to numpy
-            logger.warning("[Orchestrator] llama.cpp returned None, falling back to numpy")
-            # Esto no degrada UNA peticion: apaga el backend para toda la
-            # sesion (self._llama=None y _llama_checked ya esta en True, asi
-            # que no se reintenta). Todo lo que venga despues corre en numpy.
-            _gritar_degradado(
-                "orchestrator._local_infer",
-                "generate() devolvio None; DESHABILITO llama.cpp para TODA la "
-                "sesion (no se reintenta) y sigo con shards numpy")
-            self._llama = None
+            # llama.cpp fallo ESTA peticion. Antes esto apagaba el backend para
+            # TODA la sesion sin mirar la causa: un unico 10054 transitorio
+            # (server cargando el 14B, blip de conexion) degradaba todo lo que
+            # venia despues a numpy (A1 2026-08-01). Ahora se re-sondea /health
+            # via server_state(): si el server sigue ahi ('ok' ocupado o
+            # 'cargando'), degrada SOLO esta peticion y el proximo turno vuelve
+            # a intentar llama.cpp; se deshabilita unicamente si realmente no
+            # esta — y aun asi _llama_checked=False deja que el turno siguiente
+            # re-sondee/relance en vez de quedar muerto para siempre.
+            estado = "ausente"
+            try:
+                fn = getattr(self._llama, "server_state", None)
+                if callable(fn):
+                    estado = fn()
+            except Exception:
+                pass
+            if estado in ("ok", "cargando", "in-process"):
+                logger.warning("[Orchestrator] llama.cpp returned None (server "
+                               "%s); numpy SOLO esta peticion, reintento el "
+                               "proximo turno", estado)
+                _gritar_degradado(
+                    "orchestrator._local_infer",
+                    f"generate() devolvio None con el server '{estado}': degrado "
+                    f"SOLO esta peticion a shards numpy y reintento llama.cpp "
+                    f"en el proximo turno")
+            else:
+                logger.warning("[Orchestrator] llama.cpp returned None y /health "
+                               "no responde; deshabilito y re-sondeo el proximo turno")
+                _gritar_degradado(
+                    "orchestrator._local_infer",
+                    "generate() devolvio None y el server no responde /health; "
+                    "deshabilito llama.cpp, RE-SONDEO en el proximo turno y "
+                    "sigo con shards numpy")
+                self._llama = None
+                self._llama_checked = False   # re-sondear: NO es para toda la sesion
 
         # If real Qwen .npz shards are present, run the full shard pipeline
         if self._shards_available():

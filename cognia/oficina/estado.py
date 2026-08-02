@@ -31,7 +31,13 @@ class Oficina:
                 with open(path, encoding="utf-8") as f:
                     self.data = json.load(f)
             except (json.JSONDecodeError, OSError):
-                pass  # estado corrupto -> se arranca limpio (queda el .json viejo)
+                # estado corrupto -> se arranca limpio, pero el archivo se
+                # RENOMBRA antes: el primer _save haria os.replace sobre el
+                # .json viejo y destruiria la unica copia recuperable.
+                try:
+                    os.replace(path, f"{path}.corrupto-{int(time.time())}")
+                except OSError:
+                    pass  # sin permiso de rename: se arranca limpio igual
 
     # ── persistencia ──
     def _save(self) -> None:

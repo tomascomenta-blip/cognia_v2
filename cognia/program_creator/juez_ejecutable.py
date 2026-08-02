@@ -390,12 +390,26 @@ def juzgar_web(html: Path, contrato: Optional[dict] = None,
 def _cerrar(v: Veredicto) -> Veredicto:
     """Calcula veredicto y puntaje a partir de los checks."""
     criticos_fallados = [c for c in v.checks if c.critico and not c.ok]
-    v.aprobado = not criticos_fallados
+    # Con contrato, un check de contrato fallado tumba el veredicto AUNQUE no
+    # sea critico. Los pasos nacen con critico=False (_ejecutar_paso) y los
+    # contratos legacy en disco no marcan criticidad: un producto que reprobaba
+    # el 100% de su contrato salia APROBADO (4.0) porque aqui solo se miraban
+    # los criticos. El contrato es la especificacion — cada paso afirma un
+    # hecho que el producto TIENE que cumplir; incumplir uno es FALLIDO.
+    contrato_fallados = []
+    if v.con_contrato:
+        univ_nombres = ("carga", "sin_errores_js", "contenido", "interactivo")
+        contrato_fallados = [c for c in v.checks
+                             if c.nombre not in univ_nombres and not c.ok]
+    v.aprobado = not criticos_fallados and not contrato_fallados
 
     if not v.aprobado:
         v.puntaje_ejecucion = None      # regla dura: roto = sin puntaje
-        v.motivo = "falla critica: " + "; ".join(
-            f"{c.nombre} ({c.detalle})" for c in criticos_fallados[:3])
+        fallados = criticos_fallados or contrato_fallados
+        prefijo = ("falla critica: " if criticos_fallados
+                   else "contrato incumplido: ")
+        v.motivo = prefijo + "; ".join(
+            f"{c.nombre} ({c.detalle})" for c in fallados[:3])
         return v
 
     univ = [c for c in v.checks if c.nombre in

@@ -374,12 +374,18 @@ class CogniaMeshNode:
         query_embedding: List[float],
         k: int = 5,
         timeout_ms: int = FEDERATED_TIMEOUT_MS,
+        query_text: str = "",
     ) -> List[dict]:
         """
         Búsqueda semántica federada en peers.
 
         El embedding se privatiza con ruido Laplaciano (ε=self.epsilon)
         antes de enviarlo — los peers no pueden reconstruir la consulta original.
+
+        query_text es el término de búsqueda TEXTUAL que el respondedor matchea
+        contra predicado/objeto de sus triples públicos (la búsqueda vectorial
+        real requeriría un índice adicional — Fase 4). Sin query_text el peer
+        no tiene contra qué matchear y responde vacío.
 
         Retorna lista de resultados de peers (puede estar vacía si no hay peers
         o si websockets no está disponible).
@@ -394,7 +400,8 @@ class CogniaMeshNode:
 
         if self._loop and self._loop.is_running():
             future = asyncio.run_coroutine_threadsafe(
-                self._federated_search_async(noisy_vec, k, timeout_ms / 1000.0),
+                self._federated_search_async(noisy_vec, k, timeout_ms / 1000.0,
+                                             query_text),
                 self._loop,
             )
             try:
@@ -531,16 +538,22 @@ class CogniaMeshNode:
         """
         query_vec = payload.get("embedding", [])
         k         = int(payload.get("k", 5))
+        query_str = str(payload.get("query_text", "")).lower().strip()
 
-        if not query_vec:
+        # Sin embedding NI texto no hay nada que buscar (ni que responder).
+        if not query_vec and not query_str:
             return
 
-        # Buscar en CRDT local por similitud de predicado (búsqueda textual simple)
-        # (búsqueda vectorial real requeriría índice adicional — Fase 4)
-        query_str = payload.get("query_text", "").lower()
-        results   = []
+        # Buscar en CRDT local por texto (búsqueda vectorial real requeriría
+        # índice adicional — Fase 4). El subject viaja hasheado (privacy.py),
+        # así que se matchea contra predicado + objeto, que sí son legibles:
+        # frase completa o cualquier palabra significativa (>=3 chars).
+        words   = [w for w in query_str.split() if len(w) >= 3]
+        results = []
         for triple in self.crdt.get_valid():
-            if query_str and query_str in triple.predicate.lower():
+            haystack = f"{triple.predicate} {triple.object}".lower()
+            if query_str and (query_str in haystack
+                              or any(w in haystack for w in words)):
                 results.append(triple.to_dict())
             if len(results) >= k:
                 break
@@ -560,15 +573,19 @@ class CogniaMeshNode:
             )
 
     async def _federated_search_async(
-        self, noisy_vec: List[float], k: int, timeout_s: float
+        self, noisy_vec: List[float], k: int, timeout_s: float,
+        query_text: str = "",
     ) -> List[dict]:
         """Envía búsqueda federada a todos los peers y agrega resultados."""
         if not HAS_WEBSOCKETS or not self._peers:
             return []
 
+        # query_text DEBE viajar en el payload: el respondedor matchea contra
+        # payload["query_text"] y sin él devolvía [] SIEMPRE (bug 2026-08-01).
         msg = _make_msg("federated_search", self.node_id, {
-            "embedding": noisy_vec,
-            "k":         k,
+            "embedding":  noisy_vec,
+            "k":          k,
+            "query_text": query_text,
         })
 
         all_results = []

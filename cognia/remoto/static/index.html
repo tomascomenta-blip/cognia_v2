@@ -557,7 +557,36 @@ aplicarTema(localStorage.getItem("tema") || "oscuro");
 $("btn-tema").onclick = () =>
   aplicarTema(document.documentElement.dataset.tema === "oscuro" ? "claro" : "oscuro");
 
-async function api(ruta, opciones) { const r = await fetch(ruta, opciones); return r.json(); }
+/* ── Token compartido: llega UNA vez por URL (?token=, impreso en el arranque
+   del servidor) y queda en localStorage; la URL se limpia para no filtrarlo
+   en capturas ni en el historial. ── */
+const TOKEN = (() => {
+  try {
+    const u = new URL(location.href);
+    const t = u.searchParams.get("token");
+    if (t) {
+      localStorage.setItem("token", t);
+      u.searchParams.delete("token");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    }
+  } catch (e) { /* URL rara: se usa lo que haya guardado */ }
+  return localStorage.getItem("token") || "";
+})();
+// para <img src> y WebSocket, que no pueden mandar headers
+function conToken(ruta) {
+  return ruta + (ruta.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN);
+}
+let _aviso401 = false;
+async function api(ruta, opciones) {
+  const o = opciones || {};
+  o.headers = Object.assign({"X-Cognia-Token": TOKEN}, o.headers || {});
+  const r = await fetch(ruta, o);
+  if (r.status === 401 && !_aviso401) {
+    _aviso401 = true;
+    alert("Acceso denegado: abre la URL con ?token=<token> (el servidor lo imprime al arrancar; tambien esta en ~/.cognia/remoto/token.txt).");
+  }
+  return r.json();
+}
 
 /* ── Clasificacion de lineas: logs FUERA del chat ── */
 const ES_LOG = t => /^\d{4}-\d{2}-\d{2} .*\|\s*(INFO|WARNING|DEBUG|ERROR)\s*\|/.test(t);
@@ -712,8 +741,32 @@ function agregarImagen(cont, texto) {
     img.className = "inline"; img.loading = "lazy";
     img.dataset.ruta = ruta;
     img.alt = ruta.split(/[\\/]/).pop();
-    img.src = "/api/imagen?ruta=" + encodeURIComponent(ruta);
-    img.onclick = () => window.open(img.src, "_blank");   // verla en grande
+    img.src = conToken("/api/imagen?ruta=" + encodeURIComponent(ruta));
+    // Verla en grande SIN el token en la URL: abrir directamente el src de la
+    // miniatura ponia ?token=... en la barra y en el historial del navegador,
+    // justo lo que el history.replaceState de arriba borra al arrancar.
+    // Se descarga con el header y se abre un blob: (URL local, sin secreto).
+    img.onclick = async () => {
+      // la pestana se abre YA, dentro del gesto: abrirla despues del await la
+      // bloquea el navegador del movil (Safari/Chrome cuentan el popup como
+      // "no iniciado por el usuario").
+      const pestana = window.open("", "_blank");
+      try {
+        const r = await fetch("/api/imagen?ruta=" + encodeURIComponent(ruta),
+                              {headers: {"X-Cognia-Token": TOKEN}});
+        if (!r.ok) throw new Error(r.status);
+        const url = URL.createObjectURL(await r.blob());
+        if (pestana) pestana.location = url;
+        else {                              // popup bloqueado: se descarga
+          const a = document.createElement("a");
+          a.href = url; a.download = img.alt; a.click();
+        }
+        // se revoca tarde: revocar al instante deja la pestana en blanco
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (e) {
+        if (pestana) pestana.close();       // sin imagen no queda tab huerfana
+      }
+    };
     img.onerror = async () => {
       let motivo = "no se pudo cargar";
       try {
@@ -908,9 +961,9 @@ async function abrirSesion(proyecto, sid, titulo) {
   const trans = await api(`/api/proyectos/${proyecto.id}/sesiones/${sid}/transcripcion`);
   for (const e of trans) if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t);
   if (S.ws) { S.ws.close(); S.ws = null; }
-  const ws = new WebSocket(
+  const ws = new WebSocket(conToken(
     (location.protocol === "https:" ? "wss://" : "ws://") + location.host +
-    `/ws/${proyecto.id}/${sid}`);
+    `/ws/${proyecto.id}/${sid}`));
   ws.onmessage = ev => {
     const e = JSON.parse(ev.data);
     if (e.quien !== "usuario" && e.quien !== "meta") burbuja(e.quien, e.texto, e.t);

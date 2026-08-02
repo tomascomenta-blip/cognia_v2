@@ -118,6 +118,28 @@ def _record_usage(name: str, ok: bool) -> None:
     if _usage_calls_since_flush >= _USAGE_FLUSH_EVERY:
         _usage_calls_since_flush = 0
         _usage_flush()
+    # Cableado a UsageAnalytics (SQLite): el panel FEATURES leia una tabla que
+    # NADIE escribia (3 lectores, 0 escritores -> "sin datos de uso aun" desde
+    # siempre). Best-effort y NUNCA bajo pytest: los tests ejercitan run_tool
+    # a mansalva y contaminarian la DB real con uso sintetico (mismo criterio
+    # que _bon_log).
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            _usage_analytics().record(f"tool.{name}")
+        except Exception:
+            pass
+
+
+_ANALYTICS = None
+
+
+def _usage_analytics():
+    """Singleton perezoso de UsageAnalytics (una sola conexion por proceso)."""
+    global _ANALYTICS
+    if _ANALYTICS is None:
+        from cognia.analytics.usage_analytics import UsageAnalytics
+        _ANALYTICS = UsageAnalytics()
+    return _ANALYTICS
 
 
 def get_tool_usage() -> dict:
@@ -176,6 +198,17 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
                 f"Validas: {', '.join(sorted(_allowed))}")
     spec = TOOLS.get(name)
     if spec is None:
+        # Una pantalla_* ausente no es "no existe": existe y esta APAGADA por
+        # el opt-in duro (COGNIA_SCREEN). Decir "no existe" hace concluir (al
+        # modelo y al usuario) que Cognia no sabe hacerlo, cuando solo falta el
+        # flag. Va ANTES de record_wanted_tool a proposito: registrarla como
+        # "tool deseada" mandaria al background researcher a sintetizar algo
+        # que ya esta escrito.
+        if (name.startswith("pantalla_")
+                and os.environ.get("COGNIA_SCREEN", "").strip().lower()
+                not in ("1", "on", "true", "yes")):
+            return (f"ERROR: '{name}' esta DESHABILITADA. Las herramientas de "
+                    f"pantalla son opt-in: habilitalas con COGNIA_SCREEN=1.")
         # Signal: the agent wanted a tool that doesn't exist yet. Logged so the
         # background researcher can later turn frequent wishes into real tools.
         try:
@@ -210,7 +243,63 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
 
 
 # ── small shared helpers ───────────────────────────────────────────────
-_SKIP_DIRS = {".git", "venv", "venv312", "__pycache__", ".pytest_cache", "node_modules"}
+# 'datos_bancos' guarda jsonl de cientos de MB (532MB medidos 2026-08-01):
+# leerlos en un scan de texto colgaba `buscar` MINUTOS desde la raiz del repo.
+_SKIP_DIRS = {".git", "venv", "venv312", "venv312gpu", "datos_bancos",
+              "__pycache__", ".pytest_cache", "node_modules"}
+
+
+def _dir_saltable(parts) -> bool:
+    """True si la ruta cae en un dir que no se escanea. startswith('venv')
+    cubre cualquier venv futuro (venv313, venv_gpu...) sin tener que listarlo:
+    el bug fue exactamente que 'venv312gpu' no estaba en la lista."""
+    return any(x in _SKIP_DIRS or x.startswith("venv") for x in parts)
+
+
+# Topes del scan de `buscar` (2026-08-01): sin ellos, buscar desde la raiz del
+# repo leia jsonl de cientos de MB y colgaba la tool minutos. Modulo-level
+# para poder ajustarlos (y monkeypatchearlos en tests).
+_MAX_SCAN_BYTES = 2_000_000   # archivos mas grandes no se leen (no son codigo)
+_SCAN_DEADLINE_S = 12.0       # default; el env se lee EN LA LLAMADA, ver abajo
+
+
+def _deadline_s() -> float:
+    """Segundos de deadline del scan de `buscar`, leidos EN CADA LLAMADA.
+
+    Antes se leia COGNIA_BUSCAR_DEADLINE en import-time. Con Cognia EMBEBIDO
+    (importado por otro proceso, o el modulo ya cargado cuando se pone la
+    variable) el knob no hacia NADA: quedaba congelado el valor del momento del
+    import. Se lee aqui para que ajustarlo funcione siempre.
+    El module-level sigue siendo el default y el punto de monkeypatch de tests
+    (por eso el env vacio cae al atributo, no a un literal)."""
+    crudo = os.environ.get("COGNIA_BUSCAR_DEADLINE", "").strip()
+    if not crudo:
+        return _SCAN_DEADLINE_S
+    try:
+        return float(crudo)
+    except ValueError:
+        return _SCAN_DEADLINE_S
+
+
+def _aviso_test_vacio(wpath: Path, content: str) -> str:
+    """AVISO (no bloqueo) si el archivo es un test de pytest (test_*.py) que
+    colectaria 0 tests. Cazado 2026-08-01: la skill escribir-tests entrego un
+    'test file' invalido y nadie lo noto hasta correr pytest. Se valida con
+    AST, no con substring: un 'def test_' dentro de un string/docstring no es
+    una funcion y no debe contar."""
+    if wpath.suffix != ".py" or not wpath.name.startswith("test_"):
+        return ""
+    try:
+        tree = ast.parse(content)
+    except SyntaxError as e:
+        return (f" AVISO: sintaxis invalida (linea {e.lineno}: {e.msg}); "
+                f"pytest no podria ni importar este test")
+    for node in ast.walk(tree):
+        if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name.startswith("test_")):
+            return ""
+    return (" AVISO: no define ninguna funcion test_*; pytest colectaria "
+            "0 tests de este archivo")
 
 
 def _strip_fences(text: str) -> str:
@@ -330,7 +419,8 @@ def _escribir_archivo(args, ctx):
     if str(wpath) not in ft:
         ft.append(str(wpath))
         ctx["agent_state"]["files_touched"] = ft[-15:]
-    return f"RESULTADO escribir_archivo {_disp(wpath)}: OK ({len(content)} chars)"
+    return (f"RESULTADO escribir_archivo {_disp(wpath)}: OK ({len(content)} chars)"
+            + _aviso_test_vacio(wpath, content))
 
 
 @tool("editar_archivo",
@@ -430,7 +520,7 @@ def _arbol(args, ctx):
     base = Path(args.strip() or ".")
     out = []
     for p in sorted(base.rglob("*")):
-        if any(x in p.parts for x in _SKIP_DIRS):
+        if _dir_saltable(p.parts):
             continue
         rel = p.relative_to(base)
         if len(rel.parts) > 2:
@@ -514,6 +604,25 @@ def _buscar(args, ctx):
         cabeza, _, cola = patron.rpartition(" ")
         if cola and Path(cola).exists():
             patron, directorio = cabeza.strip(), cola
+
+    # ¿El ambito que pidio el usuario es uno de los que el scan salta entero?
+    # Se calcula ANTES del scan, con el directorio ya resuelto. '.' (el default)
+    # nunca es saltable, asi que esto solo se dispara con un ambito EXPLICITO.
+    _ambito_saltado = _dir_saltable(Path(directorio).parts)
+
+    # Deadline GLOBAL de la tool: desde la raiz del repo el scan colgaba
+    # MINUTOS (jsonl de 532MB en datos_bancos + venv312gpu fuera de la
+    # lista de skip). Al vencer, se corta el scan y se sigue con los
+    # fallbacks (glob se salta, la web para preguntas del mundo sigue).
+    _segundos = _deadline_s()
+    _deadline = _time.time() + _segundos
+    # Estado REAL del scan, no inferido del reloj: 'cortado' se pone donde de
+    # verdad se rompe el bucle por deadline, y 'rg' donde de verdad contesto
+    # ripgrep. Comparar _time.time() con el deadline al final mentia en los dos
+    # sentidos (un scan completo pero lento se declaraba cortado, y un corte
+    # con matches parciales se presentaba como scan completo).
+    _estado = {"cortado": False, "rg": False}
+
     def _scan(pat):
         """rg -> fallback regex/substring sobre contenidos. Hasta 15 'archivo:n: txt'."""
         try:
@@ -522,6 +631,7 @@ def _buscar(args, ctx):
                 capture_output=True, text=True, timeout=10,
             )
             if r.returncode == 0 and r.stdout.strip():
+                _estado["rg"] = True
                 return r.stdout.strip().splitlines()[:15]
         except Exception:
             pass
@@ -539,9 +649,20 @@ def _buscar(args, ctx):
         candidatos = [raiz] if raiz.is_file() else raiz.rglob("*")
 
         for p in candidatos:
-            if not p.is_file() or any(x in p.parts for x in _SKIP_DIRS):
+            if _time.time() > _deadline:
+                _estado["cortado"] = True
+                break
+            if not p.is_file() or _dir_saltable(p.parts):
                 continue
             try:
+                # Archivos grandes (jsonl de datos, dumps) o binarios (byte
+                # NUL en la cabeza) no son texto grepeable: leerlos entero
+                # era lo que quemaba los minutos, no el numero de ficheros.
+                if p.stat().st_size > _MAX_SCAN_BYTES:
+                    continue
+                with p.open("rb") as fh:
+                    if b"\0" in fh.read(1024):
+                        continue
                 for i, ln in enumerate(p.read_text(errors="replace").splitlines(), 1):
                     if (compiled and compiled.search(ln)) or (not compiled and pat.lower() in ln.lower()):
                         out.append(f"{p}:{i}: {ln.strip()[:100]}")
@@ -554,13 +675,14 @@ def _buscar(args, ctx):
         return out
 
     results = _scan(patron)
-    nota = ""
+    notas = []
     # Fallback anti-degeneracion: el 3B a veces agrega spam a los args de busqueda
     # (ej 'CLAVE-FENIX tetas Incontri'). Si el patron completo (varias palabras) no
     # matcho, reintentar SOLO con un token identificador distintivo (con guion/
     # digito/guion-bajo) — asi 'CLAVE-FENIX' se encuentra pese al ruido, sin rescatar
     # palabras comunes (evita falsos positivos).
-    if not results and len(re.split(r"\s+", patron)) > 1:
+    if (not results and _time.time() <= _deadline
+            and len(re.split(r"\s+", patron)) > 1):
         ids = [t for t in re.split(r"\s+", patron)
                if len(t) >= 4 and re.search(r"[-_/.\d]", t)]
         if ids:
@@ -568,12 +690,31 @@ def _buscar(args, ctx):
             if alt != patron:
                 results = _scan(alt)
                 if results:
-                    nota = f" (patron acotado a '{alt}')"
-    if not results:
+                    notas.append(f"patron acotado a '{alt}'")
+    if _estado["cortado"]:
+        # Honesto con el modelo: "sin coincidencias" tras un corte por tiempo
+        # NO es lo mismo que "no esta" — que sepa acotar el ambito. Y con
+        # matches PARCIALES tampoco: antes solo se avisaba cuando results
+        # estaba vacio, asi que un scan cortado con 2 de 40 hits se presentaba
+        # como busqueda completa y el agente concluia que solo habia 2.
+        notas.append(f"scan cortado a los {int(_segundos)}s; acota el directorio")
+    # El ambito PEDIDO EXPLICITAMENTE cae en la lista de no-escaneados: el scan
+    # por contenidos lo salta ENTERO y devolvia "sin coincidencias" a secas —
+    # un falso negativo del que no se puede sospechar (el modo de fallo
+    # historico de esta tool: concluir que el codigo no existe). Si el usuario
+    # PIDE mirar ahi, hay que decirle que no se miro. Solo aplica al camino de
+    # fallback: si contesto `rg`, el directorio SI se escaneo.
+    if _ambito_saltado and not _estado["rg"]:
+        notas.append(
+            f"AVISO: '{directorio}' esta en la lista de directorios NO "
+            f"escaneados (.git, __pycache__, node_modules, datos_bancos, "
+            f"venv*); se salto ENTERO, esto NO prueba que el patron no este ahi")
+    if not results and _time.time() <= _deadline:
         try:
             results = _glob.glob(f"{directorio}/**/*{patron}*", recursive=True)[:10]
         except Exception:
             pass
+    nota = f" ({'; '.join(notas)})" if notas else ""
     if results:
         return f"RESULTADO buscar '{patron}'{nota}: " + " | ".join(results)
     # Nada en los archivos. Si lo que se pregunta es del MUNDO (no un patron de
@@ -587,6 +728,25 @@ def _buscar(args, ctx):
     # 2026-07-25 midio que sumar tools al catalogo degrada al modelo chico
     # (camino feliz 4.25/5 -> 2.5/5). Cero coste en el prompt.
     if _parece_pregunta_del_mundo(patron):
+        # Con el navegador opt-in activo, buscar con extraccion COMPLETA de
+        # pagina (texto ya saneado por el centinela): mucho mas rico que los
+        # snippets de 180 chars de busqueda_web. Cualquier fallo (sin ddgs,
+        # sin chromium, sin red) degrada en silencio al fallback de siempre.
+        if os.environ.get("COGNIA_BROWSER") == "1":
+            try:
+                from cognia.knowledge.navegador import buscar_en_web as _nav_web
+                _res = _nav_web(patron, max_resultados=2)
+                _lineas = []
+                for _r in _res.get("resultados", []):
+                    _txt = re.sub(r"\s+", " ", (_r.get("texto") or "")).strip()
+                    _lineas.append(f"[{_r.get('via', 'web')}] {_r.get('titulo', '')}"
+                                   + (f" — {_txt[:600]}" if _txt else "")
+                                   + (f" ({_r.get('url')})" if _r.get("url") else ""))
+                if _lineas:
+                    return (f"RESULTADO buscar '{patron}': nada en los archivos; "
+                            f"esto es lo que dice la WEB:\n" + "\n".join(_lineas))
+            except Exception:
+                pass
         try:
             from cognia.busqueda_web import buscar as _buscar_web
             # sin arxiv: para una pregunta general mete ruido (medido: "que es
@@ -618,14 +778,10 @@ def _buscar(args, ctx):
 # SHELL / DEV TOOLS
 # ══════════════════════════════════════════════════════════════════════
 
-_BLOCK = [
-    "rm -rf", "del /s", "del /q", "del /f", ":(){",
-    "mkfs", "dd if=", "> /dev/", "shutdown", "reboot", "rmdir /s",
-]
-# 'format' NO va como substring: bloqueaba comandos benignos comunes de un agente
-# de codigo ('ruff format .', 'git log --pretty=format:%H', 'reformat.py'). Solo
-# el 'format C:' real (borrado de disco Windows) via limite de palabra.
-_BLOCK_RE = [re.compile(r"\bformat\s+[a-zA-Z]:")]
+# La denylist legacy (_BLOCK/_BLOCK_RE) vivia aca; hoy la validacion pre-accion
+# completa (allowlist dev + bloqueo duro ampliado + confirmacion, default-ON)
+# es cognia/agent/sentinel.py y _shell delega TODO en evaluar_shell. La copia
+# muerta se borro (0 referencias; sentinel tiene su propia _BLOCK_SUB/_BLOCK_RE).
 
 
 def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
@@ -1566,15 +1722,30 @@ def _delegar_subtarea(args, ctx):
 
 # ── Computer-use: tools de pantalla (mandato 2026-07-13, gate de seguridad) ──
 # Registro al final para que `tool` y ROLE_TOOLS ya existan. Opt-in duro
-# (COGNIA_SCREEN=1); todas danger=True. Ver cognia/agent/screen_tools.py.
-try:
-    from cognia.agent import screen_tools as _screen_tools
-    _screen_tools.register(tool)
-    for _t in ("pantalla_captura", "pantalla_localizar", "pantalla_click",
-               "pantalla_escribir", "pantalla_tecla"):
-        ROLE_TOOLS["implementador"].add(_t)
-except Exception:
-    pass   # sin pyautogui / entorno headless: el agente corre igual sin pantalla
+# (COGNIA_SCREEN=1) TAMBIEN en el registro, no solo en runtime: registradas
+# siempre inflaban el catalogo default a 46 tools y el A/B 2026-07-25 midio
+# que el catalogo grande degrada al 3B (camino feliz 4.25/5 -> 2.5/5). El gate
+# runtime (_enabled) se conserva por si el flag cambia en caliente. El control
+# remoto no pierde nada: cognia/remoto/sesiones.py exporta COGNIA_SCREEN=1
+# antes de lanzar cada REPL. Mismos valores que screen_tools._enabled().
+if os.environ.get("COGNIA_SCREEN", "").strip().lower() in ("1", "on", "true", "yes"):
+    try:
+        from cognia.agent import screen_tools as _screen_tools
+        _screen_tools.register(tool)
+        # Las 7 que registra screen_tools.register(), no 5: pantalla_ventanas y
+        # pantalla_activar_ventana quedaban FUERA del rol, asi que un
+        # sub-agente 'implementador' las veia en el catalogo global pero
+        # delegar_subtarea se las recortaba — capacidad registrada y
+        # desconectada, el modo de fallo de la casa.
+        for _t in ("pantalla_captura", "pantalla_localizar", "pantalla_click",
+                   "pantalla_escribir", "pantalla_tecla",
+                   "pantalla_ventanas", "pantalla_activar_ventana"):
+            ROLE_TOOLS["implementador"].add(_t)
+    except Exception as _exc:
+        # Con el flag puesto, tragarse el import dejaria una capacidad pedida
+        # y desconectada en silencio (el modo de fallo de la casa): avisar.
+        print(f"[cognia] COGNIA_SCREEN=1 pero screen_tools no cargo: {_exc}",
+              file=sys.stderr)
 
 
 # ── Plan como artefacto mutable (patron OpenManus, mandato 2026-07-13) ──
@@ -1610,8 +1781,10 @@ if os.environ.get("COGNIA_IMG_TOOLS") == "1":
         _image_tools.register(tool)
         for _t in ("imagen_generar", "imagen_editar", "imagen_quitar_fondo"):
             ROLE_TOOLS["implementador"].add(_t)
-    except Exception:
-        pass
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_IMG_TOOLS=1 pero image_tools no cargo: {_exc}",
+              file=sys.stderr)
 
 
 # ── Navegador del agente (opt-in COGNIA_BROWSER=1) ─────────────────────
@@ -1624,8 +1797,10 @@ if os.environ.get("COGNIA_BROWSER") == "1":
         _browser_tool.register(tool)
         for _t in ("web_buscar", "web_abrir"):
             ROLE_TOOLS["investigador"].add(_t)
-    except Exception:
-        pass
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_BROWSER=1 pero browser_tool no cargo: {_exc}",
+              file=sys.stderr)
 
 
 # ── Ingenieria inversa de repos (opt-in COGNIA_REPO_REVERSE=1) ──────────
@@ -1636,5 +1811,7 @@ if os.environ.get("COGNIA_REPO_REVERSE") == "1":
         from cognia.agent import repo_reverse_tool as _repo_reverse_tool
         _repo_reverse_tool.register(tool)
         ROLE_TOOLS["investigador"].add("repo_a_prompt")
-    except Exception:
-        pass
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_REPO_REVERSE=1 pero repo_reverse_tool no cargo: "
+              f"{_exc}", file=sys.stderr)

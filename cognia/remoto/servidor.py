@@ -10,6 +10,7 @@ Sirve la app movil (static/) y expone:
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import queue
@@ -17,7 +18,7 @@ import random
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -25,6 +26,13 @@ from .sesiones import (GestorSesiones, RAIZ_DATOS, cargar_proyectos,
                        guardar_proyectos, registrar_proyecto)
 
 ESTATICOS = Path(__file__).parent / "static"
+
+# skills empaquetadas con Cognia (solo LECTURA desde el movil) y el dir de
+# skills del usuario (cognia_skills/, el mismo destino que persist_skill):
+# el PUT del movil escribe SIEMPRE en el segundo — un dispositivo de la LAN
+# no modifica ficheros trackeados del repo.
+_DIR_FLUJOS = Path(__file__).resolve().parent.parent / "skills"
+_DIR_FLUJOS_EDIT = Path(__file__).resolve().parent.parent.parent / "cognia_skills"
 
 # Saludos por franja horaria; uno al azar en cada arranque de la app.
 _SALUDOS = {
@@ -133,9 +141,61 @@ def _imagenes_recientes(limite: int = 30) -> list[dict]:
             for p in encontradas[:limite]]
 
 
+def asegurar_token(dirbase: Path) -> str:
+    """Token compartido del remoto (token.txt junto al cert). El servidor
+    escucha en 0.0.0.0 con COGNIA_ACCESO_TOTAL=1 en cada sesion: sin esto,
+    cualquier dispositivo de la LAN pilotaba la maquina e inyectaba skills.
+    Se genera una vez, se imprime en el arranque y el movil lo recibe por
+    ?token= en la URL (el front lo guarda en localStorage)."""
+    fichero = dirbase / "token.txt"
+    try:
+        tok = fichero.read_text(encoding="utf-8").strip()
+        if tok:
+            return tok
+    except OSError:
+        pass
+    import secrets
+    tok = secrets.token_urlsafe(24)
+    dirbase.mkdir(parents=True, exist_ok=True)
+    fichero.write_text(tok, encoding="utf-8")
+    return tok
+
+
+def _token_valido(recibido: str, esperado: str) -> bool:
+    # compare_digest: sin atajos de tiempo (el token viaja por la LAN).
+    # El TypeError NO es opcional: compare_digest revienta con str no-ASCII
+    # ("comparing strings with non-ASCII characters is not supported"), y como
+    # esto corre DENTRO del middleware, un ?token=cafe%CC%81 devolvia un 500 sin
+    # manejar en vez de un 401. Cualquier token no comparable es invalido.
+    if not recibido:
+        return False
+    try:
+        return hmac.compare_digest(recibido, esperado)
+    except TypeError:
+        return False
+
+
 def crear_app() -> FastAPI:
     app = FastAPI(title="Cognia Remoto")
     gestor = GestorSesiones()
+    token = asegurar_token(RAIZ_DATOS)
+
+    # ── autenticacion: token compartido para TODO /api/* y /ws/* ──
+    # La app ("/", /static) se sirve sin token: no expone datos; toda accion
+    # real pasa por /api o /ws. Header X-Cognia-Token o ?token= (imagenes
+    # via <img src> y el WebSocket no pueden mandar headers).
+    @app.middleware("http")
+    async def _auth(request: Request, call_next):
+        ruta = request.url.path
+        if ruta.startswith("/api/"):
+            recibido = (request.headers.get("x-cognia-token")
+                        or request.query_params.get("token", ""))
+            if not _token_valido(recibido, token):
+                return JSONResponse(
+                    {"error": "token invalido o ausente (ver "
+                              "~/.cognia/remoto/token.txt)"},
+                    status_code=401)
+        return await call_next(request)
 
     def _proyecto(pid: str) -> dict:
         for pr in cargar_proyectos():
@@ -174,9 +234,25 @@ def crear_app() -> FastAPI:
 
     @app.delete("/api/proyectos/{pid}")
     def baja_proyecto(pid: str):
+        # antes solo quitaba la entrada del json: los REPLs del proyecto
+        # quedaban huerfanos (6 medidos) y sus transcripciones colgadas.
+        paradas = gestor.parar_proyecto(pid)
         proyectos = [p for p in cargar_proyectos() if p["id"] != pid]
         guardar_proyectos(proyectos)
-        return {"ok": True}
+        # las transcripciones NO se borran: van a la papelera del remoto
+        # (recuperables a mano si la baja fue un error)
+        papelera = None
+        d = RAIZ_DATOS / pid
+        if d.is_dir():
+            destino = (RAIZ_DATOS / "papelera"
+                       / f"{pid}-{time.strftime('%Y%m%d-%H%M%S')}")
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                d.rename(destino)
+                papelera = str(destino)
+            except OSError:
+                pass   # fichero en uso: los datos quedan donde estaban
+        return {"ok": True, "sesiones_paradas": paradas, "papelera": papelera}
 
     # ── sesiones ──
     @app.get("/api/proyectos/{pid}/sesiones")
@@ -191,6 +267,13 @@ def crear_app() -> FastAPI:
     @app.delete("/api/proyectos/{pid}/sesiones/{sid}")
     def borrar_sesion(pid: str, sid: str):
         return {"ok": gestor.borrar(pid, sid)}
+
+    @app.post("/api/proyectos/{pid}/sesiones/{sid}/parar")
+    def parar_sesion(pid: str, sid: str):
+        # parar SIN destruir: el REPL muere, el .jsonl sobrevive y la sesion
+        # puede reabrirse (enviar() re-arranca). Antes la unica salida era el
+        # DELETE, que borra la transcripcion: 6 REPLs eternos medidos.
+        return {"ok": gestor.parar_sesion(sid)}
 
     @app.get("/api/proyectos/{pid}/sesiones/{sid}/transcripcion")
     def transcripcion(pid: str, sid: str):
@@ -207,6 +290,12 @@ def crear_app() -> FastAPI:
     # ── stream en vivo ──
     @app.websocket("/ws/{pid}/{sid}")
     async def ws(websocket: WebSocket, pid: str, sid: str):
+        # el middleware http no cubre websockets: mismo token, a mano.
+        recibido = (websocket.headers.get("x-cognia-token")
+                    or websocket.query_params.get("token", ""))
+        if not _token_valido(recibido, token):
+            await websocket.close(code=4401)   # 4401 = "no autorizado" (app)
+            return
         await websocket.accept()
         s = gestor.obtener(_proyecto(pid), sid)
         q: queue.Queue = queue.Queue()
@@ -319,18 +408,24 @@ def crear_app() -> FastAPI:
     def oficina():
         """La oficina vive por-proyecto (oficina_estado.json en su carpeta):
         se agregan los snapshots de todos los proyectos que tengan una."""
-        salida = []
         try:
             from cognia.oficina.estado import Oficina
-            for pr in cargar_proyectos():
+        except Exception as e:
+            # antes: except → [] y "sin oficinas" indistinguible de "roto"
+            return JSONResponse({"error": f"oficina no disponible: {e}"},
+                                status_code=500)
+        salida = []
+        for pr in cargar_proyectos():
+            try:
                 f = Path(pr["ruta"]) / "oficina_estado.json"
                 if f.is_file():
                     snap = Oficina(str(f)).snapshot()
                     salida.append({"proyecto": pr["nombre"],
                                    "metas": snap.get("metas", []),
                                    "tareas": snap.get("tareas", {})})
-        except Exception:
-            pass
+            except Exception as e:
+                # un snapshot corrupto no esconde los demas ni a si mismo
+                salida.append({"proyecto": pr["nombre"], "error": str(e)})
         return salida
 
     @app.get("/api/grafo")
@@ -452,15 +547,19 @@ def crear_app() -> FastAPI:
                 "n_temas": len(comp_idx), "hubs": len(hubs)}
 
     # ── flujos de trabajo (skills del agente): ver y editar ──
-    _DIR_FLUJOS = Path(__file__).resolve().parent.parent / "skills"
-
     @app.get("/api/flujos")
     def flujos():
-        salida = []
-        for f in sorted(_DIR_FLUJOS.glob("*.md")):
-            salida.append({"nombre": f.stem,
-                           "contenido": f.read_text(encoding="utf-8")})
-        return salida
+        # empaquetadas + las del usuario; en la vista gana la edicion del
+        # usuario (para que el editor del movil haga round-trip).
+        por_nombre: dict[str, dict] = {}
+        for d in (_DIR_FLUJOS, _DIR_FLUJOS_EDIT):
+            if not d.is_dir():
+                continue
+            for f in sorted(d.glob("*.md")):
+                por_nombre[f.stem] = {
+                    "nombre": f.stem,
+                    "contenido": f.read_text(encoding="utf-8")}
+        return sorted(por_nombre.values(), key=lambda x: x["nombre"])
 
     @app.put("/api/flujos/{nombre}")
     def guardar_flujo(nombre: str, cuerpo: dict):
@@ -469,8 +568,29 @@ def crear_app() -> FastAPI:
         limpio = "".join(c for c in nombre if c.isalnum() or c in "-_")
         if not limpio:
             return JSONResponse({"error": "nombre invalido"}, status_code=400)
-        destino = _DIR_FLUJOS / f"{limpio}.md"
-        destino.write_text(cuerpo.get("contenido", ""), encoding="utf-8")
+        contenido = cuerpo.get("contenido", "")
+        # una skill ES una inyeccion de instrucciones al agente: mismo
+        # blocklist que persist_skill antes de persistir nada.
+        # FAIL-CLOSED: si el escaneo no esta disponible (import roto, error
+        # dentro del scan) NO se persiste. El 'except: hits = []' anterior
+        # desactivaba el blocklist EN SILENCIO y dejaba pasar cualquier
+        # contenido — un fallo de import se convertia en un bypass de
+        # seguridad. Sin escaneo no hay PUT.
+        try:
+            from cognia.agent.skills import skill_safety_scan
+            hits = skill_safety_scan(limpio + "\n" + contenido)
+        except Exception as e:
+            return JSONResponse(
+                {"error": "escaneo de seguridad no disponible; el flujo NO "
+                          f"se guardo ({type(e).__name__}: {e})"},
+                status_code=503)
+        if hits:
+            return JSONResponse(
+                {"error": f"contenido peligroso (blocklist): {hits[:3]}"},
+                status_code=400)
+        _DIR_FLUJOS_EDIT.mkdir(parents=True, exist_ok=True)
+        (_DIR_FLUJOS_EDIT / f"{limpio}.md").write_text(
+            contenido, encoding="utf-8")
         return {"ok": True, "nombre": limpio}
 
     # ── oficina 3D isometrica: lanzarla para un proyecto y embeberla ──
@@ -578,10 +698,14 @@ def main() -> int:
     import uvicorn
     app = crear_app()
     cert, key = asegurar_cert(RAIZ_DATOS)
+    tok = asegurar_token(RAIZ_DATOS)
     ip = _ip_lan() or "<IP-del-PC>"
+    # la URL con ?token= entra de una: el front lo guarda en localStorage y
+    # las visitas siguientes ya no lo necesitan en la URL.
     print(f"Cognia Remoto en https://0.0.0.0:8777  (desde el celular: "
-          f"https://{ip}:8777 — aceptá el aviso de certificado UNA vez; "
-          f"solo con https funciona el microfono)")
+          f"https://{ip}:8777/?token={tok} — aceptá el aviso de certificado "
+          f"UNA vez; solo con https funciona el microfono)")
+    print(f"Token de acceso: {tok}  (guardado en {RAIZ_DATOS / 'token.txt'})")
     uvicorn.run(app, host="0.0.0.0", port=8777,
                 ssl_certfile=cert, ssl_keyfile=key, log_level="warning")
     return 0

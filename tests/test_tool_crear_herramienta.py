@@ -19,6 +19,11 @@ from cognia.agent import tools as T
 def _isolate(tmp_path, monkeypatch):
     monkeypatch.setattr(TS, "GENERATED_DIR", tmp_path / "gen")
     monkeypatch.setattr(TS, "MANIFEST_PATH", tmp_path / "gen" / "_manifest.json")
+    # El Disyuntor del bucle generar->reparar persiste sus disparos en
+    # DISCIPLINA_DIR (relativo al cwd = .disciplina/ del repo): sin aislarlo,
+    # cada pytest appendea disparos SINTETICOS (tool_malo, tool_rota) al JSONL
+    # que calibra el modo sombra -- mismo patron que test_disciplina_sombra.py.
+    monkeypatch.setattr(TS, "DISCIPLINA_DIR", tmp_path / "disciplina")
     # crear_herramienta registra en el registry GLOBAL (T.TOOLS) para quedar
     # invocable ya mismo -- restaurar tras cada test evita ensuciar otros tests
     # del modulo (que comparten el mismo dict TOOLS a nivel de proceso).

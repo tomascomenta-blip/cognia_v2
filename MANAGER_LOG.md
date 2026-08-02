@@ -11977,3 +11977,53 @@ horas" — eso está en la franja HARD donde el goal firmado 2026-08-01 midió
 frontier 95% vs 20B 31-57%: el 14B local entrega un mini-juego funcional
 (su crítico le puso 5.3-5.5/10), no un indie comercial. El sistema ahora
 reporta ese resultado en vez de tirarlo por un null de hace una semana.
+
+## 2026-08-01 (noche-3) — AUDITORÍA TOTAL de Cognia: 3 fases, 78 fixes, suite 5738/0
+
+Goal del dueño: "organiza toda Cognia, deja todos los instrumentos funcionales,
+todo interconectado y funcional, con pruebas end-to-end".
+
+**Fase 1 — inventario (13 sondas paralelas, solo lectura, rutas REALES).**
+Estado: 2 subsistemas funcionales, 11 degradados, 0 rotos. 3 bloqueantes:
+(1) el backend se auto-deshabilitaba para TODA la sesión cuando la primera
+petición llegaba durante la carga del modelo (reset 10054 leído como "no hay
+backend"); (2) seed_static reinyectaba ~130 hechos por arranque → 220.989
+episodios con 104 textos distintos, 1,9 GB; (3) el encoder degradaba a n-gram
+en frío SIN avisar → la query caía en otro espacio vectorial. Además: las
+tools opt-in (web_buscar/repo_a_prompt) estaban REGISTRADAS pero INVISIBLES
+para el modelo (HIDDEN_IN_SIMPLE en el modo default), /flujo no ejecutaba
+ninguna herramienta, y el remoto escuchaba en 0.0.0.0 SIN autenticación.
+
+**Fase 2 — reparación (14 áreas disjuntas + 14 revisiones adversariales).**
+71 fixes. Ninguna área rechazada; 47 hallazgos menores de los revisores. Los
+revisores cazaron DOS regresiones que dejaban algo peor que antes: el veto de
+creación del router matcheaba por substring ("creatividad" contenía "crea") y
+/flujo pasó de no-ejecutar a EJECUTAR la descripción del paso como código con
+success=True.
+
+**Fase 3 — cierre (7 grupos).** Esas regresiones + fail-open del guardado de
+skills, endpoint del coordinator abierto, _confirmar_accion que devolvía True
+ante cualquier excepción (convertía el default-deny del sentinel en "procede"),
+falso PASS del doctor por substring 'OK', y el consenso por ejecución que
+estaba MUERTO EN SILENCIO en benchmark_code.
+
+**Compuerta.** Suite completa: de 65 fallos → 5 → 0. Las dos causas eran
+contaminación de tests, no de producto: (a) un importlib.reload(cognia.agent.
+tools) vaciaba el catálogo y tumbaba 24 tests lcd_*; (b) el singleton de
+ReminderManager cruzaba entre archivos — y el fixture que lo aislaba fallaba
+porque `import cognia.cli as x` resuelve por el ATRIBUTO del paquete (que
+test_cli_memory_injection dejaba apuntando a un módulo reimportado) mientras
+los tests usan sys.modules. **5738 passed / 0 failed.**
+E2E real: 10/11 CHECKS OK.
+
+**Limpieza de datos aplicada** (con backup verificado, 207→207 memorias del
+usuario intactas): 220.639 filas duplicadas del seed borradas, DB 1.884 MB →
+5 MB.
+
+**EL CHECK ROJO, sin maquillar:** "recuerda que X" NO se recupera a un top_k
+usable. Medido: el hecho se guarda (id en DB), el cache lo indexa (+7
+incremental), su similitud es 0,675 — pero VectorCache.search ordena por SCORE
+COMPUESTO (0,55·sim + 0,20·confianza + 0,15·importancia) y los 104 hechos
+enciclopédicos del seed llevan confianza/importancia altas: la memoria del
+usuario cae por debajo del puesto 25. NO se tocó la fórmula: cambiar pesos de
+ranking exige medición pre-registrada, no un parche al cierre de sesión.

@@ -34,7 +34,17 @@ import os
 import re
 from pathlib import Path
 
+# El append con lock + la rotacion viven en backend_activo (solo stdlib): la
+# rotacion estaba COPIADA en los dos modulos y por eso la carrera que destruia
+# la generacion .1 tambien estaba en los dos. Una implementacion, un arreglo.
+from cognia.backend_activo import escribir_linea_jsonl
+
 _AUDIT = Path.home() / ".cognia" / "sentinel_audit.jsonl"
+
+# Rotacion a UNA generacion (.1): el jsonl crecia sin cota (492KB en 2
+# semanas). Al superar el tope se renombra a .1 (pisando la generacion
+# previa) y se sigue en un archivo fresco. Mismo esquema que backend_activo.
+_ROTAR_BYTES = 10 * 1024 * 1024
 
 # Prefijos de comandos de dev conocidos-seguros (allowlist). Se matchea el
 # PRIMER token (o los dos primeros para subcomandos de git). No incluye nada
@@ -147,13 +157,14 @@ def clasificar_shell(cmd: str) -> tuple:
 
 def _audit(accion: str, cmd: str, veredicto: str, razon: str) -> None:
     try:
-        _AUDIT.parent.mkdir(parents=True, exist_ok=True)
-        with _AUDIT.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "ts": datetime.datetime.now().isoformat(timespec="seconds"),
-                "accion": accion, "cmd": cmd[:300],
-                "veredicto": veredicto, "razon": razon,
-            }, ensure_ascii=False) + "\n")
+        # UNA sola write() de la linea completa sobre O_APPEND, y la rotacion
+        # DENTRO del mismo lock entre procesos (ver escribir_linea_jsonl).
+        linea = (json.dumps({
+            "ts": datetime.datetime.now().isoformat(timespec="seconds"),
+            "accion": accion, "cmd": cmd[:300],
+            "veredicto": veredicto, "razon": razon,
+        }, ensure_ascii=False) + "\n").encode("utf-8")
+        escribir_linea_jsonl(_AUDIT, linea, _ROTAR_BYTES)
     except Exception:
         pass
 

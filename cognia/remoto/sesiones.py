@@ -86,6 +86,10 @@ _RE_ACTIVIDAD = re.compile(
     r"|escribir_archivo\b|leer_archivo\b|ejecutar\b|buscar\b|anotar\b"
     r"|generar_codigo\b|delegar_subtarea\b|kg_buscar\b|copiar_archivo\b"
     r"|apendar_archivo\b|Objetivo verificado"
+    # instrumentacion del backend (stderr mergeado a stdout): "[backend]
+    # via=generate..." llegaba al chat como si fuera Cognia hablando.
+    # transcripcion() reclasifica al leer, asi que tambien limpia lo viejo.
+    r"|\[backend\]|\[llama_backend\]|\[degradado\]"
     r"|\+ "      # lineas de diff al escribir (solo +: '- ' es vineta de respuesta)
     r")")
 
@@ -204,6 +208,10 @@ class Sesion:
     # hasta ver "Sistema listo" (con tope por si el banner cambia)
     _arrancando: bool = True
     _lineas_arranque: int = 0
+    # hilo lector: se guarda para poder join() en parar() — sin eso, su
+    # anotar("sesion terminada") final corria DESPUES de mover/borrar el
+    # jsonl y recreaba la carpeta de la sesion recien dada de baja
+    _bomba: threading.Thread | None = None
 
     # ── persistencia ──
     @property
@@ -282,8 +290,9 @@ class Sesion:
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, text=True, encoding="utf-8",
             errors="replace", bufsize=1, env=env)
-        threading.Thread(target=self._bombear, daemon=True,
-                         name=f"remoto-{self.id}").start()
+        self._bomba = threading.Thread(target=self._bombear, daemon=True,
+                                       name=f"remoto-{self.id}")
+        self._bomba.start()
         self.anotar("sistema", f"sesion arrancada en {self.ruta_proyecto}")
 
     def _bombear(self) -> None:
@@ -334,6 +343,10 @@ class Sesion:
                     self.proc.kill()              # type: ignore[union-attr]
                 except Exception:
                     pass
+        # esperar al hilo lector: garantiza que "sesion terminada" ya esta
+        # en el jsonl antes de que el llamador mueva o borre el fichero
+        if self._bomba is not None and self._bomba.is_alive():
+            self._bomba.join(timeout=3)
 
 
 class GestorSesiones:
@@ -391,6 +404,27 @@ class GestorSesiones:
                            ruta_proyecto=proyecto["ruta"], titulo=sid)
                 self._sesiones[sid] = s
         return s
+
+    def parar_sesion(self, sid: str) -> bool:
+        """Parar el REPL SIN tocar su transcripcion. True si estaba vivo."""
+        with self._lock:
+            s = self._sesiones.get(sid)
+        if s is not None and s.viva():
+            s.parar()
+            return True
+        return False
+
+    def parar_proyecto(self, proyecto_id: str) -> int:
+        """Parar todos los REPLs vivos de un proyecto (baja sin huerfanos)."""
+        with self._lock:
+            propias = [s for s in self._sesiones.values()
+                       if s.proyecto_id == proyecto_id]
+        n = 0
+        for s in propias:
+            if s.viva():
+                s.parar()
+                n += 1
+        return n
 
     def borrar(self, proyecto_id: str, sid: str) -> bool:
         with self._lock:

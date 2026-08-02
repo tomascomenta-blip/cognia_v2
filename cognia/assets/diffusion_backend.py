@@ -63,7 +63,8 @@ def backend_disponible() -> tuple:
     except Exception:
         return False, "torch no instalado (usa venv312gpu)"
     if not torch.cuda.is_available():
-        return False, "sin CUDA/GPU (el backend de imagen es GPU-only)"
+        return False, ("sin CUDA/GPU (el backend de imagen es GPU-only; "
+                       "usa venv312gpu, que trae torch con CUDA)")
     src = _src_layerdiffuse()
     if not (src / "layer_diffuse").is_dir():
         return False, (f"falta el paquete layer_diffuse en {src} "

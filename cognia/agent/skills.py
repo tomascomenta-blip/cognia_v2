@@ -125,6 +125,23 @@ def load_skills(extra_dirs: list = None) -> dict:
 
 _USAGE_FILE = ".skill_usage.json"
 _FAIL_STREAK_MIN = 3   # uses_fail >= esto y uses_ok == 0 -> se penaliza
+# Poda por TASA (auditoria 2026-08-01): la regla de racha exige uses_ok==0,
+# asi que UN exito historico inmunizaba para siempre a una skill que falla
+# cronicamente. Con historial largo (n >= _RATE_MIN_N) tambien se penaliza
+# si fail/(ok+fail) supera _RATE_FAIL_MAX.
+_RATE_MIN_N = 20
+_RATE_FAIL_MAX = 0.6
+
+
+def _mal_historial(usage: dict) -> bool:
+    """True si el historial condena a la skill: racha fria (>= _FAIL_STREAK_MIN
+    fallos con 0 exitos) o tasa de fallo > _RATE_FAIL_MAX con n >= _RATE_MIN_N."""
+    ok = usage.get("uses_ok", 0)
+    fail = usage.get("uses_fail", 0)
+    if fail >= _FAIL_STREAK_MIN and ok == 0:
+        return True
+    n = ok + fail
+    return n >= _RATE_MIN_N and fail / n > _RATE_FAIL_MAX
 
 
 def _usage_file(skill_dir: Path) -> Path:
@@ -256,9 +273,10 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2,
        encuentra algo (comportamiento original, intacto).
     2. Si el lexico no encontro nada: fallback a similitud coseno semantica
        (TAREA 3a) sobre name+description, para pedidos parafraseados.
-    Skills con historial de uso consistentemente malo (record_skill_use:
-    >= _FAIL_STREAK_MIN fallos y 0 exitos) se excluyen de ambas capas -- se
-    loguea la exclusion, no se silencia.
+    Skills con historial de uso consistentemente malo (_mal_historial: racha
+    de >= _FAIL_STREAK_MIN fallos con 0 exitos, o tasa de fallo > 60% con
+    n >= 20 usos) se excluyen de ambas capas -- se loguea la exclusion, no
+    se silencia.
 
     ``semantic_fallback=False``: solo capa lexica. Para el AUTO-APPLY del
     agent loop es obligatorio (bench_estancamiento post-fix 2026-07-07): el
@@ -278,10 +296,12 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2,
     usable = {}
     for name, s in skills.items():
         usage = _usage_for(s)
-        if usage.get("uses_fail", 0) >= _FAIL_STREAK_MIN and usage.get("uses_ok", 0) == 0:
+        if _mal_historial(usage):
             logger.info("skill excluida del match: historial de uso malo",
                         extra={"op": "find_skill",
-                               "context": f"name={name} uses_fail={usage['uses_fail']}"})
+                               "context": (f"name={name} "
+                                           f"uses_ok={usage.get('uses_ok', 0)} "
+                                           f"uses_fail={usage.get('uses_fail', 0)}")})
             continue
         usable[name] = s
 

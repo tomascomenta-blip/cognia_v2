@@ -74,6 +74,8 @@ Catalogo de comandos:
 Reglas:
 - Responde SOLO una linea: "RUTA: CHAT" o "RUTA: AGENTE" o "RUTA: /comando argumentos".
 - Elige un /comando SOLO si el mensaje pide claramente esa capacidad.
+- Preguntas de conocimiento general (historia, ciencia, definiciones) -> RUTA: CHAT. Los comandos de memoria (p.ej. /conocimiento-ver) consultan la memoria INTERNA de Cognia, no responden preguntas del mundo.
+- Escribe los argumentos tal cual, SIN comillas alrededor.
 - Ante la duda, RUTA: CHAT.
 
 Ejemplos:
@@ -81,11 +83,24 @@ Ejemplos:
 - "piensa muy a fondo y resuelve: <problema>" -> RUTA: /pensar <problema>
 - "investiga sobre X" -> RUTA: /investigar X
 - "hazme un programa que ordene numeros" -> RUTA: /crear programa que ordena numeros
+- "que es la fotosintesis?" -> RUTA: CHAT
 - "borra la ultima linea del archivo notas.txt" -> RUTA: AGENTE
 - "como estas hoy?" -> RUTA: CHAT
 
 Mensaje del usuario: {mensaje}
 RUTA:"""
+
+
+def _auditar_sin_modelo(detalle: str) -> None:
+    """Deja en el backend-audit que el fallback a chat fue por AUSENCIA de
+    inferencia, no por decision del modelo. Sin esta marca, un backend caido
+    enruta TODO a chat y la corrida es indistinguible de una sana (auditoria
+    2026-08-01). Nunca lanza: es instrumentacion."""
+    try:
+        from cognia import backend_activo
+        backend_activo.sin_backend("enrutador", f"sin_modelo: {detalle}")
+    except Exception:
+        pass
 
 
 def decidir(mensaje: str, infer_fn, catalogo_txt: str) -> tuple[str, str]:
@@ -97,7 +112,13 @@ def decidir(mensaje: str, infer_fn, catalogo_txt: str) -> tuple[str, str]:
     try:
         crudo = infer_fn(_PROMPT.format(catalogo=catalogo_txt,
                                         mensaje=mensaje.strip()[:600])) or ""
-    except Exception:
+    except Exception as exc:
+        _auditar_sin_modelo(f"infer_fn lanzo {type(exc).__name__}: {exc}")
+        return "chat", ""
+    if not crudo.strip():
+        # salida vacia = no hubo inferencia real (modelo mudo o ausente);
+        # basura no-vacia si es decision del modelo y cae a chat sin audit
+        _auditar_sin_modelo("inferencia vacia")
         return "chat", ""
     # primera linea util; tolera que el modelo repita "RUTA:" o no
     linea = ""
@@ -127,5 +148,8 @@ def decidir(mensaje: str, infer_fn, catalogo_txt: str) -> tuple[str, str]:
             return "chat", ""
         if re.search(rf"^{re.escape(cmd)} —", catalogo_txt, re.M):
             resto = linea[len(cmd):].strip().rstrip(".")
+            # el modelo entrecomilla los argumentos ("RUTA: /crear \"un juego\"")
+            # y /crear terminaba creando el programa con comillas en la idea
+            resto = resto.strip("\"'“”‘’").strip()
             return "comando", (cmd + (" " + resto if resto else ""))
     return "chat", ""

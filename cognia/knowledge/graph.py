@@ -19,6 +19,12 @@ _STRIP_ARTICLES = re.compile(
     r'^\s*(?:el|la|los|las|un|una|unos|unas|the|a|an)\s+', re.IGNORECASE
 )
 
+# Comillas (rectas y tipograficas) a pelar en los extremos de una entidad.
+# PORQUE: "recuerda que X se llama 'zafiro'" guardaba el objeto CON comillas
+# -> get_facts('zafiro') no matcheaba la fila "'zafiro'" y la sesion siguiente
+# respondia "No relevant facts found".
+_QUOTE_CHARS = "\"'`«»“”‘’"
+
 # Common stop words too short/generic to be useful entities
 _ENTITY_STOPWORDS = frozenset({
     "que", "qué", "es", "son", "un", "una", "el", "la", "los", "las",
@@ -138,18 +144,27 @@ class KnowledgeGraph:
             self._dirty = False
         return self._graph
 
+    def effective_predicate(self, predicate: str) -> str:
+        """Predicado que add_triple va a almacenar REALMENTE (los no
+        reconocidos degradan a 'related_to'). Expuesto para que quien anuncia
+        el hecho al usuario (p.ej. Cognia.add_fact) no mienta sobre lo que
+        quedo guardado."""
+        predicate = (predicate or "").lower().strip()
+        return predicate if predicate in self.VALID_RELATIONS else "related_to"
+
     def add_triple(self, subject: str, predicate: str, obj: str,
                    weight: float = 1.0, source: str = "learned") -> bool:
         """Agrega o refuerza una relación. Retorna True si fue nueva."""
-        predicate = predicate.lower().strip()
-        if predicate not in self.VALID_RELATIONS:
+        raw_predicate = predicate.lower().strip()
+        predicate = self.effective_predicate(raw_predicate)
+        if predicate != raw_predicate:
             _kg_logger.debug(
                 "add_triple: predicado '%s' no reconocido → 'related_to' (%s→%s)",
-                predicate, subject, obj,
+                raw_predicate, subject, obj,
             )
-            predicate = "related_to"
-        subject = subject.lower().strip()
-        obj = obj.lower().strip()
+        # strip de comillas: ver nota en _QUOTE_CHARS
+        subject = subject.lower().strip().strip(_QUOTE_CHARS).strip()
+        obj = obj.lower().strip().strip(_QUOTE_CHARS).strip()
 
         conn = db_connect(self.db)
         try:
@@ -183,7 +198,7 @@ class KnowledgeGraph:
         # aca, get_facts('Python') no matcheaba la fila 'python' y devolvia [] ->
         # kg_buscar reportaba 'sin hechos' para cualquier concepto capitalizado
         # (nombres propios, el caso comun). Igualar a como se almacena.
-        concept = concept.lower().strip()
+        concept = concept.lower().strip().strip(_QUOTE_CHARS).strip()
         if predicate:
             predicate = predicate.lower().strip()
         conn = db_connect(self.db)
@@ -399,8 +414,8 @@ class KnowledgeGraph:
 
     @staticmethod
     def _normalize_entity(text: str) -> str:
-        """Lowercase, strip leading articles, collapse whitespace."""
-        text = text.strip().lower()
+        """Lowercase, strip quotes/leading articles, collapse whitespace."""
+        text = text.strip().lower().strip(_QUOTE_CHARS).strip()
         text = _STRIP_ARTICLES.sub("", text).strip()
         text = re.sub(r'\s+', ' ', text)
         return text

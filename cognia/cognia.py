@@ -283,6 +283,25 @@ class Cognia:
             vector_dim=VECTOR_DIM,
         )
 
+        # Precalentar en background: (1) el modelo de embeddings, para que la
+        # PRIMERA query no caiga en silencio al espacio n-gram por timeout de
+        # carga; (2) el VectorCache, para que el primer retrieve no pague el
+        # build completo (50s con 65k vectores) dentro del turno del usuario.
+        try:
+            from .cognia_embedding import warm_up_embedding_model
+            warm_up_embedding_model(self.fatigue)
+        except Exception:
+            pass
+        try:
+            from cognia.memory.episodic_fast import get_vector_cache as _get_vc
+            import threading as _warm_threading
+            _warm_threading.Thread(
+                target=lambda: _get_vc(db_path).warm(),
+                daemon=True, name="VectorCacheWarm",
+            ).start()
+        except Exception:
+            pass
+
         if HAS_DEFERRED:
             self._maintenance = DeferredMaintenance(self, throttle_controller=self.fatigue)
             self._hyp_scheduler = IdleHypothesisScheduler(self, min_idle_s=60.0, cpu_threshold=40.0)
@@ -339,7 +358,12 @@ class Cognia:
             try:
                 self.architect = SelfArchitect(db_path=db_path, cognia_instance=self)
                 print("[OK] SelfArchitect v4 activo")
-            except Exception:
+            except Exception as _arch_exc:
+                # sin log, el arquitecto desaparecia en silencio toda la sesion
+                logger.warning(
+                    "SelfArchitect no pudo inicializarse",
+                    extra={"op": "cognia.__init__", "context": f"err={_arch_exc}"},
+                )
                 self.architect = None
         else:
             self.architect = None
@@ -853,10 +877,26 @@ class Cognia:
             }
 
             # ── Paso 3: reportar al collapse_guard ────────────────────
-            if self.collapse_guard and result.get("was_error"):
-                _cg_report = self.collapse_guard.get_collapse_report()
-                if _cg_report["risk_level"] in ("medium", "high"):
-                    result["_collapse_risk"] = _cg_report["risk_level"]
+            if self.collapse_guard:
+                # check_correction cableado en la ruta de ensenanza: detecta
+                # dominancia de label ANTES de que el colapso se consolide.
+                try:
+                    _recientes = (self.teacher.recent_corrections(20)
+                                  if self.teacher else [])
+                    _cg = self.collapse_guard.check_correction(
+                        provided_label, observation, _recientes)
+                    if _cg.get("verdict") != "ok":
+                        result["_collapse_warning"] = _cg.get("reason", "")
+                except Exception:
+                    pass
+                if result.get("was_error"):
+                    _cg_report = self.collapse_guard.get_collapse_report()
+                    # sin datos (ni labels dominantes ni eventos) el 'low' del
+                    # reporte no significa nada: no reportarlo como senal
+                    if (_cg_report.get("dominant_labels")
+                            or _cg_report.get("events_24h")):
+                        if _cg_report["risk_level"] in ("medium", "high"):
+                            result["_collapse_risk"] = _cg_report["risk_level"]
 
         else:
             # ── MODO INFERENCIA ────────────────────────────────────────
@@ -1055,6 +1095,21 @@ class Cognia:
     # ── Comandos de gestión ────────────────────────────────────────────
 
     def correct(self, observation: str, wrong_label: str, correct_label: str) -> str:
+        # Paso 3: consultar el collapse_guard ANTES de aplicar (/corregir era
+        # la unica ruta de correccion SIN el guard). 'reject' no aplica.
+        _cg_aviso = ""
+        if self.collapse_guard:
+            try:
+                _recientes = (self.teacher.recent_corrections(20)
+                              if self.teacher else [])
+                _cg = self.collapse_guard.check_correction(
+                    correct_label, observation, _recientes)
+                if _cg.get("verdict") == "reject":
+                    return f"[!!] Correccion rechazada: {_cg.get('reason', '')}"
+                if _cg.get("verdict") == "warn":
+                    _cg_aviso = f"\n[!] {_cg.get('reason', '')}"
+            except Exception:
+                pass
         vec = self.perception.encode(observation)
         self.episodic.store(
             observation, correct_label, vec,
@@ -1066,7 +1121,8 @@ class Cognia:
         self.metacog.log_decision("correct", wrong_label, correct_label, was_error=True)
         self.kg.add_triple(observation.split()[0] if observation else "?",
                            "is_a", correct_label, weight=1.2, source="correction")
-        return f"[OK] Corregido: '{wrong_label}' -> '{correct_label}'. Lo recordare mejor ahora."
+        return (f"[OK] Corregido: '{wrong_label}' -> '{correct_label}'. "
+                f"Lo recordare mejor ahora.{_cg_aviso}")
 
     def generate_hypothesis(self, a: str, b: str) -> str:
         result = self.hypothesis.generate(a, b, kg=self.kg)
@@ -1695,6 +1751,17 @@ class Cognia:
         coordinator_url   = _coord_url().rstrip("/")   # "" si COGNIA_DISABLE_SWARM
         contributor_token = _os_module.environ.get("COGNIA_CONTRIBUTOR_TOKEN", "")
         if not coordinator_url or not contributor_token:
+            # una vez por sesion: que la federacion desactivada quede visible
+            # en el log en vez de desaparecer en silencio
+            if not getattr(self, "_fed_sync_off_logged", False):
+                self._fed_sync_off_logged = True
+                logger.info(
+                    "Federacion desactivada (sin coordinator_url o sin token): "
+                    "el adapter queda solo local",
+                    extra={"op": "cognia.federated_sync",
+                           "context": f"url={'si' if coordinator_url else 'no'} "
+                                      f"token={'si' if contributor_token else 'no'}"},
+                )
             return ""
 
         def _noisy(w):
@@ -1853,10 +1920,22 @@ class Cognia:
         return "\n".join(lines)
 
     def add_fact(self, subject: str, predicate: str, obj: str) -> str:
+        # Anunciar el predicado que REALMENTE queda guardado: add_triple degrada
+        # los no reconocidos a 'related_to' y antes esto anunciaba el del usuario.
+        pred_ef = self.kg.effective_predicate(predicate)
         is_new = self.kg.add_triple(subject.lower(), predicate.lower(), obj.lower(),
                                      weight=1.0, source="manual")
+        # Tambien como EPISODIO: solo en el KG, "recuerda que X se llama Y" era
+        # invisible para el retrieval episodico de la sesion siguiente
+        # ("No relevant facts found").
+        try:
+            self.observe(f"{subject.strip()} {predicate.strip()} {obj.strip()}")
+        except Exception:
+            pass
         action = "agregada" if is_new else "reforzada"
-        return f"[OK] Relacion {action}: {subject} --{predicate}--> {obj}"
+        aviso = ("" if pred_ef == predicate.lower().strip()
+                 else f" (predicado '{predicate}' no reconocido)")
+        return f"[OK] Relacion {action}: {subject} --{pred_ef}--> {obj}{aviso}"
 
     def apply_feedback(self, response_id: str, correct: bool,
                        correction_text: str = None) -> str:

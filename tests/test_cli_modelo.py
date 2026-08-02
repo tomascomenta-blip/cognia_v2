@@ -60,15 +60,32 @@ class TestModelRegistry(unittest.TestCase):
         )
         self.assertIn(MODEL_GGUF_DEFAULT, MODEL_GGUF_REGISTRY)
 
-    def test_resolve_gguf_path_absoluta_bajo_repo(self):
+    def test_resolve_gguf_path_absoluta_o_none(self):
+        # Contrato (auditoria fase 2 2026-08-01): Path absoluto a un archivo
+        # que EXISTE (repo o ~/.cognia/models), o None si no esta instalado.
+        # Antes devolvia la ruta fantasma del repo cuando no habia nada.
         import shattering.model_constants as mc
-        repo_root = Path(mc.__file__).resolve().parent.parent
         for key in mc.MODEL_GGUF_REGISTRY:
             p = mc.resolve_gguf_path(key)
+            if p is not None:
+                self.assertTrue(p.is_absolute())
+                self.assertTrue(p.is_file(),
+                                f"resolve_gguf_path({key}) devolvio ruta "
+                                f"inexistente: {p}")
+
+    def test_resolve_gguf_path_rama_repo_bajo_root(self):
+        # Rama repo, hermetica: una entrada que apunta a un archivo que SI
+        # existe en el repo resuelve a absoluta colgando del root (el .py
+        # sirve: la funcion resuelve rutas, no valida extension).
+        import shattering.model_constants as mc
+        repo_root = Path(mc.__file__).resolve().parent.parent
+        with patch.dict(mc.MODEL_GGUF_REGISTRY,
+                        {"fake_dev": "shattering/model_constants.py"}):
+            p = mc.resolve_gguf_path("fake_dev")
             self.assertIsNotNone(p)
             self.assertTrue(p.is_absolute())
             self.assertIn(repo_root, p.parents,
-                          f"resolve_gguf_path({key}) no cuelga del repo: {p}")
+                          f"resolve_gguf_path(fake_dev) no cuelga del repo: {p}")
 
     def test_resolve_gguf_path_clave_invalida_none(self):
         from shattering.model_constants import resolve_gguf_path

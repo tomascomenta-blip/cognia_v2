@@ -658,8 +658,16 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
         from cognia.console.permissions import needs_confirmation
         if not needs_confirmation(kind, detalle):
             return True
-    except Exception:
-        return True  # ante cualquier fallo del clasificador, comportamiento previo
+    except Exception as exc:
+        # DENY ante cualquier fallo del clasificador. Esta funcion se inyecta
+        # como ctx['confirm'] del agente: un import roto o un error de runtime
+        # en cognia.console.permissions convertiria el default-deny del
+        # sentinel (nivel CONFIRM) en "proceder sin preguntar". Los callers ya
+        # degradan legible ante False ("Cancelado." / "no confirmado").
+        logging.getLogger(__name__).warning(
+            "Clasificador de permisos fallo (%s=%r): se deniega la accion "
+            "por seguridad: %s", kind, detalle[:80], exc)
+        return False
     try:
         resp = input(f"[permiso] {detalle[:80]} — ejecutar? (s/n) > ").strip().lower()
     except (EOFError, KeyboardInterrupt):
@@ -2997,6 +3005,30 @@ def _slash_mapa(args: str) -> None:
 # Reminder commands
 # ---------------------------------------------------------------------------
 
+# UN solo ReminderManager por proceso. POR QUE: cada ReminderManager() lanza
+# su propio hilo checker daemon, y los slash-commands creaban uno NUEVO por
+# invocacion — N hilos redundantes y, peor, ninguno con set_notification_center()
+# cableado: los recordatorios disparaban pero la notificacion jamas llegaba a
+# /notif (auditoria F2 2026-08-01).
+_REMINDER_MANAGER = None
+
+
+def _get_reminder_manager():
+    """Singleton del proceso, con el NotificationCenter inyectado para que los
+    disparos aparezcan en /notif. Lanza si el subsistema no esta disponible."""
+    global _REMINDER_MANAGER
+    if _REMINDER_MANAGER is None:
+        from cognia.reminders.reminder_manager import ReminderManager
+        rm = ReminderManager()
+        try:
+            from cognia.notifications.notification_center import NotificationCenter
+            rm.set_notification_center(NotificationCenter())
+        except Exception:
+            pass  # sin centro el recordatorio igual dispara (queda en events)
+        _REMINDER_MANAGER = rm
+    return _REMINDER_MANAGER
+
+
 def _slash_recordar(args: str) -> None:
     """Crea un recordatorio relativo. Formato: <titulo> en <N> minutos|horas"""
     try:
@@ -3024,7 +3056,7 @@ def _slash_recordar(args: str) -> None:
     unit = _match.group(3).lower()
     minutes = n * 60 if unit.startswith("hora") else n
     try:
-        rm = ReminderManager()
+        rm = _get_reminder_manager()
         rm.create_relative(user_id=_CLI_USER_ID, title=titulo, minutes=minutes)
         print(f"Recordatorio creado: '{titulo}' en {minutes} minutos")
     except Exception as e:
@@ -3040,7 +3072,7 @@ def _slash_recordatorios(args: str) -> None:
         return
     try:
         import time as _t
-        rm = ReminderManager()
+        rm = _get_reminder_manager()
         pending = rm.get_pending(_CLI_USER_ID)
         if not pending:
             print("(Sin recordatorios pendientes)")
@@ -3076,7 +3108,7 @@ def _slash_recordar_cancelar(args: str) -> None:
         return
     try:
         rid = int(args.strip())
-        rm = ReminderManager()
+        rm = _get_reminder_manager()
         ok = rm.cancel(rid, _CLI_USER_ID)
         if ok:
             print(f"Recordatorio {rid} cancelado.")
@@ -3577,7 +3609,10 @@ def _slash_skill(arg: str, ai):
             f"Skill '{s.name}' [{s.kind}]\n{s.description}\n\n{s.body[:1500]}", _ACCENT)
         return
     _print_line(f"[detail]Ejecutando con skill '{s.name}'...[/detail]")
-    _resp = _run_agent_task(ai, task, _print_line, guidance=skill_guidance(s))
+    # applied_skill: sin esto el uso EXPLICITO de la skill nunca se registraba
+    # (.skill_usage.json solo aprendia de los auto-matches del loop).
+    _resp = _run_agent_task(ai, task, _print_line, guidance=skill_guidance(s),
+                            applied_skill=s.name)
     _show_response(_resp, _ACCENT, respuesta_final=True)
     _session_log.append({"input": f"/skill {name} {task}", "output": _resp, "elapsed": 0})
     _persist_turn(ai, f"/skill {name} {task}", _resp)
@@ -3988,7 +4023,9 @@ def _slash_largo(ai, pedido: str) -> None:
     if not texto:
         _print_line("[warn_cl]La generacion larga devolvio texto vacio.[/warn_cl]")
         return
-    _show_response(texto, _ACCENT)
+    # respuesta_final: bajo COGNIA_REMOTO el clasificador manda lo enmarcado a
+    # "actividad" — sin esto, el resultado de /largo no llegaba al chat del movil.
+    _show_response(texto, _ACCENT, respuesta_final=True)
 
     completo = _largo_es_completo(mode, result)
     state["done"] = completo
@@ -4234,10 +4271,14 @@ def _slash_modelo(ai, args: str) -> None:
                     f"Validas: {validas}[/err_cl]")
         return
 
+    # resolve_gguf_path devuelve None cuando el GGUF no existe en NINGUNA de
+    # las ubicaciones (repo ni ~/.cognia/models): sin la guarda de None esto
+    # reventaba con AttributeError en vez de avisar. Se imprime la ruta
+    # RELATIVA del registry, no `target`, para no mostrar "None" al usuario.
     target = resolve_gguf_path(key)
-    if not target.is_file():
-        _print_line(f"[err_cl]GGUF no encontrado en disco: {target} -- "
-                    f"no se cambia nada.[/err_cl]")
+    if target is None or not target.is_file():
+        _print_line(f"[err_cl]GGUF no encontrado en disco: "
+                    f"{MODEL_GGUF_REGISTRY[key]} -- no se cambia nada.[/err_cl]")
         return
 
     # Ya activo? Solo si hay un server VIVO que reporta ese GGUF por /props
@@ -6519,7 +6560,9 @@ def repl():
             _ar_target = raw[len("/aprende-repo "):].strip()
             _print_line("[detail]Buscando y aprendiendo de GitHub...[/detail]")
             _ar_result = _slash_aprende_repo(ai, _ar_target)
-            _show_response(_ar_result, "bright_green")
+            # respuesta_final: es el cierre del comando; enmarcado, el movil lo
+            # plegaba en "actividad" y el chat quedaba mudo (mismo patron 8315).
+            _show_response(_ar_result, "bright_green", respuesta_final=True)
         elif raw == "/aprende-repo":
             _print_line("[warn_cl]Uso: /aprende-repo <url_o_query>  -- ejemplo: /aprende-repo https://github.com/huggingface/transformers[/warn_cl]")
         elif raw.startswith("/crear "):
@@ -7999,10 +8042,11 @@ def repl():
 
         # -- Unknown slash --------------------------------------------------
         elif raw.startswith("/"):
-            _print_line(
-                f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]"
-                "  [detail](escribe /ayuda)[/detail]"
-            )
+            # DOS lineas a proposito: el modo sencillo suprime toda linea que
+            # contenga '[detail]', asi que el aviso pegado al tip desaparecia
+            # ENTERO y el comando desconocido moria en silencio (auditoria F2).
+            _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
+            _print_line("[detail](escribe /ayuda)[/detail]")
 
         # -- Free text → articulated cognitive response --------------------
         else:
@@ -8309,23 +8353,58 @@ def repl():
                             result  = responder_articulado(ai, raw)
                             elapsed = time.time() - t0
 
+                        # CIERRE DEL TURNO NUNCA MUDO (auditoria F2 2026-08-01):
+                        # el camino articulado podia terminar con EXIT=0 y CERO
+                        # respuesta visible (ultimo output: el banner degradado)
+                        # cuando responder_articulado devolvia texto vacio o un
+                        # error. Si tras todos los fallbacks no hay texto, se
+                        # imprime SIEMPRE una respuesta minima explicita (con
+                        # respuesta_final=True para que el movil la vea como
+                        # chat, no como actividad) y queda en el audit.
+                        _texto_turno = ""
                         if "error" in result:
                             _print_line(f"[err_cl]Error: {_escape(str(result['error']))}[/err_cl]")
+                            _aviso_degradado(
+                                "cli.articulado.error",
+                                str(result.get("error"))[:200])
                         else:
-                            _show_response(result["response"], _ACCENT)
-                            _show_footer(elapsed, result["response"])
-                            stage = result.get("language_engine", {}).get("stage", "")
-                            if stage:
-                                _print_line(f"[detail][stage: {stage}][/detail]")
-                            _session_log.append({
-                                "input":   raw,
-                                "output":  result["response"],
-                                "elapsed": elapsed,
-                            })
-                            _history.append({"role": "user", "content": raw})
-                            _history.append({"role": "assistant", "content": result["response"]})
+                            _texto_turno = _to_str(result.get("response", "")).strip()
+                            if not _texto_turno:
+                                _aviso_degradado(
+                                    "cli.articulado.respuesta_vacia",
+                                    "responder_articulado devolvio texto vacio")
+                        if not _texto_turno:
+                            _texto_turno = (
+                                f"{_DEGRADADO} No pude generar una respuesta en "
+                                "este turno (el backend de inferencia no "
+                                "respondio). Proba de nuevo, o revisa el backend "
+                                "con: cognia doctor")
+                        # respuesta_final: bajo COGNIA_REMOTO el clasificador
+                        # manda lo enmarcado a "actividad"; el cierre del turno
+                        # de chat ES la respuesta (mismo patron que 3581/8060).
+                        _show_response(_texto_turno, _ACCENT, respuesta_final=True)
+                        _show_footer(elapsed, _texto_turno)
+                        stage = result.get("language_engine", {}).get("stage", "")
+                        if stage:
+                            _print_line(f"[detail][stage: {stage}][/detail]")
+                        _session_log.append({
+                            "input":   raw,
+                            "output":  _texto_turno,
+                            "elapsed": elapsed,
+                        })
+                        _history.append({"role": "user", "content": raw})
+                        _history.append({"role": "assistant", "content": _texto_turno})
                     except Exception as e:
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
+                        # Mismo contrato: ni una excepcion deja el turno mudo.
+                        _aviso_degradado(
+                            "cli.articulado.excepcion",
+                            f"{type(e).__name__}: {e}")
+                        _show_response(
+                            f"{_DEGRADADO} No pude generar una respuesta en este "
+                            "turno (fallo interno del camino articulado). Proba "
+                            "de nuevo, o revisa el backend con: cognia doctor",
+                            _ACCENT, respuesta_final=True)
 
 
 # Marcas de que el orquestador no tiene con que inferir. NO lanza excepcion:
@@ -8403,9 +8482,22 @@ def _adjuntar_archivos(result_text: str, history: list) -> str:
         f"  {r}" for r in vistas)
 
 
+# Una skill "declara verificacion" cuando su guidance exige correr los tests /
+# verlos en verde (p.ej. escribir-tests: "verifica que pasen", "No termines
+# hasta verlo en verde"). Se detecta sobre el texto de la guidance -- SkillSpec
+# no tiene campo formal de verificacion y el .md es la fuente de verdad.
+_RE_SKILL_VERIFICA = re.compile(
+    r"(verifica(?:r)?\s+que\s+pasen|en\s+verde|corr?e[r]?\s+los\s+tests|pytest)",
+    re.IGNORECASE)
+# Tope de criterios pytest agregados por la skill (mismo espiritu que
+# _MAX_DERIVED en goal_contract: contrato acotado, no una suite entera).
+_MAX_TESTS_SKILL = 3
+
+
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     hint: str = "", guidance: str = "",
-                    allowed_tools: set = None, delegation_depth: int = 0) -> str:
+                    allowed_tools: set = None, delegation_depth: int = 0,
+                    applied_skill: str = "") -> str:
     """
     ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
     and DYNAMIC step budgeting (cognia/agent/loop.py).
@@ -8419,6 +8511,11 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     SUB-AGENTE lanzado por la tool delegar_subtarea -- el rol restringe las tools
     (build_tools_doc + run_tool via ctx['_allowed_tools']) y la profundidad acota
     la recursion de delegacion.
+
+    ``applied_skill``: nombre de la skill cuando el CALLER ya eligio una (p.ej.
+    /skill explicito, que pasa su guidance armada). Sin esto, el uso explicito
+    de una skill jamas se registraba en .skill_usage.json (auditoria F2) y el
+    decay de find_skill solo aprendia de los auto-matches.
     """
     # Turno nuevo para el de-dup de avisos: un degradado que ya se aviso en el
     # turno de chat anterior tiene que volver a verse en esta corrida del agente.
@@ -8582,7 +8679,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # Skill guidance: an explicit one (from /skill) wins; otherwise auto-apply a
     # skill whose description matches this task, so Claude/Cognia skills shape the
     # agent without an explicit command.
-    _applied_skill = ""   # nombre de la skill aplicada -> record_skill_use al cierre
+    _applied_skill = applied_skill  # skill aplicada -> record_skill_use al cierre
     if not guidance:
         try:
             from cognia.agent.skills import find_skill, skill_guidance
@@ -8625,6 +8722,12 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         "working_memory": _working_memory,
         "agent_state": _agent_state,
         "print_fn": _print_fn,
+        # Canal de confirmacion (auditoria F2): sentinel.evaluar_shell y las
+        # pantalla_* destructivas leen ctx['confirm'] y aca NUNCA se inyectaba,
+        # asi que toda accion de pantalla moria con "requiere confirmacion"
+        # salvo COGNIA_SCREEN_AUTO=1. _confirmar_accion ya aplica el modo de
+        # permisos vigente (/modo-permiso) antes de preguntar por consola.
+        "confirm": _confirmar_accion,
         "show_diff": (lambda old, new, path: _show_file_diff(old, new, path, _print_fn)),
         # Sub-agente acotado (delegar_subtarea): el rol restringe run_tool y el
         # runner recursivo se inyecta aca (evita el import circular tools<->cli).
@@ -9155,6 +9258,25 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             GoalContract, derive_criteria_from_task,
         )
         _criteria = derive_criteria_from_task(task)
+        # Skill CON verificacion (auditoria F2): escribir-tests entrego un test
+        # invalido sin que la tool tests corriera nunca -- el "no termines hasta
+        # verlo en verde" era prosa, no un check. Si la skill aplicada declara
+        # verificacion, el contrato exige pytest en verde sobre los tests que
+        # ESTA corrida escribio (evidencia ejecutable real, no auto-reporte).
+        if _applied_skill and _RE_SKILL_VERIFICA.search(guidance or ""):
+            _tests_escritos = [
+                f for f in _agent_state.get("files_touched", [])
+                if f not in _prior_files_touched and f.endswith(".py")
+                and Path(f).name.startswith("test_")]
+            for _tf in _tests_escritos[:_MAX_TESTS_SKILL]:
+                if any(_tf in c.get("command", "") for c in _criteria):
+                    continue    # derive_criteria ya lo cubrio
+                _criteria.append({
+                    "kind": "command_succeeds",
+                    "command": f'"{sys.executable}" -m pytest "{_tf}" -q --no-header',
+                    "description": (f"pytest en verde sobre {_tf} "
+                                    f"(lo exige la skill '{_applied_skill}')"),
+                })
         if _criteria:
             _st = GoalContract.from_spec(task[:120], _criteria).check()
             _task_ok = _st.complete

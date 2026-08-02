@@ -25,6 +25,17 @@ class SemanticMemory:
     def update_concept(self, concept: str, vector: list,
                        description: str = "", confidence_delta: float = 0.1,
                        emotion_score: float = 0.0):
+        # Un str (u otro no-secuencia) aqui se persistia tal cual y corrompia
+        # el concepto: json.dumps("abc") es JSON valido pero no es un vector.
+        if isinstance(vector, (str, bytes)) or not hasattr(vector, "__len__"):
+            logger.warning(
+                "update_concept: vector invalido (tipo %s), ignorado",
+                type(vector).__name__,
+                extra={"op": "semantic.update_concept",
+                       "context": f"concept={concept}"},
+            )
+            return
+        vector = list(vector)
         conn = None
         try:
             conn = db_connect(self.db)

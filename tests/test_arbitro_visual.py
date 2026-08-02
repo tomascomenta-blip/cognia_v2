@@ -8,15 +8,37 @@ todo menos la llamada real al VLM (parcheada): corren en CPU, sin GPU ni modelo.
 """
 
 import base64
+import struct
+import zlib
 from unittest.mock import patch
 
 from cognia.program_creator import arbitro_visual as av
 
-# Un PNG 1x1 valido (rojo). Suficiente para probar la codificacion a data URI y
-# el cableado, sin depender de PIL ni de un render real.
+# Un PNG 1x1 valido (rojo). Se conserva para probar el RECHAZO de screenshots
+# minusculos (_screenshot_juzgable): el VLM le dio 9.5 a un 1x1 real.
 _PNG_1x1 = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8"
     "BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+
+
+def _png_bytes(ancho=120, alto=120) -> bytes:
+    """PNG RGB valido, >=100px de lado y CON varianza, en puro stdlib. Los
+    fixtures de screenshot deben pasar _screenshot_juzgable (un 1x1 ya no
+    entra al arbitro), y no queremos depender de PIL para generarlos."""
+    def chunk(tipo, datos):
+        c = tipo + datos
+        return struct.pack(">I", len(datos)) + c + struct.pack(">I", zlib.crc32(c))
+    ihdr = struct.pack(">IIBBBBB", ancho, alto, 8, 2, 0, 0, 0)
+    filas = b"".join(
+        b"\x00" + bytes(v for x in range(ancho)
+                        for v in ((x * 7 + y * 13) % 256, (x * 3) % 256,
+                                  (y * 5) % 256))
+        for y in range(alto))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", zlib.compress(filas)) + chunk(b"IEND", b""))
+
+
+_PNG_GRANDE = _png_bytes()
 
 _RESP_OK = "NOTA: 7.5\nVEREDICTO: fiel al mockup\nDEFECTOS:\n- ninguno"
 _RESP_DEFECTOS = ("NOTA: 4.0\nVEREDICTO: estructura distinta\nDEFECTOS:\n"
@@ -26,7 +48,7 @@ _RESP_DEFECTOS = ("NOTA: 4.0\nVEREDICTO: estructura distinta\nDEFECTOS:\n"
 
 def _png(tmp_path, nombre="shot.png"):
     p = tmp_path / nombre
-    p.write_bytes(_PNG_1x1)
+    p.write_bytes(_PNG_GRANDE)
     return p
 
 
@@ -69,7 +91,7 @@ def test_datauri_de_un_png(tmp_path):
     uri = av._datauri_png(_png(tmp_path))
     assert uri.startswith("data:image/png;base64,")
     # el base64 decodifica al PNG original
-    assert base64.b64decode(uri.split(",", 1)[1]) == _PNG_1x1
+    assert base64.b64decode(uri.split(",", 1)[1]) == _PNG_GRANDE
 
 
 def test_datauri_de_ruta_inexistente_es_none(tmp_path):
@@ -163,6 +185,31 @@ def test_sin_mockup_manda_una_imagen(tmp_path):
 def test_screenshot_ilegible_devuelve_none(tmp_path):
     with patch.object(av, "vlm_disponible", return_value=(True, "ok")):
         assert av.arbitrar_visual("idea", tmp_path / "no.png") is None
+
+
+# ── regresion 2026-08-01: un 1x1px saco 9.5 "Excelente" del VLM ──────────────
+
+def test_screenshot_1x1_se_rechaza_sin_preguntar_al_vlm(tmp_path):
+    """Un PNG de 1x1 no es una pagina: el arbitro debe cortar ANTES del VLM
+    (que, medido, alucino un 9.5). El None queda marcado como NO-veredicto."""
+    p = tmp_path / "s.png"
+    p.write_bytes(_PNG_1x1)
+    llamadas = []
+
+    def _fake(url, prompt, imagenes):
+        llamadas.append(url)
+        return _RESP_OK
+
+    with patch.object(av, "vlm_disponible", return_value=(True, "ok")), \
+         patch.object(av, "_preguntar_vlm", side_effect=_fake):
+        assert av.arbitrar_visual("idea", p) is None
+    assert llamadas == []                      # el VLM ni se entero
+    assert av.ultimo_estado()["sin_vlm"] is True
+
+
+def test_screenshot_grande_pasa_el_filtro(tmp_path):
+    ok, motivo = av._screenshot_juzgable(_png(tmp_path))
+    assert ok, motivo
 
 
 # ── la URL se lee al llamar, no al importar ──────────────────────────────────

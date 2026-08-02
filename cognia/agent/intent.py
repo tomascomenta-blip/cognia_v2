@@ -16,6 +16,7 @@ extend by adding a row.
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 
@@ -25,6 +26,29 @@ class Intent:
     needs_agent: bool
     suggested_tool: str = ""   # best-guess tool name, or "" if action but unsure
     reason: str = ""
+    # Explicacion para el usuario cuando la tool que TOCABA esta apagada por
+    # flag. Vacio en el caso normal. Lo consume la capa que imprime (cli.py).
+    aviso: str = ""
+
+
+# Las pantalla_* solo se REGISTRAN con COGNIA_SCREEN activo (opt-in duro: el
+# A/B 2026-07-25 midio que inflar el catalogo degrada al modelo chico). Si se
+# sugieren igual, el agente pide una tool que NO existe y el usuario recibe
+# "herramienta 'pantalla_captura' no existe" — un mensaje que le hace creer que
+# Cognia no sabe hacer capturas, cuando lo unico que falta es el flag.
+# Se lee EN LA LLAMADA, no en import-time: el flag puede ponerse despues de
+# importar el modulo (cognia/remoto/sesiones.py lo exporta por sesion).
+_PANTALLA_OFF_AVISO = (
+    "Las herramientas de pantalla estan DESHABILITADAS. Habilitalas con "
+    "COGNIA_SCREEN=1 (control de la maquina: es opt-in a proposito)."
+)
+
+
+def _pantalla_habilitada() -> bool:
+    """Mismos valores que screen_tools._enabled() y que el gate de registro
+    en tools.py: si cambia uno, cambian los tres."""
+    return os.environ.get("COGNIA_SCREEN", "").strip().lower() in (
+        "1", "on", "true", "yes")
 
 
 # Saludo de apertura: se PELA antes de juzgar, no descarta el mensaje.
@@ -145,6 +169,13 @@ def detect(text: str) -> Intent:
 
     for pattern, tool in _RULES:
         if re.search(pattern, t) or re.search(pattern, nucleo):
+            # Sigue siendo una ACCION (needs_agent=True), pero no se sugiere
+            # una tool que el catalogo no tiene: sin el flag, el hint hacia que
+            # el agente la invocara y volviera "herramienta ... no existe".
+            if tool.startswith("pantalla_") and not _pantalla_habilitada():
+                return Intent(True, suggested_tool="",
+                              reason=f"regla:{tool}:deshabilitado",
+                              aviso=_PANTALLA_OFF_AVISO)
             return Intent(True, suggested_tool=tool, reason=f"regla:{tool}")
 
     # Imperative/subjunctive-verb fallback on the peeled core.

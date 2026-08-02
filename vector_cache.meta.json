@@ -1,0 +1,1 @@
+{"header": {"max_id": 1, "n_hasta_max": 1, "include_forgotten": false, "n": 1}, "meta": [{"id": 1, "observation": "first", "label": "test", "confidence": 0.8, "importance": 1.0, "emotion_score": 0.0, "emotion_label": "neutral", "surprise": 0.0, "feedback_weight": 1.0}]}

@@ -19,6 +19,7 @@ PRINCIPIO DE AISLAMIENTO:
   un evento log externo — nunca como un episodio de aprendizaje.
 """
 
+import hashlib
 import random
 import time
 from dataclasses import dataclass
@@ -26,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from ..disciplina    import Disyuntor, huella_de_texto
+from ..disciplina    import DIR_ESTADO, Disyuntor, huella_de_texto
 from .generator      import (generate_program, reparar_python, reparar_web,
                              GeneratedProgram)
 from .sandbox_runner import run_in_sandbox, revisar_html, ExecutionResult
@@ -56,6 +57,15 @@ MAX_RONDAS_INSISTIENDO = 4
 
 # Threshold mínimo para guardar (espejo del definido en evaluator.py)
 STORE_THRESHOLD = 5.0
+
+# Ruta del JSONL append-only del disyuntor, en .disciplina/ del cwd (mismo
+# criterio que cognia/disciplina/__main__.py). Sin ruta_log el corte no dejaba
+# NINGUN rastro y la calibracion del modo sombra (plan INVESTIGACION_Y_ANTIRUIDO)
+# no podia contar los disparos de estos lazos.
+def _ruta_disyuntor(tarea: str) -> Path:
+    h = hashlib.sha1(tarea.encode("utf-8")).hexdigest()[:10]
+    return DIR_ESTADO / f"pc_{h}.jsonl"
+
 
 # Estadísticas de sesión para monitoreo
 _session_stats = {
@@ -135,11 +145,20 @@ def _llm_de_cognia(cognia_instance):
     if orch is None:
         return None
 
-    from ..llm_local import generar
+    from ..llm_local import detectar_backend, generar
 
     def llm(prompt, system="", max_tokens=2000, temperature=0.9):
         return generar(prompt, system=system, temperature=temperature,
                        max_tokens=max_tokens, via="construir") or None
+
+    # generator._call_llm registra QUE backend atendio leyendo llm.url_base;
+    # sin el atributo, cada llamada quedaba en el audit como
+    # "inyectado(url desconocida)" con :8080 supuesto (110 entradas al
+    # 2026-08-01). Como el closure delega en llm_local.generar, su URL real
+    # es la que detecta llm_local.
+    backend = detectar_backend()
+    if backend:
+        llm.url_base = backend["url"]
 
     return llm
 
@@ -325,7 +344,9 @@ def run_program_hobby(
             # este lazo es literalmente el bucle de parches que ese modulo
             # existe para cortar.
             if not exec_result.success:
-                disyuntor = Disyuntor(f"reparar {program.title}"[:60])
+                tarea_rep = f"reparar {program.title}"[:60]
+                disyuntor = Disyuntor(tarea_rep,
+                                      ruta_log=_ruta_disyuntor(tarea_rep))
                 # El fallo original NO es un parche: es el punto de partida, y
                 # el modelo todavia no ha tocado nada. Registrarlo con
                 # hubo_cambio=True gastaba una de las dos huellas que dispara
@@ -337,9 +358,16 @@ def run_program_hobby(
                     ok=False, hubo_cambio=False)
 
                 for n_arreglo in range(1, MAX_REPARACIONES + 1):
-                    if disyuntor.motivo_corte():
+                    motivo = disyuntor.motivo_corte()
+                    if motivo:
+                        # El disparo queda en el JSONL: es el dato que la
+                        # calibracion del modo sombra necesita (mismo patron
+                        # que tool_synthesis.py).
+                        disyuntor.persistir_evento(
+                            "disparo", motivo=motivo,
+                            intento=len(disyuntor.intentos))
                         if verbose:
-                            print(f"   ⛔ Disyuntor ({disyuntor.motivo_corte()}): "
+                            print(f"   ⛔ Disyuntor ({motivo}): "
                                   f"dejo de parchear a ciegas.")
                         break
 
@@ -518,7 +546,8 @@ def crear_hasta_lograr(
     Devuelve el HobbySessionResult de la ronda que lo logro, o el de la ultima
     si ninguna lo consiguio.
     """
-    disyuntor = Disyuntor(f"insistir: {idea[:50]}")
+    tarea_ins = f"insistir: {idea[:50]}"
+    disyuntor = Disyuntor(tarea_ins, ruta_log=_ruta_disyuntor(tarea_ins))
     ultimo: Optional[HobbySessionResult] = None
 
     for ronda in range(1, max_rondas + 1):
@@ -548,6 +577,8 @@ def crear_hasta_lograr(
 
         motivo = disyuntor.motivo_corte()
         if motivo:
+            disyuntor.persistir_evento("disparo", motivo=motivo,
+                                       intento=len(disyuntor.intentos))
             if verbose:
                 print(f"⛔ Disyuntor ({motivo}): insistir no esta avanzando, paro.")
             break

@@ -81,6 +81,22 @@ def responde(puerto: int, timeout: float = 2.0) -> bool:
         return False
 
 
+def estado(puerto: int, timeout: float = 2.0) -> str:
+    """'ok' | 'cargando' | 'ausente'. El 503 de /health significa que HAY un
+    server cargando su modelo (asi responde llama-server durante la carga):
+    el puerto esta ocupado y arrancar otro ahi solo puede fallar. responde()
+    lo daba por ausente (mismo bug que la adopcion en node/llama_backend,
+    A1 2026-08-01)."""
+    try:
+        with urllib.request.urlopen(
+                f"http://127.0.0.1:{puerto}/health", timeout=timeout):
+            return "ok"
+    except urllib.error.HTTPError as e:
+        return "cargando" if e.code == 503 else "ok"
+    except (urllib.error.URLError, OSError):
+        return "ausente"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--modelo", help="trozo del nombre del .gguf a servir")
@@ -101,8 +117,13 @@ def main() -> int:
             print(f"  {m.stat().st_size / 1e9:6.1f} GB  {m.name}")
         return 0
 
-    if responde(args.puerto):
+    est = estado(args.puerto)
+    if est == "ok":
         print(f"Ya hay un servidor respondiendo en :{args.puerto}. No arranco otro.")
+        return 0
+    if est == "cargando":
+        print(f"Ya hay un servidor CARGANDO su modelo en :{args.puerto}. "
+              f"No arranco otro; espera a que /health responda ok.")
         return 0
 
     exe = binario()

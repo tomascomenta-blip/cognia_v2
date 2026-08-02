@@ -147,7 +147,10 @@ COGNIA_SYSTEM_PROMPT = (
 
 # ── Modelos GGUF conmutables en caliente (comando REPL /modelo) ──────────
 # Rutas RELATIVAS al root del repo (el repo puede moverse de disco/carpeta);
-# se resuelven a absolutas en runtime con resolve_gguf_path().
+# se resuelven a absolutas en runtime con resolve_gguf_path(). Son las
+# ubicaciones CANONICAS de instalacion (cognia install-model), no una promesa
+# de presencia: si el GGUF no esta ni en el repo ni en ~/.cognia/models,
+# resolve_gguf_path devuelve None y el consumidor degrada ([NO] / fallback 3B).
 # Medicion 2026-06-12 en i3-10110U (llama-server b9391, benchmark pass@1):
 #   3b: 40% pass@1, ~8 tok/s  |  7b: 50% pass@1, ~2.2 tok/s
 #   cascada 3b->7b: 60% pass@1 (el 7b recupera casos que el 3b falla)
@@ -159,16 +162,20 @@ MODEL_GGUF_DEFAULT: str = "3b"   # default actual del backend (ver _GGUF_CANDIDA
 
 
 def resolve_gguf_path(key: str):
-    """Ruta absoluta (Path) del GGUF del registry para `key`, o None si no existe la clave.
+    """Ruta absoluta (Path) del GGUF del registry para `key`, o None si la
+    clave no existe o si NINGUNA ruta existe en disco.
 
     Resuelve contra el root del repo (este archivo vive en shattering/), asi el
     registry sobrevive a mover el repo de disco. Si esa ruta no existe (el
     producto INSTALADO no tiene model_shards/ alrededor de site-packages),
     cae a la instalacion estandar ~/.cognia/models/**/<mismo nombre> — sin
     esto /modelo 7b y la cascada heavy_code quedaban mudos instalados
-    (auditoria e2e 2026-07-15). Solo entonces devuelve None-por-inexistencia
-    via el caller (esta funcion mantiene su contrato: no exige existencia
-    para la ruta del repo, que es el modo dev)."""
+    (auditoria e2e 2026-07-15). Si tampoco esta ahi, devuelve None: el
+    contrato viejo devolvia la ruta FANTASMA del repo, con lo que un caller
+    que solo mirara `is_absolute()` o mostrara la ruta trataba como modelo
+    algo que jamas existio (auditoria fase 2, 2026-08-01). None significa
+    "no instalado" y los consumidores ya degradan legible (heavy_code cae
+    al 3B con warning, la TUI y /modelo marcan [NO])."""
     from pathlib import Path
     rel = MODEL_GGUF_REGISTRY.get(key)
     if rel is None:
@@ -186,7 +193,7 @@ def resolve_gguf_path(key: str):
         for cand in home_models.rglob("*.gguf"):
             if cand.name.lower() == nombre.lower():
                 return cand
-    return p
+    return None
 
 
 # HuggingFace dataset that hosts the pre-converted INT4 .npz shards.

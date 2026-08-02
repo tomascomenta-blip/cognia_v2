@@ -30,6 +30,7 @@ import math
 import threading
 import time
 import os
+import zlib
 from collections import OrderedDict
 from typing import Optional, List
 
@@ -38,6 +39,20 @@ try:
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
+
+
+def _has_semantic_backend() -> bool:
+    """True si sentence-transformers es IMPORTABLE (aunque aun no este cargado).
+    Distingue 'el modelo esta cargando' (hay que esperar) de 'no existe el
+    paquete' (degradar a n-gramas es lo unico posible)."""
+    try:
+        import importlib.util
+        return importlib.util.find_spec("sentence_transformers") is not None
+    except Exception:
+        return False
+
+
+_HAS_SEMANTIC = _has_semantic_backend()
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -107,6 +122,11 @@ class AsyncEmbeddingQueue:
 
     BATCH_SIZE    = 16
     BATCH_TIMEOUT = 0.20   # segundos
+    # Espera extra cuando el timeout se debe a la CARGA del modelo (primer uso
+    # en frio: ~10-30s). Sin esto, la PRIMERA query de cada proceso caia en
+    # silencio al espacio n-gram mientras el 96.8% del corpus esta en el
+    # espacio MiniLM -> top-k basura (0.32 vs 0.711 medido en la auditoria).
+    COLD_LOAD_TIMEOUT = 60.0
 
     def __init__(self, throttle_controller=None, vector_dim: int = 384):
         self._throttle  = throttle_controller
@@ -141,11 +161,26 @@ class AsyncEmbeddingQueue:
         self._trigger.set()
 
         if not event.wait(timeout=5.0):
-            # Timeout — fallback sin crashear
-            return _ngram_vector(key, self._dim)
+            # Timeout: distinguir "modelo CARGANDO" (esperar) de "colgado/ausente"
+            # (degradar, pero NUNCA en silencio: el vector n-gram vive en otro
+            # espacio vectorial y envenena el retrieval).
+            if _HAS_SEMANTIC and not LazyEmbeddingModel._loaded:
+                if not event.wait(timeout=self.COLD_LOAD_TIMEOUT):
+                    print("[cognia_embedding] AVISO: modelo semantico no cargo en "
+                          f"{self.COLD_LOAD_TIMEOUT:.0f}s -- vector n-gram degradado "
+                          f"para '{key[:40]}...'")
+                    return _ngram_vector(key, self._dim)
+            else:
+                print("[cognia_embedding] AVISO: timeout de encode (5s) sin modelo "
+                      f"semantico -- vector n-gram degradado para '{key[:40]}...'")
+                return _ngram_vector(key, self._dim)
 
         result = self._results.pop(key, None)
-        return result if result is not None else _ngram_vector(key, self._dim)
+        if result is None:
+            print(f"[cognia_embedding] AVISO: sin resultado del batcher para "
+                  f"'{key[:40]}...' -- vector n-gram degradado")
+            return _ngram_vector(key, self._dim)
+        return result
 
     # ── Worker interno ─────────────────────────────────────────────────
 
@@ -265,9 +300,31 @@ def get_embedding_queue(throttle_controller=None, vector_dim: int = 384) -> Asyn
     return _global_queue
 
 
+def warm_up_embedding_model(throttle_controller=None) -> None:
+    """
+    Dispara la carga del modelo semantico en un hilo daemon.
+    Llamar desde Cognia.__init__: asi la carga (~10-30s en frio) ocurre en
+    paralelo al arranque y la primera query del usuario ya encuentra el
+    modelo listo en vez de degradar a n-gramas por timeout.
+    """
+    if not _HAS_SEMANTIC:
+        return
+    threading.Thread(
+        target=lambda: LazyEmbeddingModel.get(throttle_controller),
+        daemon=True, name="EmbeddingWarmup",
+    ).start()
+
+
 # ══════════════════════════════════════════════════════════════════════
 # 5. FALLBACK N-GRAM (sin dependencias externas)
 # ══════════════════════════════════════════════════════════════════════
+
+def _stable_hash(s: str) -> int:
+    """Hash ESTABLE entre procesos. hash() de Python esta aleatorizado por
+    PYTHONHASHSEED: el mismo texto producia vectores n-gram distintos en cada
+    sesion (cos(guardado, mismo texto) = 0.559 medido, deberia ser 1.0)."""
+    return zlib.crc32(s.encode("utf-8", "ignore"))
+
 
 def _ngram_vector(text: str, dim: int = 384) -> list:
     """
@@ -280,10 +337,10 @@ def _ngram_vector(text: str, dim: int = 384) -> list:
         idx = (ord(ch) * 31 + i) % dim
         vec[idx] += 1.0
     for i in range(len(text_lower) - 1):
-        h = (hash(text_lower[i:i+2]) & 0x7FFFFFFF) % dim
+        h = _stable_hash(text_lower[i:i+2]) % dim
         vec[h] += 0.7
     for word in text_lower.split():
-        h = (hash(word) & 0x7FFFFFFF) % dim
+        h = _stable_hash(word) % dim
         vec[h] += 1.5
     norm = math.sqrt(sum(x * x for x in vec))
     if norm > 0:

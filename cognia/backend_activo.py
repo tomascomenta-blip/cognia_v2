@@ -29,7 +29,27 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+try:
+    # Windows: el O_APPEND del CRT es seek-al-final + write, NO atomico entre
+    # procesos (medido: 8 procesos x 200 filas -> 276 filas pisadas y lineas
+    # entrelazadas). El lock de msvcrt serializa el append. En POSIX el
+    # O_APPEND del kernel ya es atomico para el append, pero la ROTACION no lo
+    # es en ningun sistema, y por eso el lock se toma en los dos.
+    import msvcrt
+except ImportError:                      # no-Windows
+    msvcrt = None
+
+try:
+    import fcntl                          # POSIX
+except ImportError:
+    fcntl = None
+
 AUDIT = Path.home() / ".cognia" / "backend_audit.jsonl"
+
+# Rotacion a UNA generacion (.1): el jsonl crecia sin cota (1.48MB en 2
+# semanas). Al superar el tope se renombra a .1 (pisando la generacion previa)
+# y se sigue en un archivo fresco. Nada se borra sin dejar una generacion.
+_ROTAR_BYTES = 10 * 1024 * 1024
 
 # /props por URL. Sondear en cada token costaria mas que generarlo.
 _props_cache: dict = {}
@@ -77,13 +97,113 @@ def _puerto_de(url: str) -> Optional[int]:
         return None
 
 
+def _rotar_si_toca(path: Path, tope: int) -> None:
+    """Rotacion a UNA generacion (.1). SOLO se llama con el lock TOMADO.
+
+    Con el chequeo de tamano y el replace() fuera del lock, dos procesos que
+    cruzan el tope a la vez hacen: P1 archiva el gordo en .1 y empieza uno
+    fresco; P2, que ya habia visto el tamano viejo, archiva el FRESCO encima
+    de .1 y destruye la generacion recien guardada (revision adversarial
+    2026-08-01). Dentro del lock, P2 vuelve a medir y ve el archivo chico.
+    """
+    try:
+        if path.stat().st_size > tope:
+            path.replace(path.with_name(path.name + ".1"))
+    except OSError:
+        pass  # no existe aun, o un lector tiene el handle abierto (Windows):
+              # no se rota esta vez, se reintenta en el proximo append.
+
+
+def escribir_linea_jsonl(path: Path, linea: bytes, tope: int) -> None:
+    """Append de UNA linea + rotacion, ambos dentro del MISMO lock entre
+    procesos. El mutex es un archivo aparte (<audit>.lock) y no el propio
+    jsonl: bloquear el byte 0 del jsonl (como se hacia antes) hace fallar la
+    LECTURA concurrente del archivo en Windows -- de ahi que leer_audit
+    devolviera ([], 0) 'vacio' cuando en realidad no habia podido leer.
+
+    Lo usa tambien cognia/agent/sentinel.py: la rotacion estaba duplicada en
+    los dos modulos y por eso el bug tambien.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = path.with_name(path.name + ".lock")
+    fdl = os.open(lock, os.O_RDWR | os.O_CREAT)
+    try:
+        if msvcrt is not None:
+            # LK_LOCK reintenta ~10s y luego lanza -> cae al except del llamador
+            os.lseek(fdl, 0, os.SEEK_SET)
+            msvcrt.locking(fdl, msvcrt.LK_LOCK, 1)
+        elif fcntl is not None:
+            fcntl.flock(fdl, fcntl.LOCK_EX)
+        try:
+            _rotar_si_toca(path, tope)
+            # UNA sola write() de la linea completa sobre O_APPEND: con el
+            # open("a") + write() bufereado, dos procesos concurrentes
+            # entrelazaban trozos de linea (el jsonl tenia lineas corruptas).
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND)
+            try:
+                os.write(fd, linea)
+            finally:
+                os.close(fd)
+        finally:
+            if msvcrt is not None:
+                os.lseek(fdl, 0, os.SEEK_SET)
+                msvcrt.locking(fdl, msvcrt.LK_UNLCK, 1)
+            elif fcntl is not None:
+                fcntl.flock(fdl, fcntl.LOCK_UN)
+    finally:
+        os.close(fdl)
+
+
 def _append(fila: dict) -> None:
     try:
-        AUDIT.parent.mkdir(parents=True, exist_ok=True)
-        with AUDIT.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(fila, ensure_ascii=False) + "\n")
+        linea = (json.dumps(fila, ensure_ascii=False) + "\n").encode("utf-8")
+        escribir_linea_jsonl(AUDIT, linea, _ROTAR_BYTES)
     except Exception:
         pass
+
+
+def leer_audit(max_lineas: Optional[int] = None,
+               con_estado: bool = False) -> tuple:
+    """(filas, corruptas): las filas JSON del audit y CUANTAS lineas se
+    saltaron por no parsear (herencia de las escrituras concurrentes viejas).
+    El contador existe para que un lector no confunda 'archivo a medias
+    corrupto' con 'no paso nada'.
+
+    con_estado=True devuelve (filas, corruptas, estado) con estado en
+    {'ok', 'vacio', 'ilegible'}. Existe porque devolver ([], 0) tanto cuando
+    no hay auditoria como cuando NO SE PUDO LEER (lock tomado, permisos,
+    antivirus) es el mismo falso 'todo tranquilo' que este modulo existe para
+    impedir: un lector no debe poder confundir 'no paso nada' con 'no mire'.
+    """
+    estado = "ok"
+    try:
+        with AUDIT.open("r", encoding="utf-8", errors="replace") as f:
+            lineas = f.readlines()
+    except FileNotFoundError:
+        lineas, estado = [], "vacio"
+    except OSError as exc:
+        # Reintento corto: en Windows un lock de rango o un antivirus pueden
+        # negar la lectura un instante.
+        time.sleep(0.2)
+        try:
+            with AUDIT.open("r", encoding="utf-8", errors="replace") as f:
+                lineas = f.readlines()
+        except OSError:
+            print(f"[backend] NO SE PUDO LEER la auditoria {AUDIT}: {exc}",
+                  file=sys.stderr, flush=True)
+            return ([], 0, "ilegible") if con_estado else ([], 0)
+    if max_lineas:
+        lineas = lineas[-max_lineas:]
+    filas, corruptas = [], 0
+    for ln in lineas:
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            filas.append(json.loads(ln))
+        except ValueError:
+            corruptas += 1
+    return (filas, corruptas, estado) if con_estado else (filas, corruptas)
 
 
 def registrar(via: str, url: str, rol: str = "", **extra) -> dict:
@@ -209,4 +329,11 @@ if __name__ == "__main__":
     print(f"modelo : {e['modelo'] or 'NINGUNO'}")
     for a in e["avisos"]:
         print(f"AVISO  : {a}")
+    filas, corruptas, est = leer_audit(max_lineas=500, con_estado=True)
+    if corruptas:
+        print(f"AVISO  : {corruptas} linea(s) corruptas en la cola del audit "
+              f"({AUDIT})")
+    if est == "ilegible":
+        print(f"AVISO  : la auditoria {AUDIT} EXISTE pero no se pudo leer "
+              f"(lock/permisos); esto NO es 'sin eventos'")
     sys.exit(0 if not e["avisos"] else 1)

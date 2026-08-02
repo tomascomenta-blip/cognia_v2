@@ -15,7 +15,13 @@ from cognia.remoto.servidor import _SALUDOS, crear_app
 
 
 def _cliente():
-    return TestClient(crear_app())
+    """Cliente YA autenticado: todo /api/* exige el token compartido."""
+    from cognia.remoto import servidor as _srv
+    app = crear_app()
+    c = TestClient(app)
+    c.headers.update(
+        {"X-Cognia-Token": _srv.asegurar_token(_srv.RAIZ_DATOS)})
+    return c
 
 
 def test_saludo_por_franja_horaria():
@@ -196,6 +202,9 @@ def test_grafo_visual_temas_y_hubs():
 
 
 def test_flujos_listar_y_guardar(tmp_path, monkeypatch):
+    from cognia.remoto import servidor as _srv
+    # las escrituras del test van a un cognia_skills/ temporal, no al repo
+    monkeypatch.setattr(_srv, "_DIR_FLUJOS_EDIT", tmp_path / "cognia_skills")
     c = _cliente()
     flujos = c.get("/api/flujos").json()
     assert any(f["nombre"] == "depurar" for f in flujos)
@@ -206,6 +215,156 @@ def test_flujos_listar_y_guardar(tmp_path, monkeypatch):
     assert r.status_code in (200, 400, 404)
     if r.status_code == 200:
         assert "/" not in r.json()["nombre"] and ".." not in r.json()["nombre"]
+
+
+# ── Regresion A6 2026-08-01: 0.0.0.0:8777 sin autenticacion ──
+# Cada sesion corre con COGNIA_ACCESO_TOTAL=1 + COGNIA_SCREEN_AUTO=1:
+# cualquier dispositivo de la LAN pilotaba la maquina. Ahora todo /api/*
+# y /ws/* exige el token compartido de ~/.cognia/remoto/token.txt.
+
+def test_api_exige_token():
+    from cognia.remoto import servidor as _srv
+    c = TestClient(crear_app())            # SIN header de token
+    assert c.get("/api/proyectos").status_code == 401
+    assert c.put("/api/flujos/x", json={"contenido": "y"}).status_code == 401
+    tok = _srv.asegurar_token(_srv.RAIZ_DATOS)
+    assert c.get("/api/proyectos",
+                 headers={"X-Cognia-Token": tok}).status_code == 200
+    # ?token= tambien vale: <img src> y la primera visita desde la URL impresa
+    assert c.get(f"/api/proyectos?token={tok}").status_code == 200
+    # un token INCORRECTO no pasa
+    assert c.get("/api/proyectos",
+                 headers={"X-Cognia-Token": "nope"}).status_code == 401
+    # la app en si se sirve sin token (el token llega en esa URL)
+    assert c.get("/").status_code == 200
+
+
+def test_token_persistente_y_no_vacio(tmp_path):
+    from cognia.remoto.servidor import asegurar_token
+    t1 = asegurar_token(tmp_path)
+    assert len(t1) >= 16
+    assert asegurar_token(tmp_path) == t1          # idempotente
+    assert (tmp_path / "token.txt").read_text(encoding="utf-8").strip() == t1
+
+
+def test_ws_exige_token(tmp_path, monkeypatch):
+    from cognia.remoto import sesiones as _ses
+    from cognia.remoto import servidor as _srv
+    monkeypatch.setattr(_ses, "RAIZ_DATOS", tmp_path)
+    monkeypatch.setattr(_srv, "RAIZ_DATOS", tmp_path)
+    monkeypatch.setattr(_ses, "FICHERO_PROYECTOS", tmp_path / "proyectos.json")
+    pr = registrar_proyecto(str(tmp_path))
+    c = TestClient(crear_app())
+    entro = False
+    try:
+        with c.websocket_connect(f"/ws/{pr['id']}/s1"):
+            entro = True
+    except Exception:
+        pass                                # cierre antes del accept: correcto
+    assert not entro, "el WebSocket acepto una conexion sin token"
+
+
+# ── Regresion A6: "[backend] via=..." llegaba al CHAT como si fuera Cognia ──
+# stderr del REPL va mergeado a stdout; la instrumentacion del backend es
+# actividad (plegable), no conversacion. transcripcion() reclasifica al leer,
+# asi que las sesiones viejas se limpian gratis.
+
+def test_reclasificar_instrumentacion_backend_a_actividad():
+    from cognia.remoto.sesiones import reclasificar
+    casos = [
+        "[backend] via=generate modelo=qwen2.5-coder-14b-instruct-q4_k_m",
+        "[backend] DEGRADADO: 'chat' sin backend LLM -- respuesta template",
+        "[degradado] llama: el server no responde",
+        "[llama_backend] llama-server started on :8080 (pid=1234)",
+    ]
+    for texto in casos:
+        quien, _ = reclasificar("cognia", texto, False)
+        assert quien == "actividad", texto
+
+
+# ── Regresion A6: PUT /api/flujos escribia en el repo sin safety scan ──
+
+def test_guardar_flujo_escanea_y_escribe_fuera_del_repo(tmp_path, monkeypatch):
+    from cognia.remoto import servidor as _srv
+    monkeypatch.setattr(_srv, "_DIR_FLUJOS_EDIT", tmp_path / "cognia_skills")
+    c = _cliente()
+    # instrucciones destructivas: 400 y NO se persiste nada
+    r = c.put("/api/flujos/malicioso",
+              json={"contenido": "paso 1: corre rm -rf C:/Users"})
+    assert r.status_code == 400, r.text
+    assert "peligroso" in r.json()["error"]
+    assert not (tmp_path / "cognia_skills" / "malicioso.md").exists()
+    # contenido sano: va a cognia_skills/ (nunca dentro del paquete cognia/)
+    r = c.put("/api/flujos/mi-flujo", json={"contenido": "# pasos\n1. leer"})
+    assert r.status_code == 200, r.text
+    destino = tmp_path / "cognia_skills" / "mi-flujo.md"
+    assert destino.read_text(encoding="utf-8") == "# pasos\n1. leer"
+    assert not (_srv._DIR_FLUJOS / "mi-flujo.md").exists()
+    # el GET lo devuelve: round-trip del editor del movil
+    nombres = {f["nombre"] for f in c.get("/api/flujos").json()}
+    assert "mi-flujo" in nombres and "depurar" in nombres
+
+
+# ── Regresion A6: sin forma de PARAR un REPL sin borrar su transcripcion ──
+
+def _repl_falso():
+    """Sustituto de `python -m cognia`: eco por stdin, muere con /salir."""
+    import sys as _sys
+    guion = ("import sys\n"
+             "for l in sys.stdin:\n"
+             "    if l.strip() == '/salir':\n"
+             "        break\n"
+             "    print('eco: ' + l.strip(), flush=True)\n")
+    return [_sys.executable, "-c", guion]
+
+
+def _remoto_aislado(tmp_path, monkeypatch):
+    """RAIZ_DATOS/proyectos/REPL parcheados a tmp: nada toca ~/.cognia."""
+    from cognia.remoto import sesiones as _ses
+    from cognia.remoto import servidor as _srv
+    monkeypatch.setattr(_ses, "RAIZ_DATOS", tmp_path)
+    monkeypatch.setattr(_srv, "RAIZ_DATOS", tmp_path)
+    monkeypatch.setattr(_ses, "FICHERO_PROYECTOS", tmp_path / "proyectos.json")
+    monkeypatch.setattr(_ses, "_python_cognia", _repl_falso)
+    proyecto = tmp_path / "proy"
+    proyecto.mkdir()
+    return registrar_proyecto(str(proyecto))
+
+
+def test_parar_sesion_mata_el_repl_y_conserva_el_jsonl(tmp_path, monkeypatch):
+    pr = _remoto_aislado(tmp_path, monkeypatch)
+    c = _cliente()
+    sid = c.post(f"/api/proyectos/{pr['id']}/sesiones",
+                 json={"titulo": "t"}).json()["id"]
+    assert any(m["sesion"] == sid for m in c.get("/api/monitores").json())
+    r = c.post(f"/api/proyectos/{pr['id']}/sesiones/{sid}/parar")
+    assert r.json()["ok"] is True
+    # el REPL murio...
+    assert all(m["sesion"] != sid for m in c.get("/api/monitores").json())
+    # ...y la transcripcion SOBREVIVE (parar != borrar)
+    assert (tmp_path / pr["id"] / f"{sid}.jsonl").exists()
+    # parar dos veces es inocuo (ya no estaba viva)
+    assert c.post(
+        f"/api/proyectos/{pr['id']}/sesiones/{sid}/parar").json()["ok"] is False
+
+
+# ── Regresion A6: baja de proyecto dejaba REPLs huerfanos y datos colgados ──
+
+def test_baja_proyecto_para_repls_y_aparta_datos(tmp_path, monkeypatch):
+    pr = _remoto_aislado(tmp_path, monkeypatch)
+    c = _cliente()
+    sid = c.post(f"/api/proyectos/{pr['id']}/sesiones",
+                 json={}).json()["id"]
+    assert len(c.get("/api/monitores").json()) == 1
+    r = c.delete(f"/api/proyectos/{pr['id']}").json()
+    assert r["ok"] is True and r["sesiones_paradas"] == 1
+    # 0 REPLs vivos y el proyecto fuera de la lista
+    assert c.get("/api/monitores").json() == []
+    assert all(p["id"] != pr["id"] for p in c.get("/api/proyectos").json())
+    # las transcripciones NO se borraron: estan en la papelera
+    assert r["papelera"], "los datos debian moverse a la papelera"
+    assert (Path(r["papelera"]) / f"{sid}.jsonl").exists()
+    assert not (tmp_path / pr["id"]).exists()
 
 
 def test_reclasificar_separa_log_de_chat():
@@ -285,3 +444,62 @@ def test_reclasificar_traceback_multilinea_con_estado():
         assert quien == "log", l
     quien, _ = reclasificar("cognia", "Y esta linea vuelve al chat", en_traza)
     assert quien == "cognia"
+
+
+# ── Regresión 2026-08-01 (revisión adversarial): la PUERTA de entrada ──
+
+def test_token_no_ascii_da_401_no_500():
+    """?token=<no ASCII> reventaba el middleware: hmac.compare_digest lanza
+    TypeError con str no-ASCII y el 500 salía sin manejar. Debe ser 401."""
+    c = TestClient(crear_app())                 # sin header de token
+    for malo in ("café", "tokén", "日本語", "\u00ff"):
+        r = c.get("/api/proyectos", params={"token": malo})
+        assert r.status_code == 401, (malo, r.status_code)
+    # por header hay que mandar BYTES latin-1 (asi decodifica Starlette una
+    # cabecera con byte alto llegada por la red); httpx rechaza str no-ASCII
+    for malo in (b"caf\xe9", b"\xff"):
+        r = c.get("/api/proyectos", headers={"X-Cognia-Token": malo})
+        assert r.status_code == 401, (malo, r.status_code)
+
+
+def test_token_valido_no_lanza_con_no_ascii():
+    """Contrato directo de la función (sin pasar por HTTP)."""
+    from cognia.remoto.servidor import _token_valido
+    assert _token_valido("café", "abc") is False
+    assert _token_valido("", "abc") is False
+    assert _token_valido("abc", "abc") is True
+
+
+# ── Regresión 2026-08-01: FAIL-OPEN del escaneo de skills ──
+
+def test_guardar_flujo_sin_escaneo_rechaza(tmp_path, monkeypatch):
+    """Si skill_safety_scan no está disponible, el PUT NO puede persistir:
+    el 'except Exception: hits = []' anterior desactivaba el blocklist en
+    silencio y guardaba cualquier contenido."""
+    import sys
+    from cognia.remoto import servidor as _srv
+    monkeypatch.setattr(_srv, "_DIR_FLUJOS_EDIT", tmp_path / "cognia_skills")
+    # import roto: sys.modules[x]=None hace fallar el `from ... import ...`
+    monkeypatch.setitem(sys.modules, "cognia.agent.skills", None)
+    c = _cliente()
+    r = c.put("/api/flujos/sin-escaneo",
+              json={"contenido": "paso 1: corre rm -rf C:/Users"})
+    assert r.status_code == 503, r.text
+    assert "escaneo" in r.json()["error"]
+    assert not (tmp_path / "cognia_skills" / "sin-escaneo.md").exists()
+
+
+# ── Regresión 2026-08-01: el token se filtraba al historial del navegador ──
+
+def test_front_no_abre_la_imagen_con_el_token_en_la_url():
+    """img.onclick hacía window.open(img.src) — img.src lleva ?token=, así que
+    el token acababa en el historial, justo lo que borra el history.replaceState
+    del arranque. Ahora se baja con header y se abre un blob:."""
+    html = (Path(__file__).resolve().parent.parent
+            / "cognia" / "remoto" / "static" / "index.html").read_text(
+                encoding="utf-8")
+    assert "window.open(img.src" not in html
+    bloque = html.split("img.onclick")[1][:1200]
+    assert "X-Cognia-Token" in bloque
+    assert "createObjectURL" in bloque
+    assert "revokeObjectURL" in bloque

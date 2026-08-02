@@ -49,9 +49,17 @@ def test_get_limits_reads_env(monkeypatch):
     assert MB.get_limits() == (1000, 50)
 
 
-def test_get_limits_unset_is_none(monkeypatch):
+def test_get_limits_unset_uses_defaults(monkeypatch):
+    # Sin env vars el presupuesto ya NO es un no-op: defaults conservadores
+    # (la DB real crecio a 1.97 GB sin cota antes de este cambio).
     monkeypatch.delenv("COGNIA_MAX_MEMORIES", raising=False)
     monkeypatch.delenv("COGNIA_MAX_DB_MB", raising=False)
+    assert MB.get_limits() == (MB._DEFAULT_MAX_MEMORIES, MB._DEFAULT_MAX_DB_MB)
+
+
+def test_get_limits_explicit_zero_disables(monkeypatch):
+    monkeypatch.setenv("COGNIA_MAX_MEMORIES", "0")
+    monkeypatch.setenv("COGNIA_MAX_DB_MB", "-1")
     assert MB.get_limits() == (None, None)
 
 

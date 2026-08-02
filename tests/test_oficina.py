@@ -70,6 +70,20 @@ def test_control_detener_pausar_editar(tmp_path):
     assert not of.solicitar(t, "pausar")
 
 
+def test_json_corrupto_se_preserva_no_se_destruye(tmp_path):
+    # Regresión A13: el primer _save hacía os.replace SOBRE el .json corrupto
+    # y destruía la única copia recuperable. Ahora se renombra a .corrupto-<ts>.
+    path = tmp_path / "estado.json"
+    path.write_text("{esto no es json", encoding="utf-8")
+    of = Oficina(str(path))
+    of.crear_tarea("jefe", "T", "algo")  # dispara _save
+    corruptos = list(tmp_path.glob("estado.json.corrupto-*"))
+    assert len(corruptos) == 1
+    assert corruptos[0].read_text(encoding="utf-8") == "{esto no es json"
+    # y el estado nuevo quedó escrito limpio, releíble desde disco
+    assert Oficina(str(path)).data["tareas"]
+
+
 def test_eventos_acotados(tmp_path):
     of = _of(tmp_path)
     t = of.crear_tarea("trabajador", "T", "x", rol="investigador")

@@ -51,10 +51,37 @@ def _stage_plan(ctx: dict) -> dict:
     return ctx
 
 
+# Pseudo-tools que NO se ejecutan aqui: "step" es el carrier de contexto del
+# camino fast, "synthesize" corre en la etapa informe, y "research_llm" queda
+# excluido a proposito para respetar el presupuesto de <=2 LLM por flujo (su
+# descripcion alimenta al synthesize, que es quien razona).
+_TOOLS_SOLO_CONTEXTO = {"step", "synthesize", "research_llm"}
+
+
+def _ejecutar_tool(registry, tool_name: str, kwargs: dict, timeout_s: int):
+    """registry.execute en un hilo con deadline. None = timeout (el hilo del
+    tool queda huerfano pero el flujo no se cuelga; los tools del registry son
+    read-only o sandboxeados)."""
+    import concurrent.futures
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        fut = ex.submit(registry.execute, tool_name, **kwargs)
+        return fut.result(timeout=timeout_s)
+    except concurrent.futures.TimeoutError:
+        return None
+    finally:
+        ex.shutdown(wait=False)
+
+
 def _stage_ejecucion(ctx: dict) -> dict:
-    """Recoleccion de contexto determinista (0 LLM). Guarda results[id]['output'] que
-    synthesize consume. Inyecta el bloque de memoria HYDRA del REPL si esta disponible."""
+    """Ejecuta las tools REALES de cada subtarea (0 LLM: research_llm excluido) y
+    guarda results[id]['output'] que synthesize consume. Antes esta etapa solo
+    copiaba la DESCRIPCION del paso como output — el flujo nunca buscaba ni
+    exploraba nada (auditoria 2026-08-01). Inyecta el bloque de memoria HYDRA
+    del REPL si esta disponible."""
     from cognia.agents.planner import SubTask
+    from cognia.agents.supervisor import build_tool_kwargs
+    from cognia.agents.tool_registry import get_tool_registry
     subtasks = ctx.get("subtasks")
     if not subtasks:
         subtasks = [SubTask(id="flujo_0", description=ctx["goal"], tool_required="step")]
@@ -65,14 +92,52 @@ def _stage_ejecucion(ctx: dict) -> dict:
         mem_block = _build_memory_block_for(ctx["ai"], ctx["goal"]) or ""
     except Exception:
         mem_block = ""
+    try:
+        registry = get_tool_registry()
+    except Exception:
+        registry = None
     results = {}
+    sin_ejecutar = 0
     for st in subtasks:
         if st.tool_required == "synthesize":
             continue
-        out = st.description
+        base = st.description
         if mem_block:
-            out = f"{st.description}\n[memoria]\n{mem_block}"
-        results[st.id] = {"output": out}
+            base = f"{st.description}\n[memoria]\n{mem_block}"
+        tool = registry.get(st.tool_required) if registry else None
+        if st.tool_required in _TOOLS_SOLO_CONTEXTO or tool is None:
+            # paso de contexto puro: la descripcion ES el output (camino viejo)
+            results[st.id] = {"output": base}
+            if st.tool_required not in _TOOLS_SOLO_CONTEXTO:
+                sin_ejecutar += 1   # tool declarada pero no registrada: honestidad
+            continue
+        kwargs = build_tool_kwargs(st, results)
+        if not kwargs:
+            # Sin argumento REAL extraible. Ejecutar igual mandaba la
+            # DESCRIPCION del paso como 'code' y el sandbox devolvia
+            # success=True con basura, que synthesize consumia como resultado
+            # (auditoria 2026-08-01). Preferimos un hueco VISIBLE.
+            results[st.id] = {"output": "",
+                              "error": f"sin argumento para {st.tool_required}"}
+            sin_ejecutar += 1
+            continue
+        timeout_s = getattr(tool, "timeout_seconds", 30) or 30
+        tr = _ejecutar_tool(registry, st.tool_required, kwargs, timeout_s)
+        if tr is not None and tr.success:
+            # resultado ANTES de la memoria: synthesize trunca cada entrada y
+            # el bloque [memoria] enterraba el texto real (medido 2026-08-01)
+            out = (f"{st.description}\n[resultado {st.tool_required}]\n"
+                   f"{str(tr.output)[:2000]}")
+            if mem_block:
+                out = f"{out}\n[memoria]\n{mem_block}"
+            results[st.id] = {"output": out}
+        else:
+            err = f"timeout {timeout_s}s" if tr is None else (tr.error or "fallo")
+            results[st.id] = {"output": "", "error": err}
+            sin_ejecutar += 1
+    if sin_ejecutar:
+        # linea VISIBLE (sin [detail]): que nadie confunda contexto con resultado
+        ctx["print_fn"](f"[etapas sin ejecutar: {sin_ejecutar}]")
     ctx["results"] = results
     return ctx
 

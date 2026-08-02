@@ -23,7 +23,12 @@ class AdapterStore:
     Memory eviction removes only the in-memory entry; disk file is kept.
     """
 
-    def __init__(self, base_dir: str = "model_shards/adapters"):
+    def __init__(self, base_dir: str = None):
+        # WHY: default anchored to ~/.cognia, never the cwd — with the old
+        # relative default ("model_shards/adapters") every run from a user
+        # directory silently created a model_shards/ folder there.
+        if base_dir is None:
+            base_dir = pathlib.Path.home() / ".cognia" / "model_shards" / "adapters"
         self._base  = pathlib.Path(base_dir).resolve()
         self._base.mkdir(parents=True, exist_ok=True)
         self._cache: OrderedDict = OrderedDict()

@@ -170,6 +170,29 @@ _STATIC_SEEDS = [
 ]
 
 
+# Predicado SQL canonico para "esta fila es del seed estatico".
+#
+# POR QUE con ESCAPE: en LIKE, '_' es COMODIN DE UN CARACTER, no un literal.
+# 'conocimiento_%' tambien casa con 'conocimientos_personales' o
+# 'conocimientoX...'. En la query de lectura del seeder eso era benigno, pero
+# scripts/limpiar_seed_duplicado.py HEREDA el patron dentro de un DELETE: un
+# label del usuario que empiece con "conocimiento" + cualquier caracter entraria
+# al barrido. Escapando el '_' el patron exige el guion bajo LITERAL y solo casa
+# los labels que produce seed_static ("conocimiento_<dominio>").
+# Un unico sitio de verdad para que el script y el seeder no puedan divergir.
+SEED_LABEL_PATTERN = "conocimiento\\_%"
+SEED_LABEL_WHERE = "label LIKE ? ESCAPE '\\'"
+
+
+def seed_observations() -> set:
+    """Los textos EXACTOS que seed_static inserta (f'{topic}: {fact}').
+
+    Lo usa el script de limpieza para no tocar nunca una fila que no sea
+    literalmente uno de estos hechos.
+    """
+    return {f"{topic}: {fact}" for topic, fact, _ in _STATIC_SEEDS}
+
+
 class KnowledgeSeeder:
     """
     Inyecta conocimiento bruto en Cognia de dos formas:
@@ -184,11 +207,43 @@ class KnowledgeSeeder:
     SEED_BATCH_SLEEP = 0.001  # s entre stores para no saturar WAL
 
     @staticmethod
+    def _existing_seed_observations(memory) -> set:
+        """
+        Observaciones ya sembradas (label de seed, SEED_LABEL_WHERE con ESCAPE)
+        en la DB de 'memory'.
+
+        POR QUE: seed_static corre en CADA arranque; sin este chequeo reinyectaba
+        los ~130 hechos una y otra vez (medido 2026-08-01: 220.780 filas de seed
+        con solo 134 textos distintos, 1.9 GB de DB y el top-k envenenado por
+        duplicados). Una sola query barata al arrancar lo corta de raiz.
+        Si la query falla (tabla aun no creada = DB fresca) devuelve set() y
+        se siembra todo, que es el comportamiento correcto para el primer run.
+        """
+        db_path = getattr(memory, "db", None)
+        if not db_path:
+            return set()
+        try:
+            from storage.db_pool import db_connect_pooled
+            conn = db_connect_pooled(db_path)
+            try:
+                rows = conn.execute(
+                    "SELECT DISTINCT observation FROM episodic_memory "
+                    f"WHERE {SEED_LABEL_WHERE}",
+                    (SEED_LABEL_PATTERN,),
+                ).fetchall()
+            finally:
+                conn.close()
+            return {r[0] for r in rows}
+        except Exception:
+            return set()
+
+    @staticmethod
     def seed_static(memory) -> None:
         """
         Inyecta los hechos estaticos en memoria episodica.
         Llamado en un background thread desde Cognia.__init__.
         'memory' debe tener un metodo store(observation, label, vector, ...).
+        Idempotente: los hechos ya presentes en la DB no se reinsertan.
         """
         try:
             from cognia.vectors import text_to_vector
@@ -198,10 +253,14 @@ class KnowledgeSeeder:
             except ImportError:
                 text_to_vector = None
 
+        existing = KnowledgeSeeder._existing_seed_observations(memory)
+
         seeded = 0
         for topic, fact, domain in _STATIC_SEEDS:
             try:
                 observation = f"{topic}: {fact}"
+                if observation in existing:
+                    continue
                 label = f"conocimiento_{domain}"
                 vec = []
                 if text_to_vector is not None:

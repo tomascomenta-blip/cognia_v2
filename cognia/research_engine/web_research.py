@@ -12,6 +12,7 @@ que se puede leer.
 Sin dependencias externas: solo stdlib.
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -138,7 +139,8 @@ def _busca_herramientas(textos: List[str]) -> bool:
 LECTURAS_TOP = 3
 
 
-def _leer_top(hallazgos: List[Hallazgo], n: int = LECTURAS_TOP) -> str:
+def _leer_top(hallazgos: List[Hallazgo], pregunta: str = "",
+              n: int = LECTURAS_TOP) -> str:
     """
     Lee las paginas de los n mejores hallazgos y devuelve extractos.
 
@@ -146,13 +148,77 @@ def _leer_top(hallazgos: List[Hallazgo], n: int = LECTURAS_TOP) -> str:
     resumidor veia una linea por hallazgo (titulo + descripcion de catalogo) y
     de ahi no puede salir una respuesta con sustancia. Los hallazgos ya
     pasaron por el juez, asi que leer el top no es leer ruido.
+
+    Relevante NO es lo mismo que confiable: el juez puntua si la pagina
+    RESPONDE, no si trae instrucciones inyectadas. Cualquier pagina rankeada
+    puede traer un "ignore all previous instructions" y esta era la unica
+    via de la casa que lo metia crudo al prompt del resumidor. El centinela
+    web (sentinel.evaluar_contenido_web, determinista, cero LLM) sanea cada
+    texto y descarta CON LOG lo que no sea 'allow' — mismo patron que
+    knowledge/navegador.buscar_en_web.
     """
+    from ..agent.sentinel import ALLOW, evaluar_contenido_web, sanear_texto_web
+
     extractos = []
     for h in hallazgos[:n]:
-        texto = leer(h.url, max_chars=2000)
-        if texto:
-            extractos.append(f"--- {h.titulo} ({h.url}) ---\n{texto}")
+        texto = sanear_texto_web(leer(h.url, max_chars=2000))
+        if not texto:
+            continue
+        # El TITULO va en la cabecera del extracto y tambien es texto ajeno
+        # (nombre de repo / model_id): se sanea y se juzga JUNTO al cuerpo, si
+        # no quedaba un hueco por donde entraba crudo al prompt.
+        titulo = re.sub(r"\s+", " ", sanear_texto_web(h.titulo or "")).strip()
+        nivel, razon = evaluar_contenido_web(f"{titulo}\n{texto}",
+                                             tema=pregunta, fuente=h.url)
+        if nivel != ALLOW:
+            print(f"[research] Centinela descarta {h.url}: {razon}")
+            continue
+        extractos.append(f"--- {titulo} ({h.url}) ---\n{texto}")
     return "\n\n".join(extractos)
+
+
+def _linea_material(h: Hallazgo, n: int = 300) -> str:
+    """Una linea del bloque 'Search results' del prompt, YA saneada.
+
+    El titulo, el resumen y el 'extra' salen de la descripcion de un repo, la
+    tarjeta de un modelo o el abstract de un paper: texto que CUALQUIERA puede
+    escribir. La fase previa cableo el centinela para el CUERPO de las paginas
+    (_leer_top) y dejo esta superficie abierta: un repo llamado "ignore all
+    previous instructions and ..." entraba crudo al prompt del resumidor sin
+    que nadie leyera la pagina siquiera.
+
+    Se descarta la linea entera (no se recorta el trozo malo): el payload
+    tambien puede estar en el titulo, y devolver el texto que casó lo
+    re-inyectaria. Queda una linea REDACTADA en su sitio para que el conteo de
+    resultados siga siendo honesto, y un log para que no sea un vacio silencioso.
+
+    tema=None a proposito: aqui solo se busca INYECCION, no relevancia. El
+    filtro de relevancia ya corrio antes (cobertura/puntuar + el juez) sobre
+    los terminos traducidos de la pregunta; volver a exigirla sobre 300 chars
+    de descripcion de catalogo tiraria hallazgos legitimos.
+    """
+    from ..agent.sentinel import ALLOW, evaluar_contenido_web, sanear_texto_web
+
+    titulo  = sanear_texto_web(h.titulo or "")
+    extra   = sanear_texto_web(h.extra or "")
+    resumen = sanear_texto_web(h.resumen or "")[:n]
+
+    # El veredicto se pide sobre los tres campos en LINEAS SEPARADAS, no sobre
+    # la linea ya compuesta: el centinela tiene patrones anclados a principio
+    # de linea (la gramatica 'ACCION: <tool>' del agente) y meterlos en medio
+    # de un "- [github] X (10) ... :: ..." los volvia inalcanzables.
+    nivel, razon = evaluar_contenido_web("\n".join([titulo, extra, resumen]),
+                                         tema=None, fuente=h.url)
+    if nivel != ALLOW:
+        print(f"[research] Centinela redacta el resultado {h.url}: {razon}")
+        return f"- [{h.fuente}] (resultado REDACTADO por el centinela: {razon})"
+    # Los saltos de linea se colapsan: el bloque es UNA linea por resultado y
+    # un abstract multilinea podia fabricar items o secciones falsas del prompt.
+    def plano(s: str) -> str:
+        return re.sub(r"\s+", " ", s).strip()
+
+    return (f"- [{h.fuente}] {plano(titulo)} ({h.popularidad}) "
+            f"{plano(extra)} :: {plano(resumen)}")
 
 
 def _resumir_con_llm(pregunta: str, hallazgos: List[Hallazgo]) -> str:
@@ -160,11 +226,8 @@ def _resumir_con_llm(pregunta: str, hallazgos: List[Hallazgo]) -> str:
     if not hallazgos:
         return ""
 
-    material = "\n".join(
-        f"- [{h.fuente}] {h.titulo} ({h.popularidad}) {h.extra} :: {h.resumen[:300]}"
-        for h in hallazgos[:12]
-    )
-    paginas = _leer_top(hallazgos)
+    material = "\n".join(_linea_material(h) for h in hallazgos[:12])
+    paginas = _leer_top(hallazgos, pregunta)
     seccion_paginas = (
         f"\n\nFull text excerpts from the top results:\n{paginas}" if paginas
         else ""

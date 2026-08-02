@@ -697,15 +697,21 @@ class FatigueAdvisor:
             except (AttributeError, TypeError, ValueError):
                 pass
 
-        # Fallback: estimate from DB activity in last hour
-        conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute("""
-            SELECT COUNT(*) FROM chat_history
-            WHERE timestamp >= datetime('now','-1 hour')
-        """)
-        recent_interactions = c.fetchone()[0]
-        conn.close()
+        # Fallback: estimate from DB activity in last hour.
+        # En un DB nuevo (sin la tabla chat_history) esto tiraba
+        # OperationalError y tumbaba el ciclo entero de diagnóstico;
+        # sin señal de carga, asumir fatiga baja y seguir.
+        try:
+            conn = db_connect(self.db)
+            c = conn.cursor()
+            c.execute("""
+                SELECT COUNT(*) FROM chat_history
+                WHERE timestamp >= datetime('now','-1 hour')
+            """)
+            recent_interactions = c.fetchone()[0]
+            conn.close()
+        except sqlite3.Error:
+            return "low", 0.0
 
         # More than 30 interactions/hour = moderate load estimate
         if recent_interactions > 60:

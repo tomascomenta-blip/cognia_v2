@@ -14,7 +14,6 @@ Salida: 'E2E CAMINO FELIZ: N/5 OK'; exit 0 si 5/5, 1 si alguna falla.
 """
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import time
@@ -99,7 +98,16 @@ def main():
           f"{(time.time()-t0)/60:.1f} min", flush=True)
     if fallos:
         print("FALLARON:", fallos, flush=True)
-    subprocess.run(["taskkill", "/IM", "llama-server.exe", "/F"], capture_output=True)
+    # Parar SOLO el llama-server que arranco ESTE script. El taskkill /IM
+    # anterior mataba TODOS los llama-server.exe de la maquina, incluida la
+    # flota compartida (:8080/:8081) que sirven otros procesos. stop() de
+    # LlamaBackend termina unicamente self._proc y deja en paz los servers
+    # adoptados (arrancados fuera; en ese caso no hay nada que parar aqui).
+    try:
+        if getattr(orch, "_llama", None) is not None:
+            orch._llama.stop()
+    except Exception:
+        pass
     sys.exit(1 if fallos else 0)
 
 

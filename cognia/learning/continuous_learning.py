@@ -81,7 +81,10 @@ class ContinuousLearning:
     """Three-speed continuous-learning controller (orchestrator, not trainer)."""
 
     def __init__(self, db_path: Optional[str] = None, user_id: str = "default",
-                 adapter_dir: str = "model_shards/adapters"):
+                 adapter_dir: Optional[str] = None):
+        # WHY: adapter_dir=None delega el default a AdapterStore, que ancla a
+        # ~/.cognia/model_shards/adapters — el default relativo anterior
+        # ("model_shards/adapters") creaba model_shards/ en el cwd del usuario.
         self.user_id = user_id
         self.adapter_dir = adapter_dir
 
@@ -109,7 +112,7 @@ class ContinuousLearning:
         return HierarchicalMemory(db_path=self.db_path)
 
     @staticmethod
-    def _build_adapter_store(adapter_dir: str):
+    def _build_adapter_store(adapter_dir):
         from ..memory.adapter_store import AdapterStore
         return AdapterStore(base_dir=adapter_dir)
 

@@ -76,6 +76,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
+from .config import DB_PATH
 from .logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
@@ -730,7 +731,7 @@ class GoalAndPatternEngine:
         stats()                               — diagnóstico
     """
 
-    def __init__(self, db_path: str = "cognia_memory.db"):
+    def __init__(self, db_path: str = DB_PATH):
         self.db_path        = db_path
         self.goal_manager   = GoalManager()
         self.pattern_learner = PatternLearner()
@@ -896,7 +897,7 @@ class GoalAndPatternEngine:
 _ENGINE: Optional[GoalAndPatternEngine] = None
 
 
-def get_goal_engine(db_path: str = "cognia_memory.db") -> GoalAndPatternEngine:
+def get_goal_engine(db_path: str = DB_PATH) -> GoalAndPatternEngine:
     """Retorna el singleton del GoalAndPatternEngine."""
     global _ENGINE
     if _ENGINE is None:

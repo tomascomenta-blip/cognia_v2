@@ -162,7 +162,8 @@ def rank_candidates(codes, asserts, entry_point, bpb_fn=None):
 
 
 def best_of_n(gen_fn, prompt, task_prompt, entry_point, extract_code_fn,
-              n=DEFAULT_N, seed=42, bpb_fn=None, test_k=4, test_gen_fn=None):
+              n=DEFAULT_N, seed=42, bpb_fn=None, test_k=4, test_gen_fn=None,
+              input_gen_fn=None):
     """Pipeline completo test-first + BoN: genera tests visibles, genera N
     candidatos, rankea por ejecucion real. Devuelve dict con el elegido y
     la traza completa (para el JSON del bench y el post-mortem AG-ARB).
@@ -175,7 +176,13 @@ def best_of_n(gen_fn, prompt, task_prompt, entry_point, extract_code_fn,
     ES el candidato 0. Ambos cortes se declaran en rank_mode (*_early).
 
     ``test_gen_fn``: generador para el paso test-first (suele llevar OTRO
-    system prompt — asserts-only vs code-only); default = gen_fn."""
+    system prompt — asserts-only vs code-only); default = gen_fn.
+    ``input_gen_fn``: generador para el desempate por consenso, que pide
+    LLAMADAS (no asserts) y por lo tanto necesita su PROPIO system prompt
+    (exec_consensus._INPUT_GEN_SYSTEM). Si no se pasa se reusa test_gen_fn
+    y se DECLARA en consensus["input_gen"]: con el system de asserts el
+    modelo devuelve asserts y el consenso se queda sin inputs (medido
+    2026-08-01 contra :8080) — degradacion que antes era invisible."""
     visible = generate_visible_tests(test_gen_fn or gen_fn, task_prompt,
                                      entry_point, k=test_k, seed=seed)
 
@@ -218,6 +225,38 @@ def best_of_n(gen_fn, prompt, task_prompt, entry_point, extract_code_fn,
     codes = [extract_code_fn(r) for r in raws]
     best_idx, ranking, mode = rank_candidates(codes, visible, entry_point,
                                               bpb_fn=bpb_fn)
+    # Desempate por CONSENSO DE EJECUCION (exec_consensus, ataque A): si
+    # varios candidatos comparten el top score de visibles, elegir por
+    # indice es a ciegas. El LLM solo PROPONE inputs (con input_gen_fn, que
+    # lleva su propio system: pedir LLAMADAS con el system de asserts daba
+    # 0 inputs y mataba el consenso en silencio); el sandbox compara outputs
+    # reales y gana la moda de comportamiento (CodeT/S*). Solo sobre
+    # EMPATES y sin bpb_fn (bpb ya es el desempate de esa rama): nunca
+    # overridea a un candidato con mas tests visibles (CE-2). None = sin
+    # señal -> se mantiene el desempate por idx (fallback seguro).
+    consensus_info = None
+    if mode == "tests" and len(ranking) > 1:
+        tied = [r["idx"] for r in ranking
+                if r["score"] == ranking[0]["score"]]
+        if len(tied) > 1:
+            from cognia.agent.exec_consensus import consensus_tiebreak
+            cons_gen = input_gen_fn or test_gen_fn or gen_fn
+            pick, consensus_info = consensus_tiebreak(
+                codes, tied, cons_gen, task_prompt,
+                entry_point, seed=seed)
+            consensus_info["input_gen"] = (
+                "input_gen_fn" if input_gen_fn is not None
+                else ("test_gen_fn(fallback)" if test_gen_fn is not None
+                      else "gen_fn(fallback)"))
+            consensus_info["tied"] = tied
+            if pick is not None:
+                best_idx = pick
+                mode = "tests+consensus"
+            else:
+                # Se INTENTO el consenso y no pudo: el resultado sale por
+                # desempate de indice, y eso se declara en rank_mode (no se
+                # disfraza de "tests"). El porque queda en consensus.reason.
+                mode = "tests+consenso_nulo"
     return {
         "best_idx": best_idx,
         "code": codes[best_idx] if codes else "",
@@ -225,6 +264,7 @@ def best_of_n(gen_fn, prompt, task_prompt, entry_point, extract_code_fn,
         "rank_mode": mode,
         "visible_tests": visible,
         "ranking": ranking,
+        "consensus": consensus_info,
         "n_generated": len(raws),
         "n_unique": len(dedupe_codes(codes)),
     }

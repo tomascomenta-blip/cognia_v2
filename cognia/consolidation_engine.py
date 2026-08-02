@@ -43,6 +43,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+from .config import DB_PATH
 from .logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
@@ -187,7 +188,7 @@ class ConsolidationEngine:
         self._consolidation_engine.tick(self.interaction_count)
     """
 
-    def __init__(self, db_path: str = "cognia_memory.db",
+    def __init__(self, db_path: str = DB_PATH,
                  consolidation_interval: int = DEFAULT_CONSOLIDATION_INTERVAL):
         self.db_path  = db_path
         self._interval = consolidation_interval
@@ -879,7 +880,7 @@ _ENGINE_LOCK = threading.Lock()
 
 
 def get_consolidation_engine(
-    db_path: str = "cognia_memory.db",
+    db_path: str = DB_PATH,
     consolidation_interval: int = DEFAULT_CONSOLIDATION_INTERVAL,
 ) -> ConsolidationEngine:
     """

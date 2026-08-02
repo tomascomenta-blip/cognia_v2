@@ -121,6 +121,10 @@ def _clonar(owner_repo: str, dir_clones: Path) -> tuple:
 def detectar_paquetes(raiz: Path, max_paquetes: int = 8) -> tuple:
     """Dirs directos de raiz con __init__.py (paquetes reales); si no hay,
     dirs directos que contengan .py; excluye _SKIP; ordena por nº de .py desc.
+    Si tampoco hay subdirs candidatos pero la raiz misma tiene *.py (repo
+    plano), la raiz se trata como paquete único: se devuelve "." (para que
+    _archivos_py/repo_map caminen la raiz) más los stems de los .py (para que
+    _imports_de cuente `import hermano` como interno y no como dep externa).
     Tupla vacía si el repo no tiene Python organizable (no es error)."""
     raiz = Path(raiz)
     candidatos = [d for d in raiz.iterdir()
@@ -128,6 +132,10 @@ def detectar_paquetes(raiz: Path, max_paquetes: int = 8) -> tuple:
     paquetes = [d for d in candidatos if (d / "__init__.py").is_file()]
     if not paquetes:
         paquetes = [d for d in candidatos if any(d.rglob("*.py"))]
+    if not paquetes:
+        stems = sorted(p.stem for p in raiz.glob("*.py"))
+        if stems:
+            return (".",) + tuple(stems)
 
     def n_py(d):
         return sum(1 for _ in d.rglob("*.py"))
@@ -136,7 +144,10 @@ def detectar_paquetes(raiz: Path, max_paquetes: int = 8) -> tuple:
 
 
 def _leer(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+    # utf-8-sig: si el archivo trae BOM (U+FEFF), lo quita — con utf-8 pelado
+    # el BOM llega a ast.parse como "invalid non-printable character" y el
+    # módulo se cae del grafo; sin BOM se comporta idéntico a utf-8.
+    return path.read_text(encoding="utf-8-sig", errors="replace")
 
 
 def _tiene_guard_main(tree) -> bool:

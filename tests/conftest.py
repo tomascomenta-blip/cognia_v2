@@ -111,3 +111,49 @@ def _telemetria_sellos_aislada(tmp_path, monkeypatch):
                             tmp_path / "telemetria_test.jsonl")
     except ImportError:
         pass
+
+
+# ── Los JSONL del disyuntor NUNCA se escriben desde tests ──────────────
+# Mismo motivo que la telemetria: los lazos de program_creator persisten sus
+# intentos y disparos en .disciplina/pc_*.jsonl (2026-08-01, para que la
+# calibracion del modo sombra pueda contarlos) y los tests del lazo disparan
+# disyuntores sinteticos decenas de veces por corrida — todo disparo nacido
+# en pytest es ruido para esa calibracion.
+@_pytest.fixture(autouse=True)
+def _disciplina_pc_aislada(tmp_path, monkeypatch):
+    for _mod in ("diseno_a_codigo", "program_creator"):
+        try:
+            _m = importlib.import_module(f"cognia.program_creator.{_mod}")
+            monkeypatch.setattr(_m, "DIR_ESTADO", tmp_path / "disciplina")
+        except ImportError:
+            pass
+
+
+# ── El singleton de ReminderManager no cruza entre tests ───────────────
+# cli._REMINDER_MANAGER es estado de PROCESO (un solo manager por proceso,
+# con su hilo checker y el NotificationCenter cableado — fix F2 2026-08-01).
+# En la suite completa, test_reminder_manager.py lo dejaba poblado con una
+# instancia REAL y los 5 tests de test_cli_reminder_commands.py que
+# parchean la CLASE ya no interceptaban nada: verdes en aislamiento, rojos
+# en conjunto. El singleton es correcto en produccion; lo que faltaba era
+# aislarlo en tests, igual que DIR_ESTADO aca arriba.
+@_pytest.fixture(autouse=True)
+def _reminder_singleton_aislado():
+    # sys.modules y NO `import cognia.cli as _cli`: test_cli_memory_injection
+    # reimporta cli fresco y restaura sys.modules, pero el ATRIBUTO `cli` del
+    # paquete `cognia` queda apuntando al modulo reimportado. `import a.b as x`
+    # resuelve por ese atributo (modulo B) mientras los tests, que hacen
+    # `from cognia.cli import f` dentro del test, resuelven por sys.modules
+    # (modulo A). Reseteando B se dejaba el singleton de A intacto y los 5
+    # tests de recordatorios seguian rojos en la suite completa.
+    import sys as _sys
+    _cli = _sys.modules.get("cognia.cli")
+    if _cli is None:
+        yield
+        return
+    previo = getattr(_cli, "_REMINDER_MANAGER", None)
+    _cli._REMINDER_MANAGER = None
+    try:
+        yield
+    finally:
+        _cli._REMINDER_MANAGER = previo

@@ -184,12 +184,35 @@ class ShatteringInferRequest(BaseModel):
 # AUTENTICACIÓN ADMIN (opcional)
 # ══════════════════════════════════════════════════════════════════════
 
-def require_admin(x_coordinator_key: Optional[str] = Header(None)):
+# Hosts de cliente aceptados en modo permisivo (sin COORDINATOR_KEY).
+# "testclient" es el host sintético que usa el TestClient de Starlette;
+# un cliente de red real no puede presentarse con ese valor.
+_LOOPBACK_CLIENTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient"})
+
+
+def _reject_open_mode_remote(request: Request):
+    """Sin COORDINATOR_KEY el modo permisivo solo vale para loopback (dev
+    local): a un cliente remoto se le responde 503 en vez de abrirle los
+    endpoints admin (antes solo se avisaba con un warning en el log)."""
+    if COORDINATOR_KEY:
+        return
+    client_host = request.client.host if request.client else ""
+    if client_host not in _LOOPBACK_CLIENTS:
+        raise HTTPException(
+            status_code=503,
+            detail="COORDINATOR_KEY no configurada: endpoints admin "
+                   "deshabilitados fuera de loopback.",
+        )
+
+
+def require_admin(request: Request, x_coordinator_key: Optional[str] = Header(None)):
+    _reject_open_mode_remote(request)
     if COORDINATOR_KEY and x_coordinator_key != COORDINATOR_KEY:
         raise HTTPException(status_code=403, detail="Clave de coordinador inválida.")
 
 
 def require_contributor_or_admin(
+    request: Request,
     x_coordinator_key:    Optional[str] = Header(None),
     x_contributor_token:  Optional[str] = Header(None),
 ) -> dict:
@@ -197,10 +220,12 @@ def require_contributor_or_admin(
     Accepts either the admin key (full access) or a valid contributor token
     with tier >= basic. Returns auth context dict consumed by the endpoint.
 
-    When COORDINATOR_KEY is unset, passes through (existing behavior).
+    When COORDINATOR_KEY is unset, passes through for loopback clients only
+    (remote clients get 503 via _reject_open_mode_remote).
     Always includes tier_info for downstream enforcement.
     """
     if not COORDINATOR_KEY:
+        _reject_open_mode_remote(request)
         return {"role": "anon", "node_id": None, "tier": "premium",
                 "tier_info": TIERS["premium"]}
 
@@ -297,7 +322,11 @@ async def node_leave(
     El nodo sale de la red voluntariamente.
     No requiere admin: el contributor token del propio nodo es suficiente.
     El shard asignado queda marcado como disponible para redistribucion.
+    Sin COORDINATOR_KEY solo vale desde loopback: este POST desregistra un
+    node_id ARBITRARIO, la misma clase de agujero que el DELETE /api/node/{id},
+    y quedaba abierto a toda la LAN (503 via _reject_open_mode_remote).
     """
+    _reject_open_mode_remote(request)
     if COORDINATOR_KEY:
         is_admin     = (x_coordinator_key == COORDINATOR_KEY)
         token_owner  = validate_token(COORDINATOR_KEY, x_contributor_token) if x_contributor_token else None
@@ -531,7 +560,10 @@ def shattering_route(
 
     Requires admin key or valid contributor token when COORDINATOR_KEY is set,
     to prevent prompt-based fingerprinting of routing behavior.
+    Sin COORDINATOR_KEY solo pasa loopback: si no, el fingerprinting que este
+    gate evita quedaba abierto a cualquiera de la red en modo permisivo.
     """
+    _reject_open_mode_remote(request)
     if COORDINATOR_KEY:
         is_admin    = (x_coordinator_key == COORDINATOR_KEY)
         token_owner = validate_token(COORDINATOR_KEY, x_contributor_token) if x_contributor_token else None
@@ -711,6 +743,7 @@ def list_tiers():
 
 @app.get("/api/contribution/{node_id}")
 def get_contribution(
+    request: Request,
     node_id: str,
     x_coordinator_key:   Optional[str] = Header(None),
     x_contributor_token: Optional[str] = Header(None),
@@ -718,8 +751,9 @@ def get_contribution(
     """
     Returns the ledger entry for node_id.
     Accessible by: admin key, or the node's own contributor token.
-    When COORDINATOR_KEY is unset the endpoint passes through (existing behavior).
+    When COORDINATOR_KEY is unset it passes through for loopback clients only.
     """
+    _reject_open_mode_remote(request)
     if COORDINATOR_KEY:
         is_admin    = (x_coordinator_key == COORDINATOR_KEY)
         token_owner = validate_token(COORDINATOR_KEY, x_contributor_token) if x_contributor_token else None

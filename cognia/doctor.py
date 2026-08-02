@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import re
 import sys
 import urllib.request
 
@@ -101,9 +102,25 @@ def check_ollama() -> bool:
     url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
     try:
         req = urllib.request.urlopen(f"{url}/api/tags", timeout=3)
-        if req.status == 200:
-            return _ok(f"Ollama corriendo en {url}")
-        return _warn("Ollama", f"estado inesperado {req.status}")
+        if req.status != 200:
+            return _warn("Ollama", f"estado inesperado {req.status}")
+        # Un 200 en /api/tags no garantiza nada: cualquier otro servicio en el
+        # 11434 tambien responde 200, y un Ollama SIN modelos instalados da
+        # tags vacio mientras /api/generate devuelve 404 (auditoria
+        # 2026-08-01). Se valida el JSON y que haya al menos un modelo.
+        try:
+            data = json.loads(req.read().decode("utf-8", errors="replace"))
+            models = data.get("models")
+        except Exception:
+            models = None
+        if not isinstance(models, list):
+            return _warn("Ollama", f"{url}/api/tags responde 200 pero sin JSON "
+                         "de modelos (otro servicio en ese puerto?)")
+        if not models:
+            return _warn("Ollama sin modelos instalados",
+                         "ollama pull <modelo> para usarlo como fallback")
+        nombres = ", ".join(str(m.get("name", "?")) for m in models[:3])
+        return _ok(f"Ollama corriendo en {url}", f"modelos: {nombres}")
     except Exception:
         return _warn("Ollama no disponible (opcional)",
                      "el backend principal es llama-server+GGUF; Ollama es solo fallback")
@@ -143,11 +160,18 @@ def check_llm_backend() -> bool:
 
     respuesta = generar("Responde solo: OK", max_tokens=8)
     if not respuesta:
-        return _warn(f"Backend LLM en {backend['url']}",
-                     "responde al sondeo pero no genera texto "
-                     "(¿modelo sin cargar?)")
+        # _fail, no _warn: un server que acepta el sondeo pero no genera es
+        # tan inservible como uno apagado, y _warn devuelve True, con lo que
+        # el doctor volvia a terminar "Todo en orden" sobre un backend mudo.
+        return _fail(f"Backend LLM en {backend['url']}",
+                     "responde al sondeo pero NO genera texto "
+                     "(modelo sin cargar o colgado)")
 
-    return _ok(f"Backend LLM: {backend['tipo']} en {backend['url']} — genera OK")
+    # "genera texto", no "genera OK": este sondeo solo comprueba que la
+    # respuesta no esta vacia. Quien verifica el MARCADOR es
+    # check_inference_speed; decir aqui "genera OK" afirmaba una verificacion
+    # que no se hizo.
+    return _ok(f"Backend LLM: {backend['tipo']} en {backend['url']} — genera texto")
 
 
 def check_env() -> bool:
@@ -198,6 +222,11 @@ def _manifest_path() -> "str | None":
     return None
 
 
+# Cuantas veces tiene que aparecer la palabra suelta OK en la respuesta del
+# sondeo de inferencia para darlo por bueno (el prompt pide diez).
+_OK_MINIMO = 3
+
+
 def check_inference_speed() -> bool:
     # El install recomendado (GGUF, sin NPZ) tambien se prueba: antes este
     # check se omitia sin shards y el doctor terminaba sin haber verificado
@@ -225,19 +254,152 @@ def check_inference_speed() -> bool:
             orch._try_load_llama()   # backend GGUF real (patron e2e canonico)
         _ = orch.infer("Hola")  # warm-up (descarta cold start)
         t0 = time.perf_counter()
-        result = orch.infer("Escribe una funcion corta que sume dos numeros.")
+        # Prompt con marcador VERIFICABLE: antes se pedia "una funcion que
+        # sume" y solo se contaban tokens, con lo que la ruta de shards NPZ
+        # que genera basura (768 tokens de ruido) salia [OK] con su tok/s
+        # medido (auditoria 2026-08-01). Ahora el texto tiene que contener
+        # el marcador o el check no aprueba. Se piden varios OK (no uno)
+        # para que la medicion de tok/s tenga tokens suficientes.
+        result = orch.infer(
+            "Repite exactamente la palabra OK diez veces, separadas por espacios.",
+            max_tokens=64, temperature=0.0)
         latency_ms = (time.perf_counter() - t0) * 1000
+        texto = (getattr(result, "text", "") or "").strip()
+        if result.mode != "llama.cpp":
+            # No es el backend GGUF real (shards NPZ / simulacion): el numero
+            # que salga de aqui no representa la instalacion recomendada.
+            return _warn(f"Inferencia via backend={result.mode}",
+                         "no es el backend GGUF real; velocidad no representativa")
+        # Marcador con FRONTERA DE PALABRA y repetido. Con el `"OK" in
+        # texto.upper()` de antes el chequeo seguia siendo un falso PASS: el
+        # bigrama "ok" esta dentro de "tokens", "broken" y "look", asi que
+        # basura plausible en ingles aprobaba igual (revision adversarial
+        # 2026-08-01). Se piden >=3 apariciones de la palabra suelta OK sobre
+        # las 10 que pide el prompt: un backend sano las produce y el ruido
+        # (CJK, prosa, tokens sueltos) no.
+        marcadores = len(re.findall(r"\bOK\b", texto.upper()))
+        if marcadores < _OK_MINIMO:
+            return _fail("Inferencia genera basura",
+                         f"pedido 'OK' x10, {marcadores} OK(s) sueltos en la "
+                         f"respuesta: {texto[:60]!r}")
         real_tokens = getattr(result, "tokens_generated", 0) or 0
         if real_tokens > 0 and latency_ms > 0:
             tok_s = real_tokens / latency_ms * 1000
             return _ok(f"Inferencia: {tok_s:.1f} tok/s (warm) | backend={result.mode} | "
-                       f"{real_tokens} tok en {latency_ms:.0f}ms")
+                       f"{real_tokens} tok en {latency_ms:.0f}ms | genera OK")
         return _ok(f"Inferencia OK | backend={result.mode} | {latency_ms:.0f}ms")
+    except ImportError as e:
+        # shattering no instalado: es una dependencia opcional del camino
+        # avanzado, no una averia de la instalacion recomendada.
+        return _warn("Inferencia omitida", f"falta dependencia: {e}")
     except Exception as e:
-        return _warn("Inferencia fallo", str(e))
+        # _fail, no _warn: si el orquestador revienta al generar, la inferencia
+        # NO esta verificada, y _warn devuelve True -> el doctor terminaba
+        # "Todo en orden" con la inferencia rota (revision adversarial
+        # 2026-08-01). Un fallo del sondeo es un fallo del sistema.
+        return _fail("Inferencia fallo", f"{type(e).__name__}: {e}")
+
+
+def check_flota() -> bool:
+    """Mismo sondeo que `python scripts/servir_flota.py estado`: los puertos
+    de la flota por roles. El doctor sondeaba solo el backend "activo" y no
+    decia nada de la flota, que es como se sirve el producto desde 2026-07."""
+    puertos = ((8080, "cerebro/pensador"), (8081, "VLM/arbitro"))
+    estados, vivos, faltan = [], 0, []
+    for puerto, rol in puertos:
+        try:
+            with urllib.request.urlopen(
+                    f"http://127.0.0.1:{puerto}/health", timeout=2) as r:
+                ok = r.status == 200
+        except Exception:
+            ok = False
+        if ok:
+            vivos += 1
+        else:
+            faltan.append(f":{puerto} ({rol})")
+        estados.append(f":{puerto} {rol}: {'RESPONDE' if ok else 'no responde'}")
+    detalle = " | ".join(estados)
+    if vivos == len(puertos):
+        return _ok(f"flota por roles ({vivos}/{len(puertos)} puertos)", detalle)
+    if vivos:
+        # [OK] con 1/2 puertos era un verde enganoso: con el VLM caido el
+        # arbitro visual no corre y el lazo diseno-a-codigo degrada en
+        # silencio. Flota incompleta = WARN, y se dice CUAL falta.
+        return _warn(
+            f"flota INCOMPLETA ({vivos}/{len(puertos)} puertos): falta "
+            + ", ".join(faltan),
+            detalle + " -- levanta el que falta: python scripts/servir_flota.py <modo>")
+    return _warn("flota apagada",
+                 detalle + " -- arranca con: python scripts/servir_flota.py <modo>")
+
+
+def check_backend_audit() -> bool:
+    """Lee la cola de ~/.cognia/backend_audit.jsonl: el doctor sondea UN
+    instante, pero las degradaciones reales pasan durante las sesiones y
+    quedan ahi. Un sistema que sondea verde con 40 eventos DEGRADADO en el
+    dia NO esta "en orden"."""
+    import datetime
+    path = os.path.join(os.path.expanduser("~"), ".cognia", "backend_audit.jsonl")
+    if not os.path.isfile(path):
+        return _ok("backend_audit", "sin auditoria todavia (se crea al usar el CLI)")
+    corte = datetime.datetime.now() - datetime.timedelta(hours=24)
+    total = degradados = 0
+    ultimo = ""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            lineas = fh.readlines()[-500:]   # solo la cola: el archivo crece
+        for ln in lineas:
+            try:
+                ev = json.loads(ln)
+                t = datetime.datetime.fromisoformat(str(ev.get("t", "")))
+            except Exception:
+                continue    # linea corrupta por escritura concurrente: saltar
+            if t < corte:
+                continue
+            total += 1
+            if ev.get("degradado"):
+                degradados += 1
+                ultimo = str(ev.get("via", ""))
+    except Exception as exc:
+        return _warn("backend_audit ilegible", str(exc))
+    if degradados:
+        return _warn(f"backend_audit: {degradados} evento(s) DEGRADADO en 24h",
+                     f"ultimo via={ultimo} -- detalle en {path}")
+    return _ok(f"backend_audit: sin degradados en 24h ({total} eventos)")
+
+
+def check_fleet30() -> bool:
+    """Miembros del FLEET-30 declarados en el manifest cuyo GGUF no esta en
+    disco: fleet_backend() los cachea como FAILED con un warning de logger que
+    nadie ve y la cascada cae al fallback en silencio. Aca se listan."""
+    try:
+        from node.fleet_registry import load_manifest
+        manifest = load_manifest(force=True)
+    except Exception as exc:
+        return _warn("fleet30", f"registry no importable: {exc}")
+    if not manifest:
+        return _warn("fleet30", "sin manifest fleet30.json (opcional)")
+    faltan = sorted(k for k, m in manifest.items()
+                    if not getattr(m.get("gguf"), "is_file", lambda: False)())
+    if faltan:
+        return _warn(f"fleet30: {len(faltan)}/{len(manifest)} miembros SIN GGUF",
+                     ", ".join(faltan)
+                     + " -- instala con: cognia install-model --fleet30 <key>")
+    return _ok(f"fleet30: {len(manifest)} miembros con GGUF en disco")
 
 
 def run_all() -> int:
+    # config.env ANTES de cualquier check. El bloque __main__ de abajo ya lo
+    # hacia, pero el wrapper scripts/cognia_doctor.py y el /doctor del CLI
+    # entran por main()/run_all() y se lo saltaban: el doctor sondeaba sin
+    # LLAMA_SERVER_URL ni el modelo de config.env y termino "Todo en orden"
+    # sobre un sistema DEGRADADO (auditoria 2026-08-01). apply_config respeta
+    # las env vars ya presentes, asi que llamarlo dos veces es inocuo.
+    try:
+        from cognia.first_run import apply_config
+        apply_config()
+    except Exception:
+        pass
     sections = [
         ("Version de Python", check_python),
         ("Paquetes Python",   check_packages),
@@ -246,6 +408,9 @@ def run_all() -> int:
         # Va antes que shards y velocidad a proposito: es la comprobacion que
         # de verdad decide si Cognia puede trabajar.
         ("Backend LLM",       check_llm_backend),
+        ("Flota por roles",   check_flota),
+        ("Auditoria de backend", check_backend_audit),
+        ("FLEET-30",          check_fleet30),
         ("Configuracion",     check_env),
         ("Base de datos",     check_db),
         ("Shards del modelo", check_shards),

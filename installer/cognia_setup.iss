@@ -2,7 +2,7 @@
 ; Inno Setup 6+ — https://jrsoftware.org/isinfo.php
 
 #define AppName      "Cognia"
-#define AppVersion   "3.2.0"
+#define AppVersion   "4.3.1"
 #define AppURL       "https://github.com/tomascomenta-blip/cognia_v2"
 
 [Setup]

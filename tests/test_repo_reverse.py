@@ -54,6 +54,39 @@ def test_detectar_paquetes(mini_repo, tmp_path):
     assert rr.detectar_paquetes(vacio) == ()
 
 
+@pytest.fixture
+def repo_plano(tmp_path):
+    """Repo SIN subdirs: los .py viven directo en la raíz (caso A13: un dir
+    plano de 19 .py perdía todo el grafo AST)."""
+    (tmp_path / "nucleo.py").write_text(
+        "import util\n\n\ndef correr():\n    return util.ayuda()\n",
+        encoding="utf-8")
+    (tmp_path / "util.py").write_text(
+        "def ayuda():\n    return []\n", encoding="utf-8")
+    (tmp_path / "cli.py").write_text(
+        "import requests\nfrom nucleo import correr\n\n\n"
+        'if __name__ == "__main__":\n    correr()\n', encoding="utf-8")
+    return tmp_path
+
+
+def test_detectar_paquetes_dir_plano(repo_plano):
+    paqs = rr.detectar_paquetes(repo_plano)
+    assert paqs[0] == "."                              # la raíz como paquete
+    assert set(paqs[1:]) == {"cli", "nucleo", "util"}  # stems para _imports_de
+
+
+def test_analizar_repo_dir_plano_tiene_grafo(repo_plano):
+    _limpiar_caches()
+    a = rr.analizar_repo(repo_plano)
+    # antes del fix: aviso "sin paquetes Python organizables: sin grafo AST"
+    assert not any("sin grafo AST" in av for av in a["avisos"])
+    assert a["mapa"] and set(a["mapa"]["modulos"]) == {"cli", "nucleo", "util"}
+    assert any("cli" in e for e in a["entry_points"])  # guard main detectado
+    # los imports internos planos NO se reportan como deps externas
+    assert not any(d.startswith(("util", "nucleo")) for d in a["deps_externas"])
+    assert any(d.startswith("requests") for d in a["deps_externas"])
+
+
 def test_analizar_repo_completo(mini_repo):
     _limpiar_caches()
     a = rr.analizar_repo(mini_repo)

@@ -22,10 +22,13 @@ soft-deleted rows still occupy disk.
 
 from __future__ import annotations
 
+import logging
 import os
 
 from storage.db_pool import db_connect_pooled
 from ..config import DB_PATH
+
+logger = logging.getLogger(__name__)
 
 # Worst-first ordering used by every purge query.
 _WORST_FIRST = (
@@ -35,15 +38,41 @@ _WORST_FIRST = (
 )
 
 
+# Defaults conservadores (2026-08-01): sin env vars el presupuesto era un
+# no-op y la DB crecio sin cota (medido: 1.97 GB / 220k filas, la mayoria
+# seed duplicado). Un valor explicito <= 0 en el env DESACTIVA ese eje.
+_DEFAULT_MAX_MEMORIES = 200_000
+_DEFAULT_MAX_DB_MB = 1024
+
+
 def get_limits() -> tuple:
-    """(max_count, max_mb) from env; None where unset or non-positive."""
-    def _pos_int(name):
+    """(max_count, max_mb): env manda; sin env, defaults conservadores;
+    valor explicito <= 0 desactiva el eje (None).
+
+    POR QUE el valor NO parseable DESACTIVA el eje en vez de caer al default:
+    el default esta ACTIVO (200k / 1024 MB) y este eje PURGA (soft-delete y,
+    en disco, DELETE + VACUUM). Si un typo en el env (COGNIA_MAX_MEMORIES='abc',
+    '200k', '1_000') cayera al default, un error de tipeo ACTIVARIA una purga
+    destructiva que el dueno creia haber configurado de otra forma. Ante duda,
+    no borrar: se avisa por WARNING con el valor recibido y el eje queda
+    desactivado hasta que el env se corrija.
+    """
+    def _axis(name, default):
+        raw = os.environ.get(name)
+        if raw is None or not raw.strip():
+            return default
         try:
-            v = int(float(os.environ.get(name, "0")))
-            return v if v > 0 else None
-        except Exception:
+            v = int(float(raw))
+        except (TypeError, ValueError):
+            logger.warning(
+                "%s tiene un valor NO parseable (%r): el eje queda DESACTIVADO "
+                "(sin limite). Corregi el valor o borra la variable para usar "
+                "el default (%s).", name, raw, default
+            )
             return None
-    return _pos_int("COGNIA_MAX_MEMORIES"), _pos_int("COGNIA_MAX_DB_MB")
+        return v if v > 0 else None
+    return (_axis("COGNIA_MAX_MEMORIES", _DEFAULT_MAX_MEMORIES),
+            _axis("COGNIA_MAX_DB_MB", _DEFAULT_MAX_DB_MB))
 
 
 def db_size_mb(db_path: str = DB_PATH) -> float:

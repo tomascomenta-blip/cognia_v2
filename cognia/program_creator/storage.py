@@ -173,9 +173,15 @@ def auto_cleanup(storage_dir: Path = None, keep_minimum: int = 10,
     sorted_index  = sorted(index, key=_score_num, reverse=True)
     protected_ids = {e["id"] for e in sorted_index[:5]}
 
+    # total_score=null significa NUNCA MEDIDO (importes legacy, migraciones),
+    # no "medido y malo". _score_num lo vuelve 0.0 para poder ordenar, pero
+    # tratarlo como candidato convertia 19 entradas legacy del indice real en
+    # borrado masivo al primer save_program que superara el umbral. Solo lo
+    # medido por debajo del umbral se limpia.
     candidates = sorted(
         [e for e in index
-         if _score_num(e) < survival_score and e.get("id") not in protected_ids],
+         if isinstance(e.get("total_score"), (int, float))
+         and _score_num(e) < survival_score and e.get("id") not in protected_ids],
         key=lambda e: (_score_num(e), e.get("created_at", ""))
     )
 
@@ -204,9 +210,12 @@ def replace_if_better(new_program: GeneratedProgram, new_eval: EvaluationResult,
     if storage_dir is None: storage_dir = DEFAULT_STORAGE_DIR
 
     index = _load_index(storage_dir)
+    # Misma regla que auto_cleanup: una entrada con total_score=null nunca fue
+    # medida — no se puede afirmar que el nuevo sea "mejor" que ella.
     same_cat = [
         e for e in index
         if (e.get("category") or "").lower() == new_program.category.lower()
+        and isinstance(e.get("total_score"), (int, float))
         and _score_num(e) < new_eval.total_score - 1.0
     ]
     if not same_cat: return False

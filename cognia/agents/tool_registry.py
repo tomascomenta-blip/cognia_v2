@@ -112,8 +112,11 @@ def _make_registry() -> ToolRegistry:
                 return {"found": False, "title": "", "extract": ""}
             return {
                 "found": True,
-                "title": result.get("title", ""),
-                "extract": result.get("extract", ""),
+                # investigador.buscar_wikipedia devuelve claves en castellano
+                # (titulo/extracto); con title/extract el tool devolvia found=True
+                # con texto VACIO siempre (medido 2026-08-01)
+                "title": result.get("titulo") or result.get("title", ""),
+                "extract": result.get("extracto") or result.get("extract", ""),
             }
 
         reg.register(Tool(

@@ -6,7 +6,15 @@ El E2E con modelo real vive en la verificacion del REPL.
 """
 import pytest
 
+import cognia.backend_activo as backend_activo
 from cognia.enrutador import decidir, catalogo_compacto, _VETADOS
+
+
+@pytest.fixture(autouse=True)
+def _audit_a_tmp(tmp_path, monkeypatch):
+    """decidir() ahora audita sin_backend cuando no hubo inferencia: que los
+    tests NO escriban en el ~/.cognia/backend_audit.jsonl real."""
+    monkeypatch.setattr(backend_activo, "AUDIT", tmp_path / "backend_audit.jsonl")
 
 CATALOGO = ("\n".join([
     "/pensar — Razonamiento PROFUNDO con modelo thinking  <pregunta>",
@@ -63,6 +71,35 @@ def test_catalogo_compacto_excluye_vetados():
     assert "/salir" not in cat
     for v in _VETADOS:
         assert v not in cat
+
+
+def test_sin_inferencia_audita_sin_modelo(monkeypatch):
+    """REGRESION 2026-08-01: decidir() devolvia ('chat','') identico con modelo
+    que sin inferencia — un backend caido enrutaba todo a chat sin rastro.
+    Ahora crudo vacio o excepcion dejan sin_backend('enrutador', 'sin_modelo...')
+    en el audit; la basura NO vacia sigue siendo decision (sin audit)."""
+    llamadas = []
+    monkeypatch.setattr(backend_activo, "sin_backend",
+                        lambda via, detalle="": llamadas.append((via, detalle)))
+
+    def explota(p):
+        raise RuntimeError("backend caido")
+    assert decidir("x", explota, CATALOGO)[0] == "chat"
+    assert decidir("x", lambda p: "", CATALOGO)[0] == "chat"
+    assert len(llamadas) == 2
+    assert all(v == "enrutador" and "sin_modelo" in d for v, d in llamadas)
+
+    llamadas.clear()
+    assert decidir("x", lambda p: "no se", CATALOGO)[0] == "chat"
+    assert llamadas == []   # el modelo SI contesto: chat es decision, no fallo
+
+
+def test_argumentos_pierden_las_comillas():
+    """El modelo entrecomilla los argumentos y /crear terminaba con la idea
+    entre comillas. Se pelan al validar el comando."""
+    ruta, extra = decidir(
+        "x", lambda p: 'RUTA: /crear "un juego de la serpiente"', CATALOGO)
+    assert (ruta, extra) == ("comando", "/crear un juego de la serpiente")
 
 
 def test_barra_omitida_se_repara():

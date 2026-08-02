@@ -919,12 +919,19 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
             code_gen = make_raw_gen_fn(backend, max_tokens, SYSTEM_PROMPT,
                                        counter, grammar=grammar)
             from cognia.agent.candidates import TEST_GEN_SYSTEM
+            from cognia.agent.exec_consensus import _INPUT_GEN_SYSTEM
             test_gen = make_raw_gen_fn(backend, 256, TEST_GEN_SYSTEM, counter)
+            # Generador APARTE para el desempate por consenso: pide LLAMADAS,
+            # no asserts. Reusar test_gen (system "responde SOLO con asserts")
+            # dejaba al consenso con 0 inputs -> siempre None -> desempate por
+            # indice = pre-fix, en silencio (medido 2026-08-01 vs :8080).
+            # Sin grammar: la gramatica fuerza un bloque ```python```.
+            input_gen = make_raw_gen_fn(backend, 256, _INPUT_GEN_SYSTEM, counter)
             bon_out = best_of_n(code_gen,
                                 build_fewshot_prefix(fewshot) + task["prompt"],
                                 task["prompt"], task["entry_point"],
                                 extract_code, n=bon_n, seed=seed,
-                                test_gen_fn=test_gen)
+                                test_gen_fn=test_gen, input_gen_fn=input_gen)
             response = bon_out["response"]
             code = bon_out["code"]
             gen_s = counter["seconds"]
@@ -939,6 +946,10 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
                 "best_score": best.get("score"),
                 "best_total": best.get("total"),
                 "gen_calls": counter["calls"],
+                # traza del desempate por consenso (None si no hubo empate):
+                # queda en el JSON para poder auditar si desempato de verdad
+                # o por que no pudo, en vez de suponerlo.
+                "consensus": bon_out.get("consensus"),
             }
         else:
             t0 = time.perf_counter()
@@ -960,6 +971,11 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         extra = (f" [bon {bon_meta['rank_mode']} "
                  f"{bon_meta['best_score']}/{bon_meta['best_total']}]"
                  if bon_meta else "")
+        if bon_meta and bon_meta.get("consensus"):
+            _c = bon_meta["consensus"]
+            extra += (f" [consenso {_c.get('reason')} "
+                      f"inputs={_c.get('n_inputs')} "
+                      f"cluster={_c.get('winner_size')}/{_c.get('n_valid')}]")
         print(f"    -> {status} {err_detail[:80]}{extra}", flush=True)
 
         results.append({

@@ -1,0 +1,8 @@
+Title         : The Forbidden File
+Category      : Crea un juego completo que funcione unicamente en un unico archivo HTML (sin depender de ningun servidor, backend, API, librerias externas, CDN ni archivos adicionales). Todo (HTML, CSS, JavaScript, sonidos generados por codigo, datos de guardado y recursos) debe estar contenido dentro del mismo archivo. # IDEA GENERAL Quiero un juego extremadamente adictivo llamado: 'EL ARCHIVO PROHIBIDO' Genero: Exploracion Misterio Puzzle Roguelike ligero Gestion de recursos Terror psicologico muy sutil. MAPA Generar proceduralmente. Cada partida diferente. PUZZLES Mas de 60 tipos de puzzles posibles. Mas de 200 eventos posibles. Mas de 300 objetos. Arbol de habilidades con mas de 80 mejoras. Al menos 12 finales. Guardado con LocalStorage. Sonido por WebAudio API sin archivos externos. Debe durar entre 6 y 10 horas. Un unico archivo HTML funcional.
+Created at    : 2026-08-01T15:56:05.434143
+Score         : auto-asignado 5.3/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A procedurally generated mystery and puzzle roguelike game in a single HTML file.

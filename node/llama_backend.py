@@ -54,6 +54,20 @@ def _request_timeout_s(max_tokens: int, payload_len: int) -> int:
     return max(120, 30 + int(max_tokens * 0.6) + payload_len // 25)
 
 
+def _es_timeout(exc: Exception) -> bool:
+    """True si exc es un timeout de socket (directo o envuelto en URLError).
+
+    socket.timeout es alias de TimeoutError desde 3.10; urlopen a veces lo
+    entrega crudo (timeout de lectura) y a veces envuelto (timeout de connect).
+    Se usa para distinguir "backend OCUPADO" (timeout con /health ok, p.ej.
+    --parallel 1 y otro cliente en el slot) de "backend ausente"."""
+    if isinstance(exc, TimeoutError):
+        return True
+    import urllib.error
+    return (isinstance(exc, urllib.error.URLError)
+            and isinstance(getattr(exc, "reason", None), TimeoutError))
+
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 # 8080 y no 8088 (cambiado 2026-07-25): eran DOS backends. Este arrancaba
@@ -482,8 +496,20 @@ class _LlamaServerBackend:
         self._active_expert: Optional[str] = None
         self._lora_dirty: bool = False
 
-        # Check if a server is already running on the port
-        if self._ping():
+        # Check if a server is already running on the port.
+        # 'cargando' = hay server pero /health da 503 (todavia cargando el
+        # modelo, p.ej. servir_flota recien lanzado con el 14B). Antes _ping()
+        # lo trataba igual que "ausente" y se intentaba arrancar OTRO server
+        # sobre el mismo puerto; y la primera request contra un server en
+        # carga moria con reset (WinError 10054) que aguas arriba se leia
+        # como fallo permanente (A1 2026-08-01). Ahora se ESPERA la carga.
+        estado = self._health_state()
+        if estado == "cargando":
+            logger.info("[llama_backend] server en :%d cargando modelo; "
+                        "espero /health ok hasta %ds", port, _SERVER_TIMEOUT)
+            if self._wait_health_ok(_SERVER_TIMEOUT):
+                estado = "ok"
+        if estado == "ok":
             logger.info("[llama_backend] llama-server already running on :%d", port)
             # Server adoptado sin verificar flags: loguear su config real via
             # /props y avisar si el contexto no coincide con el esperado.
@@ -594,6 +620,41 @@ class _LlamaServerBackend:
             return True
         except Exception:
             return False
+
+    def _health_state(self) -> str:
+        """'ok' | 'cargando' | 'ausente' segun /health.
+
+        b9391 responde 503 mientras carga el modelo -> 'cargando' (HAY server,
+        todavia no acepta requests; hay que esperarlo, no relanzarlo ni darlo
+        por muerto). Conexion rechazada/reset/timeout -> 'ausente'. Cualquier
+        otro HTTP -> 'ok' (el server esta ahi y responde).
+
+        Pregunta primero a _ping(): ademas de ahorrar el segundo request en el
+        caso sano, mantiene el contrato historico de los tests/callers que
+        stubean _ping para simular un server vivo."""
+        if self._ping():
+            return "ok"
+        import urllib.error
+        try:
+            self._urlreq.urlopen(f"{self._base}/health", timeout=2)
+            return "ok"
+        except urllib.error.HTTPError as exc:
+            return "cargando" if exc.code == 503 else "ok"
+        except Exception:
+            return "ausente"
+
+    def _wait_health_ok(self, max_wait_s: float) -> bool:
+        """Poll a /health hasta 200 (True) o agotar max_wait_s (False).
+
+        Corta apenas responde. 'ausente' NO corta antes de tiempo: un server
+        reiniciandose externamente tarda unos segundos en volver a abrir el
+        puerto y volveria como 'cargando' -> 'ok'."""
+        deadline = time.time() + max_wait_s
+        while time.time() < deadline:
+            if self._health_state() == "ok":
+                return True
+            time.sleep(1.0)
+        return False
 
     def props(self) -> Optional[dict]:
         """GET /props del server (JSON crudo), o None si falla."""
@@ -770,30 +831,66 @@ class _LlamaServerBackend:
         # generation past ~660 tokens (returned None silently). 0.6 s/token covers
         # the ~2 tok/s worst case with margin.
         timeout_s = _request_timeout_s(max_tokens, len(payload))
-        try:
-            req = self._urlreq.Request(
-                f"{self._base}/completion",
-                data    = payload,
-                headers = {"Content-Type": "application/json"},
-            )
-            with self._urlreq.urlopen(req, timeout=timeout_s) as resp:
-                data = self._json.loads(resp.read())
-                # Real token count reported by llama-server (replaces len//4 estimates)
-                self.last_tokens_predicted = data.get("tokens_predicted")
-                self.last_stop_reason = _stop_reason(data)
-                # HARNESS #1 (telemetria de KV-cache): timings del server.
-                # prompt_n = tokens REALMENTE prefilleados este request; con el
-                # cache sano, en un paso >1 del loop es chico (solo los tokens
-                # nuevos). prompt_ms = costo del prefill (el recurso escaso en
-                # CPU). last_prompt_n permite medir cache hit y el efecto ACI.
-                tim = data.get("timings") or {}
-                self.last_timings = tim
-                self.last_prompt_n = tim.get("prompt_n")
-                self.last_prompt_ms = tim.get("prompt_ms")
-                return data.get("content", "")
-        except Exception as exc:
-            logger.warning("[llama_backend] llama-server request failed: %s", exc)
-            return None
+        # Reintento acotado (A1 2026-08-01): un UNICO 10054 transitorio (reset
+        # durante la carga fria del 14B, blip del server) devolvia None y el
+        # orchestrator lo leia como fallo permanente (deshabilitaba llama.cpp
+        # para toda la sesion). 2 reintentos con re-sondeo de /health entre
+        # medio distinguen "cargando/blip" (recuperable) de "ausente".
+        for intento in range(3):
+            try:
+                req = self._urlreq.Request(
+                    f"{self._base}/completion",
+                    data    = payload,
+                    headers = {"Content-Type": "application/json"},
+                )
+                with self._urlreq.urlopen(req, timeout=timeout_s) as resp:
+                    data = self._json.loads(resp.read())
+                    # Real token count reported by llama-server (replaces len//4 estimates)
+                    self.last_tokens_predicted = data.get("tokens_predicted")
+                    self.last_stop_reason = _stop_reason(data)
+                    # HARNESS #1 (telemetria de KV-cache): timings del server.
+                    # prompt_n = tokens REALMENTE prefilleados este request; con el
+                    # cache sano, en un paso >1 del loop es chico (solo los tokens
+                    # nuevos). prompt_ms = costo del prefill (el recurso escaso en
+                    # CPU). last_prompt_n permite medir cache hit y el efecto ACI.
+                    tim = data.get("timings") or {}
+                    self.last_timings = tim
+                    self.last_prompt_n = tim.get("prompt_n")
+                    self.last_prompt_ms = tim.get("prompt_ms")
+                    return data.get("content", "")
+            except Exception as exc:
+                es_http = isinstance(exc, urllib.error.HTTPError)
+                if es_http and exc.code != 503:
+                    # El server RESPONDIO con error (p.ej. 500 por ctx desbordado):
+                    # no es transporte — reintentar repetiria el mismo error.
+                    logger.warning("[llama_backend] llama-server request failed: %s", exc)
+                    return None
+                estado = self._health_state()
+                if estado == "ok" and _es_timeout(exc):
+                    # Timeout con el server SANO = ocupado (--parallel 1 y otro
+                    # cliente en el slot), no "no hay backend". El timeout ya es
+                    # proporcional y holgado: reintentar solo duplica la espera.
+                    logger.warning("[llama_backend] llama-server OCUPADO en :%d "
+                                   "(timeout de %ds con /health ok): %s",
+                                   self._port, timeout_s, exc)
+                    return None
+                if intento == 2:
+                    logger.warning("[llama_backend] llama-server request failed "
+                                   "(3 intentos, /health=%s): %s", estado, exc)
+                    return None
+                if estado == "cargando" or es_http:
+                    # Server vivo pero cargando el modelo (la 1ra request contra
+                    # el 14B frio caia aca con reset): esperar la carga entera
+                    # antes de reintentar, no un backoff a ciegas.
+                    logger.warning("[llama_backend] server cargando en :%d; espero "
+                                   "/health ok antes de reintentar (%s)",
+                                   self._port, exc)
+                    self._wait_health_ok(_SERVER_TIMEOUT)
+                else:
+                    logger.warning("[llama_backend] request fallo (%s); reintento "
+                                   "%d/2", exc, intento + 1)
+                    time.sleep(1.0 * (intento + 1))
+        return None
 
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7, top_p=None, top_k=None,
@@ -1010,6 +1107,22 @@ class LlamaBackend:
         """JSON crudo de GET /props del impl server, o None (in-process no tiene)."""
         fn = getattr(self._impl, "props", None)
         return fn() if callable(fn) else None
+
+    def server_state(self) -> str:
+        """Estado del server del impl: 'ok' | 'cargando' | 'ausente';
+        'in-process' si el impl no tiene server (llama-cpp-python).
+
+        Para que el caller (orchestrator._local_infer) distinga "backend caido"
+        de "backend cargando/ocupado" ANTES de deshabilitar la via llama.cpp:
+        un generate()==None con el server 'ok'/'cargando' es un fallo de UNA
+        peticion, no la ausencia del backend (A1 2026-08-01)."""
+        fn = getattr(self._impl, "_health_state", None)
+        if not callable(fn):
+            return "in-process"
+        try:
+            return fn()
+        except Exception:
+            return "ausente"
 
     @property
     def fleet_experts(self) -> list:

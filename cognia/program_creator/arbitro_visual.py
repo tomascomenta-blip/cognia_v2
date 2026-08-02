@@ -201,6 +201,41 @@ def vlm_disponible(url: str = None) -> tuple:
         return False, f"sin VLM en {u} ({e})"
 
 
+# Lado minimo (px) de un screenshot juzgable. Por debajo no hay pagina que
+# mirar: el VLM le dio 9.5 "Excelente" a un PNG de 1x1px — juzgo su
+# imaginacion, no el pixel.
+MIN_LADO_SCREENSHOT = 100
+
+
+def _screenshot_juzgable(ruta) -> tuple:
+    """(ok, motivo). Rechaza screenshots que no pueden contener una pagina:
+    dimensiones minusculas (<MIN_LADO_SCREENSHOT px de lado) o varianza ~0 (un
+    lienzo uniforme). Se valida ANTES de gastar el VLM. Las dimensiones se
+    leen de la cabecera IHDR del PNG (sin dependencias); la varianza solo si
+    hay PIL. Ante un archivo que no se puede analizar devuelve ok=True: este
+    filtro solo rechaza cuando puede AFIRMAR que no hay nada que juzgar."""
+    try:
+        datos = Path(ruta).read_bytes()
+    except Exception as e:
+        return False, f"screenshot ilegible ({e})"
+    if len(datos) >= 24 and datos[:8] == b"\x89PNG\r\n\x1a\n":
+        ancho = int.from_bytes(datos[16:20], "big")
+        alto = int.from_bytes(datos[20:24], "big")
+        if ancho < MIN_LADO_SCREENSHOT or alto < MIN_LADO_SCREENSHOT:
+            return False, (f"screenshot de {ancho}x{alto}px "
+                           f"(minimo {MIN_LADO_SCREENSHOT}px de lado)")
+    try:
+        from PIL import Image, ImageStat
+        with Image.open(ruta) as im:
+            stddev = ImageStat.Stat(im.convert("L")).stddev[0]
+        if stddev < 1.0:
+            return False, (f"screenshot sin varianza (stddev={stddev:.2f}): "
+                           f"lienzo uniforme, no una pagina")
+    except Exception:
+        pass    # sin PIL (o imagen rara): la varianza no se puede medir
+    return True, "ok"
+
+
 def _datauri_png(ruta) -> Optional[str]:
     """PNG en disco -> data URI base64. None si no se puede leer."""
     try:
@@ -304,6 +339,16 @@ def arbitrar_visual(idea: str, screenshot, mockup=None, *,
     tmp_compuesta = None
     try:
         u = (url or url_vlm())
+
+        # Un screenshot de 1x1px (o un lienzo uniforme) no es una pagina:
+        # preguntarle al VLM por el es pedirle que alucine — dio 9.5
+        # "Excelente" a un PNG de 1x1. Se corta ANTES de componer o sondear.
+        ok_shot, motivo_shot = _screenshot_juzgable(screenshot)
+        if not ok_shot:
+            _marcar(True, f"{motivo_shot}: no hay pagina que juzgar, no se "
+                          f"pregunta al VLM")
+            return None
+
         vision_linea = ""
         if vision_texto:
             vision_linea = f'The intended look, in words: "{vision_texto.strip()}"\n'

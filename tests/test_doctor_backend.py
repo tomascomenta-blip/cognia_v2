@@ -65,13 +65,17 @@ class TestFallaCuandoDebe:
 
         assert D.check_llm_backend() is False
 
-    def test_backend_que_no_genera_avisa(self, llm, monkeypatch):
+    def test_backend_que_no_genera_es_FALLO(self, llm, monkeypatch):
         monkeypatch.setattr(llm, "detectar_backend",
                             lambda forzar=False: {"tipo": "llama", "url": "u"})
         monkeypatch.setattr(llm, "generar", lambda *a, **k: None)
 
-        # Avisa pero no tumba: el servidor esta, quiza solo falta cargar modelo.
-        assert D.check_llm_backend() is True
+        # Antes esto era _warn ("el servidor esta, quiza falta cargar modelo")
+        # y el doctor terminaba "Todo en orden" sobre un backend mudo — el
+        # mismo mensaje enganoso que este archivo vino a corregir. Un server
+        # que sondea pero no genera es tan inservible como uno apagado
+        # (fix auditoria 2026-08-01).
+        assert D.check_llm_backend() is False
 
     def test_un_llm_local_roto_no_revienta_el_doctor(self, monkeypatch):
         """El diagnostico tiene que sobrevivir a que falle lo que diagnostica."""

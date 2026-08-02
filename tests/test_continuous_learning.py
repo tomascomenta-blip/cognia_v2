@@ -90,6 +90,16 @@ def test_cycle_covers_three_speeds(db_path):
     report.encode("ascii")  # raises if any non-ASCII slipped through
 
 
+def test_default_adapter_dir_no_crea_model_shards_en_cwd(tmp_path, monkeypatch, db_path):
+    # Regresion A13: el default relativo "model_shards/adapters" creaba un
+    # model_shards/ en el cwd del usuario al construir el controller. Ahora el
+    # default (None) se ancla en AdapterStore a ~/.cognia/model_shards/adapters.
+    monkeypatch.chdir(tmp_path)
+    cl = ContinuousLearning(db_path=db_path, user_id="t")
+    assert cl.adapters is not None                  # el store SI se construyo
+    assert not (tmp_path / "model_shards").exists() # y no ensucio el cwd
+
+
 def test_never_raises_on_nonexistent_db_path(tmp_path):
     bogus = str(tmp_path / "does" / "not" / "exist" / "nope.db")
     cl = ContinuousLearning(db_path=bogus, user_id="t")

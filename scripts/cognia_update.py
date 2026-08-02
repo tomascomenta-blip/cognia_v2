@@ -5,7 +5,7 @@ cognia update command: pulls latest code and applies DB schema migrations.
 
 Steps:
   1. git pull (requires git CLI)
-  2. pip install -r requirements.txt --upgrade
+  2. pip install -r requirements.txt (sin --upgrade: respeta pins)
   3. Run DB migrations via cognia.migrations.runner
 
 Usage:
@@ -22,7 +22,10 @@ import subprocess
 import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DEFAULT_DB = os.path.join(_ROOT, "cognia_memory.db")
+# El DB del producto vive en ~/.cognia, no en el repo: el default anterior
+# apuntaba a <repo>/cognia_memory.db, con lo que `cognia update` migraba un
+# DB que nadie usa (o ninguno) y el DB real del usuario quedaba sin migrar.
+_DEFAULT_DB = os.path.join(os.path.expanduser("~"), ".cognia", "cognia_memory.db")
 _REQ = os.path.join(_ROOT, "requirements.txt")
 
 
@@ -42,9 +45,12 @@ def step_git_pull(root: str) -> bool:
 
 
 def step_pip_install(root: str) -> bool:
-    print("[UPDATE] Upgrading dependencies...")
+    print("[UPDATE] Installing dependencies...")
+    # Sin --upgrade: con el flag, pip subia TODAS las deps a su ultima version
+    # aunque requirements.txt ya estuviera satisfecho, rompiendo pins de
+    # transitivas probadas. Instalar lo que falte alcanza para un update.
     rc = _run(
-        [sys.executable, "-m", "pip", "install", "-r", _REQ, "--upgrade", "-q"],
+        [sys.executable, "-m", "pip", "install", "-r", _REQ, "-q"],
         cwd=root,
     )
     if rc != 0:

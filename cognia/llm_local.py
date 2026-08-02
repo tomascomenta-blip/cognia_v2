@@ -45,9 +45,39 @@ def _sondear(url: str, ruta: str) -> bool:
         return False
 
 
+def _modelos_ollama(url: str) -> list:
+    """Nombres de modelos INSTALADOS segun /api/tags. [] si no responde o esta
+    vacio. Un 200 en /api/tags no prueba nada: el 2026-08-01 el sondeo decia
+    'hay backend' con la lista vacia y OLLAMA_MODEL default 'llama3.2' que no
+    existia (lo instalado era 'llama3.2:3b') — todo /api/generate daba 404."""
+    try:
+        req = urllib.request.Request(url.rstrip("/") + "/api/tags")
+        with urllib.request.urlopen(req, timeout=TIMEOUT_SONDEO) as r:
+            data = json.loads(r.read().decode("utf-8", errors="replace"))
+        return [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+    except Exception:
+        return []
+
+
+def _elegir_modelo_ollama(modelos: list) -> str:
+    """El OLLAMA_MODEL pedido si esta instalado; si no, el instalado con el
+    mismo nombre base ('llama3.2' -> 'llama3.2:3b'); si no, el primero."""
+    pref = os.environ.get("OLLAMA_MODEL", "").strip()
+    if pref:
+        if pref in modelos:
+            return pref
+        base = pref.split(":")[0]
+        for m in modelos:
+            if m.split(":")[0] == base:
+                return m
+    return modelos[0]
+
+
 def detectar_backend(forzar: bool = False) -> Optional[dict]:
     """
-    Devuelve {'tipo': 'llama'|'ollama', 'url': ...} o None si no hay ninguno.
+    Devuelve {'tipo': 'llama'|'ollama', 'url': ..., ['modelo': ...]} o None si
+    no hay ninguno. Para Ollama, 'modelo' es uno REALMENTE instalado (leido de
+    /api/tags); tags vacio cuenta como SIN backend.
 
     Se cachea: sondear en cada llamada costaria 2 s de timeout por fallo.
     """
@@ -59,6 +89,10 @@ def detectar_backend(forzar: bool = False) -> Optional[dict]:
     if manual:
         tipo = "ollama" if "11434" in manual else "llama"
         _backend = {"tipo": tipo, "url": manual.rstrip("/")}
+        if tipo == "ollama":
+            modelos = _modelos_ollama(manual)
+            if modelos:
+                _backend["modelo"] = _elegir_modelo_ollama(modelos)
         return _backend
 
     llama = os.environ.get("LLAMA_SERVER_URL", LLAMA_URL_DEFECTO)
@@ -67,8 +101,10 @@ def detectar_backend(forzar: bool = False) -> Optional[dict]:
         return _backend
 
     ollama = os.environ.get("OLLAMA_URL", OLLAMA_URL_DEFECTO)
-    if _sondear(ollama, "/api/tags"):
-        _backend = {"tipo": "ollama", "url": ollama.rstrip("/")}
+    modelos = _modelos_ollama(ollama)
+    if modelos:
+        _backend = {"tipo": "ollama", "url": ollama.rstrip("/"),
+                    "modelo": _elegir_modelo_ollama(modelos)}
         return _backend
 
     _backend = {}
@@ -158,14 +194,25 @@ def generar(
         except (KeyError, IndexError):
             return None
 
+    # 'modelo' viene de /api/tags (instalado de verdad); el env es solo el
+    # ultimo recurso para URLs manuales donde tags no respondio.
+    modelo = backend.get("modelo") or os.environ.get("OLLAMA_MODEL", "llama3.2")
     data = _post(backend["url"] + "/api/generate", {
-        "model":   os.environ.get("OLLAMA_MODEL", "llama3.2"),
+        "model":   modelo,
         "prompt":  prompt,
         "system":  system,
         "stream":  False,
         "options": {"temperature": temperature, "num_predict": max_tokens},
     })
-    return (data or {}).get("response", "").strip() or None
+    texto = (data or {}).get("response", "").strip()
+    if not texto:
+        # El sondeo dijo "hay backend" pero /api/generate dio 404/error/vacio:
+        # ES una degradacion y tiene que quedar en el audit, no un None mudo.
+        backend_activo.sin_backend(
+            via, f"ollama en {backend['url']} no genero "
+                 f"(modelo={modelo}; 404 o error en /api/generate)")
+        return None
+    return texto
 
 
 def describir() -> str:

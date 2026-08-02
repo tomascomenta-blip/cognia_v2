@@ -43,6 +43,16 @@ HIDDEN_IN_SIMPLE = frozenset({
     "web_buscar", "web_abrir",
 })
 
+# Tool oculta -> flag de opt-in que la RESCATA. El bug (2026-08-01): el modo
+# sencillo es el DEFAULT, asi que ocultar estas incondicionalmente hacia que
+# activar el flag no expusiera NADA — capacidad pedida y desconectada. Si el
+# dueno puso el flag, el opt-in explicito gana al recorte de UX.
+OPTIN_FLAG = {
+    "repo_a_prompt": "COGNIA_REPO_REVERSE",
+    "web_buscar": "COGNIA_BROWSER",
+    "web_abrir": "COGNIA_BROWSER",
+}
+
 
 def get_ui_mode(override: Optional[str] = None) -> str:
     """Modo de UI actual. override para tests; si no, la preferencia persistida;
@@ -91,8 +101,12 @@ def should_show_detail(markup_line: str, override: Optional[str] = None) -> bool
 def visible_tools(all_names, override: Optional[str] = None):
     """Set de tools visibles para el usuario segun el modo. En avanzado: todas.
     En sencillo: todas menos HIDDEN_IN_SIMPLE ('responder' se maneja aparte en
-    el loop, no esta en el registry, asi que no hace falta preservarlo aca)."""
+    el loop, no esta en el registry, asi que no hace falta preservarlo aca) —
+    salvo que su flag de opt-in este activo (ver OPTIN_FLAG)."""
+    import os
     names = set(all_names)
     if not is_simple(override):
         return names
-    return {n for n in names if n not in HIDDEN_IN_SIMPLE}
+    return {n for n in names
+            if n not in HIDDEN_IN_SIMPLE
+            or os.environ.get(OPTIN_FLAG.get(n, ""), "") == "1"}

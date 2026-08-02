@@ -151,6 +151,39 @@ def test_find_skill_no_penaliza_si_tiene_al_menos_un_exito(tmp_path):
     assert m is not None and m.name == "con-exitos"
 
 
+def test_find_skill_penaliza_por_tasa_con_historial_largo(tmp_path):
+    # Regresion A13 (auditoria 2026-08-01): la regla de racha exige uses_ok==0,
+    # asi que UN exito historico inmunizaba para siempre a una skill que falla
+    # cronicamente. Con n>=20 usos y tasa de fallo >60% ahora se excluye.
+    request = "necesito ayuda con configuracion de docker y contenedores en produccion"
+    md = tmp_path / "cronica.md"
+    md.write_text("x", encoding="utf-8")
+    skills = {
+        "cronica": SK.SkillSpec(
+            "cronica",
+            "Ayuda con configuracion de docker y contenedores en produccion",
+            "body", str(md), "cognia"),
+    }
+    for _ in range(5):
+        SK.record_skill_use("cronica", True, skills=skills)
+    for _ in range(15):
+        SK.record_skill_use("cronica", False, skills=skills)
+    # 5 ok / 15 fail -> n=20, tasa 0.75 > 0.6 -> excluida de ambas capas
+    assert SK.find_skill(request, skills, semantic_fallback=False) is None
+
+
+def test_mal_historial_umbrales():
+    # racha fria (regla original, intacta)
+    assert SK._mal_historial({"uses_ok": 0, "uses_fail": 3})
+    assert not SK._mal_historial({"uses_ok": 1, "uses_fail": 3})   # n<20, hay exito
+    # tasa: 50% NO condena (perfil ahorrar-contexto: 113 ok / 113 fail)
+    assert not SK._mal_historial({"uses_ok": 113, "uses_fail": 113})
+    # tasa >60% con n>=20 condena aunque haya exitos
+    assert SK._mal_historial({"uses_ok": 5, "uses_fail": 15})
+    # mismo perfil pero n<20: aun sin evidencia suficiente
+    assert not SK._mal_historial({"uses_ok": 2, "uses_fail": 8})
+
+
 # ── TAREA 3a: fallback semantico en find_skill ──────────────────────────
 # El fallback usa cognia.vectors.text_to_vector/cosine_similarity tal cual
 # (cero dependencias nuevas). Se mockean esas 2 funciones para fijar la

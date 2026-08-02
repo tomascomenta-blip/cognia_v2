@@ -120,7 +120,11 @@ def test_crear_carpeta_es_accion():
     assert detect("hazme un directorio para los logs").needs_agent
 
 
-def test_traer_ventana_al_frente_es_accion():
+def test_traer_ventana_al_frente_es_accion(monkeypatch):
+    # La sugerencia de una pantalla_* va CONDICIONADA a COGNIA_SCREEN: sin el
+    # flag esas tools ni se registran, y sugerirlas hacia que el agente pidiera
+    # una tool ausente ("herramienta no existe"). Sigue siendo una accion.
+    monkeypatch.setenv("COGNIA_SCREEN", "1")
     r = detect("Puedes poner al frente la pestaña de Chrome "
                "es que está detrás de otras ventanas")
     assert r.needs_agent and r.suggested_tool == "pantalla_activar_ventana"
@@ -130,13 +134,25 @@ def test_traer_ventana_al_frente_es_accion():
 # "Me envias la foto" fue al CHAT y el modelo contesto "Aqui tienes la foto"
 # sin foto, teniendo la captura ya tomada en disco.
 
-def test_pedir_la_foto_es_entrega_no_charla():
+def test_pedir_la_foto_es_entrega_no_charla(monkeypatch):
+    monkeypatch.setenv("COGNIA_SCREEN", "1")
     for m in ("Me envías la foto", "mándame la captura",
               "pasame el pantallazo", "muéstrame la imagen",
               "mostrame la foto"):
         r = detect(m)
         assert r.needs_agent, m
         assert r.suggested_tool == "pantalla_captura", m
+
+
+def test_pedir_la_foto_sin_flag_sigue_siendo_accion(monkeypatch):
+    """Sin COGNIA_SCREEN la peticion NO se degrada a chat (eso reintroduciria
+    la regresion de 2026-07-25): sigue siendo accion, pero sin sugerir una
+    tool que el catalogo no tiene, y con un aviso que dice como habilitarla."""
+    monkeypatch.delenv("COGNIA_SCREEN", raising=False)
+    r = detect("mándame la captura")
+    assert r.needs_agent
+    assert r.suggested_tool == ""
+    assert "COGNIA_SCREEN=1" in r.aviso
 
 
 def test_hablar_de_fotos_no_dispara_el_agente():

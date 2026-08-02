@@ -23,7 +23,7 @@ import hashlib
 import time
 from typing import Any, Dict, List, Optional, Set
 
-from cognia.agents.planner import SubTask, plan_task
+from cognia.agents.planner import SubTask, es_codigo_ejecutable, plan_task
 from cognia.agents.task_queue import (
     TaskQueue, TaskRecord,
     PLANNING, EXECUTING, VERIFYING, DONE, FAILED, ABORTED,
@@ -41,6 +41,78 @@ AGENTS_DB_PATH       = "cognia_agents.db"
 
 # Tools que producen código Python (para que el Verifier sepa qué tipo es)
 _CODE_TOOLS = {"execute_python", "validate_python"}
+
+# Tools que NO se pueden correr sin un argumento real extraído del pedido:
+# ejecutarlas igual significaba mandar la descripción del paso como 'code'.
+_TOOLS_ARG_OBLIGATORIO = {
+    "execute_python":  "code",
+    "validate_python": "code",
+    "file_explorer":   "path",
+}
+
+
+def build_tool_kwargs(subtask: SubTask, results: Optional[Dict[str, Any]] = None) -> dict:
+    """Construye kwargs para la tool. Primero los `args` que el planner ya
+    extrajo (el TEMA, no el objetivo entero — auditoria 2026-08-01: el goal
+    completo como query de search_wikipedia no encuentra nada); si no hay,
+    cae al parseo legacy de la descripción. Función plana para que flow.py
+    (etapa ejecucion) la reuse sin instanciar un _Executor.
+
+    Devuelve {} cuando NO hay argumento real extraible. El caller no debe
+    ejecutar la tool en ese caso: mandar la descripción del paso como 'code'
+    hacía que el sandbox corriera prosa y devolviera ToolResult.success=True
+    con basura, que synthesize consumía como resultado (auditoria 2026-08-01).
+    Un fallo tiene que ser VISIBLE."""
+    tool    = subtask.tool_required
+    results = results or {}
+    args    = getattr(subtask, "args", None) or {}
+
+    if tool in ("execute_python", "validate_python"):
+        if args.get("code"):
+            return {"code": str(args["code"])}
+        # Código producido por una subtarea anterior — solo si de verdad es
+        # código: el output de las etapas viene decorado con la descripción
+        # del paso y el bloque [resultado], que no compila.
+        for dep_id in subtask.dependencies:
+            dep_result = results.get(dep_id)
+            code = dep_result.get("output", "") if isinstance(dep_result, dict) \
+                else dep_result
+            if code and es_codigo_ejecutable(str(code)):
+                return {"code": str(code)}
+        return {}   # sin código real: NO ejecutar (ver docstring)
+
+    if tool == "search_wikipedia":
+        if args.get("query"):
+            return {"query": str(args["query"])}
+        # Extraer el tema de la descripción (después de ":")
+        parts = subtask.description.split(":", 1)
+        query = parts[1].strip() if len(parts) > 1 else subtask.description
+        return {"query": query}
+
+    if tool == "research_llm":
+        if args.get("question"):
+            return {"question": str(args["question"])}
+        parts = subtask.description.split(":", 1)
+        question = parts[1].strip() if len(parts) > 1 else subtask.description
+        return {"question": question}
+
+    if tool == "file_explorer":
+        if args.get("path"):
+            return {"path": str(args["path"])}
+        # El "." de antes exploraba el repo ENTERO y lo devolvia con
+        # success=True como si fuera la respuesta al pedido; y la descripción
+        # del paso ("Explore file structure...: analiza main.py") no es una
+        # ruta. Sin ruta real, no se explora.
+        return {}
+
+    if tool == "query_episodic":
+        if args.get("query"):
+            return {"query": str(args["query"])}
+        parts = subtask.description.split(":", 1)
+        query = parts[1].strip() if len(parts) > 1 else subtask.description
+        return {"query": query}
+
+    return {}
 
 
 class CogniaAgentRuntime:
@@ -175,6 +247,17 @@ class _Executor:
         Ejecuta una subtarea con retry.
         Retorna True si pasa la verificación, False si supera MAX_SUBTASK_RETRIES.
         """
+        if subtask.tool_required in _TOOLS_ARG_OBLIGATORIO and \
+                not self._build_kwargs(subtask):
+            # Sin argumento real no hay nada que ejecutar, y reintentar 3 veces
+            # da el mismo TypeError. Se corta con un motivo legible en vez de
+            # inventar un 'code' con la descripción del paso (ver
+            # build_tool_kwargs).
+            self._queue.update_subtask(
+                subtask.id, "failed",
+                result=f"SIN_ARGUMENTO:{_TOOLS_ARG_OBLIGATORIO[subtask.tool_required]}")
+            return False
+
         for attempt in range(MAX_SUBTASK_RETRIES):
             # LOOP_DETECTOR
             loop_key = hashlib.md5(
@@ -215,43 +298,8 @@ class _Executor:
         return False
 
     def _build_kwargs(self, subtask: SubTask) -> dict:
-        """Construye kwargs para la tool a partir de la descripción de la subtarea y resultados previos."""
-        tool = subtask.tool_required
-
-        if tool in ("execute_python", "validate_python"):
-            # Extrae código de resultados de subtareas anteriores si existen
-            for dep_id in subtask.dependencies:
-                dep_result = self._results.get(dep_id)
-                if dep_result and isinstance(dep_result, dict):
-                    code = dep_result.get("output", "")
-                    if code:
-                        return {"code": str(code)}
-            # Fallback: la descripción es el código
-            return {"code": subtask.description}
-
-        if tool == "search_wikipedia":
-            # Extraer el tema de la descripción (después de ":")
-            parts = subtask.description.split(":", 1)
-            query = parts[1].strip() if len(parts) > 1 else subtask.description
-            return {"query": query}
-
-        if tool == "research_llm":
-            parts = subtask.description.split(":", 1)
-            question = parts[1].strip() if len(parts) > 1 else subtask.description
-            return {"question": question}
-
-        if tool == "file_explorer":
-            # Phase 24 implementará FileExplorer; por ahora retorna dict vacío
-            parts = subtask.description.split(":", 1)
-            path = parts[1].strip() if len(parts) > 1 else "."
-            return {"path": path}
-
-        if tool == "query_episodic":
-            parts = subtask.description.split(":", 1)
-            query = parts[1].strip() if len(parts) > 1 else subtask.description
-            return {"query": query}
-
-        return {}
+        """Construye kwargs para la tool (args del planner primero; ver build_tool_kwargs)."""
+        return build_tool_kwargs(subtask, self._results)
 
     def _synthesize(self, subtasks: List[SubTask]) -> str:
         return synthesize(

@@ -1211,6 +1211,162 @@ def test_request_timeout_incluye_prefill():
     assert _request_timeout_s(24, 100) == 120
 
 
+# ---------------------------------------------------------------------------
+# _health_state() / reintento de generate() / adopcion de server cargando
+# (A1 2026-08-01: un unico 10054 transitorio mataba la sesion entera — el
+# orchestrator leia el None como fallo permanente y deshabilitaba llama.cpp)
+# ---------------------------------------------------------------------------
+
+class _ScriptedUrlReq:
+    """urllib.request fake: cada urlopen consume un item del guion.
+    Item Exception -> se lanza; bytes -> _FakeResp(bytes)."""
+
+    def __init__(self, guion):
+        self.guion = list(guion)
+        self.urls = []
+
+    def Request(self, url, data=None, headers=None):
+        return ("REQ", url)
+
+    def urlopen(self, req, timeout=None):
+        self.urls.append(req if isinstance(req, str) else req[1])
+        item = self.guion.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return _FakeResp(item)
+
+
+def _make_scripted_backend(guion):
+    """_LlamaServerBackend sin __init__, con urlopen guionado."""
+    import json as _json
+    from node.llama_backend import _LlamaServerBackend
+    b = object.__new__(_LlamaServerBackend)
+    b._port = 8088
+    b._base = "http://127.0.0.1:8088"
+    b._proc = None
+    b._json = _json
+    b._urlreq = _ScriptedUrlReq(guion)
+    b.last_tokens_predicted = None
+    b.last_stop_reason = None
+    return b
+
+
+class TestHealthState:
+    def test_ok_cuando_health_responde(self):
+        b = _make_scripted_backend([b"ok"])
+        assert b._health_state() == "ok"
+
+    def test_cargando_con_503(self):
+        """b9391 responde 503 en /health mientras carga el modelo: HAY server
+        (hay que esperarlo), no esta ausente. _ping (1er urlopen) tambien ve
+        el 503 -> False; el 2do urlopen clasifica."""
+        import urllib.error
+        def err():
+            return urllib.error.HTTPError("http://x/health", 503, "Loading", None, None)
+        b = _make_scripted_backend([err(), err()])
+        assert b._health_state() == "cargando"
+
+    def test_ausente_con_conexion_rechazada(self):
+        import urllib.error
+        def rej():
+            return urllib.error.URLError(ConnectionRefusedError(10061, "refused"))
+        b = _make_scripted_backend([rej(), rej()])
+        assert b._health_state() == "ausente"
+
+
+class TestGenerateRetry:
+    """generate() reintenta fallos de TRANSPORTE (reset/refused) re-sondeando
+    /health entre medio; no reintenta errores HTTP reales ni timeouts con el
+    server sano (= ocupado)."""
+
+    def test_reset_transitorio_reintenta_y_responde(self):
+        # 1er /completion: reset (WinError 10054); 2do: respuesta real.
+        # Sin el fix, el primer reset devolvia None directo.
+        b = _make_scripted_backend([ConnectionResetError(10054, "reset"),
+                                    _COMPLETION_RESP])
+        b._health_state = lambda: "ok"          # el server sigue vivo
+        with patch("node.llama_backend.time.sleep"):
+            out = b.generate("hola", max_tokens=8)
+        assert out == "ok"
+        assert len(b._urlreq.urls) == 2         # original + 1 reintento
+
+    def test_server_cargando_espera_la_carga_y_reintenta(self):
+        # Reset durante la carga fria del 14B: se espera /health ok (no un
+        # backoff a ciegas) y se reintenta.
+        b = _make_scripted_backend([ConnectionResetError(10054, "reset"),
+                                    _COMPLETION_RESP])
+        b._health_state = lambda: "cargando"
+        esperas = []
+        b._wait_health_ok = lambda t: (esperas.append(t), True)[1]
+        out = b.generate("hola", max_tokens=8)
+        assert out == "ok"
+        assert len(esperas) == 1
+
+    def test_timeout_con_health_ok_es_ocupado_sin_reintento(self):
+        # --parallel 1 + otro cliente en el slot: timeout con server sano =
+        # OCUPADO, no "no hay backend"; reintentar solo duplicaria la espera.
+        b = _make_scripted_backend([TimeoutError("timed out")])
+        b._health_state = lambda: "ok"
+        assert b.generate("hola", max_tokens=8) is None
+        assert len(b._urlreq.urls) == 1
+
+    def test_ausente_agota_reintentos_y_devuelve_none(self):
+        b = _make_scripted_backend([ConnectionResetError(10054, "r")] * 3)
+        b._health_state = lambda: "ausente"
+        with patch("node.llama_backend.time.sleep"):
+            assert b.generate("hola", max_tokens=8) is None
+        assert len(b._urlreq.urls) == 3         # 1 original + 2 reintentos
+
+    def test_http_500_no_se_reintenta(self):
+        # El server RESPONDIO con error (p.ej. ctx desbordado): repetir la
+        # request repetiria el mismo error.
+        import urllib.error
+        err = urllib.error.HTTPError("http://x/completion", 500, "boom", None, None)
+        b = _make_scripted_backend([err])
+        b._health_state = lambda: "ok"
+        assert b.generate("hola", max_tokens=8) is None
+        assert len(b._urlreq.urls) == 1
+
+
+class TestInitAdoptsLoadingServer:
+    def test_no_arranca_otro_server_si_el_puerto_esta_cargando(self, tmp_path, monkeypatch):
+        """BLOQUEANTE A1: un server externo cargando el modelo en el puerto
+        (503 en /health) debe ESPERARSE y adoptarse, no tratarse como ausente.
+        Antes _ping() daba False y se lanzaba OTRO llama-server sobre el mismo
+        puerto (y la primera request contra el server en carga moria con reset)."""
+        fake_gguf = tmp_path / "model.gguf"
+        fake_gguf.touch()
+        fake_bin = tmp_path / "llama-server.exe"
+        fake_bin.touch()
+        monkeypatch.setenv("LLAMA_SERVER_PATH", str(fake_bin))
+        from node.llama_backend import _LlamaServerBackend
+        popen_calls = []
+        with (
+            patch.object(_LlamaServerBackend, "_health_state",
+                         MagicMock(return_value="cargando")),
+            patch.object(_LlamaServerBackend, "_wait_health_ok",
+                         MagicMock(return_value=True)),
+            patch.object(_LlamaServerBackend, "_check_adopted_server", MagicMock()),
+            patch.object(_LlamaServerBackend, "_adopt_fleet", MagicMock()),
+            patch("node.llama_backend.subprocess.Popen",
+                  side_effect=lambda *a, **k: popen_calls.append(a) or MagicMock(pid=1)),
+        ):
+            b = _LlamaServerBackend(fake_gguf, port=18099)
+        assert popen_calls == []          # NO arranco un segundo server
+        assert b._proc is None            # adoptado, no propio
+
+
+class TestFacadeServerState:
+    def test_in_process_sin_health_state(self):
+        backend = _make_backend(MagicMock(spec=["generate"]))
+        assert backend.server_state() == "in-process"
+
+    def test_delegacion_al_impl(self):
+        impl = MagicMock()
+        impl._health_state.return_value = "cargando"
+        assert _make_backend(impl).server_state() == "cargando"
+
+
 class TestFindGgufFallbackHome:
     """Fallback de descubrimiento en ~/.cognia/models (fix 2026-07-15: el
     producto INSTALADO sin config.env aplicado corria sin backend)."""

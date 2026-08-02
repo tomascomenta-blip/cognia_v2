@@ -69,6 +69,48 @@ def test_consultar_filtra_por_piso_y_ordena(db):
     assert res[0]["score"] == 0.9              # el ruido 0.02 se descarta
 
 
+def test_consultar_encuentra_notas_de_smart_notes(db):
+    """Regresión A14 (descablado): las notas eran de SOLO ESCRITURA —
+    anotar() guardaba pero consultar() solo miraba la memoria episódica."""
+    cua = Cuaderno(ai=_FakeAI(db, []), db_path=db)
+    cua.anotar("el servidor de auditoria se llama zafiro")
+    res = cua.consultar("como se llama el servidor de auditoria")
+    assert any("zafiro" in r["texto"] for r in res)
+    nota = next(r for r in res if "zafiro" in r["texto"])
+    assert nota["origen"] == "nota" and nota["score"] >= 0.1
+
+
+def test_consultar_sin_ai_tambien_busca_notas(db):
+    """Sin `ai` no hay episódica, pero las notas del cuaderno sí se
+    consultan (antes devolvía [] siempre)."""
+    cua = Cuaderno(db_path=db)
+    cua.anotar("la clave del deploy es rotarla cada viernes")
+    res = cua.consultar("cuando se rota la clave del deploy")
+    assert any("viernes" in r["texto"] for r in res)
+
+
+def test_consultar_mezcla_episodica_y_notas(db):
+    hits = [{"observation": "fragmento episodico sobre zafiro",
+             "similarity": 0.9}]
+    cua = Cuaderno(ai=_FakeAI(db, hits), db_path=db)
+    cua.anotar("nota del cuaderno sobre zafiro")
+    # la nota matchea 1 de 2 palabras (0.5) < similitud episodica (0.9)
+    res = cua.consultar("fragmento zafiro")
+    textos = [r["texto"] for r in res]
+    assert any("episodico" in t for t in textos)
+    assert any("cuaderno" in t for t in textos)
+    assert res[0]["score"] == 0.9              # ordenado por relevancia
+
+
+def test_consultar_excluye_notas_tipo_fuente(db):
+    """Las notas 'fuente' son el índice del cuaderno: su contenido real ya
+    está en la episódica, devolver la etiqueta sería ruido duplicado."""
+    cua = Cuaderno(ai=_FakeAI(db, []), db_path=db)
+    cua._notas.add_note("zafiro.pdf (5 fragmentos)", note_type="fuente",
+                        session_id="default", source="zafiro.pdf")
+    assert cua.consultar("zafiro fragmentos") == []
+
+
 def test_agregar_fuente_sin_ai_da_error(db):
     cua = Cuaderno(db_path=db)
     assert "error" in cua.agregar_fuente("x.txt")
