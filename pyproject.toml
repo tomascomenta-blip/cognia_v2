@@ -105,6 +105,11 @@ exclude = [
     "cognia_game", "cognia_game.*",
     "cognia_mobile", "cognia_mobile.*",
     "cognia_public_api", "cognia_public_api.*",
+    # Programas DEMO generados en runtime (salidas del creador, incl. artefactos
+    # de los e2e): no son codigo del producto y solo inflaban el wheel (~30
+    # modulos). El creador escribe en ~/.cognia en la instalacion real. (4.4.0)
+    "cognia.program_creator.generated_programs",
+    "cognia.program_creator.generated_programs.*",
 ]
 
 [tool.setuptools.package-data]
