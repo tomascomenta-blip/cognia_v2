@@ -134,12 +134,38 @@ def crear_app() -> FastAPI:
     return app
 
 
-def main() -> int:
+def _ip_lan() -> str:
+    """IP de la LAN para poder abrirlo desde el movil. Sin red devuelve ''."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))       # no manda nada: solo elige la ruta
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return ""
+
+
+def main(argv=None) -> int:
+    """--lan expone el tutor a la red local (para el movil). Por defecto es
+    LOOPBACK: el tutor no pide token, asi que abrirlo a la LAN sin pedirlo
+    seria regalar la maquina; con --lan se avisa en pantalla."""
+    import sys
     import uvicorn
+    argv = sys.argv[1:] if argv is None else argv
+    lan = "--lan" in argv
+    host = "0.0.0.0" if lan else "127.0.0.1"
+
     print("[tutor] cargando backend...", flush=True)
     _ESTADO["backend"] = _arrancar_backend()
     print(f"[tutor] backend: {_ESTADO['backend']}", flush=True)
-    print(f"[tutor] Cognia Tutor en http://127.0.0.1:{PUERTO}", flush=True)
-    uvicorn.run(crear_app(), host="127.0.0.1", port=PUERTO,
-                log_level="warning")
+    print(f"[tutor] Cognia Tutor en http://127.0.0.1:{PUERTO}"
+          f"   <-- ABRIR ESTA URL (con el puerto :{PUERTO})", flush=True)
+    if lan:
+        ip = _ip_lan() or "<IP-del-PC>"
+        print(f"[tutor] desde el movil: http://{ip}:{PUERTO}", flush=True)
+        print("[tutor] AVISO: --lan expone el tutor a tu red local SIN "
+              "autenticacion; usalo solo en una red de confianza.", flush=True)
+    uvicorn.run(crear_app(), host=host, port=PUERTO, log_level="warning")
     return 0

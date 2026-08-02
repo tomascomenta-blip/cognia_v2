@@ -228,3 +228,30 @@ def test_api_pregunta_inexistente_da_400(cliente):
 def test_index_se_sirve(cliente):
     r = cliente.get("/")
     assert r.status_code == 200 and "Cognia Tutor" in r.text
+
+
+# ── binding: loopback por defecto, LAN solo con --lan ──────────────────
+
+def test_main_loopback_por_defecto(monkeypatch):
+    from cognia.tutor import servidor
+    visto = {}
+    monkeypatch.setattr(servidor, "_arrancar_backend", lambda: "test")
+    monkeypatch.setattr(servidor, "crear_app", lambda: object())
+    import uvicorn
+    monkeypatch.setattr(uvicorn, "run",
+                        lambda app, **kw: visto.update(kw))
+    servidor.main([])
+    assert visto["host"] == "127.0.0.1" and visto["port"] == servidor.PUERTO
+
+
+def test_main_lan_expone_con_aviso(monkeypatch, capsys):
+    from cognia.tutor import servidor
+    visto = {}
+    monkeypatch.setattr(servidor, "_arrancar_backend", lambda: "test")
+    monkeypatch.setattr(servidor, "crear_app", lambda: object())
+    import uvicorn
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: visto.update(kw))
+    servidor.main(["--lan"])
+    assert visto["host"] == "0.0.0.0"
+    salida = capsys.readouterr().out
+    assert "SIN autenticacion" in salida        # el riesgo se declara
