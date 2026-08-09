@@ -51,6 +51,32 @@ def test_perfil_nativo_para_gpt_oss(monkeypatch):
     assert verificar_arranque(p) == []
 
 
+def test_perfil_nativo_para_qwythos(monkeypatch):
+    # Cerebro principal desde 2026-08-09: Qwythos hace tool-calling nativo
+    # (verificado a mano). Sampling Qwen (0.7/0.8), NO el 1.0/1.0 de harmony,
+    # y sin reasoning_effort (no es harmony: lo aceptaba pero era no-op).
+    monkeypatch.delenv("COGNIA_AGENT_LEGACY", raising=False)
+    monkeypatch.delenv("COGNIA_AGENT_TOOLS", raising=False)
+    monkeypatch.delenv("COGNIA_REASONING_EFFORT", raising=False)
+    _con_props(monkeypatch,
+               "Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf")
+    p = perfil_del_agente()
+    assert p["tools"] == "nativo"
+    assert p["temperature"] == 0.7 and p["top_p"] == 0.8
+    assert p["reasoning_effort"] == ""       # familia sin effort de harmony
+    assert p["max_tokens"] >= MIN_TOKENS_RAZONADOR
+    assert verificar_arranque(p) == []
+
+
+def test_gpt_oss_conserva_su_effort_de_harmony(monkeypatch):
+    # El cambio de familia NO toca a gpt-oss: sigue con effort low por defecto.
+    monkeypatch.delenv("COGNIA_AGENT_LEGACY", raising=False)
+    monkeypatch.delenv("COGNIA_AGENT_TOOLS", raising=False)
+    monkeypatch.delenv("COGNIA_REASONING_EFFORT", raising=False)
+    _con_props(monkeypatch, "gpt-oss-20b-MXFP4.gguf")
+    assert perfil_del_agente()["reasoning_effort"] == "low"
+
+
 def test_perfil_texto_para_modelo_desconocido(monkeypatch):
     monkeypatch.delenv("COGNIA_AGENT_LEGACY", raising=False)
     monkeypatch.delenv("COGNIA_AGENT_TOOLS", raising=False)

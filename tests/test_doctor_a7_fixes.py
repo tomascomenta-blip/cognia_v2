@@ -82,6 +82,35 @@ class TestInferenciaConMarcador:
         assert ret is True
         assert "[OK]" in out
 
+    def test_razonador_con_think_no_es_basura(self, orch_falso, monkeypatch):
+        """Cerebro Qwythos 2026-08-09: el <think> del razonador va inline en
+        la vía cruda y REPITE 'OK' del enunciado mientras piensa; la respuesta
+        real viene DESPUES de </think>. Antes esto salia [FAIL] 'genera basura'
+        sobre un backend sano (misma clase que la sonda de 4.6.1)."""
+        import cognia.llm_local as L
+        monkeypatch.setattr(L, "nombre_modelo_servido",
+                            lambda *a, **k: "Huihui-Qwythos-9B-...-Q4_K.gguf")
+        orch_falso.resultado = _FakeResult(
+            "<think>El usuario quiere que repita 'OK' diez veces. "
+            "Voy a escribir OK separado por espacios.</think>\n"
+            "OK OK OK OK OK OK OK OK OK OK", "llama.cpp", 60)
+        ret, out = _capture(D.check_inference_speed)
+        assert ret is True
+        assert "[OK]" in out
+
+    def test_razonador_solo_think_sin_respuesta_es_FALLO(self, orch_falso, monkeypatch):
+        """Si tras descontar el <think> no queda respuesta (truncado), es FAIL
+        legitimo: el backend no llego a responder, no un falso verde."""
+        import cognia.llm_local as L
+        monkeypatch.setattr(L, "nombre_modelo_servido",
+                            lambda *a, **k: "Huihui-Qwythos-9B-...-Q4_K.gguf")
+        orch_falso.resultado = _FakeResult(
+            "<think>Mmm, deberia decir OK, OK, OK pero sigo pensando y "
+            "pensando sobre OK sin cerrar el bloque", "llama.cpp", 60)
+        ret, out = _capture(D.check_inference_speed)
+        assert ret is False
+        assert "[FAIL]" in out
+
     def test_ruta_npz_no_da_OK_verde(self, orch_falso):
         """mode != llama.cpp (shards NPZ / simulacion) → WARN, nunca [OK]."""
         orch_falso.resultado = _FakeResult("OK", "local", 5)

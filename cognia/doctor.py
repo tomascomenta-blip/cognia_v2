@@ -272,9 +272,16 @@ def check_inference_speed() -> bool:
         # medido (auditoria 2026-08-01). Ahora el texto tiene que contener
         # el marcador o el check no aprueba. Se piden varios OK (no uno)
         # para que la medicion de tok/s tenga tokens suficientes.
+        # Presupuesto que cubre el PENSAMIENTO (misma leccion que la sonda de
+        # backend en 4.6.1): con un cerebro RAZONADOR (Qwythos, gpt-oss) los 64
+        # tokens se iban ENTEROS en <think> y la respuesta 'OK OK...' nunca
+        # llegaba -> [FAIL] "genera basura" sobre un backend sano. Se le da
+        # aire; el bloque de razonamiento se descuenta despues.
+        from cognia.llm_local import es_razonador_grande, nombre_modelo_servido
+        _razonador = es_razonador_grande(nombre_modelo_servido())
         result = orch.infer(
             "Repite exactamente la palabra OK diez veces, separadas por espacios.",
-            max_tokens=64, temperature=0.0)
+            max_tokens=512 if _razonador else 64, temperature=0.0)
         latency_ms = (time.perf_counter() - t0) * 1000
         texto = (getattr(result, "text", "") or "").strip()
         if result.mode != "llama.cpp":
@@ -282,6 +289,12 @@ def check_inference_speed() -> bool:
             # que salga de aqui no representa la instalacion recomendada.
             return _warn(f"Inferencia via backend={result.mode}",
                          "no es el backend GGUF real; velocidad no representativa")
+        # El <think>...</think> del razonador NO es la respuesta: en la vía
+        # cruda (orch.infer) el pensamiento va inline en el texto, y ahi el
+        # modelo REPITE 'OK' del enunciado mientras razona. Se descuenta antes
+        # del marcador (cerrado o truncado a mitad).
+        texto = re.sub(r"(?is)<think>.*?</think>", " ", texto)
+        texto = re.sub(r"(?is)<think>.*$", " ", texto).strip()
         # Marcador con FRONTERA DE PALABRA y repetido. Con el `"OK" in
         # texto.upper()` de antes el chequeo seguia siendo un falso PASS: el
         # bigrama "ok" esta dentro de "tokens", "broken" y "look", asi que

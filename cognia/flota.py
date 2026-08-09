@@ -55,6 +55,16 @@ COMBOS = {
         ("servir_modelo.py", ["--modelo", "gpt-oss", "--sin-draft",
                               "--ctx", "16384"]),
     ],
+    "pensar-qwythos": [
+        # CEREBRO PRINCIPAL desde 2026-08-09 (pedido del dueño). Qwythos-9B
+        # (Qwen2.5 abliterado, 1M ctx) hace tool-calling NATIVO servido con
+        # --jinja — verificado a mano: finish_reason=tool_calls, arguments
+        # JSON. ctx 32768 y no el 8192 default: es un razonador (piensa fuerte
+        # antes de responder) y 8192 lo cortaba; a 8192 usa 6.75 GB de 16.3,
+        # asi que 32768 (~4 GB mas de KV) cabe holgado y corre SOLO.
+        ("servir_modelo.py", ["--modelo", "qwythos", "--sin-draft",
+                              "--ctx", "32768"]),
+    ],
     "pensar-en-lazo": [
         ("servir_modelo.py", ["--modelo", "OpenReasoning", "--sin-draft"]),
         ("servir_vlm.py", ["--modelo", "VL-3B"]),
@@ -70,10 +80,11 @@ COMBOS = {
     ],
 }
 
-# El combo que arranca `cognia flota arrancar` sin argumento: el pensador
-# validado por gate (gpt-oss-20b), que es como se sirve el producto desde
-# 2026-07 (memoria: flota-roles-2026-07).
-COMBO_DEFAULT = "pensar"
+# El combo que arranca `cognia flota arrancar` sin argumento: el CEREBRO
+# PRINCIPAL. Desde 2026-08-09 es Qwythos-9B (pedido del dueño); gpt-oss-20b
+# sigue disponible como combo 'pensar' para quien lo quiera o para reproducir
+# los bancos b1_* que lo mapean por nombre.
+COMBO_DEFAULT = "pensar-qwythos"
 
 PUERTOS = ((8080, "cerebro/pensador"), (8081, "VLM/arbitro"))
 
@@ -82,6 +93,7 @@ PUERTOS = ((8080, "cerebro/pensador"), (8081, "VLM/arbitro"))
 # QUE combo esperado corresponde (o que no corresponde a ninguno: la averia
 # historica del :8088 era exactamente un server rancio con otro modelo).
 CEREBROS = {
+    "qwythos": "pensar-qwythos",
     "gpt-oss": "pensar",
     "uigen": "construir-ui",
     "openreasoning": "pensar-en-lazo",

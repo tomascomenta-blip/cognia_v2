@@ -34,17 +34,32 @@ class TestCombos:
 
     def test_combos_esperados(self):
         assert set(F.COMBOS) == {"construir", "construir-ui", "pensar",
-                                 "pensar-en-lazo", "juzgar", "solo"}
+                                 "pensar-qwythos", "pensar-en-lazo",
+                                 "juzgar", "solo"}
+
+    def test_cerebro_principal_es_qwythos(self):
+        # El dueño lo pidio 2026-08-09: `cognia flota arrancar` sin argumento
+        # levanta Qwythos, no gpt-oss.
+        assert F.COMBO_DEFAULT == "pensar-qwythos"
+        (script, args), = F.COMBOS["pensar-qwythos"]
+        assert script == "servir_modelo.py"
+        assert "qwythos" in args
+        # Es un razonador: 8192 lo cortaba, el combo pide 32768.
+        assert "32768" in args
 
     def test_pensar_sirve_gpt_oss_con_ctx_16384(self):
-        # La leccion medida 2026-07-25: con 8192 el 20B truncaba (pass@1 25%
-        # contra 100% con 16384). Si alguien baja el ctx, esto grita.
+        # gpt-oss sigue disponible como 'pensar' (no se borro al cambiar el
+        # cerebro). La leccion medida 2026-07-25: con 8192 el 20B truncaba
+        # (pass@1 25% contra 100% con 16384). Si alguien baja el ctx, grita.
         (script, args), = F.COMBOS["pensar"]
         assert script == "servir_modelo.py"
         assert "gpt-oss" in args
         assert "16384" in args
 
     def test_combo_de_modelo_mapea_el_cerebro(self):
+        assert F.combo_de_modelo(
+            "Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf"
+        ) == "pensar-qwythos"
         assert F.combo_de_modelo("gpt-oss-20b-mxfp4.gguf") == "pensar"
         assert F.combo_de_modelo("UIGEN-X-8B-Q4_K_M.gguf") == "construir-ui"
         assert F.combo_de_modelo("qwen2.5-coder-14b-instruct-q4_k_m.gguf") == "construir"
@@ -85,12 +100,12 @@ class TestCli:
         assert F.main(["pensar"]) == 0
         assert llamado == {"modo": "pensar", "patron": ""}
 
-    def test_arrancar_default_es_pensar(self, monkeypatch, capsys):
+    def test_arrancar_default_es_el_cerebro_principal(self, monkeypatch, capsys):
         llamado = {}
         monkeypatch.setattr(F, "arrancar",
                             lambda modo, patron="": llamado.update(modo=modo) or 0)
         assert F.main(["arrancar"]) == 0
-        assert llamado["modo"] == "pensar"
+        assert llamado["modo"] == F.COMBO_DEFAULT == "pensar-qwythos"
 
 
 class TestEstadoConProps:
