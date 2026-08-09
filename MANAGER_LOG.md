@@ -12306,3 +12306,22 @@ identicos", cazada de nuevo) -> presupuesto por perfil.
 front movil sin UI para acceso restringido, siembra de 20 mensajes visible pero no opt-in,
 stop_type invisible en el fallback texto, banco A/B n>=6 intercalado viejo-vs-nuevo arnes
 (la evidencia de hoy es e2e+gate+contrafactual, no el banco), poda del monolito (B6).
+
+
+## 2026-08-09 (cierre) — 4.6.0 y 4.6.1 PUBLICADAS a PyPI + instalacion en la maquina del dueño
+
+- **4.6.0**: la obra completa, publicada con el protocolo integro (gate 5/5, suite 6139/0,
+  wheel verificado en venv LIMPIO desde otro cwd ANTES de subir, re-verificada instalando
+  DESDE PyPI). https://pypi.org/project/cognia-ai/
+- **Instalacion de usuario final en esta PC**: venv dedicado en `~\.cognia\venv` con
+  `cognia-ai[semantic,pdf,vision]`, comando global `cognia` via `~\.cognia\bin` (PATH de
+  usuario). `cognia flota estado` reporta el GGUF real; turno /hacer real OK desde carpeta
+  neutral.
+- **4.6.1**: estrenar la instalacion DESTAPO la 11a instancia de la leccion del presupuesto:
+  la sonda del doctor (max_tokens=8) se iba entera en pensamiento con gpt-oss-20b y declaraba
+  [FAIL] "NO genera texto" sobre un backend sano (con check_inference_speed midiendo 116.9
+  tok/s dos lineas abajo). Reproducido a mano (8 tok -> '' ; 1024+low -> 'OK'), fix por
+  presupuesto_chat+effort por perfil, bateria doctor 67/67, doctor real "Todo en orden".
+  Publicada y la instalacion local actualizada a 4.6.1.
+- Moraleja repetida por 11a vez: TODO call-site nuevo de generar() debe pasar por el helper
+  de presupuesto por perfil; los numeros sueltos reintroducen el bug.
