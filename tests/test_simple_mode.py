@@ -1,7 +1,9 @@
-"""Regresion de cognia/simple_mode.py (modo sencillo default ON, version comercial)."""
-from cognia.simple_mode import (
-    HIDDEN_IN_SIMPLE, is_simple, should_show_detail, visible_tools,
-)
+"""Regresion de cognia/simple_mode.py (modo sencillo default ON, version comercial).
+
+2026-08-09 (obra "nivel SOTA", A5): el recorte paso de denylist
+(HIDDEN_IN_SIMPLE, jubilada) a ALLOWLIST (CORE_TOOLS de cognia.agent.tools):
+con denylist cada tool nueva engordaba el catalogo default en silencio."""
+from cognia.simple_mode import is_simple, should_show_detail, visible_tools
 
 
 def test_default_es_sencillo():
@@ -42,7 +44,31 @@ def test_visible_tools_todas_en_avanzado():
     assert visible_tools(todas, override="avanzado") == todas
 
 
-def test_hidden_set_no_incluye_esenciales():
-    for esencial in ("leer_archivo", "escribir_archivo", "generar_codigo",
-                     "ejecutar", "tests", "buscar", "calcular", "recordar"):
-        assert esencial not in HIDDEN_IN_SIMPLE
+def test_core_incluye_esenciales():
+    from cognia.agent.tools import CORE_TOOLS
+    for esencial in ("leer_archivo", "escribir_archivo", "editar_archivo",
+                     "generar_codigo", "ejecutar", "tests", "buscar",
+                     "calcular", "recordar", "borrar_archivo"):
+        assert esencial in CORE_TOOLS
+
+
+def test_core_es_chico():
+    # El A/B del 2026-07-25 midio que el catalogo grande degrada al agente:
+    # el default tiene que quedarse en ~12 tools, no volver a crecer en
+    # silencio. Si esto falla, alguien agrego una tool al CORE: que lo mida.
+    from cognia.agent.tools import CORE_TOOLS
+    assert len(CORE_TOOLS) <= 14
+
+
+def test_optin_activo_entra_al_catalogo_sencillo(monkeypatch):
+    # una familia opt-in con su flag activo se anuncia aunque el modo sea
+    # sencillo (el opt-in explicito del dueno gana al recorte de UX)
+    monkeypatch.setenv("COGNIA_LCD", "1")
+    vis = visible_tools({"escena_crear", "escena_editar", "leer_archivo",
+                         "git_diff"}, override="sencillo")
+    assert "escena_crear" in vis and "escena_editar" in vis
+    assert "leer_archivo" in vis
+    assert "git_diff" not in vis
+    monkeypatch.delenv("COGNIA_LCD")
+    vis = visible_tools({"escena_crear", "leer_archivo"}, override="sencillo")
+    assert "escena_crear" not in vis

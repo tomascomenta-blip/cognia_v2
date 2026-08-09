@@ -10,48 +10,23 @@ Es UX puro y deterministico: una preferencia persistida (~/.cognia/config.env,
 mismo mecanismo que user_prefs) + dos predicados. Sin dependencias del modelo.
 Testeable sin disco pasando el valor por override.
 
-Regla de recorte: se ocultan las tools de INTROSPECCION/DESARROLLO que a un
-usuario comun le parecen ruido (git, knowledge-graph, validadores de sintaxis,
-notas de trabajo, http, arbol/contar-lineas, delegar/crear-herramienta). NO se
-oculta nada que una tarea cotidiana necesite (leer/escribir/buscar archivos,
-ejecutar, tests, generar_codigo, calcular, fecha, memoria de usuario, resumir).
-El agente sigue teniendo el pipeline de calidad (generar_codigo valida por
-tests), asi que recortar los validadores sueltos no le baja la capacidad.
+Regla de recorte (2026-08-09, obra "nivel SOTA", A5): el catalogo por defecto
+es una ALLOWLIST — el set CORE de ~12 tools ortogonales de
+cognia.agent.tools.CORE_TOOLS (leer/escribir/editar/borrar/listar/buscar/
+ejecutar/tests/generar_codigo/delegar/recordar/calcular) — y no una denylist:
+con denylist, cada tool nueva registrada engordaba el catalogo default en
+silencio, que es exactamente como se llego a las 46-79 tools que el A/B del
+2026-07-25 midio como degradacion (camino feliz 4.25/5 -> 2.5/5). Las familias
+opt-in (pantalla_/escena_/imagen_/web_/repo_a_prompt) entran SOLO con su flag
+activo: el opt-in explicito del dueno gana al recorte de UX. El modo AVANZADO
+sigue mostrando todo, y las tools fuera del catalogo siguen siendo invocables
+(run_tool no filtra por esto): solo dejan de anunciarse en el prompt.
 """
 from __future__ import annotations
 
 from typing import Optional
 
 K_UI_MODE = "COGNIA_UI_MODE"   # "sencillo" (default) | "avanzado"
-
-# Tools ocultas en modo sencillo (aparecen solo en avanzado). Ver docstring.
-HIDDEN_IN_SIMPLE = frozenset({
-    "git_estado", "git_diff", "git_log",
-    "kg_buscar", "kg_agregar",
-    "py_validar", "json_validar",
-    "arbol", "contar_lineas",
-    "http_get",
-    "notas", "anotar",
-    "delegar_subtarea", "crear_herramienta",
-    # diagnostico del pipeline de escena (util para una IA/dev, ruido para el
-    # usuario comun, que solo quiere crear/editar la escena):
-    "atribuir_fallo", "reejecutar_etapa",
-    # ingenieria inversa de repos (opt-in COGNIA_REPO_REVERSE=1): defensa
-    # doble por si algun dia pasa a default-ON.
-    "repo_a_prompt",
-    # navegador del agente (opt-in COGNIA_BROWSER=1): misma defensa doble.
-    "web_buscar", "web_abrir",
-})
-
-# Tool oculta -> flag de opt-in que la RESCATA. El bug (2026-08-01): el modo
-# sencillo es el DEFAULT, asi que ocultar estas incondicionalmente hacia que
-# activar el flag no expusiera NADA — capacidad pedida y desconectada. Si el
-# dueno puso el flag, el opt-in explicito gana al recorte de UX.
-OPTIN_FLAG = {
-    "repo_a_prompt": "COGNIA_REPO_REVERSE",
-    "web_buscar": "COGNIA_BROWSER",
-    "web_abrir": "COGNIA_BROWSER",
-}
 
 
 def get_ui_mode(override: Optional[str] = None) -> str:
@@ -99,14 +74,35 @@ def should_show_detail(markup_line: str, override: Optional[str] = None) -> bool
 
 
 def visible_tools(all_names, override: Optional[str] = None):
-    """Set de tools visibles para el usuario segun el modo. En avanzado: todas.
-    En sencillo: todas menos HIDDEN_IN_SIMPLE ('responder' se maneja aparte en
-    el loop, no esta en el registry, asi que no hace falta preservarlo aca) —
-    salvo que su flag de opt-in este activo (ver OPTIN_FLAG)."""
-    import os
+    """Set de tools visibles para el modelo segun el modo. En avanzado: todas.
+    En sencillo: el catalogo CORE (~12, allowlist) mas las familias opt-in
+    cuyo flag esta activo ('responder' se maneja aparte en el loop, no esta en
+    el registry, asi que no hace falta preservarlo aca).
+
+    El import de tools es perezoso y con fallback a un set literal: este
+    modulo es UX puro y no puede caerse (ni arrastrar el import pesado de
+    tools) por culpa del catalogo."""
     names = set(all_names)
     if not is_simple(override):
         return names
-    return {n for n in names
-            if n not in HIDDEN_IN_SIMPLE
-            or os.environ.get(OPTIN_FLAG.get(n, ""), "") == "1"}
+    try:
+        from cognia.agent.tools import CORE_TOOLS, flag_de_optin, _flag_activo
+    except Exception:
+        # fallback degradable: el mismo CORE, congelado (si tools no importa,
+        # el agente tampoco va a correr; esto solo protege al REPL/UI)
+        CORE_TOOLS = {
+            "leer_archivo", "escribir_archivo", "editar_archivo",
+            "apendar_archivo", "borrar_archivo", "listar", "buscar",
+            "ejecutar", "tests", "generar_codigo", "delegar_subtarea",
+            "recordar", "calcular"}
+        flag_de_optin = lambda n: ""          # noqa: E731
+        _flag_activo = lambda f: False        # noqa: E731
+    out = set()
+    for n in names:
+        flag = flag_de_optin(n)
+        if flag:
+            if _flag_activo(flag):
+                out.add(n)
+        elif n in CORE_TOOLS:
+            out.add(n)
+    return out
