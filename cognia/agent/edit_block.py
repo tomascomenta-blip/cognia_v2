@@ -17,10 +17,14 @@ Formato (un bloque, o varios seguidos):
 
 `apply_edits` intenta, por bloque, dos estrategias en orden creciente de holgura
 (como el `do_replace` de Aider):
-  1. EXACTO: match literal de subcadena (reemplaza la 1ª ocurrencia).
+  1. EXACTO: match literal de subcadena, SOLO si es único.
   2. SANGRÍA: match ignorando la indentación uniforme del bloque y re-aplicando
      la indentación real del fichero al reemplazo. Cubre el fallo típico del
      modelo pequeño: acierta el código pero estropea el sangrado.
+UNICIDAD (2026-08-09, obra "nivel SOTA"): un SEARCH que aparece más de una vez
+es ERROR, no "reemplazo la 1ª" — el str_replace silencioso editaba una ocurrencia
+que el modelo no eligió (el mismo motivo por el que Claude Code/OpenHands fallan
+ante match no único). El error pide AMPLIAR el SEARCH con más contexto.
 Si nada casa, lanza `EditError` cuyo texto NOMBRA el SEARCH fallido y muestra las
 líneas reales más parecidas (difflib) — el error ES el siguiente prompt, un lazo
 de auto-corrección barato sin coste de arquitectura.
@@ -53,7 +57,18 @@ def _lead(s: str) -> str:
 
 
 def _match_exacto(content: str, search: str, replace: str):
-    if search and search in content:
+    """Reemplazo literal SOLO si el SEARCH es único. >1 ocurrencia = EditError:
+    reemplazar "la 1ª" en silencio edita una ocurrencia que el modelo no eligió
+    (y el modelo cree que editó la que tenía en mente)."""
+    if not search:
+        return None
+    n = content.count(search)
+    if n > 1:
+        raise EditError(
+            f"el SEARCH aparece {n} veces en el fichero y no se cual queres "
+            f"cambiar: amplia el SEARCH con mas lineas de contexto (antes y/o "
+            f"despues) hasta que sea UNICO")
+    if n == 1:
         return content.replace(search, replace, 1)
     return None
 
@@ -61,7 +76,8 @@ def _match_exacto(content: str, search: str, replace: str):
 def _match_sangria(content: str, search: str, replace: str):
     """Match ignorando la indentación uniforme; re-indenta el reemplazo con la
     sangría real del fichero (delta constante). Preserva la indentación relativa
-    dentro del bloque."""
+    dentro del bloque. Igual que el match exacto: si hay más de una ventana que
+    casa, es EditError (unicidad), no "la primera"."""
     s_lines = search.splitlines()
     if not any(l.strip() for l in s_lines):
         return None
@@ -73,27 +89,36 @@ def _match_sangria(content: str, search: str, replace: str):
     fnb = next(i for i, l in enumerate(s_lines) if l.strip())  # 1ª línea no vacía
     s_lead = len(_lead(s_lines[fnb]))
 
+    # Primero se buscan TODAS las ventanas que casan (unicidad antes de tocar).
+    matches = []
     for i in range(0, len(c_lines) - n + 1):
         window = [w.rstrip("\n") for w in c_lines[i:i + n]]
-        if [w.strip() for w in window] != s_strip:
-            continue
-        delta = len(_lead(window[fnb])) - s_lead  # sangría a aplicar al replace
-        r_lines = replace.splitlines()
-        nuevas = []
-        for rl in r_lines:
-            if not rl.strip():
-                nuevas.append("")
-            elif delta >= 0:
-                nuevas.append(" " * delta + rl)
-            else:
-                nuevas.append(rl[min(-delta, len(_lead(rl))):])
-        # Preserva el salto de línea final del bloque original.
-        block_had_nl = c_lines[i + n - 1].endswith("\n")
-        nuevo_bloque = "\n".join(nuevas)
-        if block_had_nl:
-            nuevo_bloque += "\n"
-        return "".join(c_lines[:i]) + nuevo_bloque + "".join(c_lines[i + n:])
-    return None
+        if [w.strip() for w in window] == s_strip:
+            matches.append((i, window))
+    if not matches:
+        return None
+    if len(matches) > 1:
+        raise EditError(
+            f"el SEARCH (ignorando sangria) casa en {len(matches)} lugares del "
+            f"fichero: amplia el SEARCH con mas lineas de contexto hasta que "
+            f"sea UNICO")
+    i, window = matches[0]
+    delta = len(_lead(window[fnb])) - s_lead  # sangría a aplicar al replace
+    r_lines = replace.splitlines()
+    nuevas = []
+    for rl in r_lines:
+        if not rl.strip():
+            nuevas.append("")
+        elif delta >= 0:
+            nuevas.append(" " * delta + rl)
+        else:
+            nuevas.append(rl[min(-delta, len(_lead(rl))):])
+    # Preserva el salto de línea final del bloque original.
+    block_had_nl = c_lines[i + n - 1].endswith("\n")
+    nuevo_bloque = "\n".join(nuevas)
+    if block_had_nl:
+        nuevo_bloque += "\n"
+    return "".join(c_lines[:i]) + nuevo_bloque + "".join(c_lines[i + n:])
 
 
 def _pista_cercana(content: str, search: str) -> str:
@@ -121,6 +146,26 @@ def apply_edit(content: str, search: str, replace: str) -> tuple:
     s0 = search.splitlines()[0].strip() if search.splitlines() else search.strip()
     raise EditError(f"no se encontro el bloque SEARCH (empieza por: {s0!r})"
                     + _pista_cercana(content, search))
+
+
+def mini_diff(old: str, nuevo: str, max_lineas: int = 40,
+              max_chars: int = 1500) -> str:
+    """Diff unificado COMPACTO del cambio aplicado, para devolvérselo al modelo.
+
+    Sin esto el éxito era "OK (n bloques)" y el modelo seguía razonando sobre
+    una versión del fichero que ya no existe (SOTA: str_replace devuelve el
+    fragmento editado). Acotado por líneas y chars para no comerse el contexto;
+    contexto de 2 líneas alcanza para verificar el cambio."""
+    lineas = list(difflib.unified_diff(
+        old.splitlines(), nuevo.splitlines(),
+        fromfile="antes", tofile="despues", lineterm="", n=2))
+    if not lineas:
+        return ""
+    txt = "\n".join(lineas[:max_lineas])
+    if len(lineas) > max_lineas or len(txt) > max_chars:
+        txt = (txt[:max_chars]
+               + f"\n... [diff recortado; {len(lineas)} lineas en total]")
+    return txt
 
 
 def apply_edits(content: str, bloques: list) -> tuple:

@@ -7,7 +7,7 @@ varios bloques, y el error-como-prompt con pista de líneas parecidas."""
 import pytest
 
 from cognia.agent.edit_block import (
-    EditError, apply_edit, apply_edits, parse_bloques,
+    EditError, apply_edit, apply_edits, mini_diff, parse_bloques,
 )
 
 
@@ -79,3 +79,59 @@ def test_reemplazo_multilinea_por_menos_lineas():
     content = "inicio\nviejo1\nviejo2\nviejo3\nfin\n"
     nuevo, como = apply_edit(content, "viejo1\nviejo2\nviejo3", "nuevo_unico")
     assert nuevo == "inicio\nnuevo_unico\nfin\n"
+
+
+# ── unicidad del SEARCH (A7, 2026-08-09) ───────────────────────────────
+# Sin el fix, apply_edit reemplazaba EN SILENCIO la 1ª ocurrencia de un SEARCH
+# repetido: el modelo creia editar la que tenia en mente y editaba otra.
+
+def test_search_ambiguo_exacto_es_error():
+    content = "x = 1\ny = 2\nx = 1\n"
+    with pytest.raises(EditError) as ei:
+        apply_edit(content, "x = 1", "x = 99")
+    msg = str(ei.value)
+    assert "2 veces" in msg and "amplia el SEARCH" in msg
+    # y NO se aplico nada (el caller no escribe si hay excepcion)
+
+
+def test_search_unico_sigue_funcionando():
+    content = "x = 1\ny = 2\n"
+    nuevo, como = apply_edit(content, "x = 1", "x = 99")
+    assert nuevo == "x = 99\ny = 2\n" and como == "exacto"
+
+
+def test_search_ambiguo_por_sangria_es_error():
+    # dos ventanas que casan solo ignorando indentacion (el match exacto da 0
+    # porque el modelo mando el bloque sin sangria): la estrategia de sangria
+    # tambien exige unicidad (antes tomaba la primera ventana)
+    content = ("def a():\n    x = 1\n    y = 2\n"
+               "def b():\n        x = 1\n        y = 2\n")
+    with pytest.raises(EditError) as ei:
+        apply_edit(content, "x = 1\ny = 2", "x = 9\ny = 2")
+    assert "2 lugares" in str(ei.value)
+
+
+def test_ambiguo_dentro_de_apply_edits_nombra_el_bloque():
+    content = "a = 1\na = 1\n"
+    with pytest.raises(EditError) as ei:
+        apply_edits(content, [("a = 1", "a = 2")])
+    assert "bloque 1/1" in str(ei.value) and "amplia el SEARCH" in str(ei.value)
+
+
+# ── mini-diff de vuelta al modelo (A7) ─────────────────────────────────
+
+def test_mini_diff_muestra_el_cambio():
+    d = mini_diff("a\nb\nc\n", "a\nB\nc\n")
+    assert "-b" in d and "+B" in d
+
+
+def test_mini_diff_sin_cambios_es_vacio():
+    assert mini_diff("igual\n", "igual\n") == ""
+
+
+def test_mini_diff_se_recorta():
+    old = "\n".join(f"linea {i}" for i in range(300))
+    new = "\n".join(f"LINEA {i}" for i in range(300))
+    d = mini_diff(old, new)
+    assert "diff recortado" in d
+    assert len(d) < 2000
