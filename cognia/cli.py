@@ -64,15 +64,16 @@ def _nuevo_turno_degradado() -> None:
 
 
 def _aviso_degradado(via: str, detalle: str = "") -> None:
-    """Aviso VISIBLE + registro en el audit, UNA vez por turno y por motivo."""
+    """Aviso VISIBLE + registro en el audit, UNA vez por turno y por motivo.
+
+    2026-08-09: el print crudo "[degradado] via: detalle" a stderr se fue.
+    sin_backend() (via _gritar_degradado) emite el evento Degradado al bus de
+    ux/events — el renderer lo pinta ambar una vez — y si nadie escucha (sin
+    REPL) el propio sin_backend conserva su grito a stderr. Un solo canal."""
     clave = (_TURNO_DEGRADADO[0], via, detalle)
     if clave in _AVISOS_VISTOS:
         return
     _AVISOS_VISTOS.add(clave)
-    try:
-        print(f"[degradado] {via}: {detalle}", file=sys.stderr, flush=True)
-    except Exception:
-        pass
     _gritar_degradado(via, detalle)
 
 # ---------------------------------------------------------------------------
@@ -1555,16 +1556,19 @@ def _show_response(text, color="cyan", respuesta_final=False):
         print(f"\n{text}\n")
 
 
-def _show_footer(elapsed, text):
+def _show_footer(elapsed, text, tokens=None):
     # Metadatos al minimo (estilo conversacional 2026-08-02): una sola linea
     # tenue alineada con la respuesta, sin marca de version. En turnos rapidos
     # (<1s) no aporta nada y no se imprime: menos ruido entre turnos.
-    text   = _to_str(text)
-    tokens = max(1, len(text) // 4)
+    #
+    # Footer HONESTO (2026-08-09): los tokens solo se muestran si el caller
+    # pasa el usage REAL del backend. El "~len//4" historico era un numero
+    # inventado con aspecto de medida — peor que no decir nada.
     if elapsed < 1.0:
         return
     if _HAS_RICH and _console:
-        _console.print(f"[footer]  {elapsed:.1f}s · ~{tokens} tokens[/footer]")
+        extra = f" · {int(tokens)} tokens" if tokens else ""
+        _console.print(f"[footer]  {elapsed:.1f}s{extra}[/footer]")
 
 
 class _VerboseFilter(logging.Filter):
@@ -1610,10 +1614,84 @@ def _run(raw, fn, color=None):
 
 
 # ---------------------------------------------------------------------------
-# Startup panel (two-column, Claude Code style)
+# Arranque de la capa UX (bus de eventos -> renderer + sink JSONL del remoto)
 # ---------------------------------------------------------------------------
 
+def _arranque_ux():
+    """Suscribe el renderer de ux/renderer.py al bus de ux/events.py y activa
+    el sink JSONL si COGNIA_EVENTS_JSONL esta seteado (el canal del remoto).
+
+    Idempotente (suscribir() de-duplica; el sink se activa una vez) y
+    best-effort: el REPL arranca igual sin la capa de presentacion — los
+    productores emiten al vacio y el fallback de cada modulo sigue vivo."""
+    try:
+        from cognia.ux import renderer as _ux_renderer
+        _ux_renderer.activar(console=_console)
+    except Exception:
+        pass
+    try:
+        from cognia.ux import events as _ux_events
+        _ux_events.activar_sink_jsonl()
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Startup panel
+# ---------------------------------------------------------------------------
+# 2026-08-09: el arranque por defecto es COMPACTO (~5 lineas: version, modelo
+# REAL servido segun /props, cwd, hint) al estilo de las CLIs agenticas
+# modernas. El gato Braille + ASCII gigante (~55 lineas) sigue disponible con
+# COGNIA_BANNER=full — es identidad del producto, no el default de cada dia.
+
 def _print_startup_panel():
+    _arranque_ux()
+    if os.environ.get("COGNIA_BANNER", "").strip().lower() == "full":
+        _print_banner_completo()
+        return
+
+    try:
+        from cognia import __version__ as _ver
+    except Exception:
+        _ver = "4"
+
+    # El modelo que va a contestar DE VERDAD: /props del server, no una env
+    # var que puede estar rancia (el baseline 2026-08-09 mostraba Qwythos en
+    # el banner mientras :8080 servia gpt-oss-20b).
+    _modelo_txt, _modelo_warn = "", ""
+    try:
+        from cognia import backend_activo as _ba
+        _e = _ba.estado()
+        if _e.get("modelo"):
+            _modelo_txt = f"{_e['modelo']} (:{_e['puerto']})"
+        else:
+            _modelo_warn = (f"sin backend en {_e['url']} — "
+                            f"arranca: python scripts/servir_flota.py pensar")
+    except Exception:
+        _modelo_txt = "desconocido"
+
+    _cwd = os.getcwd()
+    if _HAS_RICH and _console:
+        _console.print(f"[bright_green]cognia[/bright_green] "
+                       f"[dim]v{_ver} · sistema cognitivo local[/dim]",
+                       highlight=False)
+        if _modelo_txt:
+            _console.print(f"  [dim]modelo[/dim] [cyan]{_escape(_modelo_txt)}[/cyan]",
+                           highlight=False)
+        else:
+            _console.print(f"  [warn_cl]{_escape(_modelo_warn)}[/warn_cl]",
+                           highlight=False)
+        _console.print(f"  [dim]cwd[/dim]    {_escape(_cwd)}", highlight=False)
+        _console.print(f"  [dim]/ayuda para comandos · /hacer <tarea> "
+                       f"para el agente[/dim]", highlight=False)
+    else:
+        print(f"{_G}cognia{_R} v{_ver} · sistema cognitivo local")
+        print(f"  modelo {_modelo_txt or _modelo_warn}")
+        print(f"  cwd    {_cwd}")
+        print("  /ayuda para comandos · /hacer <tarea> para el agente")
+
+
+def _print_banner_completo():
     if not _HAS_RICH or not _console:
         print(_G + _BANNER_RAW + _R)
         return
@@ -1698,54 +1776,32 @@ def _print_startup_panel():
 
 
 # ---------------------------------------------------------------------------
-# Startup animation
+# Startup lines (residuo del init de Cognia)
 # ---------------------------------------------------------------------------
+# 2026-08-09: ya no anima ni duerme. Los ~20 "[OK] subsistema" del init de
+# Cognia() se fueron al logger (archivo); lo que quede en `lines` son avisos
+# reales ([WARN]/[!]) que SIEMPRE se muestran, y las lineas de sesion/
+# continuidad, que salen compactas en una sola pasada. El teatro de ~2s
+# (sleep por linea + barra de progreso falsa) era latencia sin informacion.
 
 def _animate_startup(lines):
     if not _HAS_RICH or not _console:
         for line in lines:
-            print(line)
+            if line.strip():
+                print(line)
         return
 
-    ok_count = 0
     for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
-        if "[OK]" in stripped:
-            rest   = stripped.replace("[OK]", "", 1).strip()
-            parts  = rest.split("  ", 1) if "  " in rest else [rest, ""]
-            name   = parts[0].strip()
-            detail = parts[1].strip() if len(parts) > 1 else ""
-            if detail:
-                _console.print(
-                    f"[ok][[/ok][ok]OK[/ok][ok]][/ok] [mod]{_escape(name)}[/mod]"
-                    f"  [detail]{_escape(detail)}[/detail]"
-                )
-            else:
-                _console.print(f"[ok][[/ok][ok]OK[/ok][ok]][/ok] [mod]{_escape(name)}[/mod]")
-            ok_count += 1
-            time.sleep(0.045)
-        elif "[WARN]" in stripped or "[!]" in stripped:
+        if "[WARN]" in stripped or "[!]" in stripped:
             _console.print(f"[warn_cl]{_escape(stripped)}[/warn_cl]")
+        elif "[OK]" in stripped:
+            rest = stripped.replace("[OK]", "", 1).strip()
+            _console.print(f"  [info_dim]{_escape(rest)}[/info_dim]")
         elif _debug_mode:
             _console.print(f"[info_dim]{_escape(stripped)}[/info_dim]")
-
-    if ok_count > 0:
-        with Progress(
-            SpinnerColumn(style="magenta"),
-            TextColumn("[mod]Iniciando sistema...[/mod]"),
-            BarColumn(bar_width=40, style="cyan", complete_style="bright_green"),
-            TextColumn("[ok]{task.percentage:>3.0f}%[/ok]"),
-            console=_console,
-            transient=True,
-        ) as progress:
-            task = progress.add_task("", total=40)
-            for _ in range(40):
-                time.sleep(0.012)
-                progress.advance(task)
-
-    _console.rule("[dim]Sistema listo[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -2457,6 +2513,14 @@ def _slash_estado(args: str) -> None:
 def _slash_debug():
     global _debug_mode
     _debug_mode = not _debug_mode
+    # /debug tambien sube la CONSOLA del logger a INFO (2026-08-09): con la
+    # consola en WARNING por defecto, este es el interruptor para ver el
+    # detalle en vivo sin reiniciar con COGNIA_LOG_LEVEL.
+    try:
+        from cognia.logger_config import poner_nivel_consola
+        poner_nivel_consola("INFO" if _debug_mode else "WARNING")
+    except Exception:
+        pass
     _print_line(f"[detail]debug {'activado' if _debug_mode else 'desactivado'}[/detail]")
 
 
