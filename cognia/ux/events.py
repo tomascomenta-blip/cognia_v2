@@ -163,11 +163,21 @@ def a_dict(evento: Evento) -> dict:
 
 _sink_jsonl: Optional[object] = None
 
+# Prefijo de las lineas-evento en el modo stdout ('1'). POR QUE: el stdout del
+# CLI mezcla la prosa (respuesta final, ecos de tools) con los eventos, y una
+# linea que empieza en '{' NO basta para distinguirlos — el agente lee y
+# muestra ficheros JSON con toda naturalidad (proyectos.json, transcripciones)
+# y esas lineas se reinterpretarian como eventos. El prefijo hace la
+# clasificacion determinista. Consumidor: cognia/remoto/sesiones.py.
+# El modo archivo NO lleva prefijo: ahi el fichero entero es JSONL puro.
+PREFIJO_STDOUT = "@EV "
+
 
 def activar_sink_jsonl(ruta: str = "") -> None:
     """Suscribe un sink que escribe una linea JSON por evento. Con ruta vacia
     usa COGNIA_EVENTS_JSONL (ruta de archivo) o stdout-linea si vale '1'
-    (el remoto lanza el proceso con esto y consume el stream tipado)."""
+    (el remoto lanza el proceso con esto y consume el stream tipado; cada
+    linea va prefijada con PREFIJO_STDOUT para separarla de la prosa)."""
     global _sink_jsonl
     if _sink_jsonl is not None:
         return
@@ -177,7 +187,7 @@ def activar_sink_jsonl(ruta: str = "") -> None:
 
     if destino == "1":
         def _escribir(linea: str) -> None:
-            print(linea, flush=True)
+            print(PREFIJO_STDOUT + linea, flush=True)
     else:
         f = open(destino, "a", encoding="utf-8")
 
