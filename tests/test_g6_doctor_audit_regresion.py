@@ -126,47 +126,46 @@ class TestFalsoPassDelMarcador:
 
 
 # ────────────────────────────────── 3: flota incompleta ─────────────────────
+# WP6 2026-08-09: check_flota dejo el sondeo /health por /props (el health
+# 200 no dice QUE modelo sirve el puerto: la averia del :8088). El contrato
+# nuevo — apagada = FAIL con la orden exacta, :8081 caido = WARN — se cubre a
+# fondo en tests/test_doctor_flota_props.py; aqui queda la version por props
+# de los tres casos originales del G6.
 
-class _Resp:
-    def __init__(self, status=200):
-        self.status = status
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
-
-
-def _urlopen_puertos(vivos):
-    def _f(url, *a, **k):
-        for p in vivos:
-            if f":{p}/" in url:
-                return _Resp(200)
-        raise OSError("connection refused")
-    return _f
+def _props_puertos(tabla, monkeypatch):
+    """tabla: {puerto: props_dict}; el resto de puertos no responde."""
+    def _f(url, forzar=False):
+        puerto = int(url.rsplit(":", 1)[1].split("/")[0])
+        return tabla.get(puerto, {})
+    monkeypatch.setattr(BA, "props", _f)
 
 
 class TestFlotaIncompleta:
 
     def test_un_puerto_de_dos_es_WARN_y_dice_cual_falta(self, monkeypatch):
-        monkeypatch.setattr(D.urllib.request, "urlopen",
-                            _urlopen_puertos({8080}))
+        _props_puertos({8080: {"modelo": "gpt-oss-20b-mxfp4.gguf",
+                               "puerto": 8080}}, monkeypatch)
         ret, out = _capture(D.check_flota)
+        assert ret is True
         assert "[WARN]" in out and "[OK]" not in out
-        assert "8081" in out and "INCOMPLETA" in out
+        assert "8081" in out
 
     def test_los_dos_puertos_es_OK(self, monkeypatch):
-        monkeypatch.setattr(D.urllib.request, "urlopen",
-                            _urlopen_puertos({8080, 8081}))
+        _props_puertos({8080: {"modelo": "gpt-oss-20b-mxfp4.gguf",
+                               "puerto": 8080},
+                        8081: {"modelo": "Qwen2.5-VL-3B.gguf",
+                               "puerto": 8081}}, monkeypatch)
         ret, out = _capture(D.check_flota)
-        assert "[OK]" in out and "2/2" in out
+        assert ret is True and "[OK]" in out
 
-    def test_ninguno_es_WARN_apagada(self, monkeypatch):
-        monkeypatch.setattr(D.urllib.request, "urlopen",
-                            _urlopen_puertos(set()))
+    def test_ninguno_es_FAIL_apagada_con_la_orden(self, monkeypatch):
+        # Antes era WARN (True) y el doctor terminaba "Todo en orden" con la
+        # flota muerta; ahora FALLA y dice la orden exacta para arrancarla.
+        _props_puertos({}, monkeypatch)
         ret, out = _capture(D.check_flota)
-        assert "[WARN]" in out and "apagada" in out
+        assert ret is False
+        assert "[FAIL]" in out and "apagada" in out
+        assert "python -m cognia flota arrancar" in out
 
 
 # ──────────────────────────── 4: rotacion dentro del lock ───────────────────

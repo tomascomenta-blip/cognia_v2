@@ -79,6 +79,58 @@ def _hf_cli_available() -> bool:
     return shutil.which("huggingface-cli") is not None
 
 
+def detectar_hardware() -> dict:
+    """{'vram_gb': float|None, 'ram_gb': float|None} de esta maquina.
+
+    VRAM via nvidia-smi si existe (la verdad del hardware, no una formula:
+    el KV por token calculado erro 6x — memoria del repo); si no hay GPU
+    NVIDIA queda None y decide la RAM. Nunca lanza: el wizard tiene que
+    correr igual en una maquina sin nada."""
+    vram = None
+    try:
+        r = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5)
+        if r.returncode == 0:
+            megas = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
+            if megas:
+                vram = max(megas) / 1024.0   # MiB -> GiB; la GPU mas grande
+    except Exception:
+        pass
+    ram = None
+    try:
+        import psutil
+        ram = psutil.virtual_memory().total / 2**30
+    except Exception:
+        pass
+    return {"vram_gb": vram, "ram_gb": ram}
+
+
+def recomendar_modelo(hw: dict) -> str:
+    """Una linea corta y honesta: que modelo le conviene a ESTE hardware.
+
+    El instalador pip solo baja el 3B (install_model); los modelos grandes
+    del stack validado (gpt-oss-20b, coder-14b) se sirven desde la flota.
+    Decirlo aqui evita el engano de instalar un 3B en una maquina que puede
+    correr el pensador validado por gate."""
+    vram, ram = hw.get("vram_gb"), hw.get("ram_gb")
+    if vram is not None and vram >= 15:
+        return ("esta GPU corre gpt-oss-20b, el pensador validado por gate "
+                "(instalalo aparte y sirvelo con: python -m cognia flota "
+                "arrancar pensar). El 3B de abajo es el minimo pip.")
+    if vram is not None and vram >= 10:
+        return ("esta GPU corre un 14B-clase (combo 'construir' de la "
+                "flota). El 3B de abajo es el minimo pip.")
+    if vram is not None and vram >= 6:
+        return ("esta GPU corre el 7B de codigo (cognia install-model "
+                "--with-heavy-code). El 3B de abajo es el minimo pip.")
+    if ram is not None and ram < 8:
+        return ("maquina justa (sin GPU NVIDIA y <8GB RAM): el 3B en CPU "
+                "va a ir lento; considera el modo 'solo memoria'.")
+    return "sin GPU NVIDIA detectada: el 3B en CPU es la opcion realista."
+
+
 def _safetensors_available() -> bool:
     try:
         import safetensors   # noqa: F401
@@ -330,6 +382,7 @@ nunca salen de aca. Elegi como queres usarla:
     SHARDS_DIR.mkdir(parents=True, exist_ok=True)
     config["COGNIA_DATA_DIR"] = str(DATA_DIR)
 
+    ok = True
     if mode == "2":
         config["COGNIA_RUN_MODE"] = "compartido"
         _wizard_join_network(config)
@@ -339,13 +392,23 @@ nunca salen de aca. Elegi como queres usarla:
     else:
         mode = "1"
         config["COGNIA_RUN_MODE"] = "local"
-        _wizard_standalone(config)
+        ok = _wizard_standalone(config)
 
     _wizard_personalize(config)
 
     _write_config(config)
-    FIRST_RUN_OK.touch()
-    _wizard_print_done(mode, config)
+    if ok:
+        FIRST_RUN_OK.touch()
+        _wizard_print_done(mode, config)
+    else:
+        # NO se marca FIRST_RUN_OK: un setup con la instalacion del modelo
+        # FALLADA no esta "hecho", y marcarlo escondia el fallo para siempre
+        # (el wizard nunca volvia a ofrecer el modelo y Cognia arrancaba
+        # degradada a fallbacks en cada sesion).
+        print("\n  [!] La instalacion del modelo FALLO. La configuracion se")
+        print("      guardo, pero el setup NO queda marcado como completo.")
+        print("      Reintenta con:  cognia install-model")
+        print("      (el wizard volvera a ofrecerlo en el proximo arranque)")
 
 
 def _wizard_personalize(config: dict) -> None:
@@ -403,10 +466,25 @@ def _wizard_join_network(config: dict) -> None:
         config["COGNIA_MODEL"] = _ask("Modelo Ollama", default="llama3.2")
 
 
-def _wizard_standalone(config: dict) -> None:
+def _wizard_standalone(config: dict) -> bool:
+    """Devuelve False si una instalacion PEDIDA fallo (el llamador entonces
+    NO marca FIRST_RUN_OK). Declinar la descarga es una eleccion del usuario
+    y devuelve True: el setup queda hecho, sin modelo."""
     print("\n-- Local (este equipo) --")
     print("Cognia descarga el modelo y lo corre aca, sin cuenta.")
-    print("Recomendado: GGUF + llama-server + expertos (~2GB, el stack validado).\n")
+
+    # Que puede correr ESTA maquina, medido (nvidia-smi / RAM), no asumido:
+    # pip instala un 3B pero el stack validado por gate es mas grande, y no
+    # decirlo era instalar en silencio un modelo peor del que la maquina da.
+    hw = detectar_hardware()
+    partes = []
+    if hw["vram_gb"] is not None:
+        partes.append(f"VRAM {hw['vram_gb']:.1f} GB (nvidia-smi)")
+    if hw["ram_gb"] is not None:
+        partes.append(f"RAM {hw['ram_gb']:.1f} GB")
+    if partes:
+        print(f"Hardware: {' | '.join(partes)}")
+    print(f"  -> {recomendar_modelo(hw)}\n")
 
     # Camino DEFAULT: stack GGUF (llama-server b9391 + Q4_K_M + fleet de
     # expertos LoRA), el unico con gates medidos (GATES_CLI_VNEXT.md). Los
@@ -418,10 +496,11 @@ def _wizard_standalone(config: dict) -> None:
         try:
             from cognia.model_install import install_model
             install_model(hf_token=hf_token)
-            return   # install_model ya persistio LLAMA_GGUF_PATH/LLAMA_SERVER_PATH
+            return True  # install_model ya persistio LLAMA_GGUF_PATH/LLAMA_SERVER_PATH
         except Exception as exc:
             print(f"\n  [ERROR] Instalacion GGUF fallo: {exc}")
             print("  Podes reintentar luego con: cognia install-model")
+            return False
 
     if _ask_yn("\n(Avanzado) Descargar los 4 shards NPZ (~1.2GB) en su lugar?", default=False):
         hf_token = _ask("HuggingFace token (opcional, Enter para omitir)", default="")
@@ -431,10 +510,12 @@ def _wizard_standalone(config: dict) -> None:
         except Exception as exc:
             print(f"\n  [ERROR] Descarga fallo: {exc}")
             print("  Puedes descargar los pesos luego con: cognia install-weights --standalone")
+            return False
 
     if _ask_yn("\nConfigurar Ollama como fallback adicional?", default=False):
         config["OLLAMA_URL"]   = _ask("URL de Ollama", default="http://localhost:11434")
         config["COGNIA_MODEL"] = _ask("Modelo Ollama", default="llama3.2")
+    return True
 
 
 def _wizard_memory_only(config: dict) -> None:
