@@ -242,7 +242,11 @@ def interpretar_evento(d: dict) -> tuple[str | None, str, list[str]]:
         return "actividad", texto, ecos
     if tipo == "Aviso":
         t = _cabeza(d.get("texto", ""))
-        return ("actividad", f"⚠ {t}", []) if t else (None, "", [])
+        # eco: el renderer imprime el aviso como "  {texto}" SIN marca — sin
+        # registrarlo, la linea pintada entraba al chat como prosa (e2e
+        # 2026-08-09: el "backend: ..." salio duplicado)
+        eco = (d.get("texto", "") or "").strip().split("\n")[0].strip()
+        return ("actividad", f"⚠ {t}", [eco]) if t else (None, "", [])
     if tipo == "Degradado":
         texto = f"degradado — {d.get('donde', '?')}"
         if d.get("motivo"):
@@ -477,6 +481,18 @@ class Sesion:
         # ANTES del gate de arranque: un Degradado emitido durante el arranque
         # (backend caido) es senal, nunca banner.
         d = parsear_evento(linea)
+        resto_prosa = ""
+        if d is None:
+            # evento pegado al FINAL de una prosa a medias: el renderer y el
+            # sink comparten stdout y un print() del sink puede caer en una
+            # linea que el streaming dejo sin \n (medido en el e2e 2026-08-09:
+            # "¡Hola! ¿En qué puedo @EV {...}"). Se separan: el evento se
+            # procesa PRIMERO (registra sus ecos) y la prosa sigue sola.
+            idx = linea.find(_PREFIJO_EV)
+            if idx > 0:
+                d2 = parsear_evento(linea[idx:])
+                if d2 is not None:
+                    d, resto_prosa = d2, linea[:idx].rstrip()
         if d is not None:
             self._con_eventos = True
             quien, texto, ecos = interpretar_evento(d)
@@ -484,6 +500,8 @@ class Sesion:
                 self._ecos_pendientes.append(eco)
             if quien is not None and texto:
                 self.anotar(quien, texto)
+            if resto_prosa.strip():
+                self._procesar_linea(resto_prosa)
             return
         # 2) banner/panel de arranque: se descarta de la transcripcion pero se
         # GUARDA — si el REPL muere aqui, el buffer es el traceback perdido.

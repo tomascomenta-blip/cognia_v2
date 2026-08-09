@@ -301,6 +301,70 @@ def test_sink_stdout_prefija_las_lineas(capsys, monkeypatch):
     assert parsear_evento(salida)["tipo"] == "Aviso"
 
 
+def test_evento_pegado_a_prosa_a_medias_se_separa(tmp_path, monkeypatch):
+    """E2E 2026-08-09: el sink y el renderer comparten stdout y una linea-
+    evento puede caer pegada a una frase a medias del streaming. El evento se
+    procesa y la prosa no se pierde; si la prosa era el ECO del renderer del
+    mismo evento (aviso pintado sin marca), se suprime."""
+    s = _sesion(tmp_path, monkeypatch)
+    s._arrancando = False
+    s._procesar_linea(
+        "  ¡Hola! ¿En qué puedo " + _ev("Aviso", texto="backend: :8080"))
+    got = _transcrito(s)
+    assert ("actividad", "⚠ backend: :8080") in got
+    assert any(q == "cognia" and t.strip() == "¡Hola! ¿En qué puedo"
+               for q, t in got), "la prosa no se pierde"
+    # eco del renderer pegado al MISMO evento en una linea: se suprime entero
+    s._procesar_linea("  backend: :8080 " + _ev("Aviso", texto="backend: :8080"))
+    textos = [t for _, t in _transcrito(s)]
+    assert "backend: :8080" not in textos, "el eco del aviso no va al chat"
+
+
+def test_aviso_eco_del_renderer_no_duplica(tmp_path, monkeypatch):
+    """El renderer imprime el Aviso como '  {texto}' SIN marca: el eco tiene
+    que suprimirse (e2e 2026-08-09: 'backend: ...' salia duplicado, una vez
+    como chat y otra como actividad)."""
+    s = _sesion(tmp_path, monkeypatch)
+    s._arrancando = False
+    s._procesar_linea(_ev("Aviso", texto="backend: gpt-oss-20b :8080"))
+    s._procesar_linea("  backend: gpt-oss-20b :8080")   # eco del renderer
+    got = _transcrito(s)
+    assert got == [("actividad", "⚠ backend: gpt-oss-20b :8080")], got
+
+
+def test_sink_stdout_salta_streaming(capsys, monkeypatch):
+    """TokenTexto/RazonamientoTick NO van por stdout: de alta frecuencia, se
+    entrelazaban con la prosa a medias del renderer en el mismo stdout (e2e
+    2026-08-09). El remoto no los usa; el modo archivo si los guarda."""
+    from cognia.ux import events
+    monkeypatch.setattr(events, "_sink_jsonl", None)
+    monkeypatch.setattr(events, "_suscriptores", [])
+    events.activar_sink_jsonl("1")
+    events.emitir(events.TokenTexto(texto="hola"))
+    events.emitir(events.RazonamientoTick(chars=10))
+    assert capsys.readouterr().out == ""
+    events.emitir(events.Aviso(texto="si sale", origen="test"))
+    assert "@EV" in capsys.readouterr().out
+
+
+def test_sink_stdout_va_primero_que_el_renderer(monkeypatch):
+    """El sink se inserta al FRENTE de los suscriptores: el remoto tiene que
+    ver la linea-evento ANTES de que el renderer pinte su version humana en
+    el mismo stdout (si no, el eco entra al chat antes que el evento)."""
+    from cognia.ux import events
+    monkeypatch.setattr(events, "_sink_jsonl", None)
+    orden = []
+    renderer_falso = lambda ev: orden.append("renderer")
+    monkeypatch.setattr(events, "_suscriptores", [renderer_falso])
+    real_print = print
+    monkeypatch.setattr("builtins.print",
+                        lambda *a, **k: orden.append("sink"))
+    events.activar_sink_jsonl("1")
+    events.emitir(events.Aviso(texto="x", origen="t"))
+    monkeypatch.undo()
+    assert orden == ["sink", "renderer"], orden
+
+
 def test_sink_a_fichero_sigue_sin_prefijo(tmp_path, monkeypatch):
     """El modo archivo es JSONL puro (telemetria): el prefijo es SOLO del
     modo stdout, donde hay prosa mezclada."""

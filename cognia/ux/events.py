@@ -186,9 +186,19 @@ def activar_sink_jsonl(ruta: str = "") -> None:
         return
 
     if destino == "1":
+        # Los eventos de STREAMING no van por stdout: son de alta frecuencia
+        # y se ENTRELAZAN con la prosa que el renderer escribe a medias en el
+        # mismo stdout (medido en el e2e 2026-08-09: "¡Hola! ¿En qué puedo
+        # @EV {TokenTexto...}" — la linea-evento pegada a una frase a medias).
+        # El remoto no los usa (la respuesta llega entera como prosa); el modo
+        # archivo si los guarda todos (telemetria).
+        _saltar = ("TokenTexto", "RazonamientoTick")
+
         def _escribir(linea: str) -> None:
             print(PREFIJO_STDOUT + linea, flush=True)
     else:
+        _saltar = ()
+
         f = open(destino, "a", encoding="utf-8")
 
         def _escribir(linea: str) -> None:
@@ -196,7 +206,17 @@ def activar_sink_jsonl(ruta: str = "") -> None:
             f.flush()
 
     def _sink(evento: Evento) -> None:
+        if type(evento).__name__ in _saltar:
+            return
         _escribir(json.dumps(a_dict(evento), ensure_ascii=False))
 
     _sink_jsonl = _sink
-    suscribir(_sink)
+    # El sink va PRIMERO en la lista de suscriptores: el consumidor remoto
+    # necesita ver la linea-evento ANTES de que el renderer imprima su version
+    # humana en el mismo stdout — asi el clasificador registra el eco y puede
+    # saltarse la linea pintada cuando llegue (si no, el eco del renderer
+    # entra al chat como prosa antes de que el evento lo anuncie; medido en
+    # el e2e 2026-08-09 con un Aviso duplicado).
+    with _lock:
+        if _sink not in _suscriptores:
+            _suscriptores.insert(0, _sink)
