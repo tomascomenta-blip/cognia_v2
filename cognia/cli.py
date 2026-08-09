@@ -1665,12 +1665,22 @@ def _print_startup_panel():
     _arranque_ux()
     if os.environ.get("COGNIA_BANNER", "").strip().lower() != "min":
         _print_banner_completo()
-        # La linea de verdad bajo el banner: que modelo contesta y donde.
+        # La linea de verdad bajo el banner: que modelo contesta y donde
+        # (segun el SERVER, no una env rancia), mas modo y tema.
         try:
             from cognia import backend_activo as _ba
             _e = _ba.estado()
+            try:
+                _modo = _load_config().get("modelo_modo", "flota")
+            except Exception:
+                _modo = "flota"
+            try:
+                _tema = _THEME_ORDER[_theme_idx]
+            except Exception:
+                _tema = ""
+            _sufijo = f"   modo {_modo}" + (f"   tema {_tema}" if _tema else "")
             if _e.get("modelo"):
-                _linea = f"  modelo {_e['modelo']} (:{_e['puerto']})"
+                _linea = f"  modelo {_e['modelo']} (:{_e['puerto']}){_sufijo}"
                 _estilo_ok = True
             else:
                 _linea = (f"  sin backend en {_e['url']} — arranca: "
@@ -1795,20 +1805,10 @@ def _print_banner_completo():
         border_style="bright_green",
         padding=(0, 1),
     ))
-    # Linea de estado compacta (barata, sin red): modelo elegido + modo. Da
-    # contexto inmediato de que backend hablara, al estilo de gh/charm.
-    try:
-        _gguf = os.environ.get("LLAMA_GGUF_PATH", "").strip()
-        _modelo = Path(_gguf).stem if _gguf else "auto-deteccion"
-        _modo = _load_config().get("modelo_modo", "flota")
-        _console.print(
-            f"  [dim]modelo[/dim] [cyan]{_escape(_modelo)}[/cyan]   "
-            f"[dim]modo[/dim] [cyan]{_modo}[/cyan]   "
-            f"[dim]tema[/dim] [cyan]{_THEME_ORDER[_theme_idx]}[/cyan]",
-            highlight=False,
-        )
-    except Exception:
-        pass
+    # La linea de estado que vivia aqui (modelo por LLAMA_GGUF_PATH) MENTIA:
+    # decia Qwythos mientras :8080 servia gpt-oss-20b (baseline 2026-08-09).
+    # El modelo REAL (via el server) lo imprime _print_startup_panel despues
+    # del banner, junto con modo y tema — una sola linea de estado, verdadera.
 
 
 # ---------------------------------------------------------------------------
