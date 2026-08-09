@@ -1547,6 +1547,20 @@ def _show_response(text, color="cyan", respuesta_final=False):
         # Estilo conversacional (2026-08-02), solo terminal: la respuesta va
         # SIN panel — aire arriba, sangria de 2, ancho comodo, aire abajo. El
         # espacio en blanco delimita; el borde era ruido. Fallback al panel.
+        # La respuesta FINAL ademas se renderiza como markdown (obra
+        # 2026-08-09): el modelo escribe **negritas**/`codigo`/listas y verlas
+        # crudas era parte del "se ve sucio". Solo la final: el chrome no.
+        if respuesta_final:
+            try:
+                from rich.markdown import Markdown
+                from rich.padding import Padding
+                _console.print()
+                _console.print(Padding(Markdown(text.strip()), (0, 2)),
+                               style=None)
+                _console.print()
+                return
+            except Exception:
+                pass
         try:
             from cognia.ux.estilo import respuesta as _respuesta_estilo
             _respuesta_estilo(text, console=_console, color=color)

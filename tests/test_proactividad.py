@@ -90,3 +90,40 @@ def test_solo_propone_no_ejecuta():
     nada. Este test fija la firma del contrato."""
     extras = _correr("- crear el fichero config.json con los defaults")
     assert all(isinstance(e, str) for e in extras)
+
+
+def test_presupuesto_cubre_el_pensamiento_con_razonador():
+    """Regresion 2026-08-09: con gpt-oss-20b servido, max_tokens=250 se iba
+    ENTERO en razonamiento y el contenido llegaba vacio — el grito de
+    'NADIE penso en extras' sonaba cada turno con la flota encendida (leccion
+    de los 9 bugs identicos: todo max_tokens debe cubrir el PENSAMIENTO)."""
+    capturado = {}
+
+    def _generar_espia(prompt, **kw):
+        capturado.update(kw)
+        return "NADA"
+
+    with patch("cognia.proactividad.disponible", return_value=True), \
+         patch("cognia.proactividad.generar", side_effect=_generar_espia), \
+         patch("cognia.llm_local.nombre_modelo_servido",
+               return_value="gpt-oss-20b-MXFP4.gguf"):
+        proponer_extras("t", "r")
+    assert capturado["max_tokens"] >= 1024
+    assert capturado["reasoning_effort"] == "low"
+
+
+def test_presupuesto_chico_intacto_sin_razonador():
+    """Con un modelo chico el presupuesto historico (250) no se infla."""
+    capturado = {}
+
+    def _generar_espia(prompt, **kw):
+        capturado.update(kw)
+        return "NADA"
+
+    with patch("cognia.proactividad.disponible", return_value=True), \
+         patch("cognia.proactividad.generar", side_effect=_generar_espia), \
+         patch("cognia.llm_local.nombre_modelo_servido",
+               return_value="qwen2.5-3b-instruct.gguf"):
+        proponer_extras("t", "r")
+    assert capturado["max_tokens"] == 250
+    assert capturado["reasoning_effort"] is None

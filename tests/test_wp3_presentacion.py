@@ -104,20 +104,28 @@ def test_footer_sin_tokens_no_inventa(bus_limpio, capsys):
     assert "tokens" not in out
 
 
-def test_respuesta_final_sin_stream_se_imprime(bus_limpio, capsys):
+def test_tarea_fin_no_imprime_el_resumen(bus_limpio, capsys):
+    # Contrato desde 2026-08-09 (fix del e2e): TareaFin se emite ANTES del
+    # post-procesado de cli.py (adjuntos, 2a pasada), asi que su resumen esta
+    # incompleto y el handler de /hacer ya muestra la respuesta enriquecida.
+    # El renderer imprime SOLO el footer; el resumen viaja en el evento para
+    # el sink JSONL/remoto. Imprimirlo aqui duplicaba la respuesta final.
     events.emitir(events.TareaFin(ok=True, resumen="# Titulo\n- item",
-                                  duracion_s=0.1))
+                                  duracion_s=2.0, pasos=2))
     out = capsys.readouterr().out
-    assert "Titulo" in out and "item" in out
+    assert "Titulo" not in out and "item" not in out
+    assert "2.0s" in out                         # el footer si sale
 
 
 def test_evento_malformado_no_rompe(bus_limpio, capsys):
     # emitir() es no-lanzante y el renderer se guarda a si mismo: un evento
-    # con campos raros no puede tumbar el turno.
+    # con campos raros no puede tumbar el turno (el footer del TareaFin
+    # posterior debe seguir saliendo).
     events.emitir(events.ToolFin(tool=None, args=None, ok=True, resumen=None))
     events.emitir(events.TokenTexto(texto=None))
-    events.emitir(events.TareaFin(ok=True, resumen="sigo vivo", duracion_s=0.0))
-    assert "sigo vivo" in capsys.readouterr().out
+    events.emitir(events.TareaFin(ok=True, resumen="sigo vivo",
+                                  duracion_s=3.0, pasos=1))
+    assert "3.0s" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------

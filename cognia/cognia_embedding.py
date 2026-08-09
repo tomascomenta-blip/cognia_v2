@@ -54,6 +54,16 @@ def _has_semantic_backend() -> bool:
 
 _HAS_SEMANTIC = _has_semantic_backend()
 
+# El logger del modulo: los avisos de degradacion son telemetria (van al
+# archivo de logs), no conversacion — imprimirlos en medio de un turno del
+# agente era parte del ruido medido en la obra 2026-08-09.
+try:
+    from cognia.logger_config import get_logger
+    _log = get_logger("cognia.embedding")
+except Exception:                            # scripts sueltos sin el paquete
+    import logging
+    _log = logging.getLogger("cognia.embedding")
+
 
 # ══════════════════════════════════════════════════════════════════════
 # 1. LAZY MODEL — carga diferida + double-checked locking
@@ -81,15 +91,27 @@ class LazyEmbeddingModel:
             with cls._lock:
                 if not cls._loaded:
                     try:
+                        # HF/transformers imprimen barras tqdm y warnings de
+                        # token EN MEDIO del turno si no se silencian ANTES
+                        # del import (medido en la obra 2026-08-09).
+                        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+                        os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+                        os.environ.setdefault("HF_HUB_VERBOSITY", "error")
+                        try:
+                            from transformers.utils import logging as _hf_log
+                            _hf_log.set_verbosity_error()
+                            _hf_log.disable_progress_bar()
+                        except Exception:
+                            pass
                         from sentence_transformers import SentenceTransformer
                         cls._model = SentenceTransformer(
                             "all-MiniLM-L6-v2",
                             device="cpu"
                         )
-                        print("[cognia_embedding] all-MiniLM-L6-v2 cargado (lazy)")
+                        _log.info("all-MiniLM-L6-v2 cargado (lazy)")
                     except ImportError:
                         cls._model = None
-                        print("[cognia_embedding] sentence-transformers no disponible -- usando n-gramas")
+                        _log.info("sentence-transformers no disponible -- usando n-gramas")
                     cls._loaded = True
         return cls._model
 
@@ -166,19 +188,19 @@ class AsyncEmbeddingQueue:
             # espacio vectorial y envenena el retrieval).
             if _HAS_SEMANTIC and not LazyEmbeddingModel._loaded:
                 if not event.wait(timeout=self.COLD_LOAD_TIMEOUT):
-                    print("[cognia_embedding] AVISO: modelo semantico no cargo en "
-                          f"{self.COLD_LOAD_TIMEOUT:.0f}s -- vector n-gram degradado "
-                          f"para '{key[:40]}...'")
+                    _log.warning("modelo semantico no cargo en %.0fs -- vector "
+                                 "n-gram degradado para '%s...'",
+                                 self.COLD_LOAD_TIMEOUT, key[:40])
                     return _ngram_vector(key, self._dim)
             else:
-                print("[cognia_embedding] AVISO: timeout de encode (5s) sin modelo "
-                      f"semantico -- vector n-gram degradado para '{key[:40]}...'")
+                _log.info("timeout de encode (5s) sin modelo semantico -- "
+                          "vector n-gram degradado para '%s...'", key[:40])
                 return _ngram_vector(key, self._dim)
 
         result = self._results.pop(key, None)
         if result is None:
-            print(f"[cognia_embedding] AVISO: sin resultado del batcher para "
-                  f"'{key[:40]}...' -- vector n-gram degradado")
+            _log.info("sin resultado del batcher para '%s...' -- vector "
+                      "n-gram degradado", key[:40])
             return _ngram_vector(key, self._dim)
         return result
 
@@ -296,7 +318,7 @@ def get_embedding_queue(throttle_controller=None, vector_dim: int = 384) -> Asyn
                     throttle_controller=throttle_controller,
                     vector_dim=vector_dim,
                 )
-                print("[cognia_embedding] AsyncEmbeddingQueue iniciado")
+                _log.info("AsyncEmbeddingQueue iniciado")
     return _global_queue
 
 

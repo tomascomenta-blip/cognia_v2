@@ -379,9 +379,6 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             result_text = f"(el agente no pudo hablar con el modelo: {resp.error})"
             break
 
-        if _ev is not None:
-            _emitir(_ev.PasoIntencion(paso=pasos, intencion=_intencion_de(resp)))
-
         if not resp.tool_calls:
             # FIN NATURAL: respuesta sin tool calls = respuesta final. Este es
             # el contrato del regimen nativo (adios "cierro con PROSA degradado").
@@ -392,6 +389,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 print_fn("[warn_cl]respuesta final truncada por max_tokens "
                          f"({sampling['max_tokens']})[/warn_cl]")
             break
+
+        # La intencion se emite SOLO cuando hay tools que ejecutar: en el
+        # turno final la "intencion" seria la primera linea de la respuesta
+        # misma y saldria duplicada en pantalla (cazado en el e2e 2026-08-09).
+        if _ev is not None:
+            _emitir(_ev.PasoIntencion(paso=pasos, intencion=_intencion_de(resp)))
 
         mensajes.append(mensaje_assistant(resp))
         for tc in resp.tool_calls:

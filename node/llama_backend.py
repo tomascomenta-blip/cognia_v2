@@ -731,9 +731,13 @@ class _LlamaServerBackend:
         # reventaba el propio logging (TypeError en emit, medido 2026-07-20).
         ctx_esperado = self._ctx_size if self._ctx_size is not None else _ctx_size()
         if summary["n_ctx"] is not None and summary["n_ctx"] != ctx_esperado:
-            logger.warning("[llama_backend] adopted server n_ctx=%s != expected "
-                           "ctx_size=%d — results may differ from a self-started "
-                           "server", summary["n_ctx"], ctx_esperado)
+            # info y no warning: desde la obra 2026-08-09 el camino del agente
+            # presupuesta contra el n_ctx REAL del server (via /props), asi que
+            # adoptar un server con otro ctx es una condicion manejada, no una
+            # averia que gritar en consola en cada arranque.
+            logger.info("[llama_backend] adopted server n_ctx=%s != expected "
+                        "ctx_size=%d — results may differ from a self-started "
+                        "server", summary["n_ctx"], ctx_esperado)
 
     def _check_adopted_static_lora(self) -> None:
         """Server adoptado cuando se pidio LoRA estatica: exigir que ESE server

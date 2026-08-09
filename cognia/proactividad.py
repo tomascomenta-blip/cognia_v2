@@ -80,8 +80,19 @@ def proponer_extras(tarea: str, respuesta: str,
             f"exactly: NADA"
         )
 
-        respuesta_llm = generar(prompt, temperature=0.4, max_tokens=250,
-                                via="proactividad")
+        # Presupuesto de razonador (leccion "9 bugs identicos", cazado de
+        # nuevo aqui 2026-08-09): con gpt-oss-20b los 250 tokens se iban
+        # ENTEROS en pensamiento y el contenido llegaba vacio — el grito de
+        # abajo sonaba cada turno con la flota encendida. El max_tokens debe
+        # cubrir pensamiento + respuesta; effort bajo porque proponer extras
+        # no amerita razonar largo.
+        from .llm_local import es_razonador_grande, nombre_modelo_servido, presupuesto_chat
+        _razonador = es_razonador_grande(nombre_modelo_servido())
+        respuesta_llm = generar(
+            prompt, temperature=0.4,
+            max_tokens=presupuesto_chat(250, _razonador, piso_razonador=1024),
+            reasoning_effort="low" if _razonador else None,
+            via="proactividad")
         if not respuesta_llm:
             _grito("el modelo residente no devolvio nada: NADIE penso en "
                    "extras para el usuario")

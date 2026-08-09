@@ -228,8 +228,12 @@ class Renderer:
         if self._flujo is not None:
             # la respuesta ya se streameo: no re-imprimirla, solo cerrar
             self._cerrar_flujo()
-        elif ev.resumen:
-            self._respuesta_final(ev.resumen, ok=ev.ok)
+        # El resumen del evento NO se imprime aqui (cazado en el e2e
+        # 2026-08-09): TareaFin se emite ANTES del post-procesado de cli.py
+        # (adjuntos de rutas, 2a pasada), asi que el texto del evento esta
+        # incompleto y ademas el handler de /hacer muestra la respuesta
+        # enriquecida — imprimirla aqui la duplicaba. El resumen queda en el
+        # evento para el sink JSONL/remoto; en pantalla va solo el footer.
         self._footer(ev)
 
     # -- respuesta final y footer ------------------------------------------
