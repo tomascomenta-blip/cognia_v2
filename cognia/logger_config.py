@@ -26,17 +26,31 @@ import functools
 from typing import Any, Callable, Optional, TypeVar
 
 # ── Configuración global ───────────────────────────────────────────────
-LOG_LEVEL      = os.environ.get("COGNIA_LOG_LEVEL", "INFO").upper()
+# POR QUE WARNING en consola (2026-08-09): el arranque del REPL mostraba ~12
+# lineas INFO con formato de servidor (vector_cache, mesh_node, key_manager...)
+# ANTES del banner, y mas INFO en medio de cada turno — ruido que tapaba la
+# respuesta (evidencia baseline 2026-08-09). La consola es para el usuario:
+# WARNING+ en formato corto humano. El detalle INFO/DEBUG va SIEMPRE al
+# archivo (~/.cognia/logs/cognia.log), donde se diagnostica sin ensuciar el
+# turno. COGNIA_LOG_LEVEL=INFO|DEBUG (o /debug en el REPL) sube la consola.
+LOG_LEVEL      = os.environ.get("COGNIA_LOG_LEVEL", "WARNING").upper()
 LOG_TO_FILE    = os.environ.get("COGNIA_LOG_FILE", "")        # path o vacío
 LOG_MAX_BYTES  = 5 * 1024 * 1024   # 5 MB por archivo de log
 LOG_BACKUP_COUNT = 3               # mantener 3 archivos históricos
 
+# Archivo por defecto si COGNIA_LOG_FILE no lo pisa. Vive junto a la DB para
+# que "todo lo de Cognia esta en ~/.cognia" siga siendo verdad.
+_LOG_DIR_DEFAULT = os.path.join(os.path.expanduser("~"), ".cognia", "logs")
+
 # ── Formato de log ─────────────────────────────────────────────────────
-# Columnas fijas para facilitar grep y parseo en producción
+# Columnas fijas para facilitar grep y parseo en producción (ARCHIVO)
 LOG_FORMAT = (
     "%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s"
     " | %(op)s | %(context)s"
 )
+# Consola: corto y humano. El asctime/op/context son para el archivo; en
+# pantalla solo importa quien avisa y que dice.
+LOG_FORMAT_CONSOLA = "%(levelname)s %(name)s: %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # ── Campos extra por defecto ───────────────────────────────────────────
@@ -80,46 +94,76 @@ class _ColorFormatter(logging.Formatter):
 
 
 # ── Construcción del logger raíz de Cognia ────────────────────────────
+# El handler de consola vive en el modulo para que /debug pueda subirle el
+# nivel en caliente sin reconstruir nada.
+_CONSOLE_HANDLER: Optional[logging.Handler] = None
+
+
+def _nivel(nombre: str, fallback: int) -> int:
+    return getattr(logging, (nombre or "").upper(), fallback)
+
+
 def _build_root_logger() -> logging.Logger:
+    global _CONSOLE_HANDLER
     root = logging.getLogger("cognia")
-    root.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+    nivel_consola = _nivel(LOG_LEVEL, logging.WARNING)
+    # El raiz deja pasar como minimo INFO (para el archivo) y baja a DEBUG
+    # solo si la consola lo pide: formatear DEBUG de todos los modulos en
+    # cada turno costaria mas que lo que informa.
+    root.setLevel(min(nivel_consola, logging.INFO))
 
     if root.handlers:
         return root  # ya inicializado (p.ej. en tests o reload)
 
-    # Handler de consola
+    # Handler de consola: WARNING+ por defecto, formato corto humano.
     console = logging.StreamHandler(sys.stderr)
-    console.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
-    console.setFormatter(_ColorFormatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT))
+    console.setLevel(nivel_consola)
+    console.setFormatter(_ColorFormatter(LOG_FORMAT_CONSOLA))
     console.addFilter(_DefaultsFilter())
     root.addHandler(console)
+    _CONSOLE_HANDLER = console
 
-    # Handler de archivo (opcional — activar con COGNIA_LOG_FILE=/ruta/cognia.log)
-    if LOG_TO_FILE:
-        try:
-            file_handler = logging.handlers.RotatingFileHandler(
-                LOG_TO_FILE,
-                maxBytes=LOG_MAX_BYTES,
-                backupCount=LOG_BACKUP_COUNT,
-                encoding="utf-8",
-            )
-            file_handler.setLevel(logging.DEBUG)  # archivo guarda DEBUG siempre
-            file_handler.setFormatter(
-                logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
-            )
-            file_handler.addFilter(_DefaultsFilter())
-            root.addHandler(file_handler)
-        except OSError as exc:
-            root.warning(
-                "No se pudo abrir el archivo de log",
-                extra={"op": "logger_init", "context": f"path={LOG_TO_FILE} err={exc}"},
-            )
+    # Handler de archivo: SIEMPRE activo (antes era opt-in via COGNIA_LOG_FILE
+    # y en la practica nadie lo activaba: el INFO iba a la pantalla o a ningun
+    # lado). COGNIA_LOG_FILE pisa la ruta por defecto.
+    ruta_log = LOG_TO_FILE
+    try:
+        if not ruta_log:
+            os.makedirs(_LOG_DIR_DEFAULT, exist_ok=True)
+            ruta_log = os.path.join(_LOG_DIR_DEFAULT, "cognia.log")
+        file_handler = logging.handlers.RotatingFileHandler(
+            ruta_log,
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(logging.DEBUG)  # archivo guarda todo lo que llegue
+        file_handler.setFormatter(
+            logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
+        )
+        file_handler.addFilter(_DefaultsFilter())
+        root.addHandler(file_handler)
+    except OSError as exc:
+        root.warning(
+            "No se pudo abrir el archivo de log",
+            extra={"op": "logger_init", "context": f"path={ruta_log} err={exc}"},
+        )
 
     root.propagate = False
     return root
 
 
 _ROOT_LOGGER = _build_root_logger()
+
+
+def poner_nivel_consola(nivel: str) -> None:
+    """Sube/baja el nivel de la CONSOLA en caliente (lo usa /debug del REPL).
+    El archivo no se toca: siempre recibe el detalle."""
+    n = _nivel(nivel, logging.WARNING)
+    if _CONSOLE_HANDLER is not None:
+        _CONSOLE_HANDLER.setLevel(n)
+    # el raiz debe dejar pasar lo que la consola quiere ver
+    _ROOT_LOGGER.setLevel(min(n, logging.INFO))
 
 
 def get_logger(module_name: str) -> logging.Logger:

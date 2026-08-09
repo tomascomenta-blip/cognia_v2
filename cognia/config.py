@@ -8,6 +8,13 @@ import importlib.util
 import os
 from pathlib import Path
 
+# Los avisos de import-time van al logger, no a print(): `import cognia` no
+# debe ensuciar stdout (2026-08-09; antes imprimia 3-4 lineas [OK]/[WARN] en
+# cada import, incluidas las corridas de pytest y el remoto). Lo sano es
+# DEBUG (al archivo); la degradacion real (dependencia faltante) es WARNING.
+from .logger_config import get_logger
+logger = get_logger(__name__)
+
 # ── Base de datos ──────────────────────────────────────────────────────
 # Absolute path so the DB is the same regardless of working directory.
 # Respects COGNIA_DB_PATH env var for custom installations.
@@ -23,7 +30,7 @@ try:
 except ImportError:
     HAS_FATIGUE = False
     _FATIGUE_MONITOR = None
-    print("[WARN] fatiga_cognitiva.py no encontrado - sin monitor de fatiga")
+    logger.warning("fatiga_cognitiva.py no encontrado - sin monitor de fatiga")
 
 NORMAL_CYCLE_MS_ENERGY = 80.0  # ref para normalizar energy_estimate
 
@@ -34,7 +41,7 @@ try:
 except ImportError:
     HAS_PLANNER = False
     ReasoningPlanner = None
-    print("[WARN] ReasoningPlanner no disponible")
+    logger.warning("ReasoningPlanner no disponible")
 
 try:
     from cognia_v3.core.curiosity_engine import CuriosityEngine as ActiveCuriosityEngine
@@ -42,7 +49,7 @@ try:
 except ImportError:
     HAS_CURIOSITY_ENGINE = False
     ActiveCuriosityEngine = None
-    print("[WARN] CuriosityEngine no disponible")
+    logger.warning("CuriosityEngine no disponible")
 
 try:
     from .language_engine import get_language_engine
@@ -82,9 +89,9 @@ HAS_SEMANTIC = importlib.util.find_spec("sentence_transformers") is not None
 VECTOR_DIM   = 384
 
 if HAS_SEMANTIC:
-    print("[OK] sentence-transformers detectado (se cargara en primer uso)")
+    logger.debug("sentence-transformers detectado (se cargara en primer uso)")
 else:
-    print("[WARN] sentence-transformers no encontrado. Usando n-gramas.")
+    logger.warning("sentence-transformers no encontrado. Usando n-gramas.")
 
 # PORQUE find_spec: el simbolo `np` NO se usaba en este modulo y HAS_NUMPY no
 # tiene ningun consumidor en todo el repo (grep 2026-07-23), asi que el import
@@ -93,7 +100,7 @@ else:
 # memory/semantic_search.py, semantic_cache.py) lo importan por su cuenta.
 HAS_NUMPY = importlib.util.find_spec("numpy") is not None
 if not HAS_NUMPY:
-    print("[WARN] numpy no encontrado. Clustering basico disponible.")
+    logger.warning("numpy no encontrado. Clustering basico disponible.")
 
 # PORQUE find_spec y no `import networkx`: importar networkx aca costaba 110ms
 # de los 436ms de `import cognia` (medido con -X importtime en la maquina del
@@ -104,9 +111,9 @@ if not HAS_NUMPY:
 # HAS_NETWORKX sigue significando exactamente lo mismo.
 HAS_NETWORKX = importlib.util.find_spec("networkx") is not None
 if HAS_NETWORKX:
-    print("[OK] networkx cargado (knowledge graph activo)")
+    logger.debug("networkx cargado (knowledge graph activo)")
 else:
-    print("[WARN] networkx no encontrado. Instala con: pip install networkx")
+    logger.warning("networkx no encontrado. Instala con: pip install networkx")
 
 # ── Cache de embeddings ───────────────────────────────────────────────
 _embedding_cache = BoundedLRUCache(max_entries=512)

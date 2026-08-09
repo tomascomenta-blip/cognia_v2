@@ -60,8 +60,26 @@ _ultimo: dict = {}
 
 
 def _silencioso() -> bool:
-    """COGNIA_BACKEND_LOG=0 apaga la linea de stderr (no el jsonl)."""
+    """COGNIA_BACKEND_LOG=0 apaga la linea visible (no el jsonl)."""
     return os.environ.get("COGNIA_BACKEND_LOG", "1").strip() == "0"
+
+
+def _emitir_evento(evento) -> bool:
+    """Publica en el bus de ux/events (2026-08-09). Devuelve True si habia al
+    menos un suscriptor: sin oyentes (scripts, tests, procesos sin REPL) el
+    llamador conserva su print a stderr — pasar de "grita siempre" a "grita
+    solo si alguien escucha" seria reabrir la degradacion silenciosa.
+
+    Se mira events._suscriptores directamente porque el contrato del bus no
+    expone un 'hay oyentes' y este modulo no puede modificarlo; el acceso va
+    guardado y un fallo aqui solo significa 'usa el fallback'."""
+    try:
+        from cognia.ux import events as _ev
+        con_oyentes = bool(_ev._suscriptores)
+        _ev.emitir(evento)
+        return con_oyentes
+    except Exception:
+        return False
 
 
 def props(url: str, forzar: bool = False) -> dict:
@@ -227,10 +245,23 @@ def registrar(via: str, url: str, rol: str = "", **extra) -> dict:
     _ultimo = fila
     _append(fila)
     if not _silencioso():
-        # ascii: la consola de esta maquina es cp1252.
-        print(f"[backend] via={fila['via']} modelo={fila['modelo']} "
-              f"puerto={fila['puerto']}" + (f" rol={rol}" if rol else ""),
-              file=sys.stderr, flush=True)
+        # Al bus de ux/events: el renderer del CLI lo muestra UNA vez por
+        # turno (esta linea salia 10+ veces por turno y tapaba la respuesta,
+        # evidencia baseline 2026-08-09). El jsonl de arriba conserva TODAS.
+        visto = False
+        try:
+            from cognia.ux.events import Aviso
+            visto = _emitir_evento(Aviso(
+                texto=(f"backend: {fila['modelo']} :{fila['puerto']} "
+                       f"via {fila['via']}" + (f" rol={rol}" if rol else "")),
+                origen="backend_activo"))
+        except Exception:
+            visto = False
+        if not visto:
+            # ascii: la consola de esta maquina es cp1252.
+            print(f"[backend] via={fila['via']} modelo={fila['modelo']} "
+                  f"puerto={fila['puerto']}" + (f" rol={rol}" if rol else ""),
+                  file=sys.stderr, flush=True)
     return fila
 
 
@@ -253,10 +284,23 @@ def sin_backend(via: str, detalle: str = "") -> dict:
     }
     _ultimo = fila
     _append(fila)
-    print(f"[backend] DEGRADADO: '{via}' sin backend LLM -- "
-          f"{detalle or 'no responde ningun servidor'}. "
-          f"Arranca la flota: python scripts/servir_flota.py construir",
-          file=sys.stderr, flush=True)
+    # Evento Degradado al bus (el renderer lo pinta ambar, una vez por turno)
+    # y, si NADIE escucha, el grito clasico a stderr: la degradacion tiene que
+    # verse en ambos mundos, con o sin REPL.
+    visto = False
+    try:
+        from cognia.ux.events import Degradado
+        visto = _emitir_evento(Degradado(
+            donde=via,
+            motivo=detalle or "no responde ningun servidor",
+            accion_sugerida="python scripts/servir_flota.py construir"))
+    except Exception:
+        visto = False
+    if not visto:
+        print(f"[backend] DEGRADADO: '{via}' sin backend LLM -- "
+              f"{detalle or 'no responde ningun servidor'}. "
+              f"Arranca la flota: python scripts/servir_flota.py construir",
+              file=sys.stderr, flush=True)
     return fila
 
 

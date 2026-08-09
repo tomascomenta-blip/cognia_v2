@@ -199,7 +199,11 @@ class Cognia:
     """
 
     def __init__(self, db_path: str = DB_PATH):
-        print("\n[>>] Iniciando COGNIA v3...")
+        # Los "[OK] <subsistema> activo" del arranque van al logger (archivo),
+        # no a print(): eran ~20 lineas de stdout en cada construccion de
+        # Cognia() y el REPL las replayaba con animacion (2026-08-09). El
+        # detalle sigue integro en ~/.cognia/logs/cognia.log.
+        logger.info("Iniciando COGNIA v3...")
         self.db = db_path
         init_db(db_path)
 
@@ -238,7 +242,7 @@ class Cognia:
             _custom_attention = self.cognitive_profile.build_attention_system()
             if _custom_attention is not None:
                 self.attention = _custom_attention
-            print(f"[OK] CognitiveProfile cargado: {self.cognitive_profile}")
+            logger.info(f"CognitiveProfile cargado: {self.cognitive_profile}")
         else:
             self._profile_manager  = None
             self.cognitive_profile = None
@@ -249,7 +253,7 @@ class Cognia:
         try:
             from .goal_and_pattern_engine import GoalAndPatternEngine
             self._goal_engine = GoalAndPatternEngine(db_path)
-            print("[OK] GoalAndPatternEngine PASOS 7+8 activo")
+            logger.info("GoalAndPatternEngine PASOS 7+8 activo")
         except Exception as _gpe_exc:
             logger.warning(
                 "GoalAndPatternEngine no pudo inicializarse",
@@ -276,19 +280,19 @@ class Cognia:
 
         self.planner = ReasoningPlanner(db_path) if HAS_PLANNER else None
         if self.planner:
-            print("[OK] ReasoningPlanner activo")
+            logger.info("ReasoningPlanner activo")
 
         self.curiosity_engine = ActiveCuriosityEngine(db_path) if HAS_CURIOSITY_ENGINE else None
         if self.curiosity_engine:
-            print("[OK] CuriosityEngine activo")
+            logger.info("CuriosityEngine activo")
 
         if HAS_RESEARCH_ENGINE:
-            print("[OK] ResearchEngine (investigacion autonoma durante sueno) activo")
+            logger.info("ResearchEngine (investigacion autonoma durante sueno) activo")
 
         self._hobby_idle_seconds    = 0.0
         self._last_interaction_time = time.time()
         if HAS_PROGRAM_CREATOR:
-            print("[OK] ProgramCreator (hobby de programacion) activo")
+            logger.info("ProgramCreator (hobby de programacion) activo")
 
         self._lang = self.user_profile.get("lang", "es")
 
@@ -326,21 +330,21 @@ class Cognia:
         # ── Paso 3: módulos de aprendizaje ─────────────────────────────
         self.teacher = get_teacher(self, db_path) if HAS_TEACHER else None
         if self.teacher:
-            print("[OK] TeacherInterface activo")
+            logger.info("TeacherInterface activo")
 
         self.collapse_guard = ModelCollapseGuard(db_path) if HAS_COLLAPSE_GUARD else None
         if self.collapse_guard:
-            print("[OK] ModelCollapseGuard activo")
+            logger.info("ModelCollapseGuard activo")
 
         self.language_corrector = LanguageCorrector() if HAS_LANGUAGE_CORRECTOR else None
         if self.language_corrector:
-            print("[OK] LanguageCorrector activo")
+            logger.info("LanguageCorrector activo")
 
         # ── PASO 5: FeedbackEngine (aprendizaje por feedback) ──────────
         try:
             from cognia_v3.core.feedback_engine import get_feedback_engine
             self._feedback_engine = get_feedback_engine(db_path)
-            print("[OK] FeedbackEngine PASO 5 activo")
+            logger.info("FeedbackEngine PASO 5 activo")
         except ImportError:
             self._feedback_engine = None
 
@@ -351,7 +355,7 @@ class Cognia:
                 db_path,
                 consolidation_interval=self.consolidation_interval,
             )
-            print("[OK] ConsolidationEngine PASO 6 activo")
+            logger.info("ConsolidationEngine PASO 6 activo")
         except ImportError:
             self._consolidation_engine = None
 
@@ -360,7 +364,7 @@ class Cognia:
         if HAS_MESH:
             try:
                 self._mesh_node = get_mesh_node()
-                print("[OK] CogniaMeshNode Fase 3 activo (modo LOCAL_ONLY hasta start_mesh())")
+                logger.info("CogniaMeshNode Fase 3 activo (modo LOCAL_ONLY hasta start_mesh())")
             except Exception as _mesh_exc:
                 logger.warning(
                     "MeshNode no pudo inicializarse",
@@ -371,7 +375,7 @@ class Cognia:
         if HAS_SELF_ARCHITECT:
             try:
                 self.architect = SelfArchitect(db_path=db_path, cognia_instance=self)
-                print("[OK] SelfArchitect v4 activo")
+                logger.info("SelfArchitect v4 activo")
             except Exception as _arch_exc:
                 # sin log, el arquitecto desaparecia en silencio toda la sesion
                 logger.warning(
@@ -389,7 +393,7 @@ class Cognia:
         if HAS_SECURITY:
             try:
                 self._key_manager = get_key_manager()
-                print("[OK] KeyManager Fase 4 activo (bloqueado - usa: desbloquear <passphrase>)")
+                logger.info("KeyManager Fase 4 activo (bloqueado - usa: desbloquear <passphrase>)")
             except Exception as _sec_exc:
                 logger.warning(
                     "KeyManager no pudo inicializarse",
@@ -400,7 +404,7 @@ class Cognia:
         try:
             from cognia.memory.adapter_store import AdapterStore
             self._adapter_store = AdapterStore()
-            print("[OK] ELC AdapterStore activo")
+            logger.info("ELC AdapterStore activo")
         except ImportError:
             self._adapter_store = None
 
@@ -421,9 +425,9 @@ class Cognia:
                 mode="local" if _swarm_off() else "auto",
             )
             if self._orchestrator.shards_ready():
-                print("[OK] ShatteringOrchestrator activo (shards Qwen disponibles)")
+                logger.info("ShatteringOrchestrator activo (shards Qwen disponibles)")
             else:
-                print("[OK] ShatteringOrchestrator activo (shards no encontrados — backend llama.cpp/GGUF on-demand)")
+                logger.info("ShatteringOrchestrator activo (shards no encontrados — backend llama.cpp/GGUF on-demand)")
         except Exception as _orch_exc:
             logger.warning(
                 "ShatteringOrchestrator no pudo inicializarse",
@@ -443,14 +447,14 @@ class Cognia:
                 daemon=True,
             )
             _seed_t.start()
-            print("[OK] KnowledgeCache activo + seed estatico iniciado en background")
+            logger.info("KnowledgeCache activo + seed estatico iniciado en background")
         except Exception as _kc_exc:
             logger.warning(
                 "KnowledgeCache/KnowledgeSeeder no pudo inicializarse",
                 extra={"op": "cognia.__init__", "context": f"err={_kc_exc}"},
             )
 
-        print("[OK] COGNIA v3.2 lista. [KG + Inferencia + Objetivos + Prediccion Temporal + Historial]\n")
+        logger.info("COGNIA v3.2 lista. [KG + Inferencia + Objetivos + Prediccion Temporal + Historial]")
 
     # ── API pública ────────────────────────────────────────────────────
 
