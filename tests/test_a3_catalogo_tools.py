@@ -93,6 +93,18 @@ def test_visible_tools_no_oculta_con_flag_activo(monkeypatch):
 
 
 # ── buscar: skip de grandes/binarios/venvs + deadline ──────────────────────
+# Estos tests fijan las garantias del scanner de FALLBACK (skip de grandes/
+# binarios/venvs + deadline). Se escribieron cuando `rg` no estaba instalado;
+# hoy SI esta en el PATH y contesta el, asi que hay que sacarlo de juego
+# explicitamente (mismo patron que test_buscar_declara_el_corte...) — si no,
+# los 4 fallaban por el ambiente, no por el producto (verificado 2026-08-09
+# corriendo el checkout intacto: fallan igual sin ningun cambio).
+
+@pytest.fixture
+def sin_rg(monkeypatch):
+    monkeypatch.setattr(T.subprocess, "run",
+                        lambda *a, **k: (_ for _ in ()).throw(OSError("sin rg")))
+
 
 def test_dir_saltable_cubre_venvs_y_datos():
     assert T._dir_saltable(("x", "venv312gpu", "y"))
@@ -101,7 +113,7 @@ def test_dir_saltable_cubre_venvs_y_datos():
     assert not T._dir_saltable(("cognia", "agent"))
 
 
-def test_buscar_salta_archivos_grandes_y_binarios(tmp_path):
+def test_buscar_salta_archivos_grandes_y_binarios(sin_rg, tmp_path):
     (tmp_path / "chico.txt").write_text("aca esta AGUJA123\n", encoding="utf-8")
     grande = tmp_path / "grande.jsonl"
     grande.write_text("AGUJA123 relleno\n" * 150_000, encoding="utf-8")  # >2MB
@@ -112,7 +124,7 @@ def test_buscar_salta_archivos_grandes_y_binarios(tmp_path):
     assert "binario.dat" not in out
 
 
-def test_buscar_deadline_corta_y_lo_declara(tmp_path, monkeypatch):
+def test_buscar_deadline_corta_y_lo_declara(sin_rg, tmp_path, monkeypatch):
     (tmp_path / "a.txt").write_text("AGUJA123\n", encoding="utf-8")
     # deadline ya vencido al entrar: el scan corta sin leer nada
     monkeypatch.setattr(T, "_SCAN_DEADLINE_S", -1.0)
@@ -139,7 +151,7 @@ def test_buscar_fallback_web_usa_navegador_con_flag(tmp_path, monkeypatch):
 
 # ── buscar: el falso 'no esta' (revision adversarial 2026-08-01) ───────────
 
-def test_buscar_avisa_si_el_ambito_pedido_esta_en_skip_dirs(tmp_path):
+def test_buscar_avisa_si_el_ambito_pedido_esta_en_skip_dirs(sin_rg, tmp_path):
     """Pedir explicitamente un ambito de _SKIP_DIRS devolvia 'sin coincidencias'
     SIN decir que se salto el directorio ENTERO: el falso negativo del que no
     se puede sospechar (modo de fallo historico de esta tool)."""
@@ -188,7 +200,7 @@ def test_buscar_declara_el_corte_aunque_haya_matches_parciales(tmp_path, monkeyp
     assert "cortado" in out                      # y se declara igual
 
 
-def test_deadline_lee_el_env_en_la_llamada(tmp_path, monkeypatch):
+def test_deadline_lee_el_env_en_la_llamada(sin_rg, tmp_path, monkeypatch):
     """_SCAN_DEADLINE_S se leia del env en IMPORT-TIME: embebido (modulo ya
     cargado) el knob no hacia nada. Ahora se lee en cada llamada."""
     (tmp_path / "a.txt").write_text("AGUJA123\n", encoding="utf-8")
