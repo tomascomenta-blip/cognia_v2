@@ -219,3 +219,100 @@ def describir() -> str:
     """Una linea con el backend en uso, para diagnostico."""
     b = detectar_backend()
     return f"{b['tipo']} en {b['url']}" if b else "ninguno (sin LLM local)"
+
+
+# ── Perfil barato por NOMBRE del GGUF servido (obra 2026-08-09, WP4) ─────────
+# POR QUE AQUI: el fast-path del chat desviaba turnos al 0.5B/4B y pegaba CoT
+# dirigido de 3B aunque el server sirviera un razonador grande (gpt-oss-20b) —
+# el turno lo respondia un modelo menor SIN decirlo (evidencia baseline
+# 2026-08-09). Estos helpers son el guard BARATO por nombre; los perfiles
+# formales por familia llegan con cognia/agent/model_profiles.py (WP1) y
+# cuando existan, esto queda como fallback.
+
+# Tokens de familia que delatan un razonador aunque el nombre no traiga tamano.
+_TOKENS_RAZONADOR = ("gpt-oss", "gpt_oss", "qwq", "-r1", "deepseek-r",
+                     "thinking", "reasoning")
+
+# Umbrales en billones de parametros. <=4B: los perfiles chicos medidos con
+# stepwise/cascada. >=8B: grande (la flota actual: 9B, 14B, 20B); el 7B esta
+# RETIRADO por auditoria y no define frontera.
+_CHICO_MAX_B = 4.0
+_GRANDE_MIN_B = 8.0
+
+
+def _tamano_b(nombre: str) -> Optional[float]:
+    """Parametros en B extraidos del nombre del GGUF, o None si no trae.
+    Substrings pelados ('3b' in nombre) clasificaban '21b' como chico: el
+    regex exige que el numero no siga a otro digito ni la b a una letra."""
+    import re
+    m = re.findall(r"(?<![0-9.])(\d+(?:[._]\d+)?)\s*[bB](?![a-z0-9])",
+                   nombre or "")
+    if not m:
+        return None
+    return max(float(x.replace("_", ".")) for x in m)
+
+
+def es_modelo_chico(nombre: str) -> bool:
+    """True si el nombre declara <=4B (perfil chico: stepwise/cascada valen)."""
+    t = _tamano_b(nombre)
+    return t is not None and t <= _CHICO_MAX_B
+
+
+def es_razonador_grande(nombre: str) -> bool:
+    """True si el nombre delata un modelo grande (>=8B) o una familia
+    razonadora. Un nombre sin senal devuelve False: el guard solo se activa
+    con deteccion POSITIVA (comportamiento historico intacto para el 3B y
+    para /props caido)."""
+    n = (nombre or "").lower()
+    if not n:
+        return False
+    t = _tamano_b(n)
+    if t is not None and t <= _CHICO_MAX_B:
+        return False              # el tamano declarado manda: "qwen3-4b-thinking" es chico
+    if t is not None and t >= _GRANDE_MIN_B:
+        return True
+    return any(tok in n for tok in _TOKENS_RAZONADOR)
+
+
+def nombre_modelo_servido(backend=None) -> str:
+    """Basename del GGUF que REALMENTE sirve el backend, '' si no se sabe.
+
+    Fuente primaria: /props del server (via backend_activo, cacheado). Un
+    server ADOPTADO (arrancado externo) conserva el _gguf_path con el que se
+    construyo el OBJETO, no lo que sirve — la averia historica del :8088
+    (dos-backends-cognia). El gguf_path solo se usa de ultimo recurso."""
+    from pathlib import Path
+    from . import backend_activo
+
+    url = ""
+    if backend is not None:
+        impl = getattr(backend, "_impl", None) or backend
+        url = str(getattr(impl, "_base", "") or "")
+    if not url:
+        b = detectar_backend()
+        if b and b.get("tipo") == "llama":
+            url = b["url"]
+    if url:
+        try:
+            nombre = backend_activo.props(url).get("modelo") or ""
+        except Exception:
+            nombre = ""
+        if nombre and nombre != "desconocido":
+            return nombre
+    try:
+        ruta = getattr(backend, "gguf_path", None)
+        if ruta is None:
+            impl = getattr(backend, "_impl", None) or backend
+            ruta = getattr(impl, "_gguf_path", None)
+        return Path(str(ruta)).name if ruta else ""
+    except Exception:
+        return ""
+
+
+def presupuesto_chat(base: int, razonador_grande: bool,
+                     piso_razonador: int = 4096) -> int:
+    """max_tokens del turno de chat. Con un razonador el presupuesto tiene que
+    cubrir PENSAMIENTO + respuesta (la leccion de los 9 bugs identicos:
+    medido 2026-07-26, 6/6 sondas muertas en finish=length con el pensamiento
+    comiendose los tokens INTEGROS). medio=1024 se queda corto para el 20B."""
+    return max(int(base), piso_razonador) if razonador_grande else int(base)
