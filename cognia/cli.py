@@ -9243,19 +9243,25 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn(f"[detail]{_n_gen} herramienta(s) auto-generada(s) disponibles[/detail]")
     except Exception:
         pass
-    # Herramientas AI-nativas de LCD (escena estructurada; plan 12). Best-effort:
-    # importar el modulo registra las tools via el @tool decorator.
-    try:
-        from cognia.lcd.tools_lcd import load_lcd_tools
-        _n_lcd = load_lcd_tools()
-        from cognia.lcd.tools_services import load_service_tools
-        _n_lcd += load_service_tools()
-        from cognia.lcd.tools_modeling import load_modeling_tools
-        _n_lcd += load_modeling_tools()
-        if _n_lcd:
-            _print_fn(f"[detail]{_n_lcd} herramienta(s) de escena LCD disponibles[/detail]")
-    except Exception:
-        pass
+    # Herramientas AI-nativas de LCD (escena estructurada; plan 12) — OPT-IN
+    # duro COGNIA_LCD=1 (A5, 2026-08-09): cargadas incondicionalmente metian 37
+    # escena_* en el catalogo de CADA tarea, y el A/B del propio repo (tools.py,
+    # 2026-07-25) midio que el catalogo grande degrada al agente (camino feliz
+    # 4.25/5 -> 2.5/5). Mismo patron que pantalla_/imagen_/web_. Si el modelo
+    # pide una escena_* sin el flag, run_tool responde el mensaje uniforme
+    # "DESHABILITADA — activala con COGNIA_LCD=1" (sin record_wanted_tool).
+    if os.environ.get("COGNIA_LCD", "").strip().lower() in ("1", "on", "true", "yes"):
+        try:
+            from cognia.lcd.tools_lcd import load_lcd_tools
+            _n_lcd = load_lcd_tools()
+            from cognia.lcd.tools_services import load_service_tools
+            _n_lcd += load_service_tools()
+            from cognia.lcd.tools_modeling import load_modeling_tools
+            _n_lcd += load_modeling_tools()
+            if _n_lcd:
+                _print_fn(f"[detail]{_n_lcd} herramienta(s) de escena LCD disponibles[/detail]")
+        except Exception:
+            pass
 
     # Modo sencillo (default): recorta la paleta a lo util para un usuario comun
     # (oculta git/kg/validadores/http/notas/etc). Si el caller ya restringio por
@@ -9296,21 +9302,42 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     except Exception:
         _SYS_AGENTE = None
 
+    # Las Rules SOLO citan tools del catalogo ACTIVO (A5, 2026-08-09): antes
+    # recomendaban anotar/notas/kg_buscar aunque simple_mode las hubiera
+    # recortado del listado — el modelo obedecia la regla, pedia una tool que
+    # no estaba en su lista y quemaba pasos en "no existe/no permitida".
+    from cognia.agent.tools import TOOLS as _TOOLS_REG
+    _activas = set(_tool_filter) if _tool_filter is not None else set(_TOOLS_REG)
+    _rules = ["Rules:"]
+    if "escribir_archivo" in _activas:
+        _rules.append("- escribir_archivo crea directorios solo. NO uses mkdir.")
+        _rules.append("- Para escribir_archivo, pone codigo COMPLETO y REAL "
+                      "despues de | (varias lineas ok).")
+    if {"editar_archivo", "leer_archivo"} <= _activas:
+        _rules.append("- Para CAMBIAR parte de un archivo existente: "
+                      "leer_archivo primero y despues editar_archivo (SEARCH "
+                      "exacto y UNICO). No lo reescribas entero.")
+    if "generar_codigo" in _activas:
+        _rules.append("- Para escribir una FUNCION NUEVA a partir de una "
+                      "descripcion, PREFERI generar_codigo (genera varios "
+                      "candidatos y elige el mejor por tests) en vez de "
+                      "escribir_archivo con codigo a mano.")
+    if {"anotar", "notas"} <= _activas:
+        _rules.append("- Usa anotar para guardar resultados intermedios; "
+                      "notas para recordarlos.")
+    _mem = [t for t in ("recordar", "kg_buscar") if t in _activas]
+    if _mem:
+        _rules.append(f"- Usa {'/'.join(_mem)} para consultar la memoria de "
+                      "Cognia.")
+    _rules.append("- responder solo cuando termines. Nada de texto fuera de "
+                  "la linea ACCION.")
     TOOLS_DOC = (
         "You are an autonomous agent. Start your reply with ACCION: on the first line.\n\n"
         "ACCION: <tool> <args>\n\n"
         "Tools (ONLY these -- do NOT invent others):\n"
         + build_tools_doc(_tool_filter)
         + "\n  responder <respuesta final>          -- usar SOLO cuando la tarea esta completa\n\n"
-        "Rules:\n"
-        "- escribir_archivo crea directorios solo. NO uses mkdir.\n"
-        "- Para escribir_archivo, pone codigo COMPLETO y REAL despues de | (varias lineas ok).\n"
-        "- Para escribir una FUNCION NUEVA a partir de una descripcion, PREFERI "
-        "generar_codigo (genera varios candidatos y elige el mejor por tests) en "
-        "vez de escribir_archivo con codigo a mano.\n"
-        "- Usa anotar para guardar resultados intermedios; notas para recordarlos.\n"
-        "- Usa recordar/kg_buscar para consultar la memoria de Cognia.\n"
-        "- responder solo cuando termines. Nada de texto fuera de la linea ACCION."
+        + "\n".join(_rules)
     )
 
     # Reglas de herramientas nacidas de fallos MEDIDOS (cognia/system_prompt.py).
