@@ -104,6 +104,22 @@ def test_footer_sin_tokens_no_inventa(bus_limpio, capsys):
     assert "tokens" not in out
 
 
+def test_remoto_no_streamea_la_prosa(bus_limpio, capsys, monkeypatch):
+    # Bajo COGNIA_REMOTO=1 la respuesta final llega ENTERA y plana via
+    # _show_response (contrato con el clasificador del movil); streamearla
+    # ademas la pegaba duplicada en el chat (e2e de WP5, 2026-08-09).
+    from cognia.ux.renderer import Renderer
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    r = Renderer(console=None)
+    events.suscribir(r)
+    try:
+        events.emitir(events.TokenTexto(texto="hola "))
+        events.emitir(events.TokenTexto(texto="mundo"))
+        assert "hola" not in capsys.readouterr().out
+    finally:
+        events.desuscribir(r)
+
+
 def test_tarea_fin_no_imprime_el_resumen(bus_limpio, capsys):
     # Contrato desde 2026-08-09 (fix del e2e): TareaFin se emite ANTES del
     # post-procesado de cli.py (adjuntos, 2a pasada), asi que su resumen esta

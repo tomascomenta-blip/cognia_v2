@@ -52,6 +52,13 @@ class Renderer:
         self._avisos_vistos: set = set()
         self._pensando_desde: float = 0.0
         self._t0: float = 0.0
+        # Bajo el control remoto la prosa NO se streamea: el contrato con el
+        # clasificador del movil es que la respuesta final llega ENTERA y
+        # plana via _show_response, y streamearla ademas la pegaba duplicada
+        # en una linea del chat ("¡Hola! ¿En que puedo ¡Hola!...") — cazado
+        # por el e2e de WP5 2026-08-09.
+        import os as _os
+        self._sin_stream = _os.environ.get("COGNIA_REMOTO", "").strip() == "1"
 
     # -- despacho -----------------------------------------------------------
 
@@ -190,6 +197,8 @@ class Renderer:
         # la respuesta ya se streameo y se tragaria el resumen final
         if not ev.texto:
             return
+        if self._sin_stream:
+            return    # remoto: la respuesta final llega entera via _show_response
         if self._flujo is None:
             # empieza la prosa: el spinner sobra y la respuesta respira arriba
             self._parar_status()

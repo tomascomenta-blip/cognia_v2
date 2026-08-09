@@ -12248,3 +12248,61 @@ stash.
   al volverse dinamico, leia la memoria REAL de la maquina — un test que dependia
   del $HOME de quien lo corriera. Ahora aisla la memoria en tmp_path y comprueba
   la invariante (mismo presupuesto en los dos intentos, >=12000) en vez del numero.
+
+
+## 2026-08-09 — OBRA MAYOR: Cognia al nivel de los agentes CLI SOTA (ultracode, 16 subagentes + integrador)
+
+**Por que:** el dueno reporto que el MISMO modelo lider (gpt-oss-20b) rendia mejor en
+cualquier otro agente (OpenCode, etc.) que dentro de Cognia, y que la UI era ruidosa e
+ilegible. Diagnostico (6 lectores + 3 investigadores web + sintesis): la brecha NO era del
+modelo — era del arnes. Evidencia baseline capturada ANTES de tocar nada: /hacer "crea
+hola.txt" FALLABA (0/1) con gpt-oss-20b porque el modelo contestaba BIEN en harmony y el
+parser regex ACCION: no lo entendia (2 pasos sin ACCION -> cierre por prosa degradado, y
+una tool ejecutada con el placeholder literal <path>); arranque con ~70 lineas de ruido.
+
+**Obra (6 paquetes en worktrees paralelos, mergeados a main):**
+- WP1 nucleo: agent/chat_client.py + model_profiles.py + tool_schemas.py — el paso del
+  agente va por /v1/chat/completions con TOOLS NATIVAS (harmony parseado por el server,
+  --jinja ya estaba); perfil por modelo servido (/props); fin natural = respuesta sin tool
+  calls; auxiliares LLM (budget de 16 tok, wants_more_steps, BoN pre-paso, auto-decompose,
+  2a pasada) apagados por defecto; marco ACCION queda como fallback (COGNIA_AGENT_LEGACY=1).
+- WP2 tools: leer_archivo offset/limit sin doble truncado (4000->1650 muerto), ejecutar
+  conserva cabeza+COLA (el traceback vive al final), catalogo core 13 tools por allowlist
+  (habia 79; el A/B propio ya habia medido la degradacion), editar_archivo exige SEARCH
+  unico y devuelve mini-diff.
+- WP3 presentacion: bus unico de eventos tipados (ux/events.py) + renderer estilo SOTA
+  (ux/renderer.py): spinner con verbo, linea de intencion, tool colapsada a "⏺ Verbo obj",
+  markdown en la respuesta final, footer honesto (usage real, nunca len//4); logger consola
+  WARNING / archivo ~/.cognia/logs; arranque de ~70 lineas -> 6 (banner gigante bajo
+  COGNIA_BANNER=full).
+- WP4 fast-path: stream_chat expone reasoning_content (antes lo DESCARTABA — minutos de
+  aire muerto); desvios a modelos chicos gated y visibles; presupuesto de chat con piso
+  4096 para razonadores; stepwise solo <=4B.
+- WP5 remoto (Rc): sesiones.py consume eventos tipados via COGNIA_EVENTS_JSONL=1 con
+  prefijo @EV (adios clasificacion por regex de stdout); traceback de arranque ya no se
+  pierde; permisos por sesion (total/restringido); WS sin polling.
+- WP6 instalacion: cognia/flota.py en el paquete + comando `cognia flota`; doctor consulta
+  /props y reporta el GGUF REAL por puerto (flota apagada = FAIL con la orden exacta);
+  first_run honesto por hardware; version unica con test; pip install -e . aplicado —
+  `python -m cognia` funciona desde cualquier cwd (antes: No module named cognia).
+
+**Integracion (cazada ejercitando el e2e real):** respuesta final salia 3 veces (intencion
+del turno de cierre + resumen de TareaFin + _show_response) -> una sola, con markdown;
+tqdm/HF/embedding a logs; "adopted n_ctx" a INFO; proactividad con max_tokens=250 se iba
+entero en PENSAMIENTO con el 20B y gritaba degradado cada turno (leccion "9 bugs
+identicos", cazada de nuevo) -> presupuesto por perfil.
+
+**Verificacion:**
+- Suite: baseline 5967 passed / 10 failed -> final: fallos nuevos CERO (la obra ademas
+  arreglo 5 preexistentes; quedan 5 preexistentes ajenos anotados).
+- GATE e2e camino feliz: 5/5 OK en 0.4 min (historicamente ~5 min) por el camino nativo.
+- e2e baseline repetido: /hacer hola.txt paso de 0/1 a 1/1 en ~1.1s, salida limpia.
+- Contrafactual: COGNIA_AGENT_LEGACY=1 apaga la mejora (via=generate + marco ACCION).
+- Remoto: e2e real con servidor efimero + sesion python -m cognia + 20B: respuesta al
+  chat, actividad plegada, cero @EV crudos.
+- Instalacion: venv limpio + pip install -e + python -m cognia --version desde otro cwd.
+
+**Pendientes anotados (honestos):** compactacion por RESUMEN del historial (A4.3 pleno),
+front movil sin UI para acceso restringido, siembra de 20 mensajes visible pero no opt-in,
+stop_type invisible en el fallback texto, banco A/B n>=6 intercalado viejo-vs-nuevo arnes
+(la evidencia de hoy es e2e+gate+contrafactual, no el banco), poda del monolito (B6).
