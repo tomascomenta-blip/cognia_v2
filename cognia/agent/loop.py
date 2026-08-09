@@ -12,6 +12,7 @@ Concrete, not abstract: two plain functions and a couple of constants.
 
 from __future__ import annotations
 
+import os
 import re
 
 # ── Parsing de la respuesta del modelo ─────────────────────────────────
@@ -158,6 +159,14 @@ def estimate_step_budget(task: str, orch, hard_cap: int = AGENT_HARD_CAP) -> int
     else:
         heuristic = 4
 
+    # A6 (obra 2026-08-09): el clasificador-racionador LLM esta APAGADO por
+    # defecto — la heuristica barata ya es mas fiable que sacar un digito de
+    # un razonador con max_tokens=16 (que ademas truncaba el pensamiento:
+    # leccion 'presupuesto-tokens-razonamiento'). COGNIA_BUDGET_LLM=1 lo
+    # reactiva para medirlo por gate, no por nostalgia.
+    if os.environ.get("COGNIA_BUDGET_LLM", "") != "1":
+        return max(1, min(heuristic, hard_cap))
+
     try:
         prompt = (
             "Clasifica la COMPLEJIDAD de esta tarea para un agente con "
@@ -189,6 +198,11 @@ def wants_more_steps(task: str, last_results: str, orch, inferir=None) -> int:
     normal. Medido el 2026-07-20: eso concedia pasos extra una y otra vez sobre
     un fallo que no se iba a arreglar solo, y el agente encadeno 40 rondas.
     """
+    # A6 (obra 2026-08-09): APAGADO por defecto. Buscar `[0-8]` en el texto
+    # crudo de un razonador es leer hojas de te; el tope real del bucle es
+    # max_turns/AGENT_HARD_CAP. COGNIA_WANTS_MORE=1 lo reactiva para medir.
+    if os.environ.get("COGNIA_WANTS_MORE", "") != "1":
+        return 0
     try:
         prompt = (
             "Un agente trabajo en esta tarea pero se quedo sin pasos. Mira el "
@@ -262,3 +276,183 @@ def error_accionable_de_ejecucion(history) -> str:
             return ""          # la ultima ejecucion fue exitosa
         return h[len("RESULTADO "):].strip()[:300]
     return ""
+
+
+# ── Bucle NATIVO (A1/A2/A6, obra 2026-08-09) ────────────────────────────────
+# El paso del agente con tool-calling nativo: mensajes estructurados por
+# /v1/chat/completions, el server parsea los tool calls (harmony via --jinja)
+# y el FIN NATURAL es una respuesta sin tool calls. Sin marco ACCION:, sin
+# regex, sin stops que decapiten razonadores, sin cierre-por-prosa degradado.
+# El marco texto queda en cli.py como fallback para modelos sin tool-calling.
+
+def _intencion_de(resp) -> str:
+    """1 linea legible de que decidio el modelo en este paso (para el
+    evento PasoIntencion): primera frase del razonamiento, o del contenido."""
+    fuente = (resp.reasoning_content or resp.texto or "").strip()
+    linea = fuente.splitlines()[0] if fuente else ""
+    return linea[:160]
+
+
+def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
+    """Presupuesto de contexto en TOKENS REALES (A4.3): si el ultimo prompt
+    supero ~80% del n_ctx del server, recorta los turnos tool MAS VIEJOS a un
+    resumen corto (nunca el system ni el user del objetivo). Devuelve cuantos
+    turnos recorto. El descarte en bloque del contexto viejo era la causa de
+    'el agente olvida su objetivo'; aca el objetivo es intocable por diseno."""
+    if not n_ctx or prompt_tokens < int(n_ctx * 0.8):
+        return 0
+    recortados = 0
+    for m in mensajes:
+        if m.get("role") == "tool" and len(m.get("content") or "") > 400:
+            m["content"] = (m["content"][:200]
+                            + "\n[... recortado por presupuesto de contexto ...]")
+            recortados += 1
+            if recortados >= 3:   # de a poco: 3 turnos por pasada alcanzan
+                break
+    return recortados
+
+
+def bucle_nativo(task: str, system: str, completar, schemas: list,
+                 args_legacy, mensaje_assistant, mensaje_tool,
+                 run_tool, ctx: dict, perfil: dict, history: list,
+                 trace: list, print_fn, max_turns: int) -> dict:
+    """El bucle ReAct nativo. Devuelve
+    ``{"texto", "pasos", "ok", "tokens", "finish"}``.
+
+    - ``history`` y ``trace`` se APENDEAN con las mismas convenciones de
+      strings del camino legacy ("RESULTADO <tool>: ..."), para que todo el
+      post-procesado de cli.py (E8, goal_contract, skill_capture, adjuntos)
+      siga funcionando sin enterarse del regimen.
+    - Emite los eventos del turno (cognia.ux.events); sin suscriptores es
+      no-op, y un fallo del bus jamas rompe el paso (contrato de emitir()).
+    """
+    try:
+        from cognia.ux import events as _ev
+    except Exception:
+        _ev = None
+
+    def _emitir(evento):
+        if _ev is not None:
+            try:
+                _ev.emitir(evento)
+            except Exception:
+                pass
+
+    t0 = __import__("time").time()
+    if _ev is not None:
+        _emitir(_ev.TareaInicio(tarea=task[:300], modo="agente",
+                                modelo=perfil.get("modelo", "")))
+
+    mensajes: list = []
+    if system:
+        mensajes.append({"role": "system", "content": system})
+    # El objetivo (+ guidance/pista que cli.py ya metio en history) es el
+    # turno user inicial y NUNCA se recorta.
+    mensajes.append({"role": "user", "content": "\n\n".join(history)})
+
+    sampling = {
+        "temperature": perfil.get("temperature", 1.0),
+        "top_p": perfil.get("top_p", 1.0),
+        "max_tokens": perfil.get("max_tokens", 4096),
+        "reasoning_effort": perfil.get("reasoning_effort", ""),
+        "url": perfil.get("url", ""),
+    }
+
+    sig_counts: dict = {}
+    tokens_total = 0
+    pasos = 0
+    fail_streak = 3
+    result_text, finish, ok = "", "", False
+    while pasos < max_turns:
+        pasos += 1
+        resp = completar(mensajes, tools=schemas, **sampling)
+        tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
+
+        if not resp.ok:
+            # Server caido / respuesta rota: degradar con causa VISIBLE (la
+            # degradacion silenciosa es el modo de fallo historico).
+            print_fn(f"[err_cl]Agente (nativo): {resp.error}[/err_cl]")
+            if _ev is not None:
+                _emitir(_ev.Degradado(
+                    donde="agente.bucle_nativo", motivo=resp.error,
+                    accion_sugerida="python scripts/servir_flota.py pensar"))
+            result_text = f"(el agente no pudo hablar con el modelo: {resp.error})"
+            break
+
+        if _ev is not None:
+            _emitir(_ev.PasoIntencion(paso=pasos, intencion=_intencion_de(resp)))
+
+        if not resp.tool_calls:
+            # FIN NATURAL: respuesta sin tool calls = respuesta final. Este es
+            # el contrato del regimen nativo (adios "cierro con PROSA degradado").
+            result_text, finish, ok = resp.texto, resp.finish_reason, True
+            if resp.finish_reason == "length":
+                # Truncado por presupuesto: se DICE (los dos modos de fallo
+                # —stop mal puesto vs presupuesto— se veian iguales antes).
+                print_fn("[warn_cl]respuesta final truncada por max_tokens "
+                         f"({sampling['max_tokens']})[/warn_cl]")
+            break
+
+        mensajes.append(mensaje_assistant(resp))
+        for tc in resp.tool_calls:
+            args_str = args_legacy(tc.nombre, tc.argumentos)
+            if _ev is not None:
+                _emitir(_ev.ToolInicio(tool=tc.nombre, args=args_str[:120],
+                                       paso=pasos))
+            t_tool = __import__("time").time()
+            verdict = register_action(sig_counts, tc.nombre, args_str)
+            if verdict == "stop":
+                # Estancamiento (3ra vez el MISMO par tool+args): cierre
+                # honesto con lo que hay, sin quemar mas presupuesto.
+                print_fn("[warn_cl]Agente estancado (tool repetida 3 veces): "
+                         "cierre honesto.[/warn_cl]")
+                result_text = ("(interrumpida por estancamiento: repitio "
+                               f"'{tc.nombre}' con los mismos argumentos)")
+                mensajes = None
+                break
+            resultado = run_tool(tc.nombre, args_str, ctx)
+            tool_ok = not re.search(r"\bERROR\b", resultado[:120])
+            history.append(resultado)
+            trace.append({"action": tc.nombre, "args": args_str[:200],
+                          "ok": tool_ok, "result_head": resultado[:160]})
+            if _ev is not None:
+                _emitir(_ev.ToolFin(
+                    tool=tc.nombre, args=args_str[:120], ok=bool(tool_ok),
+                    resumen=resultado[:200],
+                    duracion_s=__import__("time").time() - t_tool, paso=pasos))
+            mensajes.append(mensaje_tool(tc.id, resultado))
+            if verdict == "warn":
+                mensajes.append({
+                    "role": "user",
+                    "content": (f"AVISO: ya llamaste '{tc.nombre}' con esos "
+                                "mismos argumentos y no avanzo. No la repitas: "
+                                "proba otra herramienta o responde el cierre.")})
+        if mensajes is None:      # corto por estancamiento adentro del for
+            break
+
+        # Corte por NO-PROGRESO: N tools seguidas fallando = el modelo no
+        # avanza (misma cota dura que el camino legacy).
+        recientes = trace[-fail_streak:]
+        if len(recientes) >= fail_streak and not any(a["ok"] for a in recientes):
+            print_fn(f"[warn_cl]Agente sin progreso ({fail_streak} tools "
+                     "seguidas fallaron): cierre honesto.[/warn_cl]")
+            result_text = (f"(interrumpida: {fail_streak} herramientas seguidas "
+                           "fallaron sin avanzar; el modelo no logro la tarea)")
+            break
+
+        _recortar_mensajes(mensajes, perfil.get("n_ctx"),
+                           int((resp.usage or {}).get("prompt_tokens") or 0))
+    else:
+        # Presupuesto agotado sin cierre: redaccion final honesta con la
+        # evidencia del history (no un volcado crudo).
+        ultimo = next((h for h in reversed(history)
+                       if h.startswith("RESULTADO ")), "")
+        result_text = (f"(presupuesto de {max_turns} pasos agotado sin cierre) "
+                       + ultimo[:300])
+
+    if _ev is not None:
+        _emitir(_ev.TareaFin(ok=ok, resumen=(result_text or "")[:300],
+                             pasos=pasos, tokens_predichos=tokens_total,
+                             duracion_s=__import__("time").time() - t0))
+    return {"texto": result_text, "pasos": pasos, "ok": ok,
+            "tokens": tokens_total, "finish": finish}
