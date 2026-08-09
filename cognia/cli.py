@@ -8623,32 +8623,58 @@ def repl():
                                 "no hay backend llama.cpp; el turno cae al "
                                 "camino articulado (Ollama/canned)")
                         if _llama is not None:
+                            # Guard barato por NOMBRE del GGUF servido (obra
+                            # 2026-08-09, WP4): con un razonador grande servido
+                            # (gpt-oss-20b, 9B...) los desvios al 0.5B/4B y el
+                            # CoT dirigido de 3B degradan el turno SIN decirlo
+                            # (evidencia baseline). WP1 traera perfiles formales;
+                            # esto no depende de ellos. Sin senal positiva
+                            # (nombre chico o /props caido) todo queda como
+                            # siempre. COGNIA_CASCADA_FORZAR=1 restaura los
+                            # desvios para medir el contrafactual.
+                            _modelo_srv, _srv_grande, _srv_chico = "", False, True
+                            try:
+                                from cognia.llm_local import (
+                                    es_modelo_chico, es_razonador_grande,
+                                    nombre_modelo_servido, presupuesto_chat)
+                                _modelo_srv = nombre_modelo_servido(_llama)
+                                _srv_grande = (
+                                    es_razonador_grande(_modelo_srv)
+                                    and os.environ.get(
+                                        "COGNIA_CASCADA_FORZAR") != "1")
+                                _srv_chico = (not _modelo_srv
+                                              or es_modelo_chico(_modelo_srv))
+                            except Exception:
+                                pass
                             # Fast-path de habla: PORTERO 0.5B+LoRA por presencia
                             # (PREREG_PORTERO_FASE2: saludo/cortesia E identidad,
                             # ~4x el 3B en CPU) o cascada legado opt-in
                             # (COGNIA_SPEECH_CASCADE, 0.5B pelado, solo social).
                             # Ante duda/falla -> 3B (fallback total). exp021/cycle39.
+                            # Con razonador grande servido: NO se desvia (arriba).
                             _llama_turn = _llama
-                            try:
-                                from node.speech_cascade import (
-                                    classify_turn, fast_speech_backend, portero_activo)
-                                if classify_turn(raw, identidad=portero_activo()) == "fast":
-                                    _fb = fast_speech_backend()
-                                    if _fb is not None:
-                                        _llama_turn = _fb
-                            except Exception as _e_port:
-                                _aviso_degradado(
-                                    "cli.fast_path.portero",
-                                    f"speech_cascade fallo ({type(_e_port).__name__}: "
-                                    f"{_e_port}); el turno se queda en el 3B")
-                                _llama_turn = _llama
+                            if not _srv_grande:
+                                try:
+                                    from node.speech_cascade import (
+                                        classify_turn, fast_speech_backend, portero_activo)
+                                    if classify_turn(raw, identidad=portero_activo()) == "fast":
+                                        _fb = fast_speech_backend()
+                                        if _fb is not None:
+                                            _llama_turn = _fb
+                                except Exception as _e_port:
+                                    _aviso_degradado(
+                                        "cli.fast_path.portero",
+                                        f"speech_cascade fallo ({type(_e_port).__name__}: "
+                                        f"{_e_port}); el turno se queda en el 3B")
+                                    _llama_turn = _llama
                             # Ruteo por eje de la COLONIA (AUDIT 2026-07-12):
                             # turnos de razonamiento -> miembro qwen3_4b crudo
                             # (G2R 92.5 vs 82 del 3B+stepwise). Lazy via
                             # fleet_registry; cualquier falla -> 3B intacto.
                             _member_turn = False
+                            _mkey = ""
                             try:
-                                if _llama_turn is _llama:
+                                if _llama_turn is _llama and not _srv_grande:
                                     from cognia.agent.fleet_router import (
                                         member_for_chat_turn)
                                     # perfil hibrido: a /esfuerzo bajo no se
@@ -8689,6 +8715,27 @@ def repl():
                                     "cli.fast_path.experto",
                                     f"activate_expert fallo ({type(_e_exp).__name__}: "
                                     f"{_e_exp}); corre la base sin experto")
+                            # El desvio ya NO es silencioso (A8): una linea
+                            # visible + evento tipado al bus. Se imprime ademas
+                            # de emitir porque esta zona TODAVIA renderiza
+                            # directo (WP3 cablea el renderer del bus).
+                            if _llama_turn is not _llama:
+                                _nombre_desvio = ""
+                                try:
+                                    _nombre_desvio = nombre_modelo_servido(_llama_turn)
+                                except Exception:
+                                    pass
+                                if not _nombre_desvio:
+                                    _nombre_desvio = (f"miembro {_mkey}" if _member_turn
+                                                      else "0.5B portero")
+                                try:
+                                    from cognia.ux.events import Aviso as _EvAviso, emitir as _ev_emitir
+                                    _ev_emitir(_EvAviso(
+                                        texto=f"respondio {_nombre_desvio}",
+                                        origen="cli.fast_path"))
+                                except Exception:
+                                    pass
+                                _print_line(f"[detail](respondio {_escape(_nombre_desvio)})[/detail]")
                             from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
                             from cognia.user_prefs import personalize_prompt
                             _system = personalize_prompt(build_adaptive_system_prompt(ai))
@@ -8721,8 +8768,13 @@ def repl():
                             try:
                                 from cognia.agent.stepwise import augment_stepwise
                                 # El miembro 4B va CRUDO: el audit lo midio sin
-                                # stepwise (92.5) y sobre-instruir degrada.
-                                _raw_llm = raw if _member_turn else augment_stepwise(raw)
+                                # stepwise (92.5) y sobre-instruir degrada. Y el
+                                # CoT dirigido esta medido PARA EL 3B: a un
+                                # modelo mas grande (o razonador, que ya piensa
+                                # en su canal nativo) solo le mete ruido — guard
+                                # <=4B por nombre (A8; perfil formal en WP1).
+                                _raw_llm = (raw if (_member_turn or not _srv_chico)
+                                            else augment_stepwise(raw))
                             except Exception as _e_step:
                                 # CoT por turno: 0.3125 -> 0.8125 en bench_reasoning.
                                 # Perderlo baja la calidad del turno entero.
@@ -8745,17 +8797,26 @@ def repl():
                             # asi /esfuerzo maximo realmente alarga la respuesta del chat
                             # (medio=1024 preserva el comportamiento historico por default).
                             _effort_max_tokens = _active_effort()["max_tokens"]
+                            if _srv_grande:
+                                # Razonador: el presupuesto cubre PENSAMIENTO +
+                                # respuesta (los "9 bugs identicos" de la
+                                # memoria: medio=1024 muere en finish=length con
+                                # el 20B pensando y contenido 0).
+                                _effort_max_tokens = presupuesto_chat(
+                                    _effort_max_tokens, True)
+                            # Las lambdas toman max_tokens como parametro: el
+                            # reintento por truncado (abajo) rellama con el doble.
                             if _use_chat:
-                                _stream_src = lambda: _llama_turn.stream_chat(
-                                    _messages, max_tokens=_effort_max_tokens,
+                                _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_chat(
+                                    _messages, max_tokens=_mt,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             else:
                                 from node.inference_pipeline import _apply_qwen_template
                                 _formatted = _apply_qwen_template(
                                     _messages[-1]["content"], _system,
                                     history=_hist_ctx or None)
-                                _stream_src = lambda: _llama_turn.stream_generate(
-                                    _formatted, max_tokens=_effort_max_tokens,
+                                _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_generate(
+                                    _formatted, max_tokens=_mt,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             _tokens_buf = []
                             # Streaming SUAVE (estilo conversacional 2026-08-02):
@@ -8772,14 +8833,45 @@ def repl():
                             t0 = time.time()
                             try:
                                 print("", flush=True)
-                                for _tok in _stream_src():
-                                    _tokens_buf.append(_tok)
-                                    if _flujo is not None:
-                                        _flujo.escribir(_tok)
-                                    elif _HAS_RICH and _console:
-                                        _console.print(_tok, end="", style=_ACCENT, highlight=False)
-                                    else:
-                                        print(_tok, end="", flush=True)
+                                _mt_turno = _effort_max_tokens
+                                for _intento in (1, 2):
+                                    for _tok in _stream_src(_mt_turno):
+                                        _tokens_buf.append(_tok)
+                                        if _flujo is not None:
+                                            _flujo.escribir(_tok)
+                                        elif _HAS_RICH and _console:
+                                            _console.print(_tok, end="", style=_ACCENT, highlight=False)
+                                        else:
+                                            print(_tok, end="", flush=True)
+                                    # finish_reason REAL del backend ('limit' =
+                                    # length): el server corto por max_tokens,
+                                    # la respuesta NO termino — con razonadores
+                                    # el pensamiento se come el presupuesto. UN
+                                    # reintento con el doble, avisando; a un
+                                    # segundo limit se entrega lo que haya
+                                    # (mejor truncado visible que bucle).
+                                    if (_intento == 1 and getattr(
+                                            _llama_turn, "last_stop_reason",
+                                            None) == "limit"):
+                                        if _flujo is not None:
+                                            _flujo.cerrar()
+                                        print()
+                                        _txt_trunc = (
+                                            f"respuesta truncada por presupuesto "
+                                            f"({_mt_turno} tok); reintento con "
+                                            f"{_mt_turno * 2}")
+                                        try:
+                                            from cognia.ux.events import (
+                                                Aviso as _EvAv, emitir as _ev_em)
+                                            _ev_em(_EvAv(texto=_txt_trunc,
+                                                         origen="cli.fast_path"))
+                                        except Exception:
+                                            pass
+                                        _print_line(f"[detail][{_txt_trunc}][/detail]")
+                                        _tokens_buf = []   # el truncado no cuenta
+                                        _mt_turno *= 2
+                                        continue
+                                    break
                                 if _flujo is not None:
                                     _flujo.cerrar()
                                 print()
