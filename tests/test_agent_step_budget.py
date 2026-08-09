@@ -18,12 +18,116 @@ import inspect
 def test_react_step_acota_tokens_sin_repeat_penalty():
     from cognia import cli
     src = inspect.getsource(cli._run_agent_task)
-    # el infer del paso ReAct debe acotar el presupuesto por paso
-    assert "max_tokens=256" in src, "el paso ReAct no acota max_tokens"
+    # el infer del paso ReAct debe acotar el presupuesto por paso -- pero la cota
+    # sale del nivel /esfuerzo activo, NO de un literal (ver el test de abajo).
+    assert "max_tokens=min(_active_effort()" in src, \
+        "el paso ReAct no acota max_tokens"
     # REGRESIÓN 3.8.4 revertida: repeat_penalty=1.3 empujaba al 3B a basura (e2e
     # 0/5 tareas normales). Guard: no re-introducirlo en el loop del agente.
     assert "repeat_penalty=1.3" not in src, \
         "repeat_penalty=1.3 en el agente REGRESIONA (empuja a basura); no re-introducir"
+
+
+def test_react_step_cubre_el_pensamiento_del_razonador():
+    """Regresión 2026-08-02: el 256 fijo mataba al agente con un razonador.
+
+    Qwythos-9B inyecta `<think>` en CADA turno desde su plantilla de chat, así
+    que la ACCION (corta) se emite DESPUÉS del pensamiento. Medido contra el
+    server real con un prompt trivial: max_tokens=150 -> finish_reason=length,
+    content de 0 CHARS y 713 de reasoning_content. Con 256 por paso el modelo
+    gastaba el presupuesto pensando, el loop leía prosa vacía y cerraba con
+    "2 pasos sin ACCION valida" SIN ejecutar ninguna tool -- se veía como que
+    el modelo era incapaz. 8º caso de presupuesto-tokens-razonamiento.
+
+    El guard es doble: la cota existe (no volver al default de 768 que colgaba
+    al 3B) pero es suficiente para el pensamiento en TODOS los niveles.
+    """
+    from cognia.effort_levels import EFFORT_LEVELS
+
+    for nombre, params in EFFORT_LEVELS.items():
+        presupuesto = min(params["max_tokens"], 8000)
+        assert presupuesto >= 2000, (
+            f"nivel '{nombre}': {presupuesto} tokens/paso no cubren el "
+            f"pensamiento de un razonador (medido: 713 chars de think en la "
+            f"tarea MAS trivial)")
+        assert presupuesto <= 8000, (
+            f"nivel '{nombre}': sin cota por paso, un paso degenerado cuelga "
+            f"el loop (bug 2026-07-10)")
+
+
+def test_sin_pensamiento_limpia_el_bloque_think():
+    """Regresión 2026-08-02: gate e2e 0/5, las 5 tareas devolviendo '<think>'.
+
+    El loop del agente era el ÚNICO consumidor de LLM del repo que no
+    strippeaba el bloque de pensamiento (razonador.py, mockup.py,
+    juez_ejecutable.py, generator.py, pulidor.py, critico.py y
+    arbitro_visual.py sí lo hacen). Con un razonador, el <think> entero
+    aterrizaba en raw_response y el parser no encontraba ninguna ACCION.
+    """
+    from cognia.cli import _sin_pensamiento
+
+    # par completo -> solo la respuesta
+    assert _sin_pensamiento(
+        "<think>me lo pienso</think>\nACCION: leer_archivo x.txt"
+    ) == "ACCION: leer_archivo x.txt"
+    # cierre SIN apertura (la plantilla ya inyectó el <think>)
+    assert _sin_pensamiento(
+        "divago un rato</think>\nACCION: listar_dir ."
+    ) == "ACCION: listar_dir ."
+    # apertura sin cierre = se quedó sin presupuesto pensando -> vacío, para
+    # que el loop lo cuente como fallo en vez de parsear medio razonamiento
+    assert _sin_pensamiento("<think>pienso y me quedo sin tokens") == ""
+    # texto normal intacto
+    assert _sin_pensamiento("ACCION: responder hola") == "ACCION: responder hola"
+    assert _sin_pensamiento("") == ""
+    assert _sin_pensamiento(None) == ""
+
+
+def test_react_step_suprime_y_limpia_el_pensamiento():
+    """El paso ReAct debe cerrar el <think> en la PLANTILLA y limpiar la salida."""
+    from cognia import cli
+    src = inspect.getsource(cli._run_agent_task)
+    assert "_sin_pensamiento(" in src, \
+        "el paso ReAct no limpia el bloque <think> (gate e2e 0/5)"
+    assert "nothink=True" in src, \
+        "el paso ReAct no suprime el pensamiento en origen (115-174s por paso)"
+
+
+def test_nothink_va_en_el_turno_del_assistant():
+    """Regresión 2026-08-02: el bloque tiene que ir DESPUÉS de
+    `<|im_start|>assistant`, no al final del mensaje de usuario.
+
+    Primer intento del fix: concatenar el sufijo al prompt. No hizo NADA — el
+    orquestador envuelve el prompt con _apply_qwen_template(), así que el
+    sufijo quedaba dentro del turno `user`, antes del `<|im_end|>`, y el modelo
+    abría su propio <think> igual. El gate pasó de fallar con '<think>' a
+    fallar con '[DEGRADADO]': síntoma distinto, misma causa sin tocar.
+    """
+    from node.inference_pipeline import _apply_qwen_template
+
+    normal = _apply_qwen_template("hola", "sys")
+    assert normal.endswith("<|im_start|>assistant\n")
+    assert "<think>" not in normal, "nothink=False no debe inyectar nada"
+
+    sin_pensar = _apply_qwen_template("hola", "sys", nothink=True)
+    assert sin_pensar.endswith("<|im_start|>assistant\n<think>\n\n</think>\n\n"), \
+        "el bloque debe cerrar el pensamiento en el turno del ASSISTANT"
+    # y NO dentro del mensaje de usuario (el bug del primer intento)
+    assert "<think>" not in sin_pensar.split("<|im_start|>assistant")[0]
+
+
+def test_paso_vacio_no_se_confunde_con_falta_de_backend():
+    """Un paso que se agotó pensando NO es 'no hay modelo instalado'.
+
+    _sin_pensamiento() devuelve "" cuando el <think> quedó sin cerrar; si eso
+    cae en la rama `if not raw_response` el loop aborta entero diciéndole al
+    usuario que instale un modelo — diagnóstico FALSO, había backend.
+    """
+    from cognia import cli
+    src = inspect.getsource(cli._run_agent_task)
+    assert "_llm_crudo" in src, "no se conserva la respuesta cruda"
+    assert 'if not raw_response and (_llm_crudo or "").strip():' in src, \
+        "vacío-tras-limpiar no se distingue de 'sin backend'"
 
 
 def test_corte_por_no_progreso():

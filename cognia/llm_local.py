@@ -30,7 +30,47 @@ LLAMA_URL_DEFECTO  = "http://127.0.0.1:8080"
 OLLAMA_URL_DEFECTO = "http://localhost:11434"
 
 TIMEOUT_SONDEO = 2
-TIMEOUT_GEN    = 120
+
+
+def _timeout_gen_defecto() -> int:
+    """Timeout de generacion, override por COGNIA_LLM_TIMEOUT (segundos).
+
+    120 s era un tope PLANO que no miraba cuanto se pidio generar. Con
+    max_tokens=12000 a ~59 tok/s (medido 2026-08-02 en la 5060 Ti con
+    Qwythos-9B) una pagina web entera necesita ~200 s: la generacion moria en
+    "[llm] Error: timed out" y el lazo lo leia como "sin backend LLM vivo",
+    degradando hasta el 404 de Ollama. node/llama_backend.py ya escalaba su
+    timeout con max_tokens (_request_timeout_s); este camino no.
+    urlopen(timeout) es de SOCKET, asi que un tope holgado NO ralentiza nada:
+    solo deja de matar las generaciones legitimamente largas.
+    """
+    try:
+        return max(30, int(os.environ.get("COGNIA_LLM_TIMEOUT", "").strip() or 120))
+    except ValueError:
+        return 120
+
+
+TIMEOUT_GEN = _timeout_gen_defecto()
+
+
+def timeout_para(max_tokens: int) -> int:
+    """Timeout holgado para `max_tokens`: el plano de arriba, o ~4x el tiempo
+    estimado a 30 tok/s (piso pesimista de decode), lo que sea mayor."""
+    return max(TIMEOUT_GEN, int(max_tokens / 30 * 4) + 60)
+
+# Detalle de la ULTIMA generacion: {'finish_reason': 'stop'|'length'|..., 'tokens': int}.
+#
+# POR QUE EXISTE: generar() devuelve solo el texto, asi que "la respuesta se
+# corto por presupuesto" era INDISTINGUIBLE de "no hay backend" — con un modelo
+# de razonamiento y un max_tokens corto, el content vuelve VACIO (se gasto todo
+# pensando) y el llamador reportaba "sin backend LLM vivo" teniendo el server
+# sano. Otro degradado disfrazado, y encima el que impedia reintentar con mas
+# presupuesto: sin este dato no hay forma de saber que ESO era lo que fallaba.
+#
+# Estado de modulo y no valor de retorno para no cambiar la firma de generar()
+# en sus ~40 call sites. Vale porque la generacion aqui es SECUENCIAL; si algun
+# dia se paraleliza, esto hay que pasarlo por parametro.
+ultimo_detalle: dict = {}
 
 # Cache del backend detectado. None = todavia no se sondeo.
 _backend = None
@@ -190,7 +230,14 @@ def generar(
         if not data:
             return None
         try:
-            return data["choices"][0]["message"]["content"].strip()
+            eleccion = data["choices"][0]
+            ultimo_detalle.clear()
+            ultimo_detalle.update({
+                "finish_reason": eleccion.get("finish_reason"),
+                "tokens": (data.get("usage") or {}).get("completion_tokens"),
+                "pedidos": max_tokens,
+            })
+            return eleccion["message"]["content"].strip()
         except (KeyError, IndexError):
             return None
 

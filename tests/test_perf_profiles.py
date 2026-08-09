@@ -66,9 +66,23 @@ class TestProfilesShape:
     def test_gpu_knobs(self):
         gpu = pp.PROFILES["gpu"]
         assert gpu["LLAMA_N_GPU_LAYERS"] == "99"
-        assert gpu["LLAMA_CTX_SIZE"] == "32768"
+        # 200192 desde 2026-08-02 (era 32768): medido en la RTX 5060 Ti de
+        # 16311 MiB con Qwythos-9B Q4_K y KV en f16 -> 12852 MiB, prompt real
+        # de 140010 tokens OK. El valor es 782*256 porque llama.cpp paddea n_ctx
+        # a multiplo de 256. Ver el comentario del perfil en perf_profiles.py.
+        assert gpu["LLAMA_CTX_SIZE"] == "200192"
         assert gpu["COGNIA_PERF_PROFILE"] == "gpu"
         assert int(gpu["LLAMA_N_THREADS"]) >= int(pp.PROFILES["cpu"]["LLAMA_N_THREADS"])
+
+    def test_gpu_ctx_supera_al_de_cpu(self):
+        """El perfil GPU nunca debe quedar por DEBAJO del de CPU.
+
+        Regresion 2026-08-02: el usuario corria el perfil 'cpu' (ctx 4096) en
+        una 5060 Ti y todo prompt normal moria con HTTP 400. Que el ctx de GPU
+        sea estrictamente mayor es la invariante que hace util cambiar de perfil.
+        """
+        assert (int(pp.PROFILES["gpu"]["LLAMA_CTX_SIZE"])
+                > int(pp.PROFILES["cpu"]["LLAMA_CTX_SIZE"]))
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +113,10 @@ class TestApplyProfile:
         assert applied == pp.PROFILES["gpu"]
         import os
         assert os.environ["LLAMA_N_GPU_LAYERS"] == "99"
-        assert os.environ["LLAMA_CTX_SIZE"] == "32768"
+        # Contra el PERFIL, no contra un literal: esto prueba que apply()
+        # persiste la perilla, no cuanto vale. Con el literal, cada ajuste del
+        # contexto rompia tres tests que no tienen nada que ver (2026-08-02).
+        assert os.environ["LLAMA_CTX_SIZE"] == pp.PROFILES["gpu"]["LLAMA_CTX_SIZE"]
         assert os.environ["COGNIA_PERF_PROFILE"] == "gpu"
         assert pp.current_profile() == "gpu"
 
@@ -107,7 +124,7 @@ class TestApplyProfile:
         pp.apply_profile("gpu")
         content = (isolate_config / "config.env").read_text(encoding="utf-8")
         assert "LLAMA_N_GPU_LAYERS=99" in content
-        assert "LLAMA_CTX_SIZE=32768" in content
+        assert f"LLAMA_CTX_SIZE={pp.PROFILES['gpu']['LLAMA_CTX_SIZE']}" in content
         assert "COGNIA_PERF_PROFILE=gpu" in content
 
     def test_apply_cpu_over_gpu_switches_back(self):
@@ -139,7 +156,7 @@ class TestProfileSummary:
         for knob in ("LLAMA_N_GPU_LAYERS", "LLAMA_CTX_SIZE",
                      "LLAMA_N_THREADS", "COGNIA_PERF_PROFILE"):
             assert knob in text
-        assert "99" in text and "32768" in text
+        assert "99" in text and pp.PROFILES["gpu"]["LLAMA_CTX_SIZE"] in text
 
     def test_summary_marks_active_profile(self):
         pp.apply_profile("cpu")

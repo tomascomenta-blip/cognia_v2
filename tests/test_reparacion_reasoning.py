@@ -56,7 +56,7 @@ def test_generar_sin_effort_no_toca_el_template():
     assert "chat_template_kwargs" not in capturado
 
 
-def test_reparar_web_pide_effort_low_y_reintenta_una_vez():
+def test_reparar_web_pide_effort_low_y_reintenta_una_vez(tmp_path):
     llamadas = []
 
     def _generar_falso(prompt, system="", temperature=0.4, max_tokens=600,
@@ -64,7 +64,13 @@ def test_reparar_web_pide_effort_low_y_reintenta_una_vez():
         llamadas.append((reasoning_effort, max_tokens, timeout))
         return None                          # siempre vacio: cola estocastica
 
-    with patch.object(g, "generar", side_effect=_generar_falso), \
+    # Memoria de presupuesto AISLADA: desde 2026-08-02 el presupuesto es
+    # dinamico y arranca en lo que ya hizo falta, guardado en ~/.cognia. Sin
+    # aislarlo, este test leia la memoria REAL de la maquina y el numero
+    # cambiaba entre corridas — un test que depende del $HOME del que lo corre.
+    with patch.object(g, "_memoria_presupuesto",
+                      lambda: tmp_path / "presupuesto.json"), \
+         patch.object(g, "generar", side_effect=_generar_falso), \
          patch.object(g, "_call_ollama", return_value=None):
         r = g.reparar_web(_prog(), ["(juez) x: esperaba 1"])
     assert r is None
@@ -72,7 +78,15 @@ def test_reparar_web_pide_effort_low_y_reintenta_una_vez():
     # la pareja de series n=6 (4.5 reparando con esfuerzo vs 3.17 sin
     # reparar) mostro que la reparacion que piensa aporta; el effort=low
     # probado la noche del 26/27 la abarataba hasta restar (5ta enmienda).
-    assert llamadas == [(None, 12000, 400), (None, 12000, 400)]
+    assert len(llamadas) == 2
+    assert [c[0] for c in llamadas] == [None, None]
+    assert [c[2] for c in llamadas] == [400, 400]
+    # El presupuesto ya NO es un literal: se comprueba que sea el que decide
+    # el calculo dinamico, y que reparar reciba lo mismo en los dos intentos.
+    assert llamadas[0][1] == llamadas[1][1]
+    assert llamadas[0][1] >= 12000, (
+        f"reparar_web manda la pagina ENTERA y recibe otra entera: "
+        f"presupuesto {llamadas[0][1]} es demasiado corto")
 
 
 # ── ideas interactivas: sin reglas de dashboard en el prompt ─────────────────

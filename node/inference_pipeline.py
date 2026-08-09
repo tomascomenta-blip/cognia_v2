@@ -54,7 +54,8 @@ _LLAMA_EOS_TOKEN = 2
 
 def _apply_qwen_template(prompt: str,
                           system: str = "You are a helpful assistant.",
-                          history: Optional[List[Dict[str, str]]] = None) -> str:
+                          history: Optional[List[Dict[str, str]]] = None,
+                          nothink: bool = False) -> str:
     """Wrap a user prompt in ChatML format for Qwen2 models.
 
     If ``history`` is given it must be a list of prior turns, each a dict
@@ -65,6 +66,14 @@ def _apply_qwen_template(prompt: str,
 
     Malformed turns (missing/unknown role, empty content) are skipped rather
     than raising, so a noisy ``_history`` buffer can be passed verbatim.
+
+    ``nothink=True`` abre y CIERRA el bloque de pensamiento inmediatamente
+    despues de ``<|im_start|>assistant``, que es el UNICO sitio donde los
+    modelos Qwen3/Qwythos lo respetan. Bug 2026-08-02: ponerlo al final del
+    prompt de usuario (antes del ``<|im_end|>``) no hace NADA — el modelo abre
+    su propio ``<think>`` igual y gasta el presupuesto entero razonando
+    (115-174 s por paso del agente, gate e2e 0/5). Default False: ningun
+    caller existente cambia de comportamiento.
     """
     parts = [f"<|im_start|>system\n{system}<|im_end|>\n"]
     for turn in (history or []):
@@ -75,6 +84,8 @@ def _apply_qwen_template(prompt: str,
         parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
     parts.append(f"<|im_start|>user\n{prompt}<|im_end|>\n")
     parts.append("<|im_start|>assistant\n")
+    if nothink:
+        parts.append("<think>\n\n</think>\n\n")
     return "".join(parts)
 
 

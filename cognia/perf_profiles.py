@@ -70,13 +70,28 @@ def _build_profiles() -> dict:
         },
         # GPU real (CUDA/Metal): offload total, contexto grande, todos los
         # threads logicos (el CPU solo alimenta a la GPU).
-        # 32768 = n_ctx_train nativo del Qwen2.5 (sin RoPE OOD, sin perdida de
-        # calidad). En el 7B Q4_K_M la KV cache pasa de ~1.8GB (16k) a ~3.7GB
-        # (32k); con pesos ~4.7GB + buffers cabe holgado en una GPU de 16GB.
-        # Env-overridable: bajar a 16384 en GPUs de <=12GB.
+        # 200192 y no 32768 (2026-08-02): con el modelo por defecto actual
+        # (Qwythos-9B Q4_K, n_ctx_train 1M) el techo NO es la GPU. MEDIDO en la
+        # RTX 5060 Ti de 16311 MiB, ngl 99, KV en f16 SIN cuantizar:
+        #     ctx 200000 -> 12852 MiB, /props n_ctx=200192, slots=1
+        #     prompt real de 140010 tokens -> HTTP 200 en 49s
+        # Quedan ~3.4GB libres. OJO con la cuenta de servilleta: la formula
+        # ingenua (2*33 capas*4 KV heads*key_length 256*2B = 132 KiB/token)
+        # predice 25.8GB y es FALSA para este modelo — el coste real medido es
+        # ~22 KiB/token porque la mayoria de capas usan ventana deslizante.
+        # Por eso el numero sale de la medicion, no del calculo.
+        # 200192 (=782*256) y no 200000 redondo: llama.cpp PADDEA n_ctx al
+        # siguiente multiplo de 256, y _check_adopted_server compara el valor
+        # pedido contra el real — pedir 200000 imprimia "adopted server
+        # n_ctx=200192 != expected ctx_size=200000" en CADA arranque. Pedir el
+        # valor ya redondeado da el mismo contexto sin el falso aviso.
+        # LIMITE: 200k vale para un 9B con atencion de ventana. Un denso grande
+        # (gpt-oss-20b, coder-14b) NO entra a 200k — esos se sirven por
+        # scripts/servir_flota.py, que pasa su propio --ctx explicito y no lee
+        # esta perilla. Env-overridable: bajar en GPUs de <=12GB.
         "gpu": {
             "LLAMA_N_GPU_LAYERS":  "99",
-            "LLAMA_CTX_SIZE":      "32768",
+            "LLAMA_CTX_SIZE":      "200192",
             "LLAMA_N_THREADS":     str(logical),
             "COGNIA_PERF_PROFILE": "gpu",
         },

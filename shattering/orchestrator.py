@@ -269,7 +269,8 @@ class ShatteringOrchestrator:
               stop: Optional[list] = None,
               repeat_penalty: Optional[float] = None,
               grammar: Optional[str] = None,
-              system: Optional[str] = None) -> InferResult:
+              system: Optional[str] = None,
+              nothink: bool = False) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -320,6 +321,7 @@ class ShatteringOrchestrator:
                 repeat_penalty=repeat_penalty,
                 grammar=grammar,
                 system=system,
+                nothink=nothink,
             )
 
         return InferResult(
@@ -741,10 +743,13 @@ class ShatteringOrchestrator:
                      stop: Optional[list] = None,
                      repeat_penalty: Optional[float] = None,
                      grammar: Optional[str] = None,
-                     system: Optional[str] = None):
+                     system: Optional[str] = None,
+                     nothink: bool = False):
         """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens.
         repeat_penalty!=None desalienta la degeneracion (cola repetida) que a temp=0
-        el 3B genera hasta el cap; el agente lo usa en el paso ReAct (ver cli.py)."""
+        el 3B genera hasta el cap; el agente lo usa en el paso ReAct (ver cli.py).
+        nothink=True cierra el bloque de razonamiento en la plantilla (solo camino
+        local/llama.cpp): el paso ReAct ELIGE una tool, no la razona."""
         if temperature is None:
             temperature = self._TEMPERATURES.get(decision.sub_model, 0.5)
         _max_toks = max_tokens if max_tokens is not None else self._max_tokens
@@ -763,7 +768,7 @@ class ShatteringOrchestrator:
             # (astream y adaptive_prompt), no donde ejecuta herramientas.
             if system is None:
                 system = COGNIA_SYSTEM_PROMPT
-            formatted = _apply_qwen_template(prompt, system)
+            formatted = _apply_qwen_template(prompt, system, nothink=nothink)
             result = self._llama.generate(formatted, max_tokens=_max_toks,
                                           temperature=temperature, stop=stop,
                                           repeat_penalty=repeat_penalty,

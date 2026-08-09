@@ -398,14 +398,81 @@ def _fase_sin_stubs(prod):
             "detalle": "; ".join(partes) or "sin senales de stub"}
 
 
+def _mirar_en_navegador(codigo, dir_producto=None, idea=""):
+    """Abre la pagina en Chrome headless. (ok, detalle, errores_js).
+
+    POR QUE (2026-08-02): esta fase se llamaba 'arranca' pero NO arrancaba nada
+    — solo pasaba revisar_html(), que lee TEXTO. Una landing con
+    "ReferenceError: daily is not defined" en su <script> quedaba EN NEGRO de la
+    mitad para abajo y aun asi se sello 'verificado: corre (9.5/10)'. Es el
+    mismo caso que motivo vista_navegador.py el 2026-07-19 (8.7/10 estatico,
+    pagina negra en Chrome): el modulo existia, pero nadie lo habia enchufado al
+    veredicto, asi que el juez seguia sin ejecutar.
+
+    Sin navegador instalado NO reprueba (no todos los entornos tienen Chrome),
+    pero lo DICE: un chequeo que se salta en silencio es peor que no tenerlo.
+    COGNIA_VERIFICAR_NAVEGADOR=0 lo apaga (util para sellar la biblioteca
+    entera, donde son ~15 s por producto).
+    """
+    if os.environ.get("COGNIA_VERIFICAR_NAVEGADOR", "1").strip() == "0":
+        return True, "navegador desactivado (COGNIA_VERIFICAR_NAVEGADOR=0)", []
+    try:
+        from .program_creator.vista_navegador import revisar_en_navegador
+        # dir_producto (no None) hace que las capturas PERSISTAN en
+        # input_images/: sin ellas el arbitro visual no tiene nada que mirar.
+        inf = revisar_en_navegador(codigo, dir_programa=dir_producto)
+    except Exception as exc:                  # nunca puede tumbar la verificacion
+        return True, f"no se pudo mirar la pagina ({exc.__class__.__name__}): sin este chequeo", []
+    errores = list(inf.errores_js or [])
+    detalle_vlm = _mirar_con_vlm(inf, idea)
+    if errores:
+        return (False,
+                "errores de JavaScript al cargar: " + "; ".join(errores[:3]) + detalle_vlm,
+                errores)
+    if inf.nota:                              # p.ej. "Sin navegador instalado"
+        return True, inf.nota + detalle_vlm, []
+    return True, "abre en el navegador sin errores de JS" + detalle_vlm, []
+
+
+def _mirar_con_vlm(informe, idea):
+    """El arbitro VLM MIRA el screenshot real. Devuelve texto para el detalle.
+
+    NO entra en el veredicto de pase/fallo, y es deliberado: juez_ejecutable.py
+    documenta el caso medido que lo justifica — un juego de memoria con las 16
+    cartas DESTAPADAS saco 7.5/10 del VLM porque vio una cuadricula bonita. Si
+    la estetica puntua el veredicto, el lazo optimiza apariencia. La ejecucion
+    manda; el ojo informa.
+
+    Sin VLM servido no falla: lo DICE. Un arbitro ausente en silencio es
+    justamente como se llego a sellar paginas rotas con 9.5.
+    """
+    try:
+        from .program_creator.arbitro_visual import (
+            arbitrar_desde_informe, vlm_disponible)
+        vivo, motivo = vlm_disponible()
+        if not vivo:
+            return f" | VLM: NO juzgo ({motivo})"
+        fallo = arbitrar_desde_informe(idea or "pagina web", informe)
+        if not fallo:
+            return " | VLM: sin veredicto"
+        defectos = fallo.get("defectos") or []
+        return (f" | VLM: {fallo.get('nota', '?')}/10 {fallo.get('veredicto', '')}"
+                + (f" ({len(defectos)} defectos visuales)" if defectos else ""))
+    except Exception as exc:
+        return f" | VLM: error al mirar ({exc.__class__.__name__})"
+
+
 def _fases_html(prod):
     """
-    Verificacion de una pagina: no se ejecuta, se revisa con el criterio que ya
-    tiene el repo (revisar_html de sandbox_runner). 'compila' pasa a ser
-    'tiene estructura de documento' y 'arranca' a 'la pagina sirve desplegada'.
+    Verificacion de una pagina. 'compila' es 'tiene estructura de documento' y
+    'arranca' es lo que dice su nombre: la pagina se ABRE en un navegador de
+    verdad (ademas del criterio estatico revisar_html de sandbox_runner).
     """
     codigo = _leer(prod["entrypoint"])
     informe = revisar_html(codigo)
+    nav_ok, nav_detalle, nav_errores = _mirar_en_navegador(
+        codigo, dir_producto=Path(prod["entrypoint"]).parent,
+        idea=prod.get("title") or prod.get("description") or "")
     estructura = all(t in codigo.lower() for t in ("<html", "<head", "<body"))
     utiles = _lineas_utiles(codigo)
     return {
@@ -413,11 +480,17 @@ def _fases_html(prod):
                     "errores": [] if estructura else ["falta <html>/<head>/<body>"],
                     "detalle": "documento HTML completo" if estructura else "documento incompleto"},
         "importa": {"ok": None, "detalle": "n/a (no es Python)"},
-        "arranca": {"ok": bool(informe.success), "rc": informe.exit_code, "timeout": False,
-                    "stdout": informe.execution_output[:800], "stderr": informe.execution_errors[:800],
+        # 'arranca' exige LAS DOS: el criterio estatico Y que la pagina abra sin
+        # reventar en un navegador real. Basta que una falle para no verificarla.
+        "arranca": {"ok": bool(informe.success) and nav_ok, "rc": informe.exit_code, "timeout": False,
+                    "stdout": informe.execution_output[:800],
+                    "stderr": ("\n".join(nav_errores) + "\n" + informe.execution_errors)[:800]
+                              if nav_errores else informe.execution_errors[:800],
                     "chars_stdout": len(informe.execution_output.strip()),
-                    "detalle": "revisar_html OK" if informe.success
-                               else "revisar_html: " + (informe.execution_errors.splitlines() or [""])[0][:160]},
+                    "navegador": {"ok": nav_ok, "detalle": nav_detalle, "errores_js": nav_errores},
+                    "detalle": (("revisar_html OK" if informe.success
+                                 else "revisar_html: " + (informe.execution_errors.splitlines() or [""])[0][:160])
+                                + " | navegador: " + nav_detalle)},
         "sin_stubs": {"ok": len(utiles) >= 20, "vacios": [] if len(utiles) >= 20 else [prod["entrypoint"]],
                       "funciones_huecas": [], "funciones": 0, "ratio_huecas": 0.0, "marcadores": 0,
                       "detalle": f"{len(utiles)} lineas utiles de HTML"},

@@ -236,15 +236,37 @@ def encontrar_navegador() -> Optional[str]:
     return None
 
 
+# CAZADOR DE ERRORES — va lo mas ARRIBA posible del documento, no con el resto
+# de la sonda.
+#
+# POR QUE SEPARADO (2026-08-02): el listener vivia dentro de _SONDA, que se
+# inyecta antes de </body> — o sea, DESPUES de los <script> de la propia pagina.
+# Un error al cargar ya habia ocurrido cuando el listener se registraba, asi que
+# `errores_js` salia SIEMPRE VACIO. Medido con una landing real cuyo JS moria en
+# "ReferenceError: daily is not defined" (la pagina quedaba en negro de la mitad
+# para abajo): Chrome DevTools lo reportaba y la sonda decia "ninguno".
+#
+# Un detector de errores que no detecta errores es peor que no tenerlo: da por
+# limpia una pagina rota. Registrado en <head>, cualquier script posterior cae.
+_CAZA_ERRORES = """
+<script>
+window.__cognia_errores__ = [];
+window.addEventListener('error', function (e) {
+  window.__cognia_errores__.push(String(e.message || e).slice(0, 200));
+});
+window.addEventListener('unhandledrejection', function (e) {
+  window.__cognia_errores__.push('promesa sin catch: ' +
+    String((e.reason && e.reason.message) || e.reason).slice(0, 200));
+});
+</script>
+"""
+
 # La sonda se inyecta al final del <body>. Mira dos veces separadas en el
 # tiempo y deja el veredicto en un <div> que luego se lee con --dump-dom.
 _SONDA = """
 <script>
 (function () {
-  var errores = [];
-  window.addEventListener('error', function (e) {
-    errores.push(String(e.message).slice(0, 200));
-  });
+  var errores = window.__cognia_errores__ || [];
 
   function leer() {
     var vistos = [];
@@ -395,9 +417,24 @@ _SONDA = """
 
 
 def _preparar_pagina(code: str, destino: Path) -> Path:
-    """Escribe la pagina con la sonda inyectada antes de cerrar el body."""
+    """Escribe la pagina con el cazador de errores ARRIBA y la sonda al final."""
     sonda = (_SONDA.replace("__MS_MUESTREO__", str(_MS_MUESTREO))
                    .replace("__N_MUESTRAS__", str(_N_MUESTRAS)))
+    bajo  = code.lower()
+
+    # 1) el cazador de errores, lo antes posible: tras <head>, o tras <html>, o
+    #    al principio del documento. Tiene que quedar ANTES de cualquier <script>
+    #    de la pagina o no vera lo que estos lancen al cargar.
+    for etiqueta in ("<head>", "<html>"):
+        pos = bajo.find(etiqueta)
+        if pos != -1:
+            corte_ini = pos + len(etiqueta)
+            break
+    else:
+        corte_ini = 0
+    code = code[:corte_ini] + _CAZA_ERRORES + code[corte_ini:]
+
+    # 2) la sonda de muestreo, al final: necesita el DOM ya construido.
     bajo  = code.lower()
     corte = bajo.rfind("</body>")
     if corte == -1:

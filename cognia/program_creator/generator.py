@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional
 
 from cognia.compresion_salidas import comprimir_error
+from cognia import llm_local as _llm_local
 from cognia.llm_local import generar
 
 # ── Configuración ──────────────────────────────────────────────────────────────
@@ -32,6 +33,88 @@ TIMEOUT_SEC  = 500
 
 # Firma del backend inyectable: (prompt, system, max_tokens, temperature) -> texto|None
 LlmFn = Callable[[str, str, int, float], Optional[str]]
+
+
+# ── Presupuesto DINAMICO de generacion ─────────────────────────────────────────
+#
+# Era una constante: 12000, y 24000 para html tras MEDIR que una landing pedia
+# 15.472 tokens (2026-08-02). Pero cualquier constante es un muro con fecha: la
+# pagina que pidan manana puede necesitar mas, y nadie sabe cuanto de antemano.
+# Peor, el modo de fallo es el de siempre en este repo — la salida vuelve
+# truncada, el fence sin cerrar, y el lazo lo reporta como si el modelo no
+# supiera hacerlo.
+#
+# Ahora lo decide la corrida, en tres piezas:
+#   1. TECHO: sale del n_ctx REAL del server (backend_activo.props), no de un
+#      literal. Con 8k de contexto pide poco; con los 200k de ahora, mucho. El
+#      mismo codigo se adapta al modelo que haya servido.
+#   2. ESCALADA: si la salida vuelve TRUNCADA, se reintenta DOBLANDO, hasta el
+#      techo. Cognia se toma lo que necesita en vez de rendirse.
+#   3. MEMORIA: lo que funciono se recuerda por lenguaje, asi la proxima empieza
+#      donde acabo la anterior en vez de repetir la escalada entera.
+
+_PRESUPUESTO_MIN  = 4000
+# Solo el ARRANQUE (la escalada y la memoria mandan a partir de ahi).
+_PRESUPUESTO_BASE = {"html": 16000, "python": 8000}
+
+
+def _memoria_presupuesto():
+    from pathlib import Path
+    return Path.home() / ".cognia" / "presupuesto_generacion.json"
+
+
+def techo_generacion(prompt_chars: int = 0) -> int:
+    """Cuanto se PUEDE pedir: n_ctx real del server menos el prompt y un margen.
+
+    Sin server que preguntar cae al arranque de siempre — nunca lanza: un fallo
+    aqui no puede tumbar una generacion.
+    """
+    n_ctx = None
+    try:
+        from .. import backend_activo
+        from ..llm_local import detectar_backend
+        url = ((detectar_backend() or {}).get("url") or "").rstrip("/")
+        if url:
+            n_ctx = backend_activo.props(url).get("n_ctx")
+    except Exception:
+        n_ctx = None
+    if not n_ctx:
+        return _PRESUPUESTO_BASE["html"]
+    # ~3 chars/token es pesimista a proposito (el real ronda 4): reservar de mas
+    # es barato, quedarse corto devuelve el HTTP 400 de exceed_context_size.
+    reserva = prompt_chars // 3 + 512
+    return max(_PRESUPUESTO_MIN, int((n_ctx - reserva) * 0.9))
+
+
+def _presupuesto_recordado(lenguaje: str) -> int:
+    try:
+        datos = json.loads(_memoria_presupuesto().read_text(encoding="utf-8"))
+        return int(datos.get(lenguaje, 0))
+    except Exception:
+        return 0
+
+
+def recordar_presupuesto(lenguaje: str, tokens: int) -> None:
+    """Guarda el presupuesto que SI alcanzo, para no re-escalar la proxima vez."""
+    try:
+        ruta = _memoria_presupuesto()
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        datos = {}
+        if ruta.exists():
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+        if int(tokens) > int(datos.get(lenguaje, 0)):
+            datos[lenguaje] = int(tokens)
+            ruta.write_text(json.dumps(datos, indent=2), encoding="utf-8")
+    except Exception:
+        pass    # recordar es una mejora, nunca un requisito
+
+
+def presupuesto_inicial(lenguaje: str, prompt_chars: int = 0) -> int:
+    """Con cuanto ARRANCAR: el mayor entre la base y lo que ya hizo falta, sin
+    pasarse del techo real del contexto."""
+    base = max(_PRESUPUESTO_BASE.get(lenguaje, 8000),
+               _presupuesto_recordado(lenguaje))
+    return max(_PRESUPUESTO_MIN, min(base, techo_generacion(prompt_chars)))
 
 
 FALLBACK_CATEGORIES = [
@@ -610,6 +693,10 @@ def _call_llm(prompt: str, lenguaje: str = "python",
     from .. import backend_activo
 
     system = _SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON
+    # Presupuesto DINAMICO (ver el bloque del principio del modulo): arranca en
+    # lo que ya hizo falta para este lenguaje, acotado por el n_ctx REAL del
+    # server. El que pasa el caller —reparaciones, escalada— sigue mandando.
+    _presupuesto = max_tokens or presupuesto_inicial(lenguaje, len(prompt))
     # Volcado PASIVO del prompt tal como lo arma el lazo (COGNIA_DUMP_PROMPTS
     # = dir). Dos sondas del prompt DIRECTO ya fallaron en transferir al lazo
     # (fix2 v2/v3, 2026-07-27/28): la proxima se hace sobre ESTE registro.
@@ -641,7 +728,16 @@ def _call_llm(prompt: str, lenguaje: str = "python",
                 return texto
     if llm is not None:
         try:
-            raw = llm(prompt, system, 6000, temperature)
+            # MISMO presupuesto que el camino de abajo (max_tokens or 12000), no
+            # 6000 fijo. El 6000 ignoraba el parametro max_tokens y dejaba a ESTE
+            # camino —el del backend inyectado, que es el que atiende de verdad—
+            # con la mitad del presupuesto que su propio comentario de abajo
+            # justifica subir. Sintoma medido 2026-08-02 generando una landing
+            # completa: "Respuesta truncada (fence sin cerrar): regenero" en el
+            # intento 1, con rol=inyectado en el log. Es la misma familia de bug
+            # que el presupuesto de razonamiento: el tope tiene que cubrir
+            # pensamiento + pagina, y una pagina web entera no entra en 6000.
+            raw = llm(prompt, system, _presupuesto, temperature)
             if raw:
                 # El backend inyectado GANA sobre llm_local: es el que atendio
                 # los "5.4/10" de hoy sirviendo el 7B retirado en :8088. Ahora
@@ -670,13 +766,29 @@ def _call_llm(prompt: str, lenguaje: str = "python",
         # reparar_web con gpt-oss volvia con contenido VACIO y _call_llm caia
         # hasta el 404 de Ollama ("no devolvio una correccion valida"). Mismo
         # numero que _preguntar_constructor, que ya se subio por esta razon.
-        max_tokens=max_tokens or 12000,
+        max_tokens=_presupuesto,
         via="create_program",
         reasoning_effort=reasoning_effort,
-        **({"timeout": timeout} if timeout else {}),
+        # Sin timeout explicito, llm_local usaba su tope PLANO de 120 s, que no
+        # alcanza para 12000 tokens (~200 s a la velocidad medida) y mataba la
+        # generacion de paginas completas. timeout_para() lo escala al
+        # presupuesto; el que pasan las REPARACIONES sigue mandando.
+        timeout=timeout or _llm_local.timeout_para(_presupuesto),
     )
     if texto:
         return texto
+    # PRESUPUESTO AGOTADO != SIN BACKEND. Con un modelo de razonamiento y un
+    # max_tokens corto, el content vuelve VACIO (se gasto todo pensando) con
+    # finish_reason='length' y el server perfectamente sano. Reportar eso como
+    # "no hay backend" es un diagnostico FALSO —y ademas manda a arrancar una
+    # flota que ya esta viva— asi que se distingue: quien llama puede subir el
+    # presupuesto y reintentar, que es lo que arregla este caso.
+    if (_llm_local.ultimo_detalle.get("finish_reason") == "length"
+            and _llm_local.ultimo_detalle.get("pedidos")):
+        print(f"[generator] ⚠️  Sin contenido: el modelo agoto los "
+              f"{_llm_local.ultimo_detalle['pedidos']} tokens pedidos "
+              f"(finish_reason=length). El backend esta SANO; falta presupuesto.")
+        return None
     # Ollama no esta instalado en esta maquina (.env lo dice desde la migracion).
     # Llegar aqui es degradar: que se vea.
     backend_activo.sin_backend(
@@ -910,7 +1022,15 @@ def _elegir_codigo(bloques: list) -> tuple:
 
 
 def _parse_response(raw: str, category: str,
-                    lenguaje: str = "python") -> Optional[GeneratedProgram]:
+                    lenguaje: str = "python",
+                    detalles: Optional[dict] = None) -> Optional[GeneratedProgram]:
+    """`detalles` (opcional) se rellena con el POR QUE del None.
+
+    Hoy solo {'truncado': True}. Existe para que el llamador distinga "la salida
+    se corto por presupuesto" (reintentable con mas tokens) de "el modelo
+    devolvio algo que no sirve" (reintentar con mas tokens no arregla nada).
+    Parametro opcional a proposito: los 5 call sites que no lo pasan siguen igual.
+    """
     if not raw:
         return None
 
@@ -959,7 +1079,9 @@ def _parse_response(raw: str, category: str,
     # corresponde es regenerar.
     if codigo is None:
         if bloques:
-            print("[generator] ⚠️  Respuesta truncada (fence sin cerrar): regenero.")
+            print("[generator] ⚠️  Respuesta truncada (fence sin cerrar).")
+            if detalles is not None:
+                detalles["truncado"] = True
         return None
 
     code = codigo.strip()
@@ -1059,8 +1181,39 @@ def generate_program(seed_concepts: Optional[list] = None,
 
     prompt  = (_build_prompt_web(category, extra_hint) if lenguaje == "html"
                else _build_prompt(category, extra_hint))
-    raw     = _call_llm(prompt, lenguaje, temperature=temperature, llm=llm)
-    program = _parse_response(raw, category, lenguaje) if raw else None
+    # ESCALADA de presupuesto: mientras la salida vuelva TRUNCADA, se dobla y se
+    # reintenta, hasta el techo real del contexto. Antes, un truncado gastaba el
+    # intento entero y se leia como "el modelo no supo" — con 2 intentos por
+    # sesion, dos truncados dejaban la sesion en 0 (medido 2026-08-02).
+    techo = techo_generacion(len(prompt))
+    presupuesto = presupuesto_inicial(lenguaje, len(prompt))
+    raw = program = None
+    while True:
+        _llm_local.ultimo_detalle.clear()
+        raw = _call_llm(prompt, lenguaje, temperature=temperature, llm=llm,
+                        max_tokens=presupuesto)
+        detalles: dict = {}
+        program = _parse_response(raw, category, lenguaje, detalles) if raw else None
+        # DOS senales de "falto presupuesto", y hacen falta las dos:
+        #   - fence sin cerrar: el modelo emitio codigo y se corto a mitad;
+        #   - finish_reason='length': se quedo sin tokens, a veces SIN emitir
+        #     nada (todo el presupuesto en razonamiento) — ahi raw es None y el
+        #     fence no existe, asi que la primera senal no llega nunca.
+        sin_presupuesto = (detalles.get("truncado")
+                           or _llm_local.ultimo_detalle.get("finish_reason") == "length")
+        if program is not None or not sin_presupuesto:
+            break
+        if presupuesto >= techo:
+            print(f"[generator] ⚠️  Truncado ya en el TECHO del contexto "
+                  f"({presupuesto} tokens de un n_ctx que no da para mas): "
+                  f"no escalo. Sirve un modelo con mas contexto o parte la tarea.")
+            break
+        anterior, presupuesto = presupuesto, min(techo, presupuesto * 2)
+        print(f"[generator] 📈 Salida truncada: subo el presupuesto "
+              f"{anterior} → {presupuesto} tokens (techo {techo}) y reintento.")
+    if program is not None:
+        # Lo que SI alcanzo se recuerda: la proxima arranca aqui.
+        recordar_presupuesto(lenguaje, presupuesto)
 
     if raw is None:
         print("[generator] ⚠️  Sin backend LLM vivo (ni orquestador ni Ollama). "

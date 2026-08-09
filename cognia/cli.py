@@ -8999,6 +8999,34 @@ _RE_SKILL_VERIFICA = re.compile(
 # _MAX_DERIVED en goal_contract: contrato acotado, no una suite entera).
 _MAX_TESTS_SKILL = 3
 
+def _sin_pensamiento(texto: str) -> str:
+    """Quita el bloque <think>...</think> de la respuesta de un razonador.
+
+    Bug 2026-08-02 (gate e2e 0/5, las 5 tareas fallando con '<think>'): TODOS
+    los consumidores de LLM del repo strippean este bloque —razonador.py,
+    mockup.py, juez_ejecutable.py, generator.py, pulidor.py, critico.py,
+    arbitro_visual.py— MENOS el loop del agente, que se escribio para un 3B que
+    no pensaba. Con Qwythos-9B el <think> entero aterrizaba en raw_response, el
+    parser no encontraba ACCION y /hacer cerraba por prosa sin ejecutar NADA.
+
+    Tolerante a las dos formas (igual que razonador.py): el modelo puede emitir
+    el par completo o —cuando la plantilla ya inyecto la apertura— solo el
+    cierre </think>, en cuyo caso todo lo previo es pensamiento.
+
+    Si quedo un <think> SIN cerrar, el paso se quedo sin presupuesto pensando:
+    devuelve "" para que el loop lo cuente como fallo (y lo corte _FAIL_STREAK)
+    en vez de intentar parsear medio razonamiento como si fuera una ACCION.
+    """
+    t = (texto or "").strip()
+    if not t:
+        return ""
+    t = re.sub(r"<think>.*?</think>", "", t, flags=re.DOTALL).strip()
+    if "</think>" in t:                      # cierre sin apertura
+        t = t.split("</think>", 1)[1].strip()
+    if "<think>" in t:                       # apertura sin cierre = truncado
+        return ""
+    return t
+
 
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     hint: str = "", guidance: str = "",
@@ -9457,10 +9485,20 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # accion (donde first_action_block ya truncaba) -> elimina el
             # generate-then-discard del rambling. NO se incluye '\nRESULTADO'
             # porque el contenido multi-linea de escribir_archivo puede contenerlo.
-            # max_tokens=256: una ACCION es corta (`tool args` o `responder <texto>`);
-            # el default 768 dejaba al 3B llenar cada paso degenerado hasta el cap
-            # (~70s). Cota dura por paso; el bound REAL del cuelgue es el corte por
-            # no-progreso (_FAIL_STREAK) mas abajo.
+            # max_tokens: una ACCION es corta (`tool args` o `responder <texto>`),
+            # PERO con un modelo de razonamiento la salida corta va DESPUES del
+            # pensamiento, y el cap tiene que cubrir las dos. El 256 fijo que
+            # habia aqui (calibrado para el 3B no razonador: el default 768 lo
+            # dejaba llenar cada paso degenerado hasta el cap, ~70s) mataba a
+            # Qwythos-9B en silencio — su plantilla inyecta `<think>` en cada
+            # turno, gastaba los 256 pensando y devolvia texto vacio o prosa, y
+            # el loop cerraba con "2 pasos sin ACCION valida" sin ejecutar
+            # NINGUNA tool. Ahora sale del nivel /esfuerzo activo (misma fuente
+            # de verdad que el resto del razonamiento), con tope duro de 8000
+            # por paso: 'maximo' vale 50000 para una generacion larga, pero un
+            # paso de agente que piensa mas de 8k tokens esta degenerando, no
+            # razonando. Cota dura por paso; el bound REAL del cuelgue sigue
+            # siendo el corte por no-progreso (_FAIL_STREAK) mas abajo.
             # NO repeat_penalty: rp=1.3 (que probe en 3.8.4) penalizaba los tokens de
             # los nombres de tool —que se repiten desde TOOLS_DOC en el prompt— y
             # empujaba al 3B a BASURA. e2e 2026-07-10: con rp=1.3 tareas normales
@@ -9489,10 +9527,26 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 except Exception:
                     raw_response = None
             if raw_response is None:
-                raw_response = orch.infer(
-                    prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
-                    max_tokens=256, grammar=_gram, system=_SYS_AGENTE,
-                ).text.strip()
+                # nothink=True cierra el bloque de pensamiento en la PLANTILLA
+                # (tras <|im_start|>assistant, el unico sitio donde el modelo lo
+                # respeta): una ACCION se ELIGE, no se razona. Sin esto
+                # Qwythos-9B gastaba el presupuesto entero pensando (115-174s
+                # por paso, gate e2e 0/5). _sin_pensamiento() es la red de
+                # seguridad por si aun asi piensa.
+                _llm_crudo = orch.infer(
+                    prompt, temperature=_step_temp,
+                    stop=["\nACCION:", "\nACCIÓN:"],
+                    max_tokens=min(_active_effort()["max_tokens"], 8000),
+                    grammar=_gram, system=_SYS_AGENTE, nothink=True,
+                ).text
+                raw_response = _sin_pensamiento(_llm_crudo)
+                # Si SOLO quedo vacio despues de limpiar, el modelo gasto el
+                # paso razonando: es un paso FALLIDO, no una falta de backend.
+                # Distinguirlo importa — la rama de abajo aborta el loop entero
+                # con "instala un modelo", que aqui seria un diagnostico FALSO.
+                if not raw_response and (_llm_crudo or "").strip():
+                    raw_response = ("(el modelo agoto el paso razonando y no "
+                                    "emitio ninguna ACCION)")
             _step_temp = 0.0
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")

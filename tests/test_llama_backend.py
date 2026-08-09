@@ -1403,3 +1403,51 @@ class TestFindGgufFallbackHome:
         monkeypatch.setattr(_P, "home",
                             classmethod(lambda cls: tmp_path / "home_vacio"))
         assert lb._find_gguf() is None
+
+
+# ---------------------------------------------------------------------------
+# Flags del llama-server que Cognia arranca sola (regresion 2026-08-02)
+# ---------------------------------------------------------------------------
+
+def _cmd_de_arranque(tmp_path, monkeypatch):
+    """Arranca _LlamaServerBackend con todo mockeado y devuelve el cmd real."""
+    import node.llama_backend as lb
+    gguf = tmp_path / "m.gguf"
+    gguf.write_bytes(b"x" * 100)
+    exe = tmp_path / "llama-server.exe"
+    exe.write_bytes(b"x")
+    monkeypatch.setenv("LLAMA_SERVER_PATH", str(exe))
+    capturado = {}
+
+    def _popen(cmd, **kw):
+        capturado["cmd"] = cmd
+        p = MagicMock()
+        p.pid = 1234
+        return p
+
+    with patch.object(lb._LlamaServerBackend, "_health_state", lambda self: "ausente"), \
+         patch.object(lb._LlamaServerBackend, "_ping", lambda self: True), \
+         patch.object(lb._LlamaServerBackend, "_force_base_scales", lambda self: None), \
+         patch.object(lb.subprocess, "Popen", _popen):
+        lb._LlamaServerBackend(gguf, port=18080)
+    return capturado["cmd"]
+
+
+class TestFlagsDelServerPropio:
+    def test_pasa_parallel_1(self, tmp_path, monkeypatch):
+        """Sin --parallel 1 el server parte --ctx-size entre 4 slots.
+
+        Cazado 2026-08-02: el server arrancado por ESTE lanzador reportaba
+        total_slots=4, asi que un --ctx-size 4096 daba 1024 tokens reales por
+        peticion y cualquier prompt normal moria con HTTP 400
+        exceed_context_size. scripts/servir_modelo.py ya lo arreglaba desde
+        2026-07-28; este camino se habia quedado sin el fix.
+        """
+        cmd = _cmd_de_arranque(tmp_path, monkeypatch)
+        assert "--parallel" in cmd
+        assert cmd[cmd.index("--parallel") + 1] == "1"
+
+    def test_ctx_size_respeta_el_env(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "200000")
+        cmd = _cmd_de_arranque(tmp_path, monkeypatch)
+        assert cmd[cmd.index("--ctx-size") + 1] == "200000"

@@ -129,6 +129,13 @@ exclude = [
 # La app movil del control remoto (python -m cognia.remoto)
 "cognia.remoto" = ["static/*.html"]
 "cognia.microexpertos" = ["*/pesos.npz", "*/config.json", "*/metrics.json", "*/paridad_ref.npz"]
+# Fuentes C de los kernels rapidos: node/build_fast_kernels.py compila
+# fast_kernels.c (y _fast_kernels_cffi.c en el fallback cffi) en runtime, pero
+# el .c nunca viajaba en el wheel — 'node' no tenia entrada aqui. En la
+# instalacion real eso son 4 lineas de error por arranque (gcc/clang: "No such
+# file or directory") y la perdida SILENCIOSA de la aceleracion CPU, porque el
+# builder no distingue "no compila" de "no hay fuente". Cazado 2026-08-02.
+"node" = ["*.c"]
 
 # (v3.6.0) Se removio el bloque py-modules: esos modulos top-level se reorganizaron
 # dentro del paquete cognia_v3/ (core/memory/interfaces) y ahora se empaquetan via

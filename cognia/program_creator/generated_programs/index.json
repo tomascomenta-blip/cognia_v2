@@ -1167,5 +1167,83 @@
     "verificado": null,
     "puntaje_real": null,
     "verificado_en": ""
+  },
+  {
+    "id": "automated_pet_feeder_scheduler",
+    "title": "Automated Pet Feeder Scheduler",
+    "category": "Automated pet feeder scheduler based on animal needs and feeding habits",
+    "description": "A simple terminal program that schedules pet feeding times based on animal needs and feeding habits.",
+    "total_score": 5.9,
+    "created_at": "2026-08-02T00:14:56.786377",
+    "directory": "automated_pet_feeder_scheduler",
+    "self_proposed": true,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "number_theory_explorer",
+    "title": "**Number Theory Explorer**",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "Generates two sequences and verifies if they align after a cycle, revealing hidden patterns in integer growth.",
+    "total_score": 7.3,
+    "created_at": "2026-08-02T00:28:30.258033",
+    "directory": "number_theory_explorer",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "cosmic_census_self_aware_starfield_simulation",
+    "title": "Cosmic Census — Self-Aware Starfield Simulation",
+    "category": "1. Identify the core constraints:",
+    "description": "A self-inspecting animated starfield that counts itself while moving stars across your terminal.",
+    "total_score": 6.3,
+    "created_at": "2026-08-02T00:46:04.783837",
+    "directory": "cosmic_census_self_aware_starfield_simulation",
+    "self_proposed": true,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "the_software_landing",
+    "title": "The Software – Landing",
+    "category": "Landing page para una empresa de programadores llamada \"The Software\". Debe incluir: hero llamativo con animaciones, seccion de servicios, GRAFICOS SVG animados con metricas de la empresa, varias RESENAS de clientes con estrellas y avatares, seccion de estadisticas con contadores, imagenes, transiciones y efectos hover llamativos, y footer con contacto. Diseno moderno oscuro con acentos de color.",
+    "description": "Landing page moderna para The Software, con gráficos SVG animados, KPIs y reviews en vivo",
+    "total_score": 7.5,
+    "created_at": "2026-08-02T12:42:52.908930",
+    "directory": "the_software_landing",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "the_software",
+    "title": "The Software",
+    "category": "Landing page para una empresa de programadores llamada \"The Software\". Debe incluir: hero llamativo con animaciones, seccion de servicios, GRAFICOS SVG animados con metricas de la empresa, varias RESENAS de clientes con estrellas y avatares, seccion de estadisticas con contadores, imagenes, transiciones y efectos hover llamativos, y footer con contacto. Diseno moderno oscuro con acentos de color.",
+    "description": "Dark landing page for a developer company with animated SVG metrics, service tiles, and rotating footers",
+    "total_score": 6.8,
+    "created_at": "2026-08-02T12:49:00.998913",
+    "directory": "the_software",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "the_software_dashboard_animado_en_vivo",
+    "title": "The Software — Dashboard animado en vivo",
+    "category": "Pagina web landing para la empresa de programadores The Software, con graficos SVG, resenas de clientes y animaciones",
+    "description": "Una página de aterrizaje para The Software con gráficos SVG, reseñas y animaciones que fluyen por sí solas.",
+    "total_score": 7.0,
+    "created_at": "2026-08-02T13:07:47.333183",
+    "directory": "the_software_dashboard_animado_en_vivo",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
   }
 ]

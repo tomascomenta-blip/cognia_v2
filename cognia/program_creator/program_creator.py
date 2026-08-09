@@ -148,8 +148,16 @@ def _llm_de_cognia(cognia_instance):
     from ..llm_local import detectar_backend, generar
 
     def llm(prompt, system="", max_tokens=2000, temperature=0.9):
+        # timeout ESCALADO al presupuesto: sin el, este closure usaba el tope
+        # plano de llm_local (120 s) y toda generacion larga moria en
+        # "[llm] Error: timed out" — que aguas arriba se lee como "sin backend
+        # LLM vivo" y degrada hasta el 404 de Ollama. MEDIDO 2026-08-02: una
+        # landing completa son 15.472 tokens en 138 s (112 tok/s); el tope de
+        # 120 s la mataba a falta de ~18 s.
+        from ..llm_local import timeout_para
         return generar(prompt, system=system, temperature=temperature,
-                       max_tokens=max_tokens, via="construir") or None
+                       max_tokens=max_tokens, via="construir",
+                       timeout=timeout_para(max_tokens)) or None
 
     # generator._call_llm registra QUE backend atendio leyendo llm.url_base;
     # sin el atributo, cada llamada quedaba en el audit como

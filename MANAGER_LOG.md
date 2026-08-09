@@ -12110,3 +12110,141 @@ Verificacion: suite completa 5924 passed / 0 failed / 1 skipped; GATE camino
 feliz con modelo real (coder-14b) /hacer 5/5 OK (repetido tras los cambios de
 prompt); CLI arranca, banner nuevo, /modelo lista los 11 GGUF reales incl.
 Qwythos. Todo pusheado a origin/main.
+
+## 2026-08-02 — Ventana de contexto a 200k + fuentes C del wheel
+
+**Sintoma reportado:** una peticion normal (landing page) devolvia
+`llama-server request failed: HTTP Error 400` y Cognia degradaba a shards numpy,
+mas 4 lineas de `[fast_kernels] gcc/clang failed: fast_kernels.c: No such file`.
+
+**Causas (tres, independientes):**
+1. `~/.cognia/config.env` tenia el perfil `cpu` (`LLAMA_CTX_SIZE=4096`,
+   `LLAMA_N_GPU_LAYERS=0`) en una maquina con RTX 5060 Ti: el 9B corria en CPU
+   puro y con 4k de contexto.
+2. `node/llama_backend.py` no pasaba `--parallel 1`, asi que el server usaba
+   4 slots y PARTIA el contexto: 4096/4 = 1024 tokens reales por peticion.
+   `scripts/servir_modelo.py` ya lo arreglaba desde 2026-07-28; este camino
+   —el que usa Cognia cuando arranca el backend sola— se habia quedado sin el fix.
+3. `pyproject.toml` no declaraba package-data para `node`, asi que `fast_kernels.c`
+   y `_fast_kernels_cffi.c` nunca viajaban en el wheel. El builder no distingue
+   "no compila" de "no hay fuente": la aceleracion CPU se perdia en silencio.
+
+**Medicion (no calculo).** La formula ingenua de KV (2*33 capas*4 KV heads*
+key_length 256*2B = 132 KiB/token) predice 25.8GB a 200k y es FALSA para este
+modelo: el coste real medido es ~22 KiB/token (la mayoria de capas usan ventana
+deslizante). Medido en la 5060 Ti (16311 MiB), Qwythos-9B Q4_K, ngl 99,
+**KV en f16 sin cuantizar**:
+    ctx 200192 -> 12852 MiB, /props n_ctx=200192, slots=1
+    prompt real de 140010 tokens -> HTTP 200 en 49s
+200192 = 782*256 porque llama.cpp paddea n_ctx a multiplo de 256; pedir 200000
+redondo dejaba el falso aviso "adopted server n_ctx=200192 != expected 200000"
+en cada arranque.
+
+**Cambios:** perfil `gpu` 32768 -> 200192; `--parallel 1` en llama_backend;
+`"node" = ["*.c"]` en package-data. Perfil `gpu` aplicado a la config del dueno.
+Venv instalado (4.4.0, copia no editable) parcheado en bytes + fuentes C copiadas.
+
+**Descartado por disciplina:** unificar el default de `_ctx_size()` (4096) con
+`_CTX_SIZE` (32768). Se reverto: `_CTX_SIZE` se evalua en tiempo de import (en la
+suite resuelve a 16384, no es constante) y subir ese piso cambiaria el consumo de
+RAM de toda instalacion sin `LLAMA_CTX_SIZE`. El 4096 es piso seguro deliberado.
+
+**Verificacion:** suite 5936 passed / 8 failed; los 8 (`test_a3_catalogo_tools`,
+`test_buscar_ambito`) se reprodujeron IDENTICOS con los cambios en stash =>
+preexistentes y ajenos. Dirigidos: 154/154. E2E real: Cognia arranca el backend
+con n_ctx=200192, slots=1, VRAM 12831/16311, y la peticion original devuelve HTML
+(2987 chars en 13s, ~59 tok/s) sin degradar. `build_fast_kernels.py` en el venv:
+"built with gcc+omp".
+
+## 2026-08-02 (cont.) — Tres capas mas en la generacion web
+
+Con el contexto ya en 200k, `/crear` de una landing seguia fallando 2/2 intentos.
+No era el modelo: eran tres topes propios, encadenados (el mismo patron de capas
+que el 2026-07-31).
+
+1. **`generator.py` — presupuesto hardcodeado.** El camino del backend INYECTADO
+   hacia `llm(prompt, system, 6000, temperature)`, ignorando el parametro
+   `max_tokens`. El comentario 8 lineas mas abajo justifica subir a 12000... solo
+   en el OTRO camino. Sintoma: "Respuesta truncada (fence sin cerrar): regenero"
+   con `rol=inyectado` en el log.
+2. **`program_creator.py` — closure sin timeout.** El `llm` inyectado llamaba a
+   `generar()` sin `timeout`, cayendo al tope PLANO de `llm_local` (120 s).
+   Sintoma: `[llm] Error: timed out`, que aguas arriba se lee como "sin backend
+   LLM vivo" y degrada hasta el 404 de Ollama.
+3. **Presupuesto insuficiente aun con 12000.** MEDIDO contra el server real
+   (`/v1/chat/completions`, `max_tokens=40000`): la landing pedida sale en
+   **15.472 tokens / 19.164 chars en 138 s (112 tok/s)** con
+   `finish_reason='stop'` y cierra `</html>`. Los 12000 no daban.
+
+**Cambios:** `_presupuesto = max_tokens or (24000 if html else 12000)` usado en
+los tres puntos; `llm_local.TIMEOUT_GEN` env-overridable (`COGNIA_LLM_TIMEOUT`) +
+`timeout_para(max_tokens)` que escala a ~4x el tiempo estimado a 30 tok/s;
+el closure y el camino de respaldo pasan ese timeout.
+
+**Resultado:** sesion 606 s, 2/2 intentos guardados (antes 0/2).
+
+**PENDIENTE — el juez no ejecuta.** El evaluador puntuo 9.5/10 y 9.0/10 dos
+paginas con defectos REALES que un render destapa en segundos:
+- `the_software_landing`: `ReferenceError: daily is not defined` (usa shorthand
+  `{ portfolio, daily, reviews }` sin declarar `daily`/`reviews`) — el JS muere y
+  la pagina queda EN NEGRO de la mitad para abajo.
+- `the_software`: renderiza entera pero los contadores se desbordan
+  ("1.827.478.266.534,91 EUR", "100%%", "339.281.679,688 dias"), hay un
+  "12131415" suelto y tarjetas blancas sobre tema oscuro (contraste roto).
+Ninguno de los dos bajo de 9. Es exactamente [juez-tiene-que-ejecutar]: la nota
+sale sin abrir el navegador. Ademas `reparar_web` y `critico` DEGRADARON en la
+misma corrida ("no devolvio una correccion valida" / "sin respuesta del LLM"):
+sus caminos tienen sus propios topes sin revisar.
+
+## 2026-08-02 (cont.) — Presupuesto de generacion DINAMICO
+
+Pedido del dueno: "que el numero de tokens de generacion sea dinamico segun
+quiera cognia". Se elimina la constante (12000 / 24000-html) y el presupuesto
+lo decide la corrida, en tres piezas:
+
+1. **TECHO desde el n_ctx REAL** (`techo_generacion()`): lee
+   `backend_activo.props()` del server vivo en vez de un literal. Con los 200k
+   de ahora da **178.992 tokens**; con un server de 8k daria <10.000. El mismo
+   codigo se adapta al modelo servido. Reserva el prompt a ~3 chars/token
+   (pesimista a proposito: quedarse corto devuelve el HTTP 400 de
+   exceed_context_size).
+2. **ESCALADA al truncar**: se DOBLA y se reintenta hasta el techo.
+3. **MEMORIA** (`~/.cognia/presupuesto_generacion.json`): lo que funciono se
+   recuerda por lenguaje, asi la proxima arranca ahi y no repite la escalada.
+
+**Hicieron falta DOS senales, no una.** La del fence sin cerrar no basta: con un
+modelo de razonamiento y presupuesto corto el content vuelve **VACIO** (se gasto
+todo pensando) con `finish_reason='length'`, y entonces no hay fence que mirar.
+Peor: ese caso se reportaba como **"sin backend LLM vivo"** con el server SANO —
+diagnostico falso que ademas mandaba a arrancar una flota ya viva, y que impedia
+ver que lo que faltaba era presupuesto. Se expone `llm_local.ultimo_detalle`
+(`finish_reason`, `tokens`, `pedidos`) y `_call_llm` distingue ambos casos.
+
+**VERIFICADO contra el modelo real** (arranque forzado a 2000 para provocarlo):
+
+    2000  -> finish_reason=length (vacio)  -> sube
+    4000  -> finish_reason=length          -> sube
+    8000  -> fence sin cerrar              -> sube
+    16000 -> fence sin cerrar              -> sube
+    32000 -> OK, 11.000 chars, cierra </html>   (451 s)
+    memoria: {"html": 32000}
+
+Los dos primeros escalones son exactamente los que antes morian como "sin
+backend". Un max_tokens generoso no cuesta nada: es un tope, no un consumo.
+
+**Tests:** `tests/test_presupuesto_dinamico.py` nuevo (15 casos: techo escala con
+n_ctx, no lanza sin server, reserva el prompt, memoria persiste/no baja/no supera
+el techo/tolera json corrupto, senal de truncado, escalada dobla, para en el
+techo, no escala si no es truncado, y los dos casos de finish_reason=length).
+Suite: **5951 passed / 8 failed** — los 8 son los preexistentes de
+`test_a3_catalogo_tools` y `test_buscar_ambito`, reproducidos con los cambios en
+stash.
+
+**Dos tests ajenos hubo que arreglar, y ambos eran fallos del TEST:**
+- `test_diseno_a_codigo_juez::test_generate_program_propaga_temperature`: el stub
+  de `_call_llm` declaraba una firma mas estrecha que la real (`max_tokens` ya
+  existia). Ahora acepta `**kwargs`.
+- `test_reparacion_reasoning::test_reparar_web_...`: fijaba el literal 12000 y,
+  al volverse dinamico, leia la memoria REAL de la maquina — un test que dependia
+  del $HOME de quien lo corriera. Ahora aisla la memoria en tmp_path y comprueba
+  la invariante (mismo presupuesto en los dos intentos, >=12000) en vez del numero.

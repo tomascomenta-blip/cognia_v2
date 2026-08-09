@@ -107,6 +107,13 @@ def _env_int(name: str, default: int) -> int:
 # On a machine with a real CUDA GPU set LLAMA_N_GPU_LAYERS=99 to offload every layer.
 
 def _ctx_size() -> int:
+    # 4096 es DELIBERADO (piso seguro para maquinas CPU de gama baja), no un
+    # desliz — pese a que _CTX_SIZE (arriba) diga 32768 para la MISMA perilla.
+    # Se evaluo unificarlos el 2026-08-02 y se descarto: _CTX_SIZE se evalua en
+    # tiempo de import, asi que no es una constante (en la suite resuelve a
+    # 16384 por el entorno), y subir este piso cambiaria el consumo de RAM de
+    # toda instalacion sin LLAMA_CTX_SIZE. Quien quiera mas contexto lo pide por
+    # env/perfil; ver cognia/perf_profiles.py.
     return _env_int("LLAMA_CTX_SIZE", 4096)
 
 
@@ -571,6 +578,15 @@ class _LlamaServerBackend:
             "--host",     "127.0.0.1",
             "--port",     str(port),
             "--ctx-size", str(self._ctx_size if self._ctx_size is not None else _ctx_size()),
+            # --parallel 1 EXPLICITO: las builds recientes de llama-server usan
+            # 4 slots por defecto y PARTEN --ctx-size entre ellos. scripts/
+            # servir_modelo.py ya lo arreglo el 2026-07-28, pero ESTE lanzador
+            # —el que usa Cognia cuando arranca el backend sola— se quedo sin
+            # el fix: el server servido desde aqui reportaba total_slots=4, asi
+            # que --ctx-size 4096 daba 1024 tokens REALES por peticion y todo
+            # prompt normal moria con HTTP 400 exceed_context_size. Medido
+            # 2026-08-02: /props total_slots=4 con este cmd, =1 al agregar esto.
+            "--parallel", "1",
             "--n-gpu-layers", str(_n_gpu_layers()),
             "--threads",  str(n_threads_decode),
             "--threads-batch", str(n_threads_batch),

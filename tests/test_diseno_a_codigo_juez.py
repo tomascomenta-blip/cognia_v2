@@ -208,7 +208,12 @@ def test_generate_program_propaga_temperature():
     from cognia.program_creator import generator as g
     capturado = {}
 
-    def _llm_capturador(prompt, lenguaje, temperature=0.90, llm=None):
+    # **kwargs y no una firma cerrada: el stub tiene que tolerar TODO lo que
+    # _call_llm acepta de verdad, o el test falla por el stub y no por el
+    # producto. Cazado 2026-08-02 al pasar max_tokens desde la escalada de
+    # presupuesto — max_tokens ya existia en _call_llm; el stub se habia
+    # quedado corto.
+    def _llm_capturador(prompt, lenguaje, temperature=0.90, llm=None, **kwargs):
         capturado["temperature"] = temperature
         return None                      # corta el resto del camino
 

@@ -19,6 +19,23 @@ DEFAULT_EFFORT = "medio"
 
 # Parametros monotonos por nivel (cada uno >= el anterior salvo donde no aplica).
 #
+# max_tokens x12-x10 (2026-08-02: 512/1024/2048/5000 -> 6000/12000/25000/50000).
+# Los valores viejos venian de modelos NO razonadores. El modelo por defecto
+# actual (Qwythos-9B) inyecta `<think>` en CADA turno desde su propia plantilla
+# de chat, asi que el presupuesto tiene que cubrir el PENSAMIENTO ademas de la
+# respuesta. MEDIDO contra el server real, mismo prompt trivial ("suma de los
+# pares de una lista"):
+#     max_tokens=1024 -> finish_reason=stop,   codigo correcto (330 completion)
+#     max_tokens=150  -> finish_reason=length, content de 0 CHARS + 713 chars
+#                        de reasoning_content
+# Es decir: el nivel 'medio' viejo (1024) sobrevivia por poco a un prompt
+# trivial y moria en cualquier tarea real, y el sintoma era contenido VACIO —
+# que el llamador leia como "el modelo no supo". Ver la leccion
+# "presupuesto-tokens-razonamiento": es la 7a vez que este mismo bug produce un
+# numero falso en el proyecto.
+# El contexto NO es el limite: n_ctx=200192 medido en 12948/16311 MiB, con un
+# prompt real de 102.032 tokens servido en 52.8s (ver perf_profiles.py).
+#
 # Knobs de MODALIDAD (hibrido por dificultad, 2026-07-15): que miembros caros
 # puede despertar una tarea en este nivel. cognia/agent/hybrid_router.py los
 # combina con la dificultad estimada de la tarea para armar el perfil de la
@@ -34,7 +51,7 @@ DEFAULT_EFFORT = "medio"
 #   pasos_factor    - multiplicador del presupuesto de pasos del loop /hacer
 EFFORT_LEVELS = {
     "bajo": {
-        "max_tokens":     512,
+        "max_tokens":     6000,
         "alternativas":   1,
         "profundidad":    1,
         "verificaciones": 0,
@@ -49,7 +66,7 @@ EFFORT_LEVELS = {
         "descripcion":    "rapido: una pasada, sin verificacion ni alternativas",
     },
     "medio": {
-        "max_tokens":     1024,
+        "max_tokens":     12000,
         "alternativas":   2,
         "profundidad":    1,
         "verificaciones": 1,
@@ -64,7 +81,7 @@ EFFORT_LEVELS = {
         "descripcion":    "equilibrado: 1 verificacion, pocas alternativas",
     },
     "alto": {
-        "max_tokens":     2048,
+        "max_tokens":     25000,
         "alternativas":   3,
         "profundidad":    2,
         "verificaciones": 2,
@@ -79,7 +96,7 @@ EFFORT_LEVELS = {
         "descripcion":    "profundo: deliberacion + 2 verificaciones",
     },
     "maximo": {
-        "max_tokens":     5000,
+        "max_tokens":     50000,
         "alternativas":   5,
         "profundidad":    3,
         "verificaciones": 3,
