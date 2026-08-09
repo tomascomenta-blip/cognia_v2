@@ -54,6 +54,46 @@ class TestDetectaQueSiFunciona:
         assert llamado, "no basta con detectar: hay que generar"
 
 
+class TestPresupuestoDeLaSonda:
+
+    def test_la_sonda_cubre_el_pensamiento_con_razonador(self, llm, monkeypatch):
+        """Regresion 2026-08-09 (11a instancia de la leccion): con gpt-oss-20b
+        la sonda de max_tokens=8 se iba ENTERA en razonamiento y el doctor
+        declaraba [FAIL] "NO genera texto" sobre un backend SANO — mientras
+        check_inference_speed media 116 tok/s dos lineas mas abajo.
+        Reproducido a mano: 8 tok -> '' ; 1024+effort low -> 'OK'."""
+        capturado = {}
+        monkeypatch.setattr(llm, "detectar_backend",
+                            lambda forzar=False: {"tipo": "llama", "url": "u"})
+        monkeypatch.setattr(llm, "nombre_modelo_servido",
+                            lambda *a, **k: "gpt-oss-20b-MXFP4.gguf")
+
+        def _generar_espia(prompt, **kw):
+            capturado.update(kw)
+            return "OK"
+
+        monkeypatch.setattr(llm, "generar", _generar_espia)
+        assert D.check_llm_backend() is True
+        assert capturado["max_tokens"] >= 1024
+        assert capturado["reasoning_effort"] == "low"
+
+    def test_la_sonda_sigue_barata_sin_razonador(self, llm, monkeypatch):
+        capturado = {}
+        monkeypatch.setattr(llm, "detectar_backend",
+                            lambda forzar=False: {"tipo": "llama", "url": "u"})
+        monkeypatch.setattr(llm, "nombre_modelo_servido",
+                            lambda *a, **k: "qwen2.5-3b-instruct.gguf")
+
+        def _generar_espia(prompt, **kw):
+            capturado.update(kw)
+            return "OK"
+
+        monkeypatch.setattr(llm, "generar", _generar_espia)
+        assert D.check_llm_backend() is True
+        assert capturado["max_tokens"] == 8
+        assert capturado["reasoning_effort"] is None
+
+
 class TestFallaCuandoDebe:
 
     def test_sin_backend_es_FALLO_no_aviso(self, llm, monkeypatch):

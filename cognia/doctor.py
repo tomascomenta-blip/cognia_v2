@@ -158,7 +158,19 @@ def check_llm_backend() -> bool:
             "(o fija COGNIA_LLM_URL). Sin esto Cognia degrada a sus "
             "fallbacks en silencio")
 
-    respuesta = generar("Responde solo: OK", max_tokens=8)
+    # Presupuesto por perfil (11a instancia de la leccion "9 bugs identicos",
+    # cazada 2026-08-09 al estrenar la instalacion de PyPI): con un razonador
+    # (gpt-oss-20b) max_tokens=8 se va ENTERO en pensamiento, el contenido
+    # llega vacio y el doctor declaraba [FAIL] "NO genera texto" sobre un
+    # backend SANO — mientras check_inference_speed medee 116 tok/s dos
+    # lineas mas abajo. Reproducido a mano: 8 tok -> '' ; 1024+low -> 'OK'.
+    from cognia.llm_local import (es_razonador_grande, nombre_modelo_servido,
+                                  presupuesto_chat)
+    _razonador = es_razonador_grande(nombre_modelo_servido())
+    respuesta = generar(
+        "Responde solo: OK",
+        max_tokens=presupuesto_chat(8, _razonador, piso_razonador=1024),
+        reasoning_effort="low" if _razonador else None)
     if not respuesta:
         # _fail, no _warn: un server que acepta el sondeo pero no genera es
         # tan inservible como uno apagado, y _warn devuelve True, con lo que
