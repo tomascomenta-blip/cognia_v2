@@ -427,6 +427,16 @@ def _cmd_status() -> None:
     _print_ollama_status()
 
 
+def _cmd_flota() -> int:
+    """Levanta/consulta/detiene la flota por roles (cognia/flota.py).
+
+    Antes esto solo existia como scripts/servir_flota.py, que no viaja en el
+    wheel: el doctor instalado pedia "arranca la flota" con una orden que el
+    usuario instalado no tenia (WP6 2026-08-09)."""
+    from cognia.flota import main as flota_main
+    return flota_main(sys.argv[2:])
+
+
 def _cmd_bbrain() -> None:
     """Regenera bbrain.md en la raiz del repo introspectando el entorno vivo."""
     from cognia.bbrain import write_bbrain
@@ -497,6 +507,7 @@ Comandos:
   node               Iniciar como nodo del swarm distribuido
   coordinator        Iniciar coordinador del swarm (puerto 8001)
   status             Estado del backend local (GGUF), swarm y Ollama
+  flota              Flota por roles: arrancar [combo] | estado | parar
   leave              Salir de la red y liberar el fragmento alojado
   contribucion       Tu ledger en la economia del enjambre (tier, params, RPM)
   bbrain             Regenerar bbrain.md (doc viva del repo y su entorno)
@@ -505,6 +516,7 @@ Comandos:
   voz                Asistente de voz Jarvis (requiere extra [voz])
   remoto             Servidor de control remoto desde el movil
   tutor              Tutor web que ensena cualquier tema (localhost:8899)  [--lan]
+  --version          Mostrar la version instalada (solo el numero)
   help / --help      Mostrar esta ayuda
 
 Opciones de install-weights:
@@ -543,10 +555,19 @@ def _harden_console_encoding() -> None:
 
 def main() -> None:
     _harden_console_encoding()
-    from cognia.first_run import apply_config
-    apply_config()
 
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+
+    if cmd in ("--version", "-V", "version"):
+        # ANTES de apply_config: la version es la unica salida esperada
+        # (el launcher y el check de instalacion limpia la capturan) y
+        # apply_config puede imprimir avisos [config] que la ensuciarian.
+        from cognia import __version__
+        print(__version__)
+        return
+
+    from cognia.first_run import apply_config
+    apply_config()
 
     if cmd in ("help", "--help", "-h"):
         print(_HELP)
@@ -579,6 +600,8 @@ def main() -> None:
         _cmd_bbrain()
     elif cmd == "fleet":
         _cmd_fleet()
+    elif cmd == "flota":
+        raise SystemExit(_cmd_flota())
     elif cmd == "tui":
         from cognia.tui.__main__ import main as _tui_main
         _tui_main()

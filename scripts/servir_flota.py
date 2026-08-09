@@ -1,148 +1,36 @@
 """
 servir_flota.py — levanta el COMBO de modelos correcto para cada tarea.
 
-POR QUE EXISTE (reformulacion de flota 2026-07-24, planes/FLOTA_ROLES_2026-07.md):
-la flota aproxima a un frontier (GLM 5.2) por RUTEO DE ROLES, y cada tarea
-necesita un combo distinto que quepa en los 16GB de la 5060 Ti. Servir el combo
-a mano (que modelo, que puerto, que cabe con que) era propenso a error — y el
-modo de fallo de Cognia es degradar en silencio cuando falta un backend.
+La logica vive en cognia/flota.py (WP6 2026-08-09): scripts/ no viaja en el
+wheel y el comando instalado `cognia flota <arrancar|estado|parar>` necesita
+los combos dentro del paquete. Este script queda como el punto de entrada
+historico del repo y DELEGA — dos copias de los combos fue exactamente como
+el :8088 sirvio un modelo retirado sin que nadie lo viera.
 
-    python scripts/servir_flota.py construir       # coder-14b(+draft) :8080 + VL-3B :8081
-    python scripts/servir_flota.py construir-ui    # UIGEN-X-8B :8080 + VL-3B :8081
-    python scripts/servir_flota.py pensar          # gpt-oss-20b :8080 (GPU entera)
-    python scripts/servir_flota.py pensar-en-lazo  # OpenReasoning-Nemotron-14B :8080 + VL-3B :8081
-    python scripts/servir_flota.py juzgar          # VL-7B :8081 (juez fino, solo)
-    python scripts/servir_flota.py solo [patron]   # UN solo modelo que hace todo en :8080
-                                                   #   (sin patron: el default de servir_modelo)
-    python scripts/servir_flota.py parar           # detiene todos los llama-server
-    python scripts/servir_flota.py estado          # que responde en 8080/8081
+    python scripts/servir_flota.py pensar          # gpt-oss-20b :8080
+    python scripts/servir_flota.py construir       # coder-14b(+draft) + VL-3B
+    python scripts/servir_flota.py construir-ui    # UIGEN-X-8B + VL-3B
+    python scripts/servir_flota.py pensar-en-lazo  # OpenReasoning-14B + VL-3B
+    python scripts/servir_flota.py juzgar          # VL-7B :8081 (solo)
+    python scripts/servir_flota.py solo [patron]   # UN solo modelo en :8080
+    python scripts/servir_flota.py parar           # detiene los llama-server
+    python scripts/servir_flota.py estado          # que GGUF sirve cada puerto
 
-Regla de VRAM (16GB): en el lazo conviven a lo sumo un 14B-clase (~9GB) + VL-3B
-(~3.2GB). gpt-oss-20b (13.7GB) y VL-7B corren SOLOS. SDXL corre solo (los
-mockups/sprites se generan en fase previa: mockup_path/assets del lazo).
-
-Solo stdlib. Reusa servir_modelo.py y servir_vlm.py (no duplica la eleccion de
-binario/modelo).
+Ver cognia/flota.py para los combos y la regla de VRAM.
 """
 
 from __future__ import annotations
 
-import subprocess
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
 
-AQUI = Path(__file__).resolve().parent
+# El repo no esta instalado necesariamente: scripts/ es sys.path[0] al correr
+# este archivo, asi que la raiz (donde vive cognia/) se agrega a mano.
+_RAIZ = Path(__file__).resolve().parent.parent
+if str(_RAIZ) not in sys.path:
+    sys.path.insert(0, str(_RAIZ))
 
-# modo -> lista de (script, args). El orden importa: el cerebro primero.
-COMBOS = {
-    "construir": [
-        ("servir_modelo.py", []),                             # coder-14b + draft
-        ("servir_vlm.py", ["--modelo", "VL-3B"]),
-    ],
-    "construir-ui": [
-        # UIGEN como cerebro TOTAL del lazo (vision + html + reparaciones):
-        # llm_local sondea :8080 y lo encuentra a el.
-        # ctx 12288 y no 8192: UIGEN piensa largo ANTES del HTML y con 8k el
-        # fence salia truncado aunque max_tokens fuera 12000 (medido 2026-07-25
-        # en el pulidor con mockup). KV a 12k ~2.2GB: cabe con VL-3B (~14GB).
-        ("servir_modelo.py", ["--modelo", "UIGEN", "--sin-draft",
-                              "--ctx", "12288"]),
-        ("servir_vlm.py", ["--modelo", "VL-3B"]),
-    ],
-    "pensar": [
-        # ctx 16384 y no el 8192 por defecto: gpt-oss-20b es un modelo de
-        # RAZONAMIENTO y con 8192 cortaba tareas reales por la mitad
-        # (finish_reason='length' a los 7931 tokens en la tarea 'kanban',
-        # medido 2026-07-25). La respuesta llegaba sin el fence de cierre, el
-        # parser no encontraba codigo, y el resultado se leia como "el modelo no
-        # supo hacerlo": pass@1 25% con 8192 contra 100% con 16384 en el mismo
-        # banco. Cabe de sobra: 12.2 GB de los 16.3 (corre solo en la GPU).
-        ("servir_modelo.py", ["--modelo", "gpt-oss", "--sin-draft",
-                              "--ctx", "16384"]),
-    ],
-    "pensar-en-lazo": [
-        ("servir_modelo.py", ["--modelo", "OpenReasoning", "--sin-draft"]),
-        ("servir_vlm.py", ["--modelo", "VL-3B"]),
-    ],
-    "juzgar": [
-        ("servir_vlm.py", ["--modelo", "VL-7B"]),
-    ],
-    # Modo MODELO UNICO: un solo GGUF en :8080 hace todo (chat, codigo,
-    # razonamiento). El patron del modelo se agrega en main() (argv[2]);
-    # --sin-draft porque el draft 0.5b solo ayuda a la familia coder.
-    "solo": [
-        ("servir_modelo.py", ["--sin-draft"]),
-    ],
-}
-
-
-def _responde(puerto: int) -> bool:
-    try:
-        with urllib.request.urlopen(
-                f"http://127.0.0.1:{puerto}/health", timeout=2) as r:
-            return r.status == 200
-    except (urllib.error.URLError, OSError):
-        return False
-
-
-def parar() -> int:
-    """Windows: taskkill de todos los llama-server."""
-    r = subprocess.run(["taskkill", "/IM", "llama-server.exe", "/F"],
-                       capture_output=True, text=True)
-    print("Detenidos." if r.returncode == 0 else "No habia llama-server vivo.")
-    return 0
-
-
-def estado() -> int:
-    for puerto, rol in ((8080, "cerebro/pensador"), (8081, "VLM/arbitro")):
-        print(f"  :{puerto} ({rol}): "
-              f"{'RESPONDE' if _responde(puerto) else 'no responde'}")
-    return 0
-
-
-def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
-        print(__doc__)
-        return 1
-    modo = sys.argv[1]
-    if modo == "parar":
-        return parar()
-    if modo == "estado":
-        return estado()
-    if modo not in COMBOS:
-        print(f"Modo desconocido: {modo!r}. Validos: "
-              f"{sorted(COMBOS) + ['parar', 'estado']}", file=sys.stderr)
-        return 1
-    if modo != "solo" and len(sys.argv) != 2:
-        print(f"El modo {modo!r} no lleva argumentos extra.", file=sys.stderr)
-        return 1
-
-    combo = COMBOS[modo]
-    if modo == "solo" and len(sys.argv) > 2:
-        # patron de modelo elegido por el usuario (match por substring en
-        # servir_modelo.elegir): "solo qwythos", "solo gpt-oss", etc.
-        combo = [(script, ["--modelo", sys.argv[2]] + args)
-                 for script, args in combo]
-
-    # Cambiar de combo con restos del anterior = OOM confuso. Se para primero.
-    if _responde(8080) or _responde(8081):
-        print("Habia servidores vivos: los detengo antes del combo nuevo.")
-        parar()
-
-    for script, args in combo:
-        orden = [sys.executable, str(AQUI / script)] + args
-        print(f"-> {script} {' '.join(args)}")   # ascii: la consola es cp1252
-        r = subprocess.run(orden)
-        if r.returncode != 0:
-            print(f"{script} fallo (codigo {r.returncode}); no sigo con el "
-                  f"combo a medias.", file=sys.stderr)
-            return r.returncode
-    print(f"\nCombo '{modo}' listo.")
-    estado()
-    return 0
-
+from cognia.flota import main   # noqa: E402  (la logica unica, sin duplicar)
 
 if __name__ == "__main__":
     sys.exit(main())

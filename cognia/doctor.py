@@ -300,37 +300,62 @@ def check_inference_speed() -> bool:
         return _fail("Inferencia fallo", f"{type(e).__name__}: {e}")
 
 
+# La orden EXACTA que arregla la flota apagada: funciona instalado (comando
+# del paquete) y en el repo (scripts/servir_flota.py delega en el mismo modulo).
+_ORDEN_ARRANCAR = "python -m cognia flota arrancar pensar"
+
+
 def check_flota() -> bool:
-    """Mismo sondeo que `python scripts/servir_flota.py estado`: los puertos
-    de la flota por roles. El doctor sondeaba solo el backend "activo" y no
-    decia nada de la flota, que es como se sirve el producto desde 2026-07."""
-    puertos = ((8080, "cerebro/pensador"), (8081, "VLM/arbitro"))
-    estados, vivos, faltan = [], 0, []
-    for puerto, rol in puertos:
-        try:
-            with urllib.request.urlopen(
-                    f"http://127.0.0.1:{puerto}/health", timeout=2) as r:
-                ok = r.status == 200
-        except Exception:
-            ok = False
-        if ok:
-            vivos += 1
-        else:
-            faltan.append(f":{puerto} ({rol})")
-        estados.append(f":{puerto} {rol}: {'RESPONDE' if ok else 'no responde'}")
+    """Los puertos de la flota por roles, verificados por /props: reporta el
+    GGUF REAL que sirve cada puerto y a que combo corresponde.
+
+    POR QUE /props y no /health: un server rancio sirviendo OTRO modelo
+    responde /health igual — la averia historica del :8088 (el 7B RETIRADO
+    atendiendo el chat mientras la flota estaba apagada, memoria 2026-07-25)
+    era invisible para el sondeo por health. Y "flota apagada" es FAIL, no
+    WARN: sin cerebro en :8080 Cognia degrada a fallbacks en silencio, y un
+    doctor que termina "Todo en orden" sobre eso es el mensaje enganoso que
+    este archivo lleva tres auditorias corrigiendo."""
+    from cognia import backend_activo
+    from cognia.flota import PUERTOS, combo_de_modelo
+
+    estados, cerebro_vivo, problema = [], False, ""
+    for puerto, rol in PUERTOS:
+        p = backend_activo.props(f"http://127.0.0.1:{puerto}", forzar=True)
+        if not p:
+            estados.append(f":{puerto} {rol}: no responde")
+            continue
+        modelo = p.get("modelo") or "desconocido"
+        combo = combo_de_modelo(modelo)
+        estados.append(f":{puerto} {rol}: {modelo}"
+                       + (f" [combo '{combo}']" if combo else ""))
+        if puerto != 8080:
+            continue
+        cerebro_vivo = True
+        for retirado in backend_activo.RETIRADOS:
+            if retirado in modelo.lower():
+                problema = (f"el :8080 sirve {modelo}, RETIRADO por la "
+                            f"auditoria de flota 2026-07-24")
+        if combo is None and not problema:
+            problema = (f"el :8080 sirve {modelo}, que no es el cerebro de "
+                        f"ningun combo de la flota (cognia/flota.py)")
     detalle = " | ".join(estados)
-    if vivos == len(puertos):
-        return _ok(f"flota por roles ({vivos}/{len(puertos)} puertos)", detalle)
-    if vivos:
-        # [OK] con 1/2 puertos era un verde enganoso: con el VLM caido el
-        # arbitro visual no corre y el lazo diseno-a-codigo degrada en
-        # silencio. Flota incompleta = WARN, y se dice CUAL falta.
-        return _warn(
-            f"flota INCOMPLETA ({vivos}/{len(puertos)} puertos): falta "
-            + ", ".join(faltan),
-            detalle + " -- levanta el que falta: python scripts/servir_flota.py <modo>")
-    return _warn("flota apagada",
-                 detalle + " -- arranca con: python scripts/servir_flota.py <modo>")
+
+    if not cerebro_vivo:
+        # FAIL con la orden exacta, no WARN decorativo: _warn devuelve True y
+        # el doctor terminaba "Todo en orden" con la flota apagada.
+        return _fail("flota apagada (sin cerebro en :8080)",
+                     detalle + f" -- arranca con: {_ORDEN_ARRANCAR}")
+    if problema:
+        # Un modelo rancio/ajeno en :8080 es PEOR que la flota apagada: todo
+        # el producto sale de un modelo que nadie eligio.
+        return _fail(problema, detalle + f" -- reserva: {_ORDEN_ARRANCAR}")
+    if any("no responde" in e for e in estados):
+        # VLM caido = WARN, no FAIL: los combos 'pensar' y 'solo' corren sin
+        # :8081 a proposito (gpt-oss-20b ocupa la GPU entera).
+        return _warn("flota parcial (:8081 sin VLM: el arbitro visual y el "
+                     "lazo diseno-a-codigo no corren)", detalle)
+    return _ok("flota por roles", detalle)
 
 
 def check_backend_audit() -> bool:
