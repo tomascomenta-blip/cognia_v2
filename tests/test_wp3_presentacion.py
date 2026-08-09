@@ -271,7 +271,10 @@ def test_show_footer_con_tokens_reales(cli, capsys):
     assert "123 tokens" in capsys.readouterr().out
 
 
-def test_banner_compacto_por_defecto(cli, capsys, monkeypatch):
+def test_banner_completo_por_defecto_con_modelo_real(cli, capsys, monkeypatch):
+    # El dueño pidio el banner de vuelta (2026-08-09): la identidad va por
+    # defecto, el ruido no. Debajo del gato tiene que salir el modelo REAL
+    # servido (el banner viejo decia Qwythos mientras :8080 servia gpt-oss).
     monkeypatch.delenv("COGNIA_BANNER", raising=False)
     import cognia.backend_activo as BA
     monkeypatch.setattr(BA, "estado", lambda: {
@@ -280,18 +283,23 @@ def test_banner_compacto_por_defecto(cli, capsys, monkeypatch):
     cli._print_startup_panel()
     ux_renderer.desactivar()                 # _arranque_ux suscribio: limpiar
     out = capsys.readouterr().out
-    lineas = [l for l in out.split("\n") if l.strip()]
-    assert len(lineas) <= 8, f"banner no compacto: {len(lineas)} lineas"
+    assert len(out.split("\n")) > 20         # el gato Braille completo
     assert "gpt-oss-20b" in out              # el modelo REAL servido
-    assert "/ayuda" in out
 
 
-def test_banner_full_sigue_disponible(cli, capsys, monkeypatch):
-    monkeypatch.setenv("COGNIA_BANNER", "full")
+def test_banner_min_sigue_disponible(cli, capsys, monkeypatch):
+    monkeypatch.setenv("COGNIA_BANNER", "min")
+    import cognia.backend_activo as BA
+    monkeypatch.setattr(BA, "estado", lambda: {
+        "url": "http://127.0.0.1:8080", "modelo": "gpt-oss-20b-MXFP4.gguf",
+        "puerto": 8080, "avisos": []})
     cli._print_startup_panel()
     ux_renderer.desactivar()
     out = capsys.readouterr().out
-    assert len(out.split("\n")) > 20         # el gato Braille completo
+    lineas = [l for l in out.split("\n") if l.strip()]
+    assert len(lineas) <= 8, f"banner min no compacto: {len(lineas)} lineas"
+    assert "gpt-oss-20b" in out
+    assert "/ayuda" in out
 
 
 def test_animate_startup_sin_sleeps(cli, capsys):

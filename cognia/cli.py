@@ -1653,15 +1653,37 @@ def _arranque_ux():
 # ---------------------------------------------------------------------------
 # Startup panel
 # ---------------------------------------------------------------------------
-# 2026-08-09: el arranque por defecto es COMPACTO (~5 lineas: version, modelo
-# REAL servido segun /props, cwd, hint) al estilo de las CLIs agenticas
-# modernas. El gato Braille + ASCII gigante (~55 lineas) sigue disponible con
-# COGNIA_BANNER=full — es identidad del producto, no el default de cada dia.
+# 2026-08-09: el gato Braille + ASCII gigante VUELVE a ser el default — el
+# dueño lo pidio explicitamente ("dejale el banner"): es la identidad del
+# producto. Lo que se fue para siempre es el RUIDO (logs INFO, [OK] de
+# subsistemas, sleeps teatrales), no el saludo. Debajo del banner va la linea
+# del modelo REAL servido segun /props (el banner viejo mentia: decia Qwythos
+# mientras :8080 servia gpt-oss-20b). COGNIA_BANNER=min da el arranque
+# compacto de ~5 lineas para scripts/remoto o para quien lo prefiera.
 
 def _print_startup_panel():
     _arranque_ux()
-    if os.environ.get("COGNIA_BANNER", "").strip().lower() == "full":
+    if os.environ.get("COGNIA_BANNER", "").strip().lower() != "min":
         _print_banner_completo()
+        # La linea de verdad bajo el banner: que modelo contesta y donde.
+        try:
+            from cognia import backend_activo as _ba
+            _e = _ba.estado()
+            if _e.get("modelo"):
+                _linea = f"  modelo {_e['modelo']} (:{_e['puerto']})"
+                _estilo_ok = True
+            else:
+                _linea = (f"  sin backend en {_e['url']} — arranca: "
+                          f"cognia flota arrancar")
+                _estilo_ok = False
+            if _HAS_RICH and _console:
+                _console.print(_escape(_linea),
+                               style="dim cyan" if _estilo_ok else "warn_cl",
+                               highlight=False)
+            else:
+                print(_linea)
+        except Exception:
+            pass
         return
 
     try:
