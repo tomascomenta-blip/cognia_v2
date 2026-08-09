@@ -40,14 +40,24 @@ from pathlib import Path
 # binarios). Levanta ValueError con mensaje ASCII que nombra el workspace.
 from cognia.agents.workers.dev_tools import resolve_write_path as _resolve_write_path
 
-# name -> {"fn", "doc", "danger"}
+# name -> {"fn", "doc", "danger", "desc", "params"}
 TOOLS: dict = {}
 
 
-def tool(name: str, doc: str, danger: bool = False):
-    """Register a tool. ``doc`` is one line shown to the model verbatim."""
+def tool(name: str, doc: str, danger: bool = False,
+         desc: str = "", params: list = None):
+    """Register a tool. ``doc`` is one line shown to the model verbatim.
+
+    ``desc``/``params`` (opcionales, 2026-08-09): documentación RICA para el
+    tool-calling nativo (schemas OpenAI que arma cognia/agent/tool_schemas.py).
+    ``desc`` = cuándo/para qué usar la tool (frases completas); ``params`` =
+    lista de dicts {"nombre","tipo","requerido","descripcion","clave"} en el
+    ORDEN posicional del protocolo texto ('a | b'); "clave"=True marca los que
+    van como token 'clave=valor' (ver armar_args). Una tool sin params sigue
+    funcionando igual: el protocolo texto solo usa ``doc``."""
     def deco(fn):
-        TOOLS[name] = {"fn": fn, "doc": doc, "danger": danger}
+        TOOLS[name] = {"fn": fn, "doc": doc, "danger": danger,
+                       "desc": desc or "", "params": list(params or [])}
         return fn
     return deco
 
@@ -61,6 +71,70 @@ def build_tools_doc(allowed: set = None) -> str:
                      if allowed is None or name in allowed)
 
 
+# ── catalogo CORE (A5, 2026-08-09) ─────────────────────────────────────
+# El set por DEFECTO que ve el modelo: ~12 tools ortogonales, decidido con el
+# A/B del propio repo (2026-07-25, n=4+4: catalogo de 46 tools baja el camino
+# feliz de 4.25/5 a 2.5/5 — mas tools NO es mas capacidad, es mas distraccion).
+# calcular entra porque el gate del camino feliz tiene una tarea de calculo y
+# es la via barata del modelo chico. El resto del registry SIGUE registrado e
+# invocable (run_tool no filtra por esto): solo deja de anunciarse en el
+# prompt. Modo avanzado y los flags opt-in (ver flag_de_optin) lo re-exponen.
+CORE_TOOLS = frozenset({
+    "leer_archivo", "escribir_archivo", "editar_archivo", "apendar_archivo",
+    "borrar_archivo", "listar", "buscar", "ejecutar", "tests",
+    "generar_codigo", "delegar_subtarea", "recordar", "calcular",
+})
+
+
+def catalogo_schemas(allowed: set = None) -> list:
+    """El registry en forma consumible para tool-calling nativo (WP1 lo
+    convierte a schemas OpenAI): [{nombre, descripcion, params, danger}].
+    ``descripcion`` prefiere el ``desc`` rico y cae al ``doc`` de una linea.
+    ``params`` viene en el ORDEN posicional del protocolo texto (ver
+    armar_args); lista vacia = la tool solo declara su doc de una linea."""
+    out = []
+    for name, spec in TOOLS.items():
+        if allowed is not None and name not in allowed:
+            continue
+        out.append({
+            "nombre": name,
+            "descripcion": spec.get("desc") or spec["doc"],
+            "params": [dict(p) for p in spec.get("params", [])],
+            "danger": spec.get("danger", False),
+        })
+    return out
+
+
+def armar_args(name: str, argumentos: dict) -> str:
+    """Arma el string ``args`` del protocolo texto desde un dict de argumentos
+    nombrados (el puente inverso para un tool_call nativo: el modelo emite
+    JSON, la tool sigue recibiendo su string de siempre).
+
+    Convencion: los params posicionales (clave=False) se unen con ' | ' en el
+    orden declarado; los de clave=True se agregan como tokens 'clave=valor' —
+    con ' | ' delante en ejecutar (su parser lo exige para no confundirse con
+    el comando) y con espacio en el resto (leer_archivo: auto_fix le recorta
+    los pipes). Tool sin params declarados: se concatena lo que haya."""
+    spec = TOOLS.get(name)
+    params = (spec or {}).get("params") or []
+    if not params:
+        return " | ".join(str(v) for v in argumentos.values() if v is not None)
+    posicionales, claves = [], []
+    for p in params:
+        val = argumentos.get(p["nombre"])
+        if val is None:
+            continue
+        if p.get("clave"):
+            claves.append(f"{p['nombre']}={val}")
+        else:
+            posicionales.append(str(val))
+    args = " | ".join(posicionales)
+    if claves:
+        sep = " | " if name == "ejecutar" else " "
+        args += sep + " ".join(claves)
+    return args
+
+
 # Roles para sub-agentes acotados (delegar_subtarea): cada rol expone SOLO un
 # subconjunto de tools -- un investigador no puede escribir/ejecutar, un
 # implementador si. Acota el blast-radius de una subtarea delegada.
@@ -70,7 +144,7 @@ ROLE_TOOLS = {
                      "notas", "anotar", "resumir", "responder"},
     "implementador": {"leer_archivo", "listar", "buscar", "repo_map",
                       "code_grafo", "escribir_archivo", "editar_archivo",
-                      "apendar_archivo",
+                      "apendar_archivo", "borrar_archivo",
                       "copiar_archivo", "generar_codigo", "contratos",
                       "py_validar",
                       "json_validar", "tests", "ejecutar", "notas", "anotar",
@@ -188,6 +262,50 @@ def aci_trim(text: str, name: str = "tool") -> str:
             + text[-_ACI_TAIL:])
 
 
+# ── familias opt-in: tool -> flag que la enciende (A5, 2026-08-09) ─────
+# UNA tabla para las dos caras del gate: (a) run_tool responde "DESHABILITADA
+# — activala con X=1" uniforme cuando la tool no esta registrada porque su
+# flag esta apagado, y (b) simple_mode/visible_tools rescata del recorte a las
+# familias cuyo flag SI esta activo. Prefijos primero, nombres exactos para
+# las que no siguen el prefijo de su familia (las 3 de LCD sin 'escena_').
+_OPTIN_PREFIJOS = (
+    ("pantalla_", "COGNIA_SCREEN"),
+    ("escena_", "COGNIA_LCD"),
+    ("imagen_", "COGNIA_IMG_TOOLS"),
+    ("web_", "COGNIA_BROWSER"),
+)
+_OPTIN_NOMBRES = {
+    "repo_a_prompt": "COGNIA_REPO_REVERSE",
+    # LCD sin prefijo escena_: viajan con el mismo paquete y el mismo flag
+    "render_aprox": "COGNIA_LCD",
+    "atribuir_fallo": "COGNIA_LCD",
+    "reejecutar_etapa": "COGNIA_LCD",
+}
+
+
+def flag_de_optin(name: str) -> str:
+    """Flag env que gobierna esta tool, o '' si no es de una familia opt-in."""
+    if name in _OPTIN_NOMBRES:
+        return _OPTIN_NOMBRES[name]
+    for pref, flag in _OPTIN_PREFIJOS:
+        if name.startswith(pref):
+            return flag
+    return ""
+
+
+def _flag_activo(flag: str) -> bool:
+    return os.environ.get(flag, "").strip().lower() in ("1", "on", "true", "yes")
+
+
+# Tools cuyo output NO pasa por aci_trim porque ya se capan solas con un
+# criterio mejor que head+tail genérico: leer_archivo (offset/limit + aviso de
+# continuación: re-cortarlo rompe el contrato "el modelo edita lo que vio"),
+# ejecutar/tests (cabeza+cola propia: el traceback vive al final), y
+# editar_archivo (el mini-diff ya viene capado por mini_diff).
+ACI_EXENTAS = frozenset({"responder", "leer_archivo", "ejecutar", "tests",
+                         "editar_archivo"})
+
+
 def run_tool(name: str, args: str, ctx: dict) -> str:
     """Dispatch one tool by name. Unknown name -> a helpful error string."""
     # Sub-agente acotado: si el ctx trae un set de tools permitidas (rol de
@@ -199,17 +317,18 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
                 f"Validas: {', '.join(sorted(_allowed))}")
     spec = TOOLS.get(name)
     if spec is None:
-        # Una pantalla_* ausente no es "no existe": existe y esta APAGADA por
-        # el opt-in duro (COGNIA_SCREEN). Decir "no existe" hace concluir (al
-        # modelo y al usuario) que Cognia no sabe hacerlo, cuando solo falta el
-        # flag. Va ANTES de record_wanted_tool a proposito: registrarla como
-        # "tool deseada" mandaria al background researcher a sintetizar algo
-        # que ya esta escrito.
-        if (name.startswith("pantalla_")
-                and os.environ.get("COGNIA_SCREEN", "").strip().lower()
-                not in ("1", "on", "true", "yes")):
-            return (f"ERROR: '{name}' esta DESHABILITADA. Las herramientas de "
-                    f"pantalla son opt-in: habilitalas con COGNIA_SCREEN=1.")
+        # Una tool opt-in ausente no es "no existe": existe y esta APAGADA por
+        # su flag. Decir "no existe" hace concluir (al modelo y al usuario) que
+        # Cognia no sabe hacerlo, cuando solo falta el flag. Mensaje UNIFORME
+        # para TODA familia opt-in (antes solo pantalla_* lo tenia; escena_*/
+        # imagen_*/web_* caian a "no existe" y encima disparaban
+        # record_wanted_tool, mandando al background researcher a sintetizar
+        # duplicados de tools ya escritas). Va ANTES de record_wanted_tool a
+        # proposito, por eso mismo.
+        _flag = flag_de_optin(name)
+        if _flag and not _flag_activo(_flag):
+            return (f"ERROR: '{name}' esta DESHABILITADA — activala con "
+                    f"{_flag}=1.")
         # Signal: the agent wanted a tool that doesn't exist yet. Logged so the
         # background researcher can later turn frequent wishes into real tools.
         try:
@@ -239,8 +358,12 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
     except Exception:
         pass
     # ACI: compactar outputs largos (mejora de harness) antes de devolver al
-    # loop. 'responder' NO se toca: es la respuesta final, no una observación.
-    return out if name == "responder" else aci_trim(out, name)
+    # loop. Exentas las tools que YA capan su propio output con criterio propio
+    # (ACI_EXENTAS): el doble truncado hacía que el modelo editara con
+    # SEARCH/REPLACE texto que jamás vio (leer_archivo 4000 -> aci 1650,
+    # evidencia baseline 2026-08-09) y que la cola de ejecutar (el traceback)
+    # se recortara dos veces. 'responder' es la respuesta final, no observación.
+    return out if name in ACI_EXENTAS else aci_trim(out, name)
 
 
 # ── small shared helpers ───────────────────────────────────────────────
@@ -378,21 +501,100 @@ def _disp(path) -> str:
 # FILE TOOLS
 # ══════════════════════════════════════════════════════════════════════
 
-@tool("leer_archivo", "leer_archivo <path>                 -- leer un archivo (hasta 4000 chars)")
+# Topes de leer_archivo (estilo Claude Code/OpenCode: read con limite de
+# lineas + puntero "usa offset para seguir"). El cap de CHARS es la red de
+# seguridad para archivos de lineas kilometricas (json minificado): 2000
+# lineas x 80 chars ~ 160k chars reventarian el contexto igual.
+_LEER_LIMIT_DEF = 2000     # lineas por llamada (default)
+_LEER_LINEA_MAX = 500      # una linea mas larga se corta con marcador
+_LEER_CAP_CHARS = int(os.environ.get("COGNIA_LEER_CAP", "24000"))
+
+# offset/limit al FINAL de los args, como tokens sueltos 'offset=N limit=M'
+# (sin '|': structure.auto_fix le recorta a leer_archivo todo lo que siga a un
+# pipe porque el 3B reusaba el formato de escribir_archivo). Se acepta tambien
+# la forma con '| offset=...' por si run_tool se llama directo (sin auto_fix).
+_RE_LEER_KV = re.compile(r"(?:\s*\|)?\s+(offset|limit)\s*=\s*(\d+)\s*$", re.I)
+
+
+@tool("leer_archivo",
+      "leer_archivo <path> [offset=N] [limit=M]  -- leer un archivo (default "
+      "2000 lineas desde la 1; offset=linea inicial para seguir)",
+      desc="Lee un archivo de texto y devuelve su contenido TAL CUAL (para "
+           "poder editarlo despues con editar_archivo). Por defecto muestra "
+           "las primeras 2000 lineas; si el archivo sigue, el resultado "
+           "termina con un aviso que dice con que offset continuar.",
+      params=[
+          {"nombre": "path", "tipo": "string", "requerido": True,
+           "descripcion": "ruta del archivo a leer"},
+          {"nombre": "offset", "tipo": "integer", "requerido": False,
+           "clave": True,
+           "descripcion": "linea inicial (1-indexada; default 1)"},
+          {"nombre": "limit", "tipo": "integer", "requerido": False,
+           "clave": True,
+           "descripcion": "cuantas lineas mostrar (default 2000)"},
+      ])
 def _leer_archivo(args, ctx):
-    path = Path(args.strip())
+    raw = args.strip()
+    offset, limit = 1, _LEER_LIMIT_DEF
+    # extraer offset=/limit= del final (en cualquier orden, 0, 1 o 2 veces)
+    while True:
+        m = _RE_LEER_KV.search(raw)
+        if not m:
+            break
+        if m.group(1).lower() == "offset":
+            offset = max(1, int(m.group(2)))
+        else:
+            limit = max(1, int(m.group(2)))
+        raw = raw[:m.start()].rstrip().rstrip("|").rstrip()
+    path = Path(raw.strip().strip("\"'"))
     full = path.read_text(encoding="utf-8", errors="replace")
-    content = full[:4000]
-    if len(full) > 4000:
-        # Marcador explicito: sin esto el modelo cree que vio el archivo entero y
-        # lo sobrescribe con una version mas corta (perdida de datos en read-mod-write).
-        content += (f"\n... [TRUNCADO: mostrando 4000 de {len(full)} chars; el archivo NO "
-                    f"esta completo. NO lo sobrescribas entero; usa 'buscar' para ubicar]")
+    if not full:
+        return f"RESULTADO leer_archivo {_disp(path)}: (archivo vacio)"
+    lineas = full.splitlines()
+    total = len(lineas)
+    if offset > total:
+        return (f"RESULTADO leer_archivo {_disp(path)} ERROR: offset={offset} "
+                f"pero el archivo tiene {total} lineas")
+    sel, recorte_linea = [], False
+    for ln in lineas[offset - 1:offset - 1 + limit]:
+        if len(ln) > _LEER_LINEA_MAX:
+            ln = (ln[:_LEER_LINEA_MAX]
+                  + f"... [linea cortada: {len(ln)} chars]")
+            recorte_linea = True
+        sel.append(ln)
+    # red de seguridad por chars: cortar en la ultima linea COMPLETA que cabe
+    # (nunca a mitad de linea: el modelo copia lo que ve en bloques SEARCH)
+    mostradas, usados = [], 0
+    for ln in sel:
+        if usados + len(ln) + 1 > _LEER_CAP_CHARS and mostradas:
+            break
+        mostradas.append(ln)
+        usados += len(ln) + 1
+    hasta = offset + len(mostradas) - 1
+    content = "\n".join(mostradas)
+    if hasta < total or recorte_linea:
+        # Marcador explicito: sin esto el modelo cree que vio el archivo entero
+        # y lo sobrescribe con una version mas corta (perdida de datos en
+        # read-mod-write). El puntero de continuacion es el patron OpenCode.
+        content += (f"\n... [TRUNCADO: mostrando lineas {offset}-{hasta} de "
+                    f"{total} (archivo de {len(full)} chars); el archivo NO "
+                    f"esta completo. Para seguir: leer_archivo {_disp(path)} "
+                    f"offset={hasta + 1}. NO lo sobrescribas entero]")
     return f"RESULTADO leer_archivo {_disp(path)}: {content}"
 
 
 @tool("escribir_archivo",
-      "escribir_archivo <path> | <contenido>  -- crea/sobrescribe en el workspace (crea dirs)")
+      "escribir_archivo <path> | <contenido>  -- crea/sobrescribe en el workspace (crea dirs)",
+      desc="Crea un archivo nuevo (o SOBRESCRIBE uno existente ENTERO) con el "
+           "contenido dado; crea los directorios intermedios. Para cambiar "
+           "solo una parte de un archivo existente usa editar_archivo (no "
+           "reescribas el archivo entero: perderias lo que no repitas).",
+      params=[
+          {"nombre": "path", "tipo": "string", "requerido": True,
+           "descripcion": "ruta del archivo (dentro del workspace)"},
+          {"nombre": "contenido", "tipo": "string", "requerido": True,
+           "descripcion": "contenido COMPLETO del archivo (varias lineas ok)"},
+      ])
 def _escribir_archivo(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
@@ -425,13 +627,26 @@ def _escribir_archivo(args, ctx):
 
 
 @tool("editar_archivo",
-      "editar_archivo <path> | <<<<<<< SEARCH\\n...\\n=======\\n...\\n>>>>>>> REPLACE  -- edicion quirurgica por bloque")
+      "editar_archivo <path> | <<<<<<< SEARCH\\n...\\n=======\\n...\\n>>>>>>> REPLACE  -- edicion quirurgica por bloque",
+      desc="Edita un archivo existente reemplazando bloques SEARCH/REPLACE. El "
+           "SEARCH debe copiar TEXTO EXACTO que viste con leer_archivo y ser "
+           "UNICO en el archivo (si aparece varias veces, amplialo con mas "
+           "lineas de contexto). Devuelve un mini-diff de lo aplicado. Es la "
+           "forma correcta de modificar un archivo sin perder el resto.",
+      params=[
+          {"nombre": "path", "tipo": "string", "requerido": True,
+           "descripcion": "ruta del archivo a editar (debe existir)"},
+          {"nombre": "bloques", "tipo": "string", "requerido": True,
+           "descripcion": "uno o mas bloques '<<<<<<< SEARCH\\n(texto exacto)"
+                          "\\n=======\\n(reemplazo)\\n>>>>>>> REPLACE'"},
+      ])
 def _editar_archivo(args, ctx):
     """Edicion SEARCH/REPLACE (idea de Aider): cambia solo el bloque indicado en
     vez de reescribir el fichero entero. Barato y seguro para el modelo pequeno
     (no arrastra el resto del fichero). Acepta varios bloques seguidos. Si el
     SEARCH no casa, el error nombra el bloque y sugiere las lineas parecidas."""
-    from cognia.agent.edit_block import apply_edits, parse_bloques, EditError
+    from cognia.agent.edit_block import (apply_edits, parse_bloques, EditError,
+                                         mini_diff)
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return ("RESULTADO editar_archivo ERROR: formato (usa ruta | bloque "
@@ -463,12 +678,25 @@ def _editar_archivo(args, ctx):
         ft.append(str(wpath))
         ctx["agent_state"]["files_touched"] = ft[-15:]
     n = len(estrategias)
+    # Mini-diff de vuelta al modelo: sin él, el modelo sigue razonando sobre la
+    # versión vieja del fichero (el "OK" no dice QUÉ cambió). Capado en
+    # mini_diff; editar_archivo está exento de aci_trim para que no se re-corte.
+    _diff = mini_diff(old, nuevo)
     return (f"RESULTADO editar_archivo {_disp(wpath)}: OK ({n} bloque"
-            f"{'s' if n != 1 else ''} [{', '.join(estrategias)}], {len(nuevo)} chars)")
+            f"{'s' if n != 1 else ''} [{', '.join(estrategias)}], {len(nuevo)} chars)"
+            + (f"\n{_diff}" if _diff else ""))
 
 
 @tool("apendar_archivo",
-      "apendar_archivo <path> | <texto>      -- agrega texto al final (en el workspace)")
+      "apendar_archivo <path> | <texto>      -- agrega texto al final (en el workspace)",
+      desc="Agrega una linea de texto AL FINAL de un archivo sin tocar el "
+           "resto (lo crea si no existe). Ideal para logs/bitacoras.",
+      params=[
+          {"nombre": "path", "tipo": "string", "requerido": True,
+           "descripcion": "ruta del archivo (dentro del workspace)"},
+          {"nombre": "texto", "tipo": "string", "requerido": True,
+           "descripcion": "texto a agregar al final (sin comillas envolventes)"},
+      ])
 def _apendar_archivo(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
@@ -508,7 +736,41 @@ def _copiar_archivo(args, ctx):
     return f"RESULTADO copiar_archivo: {src} -> {_disp(dst)} OK"
 
 
-@tool("listar", "listar <directorio>                   -- lista archivos/carpetas")
+# borrar_archivo (2026-08-09, catalogo core A5): el agente no tenia forma de
+# BORRAR un archivo que el mismo creo (el fallback era 'ejecutar del/rm', que
+# el sentinel frena con razon). Confinado al workspace via _resolve_write_path:
+# borrar es una escritura. Solo archivos, nunca directorios (blast-radius).
+@tool("borrar_archivo",
+      "borrar_archivo <path>                 -- borra UN archivo (en el workspace)",
+      danger=True,
+      desc="Borra un archivo del workspace del agente. Solo archivos "
+           "individuales (no directorios). Para vaciar un archivo sin "
+           "borrarlo usa escribir_archivo con contenido vacio.",
+      params=[
+          {"nombre": "path", "tipo": "string", "requerido": True,
+           "descripcion": "ruta del archivo a borrar (dentro del workspace)"},
+      ])
+def _borrar_archivo(args, ctx):
+    try:
+        wpath = _resolve_write_path(args.strip().strip("\"'"))
+    except ValueError as e:
+        return f"RESULTADO borrar_archivo ERROR: {e}"
+    if not wpath.exists():
+        return f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} no existe"
+    if wpath.is_dir():
+        return (f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} es un "
+                f"directorio; esta tool solo borra archivos")
+    wpath.unlink()
+    return f"RESULTADO borrar_archivo {_disp(wpath)}: OK (borrado)"
+
+
+@tool("listar", "listar <directorio>                   -- lista archivos/carpetas",
+      desc="Lista los archivos y carpetas de un directorio (no recursivo). "
+           "Para buscar por contenido usa 'buscar'.",
+      params=[
+          {"nombre": "directorio", "tipo": "string", "requerido": False,
+           "descripcion": "directorio a listar (default: el actual)"},
+      ])
 def _listar(args, ctx):
     base = Path(args.strip() or ".")
     entries = sorted(base.iterdir(), key=lambda p: (p.is_file(), p.name))[:40]
@@ -578,7 +840,17 @@ def _parece_pregunta_del_mundo(patron: str) -> bool:
     return bool(_RE_PREGUNTA_MUNDO.search(p))
 
 
-@tool("buscar", "buscar <patron> | <directorio>        -- busca texto en archivos")
+@tool("buscar", "buscar <patron> | <directorio>        -- busca texto en archivos",
+      desc="Busca un patron de texto (regex o literal) dentro de los archivos "
+           "de un directorio o de un archivo concreto; devuelve hasta 15 "
+           "lineas 'archivo:linea: texto'. Si el patron es una pregunta sobre "
+           "el mundo (no sobre el proyecto), consulta la web.",
+      params=[
+          {"nombre": "patron", "tipo": "string", "requerido": True,
+           "descripcion": "texto o regex a buscar (sin comillas envolventes)"},
+          {"nombre": "directorio", "tipo": "string", "requerido": False,
+           "descripcion": "directorio o archivo donde buscar (default: '.')"},
+      ])
 def _buscar(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     patron = parts[0].strip()
@@ -806,12 +1078,55 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
                 f"Acota el comando (ruta/target mas especifico) y reintenta.")
     out = (r.stdout + r.stderr).strip()
     code = "" if r.returncode == 0 else f" (exit {r.returncode})"
-    return f"RESULTADO ejecutar{code}: {out[:1500] or '(sin output)'}"
+    return f"RESULTADO ejecutar{code}: {_head_cola(out) or '(sin output)'}"
 
 
-@tool("ejecutar", "ejecutar <comando shell>              -- corre un comando (con bloqueos de seguridad)")
+# Cabeza+COLA del output de shell: el head-only de antes (out[:1500]) perdia el
+# traceback, que en Python vive AL FINAL — el modelo veia el banner de pytest y
+# jamas el error real (A4.2, plan de obra 2026-08-09). Mismo criterio que
+# aci_trim pero con la cola mas gorda, porque aqui la cola ES la senal.
+_EJEC_HEAD = 800
+_EJEC_COLA = 900
+
+
+def _head_cola(out: str) -> str:
+    cap = _EJEC_HEAD + _EJEC_COLA
+    if len(out) <= cap:
+        return out
+    omit = len(out) - _EJEC_HEAD - _EJEC_COLA
+    return (out[:_EJEC_HEAD]
+            + f"\n[... {omit} chars omitidos (cabeza+cola conservadas) ...]\n"
+            + out[-_EJEC_COLA:])
+
+
+# timeout=N al final de los args, tras un '|': un comando shell real nunca
+# termina en '| timeout=120' (seria pipear a un ejecutable llamado asi), y el
+# pipe NO se lo come auto_fix (la regla de 'ejecutar' es solo nonempty).
+_RE_EJEC_TIMEOUT = re.compile(r"\s*\|\s*timeout\s*=\s*(\d+)\s*$", re.I)
+
+
+@tool("ejecutar",
+      "ejecutar <comando shell> [| timeout=N]  -- corre un comando (bloqueos de "
+      "seguridad; timeout default 30s, max 600)",
+      desc="Ejecuta un comando de shell y devuelve stdout+stderr (si el output "
+           "es largo conserva la cabeza y la COLA, donde vive el traceback). "
+           "Para correr tests usa la tool 'tests'. Comandos peligrosos se "
+           "bloquean o piden confirmacion.",
+      params=[
+          {"nombre": "comando", "tipo": "string", "requerido": True,
+           "descripcion": "el comando de shell a ejecutar"},
+          {"nombre": "timeout", "tipo": "integer", "requerido": False,
+           "clave": True,
+           "descripcion": "segundos maximos de ejecucion (default 30, max 600)"},
+      ])
 def _ejecutar(args, ctx):
-    return _shell(args.strip(), ctx)
+    cmd = args.strip()
+    timeout = 30
+    m = _RE_EJEC_TIMEOUT.search(cmd)
+    if m:
+        timeout = min(600, max(1, int(m.group(1))))
+        cmd = cmd[:m.start()].strip()
+    return _shell(cmd, ctx, timeout=timeout)
 
 
 @tool("abrir", "abrir <url-o-ruta-o-app>              -- abre una URL/archivo/app en el sistema (Chrome, YouTube, un archivo, una app)")
@@ -855,7 +1170,15 @@ def _abrir(args, ctx):
         return f"RESULTADO abrir ERROR: {e}"
 
 
-@tool("tests", "tests <ruta>                          -- corre pytest sobre una ruta ESPECIFICA (archivo o dir)")
+@tool("tests", "tests <ruta>                          -- corre pytest sobre una ruta ESPECIFICA (archivo o dir)",
+      desc="Corre pytest sobre UNA ruta especifica (archivo o directorio de "
+           "tests) y devuelve el resultado con la cola conservada (ahi vive "
+           "el traceback). Nunca corras la suite entera: tarda minutos.",
+      params=[
+          {"nombre": "ruta", "tipo": "string", "requerido": True,
+           "descripcion": "archivo o directorio de tests, p.ej. "
+                          "'tests/test_foo.py'"},
+      ])
 def _tests(args, ctx):
     ruta = args.strip()
     if not ruta:
@@ -1093,7 +1416,13 @@ def _buscar_en_repo(args, ctx):
 # MEMORY TOOLS (Cognia's own brain as tools -> RAG)
 # ══════════════════════════════════════════════════════════════════════
 
-@tool("recordar", "recordar <consulta>                   -- busca en la memoria episodica (RAG)")
+@tool("recordar", "recordar <consulta>                   -- busca en la memoria episodica (RAG)",
+      desc="Busca en la memoria episodica de Cognia (lo que el usuario y las "
+           "tareas anteriores dejaron guardado) por similitud semantica.",
+      params=[
+          {"nombre": "consulta", "tipo": "string", "requerido": True,
+           "descripcion": "que recuerdo buscar (lenguaje natural)"},
+      ])
 def _recordar(args, ctx):
     ai = ctx.get("ai")
     query = args.strip()
@@ -1303,7 +1632,19 @@ def _bon_log(rec: dict) -> None:
 
 @tool("generar_codigo",
       "generar_codigo <ruta.py> | <descripcion con el nombre exacto `func(args)`>  "
-      "-- genera N candidatos con test-first y ESCRIBE el mejor por tests")
+      "-- genera N candidatos con test-first y ESCRIBE el mejor por tests",
+      desc="Escribe una FUNCION Python nueva a partir de una descripcion: "
+           "genera varios candidatos, los juzga ejecutando tests y escribe el "
+           "mejor en la ruta dada. Preferila a escribir_archivo cuando la "
+           "tarea es 'implementa la funcion X'. La descripcion DEBE incluir "
+           "el nombre exacto de la funcion, p.ej. `suma(a, b)`.",
+      params=[
+          {"nombre": "ruta", "tipo": "string", "requerido": True,
+           "descripcion": "archivo .py destino (dentro del workspace)"},
+          {"nombre": "descripcion", "tipo": "string", "requerido": True,
+           "descripcion": "que debe hacer la funcion, con su nombre exacto "
+                          "`nombre(args)` incluido"},
+      ])
 def _generar_codigo(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
@@ -1757,7 +2098,19 @@ _MAX_DELEGATION_DEPTH = 2
 
 @tool("delegar_subtarea",
       "delegar_subtarea <investigador|implementador> | <subtarea>  "
-      "-- corre la subtarea en un sub-agente con tools acotadas por rol y su propio presupuesto")
+      "-- corre la subtarea en un sub-agente con tools acotadas por rol y su propio presupuesto",
+      desc="Delega una SUBTAREA autocontenida a un sub-agente con contexto "
+           "fresco y tools acotadas por rol: 'investigador' solo lee/busca, "
+           "'implementador' ademas escribe y ejecuta. Util para explorar sin "
+           "gastar el contexto de la tarea principal.",
+      params=[
+          {"nombre": "rol", "tipo": "string", "requerido": True,
+           "descripcion": "'investigador' (solo lectura) o 'implementador' "
+                          "(lectura+escritura+ejecucion)"},
+          {"nombre": "subtarea", "tipo": "string", "requerido": True,
+           "descripcion": "la subtarea, autocontenida (el sub-agente no ve tu "
+                          "historial)"},
+      ])
 def _delegar_subtarea(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2 or not parts[1].strip():
