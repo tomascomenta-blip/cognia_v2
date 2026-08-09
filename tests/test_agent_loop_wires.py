@@ -8,7 +8,18 @@ Fake orch guionado (sin modelo). Patron tomado de test_agent_no_backend.py.
 """
 import types
 
+import pytest
+
 import cognia.cli as cli
+
+
+@pytest.fixture(autouse=True)
+def _marco_accion_legacy(monkeypatch):
+    """WP1 2026-08-09: estos tests ejercitan el marco ACCION (perfil texto).
+    Sin el env, con la flota real encendida perfil_del_agente() detecta un
+    modelo nativo y el loop iria por bucle_nativo contra el server DE VERDAD
+    (test no hermetico)."""
+    monkeypatch.setenv("COGNIA_AGENT_LEGACY", "1")
 
 
 class _R:

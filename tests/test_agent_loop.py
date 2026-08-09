@@ -27,12 +27,16 @@ def _orch(text):
     )
 
 
-def test_budget_scales_with_rating():
+def test_budget_scales_with_rating(monkeypatch):
+    # WP1 2026-08-09 (A6): el rating LLM es opt-in (COGNIA_BUDGET_LLM=1);
+    # este test cubre la maquinaria cuando se reactiva para medir.
+    monkeypatch.setenv("COGNIA_BUDGET_LLM", "1")
     assert estimate_step_budget("tarea", _orch("1")) == _RATING_TO_BUDGET[1]
     assert estimate_step_budget("tarea", _orch("5")) == _RATING_TO_BUDGET[5]
 
 
-def test_budget_never_exceeds_hard_cap():
+def test_budget_never_exceeds_hard_cap(monkeypatch):
+    monkeypatch.setenv("COGNIA_BUDGET_LLM", "1")
     assert estimate_step_budget("x", _orch("5")) <= AGENT_HARD_CAP
 
 
@@ -50,7 +54,9 @@ def test_budget_is_at_least_one():
     assert estimate_step_budget("", _orch("garbage no number")) >= 1
 
 
-def test_wants_more_steps_parses_number():
+def test_wants_more_steps_parses_number(monkeypatch):
+    # WP1 2026-08-09 (A6): wants_more_steps es opt-in (COGNIA_WANTS_MORE=1).
+    monkeypatch.setenv("COGNIA_WANTS_MORE", "1")
     assert wants_more_steps("t", "progreso", _orch("3")) == 3
     assert wants_more_steps("t", "progreso", _orch("0")) == 0
 
