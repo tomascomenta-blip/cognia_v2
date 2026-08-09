@@ -1403,3 +1403,101 @@ class TestFindGgufFallbackHome:
         monkeypatch.setattr(_P, "home",
                             classmethod(lambda cls: tmp_path / "home_vacio"))
         assert lb._find_gguf() is None
+
+
+# ---------------------------------------------------------------------------
+# reasoning_content en stream_chat (obra 2026-08-09, WP4)
+# ---------------------------------------------------------------------------
+# REGRESION: hasta 2026-08-09 stream_chat DESCARTABA delta.reasoning_content
+# (el pensamiento de gpt-oss/Harmony): minutos de aire muerto en pantalla.
+# Verificado en vivo contra b10066 + gpt-oss-20b: el server manda el
+# pensamiento como delta.reasoning_content ANTES del content.
+
+_SSE_CHAT_REASONING_RESP = (
+    b'data: {"choices": [{"delta": {"reasoning_content": "pienso"}, '
+    b'"finish_reason": null, "index": 0}]}\n'
+    b'data: {"choices": [{"delta": {"reasoning_content": " luego"}, '
+    b'"finish_reason": null, "index": 0}]}\n'
+    b'data: {"choices": [{"delta": {"content": "hola"}, '
+    b'"finish_reason": null, "index": 0}]}\n'
+    b'data: {"choices": [{"delta": {}, "finish_reason": "stop", '
+    b'"index": 0}]}\n'
+    b'data: [DONE]\n')
+
+
+class TestStreamChatReasoning:
+    def test_reasoning_se_acumula_y_no_se_yieldea(self):
+        """El pensamiento queda en last_reasoning; el yield sigue siendo SOLO
+        el content (los consumidores actuales no cambian)."""
+        b = _make_server_backend(_SSE_CHAT_REASONING_RESP)
+        tokens = list(b.stream_chat([{"role": "user", "content": "hola"}],
+                                    max_tokens=8))
+        assert tokens == ["hola"]
+        assert b.last_reasoning == "pienso luego"
+        assert b.last_stop_reason == "eos"
+
+    def test_on_reasoning_recibe_fragmentos_en_vivo(self):
+        b = _make_server_backend(_SSE_CHAT_REASONING_RESP)
+        vistos = []
+        list(b.stream_chat([{"role": "user", "content": "hola"}],
+                           max_tokens=8, on_reasoning=vistos.append))
+        assert vistos == ["pienso", " luego"]
+
+    def test_on_reasoning_roto_no_rompe_el_stream(self):
+        """El callback es adorno: sus excepciones se tragan, el stream manda."""
+        b = _make_server_backend(_SSE_CHAT_REASONING_RESP)
+
+        def _bomba(_frag):
+            raise RuntimeError("consumidor roto")
+
+        tokens = list(b.stream_chat([{"role": "user", "content": "hola"}],
+                                    max_tokens=8, on_reasoning=_bomba))
+        assert tokens == ["hola"]
+        assert b.last_reasoning == "pienso luego"
+
+    def test_emite_razonamiento_tick_y_token_texto_al_bus(self):
+        """RazonamientoTick por fragmento pensado y TokenTexto por trozo de
+        respuesta, via cognia/ux/events (el contrato de la obra)."""
+        import node.llama_backend as lb
+        from cognia.ux import events as ux_events
+        lb._ux_events = None            # resetear el cache lazy del modulo
+        recibidos = []
+        ux_events.suscribir(recibidos.append)
+        try:
+            b = _make_server_backend(_SSE_CHAT_REASONING_RESP)
+            list(b.stream_chat([{"role": "user", "content": "hola"}],
+                               max_tokens=8))
+        finally:
+            ux_events.desuscribir(recibidos.append)
+        ticks = [e for e in recibidos
+                 if isinstance(e, ux_events.RazonamientoTick)]
+        texts = [e for e in recibidos if isinstance(e, ux_events.TokenTexto)]
+        assert [t.fragmento for t in ticks] == ["pienso", " luego"]
+        assert ticks[-1].chars == len("pienso luego")
+        assert [t.texto for t in texts] == ["hola"]
+
+    def test_reasoning_se_resetea_entre_llamadas(self):
+        b = _make_server_backend(_SSE_CHAT_REASONING_RESP)
+        list(b.stream_chat([{"role": "user", "content": "a"}], max_tokens=8))
+        b._urlreq = _FakeUrlReq(_SSE_CHAT_RESP)   # sin reasoning
+        list(b.stream_chat([{"role": "user", "content": "b"}], max_tokens=8))
+        assert b.last_reasoning == ""
+
+    def test_wrapper_reenvia_on_reasoning_solo_si_se_pasa(self):
+        """El kwarg NO viaja por default (mocks/impls viejos no lo conocen:
+        los tests de TestStreamChat asertan la firma exacta sin el)."""
+        mock_impl = MagicMock()
+        mock_impl.stream_chat.return_value = iter(["A"])
+        backend = _make_backend(mock_impl)
+        msgs = [{"role": "user", "content": "hola"}]
+        cb = lambda frag: None
+        list(backend.stream_chat(msgs, max_tokens=64, temperature=0.7,
+                                 on_reasoning=cb))
+        mock_impl.stream_chat.assert_called_once_with(msgs, 64, 0.7,
+                                                      on_reasoning=cb)
+
+    def test_wrapper_expone_last_reasoning(self):
+        mock_impl = MagicMock()
+        mock_impl.last_reasoning = "hmm"
+        backend = _make_backend(mock_impl)
+        assert backend.last_reasoning == "hmm"

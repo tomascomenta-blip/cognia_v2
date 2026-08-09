@@ -54,6 +54,27 @@ def _request_timeout_s(max_tokens: int, payload_len: int) -> int:
     return max(120, 30 + int(max_tokens * 0.6) + payload_len // 25)
 
 
+_ux_events = None   # cache: modulo cognia.ux.events, o False si no importable
+
+
+def _eventos_ux():
+    """El bus de eventos de UX (cognia/ux/events.py), o None si no esta.
+
+    Import LAZY y cacheado, jamas a nivel de modulo: importar cognia dispara
+    su __init__ (subsistemas enteros) y node/ tiene que poder correr solo.
+    Cuando el CLI ya cargo cognia, esto es un lookup de sys.modules; cuando
+    no hay cognia (nodo suelto), falla UNA vez y queda False. emitir() es
+    no-lanzante por contrato: nada de esto puede romper una generacion."""
+    global _ux_events
+    if _ux_events is None:
+        try:
+            from cognia.ux import events as _ev
+            _ux_events = _ev
+        except Exception:
+            _ux_events = False
+    return _ux_events or None
+
+
 def _es_timeout(exc: Exception) -> bool:
     """True si exc es un timeout de socket (directo o envuelto en URLError).
 
@@ -964,10 +985,24 @@ class _LlamaServerBackend:
     def stream_chat(self, messages: list, max_tokens: int = 512,
                     temperature: float = 0.7, top_p=None, top_k=None,
                     min_p=None, repeat_penalty=None, seed=None,
-                    cache_prompt: bool = True):
-        """Yield tokens using /v1/chat/completions (multi-turn, OpenAI-compatible)."""
+                    cache_prompt: bool = True, on_reasoning=None):
+        """Yield tokens using /v1/chat/completions (multi-turn, OpenAI-compatible).
+
+        Razonadores (gpt-oss/Harmony via --jinja): el server manda el
+        pensamiento como delta.reasoning_content ANTES del content. Hasta
+        2026-08-09 se DESCARTABA: minutos de aire muerto en pantalla sin un
+        solo token (B3 del plan de obra). Ahora:
+          - se acumula en self.last_reasoning (inspeccionable post-stream),
+          - on_reasoning(fragmento) lo recibe en vivo si se pasa (callback
+            best-effort: sus excepciones se tragan, el stream manda),
+          - se emite RazonamientoTick al bus de ux/events (y TokenTexto por
+            cada trozo de respuesta) para el indicador 'pensando... (Ns)'.
+        Los consumidores existentes no cambian: el yield sigue siendo SOLO
+        el content, str por str."""
         import urllib.error
         cache_prompt = self._consume_lora_dirty(cache_prompt)
+        self.last_reasoning = ""
+        _ev = _eventos_ux()
         payload = self._json.dumps({
             "messages":    messages,
             "max_tokens":  max_tokens,
@@ -1010,8 +1045,28 @@ class _LlamaServerBackend:
                             try:
                                 data = self._json.loads(raw)
                                 choice = (data.get("choices") or [{}])[0]
-                                tok = choice.get("delta", {}).get("content", "")
+                                delta = choice.get("delta", {})
+                                # Pensamiento del razonador (verificado en vivo
+                                # 2026-08-09 contra b10066 + gpt-oss-20b: llega
+                                # como delta.reasoning_content; 'reasoning' es
+                                # el nombre en otros builds).
+                                frag = (delta.get("reasoning_content")
+                                        or delta.get("reasoning") or "")
+                                if frag:
+                                    self.last_reasoning += frag
+                                    if on_reasoning is not None:
+                                        try:
+                                            on_reasoning(frag)
+                                        except Exception:
+                                            pass
+                                    if _ev is not None:
+                                        _ev.emitir(_ev.RazonamientoTick(
+                                            chars=len(self.last_reasoning),
+                                            fragmento=frag))
+                                tok = delta.get("content", "")
                                 if tok:
+                                    if _ev is not None:
+                                        _ev.emitir(_ev.TokenTexto(texto=tok))
                                     yield tok
                                 # Last chunk before [DONE] carries finish_reason
                                 # and timings.predicted_n (verified on b9391)
@@ -1107,6 +1162,11 @@ class LlamaBackend:
     def last_stop_reason(self) -> Optional[str]:
         """Why the last generation stopped: 'eos'|'limit'|'word'|None (see _stop_reason)."""
         return getattr(self._impl, "last_stop_reason", None)
+
+    @property
+    def last_reasoning(self) -> str:
+        """reasoning_content acumulado del ultimo stream_chat ('' si no hubo)."""
+        return getattr(self._impl, "last_reasoning", "") or ""
 
     @property
     def gguf_path(self) -> Optional[Path]:
@@ -1543,18 +1603,26 @@ class LlamaBackend:
     def stream_chat(self, messages: list, max_tokens: int = 512,
                     temperature: float = 0.7, top_p=None, top_k=None,
                     min_p=None, repeat_penalty=None, seed=None,
-                    cache_prompt: bool = True):
-        """Yield tokens using multi-turn /v1/chat/completions."""
+                    cache_prompt: bool = True, on_reasoning=None):
+        """Yield tokens using multi-turn /v1/chat/completions.
+
+        on_reasoning: callback opcional que recibe cada fragmento de
+        reasoning_content del razonador (ver el impl server). Solo se
+        reenvia cuando se pasa: los impls viejos/mocks no lo conocen."""
         extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                   repeat_penalty=repeat_penalty, seed=seed)
         # cache_prompt: solo cuando es False (ver generate())
         if not cache_prompt:
             extra["cache_prompt"] = False
+        if on_reasoning is not None:
+            extra["on_reasoning"] = on_reasoning
         self._auditar("chat")
         if hasattr(self._impl, "stream_chat"):
             yield from self._impl.stream_chat(messages, max_tokens, temperature, **extra)
         else:
-            # Flatten history to a single prompt as fallback
+            # Flatten history to a single prompt as fallback. Sin razonamiento
+            # separado en /completion: el callback no aplica aqui.
+            extra.pop("on_reasoning", None)
             text = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
             yield from self.stream_generate(text, max_tokens, temperature, **extra)
 
