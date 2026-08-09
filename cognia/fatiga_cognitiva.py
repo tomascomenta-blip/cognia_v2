@@ -52,14 +52,19 @@ from collections import deque
 from datetime import datetime
 from typing import Optional, Dict, List
 
+# Avisos por logger, no print(): este modulo se importa en `import cognia`
+# y sus prints ensuciaban stdout de cualquier consumidor (2026-08-09).
+from .logger_config import get_logger
+logger = get_logger(__name__)
+
 # psutil es opcional — si no está, estimamos desde /proc o valores fijos
 try:
     import psutil
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
-    print("[WARN] psutil no encontrado. Instala con: pip install psutil")
-    print("       La fatiga cognitiva usara estimaciones alternativas.")
+    logger.warning("psutil no encontrado (pip install psutil); "
+                   "la fatiga cognitiva usara estimaciones alternativas")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -168,8 +173,8 @@ class CognitiveFatigueMonitor:
 
         # Timestamp de la última actividad registrada (para auto-reset por idle)
         self._last_activity: float = time.time()
-        
-        print("[OK] CognitiveFatigueMonitor activo")
+
+        logger.debug("CognitiveFatigueMonitor activo")
 
     # ── API principal ──────────────────────────────────────────────────
 
