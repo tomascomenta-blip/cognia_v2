@@ -290,7 +290,11 @@ def _perfil_auto() -> str:
     if env in ("completo", "compacto", "minimo"):
         return env
     pista = (os.environ.get("LLAMA_GGUF_PATH", "") or "").lower()
-    if any(t in pista for t in ("7b", "8b", "13b", "14b", "32b", "70b")):
+    # '9b', '20b' y 'gpt-oss' faltaban (A3, obra 2026-08-09): la flota real
+    # (gpt-oss-20b, qwythos-9b) recibia el prompt del 3B por no estar en la
+    # lista. Los tokens se comparan sobre el basename del GGUF.
+    if any(t in pista for t in ("7b", "8b", "9b", "13b", "14b", "20b",
+                                "32b", "70b", "gpt-oss", "qwythos")):
         return "completo"
     return "compacto"
 

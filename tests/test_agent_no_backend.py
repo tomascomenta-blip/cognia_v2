@@ -8,7 +8,17 @@ WHOLE step budget repeating the identical error (the user saw 8 wasted steps).
 The agent must now detect the missing backend and stop after the first step
 with an actionable message.
 """
+import pytest
+
 import cognia.cli as cli
+
+
+@pytest.fixture(autouse=True)
+def _marco_accion_legacy(monkeypatch):
+    """WP1 2026-08-09: este test ejercita el marco ACCION (perfil texto). Sin
+    el env, con la flota real encendida el loop iria por bucle_nativo contra
+    el server DE VERDAD y el 'sin backend' simulado no se veria."""
+    monkeypatch.setenv("COGNIA_AGENT_LEGACY", "1")
 
 
 _NO_BACKEND = (

@@ -9480,16 +9480,32 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         _print_fn(f"[err_cl]Agente: no hay orquestador: {e}[/err_cl]")
         return "(el agente no pudo iniciar el modelo)"
 
+    # ── Perfil por MODELO SERVIDO (A3, obra 2026-08-09) ────────────────────
+    # El corse del 3B (ACCION:/regex, temp=0, nothink) deja de ser EL default:
+    # es UN perfil. Con un modelo de la tabla nativa (gpt-oss) el paso del
+    # agente va por /v1/chat/completions con tools nativas (bucle_nativo);
+    # el resto sigue por el marco texto de siempre. Contrafactual del plan:
+    # COGNIA_AGENT_LEGACY=1 fuerza el camino viejo sobre cualquier modelo.
+    try:
+        from cognia.agent.model_profiles import perfil_del_agente
+        _perfil_modelo = perfil_del_agente()
+    except Exception:
+        _perfil_modelo = {}
+    _regimen_nativo = _perfil_modelo.get("tools") == "nativo"
+
     # Fleet (FLEET_DESIGN): tareas de agente corren con el experto ACCION
     # (G2A 20.4%->95.2% medido en el deploy real). Sin try/finally: cada
     # consumidor del server declara su experto antes de generar (el fast-path
     # de chat y /largo activan None=base) y activate_expert es idempotente.
+    # Guard por modelo base (A3): el LoRA 'accion' se entreno para el marco
+    # ACCION del 3B; sobre un modelo nativo (gpt-oss) no aplica y no se activa.
     try:
         _llama_fleet = getattr(orch, "_llama", None)
         if _llama_fleet is None:
             orch._try_load_llama()
             _llama_fleet = getattr(orch, "_llama", None)
-        if _llama_fleet is not None and getattr(_llama_fleet, "fleet_experts", []):
+        if (_llama_fleet is not None and not _regimen_nativo
+                and getattr(_llama_fleet, "fleet_experts", [])):
             if _llama_fleet.activate_expert("accion"):
                 _print_fn("[detail]Experto ACCION activo (fleet)[/detail]")
     except Exception:
@@ -9550,6 +9566,11 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                   f"vieja len(task)>120 -> decompone={_decompone}[/warn_cl]")
         _aviso_degradado("cli.agente.estimate_difficulty",
                          f"{type(_e_dif).__name__}: {_e_dif}; heuristica len>120")
+    # A6: en regimen nativo el auxiliar de decompose se apaga — el razonador
+    # planifica solo dentro de su canal analysis, y el plan pegado al history
+    # era texto que competia con las tools (medido en la evidencia baseline).
+    if _regimen_nativo:
+        _decompone = False
     if _decompone:
         try:
             _decomp_prompt = (
@@ -9588,7 +9609,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # el pre-BoN usa generar_codigo: saltarlo si el rol del sub-agente no la
     # permite (p.ej. investigador) -- si no, devolveria un ERROR de rol inutil.
     _bon_allowed = allowed_tools is None or "generar_codigo" in allowed_tools
-    if _ep and bon_applies(task) and _bon_allowed:
+    # A6: el BoN pre-paso existia porque "el 3B no elige la tool de forma
+    # fiable en el loop ReAct" — con tool-calling nativo esa premisa no
+    # aplica y el pre-paso solo paga latencia. Apagado en regimen nativo.
+    if _ep and bon_applies(task) and _bon_allowed and not _regimen_nativo:
         _m = re.search(r"([\w./\\-]+\.py)", task)
         _codefile = _m.group(1) if _m else f"{_ep}.py"
         _print_fn(f"[detail]tarea de codigo -> BoN (generar_codigo) para "
@@ -9630,6 +9654,46 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                               # fallan => modelo degenerado, cierre honesto
     _exec_nudged = False      # cierre informativo E8: un solo aviso por tarea
     result_text = _bon_result_text  # si BoN corto, este es el resultado final
+
+    # ── Camino NATIVO (A1/A2, obra 2026-08-09) ─────────────────────────────
+    # Mensajes estructurados + tools nativas por /v1/chat/completions; el
+    # server aplica la plantilla del modelo (harmony) y parsea los tool
+    # calls. Fin natural: respuesta sin tool calls. El while legacy de abajo
+    # queda como fallback texto (perfil 3B o COGNIA_AGENT_LEGACY=1).
+    # bucle_nativo apendea history/_actions_trace con las convenciones de
+    # siempre, asi todo el post-procesado (E8, goal_contract, skills,
+    # adjuntos) sigue igual sin saber del regimen.
+    if _regimen_nativo and not _bon_ok:
+        try:
+            from cognia.agent.chat_client import (
+                completar, mensaje_assistant, mensaje_tool)
+            from cognia.agent.loop import bucle_nativo
+            from cognia.agent.model_profiles import (
+                system_agente_nativo, verificar_arranque)
+            from cognia.agent.tool_schemas import args_legacy, schemas_para
+            for _avz in verificar_arranque(_perfil_modelo):
+                _print_fn(f"[warn_cl]chequeo de arranque: {_avz}[/warn_cl]")
+            _nat = bucle_nativo(
+                task, system_agente_nativo(), completar,
+                schemas_para(_tool_filter), args_legacy,
+                mensaje_assistant, mensaje_tool, run_tool, ctx,
+                _perfil_modelo, history, _actions_trace, _print_fn,
+                # max_turns con piso 8: la heuristica corta (2-4 pasos) esta
+                # calibrada al 3B; el nativo cierra solo cuando termina y el
+                # tope es proteccion, no racionamiento.
+                max_turns=min(max(budget, 8), AGENT_HARD_CAP))
+            result_text = _nat["texto"]
+            total_steps = _nat["pasos"]
+            _bon_ok = True     # el while legacy no corre: ya hay resultado
+        except Exception as _e_nat:
+            # Degradable: un fallo del regimen nativo (import, bug) cae al
+            # marco ACCION de siempre con causa visible, jamas deja sin agente.
+            _print_fn(f"[warn_cl]degradado: bucle nativo fallo "
+                      f"({type(_e_nat).__name__}: {_e_nat}) -- uso el marco "
+                      f"ACCION legacy[/warn_cl]")
+            _aviso_degradado("cli.agente.bucle_nativo",
+                             f"{type(_e_nat).__name__}: {_e_nat}")
+
     while not _bon_ok and total_steps < AGENT_HARD_CAP:
         # Llenar el checkbox del paso anterior al arrancar una vuelta nueva
         # (vuelta N arranca => la N-1 quedo completada). Jamas rompe el loop.
@@ -10081,7 +10145,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 # Si el contrato dice que falta algo CONCRETO, se relanza UNA
                 # vez el loop pidiendo SOLO lo pendiente (no un retry ciego:
                 # va guiado por los criterios reales incumplidos).
-                if not guidance.startswith("SEGUNDA PASADA"):
+                # A6 (obra 2026-08-09): APAGADA por defecto — la recursion
+                # duplicaba la corrida entera y el goal engine derivaba
+                # criterios contaminados (keywords con tokens harmony en la
+                # evidencia baseline). COGNIA_SEGUNDA_PASADA=1 la reactiva
+                # para medirla por gate con neto apareado.
+                if (os.environ.get("COGNIA_SEGUNDA_PASADA", "") == "1"
+                        and not guidance.startswith("SEGUNDA PASADA")):
                     _print_fn("[detail]Segunda pasada: completando lo que "
                               "falta del contrato...[/detail]")
                     _resto = ("SEGUNDA PASADA. La tarea original era: "

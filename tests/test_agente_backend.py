@@ -111,7 +111,9 @@ class TestNoConcedePasosSobreUnFalloDeBackend:
                                  inferir=lambda orch, p: "")
         assert extra == 0
 
-    def test_con_backend_respeta_lo_que_diga_el_modelo(self):
+    def test_con_backend_respeta_lo_que_diga_el_modelo(self, monkeypatch):
+        # WP1 2026-08-09 (A6): wants_more_steps es opt-in por env.
+        monkeypatch.setenv("COGNIA_WANTS_MORE", "1")
         from cognia.agent.loop import wants_more_steps
 
         extra = wants_more_steps("tarea", "progreso", _Orq("x"),
@@ -125,8 +127,9 @@ class TestNoConcedePasosSobreUnFalloDeBackend:
                                  inferir=lambda orch, p: "0")
         assert extra == 0
 
-    def test_sin_inferir_sigue_funcionando_como_antes(self):
+    def test_sin_inferir_sigue_funcionando_como_antes(self, monkeypatch):
         """Compatibilidad: quien no pase `inferir` usa el orquestador."""
+        monkeypatch.setenv("COGNIA_WANTS_MORE", "1")  # A6: opt-in por env
         from cognia.agent.loop import wants_more_steps
 
         assert wants_more_steps("t", "p", _Orq("necesita 4 pasos")) == 4

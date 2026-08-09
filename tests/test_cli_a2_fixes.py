@@ -38,6 +38,14 @@ import pytest
 import cognia.cli as cli
 
 
+@pytest.fixture(autouse=True)
+def _marco_accion_legacy(monkeypatch):
+    """WP1 2026-08-09: los tests de _run_agent_task ejercitan el marco ACCION
+    (perfil texto). Sin el env, con la flota real encendida el loop iria por
+    bucle_nativo contra el server DE VERDAD (test no hermetico)."""
+    monkeypatch.setenv("COGNIA_AGENT_LEGACY", "1")
+
+
 # ---------------------------------------------------------------------------
 # Harness del REPL
 # ---------------------------------------------------------------------------
