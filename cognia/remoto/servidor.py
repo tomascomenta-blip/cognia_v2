@@ -261,8 +261,12 @@ def crear_app() -> FastAPI:
 
     @app.post("/api/proyectos/{pid}/sesiones")
     def nueva_sesion(pid: str, cuerpo: dict | None = None):
-        s = gestor.crear(_proyecto(pid), (cuerpo or {}).get("titulo", ""))
-        return {"id": s.id, "titulo": s.titulo}
+        # "acceso": "total" (default, el historico del movil) o "restringido"
+        # (sin COGNIA_ACCESO_TOTAL ni computer-use). Cableado para que el
+        # front pueda ofrecer sesiones de solo-conversar sin tocar el back.
+        s = gestor.crear(_proyecto(pid), (cuerpo or {}).get("titulo", ""),
+                         acceso=(cuerpo or {}).get("acceso", "total"))
+        return {"id": s.id, "titulo": s.titulo, "acceso": s.acceso}
 
     @app.delete("/api/proyectos/{pid}/sesiones/{sid}")
     def borrar_sesion(pid: str, sid: str):
@@ -305,11 +309,22 @@ def crear_app() -> FastAPI:
             import asyncio
             while True:
                 try:
-                    evento = q.get_nowait()
-                    await websocket.send_text(
-                        json.dumps(evento, ensure_ascii=False))
+                    # espera BLOQUEANTE en un hilo del pool: el evento
+                    # despierta el envio al instante. Antes: poll con
+                    # sleep(0.15) — 150 ms de latencia media por mensaje y un
+                    # despertar continuo por cada WS abierto. El timeout NO es
+                    # un poll: solo evita que un cliente ya desconectado deje
+                    # el hilo clavado para siempre en q.get().
+                    evento = await asyncio.to_thread(q.get, timeout=30.0)
                 except queue.Empty:
-                    await asyncio.sleep(0.15)
+                    # sin eventos en 30 s: verificar que el cliente siga ahi
+                    # (la desconexion solo se detecta al enviar; sin esto un
+                    # movil que se fue sin eventos pendientes quedaba colgado)
+                    if websocket.client_state.name != "CONNECTED":
+                        break
+                    continue
+                await websocket.send_text(
+                    json.dumps(evento, ensure_ascii=False))
         except WebSocketDisconnect:
             pass
         finally:

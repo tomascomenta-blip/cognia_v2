@@ -20,6 +20,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -155,6 +156,137 @@ def reclasificar(quien: str, texto: str, en_traza: bool) -> tuple[str, bool]:
     return "cognia", en_traza
 
 
+# ── Eventos tipados (cognia/ux/events.py): el canal PRIMARIO desde 2026-08-09 ─
+# La sesion lanza el REPL con COGNIA_EVENTS_JSONL=1: el bus de eventos escribe
+# una linea "@EV {json}" por evento a stdout. Aqui se clasifica por TIPO, no
+# por regex — el regex de arriba queda como fallback para la prosa del CLI
+# (la respuesta final, avisos sueltos) y para REPLs viejos sin bus.
+
+try:
+    from cognia.ux.events import PREFIJO_STDOUT as _PREFIJO_EV
+except Exception:                       # el remoto no muere si el bus cambia
+    _PREFIJO_EV = "@EV "
+
+# Tipos del contrato de ux/events.py. Una linea JSON PELADA (sin prefijo) solo
+# se acepta como evento si su "tipo" esta aqui: el agente muestra JSON ajeno
+# todo el tiempo y "tipo" es una clave comun en datos en espanol.
+_TIPOS_EVENTO = {"TareaInicio", "PasoIntencion", "ToolInicio", "ToolFin",
+                 "TokenTexto", "RazonamientoTick", "Aviso", "Degradado",
+                 "TareaFin"}
+
+
+def parsear_evento(linea: str) -> dict | None:
+    """Devuelve el dict del evento si la linea es una linea-evento, si no None.
+
+    Dos formas aceptadas (pedido de la obra 2026-08-09): la prefijada
+    "@EV {json}" (la que emite el sink stdout) y, como red, un JSON pelado
+    cuyo "tipo" sea uno del contrato — por si el prefijo se pierde en un
+    pipe intermedio."""
+    if linea.startswith(_PREFIJO_EV):
+        cuerpo = linea[len(_PREFIJO_EV):]
+        try:
+            d = json.loads(cuerpo)
+        except Exception:
+            return None
+        return d if isinstance(d, dict) and d.get("tipo") else None
+    if linea.startswith("{") and '"tipo"' in linea:
+        try:
+            d = json.loads(linea)
+        except Exception:
+            return None
+        if isinstance(d, dict) and d.get("tipo") in _TIPOS_EVENTO:
+            return d
+    return None
+
+
+def _cabeza(texto: str) -> str:
+    """Primera linea no vacia, recortada (el movil muestra lineas cortas)."""
+    for l in (texto or "").split("\n"):
+        if l.strip():
+            return l.strip()[:200]
+    return ""
+
+
+def interpretar_evento(d: dict) -> tuple[str | None, str, list[str]]:
+    """Evento tipado -> (quien, texto, ecos) para la transcripcion.
+
+    - quien None = el evento no se anota (streaming, eco del usuario).
+    - "actividad" = plegable en el movil (la actividad de tools, pedida asi
+      por el dueno 2026-07-20); "sistema" = visible en el chat (degradados:
+      la degradacion silenciosa es el modo de fallo historico de Cognia).
+    - ecos: lineas que el RENDERER del CLI va a imprimir por el mismo evento
+      (la intencion del paso, el resumen de una tool) y que el bombeo debe
+      saltarse para no duplicar en el movil lo que el evento ya dijo."""
+    tipo = d.get("tipo", "")
+    if tipo in ("TareaInicio", "TokenTexto", "RazonamientoTick"):
+        # TareaInicio es eco de lo que el usuario acaba de escribir; el
+        # streaming llega entero como prosa de la respuesta final.
+        return None, "", []
+    if tipo == "PasoIntencion":
+        intencion = _cabeza(d.get("intencion", ""))
+        return ("actividad", intencion, [intencion]) if intencion else (None, "", [])
+    if tipo == "ToolInicio":
+        etiqueta = f"{d.get('tool', '?')} {d.get('args', '')}".strip()
+        return "actividad", f"· {etiqueta}…", []
+    if tipo == "ToolFin":
+        etiqueta = f"{d.get('tool', '?')} {d.get('args', '')}".strip()
+        resumen = d.get("resumen", "") or ""
+        cab = _cabeza(resumen)
+        # el renderer imprime las lineas 2-3 del resumen sangradas y sin
+        # marca: van a ecos para que el fallback no las cuele como chat
+        ecos = [l.strip() for l in resumen.split("\n")[1:3] if l.strip()]
+        if d.get("ok", True):
+            texto = f"⏺ {etiqueta}" + (f" — {cab}" if cab else "")
+        else:
+            texto = f"✗ {etiqueta} — fallo" + (f": {cab}" if cab else "")
+        return "actividad", texto, ecos
+    if tipo == "Aviso":
+        t = _cabeza(d.get("texto", ""))
+        return ("actividad", f"⚠ {t}", []) if t else (None, "", [])
+    if tipo == "Degradado":
+        texto = f"degradado — {d.get('donde', '?')}"
+        if d.get("motivo"):
+            texto += f": {d['motivo']}"
+        if d.get("accion_sugerida"):
+            texto += f" → {d['accion_sugerida']}"
+        return "sistema", texto, []
+    if tipo == "TareaFin":
+        partes = []
+        if d.get("pasos"):
+            partes.append(f"{d['pasos']} paso" + ("s" if d["pasos"] != 1 else ""))
+        if d.get("duracion_s"):
+            partes.append(f"{d['duracion_s']:.1f}s")
+        if d.get("tokens_predichos"):
+            partes.append(f"{d['tokens_predichos']} tokens")
+        detalle = " · ".join(partes)
+        if d.get("ok", True):
+            # la respuesta final ya llega como prosa (cli.py la imprime plana
+            # bajo COGNIA_REMOTO): aqui solo el cierre compacto de actividad
+            return "actividad", ("✓ tarea terminada" +
+                                 (f" · {detalle}" if detalle else "")), []
+        cab = _cabeza(d.get("resumen", ""))
+        return "actividad", ("✗ tarea sin exito" +
+                             (f" — {cab}" if cab else "") +
+                             (f" · {detalle}" if detalle else "")), []
+    # tipo desconocido (el contrato crecio): se anota crudo en actividad para
+    # no perderlo en silencio — perderlo era el bug historico del remoto
+    return "actividad", f"{tipo}: {json.dumps(d, ensure_ascii=False)[:300]}", []
+
+
+# El renderer del CLI pinta los MISMOS eventos como lineas con marca
+# (⏺ · ✗ ⚠ →) y un footer "3.2s · 500 tokens · 2 pasos". Cuando el stream de
+# eventos esta activo, esas lineas son duplicados y se saltan.
+_RE_FOOTER_RENDERER = re.compile(
+    r"^\d+(\.\d+)?s( · \d+ (tokens|pasos?))*$")
+
+
+def es_eco_renderer(linea: str) -> bool:
+    t = linea.strip()
+    if t[:1] in ("⏺", "·", "✗", "⚠", "→"):
+        return True
+    return bool(_RE_FOOTER_RENDERER.match(t))
+
+
 def _python_cognia() -> list[str]:
     """El interprete que corre el REPL: el mismo venv del servidor."""
     return [sys.executable, "-m", "cognia"]
@@ -199,15 +331,30 @@ class Sesion:
     proyecto_id: str
     ruta_proyecto: str
     titulo: str
+    # nivel de permiso del REPL: "total" (el historico: el dueno pilota SU
+    # maquina desde el movil, acceso total + computer-use) o "restringido"
+    # (sin COGNIA_ACCESO_TOTAL ni tools de pantalla — para sesiones que solo
+    # conversan/leen). Default "total" para no romper el movil existente.
+    acceso: str = "total"
     proc: subprocess.Popen | None = None
     suscriptores: list = field(default_factory=list)   # [queue.Queue]
     lock: threading.Lock = field(default_factory=threading.Lock)
     # estado del clasificador: dentro de un traceback multilinea
     _en_traza: bool = False
-    # el banner de arranque no llega ni al Registro: se descarta entero
-    # hasta ver "Sistema listo" (con tope por si el banner cambia)
+    # el banner/panel de arranque no llega ni al Registro: se descarta hasta
+    # ver el final del arranque (compacto o banner full), con tope de lineas.
+    # OJO: lo descartado se GUARDA en _buffer_arranque — si el REPL muere
+    # arrancando, ese buffer es el traceback que antes se perdia y el movil
+    # veia puro silencio (bug historico, fix 2026-08-09).
     _arrancando: bool = True
     _lineas_arranque: int = 0
+    _buffer_arranque: list = field(default_factory=list)
+    # True desde la primera linea-evento "@EV": a partir de ahi los eventos
+    # tipados mandan y los adornos del renderer (duplicados) se saltan
+    _con_eventos: bool = False
+    # lineas que el renderer va a imprimir por eventos ya anotados (intencion,
+    # resumen de tools): el bombeo las salta para no duplicar en el movil
+    _ecos_pendientes: deque = field(default_factory=lambda: deque(maxlen=64))
     # hilo lector: se guarda para poder join() en parar() — sin eso, su
     # anotar("sesion terminada") final corria DESPUES de mover/borrar el
     # jsonl y recreaba la carpeta de la sesion recien dada de baja
@@ -253,9 +400,9 @@ class Sesion:
     def viva(self) -> bool:
         return self.proc is not None and self.proc.poll() is None
 
-    def arrancar(self) -> None:
-        if self.viva():
-            return
+    def _entorno(self) -> dict:
+        """El env del REPL. Separado de arrancar() para poder verificarlo en
+        tests sin lanzar un proceso real."""
         # PYTHONPATH al repo: el cwd del REPL es la carpeta del PROYECTO, no
         # el repo, y en modo desarrollo `python -m cognia` no resolveria el
         # paquete (medido: "No module named cognia" en la primera sesion).
@@ -273,18 +420,45 @@ class Sesion:
                    # El marco la mandaba a Actividad (plegada) y parecia que
                    # Cognia no habia contestado (sesion 2026-07-25).
                    COGNIA_REMOTO="1",
-                   # ACCESO TOTAL en el control remoto: el dueño pilota SU maquina
-                   # desde el movil sin canal de confirmacion, asi Cognia puede
-                   # abrir apps/navegar/operar el equipo. El BLOCK duro del
-                   # Sentinel (rm -rf, format, shutdown, borrados recursivos...)
-                   # sigue activo como ultima red.
-                   COGNIA_ACCESO_TOTAL="1",
-                   # computer-use completo: tools de pantalla (captura, click,
-                   # teclado) activas y sin confirmacion interactiva — el dueno
-                   # pidio acceso total a su equipo desde el movil. FAILSAFE de
-                   # pyautogui sigue: mover el mouse a una esquina ABORTA.
-                   COGNIA_SCREEN="1", COGNIA_SCREEN_AUTO="1",
+                   # eventos tipados por stdout ("@EV {json}"): el canal
+                   # primario de esta sesion — se clasifica por TIPO, el
+                   # regex queda de fallback para la prosa (obra 2026-08-09)
+                   COGNIA_EVENTS_JSONL="1",
                    PYTHONPATH=(raiz_repo + (os.pathsep + pp if pp else "")))
+        if self.acceso == "total":
+            # ACCESO TOTAL en el control remoto: el dueño pilota SU maquina
+            # desde el movil sin canal de confirmacion, asi Cognia puede
+            # abrir apps/navegar/operar el equipo. El BLOCK duro del
+            # Sentinel (rm -rf, format, shutdown, borrados recursivos...)
+            # sigue activo como ultima red.
+            env["COGNIA_ACCESO_TOTAL"] = "1"
+            # computer-use completo: tools de pantalla (captura, click,
+            # teclado) activas y sin confirmacion interactiva — el dueno
+            # pidio acceso total a su equipo desde el movil. FAILSAFE de
+            # pyautogui sigue: mover el mouse a una esquina ABORTA.
+            env["COGNIA_SCREEN"] = "1"
+            env["COGNIA_SCREEN_AUTO"] = "1"
+        else:
+            # "restringido": sin acceso total ni computer-use. Se LIMPIAN por
+            # si el servidor mismo corre con esas vars en su entorno — heredar
+            # seria un bypass silencioso del nivel de permiso.
+            for var in ("COGNIA_ACCESO_TOTAL", "COGNIA_SCREEN",
+                        "COGNIA_SCREEN_AUTO"):
+                env.pop(var, None)
+        return env
+
+    def arrancar(self) -> None:
+        if self.viva():
+            return
+        # estado del bombeo FRESCO por arranque: al re-abrir una sesion parada
+        # (enviar() re-arranca) el gate del banner tiene que volver a actuar —
+        # antes quedaba en False y el banner del segundo arranque iba al chat
+        self._arrancando = True
+        self._lineas_arranque = 0
+        self._buffer_arranque = []
+        self._con_eventos = False
+        self._en_traza = False
+        env = self._entorno()
         self.proc = subprocess.Popen(
             _python_cognia(), cwd=self.ruta_proyecto,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -295,6 +469,49 @@ class Sesion:
         self._bomba.start()
         self.anotar("sistema", f"sesion arrancada en {self.ruta_proyecto}")
 
+    def _procesar_linea(self, linea: str) -> None:
+        """Clasifica UNA linea ya limpia y la anota. Primero los eventos
+        tipados (@EV {json}); el regex de siempre queda como fallback para la
+        prosa del CLI y para REPLs sin bus de eventos."""
+        # 1) linea-evento: clasificacion por TIPO, no por forma. Se juzga
+        # ANTES del gate de arranque: un Degradado emitido durante el arranque
+        # (backend caido) es senal, nunca banner.
+        d = parsear_evento(linea)
+        if d is not None:
+            self._con_eventos = True
+            quien, texto, ecos = interpretar_evento(d)
+            for eco in ecos:
+                self._ecos_pendientes.append(eco)
+            if quien is not None and texto:
+                self.anotar(quien, texto)
+            return
+        # 2) banner/panel de arranque: se descarta de la transcripcion pero se
+        # GUARDA — si el REPL muere aqui, el buffer es el traceback perdido.
+        # Fin del arranque: la ultima linea del panel compacto ("/ayuda para
+        # comandos"), el marcador del banner full legacy, o el tope. OJO: el
+        # compacto ya NO imprime "Sistema listo" (obra 2026-08-09) — con solo
+        # ese marcador, el gate se comia las primeras 200 lineas de CADA
+        # sesion, respuesta del modelo incluida.
+        if self._arrancando:
+            self._lineas_arranque += 1
+            self._buffer_arranque.append(linea)
+            if ("Sistema listo" in linea or "/ayuda para comandos" in linea
+                    or self._lineas_arranque > 200):
+                self._arrancando = False
+            return
+        # 3) con eventos activos, los adornos del renderer (⏺/·/✗/⚠, footer)
+        # y los ecos ya anotados via evento son duplicados: se saltan
+        if self._con_eventos:
+            if es_eco_renderer(linea):
+                return
+            t = linea.strip()
+            if t and t in self._ecos_pendientes:
+                self._ecos_pendientes.remove(t)
+                return
+        # 4) fallback: la prosa del CLI (respuesta final incluida), por regex
+        quien, self._en_traza = reclasificar("cognia", linea, self._en_traza)
+        self.anotar(quien, linea)
+
     def _bombear(self) -> None:
         """Hilo lector: stdout del REPL -> transcripcion + suscriptores."""
         try:
@@ -304,20 +521,31 @@ class Sesion:
                     continue
                 if any(linea.startswith(r) for r in _RUIDO):
                     continue
-                # el banner de arranque entero se descarta (ni chat ni log):
-                # es la misma pantalla ASCII en cada sesion
-                if self._arrancando:
-                    self._lineas_arranque += 1
-                    if "Sistema listo" in linea or self._lineas_arranque > 200:
-                        self._arrancando = False
-                    continue
-                quien, self._en_traza = reclasificar(
-                    "cognia", linea, self._en_traza)
-                self.anotar(quien, linea)
+                self._procesar_linea(linea)
         except Exception:
             pass
         finally:
-            self.anotar("sistema", "sesion terminada")
+            # exit code REAL del REPL: distingue "/salir" (0) de un reventon
+            rc = None
+            try:
+                if self.proc is not None:
+                    rc = self.proc.wait(timeout=5)
+            except Exception:
+                pass
+            if rc not in (0, None) and self._arrancando and self._buffer_arranque:
+                # murio ANTES de terminar el arranque: el traceback esta en el
+                # buffer descartado. Antes se perdia entero y el movil veia
+                # puro silencio (sesiones.py 307-313 historico).
+                cola = self._buffer_arranque[-30:]
+                self.anotar("sistema",
+                            f"el REPL murio al arrancar (exit {rc}) — "
+                            f"ultima linea: {cola[-1][:200]}")
+                for l in cola:
+                    self.anotar("log", l)
+            if rc not in (0, None):
+                self.anotar("sistema", f"sesion terminada (exit {rc})")
+            else:
+                self.anotar("sistema", "sesion terminada")
 
     def enviar(self, texto: str) -> None:
         """Una linea al stdin del REPL: mensaje, /comando o respuesta a un
@@ -380,18 +608,24 @@ class GestorSesiones:
                 })
         return salida
 
-    def crear(self, proyecto: dict, titulo: str = "") -> Sesion:
+    def crear(self, proyecto: dict, titulo: str = "",
+              acceso: str = "total") -> Sesion:
         sid = time.strftime("%Y%m%d-%H%M%S")
+        # solo dos niveles hoy; cualquier valor raro cae al historico ("total")
+        # — el movil existente no manda el campo y no debe cambiar de conducta
+        if acceso not in ("total", "restringido"):
+            acceso = "total"
         s = Sesion(id=sid, proyecto_id=proyecto["id"],
                    ruta_proyecto=proyecto["ruta"],
-                   titulo=titulo or f"Sesion {sid}")
+                   titulo=titulo or f"Sesion {sid}", acceso=acceso)
         with self._lock:
             self._sesiones[sid] = s
-        # primera linea del jsonl lleva el titulo (lo lee el indice)
+        # primera linea del jsonl lleva titulo y acceso (los lee el indice y
+        # obtener(): una sesion restringida no puede REABRIRSE con acceso total)
         with s.fichero.open("a", encoding="utf-8") as f:
             f.write(json.dumps({"t": time.strftime("%H:%M:%S"),
                                 "quien": "meta", "texto": "",
-                                "titulo": s.titulo},
+                                "titulo": s.titulo, "acceso": s.acceso},
                                ensure_ascii=False) + "\n")
         s.arrancar()
         return s
@@ -401,9 +635,23 @@ class GestorSesiones:
             s = self._sesiones.get(sid)
             if s is None:
                 s = Sesion(id=sid, proyecto_id=proyecto["id"],
-                           ruta_proyecto=proyecto["ruta"], titulo=sid)
+                           ruta_proyecto=proyecto["ruta"], titulo=sid,
+                           acceso=self._acceso_guardado(proyecto["id"], sid))
                 self._sesiones[sid] = s
         return s
+
+    @staticmethod
+    def _acceso_guardado(proyecto_id: str, sid: str) -> str:
+        """El nivel de permiso con que NACIO la sesion (meta del jsonl).
+        Sesiones anteriores al campo: "total" (su comportamiento historico)."""
+        f = RAIZ_DATOS / proyecto_id / f"{sid}.jsonl"
+        try:
+            with f.open("r", encoding="utf-8") as fh:
+                meta = json.loads(fh.readline())
+            acceso = meta.get("acceso", "total")
+            return acceso if acceso in ("total", "restringido") else "total"
+        except Exception:
+            return "total"
 
     def parar_sesion(self, sid: str) -> bool:
         """Parar el REPL SIN tocar su transcripcion. True si estaba vivo."""
