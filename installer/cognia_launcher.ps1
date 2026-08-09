@@ -47,9 +47,21 @@ if (-not $cognia) {
     }
 }
 
+# Version REAL del paquete instalado, no un numero hardcodeado: el launcher
+# decia "v3.2" mientras pyproject iba por 4.5.0 y el instalador por 4.3.1
+# (tres verdades distintas). `cognia --version` imprime solo el numero; el
+# Select-Object -Last 1 filtra avisos que otros imports pudieran colar.
+$verLine = "Cognia"
+$pyVer = Find-AnyPython
+if ($pyVer) {
+    try {
+        $v = (& $pyVer -m cognia --version 2>$null | Select-Object -Last 1)
+        if ($v) { $verLine = "Cognia v$v" }
+    } catch {}
+}
 Write-Host ""
-Write-Host "  Cognia v3.2" -ForegroundColor Cyan
-Write-Host "  -----------"
+Write-Host "  $verLine" -ForegroundColor Cyan
+Write-Host "  $('-' * $verLine.Length)"
 Write-Host ""
 
 # Intentar el ejecutable cognia; si falla, usar python -m cognia

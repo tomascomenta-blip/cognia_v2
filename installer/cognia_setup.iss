@@ -2,7 +2,11 @@
 ; Inno Setup 6+ — https://jrsoftware.org/isinfo.php
 
 #define AppName      "Cognia"
-#define AppVersion   "4.3.1"
+; La version CANONICA vive en pyproject.toml. Inno no puede leer TOML, asi
+; que este define se mantiene a mano y tests/test_version_unica.py GRITA si
+; diverge (antes convivian 4.3.1 aqui, 4.5.0 en pyproject y "v3.2" en el
+; launcher: tres verdades distintas visibles para el usuario).
+#define AppVersion   "4.5.0"
 #define AppURL       "https://github.com/tomascomenta-blip/cognia_v2"
 
 [Setup]
