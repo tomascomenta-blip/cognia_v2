@@ -30,7 +30,9 @@ _RAIZ = Path(__file__).resolve().parent.parent
 if str(_RAIZ) not in sys.path:
     sys.path.insert(0, str(_RAIZ))
 
-from cognia.flota import main   # noqa: E402  (la logica unica, sin duplicar)
+# Re-export, no copia: consumidores viejos (tests, otros scripts) importaban
+# COMBOS de aqui; la definicion unica sigue en cognia/flota.py.
+from cognia.flota import COMBOS, main   # noqa: E402,F401
 
 if __name__ == "__main__":
     sys.exit(main())

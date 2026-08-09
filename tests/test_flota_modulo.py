@@ -17,7 +17,7 @@ class TestFuenteUnica:
     def test_el_script_delega_y_no_duplica_combos(self):
         script = RAIZ / "scripts" / "servir_flota.py"
         fuente = script.read_text(encoding="utf-8")
-        assert "from cognia.flota import main" in fuente
+        assert "from cognia.flota import" in fuente   # delega (re-export ok)
         # Si alguien vuelve a definir COMBOS en el script, hay dos verdades.
         assert "COMBOS = {" not in fuente
 
