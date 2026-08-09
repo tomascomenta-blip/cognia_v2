@@ -12325,3 +12325,21 @@ stop_type invisible en el fallback texto, banco A/B n>=6 intercalado viejo-vs-nu
   Publicada y la instalacion local actualizada a 4.6.1.
 - Moraleja repetida por 11a vez: TODO call-site nuevo de generar() debe pasar por el helper
   de presupuesto por perfil; los numeros sueltos reintroducen el bug.
+
+
+## 2026-08-09 (cierre 2) - Cerebro principal -> Qwythos-9B (release 4.7.0)
+
+Pedido del dueno ("cambia el cerebro principal por qwythos"). Verificado a mano que
+Qwythos hace tool-calling NATIVO servido con --jinja (finish_reason=tool_calls,
+arguments JSON) -> REVIERTE la memoria vieja de 2026-08-02 (esa era la via SIN --jinja).
+
+- flota.py: combo pensar-qwythos (ctx 32768) = COMBO_DEFAULT; gpt-oss sigue en pensar.
+- model_profiles.py: _FAMILIAS_NATIVAS dict por familia; Qwythos sampling Qwen (0.7/0.8),
+  gpt-oss conserva harmony (1.0/1.0 + effort).
+- doctor.py: sonda de velocidad daba [FAIL] "genera basura" con razonador (los 64 tok en
+  <think>) -> presupuesto de razonador + descontar <think> (misma clase que la sonda de 4.6.1).
+
+Verificado: tool-calling nativo a mano, /hacer 1/1 via=agente_chat, gate 5/5 (una previa 4/5
+por fallo DISPERSO del task json que paso al reproducir y en re-run: ruido, no regresion),
+doctor "Todo en orden" 68 tok/s, suite 6146/0, wheel en venv limpio + instalado desde PyPI.
+Volver a gpt-oss: cognia flota arrancar pensar.
