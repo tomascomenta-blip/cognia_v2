@@ -899,8 +899,13 @@ def _buscar(args, ctx):
     def _scan(pat):
         """rg -> fallback regex/substring sobre contenidos. Hasta 15 'archivo:n: txt'."""
         try:
+            # -H (--with-filename) SIEMPRE: rg lo omite cuando el ambito es UN
+            # fichero, y sin el ni el modelo ni los tests pueden saber de
+            # donde salio el match (cazado 2026-08-09: 'buscar class |
+            # cognia/mcp_libre.py' devolvia '67:class ErrorMCP' sin ruta).
             r = subprocess.run(
-                ["rg", "--no-heading", "-n", "--max-count", "3", pat, directorio],
+                ["rg", "--no-heading", "-H", "-n", "--max-count", "3",
+                 pat, directorio],
                 capture_output=True, text=True, timeout=10,
             )
             if r.returncode == 0 and r.stdout.strip():

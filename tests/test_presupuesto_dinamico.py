@@ -69,9 +69,18 @@ class TestTecho:
 
 class TestMemoria:
     def test_recuerda_y_arranca_mas_alto(self):
-        base = g.presupuesto_inicial("html", 1000)
-        g.recordar_presupuesto("html", base * 3)
-        assert g.presupuesto_inicial("html", 1000) > base
+        # Techo FIJADO por patch (2026-08-09): con el server real de la flota
+        # encendido (ctx 16384) la base YA es el techo y "recordar" no puede
+        # subirla — el test dependia del backend vivo de la maquina. Con un
+        # n_ctx grande el techo deja de ser la restriccion activa y se prueba
+        # la invariante que importa: el recuerdo SUBE el arranque.
+        with patch("cognia.llm_local.detectar_backend",
+                   return_value={"url": "http://127.0.0.1:8080"}), \
+             patch("cognia.backend_activo.props",
+                   lambda *a, **k: {"n_ctx": 200192}):
+            base = g.presupuesto_inicial("html", 1000)
+            g.recordar_presupuesto("html", base * 3)
+            assert g.presupuesto_inicial("html", 1000) > base
 
     def test_no_baja_el_recuerdo(self):
         g.recordar_presupuesto("html", 50_000)
