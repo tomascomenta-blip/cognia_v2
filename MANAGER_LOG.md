@@ -12442,3 +12442,34 @@ actividad / F1 apareado n=6 intercalado + nulo, regla KILL).
 - Docs: FLOTA_MULTIMODAL_SETUP.md con rutas, flags y entornos por vendor.
 Commits: a94bd872 (infra) + 1dfe64b8 (ola3 fixes) + 9c990fdf (log) + 0fa9ded4
 (trainer + veredicto F-2). Suite 6508/0 en cada paso.
+
+## 2026-08-10 (nocturna, hasta 4:30) — CLI FRESCO + LOOP THINKING + gimmicks de nicho
+Sesion con apagado programado a las 4:30 (pedido del dueno). Metodo: workflows
+multi-agente (investigacion 6 + estetica 3 + lazo-investigacion 5 + lazo-impl 3)
+con AUTOEVALUACION VISUAL: arnes de escenas deterministas (escenas_cli.py) ->
+SVG -> PNG (svg_a_png.py, playwright) -> el orquestador MIRA la captura y
+corrige (cazo asi el spinner entrelazado con la prosa del razonamiento).
+
+ESTETICA (commit 0566ce56): pensar en VERDE (spinner + prosa, 3 temas); FIX
+del bug real [ok_cl] indefinido (19 usos sin color); razonamiento OPCIONAL
+/pensar on|off|ver (prosa ∴ tenue verde italica, jamas en remoto); ToolFin
+por partes (⏺ verde / verbo cyan / objeto bold) con texto exacto intacto
+(semi-contrato es_eco_renderer del movil); previews '+ escrito' / '- viejo
++ nuevo'; GERUNDIOS corregidos a nombres reales + familias multimodales;
+selector con FLECHAS (cognia/ux/selector.py, prompt_toolkit ya presente,
+cero deps) en /tema /esfuerzo /pensar y confirmaciones de permiso, con
+fallback numerado sin tty (pipes y e2e intactos).
+
+LOOP THINKING (commit e193b3a0): /lazo — el modelo razona en lazo para pulir
+la respuesta RESPETANDO la evidencia del repo (lazo sin sello real RESTA):
+claims verificables -> tools REALES (calcular/py_validar/ejecutar/recordar)
+-> una revision con el output CRUDO -> keep-best; max_rondas=1; motivos
+declarados. Verificado real: caza 12*12=169 y lo corrige; el caso sano queda
+intacto. GIMMICKS de nicho (investigacion profunda de CLIs top especificos):
+/cat (bat: sintaxis+numeros+paginado), diff delta-style con resaltado
+intra-linea (el mini_diff del modelo byte-identico), paleta fuzzy (fzf) en
+el completer. Podado explicito: atuin/lazygit-undo/tldr/json-explorer (M/L).
+
+Verificacion: suite 6659/0 (+151 tests de la noche); gate e2e 5/5 (fallos
+intermedios DISPERSOS con repro aislado limpio = ruido de sampling, protocolo
+del gate flaky); cli importa; capturas antes/despues en el scratchpad.
