@@ -12425,3 +12425,20 @@ CORRIDAS LARGAS (pre-registradas, pueden derramar a fase 2):
   (requiere arrancar el cerebro VIA summoner, no adoptado de flota).
 Prereg del LoRA: PREREG_LORA_QWYTHOS_20260809.md (gates F-1 dataset>=300 / F0
 actividad / F1 apareado n=6 intercalado + nulo, regla KILL).
+
+## 2026-08-09 (cierre) — VERIFICACIONES GPU + veredictos
+- SymphonyGen COMPLETO verificado: stage_one (harmony) + stage_two (orquestacion)
+  generan song_0.mid REAL (18.4s), renderizado a WAV 8.8MB con fluidsynth. Corre
+  con venv de contingencia venv_sym (torch 2.8 + transformers 5.1.0) via
+  COGNIA_SYMPHONYGEN_PY. La cadena de audio de punta a punta funciona.
+- VLM real describe imagenes via summoner. Summoner: VLM load/convive/libera por
+  PID sin matar el cerebro (4/4). e2e camino feliz 5/5 (regresion cero).
+- Contexto 1M MEDIDO y cableado (q4_0 a 1.010.176).
+- Fine-tuning: VEREDICTO F-2 = Qwen3.5-9B multimodal NO entrena QLoRA en 16GB
+  (pico ~29.5GB estructural: vision tower bf16 + hibrido gated-delta). El gate
+  cazo el limite antes de la corrida de horas. Pipeline CORRECTO (3 bugs de
+  arquitectura arreglados, 30 tests). Opciones para el dueno en ENMIENDA 1 del
+  prereg. TripoSR: mismo patron de pin (transformers 4.35), venv propio pendiente.
+- Docs: FLOTA_MULTIMODAL_SETUP.md con rutas, flags y entornos por vendor.
+Commits: a94bd872 (infra) + 1dfe64b8 (ola3 fixes) + 9c990fdf (log) + 0fa9ded4
+(trainer + veredicto F-2). Suite 6508/0 en cada paso.
