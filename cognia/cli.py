@@ -989,7 +989,10 @@ _CMD_DETAILS = {
     "/hacer": (
         "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
         "Usa herramientas como /buscar-web, /kg-agregar, /ejecutar para completar la tarea. "
-        "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask"
+        "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask\n"
+        "Con COGNIA_HORIZONTE=1 las tareas largas corren en ciclos de contexto "
+        "fresco con estado durable (~/.cognia/data/tareas/); '/hacer retomar' "
+        "relanza la ultima tarea que quedo incompleta."
     ),
     "/construir": (
         "Lazo diseno-a-codigo: el cerebro imagina como deberia verse el producto y "
@@ -7691,6 +7694,47 @@ def repl():
         # -- Agent mode -----------------------------------------------------
         elif raw.startswith("/hacer "):
             _tarea = raw[len("/hacer "):].strip()
+            # Horizonte (P5): '/hacer retomar' relanza la ultima tarea
+            # retomable (incompleta, o en_curso huerfana tras un crash) con el
+            # delta (hitos verificados / lo que falta) como guidance. Gateado
+            # por el MISMO flag que el modo: sin COGNIA_HORIZONTE=1 el
+            # subcomando no existe y '/hacer retomar' se comporta como
+            # siempre (tarea literal) — cero regresion flag-off.
+            if _tarea == "retomar" and os.environ.get("COGNIA_HORIZONTE") == "1":
+                try:
+                    from cognia.agent.estado_tarea import (
+                        cerrar as _cerrar_rt, resumen_para_prompt,
+                        ultima_incompleta)
+                    _est_rt = ultima_incompleta()
+                except Exception as _e_rt:
+                    _est_rt = None
+                    _print_line(f"[warn_cl]retomar no disponible: "
+                                f"{_escape(str(_e_rt))}[/warn_cl]")
+                if _est_rt:
+                    _tarea = _est_rt["tarea"]
+                    _print_line(f"[detail]Retomando tarea "
+                                f"{_est_rt['task_id']}: {_tarea[:120]}[/detail]")
+                    # El estado viejo se sella 'retomada' ANTES de relanzar:
+                    # la corrida nueva abre su propio estado y pasa a ser la
+                    # duena de la tarea. Sin esto, el viejo quedaba
+                    # 'incompleta' para siempre y cada retomar re-ejecutaba
+                    # una tarea ya terminada (revision 2026-08-09).
+                    try:
+                        _cerrar_rt(_est_rt, "retomada")
+                    except Exception:
+                        pass
+                    _resp = _run_agent_task(
+                        ai, _tarea, _print_line,
+                        guidance=resumen_para_prompt(
+                            _est_rt, _est_rt.get("faltan", [])))
+                    if _resp:
+                        _show_response(_resp, "cyan", respuesta_final=True)
+                    _session_log.append({"input": raw, "output": _resp,
+                                         "elapsed": 0})
+                    continue
+                _print_line("[warn_cl]No hay ninguna tarea incompleta que "
+                            "retomar.[/warn_cl]")
+                continue
             if _tarea:
                 _print_line("[detail]Iniciando agente...[/detail]")
                 _resp = _run_agent_task(ai, _tarea, _print_line)
@@ -9312,6 +9356,22 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _tool_filter = _vis if allowed_tools is None else (allowed_tools & _vis)
     except Exception:
         pass
+    # Tools de HORIZONTE: registradas siempre pero anunciadas SOLO cuando P1
+    # arma una corrida de horizonte (que las re-agrega). Se descuentan
+    # INCONDICIONALMENTE — hasta de None=catalogo completo — porque fuera de
+    # una corrida de horizonte (flag apagado, regimen legacy, sub-agentes,
+    # segunda pasada) solo devolverian ERROR, y el techo de numero de tools
+    # del modelo chico es real (A/B 2026-07-25: 46 tools bajan el camino
+    # feliz de 4.25/5 a 2.5/5).
+    try:
+        from cognia.agent.tools import TOOLS as _TOOLS_HZ
+        _hz_ocultas = {"tarea_estado", "bitacora_buscar"}
+        if _tool_filter is None:
+            _tool_filter = set(_TOOLS_HZ) - _hz_ocultas
+        else:
+            _tool_filter = set(_tool_filter) - _hz_ocultas
+    except Exception:
+        pass
 
     # SYSTEM PROMPT grande (cognia/system_prompt.py, 2026-07-23): identidad +
     # conducta + manejo de herramientas con las reglas que salieron de fallos
@@ -9691,6 +9751,58 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _exec_nudged = False      # cierre informativo E8: un solo aviso por tarea
     result_text = _bon_result_text  # si BoN corto, este es el resultado final
 
+    # ── Modo HORIZONTE (opt-in COGNIA_HORIZONTE=1, obra long-horizon) ──────
+    # Ciclos de contexto fresco gobernados por GoalContract sobre estado
+    # durable en disco (cognia/agent/horizonte.py). Los criterios se derivan
+    # UNA vez de la letra ORIGINAL (congelados: anti bug A6) y el estado y la
+    # bitacora viven en ~/.cognia/data/tareas/<id>/. Solo tarea raiz en
+    # regimen nativo; la SEGUNDA PASADA del epilogo queda subsumida (P3).
+    # Degradable: cualquier fallo apaga el horizonte y sigue el camino de hoy.
+    _hz_task_id, _hz_criterios, _hz_estado = "", [], None
+    if (os.environ.get("COGNIA_HORIZONTE", "") == "1" and _regimen_nativo
+            and not _bon_ok and delegation_depth == 0
+            and not (guidance or "").startswith("SEGUNDA PASADA")):
+        try:
+            from cognia.agent import bitacora as _hz_bit
+            from cognia.agent import estado_tarea as _hz_est
+            from cognia.agent.horizonte import max_ciclos_env as _hz_env
+            from cognia.agents.goal_contract import (
+                derive_criteria_from_task as _hz_dc)
+            _hz_criterios = _hz_dc(task)                    # CONGELADOS
+            _hz_max_ciclos = (_hz_env()
+                              or _active_effort().get("ciclos_horizonte", 2))
+            _hz_task_id = _hz_bit.iniciar(task, {
+                "modelo": _perfil_modelo.get("modelo", ""),
+                "perfil": _perfil_modelo.get("nombre", ""),
+                "budget": budget, "max_ciclos": _hz_max_ciclos,
+                # NOMBRES de flags, jamas valores (un token no llega a disco).
+                "flags": sorted(k for k in os.environ
+                                if k.startswith("COGNIA_")),
+            })
+            _hz_estado = _hz_est.nuevo(_hz_task_id, task, _hz_criterios)
+            ctx["_horizonte_task_id"] = _hz_task_id
+            # Anunciar las 2 tools de horizonte SOLO en este modo (no van en
+            # CORE_TOOLS: la medicion 13->46 tools manda). None = ya visibles.
+            if _tool_filter is not None:
+                _tool_filter = set(_tool_filter) | {"tarea_estado",
+                                                    "bitacora_buscar"}
+            _print_fn(f"[detail]horizonte activo: {_hz_task_id} "
+                      f"({len(_hz_criterios)} criterios, "
+                      f"max {_hz_max_ciclos} ciclos)[/detail]")
+        except Exception as _e_hz:
+            # Cerrar la bitacora si iniciar() alcanzo a suscribir el sink: si
+            # no, quedaria un sink huerfano appendeando TODOS los eventos de
+            # la sesion a la bitacora de una tarea abortada (revision
+            # 2026-08-09). cerrar() es idempotente y no lanza.
+            try:
+                from cognia.agent import bitacora as _hz_bit_x
+                _hz_bit_x.cerrar()
+            except Exception:
+                pass
+            _hz_task_id, _hz_criterios, _hz_estado = "", [], None
+            _aviso_degradado("cli.agente.horizonte",
+                             f"{type(_e_hz).__name__}: {_e_hz}")
+
     # ── Camino NATIVO (A1/A2, obra 2026-08-09) ─────────────────────────────
     # Mensajes estructurados + tools nativas por /v1/chat/completions; el
     # server aplica la plantilla del modelo (harmony) y parsea los tool
@@ -9709,15 +9821,28 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             from cognia.agent.tool_schemas import args_legacy, schemas_para
             for _avz in verificar_arranque(_perfil_modelo):
                 _print_fn(f"[warn_cl]chequeo de arranque: {_avz}[/warn_cl]")
-            _nat = bucle_nativo(
-                task, system_agente_nativo(), completar,
-                schemas_para(_tool_filter), args_legacy,
-                mensaje_assistant, mensaje_tool, run_tool, ctx,
-                _perfil_modelo, history, _actions_trace, _print_fn,
-                # max_turns con piso 8: la heuristica corta (2-4 pasos) esta
-                # calibrada al 3B; el nativo cierra solo cuando termina y el
-                # tope es proteccion, no racionamiento.
-                max_turns=min(max(budget, 8), AGENT_HARD_CAP))
+            # max_turns con piso 8: la heuristica corta (2-4 pasos) esta
+            # calibrada al 3B; el nativo cierra solo cuando termina y el
+            # tope es proteccion, no racionamiento.
+            _nat_turns = min(max(budget, 8), AGENT_HARD_CAP)
+            if _hz_task_id:
+                # Horizonte: mismo bucle, envuelto en ciclos con contrato.
+                from cognia.agent.horizonte import ciclos_con_contrato
+                _nat = ciclos_con_contrato(
+                    task, system_agente_nativo(), completar,
+                    schemas_para(_tool_filter), args_legacy,
+                    mensaje_assistant, mensaje_tool, run_tool, ctx,
+                    _perfil_modelo, history, _actions_trace, _print_fn,
+                    _nat_turns, criterios=_hz_criterios,
+                    task_id=_hz_task_id, estado=_hz_estado,
+                    max_ciclos=_hz_max_ciclos)
+            else:
+                _nat = bucle_nativo(
+                    task, system_agente_nativo(), completar,
+                    schemas_para(_tool_filter), args_legacy,
+                    mensaje_assistant, mensaje_tool, run_tool, ctx,
+                    _perfil_modelo, history, _actions_trace, _print_fn,
+                    max_turns=_nat_turns)
             result_text = _nat["texto"]
             total_steps = _nat["pasos"]
             _bon_ok = True     # el while legacy no corre: ya hay resultado
@@ -10133,7 +10258,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         from cognia.agents.goal_contract import (
             GoalContract, derive_criteria_from_task, format_status,
         )
-        _criteria = derive_criteria_from_task(task)
+        # Horizonte (P3): reusar los criterios CONGELADOS de la corrida — el
+        # re-derivar duplicaria el veredicto y reabriria el bug A6. COPIA,
+        # no alias: el bloque de skill-con-verificacion de abajo puede
+        # apendear criterios y no debe mutar la lista congelada (revision
+        # 2026-08-09).
+        _criteria = (list(_hz_criterios) if _hz_task_id
+                     else derive_criteria_from_task(task))
         # Skill CON verificacion (auditoria F2): escribir-tests entrego un test
         # invalido sin que la tool tests corriera nunca -- el "no termines hasta
         # verlo en verde" era prosa, no un check. Si la skill aplicada declara
@@ -10186,7 +10317,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 # criterios contaminados (keywords con tokens harmony en la
                 # evidencia baseline). COGNIA_SEGUNDA_PASADA=1 la reactiva
                 # para medirla por gate con neto apareado.
+                # El horizonte subsume la segunda pasada (sus ciclos ya
+                # relanzaron con lo que falta): jamas doble lazo.
                 if (os.environ.get("COGNIA_SEGUNDA_PASADA", "") == "1"
+                        and not _hz_task_id
                         and not guidance.startswith("SEGUNDA PASADA")):
                     _print_fn("[detail]Segunda pasada: completando lo que "
                               "falta del contrato...[/detail]")
@@ -10261,6 +10395,20 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     except Exception:
         pass
 
+    # Horizonte (P4): veredicto final al estado durable y cierre de bitacora.
+    # El veredicto sale de _task_ok (contrato real); None (sin criterios) se
+    # cierra 'completa' si hubo resultado — mismo proxy que record_skill_use.
+    if _hz_task_id:
+        try:
+            from cognia.agent import bitacora as _hz_bit
+            from cognia.agent import estado_tarea as _hz_est
+            _hz_ok = _task_ok if _task_ok is not None else bool(result_text)
+            _hz_est.cerrar(_hz_estado, "completa" if _hz_ok else "incompleta")
+            _hz_bit.cerrar()
+        except Exception as _e_hz4:
+            _aviso_degradado("cli.agente.horizonte.cierre",
+                             f"{type(_e_hz4).__name__}: {_e_hz4}")
+
     # Save agent state
     try:
         import json as _json_save
@@ -10269,6 +10417,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             "result": (result_text or "(sin respuesta)")[:150],
             "steps": total_steps,
             "ts": datetime.datetime.now().isoformat()[:19],
+            # Clave nueva retrocompatible: enlaza con el estado durable del
+            # modo horizonte (~/.cognia/data/tareas/<id>/), vacia si no corrio.
+            **({"task_id": _hz_task_id} if _hz_task_id else {}),
         })
         _agent_state["tasks"] = _agent_state["tasks"][-5:]
         _AGENT_STATE_PATH.write_text(

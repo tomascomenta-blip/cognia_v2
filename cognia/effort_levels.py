@@ -49,6 +49,11 @@ DEFAULT_EFFORT = "medio"
 #   umbral_shift    - desplaza el eje de dificultad de las etapas caras
 #                     (negativo = entran antes; positivo = entran mas tarde)
 #   pasos_factor    - multiplicador del presupuesto de pasos del loop /hacer
+#   ciclos_horizonte- ciclos de contexto fresco del modo horizonte
+#                     (COGNIA_HORIZONTE=1). Corto a proposito: las rondas
+#                     sin sello real RESTAN (memoria del repo); aca el
+#                     sello es ejecutable (GoalContract) pero se arranca
+#                     en 1-2 y se sube solo con gate apareado.
 EFFORT_LEVELS = {
     "bajo": {
         "max_tokens":     6000,
@@ -63,6 +68,7 @@ EFFORT_LEVELS = {
         "bon_max":        3,
         "umbral_shift":   0.15,
         "pasos_factor":   0.5,
+        "ciclos_horizonte": 1,
         "descripcion":    "rapido: una pasada, sin verificacion ni alternativas",
     },
     "medio": {
@@ -78,6 +84,7 @@ EFFORT_LEVELS = {
         "bon_max":        10,
         "umbral_shift":   0.0,
         "pasos_factor":   1.0,
+        "ciclos_horizonte": 2,
         "descripcion":    "equilibrado: 1 verificacion, pocas alternativas",
     },
     "alto": {
@@ -93,6 +100,7 @@ EFFORT_LEVELS = {
         "bon_max":        10,
         "umbral_shift":   -0.10,
         "pasos_factor":   1.25,
+        "ciclos_horizonte": 2,
         "descripcion":    "profundo: deliberacion + 2 verificaciones",
     },
     "maximo": {
@@ -108,6 +116,7 @@ EFFORT_LEVELS = {
         "bon_max":        10,
         "umbral_shift":   -0.20,
         "pasos_factor":   1.5,
+        "ciclos_horizonte": 3,
         "descripcion":    "exhaustivo: maxima profundidad/alternativas (lento en CPU)",
     },
 }

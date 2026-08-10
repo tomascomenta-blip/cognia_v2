@@ -132,10 +132,19 @@ _TIPADAS: dict = {
         {"texto": _p("texto a resumir")}, ["texto"],
         lambda a: str(a.get("texto", "")),
     ),
+    "bitacora_buscar": (
+        {"patron": _p("regex a buscar en la bitacora de la tarea"),
+         "n": _p("ultimas n coincidencias (default 20)", "integer")},
+        ["patron"],
+        # El patron es un regex y puede contener '|': va ULTIMO (regla de este
+        # modulo, lineas de arriba) con n adelante — 'n | patron' o solo patron.
+        lambda a: (f"{a.get('n')} | {a.get('patron', '')}"
+                   if a.get("n") else str(a.get("patron", ""))),
+    ),
 }
 
 # Tools sin argumentos: schema de objeto vacio y string legacy vacio.
-_SIN_ARGS = ("fecha", "notas", "git_estado", "git_log")
+_SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado")
 
 
 def _descripcion_de(doc: str) -> str:

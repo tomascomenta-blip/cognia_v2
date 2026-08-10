@@ -2253,3 +2253,62 @@ if os.environ.get("COGNIA_REPO_REVERSE") == "1":
         # Flag puesto por el dueno: el silencio seria capacidad desconectada.
         print(f"[cognia] COGNIA_REPO_REVERSE=1 pero repo_reverse_tool no cargo: "
               f"{_exc}", file=sys.stderr)
+
+
+# ── Tools de HORIZONTE (COGNIA_HORIZONTE=1, obra long-horizon 2026-08-09) ──
+# Siempre registradas (sin deps, baratas) pero NO en CORE_TOOLS: solo se
+# ANUNCIAN al modelo cuando cli.py arma el modo horizonte (P1 agrega ambas al
+# _tool_filter). Sin ctx["_horizonte_task_id"] degradan con causa visible.
+# Mecanismo PRO-LONG: el agente CONSULTA su estado/bitacora con el arnes en
+# vez de cargar la historia al contexto o (peor) suponer que ya hizo algo.
+
+@tool("tarea_estado",
+      "tarea_estado                          -- hitos verificados y faltantes de la tarea larga en curso",
+      desc=("Muestra el estado durable de la tarea de horizonte en curso: que "
+            "criterios ya estan VERIFICADOS con evidencia real (no los "
+            "repitas), cuales faltan, archivos tocados y ultimo error. Usala "
+            "antes de rehacer algo que quiza ya hiciste."),
+      params=[])
+def _tarea_estado(args, ctx):
+    tid = (ctx or {}).get("_horizonte_task_id", "")
+    if not tid:
+        return ("RESULTADO tarea_estado: ERROR solo disponible dentro de una "
+                "tarea /hacer en modo horizonte (COGNIA_HORIZONTE=1, regimen "
+                "nativo)")
+    from cognia.agent.estado_tarea import cargar, render_estado
+    est = cargar(tid)
+    if est is None:
+        return f"RESULTADO tarea_estado: ERROR no hay estado para {tid}"
+    return "RESULTADO tarea_estado:\n" + render_estado(est)
+
+
+@tool("bitacora_buscar",
+      "bitacora_buscar [<n> |] <patron>      -- busca en la bitacora de la tarea larga (regex, ultimas n)",
+      desc=("Busca en la bitacora append-only de la tarea de horizonte en "
+            "curso (cada tool ejecutada, sus argumentos y resultados). Util "
+            "para recordar que archivos tocaste, que fallo y por que, sin "
+            "adivinar. patron es regex case-insensitive; n (opcional) limita "
+            "a las ultimas n coincidencias."),
+      params=[{"nombre": "patron", "tipo": "string", "requerido": True,
+               "descripcion": "regex a buscar en la bitacora"},
+              {"nombre": "n", "tipo": "integer", "requerido": False,
+               "descripcion": "ultimas n coincidencias (default 20)"}])
+def _bitacora_buscar(args, ctx):
+    tid = (ctx or {}).get("_horizonte_task_id", "")
+    if not tid:
+        return ("RESULTADO bitacora_buscar: ERROR solo disponible dentro de "
+                "una tarea /hacer en modo horizonte (COGNIA_HORIZONTE=1, "
+                "regimen nativo)")
+    # El patron es un REGEX y puede contener '|' (alternacion): va ULTIMO.
+    # Formato: '<n> | <patron>' o solo '<patron>' — el primer token solo se
+    # trata como n si es un entero puro; si no, TODO el args es el patron.
+    patron, n = (args or "").strip(), 20
+    partes = re.split(r"\s*\|\s*", patron, maxsplit=1)
+    if len(partes) == 2 and partes[0].strip().isdigit():
+        n = int(partes[0])
+        patron = partes[1].strip()
+    if not patron:
+        return "RESULTADO bitacora_buscar: ERROR falta el patron a buscar"
+    from cognia.agent.bitacora import buscar
+    return ("RESULTADO bitacora_buscar:\n"
+            + buscar(patron, ultimas_n=n, task_id=tid))
