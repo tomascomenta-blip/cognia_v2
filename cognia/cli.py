@@ -99,7 +99,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 try:
     from prompt_toolkit import PromptSession
-    from prompt_toolkit.completion import Completer, Completion
+    from prompt_toolkit.completion import Completer, Completion, FuzzyCompleter
     from prompt_toolkit.history import InMemoryHistory
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.shortcuts import CompleteStyle
@@ -819,6 +819,7 @@ _CMD_DESCRIPTIONS = {
     "/editar":          "Editar archivo (replace)   <ruta> <buscar> | <reemplazo>",
     "/ejecutar":        "Ejecutar comando shell     <cmd>",
     "/diff":            "Explica los cambios git de un archivo <ruta>",
+    "/cat":             "Preview bat-style de archivo   <ruta> [desde[:hasta]]",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
@@ -827,6 +828,7 @@ _CMD_DESCRIPTIONS = {
     "/proyectos":       "Estado persistente de flujos /flujo (retomar entre sesiones)",
     "/recap":           "Recapitulacion extractiva de la sesion (auto cada N turnos, sin LLM)",
     "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
+    "/lazo":            "Lazo de verificacion post-respuesta con tools reales  [on|off]",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
     "/historial":       "Muestra tareas recientes del agente y archivos modificados",
@@ -1231,6 +1233,7 @@ HELP_TEXT = """
     /hacer <tarea>                  Agente autonomo: ejecuta la tarea con herramientas reales
     /agente estado                  Estado del agente hibrido (modalidad, esfuerzo, telemetria)
     /esfuerzo [nivel]               Ver/fijar esfuerzo (bajo/medio/alto/maximo) y modalidades
+    /lazo [on|off]                  Lazo de verificacion post-respuesta: claims chequeados con tools reales (keep-best)
     /modelo [3b|7b|...]             Ver/cambiar el modelo activo del fleet
     /pensar <pedido>                Pensamiento profundo: idea sonada -> plan -> ejecucion (--idea corta antes de ejecutar)
     /pensar on|off|ver              Razonamiento en vivo: ver = prosa tenue verde (∴) mientras el agente piensa
@@ -1253,6 +1256,7 @@ HELP_TEXT = """
     /tarea-crear / /tarea-lista     Gestion de tareas del agente
     /notificar <msg>                Notificacion del sistema
     /diff <a> <b>                   Diff de archivos
+    /cat <ruta> [desde[:hasta]]     Preview bat-style: sintaxis, numeros de linea y paginado
 
   MEMORIA Y APRENDIZAJE:
     /observar <texto>               Observar sin etiqueta
@@ -1902,6 +1906,28 @@ _ANSI_RESET = "\033[0m"
 def _show_file_diff(old_text: str, new_text: str, label: str, print_fn=None) -> None:
     import difflib
     _pf = print_fn or _print_line
+    # Delta-style (B3): render rico con resaltado intra-linea SOLO en el
+    # camino local de consola (print_fn default o _print_line, tty y rich
+    # vivo). Con print_fn ajeno (oficina/motor.py loguea eventos como texto;
+    # remoto :8777) se conserva el pintado plano de siempre. El string
+    # RESULTADO que ve el modelo (mini_diff en agent/edit_block.py) no pasa
+    # por aca y NO cambia: esto es solo la capa de presentacion.
+    if (_HAS_RICH and _console is not None and _pf is _print_line
+            and sys.stdout.isatty()):
+        try:
+            from cognia.console.diff_render import render_diff
+            _r = render_diff(old_text, new_text, ruta=label, contexto=2,
+                             console=_console)
+            if _r is not None:
+                _console.print(_r)
+            # _r None = sin cambios: el camino plano tampoco imprimia nada
+            return
+        except Exception:
+            pass  # cualquier fallo del render rico cae al pintado plano
+
+    # Fallback plano (sin rich o si el render rico fallo). Cubre los TRES
+    # puntos que funnelan por aca: /escribir, /editar y ctx['show_diff'] del
+    # agente. El mini_diff de tools.py (contrato del modelo) queda intacto.
     _esc = _escape if _HAS_RICH else (lambda s: s)
     old_lines = old_text.splitlines(keepends=True)
     new_lines = new_text.splitlines(keepends=True)
@@ -3550,6 +3576,13 @@ def _slash_config(args: str) -> None:
             "  /config reset        Restablecer valores por defecto\n"
             "  /config exportar     Exportar como JSON"
         )
+
+
+# /lazo (loop thinking de chat, opt-in): verificacion post-respuesta con
+# tools reales (cognia/agent/lazo_chat.py). Flag de SESION (no persiste a
+# config): cuesta 1-2 llamadas extra de tools por respuesta, se enciende a
+# demanda como /esfuerzo cambia niveles.
+_LAZO = {"on": False}
 
 
 def _slash_esfuerzo(args: str) -> None:
@@ -6624,7 +6657,11 @@ def repl():
 
             session = PromptSession(
                 history=InMemoryHistory(),
-                completer=_CogniaCompleter(),
+                # FuzzyCompleter (fzf-style): '/plr' ofrece /pulir, '/hcr'
+                # ofrece /hacer. Envuelve al completer de siempre sin cambiar
+                # su contrato: el inner sigue decidiendo QUE comandos existen
+                # y sus descripciones; el fuzzy solo filtra por subsecuencia.
+                completer=FuzzyCompleter(_CogniaCompleter()),
                 complete_while_typing=True,
                 # COLUMN (lista simple, una por fila) en vez de MULTI_COLUMN:
                 # el menu de /comandos queda liviano y compacto, nunca tapa la
@@ -7774,6 +7811,44 @@ def repl():
         elif raw == "/diff":
             _print_line("[warn_cl]Uso: /diff <archivo>  -- ejemplo: /diff cognia/cli.py[/warn_cl]")
 
+        # -- Preview bat-style (cognia/console/preview.py) -----------------
+        # /cat y no /ver: /ver ya es la vision de pantalla (VLM). El render
+        # rico es SOLO de la capa terminal: el string que ve el modelo y el
+        # remoto no pasa por aca (contrato intacto). Sin rich o archivo
+        # ilegible, preview_archivo devuelve None y se declara el motivo.
+        elif raw.startswith("/cat ") or raw == "/cat":
+            _cat_rest = raw[len("/cat"):].strip()
+            if not _cat_rest:
+                _print_line("[warn_cl]Uso: /cat <ruta> [desde[:hasta]]  -- ejemplo: /cat cognia/cli.py 100:140[/warn_cl]")
+            else:
+                from cognia.console.preview import (contar_lineas as _cat_total,
+                                                    preview_archivo as _cat_prev)
+                _cat_partes = _cat_rest.rsplit(maxsplit=1)
+                _cat_ruta, _cat_desde, _cat_max = _cat_rest, 1, 24
+                if len(_cat_partes) == 2:
+                    import re as _re_cat
+                    _m_cat = _re_cat.fullmatch(r"(\d+)(?::(\d+)?)?", _cat_partes[1])
+                    if _m_cat:
+                        _cat_ruta = _cat_partes[0]
+                        _cat_desde = max(1, int(_m_cat.group(1)))
+                        if _m_cat.group(2):
+                            _cat_max = max(1, int(_m_cat.group(2)) - _cat_desde + 1)
+                _cat_rend = _cat_prev(_cat_ruta, max_lineas=_cat_max, desde=_cat_desde)
+                if _cat_rend is None:
+                    _print_line(f"[warn_cl]Sin preview: {_escape(_cat_ruta)} "
+                                "(no existe, es binario o falta rich)[/warn_cl]")
+                else:
+                    _cat_n = _cat_total(_cat_ruta) or 0
+                    _cat_hasta = min(_cat_n, _cat_desde + _cat_max - 1)
+                    # cabecera estilo ToolFin: marca + verbo + objeto + detalle
+                    _print_line(f"[ok_cl]⏺[/ok_cl] cat [mod]{_escape(_cat_ruta)}[/mod] "
+                                f"[detail]— lineas {_cat_desde}-{_cat_hasta} de {_cat_n}[/detail]")
+                    _console.print(_cat_rend)
+                    if _cat_hasta < _cat_n:
+                        # paginado simple por max_lineas: el siguiente tramo a pedido
+                        _print_line(f"[detail]  … /cat {_escape(_cat_ruta)} "
+                                    f"{_cat_hasta + 1}:{min(_cat_n, _cat_hasta + _cat_max)} para seguir[/detail]")
+
         # -- Skills --------------------------------------------------------
         elif raw == "/skills":
             _slash_skills()
@@ -8568,6 +8643,22 @@ def repl():
             _esf_arg = raw[len("/esfuerzo "):].strip() if raw.startswith("/esfuerzo ") else ""
             _slash_esfuerzo(_esf_arg)
 
+        # -- /lazo (loop thinking de chat: verificacion post-respuesta) ----
+        elif raw == "/lazo" or raw.startswith("/lazo "):
+            _lz_arg = raw[len("/lazo "):].strip().lower() if raw.startswith("/lazo ") else ""
+            if _lz_arg in ("on", "off"):
+                _LAZO["on"] = (_lz_arg == "on")
+            elif _lz_arg:
+                _print_line("[warn_cl]Uso: /lazo [on|off]  (sin argumento alterna)[/warn_cl]")
+            else:
+                _LAZO["on"] = not _LAZO["on"]
+            if not _lz_arg or _lz_arg in ("on", "off"):
+                _lz_estado = "ACTIVO" if _LAZO["on"] else "apagado"
+                _print_line(
+                    f"[ok_cl]Lazo de verificacion: {_lz_estado}[/ok_cl] "
+                    "[detail]— claims verificables (aritmetica, codigo) se chequean "
+                    "con tools reales tras cada respuesta; max 1 revision, keep-best.[/detail]")
+
         # -- /recap --------------------------------------------------------
         elif raw == "/recap":
             _slash_recap()
@@ -9133,6 +9224,57 @@ def repl():
                                         "cli.fast_path.stream_vacio",
                                         "el backend no emitio un solo token; "
                                         "el turno cae al camino articulado")
+                                # LAZO (/lazo, opt-in): verificacion post-respuesta con
+                                # tools reales (P8: el critico ejecuta, no opina). Solo
+                                # camino terminal local: el remoto exige marcos limpios
+                                # (memoria estilo-conversacional), alla no se emite nada.
+                                if _streamed and _LAZO["on"] and os.environ.get("COGNIA_REMOTO", "").strip() != "1":
+                                    try:
+                                        from cognia.agent.lazo_chat import (
+                                            lazo_respuesta as _lz_run)
+
+                                        def _lz_chat(_p, _mt=_effort_max_tokens):
+                                            # la UNICA revision va por el cliente
+                                            # nativo del agente; error -> '' (el
+                                            # lazo lo trata como negativa/keep-best)
+                                            from cognia.agent.chat_client import (
+                                                completar as _lz_comp)
+                                            _r = _lz_comp(
+                                                [{"role": "user", "content": _p}],
+                                                max_tokens=_mt)
+                                            return _r.texto if _r.ok else ""
+
+                                        def _lz_ev(_v):
+                                            # una linea por claim, estilo gate
+                                            _lz_t = _escape(_v.claim.texto[:70])
+                                            if _v.ok is True:
+                                                _print_line(f"[ok_cl]  ✓ {_lz_t}  ({_v.tool})[/ok_cl]")
+                                            elif _v.ok is False:
+                                                _lz_e = _escape(_v.evidencia[:90])
+                                                _print_line(f"[err_cl]  ✗ {_lz_t}  ({_v.tool} -> {_lz_e})[/err_cl]")
+                                            else:
+                                                _print_line(f"[detail]  ? {_lz_t}  (incierto)[/detail]")
+
+                                        _lz_res = _lz_run(raw, _full_response,
+                                                          _lz_chat, {"ai": ai},
+                                                          on_evento=_lz_ev)
+                                        # motivo SIEMPRE visible (patron _grito: un
+                                        # lazo que se salta en silencio repite el
+                                        # fallo tipico de Cognia)
+                                        _print_line(
+                                            f"[detail][lazo] {_lz_res.motivo} "
+                                            f"({len(_lz_res.veredictos)} claims) · "
+                                            f"{_lz_res.rondas} ronda(s)[/detail]")
+                                        if _lz_res.final != _full_response:
+                                            _show_response(_lz_res.final, _ACCENT,
+                                                           respuesta_final=True)
+                                            _full_response = _lz_res.final
+                                    except Exception as _lz_exc:
+                                        _aviso_degradado(
+                                            "cli.lazo",
+                                            f"lazo de verificacion fallo "
+                                            f"({type(_lz_exc).__name__}: {_lz_exc}); "
+                                            "respuesta intacta")
                                 if _streamed:
                                     elapsed = time.time() - t0
                                     _show_footer(elapsed, _full_response)
