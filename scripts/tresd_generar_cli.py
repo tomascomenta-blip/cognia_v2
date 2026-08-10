@@ -59,6 +59,31 @@ def instalar_shim_torchmcubes() -> None:
     sys.modules["torchmcubes"] = mod
 
 
+def instalar_shim_rembg() -> None:
+    """Inyecta un stub de rembg en sys.modules (idempotente).
+
+    POR QUE: tsr/utils.py de TripoSR hace `import rembg` a nivel de modulo,
+    pero SOLO lo usa en remove_background() — que este pipeline NO llama (el
+    quitar-fondo de la casa es BiRefNet, ver cognia/assets/matting.py). Sin
+    este stub, importar tsr.system explota con ModuleNotFoundError aunque
+    rembg nunca se ejecute. El stub levanta un error CLARO si alguien de
+    verdad llama rembg.remove, en vez de un import roto opaco."""
+    import types
+    if "rembg" in sys.modules:
+        return
+
+    def _remove(*_a, **_k):
+        raise RuntimeError(
+            "rembg no esta instalado en Cognia a proposito: el quitar-fondo "
+            "es BiRefNet (cognia/assets/matting.py). Pasa una imagen ya "
+            "recortada (imagen_quitar_fondo) al pipeline 3D.")
+
+    mod = types.ModuleType("rembg")
+    mod.remove = _remove
+    mod.new_session = lambda *_a, **_k: None
+    sys.modules["rembg"] = mod
+
+
 def cargar_imagen(ruta: str, lado: int = 512):
     """Abre y prepara la imagen para TripoSR (PIL RGB).
 
@@ -116,9 +141,10 @@ def main() -> int:
         str(Path.home() / ".cognia" / "vendors" / "TripoSR")))
     sys.path.insert(0, str(vendor))
 
-    # El shim TIENE que estar en sys.modules antes del primer `import tsr`
-    # (tsr/models/isosurface.py importa torchmcubes al cargarse).
+    # Los shims TIENEN que estar en sys.modules antes del primer `import tsr`
+    # (isosurface.py importa torchmcubes y utils.py importa rembg al cargarse).
     instalar_shim_torchmcubes()
+    instalar_shim_rembg()
 
     # tsr y HF pueden escribir progreso a stdout y contaminarian el contrato
     # JSON: TODO stdout del trabajo pesado se desvia a stderr.

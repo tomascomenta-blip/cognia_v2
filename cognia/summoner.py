@@ -153,7 +153,8 @@ def _pid_vivo(pid: int) -> bool:
         try:
             salida = subprocess.run(
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
-                capture_output=True, text=True, timeout=10).stdout
+                capture_output=True, text=True, errors="replace",
+                timeout=10).stdout
             return str(pid) in salida
         except Exception:
             return False
@@ -172,7 +173,8 @@ def _pid_dueno_del_puerto(pid: int, puerto: int) -> Optional[bool]:
     try:
         if sys.platform == "win32":
             salida = subprocess.run(["netstat", "-ano"], capture_output=True,
-                                    text=True, timeout=15).stdout
+                                    text=True, errors="replace",
+                                    timeout=15).stdout
             for linea in salida.splitlines():
                 if f":{puerto} " in linea and "LISTENING" in linea.upper():
                     return linea.split()[-1] == str(pid)
@@ -413,7 +415,8 @@ def vram_mib() -> tuple[int, int]:
         salida = subprocess.run(
             ["nvidia-smi", "--query-gpu=memory.used,memory.total",
              "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=15).stdout.strip()
+            capture_output=True, text=True, errors="replace",
+            timeout=15).stdout.strip()
         usada, total = salida.splitlines()[0].split(",")
         return int(usada.strip()), int(total.strip())
     except Exception as e:
