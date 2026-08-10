@@ -11,6 +11,9 @@ durante semanas (dos fuentes de verdad, memoria del repo 2026-07-25).
     cognia flota arrancar [combo] [patron]   # levanta el combo (default: pensar)
     cognia flota estado                      # que GGUF REAL sirve cada puerto
     cognia flota parar                       # detiene todos los llama-server
+    cognia flota dormir                      # duerme roles con idle vencido (summoner)
+    cognia flota liberar <rol>               # duerme un rol del summoner por PID
+    cognia flota ctx <N> [cache]             # relanza el cerebro a una celda MEDIDA
 
 Los combos reusan scripts/servir_modelo.py y servir_vlm.py (eleccion de
 binario/modelo NO duplicada). Esos scripts solo existen en un checkout del
@@ -169,6 +172,19 @@ def estado() -> int:
         ctx = p.get("n_ctx")
         ctx_txt = f", ctx {ctx}" if ctx else ""
         print(f"  :{puerto} ({rol}): RESPONDE — {modelo}{ctx_txt}{extra}")
+    # Bloque ADITIVO (ola 2): roles del summoner. Import perezoso y protegido:
+    # sin summoner (o con su estado ilegible) el estado clasico de puertos ya
+    # se imprimio intacto — se avisa, jamas se degrada en silencio. Salida
+    # ASCII: la consola del dueno es cp1252 (estado_roles ya lo garantiza).
+    try:
+        from cognia import summoner
+        lineas = summoner.estado_roles()
+    except Exception as e:
+        print(f"  (roles del summoner no disponibles: {e})")
+        return 0
+    print("  roles (summoner):")
+    for rol_s, linea in lineas.items():
+        print(f"    {rol_s:8s} {linea}")
     return 0
 
 
@@ -232,11 +248,58 @@ def main(argv: Optional[list] = None) -> int:
         if len(argv) == 1:
             print(f"(combo por defecto: {COMBO_DEFAULT})")
         return arrancar(modo, patron=argv[2] if len(argv) > 2 else "")
+    # Acciones ADITIVAS (ola 2) que despachan al summoner con import perezoso.
+    # Cada una avisa y devuelve 1 si el summoner no esta: degradacion visible.
+    if accion == "dormir":
+        try:
+            from cognia import summoner
+        except Exception as e:
+            print(f"summoner no disponible: {e}", file=sys.stderr)
+            return 1
+        dormidos = summoner.barrido()
+        print("Dormidos por inactividad: "
+              + (", ".join(dormidos) if dormidos else "ninguno"))
+        return 0
+    if accion == "liberar":
+        if len(argv) < 2:
+            print("Uso: cognia flota liberar <rol>", file=sys.stderr)
+            return 1
+        try:
+            from cognia import summoner
+        except Exception as e:
+            print(f"summoner no disponible: {e}", file=sys.stderr)
+            return 1
+        if summoner.liberar(argv[1]):
+            print(f"Rol '{argv[1]}' liberado.")
+            return 0
+        print(f"Rol '{argv[1]}' no estaba vivo (o no se pudo liberar).")
+        return 1
+    if accion == "ctx":
+        if len(argv) < 2 or not argv[1].isdigit():
+            print("Uso: cognia flota ctx <N> [cache]", file=sys.stderr)
+            return 1
+        try:
+            from cognia import summoner
+        except Exception as e:
+            print(f"summoner no disponible: {e}", file=sys.stderr)
+            return 1
+        try:
+            r = summoner.escalar_ctx(int(argv[1]),
+                                     cache=argv[2] if len(argv) > 2 else "")
+        except Exception as e:
+            # SummonerError ya salio por stderr + bus dentro del summoner;
+            # se repite corto aca para que el exit code tenga su porque.
+            print(f"escalar_ctx fallo: {e}", file=sys.stderr)
+            return 1
+        print(f"Cerebro en n_ctx {r.get('n_ctx')} cache {r.get('cache')}"
+              + (" (relanzado)" if r.get("relanzado") else " (ya alcanzaba)"))
+        return 0
     # Forma historica: el combo directo como primer argumento.
     if accion in COMBOS:
         return arrancar(accion, patron=argv[1] if len(argv) > 1 else "")
     print(f"Accion desconocida: {accion!r}. Usa: arrancar [combo] | estado | "
-          f"parar  (combos: {sorted(COMBOS)})", file=sys.stderr)
+          f"parar | dormir | liberar <rol> | ctx <N> [cache]  "
+          f"(combos: {sorted(COMBOS)})", file=sys.stderr)
     return 1
 
 

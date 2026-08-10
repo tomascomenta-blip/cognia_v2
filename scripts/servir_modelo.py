@@ -37,6 +37,36 @@ ESPERA_SEG  = 240
 # Preferencia por defecto: el coder de 14B, que es con el que se midio todo.
 PREFERIDOS = ("qwen2.5-coder-14b", "qwen2.5-coder", "qwen2.5")
 
+# Tipos de cache KV que acepta llama-server b10066 (--cache-type-k/-v).
+# Validados en argparse para fallar ANTES de lanzar: un valor invalido haria
+# morir el server al arrancar con un log criptico.
+CACHES_KV = ("f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl",
+             "q5_0", "q5_1")
+
+
+def construir_cmd(exe, modelo, puerto, ctx, *, ctk="", ctv="",
+                  fit_off=False) -> list:
+    """Arma el comando base de llama-server (sin el draft, que se agrega
+    despues como siempre). Factorizado para el test de regresion: SIN los
+    flags nuevos (ctk/ctv/fit_off) el resultado es BYTE-IDENTICO al
+    historico; los aditivos van al FINAL para no perturbar el orden.
+
+    --parallel 1 EXPLICITO: las builds recientes usan 4 slots por defecto y
+    PARTEN --ctx-size entre ellos (cazado 2026-07-28: HTTP 500 silenciosos
+    en el 50% del gate BoN). Un cliente secuencial no necesita slots."""
+    orden = [str(exe), "--model", str(modelo), "--port", str(puerto),
+             "--ctx-size", str(ctx), "--parallel", "1",
+             "--n-gpu-layers", "99", "--flash-attn", "on", "--jinja"]
+    if ctk:
+        orden += ["--cache-type-k", ctk]
+    if ctv:
+        orden += ["--cache-type-v", ctv]
+    if fit_off:
+        # b10066 defaultea --fit on y auto-reduce el contexto EN SILENCIO:
+        # con off, si no cabe falla visible en vez de falsear el n_ctx pedido.
+        orden += ["--fit", "off"]
+    return orden
+
 
 def binario() -> Path | None:
     for nombre in ("llama-server.exe", "llama-server"):
@@ -105,6 +135,18 @@ def main() -> int:
     ap.add_argument("--listar", action="store_true", help="ver modelos y salir")
     ap.add_argument("--sin-draft", action="store_true",
                     help="servir sin decodificacion especulativa")
+    # Flags aditivos (ola 2): sin ellos el comando armado no cambia ni un byte.
+    ap.add_argument("--pid-file",
+                    help="escribe el PID del llama-server lanzado a esa ruta "
+                         "(lo lee el summoner; sin esto el Popen abandona el "
+                         "handle y el kill selectivo es imposible)")
+    ap.add_argument("--ctk", choices=CACHES_KV,
+                    help="tipo de cache KV para K (--cache-type-k)")
+    ap.add_argument("--ctv", choices=CACHES_KV,
+                    help="tipo de cache KV para V (--cache-type-v)")
+    ap.add_argument("--fit-off", action="store_true",
+                    help="pasa --fit off (b10066 auto-reduce el ctx en "
+                         "silencio con fit on)")
     args = ap.parse_args()
 
     if args.listar:
@@ -137,15 +179,11 @@ def main() -> int:
               f"en {DIR_MODELOS}. Usa --listar para ver que hay.", file=sys.stderr)
         return 1
 
-    # --parallel 1 EXPLICITO: las builds recientes de llama-server usan 4
-    # slots por defecto y PARTEN --ctx-size entre ellos (8192/4 = 2048 por
-    # peticion). Cazado 2026-07-28: los prompts del lazo (~1.5-2.1k tokens
-    # con la vision viva) revientan el slot con HTTP 500 y el sistema
-    # degrada en silencio — el 50% de las muestras del gate BoN cayo por
-    # esto. Un solo cliente secuencial no necesita slots paralelos.
-    orden = [str(exe), "--model", str(modelo), "--port", str(args.puerto),
-             "--ctx-size", str(args.ctx), "--parallel", "1",
-             "--n-gpu-layers", "99", "--flash-attn", "on", "--jinja"]
+    # El comando base vive en construir_cmd() (factorizado para el test de
+    # regresion byte-identico; el POR QUE de --parallel 1 esta alla).
+    orden = construir_cmd(exe, modelo, args.puerto, args.ctx,
+                          ctk=args.ctk or "", ctv=args.ctv or "",
+                          fit_off=args.fit_off)
 
     # Decodificacion especulativa: el 0.5B borra tokens y el 14B los verifica
     # y corrige — la salida es IDENTICA a la del 14B solo, pero mas rapida.
@@ -179,6 +217,15 @@ def main() -> int:
         orden,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+
+    # PID a disco APENAS lanzado (no tras el health): si la carga cuelga, el
+    # summoner igual puede matar selectivo por PID en vez del /IM global.
+    if args.pid_file:
+        try:
+            Path(args.pid_file).write_text(str(proceso.pid), encoding="utf-8")
+        except OSError as exc:
+            print(f"AVISO: no pude escribir el pid-file {args.pid_file}: {exc}",
+                  file=sys.stderr)
 
     inicio = time.time()
     while time.time() - inicio < ESPERA_SEG:

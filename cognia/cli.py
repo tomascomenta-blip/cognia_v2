@@ -9604,6 +9604,34 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 and getattr(_llama_fleet, "fleet_experts", [])):
             if _llama_fleet.activate_expert("accion"):
                 _print_fn("[detail]Experto ACCION activo (fleet)[/detail]")
+        elif (_llama_fleet is not None and _regimen_nativo
+                and getattr(_llama_fleet, "fleet_experts", [])):
+            # Guard A3 nativo (plan LoRA Qwythos 2026-08-09): en regimen
+            # nativo se activa SOLO un adapter marcado nativo_compatible en
+            # el manifest (experto_del_guard, logica pura de llama_backend).
+            # Sin esa marca no se activa nada: identico al comportamiento de
+            # hoy. El experto 'accion' del 3B sigue bloqueado en nativo (se
+            # entreno para el marco ACCION y aplicado aca degrada).
+            try:
+                from node.llama_backend import experto_del_guard as _exp_guard
+                _fn_nat = getattr(_llama_fleet, "experto_nativo", None)
+                _exp_nat = _exp_guard(
+                    True, _fn_nat() if callable(_fn_nat) else None)
+            except Exception:
+                _exp_nat = None
+            if _exp_nat and _llama_fleet.activate_expert(_exp_nat):
+                # Swap REAL: el KV del server quedo calculado con otros
+                # pesos efectivos; completar() postea directo al server sin
+                # pasar por _consume_lora_dirty del backend, asi que la
+                # invalidacion se marca en el cliente nativo (la proxima
+                # request va con cache_prompt:false y re-prefillea).
+                try:
+                    from cognia.agent.chat_client import marcar_kv_sucio
+                    marcar_kv_sucio()
+                except Exception:
+                    pass
+                _print_fn(f"[detail]Experto nativo '{_exp_nat}' activo "
+                          "(fleet)[/detail]")
     except Exception:
         pass
 

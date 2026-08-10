@@ -122,6 +122,10 @@ def main() -> int:
     ap.add_argument("--puerto", type=int, default=PUERTO)
     ap.add_argument("--ctx", type=int, default=CTX)
     ap.add_argument("--listar", action="store_true", help="ver VLMs y salir")
+    # Flag aditivo (ola 2): sin el, el comportamiento no cambia en nada.
+    ap.add_argument("--pid-file",
+                    help="escribe el PID del llama-server lanzado a esa ruta "
+                         "(lo lee el summoner para el kill selectivo por PID)")
     args = ap.parse_args()
 
     if args.listar:
@@ -162,6 +166,15 @@ def main() -> int:
     print(f"  en :{args.puerto} (ctx {args.ctx})...")
     proceso = subprocess.Popen(
         orden, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    # PID a disco APENAS lanzado (no tras el health): si la carga cuelga, el
+    # summoner igual puede matar selectivo por PID en vez del /IM global.
+    if args.pid_file:
+        try:
+            Path(args.pid_file).write_text(str(proceso.pid), encoding="utf-8")
+        except OSError as exc:
+            print(f"AVISO: no pude escribir el pid-file {args.pid_file}: {exc}",
+                  file=sys.stderr)
 
     inicio = time.time()
     while time.time() - inicio < ESPERA_SEG:

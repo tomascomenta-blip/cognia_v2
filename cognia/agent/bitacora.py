@@ -90,6 +90,15 @@ def anotar(payload: dict) -> None:
     _escribir(d)
 
 
+def task_id_activo() -> str:
+    """Task_id de la tarea de horizonte activa ('' si no hay ninguna).
+
+    POR QUE: traza_chatml.volcar() lo consulta PRIMERO al resolver un task_id
+    vacio (plan C6, ola 2) — asi traza y bitacora comparten id en modo
+    horizonte y ciclos_con_contrato puede sellar directo por ese id."""
+    return _activo.get("task_id", "") or ""
+
+
 def cerrar() -> None:
     """Desuscribe el sink y cierra el archivo. Idempotente; nunca lanza."""
     sink = _activo.get("sink")

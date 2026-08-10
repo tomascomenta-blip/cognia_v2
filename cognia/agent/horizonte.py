@@ -188,4 +188,17 @@ def ciclos_con_contrato(task, system, completar, schemas, args_legacy,
     salida["tokens"] = tokens_total
     salida.update({"ciclos": n, "contrato_ok": contrato_ok,
                    "task_id": task_id})
+    # Sello de traza (COGNIA_TRAZAS=1): las 3 salidas del while (contrato
+    # completo / incompleto / sin criterios) convergen aca con el contrato_ok
+    # final ya fijado. Se sella por el id que publico el hook del loop
+    # (ctx['_traza_task_id']) o, si no esta, por el task_id del horizonte
+    # (comparten id via bitacora.task_id_activo). Best-effort: un fallo del
+    # sellador jamas toca la salida.
+    try:
+        from cognia.agent import traza_chatml as _trz
+        if _trz.habilitada():
+            _trz.sellar((ctx or {}).get("_traza_task_id") or task_id,
+                        {"contrato_ok": contrato_ok, "horizonte": True})
+    except Exception:
+        pass
     return salida

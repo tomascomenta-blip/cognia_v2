@@ -332,6 +332,14 @@ def _fleet_manifest(gguf_path: Optional[Path]) -> list:
     archivo inexistente se saltean con warning (el server arranca igual con el
     resto). El ORDEN de la lista define los ids que llama-server asigna (0..n-1).
 
+    Clave opcional `nativo_compatible: true` (plan LoRA Qwythos 2026-08-09):
+    marca un adapter entrenado para el regimen NATIVO (tool-calling chatml del
+    server, no el marco ACCION). POR QUE es opt-in por manifest: el experto
+    'accion' del 3B se entreno contra el marco ACCION y aplicado en nativo
+    degrada — sin la clave, un manifest viejo se comporta EXACTO como hoy
+    (ningun experto en nativo). Los consumidores historicos leen solo
+    name/path, la clave extra es backward-compatible.
+
     Busqueda (primero que exista):
       1. <dir del GGUF>/adapters.json  — layout historico junto al modelo
       2. ~/.cognia/loras/adapters.json — donde viven los LoRA reales del usuario
@@ -365,8 +373,25 @@ def _fleet_manifest(gguf_path: Optional[Path]) -> list:
         if not p.is_file():
             logger.warning("[llama_backend] adapters.json: no existe %s (salteado)", p)
             continue
-        out.append({"name": name, "path": p})
+        out.append({"name": name, "path": p,
+                    "nativo_compatible": entry.get("nativo_compatible") is True})
     return out
+
+
+def experto_del_guard(regimen_nativo: bool,
+                      experto_nativo: Optional[str]) -> Optional[str]:
+    """Que experto debe activar el guard A3 de cli.py. Pura, sin server.
+
+    POR QUE existe: la logica del guard vivia inline en cli.py (~9603) y era
+    intesteable sin levantar el CLI entero. Extraida aca (dueno unico ola 1)
+    para que cli.py (ola 2) solo la llame:
+      - legacy (marco ACCION)  -> 'accion' (comportamiento historico intacto)
+      - nativo                 -> SOLO el adapter marcado nativo_compatible
+                                  en el manifest, o None (hoy: nada se activa)
+    """
+    if not regimen_nativo:
+        return "accion"
+    return experto_nativo or None
 
 
 def _lora_args(gguf_path: Optional[Path] = None) -> tuple:
@@ -852,6 +877,29 @@ class _LlamaServerBackend:
             return False
         return cache_prompt
 
+    def experto_nativo(self) -> Optional[str]:
+        """Primer adapter del manifest con nativo_compatible: true, o None.
+
+        POR QUE: el guard A3 de cli.py necesita saber si hay un experto
+        entrenado para el regimen nativo SIN adivinar por nombre. Re-lee
+        adapters.json del disco (barato y local; no toca el server) y solo
+        devuelve un experto que el fleet cargado realmente tiene — un adapter
+        marcado pero no cargado (server adoptado con fleet OFF) devolveria un
+        nombre que activate_expert rechazaria, asi que se filtra aca con
+        warning visible en vez de fallar aguas abajo en silencio.
+        """
+        if not getattr(self, "_fleet_names", None):
+            return None
+        for a in _fleet_manifest(self._gguf_path):
+            if not a.get("nativo_compatible"):
+                continue
+            if a["name"] in self._fleet_names:
+                return a["name"]
+            logger.warning("[llama_backend] adapter nativo_compatible %r no "
+                           "esta en el fleet cargado %s (ignorado)",
+                           a["name"], self._fleet_names)
+        return None
+
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
@@ -1231,6 +1279,16 @@ class LlamaBackend:
         if not callable(fn):
             return name is None
         return fn(name)
+
+    def experto_nativo(self) -> Optional[str]:
+        """Primer adapter del manifest marcado nativo_compatible, o None.
+
+        None tambien si el impl no soporta fleet (in-process): sin fleet no
+        hay experto que activar. Ver _LlamaServerBackend.experto_nativo."""
+        fn = getattr(self._impl, "experto_nativo", None)
+        if not callable(fn):
+            return None
+        return fn()
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,

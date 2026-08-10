@@ -141,6 +141,68 @@ _TIPADAS: dict = {
         lambda a: (f"{a.get('n')} | {a.get('patron', '')}"
                    if a.get("n") else str(a.get("patron", ""))),
     ),
+    # ── Flota multimodal (ola 2, 2026-08-09): armadores verificados contra
+    # el parseo REAL de cada tool de la ola 1 (voz_tools/musica_tools/
+    # tresd_tools/vlm_tools). Regla del modulo: contenido con '|' ULTIMO.
+    "voz_decir": (
+        {"texto": _p("texto a decir en voz alta"),
+         "guardar": _p("ruta WAV de salida (opcional; si se da, no reproduce)")},
+        ["texto"],
+        # voz_tools parsea 'guardar=<ruta> | <texto>' o solo '<texto>':
+        # la opcion PRIMERO, el texto (que puede contener '|') ULTIMO.
+        lambda a: ((f"guardar={str(a.get('guardar', '')).strip()} | "
+                    if str(a.get('guardar', '')).strip() else "")
+                   + str(a.get("texto", ""))),
+    ),
+    "voz_escuchar": (
+        {"path": _p("ruta del WAV a transcribir"),
+         "idioma": _p("codigo de idioma (default 'es')")},
+        ["path"],
+        lambda a: (str(a.get("path", "")).strip()
+                   + (f" | idioma={str(a['idioma']).strip()}"
+                      if a.get("idioma") else "")),
+    ),
+    "voz_clonar": (
+        {"referencia": _p("WAV con la voz de referencia (>=6 s)"),
+         "texto": _p("texto a sintetizar con esa voz")},
+        ["referencia", "texto"],
+        lambda a: f"{str(a.get('referencia', '')).strip()} | {a.get('texto', '')}",
+    ),
+    "musica_orquestar": (
+        {"midi": _p("MIDI de condicion armonica (opcional; sin el, inventa "
+                    "la armonia)"),
+         "grupo": _p("variaciones por condicion (default 2)", "integer"),
+         "wav": _p("1 = renderizar tambien a WAV", "integer")},
+        [],
+        # musica_tools parsea SOLO pares k=v separados por '|', orden libre.
+        lambda a: " | ".join(p for p in (
+            (f"midi={str(a['midi']).strip()}" if a.get("midi") else ""),
+            (f"grupo={a['grupo']}" if a.get("grupo") else ""),
+            (f"wav={a['wav']}" if a.get("wav") else "")) if p),
+    ),
+    "tresd_generar": (
+        {"imagen": _p("ruta de la imagen del objeto (ideal PNG RGBA sin fondo)"),
+         "formato": _p("obj o glb (default glb)"),
+         "resolucion": _p("resolucion de marching cubes (default 256)",
+                          "integer")},
+        ["imagen"],
+        # tresd_tools parsea 'ruta | k=v...' (rutas Windows no llevan '|').
+        lambda a: " | ".join(p for p in (
+            str(a.get("imagen", "")).strip(),
+            (f"formato={str(a['formato']).strip()}" if a.get("formato") else ""),
+            (f"resolucion={a['resolucion']}" if a.get("resolucion") else ""))
+            if p),
+    ),
+    "vlm_mirar": (
+        {"imagen": _p("ruta de la imagen a mirar"),
+         "pregunta": _p("pregunta sobre la imagen (opcional; sin ella, "
+                        "describe)")},
+        ["imagen"],
+        # vlm_tools parsea 'ruta | pregunta' con maxsplit=1: la pregunta es
+        # contenido libre (puede contener '|') y va ULTIMA.
+        lambda a: (str(a.get("imagen", "")).strip()
+                   + (f" | {a['pregunta']}" if a.get("pregunta") else "")),
+    ),
 }
 
 # Tools sin argumentos: schema de objeto vacio y string legacy vacio.

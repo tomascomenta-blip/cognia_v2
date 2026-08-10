@@ -349,6 +349,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # El objetivo (+ guidance/pista que cli.py ya metio en history) es el
     # turno user inicial y NUNCA se recorta.
     mensajes.append({"role": "user", "content": "\n\n".join(history)})
+    # Alias para el volcado de trazas (COGNIA_TRAZAS=1): apunta a la MISMA
+    # lista viva, y sobrevive al `mensajes = None` del corte por
+    # estancamiento (el rebind no toca el objeto ya referenciado).
+    mensajes_dump = mensajes
 
     sampling = {
         "temperature": perfil.get("temperature", 1.0),
@@ -457,5 +461,19 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         _emitir(_ev.TareaFin(ok=ok, resumen=(result_text or "")[:300],
                              pasos=pasos, tokens_predichos=tokens_total,
                              duracion_s=__import__("time").time() - t0))
+    # Volcado de traza chatml (COGNIA_TRAZAS=1): TODAS las salidas del bucle
+    # (fin natural, estancamiento, no-progreso, infra, presupuesto) convergen
+    # aca, fuera del camino caliente. volcar() devuelve el TASK_ID (no la
+    # ruta): se publica en ctx para que los selladores (horizonte, bancos)
+    # etiqueten por id. Best-effort total: jamas rompe el retorno.
+    try:
+        from cognia.agent import traza_chatml as _trz
+        if _trz.habilitada():
+            ctx["_traza_task_id"] = _trz.volcar(
+                "", mensajes_dump, schemas, sampling, perfil,
+                {"texto": result_text, "pasos": pasos, "ok": ok,
+                 "tokens": tokens_total, "finish": finish})
+    except Exception:
+        pass
     return {"texto": result_text, "pasos": pasos, "ok": ok,
             "tokens": tokens_total, "finish": finish}

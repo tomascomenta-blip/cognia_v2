@@ -273,6 +273,11 @@ _OPTIN_PREFIJOS = (
     ("escena_", "COGNIA_LCD"),
     ("imagen_", "COGNIA_IMG_TOOLS"),
     ("web_", "COGNIA_BROWSER"),
+    # Flota multimodal (ola 2, 2026-08-09): voz/musica/3d/vlm opt-in duro.
+    ("voz_", "COGNIA_VOZ_TOOLS"),
+    ("musica_", "COGNIA_MUSICA_TOOLS"),
+    ("tresd_", "COGNIA_3D_TOOLS"),
+    ("vlm_", "COGNIA_VLM_TOOLS"),
 )
 _OPTIN_NOMBRES = {
     "repo_a_prompt": "COGNIA_REPO_REVERSE",
@@ -2312,3 +2317,62 @@ def _bitacora_buscar(args, ctx):
     from cognia.agent.bitacora import buscar
     return ("RESULTADO bitacora_buscar:\n"
             + buscar(patron, ultimas_n=n, task_id=tid))
+
+
+# ── Tools de VOZ (opt-in COGNIA_VOZ_TOOLS=1, flota multimodal 2026-08-09) ──
+# Opt-in duro como imagen/pantalla: tools default-ON degradan al 3B
+# (A/B 2026-07-25: camino feliz 4.25/5 -> 2.5/5).
+if os.environ.get("COGNIA_VOZ_TOOLS") == "1":
+    try:
+        from cognia.agent import voz_tools as _voz_tools
+        _voz_tools.register(tool)
+        for _t in ("voz_decir", "voz_escuchar", "voz_clonar"):
+            ROLE_TOOLS["implementador"].add(_t)
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_VOZ_TOOLS=1 pero voz_tools no cargo: {_exc}",
+              file=sys.stderr)
+
+
+# ── Tool de MUSICA (opt-in COGNIA_MUSICA_TOOLS=1, flota multimodal) ────────
+# Opt-in duro como imagen/pantalla: tools default-ON degradan al 3B
+# (A/B 2026-07-25: camino feliz 4.25/5 -> 2.5/5).
+if os.environ.get("COGNIA_MUSICA_TOOLS") == "1":
+    try:
+        from cognia.agent import musica_tools as _musica_tools
+        _musica_tools.register(tool)
+        ROLE_TOOLS["implementador"].add("musica_orquestar")
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_MUSICA_TOOLS=1 pero musica_tools no cargo: "
+              f"{_exc}", file=sys.stderr)
+
+
+# ── Tool 3D (opt-in COGNIA_3D_TOOLS=1, flota multimodal) ───────────────────
+# Opt-in duro como imagen/pantalla: tools default-ON degradan al 3B
+# (A/B 2026-07-25: camino feliz 4.25/5 -> 2.5/5).
+if os.environ.get("COGNIA_3D_TOOLS") == "1":
+    try:
+        from cognia.agent import tresd_tools as _tresd_tools
+        _tresd_tools.register(tool)
+        ROLE_TOOLS["implementador"].add("tresd_generar")
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_3D_TOOLS=1 pero tresd_tools no cargo: {_exc}",
+              file=sys.stderr)
+
+
+# ── Tool VLM (opt-in COGNIA_VLM_TOOLS=1, flota multimodal) ─────────────────
+# Opt-in duro como imagen/pantalla: tools default-ON degradan al 3B
+# (A/B 2026-07-25: camino feliz 4.25/5 -> 2.5/5). vlm_mirar es de
+# solo-lectura: tambien va al rol investigador.
+if os.environ.get("COGNIA_VLM_TOOLS") == "1":
+    try:
+        from cognia.agent import vlm_tools as _vlm_tools
+        _vlm_tools.register(tool)
+        ROLE_TOOLS["implementador"].add("vlm_mirar")
+        ROLE_TOOLS["investigador"].add("vlm_mirar")
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_VLM_TOOLS=1 pero vlm_tools no cargo: {_exc}",
+              file=sys.stderr)

@@ -236,15 +236,30 @@ def _screenshot_juzgable(ruta) -> tuple:
     return True, "ok"
 
 
-def _datauri_png(ruta) -> Optional[str]:
-    """PNG en disco -> data URI base64. None si no se puede leer."""
+# MIME por extension para el data URI. POR QUE un mapa y no siempre png: el
+# VLM (llama-server multimodal) decodifica segun el MIME declarado; mandar un
+# JPG etiquetado image/png funciona a veces y falla en silencio otras. Solo
+# png/jpg: son los formatos que producen las tools de la casa.
+_MIME_IMAGEN = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+def _datauri_imagen(ruta) -> Optional[str]:
+    """Imagen en disco (png/jpg) -> data URI base64 con MIME correcto.
+    None si no se puede leer. Generalizacion de la vieja _datauri_png (que
+    queda como alias: los llamadores internos siempre pasan PNG)."""
     try:
+        mime = _MIME_IMAGEN.get(Path(ruta).suffix.lower(), "image/png")
         datos = Path(ruta).read_bytes()
         b64 = base64.b64encode(datos).decode("ascii")
-        return f"data:image/png;base64,{b64}"
+        return f"data:{mime};base64,{b64}"
     except Exception as e:
         logger.warning("arbitro_visual: no pude leer la imagen %s (%s)", ruta, e)
         return None
+
+
+# Alias de compatibilidad: llamadores existentes (este modulo y los tests)
+# usan el nombre viejo; para un PNG el resultado es byte-identico.
+_datauri_png = _datauri_imagen
 
 
 def _lado_a_lado(mockup, screenshot, salida, *, alto: int = 700) -> Optional[str]:
@@ -285,9 +300,15 @@ def _lado_a_lado(mockup, screenshot, salida, *, alto: int = 700) -> Optional[str
         return None
 
 
-def _preguntar_vlm(url: str, prompt: str, imagenes: List[str]) -> Optional[str]:
+def _preguntar_vlm(url: str, prompt: str, imagenes: List[str], *,
+                   system: str = _SYSTEM, timeout: float = TIMEOUT_VLM,
+                   max_tokens: int = 900) -> Optional[str]:
     """POST multimodal al VLM (formato OpenAI). imagenes = lista de data URIs.
-    Devuelve el texto de la respuesta o None."""
+    Devuelve el texto de la respuesta o None.
+
+    Los keyword-only (system/timeout/max_tokens) existen para describir_imagen:
+    el llamador historico (arbitrar_visual) no los pasa y conserva el
+    comportamiento byte-identico de siempre."""
     try:
         contenido = [{"type": "text", "text": prompt}]
         for datauri in imagenes:
@@ -295,21 +316,60 @@ def _preguntar_vlm(url: str, prompt: str, imagenes: List[str]) -> Optional[str]:
                               "image_url": {"url": datauri}})
         cuerpo = json.dumps({
             "model": "local",
-            "messages": [{"role": "system", "content": _SYSTEM},
+            "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": contenido}],
             "temperature": 0.2,
             # El VLM describe y razona antes de dar la nota; 400 se quedaba corto
             # con dos imagenes (medido en el patron del critico con UIGEN).
-            "max_tokens": 900,
+            "max_tokens": max_tokens,
         }).encode("utf-8")
         peticion = urllib.request.Request(
             url + "/v1/chat/completions", data=cuerpo,
             headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(peticion, timeout=TIMEOUT_VLM) as r:
+        with urllib.request.urlopen(peticion, timeout=timeout) as r:
             datos = json.loads(r.read().decode("utf-8"))
         return datos["choices"][0]["message"]["content"]
     except Exception as e:
         logger.warning("arbitro_visual: el VLM de %s no respondio (%s)", url, e)
+        return None
+
+
+# System prompt NEUTRO para describir_imagen: el _SYSTEM del arbitro es un
+# QA designer que compara mitades y penaliza — sesgaria una descripcion.
+_SYSTEM_DESCRIBIR = (
+    "You are a precise visual assistant. You are shown ONE image and a "
+    "question or instruction about it. Answer factually and concisely, in "
+    "the same language as the question. Never invent things that are not "
+    "visible in the image."
+)
+
+_PROMPT_DESCRIBIR = ("Describe la imagen con precision: objetos, texto "
+                     "visible, colores, disposicion.")
+
+
+def describir_imagen(ruta, pregunta: str = "", url: str = None,
+                     timeout: float = 180, max_tokens: int = 512) -> Optional[str]:
+    """Describe/analiza UNA imagen con el VLM de :8081. None si no responde.
+
+    POR QUE: hasta hoy el VLM solo lo usaba el arbitro (comparar mockup vs
+    screenshot); esta funcion plana lo abre a cualquier llamador (la tool
+    vlm_mirar del agente) sin duplicar el POST ni el manejo de data URIs.
+    url default: url_vlm() (COGNIA_VLM_URL en call-time, sin cache).
+    Acepta png y jpg (MIME correcto via _datauri_imagen). NUNCA lanza:
+    ante cualquier fallo loguea el motivo y devuelve None — el llamador
+    decide como degradar (misma politica que el resto del modulo).
+    """
+    try:
+        u = (url or url_vlm())
+        datauri = _datauri_imagen(ruta)
+        if datauri is None:
+            return None    # _datauri_imagen ya logueo el motivo
+        prompt = (pregunta or "").strip() or _PROMPT_DESCRIBIR
+        return _preguntar_vlm(u, prompt, [datauri],
+                              system=_SYSTEM_DESCRIBIR,
+                              timeout=timeout, max_tokens=max_tokens)
+    except Exception as e:
+        logger.warning("arbitro_visual: describir_imagen fallo (%s)", e)
         return None
 
 

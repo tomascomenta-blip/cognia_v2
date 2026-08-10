@@ -38,6 +38,26 @@ from cognia.agent.model_profiles import MIN_TOKENS_RAZONADOR, url_del_backend
 # por minutos, no segundos. Override por env para bancos/tests.
 _TIMEOUT_S = float(os.environ.get("COGNIA_CHAT_TIMEOUT", "300"))
 
+# KV sucio tras un hot-swap de LoRA (plan LoRA Qwythos 2026-08-09).
+# POR QUE: completar() postea DIRECTO a /v1/chat/completions sin pasar por
+# node/llama_backend, asi que el _consume_lora_dirty del backend NO cubre el
+# camino nativo — tras un POST /lora-adapters la primera request del agente
+# reutilizaria KV calculado con otros pesos efectivos (llama.cpp NO lo
+# invalida solo; medido 2026-07-07, FLEET_DESIGN). Dict mutable y no bool
+# suelto para que el estado sea modulo-global de verdad (visible desde
+# cualquier import del modulo, sin `global` fragil).
+_KV_SUCIO = {"v": False}
+
+
+def marcar_kv_sucio() -> None:
+    """Marca el KV del server como invalido tras un swap real de LoRA.
+
+    La PROXIMA completar() (y solo esa) mandara cache_prompt: false —
+    extension del body que llama-server acepta en /v1/chat/completions —
+    para reconstruir el KV con los pesos efectivos actuales. La llama quien
+    hace el swap (guard A3 de cli.py tras activate_expert)."""
+    _KV_SUCIO["v"] = True
+
 
 @dataclass
 class ToolCall:
@@ -109,6 +129,12 @@ def completar(mensajes: list, tools: list = None, url: str = "",
         "top_p": top_p,
         "max_tokens": max_tokens,
     }
+    if _KV_SUCIO["v"]:
+        # Una sola vez: se consume al armar el body (misma semantica que
+        # _consume_lora_dirty del backend). cache_prompt: false fuerza el
+        # re-prefill completo; las siguientes vuelven al cache normal.
+        cuerpo["cache_prompt"] = False
+        _KV_SUCIO["v"] = False
     if tools:
         cuerpo["tools"] = tools
     if reasoning_effort:
