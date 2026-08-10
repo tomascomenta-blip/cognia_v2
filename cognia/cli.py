@@ -9171,6 +9171,15 @@ def repl():
                                 _flujo = None
                             t0 = time.time()
                             try:
+                                # el fast-path pinta su propio stream: que el
+                                # renderer no duplique TokenTexto (cazado en
+                                # la captura real 06_pensar_ver 2026-08-10)
+                                try:
+                                    from cognia.ux.renderer import (
+                                        suprimir_stream as _supr_stream)
+                                    _supr_stream(True)
+                                except Exception:
+                                    _supr_stream = None
                                 print("", flush=True)
                                 _mt_turno = _effort_max_tokens
                                 for _intento in (1, 2):
@@ -9331,6 +9340,15 @@ def repl():
                                         result = responder_articulado(ai, raw)
                             finally:
                                 logging.root.removeFilter(flt)
+                                # restaurar el streaming del renderer SIEMPRE
+                                # (un fallo a mitad de stream no puede dejar
+                                # TokenTexto suprimido para el resto de la
+                                # sesion)
+                                try:
+                                    if _supr_stream is not None:
+                                        _supr_stream(False)
+                                except Exception:
+                                    pass
                             elapsed = time.time() - t0
                             if _debug_mode:
                                 txt = captured.getvalue().strip()

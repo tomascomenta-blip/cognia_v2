@@ -73,6 +73,13 @@ class Renderer:
         # en una linea del chat ("¡Hola! ¿En que puedo ¡Hola!...") — cazado
         # por el e2e de WP5 2026-08-09.
         self._sin_stream = os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+        # El fast-path del CLI pinta los tokens por su PROPIO FlujoSuave: si
+        # el renderer tambien pinta TokenTexto, la respuesta sale DUPLICADA e
+        # intercalada palabra a palabra (cazado MIRANDO la captura real
+        # 06_pensar_ver 2026-08-10). El caller que ya pinta su stream lo
+        # declara con suprimir_stream(True); SOLO afecta TokenTexto — el
+        # razonamiento ∴ sigue siendo del renderer (nadie mas lo pinta).
+        self._stream_externo = False
 
     # -- despacho -----------------------------------------------------------
 
@@ -366,6 +373,11 @@ class Renderer:
             return
         if self._sin_stream:
             return    # remoto: la respuesta final llega entera via _show_response
+        if self._stream_externo:
+            # el fast-path ya esta pintando este stream: cerrar la prosa del
+            # razonamiento (la respuesta empieza) y no duplicar ni un token
+            self._cerrar_flujo_pensar()
+            return
         self._cerrar_flujo_pensar()
         if self._flujo is None:
             # empieza la prosa: el spinner sobra y la respuesta respira arriba
@@ -495,6 +507,14 @@ def activar(console=None) -> Renderer:
         _renderer._console = console
     events.suscribir(_renderer)
     return _renderer
+
+
+def suprimir_stream(valor: bool) -> None:
+    """El caller que pinta su propio stream de tokens (fast-path del CLI) lo
+    declara aqui para que el renderer no duplique TokenTexto. Restaurar con
+    False en finally. No-op sin renderer activo."""
+    if _renderer is not None:
+        _renderer._stream_externo = bool(valor)
 
 
 def desactivar() -> None:
