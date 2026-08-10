@@ -88,16 +88,30 @@ def respuesta(texto: str, console=None, color: str = "cyan") -> None:
 # Actividad de herramientas: "· Leyendo motor.py" -> "⏺ Leyendo motor.py"
 # ---------------------------------------------------------------------------
 # tool del registry -> verbo en gerundio, en el vocabulario del producto.
+# REGLA (2026-08-10): cada clave debe existir en agent/tools.py TOOLS (o en un
+# modulo opt-in que registra via @tool al importarse: voz/musica/3d/vlm/imagen/
+# browser/repo_a_prompt). Aqui vivieron 'listar_archivos'/'buscar_archivos',
+# nombres que NUNCA existieron en el registry — esas tools salian como
+# 'Trabajando' generico. Hay test de regresion parametrizado contra TOOLS
+# (tests/test_renderer_estetica.py) para que no vuelva a pasar.
 GERUNDIOS = {
     "leer_archivo":     "Leyendo",
     "escribir_archivo": "Escribiendo",
     "editar_archivo":   "Editando",
     "apendar_archivo":  "Escribiendo",
     "borrar_archivo":   "Borrando",
-    "listar_archivos":  "Explorando",
-    "buscar_archivos":  "Buscando",
-    "buscar_en_archivos": "Buscando",
+    "copiar_archivo":   "Copiando",
+    "listar":           "Explorando",
     "arbol":            "Explorando",
+    "contar_lineas":    "Contando lineas",
+    "buscar":           "Buscando",
+    "buscar_en_repo":   "Buscando",
+    "repo_map":         "Mapeando el repo",
+    "code_grafo":       "Mapeando el codigo",
+    "docs_repo":        "Consultando docs",
+    "docs_libreria":    "Consultando docs",
+    "preguntar_repo":   "Consultando el repo",
+    "abrir":            "Abriendo",
     "ejecutar":         "Ejecutando",
     "tests":            "Probando",
     "generar_codigo":   "Generando codigo",
@@ -106,6 +120,8 @@ GERUNDIOS = {
     "calcular":         "Calculando",
     "resumir":          "Resumiendo",
     "recordar":         "Recordando",
+    "memorizar":        "Memorizando",
+    "cuaderno":         "Anotando",
     "kg_buscar":        "Consultando el grafo",
     "kg_agregar":       "Anotando en el grafo",
     "anotar":           "Anotando",
@@ -118,6 +134,20 @@ GERUNDIOS = {
     "git_log":          "Mirando git",
     "delegar_subtarea": "Delegando",
     "fecha":            "Consultando",
+    "tarea_estado":     "Revisando la tarea",
+    "bitacora_buscar":  "Consultando bitacora",
+    "repo_a_prompt":    "Empaquetando el repo",
+    # familias multimodales (opt-in por flag; el registry las registra al
+    # importar su modulo, el gerundio esta listo desde ya)
+    "voz_decir":          "Hablando",
+    "voz_escuchar":       "Escuchando",
+    "voz_clonar":         "Clonando voz",
+    "musica_orquestar":   "Orquestando",
+    "tresd_generar":      "Modelando 3D",
+    "vlm_mirar":          "Mirando",
+    "imagen_generar":     "Dibujando",
+    "imagen_editar":      "Retocando",
+    "imagen_quitar_fondo": "Recortando",
 }
 
 
@@ -196,24 +226,29 @@ class FlujoSuave:
         f.cerrar()          # vacia lo que quede (siempre, tambien en except)
     """
 
-    def __init__(self, console=None, style: str = "cyan", umbral: int = 24):
+    def __init__(self, console=None, style: str = "cyan", umbral: int = 24,
+                 sangria: str = _SANGRIA):
+        # ``sangria`` configurable (2026-08-10): el razonamiento en vivo del
+        # renderer usa el MISMO flujo pero con su propio inicio de linea
+        # ('    ∴ '); el default conserva la sangria de 2 de siempre.
         self._console = console
         self._style = style
         self._umbral = max(4, int(umbral))
+        self._sangria = sangria
         self._buf = ""
         self._al_inicio_de_linea = True
 
     def _emitir(self, trozo: str) -> None:
         if not trozo:
             return
-        # sangria de 2 al inicio de cada linea, para alinear con respuesta()
+        # sangria al inicio de cada linea, para alinear con respuesta()
         if self._al_inicio_de_linea:
-            trozo = _SANGRIA + trozo
+            trozo = self._sangria + trozo
         self._al_inicio_de_linea = trozo.endswith("\n")
         if self._al_inicio_de_linea:
-            trozo = trozo[:-1].replace("\n", "\n" + _SANGRIA) + "\n"
+            trozo = trozo[:-1].replace("\n", "\n" + self._sangria) + "\n"
         else:
-            trozo = trozo.replace("\n", "\n" + _SANGRIA)
+            trozo = trozo.replace("\n", "\n" + self._sangria)
         if self._console is not None:
             self._console.print(trozo, end="", style=self._style,
                                 markup=False, highlight=False)

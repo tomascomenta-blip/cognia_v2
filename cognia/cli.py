@@ -163,31 +163,52 @@ _BANNER_RAW = """
 _THEMES = {
     "oscuro": Theme({
         "ok":       "bold bright_green",
+        "ok_cl":    "green",              # FIX: 19 usos de [ok_cl] salian sin color
         "mod":      "bold cyan",
         "detail":   "dim white",
         "info_dim": "dim grey62",
         "footer":   "dim grey50",
-        "spinner":  "magenta",
+        "spinner":  "green",              # antes magenta: la actividad tambien en verde
+        "pensar":   "green",
+        "tool_verbo": "cyan",
+        "tool_obj": "bold bright_white",
+        "escrito":  "green",
+        "borrado":  "red",
+        "intencion": "italic dim white",
         "warn_cl":  "yellow",
         "err_cl":   "red",
     }),
     "claro": Theme({
         "ok":       "bold green",
+        "ok_cl":    "dark_green",
         "mod":      "bold blue",
         "detail":   "grey30",
         "info_dim": "grey50",
         "footer":   "grey50",
-        "spinner":  "dark_magenta",
+        "spinner":  "dark_green",         # antes dark_magenta
+        "pensar":   "dark_green",
+        "tool_verbo": "blue",
+        "tool_obj": "bold black",
+        "escrito":  "dark_green",
+        "borrado":  "red",
+        "intencion": "italic grey30",
         "warn_cl":  "dark_orange",
         "err_cl":   "red",
     }),
     "alto_contraste": Theme({
         "ok":       "bold white",
+        "ok_cl":    "bold bright_green",
         "mod":      "bold bright_white",
         "detail":   "white",
         "info_dim": "grey74",
         "footer":   "grey74",
-        "spinner":  "bright_white",
+        "spinner":  "bright_green",       # antes bright_white
+        "pensar":   "bright_green",
+        "tool_verbo": "bright_cyan",
+        "tool_obj": "bold bright_white",
+        "escrito":  "bright_green",
+        "borrado":  "bright_red",
+        "intencion": "italic grey74",
         "warn_cl":  "bright_yellow",
         "err_cl":   "bright_red",
     }),
@@ -672,6 +693,21 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
             "Clasificador de permisos fallo (%s=%r): se deniega la accion "
             "por seguridad: %s", kind, detalle[:80], exc)
         return False
+    # Con tty real: confirmacion con flechas ([Si]/[No] + atajos s/n).
+    # default=False conserva la paridad con hoy (Enter vacio = NO ejecutar).
+    # El input() de abajo queda INTACTO como fallback textual: el texto
+    # '[permiso] ... (s/n) >' es lo que ven los pipes y el e2e — no cambiarlo.
+    # REGLA: jamas abrir el selector con un rich Live/status activo; cuando
+    # el agente pide permiso su spinner ya esta parado (ToolInicio aun no
+    # arranco o ToolFin lo cerro), pero si un caller nuevo confirma dentro
+    # de un status debe pararlo antes.
+    try:
+        from cognia.ux import selector as _selector
+        if _selector.hay_tty():
+            return _selector.confirmar(
+                f"[permiso] {detalle[:80]} — ejecutar?", default=False)
+    except Exception:
+        pass  # cualquier fallo del selector degrada al input() de siempre
     try:
         resp = input(f"[permiso] {detalle[:80]} — ejecutar? (s/n) > ").strip().lower()
     except (EOFError, KeyboardInterrupt):
@@ -712,7 +748,7 @@ _CMD_DESCRIPTIONS = {
     "/aprendiendo-buscar": "Buscar tarjetas de aprendizaje  <query>",
     "/investigar":      "Investigar en GitHub    <query>",
     "/razonar":         "Loop cientifico: hipotesis -> evaluar -> analogias -> validar  <problema>",
-    "/pensar":          "Pensamiento PROFUNDO: pregunta -> razona y contesta; crear algo -> suena la idea, la planifica y la ejecuta  <pedido>",
+    "/pensar":          "Pensamiento PROFUNDO: pregunta -> razona y contesta; crear algo -> suena la idea, la planifica y la ejecuta  <pedido> | on|off|ver = razonamiento en vivo",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
     "/construir":       "Construir web con arbitro visual (VLM)  [--mockup] [--sprites] <idea>",
@@ -1197,6 +1233,7 @@ HELP_TEXT = """
     /esfuerzo [nivel]               Ver/fijar esfuerzo (bajo/medio/alto/maximo) y modalidades
     /modelo [3b|7b|...]             Ver/cambiar el modelo activo del fleet
     /pensar <pedido>                Pensamiento profundo: idea sonada -> plan -> ejecucion (--idea corta antes de ejecutar)
+    /pensar on|off|ver              Razonamiento en vivo: ver = prosa tenue verde (∴) mientras el agente piensa
     /deliberar <pregunta>           Deliberacion multi-perspectiva
     /flujo <objetivo>               Orquestador de flujos multi-paso
     /largo <tema>                   Generacion larga por secciones (/largo --continuar)
@@ -3531,6 +3568,19 @@ def _slash_esfuerzo(args: str) -> None:
     current = normalize_effort(cfg.get("esfuerzo", DEFAULT_EFFORT)) or DEFAULT_EFFORT
 
     if not args:
+        # Sin argumento y con tty: elegir el nivel con flechas; la eleccion
+        # sigue el MISMO camino que '/esfuerzo <nivel>' (args = seleccion).
+        # Sin tty se conserva el resumen impreso de siempre.
+        from cognia.ux import selector as _selector
+        if _selector.hay_tty():
+            _niveles = effort_names()
+            _sel = _selector.elegir(
+                f"Nivel de esfuerzo (activo: {current}):",
+                [(n, n, EFFORT_LEVELS[n]["descripcion"]) for n in _niveles],
+                default=_niveles.index(current))
+            if _sel is not None:
+                args = _sel
+    if not args:
         p = EFFORT_LEVELS[current]
         _print_line(
             f"Nivel de esfuerzo activo: {current}  ({p['descripcion']})\n"
@@ -5193,7 +5243,25 @@ def _slash_tema(arg: str = ""):
                     f"Opciones: {', '.join(_THEME_ORDER)}[/warn_cl]")
         return
     else:
-        _theme_idx = (_theme_idx + 1) % len(_THEME_ORDER)
+        # /tema sin argumento: selector con flechas si hay tty; sin tty se
+        # conserva el ciclado historico (un pipe no debe consumir stdin con
+        # un menu). REGLA: no hay Live/status activo aca (comando directo).
+        from cognia.ux import selector as _selector
+        if _selector.hay_tty():
+            _descr = {
+                "oscuro": "colores vivos sobre fondo oscuro (default)",
+                "claro": "paleta sobria para terminal con fondo claro",
+                "alto_contraste": "blanco brillante, maxima legibilidad",
+            }
+            _sel = _selector.elegir(
+                "Tema del CLI:",
+                [(n, n, _descr.get(n, "")) for n in _THEME_ORDER],
+                default=_theme_idx)
+            if _sel is None:
+                return  # Esc/Ctrl-C: no tocar nada
+            _theme_idx = _THEME_ORDER.index(_sel)
+        else:
+            _theme_idx = (_theme_idx + 1) % len(_THEME_ORDER)
     name = _THEME_ORDER[_theme_idx]
     if _HAS_RICH:
         _console = Console(theme=_THEMES[name], highlight=False)
@@ -6954,6 +7022,23 @@ def repl():
             _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="bright_green")
         elif raw.startswith("/razonar"):
             _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
+        elif raw.strip().lower() in ("/pensar on", "/pensar off", "/pensar ver"):
+            # RAZONAMIENTO EN VIVO del renderer (COGNIA_PENSAR, 2026-08-10).
+            # on|ver -> 'ver' (prosa tenue verde con marca ∴ mientras piensa);
+            # off -> 'oculto' (solo el spinner 'pensando…', el default).
+            # El renderer lo lee a CALL-TIME (aplica sin reiniciar) y JAMAS
+            # streamea bajo COGNIA_REMOTO (contrato del movil, lo garantiza
+            # Renderer._pensar_en_vivo).
+            _sub = raw.strip().lower().split()[1]
+            _val = "ver" if _sub in ("on", "ver") else "oculto"
+            os.environ["COGNIA_PENSAR"] = _val
+            _persist_setting("COGNIA_PENSAR", _val)
+            if _val == "ver":
+                _print_line("[ok_cl]razonamiento en vivo: ON "
+                            "(prosa ∴ tenue verde mientras piensa)[/ok_cl]")
+            else:
+                _print_line("[ok_cl]razonamiento en vivo: OFF "
+                            "(solo el spinner 'pensando…')[/ok_cl]")
         elif raw.startswith("/pensar ") and raw[len("/pensar "):].strip():
             # Razonamiento PROFUNDO. Dos caminos, decididos por el pedido:
             #   PREGUNTA  -> razonador directo (thinking + generacion infinita).
@@ -6985,6 +7070,25 @@ def repl():
                     ejecutar_plan=not _solo_idea))
             _run(raw, _pensar, color="bright_green")
         elif raw.startswith("/pensar"):
+            # /pensar sin pedido: elegir como mostrar el pensamiento. El
+            # razonamiento sale en lineas [detail] (razonador.py:145-157) que
+            # el modo sencillo suprime: 'oculto' = sencillo, 'ver' = avanzado
+            # (no existe un knob mas fino; este es el mecanismo real).
+            from cognia.ux import selector as _selector
+            if _selector.hay_tty():
+                _modo_p = _selector.elegir(
+                    "Pensamiento de /pensar:",
+                    [("oculto", "oculto",
+                      "no muestra el razonamiento (modo sencillo, default)"),
+                     ("ver", "ver",
+                      "muestra el razonamiento en gris (modo avanzado)")],
+                    default=0)
+                if _modo_p is not None:
+                    from cognia.simple_mode import set_ui_mode
+                    _ui = set_ui_mode("sencillo" if _modo_p == "oculto"
+                                      else "avanzado")
+                    # sin [detail]: recien elegido 'oculto' lo suprimiria
+                    _print_line(f"pensamiento: {_modo_p} (modo UI {_ui}, guardado)")
             _print_line("[warn_cl]Uso: /pensar <pedido>  -- pregunta: razona y contesta; "
                         "pedido de crear: suena la idea, la baja a plan y la ejecuta "
                         "(--idea para quedarte en la idea+plan)[/warn_cl]")
