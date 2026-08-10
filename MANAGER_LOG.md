@@ -12381,3 +12381,47 @@ con evidencia de filesystem, estado.json 'completa', bitacora 36 eventos — inc
 el modelo agoto presupuesto sin cierre y el contrato IGUAL sello 2/2 (el sello es evidencia, no
 auto-reporte: eso es exactamente el diseño funcionando).
 Promocion a default: SOLO con gate apareado n>=6 brazos intercalados (pendiente, fase 2).
+
+## 2026-08-09 (tarde) — OBRA: FLOTA MULTIMODAL MINIMA + summoner VRAM-cero + ctx 1M + pipeline LoRA
+Pedido del dueno: dejar la flota en lo basico (cerebro, VLM, whisper, TTS, voces,
+imagen, 3D, orquestacion instrumental SymphonyGen, router), summon bajo demanda
+con VRAM CERO en reposo, contexto max hacia 1M por optimizacion medida, y
+fine-tuning para adaptar el modelo a ESTE agente. Metodo: workflows multi-agente
+(comprension 7 + diseno 3+juez + ola1 10 + ola2 3), 3 olas.
+
+VERIFICADO CON GPU (solido, commiteado a94bd872 + 1dfe64b8):
+- Summoner (cognia/summoner.py, 49 tests): registry rol->backend con 3 tipos
+  (llama por PID, job=worker HTTP matable, presupuesto=reserva). Verificado REAL:
+  ensure('vlm') carga (6.8->11.1GB), convive con el cerebro, liberar por PID
+  (taskkill /PID) SIN matar el cerebro (4/4). Descarga por inactividad, eviccion
+  temporal del cerebro con auto-restore para jobs pesados, invalidacion de los 3
+  caches que mienten. Los modelos ociosos NO ocupan VRAM.
+- Contexto 1M MEDIDO (escalera --fit off + sonda de aguja 33k prefill): KV q8_0
+  llega a 524.288 (15.6GB), q4_0 al MILLON 1.010.176 (sonda 16s, aguja OK,
+  15.8/16.3GB); 786k-q8 CRASHEA en runtime (cargar != funcionar). Tabla en
+  summoner.ESCALERA_CTX; default COGNIA_CTX_MAX=1010176; escalar_ctx relanza a
+  celda medida bajo demanda.
+- VLM real describe imagenes via summoner (:8081). SDXL imagen backend disponible.
+- SymphonyGen stage_one (harmony skeleton) corre en torch 2.11 en GPU (~220 it/s).
+- TripoSR carga (shim rembg + torchmcubes puro-python).
+- Pipeline fine-tuning VALIDADO eslabon por eslabon: hook COGNIA_TRAZAS vuelca la
+  conversacion chatml COMPLETA de bucle_nativo (system/user/assistant+tool_calls/
+  tool + schemas + sampling + etiqueta de calidad con evidencia real); dataset
+  (trazas_a_dataset: messages+tools+cobertura por tool+sello); base Qwen3.5
+  multimodal descargada, transformers 5.14 la soporta (text+vision config),
+  chat_template.jinja bajado.
+- Suite 6508/0, gate e2e camino feliz 5/5 (regresion CERO de la flota), catalogo
+  build_tools_doc byte-identico con flags apagados (opt-in duro por familia).
+
+CORRIDAS LARGAS (pre-registradas, pueden derramar a fase 2):
+- Volumen dataset >=300 (banco_trazas corriendo; piloto de ~40 generado).
+- Entrenamiento QLoRA sobre Qwen3.5-9B multimodal (base 18GB; smoke pendiente de
+  base completa; el componente a entrenar es el text_config, atencion q/k/v/o).
+- SymphonyGen stage_two y TripoSR: pin de transformers del vendor (5.1.0 / 4.35.0)
+  != 5.14 del venv -> venvs de contingencia (COGNIA_SYMPHONYGEN_PY); venv_sym en
+  preparacion. La API create_causal_mask / ViT state_dict cambio en 5.14.
+- OpenVoice v2 (pesos + codigo descargados): verificacion CLI de clonacion.
+- imagen+evict: la logica esta en 49 tests con mocks; falta la corrida GPU real
+  (requiere arrancar el cerebro VIA summoner, no adoptado de flota).
+Prereg del LoRA: PREREG_LORA_QWYTHOS_20260809.md (gates F-1 dataset>=300 / F0
+actividad / F1 apareado n=6 intercalado + nulo, regla KILL).
