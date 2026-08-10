@@ -100,6 +100,39 @@ def verificar_chat_template(tokenizer, base_dir: str | Path) -> tuple[bool, str]
                    % base_dir)
 
 
+def _normalizar_tool_calls(messages: list) -> list:
+    """Adapta los tool_calls del formato OpenAI anidado ({type, function:
+    {name, arguments:str-json}}) al que espera el chat_template de Qwen3.5:
+    APLANADO ({name, arguments:dict}). El template hace `tool_call.name` y
+    `tool_call.arguments|items`, asi que arguments TIENE que ser un mapping.
+
+    POR QUE en el trainer y no en el dataset: el dataset conserva el formato
+    OpenAI canonico (lo que emite el server y consume run_tool); la
+    plantilla del modelo es un detalle del RENDER, no del dato. Devuelve
+    copias — no muta los messages del dataset."""
+    import json as _json
+    out = []
+    for m in messages:
+        tcs = m.get("tool_calls")
+        if not tcs:
+            out.append(m)
+            continue
+        nuevos = []
+        for tc in tcs:
+            fn = tc.get("function", tc)
+            args = fn.get("arguments", {})
+            if isinstance(args, str):
+                try:
+                    args = _json.loads(args)
+                except (ValueError, TypeError):
+                    args = {"_raw": args}
+            nuevos.append({"name": fn.get("name", ""), "arguments": args})
+        nm = dict(m)
+        nm["tool_calls"] = nuevos
+        out.append(nm)
+    return out
+
+
 def codificar_ejemplo(tokenizer, messages: list, tools: list,
                       seq_len: int) -> tuple[tuple[list, list] | None, str]:
     """(input_ids, labels) con masking por spans, o (None, motivo_descarte).
@@ -108,10 +141,19 @@ def codificar_ejemplo(tokenizer, messages: list, tools: list,
     de tool_call), 'plantilla_inconsistente' (el render de un prefijo no es
     prefijo token a token del render completo: enmascarar seria adivinar),
     'sin_labels' (ningun token entrenable tras el shift causal)."""
+    messages = _normalizar_tool_calls(messages)
+
     def _render(msgs, gen):
-        return list(tokenizer.apply_chat_template(
-            msgs, tools=tools or None, tokenize=True,
-            add_generation_prompt=gen))
+        # tokenize=False + tok() y NO apply_chat_template(tokenize=True): en
+        # transformers 5.14 esta ultima devuelve un BatchEncoding (no una
+        # lista de ints), y list() sobre el da 2 (sus claves) en vez de los
+        # tokens — el masking por spans quedaba vacio ('sin_labels' en todo).
+        # El render de texto es fiel (add_special_tokens=False: los
+        # <|im_start|> ya vienen en la plantilla).
+        texto = tokenizer.apply_chat_template(
+            msgs, tools=tools or None, tokenize=False,
+            add_generation_prompt=gen)
+        return tokenizer(texto, add_special_tokens=False)["input_ids"]
 
     ids = _render(messages, False)
     if len(ids) > seq_len:
@@ -187,17 +229,38 @@ def _cargar_modelo_4bit(base_dir: Path):
     LoRA r16/alpha32 SOLO q/k/v/o. Devuelve el modelo peft listo."""
     import torch
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-    from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+    from transformers import AutoConfig, BitsAndBytesConfig
 
     bnb = BitsAndBytesConfig(
         load_in_4bit=True, bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.bfloat16,
         bnb_4bit_use_double_quant=True)
-    modelo = AutoModelForCausalLM.from_pretrained(
-        str(base_dir), quantization_config=bnb, device_map={"": 0})
+
+    # La base de Qwythos es Qwen3.5 MULTIMODAL (Qwen3_5ForConditionalGeneration,
+    # con text_config + vision_config): AutoModelForCausalLM no la instancia.
+    # Se carga por la clase real (AutoModelForImageTextToText) y el LoRA de
+    # tool-calling ataca SOLO la torre de lenguaje (target_modules q/k/v/o del
+    # language_model; la vision se congela — no la estamos adaptando). Fallback
+    # a CausalLM para bases no-multimodales de la misma familia (contingencia
+    # del prereg: entrenar sobre un 7B/3B de texto puro).
+    cfg = AutoConfig.from_pretrained(str(base_dir))
+    es_multimodal = hasattr(cfg, "vision_config") or "ConditionalGeneration" in \
+        (cfg.architectures[0] if cfg.architectures else "")
+    if es_multimodal:
+        from transformers import AutoModelForImageTextToText
+        modelo = AutoModelForImageTextToText.from_pretrained(
+            str(base_dir), quantization_config=bnb, device_map={"": 0})
+    else:
+        from transformers import AutoModelForCausalLM
+        modelo = AutoModelForCausalLM.from_pretrained(
+            str(base_dir), quantization_config=bnb, device_map={"": 0})
     modelo = prepare_model_for_kbit_training(modelo)
     modelo.gradient_checkpointing_enable()
     modelo.config.use_cache = False   # incompatible con checkpointing
+
+    # target_modules por SUFIJO de nombre: peft matchea q_proj/k_proj/... donde
+    # esten (en multimodal viven bajo model.language_model.*.self_attn); la
+    # torre visual no tiene esos nombres, asi que queda intacta sin listarla.
     lora = LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, bias="none",
                       task_type="CAUSAL_LM", target_modules=TARGETS)
     modelo = get_peft_model(modelo, lora)

@@ -97,33 +97,44 @@ def test_creciendo_archivo_estatico(tmp_path):
 # ---------------------------------------------------------------------------
 
 class TokFake:
-    """apply_chat_template minimo: cada mensaje rinde [rol, contenido..., 9]
-    y el generation prompt agrega el token de rol assistant (3). Es
-    prefijo-consistente a proposito (como una plantilla append-only)."""
+    """Fake que imita la API de transformers 5.14: apply_chat_template con
+    tokenize=False devuelve un STRING renderizado, y __call__(texto) tokeniza
+    (add_special_tokens=False) devolviendo {'input_ids': [...]}. El trainer
+    usa ese camino porque en 5.14 apply_chat_template(tokenize=True) devuelve
+    un BatchEncoding, no una lista. Prefijo-consistente a proposito (plantilla
+    append-only): cada token del texto es 1 char, asi el masking por spans es
+    verificable char a char."""
     chat_template = "plantilla-fake"
-    _ROL = {"system": 1, "user": 2, "assistant": 3, "tool": 4}
+    _ROL = {"system": "S", "user": "U", "assistant": "A", "tool": "T"}
 
-    def apply_chat_template(self, msgs, tools=None, tokenize=True,
+    def apply_chat_template(self, msgs, tools=None, tokenize=False,
                             add_generation_prompt=False):
-        ids = [100]
+        partes = ["["]
         if tools:
-            ids += [90] * len(tools)
+            partes.append("g" * len(tools))
         for m in msgs:
-            ids.append(self._ROL[m["role"]])
-            ids += [200 + (ord(c) % 20) for c in str(m.get("content") or "")]
+            partes.append(self._ROL[m["role"]])
+            partes.append(str(m.get("content") or ""))
             for _ in (m.get("tool_calls") or []):
-                ids += [77, 78]
-            ids.append(9)
+                partes.append("cc")
+            partes.append("9")
         if add_generation_prompt:
-            ids.append(3)
-        return ids
+            partes.append("A")
+        texto = "".join(partes)
+        if tokenize:                      # compat: algun caller viejo
+            return self(texto)["input_ids"]
+        return texto
+
+    def __call__(self, texto, add_special_tokens=False):
+        # 1 token por caracter -> ids estables y prefijo-consistentes.
+        return {"input_ids": [ord(c) for c in texto]}
 
 
 class TokInconsistente(TokFake):
     """Simula una plantilla que REESCRIBE turnos assistant viejos (poda de
     <think>): el render de un prefijo deja de ser prefijo del completo."""
 
-    def apply_chat_template(self, msgs, tools=None, tokenize=True,
+    def apply_chat_template(self, msgs, tools=None, tokenize=False,
                             add_generation_prompt=False):
         podados = []
         for i, m in enumerate(msgs):
@@ -359,3 +370,39 @@ def test_solo_plan_corre_sin_gpu():
     assert r.returncode == 0, r.stderr[-500:]
     assert "plan pre-sorteado" in r.stdout
     assert r.stdout.count("NULO") == 2
+
+
+# ---------------------------------------------------------------------------
+# _normalizar_tool_calls — el chat_template de Qwen3.5 espera tool_calls
+# APLANADOS ({name, arguments:dict}), no el formato OpenAI anidado.
+# ---------------------------------------------------------------------------
+
+def test_normalizar_tool_calls_aplana_y_parsea():
+    msgs = [{"role": "assistant", "tool_calls": [
+        {"type": "function", "id": "x",
+         "function": {"name": "escribir_archivo",
+                      "arguments": '{"path": "a.txt", "contenido": "hola"}'}}]}]
+    out = et._normalizar_tool_calls(msgs)
+    tc = out[0]["tool_calls"][0]
+    assert tc == {"name": "escribir_archivo",
+                  "arguments": {"path": "a.txt", "contenido": "hola"}}
+
+
+def test_normalizar_tool_calls_no_muta_el_original():
+    msgs = [{"role": "assistant", "tool_calls": [
+        {"function": {"name": "x", "arguments": '{"a": 1}'}}]}]
+    et._normalizar_tool_calls(msgs)
+    assert msgs[0]["tool_calls"][0]["function"]["arguments"] == '{"a": 1}'
+
+
+def test_normalizar_tool_calls_arguments_roto_no_lanza():
+    msgs = [{"role": "assistant", "tool_calls": [
+        {"function": {"name": "x", "arguments": "no-es-json"}}]}]
+    out = et._normalizar_tool_calls(msgs)
+    assert out[0]["tool_calls"][0]["arguments"] == {"_raw": "no-es-json"}
+
+
+def test_normalizar_mensajes_sin_tool_calls_intactos():
+    msgs = [{"role": "user", "content": "hola"},
+            {"role": "assistant", "content": "chau"}]
+    assert et._normalizar_tool_calls(msgs) == msgs

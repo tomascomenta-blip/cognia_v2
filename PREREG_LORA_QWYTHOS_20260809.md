@@ -143,3 +143,41 @@ venv312\Scripts\python.exe scripts\b4_lora_f0_gate.py --url http://127.0.0.1:809
 
 *(vacío a propósito: se llena en la ola 3, después de correr los gates; los
 JSON quedan en `b4_loras/`.)*
+
+---
+
+## ENMIENDA 1 (2026-08-09) — VEREDICTO del smoke F-2: NO CABE en 16 GB
+
+El gate F-2 (carga 4bit + forward/backward, `--smoke`) corrió con la base real
+descargada. **Resultado: NO_CABE.** El gate pre-registrado cumplió su función:
+cazó el límite ANTES de la corrida de entrenamiento de horas.
+
+**Lo que SÍ funciona (verificado):** el modelo CARGA en 4bit a **7,35 GiB**
+(2,04 B en bf16 + 3,68 B en uint8); el pipeline es correcto — se arreglaron 3
+incompatibilidades reales de la base Qwen3.5 multimodal descubiertas por el
+smoke: (1) es `Qwen3_5ForConditionalGeneration`, no CausalLM →
+`AutoModelForImageTextToText`; (2) su `chat_template` exige tool_calls
+APLANADOS `{name, arguments:dict}`, no el formato OpenAI anidado con arguments
+string → `_normalizar_tool_calls`; (3) en transformers 5.14
+`apply_chat_template(tokenize=True)` devuelve un `BatchEncoding`, no una lista
+→ render por texto + `__call__`. El masking por spans quedó verificado (30
+tests CPU verdes).
+
+**Por qué NO CABE:** la base es MULTIMODAL (vision tower de 281 módulos en
+bf16, residente en GPU aunque el LoRA sea solo de texto) e HÍBRIDA (capas
+gated-delta + full-attention). Aun instalando `flash-linear-attention` +
+`triton-windows` (que sí habilitan el kernel del gated-delta), el
+forward/backward pica a **~29,5 GiB**, casi 2× la GPU, y el pico es CONSTANTE
+entre seq-len 2560/3072/4096/8192 → no es un problema de longitud sino
+estructural del modelo. Detalle en `b4_loras/f2_smoke_qwythos_tools_v1.json`.
+
+**Opciones (decisión del dueño, ninguna tomada en silencio):**
+1. CPU-offload del vision tower + solo `language_model` en GPU (posible, lento).
+2. GPU ≥ 24 GB.
+3. Cambiar el cerebro a un modelo de TEXTO PURO de arquitectura estándar
+   entrenable con QLoRA en 16 GB — pero el adapter resultante NO serviría para
+   el GGUF de Qwythos servido (base distinta; este prereg lo prohíbe). Sería un
+   cerebro nuevo, no una adaptación de Qwythos.
+
+La CAPTURA de trazas y el DATASET quedan operativos y acumulando: si mañana hay
+GPU o se cambia de cerebro, el material de entrenamiento ya existe.
