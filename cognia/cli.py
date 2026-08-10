@@ -7849,6 +7849,12 @@ def repl():
                                 "(no existe, es binario o falta rich)[/warn_cl]")
                 else:
                     _cat_n = _cat_total(_cat_ruta) or 0
+                    # clamp de la cabecera: preview_archivo ya clampa el rango
+                    # internamente (desde > total muestra la cola); la cabecera
+                    # decia el rango PEDIDO ('lineas 5000-...' de un archivo de
+                    # 200) y mentia (revision 2026-08-10)
+                    if _cat_n and _cat_desde > _cat_n:
+                        _cat_desde = max(1, _cat_n - _cat_max + 1)
                     _cat_hasta = min(_cat_n, _cat_desde + _cat_max - 1)
                     # cabecera estilo ToolFin: marca + verbo + objeto + detalle
                     _print_line(f"[ok_cl]⏺[/ok_cl] cat [mod]{_escape(_cat_ruta)}[/mod] "
