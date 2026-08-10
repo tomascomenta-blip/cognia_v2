@@ -12473,3 +12473,22 @@ el completer. Podado explicito: atuin/lazygit-undo/tldr/json-explorer (M/L).
 Verificacion: suite 6659/0 (+151 tests de la noche); gate e2e 5/5 (fallos
 intermedios DISPERSOS con repro aislado limpio = ruido de sampling, protocolo
 del gate flaky); cli importa; capturas antes/despues en el scratchpad.
+
+## 2026-08-10 (nocturna, cierre 03:00) — REVISION ADVERSARIAL aplicada
+La revision del diff nocturno (26 agentes: 3 lentes + 22 refutadores) confirmo
+22/24 hallazgos CON REPRO. Todos los altas y medias corregidos (f3a474d8 +
+bb8cf99e), destacando:
+- SEGURIDAD: /lazo ejecutaba fences ```python de respuestas de chat con shell
+  real (el sentinel clasifica por head, no mira el .py). Ahora el sello del
+  codigo es SOLO sintactico; ejecucion = incierto declarado hasta el sandbox
+  (fase 2). Test contrafactual: espia que explota si el lazo toca 'ejecutar'.
+- El restore del doble-streaming vivia en el finally EQUIVOCADO (el primer
+  chat exitoso dejaba mudo el streaming del agente): finally en el try dueno.
+- Falsos positivos del lazo (rangos de anios, miles/decimales es, redondeo en
+  prosa, separador ambiguo con variantes, regex acotada) + huecos del
+  keep-best (revision que borra claims -> original; disculpa con claim
+  corregido -> revision valida) + selector dentro de status + tope O(n^2) del
+  diff. 8 tests de regresion.
+Suite final: 6667/0. Lo que queda anotado sin arreglar (bajas de pulido):
+contar_lineas trunca el total en >2MB, /cat sin comillas en rutas con
+espacios, keepends del fallback plano del diff — declaradas, no urgentes.
