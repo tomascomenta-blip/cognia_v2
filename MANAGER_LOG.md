@@ -12343,3 +12343,41 @@ Verificado: tool-calling nativo a mano, /hacer 1/1 via=agente_chat, gate 5/5 (un
 por fallo DISPERSO del task json que paso al reproducir y en re-run: ruido, no regresion),
 doctor "Todo en orden" 68 tok/s, suite 6146/0, wheel en venv limpio + instalado desde PyPI.
 Volver a gpt-oss: cognia flota arrancar pensar.
+
+## 2026-08-09 — OBRA: modo HORIZONTE (long task horizon) — opt-in COGNIA_HORIZONTE=1
+Investigacion previa con workflow multi-agente (11 lectores/disenadores) sobre el CODIGO real de
+BigBang-v1 (arnes general-agent + context policy), AMAP-ML/LongHorizon-Harness (fresh-context,
+durable verified state), PRO-LONG (memoria programatica en log unico, 97.4% ARC-AGI-3), HiAgent
+(memoria jerarquica por subgoals) y plan-and-act (planner/executor). Sintesis del juez: base MVP
++ injertos de riesgo; planner LLM DESCARTADO (eslabon debil del 9B, A6).
+
+Entregado:
+- cognia/agent/estado_tarea.py — estado durable por tarea (~/.cognia/data/tareas/<id>/estado.json,
+  escritura atomica tmp+os.replace); hitos SOLO con veredicto GoalContract (evidencia, no auto-reporte).
+- cognia/agent/bitacora.py — bitacora JSONL append-only por tarea, sink del bus tipado (ux/events);
+  el agente la CONSULTA (grep del arnes), jamas la escribe (separacion PRO-LONG).
+- cognia/agent/horizonte.py — outer loop de ciclos con contexto FRESCO sellados por GoalContract con
+  criterios CONGELADOS de la letra original (anti bug A6); politica de relevo por motivo del corte
+  (infra no releva; estancamiento SI: el contexto fresco es la cura) + progreso monotono
+  (satisfied_count debe crecer o corta). NO toca bucle_nativo: lo envuelve (bucle= inyectable, tests sin GPU).
+- 2 tools nuevas (tarea_estado, bitacora_buscar), anunciadas SOLO en modo horizonte (techo de tools A5).
+- /hacer retomar (gateado por flag): relanza la ultima incompleta o en_curso huerfana (crash);
+  el estado viejo se sella 'retomada' (sin bucle de re-ejecucion).
+- goal_contract.py: saneo harmony SIN flag en derive_criteria_from_task (bloques <think> CON contenido
+  + tokens <|...|>) — causa raiz A6; beneficia al epilogo actual.
+- effort_levels.py: clave ciclos_horizonte (1/2/2/3); override COGNIA_HORIZONTE_CICLOS (techo 3).
+
+Revision adversarial post-implementacion (workflow 21 agentes, 3 lentes + refutadores): 17 hallazgos
+confirmados con repro -> TODOS corregidos (colision '|' en bitacora_buscar: patron regex va ULTIMO;
+contenido de <think> contaminaba criterios; retomar no cerraba el estado viejo; sink huerfano en el
+except de P1; cola del resumen decapitada; alias mutable de criterios congelados; tools anunciadas
+fuera del modo; en_curso huerfana no retomable; trace compartido mataba el ciclo fresco; ReDoS acotado;
+poda protege la activa). Limitacion conocida documentada: el sello resuelve rutas relativas contra el
+cwd del proceso (igual que el epilogo pre-existente); el corte monotono acota el costo a 1 relevo.
+
+Verificacion: 53 tests nuevos; suite 6191 passed / 0 failed; gate e2e camino feliz 5/5 flag OFF
+(1 flake disperso re-corrido segun protocolo); corrida REAL flag ON contra Qwythos-9B: contrato 2/2
+con evidencia de filesystem, estado.json 'completa', bitacora 36 eventos — incluida una corrida donde
+el modelo agoto presupuesto sin cierre y el contrato IGUAL sello 2/2 (el sello es evidencia, no
+auto-reporte: eso es exactamente el diseño funcionando).
+Promocion a default: SOLO con gate apareado n>=6 brazos intercalados (pendiente, fase 2).

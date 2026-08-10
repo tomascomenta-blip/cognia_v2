@@ -241,6 +241,20 @@ def derive_criteria_from_task(task: str, py_exe: Optional[str] = None) -> list:
     - cualquier otra ruta mencionada -> file_exists (necesario, no suficiente);
     - tope _MAX_DERIVED criterios, dedupe por ruta.
     """
+    # Saneo harmony (A6, causa raiz medida 2026-08-09): cuando la letra llega
+    # contaminada con tokens de canal de un razonador (<|channel|>analysis...,
+    # <|end|>, bloques <think>), el derivador veia "keywords" que no son de la
+    # tarea y armaba criterios basura (evidencia baseline de la obra A6, la
+    # misma que enterro la SEGUNDA PASADA). Se limpia SIEMPRE, sin flag: sobre
+    # una tarea limpia es un no-op y el test de no-regresion lo cristaliza.
+    # Los bloques <think> se borran CON su contenido: el razonamiento filtrado
+    # no es la letra de la tarea y sus keywords ('tests', rutas hipoteticas)
+    # derivaban criterios que nadie pidio (hallazgo de la revision 2026-08-09:
+    # borrar solo las etiquetas dejaba el veneno adentro). Un </think> huerfano
+    # (bloque truncado) se limpia como etiqueta suelta.
+    task = _re.sub(r"<think>.*?</think>", " ", task or "", flags=_re.DOTALL)
+    task = _re.sub(r"<\|[^|>]{1,40}\|>", " ", task)
+    task = _re.sub(r"</?think>", " ", task)
     specs = []
     seen = set()
     # WHY quitar las rutas antes de buscar intencion de tests: la palabra
