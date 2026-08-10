@@ -704,6 +704,16 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
     try:
         from cognia.ux import selector as _selector
         if _selector.hay_tty():
+            # Parar el spinner del renderer ANTES de abrir la Application:
+            # este confirm es el ctx['confirm'] que el sentinel invoca DENTRO
+            # de una tool en ejecucion (status girando) — prompt_toolkit y
+            # rich status a la vez corrompen el terminal (revision 2026-08-10).
+            try:
+                from cognia.ux import renderer as _rmod
+                if _rmod._renderer is not None:
+                    _rmod._renderer._parar_status()
+            except Exception:
+                pass
             return _selector.confirmar(
                 f"[permiso] {detalle[:80]} — ejecutar?", default=False)
     except Exception:
@@ -9312,6 +9322,20 @@ def repl():
                                 except Exception:
                                     pass
                                 print()
+                            finally:
+                                # Restaurar el streaming del renderer SIEMPRE:
+                                # este finally pertenece al MISMO try donde se
+                                # activo suprimir_stream(True). La revision
+                                # adversarial cazo que el restore anterior
+                                # vivia en el finally del camino ARTICULADO
+                                # (solo corria si el stream fallaba) y el
+                                # primer turno exitoso dejaba mudo el
+                                # streaming del agente para toda la sesion.
+                                try:
+                                    if _supr_stream is not None:
+                                        _supr_stream(False)
+                                except Exception:
+                                    pass
                 except Exception as _e_fast:
                     # ESTE es el except caro: envuelve TODO el fast-path. Cuando
                     # salta, el turno se va al camino articulado -> Ollama (que
@@ -9340,15 +9364,6 @@ def repl():
                                         result = responder_articulado(ai, raw)
                             finally:
                                 logging.root.removeFilter(flt)
-                                # restaurar el streaming del renderer SIEMPRE
-                                # (un fallo a mitad de stream no puede dejar
-                                # TokenTexto suprimido para el resto de la
-                                # sesion)
-                                try:
-                                    if _supr_stream is not None:
-                                        _supr_stream(False)
-                                except Exception:
-                                    pass
                             elapsed = time.time() - t0
                             if _debug_mode:
                                 txt = captured.getvalue().strip()

@@ -88,6 +88,13 @@ def _render_reemplazo(menos: list, mas: list) -> list:
     par = min(len(menos), len(mas))
     ops_por_par: list = []
     for k in range(par):
+        # Tope de longitud (revision 2026-08-10): ratio() a nivel de char con
+        # autojunk=False es O(n^2) — un par de lineas minificadas de 100KB
+        # colgaria el pintado. Lineas largas: sin refinamiento intra (el
+        # diff de linea completa ya informa).
+        if len(menos[k]) > 500 or len(mas[k]) > 500:
+            ops_por_par.append((None, None, None))
+            continue
         # El umbral se mide a nivel de CHAR: a nivel de token los espacios
         # (que casi siempre coinciden) inflan el ratio y lineas disjuntas
         # pasaban la puerta con todo marcado (ruido puro).

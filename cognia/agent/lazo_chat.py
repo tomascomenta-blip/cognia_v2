@@ -49,6 +49,8 @@ MOTIVOS = frozenset({
     "revisado_ok",                # hubo reprobados y la revision los corrigio
     "revision_peor_keep_best",    # la revision reprueba >= que el original
     "revision_negada_keep_best",  # el modelo se nego o no cambio nada
+    "revision_sin_sello_keep_best",  # la revision borro los claims: sin
+                                     # sello de mejora, el original manda
     "infra",                      # registry roto / sin chat_fn / chat caido
 })
 
@@ -95,7 +97,9 @@ def _run_tool_real():
 # ── extraccion de claims (determinista PRIMERO) ────────────────────────
 # Aritmetica inline 'expr = valor' (regex del plan A2). El lhs arranca en un
 # digito para no casar 'x = 5' de un bloque de codigo o una asignacion.
-_RE_ARITMETICA = re.compile(r"(\d[\d\s+*/().,-]{2,})\s*=\s*(-?[\d.,]+)")
+# Tope {2,80}: la clase abierta sufria backtracking cuadratico sobre runs
+# largos de digitos sin '=' (3.9s medidos en la revision 2026-08-10).
+_RE_ARITMETICA = re.compile(r"(\d[\d\s+*/().,-]{2,80})\s*=\s*(-?[\d.,]+)")
 
 # Fences de codigo python; el resto de fences se REMUEVE antes del scan
 # aritmetico para no leer 'igualdades' dentro de codigo o logs.
@@ -133,6 +137,11 @@ def _recortar_lhs(lhs: str) -> str:
         cand = cand.strip().strip(".,")
         if not cand or not re.search(r"[+*/-]", cand):
             continue
+        # '2020-2024' o '9-17' con nombre de rango: un RANGO no es una resta.
+        # (revision 2026-08-10: 'el proyecto duro de 2020-2024 = 4 anios' se
+        # evaluaba como -4 y reprobaba prosa correcta)
+        if re.fullmatch(r"(19|20)\d{2}\s*-\s*(19|20)\d{2}", cand):
+            continue
         try:
             arbol = ast.parse(cand, mode="eval").body
         except SyntaxError:
@@ -154,9 +163,48 @@ def _num(s: str) -> float:
         else:                               # 1,234.56 (ingles)
             s = s.replace(",", "")
     elif "," in s:
-        ent, _, dec = s.partition(",")
-        s = (ent + dec) if len(dec) == 3 else (ent + "." + dec)
+        # Producto en espanol: la coma es DECIMAL por defecto. Millar SOLO
+        # con el patron ingles claro [1-9]dd(,ddd)+ — '0,500' es 0.5, no 500
+        # (revision 2026-08-10: la heuristica 'coma con 3 decimales = millar'
+        # rompia decimales legitimos).
+        if re.fullmatch(r"[1-9]\d{0,2}(,\d{3})+", s):
+            s = s.replace(",", "")
+        else:
+            s = s.replace(",", ".", 1) if s.count(",") == 1 else s.replace(",", "")
+    elif "." in s:
+        # Millar espanol con PUNTO ('1.000 + 500 = 1.500'): solo el patron
+        # claro [1-9]dd(.ddd)+; '3.14' y '0.500' siguen siendo decimales.
+        if re.fullmatch(r"[1-9]\d{0,2}(\.\d{3})+", s):
+            s = s.replace(".", "")
     return float(s)
+
+
+def _variantes_num(s: str) -> set:
+    """Interpretaciones plausibles de un numero es/en. '3.142' es ambiguo
+    (3142 con millar espanol o 3.142 decimal): el claim pasa si el valor real
+    coincide con CUALQUIERA — un separador ambiguo jamas reprueba prosa sana
+    (revision 2026-08-10)."""
+    s = s.strip().rstrip(".,;:").replace(" ", "")
+    vs = set()
+    try:
+        vs.add(_num(s))
+    except ValueError:
+        pass
+    try:
+        vs.add(float(s.replace(",", ".")))
+    except ValueError:
+        pass
+    return vs
+
+
+def _norm_rhs(s: str) -> str:
+    """El rhs normalizado a punto decimal (para contar decimales mostrados)."""
+    s = s.strip().rstrip(".,;:")
+    try:
+        v = _num(s)
+    except ValueError:
+        return s
+    return repr(v) if v != int(v) else str(int(v))
 
 
 def extraer_claims(respuesta: str, chat_fn=None) -> list:
@@ -243,16 +291,36 @@ def verificar_claim(c: Claim, registry) -> Veredicto:
 
     if c.tipo == "computo":
         lhs, _, rhs = c.expr.rpartition("=")
-        out = rt("calcular", lhs.strip(), ctx)
+        # Normalizar CADA numero del lhs con _num ('1.000 + 500' -> '1000+500',
+        # '3,14*2' -> '3.14*2'): el eval de calcular es Python y leia '1.000'
+        # como 1.0 (revision 2026-08-10, asimetria lhs/rhs).
+        def _norm_tok(m):
+            try:
+                v = _num(m.group(0))
+            except ValueError:
+                return m.group(0)
+            return repr(int(v)) if v == int(v) else repr(v)
+        lhs_norm = re.sub(r"\d[\d.,]*", _norm_tok, lhs.strip())
+        out = rt("calcular", lhs_norm, ctx)
         val = None if "ERROR" in out[:120] else _parse_calcular(out)
         if val is None:
             # calcular no dio veredicto (expr rara): incierto, NO reprobado.
             return Veredicto(c, None, out, "calcular")
-        try:
-            claimed = _num(rhs)
-        except ValueError:
+        # Tolerancia de REDONDEO en prosa ('22/7 = 3.14' es sano) sobre CADA
+        # interpretacion plausible del rhs ('3.142': millar es o decimal —
+        # un separador ambiguo jamas reprueba prosa sana). Revision 2026-08-10.
+        variantes = _variantes_num(rhs)
+        if not variantes:
             return Veredicto(c, None, out, "calcular")
-        ok = abs(val - claimed) <= 1e-9 * max(1.0, abs(val))
+        ok = False
+        for claimed in variantes:
+            rhs_n = repr(claimed) if claimed != int(claimed) else str(int(claimed))
+            dec = len(rhs_n.rsplit(".", 1)[-1]) if "." in rhs_n else 0
+            if (abs(val - claimed) <= 1e-9 * max(1.0, abs(val))
+                    or (dec > 0 and abs(round(val, dec) - claimed)
+                        <= 1e-9 * max(1.0, abs(claimed)))):
+                ok = True
+                break
         return Veredicto(c, ok, out, "calcular")
 
     if c.tipo == "codigo":
@@ -266,23 +334,18 @@ def verificar_claim(c: Claim, registry) -> Veredicto:
             out = rt("py_validar", ruta, ctx)
             if "ERROR" in out:
                 return Veredicto(c, False, out, "py_validar")
-            # Sintaxis OK -> ejecutar en sandbox con timeout corto (plan A2).
-            # Guard barato: un snippet con input() colgaria hasta el timeout y
-            # uno con '...' es un placeholder ilustrativo, no un programa.
-            if "input(" in c.expr or "..." in c.expr:
-                return Veredicto(c, True, out + " (no ejecutado: snippet "
-                                 "interactivo o con placeholder)", "py_validar")
-            out2 = rt("ejecutar", f'"{sys.executable}" "{ruta}" | timeout=10',
-                      ctx)
-            if "(exit" in out2[:40] or "ERROR" in out2[:120]:
-                # Import/Name ausentes suelen ser contexto ilustrativo del
-                # chat (libreria no instalada, variable 'de antes'), no un
-                # claim falso: incierto, se declara y NO dispara revision.
-                if ("ModuleNotFoundError" in out2 or "ImportError" in out2
-                        or "NameError" in out2):
-                    return Veredicto(c, None, out2, "ejecutar")
-                return Veredicto(c, False, out2, "ejecutar")
-            return Veredicto(c, True, out2, "ejecutar")
+            # SEGURIDAD (revision adversarial 2026-08-10, regla 9 del
+            # CLAUDE.md): un fence ilustrativo del chat JAMAS se ejecuta sin
+            # allowlist de imports + sandbox REAL. 'ejecutar' es shell de
+            # verdad y el sentinel clasifica por el head del comando
+            # (python -> ALLOW) sin mirar el contenido del .py: un fence con
+            # shutil.rmtree('build') se ejecutaria con los permisos del
+            # usuario solo para "verificarlo". Hasta tener el sandbox
+            # (fase 2), el sello del codigo es SOLO sintactico y la ejecucion
+            # queda INCIERTA declarada — incierto no dispara revision.
+            return Veredicto(c, None, out + " (sintaxis OK; no ejecutado: "
+                             "la ejecucion de fences requiere sandbox, "
+                             "fase 2)", "py_validar")
         finally:
             try:
                 os.unlink(ruta)
@@ -292,11 +355,14 @@ def verificar_claim(c: Claim, registry) -> Veredicto:
     # factual: las tools aportan EVIDENCIA cruda; el veredicto true/false
     # exigiria juzgar semantica = LLM-juez, prohibido (P8). ok=None SIEMPRE:
     # incierto declarado, jamas dispara revision.
-    for tool, vacio in (("recordar", "sin recuerdos relevantes"),
-                        ("kg_buscar", "sin hechos"),
-                        ("buscar", "sin resultados")):
+    # Marcadores de vacio REALES de cada tool (verificados contra tools.py;
+    # 'sin resultados' no existia y toda busqueda vacia parecia evidencia).
+    for tool, vacios in (("recordar", ("sin recuerdos relevantes",)),
+                         ("kg_buscar", ("sin hechos",)),
+                         ("buscar", ("sin coincidencias",
+                                     "nada en los archivos"))):
         out = rt(tool, c.expr, ctx)
-        if "ERROR" not in out[:120] and vacio not in out:
+        if "ERROR" not in out[:120] and not any(v in out for v in vacios):
             return Veredicto(c, None, out, tool)
     return Veredicto(c, None, "sin evidencia en memoria/kg/repo", "buscar")
 
@@ -386,21 +452,32 @@ def lazo_respuesta(pregunta: str, respuesta: str, chat_fn, registry,
                     or "").strip()
     except Exception:
         return ResultadoLazo(respuesta, veredictos, 1, "infra")
-    if (not revision or _es_negativa(revision)
-            or revision == respuesta.strip()):
-        # Negativa, vacio o texto identico: el modelo no tiene mas que dar.
-        # Keep-best con motivo declarado (jamas re-juzgar lo identico: seria
-        # muestrear el ruido del verificador).
+    if not revision or revision == respuesta.strip():
+        # Vacio o texto identico: el modelo no tiene mas que dar. Keep-best
+        # con motivo declarado (jamas re-juzgar lo identico: seria muestrear
+        # el ruido del verificador).
         return ResultadoLazo(respuesta, veredictos, 1,
                              "revision_negada_keep_best")
 
-    # Re-verificar SOLO lo que reprobo: se re-extraen los claims de la
-    # revision y se verifican los de los MISMOS tipos que fallaron (el claim
-    # corregido ya no es textualmente el original; anclar por tipo acota el
-    # costo sin perder el contrafactual).
+    # Re-extraer ANTES de clasificar negativa: 'Lo siento, me equivoque:
+    # 12*12 = 144...' ES una revision legitima con claim corregido — la
+    # disculpa inicial no la invalida (revision adversarial 2026-08-10).
     tipos_rep = {v.claim.tipo for v in reprobados}
+    claims_rev = [c for c in extraer_claims(revision) if c.tipo in tipos_rep]
+    if _es_negativa(revision) and not claims_rev:
+        return ResultadoLazo(respuesta, veredictos, 1,
+                             "revision_negada_keep_best")
+    if not claims_rev:
+        # La revision BORRO los claims verificables: sin sello de mejora no
+        # hay forma de probar que no empeoro (el hueco del keep-best cazado
+        # por la revision: el modelo reformulaba prosa correcta marcada
+        # falsa por el extractor y la version corrompida se entregaba como
+        # 'revisado_ok'). Original intacto, motivo declarado.
+        return ResultadoLazo(respuesta, veredictos, 1,
+                             "revision_sin_sello_keep_best")
+
     verds_rev = []
-    for c in [c for c in extraer_claims(revision) if c.tipo in tipos_rep]:
+    for c in claims_rev:
         v = verificar_claim(c, registry)
         verds_rev.append(v)
         _emitir(on_evento, v)

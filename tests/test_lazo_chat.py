@@ -180,3 +180,113 @@ def test_motivos_dentro_del_contrato():
     res = lazo_respuesta("p", "2+2=5", None, {})
     assert res.motivo == "infra"
     assert res.final == "2+2=5"
+
+
+# ---------------------------------------------------------------------------
+# Regresiones de la revision adversarial 2026-08-10 (24 hallazgos, 22
+# confirmados con repro): cada fix de lazo_chat queda clavado aqui.
+# ---------------------------------------------------------------------------
+
+def _registry_espia(prohibidas=()):
+    """run_tool falso que REGISTRA llamadas y explota si toca una prohibida."""
+    llamadas = []
+
+    def rt(tool, args, ctx):
+        assert tool not in prohibidas, f"tool prohibida invocada: {tool}"
+        llamadas.append((tool, args))
+        if tool == "py_validar":
+            return "RESULTADO py_validar: OK sintaxis valida"
+        if tool == "calcular":
+            import ast as _ast
+            try:
+                return f"RESULTADO calcular: {args} = " + str(
+                    eval(compile(_ast.parse(args, mode='eval'), '<t>', 'eval')))
+            except Exception as e:
+                return f"RESULTADO calcular ERROR: {e}"
+        return "RESULTADO " + tool + ": sin coincidencias"
+    rt.llamadas = llamadas
+    return rt
+
+
+def test_seguridad_fence_jamas_se_ejecuta(monkeypatch):
+    # Regla 9 del CLAUDE.md: sin sandbox real, un fence NUNCA pasa por
+    # 'ejecutar'. El espia explota si el lazo lo intenta.
+    import cognia.agent.lazo_chat as lz
+    rt = _registry_espia(prohibidas=("ejecutar",))
+    monkeypatch.setattr(lz, "_run_tool_real", lambda: rt)
+    c = lz.Claim(texto="```python\nimport shutil\nshutil.rmtree('x')\n```",
+                 tipo="codigo", expr="import shutil\nshutil.rmtree('x')")
+    v = lz.verificar_claim(c, None)
+    assert v.ok is None                       # sintaxis OK pero NO ejecutado
+    assert "no ejecutado" in v.evidencia
+    assert all(t != "ejecutar" for t, _ in rt.llamadas)
+
+
+def test_rango_de_anios_no_es_claim():
+    import cognia.agent.lazo_chat as lz
+    claims = lz.extraer_claims("El proyecto duro de 2020-2024 = 4 anos")
+    assert claims == []
+
+
+def test_miles_espanol_no_reprueba(monkeypatch):
+    import cognia.agent.lazo_chat as lz
+    rt = _registry_espia()
+    monkeypatch.setattr(lz, "_run_tool_real", lambda: rt)
+    claims = lz.extraer_claims("En total, 1.000 + 500 = 1.500 unidades")
+    assert len(claims) == 1
+    v = lz.verificar_claim(claims[0], None)
+    assert v.ok is True, v.evidencia
+
+
+def test_redondeo_en_prosa_no_reprueba(monkeypatch):
+    import cognia.agent.lazo_chat as lz
+    rt = _registry_espia()
+    monkeypatch.setattr(lz, "_run_tool_real", lambda: rt)
+    claims = lz.extraer_claims("Aproximadamente 22/7 = 3.14 en la practica")
+    assert len(claims) == 1
+    v = lz.verificar_claim(claims[0], None)
+    assert v.ok is True, v.evidencia
+
+
+def test_num_decimal_espanol():
+    from cognia.agent.lazo_chat import _num
+    assert _num("0,500") == 0.5               # antes: 500 (heuristica rota)
+    assert _num("3,14") == 3.14
+    assert _num("1,000") == 1000              # patron ingles claro de miles
+    assert _num("1.234,56") == 1234.56
+
+
+def test_negativa_con_claim_corregido_es_revision(monkeypatch):
+    # 'Lo siento, me equivoque: 12*12 = 144' ES una revision valida.
+    import cognia.agent.lazo_chat as lz
+    rt = _registry_espia()
+    monkeypatch.setattr(lz, "_run_tool_real", lambda: rt)
+    res = lz.lazo_respuesta(
+        "cuanto es 12*12?", "El resultado es 12*12 = 169.",
+        chat_fn=lambda p: "Lo siento, me equivoque: 12*12 = 144.",
+        registry=None)
+    assert res.motivo == "revisado_ok"
+    assert "144" in res.final
+
+
+def test_revision_que_borra_claims_keep_best(monkeypatch):
+    # La revision reformula SIN claims verificables -> original intacto.
+    import cognia.agent.lazo_chat as lz
+    rt = _registry_espia()
+    monkeypatch.setattr(lz, "_run_tool_real", lambda: rt)
+    original = "El resultado es 12*12 = 169."
+    res = lz.lazo_respuesta(
+        "cuanto es 12*12?", original,
+        chat_fn=lambda p: "El resultado es ciento cuarenta y cuatro.",
+        registry=None)
+    assert res.motivo == "revision_sin_sello_keep_best"
+    assert res.final == original
+
+
+def test_regex_aritmetica_acotada_rapida():
+    import time as _t
+    import cognia.agent.lazo_chat as lz
+    hostil = "1" + "2, " * 4000 + "sin igual al final"
+    t0 = _t.time()
+    lz.extraer_claims(hostil)
+    assert _t.time() - t0 < 1.0               # antes: 3.9s de backtracking
