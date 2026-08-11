@@ -12504,3 +12504,17 @@ espacios, keepends del fallback plano del diff — declaradas, no urgentes.
   gate camino feliz 5/5, smoke real 3/3 sobre 405k chars (~101k tok, 3x ventana) con
   ventana pico raiz 5-6% de n_ctx; via rlm_llamar verificada en vivo (hijos 11.1%).
 - Commits: 72e09c02 (bucle), 54d836c4 (modo RLM). Pusheados a origin/main.
+
+## 2026-08-11 (2) — Motor de workflows + adaptacion de modelos (worker)
+- `cognia/agent/workflows.py`: agente() estructurado (response_format verificado en vivo
+  + _valida + retry con error real), PresupuestoTokens transversal, corrida() con journal
+  y resume por hash, paralelo(cap=2) y pipeline sin barreras. flows.py: paralelo por
+  niveles opt-in, cache/resume, sub-flujos prof 2. summoner: rol worker (Qwen3-4B en
+  :8082, vram 5800 medida, anti-ajeno, candado por rol). rlm: hijos al worker con
+  degradacion honesta, trozo derivado del n_ctx del destino, hijo_max_tokens 8192.
+- Revision adversarial: 21 hallazgos confirmados con repro, todos aplicados con test
+  contrafactual (destacados: timeout cosmetico de paralelo, TOCTOU del run_id,
+  trozo de 60k que no cabia en la ventana del worker).
+- Verificacion: suite 6768/0, gate feliz 5/5, smoke workflows EN VIVO 4/4 (worker frio
+  via summoner, paralelo cerebro+worker solapado, RLM 2/2 con hijo en :8082).
+- Commits 07ec5768..3c172fb8, pusheados a origin/main.
