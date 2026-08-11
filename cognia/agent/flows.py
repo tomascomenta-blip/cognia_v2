@@ -23,6 +23,7 @@ natural) se apoya en el planner existente (from_plan) — cero LLM nuevo acá.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import time as _time
 from typing import Callable
@@ -81,58 +82,141 @@ def _interpolar(args: str, salidas: dict) -> str:
     return _INTERP.sub(lambda m: str(salidas.get(m.group(1), ""))[:2000], args or "")
 
 
+def _clave_cache(tool: str, args: str) -> str:
+    """Clave de cache de un nodo: sha256 de tool + args YA interpolados.
+    El separador NUL evita colisiones por concatenacion ambigua (tool 'ab'
+    con args 'c' vs tool 'a' con args 'bc')."""
+    return hashlib.sha256(f"{tool}\x00{args}".encode("utf-8")).hexdigest()
+
+
+def _correr_nodo(n: dict, args: str, ctx: dict, run_tool, log) -> tuple:
+    """Corre UN nodo (reintentos + timeout best-effort). Devuelve (res, ok).
+    Extraido de ejecutar() sin cambiar semantica para que el despacho
+    paralelo reuse exactamente el mismo camino que el secuencial."""
+    nid = n["id"]
+    intentos = max(1, int(n.get("reintentos", 0)) + 1)
+    timeout = n.get("timeout_s")
+    res, ok = "", False
+    for k in range(intentos):
+        t0 = _time.time()
+        try:
+            res = run_tool(n["tool"], args, ctx)
+        except Exception as exc:
+            res = f"RESULTADO {n['tool']} ERROR: {exc}"
+        dt = _time.time() - t0
+        if timeout is not None and dt > float(timeout):
+            res = (f"RESULTADO {n['tool']} ERROR: timeout "
+                   f"({dt:.1f}s > {timeout}s)")
+        ok = not re.search(r"\bERROR\b", res[:120])
+        if log:
+            log(f"[flujo] {nid} ({n['tool']}) intento {k+1}/{intentos}: "
+                f"{'ok' if ok else 'error'}")
+        if ok:
+            break
+    return res, ok
+
+
 def ejecutar(flujo: dict, ctx: dict, run_tool: Callable[[str, str, dict], str],
              tool_existe: Callable[[str], bool] | None = None,
-             log: Callable[[str], None] | None = None) -> dict:
+             log: Callable[[str], None] | None = None,
+             paralelo: bool = False, cap: int = 2,
+             cache: dict | None = None) -> dict:
     """Ejecuta el flujo en orden topológico. run_tool(name,args,ctx)->str es
     el dispatcher del registro (cognia.agent.tools.run_tool). Devuelve
     {"salidas": {id: resultado}, "orden": [...], "errores": {id: msg},
-     "saltados": [ids]}.
+     "saltados": [ids], "cacheados": [ids]}.
 
     Por nodo: interpola {{deps}} en args, aplica `saltar_si` (si el texto
     aparece en alguna salida previa → se salta), reintenta `reintentos` veces
     y respeta `timeout_s` (best-effort por wall-clock; el tool corre igual,
     pero se marca timeout si excede). Un nodo que falla NO frena el flujo:
-    se registra y sus dependientes reciben su error interpolado."""
+    se registra y sus dependientes reciben su error interpolado.
+
+    paralelo=True (opt-in): despacho por NIVELES topológicos — un nivel son
+    los nodos cuyas dependencias (padres) ya terminaron; los hermanos del
+    mismo nivel corren juntos en un ThreadPoolExecutor(cap). cap default 2:
+    la física medida de esta máquina es que un solo slot de GPU serializa y
+    2-3 hilos solo solapan I/O, más no compra nada.
+    DESVÍO SEMÁNTICO (por esto es opt-in y el default queda intacto): con
+    paralelo, `saltar_si` y la interpolación {{id}} ven las salidas de los
+    NIVELES previos COMPLETOS, nunca las de hermanos del mismo nivel. En
+    secuencial un hermano posterior sí veía al anterior (el orden de Kahn los
+    serializaba); en paralelo ese orden no existe, así que un `saltar_si` que
+    dependía de un hermano deja de dispararse y un {{hermano}} interpola "".
+
+    cache (opcional): dict {clave: salida} con clave = sha256(tool + args ya
+    interpolados). Un nodo cuya clave está en el cache con salida ok se reusa
+    sin ejecutar (queda anotado en "cacheados"); las salidas con ERROR no se
+    guardan ni se reusan (un error viejo no debe enmascarar un reintento).
+    El dict se MUTA con las salidas ok nuevas: el llamador decide si persiste."""
     orden = validar(flujo, tool_existe)
     by_id = {n["id"]: n for n in flujo["nodos"]}
     salidas: dict[str, str] = {}
     errores: dict[str, str] = {}
     saltados: list = []
-    for nid in orden:
+    cacheados: list = []
+
+    def _paso(nid: str, vista: dict) -> tuple:
+        """Procesa un nodo mirando SOLO `vista` (las salidas que le tocan
+        ver: todas las previas en secuencial, los niveles completos en
+        paralelo). Devuelve (res, ok, estado) con estado en
+        {'ok','error','saltado','cacheado'}."""
         n = by_id[nid]
         cond = (n.get("saltar_si") or "").strip()
-        if cond and any(cond in v for v in salidas.values()):
-            saltados.append(nid)
-            salidas[nid] = f"(saltado: '{cond}')"
+        if cond and any(cond in v for v in vista.values()):
             if log:
                 log(f"[flujo] {nid} saltado (saltar_si '{cond}')")
-            continue
-        args = _interpolar(n.get("args", ""), salidas)
-        intentos = max(1, int(n.get("reintentos", 0)) + 1)
-        timeout = n.get("timeout_s")
-        res, ok = "", False
-        for k in range(intentos):
-            t0 = _time.time()
-            try:
-                res = run_tool(n["tool"], args, ctx)
-            except Exception as exc:
-                res = f"RESULTADO {n['tool']} ERROR: {exc}"
-            dt = _time.time() - t0
-            if timeout is not None and dt > float(timeout):
-                res = (f"RESULTADO {n['tool']} ERROR: timeout "
-                       f"({dt:.1f}s > {timeout}s)")
-            ok = not re.search(r"\bERROR\b", res[:120])
-            if log:
-                log(f"[flujo] {nid} ({n['tool']}) intento {k+1}/{intentos}: "
-                    f"{'ok' if ok else 'error'}")
-            if ok:
-                break
+            return f"(saltado: '{cond}')", True, "saltado"
+        args = _interpolar(n.get("args", ""), vista)
+        if cache is not None:
+            clave = _clave_cache(n["tool"], args)
+            prev = cache.get(clave)
+            # solo se reusa una salida SANA: un ERROR cacheado no vale
+            if prev is not None and not re.search(r"\bERROR\b", str(prev)[:120]):
+                if log:
+                    log(f"[flujo] {nid} ({n['tool']}) cacheado")
+                return str(prev), True, "cacheado"
+        res, ok = _correr_nodo(n, args, ctx, run_tool, log)
+        if cache is not None and ok:
+            cache[clave] = res
+        return res, ok, ("ok" if ok else "error")
+
+    def _anotar(nid: str, res: str, ok: bool, estado: str) -> None:
         salidas[nid] = res
+        if estado == "saltado":
+            saltados.append(nid)
+        elif estado == "cacheado":
+            cacheados.append(nid)
         if not ok:
             errores[nid] = res[:200]
+
+    if not paralelo:
+        for nid in orden:
+            res, ok, estado = _paso(nid, salidas)
+            _anotar(nid, res, ok, estado)
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        # padres (dependencias) de cada nodo, invirtiendo los wires
+        padres: dict[str, set] = {i: set() for i in orden}
+        for n in flujo["nodos"]:
+            for w in (n.get("wires") or []):
+                padres[w].add(n["id"])
+        pendientes = list(orden)
+        hechos: set = set()
+        with ThreadPoolExecutor(max_workers=max(1, int(cap))) as pool:
+            while pendientes:
+                nivel = [i for i in pendientes if padres[i] <= hechos]
+                # snapshot: los hermanos del nivel NO se ven entre si (el
+                # desvio semantico documentado arriba)
+                vista = dict(salidas)
+                futs = {i: pool.submit(_paso, i, vista) for i in nivel}
+                for i in nivel:
+                    res, ok, estado = futs[i].result()
+                    _anotar(i, res, ok, estado)
+                    hechos.add(i)
+                pendientes = [i for i in pendientes if i not in hechos]
     return {"salidas": salidas, "orden": orden, "errores": errores,
-            "saltados": saltados}
+            "saltados": saltados, "cacheados": cacheados}
 
 
 def from_plan(nombre: str, pasos: list) -> dict:
@@ -267,12 +351,20 @@ def register(tool_decorator) -> None:
         "workspace",
         danger=False)
     def _t_ejecutar_flujo(args, ctx):
+        import json as _json
+        import os
         ctx = ctx if isinstance(ctx, dict) else {}
-        # guardia anti-recursion: un flujo cuyo nodo llama ejecutar_flujo se
-        # ejecutaria a si mismo sin fin (run_tool despacha cualquier tool).
-        if ctx.get("_flujo_en_curso"):
+        # guardia anti-recursion: antes era la bandera _flujo_en_curso (cero
+        # anidamiento); ahora es un contador de profundidad con techo 2 — un
+        # flujo puede ejecutar UN nivel de sub-flujo, al tercer nivel ERROR.
+        depth = ctx.get("_flujo_depth")
+        if depth is None:
+            # compat: llamadores viejos marcaban la bandera sin contador;
+            # respetarla como "sin presupuesto de anidamiento"
+            depth = 2 if ctx.get("_flujo_en_curso") else 0
+        if depth >= 2:
             return ("RESULTADO ejecutar_flujo ERROR: ya hay un flujo en "
-                    "ejecucion (un flujo no puede ejecutar otro flujo)")
+                    "ejecucion (profundidad maxima de sub-flujos: 2)")
         ruta = _resolver_ruta_flujo(args)
         if ruta is None:
             return ("RESULTADO ejecutar_flujo ERROR: no encontre el flujo "
@@ -286,17 +378,69 @@ def register(tool_decorator) -> None:
         # modulo al registrar -> import a nivel de modulo seria un ciclo).
         from cognia.agent.tools import TOOLS, run_tool
         log = ctx.get("print_fn") if callable(ctx.get("print_fn")) else None
-        ctx["_flujo_en_curso"] = True
+        # opt-in estrictos por env (== "1", el parse de la casa): el paralelo
+        # cambia la semantica de saltar_si entre hermanos y el cache persiste
+        # estado en disco — ninguno debe activarse solo.
+        paralelo = os.environ.get("COGNIA_FLOWS_PARALELO", "") == "1"
+        cache, cache_ruta = None, None
+        if os.environ.get("COGNIA_FLOWS_CACHE", "") == "1":
+            cache = {}
+            try:
+                from pathlib import Path
+                from cognia.agents.workers.dev_tools import _root_actual
+                cache_ruta = Path(_root_actual()) / ".flujo_cache.json"
+                if cache_ruta.is_file():
+                    prev = _json.loads(cache_ruta.read_text(encoding="utf-8"))
+                    if isinstance(prev, dict):
+                        cache = prev
+            except Exception:
+                cache_ruta = None       # sin workspace/JSON roto: cache en RAM
+        # la profundidad viaja POR RAMA en una copia superficial del ctx, no
+        # como contador mutado en el ctx compartido: con paralelo, dos nodos
+        # ejecutar_flujo hermanos comparten ctx y el patron leer/incrementar/
+        # decrementar sufria carrera (ambos leian 1, ambos escribian 2 y sus
+        # dos finally lo bajaban a 0 -> el sub-flujo del nivel siguiente
+        # arrancaba como top-level y su cadena anidada burlaba la guardia).
+        # Los objetos anidados (agent_state, working_memory, print_fn) se
+        # comparten igual por ser copia superficial; el padre nunca ve su
+        # nivel alterado porque su dict ya no se toca.
+        ctx_hijo = dict(ctx)
+        ctx_hijo["_flujo_depth"] = depth + 1
         try:
-            res = ejecutar(flujo, ctx, run_tool,
-                           tool_existe=lambda n: n in TOOLS, log=log)
+            res = ejecutar(flujo, ctx_hijo, run_tool,
+                           tool_existe=lambda n: n in TOOLS, log=log,
+                           paralelo=paralelo, cache=cache)
         except FlowError as exc:
             return f"RESULTADO ejecutar_flujo ERROR: {exc}"
-        finally:
-            ctx.pop("_flujo_en_curso", None)
+        if cache_ruta is not None:
+            # persistencia atomica tmp+replace (patron estado_tarea.py).
+            # Fusion con lo que haya en disco ANTES de escribir (fix
+            # 2026-08-11): un sub-flujo hijo persiste SU cache mientras este
+            # flujo corre, y escribir solo `cache` (el snapshot leido al
+            # arrancar + los nodos propios) PISABA las claves del hijo. En
+            # colision de clave gana lo propio: es lo mas fresco de ESTA
+            # corrida.
+            try:
+                fusion = {}
+                try:
+                    if cache_ruta.is_file():
+                        prev = _json.loads(
+                            cache_ruta.read_text(encoding="utf-8"))
+                        if isinstance(prev, dict):
+                            fusion = prev
+                except Exception:
+                    pass        # JSON roto en disco: se escribe lo propio
+                fusion.update(cache)
+                tmp = cache_ruta.with_suffix(".json.tmp")
+                tmp.write_text(_json.dumps(fusion, ensure_ascii=False),
+                               encoding="utf-8")
+                os.replace(tmp, cache_ruta)
+            except Exception:
+                pass                    # el cache es aceleracion, no estado
         lineas = []
         for nid in res["orden"]:
             estado = ("saltado" if nid in res["saltados"]
+                      else "cacheado" if nid in res.get("cacheados", [])
                       else "error" if nid in res["errores"] else "ok")
             lineas.append(f"  {nid}: {estado} - "
                           f"{str(res['salidas'].get(nid, ''))[:80]}")
@@ -304,4 +448,6 @@ def register(tool_decorator) -> None:
         cabeza = (f"RESULTADO ejecutar_flujo {ruta.name}: "
                   f"{len(res['orden'])} nodos, {n_err} con error, "
                   f"{len(res['saltados'])} saltados")
+        if cache is not None:
+            cabeza += f", {len(res.get('cacheados', []))} cacheados"
         return cabeza + "\n" + "\n".join(lineas)
