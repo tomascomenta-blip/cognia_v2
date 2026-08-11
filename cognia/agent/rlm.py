@@ -170,7 +170,7 @@ class MedidorContexto:
 
     def __init__(self, ctx_chars: int = 0, ctx_lineas: int = 0,
                  origen: str = "", n_ctx=None, max_hijos: int = 16,
-                 presupuesto_tokens: int = 120000):
+                 presupuesto_tokens: int = 120000, url_hijos: str = ""):
         self.ctx_chars = ctx_chars
         self.ctx_tokens_aprox = ctx_chars // 4
         self.ctx_lineas = ctx_lineas
@@ -178,6 +178,11 @@ class MedidorContexto:
         self.n_ctx = n_ctx
         self.max_hijos = max_hijos
         self.presupuesto_tokens = presupuesto_tokens
+        # A donde viajan las subllamadas: "" = cerebro (perfil), una URL =
+        # worker dedicado. Vive en el medidor porque el informe tiene que
+        # DECIR por donde salieron los hijos (un numero sin su via no se
+        # puede comparar entre corridas con y sin worker).
+        self.url_hijos = url_hijos
         self.intervalos_raiz: list = []
         self.intervalos_hijos: list = []
         self.tokens_in_raiz = 0
@@ -275,6 +280,7 @@ class MedidorContexto:
             "max_hijos": self.max_hijos,
             "presupuesto_tokens": self.presupuesto_tokens,
             "n_ctx": self.n_ctx,
+            "url_hijos": self.url_hijos,
         }
 
     def informe(self) -> str:
@@ -287,7 +293,7 @@ class MedidorContexto:
         else:
             # Sin n_ctx conocido el porcentaje seria inventado: se dice "?".
             ventana = f"{self.ventana_pico_raiz:,} tok de ? (?)"
-        return "\n".join([
+        lineas = [
             "[contexto efectivo RLM]",
             (f"contexto: {self.ctx_chars:,} chars "
              f"(~{self.ctx_tokens_aprox:,} tok aprox) | "
@@ -305,7 +311,12 @@ class MedidorContexto:
              f"{self.tokens_out_raiz:,} out"),
             (f"presupuesto: {self.tokens_totales():,} de "
              f"{self.presupuesto_tokens:,} tok"),
-        ])
+        ]
+        # SOLO si hubo subllamadas o worker activo (contrato 2026-08-11):
+        # en una corrida sin hijos ni worker la linea seria ruido fijo.
+        if self.llamadas_hijo or self.url_hijos:
+            lineas.append(f"hijos via: {self.url_hijos or 'cerebro (:8080)'}")
+        return "\n".join(lineas)
 
 
 @dataclass
@@ -319,7 +330,22 @@ class EstadoRLM:
     perfil: dict
     max_hijos: int = 16
     presupuesto_tokens: int = 120000
-    hijo_max_tokens: int = 2048
+    # 8192 (antes 2048, fix 2026-08-11): el hijo puede ser un razonador que
+    # gasta el grueso del presupuesto PENSANDO en <think> — 2048 degollaba la
+    # respuesta (la leccion repetida de los 10 bugs de presupuesto: todo
+    # max_tokens debe cubrir el pensamiento).
+    hijo_max_tokens: int = 8192
+    # Cap EFECTIVO del trozo de rlm_llamar (fix 2026-08-11): correr_rlm lo
+    # deriva de la ventana real del destino de los hijos — el cap historico
+    # de 60k chars (~20k tok) NO cabe en un worker de ctx 16384 y el hijo
+    # respondia sobre un fragmento degollado por el server en silencio.
+    max_chars_trozo: int = MAX_CHARS_TROZO
+    # Ruteo de hijos (contrato 2026-08-11): "" / None = cerebro con el
+    # sampling del perfil, como siempre. Con worker: url_hijos apunta al rol
+    # 'worker' del summoner y sampling_hijos trae su temperatura/top_p
+    # propios (Qwen3 thinking pide 0.6/0.95, no el 0.7/0.8 de qwythos).
+    url_hijos: str = ""
+    sampling_hijos: dict = None
 
 
 # ── Las 5 tools (fn(args, ctx) -> str) ─────────────────────────────────
@@ -572,12 +598,21 @@ def _rlm_llamar(args: str, ctx: dict) -> str:
                 f"{estado.presupuesto_tokens} tokens agotado (llevas "
                 f"{usados}); cierra con lo que tienes")
     ini_ch, fin_ch = c.rango_chars(desde, hasta)
-    if fin_ch - ini_ch > MAX_CHARS_TROZO:
+    # El limite EFECTIVO (derivado de la ventana del destino de los hijos,
+    # fix 2026-08-11) y no el cap historico: el mensaje tiene que decir el
+    # numero contra el que el trozo choco DE VERDAD, o el raiz re-parte
+    # apuntando a un limite que no rige.
+    limite_trozo = estado.max_chars_trozo
+    if fin_ch - ini_ch > limite_trozo:
         return (f"RESULTADO rlm_llamar ERROR: trozo de {fin_ch - ini_ch} "
-                f"chars supera el limite de {MAX_CHARS_TROZO}; parti mas "
+                f"chars supera el limite de {limite_trozo}; parti mas "
                 "fino (ctx_partir)")
     fragmento = "\n".join(c.lineas[desde - 1:hasta])
     perfil = estado.perfil or {}
+    # Ruteo del hijo: worker si correr_rlm lo resolvio, perfil si no. El
+    # sampling viaja JUNTO con la url (mandar 0.7/0.8 de qwythos a un Qwen3
+    # thinking degrada al hijo en silencio, que es peor que no rutear).
+    sampling = estado.sampling_hijos or {}
     mensajes = [
         {"role": "system", "content": (
             "Sos un analista. Responde SOLO con base en el FRAGMENTO dado. "
@@ -594,11 +629,37 @@ def _rlm_llamar(args: str, ctx: dict) -> str:
         mensajes,
         max_tokens=estado.hijo_max_tokens,
         razonador=True,
-        temperature=perfil.get("temperature", 0.7),
-        top_p=perfil.get("top_p", 0.8),
-        url=perfil.get("url", ""),
+        temperature=sampling.get("temperature",
+                                 perfil.get("temperature", 0.7)),
+        top_p=sampling.get("top_p", perfil.get("top_p", 0.8)),
+        url=estado.url_hijos or perfil.get("url", ""),
         via="rlm_hijo",
     )
+    if resp.error and estado.url_hijos:
+        # Worker que MUERE a mitad de corrida (fix 2026-08-11): el worker es
+        # un EXTRA, jamas una dependencia — su caida no puede costar la
+        # subllamada ni las que siguen. Se degrada el ESTADO (url_hijos vacia:
+        # los proximos hijos van directo al cerebro, sin volver a golpear un
+        # muerto) y ESTA llamada se reintenta UNA vez contra el cerebro con
+        # el sampling del perfil (el 0.6/0.95 del worker no aplica al cerebro).
+        pf = (ctx or {}).get("print_fn")
+        if callable(pf):
+            pf(f"worker cayo: {resp.error}; hijos degradan al cerebro")
+        estado.url_hijos = ""
+        estado.sampling_hijos = None
+        # El informe tambien degrada: la llamada al worker FALLO (ningun hijo
+        # exitoso salio de ahi), asi que dejar su url en el medidor mentiria
+        # "hijos via: worker" sobre hijos que en realidad atendio el cerebro.
+        estado.medidor.url_hijos = ""
+        resp = estado.completar_fn(
+            mensajes,
+            max_tokens=estado.hijo_max_tokens,
+            razonador=True,
+            temperature=perfil.get("temperature", 0.7),
+            top_p=perfil.get("top_p", 0.8),
+            url=perfil.get("url", ""),
+            via="rlm_hijo",
+        )
     if resp.error:
         return f"RESULTADO rlm_llamar ERROR: {resp.error}"
     med.registrar_hijo(resp.usage)
@@ -653,7 +714,8 @@ def register(tool):
          desc=("Manda las lineas desde-hasta del contexto RLM a una "
                "subllamada LLM fresca (sin herramientas) que las lee "
                "enteras y responde la pregunta. Es la via para trozos que "
-               "no entran en ctx_ver; el trozo se capa a 60000 chars."),
+               "no entran en ctx_ver; el trozo se capa a 60000 chars o "
+               "menos segun la ventana del hijo (el ERROR dice el limite)."),
          params=[{"nombre": "desde", "tipo": "integer", "requerido": True,
                   "descripcion": "primera linea del trozo (1-index)"},
                  {"nombre": "hasta", "tipo": "integer", "requerido": True,
@@ -666,9 +728,16 @@ def register(tool):
 
 
 def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
-               max_turns: int = 24, url: str = "") -> dict:
+               max_turns: int = 24, url: str = "",
+               worker: bool = None) -> dict:
     """Corre el modo RLM: carga el contexto, arma el estado y lanza el bucle
     nativo con SOLO las 5 tools RLM.
+
+    worker: rutear las subllamadas (hijos) al rol 'worker' del summoner en
+    vez del cerebro. None (default) delega en COGNIA_RLM_WORKER == "1";
+    True/False explicitos pisan el env. El worker es un EXTRA, jamas una
+    dependencia: cualquier fallo del summoner degrada al cerebro con aviso
+    por print_fn y la corrida sigue (contrato 2026-08-11).
 
     Devuelve {"texto", "ok", "pasos", "informe", "medidor", ...}: el dict
     del bucle mas el informe del medidor, que se adjunta SIEMPRE — aun
@@ -707,16 +776,68 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
     if completar_fn is None:
         from cognia.agent.chat_client import completar as completar_fn
 
+    # Ruteo de hijos al worker (opt-in por flag o env). El import del
+    # summoner es PEREZOSO y esta adentro del try: importar el modulo o
+    # llamar ensure puede fallar por mil causas (VRAM, puerto tomado, GGUF
+    # ausente) y NINGUNA puede colgar ni abortar el modo RLM — el peor caso
+    # contratado es "hijos al cerebro, con aviso".
+    if worker is None:
+        worker = os.environ.get("COGNIA_RLM_WORKER", "") == "1"
+    url_hijos, sampling_hijos, n_ctx_worker = "", None, None
+    if worker:
+        causa = ""
+        try:
+            from cognia import summoner as _summoner
+            res_w = _summoner.ensure("worker", evictar=False)
+            url_hijos = str(res_w.get("url") or "")
+            # La ventana REAL del worker viaja en el dict de ensure: es el
+            # dato del que se deriva el trozo maximo (fix 2026-08-11).
+            n_ctx_worker = res_w.get("n_ctx")
+            if not url_hijos:
+                # ensure "ok" sin url (respuesta rara) es tan inservible
+                # para rutear como un fallo: misma degradacion.
+                causa = "ensure no devolvio url"
+        except Exception as exc:
+            causa = str(exc) or type(exc).__name__
+        if url_hijos:
+            # Sampling del worker (Qwen3 thinking): 0.6/0.95, no el del
+            # cerebro. Viaja apareado con la url en el estado.
+            sampling_hijos = {"temperature": 0.6, "top_p": 0.95}
+        else:
+            pf(f"worker no disponible: {causa}; hijos van al cerebro")
+
+    # Default 8192 (antes 2048, fix 2026-08-11): el hijo razonador piensa en
+    # <think> y 2048 degollaba la respuesta (leccion de los 10 bugs).
+    hijo_max_tokens = _env_int("COGNIA_RLM_HIJO_TOKENS", 8192)
+    # El trozo maximo de rlm_llamar se deriva de la ventana REAL del destino
+    # de los hijos (fix 2026-08-11): 60k chars (~20k tok) NO caben en un
+    # worker de ctx 16384 — el server truncaria el fragmento y el hijo
+    # responderia en silencio sobre un texto que nunca vio entero. 3 chars/tok
+    # conservador; -1024 de margen para system+pregunta; piso 8000 (una vista)
+    # para que un ctx chico no vuelva inutil a rlm_llamar; techo el cap
+    # historico (mas de 60k tampoco conviene por costo del hijo).
+    n_ctx_hijo = n_ctx_worker if url_hijos else None
+    if not n_ctx_hijo:
+        n_ctx_hijo = perfil.get("n_ctx")
+    max_chars_trozo = MAX_CHARS_TROZO
+    if n_ctx_hijo:
+        max_chars_trozo = min(
+            MAX_CHARS_TROZO,
+            max(8000, (int(n_ctx_hijo) - hijo_max_tokens - 1024) * 3))
+
     medidor = MedidorContexto(
         ctx_chars=contexto.chars, ctx_lineas=len(contexto.lineas),
         origen=contexto.origen, n_ctx=perfil.get("n_ctx"),
         max_hijos=_env_int("COGNIA_RLM_MAX_HIJOS", 16),
-        presupuesto_tokens=_env_int("COGNIA_RLM_PRESUPUESTO", 120000))
+        presupuesto_tokens=_env_int("COGNIA_RLM_PRESUPUESTO", 120000),
+        url_hijos=url_hijos)
     estado = EstadoRLM(
         contexto=contexto, medidor=medidor, completar_fn=completar_fn,
         perfil=perfil, max_hijos=medidor.max_hijos,
         presupuesto_tokens=medidor.presupuesto_tokens,
-        hijo_max_tokens=_env_int("COGNIA_RLM_HIJO_TOKENS", 2048))
+        hijo_max_tokens=hijo_max_tokens,
+        url_hijos=url_hijos, sampling_hijos=sampling_hijos,
+        max_chars_trozo=max_chars_trozo)
 
     def _completar_raiz(mensajes, **kw):
         # El wrapper MIDE cada paso del raiz (usage real + ventana pico).

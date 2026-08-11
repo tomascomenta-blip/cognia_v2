@@ -47,7 +47,7 @@ def _no_llamar(*a, **k):
 
 
 def _estado(texto, completar_fn=_no_llamar, max_hijos=16,
-            presupuesto_tokens=120000, hijo_max_tokens=2048):
+            presupuesto_tokens=120000, hijo_max_tokens=8192):
     """EstadoRLM armado a mano sobre un texto sintetico (sin correr_rlm:
     estos tests apuntan a las tools, no al runner)."""
     contexto = rlm.ContextoRLM(texto, "test")
@@ -245,7 +245,7 @@ def test_hijo_sin_tools_estructural():
         return _hijo_ok()
 
     estado = _estado(_lineas(50), completar_fn=_completar,
-                     hijo_max_tokens=2048)
+                     hijo_max_tokens=8192)
     out = T.run_tool("rlm_llamar", "5 | 15 | que dice?", _ctx(estado))
     assert "ERROR" not in out[:120]
     kw = capturado["kwargs"]
@@ -254,7 +254,7 @@ def test_hijo_sin_tools_estructural():
     assert "tools" not in kw
     assert kw["via"] == "rlm_hijo"
     assert kw["razonador"] is True
-    assert kw["max_tokens"] == 2048
+    assert kw["max_tokens"] == 8192
     # Mensajes FRESCOS (system + user), no la conversacion del raiz.
     assert [m["role"] for m in capturado["mensajes"]] == ["system", "user"]
     assert estado.medidor.llamadas_hijo == 1
@@ -578,3 +578,281 @@ def test_recorte_itera_mas_de_una_pasada():
     recortados = sum(1 for m in mensajes if marca in m["content"])
     assert recortados > 3                   # antes: exactamente 3 y listo
     assert pasadas >= 2
+
+
+# ── 12. Ruteo de hijos al worker (contrato 2026-08-11) ─────────────────
+# El worker es un EXTRA, jamas una dependencia: activo, los hijos viajan a
+# su url con sampling propio (0.6/0.95, Qwen3 thinking); cualquier fallo
+# del summoner degrada al cerebro CON AVISO y la corrida sigue. La linea
+# "hijos via:" del informe sale SOLO si hubo subllamadas o worker activo.
+# ensure se stubbea SIEMPRE (monkeypatch de cognia.summoner.ensure): estos
+# tests no tocan GPU ni puertos.
+
+import cognia.summoner as S
+
+_URL_WORKER = "http://127.0.0.1:8082"
+
+
+def _correr_con_worker(tmp_path, monkeypatch, *, worker=None, env=None):
+    """correr_rlm guionado (un rlm_llamar + cierre en prosa) capturando los
+    kwargs REALES del completar del hijo y los avisos de print_fn."""
+    _sin_backend(monkeypatch)
+    monkeypatch.delenv("COGNIA_RLM_WORKER", raising=False)
+    if env is not None:
+        monkeypatch.setenv("COGNIA_RLM_WORKER", env)
+    ruta = tmp_path / "ctx.txt"
+    ruta.write_text(_lineas(50), encoding="utf-8")
+    guion = iter([
+        _paso_tool("rlm_llamar", {"desde": 1, "hasta": 10,
+                                  "pregunta": "que dice?"}),
+        RespuestaChat(texto="cierro con lo visto", finish_reason="stop",
+                      usage={"prompt_tokens": 700,
+                             "completion_tokens": 20}),
+    ])
+    capturado, avisos = {}, []
+
+    def _completar(mensajes, **kw):
+        if kw.get("via") == "rlm_hijo":
+            capturado["kw"] = kw
+            return _hijo_ok()
+        return next(guion)
+
+    res = rlm.correr_rlm(
+        "que dice?", str(ruta), completar_fn=_completar,
+        print_fn=lambda *a, **k: avisos.append(" ".join(str(x) for x in a)),
+        url="http://127.0.0.1:9", worker=worker)
+    return res, capturado, avisos
+
+
+def test_worker_activo_rutea_hijos_con_sampling_propio(tmp_path, monkeypatch):
+    """Con ensure ok, el completar del hijo recibe la URL del worker y el
+    sampling 0.6/0.95 (mandar el 0.7/0.8 de qwythos a un Qwen3 thinking lo
+    degradaria en silencio); el informe y como_dict() dicen la via."""
+    llamadas_ensure = []
+
+    def _ensure(rol, **kw):
+        llamadas_ensure.append((rol, kw))
+        return {"ok": True, "rol": rol, "url": _URL_WORKER, "pid": 1234,
+                "modelo": "qwen3-4b", "n_ctx": 16384, "arranque_frio": False}
+
+    monkeypatch.setattr(S, "ensure", _ensure)
+    res, capturado, avisos = _correr_con_worker(tmp_path, monkeypatch,
+                                                worker=True)
+    assert res["ok"]
+    # evictar=False: el worker JAMAS mata al cerebro para hacerse lugar.
+    assert llamadas_ensure == [("worker", {"evictar": False})]
+    kw = capturado["kw"]
+    assert kw["url"] == _URL_WORKER
+    assert kw["temperature"] == 0.6
+    assert kw["top_p"] == 0.95
+    assert not avisos                       # worker arriba: nada que avisar
+    assert f"hijos via: {_URL_WORKER}" in res["informe"]
+    assert res["medidor"]["url_hijos"] == _URL_WORKER
+
+
+def test_worker_ensure_falla_degrada_al_cerebro_con_aviso(tmp_path,
+                                                          monkeypatch):
+    """ensure que lanza NO cuelga ni aborta: aviso con la CAUSA visible y
+    los hijos siguen por el cerebro con el sampling del perfil."""
+    def _ensure(rol, **kw):
+        raise S.SummonerError("VRAM insuficiente para 'worker'")
+
+    monkeypatch.setattr(S, "ensure", _ensure)
+    res, capturado, avisos = _correr_con_worker(tmp_path, monkeypatch,
+                                                worker=True)
+    assert res["ok"]                        # la corrida SIGUE
+    kw = capturado["kw"]
+    assert kw["url"] == "http://127.0.0.1:9"    # la url del perfil (cerebro)
+    assert kw["temperature"] == 0.7 and kw["top_p"] == 0.8
+    junto = " | ".join(avisos)
+    assert "worker no disponible" in junto
+    assert "hijos van al cerebro" in junto
+    assert "VRAM insuficiente" in junto     # la causa, no un aviso generico
+    # Hubo subllamadas: la linea sale igual, apuntando al cerebro.
+    assert "hijos via: cerebro (:8080)" in res["informe"]
+    assert res["medidor"]["url_hijos"] == ""
+
+
+def test_worker_por_env_con_flag_none(tmp_path, monkeypatch):
+    """worker=None delega en COGNIA_RLM_WORKER: '1' activa el ruteo (es el
+    mismo camino que el flag explicito) y cualquier otro valor no."""
+    llamadas = []
+
+    def _ensure(rol, **kw):
+        llamadas.append(rol)
+        return {"ok": True, "rol": rol, "url": _URL_WORKER, "pid": 1,
+                "modelo": "qwen3-4b", "n_ctx": 16384, "arranque_frio": False}
+
+    monkeypatch.setattr(S, "ensure", _ensure)
+    res, capturado, _ = _correr_con_worker(tmp_path, monkeypatch,
+                                           worker=None, env="1")
+    assert llamadas == ["worker"]
+    assert capturado["kw"]["url"] == _URL_WORKER
+    assert "hijos via:" in res["informe"]
+    # Parse estricto de la casa: "0" (o vacio) NO activa y ensure ni se toca.
+    llamadas.clear()
+    res2, capturado2, _ = _correr_con_worker(tmp_path, monkeypatch,
+                                             worker=None, env="0")
+    assert llamadas == []
+    assert capturado2["kw"]["url"] == "http://127.0.0.1:9"
+
+
+def test_informe_hijos_via_solo_cuando_corresponde(tmp_path, monkeypatch):
+    """(a) hijos sin worker -> 'hijos via: cerebro (:8080)'; (b) corrida sin
+    hijos y sin worker -> la linea NO aparece (seria ruido fijo)."""
+    monkeypatch.setattr(S, "ensure", _no_llamar)    # nadie debe invocarlo
+    res, capturado, avisos = _correr_con_worker(tmp_path, monkeypatch,
+                                                worker=False)
+    assert capturado["kw"]["url"] == "http://127.0.0.1:9"
+    assert not avisos
+    assert "hijos via: cerebro (:8080)" in res["informe"]
+    assert res["medidor"]["url_hijos"] == ""
+    # (b) cierre directo en prosa: ni hijos ni worker, ni linea.
+    _sin_backend(monkeypatch)
+    monkeypatch.delenv("COGNIA_RLM_WORKER", raising=False)
+    ruta = tmp_path / "ctx_solo.txt"
+    ruta.write_text(_lineas(20), encoding="utf-8")
+    res2 = rlm.correr_rlm(
+        "pregunta", str(ruta),
+        completar_fn=lambda m, **kw: RespuestaChat(
+            texto="respuesta directa", finish_reason="stop",
+            usage={"prompt_tokens": 300, "completion_tokens": 10}),
+        url="http://127.0.0.1:9", worker=False)
+    assert res2["ok"]
+    assert "hijos via:" not in res2["informe"]
+
+
+# ── 13. Regresiones de la revision adversarial 2 (fixes 2026-08-11) ────
+# Cada test falla sin su fix por construccion. Mismo patron de armado que
+# la seccion 12 (ensure stubbeado, guiones de RespuestaChat, cero GPU).
+
+
+def test_hijo_max_tokens_default_8192(tmp_path, monkeypatch):
+    """Fix 2026-08-11: el default de 2048 degollaba a un hijo razonador que
+    gasta el grueso del presupuesto pensando en <think> (la leccion repetida
+    de los 10 bugs de presupuesto: todo max_tokens cubre el pensamiento).
+    Se verifica en las DOS ocurrencias: el default del dataclass y el
+    fallback del _env_int de COGNIA_RLM_HIJO_TOKENS en correr_rlm."""
+    assert rlm.EstadoRLM.__dataclass_fields__["hijo_max_tokens"].default == 8192
+    _sin_backend(monkeypatch)
+    monkeypatch.delenv("COGNIA_RLM_HIJO_TOKENS", raising=False)
+    monkeypatch.delenv("COGNIA_RLM_WORKER", raising=False)
+    ruta = tmp_path / "ctx.txt"
+    ruta.write_text(_lineas(50), encoding="utf-8")
+    guion = iter([
+        _paso_tool("rlm_llamar", {"desde": 1, "hasta": 10,
+                                  "pregunta": "que dice?"}),
+        RespuestaChat(texto="cierro", finish_reason="stop",
+                      usage={"prompt_tokens": 100, "completion_tokens": 5}),
+    ])
+    hijos = []
+
+    def _completar(mensajes, **kw):
+        if kw.get("via") == "rlm_hijo":
+            hijos.append(kw)
+            return _hijo_ok()
+        return next(guion)
+
+    res = rlm.correr_rlm("que dice?", str(ruta), completar_fn=_completar,
+                         url="http://127.0.0.1:9", worker=False)
+    assert res["ok"]
+    assert [kw["max_tokens"] for kw in hijos] == [8192]   # antes: 2048
+
+
+def test_max_chars_trozo_se_deriva_de_la_ventana_del_worker(tmp_path,
+                                                            monkeypatch):
+    """Fix 2026-08-11: MAX_CHARS_TROZO=60000 (~20k tok) NO cabe en un worker
+    de ctx 16384 — el server truncaba el fragmento y el hijo respondia en
+    silencio sobre un texto que nunca vio entero. El limite efectivo se
+    deriva del n_ctx del destino de los hijos:
+    min(60000, max(8000, (n_ctx - hijo_max_tokens - 1024) * 3)) y el mensaje
+    de ERROR dice ESE numero, no el cap historico."""
+    _sin_backend(monkeypatch)
+    for var in ("COGNIA_RLM_WORKER", "COGNIA_RLM_HIJO_TOKENS"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(S, "ensure", lambda rol, **kw: {
+        "ok": True, "rol": rol, "url": _URL_WORKER, "pid": 1,
+        "modelo": "qwen3-4b", "n_ctx": 16384, "arranque_frio": False})
+    ruta = tmp_path / "ctx.txt"
+    ruta.write_text(_lineas(300), encoding="utf-8")     # ~30.300 chars
+    guion = iter([
+        _paso_tool("rlm_llamar", {"desde": 1, "hasta": 300,
+                                  "pregunta": "resumi"}),
+        RespuestaChat(texto="cierro con menos", finish_reason="stop",
+                      usage={"prompt_tokens": 100, "completion_tokens": 5}),
+    ])
+    hijos, mensajes_todos = [], []
+
+    def _completar(mensajes, **kw):
+        mensajes_todos.append(mensajes)
+        if kw.get("via") == "rlm_hijo":
+            hijos.append(kw)
+            return _hijo_ok()
+        return next(guion)
+
+    res = rlm.correr_rlm("resumi", str(ruta), completar_fn=_completar,
+                         url="http://127.0.0.1:9", worker=True)
+    assert res["ok"]
+    # El trozo de ~30k chars (que SI cabia en el cap viejo de 60k) se corta
+    # ANTES de tocar al hijo: con el worker a ctx 16384 no entra.
+    assert hijos == []
+    limite = min(rlm.MAX_CHARS_TROZO, max(8000, (16384 - 8192 - 1024) * 3))
+    assert limite == 21504 < rlm.MAX_CHARS_TROZO
+    plano = str(mensajes_todos)
+    # El ERROR que ve el raiz dice el limite EFECTIVO, no el historico.
+    assert f"supera el limite de {limite}" in plano
+    assert f"supera el limite de {rlm.MAX_CHARS_TROZO}" not in plano
+
+
+def test_worker_muere_a_mitad_degrada_y_reintenta_al_cerebro(tmp_path,
+                                                             monkeypatch):
+    """Fix 2026-08-11: un worker que arranca bien y MUERE a mitad de corrida
+    dejaba a TODOS los hijos siguientes chocando contra un puerto muerto (el
+    raiz recibia ERROR tras ERROR hasta el corte por no-progreso). Ahora la
+    llamada fallida se reintenta UNA vez contra el cerebro, con aviso, y
+    url_hijos queda vacia: los hijos siguientes van directo al cerebro."""
+    _sin_backend(monkeypatch)
+    monkeypatch.delenv("COGNIA_RLM_WORKER", raising=False)
+    monkeypatch.delenv("COGNIA_RLM_HIJO_TOKENS", raising=False)
+    monkeypatch.setattr(S, "ensure", lambda rol, **kw: {
+        "ok": True, "rol": rol, "url": _URL_WORKER, "pid": 1,
+        "modelo": "qwen3-4b", "n_ctx": 16384, "arranque_frio": False})
+    ruta = tmp_path / "ctx.txt"
+    ruta.write_text(_lineas(50), encoding="utf-8")
+    guion = iter([
+        _paso_tool("rlm_llamar", {"desde": 1, "hasta": 10,
+                                  "pregunta": "a?"}),
+        _paso_tool("rlm_llamar", {"desde": 11, "hasta": 20,
+                                  "pregunta": "b?"}),
+        RespuestaChat(texto="cierro", finish_reason="stop",
+                      usage={"prompt_tokens": 100, "completion_tokens": 5}),
+    ])
+    hijos, avisos = [], []
+
+    def _completar(mensajes, **kw):
+        if kw.get("via") == "rlm_hijo":
+            hijos.append(kw)
+            if kw["url"] == _URL_WORKER:
+                # el worker murio DESPUES del ensure ok
+                return RespuestaChat(error="connection refused (:8082)")
+            return _hijo_ok("respuesta del cerebro")
+        return next(guion)
+
+    res = rlm.correr_rlm(
+        "a?", str(ruta), completar_fn=_completar,
+        print_fn=lambda *a, **k: avisos.append(" ".join(str(x) for x in a)),
+        url="http://127.0.0.1:9", worker=True)
+    assert res["ok"]
+    # 3 llamadas de hijo: worker (cae) + reintento al cerebro + el segundo
+    # hijo DIRECTO al cerebro (url_hijos quedo vacia: a un muerto no se
+    # vuelve). Antes: worker, worker — dos ERROR y cero respuestas.
+    assert [kw["url"] for kw in hijos] == [
+        _URL_WORKER, "http://127.0.0.1:9", "http://127.0.0.1:9"]
+    # El reintento viaja con el sampling del PERFIL, no el 0.6/0.95 del
+    # worker (mandar el sampling de un modelo a otro degrada en silencio).
+    assert hijos[1]["temperature"] == 0.7 and hijos[1]["top_p"] == 0.8
+    junto = " | ".join(avisos)
+    assert "worker cayo" in junto and "degradan al cerebro" in junto
+    assert "connection refused" in junto    # la causa, no un aviso generico
+    # Las DOS subllamadas terminaron medidas como exitos del cerebro.
+    assert res["medidor"]["llamadas_hijo"] == 2
