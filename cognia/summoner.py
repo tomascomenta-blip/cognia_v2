@@ -40,6 +40,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -66,6 +67,20 @@ ROLES = {
     "vlm":     {"tipo": "llama", "puerto": 8081, "script": "servir_vlm.py",
                 "args": ["--modelo", "VL-3B"], "identidad": "vl",
                 "vram_mib": 3300, "idle_s": 900, "espera_s": 240},
+    # worker: llama chico (Qwen3-4B-Thinking) para hijos RLM y agentes de
+    # workflows. 8082 esta libre (ocupados: 8080/8081, oficina 8088/8090/8092,
+    # jobs 8096-8099). El --puerto va en args porque _lanzar no lo pasa y el
+    # default de servir_modelo.py es 8080: sin el flag pisaria al cerebro.
+    # vram_mib del worker (2026-08-11): 5800 = cota inferior MEDIDA del
+    # artefacto (peso GGUF 2382 MiB + KV f16 @16k 2304 MiB = 4686) + margen
+    # para buffers/contexto CUDA. Sobredeclarar es SEGURO (solo hace la
+    # eviccion mas conservadora); subdeclarar no (lanza sin sitio y OOM).
+    # El 4200 anterior estaba por debajo de la propia cota medida.
+    "worker":  {"tipo": "llama", "puerto": 8082, "script": "servir_modelo.py",
+                "args": ["--modelo", "Qwen3-4B", "--puerto", "8082",
+                         "--ctx", "16384", "--sin-draft"],
+                "identidad": "qwen3-4b", "vram_mib": 5800, "idle_s": 900,
+                "espera_s": 240},
     "imagen":  {"tipo": "job", "puerto": 8096, "worker": "scripts/worker_imagen.py",
                 "vram_mib": 12000, "idle_s": 300, "espera_s": 600},
     "tresd":   {"tipo": "presupuesto", "puerto": 8097, "vram_mib": 4000, "idle_s": 300},
@@ -95,6 +110,23 @@ ESCALERA_CTX = [
 
 _MARGEN_MIB = 512   # colchon para no rozar el techo de la GPU
 
+# Candados POR ROL (2026-08-11): dos hilos de paralelo() pidiendo ensure()
+# del MISMO rol a la vez producian doble lanzamiento (dos llama-server
+# peleando puerto y VRAM) y estado pisado. RLock OBLIGATORIO, no Lock:
+# ensure() se recursa a si mismo (identidad ajena + evictar=True) y llama a
+# liberar()/tocar() en el mismo hilo. El dict vive bajo un Lock de modulo
+# para que dos hilos no fabriquen dos candados distintos del mismo rol.
+_LOCK_CANDADOS = threading.Lock()
+_CANDADOS_ROL: dict[str, threading.RLock] = {}
+
+
+def _candado_rol(rol: str) -> threading.RLock:
+    with _LOCK_CANDADOS:
+        candado = _CANDADOS_ROL.get(rol)
+        if candado is None:
+            candado = _CANDADOS_ROL[rol] = threading.RLock()
+        return candado
+
 
 # ---------------------------------------------------------------------------
 # Seams inyectables (los tests las monkeypatchean; produccion las usa tal cual)
@@ -113,11 +145,23 @@ def _url(puerto: int) -> str:
 
 
 def _salud(puerto: int, timeout: float = 3.0) -> tuple[Optional[int], Optional[dict]]:
-    """GET /health -> (status, cuerpo_json|None). (None, None) si no responde.
+    """GET /health -> (status, cuerpo_json|None). (None, None) si NADIE
+    escucha (conexion rechazada); (-1, None) si algo ESCUCHA pero no habla
+    HTTP sano (reset/timeout/estado invalido).
 
     POR QUE devuelve el codigo crudo: llama-server responde 503 DURANTE la
     carga del modelo; confundirlo con 'muerto' y relanzar duplica el proceso
-    y provoca OOM (riesgo conocido)."""
+    y provoca OOM (riesgo conocido).
+
+    POR QUE el -1 (2026-08-11): si alguien acepta la conexion y luego
+    corta/calla, hay un proceso AJENO sentado en el puerto y ensure() no debe
+    limpiar/evictar/lanzar encima (el bind fallaria tras pagar toda la
+    eviccion). Un timeout es AMBIGUO en Windows (el connect a un puerto LIBRE
+    tambien vence: los reintentos de SYN superan un timeout corto; medido
+    2026-08-11 en esta maquina), asi que ahi decide un connect TCP crudo:
+    si alguien acepta, hay listener; si no, el puerto esta libre."""
+    import http.client
+    import socket
     import urllib.request
     import urllib.error
     try:
@@ -129,7 +173,19 @@ def _salud(puerto: int, timeout: float = 3.0) -> tuple[Optional[int], Optional[d
             return r.status, cuerpo
     except urllib.error.HTTPError as e:
         return e.code, None
-    except Exception:
+    except Exception as e:
+        causa = getattr(e, "reason", e)   # URLError envuelve el error de socket
+        if isinstance(causa, ConnectionRefusedError):
+            return None, None             # nadie escucha: puerto libre
+        if isinstance(causa, (ConnectionError, http.client.HTTPException)):
+            return -1, None               # acepto y corto: no habla HTTP sano
+        if isinstance(causa, TimeoutError):
+            try:
+                with socket.create_connection(("127.0.0.1", puerto),
+                                              timeout=min(timeout, 3.0)):
+                    return -1, None       # alguien acepta pero callo el HTTP
+            except OSError:
+                return None, None         # tampoco acepta: puerto libre
         return None, None
 
 
@@ -343,15 +399,17 @@ def _plan_eviccion(vram_libre: int, vram_rol: int, vivos: dict, *,
     """Que liberar (en orden) para que quepa vram_rol. Funcion PURA.
 
     Orden de sacrificio: reservas presupuesto (borrar la reserva no mata
-    nada) -> jobs con idle vencido -> jobs vivos -> vlm -> cerebro SOLO si el
-    caller lo permitio (ensure directo jamas mata al cerebro por su cuenta;
-    solo invocar() evicta con restore). Si ni liberando todo alcanza, el plan
-    devuelve todos los candidatos: el caller recomputa la cobertura y falla
-    VISIBLE con el deficit exacto (ver ensure)."""
+    nada) -> jobs con idle vencido -> jobs vivos -> worker -> vlm -> cerebro
+    SOLO si el caller lo permitio (ensure directo jamas mata al cerebro por su
+    cuenta; solo invocar() evicta con restore). El worker va ANTES que el vlm
+    porque relanzarlo es barato (4B, sin escalera) y sus clientes ya degradan
+    al cerebro solos. Si ni liberando todo alcanza, el plan devuelve todos los
+    candidatos: el caller recomputa la cobertura y falla VISIBLE con el
+    deficit exacto (ver ensure)."""
     faltan = vram_rol + margen - vram_libre
     if faltan <= 0:
         return []
-    grupos: list[list[str]] = [[], [], [], [], []]
+    grupos: list[list[str]] = [[], [], [], [], [], []]
     for rol, info in vivos.items():
         spec = ROLES.get(rol) or {}
         tipo = spec.get("tipo", "")
@@ -362,10 +420,12 @@ def _plan_eviccion(vram_libre: int, vram_rol: int, vivos: dict, *,
             vencido = (idle is not None and ahora > 0
                        and ahora - float(info.get("ultima") or 0) > idle)
             grupos[1 if vencido else 2].append(rol)
-        elif rol == "vlm":
+        elif rol == "worker":
             grupos[3].append(rol)
-        elif rol == "cerebro" and permitir_cerebro:
+        elif rol == "vlm":
             grupos[4].append(rol)
+        elif rol == "cerebro" and permitir_cerebro:
+            grupos[5].append(rol)
     plan: list[str] = []
     for grupo in grupos:
         for rol in grupo:
@@ -397,6 +457,8 @@ def _idle_s(rol: str) -> Optional[float]:
     env = ""
     if rol == "vlm":
         env = os.environ.get("COGNIA_SUMMONER_IDLE_VLM", "")
+    elif rol == "worker":
+        env = os.environ.get("COGNIA_SUMMONER_IDLE_WORKER", "")
     elif spec.get("tipo") in ("job", "presupuesto"):
         env = os.environ.get("COGNIA_SUMMONER_IDLE_JOB", "")
     try:
@@ -640,7 +702,7 @@ def liberar(rol: str) -> bool:
             _dormir(1)
     del estado["roles"][rol]
     _guardar_estado(estado)
-    if rol in ("cerebro", "vlm"):
+    if rol in ("cerebro", "vlm", "worker"):
         _invalidar_caches()   # que no quede un perfil rancio apuntando al muerto
     return True
 
@@ -695,6 +757,16 @@ def ensure(rol: str, *, ctx: int = 0, timeout_s: int = 0,
 
     _cache es privado (lo usa escalar_ctx para --ctk/--ctv); la API publica
     congelada no cambia."""
+    # Candado por rol (2026-08-11): serializa a los hilos de paralelo() que
+    # piden el mismo rol; el segundo espera y encuentra el rol ya servido.
+    with _candado_rol(rol):
+        return _ensure_bajo_candado(rol, ctx=ctx, timeout_s=timeout_s,
+                                    evictar=evictar, _cache=_cache)
+
+
+def _ensure_bajo_candado(rol: str, *, ctx: int, timeout_s: int,
+                         evictar: bool, _cache: str) -> dict:
+    """Cuerpo de ensure(); SIEMPRE corre con el candado del rol tomado."""
     barrido(_ahora())
     spec = ROLES.get(rol)
     if spec is None:
@@ -742,8 +814,27 @@ def ensure(rol: str, *, ctx: int = 0, timeout_s: int = 0,
         # proceso = OOM); solo esperar abajo.
         pass
     else:
-        # --- no responde: hay que lanzar. Primero VRAM. ---
+        # --- no responde como llama-server sano. ---
+        # Puerta anti proceso AJENO (2026-08-11): antes de este check,
+        # ensure() limpiaba, evictaba y lanzaba EN VANO sobre un puerto ya
+        # tomado por otro (el bind falla despues de pagar toda la eviccion,
+        # y el kill del PID guardado puede matar a un inocente). Ajeno se
+        # detecta por dos vias: (a) /health devolvio ALGO que no es 200/503
+        # (llama-server solo emite esos dos; -1 = escucha pero no habla
+        # HTTP), (b) nuestro PID guardado esta VIVO pero netstat dice que el
+        # puerto lo tiene otro PID. La via (b) se gatea a pid vivo a
+        # proposito: con entrada vacia o pid muerto no hay "nuestro" que
+        # comparar y la limpieza normal de abajo se encarga.
         entrada_pid = entrada.get("pid")
+        ajeno = codigo is not None
+        if not ajeno and entrada_pid and _pid_vivo(entrada_pid):
+            ajeno = _pid_dueno_del_puerto(entrada_pid, puerto) is False
+        if ajeno:
+            _fallar(f"puerto :{puerto} del rol '{rol}' ocupado por un proceso "
+                    f"ajeno (/health devolvio {codigo!r}, no es nuestro "
+                    f"llama-server); no limpio ni lanzo encima",
+                    f"identifica y cierra el proceso: netstat -ano | "
+                    f"findstr :{puerto} y luego taskkill /PID <pid> /F")
         if entrada_pid and not _pid_vivo(entrada_pid):
             _avisar(f"entrada rancia de '{rol}' (pid {entrada_pid} muerto); la limpio")
             estado = _leer_estado()
@@ -818,12 +909,16 @@ def ensure(rol: str, *, ctx: int = 0, timeout_s: int = 0,
         if spec["identidad"] not in str(modelo_srv or "").lower():
             _fallar(f"postcheck: en :{puerto} quedo '{modelo_srv}' y no "
                     f"'{spec['identidad']}'")
-        if rol == "cerebro":
+        if rol in ("cerebro", "worker"):
+            # cargar no es funcionar: una build que ignora --parallel 1 parte
+            # el contexto entre slots y sirve HTTP 500 silenciosos. El n_ctx
+            # exacto sigue siendo solo del cerebro (el worker no usa escalera).
             slots = _total_slots(url)
             if slots is not None and slots != 1:
                 liberar(rol)
                 _fallar(f"postcheck: el server reparte el contexto entre "
                         f"{slots} slots (ignoro --parallel 1); lo libere")
+        if rol == "cerebro":
             n_ctx_esperado = ctx or _n_ctx_de_args(list(spec.get("args") or []))
             if arranque_frio and n_ctx_esperado and n_ctx_srv != n_ctx_esperado:
                 liberar(rol)
@@ -833,7 +928,7 @@ def ensure(rol: str, *, ctx: int = 0, timeout_s: int = 0,
         if not (isinstance(cuerpo, dict) and cuerpo.get("ok")):
             _fallar(f"worker '{rol}' dio /health 200 sin ok=true: {cuerpo}")
 
-    if arranque_frio and puerto in (8080, 8081):
+    if arranque_frio and puerto in (8080, 8081, 8082):
         _invalidar_caches()
     tocar(rol)
     return {"ok": True, "rol": rol, "url": url, "pid": pid,

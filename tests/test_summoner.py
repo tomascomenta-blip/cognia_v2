@@ -68,7 +68,8 @@ def _sembrar(rol, **entrada):
 # ---------------------------------------------------------------------------
 
 def test_registry_roles_exactos():
-    assert set(S.ROLES) == {"cerebro", "vlm", "imagen", "tresd", "voces", "musica"}
+    assert set(S.ROLES) == {"cerebro", "vlm", "worker", "imagen", "tresd",
+                            "voces", "musica"}
     assert "stt" not in S.ROLES and "hablar" not in S.ROLES
     assert S.ROLES["cerebro"]["idle_s"] is None
     puertos = [spec["puerto"] for spec in S.ROLES.values()]
