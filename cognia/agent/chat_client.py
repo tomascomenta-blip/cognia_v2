@@ -110,11 +110,15 @@ def completar(mensajes: list, tools: list = None, url: str = "",
               temperature: float = 1.0, top_p: float = 1.0,
               max_tokens: int = 4096, reasoning_effort: str = "",
               razonador: bool = True, timeout: float = None,
-              via: str = "agente_chat") -> RespuestaChat:
+              via: str = "agente_chat",
+              response_format: dict = None) -> RespuestaChat:
     """UN turno de chat completions contra el server del agente.
 
     Nunca lanza: cualquier fallo vuelve como RespuestaChat(error=...) para
     que el bucle degrade con causa visible en vez de morir.
+
+    response_format: salida estructurada — el server la fuerza por gramatica
+    desde b9391 (probado en vivo en :8080); None = body identico al de antes.
     """
     url = (url or url_del_backend()).rstrip("/")
     # Chequeo que CORRE (no leccion en prosa): con un razonador, max_tokens
@@ -137,6 +141,10 @@ def completar(mensajes: list, tools: list = None, url: str = "",
         _KV_SUCIO["v"] = False
     if tools:
         cuerpo["tools"] = tools
+    if response_format:
+        # Tal cual lo pase el llamador: la forma exacta (json_schema anidado)
+        # es contrato entre quien arma el schema y llama-server, no de aca.
+        cuerpo["response_format"] = response_format
     if reasoning_effort:
         # El esfuerzo REAL se fija aca, no recortando tokens (memoria:
         # presupuesto-tokens-razonamiento).
