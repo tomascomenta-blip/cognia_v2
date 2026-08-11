@@ -307,8 +307,14 @@ def _flag_activo(flag: str) -> bool:
 # continuación: re-cortarlo rompe el contrato "el modelo edita lo que vio"),
 # ejecutar/tests (cabeza+cola propia: el traceback vive al final), y
 # editar_archivo (el mini-diff ya viene capado por mini_diff).
+# Las tools RLM (2026-08-11) tambien: las de lectura se auto-capan a
+# MAX_CHARS_VISTA y ctx_partir esta acotada por n<=64 (~3k chars de indice,
+# sin contenido); sin la exencion aci_trim les comeria el MEDIO y el modelo
+# veria texto del contexto que no existe (o perderia trozos del indice).
 ACI_EXENTAS = frozenset({"responder", "leer_archivo", "ejecutar", "tests",
-                         "editar_archivo"})
+                         "editar_archivo",
+                         "ctx_info", "ctx_ver", "ctx_grep", "ctx_partir",
+                         "rlm_llamar"})
 
 
 def run_tool(name: str, args: str, ctx: dict) -> str:
@@ -345,9 +351,11 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         return f"ERROR: herramienta '{name}' no existe. Validas: {valid}"
     try:
         out = spec["fn"](args, ctx)
-        # \bERROR\b sobre la cabeza (misma convencion que la traza de cli.py):
-        # un RESULTADO exitoso que menciona 'ERROR_LOG.txt' no es un fallo.
-        ok = not re.search(r"\bERROR\b", out[:120])
+        # \bERROR\b sobre la cabeza de la PRIMERA linea: todos los retornos de
+        # error del registry ponen ERROR en la linea 1, pero un exito cuyo
+        # CONTENIDO arranca temprano (ctx_grep sobre un log con errores,
+        # leer_archivo de un log) no debe marcarse fallido (fix 2026-08-11).
+        ok = not re.search(r"\bERROR\b", out.split("\n", 1)[0][:120])
     except Exception as exc:  # a broken tool must not kill the loop
         out = f"RESULTADO {name} ERROR: {exc}"
         ok = False
@@ -2376,3 +2384,15 @@ if os.environ.get("COGNIA_VLM_TOOLS") == "1":
         # Flag puesto por el dueno: el silencio seria capacidad desconectada.
         print(f"[cognia] COGNIA_VLM_TOOLS=1 pero vlm_tools no cargo: {_exc}",
               file=sys.stderr)
+
+
+# ── Tools RLM (contexto largo por tools, 2026-08-11) ───────────────────────
+# Siempre registradas (patron horizonte: sin deps, baratas) pero NO en
+# CORE_TOOLS: solo se anuncian cuando /rlm arma el modo via _allowed_tools;
+# sin ctx["_rlm"] cada tool degrada con causa visible en runtime.
+try:
+    from cognia.agent import rlm as _rlm_mod
+    _rlm_mod.register(tool)
+except Exception as _exc:
+    # Sin flag que lo justifique: el silencio seria capacidad perdida.
+    print(f"[cognia] tools RLM no cargaron: {_exc}", file=sys.stderr)

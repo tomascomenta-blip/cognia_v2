@@ -516,6 +516,7 @@ Comandos:
   voz                Asistente de voz Jarvis (requiere extra [voz])
   remoto             Servidor de control remoto desde el movil
   tutor              Tutor web que ensena cualquier tema (localhost:8899)  [--lan]
+  rlm <ruta> "<pregunta>"  Pregunta sobre contexto mas grande que la ventana
   --version          Mostrar la version instalada (solo el numero)
   help / --help      Mostrar esta ayuda
 
@@ -614,6 +615,26 @@ def main() -> None:
     elif cmd in ("tutor", "estudiar"):
         from cognia.tutor.servidor import main as _tutor_main
         raise SystemExit(_tutor_main(sys.argv[2:]))
+    elif cmd == "rlm":
+        # Modo RLM por CLI directa: pregunta sobre un contexto (archivo o
+        # directorio) que no entra en la ventana del modelo. El informe del
+        # contexto efectivo se imprime SIEMPRE (parte del contrato del modo).
+        if len(sys.argv) < 4:
+            print('Uso: cognia rlm <ruta> "<pregunta>"')
+            sys.exit(2)
+        try:
+            # Import perezoso: si el modulo RLM no carga, el resto de la CLI
+            # sigue funcionando y el usuario ve el motivo real.
+            from cognia.agent.rlm import correr_rlm
+        except Exception as exc:
+            print(f"[cognia] el modo RLM no esta disponible: {exc}")
+            sys.exit(1)
+        _res = correr_rlm(" ".join(sys.argv[3:]), sys.argv[2], print_fn=print)
+        print(_res.get("texto") or "")
+        _informe = _res.get("informe") or ""
+        if _informe:
+            print(_informe)
+        sys.exit(0 if _res.get("ok") else 1)
     elif cmd == "":
         from cognia.first_run import run_wizard
         run_wizard(force=False)

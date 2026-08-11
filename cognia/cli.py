@@ -831,6 +831,7 @@ _CMD_DESCRIPTIONS = {
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/cat":             "Preview bat-style de archivo   <ruta> [desde[:hasta]]",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
+    "/rlm":             "Contexto largo por tools (RLM)   <ruta> <pregunta>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
@@ -1041,6 +1042,15 @@ _CMD_DETAILS = {
         "Con COGNIA_HORIZONTE=1 las tareas largas corren en ciclos de contexto "
         "fresco con estado durable (~/.cognia/data/tareas/); '/hacer retomar' "
         "relanza la ultima tarea que quedo incompleta."
+    ),
+    "/rlm": (
+        "Modo RLM (contexto largo por tools): el archivo o directorio NO entra en la "
+        "ventana del modelo; vive fuera y el modelo lo explora con ctx_info / ctx_ver / "
+        "ctx_grep / ctx_partir y delega trozos grandes a subllamadas frescas con "
+        "rlm_llamar (sin tools: profundidad 1). Al final SIEMPRE se imprime el informe "
+        "del contexto efectivo (cobertura raiz/hijos, ventana pico, subllamadas, "
+        "presupuesto); no hay flag para apagarlo. La ruta admite comillas si tiene "
+        "espacios. Ejemplo: /rlm \"C:\\logs\\corrida larga.txt\" que errores aparecen?"
     ),
     "/construir": (
         "Lazo diseno-a-codigo: el cerebro imagina como deberia verse el producto y "
@@ -7941,6 +7951,52 @@ def repl():
             else:
                 _print_line("[warn_cl]Uso: /hacer <descripcion de la tarea>[/warn_cl]")
 
+        # -- Modo RLM (contexto largo por tools) ------------------------------
+        elif raw == "/rlm" or raw.startswith("/rlm "):
+            _rlm_args = raw[len("/rlm "):].strip() if raw.startswith("/rlm ") else ""
+            _rlm_ruta, _rlm_preg = "", ""
+            if _rlm_args:
+                # La ruta puede venir entre comillas (rutas de Windows con
+                # espacios); la pregunta es todo lo que sigue, texto libre.
+                if _rlm_args[0] in ("'", '"'):
+                    _rlm_fin = _rlm_args.find(_rlm_args[0], 1)
+                    if _rlm_fin > 0:
+                        _rlm_ruta = _rlm_args[1:_rlm_fin]
+                        _rlm_preg = _rlm_args[_rlm_fin + 1:].strip()
+                else:
+                    _rlm_partes = _rlm_args.split(None, 1)
+                    _rlm_ruta = _rlm_partes[0]
+                    _rlm_preg = _rlm_partes[1].strip() if len(_rlm_partes) > 1 else ""
+            if not _rlm_ruta or not _rlm_preg:
+                _print_line("[warn_cl]Uso: /rlm <ruta> <pregunta>  "
+                            "(comillas si la ruta tiene espacios)[/warn_cl]")
+            else:
+                # Import perezoso: el modulo RLM solo carga cuando se usa el
+                # modo; un fallo de import avisa sin tumbar el REPL.
+                _correr_rlm = None
+                try:
+                    from cognia.agent.rlm import correr_rlm as _correr_rlm
+                except Exception as _e_rlm:
+                    _print_line(f"[warn_cl]El modo RLM no esta disponible: "
+                                f"{_escape(str(_e_rlm))}[/warn_cl]")
+                if _correr_rlm is not None:
+                    _print_line("[detail]Iniciando modo RLM...[/detail]")
+                    _res_rlm = _correr_rlm(_rlm_preg, _rlm_ruta,
+                                           print_fn=_print_line)
+                    _texto_rlm = _res_rlm.get("texto") or ""
+                    if _texto_rlm:
+                        _show_response(_texto_rlm, "cyan", respuesta_final=True)
+                    else:
+                        _print_line("[warn_cl]El modo RLM no produjo "
+                                    "respuesta.[/warn_cl]")
+                    # El informe del contexto efectivo es parte del contrato
+                    # del modo: va SIN tag [detail] porque en modo sencillo
+                    # [detail] se suprime y el informe debe verse SIEMPRE.
+                    for _lin_rlm in (_res_rlm.get("informe") or "").splitlines():
+                        _print_line(_escape(_lin_rlm))
+                    _session_log.append({"input": raw, "output": _texto_rlm,
+                                         "elapsed": 0})
+
         # -- Long-form generation --------------------------------------------
         elif raw == "/largo" or raw.startswith("/largo "):
             _pedido = raw[len("/largo "):].strip() if raw.startswith("/largo ") else ""
@@ -9651,6 +9707,14 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     try:
         from cognia.agent.tools import TOOLS as _TOOLS_HZ
         _hz_ocultas = {"tarea_estado", "bitacora_buscar"}
+        # Tools del modo RLM (cognia/agent/rlm.py): mismo regimen que las de
+        # horizonte — registradas siempre, pero solo /rlm arma el estado que
+        # las hace funcionar; anunciarlas al agente normal solo devolveria
+        # ERROR y sumaria al techo de tools del modelo chico. Set literal (no
+        # se importa rlm aca para no cargar el modulo en cada armado del
+        # agente); debe espejar RLM_TOOLS de rlm.py.
+        _hz_ocultas |= {"ctx_info", "ctx_ver", "ctx_grep", "ctx_partir",
+                        "rlm_llamar"}
         if _tool_filter is None:
             _tool_filter = set(_TOOLS_HZ) - _hz_ocultas
         else:

@@ -203,10 +203,42 @@ _TIPADAS: dict = {
         lambda a: (str(a.get("imagen", "")).strip()
                    + (f" | {a['pregunta']}" if a.get("pregunta") else "")),
     ),
+    # ── Modo RLM (contexto largo por tools, 2026-08-11): armadores contra el
+    # parseo de cognia/agent/rlm.py. Regla del modulo: contenido con '|' ULTIMO.
+    "ctx_ver": (
+        {"desde": _p("primera linea a ver (1-index, inclusive)", "integer"),
+         "hasta": _p("ultima linea a ver (inclusive)", "integer")},
+        ["desde", "hasta"],
+        lambda a: f"{a.get('desde', '')} | {a.get('hasta', '')}",
+    ),
+    "ctx_grep": (
+        # El patron es un regex y puede contener '|' (alternacion): es el
+        # UNICO argumento, va tal cual sin separador.
+        {"patron": _p("regex a buscar en el contexto RLM")}, ["patron"],
+        lambda a: str(a.get("patron", "")),
+    ),
+    "ctx_partir": (
+        {"n": _p("cantidad de trozos contiguos (entre 2 y 64)", "integer")},
+        ["n"],
+        lambda a: str(a.get("n", "")),
+    ),
+    "rlm_llamar": (
+        {"desde": _p("primera linea del fragmento (1-index, inclusive)",
+                     "integer"),
+         "hasta": _p("ultima linea del fragmento (inclusive)", "integer"),
+         "pregunta": _p("pregunta que responde la subllamada sobre ese "
+                        "fragmento")},
+        ["desde", "hasta", "pregunta"],
+        # rlm.py parsea 'desde | hasta | pregunta' con maxsplit=2: la
+        # pregunta es contenido libre (puede contener '|') y va ULTIMA.
+        lambda a: (f"{a.get('desde', '')} | {a.get('hasta', '')} | "
+                   f"{a.get('pregunta', '')}"),
+    ),
 }
 
 # Tools sin argumentos: schema de objeto vacio y string legacy vacio.
-_SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado")
+_SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado",
+             "ctx_info")
 
 
 def _descripcion_de(doc: str) -> str:
