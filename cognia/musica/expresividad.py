@@ -1005,7 +1005,8 @@ def _gate(ruta_orig, ruta_tmp, *, outline_modo, micro, ref_bpm,
 
 def aplicar_expresividad(ruta_mid, *, semilla: int = 0, intensidad: float = 1.0,
                          outline: str = "quitar", curva_tempo: bool = True,
-                         micro_timing: bool = False, bpm_base: int = 120,
+                         micro_timing: bool = False,
+                         bpm_base: float | None = None,
                          escribir_crudo: bool = True) -> str:
     """Aplica la capa de expresividad v1 in-place (temporal + rename atomico).
 
@@ -1025,19 +1026,21 @@ def aplicar_expresividad(ruta_mid, *, semilla: int = 0, intensidad: float = 1.0,
               file=sys.stderr)
         return str(ruta)
 
-    # Un .mid AJENO puede traer su propio mapa de tempo (el exportador del
-    # vendor no escribe ninguno): la base del rubato es el tempo del ARCHIVO,
-    # no el parametro -- pisar 90 BPM con bpm_base=120 cambiaria la velocidad
-    # de la pieza en silencio. Con varios tempos distintos ni siquiera hay una
-    # base honesta: se conserva su mapa tal cual (sin curva) y se avisa.
+    # bpm_base=None (default) deriva la base del ARCHIVO: pisar los 90 BPM de
+    # un .mid ajeno con 120 cambiaria la velocidad de la pieza en silencio.
+    # Un bpm_base EXPLICITO gana sobre el tempo unico del archivo: el unico
+    # evento que deja el exportador del vendor es el 120 de fabrica de
+    # miditoolkit, un artefacto, no una intencion musical -- sin esto,
+    # --bpm 72 se ignoraba sin aviso. Con varios tempos distintos no hay base
+    # honesta: se conserva su mapa tal cual (sin curva) y se avisa.
     tempos_orig = sorted(midi.tempo_changes, key=lambda t: t.time)
-    if tempos_orig:
-        bpm_base = tempos_orig[0].tempo
-        if len({round(t.tempo, 3) for t in tempos_orig}) > 1 and curva_tempo:
-            print(f"expresividad: {ruta.name} trae su propio mapa de tempo "
-                  "(varios tempos); se conserva intacto, sin curva de tempo",
-                  file=sys.stderr)
-            curva_tempo = False
+    if len({round(t.tempo, 3) for t in tempos_orig}) > 1 and curva_tempo:
+        print(f"expresividad: {ruta.name} trae su propio mapa de tempo "
+              "(varios tempos); se conserva intacto, sin curva de tempo",
+              file=sys.stderr)
+        curva_tempo = False
+    if bpm_base is None:
+        bpm_base = tempos_orig[0].tempo if tempos_orig else 120
 
     marca = mt.Marker(f"{MARKER} v1 seed={semilla} intens={intensidad}", 0)
 
@@ -1110,9 +1113,10 @@ def main(argv=None) -> int:
     ap.add_argument("--outline", choices=["quitar", "atenuar", "dejar"], default="quitar")
     ap.add_argument("--sin-tempo", action="store_true", help="desactiva la curva de tempo")
     ap.add_argument("--micro-timing", action="store_true")
-    ap.add_argument("--bpm", type=int, default=120,
-                    help="bpm base de la curva de tempo; si el .mid trae su "
-                         "propio tempo, manda el del archivo")
+    ap.add_argument("--bpm", type=float, default=None,
+                    help="bpm base de la curva de tempo (explicito GANA sobre "
+                         "el tempo unico del archivo); sin el, la base sale "
+                         "del archivo o 120")
     ap.add_argument("--sin-crudo", action="store_true",
                     help="no guardar la copia <nombre>.crudo.mid")
     args = ap.parse_args(argv)

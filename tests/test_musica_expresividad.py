@@ -502,6 +502,24 @@ def test_solapes_mismo_pitch_del_vendor_no_tumban_el_gate(tmp_path):
                 assert a.end <= b.start, "quedo un solape de mismo pitch"
 
 
+def test_bpm_explicito_gana_al_120_de_fabrica(tmp_path):
+    """Regresion: el exportador del vendor deja UN evento tempo=120 de
+    fabrica (artefacto de miditoolkit); con la regla 'el archivo manda',
+    --bpm 72 se ignoraba sin aviso. El bpm explicito tiene que ganar al
+    tempo UNICO del archivo; el default (None) sigue derivando del archivo."""
+    ruta = _pieza(tmp_path / "song_0.mid")
+    midi = miditoolkit.MidiFile(str(ruta))
+    midi.tempo_changes = [miditoolkit.TempoChange(120.0, 0)]
+    midi.dump(str(ruta))
+
+    aplicar_expresividad(str(ruta), bpm_base=72)
+    salida = miditoolkit.MidiFile(str(ruta))
+    tempos = [t.tempo for t in salida.tempo_changes]
+    assert tempos, "sin curva de tempo"
+    assert max(tempos) <= 1.03 * 72 + 0.01, f"curva alrededor de 120, no de 72: max {max(tempos)}"
+    assert min(tempos) >= 0.78 * 72 - 0.01
+
+
 def test_song2_real_procesa_y_contrafactual_reprueba(tmp_path, monkeypatch):
     """El song_2 REAL del vendor (fixture con los solapes que tumbaron el
     gate: 'duracion 720 -> 485'). Con el saneo procesa; el contrafactual
