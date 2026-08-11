@@ -12492,3 +12492,15 @@ bb8cf99e), destacando:
 Suite final: 6667/0. Lo que queda anotado sin arreglar (bajas de pulido):
 contar_lineas trunca el total en >2MB, /cat sin comillas en rutas con
 espacios, keepends del fallback plano del diff — declaradas, no urgentes.
+
+## 2026-08-11 — Modo RLM (Recursive Language Model) + contexto efectivo medido
+- Entregado `cognia/agent/rlm.py`: contexto mas grande que la ventana tocado SOLO via
+  tools (ctx_info/ctx_ver/ctx_grep/ctx_partir/rlm_llamar), profundidad 1 estructural,
+  MedidorContexto con informe obligatorio por corrida. Entradas: `/rlm` y `cognia rlm`.
+- Revision adversarial (4 dimensiones, 16 verificadores): 13 hallazgos confirmados con
+  repro, 9 fixes unicos aplicados (2 en el bucle nativo compartido: convencion ERROR
+  sobre primera linea, recorte de contexto iterativo con estimado actualizado).
+- Verificacion: test_rlm.py 28/28 (11 regresiones contrafactuales), suite 6693/0,
+  gate camino feliz 5/5, smoke real 3/3 sobre 405k chars (~101k tok, 3x ventana) con
+  ventana pico raiz 5-6% de n_ctx; via rlm_llamar verificada en vivo (hijos 11.1%).
+- Commits: 72e09c02 (bucle), 54d836c4 (modo RLM). Pusheados a origin/main.
