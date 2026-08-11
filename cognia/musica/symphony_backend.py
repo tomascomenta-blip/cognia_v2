@@ -97,6 +97,34 @@ def musica_disponible() -> tuple[bool, str]:
     return True, ""
 
 
+def _post_expresividad(midis: list[str]) -> list[str]:
+    """Capa de expresividad (velocity/CC/tempo) sobre los MIDIs recien generados.
+
+    POR QUE aqui y no en el CLI GPU: expresividad.py solo necesita miditoolkit
+    (instalado en venv312), asi corre en el proceso principal sin reservar la
+    GPU un segundo mas. Guarda el original como <nombre>.crudo.mid al lado.
+    POR QUE jamas levanta: el post-proceso es cosmetico frente a la
+    generacion -- si algo falla (miditoolkit ausente, gate reprobado) se
+    degrada VISIBLEMENTE por stderr y salen los MIDIs planos de siempre.
+    Opt-out: COGNIA_MUSICA_EXPRESIVIDAD=0.
+    """
+    if os.environ.get("COGNIA_MUSICA_EXPRESIVIDAD", "").strip() == "0":
+        return midis
+    try:
+        from cognia.musica.expresividad import aplicar_expresividad
+    except ImportError as e:
+        print(f"musica: expresividad no disponible ({e}); salen MIDIs crudos",
+              file=sys.stderr)
+        return midis
+    for ruta in midis:
+        try:
+            aplicar_expresividad(ruta, escribir_crudo=True)
+        except Exception as e:
+            print(f"musica: expresividad fallo en {ruta}: {e}; queda el crudo",
+                  file=sys.stderr)
+    return midis
+
+
 def orquestar(midi_cond: Optional[str], salida_dir: str, *, grupo: int = 2,
               checkpoint: str = "grpo_clamp+track_epoch_6.pt",
               timeout: float = 900) -> list[str]:
@@ -172,4 +200,4 @@ def orquestar(midi_cond: Optional[str], salida_dir: str, *, grupo: int = 2,
     midis = [str(m) for m in datos.get("midis", [])]
     if not midis:
         raise RuntimeError("musica: el CLI dijo ok pero sin MIDIs (contrato roto)")
-    return midis
+    return _post_expresividad(midis)

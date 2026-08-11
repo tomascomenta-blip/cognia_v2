@@ -12518,3 +12518,34 @@ espacios, keepends del fallback plano del diff — declaradas, no urgentes.
 - Verificacion: suite 6768/0, gate feliz 5/5, smoke workflows EN VIVO 4/4 (worker frio
   via summoner, paralelo cerebro+worker solapado, RLM 2/2 con hijo en :8082).
 - Commits 07ec5768..3c172fb8, pusheados a origin/main.
+
+## 2026-08-11 (3) - Expresividad musical para SymphonyGen (el "plano" resuelto)
+- Causa raiz medida: el vocabulario del vendor no tiene velocity (Pitch/Pos/Dur/Legato)
+  y el exportador escribe TODO a velocity=100 sin tempo; ademas la pista Reference/
+  Harmonic Outline (andamiaje) sonaba como piano en bloque = 52% de las notas.
+- cognia/musica/expresividad.py (nuevo): dinamicas por rol (melodia/contramelodia/
+  bajo/acompanamiento por ventana de 4 compases), acentos metricos, arcos de frase con
+  climax real, contorno, CC11 solo en programs sostenidos + CC7 de balance, curva de
+  tempo (rubato +-1.5% y ritardando final), articulacion acotada, outline fuera por
+  defecto; RNG sha256 sin estado (determinista), marker de idempotencia, escritura
+  atomica y gate que re-lee BYTES y degrada al crudo ante cualquier fallo.
+- Integracion: symphony_backend aplica tras generar (guarda *.crudo.mid para A/B),
+  opt-out COGNIA_MUSICA_EXPRESIVIDAD=0, degradacion visible sin romper la entrega.
+  CLI: python -m cognia.musica.expresividad (archivo|dir, recursivo).
+- Generacion REAL reparada de paso: transformers 5.14 del venv312gpu rompia el vendor
+  (create_causal_mask + cross-attn). Shim de kwargs en musica_orquestar_cli.py y venv
+  DEDICADO ~/.cognia/venvs/symphonygen312 (torch 2.8.0+cu128, transformers 5.1.0);
+  COGNIA_SYMPHONYGEN_PY fijado por setx (la contingencia documentada del backend).
+- Bug real del vendor cazado con datos reales: notas solapadas de MISMO pitch
+  (re-apareamiento on/off al re-leer -> el gate veia "720->485"); fix _sanear_solapes
+  en pipeline y gate, con fixture real (tests/fixtures/song2_solapes_vendor.mid) y
+  contrafactual que apaga el fix y exige que el gate REPRUEBE.
+- Metodo: workflow multiagente (2 disenos + juez + implementador + verificador e2e +
+  2 revisores adversariales + corrector); 3 findings media confirmados con repro y
+  corregidos (legato que fundia repetidas, serrucho CC11 por nota, tempo ajeno pisado).
+- Verificacion A/B sobre 6 sinfonias REALES generadas en GPU: velocity de 1 valor
+  (std 0.00) a 60-67 valores (std 10.9-13.1, rango [41,110]); CC11 449-3438 eventos
+  solo en sostenidos, drums 0; tempo 45-53 eventos [103.1,121.5] BPM; notas musicales
+  intactas pista a pista; idempotencia y contrafactual flag=0 byte-identico verificados.
+- Tests: test_musica_expresividad.py 26/26 (18 base + 6 regresiones del review + 2 del
+  saneo con fixture real); suite completa 6797 passed / 0 failed / 2 skipped.

@@ -7,9 +7,12 @@ en el proceso principal de cognia/. Este paquete es el puente: funciones
 planas 100% stdlib que lanzan el trabajo pesado por subprocess con el python
 de venv312gpu y un contrato stdout-JSON (patron expert_forge/cli_train.py).
 
-Los re-exports son seguros: symphony_backend y render solo importan stdlib.
+Los re-exports son seguros: symphony_backend y render solo importan stdlib,
+y expresividad importa miditoolkit PEREZOSO (solo al aplicar).
 """
 from cognia.musica.symphony_backend import musica_disponible, orquestar
 from cognia.musica.render import fluidsynth_disponible, midi_a_wav
+from cognia.musica.expresividad import aplicar_expresividad
 
-__all__ = ["musica_disponible", "orquestar", "fluidsynth_disponible", "midi_a_wav"]
+__all__ = ["musica_disponible", "orquestar", "fluidsynth_disponible",
+           "midi_a_wav", "aplicar_expresividad"]

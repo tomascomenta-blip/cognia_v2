@@ -84,6 +84,24 @@ def main() -> int:
 
         torch.load = _load_confiado
 
+        # transformers>=5.2 renombro input_embeds->inputs_embeds y elimino
+        # cache_position de create_causal_mask; el vendor (probado en 5.0/5.1)
+        # llama con los nombres viejos y revienta con TypeError en 5.14. Misma
+        # regla que torch.load: NO se edita el vendor, se adapta la funcion
+        # ANTES de importar arch (event_decoder la importa al cargar el modulo).
+        import inspect
+        from transformers import masking_utils as _mask_mod
+        _mask_original = _mask_mod.create_causal_mask
+        _mask_params = set(inspect.signature(_mask_original).parameters)
+
+        def _mask_adaptado(*a, **k):
+            if "input_embeds" in k and "input_embeds" not in _mask_params:
+                k["inputs_embeds"] = k.pop("input_embeds")
+            k = {n: v for n, v in k.items() if n in _mask_params}
+            return _mask_original(*a, **k)
+
+        _mask_mod.create_causal_mask = _mask_adaptado
+
         if midi_cond is not None:
             cond = midi_cond
             analyze = True
