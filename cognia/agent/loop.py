@@ -297,19 +297,23 @@ def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
     """Presupuesto de contexto en TOKENS REALES (A4.3): si el ultimo prompt
     supero ~80% del n_ctx del server, recorta los turnos tool MAS VIEJOS a un
     resumen corto (nunca el system ni el user del objetivo). Devuelve cuantos
-    turnos recorto. El descarte en bloque del contexto viejo era la causa de
-    'el agente olvida su objetivo'; aca el objetivo es intocable por diseno."""
+    CHARS libero (0 = bajo el umbral o nada recortable), para que el llamador
+    pueda iterar con un estimado actualizado. El descarte en bloque del
+    contexto viejo era la causa de 'el agente olvida su objetivo'; aca el
+    objetivo es intocable por diseno."""
     if not n_ctx or prompt_tokens < int(n_ctx * 0.8):
         return 0
-    recortados = 0
+    recortados, liberados = 0, 0
     for m in mensajes:
         if m.get("role") == "tool" and len(m.get("content") or "") > 400:
+            antes = len(m["content"])
             m["content"] = (m["content"][:200]
                             + "\n[... recortado por presupuesto de contexto ...]")
+            liberados += antes - len(m["content"])
             recortados += 1
             if recortados >= 3:   # de a poco: 3 turnos por pasada alcanzan
                 break
-    return recortados
+    return liberados
 
 
 def bucle_nativo(task: str, system: str, completar, schemas: list,
@@ -400,6 +404,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         if _ev is not None:
             _emitir(_ev.PasoIntencion(paso=pasos, intencion=_intencion_de(resp)))
 
+        idx_turno = len(mensajes)   # desde aca: lo apendeado en ESTE turno
         mensajes.append(mensaje_assistant(resp))
         for tc in resp.tool_calls:
             args_str = args_legacy(tc.nombre, tc.argumentos)
@@ -418,7 +423,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 mensajes = None
                 break
             resultado = run_tool(tc.nombre, args_str, ctx)
-            tool_ok = not re.search(r"\bERROR\b", resultado[:120])
+            # Solo la PRIMERA linea clasifica: los errores del registry ponen
+            # ERROR en la linea 1; el CONTENIDO de un exito (un log con
+            # errores via ctx_grep/leer_archivo) no debe marcar fallo y
+            # disparar el corte por no-progreso (fix 2026-08-11).
+            tool_ok = not re.search(r"\bERROR\b",
+                                    resultado.split("\n", 1)[0][:120])
             history.append(resultado)
             trace.append({"action": tc.nombre, "args": args_str[:200],
                           "ok": tool_ok, "result_head": resultado[:160]})
@@ -447,8 +457,19 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                            "fallaron sin avanzar; el modelo no logro la tarea)")
             break
 
-        _recortar_mensajes(mensajes, perfil.get("n_ctx"),
-                           int((resp.usage or {}).get("prompt_tokens") or 0))
+        # El prompt_tokens del usage NO incluye lo que este turno apendeo
+        # (assistant + N turnos tool): con tool-calls paralelas de resultados
+        # grandes el estimado rancio dejaba crecer el prompt por encima de
+        # n_ctx sin recortar nada (fix 2026-08-11). Se suma lo agregado
+        # (chars/4) y se itera hasta bajar del umbral o agotar recortables.
+        est = int((resp.usage or {}).get("prompt_tokens") or 0)
+        est += sum(len(str(m.get("content") or ""))
+                   for m in mensajes[idx_turno:]) // 4
+        while True:
+            liberados = _recortar_mensajes(mensajes, perfil.get("n_ctx"), est)
+            if not liberados:
+                break
+            est -= liberados // 4
     else:
         # Presupuesto agotado sin cierre: redaccion final honesta con la
         # evidencia del history (no un volcado crudo).
