@@ -12624,3 +12624,23 @@ espacios, keepends del fallback plano del diff — declaradas, no urgentes.
   de test cazados por mutacion real).
 - Tests: test_musica_produccion 13, creacion 17 (7 de generos); dirigidos de
   musica 98/98; suite completa 6834 passed / 0 failed / 2 skipped.
+
+## 2026-08-11 (6) - Fine-tune videojuegos: BLOQUEADO por OOM (disyuntor aplicado)
+- Dataset LISTO y verificado: 1050 MIDIs de vgmusic -> pipeline del vendor
+  (serialize 8 chunks + split + bar index) -> train 28.3 MB / val 2.9 MB de
+  tokens, 235.686 ventanas de 32 compases. Prep reproducible en
+  scratchpad/finetune_prep.py (WORK_DIR=~/.cognia/data/symphonygen_ft_videojuegos).
+- Lanzador funcional (finetune_lanzar.py): resume desde copia de
+  stage_two_pretrained.pt en ft_ckpt/ (release intacto), torch.load parcheado,
+  NO_COMPILE_MODEL (sin triton en Windows), workers=0, subset 48k ventanas.
+- DOS OOM con sintoma IDENTICO -> disyuntor: batch_efectivo 8 pide 29.99 GiB
+  y batch 2 pide 29.60 GiB. La memoria NO escala con el batch: la domina la
+  LONGITUD de la ventana individual (atencion densa n^2; ventanas de 32
+  compases muy polifonicas explotan solas). Con batch 1 la primera iteracion
+  SI paso (34 s/it, lentisimo ademas).
+- HIPOTESIS ESCRITA para la proxima corrida (no ejecutada, disyuntor):
+  medir la distribucion de longitudes de linea del train_data.txt, filtrar
+  el subset a ventanas bajo un percentil (p.ej. p75) y re-lanzar con batch 2;
+  si aun OOM, gradient checkpointing o BAR_NUM=16. El gate sigue siendo:
+  best_model.pt vs stage_two_pretrained.pt generando con el MISMO esqueleto,
+  juzgado por banco de monotonia + escucha.
