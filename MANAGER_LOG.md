@@ -12549,3 +12549,45 @@ espacios, keepends del fallback plano del diff — declaradas, no urgentes.
   intactas pista a pista; idempotencia y contrafactual flag=0 byte-identico verificados.
 - Tests: test_musica_expresividad.py 26/26 (18 base + 6 regresiones del review + 2 del
   saneo con fixture real); suite completa 6797 passed / 0 failed / 2 skipped.
+
+## 2026-08-11 (4) - Linea de creacion musical: transcripcion, song2song, anti-monotonia
+- Banco de monotonia (cognia/musica/banco_monotonia.py): rep_ritmo/rep_melodia/
+  ent_ritmo/ent_pc/var_densidad + agregado. El examen VA ANTES que la palanca.
+  Diagnostico medido: la monotonia venia de la CONDICION, no del modelo
+  (esqueleto-loop -> rep_ritmo 0.913 en la orquestacion; sin condicion 0.283).
+- Transcripcion audio->MIDI (scripts/musica_transcribir_cli.py + cognia/musica/
+  transcribir.py): Demucs htdemucs (stems) + Basic Pitch ONNX por stem (velocities
+  reales) + drums por onsets/centroide + grilla ELEGIDA por error de cuantizacion
+  medido (beats detectados vs 120 lineal; el beat tracker se equivoca con piezas
+  ralas: recall 99%->21% si se le cree a ciegas, 99.31% eligiendo por evidencia).
+  Deps en el venv symphonygen312 (torchaudio 2.8 cu128, demucs 4.1, basic-pitch
+  0.4 sin tensorflow via --no-deps + onnxruntime).
+- song2song (cognia/musica/song2song.py): audio -> transcripcion -> SymphonyGen
+  condicionado con ESA armonia -> replica de paleta por ROL (mismo clasificador
+  de expresividad) + groove del original importado si el modelo no genera drums
+  -> expresividad al final (CC11 decide por program: remapear antes, no despues).
+  E2E real: 93-98% de las notas en la escala del original, paleta y drums OK.
+- Compositor estructurado (cognia/musica/compositor.py): esqueletos A-B-A' con
+  ritmo armonico variable, celdas ritmicas sorteadas por compas, acompanamiento
+  ritmizado (bloque/arpegio/mitades/contra), respiraciones, 5 caracteres;
+  texto_a_esqueleto = text-to-song minimo por palabras clave (sin LLM).
+  RESULTADO en orquestacion real (12 piezas por brazo): rep_ritmo 0.913 (loop)
+  -> 0.637 (v1 bloques) -> 0.551 (v2 ritmizado). El residuo vs 0.283 sin
+  condicion es el precio de CONTROLAR el caracter.
+- Barrido de sampling (flags nuevos --event-temp/--event-top-p en el CLI, parche
+  de modulo sin editar el vendor), apareado sobre el mismo esqueleto n=4:
+  default 0.490 / temp1.15 0.536 / top-p0.995 0.494 -> KILL: los knobs no mueven
+  el banco; quedan como capacidad documentada con defaults del vendor.
+- VEREDICTO F4 (GRPO anti-repeticion): NO entrenar ahora. La palanca dominante
+  es la condicion (-40% ya cobrado, con recorrido gratis restante: progresiones
+  mas largas, formas ABAC); el residuo no esta demostrado audible-malo (ostinato
+  es legitimo en orquesta). Gate pre-registrado si se retoma: GRPO con reward
+  -rep_ritmo, n>=6 apareado por esqueleto, liston -0.10 en rep_ritmo sin caer
+  ent_pc, contra el checkpoint actual como baseline.
+- Fixes de paso: fluidsynth 2.6 exige opciones antes de posicionales (render.py
+  corregido); binario instalado en ~/.cognia/tools/fluidsynth + PATH de usuario;
+  soundfont MuseScore_General.sf3 (COGNIA_SOUNDFONT; el FluidR3 previo era un
+  puntero LFS de 146 bytes).
+- Entregables audibles: Desktop\SymphonyGen_expresivo\creaciones\ (triste/epica/
+  alegre estructuradas + song2song_replica, .mid y .wav renderizados).
+- Tests: test_musica_creacion.py 11/11; suite completa verde (ver commit).

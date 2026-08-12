@@ -261,8 +261,11 @@ def test_midi_a_wav_linea_fluidsynth(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", _run_falso)
     wav = render.midi_a_wav(str(midi))
     assert wav == str(midi.with_suffix(".wav"))
+    # opciones ANTES de los posicionales: fluidsynth >=2.6 rechaza -F al
+    # final ("only -b option is allowed here"; render roto con la 2.6.0
+    # real, 2026-08-11)
     assert capturado["cmd"] == [
-        "fluidsynth", "-ni", str(sf), str(midi), "-F", wav, "-r", "44100"]
+        "fluidsynth", "-ni", "-F", wav, "-r", "44100", str(sf), str(midi)]
     assert capturado["timeout"] == 300
 
 

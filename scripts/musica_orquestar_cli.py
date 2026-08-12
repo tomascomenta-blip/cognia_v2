@@ -41,6 +41,10 @@ def main() -> int:
                         help="MIDI de condicion armonica (opcional; sin el, etapa 1)")
     parser.add_argument("--checkpoint", default="grpo_clamp+track_epoch_6.pt",
                         help="checkpoint de etapa 2 en el dir de pesos")
+    parser.add_argument("--event-top-p", type=float, default=None,
+                        help="top_p del sampling de eventos (vendor: 0.99)")
+    parser.add_argument("--event-temp", type=float, default=None,
+                        help="temperatura de eventos (vendor: sin escalar)")
     args = parser.parse_args()
 
     t0 = time.monotonic()
@@ -118,6 +122,23 @@ def main() -> int:
                 raise RuntimeError(f"la etapa 1 no escribio ningun .mid en {tmp}")
             cond = esqueletos[0]
             analyze = False
+
+        # Knobs de sampling de eventos: el vendor los tiene como constantes
+        # de modulo (generate.py); se parchean en el namespace donde las
+        # llamadas resuelven, ANTES de generar -- sin editar el vendor.
+        if args.event_top_p is not None or args.event_temp is not None:
+            from arch.symph import generate as symph_generate
+            if args.event_top_p is not None:
+                symph_generate.EVENT_TOP_P = args.event_top_p
+            if args.event_temp is not None:
+                _sample_orig = symph_generate.sample_from_logits
+
+                def _sample_con_temp(logits, temperature=None, **kw):
+                    if temperature is None:
+                        temperature = args.event_temp
+                    return _sample_orig(logits, temperature=temperature, **kw)
+
+                symph_generate.sample_from_logits = _sample_con_temp
 
         # Etapa 2: orquestacion 3D condicionada. Guarda en
         # <salida>/cond_<stem>/song_<g>.mid (save_gen del vendor).

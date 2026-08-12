@@ -13,6 +13,16 @@ y expresividad importa miditoolkit PEREZOSO (solo al aplicar).
 from cognia.musica.symphony_backend import musica_disponible, orquestar
 from cognia.musica.render import fluidsynth_disponible, midi_a_wav
 from cognia.musica.expresividad import aplicar_expresividad
+# el modulo se llama transcripcion (y no transcribir) A PROPOSITO: exportar
+# una funcion homonima a su modulo hace que `from cognia.musica import
+# transcribir` devuelva una u otro segun el orden de imports (visto en la
+# suite: AttributeError dependiente del orden)
+from cognia.musica.transcripcion import transcribir, transcribir_disponible
+from cognia.musica.song2song import song_to_song
+from cognia.musica.compositor import componer_esqueleto, texto_a_esqueleto
+from cognia.musica.banco_monotonia import medir as medir_monotonia
 
 __all__ = ["musica_disponible", "orquestar", "fluidsynth_disponible",
-           "midi_a_wav", "aplicar_expresividad"]
+           "midi_a_wav", "aplicar_expresividad", "transcribir",
+           "transcribir_disponible", "song_to_song", "componer_esqueleto",
+           "texto_a_esqueleto", "medir_monotonia"]

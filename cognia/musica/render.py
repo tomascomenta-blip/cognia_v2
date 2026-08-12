@@ -61,7 +61,11 @@ def midi_a_wav(midi: str, wav: Optional[str] = None, *,
     ruta_wav.parent.mkdir(parents=True, exist_ok=True)
 
     exe = shutil.which("fluidsynth") or "fluidsynth"
-    cmd = [exe, "-ni", str(sf), str(ruta_midi), "-F", str(ruta_wav), "-r", "44100"]
+    # opciones ANTES de los posicionales: fluidsynth >=2.6 rechaza -F despues
+    # de los archivos ("only -b option is allowed here"); el orden POSIX
+    # funciona igual en las versiones previas
+    cmd = [exe, "-ni", "-F", str(ruta_wav), "-r", "44100",
+           str(sf), str(ruta_midi)]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=timeout)
