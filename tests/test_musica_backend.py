@@ -267,6 +267,12 @@ def test_midi_a_wav_linea_fluidsynth(monkeypatch, tmp_path):
     assert capturado["cmd"] == [
         "fluidsynth", "-ni", "-F", wav, "-r", "44100", str(sf), str(midi)]
     assert capturado["timeout"] == 300
+    # seco=True (stems de produccion): apaga la reverb/chorus DEFAULT del
+    # synth con -R 0 -C 0, tambien ANTES de los posicionales
+    render.midi_a_wav(str(midi), seco=True)
+    assert capturado["cmd"] == [
+        "fluidsynth", "-ni", "-F", wav, "-r", "44100", "-R", "0", "-C", "0",
+        str(sf), str(midi)]
 
 
 def test_midi_a_wav_sin_soundfont(monkeypatch, tmp_path):

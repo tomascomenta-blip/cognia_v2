@@ -21,8 +21,12 @@ from cognia.musica.transcripcion import transcribir, transcribir_disponible
 from cognia.musica.song2song import song_to_song
 from cognia.musica.compositor import componer_esqueleto, texto_a_esqueleto
 from cognia.musica.banco_monotonia import medir as medir_monotonia
+# modulo produccion, funcion producir: nombres distintos A PROPOSITO (misma
+# leccion que transcripcion/transcribir de arriba). pedalboard/numpy se
+# importan perezosos dentro de producir: este import es liviano.
+from cognia.musica.produccion import producir
 
 __all__ = ["musica_disponible", "orquestar", "fluidsynth_disponible",
            "midi_a_wav", "aplicar_expresividad", "transcribir",
            "transcribir_disponible", "song_to_song", "componer_esqueleto",
-           "texto_a_esqueleto", "medir_monotonia"]
+           "texto_a_esqueleto", "medir_monotonia", "producir"]

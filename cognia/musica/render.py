@@ -43,8 +43,13 @@ def fluidsynth_disponible() -> tuple[bool, str]:
 
 
 def midi_a_wav(midi: str, wav: Optional[str] = None, *,
-               soundfont: Optional[str] = None, timeout: float = 300) -> str:
+               soundfont: Optional[str] = None, timeout: float = 300,
+               seco: bool = False) -> str:
     """Renderiza un .mid a .wav 44100 Hz. Devuelve la ruta del WAV.
+
+    seco=True apaga la reverb y el chorus que fluidsynth trae ACTIVOS por
+    defecto (-R 0 -C 0): lo pide produccion para que cada stem entre limpio
+    a su cadena por rol; el render directo queda con la sala default.
 
     POR QUE valida el tamano de salida: fluidsynth puede salir con codigo 0
     dejando un WAV vacio (soundfont corrupto) -- el fallo tipico del repo es
@@ -64,8 +69,14 @@ def midi_a_wav(midi: str, wav: Optional[str] = None, *,
     # opciones ANTES de los posicionales: fluidsynth >=2.6 rechaza -F despues
     # de los archivos ("only -b option is allowed here"); el orden POSIX
     # funciona igual en las versiones previas
-    cmd = [exe, "-ni", "-F", str(ruta_wav), "-r", "44100",
-           str(sf), str(ruta_midi)]
+    cmd = [exe, "-ni", "-F", str(ruta_wav), "-r", "44100"]
+    if seco:
+        # -R 0 -C 0: sin la reverb/chorus default del synth. Un stem que
+        # despues recibe su sala por rol (pedalboard) no puede traer la
+        # sala del synth ya horneada: serian dos reverbs en serie y el
+        # "BAJO sin reverb" de produccion seria mentira.
+        cmd += ["-R", "0", "-C", "0"]
+    cmd += [str(sf), str(ruta_midi)]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=timeout)

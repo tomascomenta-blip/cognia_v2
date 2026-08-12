@@ -17,8 +17,9 @@ import pytest
 from cognia.musica import song2song
 from cognia.musica import transcripcion
 from cognia.musica.banco_monotonia import medir, medir_lote
-from cognia.musica.compositor import (CARACTERES, componer_esqueleto,
-                                      texto_a_caracter)
+from cognia.musica.compositor import (CARACTERES, GENEROS, componer_esqueleto,
+                                      componer_genero, texto_a_caracter,
+                                      texto_a_esqueleto)
 
 TPQ = 480
 COMPAS = TPQ * 4
@@ -106,11 +107,173 @@ def test_compositor_estructura_anti_monotonia(tmp_path):
         assert notas_a != notas_b, f"{caracter}: la seccion B clona la A"
 
 
+def _solapes(notas):
+    """Pares de notas consecutivas que se pisan dentro de una pista."""
+    notas = sorted(notas, key=lambda n: n.start)
+    return [(a, b) for a, b in zip(notas, notas[1:]) if b.start < a.end]
+
+
+def test_celdas_ocupan_cuatro_negras():
+    """Cada celda ritmica ocupa 4 negras (el 0 cuenta 1 de silencio): una
+    celda de 5 planta su ultima nota en el compas siguiente y la melodia
+    queda con dos notas simultaneas (bug real: [2,1,0,1] sumaba 5)."""
+    from cognia.musica.compositor import _CELDAS
+    for celda in _CELDAS:
+        assert sum(d if d else 1 for d in celda) == 4, celda
+    for genero, conf in GENEROS.items():
+        for celda in conf["celdas"]:
+            assert sum(d if d else 1 for d in celda) == 4, (genero, celda)
+
+
+def test_melodia_monofonica_sin_solapes(tmp_path):
+    """La pista de melodia (y la contra) es monofonica: ninguna nota puede
+    pisar a la siguiente. Con las celdas de 5 negras habia 4 solapes por
+    pieza (nota en el downbeat del compas siguiente contra la primera de
+    ese compas, hasta a la MISMA altura en electro)."""
+    for semilla in (0, 7):
+        for caracter in CARACTERES:
+            ruta = tmp_path / f"e_{caracter}_{semilla}.mid"
+            componer_esqueleto(caracter, ruta, compases=24, semilla=semilla)
+            midi = miditoolkit.MidiFile(str(ruta))
+            melo = next(i for i in midi.instruments if i.name == "Melody")
+            assert not _solapes(melo.notes), (caracter, semilla)
+        for genero in GENEROS:
+            ruta = tmp_path / f"g_{genero}_{semilla}.mid"
+            componer_genero(genero, ruta, compases=24, semilla=semilla)
+            midi = miditoolkit.MidiFile(str(ruta))
+            for nombre in ("Melody", "Contra"):
+                pista = next(i for i in midi.instruments if i.name == nombre)
+                assert not _solapes(pista.notes), (genero, nombre, semilla)
+
+
+def test_esqueleto_seccion_b_misma_tonalidad(tmp_path):
+    """La armonia de B no introduce clases de altura fuera de las que las
+    progresiones del caracter producen en la tonalidad ORIGINAL: el viejo
+    'al relativo' sumaba +-3 cromatico a las raices (do# en do mayor)
+    mientras la melodia seguia snapeada a la escala original."""
+    tercio = 8 * COMPAS
+    for caracter, conf in CARACTERES.items():
+        permitidas = {(conf["tonica"] + grado + iv) % 12
+                      for prog in conf["progresiones"]
+                      for grado, triada in prog for iv in triada}
+        ruta = tmp_path / f"b_{caracter}.mid"
+        componer_esqueleto(caracter, ruta, compases=24, semilla=0)
+        midi = miditoolkit.MidiFile(str(ruta))
+        armo = next(i for i in midi.instruments if i.name == "Piano")
+        clases_b = {n.pitch % 12 for n in armo.notes
+                    if tercio <= n.start < 2 * tercio}
+        assert clases_b <= permitidas, (
+            f"{caracter}: B mete clases foraneas {sorted(clases_b - permitidas)}")
+
+
+def test_esqueleto_escribe_tempo(tmp_path):
+    """El bpm del caracter va AL ARCHIVO (TempoChange), no solo al dict:
+    sin el, cualquier render directo del esqueleto suena a 120 mientras la
+    metadata declara 72/100/... (componer_genero ya lo hacia bien)."""
+    for caracter, conf in CARACTERES.items():
+        ruta = tmp_path / f"t_{caracter}.mid"
+        meta = componer_esqueleto(caracter, ruta, compases=12, semilla=1)
+        midi = miditoolkit.MidiFile(str(ruta))
+        assert midi.tempo_changes, f"{caracter}: sin TempoChange"
+        assert midi.tempo_changes[0].tempo == pytest.approx(conf["bpm"])
+        assert meta["bpm"] == conf["bpm"]
+
+
 def test_texto_a_caracter():
     assert texto_a_caracter("una cancion EPICA de batalla") == "epica"
     assert texto_a_caracter("algo suave para dormir") == "calma"
     assert texto_a_caracter("melancolica y lluviosa") == "triste"
     assert texto_a_caracter("qwerty sin pistas") == "epica"
+
+
+def test_genero_determinista(tmp_path):
+    """Mismo genero y semilla -> bytes identicos; otra semilla -> otros."""
+    for genero in GENEROS:
+        a = componer_genero(genero, tmp_path / f"{genero}_a.mid", semilla=5)
+        componer_genero(genero, tmp_path / f"{genero}_b.mid", semilla=5)
+        componer_genero(genero, tmp_path / f"{genero}_c.mid", semilla=6)
+        ba = (tmp_path / f"{genero}_a.mid").read_bytes()
+        assert ba == (tmp_path / f"{genero}_b.mid").read_bytes(), genero
+        assert ba != (tmp_path / f"{genero}_c.mid").read_bytes(), genero
+        assert a["bpm"] == GENEROS[genero]["bpm"]
+        assert a["genero"] == genero
+
+
+def test_genero_drums_y_paleta(tmp_path):
+    """Cada genero trae bateria GM (is_drum) y su paleta de programas; el
+    cowbell 56 es obligatorio en phonk (es el gancho del genero)."""
+    for genero, conf in GENEROS.items():
+        ruta = tmp_path / f"{genero}.mid"
+        componer_genero(genero, ruta, semilla=2)
+        midi = miditoolkit.MidiFile(str(ruta))
+        drums = [i for i in midi.instruments if i.is_drum]
+        assert len(drums) == 1 and drums[0].notes, f"{genero}: sin bateria"
+        por_nombre = {i.name: i.program for i in midi.instruments
+                      if not i.is_drum}
+        pal = conf["paleta"]
+        assert por_nombre["Melody"] == pal["melodia"], genero
+        assert por_nombre["Contra"] == pal["contra"], genero
+        assert por_nombre["Chords"] == pal["armonia"], genero
+        assert por_nombre["Bass"] == pal["bajo"], genero
+        if genero == "phonk":
+            assert any(n.pitch == 56 for n in drums[0].notes), "sin cowbell"
+
+
+def test_genero_anti_monotonia(tmp_path):
+    """El arreglo completo no puede ser un loop: mismo listen del esqueleto
+    (rep_ritmo < 0.6 con el banco), ahora con bajo y bateria incluidos."""
+    for genero in GENEROS:
+        ruta = tmp_path / f"{genero}.mid"
+        componer_genero(genero, ruta, compases=24, semilla=7)
+        m = medir(ruta)
+        assert m["rep_ritmo"] < 0.6, f"{genero}: arreglo en loop ({m})"
+
+
+def test_genero_seccion_b_distinta(tmp_path):
+    """B tiene que mutar respecto de A (progresion/registro/celdas) y en
+    phonk/electro la bateria de B pierde piezas (drop/breakdown)."""
+    tercio = 8 * COMPAS
+    for genero in GENEROS:
+        ruta = tmp_path / f"{genero}.mid"
+        componer_genero(genero, ruta, compases=24, semilla=3)
+        midi = miditoolkit.MidiFile(str(ruta))
+        tonales = [n for i in midi.instruments if not i.is_drum
+                   for n in i.notes]
+        a = sorted((n.start % COMPAS, n.pitch) for n in tonales
+                   if n.start < tercio)
+        b = sorted((n.start % COMPAS, n.pitch) for n in tonales
+                   if tercio <= n.start < 2 * tercio)
+        assert a != b, f"{genero}: la seccion B clona la A"
+        if genero in ("phonk", "electro"):
+            d = next(i for i in midi.instruments if i.is_drum)
+            pa = {n.pitch for n in d.notes if n.start < tercio}
+            pb = {n.pitch for n in d.notes
+                  if tercio <= n.start < 2 * tercio}
+            assert pb < pa, f"{genero}: B no dropea piezas de la bateria"
+
+
+def test_texto_a_caracter_generos():
+    assert texto_a_caracter("musica de videojuego arcade") == "videojuegos"
+    assert texto_a_caracter("un huayno con quena y charango") == "andina"
+    assert texto_a_caracter("drift phonk con cowbell") == "phonk"
+    assert texto_a_caracter("house para el club") == "electro"
+    # el genero gana al caracter: "phonk oscuro" NO es misteriosa
+    assert texto_a_caracter("phonk oscuro") == "phonk"
+
+
+def test_texto_a_esqueleto_rutea_genero(tmp_path):
+    """Texto con genero -> arreglo completo con drums; texto con caracter
+    sigue yendo al esqueleto de SymphonyGen (sin drums)."""
+    meta = texto_a_esqueleto("un tema 8-bit de boss final", tmp_path / "g.mid",
+                             compases=12, semilla=1)
+    assert meta["genero"] == "videojuegos"
+    midi = miditoolkit.MidiFile(str(tmp_path / "g.mid"))
+    assert any(i.is_drum for i in midi.instruments)
+    meta2 = texto_a_esqueleto("una cancion epica de batalla",
+                              tmp_path / "e.mid", compases=12, semilla=1)
+    assert meta2["caracter"] == "epica"
+    midi2 = miditoolkit.MidiFile(str(tmp_path / "e.mid"))
+    assert not any(i.is_drum for i in midi2.instruments)
 
 
 def test_transcribir_no_disponible_sin_venv(monkeypatch):

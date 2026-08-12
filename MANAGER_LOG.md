@@ -12591,3 +12591,36 @@ espacios, keepends del fallback plano del diff — declaradas, no urgentes.
 - Entregables audibles: Desktop\SymphonyGen_expresivo\creaciones\ (triste/epica/
   alegre estructuradas + song2song_replica, .mid y .wav renderizados).
 - Tests: test_musica_creacion.py 11/11; suite completa verde (ver commit).
+
+## 2026-08-11 (5) - Capa de produccion + 4 generos + datos de fine-tune
+- cognia/musica/produccion.py: produccion de audio REAL por stems -- separa el
+  MIDI por pistas, renderiza cada una SECA (render.py gano seco=True: -R 0 -C 0,
+  dos reverbs en serie eran mentira), clasifica rol con el clasificador de
+  expresividad, aplica cadenas pedalboard por rol (HPF->EQ->comp->satur->EQ->
+  mod->delay->reverb->gain) con presets por genero (orquestal/videojuegos/
+  andina/phonk/electro), mezcla y master (bus comp + limiter; pico <=-1 dBFS
+  verificado con numpy). Presets validados AL IMPORTAR. CLI --genero.
+- compositor.py: dict GENEROS con arreglos COMPLETOS idiomaticos (melodia,
+  armonia, bajo por rol fund/quinta/octava, bateria GM con cowbell 56 en phonk,
+  four-on-floor en electro, galope+fills en videojuegos, bombo huayno en
+  andina; pentatonica menor andina, frigia phonk), forma A-B-A' con mutaciones
+  por genero y anti-clonacion. texto_a_caracter rutea generos.
+- Piezas generadas y ENTREGADAS (32 compases c/u, expresividad + produccion):
+  videojuegos rep_ritmo 0.300 / andina 0.290 / phonk 0.374 / electro 0.273 --
+  todas al nivel del modelo libre (0.28). Megalovania re-producida como A/B.
+- Datos de fine-tune (scripts/musica_datos_generos.py, scraper educado con
+  dedupe sha256 y presupuesto): videojuegos 1050+ MIDIs validos de vgmusic
+  (15.5k candidatos, escalable), electro 107 (midiworld), phonk 0 (genero
+  sample-based: NO existe fuente MIDI decente -- documentado, su idioma vive
+  en el compositor), andina 2 (idem). bitmidi 521 todo el dia, freemidi
+  search no entrega MThd.
+- Fine-tune videojuegos: pipeline del vendor identificado (WORK_DIR/
+  SymphonyNet_Dataset -> 1_serialize -> 2_train_val_split -> 3_index_bar ->
+  arch/symph/1_pretrain.py <ckpt> que REANUDA de checkpoint). Ver estado en
+  la entrada siguiente o en la memoria linea-creacion-musical.
+- Metodo: workflow ultracode (2 disenos + 3 impl paralelas + 2 revisores +
+  corrector); findings reales corregidos (celdas con ocupacion != 4 pisaban
+  el compas siguiente, tempo/time-signature sin copiar a los stems, mutantes
+  de test cazados por mutacion real).
+- Tests: test_musica_produccion 13, creacion 17 (7 de generos); dirigidos de
+  musica 98/98; suite completa 6834 passed / 0 failed / 2 skipped.
