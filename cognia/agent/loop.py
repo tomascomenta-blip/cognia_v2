@@ -316,6 +316,19 @@ def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
     return liberados
 
 
+def _catalogo_para_ofertas() -> list:
+    """El registry completo para buscar candidatas a ofrecer. [] si falla.
+
+    Import perezoso y tolerante: esta funcion corre dentro del turno del agente
+    y un fallo suyo no puede costar la tarea.
+    """
+    try:
+        from cognia.agent.tools import catalogo_schemas
+        return catalogo_schemas()
+    except Exception:
+        return []
+
+
 def bucle_nativo(task: str, system: str, completar, schemas: list,
                  args_legacy, mensaje_assistant, mensaje_tool,
                  run_tool, ctx: dict, perfil: dict, history: list,
@@ -367,6 +380,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     }
 
     sig_counts: dict = {}
+    # Herramientas ya ofrecidas en ESTA tarea: ofrecer dos veces la misma es
+    # ruido, y si no la uso la primera vez es que no la queria.
+    _ofertas_hechas: set = set()
     tokens_total = 0
     pasos = 0
     fail_streak = 3
@@ -437,7 +453,22 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     tool=tc.nombre, args=args_str[:120], ok=bool(tool_ok),
                     resumen=resultado[:200],
                     duracion_s=__import__("time").time() - t_tool, paso=pasos))
-            mensajes.append(mensaje_tool(tc.id, resultado))
+            # OFERTA PROACTIVA (opt-in COGNIA_TOOLS_PROACTIVAS, idea del dueno
+            # 2026-08-13): el razonamiento del turno dice que esta intentando
+            # hacer; si una tool NO anunciada lo resuelve, se le ofrece aqui —
+            # pegada al resultado, que es lo ULTIMO que lee antes de volver a
+            # decidir. Maximo 2 y sin repetir, porque el A/B del repo midio que
+            # inflar el catalogo degrada. Apagado -> devuelve el resultado tal cual.
+            try:
+                from cognia.harness.sugerencia_proactiva import anexar as _ofrecer
+                resultado_msg = _ofrecer(
+                    resultado, resp.reasoning_content,
+                    {s.get("function", {}).get("name") for s in (schemas or [])},
+                    _catalogo_para_ofertas(), _ofertas_hechas,
+                    intencion=_intencion_de(resp))
+            except Exception:
+                resultado_msg = resultado
+            mensajes.append(mensaje_tool(tc.id, resultado_msg))
             if verdict == "warn":
                 mensajes.append({
                     "role": "user",
