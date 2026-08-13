@@ -12644,3 +12644,52 @@ espacios, keepends del fallback plano del diff — declaradas, no urgentes.
   si aun OOM, gradient checkpointing o BAR_NUM=16. El gate sigue siendo:
   best_model.pt vs stage_two_pretrained.pt generando con el MISMO esqueleto,
   juzgado por banco de monotonia + escucha.
+
+## 2026-08-13 — Destilación de 107 harnesses punteros al CLI + adaptador nativo
+
+**Encargo del dueño:** investigar los mejores agentes/harness de IA en ≥10 campos (≈100 sistemas),
+destilar sus funcionalidades insignia al CLI de Cognia, juzgar el CLI visualmente contra los top con
+VLM real, y cerrar con un adaptador que funcione de forma NATIVA y no por instrucciones ciegas.
+Corrida autónoma 22:10 → deadline 05:00 (apagado programado a las 05:00).
+
+**Investigación.** 107 sistemas en 9 campos con búsqueda real y fuentes primarias
+(`INVESTIGACION_HARNESSES_20260812.md`, ranking transversal de 35 funcionalidades puntuadas por
+valor × convergencia / dificultad; `investigacion_campos.json` con las fichas). Cayó 1 de los 10
+campos (ejecución/sandbox) por un agente atascado.
+
+**Implementado.** 16 módulos en `cognia/harness/` con 781 tests propios, cada uno con revisión
+adversarial que ya cazó dos bugs graves (deshacer que CRLF-izaba ficheros enteros; hooks que rompían
+acentos). Cableado: `interceptor.antes/despues` dentro de `run_tool` (modo plan, hooks del proyecto,
+checkpoint antes de escribir, verificación de sintaxis tras editar), banner adaptativo por altura
+real, barra de estado inferior, `/deshacer`, `/plan-modo`, `/permisos`, `/ayuda` navegable,
+@-menciones, y 4 tools nativas del arnés.
+
+**El hallazgo de la noche.** El adaptador nativo estaba a MEDIAS: `tool_schemas.schemas_para`
+ignoraba los `params` del registry y le publicaba al modelo una única propiedad `args` con la línea
+de ayuda dentro — una instrucción en prosa donde debía ir una firma tipada. Cerrado y verificado
+contra el llama-server de verdad: de `{"args": "res:3f2a1b lineas 200-260"}` a
+`{"handle": "res:3f2a1b", "lineas": "200-260"}`.
+
+**Decisiones que respetan lo YA medido en este repo:** ninguna tool nueva entró en `CORE_TOOLS`
+(el A/B de 2026-07-25 midió que 46 tools bajan el camino feliz de 4.25/5 a 2.5/5): todas van tras su
+flag opt-in. El offloading queda apagado por defecto porque `aci_trim` ya recorta y el doble truncado
+está medido como dañino. Los tests automáticos tras editar quedan opt-in porque la suite son 12 min.
+
+**Verificación.** Suite completa **7681 passed / 0 failed / 2 skipped** (7:46).
+`scripts/e2e_happy_path.py` exit 0. `scripts/e2e_arnes_nativo.py` (gate nuevo, 5 pasos contra el
+modelo real) todo OK. Banner medido capturando la salida real a seis tamaños de terminal.
+Commits `8b01e3c2` y `a40391ff`, pusheados a origin.
+
+**Errores de método cometidos (para no repetirlos):** (1) edité `cli.py` mientras corría la suite y
+26 tests que hacen `inspect.getsource` fallaron con offsets desincronizados — parecían regresiones y
+no lo eran; (2) un test propio encendía flags con `os.environ` a nivel de módulo y contaminó la
+sesión entera de pytest, rompiendo cuatro tests que protegen que el catálogo NO crezca.
+
+**Bug de entorno preexistente detectado (no es de este trabajo):** `~/.cognia/logs/cognia.log` está
+en el límite de rotación (5 MB) y con varios procesos de Cognia abiertos a la vez el
+`RotatingFileHandler` lanza `PermissionError` al rotar; ensucia stderr de cualquier arranque y hace
+fallar `test_repl_piped_sin_consola_no_crashea`.
+
+**Queda pendiente:** cablear `render_tools` y la barra de atajos; medir los opt-in con brazos
+intercalados antes de encenderlos; el motor de workflows sigue huérfano del CLI; sin interrupción
+con ESC durante el streaming. Detalle en `ENTREGA_ARNES_20260813.md`.

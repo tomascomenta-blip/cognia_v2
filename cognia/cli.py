@@ -1786,7 +1786,17 @@ def _print_startup_panel():
                 _tema = ""
             _sufijo = f"   modo {_modo}" + (f"   tema {_tema}" if _tema else "")
             if _e.get("modelo"):
-                _linea = f"  modelo {_e['modelo']} (:{_e['puerto']}){_sufijo}"
+                # El nombre del GGUF puede medir 50+ chars y con el sufijo se
+                # pasaba del ancho, partiendo 'tema oscuro' a la linea de
+                # abajo. Se acorta el NOMBRE (la cola identifica el modelo:
+                # cuantizacion y variante) y el resto entra entero.
+                _ancho_pie = (getattr(_console, "width", 100) if _HAS_RICH else 100) - 2
+                _nombre = _e["modelo"]
+                _fijo = len(f"  modelo  (:{_e['puerto']}){_sufijo}")
+                _sitio = max(16, _ancho_pie - _fijo)
+                if len(_nombre) > _sitio:
+                    _nombre = _nombre[:max(6, _sitio // 2 - 1)] + "…" + _nombre[-(_sitio // 2):]
+                _linea = f"  modelo {_nombre} (:{_e['puerto']}){_sufijo}"
                 _estilo_ok = True
             else:
                 _linea = (f"  sin backend en {_e['url']} — arranca: "
@@ -7164,7 +7174,11 @@ def repl():
             _texto_ayuda = None
             try:
                 from cognia.harness import ayuda as _ah
-                _ancho = getattr(_console, "width", 100) if _HAS_RICH else 100
+                # -2: el modulo sangra sus lineas, asi que el ancho UTIL es el
+                # de la consola menos la sangria. Sin esto la cabecera
+                # ('Ayuda de Cognia ... 240 comandos | 14 categorias') partia
+                # de linea en una terminal de 100 columnas.
+                _ancho = (getattr(_console, "width", 100) if _HAS_RICH else 100) - 2
                 if not _arg_ayuda:
                     _texto_ayuda = _ah.portada(_CMD_DESCRIPTIONS, _ancho)
                 elif _arg_ayuda.startswith("buscar"):
