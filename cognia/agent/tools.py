@@ -356,8 +356,18 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
             record_wanted_tool(name, hint=args[:120])
         except Exception:
             pass
-        valid = ", ".join(TOOLS.keys())
-        return f"ERROR: herramienta '{name}' no existe. Validas: {valid}"
+        # El modelo suele acertar la TAREA y errar el NOMBRE: 'crear_archivo'
+        # aparece 42 veces en wanted_tools con los argumentos correctos de
+        # escribir_archivo. Devolverle las 54 tools era castigarlo con ruido
+        # justo cuando esta perdido, y ademas contradice el A/B del propio repo
+        # (catalogos grandes degradan). Se le da el nombre bueno, o 3 candidatas.
+        try:
+            from cognia.harness.traductor_tools import mensaje_error
+            _visibles = _allowed if _allowed is not None else set(TOOLS)
+            return mensaje_error(name, _visibles, catalogo_schemas(_visibles))
+        except Exception:
+            valid = ", ".join(TOOLS.keys())
+            return f"ERROR: herramienta '{name}' no existe. Validas: {valid}"
     # ARNES (cognia/harness/interceptor.py, 2026-08-12): modo plan, hooks del
     # proyecto y checkpoint del estado previo. Devuelve un string cuando la
     # llamada queda VETADA -- ese texto es lo que lee el modelo en lugar del
