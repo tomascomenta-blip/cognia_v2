@@ -1227,6 +1227,21 @@ if _HAS_PT:
     class _CogniaCompleter(Completer):
         def get_completions(self, document, complete_event):
             text = document.text_before_cursor
+            # @-menciones de ficheros (2026-08-12): '@src/mod' completa rutas
+            # reales del proyecto. Es la via universal de los CLI punteros para
+            # meter contexto exacto sin copiar y pegar, y funciona en cualquier
+            # punto de la linea (tambien dentro de una frase).
+            corte = text.rfind("@")
+            if corte >= 0 and " " not in text[corte + 1:]:
+                prefijo = text[corte + 1:]
+                try:
+                    from cognia.harness.menciones import completar_rutas
+                    for ruta in completar_rutas(prefijo, os.getcwd(), limite=20):
+                        yield Completion(ruta, start_position=-len(prefijo),
+                                         display=ruta, display_meta="archivo")
+                except Exception:
+                    pass
+                return
             if not text.startswith("/"):
                 return
             if " " in text:
@@ -3742,6 +3757,35 @@ def _slash_feedback_sesion() -> None:
     neg = sum(1 for f in _session_feedback if f["signal"] == "negativo")
     neu = sum(1 for f in _session_feedback if f["signal"] == "neutral")
     print(f"Sesion: {pos} positivos, {neg} negativos, {neu} neutrales.")
+
+
+# Palabras que en '/ayuda X' NO son un comando sino una orden de la propia
+# ayuda. 'buscar' es la trampa: existe /buscar, asi que '/ayuda buscar tokens'
+# se despachaba como la ficha de /buscar y contestaba "Comando no encontrado".
+_ORDENES_AYUDA = ("buscar", "todo", "all", "categorias", "categoría", "categorias")
+
+
+def _es_comando_conocido(texto: str) -> bool:
+    """True si `texto` nombra un comando del registry (con o sin la barra).
+
+    Un token sin barra que coincide con una orden de la ayuda NO cuenta: se lo
+    queda la ayuda navegable. Con barra explicita ('/ayuda /buscar') sigue
+    ganando el comando, que es la forma de pedir la ficha sin ambiguedad.
+    """
+    crudo = (texto or "").strip()
+    if not crudo:
+        return False
+    # Con barra explicita basta el primer token ('/ayuda /grafo html'); sin
+    # barra tiene que casar el texto ENTERO, porque los nombres de categoria
+    # empiezan por una palabra que suele ser tambien un comando ('grafo de
+    # conocimiento' vs /grafo) y ahi manda la categoria.
+    if crudo.startswith("/"):
+        cmd = crudo.split()[0]
+    else:
+        cmd = "/" + crudo
+        if cmd.lower() in ("/" + o for o in _ORDENES_AYUDA):
+            return False
+    return cmd in _CMD_DESCRIPTIONS or cmd in _CMD_DETAILS
 
 
 def _slash_ayuda_detallada(args: str) -> None:
@@ -6960,6 +7004,24 @@ def repl():
         if not raw:
             continue
 
+        # @-menciones: '@ruta' mete el CONTENIDO del fichero en el mensaje.
+        # Sin esto el modelo veia el texto '@cli.py' y no tenia forma de saber
+        # que hay dentro. Solo en texto libre: en un comando slash el '@' es
+        # del argumento, no una mencion.
+        if "@" in raw and not raw.startswith("/"):
+            try:
+                from cognia.harness.menciones import expandir
+                _exp, _adj, _avisos = expandir(raw, os.getcwd())
+                for _aviso in _avisos:
+                    _print_line(f"[warn_cl]{_escape(str(_aviso))}[/warn_cl]")
+                if _adj:
+                    _resumen = ", ".join(
+                        f"@{a.get('ruta')} ({a.get('bytes', 0)} B)" for a in _adj)
+                    _print_line(f"[detail]{_escape(_resumen)} adjuntado(s)[/detail]")
+                    raw = _exp
+            except Exception:
+                pass       # una mencion rota jamas puede tragarse el mensaje
+
         # -- UI slash -------------------------------------------------------
         # Arnes (2026-08-12): van primero porque son la red de seguridad —
         # tienen que responder aunque el resto del REPL este degradado.
@@ -7085,15 +7147,40 @@ def repl():
                 subprocess.run([sys.executable, _scr] + _dargs)
             else:
                 _print_line("[detail]/distill esta disponible desde el repo de Cognia (no en la instalacion pip).[/detail]")
-        elif raw.startswith("/ayuda ") or raw.startswith("/help "):
+        elif ((raw.startswith("/ayuda ") or raw.startswith("/help "))
+              and _es_comando_conocido(raw.split(" ", 1)[1])):
+            # '/ayuda /hacer' sigue siendo la ficha del comando; lo que NO es un
+            # comando ('/ayuda memoria', '/ayuda buscar tokens') cae a la ayuda
+            # navegable de abajo en vez de responder "no existe".
             _slash_ayuda_detallada(raw.split(" ", 1)[1])
-        elif raw in ("/ayuda", "/help"):
+        elif raw in ("/ayuda", "/help") or raw.startswith(("/ayuda ", "/help ")):
             # /help = alias de /ayuda (varios mensajes del propio CLI lo
             # recomendaban y el comando no existia — cazado 2026-07-16).
+            # Navegable desde 2026-08-12: volcar los 240 comandos de una vez
+            # (13.438 px medidos) es inutilizable justo para quien mas ayuda
+            # necesita. Portada + categoria + busqueda, como cualquier CLI
+            # moderno. '/ayuda todo' conserva el volcado de siempre.
+            _arg_ayuda = raw.split(" ", 1)[1].strip() if " " in raw else ""
+            _texto_ayuda = None
+            try:
+                from cognia.harness import ayuda as _ah
+                _ancho = getattr(_console, "width", 100) if _HAS_RICH else 100
+                if not _arg_ayuda:
+                    _texto_ayuda = _ah.portada(_CMD_DESCRIPTIONS, _ancho)
+                elif _arg_ayuda.startswith("buscar"):
+                    _hits = _ah.buscar(_CMD_DESCRIPTIONS,
+                                       _arg_ayuda[len("buscar"):].strip())
+                    _texto_ayuda = "\n".join(
+                        f"  {c:22} {d}" for c, d, _ in _hits) or "  (sin coincidencias)"
+                elif _arg_ayuda not in ("todo", "all"):
+                    _texto_ayuda = _ah.seccion(_CMD_DESCRIPTIONS, _arg_ayuda, _ancho)
+            except Exception:
+                _texto_ayuda = None       # degrada al HELP_TEXT de siempre
+            _salida_ayuda = _texto_ayuda if _texto_ayuda is not None else HELP_TEXT
             if _HAS_RICH and _console:
-                _console.print(HELP_TEXT, style="bright_green", markup=False)
+                _console.print(_salida_ayuda, style="bright_green", markup=False)
             else:
-                print(_G + HELP_TEXT + _R)
+                print(_G + _salida_ayuda + _R)
 
         # -- Reporte y perfil ----------------------------------------------
         elif raw == "/reporte":

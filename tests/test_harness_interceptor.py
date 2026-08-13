@@ -19,7 +19,17 @@ from cognia.harness import checkpoints, interceptor, modo_plan
 
 @pytest.fixture(autouse=True)
 def _aislar(tmp_path, monkeypatch):
-    """Cada test con su HOME, su sesion de checkpoints y su modo limpio."""
+    """Cada test con su HOME, su workspace, su sesion y su modo limpios.
+
+    El workspace hay que FIJARLO: `dev_tools.AGENT_WORKSPACE_ROOT` es una
+    variable de modulo que otros tests redirigen (contrato documentado en ese
+    fichero), y si queda apuntando a otro sitio el gate de escritura rechaza
+    todo lo que escriban estos tests en su tmp_path — que es exactamente como
+    fallaban en la suite completa aunque pasaran aislados.
+    """
+    from cognia.agents.workers import dev_tools
+    monkeypatch.setattr(dev_tools, "AGENT_WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setenv("COGNIA_AGENT_WORKSPACE", str(tmp_path))
     monkeypatch.setenv("COGNIA_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path / "home"))
     checkpoints._SESION = None
