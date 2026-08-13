@@ -1676,6 +1676,37 @@ def _bon_log(rec: dict) -> None:
         pass
 
 
+# Nombres que parecen una firma pero no son el objetivo: builtins y verbos de
+# la propia consigna. Sin esta lista, "imprima el resultado(x)" daria 'imprima'.
+_NO_SON_ENTRY = frozenset({
+    "print", "input", "len", "range", "open", "str", "int", "float", "list",
+    "dict", "set", "tuple", "sum", "min", "max", "abs", "round", "sorted",
+    "type", "bool", "map", "filter", "zip", "enumerate", "format",
+    "imprima", "imprime", "imprimir", "muestra", "mostrar", "devuelve",
+    "devolver", "retorna", "retornar", "calcula", "calcular", "def",
+    "python", "return", "if", "for", "while", "class",
+})
+_FIRMA_RX = re.compile(r"\b([A-Za-z_]\w*)\s*\(\s*[^)]{0,120}\)")
+
+
+def _firma_suelta(texto: str):
+    """El nombre de una firma `nombre(args)` suelta en la descripcion.
+
+    POR QUE (2026-08-13): `extract_entry_point` solo reconoce la firma cuando
+    va precedida de la palabra 'funcion'/'function' — pero la propia ayuda de
+    generar_codigo le pide al modelo justo lo contrario: "inclui `suma(a, b)`".
+    Medido: extract_entry_point('suma(a, b)') -> None, o sea que el modelo
+    obedecia la instruccion al pie de la letra y la herramienta lo rechazaba
+    igual. Esto cubre ese hueco SIN tocar extract_entry_point, que la comparten
+    BoN y las etapas de stepwise (y ensancharla ahi cambiaria caminos medidos).
+    """
+    for m in _FIRMA_RX.finditer(texto or ""):
+        nombre = m.group(1)
+        if nombre.lower() not in _NO_SON_ENTRY:
+            return nombre
+    return None
+
+
 @tool("generar_codigo",
       "generar_codigo <ruta.py> | <descripcion con el nombre exacto `func(args)`>  "
       "-- genera N candidatos con test-first y ESCRIBE el mejor por tests",
@@ -1697,10 +1728,24 @@ def _generar_codigo(args, ctx):
         return "RESULTADO generar_codigo ERROR: formato (ruta.py | descripcion)"
     path_s, desc = parts[0].strip(), parts[1].strip()
     from cognia.agent.stepwise import extract_entry_point
-    entry = extract_entry_point(desc) or extract_entry_point(path_s)
+    entry = (extract_entry_point(desc) or extract_entry_point(path_s)
+             or _firma_suelta(desc))
     if not entry:
-        return ("RESULTADO generar_codigo ERROR: no identifique el nombre de la "
-                "funcion; inclui `nombre(args)` en la descripcion.")
+        # El mensaje tiene que decir QUE HACER, no solo que fallo. Medido el
+        # 2026-08-13 con scripts/diag_tarea_python.py: ante "escribi y ejecuta
+        # un script que imprima la suma de 100 mas 250" (un SCRIPT, no una
+        # funcion) el modelo elegia generar_codigo, recibia "no identifique el
+        # nombre de la funcion" y reintentaba IDENTICO 3 veces hasta que el
+        # detector de estancamiento mataba la tarea: 1 de cada 3 corridas del
+        # gate del camino feliz se perdia asi. Con la salida nombrada, el
+        # modelo cambia de herramienta en el paso siguiente.
+        return ("RESULTADO generar_codigo ERROR: esta herramienta escribe UNA "
+                "FUNCION y no encuentro su nombre en la descripcion. "
+                "Si querias una funcion, repeti la llamada incluyendo el nombre "
+                "exacto, p.ej. `suma(a, b)`. Si lo que necesitas es un SCRIPT "
+                "(codigo que se ejecuta de arriba a abajo), esta no es la "
+                "herramienta: usa escribir_archivo con el codigo completo y "
+                "despues ejecutar.")
     try:
         wpath = _resolve_write_path(path_s)
     except ValueError as e:

@@ -2,41 +2,69 @@
 
 ---
 
-## [4.5.0] - 2026-08-02
+## [4.8.0] - 2026-08-13
 
-### Estilo conversacional del REPL + system prompt configurable
+### El arnés: 107 harnesses punteros destilados al CLI + adaptador nativo real
 
-La interfaz del CLI adopta una filosofía conversacional: minimalismo, espacio
-en blanco como jerarquía y la conversación como foco. El banner y los colores
-del producto quedan intactos.
+Se investigaron 107 agentes/harness punteros en 9 campos (ingeniería de software
+agéntica, deep research, orquestación, memoria, verificación, navegador,
+planificación, UX de CLI y fiabilidad) y se destilaron sus funcionalidades
+insignia a `cognia/harness/`: 16 módulos nuevos con 781 tests propios.
 
-- **Respuestas sin panel (solo terminal).** Aire arriba y abajo, sangría de 2
-  y líneas con tope de 100 columnas; el footer queda en una línea tenue
-  (`1.2s · ~n tokens`) y se omite en turnos de <1s. El control REMOTO conserva
-  sus marcos: son el contrato con el clasificador del móvil (2026-07-25).
-- **Herramientas como parte de la conversación.** Cada tool del agente se ve
-  como `· Leyendo x…` mientras corre y `⏺ Leyendo x` al terminar, visible
-  también en modo sencillo. El envoltorio es no-lanzante por contrato: un
-  fallo de presentación jamás re-ejecuta una tool con efectos.
-- **Streaming suave.** Los tokens se agrupan en trozos de palabra
-  (`FlujoSuave`), con flush garantizado incluso en streams cortados.
-- **Menú de autocompletado compacto** (columna simple) y aire antes de cada
-  prompt.
-- **System prompt configurable.** `~/.cognia/system_prompt.md` se crea al
-  arrancar con el default del producto (identidad local, conducta, límites,
-  bienestar, memoria; ~3 KB). Si existe con contenido reemplaza el prompt del
-  CEREBRO; el AGENTE nunca lo ve (A/B 2026-07-23: texto extra degrada su gate
-  de 10/10 a 3/5). Comando `/prompt [editar|set|reset|off|on]`; kill-switch
-  `COGNIA_PROMPT_USUARIO=0`.
-- **Bugfix:** recursión infinita latente en el fallback de
-  `adaptive_prompt._base()`.
+**Capacidades nuevas, cableadas donde de verdad se aplican**
 
-Suite completa: 5941 passed / 0 failed. Verificación real: chat streaming
-end-to-end, `/prompt` en el REPL vivo, agente con tools reales
-(GoalContract 1/1).
+- **Deshacer de verdad** (`/deshacer`): cada escritura del agente deja un
+  checkpoint del estado previo. `/deshacer`, `/deshacer lista`, `/deshacer diff`,
+  `/deshacer hasta N`. Antes no había ninguna red: el agente sobrescribía y lo
+  anterior se perdía.
+- **Modo plan** (`/plan-modo`): el agente investiga y propone sin escribir ni
+  ejecutar nada hasta que se aprueba. Bloquea las herramientas de escritura con
+  un motivo que el modelo entiende, en vez de confiar en que obedezca.
+- **Verificación en el mismo turno**: tras escribir un `.py` o un `.json` se
+  comprueba la sintaxis y el error vuelve al modelo con su número de línea.
+  Con `COGNIA_AUTO_TESTS=1` corre además los tests asociados al fichero tocado.
+- **Reglas de permiso persistentes** (`/permisos`): allow/ask/deny por
+  herramienta y patrón, guardadas en `.cognia/permisos.json` del proyecto. Los
+  comandos destructivos nunca se generalizan.
+- **Hooks del proyecto**: `.cognia/hooks.json` con matchers por herramienta;
+  un hook `bloqueante` que salga != 0 veta la llamada y su salida es lo que lee
+  el modelo.
+- **`/ayuda` navegable**: 240 comandos dejan de volcarse de golpe. Portada con
+  14 categorías, `/ayuda <categoría>`, `/ayuda buscar <texto>`, `/ayuda todo`.
+- **@-menciones**: `@ruta` completa rutas reales con Tab y mete el contenido del
+  fichero en el mensaje.
+- **Banner adaptativo**: el gato Braille sigue por defecto, pero ahora se ajusta
+  a la altura real de la terminal en vez de gastar 45 filas siempre. Verificado
+  capturando la salida real a seis tamaños.
+- **Barra de estado inferior**: modelo, ocupación de la ventana y modo, con el
+  `usage` REAL del backend en vez de la estimación `len//4`.
+
+**Adaptador nativo (el arreglo de fondo)**
+
+`tool_schemas.schemas_para` ignoraba los `params` declarados en el registry y le
+publicaba al modelo una única propiedad `args` con la línea de ayuda dentro: una
+instrucción en prosa donde debía ir una firma tipada. Ahora el registry manda y
+`args_legacy` deshace la firma con `armar_args`. Verificado contra el
+llama-server real: `{"handle": "res:3f2a1b", "lineas": "200-260"}` donde antes
+iba `{"args": "..."}`. Gate nuevo: `scripts/e2e_arnes_nativo.py`.
+
+**Camino feliz arreglado (medido, no supuesto)**
+
+`generar_codigo` rechazaba la petición con "no identifiqué el nombre de la
+función" y el modelo reintentaba idéntico hasta agotar la tarea. Dos causas:
+(1) el mensaje no nombraba la alternativa (`escribir_archivo` + `ejecutar`) y
+(2) `extract_entry_point` exige la palabra "función" antes de la firma, así que
+`suma(a, b)` — exactamente lo que la ayuda de la herramienta pide — se
+rechazaba. Con las dos cerradas, la tarea pasa de 4/6 a 8/8 y el gate del camino
+feliz de 1/4 corridas en 5/5 a **5/5 en cinco corridas seguidas**.
+
+**Nota sobre el catálogo**: ninguna herramienta nueva entra en `CORE_TOOLS`. El
+A/B del repo midió que inflar el catálogo degrada al modelo, así que
+`recuperar`, `consultar_oraculo`, `buscar_herramientas` y `deshacer_edicion` van
+tras su flag opt-in. Lo mismo con el offloading de salidas y los tests
+automáticos: quedan apagados hasta medirlos contra el comportamiento actual.
 
 ---
-
 ## [4.4.0] - 2026-08-02
 
 ### Barrido total de funciones huérfanas + selector de modelos en el CLI

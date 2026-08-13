@@ -89,7 +89,37 @@ Corregido y medido: el banner ahora se adapta a la altura real — cabe en 60×1
 36×100, 30×100 y 24×80, verificado capturando la salida real en las seis. El gato sigue por defecto:
 no se esconde, se hace caber.
 
-## 5. Lo que queda pendiente (dicho explícitamente)
+## 5. El camino feliz estaba roto — y no era por este trabajo
+
+Al preparar la publicación, el gate obligatorio (`e2e_happy_path.py`, exige 5/5) dio **4/5**. En vez
+de suponer si era flakiness o regresión, se midió el contrafactual corriéndolo en el commit anterior
+a todo este trabajo:
+
+| Brazo | Corridas | Resultados | ¿algún 5/5? |
+|---|---|---|---|
+| Baseline (= el 4.7.0 **ya publicado**) | 4 | 4, 3, 4, 2 | 0/4 |
+| Con el arnés | 4 | 4, 5, 4, 4 | 1/4 |
+| Con el arnés + los dos fixes de abajo | 5 | 5, 5, 5, 5, 5 | **5/5** |
+
+O sea: el gate ya venía degradado en la versión publicada, y este trabajo lo mejora en vez de
+romperlo. La tarea culpable era siempre la misma (`python`, que falló en 6 de las 8 primeras
+corridas), así que se reprodujo aislada con `scripts/diag_tarea_python.py` y salieron **dos bugs
+reales**:
+
+1. **`generar_codigo` sin salida.** Ante *"escribí y ejecutá un script que imprima la suma de 100 más
+   250"* —un script, no una función— la herramienta respondía *"no identifiqué el nombre de la
+   función"* y el modelo reintentaba **idéntico tres veces** hasta que el detector de estancamiento
+   mataba la tarea. El mensaje decía qué había fallado pero no qué hacer. Ahora nombra la
+   alternativa (`escribir_archivo` + `ejecutar`).
+2. **La ayuda pedía un formato que el código rechazaba.** `extract_entry_point("suma(a, b)")`
+   devuelve `None`: sólo reconoce la firma si va precedida de la palabra "función" — pero la propia
+   descripción de `generar_codigo` le pide al modelo justo `suma(a, b)`. Se cubrió el hueco con un
+   fallback acotado (`_firma_suelta`) que **no** toca `extract_entry_point`, compartida por BoN y
+   stepwise.
+
+Efecto medido en la tarea aislada: de **4/6 a 8/8**.
+
+## 6. Lo que queda pendiente (dicho explícitamente)
 
 1. Cablear `barra_estado` al `bottom_toolbar`, `ayuda` navegable, `menciones` y `render_tools`: los
    módulos están hechos y probados, falta el enganche en `cli.py`.
