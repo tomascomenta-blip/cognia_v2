@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-08-09 14:00:30
+> Generado: 2026-08-12 22:41:36
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -12,7 +12,7 @@
 - GPU: NVIDIA GeForce RTX 5060 Ti, 16311 MiB
 
 ## Backend LLM
-- GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf
+- GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf
 - Modelos en C:\Users\usuario\.cognia\models: Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf, OpenReasoning-Nemotron-14B.Q4_K_M.gguf, Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf, Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf, Qwen3-1.7B-Q4_K_M.gguf, Qwen3-4B-Thinking-2507-Q4_K_M.gguf, UIGEN-X-8B.Q8_0.gguf, gpt-oss-20b-MXFP4.gguf, mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf, mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf, qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
 - Shards NPZ en C:\Users\usuario\.cognia\shards\qwen-coder-3b-q4: shard_0.npz, shard_1.npz, shard_2.npz, shard_3.npz
 - Ollama: disponible en http://localhost:11434
@@ -20,22 +20,21 @@
 
 ## Mapa del repo
 - Modulos .py top-level: 8
-- cognia/: 406 archivos .py
+- cognia/: 444 archivos .py
 - node/: 18 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 485 archivos .py
-- Archivos de test (tests/test_*.py): 482
+- tests/: 532 archivos .py
+- Archivos de test (tests/test_*.py): 529
 
 ## Radar de cobertura (anti-danos-colaterales)
-- Modulos con simbolos publicos: 385
-- SIN ninguna mencion en tests/: 28
+- Modulos con simbolos publicos: 421
+- SIN ninguna mencion en tests/: 27
 - Fuera del radar (revisar al tocar features vecinas):
   * cognia/experts/identity_dataset.py (2 simbolos publicos)
   * cognia/experts/meta_maker.py (1 simbolos publicos)
-  * cognia/logger_config.py (5 simbolos publicos)
   * cognia/memory_response_engine.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/cognia_game/game.py (1 simbolos publicos)
   * cognia/program_creator/generated_programs/cosmic_census_self_aware_starfield_simulation/program.py (8 simbolos publicos)

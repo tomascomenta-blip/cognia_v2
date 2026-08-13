@@ -285,6 +285,14 @@ _OPTIN_NOMBRES = {
     "render_aprox": "COGNIA_LCD",
     "atribuir_fallo": "COGNIA_LCD",
     "reejecutar_etapa": "COGNIA_LCD",
+    # Arnes (cognia/harness/tools_harness.py, 2026-08-12): cada capacidad se
+    # anuncia SOLO con su subsistema encendido. No entran en CORE_TOOLS a
+    # proposito: el A/B del repo midio que inflar el catalogo degrada al
+    # modelo, asi que una tool nueva tiene que ganarse el sitio midiendo.
+    "recuperar": "COGNIA_OFFLOAD",
+    "consultar_oraculo": "COGNIA_ORACULO",
+    "buscar_herramientas": "COGNIA_TOOLSEARCH",
+    "deshacer_edicion": "COGNIA_UNDO_TOOL",
 }
 
 
@@ -349,6 +357,17 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
             pass
         valid = ", ".join(TOOLS.keys())
         return f"ERROR: herramienta '{name}' no existe. Validas: {valid}"
+    # ARNES (cognia/harness/interceptor.py, 2026-08-12): modo plan, hooks del
+    # proyecto y checkpoint del estado previo. Devuelve un string cuando la
+    # llamada queda VETADA -- ese texto es lo que lee el modelo en lugar del
+    # resultado. Cualquier fallo de la capa deja pasar la llamada.
+    try:
+        from cognia.harness.interceptor import antes as _harness_antes
+        _veto = _harness_antes(name, args, ctx)
+    except Exception:
+        _veto = None
+    if _veto:
+        return _veto
     try:
         out = spec["fn"](args, ctx)
         # \bERROR\b sobre la cabeza de la PRIMERA linea: todos los retornos de
@@ -376,6 +395,15 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
     # SEARCH/REPLACE texto que jamás vio (leer_archivo 4000 -> aci 1650,
     # evidencia baseline 2026-08-09) y que la cola de ejecutar (el traceback)
     # se recortara dos veces. 'responder' es la respuesta final, no observación.
+    # ARNES: verificacion de lo escrito, hooks post_tool y offloading opt-in.
+    # Va ANTES del aci_trim para que el veredicto de sintaxis no se pierda en
+    # el recorte, y porque el offloading (cuando se enciende) sustituye al
+    # truncado en vez de sumarse (el doble truncado esta MEDIDO como danino).
+    try:
+        from cognia.harness.interceptor import despues as _harness_despues
+        out = _harness_despues(name, args, ctx, out, ok)
+    except Exception:
+        pass
     return out if name in ACI_EXENTAS else aci_trim(out, name)
 
 
@@ -2396,3 +2424,15 @@ try:
 except Exception as _exc:
     # Sin flag que lo justifique: el silencio seria capacidad perdida.
     print(f"[cognia] tools RLM no cargaron: {_exc}", file=sys.stderr)
+
+
+# ── Tools del ARNES (destiladas de los harnesses punteros, 2026-08-12) ─────
+# Se registran SIEMPRE (para que existan y el mensaje de run_tool sea
+# "DESHABILITADA — activala con <FLAG>=1" en vez de "no existe"), pero cada una
+# lleva su flag en _OPTIN_NOMBRES, asi que el catalogo por defecto NO crece.
+# El import va al final a proposito: tools_harness importa este modulo para
+# usar el decorador @tool, y hacerlo antes cerraria el ciclo.
+try:
+    from cognia.harness import tools_harness as _tools_harness  # noqa: F401
+except Exception as _exc:
+    print(f"[cognia] tools del arnes no cargaron: {_exc}", file=sys.stderr)

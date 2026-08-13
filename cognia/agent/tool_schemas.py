@@ -247,6 +247,36 @@ def _descripcion_de(doc: str) -> str:
     return partes[1].strip() if len(partes) == 2 else (doc or "").strip()
 
 
+_TIPOS_JSON = {"string": "string", "str": "string", "entero": "integer",
+               "int": "integer", "integer": "integer", "numero": "number",
+               "number": "number", "bool": "boolean", "boolean": "boolean"}
+
+
+def _desde_params(params: list) -> dict:
+    """La lista ``params`` del decorador @tool -> el objeto JSON Schema.
+
+    Formato de entrada (ver el docstring de ``tool`` en agent/tools.py):
+    {"nombre", "tipo", "requerido", "descripcion", "clave"}. Un param sin tipo
+    reconocible cae a string, que es lo que el protocolo texto transporta de
+    todas formas.
+    """
+    props, requeridos = {}, []
+    for p in params or []:
+        if not isinstance(p, dict):
+            continue
+        nombre = str(p.get("nombre") or "").strip()
+        if not nombre:
+            continue
+        tipo = _TIPOS_JSON.get(str(p.get("tipo") or "string").lower(), "string")
+        props[nombre] = {"type": tipo,
+                         "description": str(p.get("descripcion") or "")}
+        if p.get("requerido"):
+            requeridos.append(nombre)
+    if not props:
+        return {"type": "object", "properties": {}, "required": []}
+    return {"type": "object", "properties": props, "required": requeridos}
+
+
 def schemas_para(allowed: set = None) -> list:
     """Lista de schemas OpenAI para las tools visibles del registry.
 
@@ -264,6 +294,14 @@ def schemas_para(allowed: set = None) -> list:
             params = {"type": "object", "properties": props, "required": req}
         elif nombre in _SIN_ARGS:
             params = {"type": "object", "properties": {}, "required": []}
+        elif spec.get("params"):
+            # El registry DECLARA la firma (decorador @tool con params=[...]):
+            # esa es la fuente de verdad y gana al generico. Sin esto, una tool
+            # con params ricos igual salia como un unico string 'args' con su
+            # linea de ayuda dentro — o sea, el modelo recibia una INSTRUCCION
+            # en prosa donde tenia que recibir una firma tipada. Las _TIPADAS
+            # siguen mandando: son las medidas contra el modelo real.
+            params = _desde_params(spec["params"])
         else:
             # Generico: un solo string con el formato historico documentado
             # en la linea de ayuda (WP2 esta enriqueciendo esas lineas).
@@ -294,6 +332,24 @@ def args_legacy(nombre: str, argumentos: dict) -> str:
         return ""
     if "args" in argumentos:
         return str(argumentos.get("args") or "")
+    # La tool declara su firma en el registry: ``armar_args`` sabe reconstruir
+    # el string del protocolo texto respetando el orden posicional y los
+    # tokens 'clave=valor'. Es el puente inverso exacto del schema que
+    # ``_desde_params`` acaba de publicar.
+    try:
+        from cognia.agent.tools import TOOLS, armar_args
+        if (TOOLS.get(nombre) or {}).get("params"):
+            armado = armar_args(nombre, argumentos)
+            # Si el modelo nombró los argumentos de otra forma (le pasa cuando
+            # improvisa sobre un schema que no leyó del todo), armar_args
+            # devuelve vacío y la llamada quedaría SIN argumentos — peor que
+            # equivocarse, porque la tool no puede ni explicar qué faltó. En
+            # ese caso cae al join de abajo, que al menos le da algo que fallar
+            # con un mensaje útil de vuelta al modelo.
+            if armado or not argumentos:
+                return armado
+    except Exception:
+        pass
     # Ultimo recurso: valores en orden de insercion unidos con ' | ' (el
     # separador historico de las tools multi-argumento).
     return " | ".join(str(v) for v in argumentos.values())

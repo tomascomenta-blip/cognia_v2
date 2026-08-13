@@ -1725,9 +1725,36 @@ def _arranque_ux():
 # mientras :8080 servia gpt-oss-20b). COGNIA_BANNER=min da el arranque
 # compacto de ~5 lineas para scripts/remoto o para quien lo prefiera.
 
+def _variante_banner() -> str:
+    """Que banner cabe en ESTA terminal: completo/medio/compacto/minimo.
+
+    El gato Braille sigue siendo el default (es la identidad de Cognia), pero
+    el arte mide ~45 filas: en una terminal de 30 el usuario arrancaba sin ver
+    ni la guia ni el prompt. Los CLI punteros gastan 4-6 filas en su cabecera;
+    aca se elige la variante por el tamano REAL en vez de gastarlas siempre
+    todas. COGNIA_BANNER manda (incluido el legacy 'min' -> compacto).
+    Cualquier fallo devuelve 'completo': el comportamiento de siempre.
+    """
+    try:
+        from cognia.harness import banner_adaptativo as _ba
+        forzado = _ba.variante_del_entorno()
+        medida = _ba.medir_terminal(console=_console if _HAS_RICH else None)
+        if not medida.es_tty and not forzado and not os.environ.get("LINES"):
+            # Sin TTY no hay terminal que medir (pipe, captura, test): rich
+            # reporta un tamano de relleno y recortar por una medida INVENTADA
+            # seria peor que no recortar. El gato va POR DEFECTO — es la
+            # identidad de Cognia, la pidio el dueno — asi que la duda se
+            # resuelve a favor del banner entero. LINES explicito SI se respeta:
+            # es como se prueba la adaptacion sin una terminal de ese tamano.
+            return "completo"
+        return _ba.elegir_variante(medida.filas, medida.columnas, forzado=forzado)
+    except Exception:
+        return "completo"
+
+
 def _print_startup_panel():
     _arranque_ux()
-    if os.environ.get("COGNIA_BANNER", "").strip().lower() != "min":
+    if _variante_banner() in ("completo", "medio"):
         _print_banner_completo()
         # La linea de verdad bajo el banner: que modelo contesta y donde
         # (segun el SERVER, no una env rancia), mas modo y tema.
@@ -1808,6 +1835,24 @@ def _print_banner_completo():
 
     # Dark green (#003300) -> matrix green (#00FF41), interpolated per non-empty line
     banner_lines = _BANNER_RAW.split("\n")
+    # El arte se AJUSTA a la altura real (variante 'medio' = mitad superior del
+    # gato). No se esconde: se hace caber, que es distinto. Sin harness o ante
+    # cualquier fallo queda el arte entero, como siempre.
+    try:
+        from cognia.harness import banner_adaptativo as _ba
+        if _variante_banner() == "medio":
+            _medida = _ba.medir_terminal(console=_console)
+            # Reserva para lo que NO es arte: marco del panel (2), linea de
+            # modelo/modo/tema (1), sesion y continuidad (2), prompt y su aire
+            # (3), margen (2). Y si la terminal es angosta el layout APILA la
+            # guia bajo el arte (ver el Table.grid de abajo), asi que sus ~13
+            # filas tambien hay que descontarlas: medido contra la salida real,
+            # a 36 filas con ancho 98 el arranque se iba a 47 lineas.
+            _reserva = 10 if _medida.columnas >= 100 else 23
+            banner_lines = _ba.recortar_arte(
+                banner_lines, max(6, _medida.filas - _reserva))
+    except Exception:
+        pass
     non_empty = [l for l in banner_lines if l.strip()]
     total = max(1, len(non_empty) - 1)
     left_text = Text(no_wrap=False)
@@ -6572,6 +6617,149 @@ def _strip_input_bom(line: str) -> str:
     return line.strip()
 
 
+def _datos_barra_estado() -> dict:
+    """Lo que muestra la barra inferior del prompt. Nunca lanza.
+
+    Los tokens y la ocupacion salen del `usage` REAL que devuelve el backend
+    (cognia/harness/contexto_vivo.py lo acumula desde el bus de eventos), no de
+    una estimacion len//4 como hacia /costo. Un dato inventado en la barra es
+    peor que no tener barra.
+    """
+    datos = {}
+    try:
+        from cognia import backend_activo as _ba
+        _e = _ba.estado()
+        datos["modelo"] = _e.get("modelo") or ""
+    except Exception:
+        datos["modelo"] = ""
+    try:
+        from cognia.harness import contexto_vivo
+        est = contexto_vivo.estado()
+        total = est.get("n_ctx")
+        if not total:
+            # Aun no hubo un turno que reporte la ventana: el tamano lo sabe el
+            # server (/props). Sin esto la barra decia 'ctx 0' hasta el primer
+            # mensaje, que es justo cuando el usuario mira si le cabe la tarea.
+            from cognia.agent.model_profiles import perfil_del_agente
+            total = perfil_del_agente().get("n_ctx")
+        datos.update({"ctx_usado": est.get("ocupacion"),
+                      "ctx_total": total,
+                      "tokens_sesion": est.get("total")})
+    except Exception:
+        pass
+    try:
+        from cognia.harness import modo_plan
+        datos["modo"] = modo_plan.modo_actual()
+    except Exception:
+        pass
+    try:
+        from cognia.console.permissions import get_mode
+        datos["permiso"] = get_mode()
+    except Exception:
+        pass
+    try:
+        datos["directorio"] = os.getcwd()
+    except Exception:
+        pass
+    return datos
+
+
+# \u2500\u2500 arnes: deshacer / modo plan / permisos \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# Las tres capacidades que TODOS los harnesses punteros tienen y a Cognia le
+# faltaban (auditoria 2026-08-12): red bajo las escrituras del agente, un modo
+# de solo-lectura para planear antes de tocar nada, y reglas de permiso que se
+# recuerdan en vez de preguntar cuarenta veces lo mismo.
+
+def _slash_deshacer(arg: str = ""):
+    """/deshacer \u2014 revierte lo que escribio el agente en esta sesion."""
+    try:
+        from cognia.harness import checkpoints as _ck
+    except Exception as exc:
+        _print_line(f"[err_cl]deshacer no disponible: {_escape(str(exc))}[/err_cl]")
+        return
+    arg = (arg or "").strip()
+    try:
+        if arg in ("", "ultimo", "\u00faltimo"):
+            _print_line(_escape(_ck.deshacer()))
+        elif arg in ("lista", "listar", "ls"):
+            entradas = _ck.listar()
+            if not entradas:
+                _print_line("[info_dim]sin cambios registrados en esta sesion[/info_dim]")
+                return
+            for e in entradas[:20]:
+                marca = "deshecho" if e.get("deshecho") else "activo"
+                _print_line(f"  [mod]#{e['n']}[/mod] {_escape(str(e['ruta']))} "
+                            f"[info_dim]({e.get('motivo', '')} \u00b7 {marca})[/info_dim]")
+        elif arg in ("diff", "cambios"):
+            _print_line(_escape(_ck.diff_sesion().get("texto", "")))
+        elif arg.startswith("hasta"):
+            _print_line(_escape(_ck.restaurar_hasta(int(arg.split()[-1]))))
+        else:
+            _print_line(_escape(_ck.deshacer(int(arg))))
+    except ValueError:
+        _print_line("[warn_cl]Uso: /deshacer [n | lista | diff | hasta <n>][/warn_cl]")
+    except Exception as exc:
+        _print_line(f"[err_cl]no se pudo deshacer: {_escape(str(exc))}[/err_cl]")
+
+
+def _slash_plan(arg: str = ""):
+    """/plan-modo \u2014 alterna entre planear (solo lectura) y ejecutar."""
+    try:
+        from cognia.harness import modo_plan as _mp
+    except Exception as exc:
+        _print_line(f"[err_cl]modo plan no disponible: {_escape(str(exc))}[/err_cl]")
+        return
+    arg = (arg or "").strip().lower()
+    if arg in ("ok", "aprobar", "ejecutar"):
+        plan = _mp.aprobar_plan()
+        _print_line("[ok]modo EJECUTAR[/ok] \u2014 el agente ya puede escribir")
+        if plan:
+            _print_line(f"[info_dim]plan aprobado:[/info_dim]\n{_escape(plan)}")
+        return
+    modo = _mp.activar(arg) if arg in _mp.MODOS else _mp.alternar()
+    if modo == "plan":
+        _print_line("[mod]MODO PLAN[/mod] \u2014 el agente investiga y propone; "
+                    "no escribe ni ejecuta nada.")
+        _print_line("[info_dim]/plan-modo ok para aprobar y pasar a ejecutar[/info_dim]")
+    else:
+        _print_line("[ok]MODO EJECUTAR[/ok] \u2014 el agente puede escribir.")
+
+
+def _slash_permisos(arg: str = ""):
+    """/permisos \u2014 reglas de permiso persistentes del proyecto."""
+    try:
+        from cognia.harness import permisos_reglas as _pr
+    except Exception as exc:
+        _print_line(f"[err_cl]permisos no disponibles: {_escape(str(exc))}[/err_cl]")
+        return
+    raiz = os.getcwd()
+    arg = (arg or "").strip()
+    try:
+        if arg.startswith("olvidar"):
+            patron = arg[len("olvidar"):].strip()
+            if not patron:
+                _print_line("[warn_cl]Uso: /permisos olvidar <patron>[/warn_cl]")
+                return
+            quedan = [r for r in _pr.cargar(raiz)
+                      if (r.get("patron") if isinstance(r, dict) else r) != patron]
+            _pr.guardar(raiz, quedan)
+            _print_line(f"[ok]olvidada[/ok] {_escape(patron)}")
+            return
+        reglas = _pr.cargar(raiz)
+        if not reglas:
+            _print_line("[info_dim]sin reglas: cada accion sensible se pregunta. "
+                        "Responde 'siempre' en una confirmacion para recordarla.[/info_dim]")
+            return
+        _print_line(f"[mod]{len(reglas)} regla(s)[/mod] en "
+                    f"[info_dim]{_escape(str(_pr.ruta_reglas(raiz)))}[/info_dim]")
+        for r in reglas:
+            efecto = r.get("efecto") if isinstance(r, dict) else str(r)
+            patron = r.get("patron") if isinstance(r, dict) else ""
+            _print_line(f"  [mod]{efecto:9}[/mod] {_escape(str(patron))}")
+    except Exception as exc:
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+
+
 def repl():
     global _session_start, _init_lines, _console, _debug_mode, _fast_mode
 
@@ -6675,7 +6863,22 @@ def repl():
                 else:
                     buff.start_completion(select_first=True)
 
+            # Barra de estado inferior (2026-08-12): modelo, ocupacion de la
+            # ventana y modo, SIEMPRE visibles. Es el unico rasgo que tienen
+            # los seis CLI punteros medidos y a Cognia le faltaba entero: sin
+            # esto, nadie sabe cuanto contexto le queda hasta que se rompe.
+            # prompt_toolkit llama a la funcion en cada redibujado, asi que la
+            # barra se actualiza sola. Degrada a None ante cualquier fallo.
+            _toolbar = None
+            try:
+                from cognia.harness.barra_estado import toolbar_prompt_toolkit
+                _toolbar = toolbar_prompt_toolkit(_datos_barra_estado,
+                                                  contexto_atajos="repl")
+            except Exception:
+                _toolbar = None
+
             session = PromptSession(
+                bottom_toolbar=_toolbar,
                 history=InMemoryHistory(),
                 # FuzzyCompleter (fzf-style): '/plr' ofrece /pulir, '/hcr'
                 # ofrece /hacer. Envuelve al completer de siempre sin cambiar
@@ -6758,7 +6961,15 @@ def repl():
             continue
 
         # -- UI slash -------------------------------------------------------
-        if raw == "/limpiar":
+        # Arnes (2026-08-12): van primero porque son la red de seguridad —
+        # tienen que responder aunque el resto del REPL este degradado.
+        if raw == "/deshacer" or raw.startswith("/deshacer "):
+            _slash_deshacer(raw[len("/deshacer"):])
+        elif raw == "/plan-modo" or raw.startswith("/plan-modo "):
+            _slash_plan(raw[len("/plan-modo"):])
+        elif raw == "/permisos" or raw.startswith("/permisos "):
+            _slash_permisos(raw[len("/permisos"):])
+        elif raw == "/limpiar":
             _slash_limpiar()
         elif raw == "/compactar":
             _slash_compactar()
