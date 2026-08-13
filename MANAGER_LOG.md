@@ -12693,3 +12693,25 @@ fallar `test_repl_piped_sin_consola_no_crashea`.
 **Queda pendiente:** cablear `render_tools` y la barra de atajos; medir los opt-in con brazos
 intercalados antes de encenderlos; el motor de workflows sigue huérfano del CLI; sin interrupción
 con ESC durante el streaming. Detalle en `ENTREGA_ARNES_20260813.md`.
+
+### 2026-08-13 (cierre) — Publicada 4.8.0 en PyPI, con el camino feliz arreglado
+
+El dueño autorizó explícitamente publicar. El gate obligatorio daba 4/5, así que **no se publicó
+hasta entenderlo**. Se midió el contrafactual en el commit anterior a todo el trabajo:
+
+| Brazo | Corridas | Resultados | ¿5/5? |
+|---|---|---|---|
+| Baseline (= el 4.7.0 ya publicado) | 4 | 4, 3, 4, 2 | 0/4 |
+| Con el arnés | 4 | 4, 5, 4, 4 | 1/4 |
+| Con el arnés + los dos fixes | 5 | 5, 5, 5, 5, 5 | **5/5** |
+
+El camino feliz ya venía degradado en la versión publicada. La tarea culpable (`python`) se
+reprodujo aislada con `scripts/diag_tarea_python.py` y dio dos bugs reales: `generar_codigo` dejaba
+al modelo sin salida (mensaje que decía qué falló pero no qué hacer → reintento idéntico ×3 hasta
+agotar la tarea), y `extract_entry_point` rechaza `suma(a, b)`, que es exactamente el formato que la
+ayuda de esa herramienta pide. Tarea aislada: 4/6 → 8/8.
+
+Publicación verificada de verdad: `pip install cognia-ai==4.8.0` en un venv LIMPIO y **fuera del
+repo** (la trampa del cwd: la primera comprobación importaba el repo local y parecía correcta) →
+4.8.0 con los 18 módulos del arnés. Commit `382ca397`, tag `v4.8.0`, pusheados.
+Suite 7691 passed. https://pypi.org/project/cognia-ai/4.8.0/
