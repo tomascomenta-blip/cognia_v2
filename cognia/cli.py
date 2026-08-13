@@ -831,6 +831,13 @@ _CMD_DESCRIPTIONS = {
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/cat":             "Preview bat-style de archivo   <ruta> [desde[:hasta]]",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
+    # Arnes 2026-08-13. Sin entrada aca un comando existe pero es INVISIBLE:
+    # no sale en /ayuda, no lo ofrece el autocompletado y el enrutador por
+    # inferencia no lo conoce (catalogo_compacto se arma de este mismo dict).
+    "/deshacer":        "Revertir lo que escribio el agente  [n | lista | diff | hasta <n>]",
+    "/plan-modo":       "Modo PLAN: el agente investiga sin escribir  [plan|ejecutar|ok]",
+    "/permisos":        "Reglas de permiso del proyecto  [olvidar <patron>]",
+    "/workflow":        "Repartir subtareas de razonamiento en paralelo  <t1; t2; ...>",
     "/rlm":             "Contexto largo por tools (RLM)   <ruta> <pregunta>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
@@ -6779,6 +6786,43 @@ def _slash_plan(arg: str = ""):
         _print_line("[ok]MODO EJECUTAR[/ok] \u2014 el agente puede escribir.")
 
 
+def _slash_workflow(arg: str = ""):
+    """/workflow — reparte subtareas de razonamiento y junta los resultados.
+
+    El motor (cognia/agent/workflows.py) estaba completo desde 2026-08-11 y sin
+    ninguna entrada de usuario: esta es la del REPL, y la del agente es la tool
+    'workflow' (COGNIA_WORKFLOW_TOOL=1).
+    """
+    try:
+        from cognia.harness import workflows_adapter as _wf
+    except Exception as exc:
+        _print_line(f"[err_cl]workflows no disponibles: {_escape(str(exc))}[/err_cl]")
+        return
+    arg = (arg or "").strip()
+    if not arg:
+        _print_line("[warn_cl]Uso: /workflow <subtarea1; subtarea2; ...> "
+                    "[modo=paralelo|secuencial][/warn_cl]")
+        _print_line("[info_dim]cada subtarea tiene que ser autocontenida: el paso "
+                    "no ve el resto de la conversacion[/info_dim]")
+        return
+    modo = "paralelo"
+    m = re.search(r"\bmodo\s*=\s*(\w+)", arg)
+    if m:
+        modo = m.group(1)
+        arg = (arg[:m.start()] + arg[m.end():]).strip()
+    pasos = _wf.partir_pasos(arg)
+    if not pasos:
+        _print_line("[warn_cl]no encontre subtareas: separalas con ';'[/warn_cl]")
+        return
+    _print_line(f"[detail]{len(pasos)} paso(s) en {modo}…[/detail]")
+    res = _wf.ejecutar(pasos, modo=modo, nombre="repl", print_fn=_print_line)
+    if not res["ok"]:
+        _print_line(f"[err_cl]{_escape(res['error'])}[/err_cl]")
+        return
+    _show_response(res["texto"], "cyan")
+    _print_line(f"[info_dim]corrida {res['run_id']} · {res['tokens']} tokens[/info_dim]")
+
+
 def _slash_permisos(arg: str = ""):
     """/permisos \u2014 reglas de permiso persistentes del proyecto."""
     try:
@@ -7041,6 +7085,8 @@ def repl():
             _slash_plan(raw[len("/plan-modo"):])
         elif raw == "/permisos" or raw.startswith("/permisos "):
             _slash_permisos(raw[len("/permisos"):])
+        elif raw == "/workflow" or raw.startswith("/workflow "):
+            _slash_workflow(raw[len("/workflow"):])
         elif raw == "/limpiar":
             _slash_limpiar()
         elif raw == "/compactar":

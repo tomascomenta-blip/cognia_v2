@@ -21,6 +21,8 @@ encendido, con el mismo mecanismo `flag_de_optin` que ya usan `pantalla_*`,
     consultar_oraculo .... COGNIA_ORACULO=1    (necesita una flota con roles)
     buscar_herramientas .. COGNIA_TOOLSEARCH=1 (catálogo dinámico)
     deshacer_edicion ..... COGNIA_UNDO_TOOL=1  (el humano tiene /deshacer)
+    workflow ............. COGNIA_WORKFLOW_TOOL=1 (el agente se reparte trabajo
+                           a sí mismo: cuesta varias llamadas por invocación)
 
 Sin flag, `run_tool` responde el mensaje uniforme "DESHABILITADA — activala con
 <FLAG>=1" en vez de "no existe": la capacidad existe y está apagada, que es
@@ -29,7 +31,10 @@ distinto y el modelo lo entiende distinto.
 
 from __future__ import annotations
 
+import re
+
 from cognia.agent.tools import tool
+from cognia.harness import workflows_adapter as _WF
 
 
 @tool(
@@ -152,6 +157,35 @@ def _buscar_herramientas(args: str, ctx: dict) -> str:
     sesion = (ctx or {}).get("_sesion_tools") or "agente"
     rd.activar(sesion, [nombre for nombre, _, _ in resultados])
     return rd.texto_resultado_busqueda(resultados)
+
+
+@tool(
+    "workflow",
+    "workflow <subtarea1; subtarea2; ...> [modo=paralelo|secuencial]  -- reparte "
+    "trabajo de pensar entre varias llamadas y junta los resultados",
+    desc=_WF.DESC_WORKFLOW,
+    params=_WF.PARAMS_WORKFLOW,
+)
+def _workflow(args: str, ctx: dict) -> str:
+    crudo = (args or "").strip()
+    modo = "paralelo"
+    # El modo puede llegar de tres formas: como token 'modo=x' del protocolo
+    # texto, o incrustado por el modelo dentro del propio valor de 'pasos'
+    # (Qwythos cuela '<parameter=modo>paralelo'; ver `sanear`). Las dos se
+    # recogen, y si no hay ninguna manda el defecto.
+    _, incrustadas = _WF.sanear(crudo)
+    if incrustadas.get("modo"):
+        modo = incrustadas["modo"]
+    m = re.search(r"\bmodo\s*=\s*(\w+)", crudo)
+    if m:
+        modo = m.group(1)
+        crudo = crudo[:m.start()] + crudo[m.end():]
+    res = _WF.ejecutar(crudo, modo=modo, nombre="agente",
+                       print_fn=(ctx or {}).get("print_fn"))
+    if not res["ok"]:
+        return f"RESULTADO workflow ERROR: {res['error']}"
+    return (f"RESULTADO workflow ({res['pasos']} pasos, {res['tokens']} tokens, "
+            f"corrida {res['run_id']}):\n{res['texto']}")
 
 
 @tool(

@@ -293,6 +293,7 @@ _OPTIN_NOMBRES = {
     "consultar_oraculo": "COGNIA_ORACULO",
     "buscar_herramientas": "COGNIA_TOOLSEARCH",
     "deshacer_edicion": "COGNIA_UNDO_TOOL",
+    "workflow": "COGNIA_WORKFLOW_TOOL",
 }
 
 

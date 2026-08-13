@@ -185,14 +185,25 @@ def _clave(nombre: str) -> str:
 CATEGORIAS: dict[str, tuple[str, ...]] = {
     "Agente y tareas": (
         "/hacer", "/agente*", "/rlm", "/largo", "/deliberar", "/flujo",
-        "/proyectos", "/lazo", "/esfuerzo", "/modo-permiso", "/tareas",
-        "/tarea-*", "/plan*", "/skill*", "/worktree", "/delegar",
+        "/proyectos", "/lazo", "/esfuerzo", "/tareas",
+        "/tarea-*", "/plan*", "/skill*", "/delegar",
+        "/deshacer", "/workflow",
+    ),
+    # Los permisos salieron de "Agente y tareas" cuando el arnes sumo sus
+    # comandos y esa categoria llego a 27 (tope 25). No es un apano por el
+    # numero: quien busca "que puede tocar el agente" busca permisos, no
+    # tareas — y aqui son tres comandos que se explican entre si.
+    # Solo los dos de PERMISOS: /seguridad, /bloquear y /desbloquear ya viven
+    # en "Sistema y diagnostico" y un patron en dos categorias las descuadra
+    # (hay un guardian que lo comprueba).
+    "Permisos del agente": (
+        "/permisos", "/modo-permiso",
     ),
     "Codigo y ficheros": (
         "/leer", "/proyecto", "/listar", "/buscar", "/escribir", "/editar",
         "/ejecutar", "/powershell", "/monitor", "/monitores", "/shells",
         "/shell-kill", "/diff", "/cat", "/mapa-codigo", "/indexar-codigo",
-        "/mcp", "/backup",
+        "/mcp", "/backup", "/worktree",   # worktree es git, no gestion de tareas
     ),
     "Crear y construir": (
         "/crear", "/construir", "/pulir", "/autoprueba", "/biblioteca",
