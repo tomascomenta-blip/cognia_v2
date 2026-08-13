@@ -470,6 +470,23 @@ def _ctx_ver(args: str, ctx: dict) -> str:
     return salida
 
 
+def _sin_diacriticos(texto: str) -> str:
+    """El texto sin tildes ni dieresis, PERO conservando la enye.
+
+    NFD descompone 'ñ' en 'n' + tilde combinante, asi que el filtro ingenuo la
+    convierte en 'n' — y en espanol eso no es quitar un acento: 'ano' y 'año'
+    son palabras distintas, y una busqueda que las confunde manda al modelo a
+    lineas equivocadas. La enye se aparta antes de normalizar y se repone
+    despues.
+    """
+    import unicodedata
+    marca_n, marca_N = "\x00\x01", "\x00\x02"
+    apartado = texto.replace("ñ", marca_n).replace("Ñ", marca_N)
+    plano = "".join(ch for ch in unicodedata.normalize("NFD", apartado)
+                    if not unicodedata.combining(ch))
+    return plano.replace(marca_n, "ñ").replace(marca_N, "Ñ")
+
+
 def _ctx_grep(args: str, ctx: dict) -> str:
     estado, err = _estado_de(ctx, "ctx_grep")
     if err:
@@ -525,6 +542,28 @@ def _ctx_grep(args: str, ctx: dict) -> str:
         ini = c.offset_linea(i) + desde_col
         estado.medidor.ver_raiz(ini, ini + len(recorte))
     if not total:
+        # SEGUNDA PASADA SIN TILDES. Medido el 2026-08-13: ante un corpus que
+        # dice "REGISTRO CRITICO", el modelo busca "REGISTRO CRÍTICO" — corrige
+        # la ortografia al escribir el patron — y se lleva 0 matches. Como el
+        # resultado es un 0 legitimo y no un ERROR, reintenta identico hasta que
+        # el detector de estancamiento mata la tarea: de 6 corridas del banco de
+        # integracion, 2 murieron asi. Y no es un caso de laboratorio: este repo
+        # entero esta escrito sin acentos ('funcion', 'codigo', 'parametro').
+        # Solo se intenta cuando la busqueda literal no encontro NADA, asi que
+        # una busqueda que ya funciona no cambia de comportamiento.
+        sin_tildes = _sin_diacriticos(patron)
+        if sin_tildes != patron:
+            try:
+                rx2 = motor.compile(sin_tildes)
+                hallados = [i for i, ln in enumerate(c.lineas, 1)
+                            if rx2.search(_sin_diacriticos(ln))]
+            except Exception:
+                hallados = []
+            if hallados:
+                return (f"RESULTADO ctx_grep: 0 matches de '{patron}', pero "
+                        f"{len(hallados)} ignorando tildes. El texto no lleva "
+                        f"los acentos que pusiste: reintenta con "
+                        f"'{sin_tildes}'.")
         return "RESULTADO ctx_grep: 0 matches de ese patron en el contexto"
     salida = (f"RESULTADO ctx_grep: {len(mostradas)} de {total} matches\n"
               + "\n".join(mostradas))
