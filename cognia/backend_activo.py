@@ -140,8 +140,27 @@ def props(url: str, forzar: bool = False) -> dict:
     """
     url = url.rstrip("/")
     if not forzar and url in _props_cache:
-        sello = _props_sello.get(url)
-        if sello is None or (time.time() - sello) < _TTL_PROPS_S:
+        # El sello vale SOLO si es de esta misma entrada. Se compara por
+        # identidad (y no por presencia de la url) porque _props_sello vive en
+        # un dict aparte y puede quedar HUERFANO: una fixture que hace
+        # monkeypatch.setattr(backend_activo, '_props_cache', {}) reemplaza el
+        # cache pero no el sello, asi que la entrada recien inyectada heredaba
+        # el sello de OTRO test, salia vencida, y props() se iba al server real
+        # ignorando lo inyectado. Sintoma medido el 2026-08-14:
+        # test_props_manda_sobre_gguf_path daba verde aislado y rojo en la
+        # suite entera, que es la peor forma de rojo (parece flakiness y es un
+        # cache que miente).
+        crudo_sello = _props_sello.get(url)
+        if isinstance(crudo_sello, tuple) and len(crudo_sello) == 2:
+            sello, duena = crudo_sello
+        else:
+            # Formato viejo (un float suelto) o ausente: sin dueña que
+            # comparar, se trata como override. Tolerar en vez de reventar:
+            # esta funcion la llama la barra del REPL y un TypeError aqui
+            # apagaria el prompt entero por un detalle de cache.
+            sello, duena = None, None
+        if (duena is not _props_cache[url] or sello is None
+                or (time.time() - sello) < _TTL_PROPS_S):
             return _props_cache[url]
     datos = {}
     try:
@@ -158,7 +177,9 @@ def props(url: str, forzar: bool = False) -> dict:
     except Exception:
         datos = {}
     _props_cache[url] = datos
-    _props_sello[url] = time.time()
+    # (epoch, la entrada que sellamos): la referencia fuerte es lo que permite
+    # distinguir "esto lo midio props()" de "esto lo inyecto un test".
+    _props_sello[url] = (time.time(), datos)
     return datos
 
 

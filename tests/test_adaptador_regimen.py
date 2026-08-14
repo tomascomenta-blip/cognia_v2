@@ -295,7 +295,10 @@ def test_props_TTL_reconsulta_tras_el_vencimiento(monkeypatch):
     _urlopen_falso(monkeypatch, _payload)
     assert ba.props(URL)["modelo"] == "modelo-1.gguf"
     assert ba.props(URL)["modelo"] == "modelo-1.gguf"      # cache dentro del TTL
-    ba._props_sello[URL] = time.time() - (ba._TTL_PROPS_S + 1)
+    # El sello es (epoch, la entrada sellada): la referencia identifica a la
+    # DUEÑA, para que un sello huerfano no venza una entrada inyectada a mano.
+    ba._props_sello[URL] = (time.time() - (ba._TTL_PROPS_S + 1),
+                            ba._props_cache[URL])
     assert ba.props(URL)["modelo"] == "modelo-2.gguf"      # vencio: reconsulta
 
 
@@ -375,7 +378,7 @@ def test_resetear_cache_tambien_olvida_la_sonda(monkeypatch, tmp_path):
     la medicion del modelo anterior."""
     capacidad._mem["x|y"] = {"soporta_tools": True, "cuando": time.time()}
     ba._props_cache[URL] = {"modelo": "algo.gguf"}
-    ba._props_sello[URL] = time.time()
+    ba._props_sello[URL] = (time.time(), ba._props_cache[URL])
     ba.resetear_cache()
     assert ba._props_cache == {} and ba._props_sello == {}
     assert capacidad._mem == {}
