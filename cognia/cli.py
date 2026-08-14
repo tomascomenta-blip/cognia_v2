@@ -1267,293 +1267,19 @@ if _HAS_PT:
 # Help text
 # ---------------------------------------------------------------------------
 HELP_TEXT = """
-  COGNIA v3 -- Comandos disponibles
-  ----------------------------------
-  Texto sin / se trata como mensaje al sistema cognitivo (chat libre).
+  COGNIA -- ayuda de EMERGENCIA (el catalogo navegable no cargo)
 
-  AGENTE Y RAZONAMIENTO (nucleo):
-    /hacer <tarea>                  Agente autonomo: ejecuta la tarea con herramientas reales
-    /agente estado                  Estado del agente hibrido (modalidad, esfuerzo, telemetria)
-    /esfuerzo [nivel]               Ver/fijar esfuerzo (bajo/medio/alto/maximo) y modalidades
-    /lazo [on|off]                  Lazo de verificacion post-respuesta: claims chequeados con tools reales (keep-best)
-    /modelo [3b|7b|...]             Ver/cambiar el modelo activo del fleet
-    /pensar <pedido>                Pensamiento profundo: idea sonada -> plan -> ejecucion (--idea corta antes de ejecutar)
-    /pensar on|off|ver              Razonamiento en vivo: ver = prosa tenue verde (∴) mientras el agente piensa
-    /deliberar <pregunta>           Deliberacion multi-perspectiva
-    /flujo <objetivo>               Orquestador de flujos multi-paso
-    /largo <tema>                   Generacion larga por secciones (/largo --continuar)
-    /crear <idea>                   Crear un programa Python ahora (sandbox + biblioteca)
-    /construir [--mockup] <idea>    Construir una web y acercarla a la vision con el arbitro VISUAL (VLM)
-    /encolar <idea>                 Encolar idea para el hobby de programacion
-    /investigar <pregunta>          Investigacion autonoma (web + LLM + KG)
-    /resumir <ruta|texto>           Resumir archivo o texto largo
-    /proyectos                      Proyectos detectados en el workspace
-    /recap                          Resumen de lo hecho en la sesion
+  La ayuda de verdad se genera de _CMD_DESCRIPTIONS, que es la UNICA fuente:
+    /ayuda                portada por categorias
+    /ayuda todo           catalogo completo
+    /ayuda buscar <texto> buscador
+  Si estas leyendo ESTO es porque cognia/harness/ayuda.py fallo; el motivo
+  salio arriba como aviso degradado (antes esta pantalla era una copia a mano
+  de 288 lineas a la que le faltaban 49 comandos y nadie lo notaba).
 
-  HERRAMIENTAS DEL AGENTE:
-    /monitor <cmd>                  Monitorear un comando en background
-    /powershell <cmd>               Ejecutar PowerShell (Windows)
-    /web-buscar <q> / /web-fetch <url>  Busqueda y fetch web
-    /worktree <rama>                Git worktree aislado para el agente
-    /tarea-crear / /tarea-lista     Gestion de tareas del agente
-    /notificar <msg>                Notificacion del sistema
-    /diff <a> <b>                   Diff de archivos
-    /cat <ruta> [desde[:hasta]]     Preview bat-style: sintaxis, numeros de linea y paginado
-
-  MEMORIA Y APRENDIZAJE:
-    /observar <texto>               Observar sin etiqueta
-    /aprender <texto> | <label>     Ensenar con etiqueta
-    /aprende-repo <url_o_query>     Aprende de un repo GitHub por URL o busqueda
-    /corregir <obs> | <mal> | <bien>Corregir error
-    /hipotesis <A> | <B>            Generar hipotesis
-    /experimento <afirmacion>       Probar afirmacion empiricamente (sandbox)
-    /evaluar-idea <idea>            Evaluar idea (novedad x factibilidad x impacto)
-    /analogia <problema>            Traducir problema a otros dominios (analogias)
-    /abstraer <problema>            Resolver por abstraccion (forma -> abstracta -> concreta)
-    /transferir <fuente> | <objetivo>  Transferir el principio de un dominio a otro
-    /diversidad <i1> || <i2> ...    Medir diversidad de ideas y detectar repeticiones
-    /explorar <problema>            Modo explorador 70/30 (explota lo prometedor, explora lo nuevo)
-    /razonar <problema>             Loop cientifico: hipotesis -> evaluar -> analogias -> validar
-    /yo                             Introspección completa
-    /conceptos                      Listar conceptos
-    /dormir                         Consolidacion tipo sueno
-    /repasar                        Ver episodios para repasar
-    /contradicciones                Ver contradicciones
-    /explicar <texto>               Autoexplicacion
-    /olvido                         Ciclo de olvido
-
-  CONOCIMIENTO v3:
-    /grafo <concepto>               Ver knowledge graph
-    /hecho <subj> | <pred> | <obj>  Agregar hecho al grafo
-    /objetivos                      Ver objetivos cognitivos
-    /predecir <concepto>            Ver predicciones temporales
-    /inferir <concepto>             Inferencias sobre concepto
-
-  SEGURIDAD:
-    /desbloquear <pass>             Desbloquear cifrado
-    /bloquear                       Bloquear cifrado
-    /seguridad                      Estado de cifrado
-
-  PERSONALIZACION:
-    /usuarios                       Listar perfiles
-    /usuario <id>                   Cambiar usuario activo
-    /estilo_info                    Ver estilo de aprendizaje
-    /indice_personal                Ver indice personal
-    /indice_add <concepto>          Anadir concepto al indice
-    /escalar                        Ver nivel de escala actual
-
-  INGESTION DE ARCHIVOS:
-    /leer <ruta>                    Leer un archivo (txt, md, py, pdf, etc.)
-    /proyecto <ruta>                Leer todos los archivos de un directorio
-
-  HERRAMIENTAS DE SISTEMA DE ARCHIVOS:
-    /listar [directorio]            Listar archivos (max 50)
-    /buscar <patron> [dir]          Buscar patron en archivos (max 20 coincidencias)
-    /escribir <ruta> <contenido>    Escribir texto a un archivo
-    /editar <ruta> <buscar> | <r>   Reemplazar primera ocurrencia en archivo
-    /ejecutar <cmd>                 Ejecutar comando shell (timeout 30s)
-
-  SKILLS:
-    /skills                         Listar skills disponibles
-    /skill-nuevo <nombre>           Crear nueva skill
-    /skill-cargar <nombre> [args]   Ejecutar skill con argumentos
-
-  PLANES:
-    /plan <objetivo>                Descomponer objetivo en pasos con IA
-    /plan-ver                       Ver todos los planes
-    /plan-ok <id> <n>               Marcar paso N como completado
-    /plan-borrar <id>               Eliminar plan
-
-  TEMPLATES:
-    /templates                      Listar templates de conversacion disponibles
-    /template <id>                  Iniciar sesion con un template (initial_prompt + preguntas)
-    /template-guia <id>             Ver solo las preguntas guia de un template
-
-  METAS:
-    /meta <titulo>                  Crear meta activa
-    /metas                          Listar metas activas
-    /meta-ok <id>                   Marcar meta completada
-    /meta-prog <id> <porcentaje>    Actualizar progreso de meta
-    /meta-borrar <id>               Eliminar meta
-    /meta-prioridad <id> <nivel>    Establecer prioridad (alta/media/baja)
-    /metas-alta                     Listar solo metas de alta prioridad
-    /meta-prioridad-ver             Ver prioridades de todas las metas
-    /metas-ordenar                  Listar metas ordenadas por prioridad
-
-  REPORTES:
-    /reporte                        Reporte de progreso de los ultimos 7 dias (Markdown)
-    /reporte-json                   Estadisticas rapidas (metas, mensajes, sesiones, insights)
-    /yo                             Mostrar perfil de usuario (temas, patrones, idioma)
-    /yo-actualizar                  Reconstruir perfil desde historial de chat
-
-  SISTEMA:
-    /doctor                         Verificar instalacion
-    /update                         Actualizar Cognia
-    /oficina [puerto]               Dashboard de oficina isometrica (detached, abre navegador; default 8766)
-    /analiticas                     Panel de telemetria local (codigo/features/eventos, todo privado)
-    /distill  /  /distill run       Destilacion SRDN
-    /ayuda    /  /salir
-
-  HISTORIAL DE CHAT:
-    /sesiones                       Listar sesiones de chat recientes
-    /buscar-historial <keyword>     Buscar en el historial por keyword
-    /sesion-ver <id>                Ver mensajes de una sesion (ID o primeros 8 chars)
-    /historial-limpiar [id|confirmar] Eliminar historial de sesion o todo
-
-  BUSQUEDA:
-    /buscar-web <query>             Buscar en web via DuckDuckGo (respuesta directa + temas)
-    /buscar-kg <concepto>           Buscar hechos en el grafo de conocimiento local
-
-  KNOWLEDGE GRAPH:
-    /kg-agregar <s> <p> <o>         Agregar triple (sujeto predicado objeto) al KG
-    /kg-stats                       Ver estadisticas del KG (triples, conceptos, predicados)
-    /kg-predicados                  Listar predicados unicos en el KG
-    /kg-exportar [archivo]          Exportar KG a JSON (default: kg_export.json)
-    /kg-inferir <concepto>          Inferir propiedades y herencia de un concepto
-    /kg-relacionar <A> <B>          Explicar relacion entre dos conceptos
-    /kg-responder <pregunta>        Responder pregunta usando el KG (multi-hop)
-    /kg-camino <A> <B>              Encontrar camino entre dos conceptos
-
-  NOTIFICACIONES:
-    /notif                          Ver notificaciones sin leer (ultimas 10)
-    /notif-todas                    Ver todas las notificaciones (ultimas 20)
-    /notif-leer <id>                Marcar una notificacion como leida
-    /notif-limpiar                  Marcar todas las notificaciones como leidas
-
-  RECORDATORIOS:
-    /recordar <titulo> en <N> minutos|horas  Crear recordatorio temporal
-    /recordatorios                  Ver recordatorios pendientes
-    /recordar-cancelar <id>         Cancelar un recordatorio
-
-  UI / SLASH:
-    /limpiar                        Limpiar pantalla
-    /compactar                      Resumir historial de sesion
-    /memoria                        Estado de memoria y KG
-    /modulos                        Modulos activos en tiempo real
-    /exportar <formato> [archivo]   Exportar historial (json|md|csv); archivo opcional
-    /exportar-stats                 Ver estadisticas del historial
-    /modo rapido                    Toggle: saltar confirmaciones
-    /debug                          Toggle: mostrar logs INFO
-    /costo                          Tokens y tiempo de sesion
-    /tema                           Ciclar tema visual
-    /prompt [sub]                   System prompt del cerebro (editar|set|reset|off|on)
-
-  CONFIGURACION:
-    /config              Mostrar configuracion actual
-    /config set k v      Cambiar valor de configuracion
-    /config reset        Restablecer valores por defecto
-    /config exportar     Exportar configuracion como JSON
-
-  RETROALIMENTACION:
-    /feedback [positivo|negativo|neutral]  Registrar feedback explicito
-    /feedback-sesion                       Ver feedback de esta sesion
-
-  ESTADISTICAS Y SUGERENCIAS:
-    /stats             Estadisticas de la sesion actual
-    /sugerir           Ver sugerencias proactivas del sistema
-
-  NOTAS INTELIGENTES:
-    /notas [tipo]         Ver notas (hechos/decisiones/acciones/insights/preguntas)
-    /nota-agregar <text>  Agregar nota manual
-    /notas-buscar <q>     Buscar en notas
-    /notas-stats          Estadisticas de notas
-    /nota-fijar <id>      Fijar nota por ID
-
-  APRENDIZAJE ESPACIADO:
-    /aprender <f> | <r> [| tema]   Crear tarjeta de estudio
-    /revisar                        Sesion de repaso interactiva
-    /aprendiendo                    Estadisticas de aprendizaje
-    /aprendiendo-buscar <q>         Buscar tarjetas por texto
-
-  LOGROS Y PATRONES:
-    /logros [todos]    Ver logros (sin arg = solo desbloqueados)
-    /patrones          Analizar patrones de tu sesion actual
-
-  AYUDA DETALLADA:
-    /ayuda <comando>   Descripcion completa de un comando
-
-  BACKUP Y ANALITICAS:
-    /backup [dir]        Backup de la memoria (~/.cognia/cognia_memory.db; default: ~/.cognia_backups/)
-    /mi-uso              Estadisticas de uso personal
-    /mi-uso-detalle      Ranking de funciones mas usadas
-
-  MEMORIA SEMANTICA Y DEBATE:
-    /buscar-memoria <q>       Busqueda semantica en historial
-    /contexto-semantico <q>   Ver contexto relacionado
-    /debate <tema>            Argumentos pro/contra de un tema
-
-  SINTESIS Y ANALISIS:
-    /sintetizar <tema>    Sintesis de conocimiento multi-fuente
-    /y-si <situacion>     Analisis hipotetico y contrafactual
-    /temas                Temas frecuentes en esta sesion
-
-  PERFIL Y ESTADO:
-    /mi-cognia         Reporte personal (logros, aprendizaje, objetivos)
-    /estado            Estado rapido de todos los sistemas
-    /perfil-completo   Perfil cognitivo completo en JSON
-
-  AUTOCRITICA Y REFLEXION:
-    /ver-criticas              Ver criticas automaticas de respuestas
-    /calidad-respuestas        Tendencia de calidad (7 dias)
-    /reflexion-profunda <q>    Analisis con 5 lentes cognitivos
-
-  REPORTES Y CADENAS:
-    /reporte-completo [arch]  Reporte Markdown completo (7 dias)
-    /reporte-semanal          Guardar reporte semanal automaticamente
-    /cadena-causal <c>        Analisis de cadena causal
-    /metas-pendientes         Objetivos pendientes con progreso
-
-  RECOMENDACIONES Y MAPAS:
-    /recomendar           Recomendaciones personalizadas (hasta 5)
-    /proximos-pasos       Accion mas urgente recomendada
-    /mapa <concepto>      Mapa mental ASCII desde el grafo de conocimiento
-
-  FEATURES Y VOCABULARIO:
-    /features                  Ver feature flags del sistema
-    /vocabulario               Vocabulario tecnico de esta sesion
-    /vocabulario-guardar       Guardar vocabulario en el KG
-
-  CRISTALIZACION DE CONOCIMIENTO:
-    /hechos-solidos           Ver hechos de alta confianza
-    /cristalizar              Promover hechos frecuentes a alta confianza
-    /conocimiento-ver <t>     Ver todo el conocimiento sobre un topico
-
-  QUIZ Y EXPORTACION:
-    /quiz [tema]         Quiz interactivo (KG + tarjetas SM-2)
-    /quiz-stats          Estadisticas de rendimiento
-    /exportar-todo [d]   Exportar todo a directorio (default: ~/.cognia_exports/)
-
-  CAMINOS DE APRENDIZAJE:
-    /camino-nuevo <obj>   Crear camino estructurado (5 pasos)
-    /caminos              Ver caminos activos con progreso
-    /camino-avanzar <id>  Marcar paso completado
-    /etiquetar <texto>    Detectar temas/etiquetas en texto
-
-  MEMORIA PERSONAL:
-    /cognia-sabe               Ver lo que Cognia sabe de ti
-    /cognia-aprende <hecho>    Enseniar un hecho sobre ti
-    /cognia-olvida <id>        Hacer olvidar un hecho
-
-ARGUMENTACION:
-  /argumento <tesis>         Analisis tesis-antitesis-sintesis
-
-  INSPECCION Y SESION:
-    /ver-contexto <q>    Ver contexto que se inyectaria para una pregunta
-    /resumen-sesion      Resumen completo de la sesion
-    /limpiar-sesion      Limpiar historial en memoria de esta sesion
-    /sesiones            Listar sesiones recientes (id, fecha, directorio)
-    /resume [id|dir]     Reanudar una sesion previa (por id o directorio)
-
-  CONSISTENCIA KG:
-    /verificar-kg             Detectar inconsistencias en el KG
-    /conflictos-kg            Ver conflictos sin resolver
-    /resolver-conflicto <id>  Marcar conflicto como resuelto
-    /comandos                 Resumen de comandos por categoria
-
-  INICIO Y DIGEST:
-    /digest          Digest diario (metas, repaso, notas, logros)
-    /inicio-dia      Rutina de inicio del dia
-    /cognia-info     Capacidades y version de Cognia
+  Nucleo, por si acaso:  /hacer <tarea>   /pensar <pedido>   /crear <idea>
+    /largo <tarea>   /agente estado   /esfuerzo [nivel]   /modelo [gguf]
+    /oficina   /memoria   /doctor   /salir
 """
 
 # ---------------------------------------------------------------------------
@@ -1834,8 +1560,11 @@ def _print_startup_panel():
         if _e.get("modelo"):
             _modelo_txt = f"{_e['modelo']} (:{_e['puerto']})"
         else:
+            # 'python scripts/...' NO viaja en el wheel: quien instalo por pip
+            # no tiene ese fichero y la orden sugerida falla. El equivalente que
+            # SI existe siempre es el subcomando (cognia/__main__.py:_cmd_flota).
             _modelo_warn = (f"sin backend en {_e['url']} — "
-                            f"arranca: python scripts/servir_flota.py pensar")
+                            f"arranca: python -m cognia flota arrancar pensar")
     except Exception:
         _modelo_txt = "desconocido"
 
@@ -6678,6 +6407,40 @@ def _strip_input_bom(line: str) -> str:
     return line.strip()
 
 
+# Comandos cuyo ARGUMENTO viaja al modelo como prompt: ahi un '@ruta' es una
+# @-mencion de verdad y hay que meterle el CONTENIDO del fichero. En los otros
+# ~238 comandos el '@' pertenece al argumento (un email en /recordar, un
+# decorador en un fragmento de codigo) y expandirlo seria adivinar.
+_SLASH_CON_MENCIONES = ("/hacer", "/pulir", "/largo", "/lazo", "/workflow",
+                        "/tutor")
+
+
+def _partir_para_menciones(raw: str) -> tuple:
+    """Decide QUE trozo de la linea puede llevar @-menciones.
+
+    Devuelve (prefijo, cuerpo): `cuerpo` es lo que se expande y `prefijo` es lo
+    que se vuelve a pegar delante intacto. `cuerpo` vacio = no se toca nada.
+
+    POR QUE existe: hasta 2026-08-13 la condicion era `'@' in raw and not
+    raw.startswith('/')`, o sea las menciones eran INVISIBLES para los comandos.
+    El autocompletado de rutas del REPL invita a escribir
+    '/hacer arregla @cognia/cli.py' y eso mandaba el literal '@cognia/cli.py'
+    al agente SIN una linea del fichero: la @-mencion parecia funcionar y no
+    hacia nada. Se expande solo el ARGUMENTO para que el dispatch siga viendo
+    su cabecera ('/hacer ...') exactamente igual que antes.
+    """
+    if "@" not in raw:
+        return "", ""
+    if not raw.startswith("/"):
+        return "", raw                       # texto libre: todo es prompt
+    if " " not in raw:
+        return "", ""                        # '/comando' pelado, nada que expandir
+    cabeza, resto = raw.split(" ", 1)
+    if cabeza.lower() not in _SLASH_CON_MENCIONES:
+        return "", ""
+    return cabeza + " ", resto
+
+
 def _datos_barra_estado() -> dict:
     """Lo que muestra la barra inferior del prompt. Nunca lanza.
 
@@ -6972,7 +6735,14 @@ def repl():
                 from cognia.harness.barra_estado import toolbar_prompt_toolkit
                 _toolbar = toolbar_prompt_toolkit(_datos_barra_estado,
                                                   contexto_atajos="repl")
-            except Exception:
+            except Exception as _exc_barra:
+                # Antes: 'except Exception: _toolbar = None'. La barra es una
+                # capacidad VISIBLE: sin aviso, "todavia no la cablearon" y "se
+                # rompio al importar" se ven exactamente igual (una sesion sin
+                # barra) y el bug puede vivir meses.
+                _aviso_degradado(
+                    "cli.barra_estado",
+                    f"{type(_exc_barra).__name__}: {_exc_barra}")
                 _toolbar = None
 
             session = PromptSession(
@@ -7060,21 +6830,30 @@ def repl():
 
         # @-menciones: '@ruta' mete el CONTENIDO del fichero en el mensaje.
         # Sin esto el modelo veia el texto '@cli.py' y no tenia forma de saber
-        # que hay dentro. Solo en texto libre: en un comando slash el '@' es
-        # del argumento, no una mencion.
-        if "@" in raw and not raw.startswith("/"):
+        # que hay dentro. En texto libre se expande la linea entera; en los
+        # comandos de _SLASH_CON_MENCIONES, SOLO el argumento (la cabecera
+        # '/hacer ' se vuelve a pegar intacta para no tocar el dispatch). El
+        # tope de bytes es el que ya trae expandir() por defecto: 64 KiB por
+        # fichero, 256 KiB en total.
+        _pref_men, _cuerpo_men = _partir_para_menciones(raw)
+        if _cuerpo_men:
             try:
                 from cognia.harness.menciones import expandir
-                _exp, _adj, _avisos = expandir(raw, os.getcwd())
+                _exp, _adj, _avisos = expandir(_cuerpo_men, os.getcwd())
                 for _aviso in _avisos:
                     _print_line(f"[warn_cl]{_escape(str(_aviso))}[/warn_cl]")
                 if _adj:
                     _resumen = ", ".join(
                         f"@{a.get('ruta')} ({a.get('bytes', 0)} B)" for a in _adj)
                     _print_line(f"[detail]{_escape(_resumen)} adjuntado(s)[/detail]")
-                    raw = _exp
-            except Exception:
-                pass       # una mencion rota jamas puede tragarse el mensaje
+                    raw = _pref_men + _exp
+            except Exception as _exc_men:
+                # Antes: 'except Exception: pass'. Una mencion rota sigue sin
+                # poder tragarse el mensaje (raw queda intacto), pero ahora se
+                # VE: "no lo cablearon" y "se rompio" eran el mismo silencio.
+                _aviso_degradado(
+                    "cli.menciones",
+                    f"{type(_exc_men).__name__}: {_exc_men}")
 
         # -- UI slash -------------------------------------------------------
         # Arnes (2026-08-12): van primero porque son la red de seguridad —
@@ -7232,10 +7011,23 @@ def repl():
                                        _arg_ayuda[len("buscar"):].strip())
                     _texto_ayuda = "\n".join(
                         f"  {c:22} {d}" for c, d, _ in _hits) or "  (sin coincidencias)"
-                elif _arg_ayuda not in ("todo", "all"):
+                elif _arg_ayuda in ("todo", "all"):
+                    # '/ayuda todo' salia del HELP_TEXT escrito A MANO, al que
+                    # le faltaban 49 comandos (/deshacer, /permisos, /workflow,
+                    # /rlm, /flota...): el catalogo vivia por duplicado y la
+                    # copia de mano se quedaba vieja sola. Ahora tambien sale de
+                    # _CMD_DESCRIPTIONS -> UNA sola fuente.
+                    _texto_ayuda = _ah.todo(_CMD_DESCRIPTIONS, _ancho)
+                else:
                     _texto_ayuda = _ah.seccion(_CMD_DESCRIPTIONS, _arg_ayuda, _ancho)
-            except Exception:
-                _texto_ayuda = None       # degrada al HELP_TEXT de siempre
+            except Exception as _exc_ayuda:
+                # Antes: 'except Exception: pass'. Con la ayuda navegable rota,
+                # el HELP_TEXT de emergencia es indistinguible de la ayuda de
+                # verdad y nadie se entera nunca de que el modulo revento.
+                _aviso_degradado(
+                    "cli.ayuda",
+                    f"{type(_exc_ayuda).__name__}: {_exc_ayuda}")
+                _texto_ayuda = None       # degrada al HELP_TEXT de emergencia
             _salida_ayuda = _texto_ayuda if _texto_ayuda is not None else HELP_TEXT
             if _HAS_RICH and _console:
                 _console.print(_salida_ayuda, style="bright_green", markup=False)
@@ -9297,11 +9089,37 @@ def repl():
 
         # -- Unknown slash --------------------------------------------------
         elif raw.startswith("/"):
-            # DOS lineas a proposito: el modo sencillo suprime toda linea que
-            # contenga '[detail]', asi que el aviso pegado al tip desaparecia
-            # ENTERO y el comando desconocido moria en silencio (auditoria F2).
-            _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
-            _print_line("[detail](escribe /ayuda)[/detail]")
+            # "Comando desconocido" a secas mandaba a leer un catalogo de 244
+            # comandos para encontrar el que te comiste una letra. El modulo de
+            # ayuda ya sabe proponer lo parecido ('/ayudda' -> /ayuda) y lo
+            # hacia SIN UN SOLO LLAMADOR desde 2026-08-12: cablearlo aca.
+            # Las DOS lineas del fallback siguen siendo a proposito: el modo
+            # sencillo suprime toda linea que contenga '[detail]', asi que un
+            # aviso pegado al tip desaparecia ENTERO y el comando desconocido
+            # moria en silencio (auditoria F2).
+            _msg_desc = None
+            try:
+                from cognia.harness import ayuda as _ah
+                _ancho_desc = (getattr(_console, "width", 100)
+                               if _HAS_RICH and _console else 100) - 2
+                _msg_desc = _ah.mensaje_desconocido(_CMD_DESCRIPTIONS, raw,
+                                                    ancho=_ancho_desc)
+            except Exception as _exc_desc:
+                _aviso_degradado(
+                    "cli.desconocido",
+                    f"{type(_exc_desc).__name__}: {_exc_desc}")
+                _msg_desc = None
+            if _msg_desc:
+                # markup=False: el mensaje trae el comando TAL CUAL lo tecleo el
+                # usuario, y un '[' suelto ahi reventaria el parser de rich.
+                _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
+                if _HAS_RICH and _console:
+                    _console.print(_msg_desc, style="yellow", markup=False)
+                else:
+                    print(_msg_desc)
+            else:
+                _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
+                _print_line("[detail](escribe /ayuda)[/detail]")
 
         # -- Free text → articulated cognitive response --------------------
         else:
@@ -9727,6 +9545,37 @@ def repl():
                                         ai.observe(_full_response[:300], provided_label="respuesta_streaming")
                                     except Exception:
                                         pass
+                            except KeyboardInterrupt:
+                                # Ctrl-C durante el streaming MATABA el proceso:
+                                # KeyboardInterrupt hereda de BaseException, asi
+                                # que el 'except Exception' de abajo no lo ve, y
+                                # el unico 'except (EOFError, KeyboardInterrupt)'
+                                # del REPL solo rodea a _get_input(). Resultado:
+                                # cortar una respuesta larga = perder la sesion
+                                # entera (historial, contexto, /deshacer).
+                                # Ahora corta el turno y vuelve al prompt.
+                                # Limite honesto: el generador de tokens no se
+                                # cierra a mano (el for es su unico dueno), lo
+                                # cierra el GC al soltar la referencia; lo que SI
+                                # se cierra explicito es _flujo, que tiene un
+                                # trozo a medio pintar.
+                                try:
+                                    if _flujo is not None:
+                                        _flujo.cerrar()
+                                except Exception:
+                                    pass
+                                print()
+                                # SIN corchetes en el texto: rich se come
+                                # '[interrumpido]' como si fuera una etiqueta de
+                                # markup y el aviso salia decapitado (medido en
+                                # la corrida real de verificacion).
+                                _n_int = len("".join(_tokens_buf))
+                                _print_line(
+                                    f"[warn_cl]Ctrl-C: turno cortado "
+                                    f"({_n_int} caracteres descartados). "
+                                    f"El REPL sigue vivo; /salir para salir."
+                                    f"[/warn_cl]")
+                                continue          # -> vuelve al prompt del REPL
                             except Exception as _se:
                                 _aviso_degradado(
                                     "cli.fast_path.stream",
@@ -9835,6 +9684,15 @@ def repl():
                         })
                         _history.append({"role": "user", "content": raw})
                         _history.append({"role": "assistant", "content": _texto_turno})
+                    except KeyboardInterrupt:
+                        # El otro sitio donde el turno se va largos segundos sin
+                        # devolver el prompt (el spinner "Procesando..."). Mismo
+                        # trato que el fast-path: cortar el turno, NO el REPL.
+                        print()
+                        _print_line(
+                            "[warn_cl]Ctrl-C: turno cortado. "
+                            "El REPL sigue vivo; /salir para salir.[/warn_cl]")
+                        continue          # -> vuelve al prompt del REPL
                     except Exception as e:
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
                         # Mismo contrato: ni una excepcion deja el turno mudo.
@@ -10708,7 +10566,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn("[warn_cl]Alternativas: Ollama (ollama serve + ollama pull "
                       "qwen2.5-coder + set COGNIA_OLLAMA_MODEL=qwen2.5-coder) o "
                       "shards: cognia install-weights --standalone[/warn_cl]")
-            _print_fn("[detail]En el repo de desarrollo: python scripts/servir_modelo.py[/detail]")
+            # Idem 1838: el subcomando viaja en el wheel, el script no.
+            _print_fn("[detail]O levanta la flota por roles: "
+                      "python -m cognia flota arrancar pensar[/detail]")
             # Que quede en el audit ademas de en pantalla: una corrida que murio
             # aca no se puede distinguir despues de una que respondio mal.
             _aviso_degradado(
