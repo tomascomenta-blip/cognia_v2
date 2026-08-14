@@ -31,13 +31,26 @@ from cognia.agent.tool_schemas import args_legacy, schemas_para
 
 # ── model_profiles ──────────────────────────────────────────────────────────
 
-def _con_props(monkeypatch, modelo, n_ctx=16384):
-    """Simula backend_activo.props sin red."""
+def _con_props(monkeypatch, modelo, n_ctx=16384, sonda=True):
+    """Simula backend_activo.props Y la SONDA de capacidad, sin red.
+
+    Stubear solo `props` dejo de alcanzar el 2026-08-13: desde el commit
+    6db4b53c el regimen (nativo/texto) lo decide `capacidad.soporta_tools`,
+    que hace un POST REAL. En una maquina con el llama-server vivo en la url
+    por defecto la sonda contestaba True y estos tests median la maquina, no
+    el codigo (test_perfil_texto_* rojos con 'nativo' != 'texto'). `sonda` es
+    el veredicto que se le inyecta.
+    """
     import cognia.backend_activo as ba
+    from cognia.agent import capacidad
     monkeypatch.setattr(ba, "props",
                         lambda url, forzar=False: {"modelo": modelo,
                                                    "n_ctx": n_ctx,
                                                    "puerto": 8080})
+    monkeypatch.setattr(capacidad, "soporta_tools",
+                        lambda url, forzar=False: sonda)
+    monkeypatch.setattr(capacidad, "medicion",
+                        lambda url: {"nativo": sonda, "motivo": "sonda stub"})
 
 
 def test_perfil_nativo_para_gpt_oss(monkeypatch):
@@ -78,15 +91,25 @@ def test_gpt_oss_conserva_su_effort_de_harmony(monkeypatch):
 
 
 def test_perfil_texto_para_modelo_desconocido(monkeypatch):
+    # Desde 6db4b53c el NOMBRE ya no decide: manda la sonda. Un modelo fuera de
+    # las tablas cuyo server no parsea tool_calls tiene que caer a texto.
     monkeypatch.delenv("COGNIA_AGENT_LEGACY", raising=False)
     monkeypatch.delenv("COGNIA_AGENT_TOOLS", raising=False)
-    _con_props(monkeypatch, "qwen2.5-coder-3b-instruct-q4.gguf")
+    _con_props(monkeypatch, "qwen2.5-coder-3b-instruct-q4.gguf", sonda=False)
     assert perfil_del_agente()["tools"] == "texto"
 
 
 def test_perfil_texto_sin_backend(monkeypatch):
+    # Sin backend, la sonda REAL no alcanza a nadie y devuelve False (medido:
+    # capacidad.soporta_tools('http://127.0.0.1:9') -> False en ~2s). Se stubea
+    # para que el test no dependa de que la maquina tenga un server vivo.
+    monkeypatch.delenv("COGNIA_AGENT_LEGACY", raising=False)
+    monkeypatch.delenv("COGNIA_AGENT_TOOLS", raising=False)
     import cognia.backend_activo as ba
+    from cognia.agent import capacidad
     monkeypatch.setattr(ba, "props", lambda url, forzar=False: {})
+    monkeypatch.setattr(capacidad, "soporta_tools",
+                        lambda url, forzar=False: False)
     assert perfil_del_agente()["tools"] == "texto"
 
 
