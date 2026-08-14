@@ -143,6 +143,58 @@ def _disciplina_pc_aislada(tmp_path, monkeypatch):
             pass
 
 
+# ── Los skills AMBIENTALES de la maquina no entran a los tests ─────────
+# load_skills() barre 4 directorios (skills.py:35). Tres son ambientales —
+# ~/.claude/skills y <repo>/.claude/skills (del dueno, gitignoreados) y
+# <repo>/cognia_skills (donde persist_skill AUTO-CAPTURA lo que aprende en
+# produccion, skills.py:370) — y el cuarto, cognia/skills, es el set BUNDLED
+# que se versiona y se envia. Solo los tres primeros se aislan: aislar
+# tambien el bundled dejaria sin objeto a test_skills.py::
+# test_bundled_skills_ship_and_load y a todo test_skills_nuevas.py, que
+# existen justamente para comprobar que ese set carga y se activa.
+#
+# Medido el 2026-08-13: la suite corria con 6 skills ambientales metidas
+# (2 auto-capturadas SIN trackear: 'palabras-txt-tiene-palabra-por',
+# 'ventas-csv-tiene-columnas-producto'). Hoy pasan de casualidad, pero el
+# veredicto de find_skill es COMPARATIVO: gana la de mayor solapamiento
+# lexico. Reproducido metiendo una auto-captura verosimil
+# ('comprimir-salida-larga', descripcion "...la salida ocupa demasiado...")
+# -> se roba la frase "la salida ocupa demasiado, comprimela" y
+# test_la_frase_del_usuario_encuentra_su_skill se pone rojo sin que nadie
+# haya tocado el repo: basta que el dueno use el agente. Un rojo que
+# depende de la maquina ensena a ignorar el rojo.
+#
+# Scope de SESION, no de funcion, y por una razon concreta: test_skills_
+# nuevas.py:35 pide load_skills() desde una fixture de scope MODULO, y
+# pytest instancia las fixtures de scope mayor ANTES que las autouse de
+# funcion — una fixture por-test se cablearia demasiado tarde y ese modulo
+# seguiria leyendo los directorios reales. tmp_path_factory y
+# pytest.MonkeyPatch.context() son los equivalentes de sesion de tmp_path
+# y monkeypatch. Los tests que quieren su propio dir aislado
+# (test_skills.py::_isolate_skill_dir) lo re-apuntan encima con el
+# monkeypatch de funcion, que restaura a ESTOS valores, no a los reales.
+@_pytest.fixture(autouse=True, scope="session")
+def _skills_ambientales_aislados(tmp_path_factory):
+    try:
+        from cognia.agent import skills as _sk
+    except ImportError:
+        yield
+        return
+    base = tmp_path_factory.mktemp("skills_ambientales")
+    # Mismo orden que el real: los ambientales primero, el bundled ultimo
+    # (load_skills deja ganar al ultimo en choque de nombres).
+    bundled = _sk._REPO / "cognia" / "skills"
+    with _pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_sk, "SKILL_DIRS", [base / "claude_usuario",
+                                       base / "claude_repo",
+                                       base / "cognia_skills",
+                                       bundled])
+        # persist_skill() escribe aca (y hace mkdir): que NO caiga en el
+        # cognia_skills real, o cada corrida de la suite deja skills nuevas.
+        mp.setattr(_sk, "AUTO_SKILL_DIR", base / "cognia_skills")
+        yield
+
+
 # ── El singleton de ReminderManager no cruza entre tests ───────────────
 # cli._REMINDER_MANAGER es estado de PROCESO (un solo manager por proceso,
 # con su hilo checker y el NotificationCenter cableado — fix F2 2026-08-01).
