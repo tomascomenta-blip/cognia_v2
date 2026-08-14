@@ -573,6 +573,15 @@ def _disp(path) -> str:
 # La regla que sale de aca: leer bytes, DETECTAR la codificacion, y devolver esa
 # misma codificacion y ese mismo fin de linea al escribir. Nunca "replace" en un
 # camino que despues escribe.
+#
+# Dos limites CONOCIDOS de esta implementacion, dichos para que nadie se lleve
+# la sorpresa mirando un diff:
+#   a. Fin de linea MIXTO (mitad LF, mitad CRLF): se normaliza al DOMINANTE, o
+#      sea que el diff toca lineas que nadie edito. Sigue siendo mejor que el
+#      comportamiento previo (write_text CRLF-izaba el fichero entero en
+#      Windows, mixto o no), pero no es "no tocar nada".
+#   b. El fin de linea se decide por MAYORIA, no por linea. Un fichero 50/50
+#      sale todo LF (el empate lo gana LF, ver _nl_dominante).
 
 
 def _codecs_probables() -> list:
@@ -627,12 +636,45 @@ def _decodificar_bytes(datos) -> str:
     return datos.decode("latin-1", errors="replace")
 
 
-def _nl_dominante(datos: bytes) -> str:
-    """El fin de linea que YA tiene el fichero. Se cuenta sobre los bytes porque
-    el texto decodificado con universal-newlines ya perdio el dato."""
-    crlf = datos.count(b"\r\n")
-    lf = datos.count(b"\n") - crlf
-    return "\r\n" if crlf > lf else "\n"
+def _nl_dominante(datos) -> str:
+    """El fin de linea que YA tiene el fichero. Acepta bytes o texto.
+
+    Sobre BYTES para los codecs de 1 byte: el texto decodificado con
+    universal-newlines ya perdio el dato. Sobre TEXTO para los codecs anchos
+    (ver ``_codec_ancho``), donde contar b"\\r\\n" en crudo no casa nunca.
+    Fin de linea MIXTO: gana el dominante y el fichero sale normalizado a el.
+    Es una mejora sobre lo que hacia write_text (CRLF-izar todo en Windows),
+    pero hay que saberlo: en un fichero mixto el diff toca lineas no editadas.
+    """
+    if isinstance(datos, bytes):
+        crlf, lf_total = datos.count(b"\r\n"), datos.count(b"\n")
+    else:
+        crlf, lf_total = datos.count("\r\n"), datos.count("\n")
+    return "\r\n" if crlf > (lf_total - crlf) else "\n"
+
+
+def _codec_ancho(codec: str) -> bool:
+    """True para utf-16/utf-32 (y sus variantes -le/-be/-sig).
+
+    En estos codecs cada caracter ocupa 2 o 4 bytes, asi que un CRLF llega al
+    disco como \\r\\x00\\n\\x00 (utf-16LE) y el conteo en bytes crudos da 0:
+    _nl_dominante devolvia "\\n" y _escribir_texto pasaba a LF el fichero
+    ENTERO — el mismo "cambiar UNA linea reescribe todo" del bug 4, por otra
+    puerta. No es teorico en esta maquina: PowerShell 5.1 escribe utf-16 con
+    ``Out-File`` por defecto, o sea que medio disco del dueno es utf-16.
+    """
+    c = (codec or "").lower().replace("_", "-")
+    return c.startswith("utf-16") or c.startswith("utf-32")
+
+
+def _decodificar_con(datos: bytes, codec: str) -> tuple:
+    """(texto normalizado a '\\n', fin de linea original) para un codec dado.
+    Deja subir UnicodeDecodeError/LookupError: es la senal de 'probar el
+    siguiente codec de la cascada'."""
+    texto = datos.decode(codec)
+    # El nl se mide ANTES del .replace(): despues ya no queda ni un \r\n.
+    nl = _nl_dominante(texto if _codec_ancho(codec) else datos)
+    return texto.replace("\r\n", "\n"), nl
 
 
 def _leer_texto(path: Path) -> tuple:
@@ -648,19 +690,24 @@ def _leer_texto(path: Path) -> tuple:
     llamador, no de la codificacion.
     """
     datos = path.read_bytes()
-    nl = _nl_dominante(datos)
     for bom, codec in _BOMS:
         if datos.startswith(bom):
             try:
-                return datos.decode(codec).replace("\r\n", "\n"), codec, nl
+                texto, nl = _decodificar_con(datos, codec)
+                return texto, codec, nl
             except (UnicodeDecodeError, LookupError):
                 break
     for codec in _codecs_probables():
         try:
-            return datos.decode(codec).replace("\r\n", "\n"), codec, nl
+            texto, nl = _decodificar_con(datos, codec)
+            return texto, codec, nl
         except (UnicodeDecodeError, LookupError):
             continue
-    return datos.decode("latin-1", errors="replace").replace("\r\n", "\n"), None, nl
+    # Ningun codec: latin-1 como red y el nl medido en bytes (el codec real es
+    # desconocido, asi que 'ancho' no se puede afirmar; ademas quien escriba
+    # con codec=None debe abortar, no reescribir).
+    return (datos.decode("latin-1", errors="replace").replace("\r\n", "\n"),
+            None, _nl_dominante(datos))
 
 
 def _escribir_texto(path: Path, texto: str, codec: str = "utf-8",

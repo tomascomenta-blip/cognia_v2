@@ -177,6 +177,45 @@ def test_editar_archivo_conserva_crlf_de_un_fichero_crlf(workspace):
     assert p.read_bytes() == b"a = 9\r\nb = 2\r\n"
 
 
+def test_editar_archivo_conserva_el_crlf_de_un_utf16(workspace):
+    """El mismo bug 4, pero en un codec ANCHO: en utf-16 el CRLF va CODIFICADO
+    (\\r\\x00\\n\\x00 en LE), asi que contar b"\\r\\n" sobre los bytes crudos no
+    casa nunca y el fichero entero salia pasado a LF. Importa en esta maquina:
+    PowerShell 5.1 escribe utf-16 con Out-File por defecto."""
+    p = workspace / "ps16.txt"
+    p.write_bytes("a\r\nb\r\n".encode("utf-16"))
+    out = T.run_tool("editar_archivo", f"{p} | {_bloque('a', 'z')}", _ctx())
+    assert "OK" in out, out
+    b = p.read_bytes()
+    assert b.count(b"\r\x00\n\x00") == 2, b        # los DOS CRLF, en bytes
+    assert b.startswith(b"\xff\xfe"), b            # y el BOM sigue ahi
+    assert b.decode("utf-16") == "z\r\nb\r\n"
+
+
+def test_leer_texto_cuenta_el_fin_de_linea_en_el_texto_si_el_codec_es_ancho(
+        workspace):
+    """Contrato directo del helper: utf-16 CRLF -> nl='\\r\\n' (contado sobre el
+    texto), utf-16 LF -> nl='\\n'. Sin esto _escribir_texto normaliza el
+    fichero entero."""
+    p = workspace / "w16.txt"
+    p.write_bytes("uno\r\ndos\r\n".encode("utf-16"))
+    assert T._leer_texto(p) == ("uno\ndos\n", "utf-16", "\r\n")
+    p.write_bytes("uno\ndos\n".encode("utf-16"))
+    assert T._leer_texto(p) == ("uno\ndos\n", "utf-16", "\n")
+
+
+def test_editar_archivo_conserva_acentos_y_crlf_de_un_utf16(workspace):
+    """Codec + BOM + acentos + fin de linea, los cuatro a la vez, que es como
+    llegan los ficheros que PowerShell deja en el disco del dueno."""
+    p = workspace / "ps16b.txt"
+    p.write_bytes("linea uno\r\nniño\r\n".encode("utf-16"))
+    T.run_tool("editar_archivo",
+               f"{p} | {_bloque('linea uno', 'linea DOS')}", _ctx())
+    b = p.read_bytes()
+    assert FFFD not in b, b
+    assert b.decode("utf-16") == "linea DOS\r\nniño\r\n"
+
+
 def test_escribir_archivo_nuevo_no_traduce_saltos(workspace):
     p = workspace / "nuevo.txt"
     T.run_tool("escribir_archivo", f"{p} | una\ndos", _ctx())
