@@ -54,6 +54,22 @@ _ROTAR_BYTES = 10 * 1024 * 1024
 # /props por URL. Sondear en cada token costaria mas que generarlo.
 _props_cache: dict = {}
 
+# Sello de tiempo de cada entrada de _props_cache (url -> epoch). Va APARTE
+# para no cambiar el formato del cache: hay fixtures que inyectan
+# _props_cache[url] = {...} a mano, y una entrada inyectada NO lleva sello y
+# NO caduca (es un override deliberado, no una medicion).
+#
+# POR QUE EL TTL: el cache era un dict de proceso sin expiracion, con el
+# argumento de que "un llama-server no cambia de modelo sin reiniciar". El
+# summoner de 2026-08-09 rompio ese supuesto: apaga un rol y levanta otro EN
+# EL MISMO PUERTO. Desde entonces, tras un swap, props() seguia devolviendo el
+# modelo viejo durante toda la vida del proceso -> el REGIMEN del agente
+# (model_profiles) se decidia sobre un modelo que ya no estaba. 60 s es corto
+# frente a la vida de un proceso REPL y larguisimo frente al coste de un GET
+# local (~3 ms).
+_props_sello: dict = {}
+_TTL_PROPS_S = 60.0
+
 # Ultimo registro, para que los tests y el CLI puedan afirmar quien contesto
 # sin releer el jsonl.
 _ultimo: dict = {}
@@ -82,29 +98,67 @@ def _emitir_evento(evento) -> bool:
         return False
 
 
+def _sampling_de(dgs: dict) -> dict:
+    """El sampling QUE EL PROPIO SERVER declara usar por defecto.
+
+    llama-server lo mueve de sitio segun el build: hasta b~4xxx colgaba plano
+    de default_generation_settings, y desde b10066 (el de esta maquina) vive
+    en default_generation_settings.params — medido contra :8080 el 2026-08-13:
+    {'params': {...'temperature': 0.8, 'top_p': 0.95, 'repeat_penalty': 1.0},
+     'n_ctx': 200192}. Se miran los dos sitios porque adivinar el build seria
+    el mismo vicio que adivinar el modelo por su nombre.
+
+    POR QUE IMPORTA: sin esto, model_profiles le inventaba 0.7/0.8 (sampling
+    de Qwen) a CUALQUIER modelo que no estuviera en su tabla de familias.
+    """
+    fuentes = []
+    if isinstance(dgs, dict):
+        p = dgs.get("params")
+        if isinstance(p, dict):
+            fuentes.append(p)
+        fuentes.append(dgs)
+    out = {}
+    for clave in ("temperature", "top_p", "repeat_penalty"):
+        for f in fuentes:
+            v = f.get(clave)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                # El server devuelve el float de C (0.800000011920929): se
+                # redondea para que un perfil sea legible y comparable.
+                out[clave] = round(float(v), 4)
+                break
+    return out
+
+
 def props(url: str, forzar: bool = False) -> dict:
     """
-    {'modelo': <basename del gguf>, 'n_ctx': int, 'puerto': int} del server.
+    {'modelo': <basename del gguf>, 'n_ctx': int, 'puerto': int,
+     'sampling': {temperature, top_p, repeat_penalty}} del server.
 
-    {} si no responde. Cacheado por URL: un llama-server no cambia de modelo
-    sin reiniciar, y reiniciar cambia el puerto o mata el proceso.
+    {} si no responde. Cacheado por URL con TTL de 60 s (ver _props_sello):
+    un llama-server no cambia de modelo sin reiniciar, pero el summoner SI
+    levanta otro rol en el mismo puerto.
     """
     url = url.rstrip("/")
     if not forzar and url in _props_cache:
-        return _props_cache[url]
+        sello = _props_sello.get(url)
+        if sello is None or (time.time() - sello) < _TTL_PROPS_S:
+            return _props_cache[url]
     datos = {}
     try:
         with urllib.request.urlopen(url + "/props", timeout=3) as r:
             crudo = json.loads(r.read().decode("utf-8", errors="replace"))
-        ruta = crudo.get("model_path") or crudo.get("default_generation_settings", {}).get("model", "")
+        dgs = crudo.get("default_generation_settings") or {}
+        ruta = crudo.get("model_path") or dgs.get("model", "")
         datos = {
             "modelo": Path(str(ruta)).name or "desconocido",
-            "n_ctx": crudo.get("default_generation_settings", {}).get("n_ctx"),
+            "n_ctx": dgs.get("n_ctx"),
             "puerto": _puerto_de(url),
+            "sampling": _sampling_de(dgs),
         }
     except Exception:
         datos = {}
     _props_cache[url] = datos
+    _props_sello[url] = time.time()
     return datos
 
 
@@ -293,13 +347,17 @@ def sin_backend(via: str, detalle: str = "") -> dict:
         visto = _emitir_evento(Degradado(
             donde=via,
             motivo=detalle or "no responde ningun servidor",
-            accion_sugerida="python scripts/servir_flota.py construir"))
+            # La orden que de verdad existe en una instalacion desde el
+            # wheel: scripts/ NO viaja en el paquete, asi que sugerir
+            # 'python scripts/servir_flota.py' era mandar al usuario a un
+            # fichero que no tiene. Es la misma orden que da doctor.py.
+            accion_sugerida="python -m cognia flota arrancar pensar"))
     except Exception:
         visto = False
     if not visto:
         print(f"[backend] DEGRADADO: '{via}' sin backend LLM -- "
               f"{detalle or 'no responde ningun servidor'}. "
-              f"Arranca la flota: python scripts/servir_flota.py construir",
+              f"Arranca la flota: python -m cognia flota arrancar pensar",
               file=sys.stderr, flush=True)
     return fila
 
@@ -310,8 +368,21 @@ def ultimo() -> dict:
 
 
 def resetear_cache() -> None:
-    """Tras reiniciar un server en el mismo puerto, el /props cacheado miente."""
+    """Tras reiniciar un server en el mismo puerto, el /props cacheado miente.
+
+    Y con el, la sonda de capacidad: su cache esta indexado por (url, modelo)
+    y el modelo lo saca de props(), asi que un swap en el mismo puerto dejaria
+    al agente decidiendo el regimen con la medicion del modelo ANTERIOR.
+    Import perezoso y guardado: capacidad importa este modulo (ciclo) y esto
+    es instrumentacion — nada aqui puede lanzar.
+    """
     _props_cache.clear()
+    _props_sello.clear()
+    try:
+        from cognia.agent import capacidad
+        capacidad.invalidar()
+    except Exception:
+        pass
 
 
 # ── Chequeo de arranque ──────────────────────────────────────────────────────
@@ -333,7 +404,7 @@ def estado() -> dict:
     if not p:
         avisos.append(
             f"NO HAY BACKEND en {url}. Cognia va a degradar a sus fallbacks. "
-            f"Arranca: python scripts/servir_flota.py construir")
+            f"Arranca: python -m cognia flota arrancar pensar")
     else:
         for r in RETIRADOS:
             if r in modelo.lower():

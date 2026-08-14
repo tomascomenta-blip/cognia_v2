@@ -11,38 +11,49 @@ nativo y el loop no lo entendia ("2 pasos sin ACCION valida" -> cierre por
 prosa -> 0/1 en una tarea trivial). El corse del 3B pasa a ser UN perfil,
 no EL default.
 
+EL ADAPTADOR DEFINITIVO (2026-08-13). Hasta hoy este modulo decidia el
+REGIMEN con `fam in modelo` contra cinco literales escritos a mano: un
+modelo fuera de esa lista caia al marco de texto AUNQUE el server emitiera
+tool_calls perfectos. El coste esta MEDIDO en el barrido del 2026-08-13
+(COMPARACION_MODELOS_20260813.md): Qwen3-4B-Thinking saca 0/26 en texto y
+15/26 en nativo — el mismo modelo, el mismo hardware, 15 puntos de 26 que
+dependian de si alguien se habia acordado de anadir una cadena al dict.
+Lo que era UN substring se parte en DOS decisiones independientes:
+
+  CAPACIDAD (¿tool calls?) -> la MIDE cognia.agent.capacidad: una peticion
+    real al server con una tool trivial. Nombre del fichero: irrelevante.
+  SAMPLING (¿con que temperatura?) -> la tabla de familias de abajo, que ya
+    NO decide el regimen y que ademas se extiende SIN TOCAR CODIGO desde
+    ~/.cognia/perfiles_modelo.json. Y si el modelo no casa con ninguna
+    familia, la base la da el propio server (default_generation_settings de
+    /props) en vez del 0.7/0.8 Qwen-like inventado que habia aqui — que era
+    exactamente el vicio que esta tarea elimina: declarar en vez de medir.
+
 Contrato:
 - ``perfil_del_agente()`` consulta el modelo servido via /props
-  (backend_activo.props, cacheado) y devuelve un dict plano con:
+  (backend_activo.props, cacheado con TTL) + la sonda de capacidad
+  (cacheada 24h por (url, modelo)) y devuelve un dict plano con:
   tools ("nativo"|"texto"), sampling, reasoning_effort, max_tokens, n_ctx,
-  y el system prompt del rol agente para ese regimen.
-- Sin backend o modelo desconocido -> perfil "texto" (el camino legacy de
+  motivo (POR QUE ese regimen) y el system prompt del rol agente.
+- Sin backend o sonda negativa -> perfil "texto" (el camino legacy de
   siempre; degradable, jamas rompe /hacer).
-- Overrides:
-    COGNIA_AGENT_TOOLS=nativo|texto  fuerza el regimen (contrafactual del
-                                     plan: legacy forzado sobre el 20B).
+- Overrides (GANAN a la sonda, son el contrafactual del plan):
+    COGNIA_AGENT_TOOLS=nativo|texto  fuerza el regimen.
     COGNIA_AGENT_LEGACY=1            alias de texto (mas gritable en un A/B).
     COGNIA_REASONING_EFFORT=low|medium|high  esfuerzo del razonador.
-
-Solo se declara NATIVO lo verificado de primera mano: gpt-oss servido por
-llama-server con --jinja parsea tools/tool_calls de harmony en
-/v1/chat/completions (probado 2026-08-09 contra :8080, build b10066:
-finish_reason=tool_calls, arguments JSON, reasoning_content, usage real).
-Un modelo que no este en la tabla usa el marco texto aunque quiza soporte
-tools: preferible a estrenar un template no medido en produccion.
 """
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 
-# Familias con tool-calling nativo VERIFICADO en esta maquina (substring del
-# basename del GGUF, en minusculas -> sampling recomendado de esa familia).
-# Agregar una familia EXIGE repetir la verificacion manual (POST con tools ->
-# message.tool_calls con arguments JSON), porque estrenar un template no
-# medido en produccion es como el arnes viejo trataba a todo modelo igual.
+# Sampling POR FAMILIA. OJO: esta tabla ya NO decide si el regimen es nativo
+# (eso lo mide la sonda); solo dice CON QUE PARAMETROS hablarle a una familia
+# conocida, porque el 1.0/1.0 de harmony DISPERSA a un Qwen y el 0.7/0.8 de
+# Qwen empobrece a gpt-oss. Un modelo que no case con ninguna entrada usa la
+# base que declara el propio server, no un invento de este fichero.
 #
-#   temperature/top_p: el sampling de la familia (el 1.0/1.0 de harmony
-#     DISPERSA a un Qwen; el 0.7/0.8 de Qwen empobrece a gpt-oss).
 #   usa_effort: si el reasoning_effort viaja por chat_template_kwargs (solo
 #     harmony lo consume; Qwythos lo ACEPTA pero es no-op, asi que no se pasa).
 _FAMILIAS_NATIVAS = {
@@ -51,14 +62,18 @@ _FAMILIAS_NATIVAS = {
     "gpt-oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
     "gpt_oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
     "gptoss":  {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
-    # Qwythos-9B (Qwen2.5 abliterado, razonador con <think>): tool-calling
-    # nativo VERIFICADO 2026-08-09 (finish_reason=tool_calls, arguments JSON,
-    # servido con --jinja). Sampling Qwen (0.7/0.8). Es RAZONADOR: piensa
-    # fuerte hasta en prompts triviales (854 chars de reasoning para "LISTO";
-    # max_tokens=32 -> content vacio, medido) -> el presupuesto de razonador y
-    # el clamp MIN_TOKENS_RAZONADOR lo protegen igual que a gpt-oss.
+    # Qwythos-9B (Qwen2.5 abliterado, razonador con <think>): sampling Qwen
+    # (0.7/0.8) medido 2026-08-09. Es RAZONADOR: piensa fuerte hasta en
+    # prompts triviales (854 chars de reasoning para "LISTO"; max_tokens=32
+    # -> content vacio, medido) -> el presupuesto de razonador y el clamp
+    # MIN_TOKENS_RAZONADOR lo protegen igual que a gpt-oss.
     "qwythos": {"temperature": 0.7, "top_p": 0.8, "usa_effort": False},
 }
+
+# Claves de sampling que este modulo propaga al camino del agente. El resto de
+# lo que declare el server (top_k, min_p, dry_*) no lo consume chat_client, y
+# copiarlo seria fingir un control que no existe.
+_CLAVES_SAMPLING = ("temperature", "top_p", "repeat_penalty")
 
 # Presupuesto minimo del camino del agente con un razonador: max_tokens tiene
 # que cubrir el PENSAMIENTO ademas de la respuesta (leccion "9 bugs identicos"
@@ -90,39 +105,123 @@ def url_del_backend() -> str:
 
 
 def _regimen_forzado() -> str:
-    """'nativo'/'texto' si hay override por env, '' si decide el modelo."""
+    """'nativo'/'texto' si hay override por env, '' si decide la sonda."""
     if os.environ.get("COGNIA_AGENT_LEGACY", "").strip() == "1":
         return "texto"
     forzado = os.environ.get("COGNIA_AGENT_TOOLS", "").strip().lower()
     return forzado if forzado in ("nativo", "texto") else ""
 
 
+def path_perfiles_usuario() -> Path:
+    """~/.cognia/perfiles_modelo.json (COGNIA_HOME lo redirige, igual que en
+    capacidad.py: sin esto no habria manera de probar sobre un HOME virgen)."""
+    crudo = os.environ.get("COGNIA_HOME", "").strip()
+    home = Path(crudo) if crudo else Path.home() / ".cognia"
+    return home / "perfiles_modelo.json"
+
+
+def familias_usuario() -> dict:
+    """La tabla de sampling del USUARIO: {familia: {temperature, top_p,
+    usa_effort, repeat_penalty}}. EXTIENDE y PISA a _FAMILIAS_NATIVAS, para
+    que estrenar un modelo nuevo sea editar un JSON y no editar codigo (que es
+    lo que hacia falta hasta hoy, y por eso la tabla llevaba meses con cinco
+    entradas). Fichero ausente/corrupto -> {} y se sigue: es configuracion,
+    jamas una dependencia."""
+    try:
+        with open(path_perfiles_usuario(), "r", encoding="utf-8") as fh:
+            datos = json.load(fh)
+    except Exception:
+        return {}
+    if not isinstance(datos, dict):
+        return {}
+    limpio = {}
+    for fam, cfg in datos.items():
+        if isinstance(fam, str) and isinstance(cfg, dict):
+            limpio[fam.lower()] = cfg
+    return limpio
+
+
+def _cfg_familia(modelo: str) -> tuple:
+    """(cfg, nombre_familia) de la primera familia que case por substring, con
+    el fichero del usuario mirado ANTES que la tabla del codigo (asi 'pisa').
+    (None, '') si el modelo no se parece a ninguna."""
+    bajo = (modelo or "").lower()
+    if bajo:
+        for fam, cfg in familias_usuario().items():
+            if fam and fam in bajo:
+                return dict(cfg), fam
+        for fam, cfg in _FAMILIAS_NATIVAS.items():
+            if fam in bajo:
+                return dict(cfg), fam
+    return None, ""
+
+
+def _sampling_base(props_sampling: dict, cfg: dict) -> tuple:
+    """(sampling, origen) para el camino nativo.
+
+    Orden de precedencia, de menos a mas fiable:
+      1. 0.7/0.8 Qwen-like — ULTIMO RECURSO, solo si el server no dijo nada
+         (esta es la linea que antes se aplicaba a TODO modelo desconocido).
+      2. default_generation_settings de /props: lo que el propio server usa.
+      3. la familia (medida a mano en esta maquina), si el modelo casa.
+    """
+    sampling = {"temperature": 0.7, "top_p": 0.8}
+    origen = "fallback 0.7/0.8 (el server no declaro sampling)"
+    base = {k: v for k, v in (props_sampling or {}).items()
+            if k in _CLAVES_SAMPLING and isinstance(v, (int, float))}
+    if base:
+        sampling.update(base)
+        origen = "default_generation_settings del server"
+    if cfg:
+        puestos = {k: cfg[k] for k in _CLAVES_SAMPLING
+                   if isinstance(cfg.get(k), (int, float))}
+        sampling.update(puestos)
+    return sampling, origen
+
+
 def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
     """El perfil de corrida del agente para el modelo servido AHORA.
 
-    Nunca lanza: cualquier fallo (server caido, /props raro) degrada al
-    perfil texto, que es el camino que siempre existio.
+    Nunca lanza: cualquier fallo (server caido, /props raro, sonda que
+    revienta) degrada al perfil texto, que es el camino que siempre existio.
     """
     url = (url or url_del_backend()).rstrip("/")
-    modelo, n_ctx = "", None
+    modelo, n_ctx, base = "", None, {}
     try:
         from cognia.backend_activo import props
         p = props(url, forzar=forzar)
         modelo = (p.get("modelo") or "").lower()
         n_ctx = p.get("n_ctx")
+        base = dict(p.get("sampling") or {})
     except Exception:
-        modelo, n_ctx = "", None
+        modelo, n_ctx, base = "", None, {}
 
+    # ── (1) CAPACIDAD: se MIDE, no se deduce del nombre del fichero ────────
     forzado = _regimen_forzado()
-    fam_cfg = next((cfg for fam, cfg in _FAMILIAS_NATIVAS.items()
-                    if fam in modelo), None)
-    es_nativo = fam_cfg is not None
     if forzado:
+        # El override gana SIEMPRE a la sonda: es el contrafactual del plan
+        # (poder forzar legacy sobre un nativo, y nativo sobre un modelo que
+        # la sonda no alcanzo a medir) y el interruptor de emergencia.
         es_nativo = (forzado == "nativo")
-        if es_nativo and fam_cfg is None:
-            # Nativo FORZADO sobre un modelo fuera de la tabla (contrafactual
-            # del plan / A/B): sampling neutro Qwen-like, sin effort de harmony.
-            fam_cfg = {"temperature": 0.7, "top_p": 0.8, "usa_effort": False}
+        via, motivo = "forzado", f"regimen forzado por entorno (={forzado})"
+    else:
+        try:
+            from cognia.agent import capacidad
+            es_nativo = capacidad.soporta_tools(url, forzar=forzar)
+            # medicion() aqui es un acierto de cache (soporta_tools acaba de
+            # poblarla): sale gratis y trae el POR QUE legible.
+            motivo = str((capacidad.medicion(url) or {}).get("motivo") or "")
+            via = "sonda"
+        except Exception as exc:
+            es_nativo, via = False, "sonda"
+            motivo = (f"la sonda de capacidad fallo ({type(exc).__name__}: "
+                      f"{exc}); se degrada a texto")
+
+    # ── (2) SAMPLING: familia (codigo o JSON del usuario) sobre la base del
+    #        server. Independiente del regimen: un modelo puede ser nativo sin
+    #        estar en ninguna tabla, y entonces se le habla como el server dice.
+    cfg, familia = _cfg_familia(modelo)
+    sampling, origen = _sampling_base(base, cfg or {})
 
     if not es_nativo:
         # Perfil TEXTO (legacy): el bucle ACCION:/regex de cli.py con su
@@ -134,34 +233,39 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
             "url": url,
             "tools": "texto",
             "n_ctx": n_ctx,
+            "capacidad": via,
+            "motivo": motivo,
         }
 
     effort = ""
-    if fam_cfg.get("usa_effort"):
+    if (cfg or {}).get("usa_effort"):
         effort = os.environ.get("COGNIA_REASONING_EFFORT", "").strip().lower()
         if effort not in ("low", "medium", "high"):
             # low: la seleccion de herramienta no necesita un ensayo; el eje
             # esfuerzo esta medido como plano (high-low +4, MDE +-8) y low
             # corta la latencia por paso. Subible por env para medir.
             effort = "low"
-    return {
+    perfil = {
         "nombre": "razonador_nativo",
         "modelo": modelo,
         "url": url,
         "tools": "nativo",
         "n_ctx": n_ctx,
-        # Sampling de la FAMILIA (harmony 1.0/1.0 vs Qwen 0.7/0.8). El
-        # 0.0/nothink del 3B a un razonador lo empobrece (y el pensamiento ya
-        # sale por reasoning_content, no por el texto).
-        "temperature": fam_cfg["temperature"],
-        "top_p": fam_cfg["top_p"],
         "reasoning_effort": effort,
         # Cubre pensamiento + respuesta; chat_client ademas CLAMPEA cualquier
         # pedido por debajo de MIN_TOKENS_RAZONADOR (chequeo que corre, no
         # leccion en prosa).
         "max_tokens": 4096,
         "system_perfil": "completo",
+        # Trazabilidad del adaptador: de donde salio CADA decision. Sin esto,
+        # un perfil raro en produccion no se puede diagnosticar sin reproducir.
+        "capacidad": via,
+        "motivo": motivo,
+        "familia": familia,
+        "sampling_origen": (f"familia '{familia}'" if familia else origen),
     }
+    perfil.update(sampling)
+    return perfil
 
 
 def system_agente_nativo() -> str:
@@ -181,18 +285,35 @@ def system_agente_nativo() -> str:
 def verificar_arranque(perfil: dict) -> list:
     """Chequeos de coherencia perfil<->server que corren al entrar al camino
     nativo (gate del plan: no lecciones en prosa). Devuelve avisos (vacio=ok).
+
+    El chequeo de capacidad consulta a la SONDA, no al nombre del modelo: la
+    version vieja comparaba el perfil consigo mismo (mismo dict de familias
+    que ya lo habia decidido), o sea no podia fallar nunca — un chequeo que
+    no puede fallar no es un chequeo.
     """
     avisos = []
-    if perfil.get("tools") == "nativo":
-        if int(perfil.get("max_tokens") or 0) < MIN_TOKENS_RAZONADOR:
-            avisos.append(
-                f"max_tokens={perfil.get('max_tokens')} < "
-                f"{MIN_TOKENS_RAZONADOR} con perfil razonador: el presupuesto "
-                f"no cubre el pensamiento (leccion '9 bugs identicos')")
-        modelo = (perfil.get("modelo") or "").lower()
-        if not any(f in modelo for f in _FAMILIAS_NATIVAS):
-            avisos.append(
-                f"regimen nativo FORZADO sobre '{modelo or '(sin backend)'}', "
-                f"que no esta en la tabla de familias verificadas: los tool "
-                f"calls pueden no parsearse")
+    if perfil.get("tools") != "nativo":
+        return avisos
+    if int(perfil.get("max_tokens") or 0) < MIN_TOKENS_RAZONADOR:
+        avisos.append(
+            f"max_tokens={perfil.get('max_tokens')} < "
+            f"{MIN_TOKENS_RAZONADOR} con perfil razonador: el presupuesto "
+            f"no cubre el pensamiento (leccion '9 bugs identicos')")
+    modelo = (perfil.get("modelo") or "").lower() or "(sin backend)"
+    if perfil.get("capacidad") == "sonda":
+        # El perfil ya nacio de una medicion positiva; repetirla aqui solo
+        # gastaria una peticion para leer el mismo cache.
+        return avisos
+    # Regimen FORZADO (o perfil armado a mano): aca SI hay algo que verificar.
+    try:
+        from cognia.agent import capacidad
+        reg = capacidad.medicion(perfil.get("url") or url_del_backend()) or {}
+    except Exception as exc:
+        reg = {"soporta_tools": False,
+               "motivo": f"la sonda fallo ({type(exc).__name__}: {exc})"}
+    if not reg.get("soporta_tools"):
+        avisos.append(
+            f"regimen nativo FORZADO sobre '{modelo}' y la sonda dice que NO: "
+            f"{reg.get('motivo') or 'sin motivo'} — los tool calls pueden no "
+            f"parsearse")
     return avisos
