@@ -224,7 +224,16 @@ def test_sin_backend_emite_degradado_sin_stderr(audit_aislado, capsys):
     degradados = [e for e in recibidos if isinstance(e, events.Degradado)]
     assert len(degradados) == 1
     assert degradados[0].donde == "chat"
-    assert "servir_flota" in degradados[0].accion_sugerida
+    # La orden que se le sugiere al usuario tiene que existir INSTALADO y
+    # levantar EL CEREBRO. Antes decia 'python scripts/servir_flota.py', que no
+    # viaja en el wheel; ahora manda al combo por defecto de flota.py. Se ata a
+    # COMBO_DEFAULT en vez de a un literal para que la sugerencia no pueda
+    # volver a divergir del cerebro del dueno (el combo 'pensar' a secas es
+    # gpt-oss-20b, no Qwythos).
+    from cognia import flota
+    accion = degradados[0].accion_sugerida
+    assert "python -m cognia flota arrancar" in accion
+    assert accion.split("arrancar", 1)[1].strip() in ("", flota.COMBO_DEFAULT)
 
 
 def test_sin_backend_grita_a_stderr_sin_oyentes(audit_aislado, capsys):

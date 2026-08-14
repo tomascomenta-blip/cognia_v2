@@ -74,20 +74,47 @@ def test_recuperar_publica_sus_tres_argumentos():
     assert _fn("recuperar")["parameters"]["required"] == ["handle"]
 
 
-def test_una_tool_sin_params_sigue_con_el_generico():
-    """El camino viejo no se toca: sin params declarados, string `args`.
+def test_una_tool_sin_firma_por_ningun_lado_sigue_con_el_generico():
+    """El camino viejo no se toca: sin firma en NINGUNA tabla, string `args`.
 
-    Hay que excluir las que la tabla `_TIPADAS` ya tipaba a mano: esas siguen
-    mandando (son las medidas contra el modelo real) y no pasan por la rama
-    nueva.
+    Hay que excluir las tablas que mandan sobre el genérico: `_TIPADAS` (las
+    medidas contra el modelo real), `_SIN_ARGS` y, desde 2026-08-14, `FIRMAS`
+    (cognia/agent/firmas.py, que tipó las 16 que publicaban su línea de ayuda
+    como prosa). Esa última exclusión es la que faltaba: el test buscaba
+    `abrir`, que ya tiene firma, y reprobaba el trabajo que venía a celebrar.
+
+    Y si no queda NINGUNA tool sin tipar —que es hacia donde va el repo— el
+    fallback genérico sigue siendo código vivo para la próxima tool que nazca
+    sin firma, así que se prueba con una registrada al vuelo. Un contrato no
+    deja de necesitar prueba porque hoy nadie lo ejerza.
     """
+    from cognia.agent.firmas import FIRMAS
     from cognia.agent.tool_schemas import _SIN_ARGS, _TIPADAS
-    genericas = [n for n, s in TOOLS.items()
-                 if not s.get("params") and n not in _TIPADAS and n not in _SIN_ARGS]
-    assert genericas, "no queda ninguna tool generica: revisar este test"
-    props = _fn(genericas[0])["parameters"]["properties"]
-    assert set(props) == {"args"}, (
-        f"{genericas[0]} no declara params: tenia que seguir con el string generico")
+
+    def _es_generica(nombre, spec):
+        return (not spec.get("params") and nombre not in _TIPADAS
+                and nombre not in _SIN_ARGS and nombre not in FIRMAS)
+
+    genericas = [n for n, s in TOOLS.items() if _es_generica(n, s)]
+    if genericas:
+        props = _fn(genericas[0])["parameters"]["properties"]
+        assert set(props) == {"args"}, (
+            f"{genericas[0]} no declara params ni figura en _TIPADAS/_SIN_ARGS/"
+            f"FIRMAS: tenia que seguir con el string generico")
+        return
+
+    # Ninguna tool real ejerce ya el fallback: se ejerce con una de mentira,
+    # registrada y quitada dentro del test para no contaminar el registry.
+    TOOLS["_tool_de_prueba_sin_firma"] = {
+        "doc": "_tool_de_prueba_sin_firma <x> -- tool sintetica del test",
+        "fn": lambda args, ctx: "",
+    }
+    try:
+        props = _fn("_tool_de_prueba_sin_firma")["parameters"]["properties"]
+        assert set(props) == {"args"}, (
+            "el fallback generico dejo de publicar el string 'args'")
+    finally:
+        TOOLS.pop("_tool_de_prueba_sin_firma", None)
 
 
 # ── el puente inverso ──────────────────────────────────────────────────

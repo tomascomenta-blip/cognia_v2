@@ -6464,8 +6464,13 @@ def _datos_barra_estado() -> dict:
             # Aun no hubo un turno que reporte la ventana: el tamano lo sabe el
             # server (/props). Sin esto la barra decia 'ctx 0' hasta el primer
             # mensaje, que es justo cuando el usuario mira si le cabe la tarea.
-            from cognia.agent.model_profiles import perfil_del_agente
-            total = perfil_del_agente().get("n_ctx")
+            # n_ctx_del_backend y NO perfil_del_agente: desde que el regimen se
+            # decide SONDANDO al server (2026-08-13), perfil_del_agente hace un
+            # POST real de generacion, y prompt_toolkit llama a esta funcion en
+            # CADA REDIBUJADO del prompt — el primer pintado pasaba de 0,064 s a
+            # 3,42 s con el cache frio, y hasta 30 s si el server va lento.
+            from cognia.agent.model_profiles import n_ctx_del_backend
+            total = n_ctx_del_backend()
         datos.update({"ctx_usado": est.get("ocupacion"),
                       "ctx_total": total,
                       "tokens_sesion": est.get("total")})
