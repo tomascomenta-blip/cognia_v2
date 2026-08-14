@@ -53,6 +53,13 @@ class SkillSpec:
     body: str
     source: str       # absolute path it came from
     kind: str         # "claude" | "cognia"
+    # frontmatter `auto_generated: true` (lo pone skill_capture al persistir).
+    # Importa para el MATCH, no como etiqueta: la descripcion de una skill
+    # auto-capturada es la TAREA ORIGINAL entera, o sea un vocabulario mucho
+    # mas grande que el de una skill curada — y como el score lexico es
+    # absoluto, mas palabras = mas probabilidad de alcanzar el minimo con
+    # tokens genericos. Default False: una skill escrita a mano no paga esto.
+    auto_generated: bool = False
 
 
 def _parse(text: str) -> tuple:
@@ -87,6 +94,8 @@ def _skill_from_file(path: Path, kind: str) -> "SkillSpec | None":
         body=body.strip(),
         source=str(path),
         kind=kind,
+        auto_generated=(fm.get("auto_generated", "").strip().lower()
+                        in ("true", "1", "yes", "si")),
     )
 
 
@@ -305,12 +314,23 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2,
             continue
         usable[name] = s
 
-    best, best_score = None, 0
+    best, best_score, best_min = None, 0, min_overlap
     for s in usable.values():
         score = len(req & (_tokens(s.name) | _tokens(s.description)))
         if score > best_score:
             best, best_score = s, score
-    if best is not None and best_score >= min_overlap:
+            # Una skill AUTO-CAPTURADA pide un token mas de solape. No es
+            # desconfianza del mecanismo: es corregir un sesgo MEDIDO. Su
+            # descripcion es la tarea original entera (skill_capture la pasa
+            # truncada a 120 chars), asi que su vocabulario es 2-3x el de una
+            # skill curada y alcanza `min_overlap` con palabras genericas.
+            # Caso real (2026-08-14): "escribi un archivo llamado nota.txt con
+            # el texto exacto: bateria ok" disparaba
+            # 'palabras-txt-tiene-palabra-por' con score 2 — y los dos tokens
+            # eran 'escribi' y 'txt'. Las skills curadas puntuaban 0. El
+            # camino feliz del repo pasaba de 5/5 a 2-4/5 por eso.
+            best_min = min_overlap + 1 if s.auto_generated else min_overlap
+    if best is not None and best_score >= best_min:
         return best
 
     if not semantic_fallback:

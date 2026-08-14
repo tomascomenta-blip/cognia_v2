@@ -124,16 +124,38 @@ def slug_from_task(task: str) -> str:
     return slug or "procedimiento-verificado"
 
 
+def pasos_procedimentales(trace: list) -> list:
+    """Los pasos 'ok' que aportan a un procedimiento, SIN repeticiones.
+
+    Un paso repetido (mismo action + mismos args) no es procedimiento: es el
+    agente TROPEZANDO. Copiarlo tal cual convierte una traza de atasco en una
+    'skill verificada' que despues se le inyecta a otras tareas. Medido el
+    2026-08-14 con la skill 'palabras-txt-tiene-palabra-por', capturada de una
+    corrida que repitio 'escribir_archivo largas.py' TRES veces y
+    'editar_archivo largas.py' dos: en el camino feliz del repo se aplicaba a
+    "escribi un nota.txt con el texto: bateria ok" y mandaba al agente a crear
+    largas.py y a leer palabras.txt hasta agotar el presupuesto de pasos.
+    """
+    vistos, salida = set(), []
+    for step in trace:
+        if not step.get("ok") or step.get("action") in _NON_PROCEDURAL:
+            continue
+        firma = (step.get("action"), (step.get("args") or "")[:120])
+        if firma in vistos:
+            continue
+        vistos.add(firma)
+        salida.append(step)
+    return salida
+
+
 def build_skill_body(task: str, trace: list) -> str:
     """Cuerpo del skill: el procedimiento REAL que cerro con oraculo (solo
-    pasos exitosos, args truncados). Formato simple estilo SKILL.md."""
+    pasos exitosos, deduplicados, args truncados). Estilo SKILL.md."""
     lines = ["## Cuando usar",
              f"Tareas como: {task.strip()[:200]}", "",
              "## Procedimiento verificado"]
     n = 0
-    for step in trace:
-        if not step.get("ok") or step.get("action") in _NON_PROCEDURAL:
-            continue
+    for step in pasos_procedimentales(trace):
         n += 1
         args = (step.get("args") or "").replace("\n", " ")[:120]
         lines.append(f"{n}. ACCION: {step['action']} {args}".rstrip())
@@ -152,6 +174,18 @@ def maybe_capture_skill(task: str, trace: list) -> dict:
         if len(ok_calls) < MIN_OK_CALLS:
             return {"captured": False,
                     "reason": f"solo {len(ok_calls)} tool-calls exitosos (< {MIN_OK_CALLS})"}
+        # El umbral se mide sobre pasos DISTINTOS. Una corrida que repite la
+        # misma accion pasa de sobra los 4 tool-calls sin haber hecho cuatro
+        # cosas: es justo la traza que NO queremos convertir en procedimiento
+        # (ver pasos_procedimentales). El estancamiento ya tiene su detector en
+        # el loop; aca se le niega el ascenso a "skill verificada".
+        unicos = pasos_procedimentales(trace)
+        if len(unicos) < MIN_OK_CALLS:
+            return {"captured": False,
+                    "reason": (f"{len(ok_calls)} tool-calls exitosos pero solo "
+                               f"{len(unicos)} DISTINTOS (< {MIN_OK_CALLS}): la "
+                               f"traza repite pasos, es un atasco y no un "
+                               f"procedimiento")}
         evidence = hard_oracle_evidence(trace)
         if not evidence:
             return {"captured": False, "reason": "sin oraculo duro en la traza"}
