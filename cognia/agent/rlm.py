@@ -24,6 +24,7 @@ final: un import a nivel de modulo cerraria el ciclo.
 from __future__ import annotations
 
 import bisect
+import locale
 import os
 import re
 import time
@@ -88,6 +89,58 @@ def _env_int(nombre: str, default: int) -> int:
         return default
 
 
+# ── Decodificar el corpus (cascada de codecs) ──────────────────────────
+
+
+def _codecs_de_respaldo() -> list:
+    """La cascada de codificaciones a probar, en orden.
+
+    REUSA la que el repo ya tiene medida en ``harness/hooks.py`` (utf-8 estricto
+    -> ``locale.getencoding()`` -> cp1252) con su leccion adentro: NO sirve
+    ``locale.getpreferredencoding(False)``, que bajo PYTHONUTF8=1 — o sea como
+    corre este repo — devuelve 'utf-8', el mismo codec que ya fallo. Import
+    perezoso y con red porque leer un fichero no puede depender del harness:
+    en una instalacion recortada queda la cascada minima, que cubre igual el
+    caso que motiva todo esto (una ANSI de Windows).
+    """
+    try:
+        from cognia.harness.hooks import _codecs_de_respaldo as _cascada
+        return _cascada()
+    except Exception:      # pragma: no cover - solo sin el paquete harness
+        try:
+            return ["utf-8", locale.getencoding(), "cp1252"]
+        except AttributeError:
+            return ["utf-8", "cp1252"]
+
+
+def _decodificar(crudo: bytes) -> tuple:
+    """(texto, codec_usado) de un fichero del corpus. NUNCA lanza.
+
+    POR QUE (bug medido 2026-08-13): esto decodificaba con
+    ``errors='replace'``, asi que un corpus cp1252 — lo NORMAL en Windows —
+    entraba al contexto con un U+FFFD por cada acento. Sintoma: ctx_grep de
+    'funcion' CON tilde devolvia 0 matches sobre un fichero que dice
+    'funcion' con tilde, y la segunda pasada sin tildes tampoco lo rescataba
+    (quitarle el acento al PATRON no repara un TEXTO que ya perdio la letra).
+    El contexto es la razon de ser del modo: entregarlo roto es peor que no
+    cargarlo, porque el fallo es silencioso.
+
+    Nota: el BOM se descuenta a mano (PowerShell escribe ficheros UTF-8 con
+    BOM por defecto y un \\ufeff pegado a la primera palabra la vuelve
+    inbuscable). El ultimo recurso sigue siendo latin-1 con reemplazos: un
+    binario que se colo no puede tumbar la carga del corpus entero.
+    """
+    if not crudo:
+        return "", "utf-8"
+    for codec in _codecs_de_respaldo():
+        try:
+            texto = crudo.decode(codec)
+        except (UnicodeDecodeError, LookupError):
+            continue
+        return (texto[1:] if texto.startswith("\ufeff") else texto), codec
+    return crudo.decode("latin-1", errors="replace"), "latin-1 (con reemplazos)"
+
+
 # ── El contexto externo ────────────────────────────────────────────────
 
 
@@ -99,9 +152,14 @@ class ContextoRLM:
     chars todo el tiempo y re-splitear seria cuadratico.
     """
 
-    def __init__(self, texto: str, origen: str):
+    def __init__(self, texto: str, origen: str, codificacion: str = ""):
         self.texto = texto
         self.origen = origen
+        # Con que codec se leyo el corpus (vacio = texto en memoria, sin
+        # fichero de por medio). Se DECLARA en ctx_info: si el modelo busca y
+        # no encuentra, tiene que poder ver que el corpus se leyo como cp1252
+        # en vez de creer que el dato no esta.
+        self.codificacion = codificacion
         self.lineas = texto.split("\n")
         self.chars = len(texto)
         # Etiquetado "aprox" a proposito: lo REAL medido sale del usage de
@@ -130,10 +188,14 @@ class ContextoRLM:
         """
         p = Path(ruta)
         if p.is_file():
-            crudo = p.read_bytes()
-            return cls(crudo.decode("utf-8", errors="replace"), str(p))
+            texto, codec = _decodificar(p.read_bytes())
+            return cls(texto, str(p), codec)
         if p.is_dir():
             partes = []
+            # Codec POR FICHERO (no uno para el directorio entero): un repo
+            # real mezcla ficheros utf-8 con ficheros de una ANSI vieja, y
+            # decidir la codificacion en bloque romperia justo los otros.
+            usados: dict = {}
             # sorted sobre las rutas: orden ESTABLE entre corridas (los
             # numeros de linea del informe tienen que ser reproducibles).
             for f in sorted(p.rglob("*")):
@@ -150,9 +212,14 @@ class ContextoRLM:
                 if b"\x00" in crudo[:4096]:
                     continue
                 rel = f.relative_to(p).as_posix()
-                partes.append(f"=== ARCHIVO: {rel} ===\n"
-                              + crudo.decode("utf-8", errors="replace"))
-            return cls("\n".join(partes), str(p))
+                texto, codec = _decodificar(crudo)
+                usados[codec] = usados.get(codec, 0) + 1
+                partes.append(f"=== ARCHIVO: {rel} ===\n" + texto)
+            # Resumen ordenado por frecuencia y luego por nombre: estable
+            # entre corridas, igual que el orden de los ficheros.
+            resumen = ", ".join(f"{c} ({n})" for c, n in
+                                sorted(usados.items(), key=lambda kv: (-kv[1], kv[0])))
+            return cls("\n".join(partes), str(p), resumen)
         raise FileNotFoundError(f"no existe la ruta '{ruta}'")
 
 
@@ -379,9 +446,14 @@ def _ctx_info(args: str, ctx: dict) -> str:
         return err
     c = estado.contexto
     n = len(c.lineas)
+    # La codificacion se DECLARA (no se declara solo cuando es rara): sin
+    # ella, un corpus leido como cp1252 y un corpus utf-8 se ven identicos
+    # desde el modelo, y las busquedas que fallan por acentos no tienen
+    # explicacion visible.
+    cod = f"codificacion: {c.codificacion} | " if c.codificacion else ""
     salida = [(f"RESULTADO ctx_info: {c.chars:,} chars "
                f"(~{c.tokens_aprox:,} tok aprox) | {n:,} lineas | "
-               f"origen: {c.origen}")]
+               f"{cod}origen: {c.origen}")]
     # Bordes del contexto: primeras 15 + ultimas 5 (sin solapar si es corto).
     prim_hasta = min(15, n)
     salida.append(f"primeras {prim_hasta} lineas:")
@@ -804,10 +876,72 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
         perfil = _mp.perfil_del_agente(url)
     except Exception:
         perfil = None
+
+    # EL REGIMEN SE MIDE, NO SE INVENTA (fix 2026-08-13). Hasta hoy, cuando el
+    # perfil salia texto (backend caido, o modelo fuera de la tabla de familias
+    # de model_profiles) aca se FABRICABA un perfil {'tools': 'nativo',
+    # 0.7/0.8...} sobre CUALQUIER modelo, con el argumento de que "el modo RLM
+    # necesita tool-calling nativo si o si". Necesitarlo no es tenerlo: contra
+    # un server que no parsea tools, el bucle nativo lee la primera respuesta
+    # en prosa como "sin tool_calls" = FIN NATURAL y cierra en el paso 1 con
+    # una respuesta inventada SIN haber tocado el contexto — el fallo
+    # silencioso exacto que este modo existe para evitar. Ahora el regimen
+    # sale de la SONDA (capacidad.soporta_tools: un POST real con una tool
+    # trivial, que es lo que perfil_del_agente ya consulta) y si el server no
+    # parsea tools se FALLA con la causa a la vista en vez de entrar al bucle.
+    # Solo se sonda cuando quien va a responder es el server: con una
+    # completar_fn inyectada (tests, guiones, otro transporte) la sonda estaria
+    # midiendo a un tercero que no interviene en la corrida.
+    if completar_fn is None:
+        nativo, motivo = True, ""
+        try:
+            if perfil and perfil.get("tools"):
+                # model_profiles ya consulto A LA MISMA SONDA (y ademas honra
+                # el override COGNIA_AGENT_TOOLS): repetir el POST aqui solo
+                # daria una segunda oportunidad de discrepar con el regimen con
+                # el que el bucle va a correr de verdad.
+                nativo = (perfil.get("tools") == "nativo")
+                motivo = str(perfil.get("motivo") or "")
+            else:
+                # Sin perfil (import de model_profiles caido): se sonda directo.
+                from cognia.agent import capacidad as _cap
+                nativo = _cap.soporta_tools(url)
+                if not nativo:
+                    # La medicion queda cacheada por (url, modelo): pedir el
+                    # motivo no cuesta un segundo POST.
+                    motivo = str((_cap.medicion(url) or {}).get("motivo") or "")
+        except Exception as exc:
+            # Ni el fallo de la sonda puede colar el regimen: sin medicion no
+            # hay nativo (que es justo lo que se dejo de suponer).
+            nativo = False
+            motivo = f"la sonda de capacidad fallo: {type(exc).__name__}: {exc}"
+        if not nativo:
+            destino = url or os.environ.get("COGNIA_LLM_URL", "") or \
+                "http://127.0.0.1:8080"
+            med = MedidorContexto(
+                ctx_chars=contexto.chars, ctx_lineas=len(contexto.lineas),
+                origen=contexto.origen, n_ctx=(perfil or {}).get("n_ctx"),
+                max_hijos=_env_int("COGNIA_RLM_MAX_HIJOS", 16),
+                presupuesto_tokens=_env_int("COGNIA_RLM_PRESUPUESTO", 120000))
+            texto = ("ERROR: el modo RLM se toca SOLO con herramientas y este "
+                     "backend no las parsea.\n"
+                     f"causa: {motivo or 'la sonda no devolvio motivo'}\n"
+                     f"El contexto de '{contexto.origen}' quedo SIN tocar "
+                     f"({contexto.chars:,} chars).\n"
+                     "Arranca el server con --jinja o servi un modelo que "
+                     "emita tool_calls; comproba con: "
+                     f"python -m cognia.agent.capacidad {destino}")
+            # El informe sale IGUAL que en cualquier otro corte: 0% visto es
+            # un dato, no un hueco (medir es parte del contrato del modo).
+            return {"texto": texto, "ok": False, "pasos": 0,
+                    "informe": med.informe(), "medidor": med.como_dict()}
+
     if not perfil or "temperature" not in perfil:
-        # Backend caido o perfil texto (sin sampling): fallback Qwen-like.
-        # El modo RLM necesita tool-calling nativo si o si; con el server
-        # muerto el bucle igual degrada con causa visible al primer paso.
+        # Perfil sin sampling (backend caido, o modelo fuera de la tabla de
+        # familias): sampling neutro Qwen-like para poder correr. Lo que ya NO
+        # se inventa es el REGIMEN — el 'nativo' de aqui lo respalda la sonda
+        # de arriba, o la completar_fn inyectada, que es quien responde cuando
+        # la hay.
         perfil = {"nombre": "rlm_fallback", "modelo": "?", "url": url,
                   "tools": "nativo", "n_ctx": 32768, "temperature": 0.7,
                   "top_p": 0.8, "reasoning_effort": "", "max_tokens": 4096}
