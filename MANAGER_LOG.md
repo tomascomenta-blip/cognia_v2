@@ -12715,3 +12715,70 @@ Publicación verificada de verdad: `pip install cognia-ai==4.8.0` en un venv LIM
 repo** (la trampa del cwd: la primera comprobación importaba el repo local y parecía correcta) →
 4.8.0 con los 18 módulos del arnés. Commit `382ca397`, tag `v4.8.0`, pusheados.
 Suite 7691 passed. https://pypi.org/project/cognia-ai/4.8.0/
+
+---
+
+## 2026-08-14 — Nocturna: adaptador definitivo, iniciación y pulido (ultracode, 40 agentes)
+
+**Encargo del dueño:** *"pule toda cognia y en paralelo haz el adaptador definitivo para hacer que
+esta envoltura parezca casi la que por defecto tienen todos los modelos de nuestra flota, y facilita
+todo el proceso de iniciación"*. Deadline con apagado programado a las 05:00.
+
+**Entregado y pusheado** (`ac6e3d5a..18984ede`, 31 commits, informe en
+`ENTREGA_NOCTURNA_20260814.md`):
+
+- **El adaptador (`cognia/agent/capacidad.py`, nuevo).** El régimen del agente dejó de decidirse por
+  substring del nombre del `.gguf` (`_FAMILIAS_NATIVAS`, 5 literales) y pasa a decidirse con una
+  **sonda real**: un POST con una tool trivial, y solo se acepta nativo si vuelve
+  `finish_reason=tool_calls` con `arguments` JSON. Cacheada por `(url, modelo)` con TTL 24 h.
+  Contraevidencia medida (`_NATIVO_DESACONSEJADO`: coder-14b 13→0, OpenReasoning 2→0) gana a la
+  sonda. Sampling configurable por `~/.cognia/perfiles_modelo.json` y, si el modelo no casa con
+  ninguna familia, tomado de lo que **declara el server** en `/props`.
+- **Iniciación.** `cognia doctor` (respondía "Comando desconocido" estando documentado en el README
+  y siendo a donde manda el propio REPL en dos errores) y `cognia empezar` idempotente
+  (config → pesos → backend → capacidad) con `--json`/`--sin-repl`/`--sin-descarga`. Test que falla
+  si un verbo documentado no está en el dispatcher. El doctor ya no cierra con "Todo en orden"
+  teniendo avisos (el defecto estaba en la AGREGACIÓN, no en cada mensaje). El wizard ya no descarga
+  2,6 GB por un typo.
+- **Pulido.** Cuatro bugs de encoding REPRODUCIDOS en el camino caliente (`editar_archivo` sobre un
+  latin-1 destruía todos los acentos y respondía OK; una línea cambiada CRLF-izaba el fichero
+  entero; `escribir_archivo` moría por una lectura cosmética; `buscar` daba falso negativo
+  invisible). `/deshacer` ya no restaura un blob corrupto declarándolo restaurado. CLI: los 5
+  módulos del arnés cableados y **Ctrl-C deja de matar el REPL** durante el streaming. El summoner
+  **adopta** el server vivo y deja de confundir a `tailscaled` con el cerebro.
+
+**Método:** 12 tareas con dominios de fichero disjuntos, cada una con verificador adversarial
+independiente y reparación condicional (3 CONFIRMADO / 9 PARCIAL, los 9 reparados). Los
+verificadores cazaron: un contador inerte vendido como mecanismo, dos tests que medían la MÁQUINA y
+no el código, un test del BOM decorativo cuyo docstring describía un bug inexistente, un remedio
+circular (mandaba a re-medir con un comando que leía la caché de 24 h) y una regresión de
+`args_legacy`. Uno hizo mutation testing: reintrodujo en runtime cada comportamiento pre-fix y
+comprobó que las 5 mutaciones son cazadas.
+
+**EL HALLAZGO: una skill auto-capturada envenenaba al agente.** El camino feliz cayó a 2-4/5 y
+parecía regresión del trabajo. Brazos apareados: HEAD 4/5 y 2/5 contra BASE (worktree) 5/5 y 5/5.
+**El contrafactual estaba sesgado**: un worktree NO arrastra los ficheros sin trackear, y las dos
+skills auto-capturadas de `cognia_skills/` no estaban trackeadas — los brazos diferían en código Y
+en datos. Moviendo solo esas dos skills, HEAD daba 5/5. La traza mostró el mecanismo: ante "escribí
+un nota.txt con el texto: bateria ok" el agente escribía el fichero y a continuación creaba
+`largas.py` y buscaba `palabras.txt`, porque se le inyectaba `palabras-txt-tiene-palabra-por` — una
+skill capturada de una tarea FALLIDA (repite `escribir_archivo largas.py` 3 veces) que ganaba el
+match con dos tokens genéricos (`escribi`, `txt`, score 2 = el mínimo justo) porque su descripción
+es la tarea original entera y el score léxico es absoluto. Arreglado en las dos puntas, con la
+sensibilidad medida; las dos espurias a `cognia_skills/_cuarentena/`.
+
+**REGRESIÓN SIN CERRAR — no publicar a PyPI.** Con 5 corridas por brazo, limpias y con el mismo
+instrumento: **BASE 5/5 en 5 de 5; HEAD en 1 de 5**. Descartado que sean las firmas (con `FIRMAS`
+vacío: 3/5 y 4/5) y que sea solo `loop.py` (con el `loop.py` de BASE: 5/5 y 4/5). La tarea que falla
+CAMBIA entre corridas (`python`, `json`, `python`), lo que apunta a algo difuso y no a un camino
+roto. Modo de fallo identificado: ante "escribí y ejecutá un script que imprima la suma", el agente
+escribe una **función** que no imprime nada y responde el número de cabeza — el gate viejo lo
+aprobaba (`'350' in resp`), el endurecido de esta noche lo reprueba con razón. `CLAUDE.md` exige 5/5
+antes de publicar o de cambiar el sampling, y el sampling cambió: **queda bloqueada la publicación
+hasta cerrar esto.**
+
+**Incidentes declarados:** un agente mató el llama-server compartido a las 00:32 verificando un
+contrafactual (la flota lo relanzó sola, ~1 min de corte, y bajó de `n_ctx` 200192 a 32768); lo
+confesó él mismo y arregló la causa. Dos commits mezclan autoría por un `git commit` sin pathspec
+sobre un índice compartido; verificado que no se perdió nada y NO se rebaseó (con 9 agentes
+commiteando en vivo, reescribir historia es peor que el defecto de atribución).
