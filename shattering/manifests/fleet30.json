@@ -1,7 +1,7 @@
 {
  "_notas": [
   "2026-08-01: reapuntado a los GGUF reales de ~/.cognia/models (model_shards/fleet30/ ya no existe).",
-  "2026-08-14: lfm25_12b apuntaba a un GGUF borrado. Ojo con este modo de fallo: fleet_registry.py:185 solo loguea un warning y devuelve None, o sea que un modelo que se borra del disco hace DESAPARECER su rol en silencio en produccion (lfm25_12b es Lia, la que ejecuta buscar/leer_archivo/http_get segun oficina/identidad.py:167). Quien borre o mueva un GGUF debe correr tests/test_fleet_registry.py::test_manifest_real_del_repo_carga_y_sus_gguf_existen, que es el unico chequeo que lo caza.",
+  "2026-08-14: lfm25_12b apuntaba a un GGUF borrado. Ojo con este modo de fallo: fleet_registry.py:185 solo loguea un warning y devuelve None, o sea que un modelo que se borra del disco hace DESAPARECER su rol en silencio en produccion (lfm25_12b es Lia, la que ejecuta buscar/leer_archivo/http_get segun cognia/oficina/identidad.py:167). Quien borre o mueva un GGUF debe correr tests/test_fleet_registry.py::test_manifest_real_del_repo_carga_y_sus_gguf_existen, que es el unico chequeo que lo caza.",
   "Las keys son IDs historicos que los callers usan (superorganismo, tools, oficina, evals); NO renombrar.",
   "Las rutas ~ las expande node/fleet_registry.load_manifest (expanduser).",
   "El rol 'embedder' (qwen3_embed) queda SIN campo gguf: no hay GGUF de embeddings en disco. fleet_registry/doctor ignoran entradas sin gguf, pero la oficina (identidad.py) conserva al miembro.",
