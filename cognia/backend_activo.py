@@ -162,6 +162,31 @@ def props(url: str, forzar: bool = False) -> dict:
     return datos
 
 
+def orden_arrancar() -> str:
+    """La orden que se le sugiere al usuario cuando no hay backend.
+
+    NO puede ser 'flota arrancar pensar': ese combo levanta gpt-oss-20b
+    (flota.COMBOS['pensar']), mientras que el CEREBRO PRINCIPAL desde el
+    2026-08-09 es Qwythos-9B — flota.COMBO_DEFAULT='pensar-qwythos'. Sugerir
+    el combo equivocado manda al usuario que ya se quedo sin backend a
+    levantar OTRO modelo, distinto del que espera el resto del sistema
+    (arranque.py:421 ya decia el bueno; estos tres sitios no).
+
+    El combo se LEE de flota para que no vuelva a divergir cuando el dueno
+    cambie de cerebro: la fuente de verdad es una sola. Import perezoso y
+    guardado porque flota importa ESTE modulo (ciclo) y aqui nada puede
+    lanzar; sin flota disponible (wheel raro) queda el literal de hoy.
+    """
+    combo = "pensar-qwythos"
+    try:
+        from cognia.flota import COMBO_DEFAULT, COMBOS
+        if COMBO_DEFAULT in COMBOS:
+            combo = COMBO_DEFAULT
+    except Exception:
+        pass
+    return f"python -m cognia flota arrancar {combo}"
+
+
 def _puerto_de(url: str) -> Optional[int]:
     try:
         return int(url.rsplit(":", 1)[1].split("/")[0])
@@ -350,14 +375,16 @@ def sin_backend(via: str, detalle: str = "") -> dict:
             # La orden que de verdad existe en una instalacion desde el
             # wheel: scripts/ NO viaja en el paquete, asi que sugerir
             # 'python scripts/servir_flota.py' era mandar al usuario a un
-            # fichero que no tiene. Es la misma orden que da doctor.py.
-            accion_sugerida="python -m cognia flota arrancar pensar"))
+            # fichero que no tiene. El combo sale de flota.COMBO_DEFAULT
+            # (ver orden_arrancar): 'pensar' a secas levanta gpt-oss, no el
+            # cerebro principal.
+            accion_sugerida=orden_arrancar()))
     except Exception:
         visto = False
     if not visto:
         print(f"[backend] DEGRADADO: '{via}' sin backend LLM -- "
               f"{detalle or 'no responde ningun servidor'}. "
-              f"Arranca la flota: python -m cognia flota arrancar pensar",
+              f"Arranca la flota: {orden_arrancar()}",
               file=sys.stderr, flush=True)
     return fila
 
@@ -404,7 +431,7 @@ def estado() -> dict:
     if not p:
         avisos.append(
             f"NO HAY BACKEND en {url}. Cognia va a degradar a sus fallbacks. "
-            f"Arranca: python -m cognia flota arrancar pensar")
+            f"Arranca: {orden_arrancar()}")
     else:
         for r in RETIRADOS:
             if r in modelo.lower():

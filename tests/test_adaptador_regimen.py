@@ -141,8 +141,22 @@ def test_sampling_base_lo_declara_el_SERVER_no_el_fichero(monkeypatch):
               sampling=SAMPLING_SERVER)
     p = perfil_del_agente()
     assert (p["temperature"], p["top_p"]) == (0.8, 0.95)
-    assert p["repeat_penalty"] == 1.0
     assert "server" in p["sampling_origen"]
+
+
+def test_repeat_penalty_NO_viaja_al_perfil(monkeypatch, tmp_path):
+    """Lo declaraba el server Y lo pedia el usuario, y aun asi no sale en el
+    perfil: el sampling del agente lo arma loop.py:409-415 con temperature/
+    top_p/max_tokens/reasoning_effort/url, y cli.py:10503 excluye rp A
+    PROPOSITO (rp=1.3 hundio al 3B en 3.8.4). Un numero que aparece en el
+    perfil y no llega a ningun consumidor es un control FINGIDO."""
+    (tmp_path / "perfiles_modelo.json").write_text(
+        json.dumps({"inventado": {"repeat_penalty": 1.3}}), encoding="utf-8")
+    _servidor(monkeypatch, "modelo-inventado-7b.gguf", sonda=True,
+              sampling=SAMPLING_SERVER)
+    p = perfil_del_agente()
+    assert "repeat_penalty" not in p, p
+    assert "repeat_penalty" not in model_profiles._CLAVES_SAMPLING
 
 
 def test_sin_sampling_del_server_queda_el_ultimo_recurso(monkeypatch):
@@ -245,6 +259,10 @@ PROPS_B10066 = {
 
 
 def test_props_extrae_el_sampling_de_params(monkeypatch):
+    """props() es el ESPEJO de /props: reporta lo que el server declara, rp
+    incluido (es auditoria, y ver que el server usa rp=1.0 vale para
+    diagnosticar). Quien decide que se PROPAGA al agente es model_profiles,
+    que deja rp fuera — ver test_repeat_penalty_NO_viaja_al_perfil."""
     _urlopen_falso(monkeypatch, PROPS_B10066)
     p = ba.props(URL, forzar=True)
     assert p["modelo"] == "qwythos-9b.gguf" and p["n_ctx"] == 200192
@@ -289,6 +307,66 @@ def test_props_entrada_inyectada_a_mano_no_caduca(monkeypatch):
     monkeypatch.setattr(ba.urllib.request, "urlopen", _no_debe_llamarse)
     ba._props_cache[URL] = {"modelo": "puesto-a-mano.gguf", "n_ctx": 8}
     assert ba.props(URL)["modelo"] == "puesto-a-mano.gguf"
+
+
+# ── n_ctx SIN SONDA: la barra de estado no paga un POST de generacion ───────
+
+def test_n_ctx_del_backend_NO_sonda(monkeypatch):
+    """LA REGRESION MEDIDA (2026-08-13): cli.py:6467 llamaba a
+    perfil_del_agente() solo para sacar n_ctx, dentro de _datos_barra_estado(),
+    que prompt_toolkit invoca en CADA redibujado del prompt. Con el cache de la
+    sonda frio, el primer pintado del REPL pasaba de 0,064 s a 3,42 s (mismo
+    :8080) y hasta 30 s (capacidad._TIMEOUT_S) con un server lento. La via sin
+    sonda solo mira /props (GET local cacheado)."""
+    def _prohibido(*a, **k):
+        raise AssertionError("n_ctx_del_backend NO debe sondar al modelo")
+    monkeypatch.setattr(capacidad, "sondar", _prohibido)
+    monkeypatch.setattr(capacidad, "medicion", _prohibido)
+    monkeypatch.setattr(ba, "props", lambda url, forzar=False: {
+        "modelo": "qwythos-9b.gguf", "n_ctx": 200192, "puerto": 8080,
+        "sampling": {}})
+    assert model_profiles.n_ctx_del_backend() == 200192
+    # ...y el camino que SI decide regimen sigue sondando (contraprueba: sin
+    # esto el test no distinguiria una via de la otra). Se ve en el motivo:
+    # perfil_del_agente atrapa el fallo de la sonda y degrada a texto, o sea
+    # la llamo.
+    p = perfil_del_agente()
+    assert p["tools"] == "texto" and "AssertionError" in p["motivo"], p
+
+
+def test_n_ctx_del_backend_sin_backend_devuelve_None(monkeypatch):
+    monkeypatch.setattr(ba, "props", lambda url, forzar=False: {})
+    assert model_profiles.n_ctx_del_backend() is None
+
+
+# ── La orden que se le sugiere al usuario sin backend ───────────────────────
+
+def test_orden_arrancar_no_manda_al_combo_equivocado():
+    """EL DEFECTO (revision adversarial 2026-08-13): los tres avisos de 'no hay
+    backend' decian 'flota arrancar pensar', y ese combo levanta gpt-oss-20b —
+    NO el cerebro principal (flota.COMBO_DEFAULT='pensar-qwythos' desde el
+    2026-08-09). Al usuario que se quedo sin backend se le mandaba a levantar
+    otro modelo del que espera el resto del sistema."""
+    from cognia import flota
+    orden = ba.orden_arrancar()
+    combo = orden.split("flota arrancar", 1)[1].strip()
+    assert combo != "pensar", orden
+    assert combo == flota.COMBO_DEFAULT and combo in flota.COMBOS, orden
+
+
+def test_sin_backend_sugiere_el_cerebro_principal(monkeypatch, tmp_path,
+                                                  capsys):
+    """El aviso REAL que ve el usuario (stderr, sin oyentes del bus)."""
+    monkeypatch.setattr(ba, "AUDIT", tmp_path / "audit.jsonl")
+    ba.sin_backend("chat", "prueba del combo")
+    err = capsys.readouterr().err
+    assert "flota arrancar pensar-qwythos" in err, err
+
+
+def test_estado_sin_backend_sugiere_el_cerebro_principal(monkeypatch):
+    monkeypatch.setattr(ba, "props", lambda url, forzar=False: {})
+    avisos = ba.estado()["avisos"]
+    assert avisos and "flota arrancar pensar-qwythos" in avisos[0], avisos
 
 
 def test_resetear_cache_tambien_olvida_la_sonda(monkeypatch, tmp_path):

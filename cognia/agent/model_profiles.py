@@ -73,7 +73,18 @@ _FAMILIAS_NATIVAS = {
 # Claves de sampling que este modulo propaga al camino del agente. El resto de
 # lo que declare el server (top_k, min_p, dry_*) no lo consume chat_client, y
 # copiarlo seria fingir un control que no existe.
-_CLAVES_SAMPLING = ("temperature", "top_p", "repeat_penalty")
+#
+# repeat_penalty NO ESTA, y su ausencia esta medida (revision adversarial
+# 2026-08-13): el sampling del agente lo arma loop.py:409-415 con
+# {temperature, top_p, max_tokens, reasoning_effort, url} — repeat_penalty no
+# viaja, y cli.py:10503 lo excluye A PROPOSITO ("rp=1.3 empujaba al 3B a
+# basura", la regresion de 3.8.4 que llego a PyPI). Propagarlo aqui pintaba un
+# control configurable — poner repeat_penalty en perfiles_modelo.json y ver el
+# numero en el perfil — que no llegaba a NINGUN consumidor: dato muerto que
+# aparenta gobernar. Cablearlo de verdad exige el GATE del camino feliz (5/5,
+# CLAUDE.md:100-106) y la evidencia del repo hoy dice que rp!=1.0 hunde al
+# agente, asi que la unica opcion honesta es no fingirlo.
+_CLAVES_SAMPLING = ("temperature", "top_p")
 
 # Presupuesto minimo del camino del agente con un razonador: max_tokens tiene
 # que cubrir el PENSAMIENTO ademas de la respuesta (leccion "9 bugs identicos"
@@ -104,6 +115,29 @@ def url_del_backend() -> str:
             or "http://127.0.0.1:8080").rstrip("/")
 
 
+def n_ctx_del_backend(url: str = ""):
+    """La ventana del server servido AHORA, o None. SIN SONDAR.
+
+    POR QUE EXISTE (regresion MEDIDA el 2026-08-13): quien solo quiere un
+    metadato del server no debe pagar la sonda de capacidad, que hace un POST
+    real de generacion. La barra de estado del REPL (cli.py:6467) llamaba a
+    perfil_del_agente() unicamente para sacar n_ctx, y prompt_toolkit la
+    invoca EN CADA REDIBUJADO del prompt: con el cache de la sonda frio el
+    primer pintado pasaba de 0,064 s a 3,42 s (medido, mismo :8080), y hasta
+    los 30 s de capacidad._TIMEOUT_S si el server responde lento.
+
+    /props es un GET local (~3 ms) y ademas ya viene cacheado con TTL, asi que
+    esta via es la barata para todo consumidor que NO decide regimen.
+    """
+    try:
+        from cognia.backend_activo import props
+        return (props((url or url_del_backend()).rstrip("/")) or {}).get("n_ctx")
+    except Exception:
+        # Igual que perfil_del_agente: un metadato ausente jamas rompe a quien
+        # lo pide (la barra pinta 'ctx ?', no revienta el REPL).
+        return None
+
+
 def _regimen_forzado() -> str:
     """'nativo'/'texto' si hay override por env, '' si decide la sonda."""
     if os.environ.get("COGNIA_AGENT_LEGACY", "").strip() == "1":
@@ -122,7 +156,10 @@ def path_perfiles_usuario() -> Path:
 
 def familias_usuario() -> dict:
     """La tabla de sampling del USUARIO: {familia: {temperature, top_p,
-    usa_effort, repeat_penalty}}. EXTIENDE y PISA a _FAMILIAS_NATIVAS, para
+    usa_effort}}. Cualquier otra clave (repeat_penalty, top_k, min_p...) se
+    IGNORA en silencio a proposito: no hay consumidor para ellas en el camino
+    del agente (loop.py:409-415) y aceptarlas seria prometer un control que no
+    existe. EXTIENDE y PISA a _FAMILIAS_NATIVAS, para
     que estrenar un modelo nuevo sea editar un JSON y no editar codigo (que es
     lo que hacia falta hasta hoy, y por eso la tabla llevaba meses con cinco
     entradas). Fichero ausente/corrupto -> {} y se sigue: es configuracion,
