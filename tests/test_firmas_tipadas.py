@@ -20,6 +20,23 @@ Los tres frentes:
  3. Re-parseo con el codigo REAL de produccion (``tools._partir`` y los mismos
     ``re.split`` que usa cada tool): el string armado se vuelve a partir y
     tiene que devolver los campos originales.
+
+CONTRAFACTUAL (el numero, medido, no declarado). Con ``FIRMAS`` vaciado en
+memoria — que es el estado EXACTO previo a A4, porque con el dict vacio la
+rama nueva de ``args_legacy`` es un no-op — este fichero da **12 failed, 25
+passed** (37 tests, 2026-08-13)::
+
+    venv312\\Scripts\\python.exe -c "import cognia.agent.tool_schemas as ts; \\
+        ts.FIRMAS={}; import pytest; \\
+        raise SystemExit(pytest.main(['tests/test_firmas_tipadas.py','-q']))"
+
+CORRECCION DE LA BITACORA: el mensaje del commit 4edbad64 anoto '11 failed,
+23 passed'. Esa cifra salio de un run ANTERIOR a agregar
+``test_args_pelado_sigue_pasando_derecho`` (el 12o fallo) y no cuadraba con
+los 35 tests que el mismo mensaje reporta. El fix no cambia: solo el numero.
+Los dos tests de la regresion de nombres improvisados PASAN con FIRMAS={} a
+proposito — sin firmas todo cae al join de ultimo recurso, que es justo el
+comportamiento que restauran.
 """
 import re
 
@@ -285,7 +302,47 @@ def test_armador_tolera_dict_incompleto():
     """args_legacy es tolerante por diseno: nunca lanza, deja que la tool
     reporte el error de formato (ese error vuelve al modelo como turno tool).
 
-    Vale para TODAS las firmas: el modelo improvisa nombres de argumento."""
+    Vale para TODAS las firmas: el modelo improvisa nombres de argumento.
+    OJO: esto solo fija que no LANZA. Que el contenido no se pierda lo fija
+    ``test_nombres_improvisados_no_dan_llamada_vacia`` — este test pasaba
+    igual con el agujero abierto (devolvia ' |  | ', que es un str)."""
     for nombre in FIRMAS:
         assert isinstance(args_legacy(nombre, {}), str), nombre
         assert isinstance(args_legacy(nombre, {"zaraza": 1}), str), nombre
+
+
+def test_nombres_improvisados_no_dan_llamada_vacia():
+    """REGRESION medida el 2026-08-13 por el verificador adversarial.
+
+    La rama de FIRMAS devolvia el armado AUNQUE saliera vacio, saltandose el
+    ``' | '.join`` final. Cuando el modelo improvisa los nombres de las claves
+    (le pasa con schemas que no leyo del todo), el armador solo encuentra
+    defaults vacios y publica el ESQUELETO del formato: kg_agregar daba
+    'a | usa | b' antes de A4 y paso a ' |  | '; code_grafo daba 'cognia.cli'
+    y paso a ''. Es el MISMO modo de fallo que la rama de params ya guardaba
+    en tool_schemas.py:394 (y que fija
+    test_harness_schemas_nativos::test_argumentos_con_nombres_inventados_
+    no_dan_llamada_vacia para ``borrar_archivo``): una tool sin argumentos ni
+    siquiera puede explicar que falto."""
+    # los tres casos EXACTOS que midio el verificador
+    assert args_legacy("kg_agregar", {"subject": "a", "relation": "usa",
+                                      "object": "b"}) == "a | usa | b"
+    assert args_legacy("code_grafo", {"modulo": "cognia.cli"}) == "cognia.cli"
+    assert args_legacy("contratos", {"p": "x", "d": "y", "c": "z",
+                                     "a": "w"}) == "x | y | z | w"
+
+
+def test_ninguna_firma_se_traga_el_unico_valor():
+    """La trampa general de lo de arriba, para las 16 (y las que vengan).
+
+    Si el modelo manda UN solo par con la clave equivocada, ese valor tiene
+    que llegar a la tool por el join de ultimo recurso.
+    'plan' queda fuera a proposito: su armador tiene un default LEGITIMO
+    ('ver' es el subcomando por defecto documentado), asi que gana el armado
+    y no cae al join. Es el comportamiento previo a A4 tambien."""
+    for nombre in FIRMAS:
+        if nombre == "plan":
+            continue
+        assert args_legacy(nombre, {"clave_inventada": "VALOR"}) == "VALOR", (
+            f"{nombre} se comio el valor: el armador salio vacio y no cayo al "
+            "join de tool_schemas.py:400")

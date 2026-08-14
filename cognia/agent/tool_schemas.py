@@ -355,7 +355,22 @@ def args_legacy(nombre: str, argumentos: dict) -> str:
         if not ("args" in argumentos
                 and not any(k in argumentos for k in props)):
             try:
-                return FIRMAS[nombre][2](argumentos)
+                armado = FIRMAS[nombre][2](argumentos)
+                # MISMA guarda que la rama de params (linea 394), por el MISMO
+                # motivo: si el modelo improviso los nombres de las claves, el
+                # armador solo encuentra defaults vacios y devuelve el
+                # ESQUELETO del formato (' |  | ') o directamente ''. Eso deja
+                # a la tool sin argumentos — peor que equivocarse. Medido el
+                # 2026-08-13: kg_agregar con {'subject','relation','object'}
+                # daba 'a | usa | b' por el join final y paso a ' |  | ';
+                # code_grafo con {'modulo': 'cognia.cli'} daba 'cognia.cli' y
+                # paso a ''. Solo el armado CON contenido gana; si sale vacio
+                # cae al passthrough/join de abajo, que al menos le entrega
+                # algo con lo que fallar explicando que falto.
+                # El ``not argumentos`` deja pasar el vacio LEGITIMO: repo_map
+                # o ejecutar_flujo sin argumentos arman '' a proposito.
+                if armado.strip(" |") or not argumentos:
+                    return armado
             except Exception:
                 pass
     if nombre in _SIN_ARGS:
