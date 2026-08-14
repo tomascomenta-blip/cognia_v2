@@ -24,6 +24,12 @@ from __future__ import annotations
 
 import re
 
+# Firmas de las tools que el registry NO declara (A4): mismo formato que
+# _TIPADAS, en su propio modulo porque esas tools viven en archivos de otro
+# paquete de trabajo y no se les puede tocar el decorador. Import directo (no
+# perezoso): firmas.py es datos puros, no importa nada de aca -> sin ciclo.
+from cognia.agent.firmas import FIRMAS
+
 
 def _p(desc: str, tipo: str = "string") -> dict:
     return {"type": tipo, "description": desc}
@@ -292,6 +298,14 @@ def schemas_para(allowed: set = None) -> list:
         if nombre in _TIPADAS:
             props, req, _ = _TIPADAS[nombre]
             params = {"type": "object", "properties": props, "required": req}
+        elif nombre in FIRMAS:
+            # Mismo rango que _TIPADAS: firma verificada A MANO contra el
+            # parseo real de la tool (ver cognia/agent/firmas.py). Va ANTES
+            # que el generico y que _desde_params porque estas tools no
+            # declaran params — si algun dia los declaran, hay que borrar su
+            # entrada de FIRMAS (lo vigila tests/test_firmas_tipadas.py).
+            props, req, _ = FIRMAS[nombre]
+            params = {"type": "object", "properties": props, "required": req}
         elif nombre in _SIN_ARGS:
             params = {"type": "object", "properties": {}, "required": []}
         elif spec.get("params"):
@@ -328,6 +342,22 @@ def args_legacy(nombre: str, argumentos: dict) -> str:
             return _TIPADAS[nombre][2](argumentos)
         except Exception:
             pass
+    if nombre in FIRMAS:
+        # El armador de la firma es el inverso EXACTO del schema que
+        # schemas_para acaba de publicar: mismo orden de consulta en las dos
+        # direcciones o el puente se descuadra.
+        # EXCEPCION medida: un modelo que no leyo el schema (o un llamador
+        # legacy) manda {"args": "<el string de siempre>"}. Si no vino NINGUNA
+        # de las propiedades declaradas, el armador devolveria vacio y la tool
+        # se quedaria sin argumentos — perdiendo un string que ya era valido.
+        # En ese caso gana el passthrough de abajo.
+        props = FIRMAS[nombre][0]
+        if not ("args" in argumentos
+                and not any(k in argumentos for k in props)):
+            try:
+                return FIRMAS[nombre][2](argumentos)
+            except Exception:
+                pass
     if nombre in _SIN_ARGS:
         return ""
     if "args" in argumentos:
