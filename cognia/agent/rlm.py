@@ -931,9 +931,24 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
                            "COGNIA_AGENT_TOOLS/COGNIA_AGENT_LEGACY (o ponlo "
                            "en 'nativo') para que el modo RLM pueda correr.")
             else:
+                # EL COMANDO QUE SE SUGIERE TIENE QUE RE-MEDIR (fix 2026-08-14).
+                # capacidad.py cachea la medicion por (url, modelo) con TTL 24 h,
+                # y arrancar llama-server con --jinja NO cambia el nombre del
+                # .gguf: la clave de cache es IDENTICA y el veredicto rancio
+                # (soporta_tools=false) le sobrevive al arreglo. Sin --forzar,
+                # el usuario hace exactamente lo que este error le pide, el
+                # server ya esta bien, y el comando le vuelve a decir que esta
+                # roto -> el modo RLM queda muerto hasta 24 h por una medicion
+                # vieja. Medido contra un server que SI emite tool_calls en el
+                # mismo puerto y con el mismo modelo: sin el flag sale false,
+                # con el flag sale true y el RLM arranca sin tocar nada mas.
                 remedio = ("Arranca el server con --jinja o servi un modelo "
                            "que emita tool_calls; comproba con: "
-                           f"python -m cognia.agent.capacidad {destino}")
+                           f"python -m cognia.agent.capacidad {destino} "
+                           "--forzar\n"
+                           "(si YA lo arreglaste, re-medi con --forzar: la "
+                           "medicion se cachea 24 h por (url, modelo) y sin el "
+                           "flag te contesta la vieja.)")
             texto = ("ERROR: el modo RLM se toca SOLO con herramientas y este "
                      "backend no las parsea.\n"
                      f"causa: {motivo or 'la sonda no devolvio motivo'}\n"

@@ -207,10 +207,39 @@ def test_sin_tool_calling_falla_con_causa_y_NO_entra_al_bucle(tmp_path,
     # La causa REAL, no un "fallo el modo": el usuario tiene que poder actuar.
     assert "no parsea tools" in res["texto"] and "--jinja" in res["texto"]
     assert "cognia.agent.capacidad" in res["texto"]
+    # El comando sugerido tiene que RE-MEDIR: la medicion se cachea 24 h por
+    # (url, modelo) y poner --jinja no cambia el nombre del .gguf, asi que sin
+    # --forzar el usuario arregla el server y el comando le sigue diciendo que
+    # esta roto (el modo RLM muerto hasta 24 h por un veredicto rancio).
+    assert "--forzar" in res["texto"]
     # Medir es parte del contrato aun en el corte: 0% visto es un dato.
     assert res["informe"].startswith("[contexto efectivo RLM]")
     assert res["medidor"]["ctx_chars"] > 0
     assert res["medidor"]["cobertura_union"] == 0.0
+
+
+def test_el_comando_del_remedio_re_mide_no_lee_la_cache(tmp_path, monkeypatch):
+    """El fleco de 9dab2037: el remedio mandaba a correr
+    'python -m cognia.agent.capacidad <url>' SIN --forzar, y ese comando LEE la
+    cache de 24 h (clave (url, modelo)). Como reiniciar llama-server con --jinja
+    no cambia el nombre del .gguf, la clave es la misma y el false rancio
+    sobrevive: el usuario arregla el server, corre lo que el error le pide, le
+    dicen otra vez que esta roto y el RLM queda muerto hasta 24 h. El flag va
+    PEGADO al comando, no suelto en el texto."""
+    _sin_backend(monkeypatch)
+    _stub_capacidad(monkeypatch, False, "respondio sin tool_calls")
+    _espia_bucle(monkeypatch)
+    ruta = tmp_path / "ctx.txt"
+    ruta.write_bytes(b"hola\n")
+
+    res = rlm.correr_rlm("que dice?", str(ruta), url="http://127.0.0.1:9")
+
+    assert res["ok"] is False
+    # La url medida + el flag que re-mide, en la misma linea del comando.
+    assert ("python -m cognia.agent.capacidad http://127.0.0.1:9 --forzar"
+            in res["texto"])
+    # Y la razon por la que hace falta, para que no la borren de nuevo.
+    assert "24 h" in res["texto"]
 
 
 def test_regimen_forzado_a_texto_manda_al_entorno_no_al_jinja(tmp_path,
@@ -229,6 +258,9 @@ def test_regimen_forzado_a_texto_manda_al_entorno_no_al_jinja(tmp_path,
     assert "forzado" in res["texto"]
     assert "COGNIA_AGENT_LEGACY" in res["texto"]
     assert "--jinja" not in res["texto"]
+    # Ni --forzar: aca no hay nada que re-medir, la sonda ya dice que el server
+    # esta bien y lo que corta es el override del entorno.
+    assert "--forzar" not in res["texto"]
 
 
 def test_sonda_rota_tampoco_cuela_el_regimen(tmp_path, monkeypatch):
