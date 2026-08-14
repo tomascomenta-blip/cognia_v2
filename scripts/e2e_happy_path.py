@@ -9,11 +9,17 @@ postcondición verificada en un workspace temporal, contra el backend real del
 repo (ShatteringOrchestrator local + _try_load_llama). Si algún cambio del agente
 rompe el camino feliz, esto lo caza antes de publicar.
 
+Las 5 postcondiciones se comprueban en DISCO, nunca contra la respuesta del
+modelo (2026-08-14: la tarea 'python' era la última que se validaba con
+`'350' in resp` — ver ejecuta_algun_py). Un modelo que dice "listo" sin tocar
+el workspace tiene que FALLAR, o el gate obligatorio no gatea nada.
+
 Uso:  PYTHONUTF8=1 venv312\\Scripts\\python.exe scripts\\e2e_happy_path.py
 Salida: 'E2E CAMINO FELIZ: N/5 OK'; exit 0 si 5/5, 1 si alguna falla.
 """
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -26,6 +32,44 @@ except Exception:
     pass
 
 CHECKS = []
+
+
+def ejecuta_algun_py(ws, esperado, timeout=30):
+    """Postcondicion de DISCO de la tarea 'python': ¿quedó escrito en `ws` un
+    .py que, AL EJECUTARLO, imprime `esperado`?
+
+    POR QUE existe (2026-08-14): esta tarea se verificaba con `'350' in resp`,
+    o sea contra la RESPUESTA del modelo. Un modelo que contesta "la suma es
+    350" sin escribir ni ejecutar nada APROBABA el gate que CLAUDE.md declara
+    obligatorio antes de publicar a PyPI — justo el agujero por el que la
+    regresión de 3.8.4 llegó al release. Es además la regla que el propio repo
+    ya se había escrito en scripts/banco_cerebro.py:19-22: la postcondición se
+    comprueba leyendo el disco y, cuando hace falta, EJECUTANDO lo que quedó
+    escrito; la respuesta se guarda solo como diagnóstico.
+
+    Exige las dos mitades del enunciado ("escribí Y ejecutá"): sin .py no hay
+    nada que ejecutar (False), y un .py que existe pero peta o imprime otra
+    cosa tampoco cuenta. Se exige exit 0: un script que imprime 350 y después
+    revienta no "funciona".
+
+    stdin=DEVNULL a propósito, misma razón que en banco_cerebro._ejecutar_py:
+    el código lo escribió un modelo y un `input()` colado heredaría la consola
+    del gate — se comería las teclas y colgaría la corrida hasta el timeout.
+    Con DEVNULL da EOFError, el script falla y el veredicto es el correcto.
+    """
+    for p in sorted(Path(ws).rglob("*.py")):
+        try:
+            r = subprocess.run([sys.executable, str(p)], cwd=str(p.parent),
+                               capture_output=True, text=True, timeout=timeout,
+                               stdin=subprocess.DEVNULL,
+                               encoding="utf-8", errors="replace")
+        except subprocess.TimeoutExpired:
+            continue
+        except Exception:
+            continue
+        if r.returncode == 0 and esperado in ((r.stdout or "") + (r.stderr or "")):
+            return True
+    return False
 
 
 def check(nombre, ok, detalle=""):
@@ -83,14 +127,12 @@ def main():
          lambda ws: _lee(ws, "bitacora.txt").strip().splitlines()[-1].strip().strip("'\"") == "tercera",
          lambda ws: (ws / "bitacora.txt").write_text("primera\nsegunda\n", encoding="utf-8")),
         ("python", "escribí y ejecutá un script python que imprima la suma de 100 más 250",
-         None, None),   # check por respuesta
+         lambda ws: ejecuta_algun_py(ws, "350"), None),   # postcondicion de DISCO
     ]
     t0 = time.time()
     for nombre, tarea, verificar, setup in tareas:
         t1 = time.time()
-        ok, resp = hacer(tarea, verificar or (lambda ws: True), setup)
-        if nombre == "python":
-            ok = "350" in resp
+        ok, resp = hacer(tarea, verificar, setup)
         check(f"{nombre} ({time.time()-t1:.0f}s)", ok, resp)
 
     fallos = [n for n, ok in CHECKS if not ok]
