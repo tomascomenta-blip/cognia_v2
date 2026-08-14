@@ -26,6 +26,7 @@ import atexit
 import datetime
 import glob as _glob
 import json
+import locale
 import operator
 import os
 import re
@@ -550,6 +551,144 @@ def _disp(path) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════════
+# LA FRONTERA DE BYTES (codificacion y fin de linea)
+# ══════════════════════════════════════════════════════════════════════
+# Este venv corre con locale cp1252 y las tools mas usadas del agente cruzan la
+# frontera bytes<->texto en cada llamada. El repo YA sabia hacerlo bien en el
+# arnes (harness/hooks.py:_decodificar, harness/verificacion.py con PYTHONUTF8=1,
+# harness/checkpoints.py con newline='') pero la leccion nunca llego al camino
+# CALIENTE. Los cuatro fallos, todos REPRODUCIDOS el 2026-08-13 contra ficheros
+# de verdad:
+#   1. subprocess.run(text=True) sin encoding: el hilo lector revienta con
+#      UnicodeDecodeError, deja r.stdout=None SIN lanzar, y '(r.stdout+r.stderr)'
+#      devuelve "unsupported operand type(s) for +: 'NoneType' and 'str'" mas un
+#      traceback en la consola del dueno. Un simple print(chr(0x0410)) bastaba.
+#   2. leer con errors='replace' y REESCRIBIR el fichero entero: un latin-1
+#      perdia TODOS sus acentos (0xf3 -> U+FFFD, irreversible) y editar_archivo
+#      contestaba "OK (1 bloque)".
+#   3. escribir_archivo abortaba la escritura ENTERA por una lectura previa que
+#      solo alimenta el diff cosmetico.
+#   4. write_text traduce \n a os.linesep: cambiar UNA linea CRLF-izaba el
+#      fichero entero (diff de 500 lineas por un cambio de 1).
+# La regla que sale de aca: leer bytes, DETECTAR la codificacion, y devolver esa
+# misma codificacion y ese mismo fin de linea al escribir. Nunca "replace" en un
+# camino que despues escribe.
+
+
+def _codecs_probables() -> list:
+    """Cascada de codecs a probar al leer un fichero del que no sabemos nada.
+
+    Copiada de harness/hooks.py:_codecs_de_respaldo (misma leccion, otro modulo;
+    se replica en vez de importarse para no acoplar el registry de tools al
+    arnes). OJO con ``locale.getpreferredencoding(False)``: bajo el modo UTF-8
+    de Python devuelve 'utf-8', o sea el codec que ya fallo — el respaldo no
+    respaldaba nada. ``locale.getencoding()`` da la codificacion REAL del locale
+    (la pagina ANSI de Windows), que es la que tienen los ficheros del dueno
+    escritos con el Bloc de notas viejo o por herramientas que no son Python.
+    """
+    codecs = ["utf-8"]
+    try:
+        codecs.append(locale.getencoding())       # 3.11+: ignora el modo UTF-8
+    except AttributeError:                        # pragma: no cover - <=3.10
+        codecs.append(locale.getpreferredencoding(False))
+    codecs.append("cp1252")                       # la ANSI mas comun en Windows
+    vistos, unicos = set(), []
+    for c in codecs:
+        cl = (c or "").lower()
+        if cl and cl not in vistos:
+            vistos.add(cl)
+            unicos.append(c)
+    return unicos
+
+
+# BOMs: si el fichero trae marca de orden de bytes, la codificacion no se
+# adivina, se LEE. Importa de verdad en esta maquina: PowerShell 5.1 escribe
+# UTF-8 con BOM por defecto, y decodificar eso como 'utf-8' pelado deja un
+# U+FEFF invisible al principio del texto que despues se reescribe (o peor, se
+# mete en medio de un bloque SEARCH y no casa nunca).
+_BOMS = ((b"\xef\xbb\xbf", "utf-8-sig"), (b"\xff\xfe\x00\x00", "utf-32"),
+         (b"\x00\x00\xfe\xff", "utf-32"), (b"\xff\xfe", "utf-16"),
+         (b"\xfe\xff", "utf-16"))
+
+
+def _decodificar_bytes(datos) -> str:
+    """Bytes -> texto que NUNCA levanta. Para output de procesos y lecturas de
+    solo-lectura: preferimos texto imperfecto a un traceback. latin-1 al final
+    porque decodifica cualquier byte (1:1), asi que la cascada siempre termina."""
+    if not datos:
+        return ""
+    if isinstance(datos, str):
+        return datos
+    for codec in _codecs_probables():
+        try:
+            return datos.decode(codec)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return datos.decode("latin-1", errors="replace")
+
+
+def _nl_dominante(datos: bytes) -> str:
+    """El fin de linea que YA tiene el fichero. Se cuenta sobre los bytes porque
+    el texto decodificado con universal-newlines ya perdio el dato."""
+    crlf = datos.count(b"\r\n")
+    lf = datos.count(b"\n") - crlf
+    return "\r\n" if crlf > lf else "\n"
+
+
+def _leer_texto(path: Path) -> tuple:
+    """(texto, codec, nl) del fichero, con su codificacion REAL detectada.
+
+    - ``texto`` viene con los saltos normalizados a '\\n' (como hacia
+      read_text) para que los bloques SEARCH del modelo casen igual en un
+      fichero CRLF; ``nl`` guarda el original para devolverlo al escribir.
+    - ``codec`` es None cuando NINGUN codec de la cascada decodifica los bytes
+      sin perdida: en ese caso ``texto`` es lo mejor que se pudo (latin-1) y
+      quien vaya a ESCRIBIR debe abortar, no reescribir con U+FFFD.
+    Deja subir OSError (fichero inexistente): el error de 'no existe' es del
+    llamador, no de la codificacion.
+    """
+    datos = path.read_bytes()
+    nl = _nl_dominante(datos)
+    for bom, codec in _BOMS:
+        if datos.startswith(bom):
+            try:
+                return datos.decode(codec).replace("\r\n", "\n"), codec, nl
+            except (UnicodeDecodeError, LookupError):
+                break
+    for codec in _codecs_probables():
+        try:
+            return datos.decode(codec).replace("\r\n", "\n"), codec, nl
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return datos.decode("latin-1", errors="replace").replace("\r\n", "\n"), None, nl
+
+
+def _escribir_texto(path: Path, texto: str, codec: str = "utf-8",
+                    nl: str = "\n") -> None:
+    """Escribe con la codificacion y el fin de linea que se le dicen.
+
+    ``newline=''`` es el punto: sin el, Python traduce cada '\\n' a os.linesep
+    y en Windows cambiar UNA linea reescribe el fichero entero en CRLF (bug 4).
+    Con newline='' el fichero sale EXACTAMENTE como el string, y por eso la
+    conversion al fin de linea original se hace aca, explicita."""
+    if nl != "\n":
+        texto = texto.replace("\r\n", "\n").replace("\n", nl)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding=codec, newline="") as fh:
+        fh.write(texto)
+
+
+def _env_utf8() -> dict:
+    """Entorno para los hijos con el modo UTF-8 de Python FORZADO.
+
+    Sin esto un hijo Python hereda cp1252 y `print('camion')` (o cualquier
+    traceback con acentos) o revienta con UnicodeEncodeError o llega mutilado.
+    Mismo remedio que harness/verificacion.py:254 para pytest, aplicado ahora al
+    'ejecutar' del agente, que es por donde pasa TODO lo demas."""
+    return dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+
+
+# ══════════════════════════════════════════════════════════════════════
 # FILE TOOLS
 # ══════════════════════════════════════════════════════════════════════
 
@@ -599,7 +738,10 @@ def _leer_archivo(args, ctx):
             limit = max(1, int(m.group(2)))
         raw = raw[:m.start()].rstrip().rstrip("|").rstrip()
     path = Path(raw.strip().strip("\"'"))
-    full = path.read_text(encoding="utf-8", errors="replace")
+    # Codificacion DETECTADA, no asumida: con encoding='utf-8', errors='replace'
+    # un fichero latin-1 del dueno llegaba al modelo con U+FFFD donde habia
+    # acentos — y el modelo despues copia eso en un bloque SEARCH que ya no casa.
+    full, _codec, _nl = _leer_texto(path)
     if not full:
         return f"RESULTADO leer_archivo {_disp(path)}: (archivo vacio)"
     lineas = full.splitlines()
@@ -661,9 +803,20 @@ def _escribir_archivo(args, ctx):
     # corridas perfectas contra 4/6 sin el cambio: sin evidencia de mejora sobre
     # la tool MAS usada del agente, no entra. Queda en apendar_archivo, que es
     # donde el defecto esta probado y el riesgo es menor.
-    old = wpath.read_text(encoding="utf-8") if wpath.exists() else ""
-    wpath.parent.mkdir(parents=True, exist_ok=True)
-    wpath.write_text(content, encoding="utf-8")
+    # La lectura del PREVIO solo alimenta el diff cosmetico (show_diff) y el fin
+    # de linea a conservar: JAMAS puede bloquear la escritura. Con
+    # read_text(encoding='utf-8') estricto, escribir sobre un fichero latin-1
+    # existente devolvia "'utf-8' codec can't decode byte 0xf1" y NO escribia
+    # nada — la tool mas usada del agente, muerta por un fichero con enies.
+    old, nl = "", "\n"
+    if wpath.exists():
+        try:
+            old, _codec_prev, nl = _leer_texto(wpath)
+        except Exception:
+            old, nl = "", "\n"
+    # Se escribe SIEMPRE en utf-8 (es contenido nuevo entero, no una edicion
+    # sobre lo viejo), pero respetando el fin de linea que el fichero ya tenia.
+    _escribir_texto(wpath, content, "utf-8", nl)
     show_diff = ctx.get("show_diff")
     if callable(show_diff):
         try:
@@ -711,14 +864,35 @@ def _editar_archivo(args, ctx):
         return (f"RESULTADO editar_archivo ERROR: {_disp(wpath)} no existe "
                 f"(para crearlo usa escribir_archivo)")
     bloques = parse_bloques(_strip_fences(parts[1]))
-    old = wpath.read_text(encoding="utf-8", errors="replace")
+    # errors='replace' aca era PERDIDA DE DATOS, no un detalle: esta tool
+    # reescribe el fichero ENTERO, asi que cada byte que la lectura convirtio en
+    # U+FFFD se persistia como U+FFFD. Un latin-1 con "camion con acentuacion"
+    # perdia los dos acentos por cambiar 'def f' por 'def g', y la tool
+    # respondia "OK (1 bloque)". Ahora: codificacion detectada, escritura con la
+    # MISMA, y si no hay ninguna que decodifique sin perdida no se escribe nada.
+    old, codec, nl = _leer_texto(wpath)
+    if codec is None:
+        return (f"RESULTADO editar_archivo ERROR: no se pudo decodificar "
+                f"{_disp(wpath)} con ninguna codificacion de texto "
+                f"(probadas: {', '.join(_codecs_probables())}). Editarlo "
+                f"reescribiria el fichero entero perdiendo esos bytes, asi que "
+                f"NO se toco. Si es binario, no es editable con SEARCH/REPLACE.")
     try:
         nuevo, estrategias = apply_edits(old, bloques)
     except EditError as e:
         return f"RESULTADO editar_archivo ERROR: {e}"
     if nuevo == old:
         return f"RESULTADO editar_archivo {_disp(wpath)}: sin cambios (el REPLACE es igual)"
-    wpath.write_text(nuevo, encoding="utf-8")
+    nota_codec = ""
+    try:
+        _escribir_texto(wpath, nuevo, codec, nl)
+    except UnicodeEncodeError:
+        # El REPLACE trae caracteres que la codificacion original no cubre
+        # (una flecha '->' unicode en un latin-1). Subir el fichero a utf-8 y
+        # DECIRLO es honesto; escribir '?' silenciosos no lo seria.
+        _escribir_texto(wpath, nuevo, "utf-8", nl)
+        nota_codec = (f" [el texto nuevo no cabe en {codec}: el fichero quedo "
+                      f"en utf-8]")
     show_diff = ctx.get("show_diff")
     if callable(show_diff):
         try:
@@ -736,7 +910,7 @@ def _editar_archivo(args, ctx):
     _diff = mini_diff(old, nuevo)
     return (f"RESULTADO editar_archivo {_disp(wpath)}: OK ({n} bloque"
             f"{'s' if n != 1 else ''} [{', '.join(estrategias)}], {len(nuevo)} chars)"
-            + (f"\n{_diff}" if _diff else ""))
+            + nota_codec + (f"\n{_diff}" if _diff else ""))
 
 
 @tool("apendar_archivo",
@@ -761,13 +935,28 @@ def _apendar_archivo(args, ctx):
     wpath.parent.mkdir(parents=True, exist_ok=True)
     # Start on a fresh line if the file has content not ending in a newline,
     # so "append a line" never glues onto the previous one.
-    prefix = ""
+    # Apendar no reescribe lo viejo, pero SI mete bytes nuevos en el fichero: si
+    # la bitacora esta en cp1252 y le pegamos utf-8, el fichero queda mixto y
+    # nadie lo puede leer entero. Se apenda en la codificacion que YA tiene, y
+    # con su mismo fin de linea (con encoding='utf-8' a secas, una linea nueva
+    # en un fichero LF salia con CRLF).
+    prefix, codec, nl = "", "utf-8", "\n"
     if wpath.exists():
-        existing = wpath.read_text(encoding="utf-8", errors="replace")
+        existing, det, nl = _leer_texto(wpath)
+        codec = det or "utf-8"
         if existing and not existing.endswith("\n"):
             prefix = "\n"
-    with wpath.open("a", encoding="utf-8") as fh:
-        fh.write(prefix + (text if text.endswith("\n") else text + "\n"))
+    linea = prefix + (text if text.endswith("\n") else text + "\n")
+    if nl != "\n":
+        linea = linea.replace("\n", nl)
+    try:
+        with wpath.open("a", encoding=codec, newline="") as fh:
+            fh.write(linea)
+    except UnicodeEncodeError as e:
+        return (f"RESULTADO apendar_archivo {_disp(wpath)} ERROR: el texto tiene "
+                f"caracteres que no existen en {codec}, la codificacion del "
+                f"fichero ({e.reason}). No se apendo nada (mezclar "
+                f"codificaciones en un fichero lo rompe entero).")
     return f"RESULTADO apendar_archivo {_disp(wpath)}: OK (+{len(text)} chars)"
 
 
@@ -955,14 +1144,21 @@ def _buscar(args, ctx):
             # fichero, y sin el ni el modelo ni los tests pueden saber de
             # donde salio el match (cazado 2026-08-09: 'buscar class |
             # cognia/mcp_libre.py' devolvia '67:class ErrorMCP' sin ruta).
+            # SIN text=True a proposito: rg emite utf-8 y el hilo lector de
+            # subprocess lo decodificaba con el locale (cp1252) — un solo
+            # nombre/linea con acentos lo reventaba, dejaba r.stdout=None, el
+            # '.strip()' de abajo tiraba AttributeError y el 'except Exception:
+            # pass' se lo tragaba: rg quedaba DESACTIVADO en silencio y la
+            # busqueda caia al escaneo lento. Bytes + cascada = nunca falla.
             r = subprocess.run(
                 ["rg", "--no-heading", "-H", "-n", "--max-count", "3",
                  pat, directorio],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, timeout=10,
             )
-            if r.returncode == 0 and r.stdout.strip():
+            salida = _decodificar_bytes(r.stdout).strip()
+            if r.returncode == 0 and salida:
                 _estado["rg"] = True
-                return r.stdout.strip().splitlines()[:15]
+                return salida.splitlines()[:15]
         except Exception:
             pass
         out = []
@@ -993,7 +1189,12 @@ def _buscar(args, ctx):
                 with p.open("rb") as fh:
                     if b"\0" in fh.read(1024):
                         continue
-                for i, ln in enumerate(p.read_text(errors="replace").splitlines(), 1):
+                # read_text(errors='replace') SIN encoding usaba el locale:
+                # un fichero utf-8 con 'funcion' acentuada se leia como
+                # 'funciÃ³n' y el patron NO matcheaba. Un falso negativo
+                # INVISIBLE (la tool contesta "sin coincidencias" tan campante),
+                # que es el peor tipo de fallo de una tool de busqueda.
+                for i, ln in enumerate(_leer_texto(p)[0].splitlines(), 1):
                     if (compiled and compiled.search(ln)) or (not compiled and pat.lower() in ln.lower()):
                         out.append(f"{p}:{i}: {ln.strip()[:100]}")
                         if len(out) >= 15:
@@ -1127,13 +1328,24 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
     if callable(pf):
         pf(f"[detail]$ {cmd}[/detail]")
     try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        # BYTES, no text=True (bug 1, reproducido 2026-08-13): con text=True y
+        # sin encoding, subprocess decodifica en el hilo lector con el locale
+        # (cp1252 en este venv). Un `python -c "print(chr(0x0410))"` bastaba:
+        # el hilo moria con UnicodeDecodeError -> traceback suelto en la consola
+        # del dueno, r.stdout se quedaba en None SIN que run() lanzara, y el
+        # '(r.stdout + r.stderr)' de abajo devolvia al modelo "unsupported
+        # operand type(s) for +: 'NoneType' and 'str'" en lugar de su salida.
+        # Capturar bytes y decodificar con la cascada no puede fallar; y
+        # _env_utf8 le pide al hijo Python que EMITA utf-8 (si no, es el hijo
+        # el que revienta al imprimir un acento hacia un pipe cp1252).
+        r = subprocess.run(cmd, shell=True, capture_output=True,
+                           timeout=timeout, env=_env_utf8())
     except subprocess.TimeoutExpired:
         # Timeout accionable en vez de un stacktrace generico: el modelo necesita
         # saber que debe ACOTAR el comando (ruta/test mas especifico) y reintentar.
         return (f"RESULTADO ejecutar ERROR: timeout tras {timeout}s. "
                 f"Acota el comando (ruta/target mas especifico) y reintenta.")
-    out = (r.stdout + r.stderr).strip()
+    out = (_decodificar_bytes(r.stdout) + _decodificar_bytes(r.stderr)).strip()
     code = "" if r.returncode == 0 else f" (exit {r.returncode})"
     return f"RESULTADO ejecutar{code}: {_head_cola(out) or '(sin output)'}"
 
@@ -1249,11 +1461,49 @@ def _tests(args, ctx):
     return _shell(f'"{sys.executable}" -m pytest {ruta} -q --no-header', ctx, timeout=180)
 
 
+def _fuente_py(datos: bytes) -> tuple:
+    """(fuente, codec) de un .py, respetando el cookie PEP 263.
+
+    Un fichero que declara '# -*- coding: latin-1 -*-' es Python VALIDO y hay
+    que validarlo con SU codec, no con utf-8. tokenize.detect_encoding es la
+    forma canonica (es lo que usa el propio interprete); si el cookie miente o
+    no hay, se cae a la cascada normal."""
+    import io
+    import tokenize
+    candidatos = []
+    try:
+        candidatos.append(tokenize.detect_encoding(io.BytesIO(datos).readline)[0])
+    except (SyntaxError, UnicodeDecodeError, ValueError):
+        pass
+    candidatos += _codecs_probables()
+    for codec in candidatos:
+        try:
+            return datos.decode(codec), codec
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return None, None
+
+
 @tool("py_validar", "py_validar <path>                     -- chequea sintaxis de un .py")
 def _py_validar(args, ctx):
     p = Path(args.strip())
+    # Un UnicodeDecodeError NO es un error de sintaxis: antes se escapaba del
+    # 'except SyntaxError' hasta el except generico de run_tool y el modelo leia
+    # un "ERROR" creyendo que el codigo estaba mal escrito, cuando el codigo
+    # esta perfecto y lo que falla es la CODIFICACION. El error tiene que
+    # nombrarla para que la siguiente accion del modelo pueda ser la correcta.
     try:
-        ast.parse(p.read_text(encoding="utf-8"))
+        datos = p.read_bytes()
+    except OSError as e:
+        return f"RESULTADO py_validar {p}: ERROR: {e}"
+    fuente, codec = _fuente_py(datos)
+    if fuente is None:
+        return (f"RESULTADO py_validar {p}: ERROR de CODIFICACION (no de "
+                f"sintaxis): los bytes no decodifican como "
+                f"{', '.join(_codecs_probables())}. Si es un .py real, declara "
+                f"su codificacion con un cookie '# -*- coding: <codec> -*-'.")
+    try:
+        ast.parse(fuente)
         return f"RESULTADO py_validar {p}: sintaxis OK"
     except SyntaxError as e:
         return f"RESULTADO py_validar {p}: ERROR linea {e.lineno}: {e.msg}"
@@ -1262,11 +1512,23 @@ def _py_validar(args, ctx):
 @tool("json_validar", "json_validar <path>                   -- valida un archivo JSON")
 def _json_validar(args, ctx):
     p = Path(args.strip())
+    # Mismo motivo que py_validar: el mensaje crudo ("'utf-8' codec can't decode
+    # byte 0xf1") caia bajo el mismo "ERROR:" que un JSON mal formado, y el
+    # modelo se ponia a reescribir un JSON que estaba perfecto.
     try:
-        json.loads(p.read_text(encoding="utf-8"))
-        return f"RESULTADO json_validar {p}: JSON valido"
-    except Exception as e:
+        texto, codec, _nl = _leer_texto(p)
+    except OSError as e:
         return f"RESULTADO json_validar {p}: ERROR: {e}"
+    if codec is None:
+        return (f"RESULTADO json_validar {p}: ERROR de CODIFICACION (el JSON "
+                f"puede estar bien): los bytes no decodifican como "
+                f"{', '.join(_codecs_probables())}.")
+    try:
+        json.loads(texto)
+    except ValueError as e:
+        return f"RESULTADO json_validar {p}: ERROR: {e}"
+    aviso = "" if codec.lower() in ("utf-8", "utf-8-sig") else f" (codificacion {codec}, no utf-8)"
+    return f"RESULTADO json_validar {p}: JSON valido{aviso}"
 
 
 @tool("git_estado", "git_estado                            -- git status resumido")

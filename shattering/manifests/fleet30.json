@@ -1,6 +1,7 @@
 {
  "_notas": [
   "2026-08-01: reapuntado a los GGUF reales de ~/.cognia/models (model_shards/fleet30/ ya no existe).",
+  "2026-08-14: lfm25_12b apuntaba a un GGUF borrado. Ojo con este modo de fallo: fleet_registry.py:185 solo loguea un warning y devuelve None, o sea que un modelo que se borra del disco hace DESAPARECER su rol en silencio en produccion (lfm25_12b es Lia, la que ejecuta buscar/leer_archivo/http_get segun oficina/identidad.py:167). Quien borre o mueva un GGUF debe correr tests/test_fleet_registry.py::test_manifest_real_del_repo_carga_y_sus_gguf_existen, que es el unico chequeo que lo caza.",
   "Las keys son IDs historicos que los callers usan (superorganismo, tools, oficina, evals); NO renombrar.",
   "Las rutas ~ las expande node/fleet_registry.load_manifest (expanduser).",
   "El rol 'embedder' (qwen3_embed) queda SIN campo gguf: no hay GGUF de embeddings en disco. fleet_registry/doctor ignoran entradas sin gguf, pero la oficina (identidad.py) conserva al miembro.",
@@ -60,12 +61,12 @@
   {
    "key": "lfm25_12b",
    "role": "generalista",
-   "gguf": "~/.cognia/models/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+   "gguf": "~/.cognia/models/Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf",
    "port": 8098,
    "ctx": 4096,
-   "ram_gb": 5.0,
+   "ram_gb": 6.2,
    "template": "chatml",
-   "nota": "key historica (LFM2.5-1.2B retirado); el generalista real en disco es qwen2.5-7b-instruct (multiparte)"
+   "nota": "key historica (LFM2.5-1.2B retirado); qwen2.5-7b-instruct se borro el 2026-08-13 y el unico 7B en disco es el VL de vision (no sirve de generalista de texto). Reapuntado al Qwythos-9B, que ya es el cerebro. ram_gb 6.2 = 5.78GB del GGUF + KV, misma convencion que el resto: excede el presupuesto default 3.5, asi que solo arranca con COGNIA_FLEET_RAM_GB>=6.2"
   },
   {
    "key": "qwen3_embed",
