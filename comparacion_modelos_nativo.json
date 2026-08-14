@@ -1,0 +1,939 @@
+{
+  "fecha": "2026-08-13 18:18:19",
+  "puerto": 8080,
+  "original": {
+    "pid": 2996,
+    "linea": "C:\\Users\\usuario\\.cognia\\llama\\llama-server.exe --model C:\\Users\\usuario\\.cognia\\models\\Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf --host 127.0.0.1 --port 8080 --ctx-size 200192 --parallel 1 --n-gpu-layers 99 --threads 12 --threads-batch 12 --cache-reuse 256 --cache-ram 1024 --prio 2 --flash-attn on --log-disable --spec-type ngram-mod",
+    "argv": [
+      "C:\\Users\\usuario\\.cognia\\llama\\llama-server.exe",
+      "--model",
+      "C:\\Users\\usuario\\.cognia\\models\\Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "8080",
+      "--ctx-size",
+      "200192",
+      "--parallel",
+      "1",
+      "--n-gpu-layers",
+      "99",
+      "--threads",
+      "12",
+      "--threads-batch",
+      "12",
+      "--cache-reuse",
+      "256",
+      "--cache-ram",
+      "1024",
+      "--prio",
+      "2",
+      "--flash-attn",
+      "on",
+      "--log-disable",
+      "--spec-type",
+      "ngram-mod"
+    ],
+    "puerto": 8080,
+    "modelo_ruta": "C:\\Users\\usuario\\.cognia\\models\\Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf",
+    "props": {
+      "modelo": "Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf",
+      "n_ctx": 200192,
+      "puerto": 8080
+    },
+    "log_dir": "C:\\Users\\usuario\\.cognia\\logs\\comparar_modelos"
+  },
+  "banco": "py:banco_cerebro:medir",
+  "plan": [
+    {
+      "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+      "ruta": "C:\\Users\\usuario\\.cognia\\models\\qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+      "ctx": 16384,
+      "ctx_fuente": "tabla _CTX_POR_MODELO",
+      "argv": [
+        "C:\\Users\\usuario\\.cognia\\llama\\llama-server.exe",
+        "--model",
+        "C:\\Users\\usuario\\.cognia\\models\\qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--ctx-size",
+        "16384",
+        "--parallel",
+        "1",
+        "--n-gpu-layers",
+        "99",
+        "--threads",
+        "12",
+        "--threads-batch",
+        "12",
+        "--cache-reuse",
+        "256",
+        "--cache-ram",
+        "1024",
+        "--prio",
+        "2",
+        "--flash-attn",
+        "on",
+        "--log-disable",
+        "--spec-type",
+        "ngram-mod",
+        "--jinja"
+      ],
+      "vram_estimada_gb": 12.21
+    },
+    {
+      "modelo": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+      "ruta": "C:\\Users\\usuario\\.cognia\\models\\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+      "ctx": 32768,
+      "ctx_fuente": "tabla _CTX_POR_MODELO",
+      "argv": [
+        "C:\\Users\\usuario\\.cognia\\llama\\llama-server.exe",
+        "--model",
+        "C:\\Users\\usuario\\.cognia\\models\\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--ctx-size",
+        "32768",
+        "--parallel",
+        "1",
+        "--n-gpu-layers",
+        "99",
+        "--threads",
+        "12",
+        "--threads-batch",
+        "12",
+        "--cache-reuse",
+        "256",
+        "--cache-ram",
+        "1024",
+        "--prio",
+        "2",
+        "--flash-attn",
+        "on",
+        "--log-disable",
+        "--spec-type",
+        "ngram-mod",
+        "--jinja"
+      ],
+      "vram_estimada_gb": 6.56
+    },
+    {
+      "modelo": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+      "ruta": "C:\\Users\\usuario\\.cognia\\models\\Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+      "ctx": 32768,
+      "ctx_fuente": "tabla _CTX_POR_MODELO",
+      "argv": [
+        "C:\\Users\\usuario\\.cognia\\llama\\llama-server.exe",
+        "--model",
+        "C:\\Users\\usuario\\.cognia\\models\\Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--ctx-size",
+        "32768",
+        "--parallel",
+        "1",
+        "--n-gpu-layers",
+        "99",
+        "--threads",
+        "12",
+        "--threads-batch",
+        "12",
+        "--cache-reuse",
+        "256",
+        "--cache-ram",
+        "1024",
+        "--prio",
+        "2",
+        "--flash-attn",
+        "on",
+        "--log-disable",
+        "--spec-type",
+        "ngram-mod",
+        "--jinja"
+      ],
+      "vram_estimada_gb": 7.33
+    },
+    {
+      "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+      "ruta": "C:\\Users\\usuario\\.cognia\\models\\OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+      "ctx": 16384,
+      "ctx_fuente": "tabla _CTX_POR_MODELO",
+      "argv": [
+        "C:\\Users\\usuario\\.cognia\\llama\\llama-server.exe",
+        "--model",
+        "C:\\Users\\usuario\\.cognia\\models\\OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--ctx-size",
+        "16384",
+        "--parallel",
+        "1",
+        "--n-gpu-layers",
+        "99",
+        "--threads",
+        "12",
+        "--threads-batch",
+        "12",
+        "--cache-reuse",
+        "256",
+        "--cache-ram",
+        "1024",
+        "--prio",
+        "2",
+        "--flash-attn",
+        "on",
+        "--log-disable",
+        "--spec-type",
+        "ngram-mod",
+        "--jinja"
+      ],
+      "vram_estimada_gb": 12.21
+    }
+  ],
+  "modelos": [
+    {
+      "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+      "ctx": 16384,
+      "vram_estimada_gb": 12.21,
+      "arranco": true,
+      "arranque_seg": 4.5,
+      "regimen": "nativo",
+      "tok_s": 43.38,
+      "banco": {
+        "tipo": "import",
+        "spec": "py:banco_cerebro:medir",
+        "ok": true,
+        "resultado": {
+          "total": 0,
+          "de": 12,
+          "puntos": 0,
+          "puntos_max": 26,
+          "por_dificultad": {
+            "facil": {
+              "ok": 0,
+              "de": 3
+            },
+            "media": {
+              "ok": 0,
+              "de": 4
+            },
+            "dificil": {
+              "ok": 0,
+              "de": 5
+            }
+          },
+          "detalle": [
+            {
+              "id": "f1_escribir",
+              "dificultad": "facil",
+              "ok": false,
+              "segundos": 11.1,
+              "peso": 1,
+              "respuesta": "{\n  \"name\": \"escribir_archivo\",\n  \"arguments\": {\n    \"path\": \"saludo.txt\",\n    \"contenido\": \"banco listo\"\n  }\n}",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f1_escribir_b1g3rhf5"
+            },
+            {
+              "id": "f2_calcular",
+              "dificultad": "facil",
+              "ok": false,
+              "segundos": 2.2,
+              "peso": 1,
+              "respuesta": "{\n  \"name\": \"calcular\",\n  \"arguments\": {\n    \"expresion\": \"37 * 43\"\n  }\n}",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f2_calcular_vsmtskpo"
+            },
+            {
+              "id": "f3_json",
+              "dificultad": "facil",
+              "ok": false,
+              "segundos": 3.5,
+              "peso": 1,
+              "respuesta": "{\n  \"name\": \"escribir_archivo\",\n  \"arguments\": {\n    \"path\": \"ajustes.json\",\n    \"contenido\": '{\"modo\": \"estricto\", \"reintentos\": 3}'\n  }\n}",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f3_json_48ubla6m"
+            },
+            {
+              "id": "m1_sumar_fichero",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 2.1,
+              "peso": 2,
+              "respuesta": "{\"name\": \"leer_archivo\", \"arguments\": {\"path\": \"numeros.txt\"}}",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m1_sumar_fichero_7rsqgi1n"
+            },
+            {
+              "id": "m2_editar_sin_romper",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 2.4,
+              "peso": 2,
+              "respuesta": "{\n  \"name\": \"leer_archivo\",\n  \"arguments\": {\n    \"path\": \"config.py\"\n  }\n}",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m2_editar_sin_romper_p3f255t_"
+            },
+            {
+              "id": "m3_ejecutar_y_guardar",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 7.4,
+              "peso": 2,
+              "respuesta": "Primero, generaré el script `fib.py` con la función para calcular los primeros 10 números de Fibonacci.\n\n```json\n{\n  \"name\": \"generar_codigo\",\n  \"arguments\": {\n    \"ruta\": \"fib.py\",\n    \"descripcion\":",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m3_ejecutar_y_guardar_zracnmxv"
+            },
+            {
+              "id": "m4_filtrar_csv",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 2.3,
+              "peso": 2,
+              "respuesta": "{\"name\": \"leer_archivo\", \"arguments\": {\"path\": \"ventas.csv\"}}",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m4_filtrar_csv_rf04rx6g"
+            },
+            {
+              "id": "d1_cadena_cuatro_pasos",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 4.9,
+              "peso": 3,
+              "respuesta": "Entendido. Vamos a proceder paso a paso para completar la tarea.\n\n### Paso 1: Leer el archivo `palabras.txt`\nPrimero, leeremos el archivo `palabras.txt` para obtener las palabras.\n\n```json\n{\"name\": \"l",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d1_cadena_cuatro_pasos_ldk4pe52"
+            },
+            {
+              "id": "d2_sintaxis",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 5.1,
+              "peso": 3,
+              "respuesta": "Entendido. Voy a proceder a depurar el archivo `roto.py` siguiendo las instrucciones proporcionadas.\n\n1. Reproduci el fallo: Voy a intentar ejecutar el archivo `roto.py` usando la herramienta `ejecuta",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d2_sintaxis_lkna2cqy"
+            },
+            {
+              "id": "d3_integrar_dos_ficheros",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 5.0,
+              "peso": 3,
+              "respuesta": "Entendido. Procederé a leer los archivos `precios.json` y `pedido.csv`, cruzar la información para calcular el importe total del pedido, y luego escribir ese total en `total.txt`.\n\nPrimero, leeré el a",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d3_integrar_dos_ficheros_lfjv6gu6"
+            },
+            {
+              "id": "d4_elegir_fuente",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 9.1,
+              "peso": 3,
+              "respuesta": "Entendido. Vamos a seguir los pasos para identificar cuál de los dos archivos JSON es válido, calcular el promedio de sus valores y escribir ese promedio en `promedio.txt`.\n\n1. **Definir la especifica",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d4_elegir_fuente_kmw1dtce"
+            },
+            {
+              "id": "d5_codigo_con_test",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 4.0,
+              "peso": 3,
+              "respuesta": "{\"name\": \"generar_codigo\", \"arguments\": {\"ruta\": \"utilidades.py\", \"descripcion\": \"normalizar(texto) que devuelva el texto en minúsculas y sin espacios al principio ni al final\"}}",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d5_codigo_con_test_xts_f5x8"
+            }
+          ],
+          "segundos": 59.3,
+          "interrumpido": false,
+          "pedidas": 12,
+          "backend": {
+            "modelo": "C:\\Users\\usuario\\.cognia\\models\\qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+            "puerto": 8080,
+            "adoptado": true
+          },
+          "puntaje": "0/26",
+          "ok": true
+        },
+        "puntaje": "0/26",
+        "seg": 59.4
+      },
+      "total_seg": 89.6,
+      "notas": [],
+      "pid": 21376,
+      "log": "C:\\Users\\usuario\\.cognia\\logs\\comparar_modelos\\qwen2.5-coder-14b-instruct-q4_k_m-00001-.log",
+      "regimen_detalle": {
+        "regimen": "nativo",
+        "perfil": "razonador_nativo",
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "n_ctx": 16384,
+        "temperature": 0.7,
+        "reasoning_effort": ""
+      },
+      "props": {
+        "modelo": "qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf",
+        "n_ctx": 16384,
+        "puerto": 8080
+      },
+      "medicion": {
+        "tok_s": 43.38,
+        "fuente": "timings",
+        "tokens": 70,
+        "seg": 1.64,
+        "prompt_tok_s": 36.36,
+        "finish_reason": "stop"
+      }
+    },
+    {
+      "modelo": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+      "ctx": 32768,
+      "vram_estimada_gb": 6.56,
+      "arranco": true,
+      "arranque_seg": 2.5,
+      "regimen": "nativo",
+      "tok_s": 84.93,
+      "banco": {
+        "tipo": "import",
+        "spec": "py:banco_cerebro:medir",
+        "ok": true,
+        "resultado": {
+          "total": 5,
+          "de": 12,
+          "puntos": 10,
+          "puntos_max": 26,
+          "por_dificultad": {
+            "facil": {
+              "ok": 2,
+              "de": 3
+            },
+            "media": {
+              "ok": 1,
+              "de": 4
+            },
+            "dificil": {
+              "ok": 2,
+              "de": 5
+            }
+          },
+          "detalle": [
+            {
+              "id": "f1_escribir",
+              "dificultad": "facil",
+              "ok": true,
+              "segundos": 1.9,
+              "peso": 1,
+              "respuesta": "El archivo saludo.txt ha sido creado con el texto exacto: \"banco listo\".",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f1_escribir_kuk7oxvi"
+            },
+            {
+              "id": "f2_calcular",
+              "dificultad": "facil",
+              "ok": true,
+              "segundos": 1.9,
+              "peso": 1,
+              "respuesta": "El resultado de 37 multiplicado por 43 es 1591, y se ha guardado en el archivo producto.txt.",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f2_calcular_7qxr6ykh"
+            },
+            {
+              "id": "f3_json",
+              "dificultad": "facil",
+              "ok": false,
+              "segundos": 4.9,
+              "peso": 1,
+              "respuesta": "(interrumpida por estancamiento: repitio 'escribir_archivo' con los mismos argumentos)\n\nNo se pudo completar: la última operación falló. Causa:\nescribir_archivo ajustes.json: OK (1 chars)\nRESULTADO ve",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f3_json_144mit0a"
+            },
+            {
+              "id": "m1_sumar_fichero",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 2.4,
+              "peso": 2,
+              "respuesta": "La suma de los números en el archivo numeros.txt es 133. He escrito este total en el archivo suma.txt.",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m1_sumar_fichero_70cwlxbl"
+            },
+            {
+              "id": "m2_editar_sin_romper",
+              "dificultad": "media",
+              "ok": true,
+              "segundos": 2.2,
+              "peso": 2,
+              "respuesta": "La línea relacionada con el valor de TIMEOUT en el archivo config.py ha sido modificada correctamente. Ahora se encuentra así:\n\n```python\nTIMEOUT = 60\n```\n\nEl resto del archivo, incluyendo las líneas ",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m2_editar_sin_romper_qy3x4kem"
+            },
+            {
+              "id": "m3_ejecutar_y_guardar",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 7.1,
+              "peso": 2,
+              "respuesta": "El script fib.py ha sido creado y ejecutado correctamente. Los primeros 10 números de Fibonacci son: 0 1 1 2 3 5 8 13 21 34. Estos resultados han sido guardados en el archivo salida_fib.txt.",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m3_ejecutar_y_guardar_n15zbrms"
+            },
+            {
+              "id": "m4_filtrar_csv",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 16.8,
+              "peso": 2,
+              "respuesta": "(interrumpida por estancamiento: repitio 'ejecutar' con los mismos argumentos)",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m4_filtrar_csv_e5uhnfc1"
+            },
+            {
+              "id": "d1_cadena_cuatro_pasos",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 15.1,
+              "peso": 3,
+              "respuesta": "(interrumpida por estancamiento: repitio 'ejecutar' con los mismos argumentos)",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d1_cadena_cuatro_pasos_l8l91wa9"
+            },
+            {
+              "id": "d2_sintaxis",
+              "dificultad": "dificil",
+              "ok": true,
+              "segundos": 6.2,
+              "peso": 3,
+              "respuesta": "El archivo `roto.py` ahora compila correctamente y imprime `42` como se esperaba. La corrección ha sido exitosa.\n\nLa tarea está completada:\n```python\ndef calcular(a, b):\n    total = a + b\n    return t",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d2_sintaxis_phboy1k2"
+            },
+            {
+              "id": "d3_integrar_dos_ficheros",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 12.3,
+              "peso": 3,
+              "respuesta": "Ronaldo\n{\"name\": \"leer_archivo\", \"arguments\": {\"path\": \"importe_total.py\"}}\n</tool_call>\n Ronaldo\n{\"name\": \"leer_archivo\", \"arguments\": {\"path\": \"importe_total.py\"}}\n</tool_call>\n Ronaldo\n{\"name\": \"le",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d3_integrar_dos_ficheros_7dn7whmb"
+            },
+            {
+              "id": "d4_elegir_fuente",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 3.0,
+              "peso": 3,
+              "respuesta": "El archivo `palabras.txt` no existe en el directorio de trabajo actual. No puedo continuar con la tarea hasta que se resuelva este problema. Por favor, asegúrate de que el archivo exista y esté en el ",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d4_elegir_fuente_hfk0yu6b"
+            },
+            {
+              "id": "d5_codigo_con_test",
+              "dificultad": "dificil",
+              "ok": true,
+              "segundos": 9.5,
+              "peso": 3,
+              "respuesta": "El archivo `utilidades.py` y los tests en `test_utilidades.py` han sido generados y verificados correctamente. La función `normalizar` y los tests pasan sin problemas.\n\nPodemos considerar la tarea com",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d5_codigo_con_test_j7dwhi8k"
+            }
+          ],
+          "segundos": 83.9,
+          "interrumpido": false,
+          "pedidas": 12,
+          "backend": {
+            "modelo": "C:\\Users\\usuario\\.cognia\\models\\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+            "puerto": 8080,
+            "adoptado": true
+          },
+          "puntaje": "10/26",
+          "ok": true
+        },
+        "puntaje": "10/26",
+        "seg": 83.9
+      },
+      "total_seg": 99.5,
+      "notas": [],
+      "pid": 22816,
+      "log": "C:\\Users\\usuario\\.cognia\\logs\\comparar_modelos\\qwen2.5-7b-instruct-q4_k_m-00001-of-0000.log",
+      "regimen_detalle": {
+        "regimen": "nativo",
+        "perfil": "razonador_nativo",
+        "modelo": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        "n_ctx": 32768,
+        "temperature": 0.7,
+        "reasoning_effort": ""
+      },
+      "props": {
+        "modelo": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        "n_ctx": 32768,
+        "puerto": 8080
+      },
+      "medicion": {
+        "tok_s": 84.93,
+        "fuente": "timings",
+        "tokens": 70,
+        "seg": 0.86,
+        "prompt_tok_s": 65.95,
+        "finish_reason": "stop"
+      }
+    },
+    {
+      "modelo": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+      "ctx": 32768,
+      "vram_estimada_gb": 7.33,
+      "arranco": true,
+      "arranque_seg": 2.5,
+      "regimen": "nativo",
+      "tok_s": 126.37,
+      "banco": {
+        "tipo": "import",
+        "spec": "py:banco_cerebro:medir",
+        "ok": true,
+        "resultado": {
+          "total": 8,
+          "de": 12,
+          "puntos": 15,
+          "puntos_max": 26,
+          "por_dificultad": {
+            "facil": {
+              "ok": 3,
+              "de": 3
+            },
+            "media": {
+              "ok": 3,
+              "de": 4
+            },
+            "dificil": {
+              "ok": 2,
+              "de": 5
+            }
+          },
+          "detalle": [
+            {
+              "id": "f1_escribir",
+              "dificultad": "facil",
+              "ok": true,
+              "segundos": 25.5,
+              "peso": 1,
+              "respuesta": "Archivo saludo.txt creado correctamente con el texto: banco listo",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f1_escribir_4hwbjtye"
+            },
+            {
+              "id": "f2_calcular",
+              "dificultad": "facil",
+              "ok": true,
+              "segundos": 52.3,
+              "peso": 1,
+              "respuesta": "1591 guardado en producto.txt. Verificación: 0 tests pasados.",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f2_calcular_38n6bwac"
+            },
+            {
+              "id": "f3_json",
+              "dificultad": "facil",
+              "ok": true,
+              "segundos": 35.2,
+              "peso": 1,
+              "respuesta": "El archivo ajustes.json se creó correctamente con los valores: modo: estricto, reintentos: 3.",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f3_json_0gnprtqi"
+            },
+            {
+              "id": "m1_sumar_fichero",
+              "dificultad": "media",
+              "ok": true,
+              "segundos": 52.5,
+              "peso": 2,
+              "respuesta": "El total es 155.",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m1_sumar_fichero_8qw6m0kc"
+            },
+            {
+              "id": "m2_editar_sin_romper",
+              "dificultad": "media",
+              "ok": true,
+              "segundos": 14.2,
+              "peso": 2,
+              "respuesta": "El valor de TIMEOUT en config.py se ha cambiado a 60. Las líneas REINTENTOS, HOST y la función resumen() permanecen sin cambios.",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m2_editar_sin_romper_y4rwkclu"
+            },
+            {
+              "id": "m3_ejecutar_y_guardar",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 35.9,
+              "peso": 2,
+              "respuesta": "(el agente no produjo una respuesta final)",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m3_ejecutar_y_guardar_fb5_x8ur"
+            },
+            {
+              "id": "m4_filtrar_csv",
+              "dificultad": "media",
+              "ok": true,
+              "segundos": 52.0,
+              "peso": 2,
+              "respuesta": "Los nombres de productos con precio > 100 en caros.txt:\nteclado\nmonitor\n\nNo se pudo completar: la última operación falló. Causa:\nejecutar (exit 5): no tests ran in 0.01s",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m4_filtrar_csv_s6tonx9g"
+            },
+            {
+              "id": "d1_cadena_cuatro_pasos",
+              "dificultad": "dificil",
+              "ok": true,
+              "segundos": 51.5,
+              "peso": 3,
+              "respuesta": "Las cuatro tareas se completaron correctamente:\n1. largas.txt contiene las palabras de más de 5 letras ordenadas: mariposa, ordenador, teclado, ventana\n2. conteo.txt tiene el valor 4\n3. bitacora.md in",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d1_cadena_cuatro_pasos_v1kf926s"
+            },
+            {
+              "id": "d2_sintaxis",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 99.7,
+              "peso": 3,
+              "respuesta": "RESULTADO editar_archivo roto.py: OK (1 bloque [exacto], 112 chars)\n--- antes\n+++ despues\n@@ -4,3 +4,3 @@\n \n if __name__ == \"__main__\":\n-    print(calcular(20, 22)\n+    print(calcular(20, 22)))\nRESULT",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d2_sintaxis_phra062r"
+            },
+            {
+              "id": "d3_integrar_dos_ficheros",
+              "dificultad": "dificil",
+              "ok": true,
+              "segundos": 70.4,
+              "peso": 3,
+              "respuesta": "27.5",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d3_integrar_dos_ficheros_z7rx7m5j"
+            },
+            {
+              "id": "d4_elegir_fuente",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 37.8,
+              "peso": 3,
+              "respuesta": "(el agente no produjo una respuesta final)",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d4_elegir_fuente_djo9tqyl"
+            },
+            {
+              "id": "d5_codigo_con_test",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 37.8,
+              "peso": 3,
+              "respuesta": "(el agente no produjo una respuesta final)",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d5_codigo_con_test_79gqf5mj"
+            }
+          ],
+          "segundos": 564.9,
+          "interrumpido": false,
+          "pedidas": 12,
+          "backend": {
+            "modelo": "C:\\Users\\usuario\\.cognia\\models\\Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+            "puerto": 8080,
+            "adoptado": true
+          },
+          "puntaje": "15/26",
+          "ok": true
+        },
+        "puntaje": "15/26",
+        "seg": 565.0
+      },
+      "total_seg": 581.7,
+      "notas": [],
+      "pid": 19280,
+      "log": "C:\\Users\\usuario\\.cognia\\logs\\comparar_modelos\\Qwen3-4B-Thinking-2507-Q4_K_M.log",
+      "regimen_detalle": {
+        "regimen": "nativo",
+        "perfil": "razonador_nativo",
+        "modelo": "qwen3-4b-thinking-2507-q4_k_m.gguf",
+        "n_ctx": 32768,
+        "temperature": 0.7,
+        "reasoning_effort": ""
+      },
+      "props": {
+        "modelo": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+        "n_ctx": 32768,
+        "puerto": 8080
+      },
+      "medicion": {
+        "tok_s": 126.37,
+        "fuente": "timings",
+        "tokens": 256,
+        "seg": 2.07,
+        "prompt_tok_s": 77.68,
+        "finish_reason": "length"
+      }
+    },
+    {
+      "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+      "ctx": 16384,
+      "vram_estimada_gb": 12.21,
+      "arranco": true,
+      "arranque_seg": 4.5,
+      "regimen": "nativo",
+      "tok_s": 42.89,
+      "banco": {
+        "tipo": "import",
+        "spec": "py:banco_cerebro:medir",
+        "ok": true,
+        "resultado": {
+          "total": 0,
+          "de": 12,
+          "puntos": 0,
+          "puntos_max": 26,
+          "por_dificultad": {
+            "facil": {
+              "ok": 0,
+              "de": 3
+            },
+            "media": {
+              "ok": 0,
+              "de": 4
+            },
+            "dificil": {
+              "ok": 0,
+              "de": 5
+            }
+          },
+          "detalle": [
+            {
+              "id": "f1_escribir",
+              "dificultad": "facil",
+              "ok": false,
+              "segundos": 121.2,
+              "peso": 1,
+              "respuesta": "Okay, let's tackle this task step by step. The user wants me to write a Python script that processes a file called `palabras.txt`, which contains one word per line. The script should do four things:\n\n",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f1_escribir_du8sryt4"
+            },
+            {
+              "id": "f2_calcular",
+              "dificultad": "facil",
+              "ok": false,
+              "segundos": 126.8,
+              "peso": 1,
+              "respuesta": "<think>\nFirst, I need to understand the task. The user wants me to calculate 37 times 43 and save the result in a file called product.txt. But then, there's a lot of additional context about handling ",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f2_calcular_32lv6gdt"
+            },
+            {
+              "id": "f3_json",
+              "dificultad": "facil",
+              "ok": false,
+              "segundos": 124.4,
+              "peso": 1,
+              "respuesta": "Okay, let's tackle this task step by step. The user wants me to create a file called `ajustes.json` with two keys: `modo_puesto_en_estricto` and `reintentos_puesto` set to 3. But before I jump into th",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_f3_json_7j4fzm2_"
+            },
+            {
+              "id": "m1_sumar_fichero",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 118.9,
+              "peso": 2,
+              "respuesta": "Okay, so I need to sum all the numbers in the file \"numeros.txt\" and write just the total sum into \"suma.txt\". Let me break this down step by step.\n\nFirst, I need to read the contents of \"numeros.txt\"",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m1_sumar_fichero_jum_0js6"
+            },
+            {
+              "id": "m2_editar_sin_romper",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 103.9,
+              "peso": 2,
+              "respuesta": "<think>\nFirst, the task is to change the value of TIMEOUT in config.py from 30 to 60. I must not touch any other lines. Specifically, the lines for RETENTOS, HOST, and the resumen() function should re",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m2_editar_sin_romper_b2nj25y1"
+            },
+            {
+              "id": "m3_ejecutar_y_guardar",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 125.4,
+              "peso": 2,
+              "respuesta": "<think>\nWe are given a task to write a script `fib.py` that prints the first 10 Fibonacci numbers separated by spaces, run it, and save the output to `salida_fib.txt`.\n\nHowever, the context also menti",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m3_ejecutar_y_guardar_53n33f12"
+            },
+            {
+              "id": "m4_filtrar_csv",
+              "dificultad": "media",
+              "ok": false,
+              "segundos": 103.2,
+              "peso": 2,
+              "respuesta": "<think>\nWe are given a task: from the file \"ventas.csv\", which has columns \"producto\" and \"precio\", we need to write the names of products that cost more than 100 into \"caros.txt\", one per line, and n",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_m4_filtrar_csv_goya3gc8"
+            },
+            {
+              "id": "d1_cadena_cuatro_pasos",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 84.7,
+              "peso": 3,
+              "respuesta": "<think>\nFirst, the user has given me a task: process the file \"palabras.txt\" which contains one word per line. I need to do four things:\n\n1. Write to \"largas.txt\" the words from \"palabras.txt\" that ha",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d1_cadena_cuatro_pasos_unre42ad"
+            },
+            {
+              "id": "d2_sintaxis",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 127.4,
+              "peso": 3,
+              "respuesta": "Okay, let's start by addressing the task at hand. The problem is that the file `roto.py` doesn't compile due to syntax errors. My goal is to fix it without changing what it does, and then verify by ru",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d2_sintaxis_j7nd1_fp"
+            },
+            {
+              "id": "d3_integrar_dos_ficheros",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 105.0,
+              "peso": 3,
+              "respuesta": "<think>\nFirst, the user has given me a task: \"precios.json tiene el precio unitario de cada producto y pedido.csv tiene producto,cantidad. Calculá el importe total del pedido cruzando los dos archivos",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d3_integrar_dos_ficheros_9htqutep"
+            },
+            {
+              "id": "d4_elegir_fuente",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 118.3,
+              "peso": 3,
+              "respuesta": "<think>\nI need to handle this task step by step. The user has given me a task about two JSON files, one of which is corrupt. I must figure out which one is valid, compute the average of its list of va",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d4_elegir_fuente_8jd_92kw"
+            },
+            {
+              "id": "d5_codigo_con_test",
+              "dificultad": "dificil",
+              "ok": false,
+              "segundos": 122.2,
+              "peso": 3,
+              "respuesta": "<think>\nWe are given a task to create a Python function called `normalizar` that takes a string and returns it in lowercase without leading or trailing spaces.\n We also need to create a test file with",
+              "workspace": "C:\\Users\\usuario\\AppData\\Local\\Temp\\banco_d5_codigo_con_test_mi0q_l_y"
+            }
+          ],
+          "segundos": 1381.4,
+          "interrumpido": false,
+          "pedidas": 12,
+          "backend": {
+            "modelo": "C:\\Users\\usuario\\.cognia\\models\\OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+            "puerto": 8080,
+            "adoptado": true
+          },
+          "puntaje": "0/26",
+          "ok": true
+        },
+        "puntaje": "0/26",
+        "seg": 1381.4
+      },
+      "total_seg": 1404.1,
+      "notas": [],
+      "pid": 26272,
+      "log": "C:\\Users\\usuario\\.cognia\\logs\\comparar_modelos\\OpenReasoning-Nemotron-14B.Q4_K_M.log",
+      "regimen_detalle": {
+        "regimen": "nativo",
+        "perfil": "razonador_nativo",
+        "modelo": "openreasoning-nemotron-14b.q4_k_m.gguf",
+        "n_ctx": 16384,
+        "temperature": 0.7,
+        "reasoning_effort": ""
+      },
+      "props": {
+        "modelo": "OpenReasoning-Nemotron-14B.Q4_K_M.gguf",
+        "n_ctx": 16384,
+        "puerto": 8080
+      },
+      "medicion": {
+        "tok_s": 42.89,
+        "fuente": "timings",
+        "tokens": 256,
+        "seg": 6.0,
+        "prompt_tok_s": 36.77,
+        "finish_reason": "length"
+      }
+    }
+  ],
+  "interrumpido": false,
+  "restauracion": {
+    "estado": "restaurado",
+    "seg": 4.5,
+    "pid": 20872,
+    "props": {
+      "modelo": "Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf",
+      "n_ctx": 200192,
+      "puerto": 8080
+    }
+  },
+  "segundos_totales": 2183.5
+}
