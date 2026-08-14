@@ -4,7 +4,9 @@ cognia/__main__.py
 Subcommand router. Entry point for the `cognia` CLI after `pip install cognia`.
 
 Usage:
+    cognia empezar          -- camino unico: instala lo que falte, verifica y abre el REPL
     cognia                  -- first-run wizard (once), then REPL
+    cognia doctor           -- diagnostico de la instalacion
     cognia init             -- re-run setup wizard
     cognia install-model    -- download GGUF 3B + llama-server + expertos (recomendado)
     cognia install-weights  -- download shards and configure this machine as a node
@@ -438,11 +440,34 @@ def _cmd_flota() -> int:
 
 
 def _cmd_bbrain() -> None:
-    """Regenera bbrain.md en la raiz del repo introspectando el entorno vivo."""
-    from cognia.bbrain import write_bbrain
+    """Regenera bbrain.md introspectando el entorno vivo.
+
+    DONDE se escribe depende de como esta instalada Cognia: en el repo (hay
+    .git) va a la raiz del repo, que es lo que espera el que lo lee versionado.
+    Instalada por pip, la "raiz" es site-packages: escribir ahi ensucia el
+    entorno, suele ser de solo lectura (Program Files, entornos gestionados) y
+    el usuario nunca encuentra el archivo. En ese caso va a COGNIA_HOME
+    (~/.cognia), que ya es el sitio de todo lo que Cognia escribe."""
+    from cognia.bbrain import generate_bbrain, write_bbrain
     root = Path(__file__).parent.parent
-    path = write_bbrain(root)
+    destino = _ruta_bbrain(root)
+    if destino.parent == root:
+        path = write_bbrain(root)
+    else:
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        # La introspeccion sigue mirando el arbol instalado (root); solo cambia
+        # el destino de la escritura.
+        destino.write_text(generate_bbrain(root), encoding="utf-8")
+        path = destino
     print(f"bbrain.md regenerado: {path}")
+
+
+def _ruta_bbrain(root: Path) -> Path:
+    """Donde va bbrain.md: raiz del repo si es un checkout, si no COGNIA_HOME."""
+    if (Path(root) / ".git").exists():
+        return Path(root) / "bbrain.md"
+    from cognia.first_run import COGNIA_HOME
+    return Path(COGNIA_HOME) / "bbrain.md"
 
 
 def _cmd_fleet() -> None:
@@ -498,7 +523,10 @@ _HELP = """\
 Uso: cognia [comando] [opciones]
 
 Comandos:
+  empezar / start    EL CAMINO UNICO para dejar Cognia lista: instala lo que falte,
+                     verifica el backend y abre el REPL. Si no sabes que correr, esto.
   (ninguno)          Iniciar REPL (lanza wizard en primer uso)
+  doctor             Diagnostico de la instalacion (backend GGUF, flota, velocidad)
   init               Re-ejecutar wizard de configuracion
   modo               Ver o cambiar el modo (local/compartido/memoria) y personalizacion
   install-model      Descargar GGUF 3B + llama-server + expertos (recomendado)
@@ -593,6 +621,25 @@ def main() -> None:
         _cmd_modo()
     elif cmd == "status":
         _cmd_status()
+    elif cmd == "doctor":
+        # Estaba documentado en README y el propio REPL manda aqui cuando el
+        # backend falla ("revisa el backend con: cognia doctor", cli.py:9822 y
+        # :9847), pero el dispatcher nunca tuvo la rama: respondia "Comando
+        # desconocido: 'doctor'". El modulo existe desde siempre y solo se
+        # podia correr con `python -m cognia.doctor`.
+        from cognia.doctor import main as _doc_main
+        raise SystemExit(_doc_main())
+    elif cmd in ("empezar", "start"):
+        # Camino unico de arranque (cognia/arranque.py). Import perezoso y con
+        # mensaje legible: si el modulo no esta en esta instalacion, el usuario
+        # tiene que ver QUE falta, no un ImportError crudo con traceback.
+        try:
+            from cognia.arranque import main as _arranque_main
+        except Exception as exc:
+            print(f"[cognia] 'empezar' no esta disponible en esta instalacion: {exc}")
+            print("  Mientras tanto: 'cognia install-model' y luego 'cognia doctor'.")
+            raise SystemExit(1)
+        raise SystemExit(_arranque_main(sys.argv[2:]))
     elif cmd == "leave":
         _cmd_leave()
     elif cmd in ("contribucion", "contribution"):
