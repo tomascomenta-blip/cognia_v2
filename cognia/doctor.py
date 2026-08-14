@@ -15,12 +15,9 @@ import importlib
 import json
 import os
 import re
+import shutil
 import sys
 import urllib.request
-
-# Installed CLI has no "repo root"; use the current working directory for the
-# file-presence checks (.env / db / model_shards), which are advisory anyway.
-_ROOT = os.getcwd()
 
 _REQUIRED_PACKAGES = [
     "fastapi", "uvicorn", "numpy", "requests", "pydantic", "cryptography",
@@ -30,6 +27,24 @@ _OPTIONAL_PACKAGES = [
     ("sentence_transformers", "mejores embeddings — pip install sentence-transformers"),
     ("numba", "kernels JIT mas rapidos — pip install numba"),
 ]
+
+# La orden EXACTA que arregla la flota apagada: funciona instalado (comando
+# del paquete) y en el repo (scripts/servir_flota.py delega en el mismo modulo).
+# Definida ARRIBA porque la usan dos checks (backend LLM y flota); antes vivia
+# a mitad del archivo y check_llm_backend mandaba a `python
+# scripts/servir_modelo.py`, una ruta que NO viaja en el wheel: el usuario
+# instalado por pip leia una orden imposible de ejecutar.
+_ORDEN_ARRANCAR = "python -m cognia flota arrancar pensar"
+
+# Titulos de los [WARN] emitidos en la corrida. POR QUE una lista global y no
+# un return: _warn devuelve True (un aviso NO es un fallo, y convertirlo en
+# fallo rompe el exit code de las instalaciones sanas), asi que run_all —que
+# solo miraba `if not fn()`— era CIEGO a los avisos y cerraba "Todo en orden"
+# con 4 WARN en pantalla (reproducido 2026-08-13: flota parcial, 83 eventos
+# DEGRADADO en 24h, fleet30 sin GGUF, numba). Las tres auditorias anteriores
+# pelearon el mensaje caso por caso subiendo checks a _fail; el defecto estaba
+# en la AGREGACION, no en cada check.
+_AVISOS: list[str] = []
 
 
 def _line(tag: str, label: str, detail: str = "") -> None:
@@ -51,6 +66,7 @@ def _fail(label: str, detail: str = "") -> bool:
 
 def _warn(label: str, detail: str = "") -> bool:
     _line("[WARN]", label, detail)
+    _AVISOS.append(label.strip())
     return True
 
 
@@ -154,7 +170,7 @@ def check_llm_backend() -> bool:
         # corregir.
         return _fail(
             "Backend LLM no disponible",
-            "arrancalo con: python scripts/servir_modelo.py  "
+            f"arrancalo con: {_ORDEN_ARRANCAR}  "
             "(o fija COGNIA_LLM_URL). Sin esto Cognia degrada a sus "
             "fallbacks en silencio")
 
@@ -187,10 +203,121 @@ def check_llm_backend() -> bool:
 
 
 def check_env() -> bool:
-    cfg = os.path.join(os.path.expanduser("~"), ".cognia", "config.env")
-    if os.path.isfile(cfg):
-        return _ok("config en ~/.cognia/config.env")
-    return _warn("config", "no configurado -- ejecuta: cognia init")
+    """config.env: que EXISTA no basta — que sus rutas apunten a algo REAL.
+
+    Antes esto era un os.path.isfile(cfg) y daba [OK] con el archivo vacio o
+    con LLAMA_GGUF_PATH apuntando a un GGUF borrado (el caso tipico: se mueve
+    o se limpia ~/.cognia/models y config.env queda mintiendo). El sintoma
+    aguas abajo es el de siempre en este repo: llama_backend no encuentra el
+    modelo, la cascada cae al fallback y el doctor decia [OK] sobre la
+    configuracion que causo la degradacion."""
+    # La ruta se le pide a first_run en vez de reconstruirla aca: tener el
+    # path duplicado ya causo el bug historico de los shards (el doctor
+    # miraba un sitio y el orquestador otro), y ademas COGNIA_HOME es
+    # overrideable por env.
+    try:
+        from cognia.first_run import CONFIG_FILE, _load_config
+        cfg = str(CONFIG_FILE)
+    except Exception as exc:
+        return _warn("config no verificable", f"first_run no importable: {exc}")
+    if not os.path.isfile(cfg):
+        return _warn("config", "no configurado -- ejecuta: cognia init")
+    try:
+        conf = _load_config()
+    except Exception as exc:
+        return _warn("config ilegible", f"{cfg}: {exc}")
+    if not conf:
+        return _warn("config vacia", f"{cfg} no tiene ninguna clave -- "
+                                     "ejecuta: cognia init")
+    # Solo las claves que nombran un fichero en disco (*_PATH). Las _URL y las
+    # de preferencias no se pueden validar mirando el sistema de archivos.
+    rutas = {k: v for k, v in conf.items()
+             if k.startswith("LLAMA_") and k.endswith("_PATH") and v}
+    rotas = [f"{k}={v}" for k, v in rutas.items() if not os.path.isfile(v)]
+    if rotas:
+        return _warn(f"config: {len(rotas)}/{len(rutas)} ruta(s) LLAMA_*_PATH "
+                     f"apuntan a ficheros que NO existen",
+                     "; ".join(rotas) + " -- corrige con: cognia install-model")
+    detalle = f"{len(conf)} clave(s)"
+    if rutas:
+        detalle += f", {len(rutas)} ruta(s) LLAMA_*_PATH verificadas en disco"
+    return _ok("config en ~/.cognia/config.env", detalle)
+
+
+def check_instalacion() -> bool:
+    """La instalacion en si: comando en PATH, version coherente, disco y setup.
+
+    POR QUE: el doctor auditaba el backend y la config pero nunca la
+    INSTALACION, que es de donde salen los reportes de "instale cognia y no
+    anda". Los cuatro sintomas reales, en orden: (1) pip instala el script en
+    un Scripts/ que no esta en PATH y `cognia` no existe como comando, (2) el
+    paquete importado no es el que dice la metadata (dos copias / instalacion
+    editable rancia), (3) el disco no da para el modelo, (4) el wizard nunca
+    termino y el arranque va a preguntar de nuevo."""
+    ruta = shutil.which("cognia")
+    if ruta:
+        _ok(f"comando 'cognia' en PATH", ruta)
+    else:
+        # La orden exacta: el directorio donde pip dejo los scripts de ESTE
+        # interprete, no una receta generica que el usuario tiene que traducir.
+        scripts_dir = os.path.join(sys.prefix, "Scripts" if os.name == "nt" else "bin")
+        _warn("comando 'cognia' no esta en PATH",
+              f"agrega {scripts_dir} al PATH (Windows: "
+              f'setx PATH "%PATH%;{scripts_dir}") o usa: '
+              f"{os.path.basename(sys.executable)} -m cognia")
+
+    # Version importada vs version instalada: si difieren, el codigo que corre
+    # NO es el que la metadata declara (dos copias en sys.path).
+    try:
+        import cognia as _cognia
+        v_import = getattr(_cognia, "__version__", "") or "?"
+    except Exception as exc:
+        v_import = f"<no importable: {exc}>"
+    try:
+        from importlib.metadata import version as _md_version
+        v_meta = _md_version("cognia-ai")
+    except Exception:
+        v_meta = ""
+    if not v_meta:
+        _warn(f"cognia {v_import}",
+              "sin metadata de 'cognia-ai' (corriendo desde el repo, "
+              "no desde el wheel)")
+    elif v_meta != v_import:
+        _warn(f"version incoherente: importada {v_import} != instalada {v_meta}",
+              "hay dos copias de cognia en sys.path -- "
+              "pip install -U --force-reinstall cognia-ai")
+    else:
+        _ok(f"cognia {v_import} (metadata coincide con el paquete importado)")
+
+    # Espacio libre en ~: el modelo base son ~2,6 GB y el usuario se entera
+    # hoy a mitad de la descarga (auditoria 2026-07-15).
+    try:
+        libre_gb = shutil.disk_usage(os.path.expanduser("~")).free / 1e9
+        if libre_gb < 3.0:
+            _warn(f"espacio libre en ~: {libre_gb:.1f} GB",
+                  "el stack base necesita ~2.6 GB; libera espacio antes de "
+                  "cognia install-model")
+        else:
+            _ok(f"espacio libre en ~: {libre_gb:.1f} GB")
+    except Exception as exc:
+        _warn("espacio en disco no medible", str(exc))
+
+    # .setup_done: sin el, cada arranque vuelve a lanzar el wizard.
+    try:
+        from cognia.first_run import FIRST_RUN_OK
+        marca = FIRST_RUN_OK
+    except Exception:
+        marca = None
+    if marca is not None and os.path.isfile(str(marca)):
+        _ok("setup completado (.setup_done presente)")
+    else:
+        _warn("setup NO completado (falta ~/.cognia/.setup_done)",
+              "ejecuta: cognia init")
+
+    # Devuelve True siempre: nada de esto impide que Cognia piense, por eso
+    # son avisos y no fallos. Los avisos NO se pierden: _warn ya los conto y
+    # run_all los enumera al cerrar.
+    return True
 
 
 def check_db() -> bool:
@@ -478,8 +605,13 @@ def run_all() -> int:
         apply_config()
     except Exception:
         pass
+    # Cada corrida parte de cero: run_all se llama varias veces por proceso
+    # (el /doctor del CLI, los tests), y sin esto los avisos se acumularian
+    # entre corridas y la segunda enumeraria los de la primera.
+    _AVISOS.clear()
     sections = [
         ("Version de Python", check_python),
+        ("Instalacion",       check_instalacion),
         ("Paquetes Python",   check_packages),
         ("Backend GGUF (principal)", check_gguf),
         ("Ollama (opcional)", check_ollama),
@@ -505,10 +637,20 @@ def run_all() -> int:
             _fail(label, str(e))
             fails += 1
     print()
-    if fails == 0:
-        print("Todo en orden. Cognia esta lista.")
-    else:
+    # El cierre tiene que decir lo que se VIO. "Todo en orden" con avisos en
+    # pantalla es la mentira que este archivo lleva tres auditorias
+    # corrigiendo: el usuario lee la ultima linea y cierra la terminal.
+    if fails:
         print(f"{fails} chequeo(s) con problemas. Revisa los [FAIL] arriba.")
+        if _AVISOS:
+            print(f"Ademas hay {len(_AVISOS)} aviso(s): "
+                  + "; ".join(_AVISOS))
+    elif _AVISOS:
+        print(f"Sin fallos, pero {len(_AVISOS)} aviso(s):")
+        for aviso in _AVISOS:
+            print(f"  - {aviso}")
+    else:
+        print("Todo en orden. Cognia esta lista.")
     print()
     return 0 if fails == 0 else 1
 

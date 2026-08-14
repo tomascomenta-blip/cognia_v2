@@ -321,14 +321,23 @@ def registrar(ruta, contenido_previo: str | None, motivo: str = "",
                 contenido_previo = None
             else:
                 en_disco = _leer_exacto(destino)
-                if not contenido_previo:
+                if en_disco is None:
+                    # El fichero EXISTE pero no es utf-8 legible (latin-1,
+                    # binario, sin permiso). Manda el disco SIEMPRE, tambien
+                    # cuando el llamador mando texto: si leyo con
+                    # errors='replace' lo que trae son U+FFFD, y guardarlos como
+                    # respaldo 'guardado' hacia que /deshacer los escribiera
+                    # ENCIMA del original y contestara "restaurado" — o sea,
+                    # la red de seguridad destruyendo el fichero que venia a
+                    # salvar. 'no_versionado' hace que /deshacer AVISE.
+                    estado = "no_versionado"
+                    tam_previo = tam_disco
+                    contenido_previo = None
+                elif not contenido_previo:
                     # None o "": el llamador dice "no habia nada" pero el
                     # fichero SI esta. Manda el disco (ver docstring).
                     contenido_previo = en_disco
-                    if contenido_previo is None:
-                        estado = "no_versionado"  # binario / sin permiso
-                elif en_disco is not None and \
-                        _norm(en_disco) == _norm(contenido_previo):
+                elif _norm(en_disco) == _norm(contenido_previo):
                     # El llamador ya leyo el fichero (con read_text, o sea con
                     # los saltos normalizados). Es el MISMO contenido, asi que
                     # se respalda la copia del DISCO: conserva los saltos de

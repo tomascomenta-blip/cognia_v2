@@ -255,21 +255,51 @@ def install_heavy_code(dest_dir: Path = HEAVY_DIR, hf_token: str = "") -> Path |
         return None
 
 
+# Tamano del stack, en bytes. FUENTE UNICA a proposito: el wizard prometia
+# "~2GB" en su prompt mientras esta reserva pedia 2,6 GB, asi que un disco con
+# 2,3 GB libres pasaba el prompt y reventaba con RuntimeError a mitad del
+# install. Los textos del wizard se derivan de aca (cognia/first_run.py).
+BYTES_STACK_BASE = 2_600_000_000       # GGUF Q4_K_M + llama-server + fleet LoRA
+BYTES_HEAVY_CODE = 5_000_000_000       # extra del 7B de codigo (--with-heavy-code)
+
+
+def espacio_faltante(with_heavy_code: bool = False) -> float:
+    """GB que FALTAN en el disco de ~ para el stack pedido; 0.0 si alcanza.
+
+    Separada de _check_espacio para que el wizard pueda PREGUNTAR con el
+    numero en la mano ("te faltan 0.7 GB") en vez de descubrirlo lanzando una
+    excepcion despues de que el usuario ya dijo que si."""
+    necesario = BYTES_STACK_BASE + (BYTES_HEAVY_CODE if with_heavy_code else 0)
+    try:
+        libre = shutil.disk_usage(str(Path.home())).free
+    except Exception:
+        return 0.0     # disco no medible: no bloquear por no poder mirar
+    if libre >= necesario:
+        return 0.0
+    return (necesario - libre) / 1e9
+
+
+def gb_stack(with_heavy_code: bool = False) -> float:
+    """Los GB que va a ocupar el stack pedido (para los textos de los prompts)."""
+    return (BYTES_STACK_BASE
+            + (BYTES_HEAVY_CODE if with_heavy_code else 0)) / 1e9
+
+
 def _check_espacio(with_heavy_code: bool) -> None:
     """Aborta ANTES de descargar si el disco no alcanza (auditoria
     2026-07-15: sin chequeo, la descarga de 1.9-4.7 GB moria a la mitad con
     un error crudo de urllib). Margen 1 GB sobre lo estimado."""
-    import shutil as _sh
-    necesario = 2_600_000_000 + (5_000_000_000 if with_heavy_code else 0)
-    try:
-        libre = _sh.disk_usage(str(Path.home())).free
-    except Exception:
+    faltan = espacio_faltante(with_heavy_code)
+    if not faltan:
         return
-    if libre < necesario:
-        raise RuntimeError(
-            f"espacio insuficiente en disco: libres {libre / 1e9:.1f} GB, "
-            f"necesarios ~{necesario / 1e9:.1f} GB. Libera espacio y "
-            "reintenta cognia install-model.")
+    try:
+        libre = shutil.disk_usage(str(Path.home())).free / 1e9
+    except Exception:
+        libre = 0.0
+    raise RuntimeError(
+        f"espacio insuficiente en disco: libres {libre:.1f} GB, "
+        f"necesarios ~{gb_stack(with_heavy_code):.1f} GB (faltan "
+        f"{faltan:.1f} GB). Libera espacio y reintenta cognia install-model.")
 
 
 def install_model(skip_gguf: bool = False, skip_server: bool = False,

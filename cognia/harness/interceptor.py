@@ -73,9 +73,19 @@ def raiz_proyecto(ctx: dict | None = None) -> Path:
     except Exception:
         pass
     try:
-        from cognia.agents.workers.dev_tools import AGENT_WORKSPACE_ROOT
-        if AGENT_WORKSPACE_ROOT:
-            return Path(str(AGENT_WORKSPACE_ROOT))
+        # _root_actual() y NO la constante AGENT_WORKSPACE_ROOT: esa se fija al
+        # IMPORTAR el modulo. Las tools escriben por _root_actual() (call-time),
+        # asi que en un proceso largo que cambia de workspace entre tareas —un
+        # REPL, o el servidor remoto que fija el ws por sesion (cognia/remoto/
+        # servidor.py:109)— el checkpoint se registraba en el workspace VIEJO
+        # mientras la escritura ocurria en el nuevo: la escritura quedaba SIN
+        # RED y /deshacer restauraba un fichero que nadie habia tocado. Es el
+        # mismo bug que dev_tools ya cazo en 2026-07-21 ("6 tareas de agente
+        # escribieron todas en la carpeta de la primera").
+        from cognia.agents.workers import dev_tools
+        raiz = dev_tools._root_actual()
+        if raiz:
+            return Path(str(raiz))
     except Exception:
         pass
     return Path.cwd()
@@ -96,13 +106,35 @@ def ruta_destino(name: str, args: str) -> str:
 
 
 def _leer_previo(ruta: Path) -> str | None:
-    """El contenido actual del fichero, o None si no existe/no es texto."""
+    """El contenido actual del fichero, o None si no existe/no es texto utf-8.
+
+    Este valor es LO UNICO que ve `checkpoints.registrar` sobre el estado previo,
+    y su unico criterio para decidir si el respaldo sirve. Por eso lee con el
+    MISMO lector que usa el almacen (`checkpoints._leer_exacto`: utf-8 estricto,
+    newline='') en vez de con `errors='replace'`.
+
+    POR QUE (2026-08-13): con `errors='replace'` un fichero latin-1 devolvia
+    texto NO vacio lleno de U+FFFD. `registrar` cree al llamador cuando manda
+    contenido no vacio, asi que su defensa (releer el disco y marcar
+    'no_versionado' cuando no es utf-8) no reponia nada: el blob se guardaba ya
+    CORRUPTO y con estado='guardado'. /deshacer escribia esos U+FFFD ENCIMA del
+    fichero original —destruyendo los acentos de verdad— y contestaba
+    "restaurado". Devolviendo None, `registrar` marca 'no_versionado' y
+    /deshacer AVISA de que no restauro nada, que es la unica respuesta honesta:
+    mejor no restaurar que restaurar basura (LIMITES DECLARADOS de
+    checkpoints.py).
+    """
     try:
         if not ruta.is_file():
             return None
-        return ruta.read_text(encoding="utf-8", errors="replace")
+        from cognia.harness.checkpoints import _leer_exacto
+        return _leer_exacto(ruta)
     except Exception:
-        return None
+        # Ni siquiera se pudo importar el almacen: mismo criterio, a mano.
+        try:
+            return ruta.read_bytes().decode("utf-8")
+        except Exception:
+            return None
 
 
 def antes(name: str, args: str, ctx: dict) -> str | None:

@@ -36,10 +36,21 @@ MODEL_KEY = "qwen-coder-3b-q4"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _limpiar(answer: str) -> str:
+    """Normaliza una respuesta del usuario: espacios y BOM fuera.
+
+    El BOM (\\ufeff) llega DE VERDAD cuando la entrada viene por pipe: una
+    respuesta escrita por PowerShell (`'1' | cognia init`) o un fichero
+    guardado como UTF-8-with-BOM entrega '\\ufeff1', que no es igual a '1' y
+    caia en la rama de respuesta no reconocida — es decir, en el default
+    silencioso que descargaba 2,6 GB."""
+    return answer.strip().lstrip("﻿").strip()
+
+
 def _ask(prompt: str, default: str = "") -> str:
     suffix = f" [{default}]" if default else ""
     try:
-        answer = input(f"{prompt}{suffix}: ").strip()
+        answer = _limpiar(input(f"{prompt}{suffix}: "))
     except (EOFError, KeyboardInterrupt):
         print()
         sys.exit(0)
@@ -49,7 +60,9 @@ def _ask(prompt: str, default: str = "") -> str:
 def _ask_yn(prompt: str, default: bool = True) -> bool:
     default_str = "Y/n" if default else "y/N"
     try:
-        answer = input(f"{prompt} [{default_str}]: ").strip().lower()
+        # Mismo saneo que _ask: un 'n' con BOM por pipe se leia como respuesta
+        # desconocida y devolvia... el default, que aca es Y = descargar.
+        answer = _limpiar(input(f"{prompt} [{default_str}]: ")).lower()
     except (EOFError, KeyboardInterrupt):
         print()
         sys.exit(0)
@@ -272,22 +285,50 @@ def _write_config(vars: dict[str, str]) -> None:
     install-model` acababa de persistir (y al reves) — correr los dos flujos
     en cualquier orden rompia al otro."""
     COGNIA_HOME.mkdir(parents=True, exist_ok=True)
-    combinado = _load_config()
+    # _leer_env(CONFIG_FILE) y NO _load_config(): la vista combinada incluye
+    # ~/.cognia/.env, y mergearla aca copiaria las claves del instalador
+    # dentro de config.env, duplicandolas y congelando valores que el .env
+    # todavia manda. Lo que se reescribe es config.env con lo de config.env.
+    combinado = _leer_env(CONFIG_FILE)
     combinado.update({k: v for k, v in vars.items() if v})
     lines = [f"{k}={v}\n" for k, v in combinado.items() if v]
     CONFIG_FILE.write_text("".join(lines), encoding="utf-8")
     print(f"\n  Configuracion guardada en {CONFIG_FILE}")
 
 
-def _load_config() -> dict[str, str]:
-    if not CONFIG_FILE.exists():
+# install.ps1 escribe la configuracion en ~/.cognia/.env (install.ps1:37,
+# `$ENV_FILE = Join-Path $DATA_DIR ".env"`), no en config.env. Todo lo que
+# leia solo config.env —apply_config incluido— era CIEGO a lo que dejo el
+# instalador de Windows: una maquina instalada con el .ps1 arrancaba sin
+# LLAMA_GGUF_PATH y caia al fallback en silencio.
+ENV_FILE_INSTALADOR = COGNIA_HOME / ".env"
+
+
+def _leer_env(path: Path) -> dict[str, str]:
+    """Parsea un fichero KEY=VALUE. Nunca lanza: un config ilegible no puede
+    tumbar el arranque del CLI."""
+    try:
+        if not path.exists():
+            return {}
+        texto = path.read_text(encoding="utf-8")
+    except Exception:
         return {}
-    config = {}
-    for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
+    config: dict[str, str] = {}
+    for line in texto.splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, _, v = line.partition("=")
             config[k.strip()] = v.strip()
+    return config
+
+
+def _load_config() -> dict[str, str]:
+    """Configuracion efectiva: .env del instalador como base, config.env
+    encima. config.env GANA porque es el que escriben el wizard y
+    `cognia install-model`, o sea lo mas reciente y lo que el usuario eligio;
+    el .env es lo que dejo install.ps1 una vez."""
+    config = _leer_env(ENV_FILE_INSTALADOR)
+    config.update(_leer_env(CONFIG_FILE))
     return config
 
 
@@ -374,7 +415,17 @@ nunca salen de aca. Elegi como queres usarla:
     print("     Aprendizaje, grafo de conocimiento y memoria, sin LLM.")
     print()
 
+    # RE-PREGUNTA en vez de adivinar. Antes cualquier respuesta no reconocida
+    # ('x', 'local', un '1' con BOM, un dedazo) caia en el `else` y se
+    # interpretaba como opcion 1 = LOCAL = descarga de 2,6 GB que el usuario
+    # nunca pidio. El default silencioso queda SOLO para la cadena vacia
+    # (Enter), que es el unico caso en que el usuario dijo "lo que vos digas".
+    # El EOF no cuelga el bucle: _ask sale con sys.exit(0).
     mode = _ask("Elegi una opcion (1/2/3)", default="1")
+    while mode not in ("1", "2", "3"):
+        print(f"  '{mode}' no es una opcion. Escribi 1, 2 o 3 "
+              f"(Enter = 1, la recomendada).")
+        mode = _ask("Elegi una opcion (1/2/3)", default="1")
 
     config: dict[str, str] = {}
     COGNIA_HOME.mkdir(parents=True, exist_ok=True)
@@ -390,7 +441,8 @@ nunca salen de aca. Elegi como queres usarla:
         config["COGNIA_RUN_MODE"] = "memoria"
         _wizard_memory_only(config)
     else:
-        mode = "1"
+        # mode == "1" garantizado por el bucle de arriba; ya no hay `mode = "1"`
+        # que reescriba una respuesta desconocida como si fuera un si.
         config["COGNIA_RUN_MODE"] = "local"
         ok = _wizard_standalone(config)
 
@@ -491,10 +543,24 @@ def _wizard_standalone(config: dict) -> bool:
     # shards NPZ quedan como opcion avanzada: su pipeline caia a un tokenizer
     # de simulacion cuando faltaba tokenizer.json / transformers ("el modelo
     # esta descargado pero Qwen no funciona").
-    if _ask_yn("Descargar el modelo Qwen2.5-Coder-3B GGUF + expertos (~2GB)?", default=True):
+    # Import local (no de modulo): model_install importa de first_run, y
+    # subirlo arriba haria el ciclo.
+    from cognia.model_install import espacio_faltante, gb_stack, install_model
+
+    # El disco se MIDE antes de preguntar. Dos bugs en uno: (a) el prompt
+    # prometia "~2GB" cuando la reserva real son 2,6 GB, y (b) el chequeo de
+    # espacio corria DENTRO de install_model, o sea que al usuario se le
+    # preguntaba, decia que si, y recien ahi se enteraba con un RuntimeError
+    # de que no entraba. Ahora se lo dice antes y no se le ofrece.
+    faltan = espacio_faltante(False)
+    if faltan:
+        print(f"  [!] No hay espacio para el modelo: te faltan {faltan:.1f} GB "
+              f"(el stack ocupa ~{gb_stack(False):.1f} GB).")
+        print("      Libera espacio y luego: cognia install-model")
+    elif _ask_yn(f"Descargar el modelo Qwen2.5-Coder-3B GGUF + expertos "
+                 f"(~{gb_stack(False):.1f} GB)?", default=True):
         hf_token = _ask("HuggingFace token (opcional, Enter para omitir)", default="")
         try:
-            from cognia.model_install import install_model
             install_model(hf_token=hf_token)
             return True  # install_model ya persistio LLAMA_GGUF_PATH/LLAMA_SERVER_PATH
         except Exception as exc:
