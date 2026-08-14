@@ -38,6 +38,13 @@ jobs:
           pip-audit --requirement requirements.txt || true
 
       - name: Run tests
+        # Mismo comando que CLAUDE.md:94 ("Verificación"), y por sus dos razones:
+        #  --ignore=tests/test_e2e_inference.py -> ese fichero levanta un modelo
+        #    real; en el runner no hay GGUF, así que solo aportaba ruido lento.
+        #  sin -x -> con -x el job aborta en el PRIMER fallo y el log nunca dice
+        #    CUÁNTOS hay. La suite es la compuerta: hace falta el conteo entero
+        #    (N passed / M failed) para saber si un cambio rompió una cosa o
+        #    veinte. El exit code sigue siendo != 0 igual, que es lo que corta el CI.
         run: |
           pip install pytest --quiet
-          pytest tests/ -x --tb=short
+          pytest tests/ --ignore=tests/test_e2e_inference.py --tb=short

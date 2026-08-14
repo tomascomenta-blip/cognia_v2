@@ -125,3 +125,15 @@ datos_bancos/
 
 # Clones superficiales de repo_a_prompt (ingenieria inversa de repos)
 .repo_reverse/
+
+# ── Estado de RUNTIME que se habia colado al indice (2026-08-14) ─────────
+# Pidfiles de los servidores (scripts/servir_modelo.py:225, servir_vlm.py:174,
+# summoner.py:565): un PID solo vale dentro de la maquina y del arranque que
+# lo escribio. Estaban trackeados factorial.pid y reparacion.pid apuntando a
+# procesos muertos — clonar el repo te traia el PID de otra maquina.
+*.pid
+# Snapshot del cache de vectores episodico (episodic_fast.py:72, junto a la DB
+# y regenerable desde ella con mark_dirty()). Su mitad .npy ya estaba ignorada
+# aca arriba; solo se habia colado la mitad .meta.json, que ademas viajaba con
+# una observacion real dentro.
+vector_cache.meta.json
