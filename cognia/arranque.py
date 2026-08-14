@@ -22,9 +22,18 @@ CUATRO PASOS, cada uno impreso como [OK] (ya estaba) / [HAGO] (lo hice ahora)
                con el espacio libre COMPROBADO y el tamano REAL del fichero
                (HEAD a HuggingFace) medidos ANTES de preguntar.
   3. backend   responde 127.0.0.1:8080? -> si no, cognia.flota.arrancar().
-  4. capacidad cognia.agent.capacidad.diagnostico(): en UNA linea, el regimen
+  4. capacidad cognia.agent.capacidad.medicion(): en UNA linea, el regimen
                (NATIVO o TEXTO) con el que el agente va a hablarle a ese
                server. Es lo que conecta la iniciacion con el adaptador.
+
+Hay un cuarto estado, [AVISO]: la maquina quedo lista pero algo no se pudo
+SABER. Existe por el paso 4: la sonda de capacidad tarda 26-30 s en esta
+maquina cargada contra un timeout de 30 s, y cuando no contesta el registro
+vuelve con soporta_tools=False — que NO es "va en modo texto", es "no se
+midio". Imprimir ahi "regimen TEXTO" seria publicar como veredicto una
+medicion que no ocurrio. AVISO no baja el exit: el server responde y el
+agente funciona (cae al marco de texto de siempre); lo unico que se prohibe
+es afirmar un regimen que nadie midio.
 
 IDEMPOTENTE POR CONTRATO: correrlo dos veces seguidas no pregunta nada la
 segunda vez y no repite trabajo - solo hace lo que falta. Cierra entrando al
@@ -33,8 +42,8 @@ REPL (salvo --sin-repl), que es lo que el usuario queria desde el principio.
     cognia empezar [--sin-descarga] [--sin-repl] [--json]
     python -m cognia.arranque --sin-descarga --sin-repl --json
 
-Exit code: 0 si la maquina quedo lista, 1 si falta algo (con UNA linea
-accionable por stderr), 2 si el flag no existe.
+Exit code: 0 si la maquina quedo lista ([OK]/[HAGO]/[AVISO]), 1 si falta algo
+([FALTA], con UNA linea accionable por stderr), 2 si el flag no existe.
 
 NUNCA relanza un backend vivo. `flota.arrancar()` empieza por `parar()`, que
 mata TODOS los llama-server de la maquina: un timeout de red no puede costarle
@@ -259,8 +268,8 @@ def _paso(nombre: str, estado: str, detalle: str, accion: str = "") -> dict:
 
 def _decir(paso: dict) -> None:
     """Una linea por paso. ASCII puro: la consola del dueno es cp1252."""
-    tag = {"ok": "[OK]   ", "hago": "[HAGO] ", "falta": "[FALTA]"}.get(
-        paso["estado"], "[?]    ")
+    tag = {"ok": "[OK]   ", "hago": "[HAGO] ", "falta": "[FALTA]",
+           "aviso": "[AVISO]"}.get(paso["estado"], "[?]    ")
     print(f"  {tag} {paso['paso']:9s} {paso['detalle']}")
 
 
@@ -418,25 +427,76 @@ def paso_backend(url: str = "", vivo: Optional[bool] = None) -> dict:
                  f"{url} arriba - {p.get('modelo') or 'modelo desconocido'}")
 
 
+def _no_se_pudo_medir(motivo: str) -> bool:
+    """¿Ese `motivo` de capacidad dice "no soporta" o dice "no pregunte"?
+
+    capacidad.sondar devuelve SIEMPRE soporta_tools=False cuando algo sale
+    mal, y mete en `motivo` dos cosas muy distintas: el veredicto medido
+    ("respondio sin tool_calls (finish_reason=stop)") y la NO-medicion ("no
+    se pudo consultar al server: TimeoutError: timed out", capacidad.py:198-
+    201). Solo la segunda familia se reconoce aqui, por substring del motivo,
+    que es lo unico que la API publica expone: el registro no trae una marca
+    de "hubo respuesta"."""
+    bajo = (motivo or "").lower()
+    return any(t in bajo for t in
+               ("no se pudo consultar", "timeout", "timed out", "urlerror"))
+
+
 def paso_capacidad(backend_ok: bool, url: str = "") -> dict:
     """(4) El regimen con el que el agente le va a hablar a ESE server.
 
-    Medido, no declarado: capacidad.diagnostico() hace una peticion real con
-    una tool trivial. Es la linea que le falta a todo el resto de la
-    iniciacion — hasta hoy el usuario terminaba de instalar sin saber si su
-    agente iba a usar tool-calling nativo o el marco de texto."""
+    Medido, no declarado: capacidad.medicion() hace una peticion real con una
+    tool trivial. Es la linea que le falta a todo el resto de la iniciacion —
+    hasta hoy el usuario terminaba de instalar sin saber si su agente iba a
+    usar tool-calling nativo o el marco de texto.
+
+    Y si la medicion NO se pudo hacer, se dice ESO y no un regimen. El caso
+    esta reproducido (1 de 2 homes virgenes, 2026-08-13): la sonda tarda
+    26-30 s en esta maquina cargada contra su _TIMEOUT_S=30, vuelve
+    soporta_tools=False con motivo 'TimeoutError' y la version anterior de
+    este paso imprimia "regimen TEXTO con <modelo>" como si lo hubiera
+    medido. Peor: medicion() cachea TAMBIEN los fallos (capacidad.py:268-273)
+    con un TTL de 24 h, asi que ese regimen falso lo arrastraba el usuario
+    nuevo todo el dia — el agente entero decide por esta medicion. Por eso
+    aqui, ademas de decir la verdad, se llama a invalidar(url): un timeout es
+    transitorio y no puede quedar sellado.
+
+    Se usa medicion() y no diagnostico() a proposito: diagnostico() devuelve
+    la linea YA formateada como veredicto ("regimen TEXTO con ...") y no deja
+    manera de distinguir los dos casos."""
     if not backend_ok:
         return _paso("capacidad", "falta",
                      "sin backend no hay regimen que medir",
                      "arregla el paso 3 y vuelve a correr: cognia empezar")
+    url = url or url_backend()
+    reintento = "python -m cognia.agent.capacidad --forzar"
     try:
-        from cognia.agent.capacidad import diagnostico
-        linea = diagnostico(url or url_backend())
+        from cognia.agent import capacidad as cap
+        reg = cap.medicion(url) or {}
     except Exception as exc:
-        # capacidad.diagnostico no lanza por contrato; si lo hiciera, el
-        # arranque no se cae por ello: la maquina sigue estando lista.
-        return _paso("capacidad", "ok", f"no se pudo medir ({exc})")
-    return _paso("capacidad", "ok", linea)
+        # capacidad.medicion no lanza por contrato; si lo hiciera, el arranque
+        # no se cae por ello (la maquina sigue lista) pero tampoco inventa un
+        # regimen que no midio.
+        return _paso("capacidad", "aviso",
+                     f"no pude medir el regimen ({exc}); "
+                     f"reintenta: {reintento}", reintento)
+
+    motivo = str(reg.get("motivo") or "")
+    if not reg.get("soporta_tools") and _no_se_pudo_medir(motivo):
+        try:
+            cap.invalidar(url)
+        except Exception:
+            # Si no se puede limpiar el cache, el aviso se imprime igual: lo
+            # inaceptable es callarlo, no que el JSON quede sucio.
+            pass
+        return _paso("capacidad", "aviso",
+                     f"no pude medir el regimen ({motivo}); no lo dejo "
+                     f"cacheado - reintenta: {reintento}", reintento)
+
+    # Medicion de verdad: el mismo formato de capacidad.diagnostico().
+    modelo = reg.get("modelo") or "(sin backend)"
+    regimen = "NATIVO" if reg.get("soporta_tools") else "TEXTO"
+    return _paso("capacidad", "ok", f"regimen {regimen} con {modelo}: {motivo}")
 
 
 # ── Orquestacion ─────────────────────────────────────────────────────────────
@@ -475,12 +535,20 @@ def _correr(sin_descarga: bool, interactivo: bool) -> dict:
     _decir(p_cap)
     pasos.append(p_cap)
 
-    listo = all(p["estado"] in ("ok", "hago") for p in pasos)
+    # 'aviso' NO cuenta como fallo: la maquina esta lista (el backend
+    # responde), lo que falto fue SABER algo — hoy solo el regimen del paso 4
+    # cuando la sonda no contesta a tiempo. Convertir eso en exit 1 dejaria al
+    # usuario fuera del REPL por un timeout de una sonda opcional; callarlo
+    # seria mentir. Se avisa y se sigue.
+    listo = not any(p["estado"] == "falta" for p in pasos)
     fallo = next((p for p in pasos if p["estado"] == "falta"), None)
     return {
         "listo": listo,
         "home": str(_home()),
         "pasos": pasos,
+        # Solo hay regimen si se MIDIO: con [AVISO] (sonda sin respuesta) o
+        # [FALTA] (sin backend) el campo va vacio. Quien consuma el JSON tiene
+        # que poder distinguir "TEXTO" de "no se sabe" sin leer prosa.
         "regimen": p_cap["detalle"] if p_cap["estado"] == "ok" else "",
         "accion": (fallo or {}).get("accion", "") if fallo else "",
         "segundos": round(time.time() - t0, 2),

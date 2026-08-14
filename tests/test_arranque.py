@@ -16,6 +16,9 @@ prueba aqui es lo otro:
     quita la guarda, este test falla).
   - la idempotencia: la segunda corrida no pregunta NADA.
   - el espacio en disco COMPROBADO ANTES de ofrecer la descarga.
+  - el paso 4 con la sonda SIN RESPUESTA (timeout), que en esta maquina pasa
+    de verdad ~1 de cada 2 homes virgenes pero no se puede provocar a mano de
+    forma fiable: no se publica un regimen que no se midio.
 """
 
 import importlib
@@ -254,14 +257,82 @@ class TestBackend:
 
 # ── Paso 4: capacidad ────────────────────────────────────────────────────────
 
+def _medicion(monkeypatch, reg):
+    """capacidad.medicion() devolviendo `reg`, sin tocar el server real."""
+    monkeypatch.setattr("cognia.agent.capacidad.medicion",
+                        lambda url="", **k: dict(reg))
+
+
 class TestCapacidad:
 
     def test_dice_el_regimen_en_una_linea(self, monkeypatch):
-        monkeypatch.setattr("cognia.agent.capacidad.diagnostico",
-                            lambda url: "regimen NATIVO con X: tool call valido")
+        _medicion(monkeypatch, {"soporta_tools": True, "modelo": "X.gguf",
+                                "motivo": "tool call valido en 1.6s"})
         p = A.paso_capacidad(backend_ok=True)
         assert p["estado"] == "ok"
-        assert p["detalle"].startswith("regimen NATIVO")
+        assert p["detalle"] == "regimen NATIVO con X.gguf: tool call valido en 1.6s"
+
+    def test_un_TEXTO_MEDIDO_si_se_publica(self, monkeypatch):
+        # El contraste del test de abajo: cuando el server SI contesto y lo
+        # que dijo fue "sin tool_calls", eso es un veredicto y se publica.
+        _medicion(monkeypatch, {
+            "soporta_tools": False, "modelo": "X.gguf",
+            "motivo": "respondio sin tool_calls (finish_reason=stop): el "
+                      "server no parsea tools"})
+        p = A.paso_capacidad(backend_ok=True)
+        assert p["estado"] == "ok"
+        assert p["detalle"].startswith("regimen TEXTO con X.gguf")
+
+    def test_una_sonda_SIN_RESPUESTA_no_se_publica_como_regimen(self, monkeypatch):
+        """REGRESION del fleco real: la sonda tarda 26-30 s en esta maquina
+        cargada contra su timeout de 30 s. Cuando se pasa, capacidad devuelve
+        soporta_tools=False con motivo 'TimeoutError' — que NO es "va en modo
+        texto", es "no se midio" — y la version anterior imprimia 'regimen
+        TEXTO con <modelo>' como si fuera un veredicto."""
+        _medicion(monkeypatch, {
+            "soporta_tools": False, "modelo": "X.gguf",
+            "motivo": "no se pudo consultar al server: TimeoutError: timed out"})
+        invalidadas = []
+        monkeypatch.setattr("cognia.agent.capacidad.invalidar",
+                            lambda url="": invalidadas.append(url))
+        p = A.paso_capacidad(backend_ok=True, url="http://127.0.0.1:8080")
+        assert "regimen TEXTO" not in p["detalle"]
+        assert "regimen NATIVO" not in p["detalle"]
+        assert p["estado"] == "aviso"
+        assert "no pude medir" in p["detalle"]
+        assert "--forzar" in p["detalle"]
+        # Y el fallo transitorio NO queda congelado 24 h en el cache: sin esta
+        # llamada, medicion() lo devolveria igual durante todo un dia.
+        assert invalidadas == ["http://127.0.0.1:8080"]
+
+    def test_el_aviso_no_baja_el_exit_ni_deja_regimen_en_el_json(self, monkeypatch,
+                                                                 capsys):
+        # Decision explicita: la maquina ESTA lista (el backend responde y el
+        # agente cae al marco de texto de siempre); lo que falta es saber el
+        # regimen. Se avisa, se sale 0 y el campo 'regimen' va VACIO.
+        monkeypatch.setattr(A, "_backend_vivo", lambda *a: True)
+        monkeypatch.setattr(A, "_modelo_del_backend", lambda *a: {"modelo": "Q.gguf"})
+        monkeypatch.setattr(A, "_arrancar_flota",
+                            lambda: (_ for _ in ()).throw(AssertionError("no toca")))
+        _medicion(monkeypatch, {
+            "soporta_tools": False, "modelo": "Q.gguf",
+            "motivo": "no se pudo consultar al server: TimeoutError: timed out"})
+        monkeypatch.setattr("cognia.agent.capacidad.invalidar", lambda url="": None)
+        codigo = A.main(["--sin-descarga", "--sin-repl", "--json"])
+        salida = capsys.readouterr()
+        datos = json.loads(salida.out)
+        assert codigo == 0 and datos["listo"] is True
+        assert datos["regimen"] == ""
+        assert datos["pasos"][3]["estado"] == "aviso"
+        assert "[AVISO]" in salida.err and "TEXTO" not in salida.err
+
+    def test_si_capacidad_revienta_tampoco_inventa_un_regimen(self, monkeypatch):
+        monkeypatch.setattr("cognia.agent.capacidad.medicion",
+                            lambda url="", **k: (_ for _ in ()).throw(
+                                RuntimeError("boom")))
+        p = A.paso_capacidad(backend_ok=True)
+        assert p["estado"] == "aviso"
+        assert "boom" in p["detalle"] and "regimen TEXTO" not in p["detalle"]
 
     def test_sin_backend_no_inventa_un_regimen(self):
         p = A.paso_capacidad(backend_ok=False)
@@ -274,8 +345,10 @@ class TestCapacidad:
 def _todo_bien(monkeypatch):
     monkeypatch.setattr(A, "_backend_vivo", lambda *a: True)
     monkeypatch.setattr(A, "_modelo_del_backend", lambda *a: {"modelo": "Q.gguf"})
-    monkeypatch.setattr("cognia.agent.capacidad.diagnostico",
-                        lambda url: "regimen NATIVO con Q.gguf")
+    monkeypatch.setattr("cognia.agent.capacidad.medicion",
+                        lambda url="", **k: {"soporta_tools": True,
+                                             "modelo": "Q.gguf",
+                                             "motivo": "tool call valido en 1.6s"})
     monkeypatch.setattr(A, "_arrancar_flota",
                         lambda: (_ for _ in ()).throw(AssertionError("no toca")))
 
