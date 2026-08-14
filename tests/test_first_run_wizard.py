@@ -82,10 +82,17 @@ def test_ask_devuelve_la_opcion_aunque_venga_con_bom(monkeypatch):
     assert first_run._ask("Elegi", default="1") == "2"
 
 
-def test_ask_yn_no_confunde_un_no_con_bom_con_el_default(monkeypatch):
-    """Con BOM, 'n' no era 'n' -> devolvia el default, que aca es SI-descargar."""
-    monkeypatch.setattr("builtins.input", lambda _p: "\ufeffn")
-    assert first_run._ask_yn("Descargar?", default=True) is False
+def test_ask_yn_lee_un_si_con_bom_como_si(monkeypatch):
+    """Con BOM, un 'y' NO entraba en ("y","yes","si","s") -> salia False.
+
+    Medido contra la version pre-fix (`answer.strip().lower()` sin quitar el
+    BOM): '\\ufeffy' devolvia False con default=True Y con default=False. O sea
+    que el BOM rompia siempre el SI, nunca el NO: '\\ufeffn' ya daba False por
+    el propio `in (...)`, asi que un test sobre el 'n' pasa igual sin el fix y
+    no prueba nada. El caso que discrimina es este."""
+    monkeypatch.setattr("builtins.input", lambda _p: "\ufeffy")
+    assert first_run._ask_yn("Descargar?", default=False) is True
+    assert first_run._ask_yn("Descargar?", default=True) is True
 
 
 # ── El menu: una respuesta desconocida NO puede descargar 2,6 GB ──────────────

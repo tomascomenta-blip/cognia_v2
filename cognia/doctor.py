@@ -241,7 +241,12 @@ def check_env() -> bool:
     detalle = f"{len(conf)} clave(s)"
     if rutas:
         detalle += f", {len(rutas)} ruta(s) LLAMA_*_PATH verificadas en disco"
-    return _ok("config en ~/.cognia/config.env", detalle)
+    # La etiqueta nombra la vista COMBINADA, no config.env a secas: el conteo
+    # sale de _load_config(), que mergea ~/.cognia/.env (el que escribe
+    # install.ps1) por debajo de config.env. Decir "config.env -- N clave(s)"
+    # atribuia a un fichero claves que no estan en el, y mandaba a mirar el
+    # sitio equivocado al diagnosticar.
+    return _ok("config efectiva (config.env + .env del instalador)", detalle)
 
 
 def check_instalacion() -> bool:

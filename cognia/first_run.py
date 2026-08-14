@@ -60,8 +60,13 @@ def _ask(prompt: str, default: str = "") -> str:
 def _ask_yn(prompt: str, default: bool = True) -> bool:
     default_str = "Y/n" if default else "y/N"
     try:
-        # Mismo saneo que _ask: un 'n' con BOM por pipe se leia como respuesta
-        # desconocida y devolvia... el default, que aca es Y = descargar.
+        # Mismo saneo que _ask, y el sentido del fallo aca es UNO SOLO: el BOM
+        # rompe el SI, nunca el NO. Un 'y' con BOM no entra en la tupla de
+        # abajo y sale False; un 'n' con BOM tambien sale False, que es justo
+        # lo que el usuario queria. Tampoco cae en el default: la cadena no
+        # esta vacia. O sea que antes de este strip, por pipe, TODA respuesta
+        # afirmativa se leia como un NO (medido contra la version pre-fix el
+        # 2026-08-13: el 'y' con BOM daba False con default=True y con False).
         answer = _limpiar(input(f"{prompt} [{default_str}]: ")).lower()
     except (EOFError, KeyboardInterrupt):
         print()
