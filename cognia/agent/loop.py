@@ -293,26 +293,61 @@ def _intencion_de(resp) -> str:
     return linea[:160]
 
 
+# Por debajo de esto recortar no compensa: se destroza contexto para liberar
+# nada. Vale igual para el content de un turno tool y para el reasoning de un
+# assistant.
+_RECORTE_MIN = 400
+
+
 def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
     """Presupuesto de contexto en TOKENS REALES (A4.3): si el ultimo prompt
-    supero ~80% del n_ctx del server, recorta los turnos tool MAS VIEJOS a un
-    resumen corto (nunca el system ni el user del objetivo). Devuelve cuantos
-    CHARS libero (0 = bajo el umbral o nada recortable), para que el llamador
-    pueda iterar con un estimado actualizado. El descarte en bloque del
-    contexto viejo era la causa de 'el agente olvida su objetivo'; aca el
-    objetivo es intocable por diseno."""
+    supero ~80% del n_ctx del server, recorta a un resumen corto los turnos
+    MAS VIEJOS que pesan — el content de los turnos tool y el CoT de los turnos
+    assistant (nunca el system ni el user del objetivo). Devuelve cuantos CHARS
+    libero (0 = bajo el umbral o nada recortable), para que el llamador pueda
+    iterar con un estimado actualizado. El descarte en bloque del contexto
+    viejo era la causa de 'el agente olvida su objetivo'; aca el objetivo es
+    intocable por diseno.
+
+    POR QUE tambien el reasoning (fix A3-bucle 2026-08-13): chat_client
+    .mensaje_assistant reinyecta reasoning_content en CADA turno assistant para
+    preservar el CoT entre tool calls. Este recorte solo miraba role=='tool',
+    asi que con AGENT_HARD_CAP=40 pasos el CoT acumulado —que puede ser el 80%
+    del prompt con un razonador— NUNCA entraba al presupuesto: devolvia 0
+    liberados y el prompt reventaba n_ctx en silencio (el server trunca por
+    izquierda o tira 'context shift', y el agente pierde el objetivo sin que
+    nadie lo diga). Reproducido en test_recorte_incluye_el_reasoning_de_los_
+    assistant_viejos: 20 turnos x 5k chars de CoT -> 0 liberados.
+    """
     if not n_ctx or prompt_tokens < int(n_ctx * 0.8):
         return 0
+    # El CoT del ULTIMO turno assistant es el que el modelo esta usando AHORA
+    # (los tool calls de ese mismo turno acaban de volver): se preserva
+    # siempre. Los anteriores ya cumplieron su funcion.
+    ultimo_assistant = -1
+    for i, m in enumerate(mensajes):
+        if m.get("role") == "assistant":
+            ultimo_assistant = i
+
     recortados, liberados = 0, 0
-    for m in mensajes:
-        if m.get("role") == "tool" and len(m.get("content") or "") > 400:
+    for i, m in enumerate(mensajes):
+        rol = m.get("role")
+        if rol == "tool" and len(m.get("content") or "") > _RECORTE_MIN:
             antes = len(m["content"])
             m["content"] = (m["content"][:200]
                             + "\n[... recortado por presupuesto de contexto ...]")
             liberados += antes - len(m["content"])
             recortados += 1
-            if recortados >= 3:   # de a poco: 3 turnos por pasada alcanzan
-                break
+        elif (rol == "assistant" and i != ultimo_assistant
+                and len(m.get("reasoning_content") or "") > _RECORTE_MIN):
+            antes = len(m["reasoning_content"])
+            m["reasoning_content"] = (
+                m["reasoning_content"][:200]
+                + "\n[... razonamiento recortado por presupuesto de contexto ...]")
+            liberados += antes - len(m["reasoning_content"])
+            recortados += 1
+        if recortados >= 3:   # de a poco: 3 turnos por pasada alcanzan
+            break
     return liberados
 
 
@@ -385,6 +420,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _ofertas_hechas: set = set()
     tokens_total = 0
     pasos = 0
+    # Cuantas tools corrio el bucle en TODA la tarea: alimenta el guard de
+    # sospecha del cierre (un cierre sin una sola tool no es lo mismo que un
+    # cierre tras trabajar).
+    tools_ejecutadas = 0
     fail_streak = 3
     result_text, finish, ok = "", "", False
     while pasos < max_turns:
@@ -405,8 +444,45 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
 
         if not resp.tool_calls:
             # FIN NATURAL: respuesta sin tool calls = respuesta final. Este es
-            # el contrato del regimen nativo (adios "cierro con PROSA degradado").
-            result_text, finish, ok = resp.texto, resp.finish_reason, True
+            # el contrato del regimen nativo (adios "cierro con PROSA degradado")
+            # PERO solo cuenta como cierre si hay TEXTO. Fix A3-bucle
+            # 2026-08-13: un razonador que gasta todo el turno en el canal
+            # analysis deja content vacio (chat_client devuelve texto='') y
+            # esta rama devolvia {'texto': '', 'ok': True} — una tarea "OK" sin
+            # una sola letra de respuesta. Es la degradacion silenciosa del
+            # repo en su forma mas pura: el llamador (cli.py, bancos,
+            # goal_contract) no tiene como distinguirla de un exito.
+            finish = resp.finish_reason
+            if resp.texto:
+                result_text, ok = resp.texto, True
+            elif resp.reasoning_content:
+                # Rescate: el pensamiento SI existe; se entrega marcado y con
+                # ok=False (no lo pidio nadie asi, no es una respuesta). La
+                # COLA del CoT es donde vive la conclusion, no la cabeza.
+                print_fn("[warn_cl]el modelo cerro con la respuesta vacia "
+                         "(solo razonamiento): se entrega el razonamiento sin "
+                         "marcar la tarea como cumplida[/warn_cl]")
+                cola = resp.reasoning_content.strip()[-1200:]
+                result_text = ("(el modelo no emitio respuesta final; esto es "
+                               "su razonamiento) " + cola)
+                ok = False
+            else:
+                # Ni texto ni pensamiento: no hay nada. Se DICE.
+                print_fn("[err_cl]el modelo cerro con una respuesta vacia y "
+                         "sin razonamiento que rescatar[/err_cl]")
+                result_text = ("(el modelo cerro con una respuesta vacia y sin "
+                               f"razonamiento; finish_reason={finish or '?'})")
+                ok = False
+            # GUARD DE SOSPECHA: cerrar en el PRIMER paso sin haber llamado
+            # NINGUNA tool, teniendo tools ofrecidas, es el sintoma exacto de
+            # un server que no parsea tool_calls (llama-server sin --jinja):
+            # el modelo emite la llamada como TEXTO, el bucle no ve tool_calls
+            # y lo toma por respuesta final. Hasta hoy pasaba en silencio.
+            if pasos == 1 and not tools_ejecutadas and schemas:
+                print_fn("[warn_cl]el agente cerro sin usar herramientas en el "
+                         "primer paso: si esperabas trabajo real, sospecha del "
+                         "tool-calling del server (llama-server necesita "
+                         "--jinja para parsear tool_calls)[/warn_cl]")
             if resp.finish_reason == "length":
                 # Truncado por presupuesto: se DICE (los dos modos de fallo
                 # —stop mal puesto vs presupuesto— se veian iguales antes).
@@ -439,6 +515,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 mensajes = None
                 break
             resultado = run_tool(tc.nombre, args_str, ctx)
+            tools_ejecutadas += 1
             # Solo la PRIMERA linea clasifica: los errores del registry ponen
             # ERROR en la linea 1; el CONTENIDO de un exito (un log con
             # errores via ctx_grep/leer_archivo) no debe marcar fallo y
@@ -494,7 +571,11 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # n_ctx sin recortar nada (fix 2026-08-11). Se suma lo agregado
         # (chars/4) y se itera hasta bajar del umbral o agotar recortables.
         est = int((resp.usage or {}).get("prompt_tokens") or 0)
+        # Se cuenta TAMBIEN el reasoning_content: mensaje_assistant lo
+        # reinyecta y con un razonador pesa mas que el content (parte del fix
+        # A3-bucle: el CoT era invisible para el presupuesto de punta a punta).
         est += sum(len(str(m.get("content") or ""))
+                   + len(str(m.get("reasoning_content") or ""))
                    for m in mensajes[idx_turno:]) // 4
         while True:
             liberados = _recortar_mensajes(mensajes, perfil.get("n_ctx"), est)

@@ -194,19 +194,23 @@ def _perfil_test():
             "max_tokens": 4096}
 
 
-def _correr(respuestas, run_tool, max_turns=8):
+def _correr(respuestas, run_tool, max_turns=8, avisos=None):
     """Corre bucle_nativo con un `completar` doble que devuelve la lista
-    `respuestas` en orden."""
+    `respuestas` en orden. `avisos` (lista) recoge lo que el bucle imprime."""
     it = iter(respuestas)
 
     def _completar(mensajes, tools=None, **kw):
         return next(it)
 
+    def _print(msg, *a, **k):
+        if avisos is not None:
+            avisos.append(str(msg))
+
     history, trace = ["TAREA: crea hola.txt con 'hola mundo'"], []
     out = loop_mod.bucle_nativo(
         "crea hola.txt", "sos el agente", _completar, schemas_para(),
         args_legacy, mensaje_assistant, mensaje_tool, run_tool, {},
-        _perfil_test(), history, trace, lambda *a, **k: None, max_turns)
+        _perfil_test(), history, trace, _print, max_turns)
     return out, history, trace
 
 
@@ -268,6 +272,123 @@ def test_bucle_nativo_presupuesto_agotado_cierra_con_evidencia():
                         max_turns=3)
     assert "presupuesto de 3 pasos agotado" in out["texto"]
     assert "RESULTADO ejecutar" in out["texto"]   # evidencia, no volcado vacio
+
+
+# ── A3-bucle: el cierre en falso del regimen nativo (2026-08-13) ────────────
+# Tres defectos del MISMO bucle, medidos leyendo el codigo y reproducidos aca
+# antes de tocarlo. Los tres se ven igual desde afuera ("la tarea salio ok" con
+# nada util adentro), que es la firma de la degradacion silenciosa del repo.
+
+def test_cierre_vacio_con_reasoning_no_se_marca_ok():
+    """(1) El razonador emitio SOLO reasoning_content: chat_client devuelve
+    texto='' (content ausente) y el bucle lo tomaba como FIN NATURAL ->
+    {'texto': '', 'ok': True}. Una tarea sin una sola letra de respuesta no es
+    una tarea cumplida: se cae al reasoning con aviso, y ok=False."""
+    avisos = []
+    r1 = RespuestaChat(texto="", finish_reason="stop",
+                       reasoning_content="El usuario pide crear hola.txt. "
+                                         "Deberia usar escribir_archivo.",
+                       usage={"completion_tokens": 30, "prompt_tokens": 100})
+    out, _, _ = _correr([r1], lambda *a: "no llega", avisos=avisos)
+    assert out["texto"], "no se puede devolver texto vacio como respuesta final"
+    assert out["ok"] is False, "cierre sin texto NO es una tarea cumplida"
+    assert "hola.txt" in out["texto"]      # se rescato el razonamiento
+    assert any("vac" in a for a in avisos), avisos
+
+
+def test_cierre_vacio_sin_nada_que_rescatar_no_miente():
+    """Sin texto Y sin reasoning tampoco hay cierre valido: el bucle lo dice
+    en vez de devolver la cadena vacia con ok=True."""
+    r1 = RespuestaChat(texto="", finish_reason="stop", usage={})
+    out, _, _ = _correr([r1], lambda *a: "no llega")
+    assert out["ok"] is False
+    assert out["texto"] and "vac" in out["texto"]
+
+
+def test_guard_de_sospecha_cierra_sin_usar_herramientas():
+    """(2) Cerrar en el PASO 1 sin haber llamado ninguna tool es el sintoma
+    exacto de un server que no parsea tool_calls (llama-server sin --jinja):
+    el modelo "responde" y el bucle lo da por bueno en silencio. Ahora se
+    declara por print_fn."""
+    avisos = []
+    r1 = RespuestaChat(texto="Listo, ya cree el archivo.", finish_reason="stop",
+                       usage={"completion_tokens": 12, "prompt_tokens": 100})
+    out, _, _ = _correr([r1], lambda *a: "no llega", avisos=avisos)
+    assert out["ok"] is True and out["texto"]      # es un cierre valido...
+    assert any("sin usar herramientas" in a for a in avisos), avisos
+
+
+def test_guard_de_sospecha_no_grita_si_uso_tools():
+    """El guard NO puede ensuciar el camino feliz: si hubo tool calls, callado."""
+    avisos = []
+    r1 = RespuestaChat(texto="", finish_reason="tool_calls", usage={},
+                       tool_calls=[ToolCall(id="t1", nombre="listar",
+                                            argumentos={"directorio": "."},
+                                            argumentos_crudos="{}")])
+    r2 = RespuestaChat(texto="Listo.", finish_reason="stop", usage={})
+    _correr([r1, r2], lambda n, a, c: "RESULTADO listar: x", avisos=avisos)
+    assert not any("sin usar herramientas" in a for a in avisos), avisos
+
+
+def _chars_totales(mensajes):
+    """Todo lo que VIAJA al server: content + reasoning_content de cada turno.
+    _recortar_mensajes solo miraba content, y por eso el CoT reinyectado por
+    chat_client.mensaje_assistant era invisible al presupuesto."""
+    return sum(len(str(m.get("content") or ""))
+               + len(str(m.get("reasoning_content") or ""))
+               for m in mensajes)
+
+
+def test_recorte_incluye_el_reasoning_de_los_assistant_viejos():
+    """(3) 20 turnos assistant con 5k chars de CoT cada uno: hoy el recorte
+    devolvia 0 (ningun turno role='tool') y el prompt reventaba n_ctx en
+    silencio con AGENT_HARD_CAP=40 pasos."""
+    mensajes = [{"role": "system", "content": "S" * 5000},
+                {"role": "user", "content": "TAREA: " + "U" * 5000}]
+    for i in range(20):
+        mensajes.append({"role": "assistant", "content": f"paso {i}",
+                         "reasoning_content": "R" * 5000})
+    antes = _chars_totales(mensajes)
+    liberados = loop_mod._recortar_mensajes(mensajes, 16384, 15000)
+    assert liberados > 0, "el CoT acumulado tiene que entrar al recorte"
+    assert _chars_totales(mensajes) < antes
+    # Intocables por diseno: el system y el user del objetivo.
+    assert len(mensajes[0]["content"]) == 5000
+    assert len(mensajes[1]["content"]) == 5007
+    # Se recorta por los MAS VIEJOS: el ultimo turno conserva su razonamiento.
+    assert len(mensajes[-1].get("reasoning_content") or "") == 5000
+
+
+def test_recorte_bajo_umbral_no_toca_nada():
+    """Sin presion de contexto no se recorta: el CoT reciente es util."""
+    mensajes = [{"role": "assistant", "content": "x",
+                 "reasoning_content": "R" * 5000}]
+    assert loop_mod._recortar_mensajes(mensajes, 16384, 100) == 0
+    assert len(mensajes[0]["reasoning_content"]) == 5000
+
+
+def test_recorte_sigue_cubriendo_los_turnos_tool():
+    """El comportamiento viejo (turnos tool grandes) no se pierde."""
+    mensajes = [{"role": "tool", "tool_call_id": "t", "content": "T" * 5000}]
+    liberados = loop_mod._recortar_mensajes(mensajes, 16384, 15000)
+    assert liberados > 4000
+    assert "recortado por presupuesto" in mensajes[0]["content"]
+
+
+def test_recorte_iterado_termina():
+    """El llamador itera mientras `liberados` sea >0: una segunda pasada sobre
+    lo ya recortado tiene que devolver 0 (si no, bucle infinito en el paso)."""
+    mensajes = [{"role": "assistant", "content": "c",
+                 "reasoning_content": "R" * 5000} for _ in range(4)]
+    total = 0
+    for _ in range(20):
+        lib = loop_mod._recortar_mensajes(mensajes, 16384, 15000)
+        total += lib
+        if not lib:
+            break
+    else:
+        raise AssertionError("_recortar_mensajes no converge a 0")
+    assert total > 0
 
 
 # ── A6: auxiliares LLM apagados por defecto ─────────────────────────────────
