@@ -420,10 +420,6 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _ofertas_hechas: set = set()
     tokens_total = 0
     pasos = 0
-    # Cuantas tools corrio el bucle en TODA la tarea: alimenta el guard de
-    # sospecha del cierre (un cierre sin una sola tool no es lo mismo que un
-    # cierre tras trabajar).
-    tools_ejecutadas = 0
     fail_streak = 3
     result_text, finish, ok = "", "", False
     while pasos < max_turns:
@@ -473,12 +469,20 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 result_text = ("(el modelo cerro con una respuesta vacia y sin "
                                f"razonamiento; finish_reason={finish or '?'})")
                 ok = False
-            # GUARD DE SOSPECHA: cerrar en el PRIMER paso sin haber llamado
-            # NINGUNA tool, teniendo tools ofrecidas, es el sintoma exacto de
-            # un server que no parsea tool_calls (llama-server sin --jinja):
-            # el modelo emite la llamada como TEXTO, el bucle no ve tool_calls
-            # y lo toma por respuesta final. Hasta hoy pasaba en silencio.
-            if pasos == 1 and not tools_ejecutadas and schemas:
+            # GUARD DE SOSPECHA: cerrar en el PRIMER paso teniendo tools
+            # ofrecidas es el sintoma exacto de un server que no parsea
+            # tool_calls (llama-server sin --jinja): el modelo emite la llamada
+            # como TEXTO, el bucle no ve tool_calls y lo toma por respuesta
+            # final. Hasta hoy pasaba en silencio.
+            # `pasos == 1` YA ES "sin ninguna tool ejecutada", no hace falta
+            # contarlas: para llegar al paso 2 hay que haber pasado por la rama
+            # de tool_calls de arriba, y esa rama o ejecuta al menos una tool o
+            # sale del bucle por estancamiento. La primera version de este fix
+            # llevaba un contador `tools_ejecutadas` en la condicion; era
+            # codigo muerto (valia 0 SIEMPRE aca) y se borro el 2026-08-14.
+            # Test que fija la equivalencia:
+            # test_llegar_al_paso_2_exige_haber_ejecutado_una_tool.
+            if pasos == 1 and schemas:
                 print_fn("[warn_cl]el agente cerro sin usar herramientas en el "
                          "primer paso: si esperabas trabajo real, sospecha del "
                          "tool-calling del server (llama-server necesita "
@@ -515,7 +519,6 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 mensajes = None
                 break
             resultado = run_tool(tc.nombre, args_str, ctx)
-            tools_ejecutadas += 1
             # Solo la PRIMERA linea clasifica: los errores del registry ponen
             # ERROR en la linea 1; el CONTENIDO de un exito (un log con
             # errores via ctx_grep/leer_archivo) no debe marcar fallo y

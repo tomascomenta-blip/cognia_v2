@@ -194,9 +194,10 @@ def _perfil_test():
             "max_tokens": 4096}
 
 
-def _correr(respuestas, run_tool, max_turns=8, avisos=None):
+def _correr(respuestas, run_tool, max_turns=8, avisos=None, schemas=None):
     """Corre bucle_nativo con un `completar` doble que devuelve la lista
-    `respuestas` en orden. `avisos` (lista) recoge lo que el bucle imprime."""
+    `respuestas` en orden. `avisos` (lista) recoge lo que el bucle imprime.
+    `schemas` se puede forzar a [] para el caso "no se ofrecio ninguna tool"."""
     it = iter(respuestas)
 
     def _completar(mensajes, tools=None, **kw):
@@ -208,7 +209,8 @@ def _correr(respuestas, run_tool, max_turns=8, avisos=None):
 
     history, trace = ["TAREA: crea hola.txt con 'hola mundo'"], []
     out = loop_mod.bucle_nativo(
-        "crea hola.txt", "sos el agente", _completar, schemas_para(),
+        "crea hola.txt", "sos el agente", _completar,
+        schemas_para() if schemas is None else schemas,
         args_legacy, mensaje_assistant, mensaje_tool, run_tool, {},
         _perfil_test(), history, trace, _print, max_turns)
     return out, history, trace
@@ -328,6 +330,50 @@ def test_guard_de_sospecha_no_grita_si_uso_tools():
     r2 = RespuestaChat(texto="Listo.", finish_reason="stop", usage={})
     _correr([r1, r2], lambda n, a, c: "RESULTADO listar: x", avisos=avisos)
     assert not any("sin usar herramientas" in a for a in avisos), avisos
+
+
+def test_guard_de_sospecha_callado_si_no_se_ofrecieron_tools():
+    """La tercera pata de la condicion, hasta hoy sin test: sin tools ofrecidas
+    (schemas=[]) cerrar en el paso 1 es lo NORMAL — pedirle al usuario que
+    'sospeche del tool-calling del server' seria ruido puro. Este test falla si
+    alguien deja el guard en `if pasos == 1:` pelado."""
+    avisos = []
+    r1 = RespuestaChat(texto="Hola, no necesito herramientas.",
+                       finish_reason="stop", usage={})
+    out, _, _ = _correr([r1], lambda *a: "no llega", avisos=avisos, schemas=[])
+    assert out["ok"] is True and out["texto"]
+    assert not any("sin usar herramientas" in a for a in avisos), avisos
+
+
+def test_llegar_al_paso_2_exige_haber_ejecutado_una_tool():
+    """Fija la INVARIANTE que justifica que el guard mire `pasos == 1` y no un
+    contador de tools (el `tools_ejecutadas` de la primera version de este fix
+    era codigo muerto: en el paso 1 valia 0 SIEMPRE). Las dos unicas salidas de
+    la rama de tool_calls son: ejecutar >=1 tool y seguir al paso 2, o cortar
+    por estancamiento sin llegar al 2. Aca se mide la primera; la segunda la
+    mide test_bucle_nativo_estancamiento_corta_honesto (out['pasos'] == 1)."""
+    corridas = []
+    r1 = RespuestaChat(texto="", finish_reason="tool_calls", usage={},
+                       tool_calls=[ToolCall(id="t1", nombre="listar",
+                                            argumentos={"directorio": "."},
+                                            argumentos_crudos="{}")])
+    r2 = RespuestaChat(texto="Listo.", finish_reason="stop", usage={})
+
+    def _run_tool(n, a, c):
+        corridas.append(n)
+        return "RESULTADO listar: x"
+
+    out, _, trace = _correr([r1, r2], _run_tool)
+    assert out["pasos"] == 2 and len(corridas) == 1     # paso 2 => hubo tool
+    assert len(trace) == 1
+
+    # Y el corte por estancamiento (la otra salida) no pasa del paso 1.
+    tc = ToolCall(id="t", nombre="listar", argumentos={"directorio": "."},
+                  argumentos_crudos="{}")
+    rep = RespuestaChat(texto="", finish_reason="tool_calls", usage={},
+                        tool_calls=[tc, tc, tc])
+    out2, _, _ = _correr([rep], lambda n, a, c: "RESULTADO listar: x")
+    assert out2["pasos"] == 1 and "estancamiento" in out2["texto"]
 
 
 def _chars_totales(mensajes):
