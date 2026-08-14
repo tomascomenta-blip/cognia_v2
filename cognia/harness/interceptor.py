@@ -75,12 +75,13 @@ def raiz_proyecto(ctx: dict | None = None) -> Path:
     try:
         # _root_actual() y NO la constante AGENT_WORKSPACE_ROOT: esa se fija al
         # IMPORTAR el modulo. Las tools escriben por _root_actual() (call-time),
-        # asi que en un proceso largo que cambia de workspace entre tareas —un
-        # REPL, o el servidor remoto que fija el ws por sesion (cognia/remoto/
-        # servidor.py:109)— el checkpoint se registraba en el workspace VIEJO
-        # mientras la escritura ocurria en el nuevo: la escritura quedaba SIN
-        # RED y /deshacer restauraba un fichero que nadie habia tocado. Es el
-        # mismo bug que dev_tools ya cazo en 2026-07-21 ("6 tareas de agente
+        # asi que en un proceso largo que cambia COGNIA_AGENT_WORKSPACE o hace
+        # os.chdir entre tareas —la campana los cambia LOS DOS por tarea en el
+        # mismo proceso: scripts/campana_tareas.py:303-304— el checkpoint se
+        # registraba en el workspace VIEJO mientras la escritura ocurria en el
+        # nuevo: la escritura quedaba SIN RED y /deshacer restauraba un fichero
+        # que nadie habia tocado. Es exactamente el bug que dev_tools ya cazo en
+        # 2026-07-21 y documenta en _root_actual() ("6 tareas de agente
         # escribieron todas en la carpeta de la primera").
         from cognia.agents.workers import dev_tools
         raiz = dev_tools._root_actual()
