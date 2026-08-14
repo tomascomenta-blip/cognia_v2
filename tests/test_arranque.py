@@ -245,6 +245,30 @@ class TestBackend:
         assert p["estado"] == "falta"
         assert "COGNIA_LLM_URL" in p["detalle"]
 
+    def test_un_puerto_LOCAL_que_la_flota_no_sirve_tampoco_la_arranca(
+            self, monkeypatch):
+        """REGRESION medida el 2026-08-14 en esta maquina: con
+        COGNIA_LLM_URL=http://127.0.0.1:8099 caido, `empezar` pasaba la guarda
+        de _es_local (es 127.0.0.1) y arrancaba la flota — que empieza por
+        parar() y mato el :8080 COMPARTIDO (pid 20872) para nada: la flota
+        solo sirve 8080/8081/8082, asi que el :8099 siguio muerto y el paso
+        termino en [FALTA] igual. Todo el coste, cero beneficio."""
+        monkeypatch.setattr(A, "_arrancar_flota", lambda: (_ for _ in ()).throw(
+            AssertionError("arranco la flota por un puerto que no sirve")))
+        p = A.paso_backend("http://127.0.0.1:8099", vivo=False)
+        assert p["estado"] == "falta"
+        assert "8080" in p["detalle"]        # los puertos que SI sirve
+        assert "8099" in p["detalle"]
+
+    def test_puerto_ilegible_no_arranca_la_flota(self, monkeypatch):
+        # La duda cae del lado de NO tocar procesos ajenos.
+        monkeypatch.setattr(A, "_arrancar_flota", lambda: (_ for _ in ()).throw(
+            AssertionError("arranco la flota con un puerto ilegible")))
+        assert A._puerto("http://127.0.0.1") == 0
+        assert A._puerto("http://127.0.0.1:puerto") == 0
+        assert A._puerto("http://127.0.0.1:8080") == 8080
+        assert A.paso_backend("http://127.0.0.1", vivo=False)["estado"] == "falta"
+
     def test_dos_sondas_antes_de_declararlo_muerto(self, monkeypatch):
         # La guarda que protege al server compartido de un timeout aislado.
         intentos = []

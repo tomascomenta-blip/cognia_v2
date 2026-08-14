@@ -64,6 +64,7 @@ import shutil
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Optional
@@ -226,6 +227,16 @@ def _es_local(url: str) -> bool:
     arregla un COGNIA_LLM_URL que apunta a otro equipo."""
     return ("127.0.0.1" in url or "localhost" in url or "0.0.0.0" in url
             or "[::1]" in url)
+
+
+def _puerto(url: str) -> int:
+    """El puerto de una URL, 0 si no se puede saber (sin puerto explicito,
+    host raro, IPv6 mal escrito). 0 nunca esta en flota.PUERTOS_LLAMA, o sea
+    que la duda cae del lado de NO tocar procesos."""
+    try:
+        return int(urllib.parse.urlsplit(url).port or 0)
+    except (ValueError, TypeError):
+        return 0
 
 
 def _backend_vivo(url: str = "") -> bool:
@@ -411,6 +422,23 @@ def paso_backend(url: str = "", vivo: Optional[bool] = None) -> dict:
 
     from cognia import flota   # solo para nombrar el combo en el mensaje
     orden = f"python -m cognia flota arrancar {flota.COMBO_DEFAULT}"
+
+    if _puerto(url) not in flota.PUERTOS_LLAMA:
+        # La flota SOLO sirve — y solo puede parar — 8080/8081/8082
+        # (flota.PUERTOS_LLAMA, flota.py:99). Contra cualquier otro puerto
+        # local, arrancarla no puede hacerlo responder, pero SI empieza por
+        # parar() y se lleva puestos los llama-server que otros esten usando:
+        # todo el coste, cero beneficio. MEDIDO en carne propia el 2026-08-14:
+        # un COGNIA_LLM_URL=http://127.0.0.1:8099 caido mato el :8080
+        # compartido (pid 20872) y la corrida termino igual en [FALTA],
+        # "la flota no dejo nada escuchando en http://127.0.0.1:8099".
+        puertos = ", ".join(str(p) for p in flota.PUERTOS_LLAMA)
+        return _paso("backend", "falta",
+                     f"{url} no responde y la flota solo sirve los puertos "
+                     f"{puertos}: arrancarla no lo levantaria",
+                     f"arranca ese server, o apunta COGNIA_LLM_URL a "
+                     f"{URL_BACKEND} y corre: {orden}")
+
     print(f"  ...  backend   {url} no responde; levanto el combo "
           f"'{flota.COMBO_DEFAULT}' (tarda ~1 min)")
     try:
