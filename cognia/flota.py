@@ -10,7 +10,7 @@ durante semanas (dos fuentes de verdad, memoria del repo 2026-07-25).
 
     cognia flota arrancar [combo] [patron]   # levanta el combo (default: pensar)
     cognia flota estado                      # que GGUF REAL sirve cada puerto
-    cognia flota parar                       # detiene todos los llama-server
+    cognia flota parar [--todos]             # para la flota por PID (--todos: la maquina entera)
     cognia flota dormir                      # duerme roles con idle vencido (summoner)
     cognia flota liberar <rol>               # duerme un rol del summoner por PID
     cognia flota ctx <N> [cache]             # relanza el cerebro a una celda MEDIDA
@@ -91,6 +91,13 @@ COMBO_DEFAULT = "pensar-qwythos"
 
 PUERTOS = ((8080, "cerebro/pensador"), (8081, "VLM/arbitro"))
 
+# Los puertos que esta flota puede parar por PID. 8082 es el worker del
+# summoner (llama chico para hijos RLM): tambien es nuestro, y el martillo
+# global se lo llevaba por delante sin nombrarlo. Fuera de esta lista no se
+# mata nada: los jobs (8096-8099) no son llama-server y se apagan por su
+# propio /apagar desde summoner.liberar().
+PUERTOS_LLAMA = (8080, 8081, 8082)
+
 # Trozo (en minusculas) del nombre del GGUF -> combo que lo sirve en :8080.
 # Para que el doctor/estado puedan decir no solo QUE modelo responde sino a
 # QUE combo esperado corresponde (o que no corresponde a ninguno: la averia
@@ -144,15 +151,69 @@ def props_puerto(puerto: int) -> dict:
     return backend_activo.props(f"http://127.0.0.1:{puerto}", forzar=True)
 
 
-def parar() -> int:
-    """Detiene todos los llama-server (Windows: taskkill; POSIX: pkill)."""
+def _cmd_kill(pid: int) -> list:
+    """Kill SELECTIVO, por PID. El martillo por nombre de imagen vive SOLO en
+    _parar_todos(), detras de la opcion explicita --todos."""
+    if os.name == "nt":
+        return ["taskkill", "/PID", str(pid), "/F"]
+    return ["kill", "-TERM", str(pid)]
+
+
+def _parar_todos() -> int:
+    """El martillo GLOBAL por nombre de imagen: mata TODOS los llama-server de
+    la maquina, sean o no de esta flota. Queda disponible (a veces es lo que
+    uno quiere: limpiar restos de una corrida vieja) pero SOLO si se pide con
+    `cognia flota parar --todos`. Nunca se dispara solo."""
     if os.name == "nt":
         r = subprocess.run(["taskkill", "/IM", "llama-server.exe", "/F"],
                            capture_output=True, text=True)
     else:
         r = subprocess.run(["pkill", "-f", "llama-server"],
                            capture_output=True, text=True)
-    print("Detenidos." if r.returncode == 0 else "No habia llama-server vivo.")
+    print("Detenidos TODOS los llama-server de la maquina."
+          if r.returncode == 0 else "No habia llama-server vivo.")
+    return 0
+
+
+def parar(todos: bool = False) -> int:
+    """Detiene los llama-server DE LA FLOTA: puerto por puerto y por PID.
+
+    POR QUE (2026-08-13): esto era un `taskkill` por nombre de imagen, es
+    decir un martillo que mata a TODOS los llama-server de la maquina — y
+    arrancar() lo disparaba solo al cambiar de combo (:217-219). En esta
+    maquina conviven corridas ajenas en el mismo binario: matar por nombre se
+    lleva por delante el cerebro de otro proceso sin decir una palabra. Ahora
+    se enumera por puerto con cognia.puertos.pid_llama_del_puerto (que exige
+    loopback exacto Y que el proceso sea un llama-server: tailscaled tambien
+    escucha en el :8080 de la IP de la malla) y se mata con kill por PID.
+
+    Lo que ocupa un puerto de la flota SIN ser un llama-server se AVISA y no
+    se toca: matar a ciegas es peor que la averia que se esta arreglando.
+    `todos=True` (CLI: --todos) recupera el martillo global, explicito."""
+    if todos:
+        return _parar_todos()
+    from cognia import puertos
+    matados, fallidos, ajenos = [], [], []
+    for puerto in PUERTOS_LLAMA:
+        pid = puertos.pid_llama_del_puerto(puerto)
+        if pid is None:
+            otro = puertos.pid_del_puerto(puerto)
+            if otro is not None:
+                ajenos.append((puerto, otro))
+            continue
+        r = subprocess.run(_cmd_kill(pid), capture_output=True, text=True)
+        (matados if r.returncode == 0 else fallidos).append((puerto, pid))
+    for puerto, pid in matados:
+        print(f"  :{puerto} detenido (pid {pid}).")
+    for puerto, pid in fallidos:
+        print(f"  :{puerto}: no pude matar el pid {pid} (permisos?).",
+              file=sys.stderr)
+    for puerto, pid in ajenos:
+        print(f"  :{puerto} lo ocupa el pid {pid} y NO es un llama-server: "
+              f"no lo toco.")
+    if not matados:
+        print("No habia llama-server de la flota vivo."
+              + ("" if not fallidos else " (hubo kills fallidos)"))
     return 0
 
 
@@ -213,7 +274,10 @@ def arrancar(modo: str, patron: str = "") -> int:
         combo = [(script, ["--modelo", patron] + args)
                  for script, args in combo]
 
-    # Cambiar de combo con restos del anterior = OOM confuso. Se para primero.
+    # Cambiar de combo con restos del anterior = OOM confuso. Se para primero,
+    # pero SOLO lo de la flota y por PID (2026-08-13): este mismo camino
+    # disparaba el martillo global y mataba llama-servers ajenos que nadie
+    # habia pedido tocar.
     if _responde(8080) or _responde(8081):
         print("Habia servidores vivos: los detengo antes del combo nuevo.")
         parar()
@@ -240,7 +304,9 @@ def main(argv: Optional[list] = None) -> int:
         return 1
     accion = argv[0]
     if accion == "parar":
-        return parar()
+        # --todos = el martillo global (todos los llama-server de la maquina).
+        # Sin el, solo se paran los puertos de la flota y por PID.
+        return parar(todos="--todos" in argv[1:])
     if accion == "estado":
         return estado()
     if accion == "arrancar":
@@ -298,7 +364,7 @@ def main(argv: Optional[list] = None) -> int:
     if accion in COMBOS:
         return arrancar(accion, patron=argv[1] if len(argv) > 1 else "")
     print(f"Accion desconocida: {accion!r}. Usa: arrancar [combo] | estado | "
-          f"parar | dormir | liberar <rol> | ctx <N> [cache]  "
+          f"parar [--todos] | dormir | liberar <rol> | ctx <N> [cache]  "
           f"(combos: {sorted(COMBOS)})", file=sys.stderr)
     return 1
 

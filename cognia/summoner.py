@@ -9,7 +9,9 @@ inactividad ni presupuesto de VRAM. Este modulo agrega exactamente eso:
 
 - Registry declarativo de ROLES con puerto, VRAM presupuestada e idle.
 - ensure(rol): garantiza que el rol este servido y VERIFICADO (identidad via
-  /props con forzar=True; cargar no es funcionar).
+  /props con forzar=True; cargar no es funcionar). Si el server correcto YA
+  estaba vivo, lo ADOPTA: resuelve su PID real por el puerto de loopback y lo
+  registra con el modelo y el n_ctx que /props MIDE.
 - liberar(rol): kill selectivo por PID guardado (taskkill /PID, JAMAS /IM).
 - barrido(): reloj de inactividad oportunista, SIN hilos demonio (un demonio
   que muere en silencio es el modo de fallo historico de la casa).
@@ -45,6 +47,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from cognia import puertos
+
 _RAIZ = Path(__file__).resolve().parent.parent  # cognia_v2/
 
 
@@ -60,9 +64,16 @@ class SummonerError(RuntimeError):
 # declara -- aca un numero inflado solo causa una eviction de mas, jamas OOM).
 # ---------------------------------------------------------------------------
 ROLES = {
+    # vram_mib del cerebro (2026-08-13): 12852 = la celda 200192/f16 de
+    # ESCALERA_CTX, MEDIDA el 2026-08-02. El 11000 anterior estaba DECLARADO y
+    # lo medido con nvidia-smi contra el cerebro vivo son 12807 MiB: la
+    # eviccion hacia sitio para 11000 y el rol entrante se lanzaba sin espacio
+    # (OOM), que es justo lo que la regla del worker de abajo (:74-78) prohibe.
+    # El numero real lo recalcula vram_cerebro_mib() a partir de la celda EN
+    # USO; este valor es el de la celda por defecto para quien lea el registry.
     "cerebro": {"tipo": "llama", "puerto": 8080, "script": "servir_modelo.py",
                 "args": ["--modelo", "qwythos", "--sin-draft", "--ctx", "32768"],
-                "identidad": "qwythos", "vram_mib": 11000, "idle_s": None,
+                "identidad": "qwythos", "vram_mib": 12852, "idle_s": None,
                 "espera_s": 240},
     "vlm":     {"tipo": "llama", "puerto": 8081, "script": "servir_vlm.py",
                 "args": ["--modelo", "VL-3B"], "identidad": "vl",
@@ -222,22 +233,33 @@ def _pid_vivo(pid: int) -> bool:
 
 
 def _pid_dueno_del_puerto(pid: int, puerto: int) -> Optional[bool]:
-    """True/False si se pudo confirmar quien escucha el puerto; None si no se
-    pudo determinar (puerto sin listener, netstat fallo). POR QUE: si otro
-    proceso tomo el puerto tras un taskkill global del dueno, matar el PID
-    guardado mataria a un inocente."""
-    try:
-        if sys.platform == "win32":
-            salida = subprocess.run(["netstat", "-ano"], capture_output=True,
-                                    text=True, errors="replace",
-                                    timeout=15).stdout
-            for linea in salida.splitlines():
-                if f":{puerto} " in linea and "LISTENING" in linea.upper():
-                    return linea.split()[-1] == str(pid)
-            return None
-        return None  # POSIX: sin lsof garantizado; no confirmamos
-    except Exception:
+    """True/False si se pudo confirmar quien escucha el puerto de LOOPBACK;
+    None si no se pudo determinar (puerto sin listener, netstat fallo). POR
+    QUE: si otro proceso tomo el puerto tras un taskkill global del dueno,
+    matar el PID guardado mataria a un inocente.
+
+    2026-08-13 -- POR QUE ya no escanea netstat aqui: el escaneo propio se
+    quedaba con la PRIMERA linea que tuviera ':<puerto> ' y LISTENING, y en
+    esta maquina esa linea es la de tailscaled (100.110.56.37:8080), que sale
+    ANTES que la del llama-server en 127.0.0.1:8080. Medido: esta funcion
+    devolvia False para (20872, 8080) siendo 20872 EL cerebro -> liberar()
+    borraba la entrada del rol SIN matar, la VRAM (12,8 GB) no se soltaba
+    jamas e invocar() esperaba 30 s en vano. La comparacion exacta contra las
+    direcciones de loopback vive ahora en cognia/puertos.py (una sola copia,
+    compartida con scripts/servidor_modelo.py)."""
+    dueno = puertos.pid_del_puerto(puerto)
+    if dueno is None:
         return None
+    return dueno == int(pid)
+
+
+def _pid_llama_del_puerto(puerto: int) -> Optional[int]:
+    """PID del llama-server que escucha ese puerto de loopback, o None.
+
+    Seam propia (los tests la inyectan) sobre cognia/puertos: exigir que el
+    proceso SEA un llama-server es el permiso para adoptarlo como rol -- y
+    adoptar es firmar que mas tarde lo mataremos por PID."""
+    return puertos.pid_llama_del_puerto(puerto)
 
 
 def _cmd_kill(pid: int) -> list[str]:
@@ -393,6 +415,46 @@ def _celda_para(n_ctx_objetivo: int, escalera: list, cache: str = "") -> Optiona
     return min(candidatas, key=lambda c: c["n_ctx"])
 
 
+def vram_cerebro_mib(n_ctx: int = 0, cache: str = "") -> int:
+    """VRAM del cerebro DERIVADA de la celda de ESCALERA_CTX en uso.
+
+    POR QUE (2026-08-13): el registry DECLARABA 11000 MiB y lo MEDIDO con
+    nvidia-smi contra el cerebro sirviendo 200192 en f16 son 12807. Con el
+    numero corto, _plan_eviccion cree que liberar el cerebro deja 11000 MiB
+    libres y el rol entrante se lanza sin sitio -> OOM. La regla ya escrita
+    para el worker vale igual aca: sobredeclarar es SEGURO (una eviccion mas
+    conservadora), subdeclarar no. Y el numero no hay que inventarlo: la
+    tabla de celdas MEDIDAS ya lo trae (12852 para 200192/f16, 2026-08-02).
+
+    n_ctx=0 -> se toma el del estado (el que /props midio al adoptar o al
+    lanzar) y, si el cerebro no esta registrado, el --ctx del registry.
+    La celda 32768 no tiene vram_mib medida ('default flota'): NO se
+    extrapola, se usa la primera celda MEDIDA que la cubre (mas contexto =
+    mas KV = cota superior, que es el lado seguro)."""
+    if not n_ctx:
+        entrada = _leer_estado()["roles"].get("cerebro") or {}
+        n_ctx = int(entrada.get("n_ctx") or 0)
+        cache = cache or str(entrada.get("cache") or "")
+    if not n_ctx:
+        n_ctx = _n_ctx_de_args(list(ROLES["cerebro"].get("args") or []))
+    medidas = [c for c in ESCALERA_CTX
+               if c.get("vram_mib") and (not cache or c["cache"] == cache)]
+    if not medidas:                      # cache raro: no se filtra a ciegas
+        medidas = [c for c in ESCALERA_CTX if c.get("vram_mib")]
+    cubren = [c for c in medidas if c["n_ctx"] >= n_ctx]
+    if cubren:
+        return int(min(cubren, key=lambda c: c["n_ctx"])["vram_mib"])
+    return int(max(medidas, key=lambda c: c["n_ctx"])["vram_mib"])
+
+
+def _vram_rol(rol: str) -> int:
+    """VRAM presupuestada del rol, en MiB. El cerebro la DERIVA de su celda
+    medida (ver vram_cerebro_mib); el resto la declara en el registry."""
+    if rol == "cerebro":
+        return vram_cerebro_mib()
+    return int(ROLES.get(rol, {}).get("vram_mib") or 0)
+
+
 def _plan_eviccion(vram_libre: int, vram_rol: int, vivos: dict, *,
                    permitir_cerebro: bool = False, ahora: float = 0.0,
                    margen: int = _MARGEN_MIB) -> list[str]:
@@ -432,12 +494,12 @@ def _plan_eviccion(vram_libre: int, vram_rol: int, vivos: dict, *,
             if faltan <= 0:
                 break
             plan.append(rol)
-            faltan -= int(ROLES.get(rol, {}).get("vram_mib") or 0)
+            faltan -= _vram_rol(rol)
     return plan
 
 
 def _vram_de_plan(plan: list[str]) -> int:
-    return sum(int(ROLES.get(r, {}).get("vram_mib") or 0) for r in plan)
+    return sum(_vram_rol(r) for r in plan)
 
 
 def _n_ctx_de_args(args: list[str]) -> int:
@@ -509,8 +571,8 @@ def cabe(rol: str, *, con_cerebro: bool = True) -> tuple[bool, str]:
     if not con_cerebro:
         ent = estado.get("roles", {}).get("cerebro")
         if ent and not ent.get("reserva"):
-            libre += int(ROLES["cerebro"]["vram_mib"])
-    necesita = int(spec["vram_mib"]) + _MARGEN_MIB
+            libre += _vram_rol("cerebro")
+    necesita = _vram_rol(rol) + _MARGEN_MIB
     if necesita <= libre:
         return True, ""
     return False, f"faltan {necesita - libre} MiB para '{rol}' (libres {libre})"
@@ -725,11 +787,11 @@ def _ensure_presupuesto(rol: str, spec: dict, evictar: bool) -> dict:
         _avisar(f"VRAM no medible; anoto la reserva de '{rol}' SIN verificar")
     else:
         libre = total - usada - _reservas_mib(estado, salvo=rol)
-        if int(spec["vram_mib"]) + _MARGEN_MIB > libre:
-            plan = _plan_eviccion(libre, int(spec["vram_mib"]), vivos(),
+        if _vram_rol(rol) + _MARGEN_MIB > libre:
+            plan = _plan_eviccion(libre, _vram_rol(rol), vivos(),
                                   permitir_cerebro=evictar, ahora=_ahora())
-            if libre + _vram_de_plan(plan) < int(spec["vram_mib"]) + _MARGEN_MIB:
-                deficit = int(spec["vram_mib"]) + _MARGEN_MIB - libre - _vram_de_plan(plan)
+            if libre + _vram_de_plan(plan) < _vram_rol(rol) + _MARGEN_MIB:
+                deficit = _vram_rol(rol) + _MARGEN_MIB - libre - _vram_de_plan(plan)
                 _fallar(f"no cabe '{rol}': faltan {deficit} MiB aun liberando todo",
                         "cognia flota parar / summoner.liberar('<rol>')")
             for victima in plan:
@@ -742,6 +804,55 @@ def _ensure_presupuesto(rol: str, spec: dict, evictar: bool) -> dict:
     _guardar_estado(estado)
     return {"ok": True, "rol": rol, "url": None, "pid": None,
             "modelo": None, "n_ctx": None, "arranque_frio": False}
+
+
+def _adoptar(rol: str, spec: dict, props: dict,
+             entrada: dict) -> Optional[int]:
+    """Registra en el estado al llama-server que YA sirve el puerto del rol.
+    Devuelve el PID adoptado (o el que ya teniamos), None si no se pudo.
+
+    POR QUE (2026-08-13, MEDIDO): con summoner.json vacio y el :8080 sirviendo
+    Qwythos, ensure('cerebro') devolvia ok sin escribir estado; tocar() no
+    inventa entradas, asi que el rol seguia 'dormido'. La MISMA salida de
+    `cognia flota estado` decia ':8080 RESPONDE - Qwythos' y, tres lineas mas
+    abajo, 'cerebro rancio (pid 18388 muerto)'. Consecuencia real: vivos()={},
+    o sea que el planificador no podia evictar al cerebro (no sabia su PID) y
+    cabe('imagen') declaraba que faltaban 9 GB con 12,8 GB comidos por el.
+
+    Lo que se escribe son datos MEDIDOS, no declarados: el PID lo resuelve
+    netstat+CIM y tiene que ser un llama-server (es el permiso para matarlo
+    despues); modelo y n_ctx salen de /props, no de la celda del registry.
+    Si no se puede identificar al dueno del puerto NO se inventa una entrada:
+    se avisa (el rol queda sin registrar, visible) y el server sigue sirviendo.
+    """
+    pid = entrada.get("pid")
+    if pid and _pid_vivo(pid):
+        return pid              # ya registrado y su proceso sigue vivo
+    puerto = spec["puerto"]
+    pid_real = _pid_llama_del_puerto(puerto)
+    if pid_real is None:
+        _avisar(f"'{rol}' responde en :{puerto} con la identidad correcta pero "
+                f"no pude confirmar que PID de llama-server lo escucha: NO lo "
+                f"registro (sin PID no hay eviccion posible ni kill selectivo)")
+        return None
+    ahora = _ahora()
+    estado = _leer_estado()
+    estado["roles"][rol] = {
+        "pid": pid_real, "puerto": puerto,
+        "t_arranque": ahora, "t_ultima": ahora,
+        "modelo": props.get("modelo") or "",
+        "n_ctx": int(props.get("n_ctx") or 0),
+        # el tipo de KV cache NO lo expone /props: queda vacio a proposito.
+        # Declararlo 'f16' seria inventar, y escalar_ctx decide relanzar con
+        # eso (con cache desconocido relanza, que es el lado seguro).
+        "cache": "",
+        "cmd": entrada.get("cmd") or [],
+        "adoptada": True}
+    _guardar_estado(estado)
+    _avisar(f"adoptado el llama-server ya vivo en :{puerto} como rol '{rol}' "
+            f"(pid {pid_real}, {props.get('modelo')}, n_ctx "
+            f"{props.get('n_ctx')})")
+    return pid_real
 
 
 def ensure(rol: str, *, ctx: int = 0, timeout_s: int = 0,
@@ -789,6 +900,11 @@ def _ensure_bajo_candado(rol: str, *, ctx: int, timeout_s: int,
             props = _props(url)
             modelo = str(props.get("modelo") or "").lower()
             if spec["identidad"] in modelo:
+                # ADOPCION (2026-08-13): el server correcto ya sirve el puerto
+                # pero puede no estar en NUESTRO estado. Antes se retornaba sin
+                # escribir nada y tocar() era no-op (solo sella roles ya
+                # registrados) -- ver _adoptar para la averia medida.
+                pid = _adoptar(rol, spec, props, entrada) or pid
                 tocar(rol)
                 return {"ok": True, "rol": rol, "url": url, "pid": pid,
                         "modelo": props.get("modelo"),
@@ -845,18 +961,18 @@ def _ensure_bajo_candado(rol: str, *, ctx: int, timeout_s: int,
             _avisar(f"VRAM no medible; lanzo '{rol}' sin presupuesto verificado")
         else:
             libre = total - usada - _reservas_mib(_leer_estado(), salvo=rol)
-            if int(spec["vram_mib"]) + _MARGEN_MIB > libre:
-                plan = _plan_eviccion(libre, int(spec["vram_mib"]), vivos(),
+            if _vram_rol(rol) + _MARGEN_MIB > libre:
+                plan = _plan_eviccion(libre, _vram_rol(rol), vivos(),
                                       permitir_cerebro=evictar, ahora=_ahora())
-                if libre + _vram_de_plan(plan) < int(spec["vram_mib"]) + _MARGEN_MIB:
-                    deficit = (int(spec["vram_mib"]) + _MARGEN_MIB
+                if libre + _vram_de_plan(plan) < _vram_rol(rol) + _MARGEN_MIB:
+                    deficit = (_vram_rol(rol) + _MARGEN_MIB
                                - libre - _vram_de_plan(plan))
                     _fallar(f"no cabe '{rol}': faltan {deficit} MiB aun con eviccion",
                             "cognia flota parar / summoner.liberar('<rol>')")
                 for victima in plan:
                     liberar(victima)
                 if plan and total > 0:
-                    _esperar_vram_libre(int(spec["vram_mib"]) + _MARGEN_MIB)
+                    _esperar_vram_libre(_vram_rol(rol) + _MARGEN_MIB)
         # --- lanzar ---
         args = list(spec.get("args") or [])
         n_ctx_pedido = 0
@@ -1022,12 +1138,31 @@ def escalar_ctx(n_ctx_objetivo: int, *, cache: str = "") -> dict:
     if _salud(ROLES["cerebro"]["puerto"])[0] is not None:
         liberar("cerebro")
     r = ensure("cerebro", ctx=int(celda["n_ctx"]), _cache=celda["cache"])
-    return {"ok": True, "n_ctx": int(celda["n_ctx"]),
+    # El n_ctx que vale es el que MIDIO /props tras el arranque, no el que la
+    # celda DECLARA (2026-08-13): devolver el declarado convierte cualquier
+    # auto-reduccion silenciosa de llama-server en una ventana fantasma, y
+    # quien planifica con ella corta el contexto a mitad de tarea. El repo ya
+    # tiene la regla: el coste se mide, no se declara.
+    n_medido = r.get("n_ctx")
+    if n_medido is None:
+        _avisar(f"el cerebro no reporto n_ctx tras relanzar a "
+                f"{celda['n_ctx']}: devuelvo el de la celda SIN medicion que "
+                f"lo respalde")
+        n_medido = int(celda["n_ctx"])
+    elif int(n_medido) != int(celda["n_ctx"]):
+        _fallar(f"relanzado a n_ctx {n_medido} y la celda pedia "
+                f"{celda['n_ctx']} (fit silencioso?): no devuelvo un techo que "
+                f"el server no esta sirviendo",
+                "revisa el log del cerebro (--fit-off) y vuelve a medir la celda")
+    return {"ok": True, "n_ctx": int(n_medido),
             "cache": celda["cache"], "relanzado": True,
             "pid": r.get("pid")}
 
 
 def _cache_actual() -> str:
+    """Tipo de KV cache del cerebro segun el estado. Devuelve '' cuando el rol
+    fue ADOPTADO (/props no expone el cache: inventar 'f16' haria que
+    escalar_ctx se de por satisfecho con un cache que no verifico)."""
     entrada = _leer_estado()["roles"].get("cerebro") or {}
     return entrada.get("cache", "f16")
 

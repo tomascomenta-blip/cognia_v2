@@ -60,7 +60,8 @@ comando de rescate en disco, y restaura en el finally + atexit + SIGTERM.
             parar(proc)
     # al salir del with -por return, excepcion o Ctrl-C- el cerebro vuelve
 
-Solo stdlib (+ el lector GGUF de scripts/ctx_maximo.py, que no se duplica).
+Solo stdlib (+ el lector GGUF de scripts/ctx_maximo.py y cognia/puertos.py, que
+tiene el "quien escucha el puerto": ninguno de los dos se duplica aca).
 """
 
 from __future__ import annotations
@@ -88,6 +89,12 @@ if str(_RAIZ) not in sys.path:
     sys.path.insert(0, str(_RAIZ))
 
 from scripts import ctx_maximo                      # noqa: E402  (lector GGUF)
+# El paquete es la fuente de verdad de "quien escucha el puerto" (WP: scripts/
+# no viaja en el wheel y el summoner lo necesita). Import DESPUES de meter la
+# raiz en sys.path: asi funciona igual corriendo el script o importandolo.
+from cognia.puertos import (pid_del_puerto,          # noqa: E402,F401
+                            pid_llama_del_puerto,
+                            procesos_llama)
 
 DIR_LLAMA = Path.home() / ".cognia" / "llama"
 DIR_MODELOS = Path.home() / ".cognia" / "models"
@@ -166,121 +173,13 @@ def puerto_de_argv(argv: Sequence[str], por_defecto: int = PUERTO_CEREBRO) -> in
     return por_defecto
 
 
-def _procesos_llama() -> list[dict]:
-    """[{'pid', 'cmdline'}] de los llama-server vivos, via CIM/WMI.
-
-    Windows: PowerShell + Get-CimInstance Win32_Process. Se escribe con
-    [Console]::Out.Write porque el formateador de PowerShell CORTA las lineas
-    largas al ancho de consola y la cmdline (352 caracteres en el cerebro
-    actual) volveria partida e inservible para restaurar.
-    POSIX: `ps -eo pid=,args=` (el arnes se midio en Windows; el camino POSIX
-    esta para que importar el modulo no reviente en CI)."""
-    if os.name != "nt":
-        try:
-            salida = subprocess.run(["ps", "-eo", "pid=,args="],
-                                    capture_output=True, text=True,
-                                    errors="replace", timeout=20).stdout
-        except Exception as exc:
-            print(f"[servidor_modelo] no pude listar procesos: {exc}",
-                  file=sys.stderr)
-            return []
-        vivos = []
-        for linea in salida.splitlines():
-            linea = linea.strip()
-            if not linea or "llama-server" not in linea:
-                continue
-            pid, _, cmd = linea.partition(" ")
-            if pid.isdigit():
-                vivos.append({"pid": int(pid), "cmdline": cmd.strip()})
-        return vivos
-
-    ps = ("$ps = Get-CimInstance Win32_Process | "
-          "Where-Object { $_.Name -like 'llama-server*' } | "
-          "Select-Object ProcessId,CommandLine; "
-          "[Console]::Out.Write((ConvertTo-Json -InputObject @($ps) "
-          "-Compress -Depth 3))")
-    try:
-        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive",
-                            "-Command", ps],
-                           capture_output=True, text=True, errors="replace",
-                           timeout=60)
-    except Exception as exc:
-        print(f"[servidor_modelo] CIM fallo: {exc}", file=sys.stderr)
-        return []
-    crudo = (r.stdout or "").strip()
-    if not crudo:
-        return []
-    try:
-        datos = json.loads(crudo)
-    except ValueError as exc:
-        print(f"[servidor_modelo] CIM devolvio algo que no es JSON: {exc}",
-              file=sys.stderr)
-        return []
-    if isinstance(datos, dict):
-        datos = [datos]
-    vivos = []
-    for d in datos:
-        pid = d.get("ProcessId")
-        cmd = d.get("CommandLine") or ""
-        if pid and cmd:
-            vivos.append({"pid": int(pid), "cmdline": cmd})
-    return vivos
-
-
-def pid_del_puerto(puerto: int) -> Optional[int]:
-    """PID que ESCUCHA en el `puerto` de LOOPBACK, o None si no se confirma.
-
-    Cuentan 127.0.0.1:P y los comodines 0.0.0.0:P / [::]:P (los tres atienden a
-    un cliente que se conecta a 127.0.0.1). NO cuenta una IP concreta que no sea
-    loopback: en esta maquina tailscaled tiene un LISTENING propio en el :8080
-    de la IP de la malla (100.110.56.37 y su IPv6, verificado con netstat el
-    2026-08-13), y confundirlo con el cerebro es como el summoner perdio la
-    entrada del rol.
-
-    El estado se compara contra 'LISTENING' en INGLES a proposito: netstat de
-    Windows traduce las cabeceras ('Direccion local', 'Estado') pero NO los
-    estados - verificado en este Windows 11 en espanol."""
-    try:
-        if os.name == "nt":
-            salida = subprocess.run(["netstat", "-ano"], capture_output=True,
-                                    text=True, errors="replace",
-                                    timeout=20).stdout
-        else:                       # POSIX: `ss` si esta; si no, nada que afirmar
-            salida = subprocess.run(["ss", "-lptn"], capture_output=True,
-                                    text=True, errors="replace",
-                                    timeout=20).stdout
-    except Exception:
-        return None
-    comodines = (f"127.0.0.1:{puerto}", f"0.0.0.0:{puerto}", f"[::]:{puerto}",
-                 f"::1:{puerto}", f"[::1]:{puerto}")
-    for linea in salida.splitlines():
-        if os.name == "nt":
-            if "LISTENING" not in linea.upper():
-                continue
-            campos = linea.split()
-            if len(campos) < 5 or campos[1] not in comodines:
-                continue           # campos[1] es la direccion LOCAL, exacta
-            if campos[-1].isdigit():
-                return int(campos[-1])
-        else:
-            if not any(c in linea for c in comodines):
-                continue
-            m = re.search(r"pid=(\d+)", linea)
-            if m:
-                return int(m.group(1))
-    return None
-
-
-def pid_llama_del_puerto(puerto: int) -> Optional[int]:
-    """El PID del puerto SOLO si es un llama-server. None en cualquier otro caso.
-
-    Es el permiso para matarlo: `pid_del_puerto` sola devolveria feliz el PID de
-    cualquier cosa que ocupe el :8080 (un dashboard, un tunel), y matar eso seria
-    peor que la averia que se esta arreglando."""
-    pid = pid_del_puerto(puerto)
-    if pid is None:
-        return None
-    return pid if pid in {p["pid"] for p in _procesos_llama()} else None
+# Quien escucha un puerto (y si es un llama-server) vive en cognia/puertos.py
+# desde 2026-08-13: scripts/ NO viaja en el wheel y el summoner necesita esas
+# tres funciones para adoptar el server vivo. Aca se RE-EXPORTAN para no
+# duplicar la logica -- dos copias del mismo netstat es como el :8088 sirvio
+# un modelo retirado durante semanas. `_procesos_llama` conserva el nombre
+# privado historico porque es la seam que inyectan los tests de este fichero.
+_procesos_llama = procesos_llama
 
 
 def linea_de_comando_actual(puerto: int = PUERTO_CEREBRO) -> Optional[dict]:
