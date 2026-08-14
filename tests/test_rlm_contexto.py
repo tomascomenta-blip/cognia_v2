@@ -213,6 +213,24 @@ def test_sin_tool_calling_falla_con_causa_y_NO_entra_al_bucle(tmp_path,
     assert res["medidor"]["cobertura_union"] == 0.0
 
 
+def test_regimen_forzado_a_texto_manda_al_entorno_no_al_jinja(tmp_path,
+                                                              monkeypatch):
+    """Con COGNIA_AGENT_LEGACY=1 el server puede estar perfecto: el remedio es
+    quitar el override, no ir a ponerle --jinja a un server que esta bien."""
+    _sin_backend(monkeypatch)
+    _stub_capacidad(monkeypatch, True, "tool call valido en 2.0s")
+    monkeypatch.setenv("COGNIA_AGENT_LEGACY", "1")
+    llamadas = _espia_bucle(monkeypatch)
+    ruta = tmp_path / "ctx.txt"
+    ruta.write_bytes(b"hola\n")
+
+    res = rlm.correr_rlm("que dice?", str(ruta), url="http://127.0.0.1:9")
+    assert res["ok"] is False and llamadas == []
+    assert "forzado" in res["texto"]
+    assert "COGNIA_AGENT_LEGACY" in res["texto"]
+    assert "--jinja" not in res["texto"]
+
+
 def test_sonda_rota_tampoco_cuela_el_regimen(tmp_path, monkeypatch):
     """Si la sonda revienta, no hay medicion: y sin medicion no hay nativo
     (que es exactamente lo que se dejo de suponer)."""

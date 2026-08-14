@@ -923,14 +923,22 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
                 origen=contexto.origen, n_ctx=(perfil or {}).get("n_ctx"),
                 max_hijos=_env_int("COGNIA_RLM_MAX_HIJOS", 16),
                 presupuesto_tokens=_env_int("COGNIA_RLM_PRESUPUESTO", 120000))
+            # El remedio depende de POR QUE no hay nativo: mandar a poner
+            # --jinja a quien lo que tiene es un COGNIA_AGENT_LEGACY=1 puesto
+            # a mano lo manda a arreglar un server que esta bien.
+            if (perfil or {}).get("capacidad") == "forzado":
+                remedio = ("El regimen esta FORZADO por entorno: quita "
+                           "COGNIA_AGENT_TOOLS/COGNIA_AGENT_LEGACY (o ponlo "
+                           "en 'nativo') para que el modo RLM pueda correr.")
+            else:
+                remedio = ("Arranca el server con --jinja o servi un modelo "
+                           "que emita tool_calls; comproba con: "
+                           f"python -m cognia.agent.capacidad {destino}")
             texto = ("ERROR: el modo RLM se toca SOLO con herramientas y este "
                      "backend no las parsea.\n"
                      f"causa: {motivo or 'la sonda no devolvio motivo'}\n"
                      f"El contexto de '{contexto.origen}' quedo SIN tocar "
-                     f"({contexto.chars:,} chars).\n"
-                     "Arranca el server con --jinja o servi un modelo que "
-                     "emita tool_calls; comproba con: "
-                     f"python -m cognia.agent.capacidad {destino}")
+                     f"({contexto.chars:,} chars).\n" + remedio)
             # El informe sale IGUAL que en cualquier otro corte: 0% visto es
             # un dato, no un hueco (medir es parte del contrato del modo).
             return {"texto": texto, "ok": False, "pasos": 0,
