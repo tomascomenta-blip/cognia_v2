@@ -154,7 +154,19 @@ def _modo_lectura():
     """
     try:
         from cognia.search.contexto import modo_por_nombre
-        return modo_por_nombre("estrecho")
+        # 'medio' y no 'estrecho' desde el 2026-08-15, MEDIDO con el banco
+        # b5 (5 ítems, 4 brazos INTERCALADOS, dos nulos):
+        #   ciego     0/5    1,0 s   (no lo sabe de memoria)
+        #   estrecho  0/5    2,2 s   <- el pipeline de 3x2000 de siempre
+        #   medio     5/5   27,6 s
+        #   ancho     5/5  152,2 s
+        # Colapso contra perfecto: el recorte a 2.000 chars tiraba la
+        # respuesta, no la resumía. Y 'ancho' NO gana a 'medio' — mismo
+        # acierto por 5,5x de pared —, así que el default es el punto donde
+        # la curva acierto/segundo tiene el máximo (2,18 vs 0,39 aciertos por
+        # minuto). Más contexto no es mejor por serlo.
+        # COGNIA_SEARCH_MODO sigue pisando esto.
+        return modo_por_nombre("medio")
     except Exception:
         return None
 

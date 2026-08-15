@@ -64,3 +64,31 @@ exigiendo una fila por `pagina_id` y contando los que faltan.
   abierto de llama.cpp #16407 devuelve rankings basura **sin lanzar error** para BGE/Qwen3/MXBAI.
   Si entra, va en CPU y con verificación previa contra un orden de referencia.
 - **Concurrencia 12** en el fan-out: el límite aquí no es el dinero, es el **baneo** de ddgs. 5.
+
+---
+
+## RESULTADO DEL BANCO (2026-08-15, server sano, sin contención)
+
+5 ítems, 4 brazos **intercalados por ítem**, dos nulos, aguja a >6.000 chars de profundidad:
+
+| brazo | acierto | seg/ítem | tok/ítem | aciertos/min |
+|---|---|---|---|---|
+| ciego (sin páginas) | **0/5** | 1,0 | 67 | 0 |
+| estrecho (3×2000 = el pipeline de hoy) | **0/5** | 2,2 | 1.752 | 0 |
+| medio (12 páginas × 9.000) | **5/5** | 27,6 | 28.281 | **2,18** |
+| ancho (40 páginas × 14.000) | **5/5** | 152,2 | 146.529 | 0,39 |
+
+**Lo que dice.** El pipeline actual saca 0/5 y el modo medio 5/5: colapso contra perfecto, muy por
+encima de cualquier MDE razonable con n=5. El brazo ciego a 0/5 descarta que el modelo lo supiera
+de memoria. **Y ancho NO le gana a medio**: mismo acierto por 5,5× de pared. Más contexto no es
+mejor por serlo — el máximo de la curva acierto/segundo está en medio, y ese es ahora el default.
+
+**Lo que NO dice, y hay que decirlo:**
+- **Satura por arriba.** Con medio en 5/5 el banco no puede distinguir medio de ancho. Para eso
+  haría falta subir la dificultad (aguja más profunda que 9.000 chars, o multi-hop entre páginas).
+- **La aguja está siempre en la posición 3** del contexto, así que el ancho se mide en su mejor
+  caso (lo señaló la revisión adversarial y no se corrigió: queda para la próxima versión del banco).
+- El acierto es **subcadena** del código hexadecimal, y el contexto lleva varios códigos válidos de
+  otras páginas: un acierto por casualidad es improbable pero no imposible.
+- Mide **localización dentro de páginas ya descargadas**. No mide la calidad del buscador ni la del
+  ranking, que es donde Perplexity tiene su foso real.

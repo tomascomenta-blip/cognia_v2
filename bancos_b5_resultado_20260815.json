@@ -1,0 +1,200 @@
+{
+ "config": {
+  "items": 5,
+  "paginas": 40,
+  "profundidad": 6000,
+  "chars_pagina": 14000,
+  "puerto": 8797,
+  "brazos": "ciego,estrecho,medio,ancho",
+  "backend": "http://127.0.0.1:8080",
+  "salida": "C:/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Desktop/7ee27796-5d71-4eec-9b0e-8562b0c603f5/scratchpad/b5_sano.json"
+ },
+ "filas": [
+  {
+   "item": 0,
+   "brazo": "ciego",
+   "ok": false,
+   "seg": 1.0,
+   "tokens": 67,
+   "paginas": 0
+  },
+  {
+   "item": 0,
+   "brazo": "estrecho",
+   "ok": false,
+   "seg": 2.2,
+   "tokens": 1750,
+   "paginas": 3
+  },
+  {
+   "item": 0,
+   "brazo": "medio",
+   "ok": true,
+   "seg": 27.5,
+   "tokens": 28281,
+   "paginas": 12
+  },
+  {
+   "item": 0,
+   "brazo": "ancho",
+   "ok": true,
+   "seg": 152.2,
+   "tokens": 146529,
+   "paginas": 40
+  },
+  {
+   "item": 1,
+   "brazo": "ciego",
+   "ok": false,
+   "seg": 1.0,
+   "tokens": 67,
+   "paginas": 0
+  },
+  {
+   "item": 1,
+   "brazo": "estrecho",
+   "ok": false,
+   "seg": 2.2,
+   "tokens": 1750,
+   "paginas": 3
+  },
+  {
+   "item": 1,
+   "brazo": "medio",
+   "ok": true,
+   "seg": 27.6,
+   "tokens": 28281,
+   "paginas": 12
+  },
+  {
+   "item": 1,
+   "brazo": "ancho",
+   "ok": true,
+   "seg": 152.3,
+   "tokens": 146529,
+   "paginas": 40
+  },
+  {
+   "item": 2,
+   "brazo": "ciego",
+   "ok": false,
+   "seg": 1.0,
+   "tokens": 67,
+   "paginas": 0
+  },
+  {
+   "item": 2,
+   "brazo": "estrecho",
+   "ok": false,
+   "seg": 2.2,
+   "tokens": 1750,
+   "paginas": 3
+  },
+  {
+   "item": 2,
+   "brazo": "medio",
+   "ok": true,
+   "seg": 27.6,
+   "tokens": 28281,
+   "paginas": 12
+  },
+  {
+   "item": 2,
+   "brazo": "ancho",
+   "ok": true,
+   "seg": 152.3,
+   "tokens": 146529,
+   "paginas": 40
+  },
+  {
+   "item": 3,
+   "brazo": "ciego",
+   "ok": false,
+   "seg": 1.0,
+   "tokens": 67,
+   "paginas": 0
+  },
+  {
+   "item": 3,
+   "brazo": "estrecho",
+   "ok": false,
+   "seg": 2.2,
+   "tokens": 1743,
+   "paginas": 3
+  },
+  {
+   "item": 3,
+   "brazo": "medio",
+   "ok": true,
+   "seg": 27.6,
+   "tokens": 28281,
+   "paginas": 12
+  },
+  {
+   "item": 3,
+   "brazo": "ancho",
+   "ok": true,
+   "seg": 152.2,
+   "tokens": 146529,
+   "paginas": 40
+  },
+  {
+   "item": 4,
+   "brazo": "ciego",
+   "ok": false,
+   "seg": 1.0,
+   "tokens": 67,
+   "paginas": 0
+  },
+  {
+   "item": 4,
+   "brazo": "estrecho",
+   "ok": false,
+   "seg": 2.2,
+   "tokens": 1771,
+   "paginas": 3
+  },
+  {
+   "item": 4,
+   "brazo": "medio",
+   "ok": true,
+   "seg": 27.6,
+   "tokens": 28281,
+   "paginas": 12
+  },
+  {
+   "item": 4,
+   "brazo": "ancho",
+   "ok": true,
+   "seg": 152.2,
+   "tokens": 146529,
+   "paginas": 40
+  }
+ ],
+ "resumen": {
+  "ciego": {
+   "aciertos": 0,
+   "n": 5,
+   "seg_medio": 1.0,
+   "tokens_medio": 67
+  },
+  "estrecho": {
+   "aciertos": 0,
+   "n": 5,
+   "seg_medio": 2.2,
+   "tokens_medio": 1752
+  },
+  "medio": {
+   "aciertos": 5,
+   "n": 5,
+   "seg_medio": 27.6,
+   "tokens_medio": 28281
+  },
+  "ancho": {
+   "aciertos": 5,
+   "n": 5,
+   "seg_medio": 152.2,
+   "tokens_medio": 146529
+  }
+ }
+}
