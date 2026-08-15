@@ -4357,6 +4357,21 @@ def _modelo_activo_nombre(_llama) -> str:
         gp = getattr(_llama, "gguf_path", None)
         if gp:
             return f"{Path(str(gp)).name} (configurado en backend)"
+    # Sin orquestador cacheado NO significa sin server: el REPL construye el
+    # orquestador perezosamente, asi que hasta el primer mensaje `_llama` es
+    # None y esta funcion caia directo a LLAMA_GGUF_PATH. Resultado medido en
+    # el e2e del 2026-08-15: con Nemotron servido en :8080, /modelo decia
+    # "Qwythos ... server no arrancado" cuatro lineas debajo de su propio
+    # banner, que decia Nemotron. Preguntar a /props cuesta unos ms y esta
+    # cacheado; la CONFIGURACION nunca puede ganarle al server vivo.
+    try:
+        from cognia.agent.model_profiles import url_del_backend
+        from cognia.backend_activo import props as _props
+        servido = (_props(url_del_backend()) or {}).get("modelo")
+        if servido:
+            return f"{servido} (server vivo)"
+    except Exception:
+        pass
     env = os.environ.get("LLAMA_GGUF_PATH", "").strip()
     if env:
         return f"{Path(env).name} (LLAMA_GGUF_PATH, server no arrancado)"

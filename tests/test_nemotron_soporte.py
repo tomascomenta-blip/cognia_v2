@@ -318,3 +318,31 @@ class TestElReintentoNoJuzgaElTruncado:
         assert r["soporta_tools"] is False
         assert "sin tokens" in r["motivo"]
         assert "JSON" not in r["motivo"]     # ya no acusa de JSON inválido
+
+
+class TestElReplNoMienteElModelo:
+    """e2e 2026-08-15: con Nemotron servido en :8080, `/modelo` decia
+    "Qwythos ... server no arrancado" CUATRO LINEAS debajo de su propio
+    banner, que decia Nemotron. La causa: el REPL construye el orquestador
+    perezosamente, y sin el, la funcion caia directo a LLAMA_GGUF_PATH sin
+    preguntarle nunca al server."""
+
+    def test_sin_orquestador_igual_pregunta_al_server(self, monkeypatch):
+        from cognia import cli
+        import cognia.backend_activo as BA
+        monkeypatch.setattr(BA, "props",
+                            lambda url, forzar=False: {
+                                "modelo": "el-que-sirve.gguf"})
+        assert "el-que-sirve.gguf" in cli._modelo_activo_nombre(None)
+        assert "server vivo" in cli._modelo_activo_nombre(None)
+
+    def test_sin_server_sigue_diciendo_lo_configurado(self, monkeypatch):
+        # Contrafactual: sin backend, el camino viejo intacto.
+        from cognia import cli
+        import cognia.backend_activo as BA
+        monkeypatch.setattr(BA, "props",
+                            lambda url, forzar=False: (_ for _ in ()).throw(
+                                OSError("no hay server")))
+        monkeypatch.setenv("LLAMA_GGUF_PATH", r"C:\m\configurado.gguf")
+        salida = cli._modelo_activo_nombre(None)
+        assert "configurado.gguf" in salida and "no arrancado" in salida
