@@ -58,6 +58,43 @@ LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _DEFAULTS = {"op": "-", "context": "-"}
 
 
+class _RotatingTolerante(logging.handlers.RotatingFileHandler):
+    """RotatingFileHandler que NO revienta si otro proceso tiene el log abierto.
+
+    En Windows, rotar exige renombrar el archivo, y eso falla con
+    `PermissionError [WinError 32]` cuando hay OTRO proceso de Cognia con el
+    mismo log abierto. Medido en el e2e del 2026-08-15: dos arranques
+    concurrentes escupian ~40 lineas de traceback cada uno por la consola,
+    2 de 2 veces.
+
+    Perder una rotacion puntual (el archivo crece un poco mas de la cuenta y
+    se rota en el proximo intento, cuando el otro proceso ya cerro) es
+    infinitamente mejor que vomitar un traceback en el arranque. El aviso
+    sale UNA vez por proceso: repetirlo en cada rotacion seria cambiar un
+    ruido por otro.
+    """
+
+    _aviso_dado = False
+
+    def doRollover(self):            # noqa: N802  (nombre de la stdlib)
+        try:
+            super().doRollover()
+        except (PermissionError, OSError) as exc:
+            if not _RotatingTolerante._aviso_dado:
+                _RotatingTolerante._aviso_dado = True
+                print(f"[cognia] aviso: no pude rotar el log ({exc.__class__.__name__}); "
+                      f"otro proceso lo tiene abierto. Sigo escribiendo sin rotar.",
+                      file=sys.stderr)
+            # Sin stream abierto no se puede seguir logueando: se reabre en
+            # modo append, que es justo lo que la rotacion fallida dejo a medias.
+            if self.stream is None:
+                try:
+                    self.mode = "a"
+                    self.stream = self._open()
+                except Exception:
+                    pass
+
+
 class _DefaultsFilter(logging.Filter):
     """Inyecta valores por defecto en campos extra para el formatter."""
 
@@ -131,7 +168,7 @@ def _build_root_logger() -> logging.Logger:
         if not ruta_log:
             os.makedirs(_LOG_DIR_DEFAULT, exist_ok=True)
             ruta_log = os.path.join(_LOG_DIR_DEFAULT, "cognia.log")
-        file_handler = logging.handlers.RotatingFileHandler(
+        file_handler = _RotatingTolerante(
             ruta_log,
             maxBytes=LOG_MAX_BYTES,
             backupCount=LOG_BACKUP_COUNT,

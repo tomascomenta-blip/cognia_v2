@@ -2102,15 +2102,28 @@ def _slash_buscar_memoria(ai, args: str) -> None:
         return
 
     def _print_results(results):
-        if not results:
-            print("Sin resultados semanticos para esa busqueda.")
+        # Umbral MINIMO (2026-08-15, e2e con Nemotron): la busqueda devolvia
+        # 3 filas con score=0.0 -- dos de ellas texto CJK sin relacion con la
+        # consulta -- porque el ranking siempre entrega su top-k aunque no se
+        # parezca a nada. Una fila con score 0 no es un resultado debil: es
+        # "no encontre nada" disfrazado de hallazgo, y el usuario lo lee como
+        # que la memoria SI tenia algo. El contraste que lo condena es
+        # /aprendiendo-buscar, que ante lo mismo dice "sin resultados".
+        utiles = [r for r in (results or []) if (r.get("score") or 0) > 0.0]
+        descartadas = len(results or []) - len(utiles)
+        if not utiles:
+            print("Sin resultados semanticos para esa busqueda."
+                  + (f" ({descartadas} con score 0 descartadas)"
+                     if descartadas else ""))
             return
         print(f"Resultados semanticos para '{args.strip()}':")
-        for i, r in enumerate(results, 1):
+        for i, r in enumerate(utiles, 1):
             score = round(r.get("score", 0), 3)
             role = r.get("role", "?")
             content = (r.get("content", "") or "")[:120]
             print(f"  {i}. [{role}] ({_fmt_ts(r.get('ts'))}, score={score}) {content}")
+        if descartadas:
+            print(f"  ({descartadas} con score 0 no se muestran)")
 
     try:
         import requests, urllib.parse
