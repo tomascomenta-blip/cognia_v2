@@ -205,3 +205,51 @@ class TestCapDeSalidaEscalaConLaVentana:
         assert salida.endswith("Traceback: boom")
         assert "chars omitidos" in salida
         assert len(salida) < 4600      # cap + el marcador
+
+
+class TestPrefiltroDeterminista:
+    """La guarda que importa: un prefiltro que ahorra mucho y baja el recall
+    está reprobado, aunque la lista quede más limpia."""
+
+    def test_la_misma_pagina_con_utm_es_la_misma_pagina(self):
+        from cognia.search.prefiltro import canonicalizar
+        a = canonicalizar("https://www.Ejemplo.org/guia/?utm_source=x&id=42#top")
+        b = canonicalizar("http://ejemplo.org/guia?id=42")
+        assert a == b
+
+    def test_no_colapsa_paginas_DISTINTAS_por_limpiar_de_mas(self):
+        # ?id=42 ES el documento en medio internet: si se limpiara, dos
+        # páginas distintas se volverían una y se perdería contenido bueno.
+        from cognia.search.prefiltro import canonicalizar
+        assert (canonicalizar("https://e.org/ver?id=42")
+                != canonicalizar("https://e.org/ver?id=43"))
+
+    def test_tope_por_dominio(self):
+        from cognia.search.prefiltro import prefiltrar
+        cands = [{"url": f"https://mismositio.com/p{i}"} for i in range(10)]
+        r = prefiltrar(cands, tope_dominio=3)
+        assert len(r["aceptados"]) == 3
+        assert all("tope" in d["motivo"] for d in r["descartados"])
+
+    def test_conserva_el_orden_del_buscador(self):
+        from cognia.search.prefiltro import prefiltrar
+        cands = [{"url": f"https://s{i}.org/a"} for i in range(5)]
+        r = prefiltrar(cands)
+        assert [a["url"] for a in r["aceptados"]] == [c["url"] for c in cands]
+
+    def test_lo_descartado_dice_por_que(self):
+        from cognia.search.prefiltro import prefiltrar
+        r = prefiltrar([{"url": "https://a.org/x.pdf"},
+                        {"url": "https://r.jina.ai/https://a.org/x"},
+                        {"url": "https://a.org/y"},
+                        {"url": "https://a.org/y/"}])
+        motivos = sorted(d["motivo"].split(" ")[0] for d in r["descartados"])
+        assert motivos == ["agregador", "duplicada", "extensión"]
+        assert len(r["aceptados"]) == 1
+
+    def test_sin_nada_que_filtrar_no_descarta_nada(self):
+        # El caso que protege el recall: candidatos limpios pasan enteros.
+        from cognia.search.prefiltro import prefiltrar
+        cands = [{"url": f"https://sitio{i}.org/articulo"} for i in range(20)]
+        r = prefiltrar(cands)
+        assert len(r["aceptados"]) == 20 and r["ahorro"] == 0.0
