@@ -12782,3 +12782,96 @@ contrafactual (la flota lo relanzó sola, ~1 min de corte, y bajó de `n_ctx` 20
 confesó él mismo y arregló la causa. Dos commits mezclan autoría por un `git commit` sin pathspec
 sobre un índice compartido; verificado que no se perdió nada y NO se rebaseó (con 9 agentes
 commiteando en vivo, reescribir historia es peor que el defecto de atribución).
+
+---
+
+## 2026-08-15 (madrugada) — Nemotron, el millón medido y el harness de búsqueda
+
+**Corrida autónoma con deadline 05:30** (apagado del SO programado al arrancar, `shutdown /s`).
+Pedido del dueño: medir el millón de contexto de Nemotron + RLM, investigar el harness de
+Perplexity y acercar el de Cognia, hacer que Cognia funcione con Nemotron (estaba construida
+entera sobre Qwen), probar los comandos e2e, evaluar long-horizon y workflows, y cambiar el
+sí/no por confianza con investigación automática cuando falte.
+
+### El millón, MEDIDO (no calculado)
+
+`nemotron-3.5-lightning-30b-a3b-Q4_0` (17,6 GB) en la RTX 5060 Ti de 16 GB. Cabe porque es
+**híbrido Mamba2: solo 6 de sus 52 capas tienen KV** (las 5, 12, 19, 26, 33 y 42). Escalera
+completa con aguja a profundidad 50%, todas recuperadas:
+
+| pedido | tokens reales | prefill | tok/s | gen tok/s | VRAM |
+|---|---|---|---|---|---|
+| 131k | 132.425 | 138 s | 960 | 42,4 | 14.605 |
+| 262k | 267.910 | 312 s | 858 | 32,4 | 14.605 |
+| 524k | 543.298 | 782 s | 695 | 22,4 | 14.605 |
+| **1M** | **1.046.706** | **2.061 s** | **508** | **13,9** | **14.622** |
+
+`--no-mmap` + `batch 4096/ubatch 1024` da **+59% de prefill** (645 → 1.023 tok/s a 32k); lo
+pedía el propio log del server y nadie lo estaba usando. El primer intento del millón dio
+HTTP 400: **era el dimensionado mío** (1.094.093 tokens contra una ventana de 1.048.576, por
+usar 3,6 chars/token cuando el real es 3,47), no un límite del modelo.
+
+**El contraste que importa, apareado, mismo pajar y misma corrida:**
+
+| vía | tiempo | tokens | aguja |
+|---|---|---|---|
+| ventana nativa 1M | 2.061 s | 1.046.706 | OK |
+| RLM (grep dirigido) | **9 s** | **4.728** | OK |
+| RLM sobre 4M (4× la ventana) | 5 s | 4.483 | OK |
+
+229× más rápido y 221× menos tokens para el mismo acierto. El RLM funcionó con Nemotron sin
+tocar una línea. Límite honesto: esto mide LOCALIZACIÓN con aguja literal, no síntesis.
+
+### Cognia dejó de ser mono-familia (commit fb78c5f9)
+
+Tres cosas que fallaban EN SILENCIO, destapadas por el primer modelo no-Qwen que entró:
+
+1. `_perfil_auto` elegía el system prompt con una lista literal de tamaños: `'32b'` y `'20b'`
+   estaban, `'30b'` no → **el 30B recibía el prompt degradado del 3B**. Ahora el tamaño se lee
+   del nombre. El `(?<![\d.])` de la regex no es adorno: sin él `Qwen3-1.7B` lee el `7b` del
+   decimal y un 1.7B se lleva el prompt completo (lo cazó el test, no la revisión).
+2. `capacidad.sondar` daba **256 tokens** de presupuesto. Nemotron los gasta pensando, el tool
+   call sale cortado (`{"x":"hola`) y el veredicto era *"el server no parsea tools, ¿le falta
+   --jinja?"*: **un diagnóstico falso que mandaba un modelo con tool-calling perfecto al
+   régimen de texto legacy**. Ahora `finish_reason=length` dispara un reintento con 1024 y sin
+   pensamiento, y si ni así llama, el motivo dice la verdad.
+3. El razonamiento de Nemotron no viaja por `reasoning_effort` (eso es harmony) sino por
+   `chat_template_kwargs.enable_thinking`. `chat_client` gana `kwargs_plantilla`, que se mergea
+   en vez de pisar. Sin kwargs el body es byte-idéntico al histórico.
+
+Dato medido y aún sin explotar: con `enable_thinking=False` el mismo tool call cuesta **24
+tokens y 1,6 s**; con thinking, 44-256 tokens y 3,5-16,6 s. Para el bucle del agente eso es
+mucha latencia por paso, pero **el A/B de calidad no está corrido**, así que el default sigue
+siendo lo que el modelo trae entrenado (on) y el eje queda a un `COGNIA_THINKING=off`.
+
+### Harness de búsqueda (commits 5e01c8cf, 47582bce)
+
+Investigación multi-agente del harness de Perplexity (7 agentes, 679k tokens) + lectura del
+código propio. Tres agujeros REALES:
+
+1. **`workflows.paralelo()` devuelve `None` cuando un thunk revienta** — indistinguible de
+   "corrió bien y no encontró nada", y las dos cosas piden decisiones opuestas. Con 12
+   consultas en vuelo, una caída silenciosa se lee como "el tema no existe".
+   → `search/fanout.py` con envelope. Métrica primaria binaria, leída del ARCHIVO persistido:
+   **fallos reconstruibles 0% (viejo, con test que lo demuestra) → 100%**.
+2. **Un Chromium por URL**: 40 páginas eran 40 arranques. → `extraer_muchas()`: HTTP
+   concurrente y UN solo Chromium reusado para lo que de verdad lo necesita. **40 páginas en
+   1,7 s** en el banco.
+3. **`web_research` leía 3 páginas × 2000 chars** *"sin comerse la ventana de 8k del modelo"* —
+   con el cerebro sirviendo 1.048.576. → `search/contexto.py`: el presupuesto se declara en
+   SEGUNDOS DE PARED y se convierte con los tok/s medidos. La ventana de 1M no es gratis: es un
+   reloj (160k tokens = ~3 min de prefill).
+
+Y las piezas de confianza: `evidencia.py` (una cita que no está literal en su página no es una
+cita; chequeo de cadenas, sin juez) y `confianza.py` (el número NO se le pregunta al modelo:
+sale de cita verificada + dominios independientes + contradicciones; debajo de 0,60 investiga,
+debajo de 0,25 se abstiene; trae su propio ECE/Brier porque una confianza sin calibrar es más
+peligrosa que ninguna). `responder.py` los une en el bucle "responder o investigar".
+
+**Lo que NO está medido y hay que decirlo:** el brazo ancho contra el estrecho con el modelo
+vivo. El banco `b5_banco_busqueda.py` (offline, determinista, 4 brazos intercalados, dos nulos)
+está escrito y su smoke confirmó lo predicho (estrecho 0/2: la aguja a 6.000 chars no entra en
+2.000), pero la corrida completa se **abortó a propósito**: el e2e de comandos estaba usando el
+mismo único slot de GPU y la contención infló hasta el brazo ciego a 29,8 s (cuesta 1 s). Un
+número medido bajo contención parece un resultado sin serlo. Y los pesos de la confianza son
+una hipótesis declarada hasta que se corra la calibración.
