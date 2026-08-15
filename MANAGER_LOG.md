@@ -12958,3 +12958,24 @@ la potencia se declaró ANTES: con 5 tareas por corrida esto detecta un colapso,
 fina. Que la tarea extra que cae CAMBIE entre rondas apunta a degradación difusa, no a un camino
 roto. **El default se queda en `on`** (lo entrenado) y `COGNIA_THINKING=off` queda como palanca
 medida para quien priorice latencia.
+
+### ¿Conviene Nemotron como cerebro? El mismo gate con los dos (mismo día, misma máquina)
+
+| cerebro | corridas | acierto | min/corrida | qué falla |
+|---|---|---|---|---|
+| Nemotron 3.5 30B-A3B (ctx 1M) | 3 | 4/5, 4/5, 4/5 | 2,4-2,7 | `json`, **siempre la misma** |
+| Qwythos-9B (ctx 32k) | 2 | 4/5, 5/5 | 1,5 | ninguna estable |
+
+**Veredicto honesto, y va en contra de la conclusión que invitaba el trabajo de la noche:**
+Qwythos iguala o supera el acierto (4,5/5 contra 4/5), es **1,7× más rápido** y entiende mejor el
+español — el fallo de Nemotron es sistemático y es de comprensión, no de capacidad. Y el argumento
+del contexto tampoco lo separa: el propio Qwythos llega a 1.010.176 tokens con KV q4_0 (escalera
+del 2026-08-09).
+
+Así que la migración pedida **está hecha, medida y funciona** — Nemotron corre el agente, las tools
+nativas, el RLM y el millón entero — pero **la evidencia no respalda cambiar el cerebro por
+defecto**. Queda como alternativa soportada (`cognia flota pensar-nemotron`), que es exactamente lo
+que se pidió: un backup adicional, no un reemplazo. Lo que Nemotron aporta de verdad es un 30B con
+ventana nativa de 1M para tareas donde eso pese más que la latencia y el español.
+
+El sistema se deja con Qwythos servido, que es el default del dueño.
