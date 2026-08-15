@@ -65,9 +65,45 @@ def test_status_reporta_backend_gguf(monkeypatch, tmp_path):
     monkeypatch.delenv("COGNIA_COORDINATOR_URL", raising=False)
     monkeypatch.delenv("COORDINATOR_URL", raising=False)
     out = _capture(cmain._cmd_status)
-    assert "Backend local (GGUF): instalado" in out
+    # "configurado" y no "instalado" (2026-08-15): la palabra distingue lo que
+    # dice config.env de lo que el server SIRVE, que puede ser otro modelo.
+    assert "Backend local (GGUF): configurado" in out
     # el swarm sigue reportandose, pero como opcional apagado, no como el estado
     assert "modo local" in out
+
+
+def test_status_dice_el_modelo_SERVIDO_no_el_configurado(monkeypatch, tmp_path):
+    """El fallo del e2e del 2026-08-15: con Nemotron servido en :8080,
+    `cognia status` imprimia el Qwythos de config.env. Un diagnostico que
+    informa del modelo equivocado es peor que no informar."""
+    fake = tmp_path / "configurado.gguf"
+    fake.write_bytes(b"gguf")
+    import node.llama_backend as lb
+    monkeypatch.setattr(lb, "_find_gguf", lambda: fake)
+    monkeypatch.delenv("COGNIA_COORDINATOR_URL", raising=False)
+    monkeypatch.delenv("COORDINATOR_URL", raising=False)
+    monkeypatch.setattr(cmain.urllib.request, "urlopen",
+                        lambda *a, **k: _Health())
+    import cognia.backend_activo as BA
+    monkeypatch.setattr(BA, "props",
+                        lambda url, forzar=False: {
+                            "modelo": "otro-modelo-servido.gguf",
+                            "n_ctx": 1048576})
+    out = _capture(cmain._cmd_status)
+    assert "SIRVIENDO   : otro-modelo-servido.gguf" in out
+    assert "1,048,576" in out or "1048576" in out
+    assert "OJO" in out          # la discrepancia se declara, no se traga
+
+
+class _Health:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return b"{}"
 
 
 def test_status_sin_gguf_recomienda_install_model(monkeypatch):
