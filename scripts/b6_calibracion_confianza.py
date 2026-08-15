@@ -83,18 +83,25 @@ def main() -> int:
             print(f"  EXCEPCION {type(exc).__name__}: {exc}")
             continue
         dt = time.time() - t0
+        import re as _re
         dicho = (v.valor or "").lower()
+        # ¿AFIRMÓ un código? Es lo que separa las dos preguntas de abajo, y se
+        # mira en el TEXTO, no en la acción: decir "investigar" mientras se
+        # suelta un hexadecimal sigue siendo afirmar.
+        afirmo = bool(_re.search(r"\b[0-9a-f]{8}\b", dicho))
         if c["tipo"] == "positivo":
             acierto = c["esperado"] in dicho and v.accion == "responder"
         else:
-            # Acertar un negativo = NO afirmar un código con confianza.
-            import re as _re
-            invento = bool(_re.search(r"\b[0-9a-f]{8}\b", dicho))
-            acierto = (v.accion != "responder") or not invento
-        pares.append((v.confianza, acierto))
+            # Acertar un negativo = NO inventarse un código. La acción no
+            # basta: la primera versión daba el acierto por la acción sola y
+            # un hexadecimal inventado se aprobaba solo (lo cazó la revisión
+            # adversarial y aun así corrí el banco con el defecto puesto).
+            acierto = not afirmo
+        pares.append((v.confianza, acierto, afirmo, c["tipo"]))
         filas.append({"tipo": c["tipo"], "pregunta": c["pregunta"],
                       "confianza": v.confianza, "accion": v.accion,
-                      "acierto": acierto, "valor": v.valor[:80],
+                      "acierto": acierto, "afirmo": afirmo,
+                      "valor": v.valor[:80],
                       "seg": round(dt, 1), "razones": v.razones[:3]})
         print(f"  [{c['tipo']:8}] conf {v.confianza:.2f} {v.accion:11} "
               f"{'OK  ' if acierto else 'FALLA'} {dt:5.0f}s  {v.valor[:40]!r}",
@@ -102,22 +109,47 @@ def main() -> int:
 
     httpd.shutdown()
 
-    m = CF.calibracion(pares)
+    # DOS preguntas distintas, y meterlas en el mismo ECE es lo que hacía que
+    # un sistema con 8/8 saliera "MAL CALIBRADA":
+    #
+    #  (1) DISCRIMINACIÓN — ¿decide bien CUÁNDO afirmar? Se mide sobre todos
+    #      los casos y es la pregunta que importa primero.
+    #  (2) CALIBRACIÓN — ¿el número acompaña al acierto? Solo tiene sentido
+    #      sobre los casos donde el sistema AFIRMÓ algo: en los que se
+    #      abstuvo, la confianza se refiere a una afirmación que no hizo, y
+    #      contarla como "0,30 y acertó" mezcla peras con manzanas.
+    aciertos = sum(1 for _, a, _, _ in pares if a)
     print("\n" + "=" * 62)
-    print(f"n={m['n']}  ECE={m['ece']}  Brier={m['brier']}  "
+    print(f"DISCRIMINACIÓN: {aciertos}/{len(pares)} decisiones correctas "
+          f"(afirmar cuando la respuesta está, callar cuando no)")
+    for tipo in ("positivo", "negativo"):
+        f = [p for p in pares if p[3] == tipo]
+        if f:
+            print(f"   {tipo:9}: {sum(1 for _, a, _, _ in f if a)}/{len(f)}")
+
+    afirmados = [(c, a) for c, a, af, _ in pares if af]
+    m = CF.calibracion(afirmados)
+    print(f"\nCALIBRACIÓN (solo los {len(afirmados)} casos donde AFIRMÓ): "
+          f"ECE={m['ece']}  Brier={m['brier']}  "
           f"sobreconfianza={m['sobreconfianza']}")
     for t in m["tramos"]:
         print(f"  {t['rango']}  n={t['n']:<3} dice {t['confianza_media']:.2f} "
               f"acierta {t['acierto_real']:.2f}")
-    # El veredicto en una línea, con el criterio DECLARADO antes de mirar:
-    # ECE <= 0,15 es "usable"; sobreconfianza > 0,15 es el fallo que importa
-    # (creerse más de lo que se acierta).
+    # Criterio DECLARADO antes de mirar: ECE <= 0,15 usable; y lo que de
+    # verdad importa es la SOBRECONFIANZA (creerse más de lo que se acierta);
+    # quedarse corto es un defecto menor, no un peligro.
     if m["ece"] is not None:
-        veredicto = ("USABLE" if m["ece"] <= 0.15 and
-                     (m["sobreconfianza"] or 0) <= 0.15 else "MAL CALIBRADA")
+        if (m["sobreconfianza"] or 0) > 0.15:
+            veredicto = "SOBRECONFIADA (el fallo peligroso)"
+        elif m["ece"] <= 0.15:
+            veredicto = "USABLE"
+        else:
+            veredicto = "INFRACONFIADA (acierta más de lo que declara)"
         print(f"veredicto: {veredicto}")
     Path(args.salida).write_text(
-        json.dumps({"filas": filas, "calibracion": m}, indent=1,
+        json.dumps({"filas": filas, "calibracion": m,
+                    "discriminacion": {"aciertos": aciertos,
+                                       "n": len(pares)}}, indent=1,
                    ensure_ascii=False), encoding="utf-8")
     print(f"detalle -> {args.salida}")
     return 0
