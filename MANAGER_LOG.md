@@ -12875,3 +12875,62 @@ está escrito y su smoke confirmó lo predicho (estrecho 0/2: la aguja a 6.000 c
 mismo único slot de GPU y la contención infló hasta el brazo ciego a 29,8 s (cuesta 1 s). Un
 número medido bajo contención parece un resultado sin serlo. Y los pesos de la confianza son
 una hipótesis declarada hasta que se corra la calibración.
+
+### El hallazgo de la noche: el arranque oficial dejaba el server 16,6× lento
+
+`servir_modelo.py` pasaba SIEMPRE `--n-gpu-layers 99`. Sobre un MoE que no cabe entero, eso impide
+que `--fit` recorte capas: para hacer caber todo empuja la VRAM a 15.835 de 16.311 MiB y el driver
+spillea a RAM. **Medido sobre el MISMO prompt de 24.020 tokens:**
+
+| arranque | VRAM | prefill | generación |
+|---|---|---|---|
+| `--n-gpu-layers 99` | 15.835 MiB | 213,4 s = **113 tok/s** | ~14 tok/s |
+| sin el flag (deja a `--fit`) | 14.521 MiB | 12,8 s = **1.878 tok/s** | 39,3 tok/s |
+
+No falla, no avisa: solo va 16 veces más lento. **Contamina hacia atrás medio e2e de esta noche** —
+los 161 s por paso del agente, los 199,7 s de TTFB con `pp_ms < 0,5 s` y el timeout de 300 s que
+mataba `/hacer` eran en gran parte esto. Por eso se corrigió el número que yo mismo acababa de
+cablear: `_TOK_S_POR_FAMILIA["nemotron"]` de 14 → 39,3. El 14 estaba medido con el server roto y
+habría dejado **una avería propia documentada como propiedad del modelo** — cuarta variante esta
+misma noche del mismo error de atribución.
+
+### E2E de comandos con Nemotron: 106 probados, 84 ok
+
+Lo que falla y por qué (separando lo de Nemotron de lo general): el timeout de 300 s (arreglado,
+ahora deriva de la velocidad medida); `cognia status` y `/modelo` imprimían el modelo de
+`config.env` en vez del **servido** — un diagnóstico que informa del modelo equivocado, que es la
+avería histórica del :8088 producida por el propio comando de diagnóstico (arreglado, ahora dice
+SIRVIENDO y avisa de la discrepancia). Quedan sin arreglar y anotados: `/buscar-memoria` devuelve
+filas con `score=0.0` sin umbral, y el rollover del log lanza `PermissionError` con arranques
+concurrentes.
+
+### Revisión adversarial del propio código (42 agentes, 26 hallazgos reales)
+
+Cinco lentes sobre el diff de la noche + un abogado del diablo por hallazgo. Los que sobrevivieron
+son todos míos y de la misma familia: **prometer una cosa en el comentario y hacer otra en el
+código**.
+
+- El perfil de arranque casaba `'nemotron'` y se llevaba al OpenReasoning-14B: le habría pedido un
+  KV de 1M sobre un denso de 48 capas (~103 GB). **Tercera tabla del repo con la misma colisión por
+  substring — y yo había arreglado la de `flota.CEREBROS` dos horas antes, con el comentario "OJO
+  CON EL ORDEN"**. Luego apareció la cuarta (`_cfg_familia`). Ahora las tres recorren de patrón más
+  largo a más corto.
+- El deadline de `en_paralelo` era POR FUTURO y se acumulaba: 6 specs colgados costaban 6× el
+  timeout (medido). El comentario afirmaba justo lo contrario de lo que hacía el código.
+- **El prefiltro se comía el recall**: 6 candidatos de un dominio con los 3 primeros rotos daban 0
+  resultados donde antes había 2 (reproducido). Reprobado por la guarda que yo mismo había
+  declarado. El tope por dominio ahora APLAZA a una reserva en vez de descartar.
+- El brazo NULO del banco no era el pipeline viejo (4.511 chars en vez de 2.000), y mi "reparto del
+  sobrante" le daba 13.880 a una página en modo estrecho. Un modo que no entrega lo que declara no
+  sirve de brazo nulo.
+- El reintento de la sonda seguía juzgando el tool call truncado de la primera pasada.
+
+### Método: dos veces estuve a punto de reportar números contaminados
+
+1. Un banco "abortado" con `TaskStop` **siguió vivo 2 horas** golpeando el único slot: `TaskStop`
+   mata el shell, no el hijo. Se detecta en 20 s comparando el reloj de pared con
+   `timings.prompt_ms` (13 tokens de prompt tardaban 20,5 s).
+2. El `-ngl`. Ver arriba.
+
+En ambos casos los veredictos funcionales seguían saliendo bien y **solo la tabla de segundos
+mentía** — que es la forma más cara de equivocarse aquí.
