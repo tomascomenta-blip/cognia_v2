@@ -25,6 +25,7 @@ con aviso de vía. Cada fallo es un error legible, jamás un vacío.
 from __future__ import annotations
 
 import re
+import time
 
 # Presupuestos: sin límites, una página infinita (scroll) o un PDF gigante
 # harían al agente tragarse medio contexto. Truncamiento SIEMPRE declarado.
@@ -172,6 +173,106 @@ def buscar_en_web(consulta: str, max_resultados: int = 3,
     elif descartados:
         aviso = f"{len(descartados)} candidato(s) descartados por el centinela o por extracción"
     return {"resultados": validos, "descartados": descartados, "aviso": aviso}
+
+
+# Debajo de esto una extracción "exitosa" es sospechosa: casi siempre es una
+# página 100% JS que sin navegador devuelve el cascarón. Es el disparador
+# para gastar Chromium, que cuesta ~1-2 s de arranque.
+_MIN_TEXTO_UTIL = 400
+
+
+def extraer_muchas(urls: list, cap: int = 5, timeout_s: int = 15,
+                   extractor_http=None, extractor_js=None):
+    """Extrae MUCHAS páginas y devuelve un Lote de sobres (cognia.search).
+
+    Dos fases, y el porqué de cada una está medido en el coste, no en el
+    gusto:
+
+    1. **HTTP en paralelo.** httpx es thread-safe, así que N páginas salen a
+       la vez. La mayoría de la documentación técnica —que es lo que el
+       agente lee— es HTML servido, y para eso el navegador es un lujo.
+    2. **Chromium SOLO para lo que lo necesita, y UNA sola instancia.** El
+       camino viejo (`_extraer_con_chromium`) abre `sync_playwright()` y
+       lanza un browser POR URL: 40 páginas eran 40 arranques. Aquí el
+       browser se abre una vez y se reusan páginas. Secuencial a propósito:
+       la API sync de playwright NO es thread-safe, y fingir concurrencia con
+       ella es como se cuelga un proceso sin dejar rastro.
+
+    El resultado de una URL que falla es un sobre con su causa, jamás un
+    hueco: el llamador puede contar cuántas cayeron y por qué.
+    """
+    from cognia.search.fanout import Lote, Sobre, en_paralelo
+
+    urls = [u for u in (urls or []) if u]
+    if not urls:
+        return Lote(sobres=[])
+    extractor_http = extractor_http or _extraer_con_http
+    extractor_js = extractor_js or _extraer_con_chromium
+
+    lote = en_paralelo(urls, lambda u: extractor_http(u, timeout_s), cap=cap,
+                       timeout_s=timeout_s * 3)
+
+    # Quién merece navegador: las que fallaron y las que volvieron vacías.
+    pendientes = [s for s in lote.sobres
+                  if not s.ok
+                  or len((s.valor or {}).get("texto") or "") < _MIN_TEXTO_UTIL]
+    if not pendientes:
+        return lote
+
+    sobres = list(lote.sobres)
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:
+        # Sin playwright no hay segunda fase; los sobres HTTP valen igual y
+        # el aviso viaja en los que quedaron cortos.
+        for s in pendientes:
+            if not s.ok:
+                s.error = f"{s.error}; sin fallback JS ({exc})"
+        return Lote(sobres=sobres)
+
+    with sync_playwright() as p:
+        navegador = p.chromium.launch(headless=True)
+        try:
+            for s in pendientes:
+                url = s.spec
+                t0 = time.time()
+                try:
+                    pag = _extraer_en_navegador(navegador, url, timeout_s)
+                    if len(pag.get("texto") or "") >= _MIN_TEXTO_UTIL or not s.ok:
+                        sobres[s.indice] = Sobre(
+                            spec=url, ok=True, valor=pag, indice=s.indice,
+                            segundos=round(time.time() - t0, 2))
+                except Exception as exc:
+                    if not s.ok:
+                        # Falló por las DOS vías: la causa útil es la doble.
+                        s.error = (f"http=({s.error}) "
+                                   f"chromium=({type(exc).__name__}: {exc})")[:500]
+                        s.tipo_error = "AmbasVias"
+        finally:
+            navegador.close()
+    return Lote(sobres=sobres)
+
+
+def _extraer_en_navegador(navegador, url: str, timeout_s: int) -> dict:
+    """Una página en un browser YA abierto (el que reusa extraer_muchas)."""
+    pagina = navegador.new_page(user_agent=_UA)
+    try:
+        pagina.route(
+            "**/*",
+            lambda ruta: (ruta.abort()
+                          if ruta.request.resource_type in
+                          ("image", "media", "font", "stylesheet")
+                          else ruta.continue_()))
+        pagina.goto(url, timeout=timeout_s * 1000,
+                    wait_until="domcontentloaded")
+        pagina.wait_for_timeout(1200)
+        titulo = pagina.title() or url
+        texto = pagina.evaluate(
+            "document.body ? document.body.innerText : ''")
+        return {"titulo": titulo.strip(), "texto": texto or "",
+                "url_final": pagina.url, "via": "chromium-reusado"}
+    finally:
+        pagina.close()
 
 
 def abrir_url(url: str, tema: str = None) -> dict:
