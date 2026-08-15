@@ -59,19 +59,29 @@ CACHES_KV = ("f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl",
 #     escalon de 32k (+59%). El propio log lo pide cuando hay tensores en CPU.
 #   - KV q8_0: el MILLON entero entra en 14.622 MiB con los pesos.
 # Sonda de punta a punta: prompt real de 1.046.706 tokens, aguja recuperada.
+# La clave es 'nemotron-3.5' y NO 'nemotron' a secas: en ~/.cognia/models/ hay
+# OpenReasoning-Nemotron-14B (denso, ctx viable 16.384) y nemotron-mtp (la
+# cabeza MTP de 1,1 GB). Con la clave corta, el combo 'pensar-en-lazo' —que
+# arranca justamente --modelo OpenReasoning— habria pedido un KV de 1M sobre
+# un denso de 48 capas: ~103 GB solo de KV contra 16.311 MiB de placa. Es la
+# TERCERA tabla del repo que casa modelos por substring y la tercera vez que
+# 'nemotron' se lleva lo que no es suyo (ya paso en flota.CEREBROS y en
+# comparar_modelos._CTX_POR_MODELO). Por eso, ademas, el match va de patron
+# MAS LARGO a mas corto: que la proxima entrada no reabra el agujero por el
+# orden en que alguien la escriba.
 PERFILES_ARRANQUE = {
-    "nemotron": {"ctx": 1048576, "ctk": "q8_0", "ctv": "q8_0",
-                 "no_mmap": True, "batch": 4096, "ubatch": 1024,
-                 "sin_draft": True},
+    "nemotron-3.5": {"ctx": 1048576, "ctk": "q8_0", "ctv": "q8_0",
+                     "no_mmap": True, "batch": 4096, "ubatch": 1024,
+                     "sin_draft": True},
 }
 
 
 def perfil_arranque(modelo) -> dict:
     """Flags extra medidos para ese gguf, o {} si no hay perfil."""
     nombre = Path(modelo).name.lower()
-    for patron, cfg in PERFILES_ARRANQUE.items():
+    for patron in sorted(PERFILES_ARRANQUE, key=len, reverse=True):
         if patron in nombre:
-            return dict(cfg)
+            return dict(PERFILES_ARRANQUE[patron])
     return {}
 
 

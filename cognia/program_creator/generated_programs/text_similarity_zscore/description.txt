@@ -1,0 +1,8 @@
+Title         : Text Similarity Z‑Score
+Category      : text similarity analyzer with sample texts
+Created at    : 2026-08-11T13:02:03.843136
+Score         : auto-asignado 7.8/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A Levenshtein‑based similarity checker that prints a colorful report of each text’s self‑match.

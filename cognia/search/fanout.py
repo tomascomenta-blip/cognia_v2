@@ -138,12 +138,23 @@ def en_paralelo(specs: list, trabajo: Callable, cap: int = CONCURRENCIA_DEFECTO,
                          tipo_error=type(exc).__name__,
                          segundos=round(time.time() - t0, 2))
 
+    # DEADLINE DEL LOTE, no timeout por futuro. `fut.result(timeout=X)` en un
+    # bucle reinicia el reloj en cada iteracion: con N specs colgados la pared
+    # es N x X, no X (medido: 6 specs a timeout_s=1 tardaban 6,03 s). Eso
+    # rompia justo el contrato de `search.contexto`, que declara el
+    # presupuesto en SEGUNDOS DE PARED -- un `responder(presupuesto_s=120)`
+    # podia irse a media hora esperando URLs colgadas de a una.
+    deadline = time.monotonic() + timeout_s
     ex = ThreadPoolExecutor(max_workers=cap)
     try:
         futuros = {ex.submit(_uno, i, s): i for i, s in enumerate(specs)}
         for fut, i in futuros.items():
+            restante = deadline - time.monotonic()
             try:
-                sobres[i] = fut.result(timeout=timeout_s)
+                if restante <= 0:
+                    raise TimeoutError(
+                        f"deadline del lote agotado ({timeout_s:.0f}s)")
+                sobres[i] = fut.result(timeout=restante)
             except Exception as exc:
                 # El timeout NO mata el hilo (limitacion de threads en
                 # Python): el trabajo colgado sigue vivo de fondo. Lo que

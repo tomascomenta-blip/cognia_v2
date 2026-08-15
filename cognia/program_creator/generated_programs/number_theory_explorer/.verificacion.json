@@ -1,0 +1,26 @@
+{
+  "verificado": true,
+  "puntaje_real": 10.0,
+  "fecha": "2026-08-02T00:28:30",
+  "motivos": [
+    "compila: 1/1 .py compilan",
+    "arranca: exit 0, 1121 chars de salida",
+    "sin_stubs: sin senales de stub",
+    "documentacion: docstring de modulo en el entrypoint",
+    "descripcion: cumple lo que promete (6/12 palabras clave)"
+  ],
+  "id": "number_theory_explorer",
+  "title": "**Number Theory Explorer**",
+  "lenguaje": "python",
+  "entrypoint": "program.py",
+  "fallo_duro": null,
+  "desglose": {
+    "compila": 3.0,
+    "arranca": 3.0,
+    "sin_stubs": 2.0,
+    "documentacion": 1.0,
+    "coincide_descripcion": 1.0
+  },
+  "score_juez": 7.3,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

@@ -1,0 +1,8 @@
+Title         : The Software – Landing
+Category      : Landing page para una empresa de programadores llamada "The Software". Debe incluir: hero llamativo con animaciones, seccion de servicios, GRAFICOS SVG animados con metricas de la empresa, varias RESENAS de clientes con estrellas y avatares, seccion de estadisticas con contadores, imagenes, transiciones y efectos hover llamativos, y footer con contacto. Diseno moderno oscuro con acentos de color.
+Created at    : 2026-08-02T12:42:52.908930
+Score         : auto-asignado 7.5/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  Landing page moderna para The Software, con gráficos SVG animados, KPIs y reviews en vivo

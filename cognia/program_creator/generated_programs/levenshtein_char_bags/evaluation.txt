@@ -1,0 +1,20 @@
+=== PROGRAM EVALUATION ===
+
+AVISO: esta evaluacion es AUTO-ASIGNADA (regex + AST sobre el propio
+codigo). NO se ejecuto el producto. Para un veredicto por ejecucion:
+  python -m cognia.program_creator.juez_ejecutable <dir del producto>
+
+Total Score       : 7.2 / 10  (SIN VERIFICAR)
+Functionality     : 2.5 / 4.0
+Creativity        : 2.9 / 4.0
+Error Penalty     : 1.8 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Program ran successfully.
+  • Code has substantial length (>500 chars).
+  • Uses interesting constructs: Counter, random.choice, itertools.
+  • Well-structured: 5 functions.
+  • Non-trivial length: 83 effective lines.
+  • Original program title.
+  • Warnings present.

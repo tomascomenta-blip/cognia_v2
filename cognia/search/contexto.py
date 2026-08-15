@@ -161,22 +161,28 @@ def repartir(paginas: list, modo: Modo) -> list:
         return []
     tope_total = int(modo.tokens * CHARS_POR_TOKEN)
     elegidas = paginas[:modo.paginas]
-    tope_pagina = int(modo.tok_por_pagina * CHARS_POR_TOKEN)
+    # `chars_por_pagina`, NO `tok_por_pagina * CHARS_POR_TOKEN`: con la cuenta
+    # derivada, el brazo 'estrecho' recortaba a 4.511 chars mientras declaraba
+    # 2.000, y con la aguja del banco sembrada a 6.000 la separación entre
+    # brazos quedaba en pie de PURA CASUALIDAD (2.000 y 4.511 caen los dos por
+    # debajo de 6.000). Un instrumento cuyo brazo nulo no es el pipeline que
+    # dice ser no mide lo que promete.
+    tope_pagina = modo.chars_por_pagina
 
-    cortas = [p for p in elegidas
-              if len(p.get("texto") or "") <= tope_pagina]
-    largas = [p for p in elegidas
-              if len(p.get("texto") or "") > tope_pagina]
-    gastado = sum(len(p.get("texto") or "") for p in cortas)
-    reparto = ((tope_total - gastado) // len(largas)) if largas else 0
-
+    # SIN reparto del sobrante. La primera versión repartía lo que dejaban
+    # libre las páginas cortas entre las largas, que suena mejor y es peor:
+    # con una sola página larga, el modo 'estrecho' le entregaba 13.880 chars
+    # mientras declaraba 2.000. Un modo que no entrega lo que declara no se
+    # puede usar como BRAZO NULO — y sin nulo creíble, la comparación
+    # estrecho/ancho no mide nada. Cada página se recorta a lo declarado y el
+    # presupuesto total queda como cota superior, no como bolsa a repartir.
     salida = []
     for p in elegidas:
         texto = p.get("texto") or ""
-        tope = tope_pagina if p in cortas else max(tope_pagina, reparto)
-        if len(texto) > tope:
-            texto = (texto[:tope]
-                     + f"\n[... {len(texto) - tope} chars elididos de esta "
-                       f"página ...]")
+        if len(texto) > tope_pagina:
+            texto = (texto[:tope_pagina]
+                     + f"\n[... {len(texto) - tope_pagina} chars elididos de "
+                       f"esta página ...]")
         salida.append(dict(p, texto=texto))
+    assert sum(len(p["texto"]) for p in salida) <= tope_total + 200 * len(salida)
     return salida

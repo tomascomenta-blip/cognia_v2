@@ -259,6 +259,12 @@ def sondar(url: str = "", timeout: float = _TIMEOUT_S) -> dict:
                                   "si emitio el tool call")
             else:
                 r["finish_reason"] = fr2 or r["finish_reason"]
+                # Y se DESCARTA lo de la primera pasada: si el reintento no
+                # llamó, lo que quedaba en `llamadas` era el tool call
+                # TRUNCADO por presupuesto, y juzgarlo daba el veredicto
+                # "emitió un tool call pero sus arguments no son JSON válido"
+                # — otra vez culpando al modelo de un corte nuestro.
+                llamadas = llamadas2
 
     if not llamadas:
         # El caso exacto que hunde una tarea sin avisar: sin --jinja el server

@@ -1,0 +1,26 @@
+{
+  "verificado": true,
+  "puntaje_real": 9.5,
+  "fecha": "2026-08-11T13:02:03",
+  "motivos": [
+    "compila: 1/1 .py compilan",
+    "arranca: exit 0, 660 chars de salida",
+    "sin_stubs: sin senales de stub",
+    "documentacion: solo description.txt (generado por el pipeline, no es doc del autor)",
+    "descripcion: cumple lo que promete (5/10 palabras clave)"
+  ],
+  "id": "text_similarity_zscore",
+  "title": "Text Similarity Z‑Score",
+  "lenguaje": "python",
+  "entrypoint": "program.py",
+  "fallo_duro": null,
+  "desglose": {
+    "compila": 3.0,
+    "arranca": 3.0,
+    "sin_stubs": 2.0,
+    "documentacion": 0.5,
+    "coincide_descripcion": 1.0
+  },
+  "score_juez": 7.8,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

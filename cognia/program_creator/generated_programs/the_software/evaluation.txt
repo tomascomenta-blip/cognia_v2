@@ -1,0 +1,20 @@
+=== PROGRAM EVALUATION ===
+
+AVISO: esta evaluacion es AUTO-ASIGNADA (regex + AST sobre el propio
+codigo). NO se ejecuto el producto. Para un veredicto por ejecucion:
+  python -m cognia.program_creator.juez_ejecutable <dir del producto>
+
+Total Score       : 6.8 / 10  (SIN VERIFICAR)
+Functionality     : 2.0 / 4.0
+Creativity        : 2.8 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: En navegador: 4 de los 4 valores que se actualizan comparten un unico color (rgb(232, 238, 243)): los estados (sube/baja, verde/rojo) no se estan pintando sobre los valores vivos. ARREGLO DIRECTO: en el JS que actualiza cada valor, pon el.style.color = (cambio >= 0 ? 'green' : 'red') sobre el MISMO elemento cuyo textContent cambias. No dependas de clases CSS.; la idea pide un grafico y la pagina no tiene ningun <svg> ni <canvas> de tamano util: dibuja el grafico como inline svg (polyline para la linea, text para los valores del eje)
+  • Se actualiza sola (JS en marcha).
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (9545 chars).
+  • Técnicas: svg, CSS grid, flexbox, keyframes, transiciones, formato numérico.
+  • Página no trivial: 123 líneas.
+  • Original program title.

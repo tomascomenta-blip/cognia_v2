@@ -1,0 +1,8 @@
+Title         : **Number Theory Explorer**
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-08-02T00:28:30.258033
+Score         : auto-asignado 7.3/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  Generates two sequences and verifies if they align after a cycle, revealing hidden patterns in integer growth.

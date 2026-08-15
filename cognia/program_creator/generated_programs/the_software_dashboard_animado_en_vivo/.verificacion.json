@@ -1,0 +1,26 @@
+{
+  "verificado": false,
+  "puntaje_real": 6.0,
+  "fecha": "2026-08-02T13:11:32",
+  "motivos": [
+    "compila: documento HTML completo",
+    "arranca: revisar_html: depende de recursos externos: http://",
+    "sin_stubs: 344 lineas utiles de HTML",
+    "documentacion: la pagina declara <title> pero no trae README",
+    "descripcion: coincide a medias (2/8 palabras clave)"
+  ],
+  "id": "the_software_dashboard_animado_en_vivo",
+  "title": "The Software — Dashboard animado en vivo",
+  "lenguaje": "html",
+  "entrypoint": "index.html",
+  "fallo_duro": "arranca",
+  "desglose": {
+    "compila": 3.0,
+    "arranca": 0.0,
+    "sin_stubs": 2.0,
+    "documentacion": 0.5,
+    "coincide_descripcion": 0.5
+  },
+  "score_juez": 7.0,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

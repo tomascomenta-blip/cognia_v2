@@ -1,0 +1,8 @@
+Title         : Levenshtein & Char Bags
+Category      : text similarity analyzer with sample texts
+Created at    : 2026-08-13T00:42:51.712336
+Score         : auto-asignado 7.2/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  Analyzes sample texts using Levenshtein edit distance and character bags

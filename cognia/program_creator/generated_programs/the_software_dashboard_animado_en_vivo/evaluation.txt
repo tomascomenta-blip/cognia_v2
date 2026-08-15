@@ -1,0 +1,23 @@
+=== PROGRAM EVALUATION ===
+
+AVISO: esta evaluacion es AUTO-ASIGNADA (regex + AST sobre el propio
+codigo). NO se ejecuto el producto. Para un veredicto por ejecucion:
+  python -m cognia.program_creator.juez_ejecutable <dir del producto>
+
+Total Score       : 7.0 / 10  (SIN VERIFICAR)
+Functionality     : 2.0 / 4.0
+Creativity        : 3.0 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: depende de recursos externos: http://
+selector CSS que nunca casa: .item.up (la clase 'up' se aplica sin 'item')
+En navegador: la pagina no cambia sola: los valores siguen identicos en 6 lecturas separadas 700 ms; el grafico SVG no tiene ni un <text>: sin etiquetas de eje no se sabe que numeros muestra. Anade valores al eje Y
+  • Se actualiza sola (JS en marcha).
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (12986 chars).
+  • Técnicas: svg, flexbox, transiciones, profundidad, formato numérico.
+  • JS estructurado (38 funciones).
+  • Página no trivial: 344 líneas.
+  • Original program title.

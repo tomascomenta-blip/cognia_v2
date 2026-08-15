@@ -1245,5 +1245,57 @@
     "verificado": null,
     "puntaje_real": null,
     "verificado_en": ""
+  },
+  {
+    "id": "text_similarity_zscore",
+    "title": "Text Similarity Z‑Score",
+    "category": "text similarity analyzer with sample texts",
+    "description": "A Levenshtein‑based similarity checker that prints a colorful report of each text’s self‑match.",
+    "total_score": 7.8,
+    "created_at": "2026-08-11T13:02:03.843136",
+    "directory": "text_similarity_zscore",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "number_theory_explorer_01",
+    "title": "Number Theory Explorer",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "Prints smallest prime factors, divisor counts, and amicable numbers from 1 to 60.",
+    "total_score": 7.5,
+    "created_at": "2026-08-12T23:38:07.829189",
+    "directory": "number_theory_explorer_01",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "levenshtein_char_bags",
+    "title": "Levenshtein & Char Bags",
+    "category": "text similarity analyzer with sample texts",
+    "description": "Analyzes sample texts using Levenshtein edit distance and character bags",
+    "total_score": 7.2,
+    "created_at": "2026-08-13T00:42:51.712336",
+    "directory": "levenshtein_char_bags",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
+  },
+  {
+    "id": "text_similarity_analyzer",
+    "title": "Text Similarity Analyzer",
+    "category": "text similarity analyzer with sample texts",
+    "description": "Analyzes similarity across five sample texts using longest common subsequence, longest common substring, token Jaccard, and trigram Jaccard.",
+    "total_score": 8.0,
+    "created_at": "2026-08-13T00:59:42.165680",
+    "directory": "text_similarity_analyzer",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": ""
   }
 ]

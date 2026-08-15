@@ -1,0 +1,8 @@
+Title         : Cosmic Census — Self-Aware Starfield Simulation
+Category      : 1. Identify the core constraints:
+Created at    : 2026-08-02T00:46:04.783837
+Score         : auto-asignado 6.3/10 (SIN VERIFICAR)
+Self-proposed : Yes — Cognia invented this idea
+
+Description:
+  A self-inspecting animated starfield that counts itself while moving stars across your terminal.

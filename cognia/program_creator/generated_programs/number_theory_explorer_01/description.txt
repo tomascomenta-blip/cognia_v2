@@ -1,0 +1,8 @@
+Title         : Number Theory Explorer
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-08-12T23:38:07.829189
+Score         : auto-asignado 7.5/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  Prints smallest prime factors, divisor counts, and amicable numbers from 1 to 60.

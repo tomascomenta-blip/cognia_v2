@@ -230,3 +230,91 @@ class TestChatClientMergea:
         monkeypatch.setattr(CC.urllib.request, "urlopen", _fake_urlopen)
         CC.completar([{"role": "user", "content": "hola"}])
         assert "chat_template_kwargs" not in capturado
+
+
+class TestLaTerceraTablaQueCasaPorSubstring:
+    """El perfil de arranque casaba 'nemotron' a secas y se llevaba al
+    OpenReasoning-Nemotron-14B (denso, ctx viable 16.384) y a la cabeza MTP.
+    El combo 'pensar-en-lazo' arranca justamente --modelo OpenReasoning: le
+    habría pedido un KV de 1M sobre 48 capas densas (~103 GB) en una placa de
+    16 GB. Misma colisión que ya se arregló en flota.CEREBROS."""
+
+    def test_el_14b_no_recibe_el_perfil_del_30b(self):
+        from pathlib import Path
+        from scripts import servir_modelo as SM
+        assert SM.perfil_arranque(
+            Path("OpenReasoning-Nemotron-14B.Q4_K_M.gguf")) == {}
+
+    def test_la_cabeza_mtp_tampoco(self):
+        from pathlib import Path
+        from scripts import servir_modelo as SM
+        assert SM.perfil_arranque(Path("nemotron-mtp-Q4_0.gguf")) == {}
+
+    def test_el_35_si(self):
+        from pathlib import Path
+        from scripts import servir_modelo as SM
+        p = SM.perfil_arranque(
+            Path("nemotron-3.5-lightning-30b-a3b-Q4_0.gguf"))
+        assert p.get("ctx") == 1048576
+
+    def test_el_comando_del_14b_sigue_siendo_el_historico(self):
+        """El contrafactual que el comentario declara y que no se cumplía."""
+        from pathlib import Path
+        from scripts import servir_modelo as SM
+        modelo = Path("OpenReasoning-Nemotron-14B.Q4_K_M.gguf")
+        perfil = SM.perfil_arranque(modelo)
+        cmd = SM.construir_cmd(Path("llama-server.exe"), modelo, 8080, 8192,
+                               no_mmap=perfil.get("no_mmap", False),
+                               batch=perfil.get("batch", 0),
+                               ubatch=perfil.get("ubatch", 0))
+        assert "--no-mmap" not in cmd and "1048576" not in cmd
+        assert cmd[cmd.index("--ctx-size") + 1] == "8192"
+
+    def test_el_patron_mas_largo_gana_sin_depender_del_orden(self):
+        from pathlib import Path
+        from scripts import servir_modelo as SM
+        SM.PERFILES_ARRANQUE["nemotron"] = {"ctx": 999}
+        try:
+            p = SM.perfil_arranque(
+                Path("nemotron-3.5-lightning-30b-a3b-Q4_0.gguf"))
+            assert p["ctx"] == 1048576      # gana 'nemotron-3.5', el largo
+        finally:
+            del SM.PERFILES_ARRANQUE["nemotron"]
+
+
+class TestElReintentoNoJuzgaElTruncado:
+
+    def test_si_el_reintento_no_llama_no_se_juzga_el_call_cortado(
+            self, monkeypatch):
+        """Antes: el reintento fallaba, quedaba el tool call TRUNCADO de la
+        primera pasada y el veredicto era 'sus arguments no son JSON válido'
+        — culpando al modelo de un corte nuestro."""
+        from cognia.agent import capacidad as CAP
+        import json as _json
+
+        truncado = {"choices": [{"finish_reason": "length", "message": {
+            "tool_calls": [{"function": {"name": "ping",
+                                         "arguments": '{"x":"hola'}}]}}]}
+        vacio = {"choices": [{"finish_reason": "length", "message": {}}]}
+        it = iter([truncado, vacio])
+
+        class _R:
+            def __init__(self, p):
+                self._p = p
+
+            def read(self):
+                return _json.dumps(self._p).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(CAP.urllib.request, "urlopen",
+                            lambda req, timeout=None: _R(next(it)))
+        monkeypatch.setattr(CAP, "_modelo_de", lambda url: "nemotron-3.5.gguf")
+        r = CAP.sondar("http://127.0.0.1:9")
+        assert r["soporta_tools"] is False
+        assert "sin tokens" in r["motivo"]
+        assert "JSON" not in r["motivo"]     # ya no acusa de JSON inválido

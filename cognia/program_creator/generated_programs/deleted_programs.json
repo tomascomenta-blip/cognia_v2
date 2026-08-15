@@ -320,5 +320,20 @@
     "self_proposed": false,
     "deleted_at": "2026-07-20T13:53:16.159999",
     "reason": "auto-cleanup: score 5.5 < survival threshold 6.0"
+  },
+  {
+    "id": "cosine_similarity_sampler",
+    "title": "Cosine Similarity Sampler",
+    "category": "text similarity analyzer with sample texts",
+    "description": "Analyzes similarity between six built‑in sample sentences using cosine overlap.",
+    "total_score": 6.9,
+    "created_at": "2026-08-11T12:24:19.042033",
+    "directory": "cosine_similarity_sampler",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "deleted_at": "2026-08-13T00:59:42.164679",
+    "reason": "replaced by 'Text Similarity Analyzer' (score 8.0 > 6.9)"
   }
 ]

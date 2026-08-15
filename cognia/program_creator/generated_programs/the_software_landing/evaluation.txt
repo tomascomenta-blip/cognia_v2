@@ -1,0 +1,21 @@
+=== PROGRAM EVALUATION ===
+
+AVISO: esta evaluacion es AUTO-ASIGNADA (regex + AST sobre el propio
+codigo). NO se ejecuto el producto. Para un veredicto por ejecucion:
+  python -m cognia.program_creator.juez_ejecutable <dir del producto>
+
+Total Score       : 7.5 / 10  (SIN VERIFICAR)
+Functionality     : 2.0 / 4.0
+Creativity        : 3.5 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: En navegador: la pagina no cambia sola: los valores siguen identicos en 6 lecturas separadas 700 ms
+  • Se actualiza sola (JS en marcha).
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (14799 chars).
+  • Técnicas: svg, CSS grid, flexbox, keyframes, transiciones, profundidad.
+  • JS estructurado (9 funciones).
+  • Página no trivial: 417 líneas.
+  • Original program title.

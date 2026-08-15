@@ -281,3 +281,45 @@ class TestElMotorDeWorkflowsTambienPuedeVerSusFallos:
         salida = paralelo([lambda: 1,
                            lambda: (_ for _ in ()).throw(ValueError("x"))])
         assert salida == [1, None]
+
+
+class TestElDeadlineEsDelLoteNoPorFuturo:
+
+    def test_la_pared_no_se_multiplica_por_el_numero_de_specs(self):
+        """`fut.result(timeout=X)` en un bucle reinicia el reloj en cada
+        iteración: 6 specs colgados costaban 6×X, no X. Eso rompía el
+        contrato de presupuesto en segundos de pared."""
+        import time as _t
+        t0 = _t.time()
+        lote = FO.en_paralelo(list(range(6)), lambda i: _t.sleep(30), cap=2,
+                              timeout_s=1.0)
+        pared = _t.time() - t0
+        assert pared < 3.0, f"tardó {pared:.1f}s: el deadline no es del lote"
+        assert len(lote.fallidos) == 6
+        assert all(s.tipo_error == "Timeout" for s in lote.fallidos)
+
+    def test_lo_que_termina_a_tiempo_se_conserva(self):
+        # El deadline no puede convertir en fallo lo que sí respondió.
+        import time as _t
+        lote = FO.en_paralelo([0.01, 0.01, 30], _t.sleep, cap=3, timeout_s=2.0)
+        assert [s.ok for s in lote.sobres] == [True, True, False]
+
+
+class TestElBrazoNuloEsElPipelineViejo:
+
+    def test_estrecho_recorta_a_2000_no_a_4511(self):
+        """Con el tope derivado de tok_por_pagina, 'estrecho' recortaba a
+        4.511 chars mientras declaraba 2.000 — y la separación con la aguja
+        del banco (sembrada a 6.000) quedaba en pie de casualidad."""
+        pagina = {"url": "u", "texto": "x" * 20_000}
+        salida = CTX.repartir([pagina], CTX.ESTRECHO)
+        cuerpo = salida[0]["texto"].split("\n[...")[0]
+        assert len(cuerpo) == 2_000
+
+    def test_cada_modo_recorta_a_lo_que_declara(self):
+        for modo in (CTX.ESTRECHO, CTX.MEDIO, CTX.ANCHO):
+            salida = CTX.repartir([{"url": "u", "texto": "y" * 200_000}], modo)
+            cuerpo = salida[0]["texto"].split("\n[...")[0]
+            # una sola página larga puede quedarse con el reparto sobrante,
+            # pero nunca con menos de lo declarado
+            assert len(cuerpo) >= modo.chars_por_pagina

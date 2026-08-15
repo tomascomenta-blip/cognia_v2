@@ -1,0 +1,8 @@
+Title         : The Software
+Category      : Landing page para una empresa de programadores llamada "The Software". Debe incluir: hero llamativo con animaciones, seccion de servicios, GRAFICOS SVG animados con metricas de la empresa, varias RESENAS de clientes con estrellas y avatares, seccion de estadisticas con contadores, imagenes, transiciones y efectos hover llamativos, y footer con contacto. Diseno moderno oscuro con acentos de color.
+Created at    : 2026-08-02T12:49:00.998913
+Score         : auto-asignado 6.8/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  Dark landing page for a developer company with animated SVG metrics, service tiles, and rotating footers
