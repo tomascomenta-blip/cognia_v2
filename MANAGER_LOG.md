@@ -12979,3 +12979,37 @@ que se pidió: un backup adicional, no un reemplazo. Lo que Nemotron aporta de v
 ventana nativa de 1M para tareas donde eso pese más que la latencia y el español.
 
 El sistema se deja con Qwythos servido, que es el default del dueño.
+
+### Y la conclusión de esta misma noche que hubo que corregir
+
+Se publicó *"ancho no le gana a medio"* con su tabla. **Era un artefacto de mi propio banco**: la
+aguja estaba siempre en la posición 3, o sea que medía un ranking PERFECTO — lo había avisado la
+revisión adversarial y lo dejé anotado como limitación en vez de arreglarlo. Con la posición
+sorteada:
+
+| brazo | aguja fija | aguja sorteada |
+|---|---|---|
+| estrecho | 0/5 | 0/5 |
+| medio | 5/5 | **2/5** |
+| ancho | 5/5 | **5/5** |
+
+Medio acierta exactamente los dos ítems cuya aguja cae dentro de sus 12 páginas. La conclusión
+correcta no es "medio" ni "ancho", sino que **el default depende de la calidad del ranking**, que
+en Cognia es léxico y sin reranker. Por eso `responder` arranca en medio y **escala a ancho sólo
+cuando medio no encuentra**: ~119 s/ítem para 5/5 contra 152 de ancho puro, y 27,5 s cuando el
+ranking acierta.
+
+### Cierre de la corrida
+
+Se dejó el sistema con **Qwythos servido en :8080** (el cerebro por defecto del dueño), repo limpio
+y todo pusheado a `origin/main`. **26 commits**, cada uno con su medición o su contrafactual.
+
+**Lo que queda abierto, dicho sin adornos:**
+- El banco b5 mide localización en páginas ya descargadas: **no mide la calidad del buscador ni la
+  del ranking**, que es donde Perplexity tiene su foso real. Ese es el siguiente banco.
+- Los pesos de `confianza.py` siguen siendo una hipótesis: con 4 afirmaciones no se pueden ajustar.
+  El sistema salió INFRACONFIADO (dice 0,80 y acierta 1,00), que es el lado seguro.
+- El A/B de razonamiento no se pudo cerrar (n=2 por brazo; el signo es consistente pero eso no es
+  significancia). Default en `on`.
+- `test_e2e_inference.py::test_false_when_dir_not_set` está en rojo y es **preexistente**
+  (comprobado con los cambios en stash).
