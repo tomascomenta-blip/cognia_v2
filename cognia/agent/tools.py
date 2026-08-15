@@ -238,12 +238,53 @@ _ACI_CAP = int(os.environ.get("COGNIA_ACI_CAP", "1800"))
 _ACI_HEAD = 1200
 _ACI_TAIL = 450
 
+# 2026-08-14: ese 1800 se midió con un 3B y ctx 16k, y se quedó fijo mientras
+# el cerebro pasaba a servir 1.048.576 tokens. Recortar la salida de un
+# comando a 1800 chars con esa ventana no protege nada: TIRA el stack trace,
+# que casi siempre está en el medio — justo lo que head+tail no conserva. Y
+# el agente entonces "repara" a ciegas, que es el bucle caro de la casa.
+#
+# El cap pasa a ser proporcional a la ventana REAL, con dos anclas:
+#   - a ctx 16.384 da ~1.800: el valor histórico, para que nada cambie donde
+#     se midió (contrafactual del test);
+#   - techo absoluto de 24.000 chars, porque un output gigante deja de ser
+#     información y pasa a ser ruido por mucha ventana que sobre.
+# COGNIA_ACI_CAP explícito gana siempre: es el interruptor para medir.
+_ACI_FRACCION_CTX = 0.03        # del contexto, en tokens
+_ACI_CHARS_POR_TOKEN = 3.5
+_ACI_TECHO = 24_000
 
-def aci_trim(text: str, name: str = "tool") -> str:
+
+def aci_cap_para(n_ctx: int = 0) -> int:
+    """El cap de output para esa ventana. Sin n_ctx conocido, el histórico."""
+    if os.environ.get("COGNIA_ACI_CAP"):
+        return int(os.environ["COGNIA_ACI_CAP"])
+    if not n_ctx:
+        return 1800
+    escalado = int(n_ctx * _ACI_FRACCION_CTX * _ACI_CHARS_POR_TOKEN)
+    return max(1800, min(_ACI_TECHO, escalado))
+
+
+def _n_ctx_actual() -> int:
+    """La ventana del backend servido AHORA, o 0. Nunca lanza ni sondea: usa
+    el /props cacheado, porque esto corre en el camino caliente de cada tool."""
+    try:
+        from cognia.agent.model_profiles import n_ctx_del_backend
+        return int(n_ctx_del_backend() or 0)
+    except Exception:
+        return 0
+
+
+def aci_trim(text: str, name: str = "tool", cap: int = 0) -> str:
     """Recorta un output de tool largo a head+tail con un marcador; guarda el
     completo en el workspace. Idempotente sobre textos cortos."""
-    if not text or len(text) <= _ACI_CAP:
+    cap = cap or aci_cap_para(_n_ctx_actual())
+    if not text or len(text) <= cap:
         return text
+    # head/tail crecen con el cap manteniendo el reparto histórico (73/27):
+    # la cabeza trae el RESULTADO y la cola lo último, que suele ser el error.
+    head = int(cap * (_ACI_HEAD / (_ACI_HEAD + _ACI_TAIL)))
+    tail = cap - head
     ruta = ""
     try:
         base = Path(_resolve_write_path.__module__ and __import__(
@@ -257,10 +298,10 @@ def aci_trim(text: str, name: str = "tool") -> str:
         ruta = str(ruta)
     except Exception:
         ruta = "(no guardado)"
-    omit = len(text) - _ACI_HEAD - _ACI_TAIL
-    return (text[:_ACI_HEAD]
+    omit = len(text) - head - tail
+    return (text[:head]
             + f"\n[... {omit} chars omitidos (output completo en {ruta}) ...]\n"
-            + text[-_ACI_TAIL:])
+            + text[-tail:])
 
 
 # ── familias opt-in: tool -> flag que la enciende (A5, 2026-08-09) ─────

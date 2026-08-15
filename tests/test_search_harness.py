@@ -171,3 +171,37 @@ class TestCitaLiteral:
         assert len(r["sin_fuente"]) == 1
         # 1 de 2 JUZGABLES, no 1 de 3: la página caída no es culpa del modelo.
         assert r["tasa_fabricacion"] == 0.5
+
+
+class TestCapDeSalidaEscalaConLaVentana:
+    """El cap de tool-output (1800 chars) se midió con un 3B y ctx 16k y se
+    quedó fijo mientras el cerebro pasaba a 1M. A esa ventana, recortar la
+    salida de un comando a 1800 chars tira el stack trace del medio."""
+
+    def test_a_la_ventana_donde_se_midio_no_cambia_nada(self):
+        from cognia.agent.tools import aci_cap_para
+        assert aci_cap_para(16384) == 1800          # el valor histórico
+
+    def test_una_ventana_chica_no_baja_del_historico(self):
+        from cognia.agent.tools import aci_cap_para
+        assert aci_cap_para(4096) == 1800
+        assert aci_cap_para(0) == 1800              # sin backend conocido
+
+    def test_con_un_millon_de_ventana_cabe_el_stack_entero(self):
+        from cognia.agent.tools import aci_cap_para
+        cap = aci_cap_para(1_048_576)
+        assert cap == 24_000                        # el techo, no infinito
+
+    def test_el_env_gana_siempre(self, monkeypatch):
+        from cognia.agent.tools import aci_cap_para
+        monkeypatch.setenv("COGNIA_ACI_CAP", "500")
+        assert aci_cap_para(1_048_576) == 500
+
+    def test_el_recorte_conserva_cabeza_y_cola_del_error(self):
+        from cognia.agent.tools import aci_trim
+        texto = "RESULTADO ok\n" + ("x" * 50_000) + "\nTraceback: boom"
+        salida = aci_trim(texto, "run", cap=4000)
+        assert salida.startswith("RESULTADO ok")
+        assert salida.endswith("Traceback: boom")
+        assert "chars omitidos" in salida
+        assert len(salida) < 4600      # cap + el marcador
