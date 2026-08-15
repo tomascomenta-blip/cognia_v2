@@ -257,8 +257,17 @@ _ACI_TECHO = 24_000
 
 def aci_cap_para(n_ctx: int = 0) -> int:
     """El cap de output para esa ventana. Sin n_ctx conocido, el histórico."""
-    if os.environ.get("COGNIA_ACI_CAP"):
-        return int(os.environ["COGNIA_ACI_CAP"])
+    crudo = os.environ.get("COGNIA_ACI_CAP")
+    if crudo:
+        # 0 (o negativo) significa "sin recorte", no "recorta a cero": con el
+        # calculo viejo head y tail daban 0 y el output era el marcador solo.
+        try:
+            pedido = int(crudo)
+        except ValueError:
+            pedido = 0
+        if pedido > 0:
+            return pedido
+        return 10 ** 9
     if not n_ctx:
         return 1800
     escalado = int(n_ctx * _ACI_FRACCION_CTX * _ACI_CHARS_POR_TOKEN)

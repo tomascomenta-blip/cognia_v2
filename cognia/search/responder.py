@@ -149,8 +149,12 @@ def responder(pregunta: str, url: str = "", presupuesto_s: float = 120.0,
                 vistos.add(u)
                 urls.append(u)
     if not urls:
+        # Buscar y no encontrar NADA no deja la confianza donde estaba: la
+        # hipótesis de memoria se queda sin el respaldo que se fue a buscar.
+        # (La rama anterior comparaba 0,30 < 0,25, que nunca se cumple: era
+        # código muerto que aparentaba una política.)
         v.razones.append(f"la búsqueda no devolvió URLs ({lote.resumen()})")
-        v.accion = "abstenerse" if v.confianza < CF.UMBRAL_ABSTENERSE else v.accion
+        v.accion = "abstenerse"
         return v
 
     modo = CTX.modo_para(max(presupuesto_s - (time.time() - t0), 15))

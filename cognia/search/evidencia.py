@@ -93,7 +93,11 @@ def verificar_registros(registros: list, textos: dict) -> dict:
     for r in registros or []:
         url = (r.get("source_url") or r.get("url") or "").strip()
         texto = textos.get(url)
-        if texto is None:
+        # `not texto` y no `texto is None`: una página que se bajó VACÍA (403,
+        # muro de cookies, JS puro) tampoco permite verificar nada, y contarla
+        # como cita fabricada le echaría al modelo la culpa de un fallo de
+        # extracción. Es el mismo criterio que separa las dos columnas.
+        if not texto:
             sin_fuente.append(r)
             detalle.append({"url": url, "estado": "sin_fuente",
                             "razon": "no tengo el texto de esa página"})

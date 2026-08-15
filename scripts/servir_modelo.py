@@ -331,7 +331,7 @@ def main() -> int:
                           f"ventana SERVIDA, no la pedida.", file=sys.stderr)
                 if slots != 1:
                     print(f"AVISO: el server reparte el contexto entre "
-                          f"{slots} slots ({args.ctx // (slots or 1)} tokens "
+                          f"{slots} slots ({ctx // (slots or 1)} tokens "
                           f"c/u). Esta build ignoro --parallel 1; los "
                           f"prompts largos van a recibir HTTP 500.",
                           file=sys.stderr)
