@@ -111,7 +111,8 @@ def completar(mensajes: list, tools: list = None, url: str = "",
               max_tokens: int = 4096, reasoning_effort: str = "",
               razonador: bool = True, timeout: float = None,
               via: str = "agente_chat",
-              response_format: dict = None) -> RespuestaChat:
+              response_format: dict = None,
+              kwargs_plantilla: dict = None) -> RespuestaChat:
     """UN turno de chat completions contra el server del agente.
 
     Nunca lanza: cualquier fallo vuelve como RespuestaChat(error=...) para
@@ -149,6 +150,15 @@ def completar(mensajes: list, tools: list = None, url: str = "",
         # El esfuerzo REAL se fija aca, no recortando tokens (memoria:
         # presupuesto-tokens-razonamiento).
         cuerpo["chat_template_kwargs"] = {"reasoning_effort": reasoning_effort}
+    if kwargs_plantilla:
+        # Otras familias controlan el razonamiento por OTRA clave del mismo
+        # canal: Nemotron 3.5 usa enable_thinking (su template lo lee y
+        # arranca en True). Se MERGEA con reasoning_effort en vez de pisarlo
+        # porque son ejes distintos y un modelo podria aceptar ambos; sin
+        # kwargs_plantilla el body es byte-identico al historico.
+        kw = dict(cuerpo.get("chat_template_kwargs") or {})
+        kw.update(kwargs_plantilla)
+        cuerpo["chat_template_kwargs"] = kw
 
     t0 = time.time()
     try:

@@ -413,6 +413,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         "reasoning_effort": perfil.get("reasoning_effort", ""),
         "url": perfil.get("url", ""),
     }
+    # Familias que controlan el razonamiento por otra clave del template
+    # (Nemotron: enable_thinking). Ausente en Qwen/harmony -> body intacto.
+    if perfil.get("kwargs_plantilla"):
+        sampling["kwargs_plantilla"] = perfil["kwargs_plantilla"]
 
     sig_counts: dict = {}
     # Herramientas ya ofrecidas en ESTA tarea: ofrecer dos veces la misma es

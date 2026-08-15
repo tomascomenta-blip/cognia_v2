@@ -68,7 +68,24 @@ _FAMILIAS_NATIVAS = {
     # -> content vacio, medido) -> el presupuesto de razonador y el clamp
     # MIN_TOKENS_RAZONADOR lo protegen igual que a gpt-oss.
     "qwythos": {"temperature": 0.7, "top_p": 0.8, "usa_effort": False},
+    # Nemotron 3.5 Lightning 30B-A3B (2026-08-14): MoE hibrido Mamba2 con
+    # ventana NATIVA de 1.048.576 (medida entera en esta maquina: prompt real
+    # de 1.046.706 tokens, aguja recuperada, 14.622 MiB de VRAM). El sampling
+    # 1.0/0.95 NO es un invento: lo declara el propio GGUF en
+    # general.sampling.temp / general.sampling.top_p.
+    #
+    # piensa: su chat template arranca con enable_thinking=True y el
+    # razonamiento viaja por chat_template_kwargs (NO por reasoning_effort,
+    # que es de harmony). Con thinking ON y max_tokens corto el content sale
+    # VACIO -- el mismo modo de fallo que ya tuvo qwythos, por eso el clamp
+    # MIN_TOKENS_RAZONADOR aplica igual.
+    "nemotron": {"temperature": 1.0, "top_p": 0.95, "usa_effort": False,
+                 "piensa": True},
 }
+
+# Familias cuyo razonamiento se enciende/apaga por chat_template_kwargs.
+# COGNIA_THINKING=on|off pisa el default de la familia.
+_CLAVE_THINKING = "enable_thinking"
 
 # Claves de sampling que este modulo propaga al camino del agente. El resto de
 # lo que declare el server (top_k, min_p, dry_*) no lo consume chat_client, y
@@ -216,6 +233,30 @@ def _sampling_base(props_sampling: dict, cfg: dict) -> tuple:
     return sampling, origen
 
 
+def _kwargs_plantilla(cfg: dict) -> dict:
+    """chat_template_kwargs que pide la FAMILIA, con override por entorno.
+
+    Solo devuelve algo para familias que declaran `piensa`: para todas las
+    demas el body sale byte-identico al historico (el contrafactual del
+    adaptador nativo no se puede romper por agregar una familia).
+
+    COGNIA_THINKING=on|off pisa el default. Existe porque el eje es MEDIBLE:
+    con Nemotron el razonamiento cuesta ~50 tok/s de latencia por paso del
+    bucle, y hasta no tener el A/B corrido el default es lo que el modelo
+    trae entrenado (on).
+    """
+    if "piensa" not in cfg:
+        return {}
+    env = os.environ.get("COGNIA_THINKING", "").strip().lower()
+    if env in ("on", "1", "true", "si"):
+        piensa = True
+    elif env in ("off", "0", "false", "no"):
+        piensa = False
+    else:
+        piensa = bool(cfg.get("piensa"))
+    return {_CLAVE_THINKING: piensa}
+
+
 def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
     """El perfil de corrida del agente para el modelo servido AHORA.
 
@@ -301,6 +342,9 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
         "familia": familia,
         "sampling_origen": (f"familia '{familia}'" if familia else origen),
     }
+    kwargs_plantilla = _kwargs_plantilla(cfg or {})
+    if kwargs_plantilla:
+        perfil["kwargs_plantilla"] = kwargs_plantilla
     perfil.update(sampling)
     return perfil
 

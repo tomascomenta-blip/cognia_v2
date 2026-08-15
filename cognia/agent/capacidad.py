@@ -174,49 +174,106 @@ def sondar(url: str = "", timeout: float = _TIMEOUT_S) -> dict:
          "modelo": modelo, "argumentos_json": False, "nombre_ok": False,
          "latencia_s": 0.0, "cuando": time.time(), "url": url}
 
-    cuerpo = json.dumps({
-        # El campo model lo ignora llama-server (sirve UN modelo) pero lo
-        # exigen otros backends compatibles con la API de OpenAI.
-        "model": modelo or "local",
-        "messages": [{"role": "user", "content": _USER_SONDA}],
-        "tools": [_TOOL_SONDA],
-        "max_tokens": 256,
-        "temperature": 0.7,
-    }).encode("utf-8")
+    def _tirar(max_tokens: int, kwargs_plantilla: dict) -> tuple:
+        """Una peticion de sonda. Devuelve (crudo, error) — nunca lanza."""
+        cuerpo_d = {
+            # El campo model lo ignora llama-server (sirve UN modelo) pero lo
+            # exigen otros backends compatibles con la API de OpenAI.
+            "model": modelo or "local",
+            "messages": [{"role": "user", "content": _USER_SONDA}],
+            "tools": [_TOOL_SONDA],
+            "max_tokens": max_tokens,
+            "temperature": 0.7,
+        }
+        if kwargs_plantilla:
+            cuerpo_d["chat_template_kwargs"] = kwargs_plantilla
+        try:
+            pedido = urllib.request.Request(
+                url + "/v1/chat/completions",
+                data=json.dumps(cuerpo_d).encode("utf-8"),
+                headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(pedido, timeout=timeout) as resp:
+                return json.loads(
+                    resp.read().decode("utf-8", errors="replace")), ""
+        except urllib.error.HTTPError as e:
+            return None, (f"el server respondio HTTP {e.code} a "
+                          f"/v1/chat/completions")
+        except Exception as e:
+            return None, (f"no se pudo consultar al server: "
+                          f"{type(e).__name__}: {e}")
+
+    def _leer(crudo: dict) -> tuple:
+        try:
+            choice = (crudo.get("choices") or [{}])[0]
+            mensaje = choice.get("message") or {}
+            return (str(choice.get("finish_reason") or ""),
+                    mensaje.get("tool_calls") or [], "")
+        except Exception:
+            return "", [], ("la respuesta del server no tiene la forma de la "
+                            "API OpenAI")
 
     t0 = time.time()
-    try:
-        pedido = urllib.request.Request(
-            url + "/v1/chat/completions", data=cuerpo,
-            headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(pedido, timeout=timeout) as resp:
-            crudo = json.loads(resp.read().decode("utf-8", errors="replace"))
-    except urllib.error.HTTPError as e:
+    crudo, err = _tirar(256, {})
+    if err:
         r["latencia_s"] = round(time.time() - t0, 2)
-        r["motivo"] = f"el server respondio HTTP {e.code} a /v1/chat/completions"
-        return r
-    except Exception as e:
-        r["latencia_s"] = round(time.time() - t0, 2)
-        r["motivo"] = f"no se pudo consultar al server: {type(e).__name__}: {e}"
+        r["motivo"] = err
         return r
     r["latencia_s"] = round(time.time() - t0, 2)
-
-    try:
-        choice = (crudo.get("choices") or [{}])[0]
-        mensaje = choice.get("message") or {}
-        r["finish_reason"] = str(choice.get("finish_reason") or "")
-        llamadas = mensaje.get("tool_calls") or []
-    except Exception:
-        r["motivo"] = "la respuesta del server no tiene la forma de la API OpenAI"
+    r["finish_reason"], llamadas, err = _leer(crudo)
+    if err:
+        r["motivo"] = err
         return r
+
+    if r["finish_reason"] == "length":
+        # NO es "no soporta tools": es que se quedo sin presupuesto. Un
+        # razonador gasta el canal de pensamiento ANTES de emitir la llamada,
+        # y 256 tokens no lo cubren (Nemotron 3.5 con enable_thinking=True
+        # falla asi el 2026-08-14, y el motivo viejo acusaba a --jinja: un
+        # diagnostico FALSO que mandaba al 30B al regimen de texto legacy).
+        # El reintento apaga el pensamiento donde se puede y ensancha el
+        # presupuesto; si con eso llama, la capacidad ESTA y lo que faltaba
+        # eran tokens.
+        #
+        # Se reintenta HAYA o NO llamadas: el corte por presupuesto parte el
+        # tool call a la mitad y deja unos arguments truncados ('{"x":"hola')
+        # que parecen "el modelo emite JSON invalido" — medido, y es el mismo
+        # veredicto falso una capa mas abajo.
+        kwargs = {}
+        try:
+            from cognia.agent.model_profiles import _cfg_familia, _kwargs_plantilla
+            cfg, _fam = _cfg_familia(modelo)
+            kwargs = _kwargs_plantilla(cfg or {})
+            if kwargs:
+                kwargs = dict(kwargs, enable_thinking=False)
+        except Exception:
+            kwargs = {}
+        crudo2, err2 = _tirar(1024, kwargs)
+        if not err2 and crudo2:
+            fr2, llamadas2, _ = _leer(crudo2)
+            r["latencia_s"] = round(time.time() - t0, 2)
+            if llamadas2:
+                r["finish_reason"], llamadas = fr2, llamadas2
+                r["reintento"] = ("la primera sonda murio por presupuesto "
+                                  "(256 tokens); con 1024"
+                                  f"{' y sin pensamiento' if kwargs else ''} "
+                                  "si emitio el tool call")
+            else:
+                r["finish_reason"] = fr2 or r["finish_reason"]
 
     if not llamadas:
         # El caso exacto que hunde una tarea sin avisar: sin --jinja el server
         # devuelve la prosa del modelo y el bucle nativo lee "sin tool_calls"
         # como FIN NATURAL, o sea cierra en el paso 1 sin ejecutar nada.
-        r["motivo"] = (f"respondio sin tool_calls (finish_reason="
-                       f"{r['finish_reason'] or 'vacio'}): el server no parsea "
-                       f"tools — ¿le falta --jinja, o el modelo no las soporta?")
+        if r["finish_reason"] == "length":
+            r["motivo"] = ("se quedo sin tokens ANTES de emitir el tool call "
+                           "(finish_reason=length) hasta con 1024 de "
+                           "presupuesto: el modelo razona mas de lo que cabe "
+                           "en la sonda, no es que no sepa llamar tools")
+        else:
+            r["motivo"] = (f"respondio sin tool_calls (finish_reason="
+                           f"{r['finish_reason'] or 'vacio'}): el server no "
+                           f"parsea tools — ¿le falta --jinja, o el modelo no "
+                           f"las soporta?")
         return r
 
     fn = (llamadas[0] or {}).get("function") or {}
@@ -246,7 +303,8 @@ def sondar(url: str = "", timeout: float = _TIMEOUT_S) -> dict:
     r["soporta_tools"] = True
     r["motivo"] = (f"tool call valido en {r['latencia_s']}s "
                    f"(finish_reason={r['finish_reason'] or 'n/d'}"
-                   f"{'' if r['nombre_ok'] else ', con otro nombre de tool'})")
+                   f"{'' if r['nombre_ok'] else ', con otro nombre de tool'})"
+                   + (f"; {r['reintento']}" if r.get("reintento") else ""))
     return r
 
 

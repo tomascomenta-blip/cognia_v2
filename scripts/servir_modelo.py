@@ -44,8 +44,39 @@ CACHES_KV = ("f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl",
              "q5_0", "q5_1")
 
 
+# Perfiles de arranque POR MODELO, con flags MEDIDOS en esta maquina. Solo se
+# aplican si el basename del gguf casa el patron: para cualquier otro modelo el
+# comando sale byte-identico al historico (contrafactual del test de regresion).
+#
+# nemotron (2026-08-14, RTX 5060 Ti 16 GB): el gguf pesa 17,6 GB y NO cabe
+# entero en VRAM, pero es MoE 128x2.4B con solo 6 activos y solo 6 de sus 52
+# capas tienen KV (el resto es Mamba2). Medido:
+#   - `--fit on` reparte los expertos GPU/CPU solo; con --ctx-size EXPLICITO
+#     NO toca el contexto (verificado: pedi 1.048.576 y /props devolvio
+#     1.048.576). Por eso aca fit_off queda en False a proposito: con off el
+#     server no reparte y muere por OOM.
+#   - `--no-mmap` + batch grande: prefill 645 -> 1.023 tok/s en el mismo
+#     escalon de 32k (+59%). El propio log lo pide cuando hay tensores en CPU.
+#   - KV q8_0: el MILLON entero entra en 14.622 MiB con los pesos.
+# Sonda de punta a punta: prompt real de 1.046.706 tokens, aguja recuperada.
+PERFILES_ARRANQUE = {
+    "nemotron": {"ctx": 1048576, "ctk": "q8_0", "ctv": "q8_0",
+                 "no_mmap": True, "batch": 4096, "ubatch": 1024,
+                 "sin_draft": True},
+}
+
+
+def perfil_arranque(modelo) -> dict:
+    """Flags extra medidos para ese gguf, o {} si no hay perfil."""
+    nombre = Path(modelo).name.lower()
+    for patron, cfg in PERFILES_ARRANQUE.items():
+        if patron in nombre:
+            return dict(cfg)
+    return {}
+
+
 def construir_cmd(exe, modelo, puerto, ctx, *, ctk="", ctv="",
-                  fit_off=False) -> list:
+                  fit_off=False, no_mmap=False, batch=0, ubatch=0) -> list:
     """Arma el comando base de llama-server (sin el draft, que se agrega
     despues como siempre). Factorizado para el test de regresion: SIN los
     flags nuevos (ctk/ctv/fit_off) el resultado es BYTE-IDENTICO al
@@ -64,7 +95,17 @@ def construir_cmd(exe, modelo, puerto, ctx, *, ctk="", ctv="",
     if fit_off:
         # b10066 defaultea --fit on y auto-reduce el contexto EN SILENCIO:
         # con off, si no cabe falla visible en vez de falsear el n_ctx pedido.
+        # MATIZ medido 2026-08-14: lo que --fit ajusta son los argumentos NO
+        # puestos; con --ctx-size explicito el contexto no se toca (por eso
+        # los modelos que necesitan reparto MoE pueden usar fit on sin
+        # perder la ventana). El chequeo de n_ctx post-arranque lo verifica.
         orden += ["--fit", "off"]
+    if no_mmap:
+        orden += ["--no-mmap"]
+    if batch:
+        orden += ["--batch-size", str(batch)]
+    if ubatch:
+        orden += ["--ubatch-size", str(ubatch)]
     return orden
 
 
@@ -179,11 +220,30 @@ def main() -> int:
               f"en {DIR_MODELOS}. Usa --listar para ver que hay.", file=sys.stderr)
         return 1
 
+    # Perfil por modelo: rellena SOLO lo que el usuario no pidio a mano (un
+    # flag explicito siempre gana al perfil), y sin perfil no cambia nada.
+    perfil = perfil_arranque(modelo)
+    ctx = args.ctx
+    if perfil:
+        if args.ctx == CTX:          # el default, no una eleccion del usuario
+            ctx = perfil.get("ctx", ctx)
+        if not args.ctk:
+            args.ctk = perfil.get("ctk", "")
+        if not args.ctv:
+            args.ctv = perfil.get("ctv", "")
+        if perfil.get("sin_draft"):
+            args.sin_draft = True
+        print(f"  + perfil de arranque medido para {modelo.name} "
+              f"(ctx {ctx:,}, KV {args.ctk or 'f16'})")
+
     # El comando base vive en construir_cmd() (factorizado para el test de
     # regresion byte-identico; el POR QUE de --parallel 1 esta alla).
-    orden = construir_cmd(exe, modelo, args.puerto, args.ctx,
+    orden = construir_cmd(exe, modelo, args.puerto, ctx,
                           ctk=args.ctk or "", ctv=args.ctv or "",
-                          fit_off=args.fit_off)
+                          fit_off=args.fit_off,
+                          no_mmap=perfil.get("no_mmap", False),
+                          batch=perfil.get("batch", 0),
+                          ubatch=perfil.get("ubatch", 0))
 
     # Decodificacion especulativa: el 0.5B borra tokens y el 14B los verifica
     # y corrige — la salida es IDENTICA a la del 14B solo, pero mas rapida.
@@ -212,7 +272,7 @@ def main() -> int:
                   "--spec-draft-p-min", "0.6"]
         print(f"  + draft especulativo: {draft.name} (2.4x medido en codigo)")
 
-    print(f"Sirviendo {modelo.name} en :{args.puerto} (ctx {args.ctx})...")
+    print(f"Sirviendo {modelo.name} en :{args.puerto} (ctx {ctx:,})...")
     proceso = subprocess.Popen(
         orden,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -237,7 +297,17 @@ def main() -> int:
                 with urllib.request.urlopen(
                         f"http://127.0.0.1:{args.puerto}/props",
                         timeout=5) as r:
-                    slots = json.loads(r.read()).get("total_slots")
+                    props_srv = json.loads(r.read())
+                slots = props_srv.get("total_slots")
+                # La ventana SERVIDA, no la pedida: --fit y el padding a
+                # multiplo de 256 pueden dejar otra, y una ventana fantasma
+                # falsea toda medicion posterior ("cargar no es funcionar").
+                servido = ((props_srv.get("default_generation_settings") or {})
+                           .get("n_ctx"))
+                if servido and abs(int(servido) - ctx) > 256:
+                    print(f"AVISO: pediste ctx {ctx:,} y el server sirve "
+                          f"{int(servido):,}. Lo que mida esta sesion es la "
+                          f"ventana SERVIDA, no la pedida.", file=sys.stderr)
                 if slots != 1:
                     print(f"AVISO: el server reparte el contexto entre "
                           f"{slots} slots ({args.ctx // (slots or 1)} tokens "

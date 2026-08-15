@@ -34,8 +34,24 @@ class TestCombos:
 
     def test_combos_esperados(self):
         assert set(F.COMBOS) == {"construir", "construir-ui", "pensar",
-                                 "pensar-qwythos", "pensar-en-lazo",
-                                 "juzgar", "solo"}
+                                 "pensar-qwythos", "pensar-nemotron",
+                                 "pensar-en-lazo", "juzgar", "solo"}
+
+    def test_cerebro_alternativo_nemotron(self):
+        # 2026-08-14: cerebro alternativo con ventana de 1M MEDIDA. El combo
+        # NO fija --ctx: el perfil de arranque de servir_modelo.py le pone el
+        # millon con sus flags medidos, y un --ctx aca lo pisaria.
+        (script, args), = F.COMBOS["pensar-nemotron"]
+        assert script == "servir_modelo.py"
+        assert "nemotron-3.5" in args and "--ctx" not in args
+
+    def test_el_35_no_se_confunde_con_el_openreasoning_14b(self):
+        # Match por substring: 'nemotron' a secas se llevaba el 3.5 al combo
+        # del 14B. Lo especifico tiene que ganar.
+        assert F.combo_de_modelo(
+            "nemotron-3.5-lightning-30b-a3b-Q4_0.gguf") == "pensar-nemotron"
+        assert F.combo_de_modelo(
+            "OpenReasoning-Nemotron-14B.Q4_K_M.gguf") == "pensar-en-lazo"
 
     def test_cerebro_principal_es_qwythos(self):
         # El dueño lo pidio 2026-08-09: `cognia flota arrancar` sin argumento

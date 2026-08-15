@@ -1,0 +1,232 @@
+"""
+Soporte Nemotron (2026-08-14) — Cognia se construyo sobre Qwen y el primer
+modelo de otra familia que entro destapo tres cosas que fallaban EN SILENCIO:
+
+1. `_perfil_auto` decidia el system prompt con una lista LITERAL de tamanos
+   ('32b' y '20b' estaban, '30b' no) -> el 30B recibia el prompt del 3B.
+2. El razonamiento de Nemotron no viaja por `reasoning_effort` (eso es de
+   harmony) sino por `chat_template_kwargs.enable_thinking`, y no habia
+   canal para mandarlo.
+3. El sampling del modelo lo declara su propio GGUF (1.0/0.95) y no habia
+   familia que lo fijara.
+
+Cada test de aca falla sin el fix. El contrafactual (que Qwen/harmony no
+cambien ni un byte) esta en cada bloque.
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from cognia import system_prompt as SP
+from cognia.agent import model_profiles as MP
+
+
+class TestPerfilAutoPorTamano:
+
+    def test_nemotron_30b_recibe_el_prompt_completo(self, monkeypatch):
+        # El bug exacto: '30b' no estaba en la lista literal.
+        monkeypatch.setenv("LLAMA_GGUF_PATH",
+                           "nemotron-3.5-lightning-30b-a3b-Q4_0.gguf")
+        monkeypatch.delenv("COGNIA_SYSTEM_PROMPT_PERFIL", raising=False)
+        assert SP._perfil_auto() == "completo"
+
+    def test_los_tamanos_de_siempre_siguen_completos(self, monkeypatch):
+        monkeypatch.delenv("COGNIA_SYSTEM_PROMPT_PERFIL", raising=False)
+        for nombre in ("Huihui-Qwythos-9B-abliterated-Q4_K.gguf",
+                       "gpt-oss-20b-MXFP4.gguf",
+                       "qwen2.5-coder-14b-instruct-q4_k_m.gguf"):
+            monkeypatch.setenv("LLAMA_GGUF_PATH", nombre)
+            assert SP._perfil_auto() == "completo", nombre
+
+    def test_el_chico_sigue_compacto(self, monkeypatch):
+        monkeypatch.delenv("COGNIA_SYSTEM_PROMPT_PERFIL", raising=False)
+        for nombre in ("qwen2.5-coder-0.5b-instruct-q8_0.gguf",
+                       "Qwen3-1.7B-Q4_K_M.gguf",
+                       "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf"):
+            monkeypatch.setenv("LLAMA_GGUF_PATH", nombre)
+            assert SP._perfil_auto() == "compacto", nombre
+
+    def test_el_override_por_entorno_sigue_ganando(self, monkeypatch):
+        monkeypatch.setenv("LLAMA_GGUF_PATH", "nemotron-30b.gguf")
+        monkeypatch.setenv("COGNIA_SYSTEM_PROMPT_PERFIL", "minimo")
+        assert SP._perfil_auto() == "minimo"
+
+
+class TestFamiliaNemotron:
+
+    def test_sampling_es_el_que_declara_su_gguf(self):
+        cfg, fam = MP._cfg_familia("nemotron-3.5-lightning-30b-a3b-q4_0.gguf")
+        assert fam == "nemotron"
+        assert cfg["temperature"] == 1.0 and cfg["top_p"] == 0.95
+
+    def test_no_usa_reasoning_effort(self):
+        # reasoning_effort es de harmony; mandarselo a Nemotron seria fingir
+        # un control que su template no lee.
+        cfg, _ = MP._cfg_familia("nemotron-3.5-lightning-30b-a3b-q4_0.gguf")
+        assert cfg.get("usa_effort") is False
+
+    def test_qwythos_intacto(self):
+        cfg, fam = MP._cfg_familia("huihui-qwythos-9b-q4_k.gguf")
+        assert fam == "qwythos"
+        assert cfg["temperature"] == 0.7 and cfg["top_p"] == 0.8
+
+
+class TestKwargsPlantilla:
+
+    def test_nemotron_pide_enable_thinking(self, monkeypatch):
+        monkeypatch.delenv("COGNIA_THINKING", raising=False)
+        cfg, _ = MP._cfg_familia("nemotron-3.5-lightning-30b-a3b-q4_0.gguf")
+        assert MP._kwargs_plantilla(cfg) == {"enable_thinking": True}
+
+    def test_el_entorno_lo_apaga(self, monkeypatch):
+        monkeypatch.setenv("COGNIA_THINKING", "off")
+        cfg, _ = MP._cfg_familia("nemotron-3.5-lightning-30b-a3b-q4_0.gguf")
+        assert MP._kwargs_plantilla(cfg) == {"enable_thinking": False}
+
+    def test_familias_sin_piensa_no_mandan_nada(self, monkeypatch):
+        # CONTRAFACTUAL: el body de Qwen/harmony no puede cambiar.
+        monkeypatch.setenv("COGNIA_THINKING", "off")
+        for modelo in ("huihui-qwythos-9b-q4_k.gguf", "gpt-oss-20b-mxfp4.gguf",
+                       "un-modelo-desconocido.gguf"):
+            cfg, _ = MP._cfg_familia(modelo)
+            assert MP._kwargs_plantilla(cfg or {}) == {}, modelo
+
+
+class TestSondaNoConfundeLengthConIncapacidad:
+    """El fallo REAL del 2026-08-14: la sonda daba 256 tokens, Nemotron los
+    gastaba pensando, el tool call salia truncado y el veredicto era 'no
+    soporta tools / le falta --jinja'. Un 30B con tools nativas perfectas
+    acababa en regimen de texto legacy por un presupuesto mal puesto."""
+
+    def _server_falso(self, monkeypatch, respuestas):
+        """Devuelve las respuestas en orden y registra los bodies enviados."""
+        from cognia.agent import capacidad as CAP
+        import json as _json
+        enviados = []
+
+        class _R:
+            def __init__(self, payload):
+                self._p = payload
+
+            def read(self):
+                return _json.dumps(self._p).encode("utf-8")
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        it = iter(respuestas)
+
+        def _urlopen(req, timeout=None):
+            enviados.append(_json.loads(req.data.decode("utf-8")))
+            return _R(next(it))
+
+        monkeypatch.setattr(CAP.urllib.request, "urlopen", _urlopen)
+        monkeypatch.setattr(CAP, "_modelo_de",
+                            lambda url: "nemotron-3.5-lightning-30b-a3b-q4_0.gguf")
+        return enviados
+
+    _TRUNCADO = {"choices": [{"finish_reason": "length", "message": {
+        "tool_calls": [{"function": {"name": "ping",
+                                     "arguments": '{"x":"hola'}}]}}]}
+    _BUENO = {"choices": [{"finish_reason": "tool_calls", "message": {
+        "tool_calls": [{"function": {"name": "ping",
+                                     "arguments": '{"x":"hola"}'}}]}}]}
+
+    def test_reintenta_cuando_el_presupuesto_degollo_el_tool_call(
+            self, monkeypatch):
+        from cognia.agent import capacidad as CAP
+        enviados = self._server_falso(monkeypatch,
+                                      [self._TRUNCADO, self._BUENO])
+        r = CAP.sondar("http://127.0.0.1:9")
+        assert r["soporta_tools"] is True
+        assert "presupuesto" in r["motivo"]
+        # El reintento tiene que ensanchar el presupuesto Y apagar el
+        # pensamiento: si solo repitiera la misma peticion seria adivinar.
+        assert enviados[0]["max_tokens"] == 256
+        assert enviados[1]["max_tokens"] == 1024
+        assert enviados[1]["chat_template_kwargs"] == {"enable_thinking": False}
+
+    def test_si_ni_con_presupuesto_llama_el_motivo_dice_la_verdad(
+            self, monkeypatch):
+        from cognia.agent import capacidad as CAP
+        vacio = {"choices": [{"finish_reason": "length", "message": {}}]}
+        self._server_falso(monkeypatch, [vacio, vacio])
+        r = CAP.sondar("http://127.0.0.1:9")
+        assert r["soporta_tools"] is False
+        # NO puede acusar a --jinja: el server dijo 'length', no 'prosa'.
+        assert "jinja" not in r["motivo"]
+        assert "sin tokens" in r["motivo"]
+
+    def test_un_modelo_que_de_verdad_no_sabe_sigue_reprobando(
+            self, monkeypatch):
+        from cognia.agent import capacidad as CAP
+        prosa = {"choices": [{"finish_reason": "stop",
+                              "message": {"content": "pong!"}}]}
+        enviados = self._server_falso(monkeypatch, [prosa])
+        r = CAP.sondar("http://127.0.0.1:9")
+        assert r["soporta_tools"] is False
+        assert "jinja" in r["motivo"]        # aca la sospecha SI corresponde
+        assert len(enviados) == 1            # y no gasta un reintento inutil
+
+
+class TestChatClientMergea:
+
+    def test_kwargs_plantilla_no_pisa_reasoning_effort(self, monkeypatch):
+        """Los dos ejes viajan por el mismo campo: el merge tiene que
+        conservar ambos, no quedarse con el ultimo."""
+        from cognia.agent import chat_client as CC
+        capturado = {}
+
+        class _Resp:
+            status = 200
+
+            def read(self):
+                return b'{"choices":[{"message":{"content":"ok"},' \
+                       b'"finish_reason":"stop"}]}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def _fake_urlopen(req, timeout=None):
+            import json as _json
+            capturado.update(_json.loads(req.data.decode("utf-8")))
+            return _Resp()
+
+        monkeypatch.setattr(CC.urllib.request, "urlopen", _fake_urlopen)
+        CC.completar([{"role": "user", "content": "hola"}],
+                     reasoning_effort="low",
+                     kwargs_plantilla={"enable_thinking": False})
+        assert capturado["chat_template_kwargs"] == {
+            "reasoning_effort": "low", "enable_thinking": False}
+
+    def test_sin_kwargs_el_body_es_el_de_siempre(self, monkeypatch):
+        from cognia.agent import chat_client as CC
+        capturado = {}
+
+        class _Resp:
+            def read(self):
+                return b'{"choices":[{"message":{"content":"ok"},' \
+                       b'"finish_reason":"stop"}]}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def _fake_urlopen(req, timeout=None):
+            import json as _json
+            capturado.update(_json.loads(req.data.decode("utf-8")))
+            return _Resp()
+
+        monkeypatch.setattr(CC.urllib.request, "urlopen", _fake_urlopen)
+        CC.completar([{"role": "user", "content": "hola"}])
+        assert "chat_template_kwargs" not in capturado

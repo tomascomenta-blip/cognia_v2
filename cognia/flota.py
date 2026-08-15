@@ -72,6 +72,20 @@ COMBOS = {
         ("servir_modelo.py", ["--modelo", "OpenReasoning", "--sin-draft"]),
         ("servir_vlm.py", ["--modelo", "VL-3B"]),
     ],
+    "pensar-nemotron": [
+        # CEREBRO ALTERNATIVO (2026-08-14). Nemotron 3.5 Lightning 30B-A3B:
+        # MoE hibrido Mamba2 con ventana NATIVA de 1.048.576 tokens, MEDIDA
+        # entera en esta maquina (prompt real de 1.046.706 tokens, aguja
+        # recuperada, 14.622 MiB de VRAM de los 16.311).
+        # Sin --ctx aca a proposito: servir_modelo.PERFILES_ARRANQUE le pone
+        # el millon con los flags medidos (KV q8_0, --no-mmap, batch 4096 /
+        # ubatch 1024 = +59% de prefill). Poner un --ctx aca lo pisaria.
+        # Que corre despacio es parte del trato: 508 tok/s de prefill al
+        # millon y ~14 tok/s de generacion a esa profundidad. Para el uso
+        # normal del agente el RLM sale 229x mas barato (medido el mismo dia,
+        # mismo pajar: 9 s y 4.728 tokens contra 2.061 s y 1.046.706).
+        ("servir_modelo.py", ["--modelo", "nemotron-3.5", "--sin-draft"]),
+    ],
     "juzgar": [
         ("servir_vlm.py", ["--modelo", "VL-7B"]),
     ],
@@ -102,11 +116,17 @@ PUERTOS_LLAMA = (8080, 8081, 8082)
 # Para que el doctor/estado puedan decir no solo QUE modelo responde sino a
 # QUE combo esperado corresponde (o que no corresponde a ninguno: la averia
 # historica del :8088 era exactamente un server rancio con otro modelo).
+# OJO CON EL ORDEN: el match es por substring y gana el PRIMERO que case, asi
+# que lo especifico va ANTES que lo generico. 'nemotron' a secas mapeaba a
+# 'pensar-en-lazo' (por OpenReasoning-Nemotron-14B) y con el 3.5 instalado
+# habria dicho que el cerebro de 30B es el combo del 14B: el mismo modo de
+# fallo que la averia del :8088 (un server rancio atribuido al combo que no es).
 CEREBROS = {
     "qwythos": "pensar-qwythos",
     "gpt-oss": "pensar",
     "uigen": "construir-ui",
     "openreasoning": "pensar-en-lazo",
+    "nemotron-3.5": "pensar-nemotron",
     "nemotron": "pensar-en-lazo",
     "qwen2.5-coder-14b": "construir",
 }

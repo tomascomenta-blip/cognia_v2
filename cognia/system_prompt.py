@@ -35,6 +35,7 @@ Uso:
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 # ── Identidad (comun a todos los roles) ────────────────────────────────────
@@ -293,8 +294,19 @@ def _perfil_auto() -> str:
     # '9b', '20b' y 'gpt-oss' faltaban (A3, obra 2026-08-09): la flota real
     # (gpt-oss-20b, qwythos-9b) recibia el prompt del 3B por no estar en la
     # lista. Los tokens se comparan sobre el basename del GGUF.
-    if any(t in pista for t in ("7b", "8b", "9b", "13b", "14b", "20b",
-                                "32b", "70b", "gpt-oss", "qwythos")):
+    #
+    # 2026-08-14: la lista LITERAL volvio a fallar con el primer modelo nuevo
+    # que entro (nemotron-3.5-lightning-30b-a3b: tiene '32b' y '20b' en la
+    # lista, pero NO '30b') -> el 30B recibia el prompt del 3B. Parchear
+    # agregando '30b' repetiria el bug con el siguiente tamano, asi que el
+    # tamano se LEE del nombre: cualquier NNb >= 7 activa el prompt completo.
+    # Los nombres sueltos siguen porque no todos los GGUF llevan el tamano.
+    # El (?<![\d.]) no es adorno: sin el, 'Qwen3-1.7B' lee '7b' del DECIMAL y
+    # un 1.7B se lleva el prompt completo (lo cazo el test).
+    if any(int(n) >= 7
+           for n in re.findall(r"(?<![\d.])(\d{1,3})b(?![a-z0-9])", pista)):
+        return "completo"
+    if any(t in pista for t in ("gpt-oss", "qwythos", "nemotron")):
         return "completo"
     return "compacto"
 

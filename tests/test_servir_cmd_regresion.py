@@ -60,6 +60,34 @@ class TestConstruirCmd:
         assert "q3_k" in capsys.readouterr().err
 
 
+class TestPerfilArranque:
+    """Perfiles por modelo (2026-08-14, soporte Nemotron). El contrafactual es
+    el mismo de siempre: sin perfil que case, el comando no cambia."""
+
+    def test_modelo_sin_perfil_no_agrega_nada(self):
+        assert SM.perfil_arranque(Path("Huihui-Qwythos-9B.gguf")) == {}
+        cmd = SM.construir_cmd(Path("llama-server.exe"), Path("m.gguf"),
+                               8080, 8192,
+                               **{k: v for k, v in
+                                  SM.perfil_arranque(Path("m.gguf")).items()
+                                  if k in ("no_mmap", "batch", "ubatch")})
+        assert cmd == _BASE
+
+    def test_nemotron_trae_los_flags_medidos(self):
+        p = SM.perfil_arranque(
+            Path("nemotron-3.5-lightning-30b-a3b-Q4_0.gguf"))
+        # El millon es la ventana NATIVA del modelo y esta medida entera.
+        assert p["ctx"] == 1048576
+        assert p["ctk"] == p["ctv"] == "q8_0"
+        assert p["no_mmap"] is True and p["ubatch"] == 1024
+
+    def test_los_flags_nuevos_van_al_final(self):
+        cmd = SM.construir_cmd("e", "m", 8080, 8192, no_mmap=True,
+                               batch=4096, ubatch=1024)
+        assert cmd[-5:] == ["--no-mmap", "--batch-size", "4096",
+                            "--ubatch-size", "1024"]
+
+
 class _ProcFalso:
     pid = 4242
 
