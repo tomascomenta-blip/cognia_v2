@@ -92,3 +92,27 @@ mejor por serlo — el máximo de la curva acierto/segundo está en medio, y ese
   otras páginas: un acierto por casualidad es improbable pero no imposible.
 - Mide **localización dentro de páginas ya descargadas**. No mide la calidad del buscador ni la del
   ranking, que es donde Perplexity tiene su foso real.
+
+## CORRECCIÓN (misma noche): la conclusión de arriba era un artefacto del banco
+
+La revisión adversarial había señalado que **la aguja estaba siempre en la posición 3** del
+contexto, así que el brazo ancho nunca tenía que buscar de verdad. Se corrigió (posición sorteada
+con semilla derivada del ítem, reproducible; `--aguja-fija` recupera el banco viejo) y se volvió a
+medir:
+
+| brazo | aguja fija (posición 3) | **aguja en posición sorteada** | seg/ítem |
+|---|---|---|---|
+| estrecho | 0/5 | **0/5** | 2,4 |
+| medio | 5/5 | **2/5** | 27,5 |
+| ancho | 5/5 | **5/5** | 152,2 |
+
+**"Ancho no le gana a medio" era falso**: sólo era cierto cuando el ranking ponía la página buena
+arriba. Con la aguja en las posiciones 22, 6, 38, 3 y 22, medio acierta exactamente los dos casos
+en que cae dentro de sus 12 páginas. El banco viejo medía un ranking PERFECTO; el nuevo, uno
+ALEATORIO. El ranking real de Cognia (léxico, sin reranker) está entre los dos.
+
+**Lo que se hace con eso** (`search/responder.py`): no elegir a ciegas, sino **arrancar en medio y
+escalar a ancho sólo cuando medio dice que no encontró**. Un no-encontrado es barato de detectar
+(`encontrado=false`) y es justo la señal de que faltaba contexto. Coste esperado con este banco:
+~119 s/ítem para 5/5, contra 152 s de ancho puro — y 27,5 s cuando el ranking acierta. Se escala
+UNA vez: si con 40 páginas tampoco está, insistir es pagar 152 s para repetir el mismo "no".

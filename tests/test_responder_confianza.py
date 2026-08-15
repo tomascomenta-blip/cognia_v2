@@ -109,3 +109,68 @@ class TestPoliticaDeRespuesta:
         v = R.responder("¿?", chat_fn=chat, buscar_fn=_roto,
                         extraer_fn=_extractor)
         assert any("ConnectionError" in r for r in v.razones)
+
+
+class TestEscaladoDeContexto:
+    """Del banco b5 con la aguja en posición sorteada (2026-08-15):
+    medio 2/5 y ancho 5/5. La respuesta no es elegir uno a ciegas: es pagar
+    medio en el caso común y subir a ancho SOLO cuando medio no encuentra."""
+
+    def _entorno(self, encuentra_en_ancho):
+        """chat que dice 'no encontrado' con pocas páginas y sí con muchas."""
+        vistos = []
+
+        def _chat(mensajes, **kw):
+            texto = mensajes[-1]["content"]
+            vistos.append(texto.count("=== http"))
+            if "JSON" in texto and "consultas" in texto:
+                return json.dumps({"consultas": ["q"]})
+            if "lo_se" in texto:
+                return json.dumps({"respuesta": "?", "lo_se": False})
+            paginas = texto.count("=== http")
+            if paginas >= 40 and encuentra_en_ancho:
+                return json.dumps({
+                    "respuesta": "7fa31b90", "encontrado": True,
+                    "fuente": "https://s/p0",
+                    "evidencia": "El codigo de calibracion del equipo QX-042 "
+                                 "es 7fa31b90"})
+            return json.dumps({"respuesta": "", "encontrado": False,
+                               "fuente": "", "evidencia": ""})
+
+        def _buscador(_c, _n=8):
+            return [{"url": f"https://s/p{i}"} for i in range(60)]
+
+        def _extractor(urls, cap=5):
+            from cognia.search.fanout import en_paralelo
+            return en_paralelo(list(urls),
+                               lambda u: {"texto": PAGINA, "titulo": "t"},
+                               cap=1)
+
+        return _chat, _buscador, _extractor, vistos
+
+    def test_escala_a_ancho_cuando_medio_no_encuentra(self):
+        chat, buscador, extractor, vistos = self._entorno(True)
+        v = R.responder("¿codigo?", chat_fn=chat, buscar_fn=buscador,
+                        extraer_fn=extractor, presupuesto_s=600)
+        assert v.valor == "7fa31b90"
+        assert any("escalo a ancho" in r for r in v.razones)
+        # y el segundo intento leyó MÁS páginas que el primero
+        lecturas = [n for n in vistos if n > 0]
+        assert lecturas[-1] > lecturas[0]
+
+    def test_no_escala_dos_veces(self):
+        # Si con 40 páginas tampoco está, insistir es gastar 152 s para
+        # repetir el mismo "no".
+        chat, buscador, extractor, vistos = self._entorno(False)
+        v = R.responder("¿codigo?", chat_fn=chat, buscar_fn=buscador,
+                        extraer_fn=extractor, presupuesto_s=600)
+        assert v.accion != "responder"
+        assert sum(1 for r in v.razones if "escalo" in r) == 1
+
+    def test_sin_presupuesto_no_escala(self):
+        # El escalado cuesta ~152 s: prometerlo sin tiempo sería mentir sobre
+        # el presupuesto de pared.
+        chat, buscador, extractor, _ = self._entorno(True)
+        v = R.responder("¿codigo?", chat_fn=chat, buscar_fn=buscador,
+                        extraer_fn=extractor, presupuesto_s=30)
+        assert not any("escalo" in r for r in v.razones)

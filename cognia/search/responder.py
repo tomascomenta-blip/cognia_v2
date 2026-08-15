@@ -157,7 +157,36 @@ def responder(pregunta: str, url: str = "", presupuesto_s: float = 120.0,
         v.accion = "abstenerse"
         return v
 
-    modo = CTX.modo_para(max(presupuesto_s - (time.time() - t0), 15))
+    # Se ARRANCA barato aunque el presupuesto dé para más: la política que la
+    # medición respalda es pagar `medio` en el caso común y subir solo si no
+    # encuentra. `modo_para` a secas devolvía el modo más ancho que cupiera y
+    # entonces el escalado no llegaba a existir nunca (lo cazó el test).
+    # COGNIA_SEARCH_MODO sigue mandando si alguien fija uno a mano.
+    cabe = CTX.modo_para(max(presupuesto_s - (time.time() - t0), 15))
+    pedido = CTX.modo_por_nombre("medio")
+    modo = pedido if pedido.tokens <= cabe.tokens else cabe
+    return _con_contexto(pregunta, urls, modo, chat, extraer_fn, v, t0,
+                         presupuesto_s)
+
+
+def _con_contexto(pregunta, urls, modo, chat, extraer_fn, v, t0,
+                  presupuesto_s, escalado=False):
+    """Lee páginas con ese modo y contesta; ESCALA si no encuentra.
+
+    El escalado sale de una medición, no de una intuición (banco b5 del
+    2026-08-15, con la aguja en posición sorteada y no siempre arriba):
+
+        estrecho  0/5     2,3 s
+        medio     2/5    27,6 s     <- solo acierta si la página cae en su top-12
+        ancho     5/5   152,2 s
+
+    O sea: `medio` es 5,5× más barato pero depende de que el ranking ponga la
+    página buena arriba, y el ranking de la casa es léxico, sin reranker. La
+    respuesta no es elegir uno de los dos a ciegas: es pagar `medio` en el
+    caso común y **subir a `ancho` solo cuando medio dice que no encontró**.
+    Un no-encontrado es barato de detectar (`encontrado=false`) y es
+    exactamente la señal de que hacía falta más contexto.
+    """
     lote_pag = extraer_fn(urls[:modo.paginas], cap=5)
     paginas = [{"url": s.spec, "texto": (s.valor or {}).get("texto", "")}
                for s in lote_pag.ok if (s.valor or {}).get("texto")]
@@ -180,6 +209,18 @@ def responder(pregunta: str, url: str = "", presupuesto_s: float = 120.0,
     if not hallado.get("encontrado"):
         v.razones.append(f"leí {len(dadas)} páginas ({modo.nombre}) y la "
                          f"respuesta no estaba en ellas")
+        # ESCALAR: si con `medio` no apareció y queda presupuesto, vale la
+        # pena pagar `ancho` — en el banco eso es la diferencia entre 2/5 y
+        # 5/5. Una sola vez: si con 40 páginas tampoco está, insistir es
+        # gastar 152 s para repetir el mismo "no".
+        resta = presupuesto_s - (time.time() - t0)
+        if (not escalado and modo.nombre != CTX.ANCHO.nombre
+                and len(urls) > modo.paginas
+                and resta > CTX.segundos_de(CTX.ANCHO)):
+            v.razones.append(f"escalo a {CTX.ANCHO.nombre} "
+                             f"({CTX.ANCHO.paginas} páginas)")
+            return _con_contexto(pregunta, urls, CTX.ANCHO, chat, extraer_fn,
+                                 v, t0, presupuesto_s, escalado=True)
         return v
 
     # --- 3. La cita se verifica, no se cree --------------------------------
@@ -190,6 +231,12 @@ def responder(pregunta: str, url: str = "", presupuesto_s: float = 120.0,
     final = CF.evaluar((hallado.get("respuesta") or "").strip(), apoyos)
     final.razones.append(f"modo {modo.nombre}: {len(dadas)} páginas, "
                          f"{time.time() - t0:.0f}s")
+    if escalado:
+        # El veredicto final se arma de cero desde las señales, así que la
+        # nota del escalado hay que traerla: sin ella, el informe diría
+        # "modo ancho" sin contar que se pagó medio primero, y el coste real
+        # de la respuesta quedaría subdeclarado.
+        final.razones.append("escalo a ancho tras no encontrarla en medio")
     if not chequeo["ok"]:
         # Fabricar una cita no es neutro: es evidencia de que este registro
         # concreto no es de fiar, así que además de no sumar, se marca.

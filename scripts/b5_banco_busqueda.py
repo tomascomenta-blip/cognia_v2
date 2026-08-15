@@ -156,6 +156,9 @@ def main() -> int:
     ap.add_argument("--brazos", default="ciego,estrecho,medio,ancho")
     ap.add_argument("--backend", default="http://127.0.0.1:8080")
     ap.add_argument("--salida", default="b5_banco_busqueda.json")
+    ap.add_argument("--aguja-fija", action="store_true",
+                    help="aguja siempre en la posicion 3 (el comportamiento "
+                         "viejo, para comparar con corridas ya publicadas)")
     args = ap.parse_args()
 
     from cognia.search import contexto as CTX
@@ -179,12 +182,24 @@ def main() -> int:
     brazos = [b.strip() for b in args.brazos.split(",") if b.strip()]
     filas = []
     for item in items:
-        # La página con la aguja NUNCA va primera: si fuera la primera, el
-        # brazo estrecho la leería por orden y el banco mediría el orden en
-        # vez del contexto.
+        # DÓNDE va la página con la aguja. Nunca primera (el brazo estrecho
+        # la leería por orden y el banco mediría el orden, no el contexto),
+        # pero tampoco SIEMPRE en la 3: con la posición fija, el brazo ancho
+        # se mide en su mejor caso y nunca tiene que buscar de verdad — lo
+        # señaló la revisión adversarial del 2026-08-15.
+        #
+        # La posición se sortea con una semilla DERIVADA del ítem: cambia
+        # entre ítems y es reproducible entre corridas, que es lo que un
+        # brazo apareado necesita. `--aguja-fija` recupera el comportamiento
+        # viejo para comparar contra las corridas ya publicadas.
         url_aguja = f"{raiz}/{item['archivo']}"
         otras = [u for u in urls if u != url_aguja]
-        orden = otras[:2] + [url_aguja] + otras[2:]
+        if args.aguja_fija:
+            pos = 2
+        else:
+            pos = random.Random(SEED + item["pagina"]).randrange(
+                1, max(2, len(otras)))
+        orden = otras[:pos] + [url_aguja] + otras[pos:]
         paginas = [{"url": u, "texto": textos.get(u, "")} for u in orden
                    if textos.get(u)]
 
@@ -206,7 +221,8 @@ def main() -> int:
             ok = item["dato"] in resp.lower()
             filas.append({"item": item["pagina"], "brazo": nombre, "ok": ok,
                           "seg": round(seg, 1), "tokens": tok,
-                          "paginas": len(dadas)})
+                          "paginas": len(dadas), "pos_aguja": pos,
+                          "aguja_dada": url_aguja in [d["url"] for d in dadas]})
             print(f"  QX-{item['pagina']:03d} [{nombre:8}] "
                   f"{'OK  ' if ok else 'FALLA'} {seg:6.1f}s "
                   f"{tok:>7,} tok  {len(dadas)} pág", flush=True)
