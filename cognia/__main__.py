@@ -545,6 +545,8 @@ Comandos:
   remoto             Servidor de control remoto desde el movil
   tutor              Tutor web que ensena cualquier tema (localhost:8899)  [--lan]
   rlm <ruta> "<pregunta>"  Pregunta sobre contexto mas grande que la ventana
+  responder "<pregunta>"   Responde con CONFIANZA (no si/no); si le falta,
+                           investiga en la web y cita. [--segundos N]
   --version          Mostrar la version instalada (solo el numero)
   help / --help      Mostrar esta ayuda
 
@@ -682,6 +684,36 @@ def main() -> None:
         if _informe:
             print(_informe)
         sys.exit(0 if _res.get("ok") else 1)
+    elif cmd in ("responder", "confianza"):
+        # Responder con CONFIANZA en vez de con si/no, y si no la hay, ir a
+        # buscar. El grado NO se le pregunta al modelo (contesta 0,9 casi
+        # siempre): sale de senales verificables -- cita literal comprobada
+        # en su pagina, dominios independientes, contradicciones.
+        if len(sys.argv) < 3:
+            print('Uso: cognia responder "<pregunta>" [--segundos N]')
+            sys.exit(2)
+        _seg = 120.0
+        _args = sys.argv[2:]
+        if "--segundos" in _args:
+            _i = _args.index("--segundos")
+            try:
+                _seg = float(_args[_i + 1])
+            except (IndexError, ValueError):
+                print("--segundos necesita un numero")
+                sys.exit(2)
+            _args = _args[:_i] + _args[_i + 2:]
+        try:
+            from cognia.search.responder import responder as _responder
+        except Exception as exc:
+            print(f"[cognia] el modo responder no esta disponible: {exc}")
+            sys.exit(1)
+        _v = _responder(" ".join(_args), presupuesto_s=_seg)
+        print(_v.frase())
+        if _v.fuentes:
+            print(f"fuentes: {', '.join(_v.fuentes)}")
+        # Exit code con SIGNIFICADO: 0 respondio, 3 no le alcanzo la
+        # confianza (no es un error del programa, es un no-se honesto).
+        sys.exit(0 if _v.accion == "responder" else 3)
     elif cmd == "":
         from cognia.first_run import run_wizard
         run_wizard(force=False)
