@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-08-13 02:01:38
+> Generado: 2026-08-15 00:13:08
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -13,24 +13,24 @@
 
 ## Backend LLM
 - GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf
-- Modelos en C:\Users\usuario\.cognia\models: Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf, OpenReasoning-Nemotron-14B.Q4_K_M.gguf, Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf, Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf, Qwen3-1.7B-Q4_K_M.gguf, Qwen3-4B-Thinking-2507-Q4_K_M.gguf, UIGEN-X-8B.Q8_0.gguf, gpt-oss-20b-MXFP4.gguf, mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf, mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf, qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
+- Modelos en C:\Users\usuario\.cognia\models: Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf, OpenReasoning-Nemotron-14B.Q4_K_M.gguf, Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf, Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf, Qwen3-1.7B-Q4_K_M.gguf, Qwen3-4B-Thinking-2507-Q4_K_M.gguf, UIGEN-X-8B.Q8_0.gguf, gpt-oss-20b-MXFP4.gguf, mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf, mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf, nemotron-3.5-lightning-30b-a3b-Q4_0.gguf, nemotron-mtp-Q4_0.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
 - Shards NPZ en C:\Users\usuario\.cognia\shards\qwen-coder-3b-q4: shard_0.npz, shard_1.npz, shard_2.npz, shard_3.npz
 - Ollama: disponible en http://localhost:11434
 - Backend en uso (llm_local): llama en http://127.0.0.1:8080
 
 ## Mapa del repo
 - Modulos .py top-level: 8
-- cognia/: 464 archivos .py
+- cognia/: 475 archivos .py
 - node/: 18 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 550 archivos .py
-- Archivos de test (tests/test_*.py): 547
+- tests/: 574 archivos .py
+- Archivos de test (tests/test_*.py): 571
 
 ## Radar de cobertura (anti-danos-colaterales)
-- Modulos con simbolos publicos: 439
+- Modulos con simbolos publicos: 449
 - SIN ninguna mencion en tests/: 27
 - Fuera del radar (revisar al tocar features vecinas):
   * cognia/experts/identity_dataset.py (2 simbolos publicos)
