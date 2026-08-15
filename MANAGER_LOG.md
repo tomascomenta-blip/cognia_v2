@@ -12934,3 +12934,27 @@ código**.
 
 En ambos casos los veredictos funcionales seguían saliendo bien y **solo la tabla de segundos
 mentía** — que es la forma más cara de equivocarse aquí.
+
+### Gate del camino feliz con Nemotron y A/B de razonamiento
+
+**Baseline (thinking on, el default): 4/5 en 2,7 min.** Con el server sano una tarea del agente
+cuesta 20-41 s; con el server degradado por el `-ngl` eran 161 s por PASO.
+
+A/B con brazos intercalados, 2 rondas por brazo (el gate como instrumento: postcondición en DISCO):
+
+| brazo | ronda 1 | ronda 2 | min/corrida | falla |
+|---|---|---|---|---|
+| thinking **on** | 4/5 | 4/5 | 2,55 | `json` |
+| thinking **off** | 3/5 | 3/5 | 1,90 | `json` + una que **cambia** (apendar / python) |
+
+**Lo que sí es un resultado (n=5 corridas):** `json` falla SIEMPRE, con y sin razonamiento. No es
+el thinking: es que Nemotron lee *"creá un archivo config.json con la clave modo puesta en rapido"*
+y escribe `{"modo puesta en rapido": true}` en vez de `{"modo": "rapido"}`. **Nemotron es más flojo
+en español que Qwythos**, y eso pesa en la decisión de adoptarlo como cerebro.
+
+**Lo que NO se puede cerrar:** el delta de una tarea entre on y off. El signo es consistente (2 de
+2 rondas) y el ahorro de pared también (~25%), pero con n=2 por brazo eso no es significancia — y
+la potencia se declaró ANTES: con 5 tareas por corrida esto detecta un colapso, no una diferencia
+fina. Que la tarea extra que cae CAMBIE entre rondas apunta a degradación difusa, no a un camino
+roto. **El default se queda en `on`** (lo entrenado) y `COGNIA_THINKING=off` queda como palanca
+medida para quien priorice latencia.
