@@ -79,8 +79,13 @@ _FAMILIAS_NATIVAS = {
     # que es de harmony). Con thinking ON y max_tokens corto el content sale
     # VACIO -- el mismo modo de fallo que ya tuvo qwythos, por eso el clamp
     # MIN_TOKENS_RAZONADOR aplica igual.
-    "nemotron": {"temperature": 1.0, "top_p": 0.95, "usa_effort": False,
-                 "piensa": True},
+    # La clave es 'nemotron-3.5' y NO 'nemotron': OpenReasoning-Nemotron-14B
+    # es otra familia (Qwen2.5 destilado por NVIDIA) y con la clave corta se
+    # llevaba este sampling y un enable_thinking que su plantilla NO lee.
+    # Cuarta tabla del repo que casa por substring; el match va de patron mas
+    # largo a mas corto para que el orden de escritura deje de importar.
+    "nemotron-3.5": {"temperature": 1.0, "top_p": 0.95, "usa_effort": False,
+                     "piensa": True},
 }
 
 # Familias cuyo razonamiento se enciende/apaga por chat_template_kwargs.
@@ -201,12 +206,17 @@ def _cfg_familia(modelo: str) -> tuple:
     (None, '') si el modelo no se parece a ninguna."""
     bajo = (modelo or "").lower()
     if bajo:
-        for fam, cfg in familias_usuario().items():
-            if fam and fam in bajo:
-                return dict(cfg), fam
-        for fam, cfg in _FAMILIAS_NATIVAS.items():
+        # De patron MAS LARGO a mas corto en las dos tablas: 'nemotron-3.5'
+        # tiene que ganarle a 'nemotron' aunque alguien escriba las entradas
+        # en otro orden. Es la misma colision que ya mordio en flota.CEREBROS
+        # y en servir_modelo.PERFILES_ARRANQUE.
+        usuario = familias_usuario()
+        for fam in sorted((f for f in usuario if f), key=len, reverse=True):
             if fam in bajo:
-                return dict(cfg), fam
+                return dict(usuario[fam]), fam
+        for fam in sorted(_FAMILIAS_NATIVAS, key=len, reverse=True):
+            if fam in bajo:
+                return dict(_FAMILIAS_NATIVAS[fam]), fam
     return None, ""
 
 

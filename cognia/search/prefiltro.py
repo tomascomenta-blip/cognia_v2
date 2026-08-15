@@ -85,7 +85,7 @@ def prefiltrar(candidatos: list, tope_dominio: int = TOPE_POR_DOMINIO,
     reordenar aquí sería tomar una decisión de relevancia disfrazada de
     limpieza.
     """
-    aceptados, descartados = [], []
+    aceptados, descartados, reserva = [], [], []
     vistos, por_dominio = set(), {}
     for c in candidatos or []:
         url = (c.get("url") or "").strip() if isinstance(c, dict) else str(c)
@@ -104,8 +104,16 @@ def prefiltrar(candidatos: list, tope_dominio: int = TOPE_POR_DOMINIO,
             descartados.append({"url": url, "motivo": "extensión no legible"})
             continue
         if por_dominio.get(dom, 0) >= tope_dominio:
-            descartados.append({"url": url,
-                                "motivo": f"tope de {tope_dominio} por dominio"})
+            # A la RESERVA, no a la basura. El tope por dominio es una
+            # preferencia de diversidad, no un defecto de la página: si las
+            # tres primeras de ese dominio fallan al extraer, la cuarta es lo
+            # único que queda. Descartarla de verdad hacía que 2 resultados
+            # se volvieran 0 (reproducido) — y un prefiltro que ahorra
+            # bajando el recall está reprobado por su propia guarda.
+            fila = dict(c) if isinstance(c, dict) else {"url": url}
+            fila["url_canonica"] = canon
+            fila["motivo_reserva"] = f"tope de {tope_dominio} por dominio"
+            reserva.append(fila)
             continue
         vistos.add(canon)
         por_dominio[dom] = por_dominio.get(dom, 0) + 1
@@ -116,5 +124,8 @@ def prefiltrar(candidatos: list, tope_dominio: int = TOPE_POR_DOMINIO,
             break
     total = len(candidatos or [])
     return {"aceptados": aceptados, "descartados": descartados,
+            # `reserva`: aplazados por diversidad, NO desechados. El llamador
+            # tira de aquí cuando los aceptados no le alcanzan.
+            "reserva": reserva,
             "ahorro": (len(descartados) / total) if total else 0.0,
             "dominios": len(por_dominio)}

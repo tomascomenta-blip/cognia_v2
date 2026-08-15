@@ -151,7 +151,11 @@ def buscar_en_web(consulta: str, max_resultados: int = 3,
         prefiltrados = [{"url": d["url"], "razon": f"prefiltro: {d['motivo']}"}
                         for d in pf["descartados"]]
         if pf["aceptados"]:
-            candidatos = pf["aceptados"]
+            # La RESERVA (aplazados por tope de dominio) va detrás, no fuera:
+            # si los aceptados fallan al extraer, se sigue con ella. Sin esto,
+            # 6 candidatos de un mismo dominio con los 3 primeros rotos daban
+            # 0 resultados donde antes había 2 (reproducido).
+            candidatos = pf["aceptados"] + pf.get("reserva", [])
     except Exception:
         pass          # sin prefiltro se sigue igual que siempre
 
@@ -246,8 +250,21 @@ def extraer_muchas(urls: list, cap: int = 5, timeout_s: int = 15,
                 s.error = f"{s.error}; sin fallback JS ({exc})"
         return Lote(sobres=sobres)
 
-    with sync_playwright() as p:
+    # El launch puede fallar (Chromium no instalado, sandbox, disco). Si la
+    # excepción escapa, se van con ella TODOS los sobres HTTP que ya habían
+    # salido bien: perder trabajo bueno por no poder hacer el opcional es
+    # justo el modo de fallo que este módulo existe para evitar.
+    try:
+        contexto_pw = sync_playwright()
+        p = contexto_pw.__enter__()
         navegador = p.chromium.launch(headless=True)
+    except Exception as exc:
+        for s in pendientes:
+            if not s.ok:
+                s.error = f"{s.error}; y Chromium no arrancó ({exc})"[:500]
+        return Lote(sobres=sobres)
+
+    try:
         try:
             for s in pendientes:
                 url = s.spec
@@ -266,6 +283,13 @@ def extraer_muchas(urls: list, cap: int = 5, timeout_s: int = 15,
                         s.tipo_error = "AmbasVias"
         finally:
             navegador.close()
+    finally:
+        # El __exit__ del context manager va a mano porque el __enter__ se
+        # hizo a mano arriba para poder capturar el fallo del launch.
+        try:
+            contexto_pw.__exit__(None, None, None)
+        except Exception:
+            pass
     return Lote(sobres=sobres)
 
 

@@ -58,7 +58,10 @@ class TestFamiliaNemotron:
 
     def test_sampling_es_el_que_declara_su_gguf(self):
         cfg, fam = MP._cfg_familia("nemotron-3.5-lightning-30b-a3b-q4_0.gguf")
-        assert fam == "nemotron"
+        # 'nemotron-3.5' y no 'nemotron': el OpenReasoning-Nemotron-14B es
+        # otra familia (Qwen2.5 destilado) y con la clave corta se llevaba
+        # este sampling y un enable_thinking que su plantilla no lee.
+        assert fam == "nemotron-3.5"
         assert cfg["temperature"] == 1.0 and cfg["top_p"] == 0.95
 
     def test_no_usa_reasoning_effort(self):
@@ -346,3 +349,35 @@ class TestElReplNoMienteElModelo:
         monkeypatch.setenv("LLAMA_GGUF_PATH", r"C:\m\configurado.gguf")
         salida = cli._modelo_activo_nombre(None)
         assert "configurado.gguf" in salida and "no arrancado" in salida
+
+
+class TestNglExplicitoDegradabaElServer:
+    """El hallazgo de la noche que mas rendimiento devolvio: pasar
+    `--n-gpu-layers 99` sobre un MoE que no cabe entero impide que --fit
+    reparta, empuja la VRAM a 15.835 de 16.311 MiB y el driver spillea a RAM.
+    Medido: 113 tok/s de prefill contra 1.878 sin el flag (16,6x)."""
+
+    def test_nemotron_arranca_sin_ngl_para_que_fit_reparta(self):
+        from pathlib import Path
+        from scripts import servir_modelo as SM
+        perfil = SM.perfil_arranque(
+            Path("nemotron-3.5-lightning-30b-a3b-Q4_0.gguf"))
+        cmd = SM.construir_cmd("e", "m", 8080, perfil["ctx"],
+                               ngl=perfil.get("ngl", 99))
+        assert "--n-gpu-layers" not in cmd
+
+    def test_los_demas_modelos_conservan_ngl_99(self):
+        # Contrafactual: un modelo que cabe entero quiere sus capas en GPU.
+        from scripts import servir_modelo as SM
+        cmd = SM.construir_cmd("e", "m", 8080, 8192)
+        assert cmd[cmd.index("--n-gpu-layers") + 1] == "99"
+
+    def test_el_timeout_usa_la_velocidad_del_server_SANO(self):
+        # 39 tok/s (server arreglado), no los 14 del server degradado: cablear
+        # el 14 habria dejado documentada una averia propia como si fuera una
+        # propiedad del modelo.
+        from cognia.agent import chat_client as CC
+        assert CC._TOK_S_POR_FAMILIA["nemotron"] == 39.0
+        # y con esa velocidad, Nemotron ya no necesita timeout extendido para
+        # una tarea normal: cae en el piso historico.
+        assert CC.timeout_para("nemotron-3.5.gguf", 4096) == 300.0

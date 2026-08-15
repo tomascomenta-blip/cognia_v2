@@ -281,10 +281,13 @@ def aci_trim(text: str, name: str = "tool", cap: int = 0) -> str:
     cap = cap or aci_cap_para(_n_ctx_actual())
     if not text or len(text) <= cap:
         return text
-    # head/tail crecen con el cap manteniendo el reparto histórico (73/27):
-    # la cabeza trae el RESULTADO y la cola lo último, que suele ser el error.
-    head = int(cap * (_ACI_HEAD / (_ACI_HEAD + _ACI_TAIL)))
-    tail = cap - head
+    # head/tail se escalan sobre el CAP (no sobre head+tail): con el cap
+    # histórico de 1800 esto da 1200/450 EXACTOS, que es el recorte de
+    # siempre. Repartir sobre head+tail daba 1309/491 y rompía el
+    # byte-idéntico justo en la ventana donde se midió — el contrafactual se
+    # rompe en los decimales, no en los titulares.
+    head = int(cap * (_ACI_HEAD / 1800))
+    tail = int(cap * (_ACI_TAIL / 1800))
     ruta = ""
     try:
         base = Path(_resolve_write_path.__module__ and __import__(

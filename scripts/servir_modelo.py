@@ -72,7 +72,7 @@ CACHES_KV = ("f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl",
 PERFILES_ARRANQUE = {
     "nemotron-3.5": {"ctx": 1048576, "ctk": "q8_0", "ctv": "q8_0",
                      "no_mmap": True, "batch": 4096, "ubatch": 1024,
-                     "sin_draft": True},
+                     "sin_draft": True, "ngl": 0},
 }
 
 
@@ -86,7 +86,8 @@ def perfil_arranque(modelo) -> dict:
 
 
 def construir_cmd(exe, modelo, puerto, ctx, *, ctk="", ctv="",
-                  fit_off=False, no_mmap=False, batch=0, ubatch=0) -> list:
+                  fit_off=False, no_mmap=False, batch=0, ubatch=0,
+                  ngl=99) -> list:
     """Arma el comando base de llama-server (sin el draft, que se agrega
     despues como siempre). Factorizado para el test de regresion: SIN los
     flags nuevos (ctk/ctv/fit_off) el resultado es BYTE-IDENTICO al
@@ -96,8 +97,17 @@ def construir_cmd(exe, modelo, puerto, ctx, *, ctk="", ctv="",
     PARTEN --ctx-size entre ellos (cazado 2026-07-28: HTTP 500 silenciosos
     en el 50% del gate BoN). Un cliente secuencial no necesita slots."""
     orden = [str(exe), "--model", str(modelo), "--port", str(puerto),
-             "--ctx-size", str(ctx), "--parallel", "1",
-             "--n-gpu-layers", "99", "--flash-attn", "on", "--jinja"]
+             "--ctx-size", str(ctx), "--parallel", "1"]
+    # ngl=0 -> NO se pasa --n-gpu-layers, y --fit reparte el modelo solo.
+    # MEDIDO 2026-08-15 y es un 9x: con `--n-gpu-layers 99` explicito sobre
+    # Nemotron 30B-A3B, --fit no puede recortar capas y para hacer caber todo
+    # empuja la VRAM a 15.835 de 16.311 MiB -> el driver spillea a RAM del
+    # sistema y el prefill cae a 113 tok/s. Sin el flag, --fit deja 14.6 GB y
+    # el prefill son 1.023 tok/s. Los 99 siguen siendo el default para todo
+    # lo demas (un modelo que cabe entero quiere sus capas en GPU).
+    if ngl:
+        orden += ["--n-gpu-layers", str(ngl)]
+    orden += ["--flash-attn", "on", "--jinja"]
     if ctk:
         orden += ["--cache-type-k", ctk]
     if ctv:
@@ -253,7 +263,8 @@ def main() -> int:
                           fit_off=args.fit_off,
                           no_mmap=perfil.get("no_mmap", False),
                           batch=perfil.get("batch", 0),
-                          ubatch=perfil.get("ubatch", 0))
+                          ubatch=perfil.get("ubatch", 0),
+                          ngl=perfil.get("ngl", 99))
 
     # Decodificacion especulativa: el 0.5B borra tokens y el 14B los verifica
     # y corrige — la salida es IDENTICA a la del 14B solo, pero mas rapida.

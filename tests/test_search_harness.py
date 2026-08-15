@@ -323,3 +323,84 @@ class TestElBrazoNuloEsElPipelineViejo:
             # una sola página larga puede quedarse con el reparto sobrante,
             # pero nunca con menos de lo declarado
             assert len(cuerpo) >= modo.chars_por_pagina
+
+
+class TestLosArreglosDeLaRevisionAdversarial:
+    """Cuatro hallazgos más que sobrevivieron al abogado del diablo."""
+
+    def test_el_prefiltro_APLAZA_por_dominio_en_vez_de_tirar(self):
+        """2 resultados pasaban a 0: si las 3 primeras de un dominio fallan
+        al extraer, la 4ª es lo único que queda. Un prefiltro que ahorra
+        bajando el recall está reprobado por su propia guarda."""
+        from cognia.knowledge.navegador import buscar_en_web
+
+        def _buscador(_c, _n):
+            return [{"url": f"https://unico.org/p{i}", "titulo": "t",
+                     "resumen": ""} for i in range(6)]
+
+        def _extractor(url, timeout_s=25):
+            if url.endswith(("p0", "p1", "p2")):
+                raise RuntimeError("404")
+            return {"titulo": "t", "texto": "contenido util del tema " * 40,
+                    "url_final": url, "via": "test"}
+
+        r = buscar_en_web("tema", max_resultados=2, buscador=_buscador,
+                          extractor=_extractor)
+        assert len(r["resultados"]) == 2
+
+    def test_pero_el_ahorro_sigue_vivo(self):
+        # Duplicados y PDFs NO se intentan: esos descartes sí son definitivos
+        # porque no aportan recall.
+        from cognia.search.prefiltro import prefiltrar
+        r = prefiltrar([{"url": "https://www.a.org/x/?utm_source=1"},
+                        {"url": "http://a.org/x"},
+                        {"url": "https://a.org/y.pdf"},
+                        {"url": "https://b.org/z"}])
+        assert len(r["aceptados"]) == 2 and len(r["descartados"]) == 2
+        assert r["reserva"] == []
+
+    def test_la_familia_de_sampling_no_captura_al_14b(self):
+        from cognia.agent import model_profiles as MP
+        cfg, fam = MP._cfg_familia("OpenReasoning-Nemotron-14B.Q4_K_M.gguf")
+        assert fam != "nemotron-3.5"
+        cfg2, fam2 = MP._cfg_familia("nemotron-3.5-lightning-30b-a3b.gguf")
+        assert fam2 == "nemotron-3.5" and cfg2["top_p"] == 0.95
+
+    def test_aci_trim_con_el_cap_historico_es_byte_identico(self, tmp_path,
+                                                            monkeypatch):
+        """1200/450 EXACTOS con cap 1800: repartir sobre head+tail daba
+        1309/491 y rompía el contrafactual en los decimales."""
+        import cognia.agents.workers.dev_tools as dev
+        from cognia.agent import tools
+        monkeypatch.setattr(dev, "AGENT_WORKSPACE_ROOT", str(tmp_path))
+        texto = "A" * 10_000
+        out = tools.aci_trim(texto, "x", cap=1800)
+        cabeza, cola = out.split("\n[... ")[0], out.rsplit(" ...]\n", 1)[1]
+        assert len(cabeza) == 1200 and len(cola) == 450
+
+    def test_si_chromium_no_arranca_no_se_pierden_las_paginas_http(
+            self, monkeypatch):
+        """El launch fallando se llevaba por delante TODOS los sobres HTTP
+        que ya habían salido bien."""
+        from cognia.knowledge import navegador as NAV
+
+        def _http_ok(url, timeout_s=15):
+            return {"titulo": "t", "texto": "x" * 5000, "url_final": url,
+                    "via": "http"}
+
+        import playwright.sync_api as pw
+        monkeypatch.setattr(pw, "sync_playwright",
+                            lambda: (_ for _ in ()).throw(
+                                RuntimeError("no hay Chromium")))
+        # una corta fuerza la segunda fase; la larga ya está bien
+        def _http_mixto(url, timeout_s=15):
+            if url.endswith("corta"):
+                return {"titulo": "t", "texto": "poco", "url_final": url,
+                        "via": "http"}
+            return _http_ok(url, timeout_s)
+
+        lote = NAV.extraer_muchas(["https://a.org/larga", "https://a.org/corta"],
+                                  extractor_http=_http_mixto)
+        assert len(lote.ok) >= 1
+        assert any((s.valor or {}).get("texto", "").startswith("x")
+                   for s in lote.ok)

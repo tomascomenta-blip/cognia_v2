@@ -54,7 +54,16 @@ _TIMEOUT_TECHO_S = 1800.0
 # tok/s de generacion medidos en esta maquina. El default (45) es el de un
 # modelo chico; los lentos se declaran aca porque su latencia es estructural
 # (MoE con expertos en RAM), no un mal dia.
-_TOK_S_POR_FAMILIA = {"nemotron": 14.0}
+#
+# CORREGIDO el mismo 2026-08-15: el 14 de la primera version se midio con el
+# server DEGRADADO (arrancaba con --n-gpu-layers 99, spilleaba a RAM y daba
+# 113 tok/s de prefill). Con el arranque arreglado son 39,3 tok/s de
+# generacion y 1.878 de prefill. Moraleja repetida: antes de declarar lenta a
+# una familia, comprobar que el instrumento no este roto -- si no, se cablea
+# una constante que documenta una averia propia.
+# Nota: a profundidad extrema (1M de contexto) la generacion SI cae a ~14
+# tok/s, pero eso es una tarea excepcional, no el caso comun del bucle.
+_TOK_S_POR_FAMILIA = {"nemotron": 39.0}
 _TOK_S_DEFECTO = 45.0
 
 
