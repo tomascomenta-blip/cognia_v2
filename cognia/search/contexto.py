@@ -51,20 +51,31 @@ class Modo:
     paginas: int
     tok_por_pagina: int
     porque: str
+    # En CHARS y explícito, no derivado de los tokens con un factor: quien
+    # lee esto tiene que poder comparar el 2000 de `estrecho` con el 2000
+    # literal del pipeline viejo sin hacer una cuenta.
+    chars_por_pagina: int = 0
+
+    def __post_init__(self):
+        if not self.chars_por_pagina:
+            self.chars_por_pagina = int(self.tok_por_pagina * CHARS_POR_TOKEN)
 
 
 # Los tres modos. `paginas` y `tok_por_pagina` no son decorativos: son el
 # reparto que hace el ensamblador, y multiplicados dan `tokens`.
 ESTRECHO = Modo("estrecho", 4_000, 3, 1_300,
                 "lo que hacía el pipeline de 8k: 3 páginas recortadas. "
-                "Es el BRAZO NULO de cualquier medición de esto")
+                "Es el BRAZO NULO de cualquier medición de esto",
+                chars_por_pagina=2_000)     # el 2000 EXACTO del pipeline viejo
 MEDIO = Modo("medio", 32_000, 12, 2_600,
              "12 páginas casi enteras por ~50 s de pared: el punto donde "
-             "todavía se puede iterar")
+             "todavía se puede iterar",
+             chars_por_pagina=9_000)
 ANCHO = Modo("ancho", 160_000, 40, 4_000,
              "40 páginas COMPLETAS en una sola llamada. Con un solo slot de "
              "GPU esto es más barato que 40 llamadas de 4k, porque el "
-             "prefill es el mismo y las latencias de arranque son una")
+             "prefill es el mismo y las latencias de arranque son una",
+             chars_por_pagina=14_000)
 
 MODOS = {m.nombre: m for m in (ESTRECHO, MEDIO, ANCHO)}
 

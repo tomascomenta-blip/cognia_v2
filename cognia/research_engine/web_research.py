@@ -136,11 +136,31 @@ def _busca_herramientas(textos: List[str]) -> bool:
 # Cuantas paginas del top se leen enteras antes de resumir. Cada lectura
 # cuesta una peticion y ~2000 chars de contexto; 3 cubre el podio sin comerse
 # la ventana de 8k del modelo.
+#
+# 2026-08-14: ese "8k" era verdad cuando se escribio y hoy no lo es -- el
+# cerebro sirve 1.048.576 tokens. El numero ya no se fija aca: lo decide
+# `cognia.search.contexto` a partir de un presupuesto de PARED, porque en
+# local los tokens no cuestan dinero, cuestan segundos. El 3 sigue como
+# default de compatibilidad y como BRAZO NULO de la medicion: es exactamente
+# el pipeline viejo.
 LECTURAS_TOP = 3
 
 
+def _modo_lectura():
+    """El modo de contexto para esta corrida, o None si no se puede.
+
+    Degrada a None (= comportamiento historico) ante cualquier fallo: esto es
+    una mejora opcional, no una dependencia nueva del camino que ya andaba.
+    """
+    try:
+        from cognia.search.contexto import modo_por_nombre
+        return modo_por_nombre("estrecho")
+    except Exception:
+        return None
+
+
 def _leer_top(hallazgos: List[Hallazgo], pregunta: str = "",
-              n: int = LECTURAS_TOP) -> str:
+              n: int = None) -> str:
     """
     Lee las paginas de los n mejores hallazgos y devuelve extractos.
 
@@ -159,9 +179,31 @@ def _leer_top(hallazgos: List[Hallazgo], pregunta: str = "",
     """
     from ..agent.sentinel import ALLOW, evaluar_contenido_web, sanear_texto_web
 
+    # El presupuesto manda sobre cuantas paginas y cuanto de cada una. Con el
+    # modo 'estrecho' (default) sale 3 x 2000: el pipeline de siempre.
+    modo = _modo_lectura()
+    if n is None:
+        n = modo.paginas if modo else LECTURAS_TOP
+    max_chars = modo.chars_por_pagina if modo else 2000
+
+    # Las lecturas van EN PARALELO con envelope: antes eran secuenciales y
+    # una pagina lenta retrasaba a las demas, y una que fallaba desaparecia
+    # sin dejar rastro de que se intento.
+    try:
+        from cognia.search.fanout import en_paralelo
+        lote = en_paralelo(list(hallazgos[:n]),
+                           lambda h: leer(h.url, max_chars=max_chars), cap=5)
+        crudos = [(h, (s.valor if s.ok else ""))
+                  for h, s in zip(hallazgos[:n], lote.sobres)]
+        if lote.fallidos:
+            print(f"[research] {lote.resumen()} al leer el top")
+    except Exception:
+        crudos = [(h, leer(h.url, max_chars=max_chars))
+                  for h in hallazgos[:n]]
+
     extractos = []
-    for h in hallazgos[:n]:
-        texto = sanear_texto_web(leer(h.url, max_chars=2000))
+    for h, crudo in crudos:
+        texto = sanear_texto_web(crudo)
         if not texto:
             continue
         # El TITULO va en la cabecera del extracto y tambien es texto ajeno
