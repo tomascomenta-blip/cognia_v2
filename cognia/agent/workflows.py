@@ -529,6 +529,29 @@ def paralelo(thunks: list, cap: int = 2, timeout_s: float = 900) -> list:
     return resultados
 
 
+def paralelo_env(thunks: list, cap: int = 2, timeout_s: float = 900):
+    """Como `paralelo()`, pero un fallo VUELVE con su causa en vez de `None`.
+
+    Existe porque el `None` de `paralelo()` significa dos cosas a la vez —
+    "reventó" y "corrió bien y no había nada"— y las dos piden decisiones
+    OPUESTAS: la primera hay que re-despacharla, la segunda es información.
+    En un workflow con 12 ramas, una caída silenciosa se lee como "esa rama
+    no tenía nada que aportar" y la síntesis final concluye sobre un hueco.
+
+    Devuelve un `cognia.search.fanout.Lote`: sobres en ORDEN DE ENTRADA, con
+    `.ok`, `.fallidos`, `.resumen()` y `.volcar()` para dejar rastro en disco.
+
+    `paralelo()` NO se toca: tiene llamadores cuyo contrato es el `None`.
+    Cambiarlo por debajo sería arreglar un fallo silencioso creando otro.
+    """
+    from cognia.search.fanout import en_paralelo
+    # Los thunks no llevan spec propio: el índice ES la identidad, y por eso
+    # el orden de entrada no es un detalle estético sino la única forma de
+    # saber qué rama falló.
+    return en_paralelo(list(range(len(thunks))),
+                       lambda i: thunks[i](), cap=cap, timeout_s=timeout_s)
+
+
 def pipeline(items: list, *etapas, cap: int = 2) -> list:
     """Cada item atraviesa TODAS las etapas SIN barrera entre items: un item
     puede ir por la etapa 2 mientras otro sigue en la 1 (un future por item

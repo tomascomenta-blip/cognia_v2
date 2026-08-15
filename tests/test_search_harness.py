@@ -253,3 +253,31 @@ class TestPrefiltroDeterminista:
         cands = [{"url": f"https://sitio{i}.org/articulo"} for i in range(20)]
         r = prefiltrar(cands)
         assert len(r["aceptados"]) == 20 and r["ahorro"] == 0.0
+
+
+class TestElMotorDeWorkflowsTambienPuedeVerSusFallos:
+    """`paralelo_env` en el motor de workflows: mismo envelope, y sin tocar
+    `paralelo()`, que tiene llamadores con el contrato del None."""
+
+    def test_devuelve_lote_con_la_causa_y_el_indice(self):
+        from cognia.agent.workflows import paralelo_env
+
+        def _ok():
+            return "bien"
+
+        def _mal():
+            raise ValueError("la rama 1 exploto")
+
+        lote = paralelo_env([_ok, _mal, _ok])
+        assert [s.ok for s in lote.sobres] == [True, False, True]
+        assert lote.fallidos[0].spec == 1          # QUÉ rama
+        assert "exploto" in lote.fallidos[0].error  # POR QUÉ
+        assert lote.resumen() == "2/3 ok, 1 fallidos (ValueError×1)"
+
+    def test_el_paralelo_viejo_sigue_intacto(self):
+        # Contrafactual: no se puede arreglar un fallo silencioso creando
+        # otro. Quien dependa del None lo sigue recibiendo.
+        from cognia.agent.workflows import paralelo
+        salida = paralelo([lambda: 1,
+                           lambda: (_ for _ in ()).throw(ValueError("x"))])
+        assert salida == [1, None]
