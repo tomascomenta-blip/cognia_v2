@@ -139,7 +139,23 @@ def buscar_en_web(consulta: str, max_resultados: int = 3,
         return {"resultados": [], "descartados": [],
                 "aviso": f"el buscador no devolvió candidatos para '{consulta}'"}
 
-    validos, descartados = [], []
+    # Prefiltro determinista ANTES de gastar Chromium: quitar duplicados
+    # canónicos, agregadores y PDFs cuesta microsegundos y ahorra segundos de
+    # extracción. Lo descartado NO desaparece: viaja en `descartados` con su
+    # motivo, porque un prefiltro que se come el recall en silencio sería
+    # peor que no tenerlo.
+    prefiltrados = []
+    try:
+        from cognia.search.prefiltro import prefiltrar
+        pf = prefiltrar(candidatos)
+        prefiltrados = [{"url": d["url"], "razon": f"prefiltro: {d['motivo']}"}
+                        for d in pf["descartados"]]
+        if pf["aceptados"]:
+            candidatos = pf["aceptados"]
+    except Exception:
+        pass          # sin prefiltro se sigue igual que siempre
+
+    validos, descartados = [], list(prefiltrados)
     for c in candidatos:
         if len(validos) >= max_resultados:
             break
