@@ -496,7 +496,7 @@ def _print_backend_status() -> None:
     if gguf is None:
         print("Backend local (GGUF): no instalado -- instala con: cognia install-model")
         return
-    print(f"Backend local (GGUF): instalado ({gguf})")
+    print(f"Backend local (GGUF): configurado ({gguf})")
     # 8080: puerto unico del backend (ver node/llama_backend._DEFAULT_PORT y
     # scripts/servir_flota.py). Antes decia 8088 y reportaba "no corriendo"
     # aunque la flota estuviera servida.
@@ -506,6 +506,29 @@ def _print_backend_status() -> None:
         print(f"  llama-server: corriendo en 127.0.0.1:{port}")
     except Exception:
         print(f"  llama-server: no corriendo (arranca on-demand al usar el REPL)")
+        return
+
+    # Lo que el server SIRVE, que puede no ser lo que config.env dice.
+    # 2026-08-15: con Nemotron servido en :8080, `cognia status` imprimia
+    # "Qwythos" porque leia la CONFIGURACION en vez del server vivo. Un
+    # estado que informa del modelo equivocado es peor que no informar: es
+    # exactamente la averia historica del :8088 (un server rancio atribuido
+    # al combo que no era), y hoy la volvio a producir el propio comando de
+    # diagnostico.
+    try:
+        from cognia.backend_activo import props
+        p = props(f"http://127.0.0.1:{port}", forzar=True) or {}
+    except Exception as exc:
+        print(f"  (no pude leer /props: {exc})")
+        return
+    servido = p.get("modelo") or "?"
+    n_ctx = p.get("n_ctx")
+    print(f"  SIRVIENDO   : {servido}"
+          + (f"  (ventana {int(n_ctx):,} tokens)" if n_ctx else ""))
+    import os.path as _op
+    if servido != "?" and _op.basename(str(gguf)).lower() != servido.lower():
+        print(f"  OJO: la configuracion apunta a {_op.basename(str(gguf))} "
+              f"pero el server sirve OTRO modelo. Manda el servido.")
 
 
 def _print_ollama_status() -> None:

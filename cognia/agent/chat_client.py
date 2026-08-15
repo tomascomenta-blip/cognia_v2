@@ -38,6 +38,56 @@ from cognia.agent.model_profiles import MIN_TOKENS_RAZONADOR, url_del_backend
 # por minutos, no segundos. Override por env para bancos/tests.
 _TIMEOUT_S = float(os.environ.get("COGNIA_CHAT_TIMEOUT", "300"))
 
+# 2026-08-15, MEDIDO en el e2e con Nemotron 30B-A3B: un paso del agente cuesta
+# ~161 s y `/hacer` moria con TimeoutError; `/workflow` moria en 300,01 s
+# EXACTOS (la firma de un timeout propio, no de un cuelgue). Con 900 s las
+# mismas tareas salen 1/1 y 2/2. O sea: el 300 no protegia de nada, mataba
+# tareas sanas.
+#
+# El numero no puede ser fijo porque depende del MODELO servido: 300 s le
+# sobran a un 3B y le faltan a un 30B-A3B con expertos en CPU. Se deriva de la
+# velocidad de generacion, que ya esta medida por familia, con un piso en el
+# valor historico (nadie pierde timeout por esto) y un techo para que un
+# cuelgue de verdad no se coma la sesion entera.
+_TIMEOUT_PISO_S = 300.0
+_TIMEOUT_TECHO_S = 1800.0
+# tok/s de generacion medidos en esta maquina. El default (45) es el de un
+# modelo chico; los lentos se declaran aca porque su latencia es estructural
+# (MoE con expertos en RAM), no un mal dia.
+_TOK_S_POR_FAMILIA = {"nemotron": 14.0}
+_TOK_S_DEFECTO = 45.0
+
+
+def _modelo_servido(url: str = "") -> str:
+    """El gguf que sirve ese backend, o "". Usa el /props cacheado y nunca
+    lanza: esto corre en el camino caliente de CADA turno del agente."""
+    try:
+        from cognia.backend_activo import props
+        return (props(url or url_del_backend()) or {}).get("modelo") or ""
+    except Exception:
+        return ""
+
+
+def timeout_para(modelo: str = "", max_tokens: int = 4096) -> float:
+    """Segundos de espera razonables para UN turno con ese modelo.
+
+    Se calcula sobre el peor caso real: generar `max_tokens` a la velocidad
+    medida de la familia, con un x1,5 de holgura para el prefill y el
+    pensamiento. Un timeout que corta antes de que el modelo pueda terminar
+    no es una proteccion: es una tarea perdida y un diagnostico falso
+    ("se colgo") sobre algo que solo iba lento.
+    """
+    if os.environ.get("COGNIA_CHAT_TIMEOUT"):
+        return float(os.environ["COGNIA_CHAT_TIMEOUT"])
+    bajo = (modelo or "").lower()
+    tok_s = _TOK_S_DEFECTO
+    for fam, v in _TOK_S_POR_FAMILIA.items():
+        if fam in bajo:
+            tok_s = v
+            break
+    estimado = (max_tokens / tok_s) * 1.5
+    return max(_TIMEOUT_PISO_S, min(_TIMEOUT_TECHO_S, estimado))
+
 # KV sucio tras un hot-swap de LoRA (plan LoRA Qwythos 2026-08-09).
 # POR QUE: completar() postea DIRECTO a /v1/chat/completions sin pasar por
 # node/llama_backend, asi que el _consume_lora_dirty del backend NO cubre el
@@ -166,7 +216,10 @@ def completar(mensajes: list, tools: list = None, url: str = "",
             url + "/v1/chat/completions",
             data=json.dumps(cuerpo, ensure_ascii=False).encode("utf-8"),
             headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout or _TIMEOUT_S) as r:
+        # Sin timeout explicito, el que corresponde al MODELO servido: el
+        # 300 fijo mataba tareas sanas de un 30B-A3B (medido en el e2e).
+        espera = timeout or timeout_para(_modelo_servido(url), max_tokens)
+        with urllib.request.urlopen(req, timeout=espera) as r:
             crudo = json.loads(r.read().decode("utf-8", errors="replace"))
     except urllib.error.HTTPError as e:
         try:
