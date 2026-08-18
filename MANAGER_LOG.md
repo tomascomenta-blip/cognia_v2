@@ -13110,3 +13110,38 @@ agente. Interruptor de vuelta atrás: `COGNIA_SIN_FONDO=1`.
 **Lecciones que se llevaron a memoria:** cinco instrumentos aprobaron algo roto en una sola noche
 (ninguno falló), y contar bien no es medir lo que importa — un outline con 24/24 títulos
 distintos tenía once del mismo tema inventado.
+
+### Adenda final (06:15) — el brazo RLM, y por qué se anula
+
+Se abrió ventana de mantenimiento para cerrar lo único que faltaba del objetivo 2. Dos cosas:
+
+1. **`--jinja` no era el bloqueo.** Con el flag puesto, `qwen2.5-coder-14b` sigue sin emitir tool
+   calls: escribe `<tools>` donde su propia plantilla espera `<tool_call>`. El prereg lo tenía mal
+   diagnosticado. Se sirvió Qwythos, declarando la desviación y el confusor (el pareado contra el
+   brazo tonto queda inválido: compararlos mide cerebro, no modo).
+2. **5/12 = 41,7%, y es VOID.** Bate a los dos azares (p=0,0005 y p=0,001) pero `sin_formato` fue
+   **58,3%**, y el prereg fijó la anulación en 20% *antes de ver un número*. No se derogó el
+   criterio porque el resultado fuera bueno. Los 7 sin formato **son** los 7 fallos: el razonador
+   se come el presupuesto por `reasoning_content` antes de emitir la línea `RESPUESTA:`.
+
+De paso quedó claro que el MDE preregistrado (27,8%) era el de N=90 y ese diseño nunca corrió: a
+N=12 el MDE es 41,7% y el observado cae **exactamente encima, con cero margen**.
+
+**El server quedó restaurado byte a byte y verificado dos veces.** `/rlm` queda etiquetado como
+**localización**, que es lo único medido. Objetivo 2: abierto, con la señal y su anulación
+escritas.
+
+---
+
+## Cierre de la corrida — resumen
+
+**14 commits pusheados. Suite completa: 8.835 passed, 0 failed.**
+
+| | |
+|---|---|
+| Rediseño de UI (19 decisiones) | **entregado** |
+| 200k de respuesta | **216.721 tokens medidos** |
+| 1M de contexto | ya estaba (Qwythos, YaRN horneado); faltaba memoria en el RLM, hecha |
+| Instrumentos que aprobaban algo roto | **6**, todos arreglados |
+
+Lo abierto, con su número, arriba en la entrada anterior + el VOID del RLM.
