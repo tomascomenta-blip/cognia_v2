@@ -117,7 +117,20 @@ class ModelsView(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static("", id="models-summary")
-        table = DataTable(id="models-table", cursor_type="row", zebra_stripes=True)
+        # cursor_foreground_priority="renderable": por defecto Textual es "css" y
+        # entonces el `color` de .datatable--cursor se aplica DESPUES del
+        # contenido, o sea que la fila del cursor sale toda del mismo color y el
+        # 'falta' rojo / el 'ok' verde dejan de existir justo en la fila que el
+        # usuario esta mirando. Medido en el render: con "css" el 'falta' de la
+        # fila 0 salia #e6edf3; con "renderable" sale #f85149 sobre la banda gris
+        # (3.64:1). El fondo sigue mandandolo el CSS (cursor_background_priority
+        # ya es "renderable" por defecto, pero las celdas no traen fondo propio).
+        table = DataTable(
+            id="models-table",
+            cursor_type="row",
+            zebra_stripes=True,
+            cursor_foreground_priority="renderable",
+        )
         yield table
 
     def on_mount(self) -> None:

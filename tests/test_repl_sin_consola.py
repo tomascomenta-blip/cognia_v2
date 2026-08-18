@@ -34,7 +34,9 @@ class TestElReplSobreviveSinConsola:
     def test_hay_camino_alternativo_con_input(self):
         fuente = inspect.getsource(C.repl)
         assert "session = None" in fuente
-        assert 'input(_G + "cognia> "' in fuente
+        # _G paso a ser _g() en 2026-08-17: el verde del respaldo tambien
+        # tiene que obedecer a /tema (en 'claro' salia lima a 1,53:1).
+        assert 'input(_g() + "cognia> "' in fuente
 
     def test_avisa_de_que_pierde_el_autocompletado(self):
         """Degradar en silencio confunde: hay que decir que modo se uso."""

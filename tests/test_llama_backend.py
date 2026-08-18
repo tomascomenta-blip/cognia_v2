@@ -295,12 +295,15 @@ class TestGenerateLong:
         assert result["text"] == "nuevo texto."   # solo lo NUEVO, no la cola
 
     def test_ctx_guard_caps_resent_prefix(self):
-        """FASE 1b: al acercarse a _CTX_SIZE deja de reenviar TODO y manda
+        """FASE 1b: al acercarse a la ventana deja de reenviar TODO y manda
         prompt + cola; el prefill queda acotado y el output sigue completo."""
-        import node.llama_backend as lb
+        from node.llama_backend import LlamaBackend
         impl = _FakeLongImpl([("X" * 50, 50, "limit")] * 5 + [("END", 3, "eos")])
         backend = _make_backend(impl)
-        with patch.object(lb, "_CTX_SIZE", 100):   # ctx chico para disparar la guarda
+        # ctx chico para disparar la guarda. Antes esto era patch de _CTX_SIZE
+        # (la env de import); ahora la ventana la da n_ctx_efectivo(), que en
+        # produccion pregunta a /props.
+        with patch.object(LlamaBackend, "n_ctx_efectivo", lambda self: 100):
             result = backend.generate_long("P:", max_total_tokens=10000, chunk_tokens=10)
 
         # Output completo: la guarda recorta el INPUT al modelo, nunca el resultado
@@ -311,6 +314,72 @@ class TestGenerateLong:
         # budget = min(0.75*100, 100-10-64)=26 tok -> ~104 chars + prompt(2) + holgura
         assert max(len(s) for s in sent) <= 2 + 104 + 4
         assert sent[-1].startswith("P:")   # el prompt original se conserva siempre
+
+
+# ---------------------------------------------------------------------------
+# La guarda de ctx presupuesta contra el SERVER, no contra la env (2026-08-17)
+# ---------------------------------------------------------------------------
+# LA BOMBA. generate_long usaba `_CTX_SIZE`, o sea LLAMA_CTX_SIZE leida en el
+# import. ~/.cognia/config.env de esta maquina trae LLAMA_CTX_SIZE=200192 (el
+# perfil 'gpu' de cognia/perf_profiles.py) y arranque.py la carga al entorno,
+# mientras el :8080 sirve con --ctx-size 16384. La guarda creia tener 150.144
+# tokens de prefill contra una ventana de 16.384 y no recortaba NUNCA ->
+# HTTP 400 exceed_context_size a mitad de la generacion larga. A/B medido
+# contra el server vivo (prompt de 11.501 tokens reales, chunk 1024, tope
+# 6144): ANTES stop_reason='error' con 4.883/6.144 tokens; AHORA
+# stop_reason='limit' con 6.144/6.144 y el prefill clavado en el budget.
+
+class _FakeImplConProps(_FakeLongImpl):
+    """Impl que ademas responde /props, como el _LlamaServerBackend real."""
+
+    def __init__(self, rounds, n_ctx):
+        super().__init__(rounds)
+        self._n_ctx = n_ctx
+
+    def props(self):
+        if self._n_ctx is None:
+            return None            # server que no contesta /props
+        return {"default_generation_settings": {"n_ctx": self._n_ctx},
+                "model_path": "x.gguf"}
+
+
+class TestCtxGuardMideElServer:
+    def test_el_n_ctx_del_server_gana_a_la_env(self, monkeypatch):
+        """El fallo exacto: env 200192, server 16384 -> se recorta con 16384."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "200192")
+        impl = _FakeImplConProps([("X" * 4000, 1000, "limit")] * 6, n_ctx=16384)
+        backend = _make_backend(impl)
+        assert backend.n_ctx_efectivo() == 16384
+
+        backend.generate_long("P" * 40000, max_total_tokens=6000,
+                              chunk_tokens=1024)
+        # budget = min(0.75*16384, 16384-1024-64) = 12288 tokens = ~49.152 chars
+        enviados = [len(p) for (p, _mt) in impl.prompts]
+        assert max(enviados) <= 49152 + 4096, enviados
+        # Con la env (200192) el techo habria sido 150.144 tok = 600.576 chars:
+        # la ultima ronda mandaba prompt+20.000 chars sin recortar y el server
+        # devolvia 400. Aca la guarda ya recorto.
+        assert max(enviados) < 40000 + 20000
+
+    def test_sin_server_cae_a_la_env(self, monkeypatch):
+        """In-process (llama-cpp-python): no hay /props, manda LLAMA_CTX_SIZE
+        — que es con la que ESE impl se construyo (_ctx_size())."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "8192")
+        backend = _make_backend(_FakeLongImpl([]))     # sin metodo props()
+        assert backend.n_ctx_efectivo() == 8192
+
+    def test_props_caido_cae_a_la_env(self, monkeypatch):
+        """/props que no responde no puede dejar el presupuesto en 0."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "8192")
+        backend = _make_backend(_FakeImplConProps([], n_ctx=None))
+        assert backend.n_ctx_efectivo() == 8192
+
+    def test_props_con_basura_cae_a_la_env(self, monkeypatch):
+        """n_ctx no-entero / <=0 / booleano: se ignora y manda el respaldo."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "8192")
+        for malo in ("16384", 0, -1, True, None):
+            impl = _FakeImplConProps([], n_ctx=malo)
+            assert _make_backend(impl).n_ctx_efectivo() == 8192, malo
 
 
 # ---------------------------------------------------------------------------

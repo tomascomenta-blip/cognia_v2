@@ -390,11 +390,15 @@ def test_nada_imprime(capsys):
 
 def test_estilos_logicos_existen_en_el_tema_del_cli():
     """Los nombres logicos tienen que traducir a estilos que el tema del CLI
-    ya define (si no, el integrador pintaria en blanco)."""
-    txt = open(FUENTE_CLI, encoding="utf-8").read()
+    ya define (si no, el integrador pintaria en blanco).
+
+    2026-08-17: se valida contra cognia/ux/paleta.py (los tokens del tema
+    viven ahi desde que cli.py deriva su color de la paleta) en vez de buscar
+    la clave como texto en el fuente de cli.py."""
+    from cognia.ux import paleta
     for logico, real in ba.ESTILOS_TEMA.items():
         assert ba.a_estilo_rich(logico) == real
-        assert f'"{real}":' in txt, f"el tema del CLI no define {real}"
+        assert real in paleta.TOKENS_CLI, f"el tema del CLI no define {real}"
     assert ba.a_estilo_rich("desconocido") == "desconocido"
 
 

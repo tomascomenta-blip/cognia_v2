@@ -8,6 +8,32 @@
  * las variables propias $border / $text-muted.
  *
  * Por que: una sola hoja, sin colores hardcodeados que diverjan del Python.
+ *
+ * 2026-08-17 -- esta hoja NO tiene ni un color propio (hay test que lo exige):
+ * todo baja del tema, y el tema baja de cognia/ux/paleta.py. Por eso el cambio
+ * de identidad violeta -> VERDE del REPL no toco una sola regla de aca: $primary
+ * ya era el acento. Lo unico que se agrego es la pista de las barras de
+ * progreso, que Textual dejaba invisible (ver el comentario de #train-body Bar).
+ *
+ * 2026-08-17 (segunda pasada) -- se agrega el bloque "UN solo idioma de
+ * seleccionado" y se apaga el marco del modal. Las dos reglas nacen de MEDIR el
+ * render, no de leer la hoja: Textual traia dos lenguajes distintos para el
+ * mismo estado (bloque de neon con foco, banda oliva sin foco) y el dialogo de
+ * confirmacion ponia su bloque de mas peso en el boton que no hace nada.
+ *
+ * 2026-08-17 (tercera pasada) -- cuatro cosas, todas medidas en el SVG:
+ *   * el INDICADOR DE FOCO: `:focus` solo matchea el widget que TIENE el foco, y
+ *     los contenedores `.view` no son focusables, asi que al enfocar la tabla de
+ *     modelos NINGUN borde de la pantalla se ponia de acento (medido: 2 clases
+ *     de acento en 05_modelos, 1 en 05b_modelos_enfocado). Se agrega
+ *     `:focus-within`, que Textual 8.x soporta;
+ *   * el MODAL: ninguno de los dos botones lleva bloque de color (el verde de
+ *     identidad es 'ok', no 'cerrar la app'); el destructivo va en rojo;
+ *   * la PALETA DE COMANDOS: es una pantalla de Textual y sus DEFAULT_CSS traen
+ *     un icono de lupa `color: #000` y bordes `hkey black`, o sea el agujero
+ *     negro otra vez, esta vez encima del overlay;
+ *   * los RESULTADOS de memoria dejan de heredar el centrado de `.empty-state`
+ *     (la clase se pone y se quita ahora desde memory_view.py).
  */
 
 Screen {
@@ -58,13 +84,81 @@ Screen {
     border-title-style: bold;
 }
 
-#sidebar:focus {
+/* ---- DONDE ESTOY: el borde de acento marca el panel con el foco ---------
+ *
+ * `:focus` matchea SOLO al widget que tiene el foco, y los contenedores de las
+ * vistas (`.view`) no son focusables: con la tabla de modelos enfocada no habia
+ * un solo borde de acento en la pantalla (medido en 05b_modelos_enfocado.svg:
+ * una sola clase de acento, la del menu, y el panel Modelos ninguna). El unico
+ * aviso de "donde estoy" quedaba siendo el fondo del panel (1.12:1) y la banda
+ * del cursor (1.42:1) -- o sea ninguno.
+ *
+ * `:focus-within` (soportado por Textual 8.x) sube el indicador al PANEL que
+ * contiene al widget enfocado. No toca el contenido: la banda de seleccion
+ * sigue siendo gris y las celdas conservan su color semantico. */
+#sidebar:focus, #sidebar:focus-within {
     border: round $primary;
 }
 
 #sidebar > ListItem {
     padding: 0 1;
     height: 1;
+}
+
+/* ---- UN solo idioma de "seleccionado": fila tenue + texto claro -------
+ *
+ * Textual trae DOS lenguajes para el mismo estado: el widget con foco pinta un
+ * BLOQUE del acento con texto oscuro ($block-cursor-background) y el widget sin
+ * foco una banda translucida del acento ($block-cursor-blurred-background, que
+ * sobre el panel daba el oliva #3E4F3B). Se veian juntos en la misma pantalla
+ * -- el menu en neon y la tabla de modelos en oliva -- y ademas el bloque de
+ * neon tapa el color semantico de las celdas (el 'falta' rojo cae a 2.11:1).
+ *
+ * Aca se unifica: la seleccion SIEMPRE es la banda gris $selection-background
+ * (#30363d, la misma familia que los bordes) a todo el ancho. Lo unico que
+ * cambia con el foco es el color del TEXTO -- acento cuando el widget tiene el
+ * foco, blanco cuando no --, y el borde del panel, que ya era el indicador de
+ * foco. Las celdas con color propio (rojo/verde/azul) lo conservan y siguen
+ * legibles (>=3.6:1) porque la banda es gris y no verde.
+ */
+#sidebar > ListItem.-highlight {
+    background: $selection-background;
+    color: $selection-foreground-blurred;
+    text-style: bold;
+}
+
+#sidebar:focus > ListItem.-highlight {
+    background: $selection-background;
+    color: $selection-foreground;
+    text-style: bold;
+}
+
+/* La tabla NO declara `color`, a proposito. Medido en el render: cuando la
+ * DataTable tiene el foco, el `color` de .datatable--cursor GANA sobre el
+ * estilo propio de cada celda -- con `color: $selection-foreground` la fila del
+ * cursor salia entera verde y el 'falta' rojo desaparecia como estado. Sin la
+ * declaracion, cada celda conserva su color semantico (rojo/verde/gris) sobre
+ * la banda gris, que es justo lo que la banda tenue vino a permitir. El foco se
+ * marca con la negrita y con el borde del panel. */
+DataTable > .datatable--cursor {
+    background: $selection-background;
+}
+
+DataTable:focus > .datatable--cursor {
+    background: $selection-background;
+    text-style: bold;
+}
+
+OptionList > .option-list--option-highlighted {
+    background: $selection-background;
+    color: $selection-foreground-blurred;
+    text-style: bold;
+}
+
+OptionList:focus > .option-list--option-highlighted {
+    background: $selection-background;
+    color: $selection-foreground;
+    text-style: bold;
 }
 
 #mainview {
@@ -84,7 +178,7 @@ Screen {
     border-title-style: bold;
 }
 
-.view:focus {
+.view:focus, .view:focus-within {
     border: round $primary;
 }
 
@@ -165,6 +259,21 @@ Screen {
     width: 1fr;
 }
 
+/* La pista SIN llenar de la barra la pinta Textual con el `background` del
+ * componente, que por defecto es $surface -- y estas barras viven DENTRO de un
+ * panel que ya es $surface, asi que el tramo que falta quedaba invisible: se
+ * veia el tramo lleno flotando y no cuanto faltaba. Con $border la pista se ve
+ * y el tramo lleno sigue siendo el verde de identidad ($primary / $success). */
+#train-body Bar > .bar--bar {
+    color: $primary;
+    background: $border;
+}
+
+#train-body Bar > .bar--complete {
+    color: $success;
+    background: $border;
+}
+
 #train-sysmetrics {
     width: 100%;
     height: 1;
@@ -196,6 +305,12 @@ Screen {
     padding: 0 1;
 }
 
+/* Los RESULTADOS van alineados a la izquierda, como su encabezado. El centrado
+ * es del empty-state y solo del empty-state: la clase `empty-state` se pone y
+ * se QUITA desde memory_view.py segun lo que haya en el panel. Durante meses
+ * nadie se la quitaba (se ponia en compose y no habia un solo remove_class),
+ * asi que los resultados reales salian centrados; no se veia porque el arnes de
+ * captura llamaba a _show_results() antes de que el panel tuviera tamano. */
 #memory-output {
     width: 100%;
     height: auto;
@@ -222,6 +337,11 @@ ConfirmModal {
     background: $background 60%;
 }
 
+/* El marco del dialogo era `round $primary`: ~116 celdas de neon rodeando un
+ * cuadro de 48x10, o sea la masa verde MAS GRANDE de la app, compitiendo con el
+ * boton. El dialogo ya se despega solo (el fondo se atenua al 60%), asi que el
+ * marco pasa al gris estructural y el UNICO acento del dialogo queda en el
+ * boton de la accion. */
 #confirm-box {
     width: auto;
     min-width: 48;
@@ -229,7 +349,7 @@ ConfirmModal {
     height: auto;
     padding: 2 4;
     background: $panel;
-    border: round $primary;
+    border: round $border;
     border-title-align: center;
 }
 
@@ -250,7 +370,104 @@ ConfirmModal {
 
 #confirm-actions Button {
     margin: 0 2;
-    min-width: 12;
+    min-width: 14;
+    /* Sin bloque: el fondo del boton es el del dialogo. Los dos botones pesan
+     * lo MISMO y lo unico que los distingue es el color del contorno/texto. */
+    background: $panel;
+    text-style: bold;
+    border-top: tall $border;
+    border-bottom: tall $border;
+}
+
+/* JERARQUIA (2026-08-17, tercera pasada): NINGUNA masa de color en el dialogo.
+ *
+ * El verde #7DE62A es el color de ok / Listo / success en todo el producto:
+ * ponerlo como bloque de 4.700 px2 sobre "Si" -- que significa CERRAR LA APP --
+ * es una colision semantica, y la version anterior (bloque verde en "No")
+ * ponia el peso en el boton que no hace nada. Se saca el bloque de los dos:
+ *
+ *   * el destructivo va con contorno y texto en $error (#f85149 sobre el panel
+ *     del dialogo #1c2330 = 4.70:1, AA) -- se lee como lo que es;
+ *   * el seguro va con contorno gris y texto $foreground (13.34:1).
+ *
+ * Los dos pesan igual A PROPOSITO: 'enter' confirma (no hay boton enfocado por
+ * defecto), asi que darle el peso visual a "No" anunciaria un default que el
+ * teclado no respeta. El unico color del dialogo es el aviso del rojo. */
+/* Los dos selectores llevan el id del contenedor A PROPOSITO: `#confirm-yes` a
+ * secas (1 id, 0 tipos) PIERDE contra `#confirm-actions Button` (1 id, 1 tipo)
+ * en la especificidad de Textual, y el contorno rojo no se pintaba (medido: los
+ * dos botones salian con el `▔` gris #30363d). */
+#confirm-actions #confirm-yes {
+    color: $error;
+    border-top: tall $error;
+    border-bottom: tall $error;
+}
+
+#confirm-actions #confirm-no {
+    color: $foreground;
+}
+
+/* La pista de teclado. Va en $text-muted (#8b949e sobre el panel #1c2330 =
+ * 5.12:1, AA) y SIN bold ni contorno: tiene que decir que hace 'enter' sin
+ * sumar peso a ninguno de los dos botones -- ese equilibrio es la decision de
+ * la tercera pasada y esto no la toca. */
+#confirm-hint {
+    width: 100%;
+    height: auto;
+    margin: 1 0 0 0;
+    content-align: center middle;
+    text-align: center;
+    color: $text-muted;
+}
+
+/* ---- Paleta de comandos (CommandPalette, pantalla de Textual) ---------
+ *
+ * Es la unica superficie de la app que Textual dibuja entera con SUS
+ * DEFAULT_CSS, y ahi vuelven dos cosas que ya se habian corregido en el resto:
+ * el NEGRO PURO (la lupa es `color: #000` "required for snapshot tests" y los
+ * separadores del buscador son `hkey black`, medido en el SVG: #000000 y
+ * #060910 sobre el overlay) y la falta de acento (el item resaltado usaba el
+ * cursor BORROSO, porque CommandList nace con can_focus=False y nunca se
+ * enfoca, asi que la lista navegable no se distinguia en color de la lista
+ * quieta). Los textos se traducen desde app.py (get_system_commands); esto es
+ * lo que no se arregla con texto. */
+
+CommandPalette SearchIcon {
+    color: $primary;
+}
+
+CommandPalette #--input {
+    border: hkey $border;
+}
+
+CommandPalette #--input.--list-visible {
+    border-bottom: none;
+}
+
+CommandList {
+    border-bottom: hkey $border;
+}
+
+/* La lista de la paleta SIEMPRE se esta navegando (es lo unico vivo en la
+ * pantalla), asi que le corresponde el estado "con foco" del idioma unico de
+ * seleccion: banda gris + texto de acento (7.69:1). Sin esta regla caia en
+ * block-cursor-blurred y quedaba igual que una lista en reposo. */
+CommandList > .option-list--option-highlighted {
+    background: $selection-background;
+    color: $selection-foreground;
+    text-style: bold;
+}
+
+/* El tramo que hizo match con lo que se escribio: el acento marca POR QUE ese
+ * comando esta en la lista. */
+CommandPalette > .command-palette--highlight {
+    color: $primary;
+    text-style: bold underline;
+}
+
+CommandPalette > .command-palette--help-text {
+    color: $text-muted;
+    text-style: not bold;
 }
 
 /* ---- Status bar (sobre el Footer nativo) ------------------------------ */

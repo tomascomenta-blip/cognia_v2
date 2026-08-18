@@ -1,0 +1,183 @@
+/*
+ * agentes.tcss -- estilo de la pantalla de agentes en vivo (agentes.py).
+ *
+ * Igual que app.tcss: NI UN COLOR PROPIO. Todo baja del tema "cognia", que baja
+ * de cognia/ux/paleta.py. Hay un test que lo exige (si aparece un hex aca, la
+ * pantalla deja de heredar el verde del REPL el dia que el dueno lo cambie).
+ *
+ * Las dos decisiones de layout que no son obvias:
+ *
+ *  1. LA REJILLA ES UN CONTENEDOR SCROLLABLE CON layout: grid. Con ocho agentes
+ *     no entran ocho paneles en 38 filas: la alternativa era encogerlos hasta
+ *     que el cuerpo fuera una linea (o sea, dejar de mostrar contenido, que es
+ *     el punto de la pantalla). Se fija la altura de fila y se scrollea.
+ *
+ *  2. EL FOCO ES UN BORDE `heavy` DE ACENTO, no solo un cambio de color. El
+ *     borde ya lleva el color SEMANTICO del estado (verde ok / rojo fallo), asi
+ *     que pintar el foco tambien de color chocaba: el panel enfocado y el panel
+ *     que salio bien se veian igual de verdes. El grosor es un canal libre.
+ */
+
+Screen {
+    background: $background;
+    color: $foreground;
+    layout: vertical;
+}
+
+/* ---- Cabecera de la corrida ------------------------------------------- */
+
+#cabecera {
+    height: 1;
+    padding: 0 1;
+    background: $surface;
+}
+
+/* height 2, no 1: con `border-bottom` la caja necesita UNA fila para el
+ * borde ademas de la del contenido. Con height:1 el contenido se quedaba con
+ * cero filas y el plan no se veia (medido en 01_un_agente_corriendo.png: la
+ * linea de casillas estaba vacia). */
+#plan {
+    height: 2;
+    padding: 0 1;
+    background: $surface;
+    border-bottom: solid $border;
+}
+
+/* ---- Rejilla de paneles ------------------------------------------------ */
+
+#rejilla {
+    height: 1fr;
+    padding: 1 1 0 1;
+    layout: grid;
+    grid-size: 2;
+    grid-rows: 12;
+    grid-gutter: 1 1;
+    overflow-y: auto;
+}
+
+/* La altura de fila depende de CUANTOS paneles hay (la clase la pone
+ * _sincronizar_paneles). Con altura fija, un solo agente dejaba 24 filas de
+ * negro debajo de un panel de 12 -- la pantalla parecia rota. Con 1fr fijo
+ * para todos, ocho agentes daban paneles de 3 filas, o sea dejaban de mostrar
+ * contenido, que es el punto de la pantalla. Se reparte el alto mientras
+ * entren y se pasa a alto fijo + scroll cuando no. */
+#rejilla.filas-1 { grid-rows: 1fr; }
+#rejilla.filas-2 { grid-rows: 1fr 1fr; }
+#rejilla.filas-fijas { grid-rows: 12; }
+
+/* `content-align` centra el BLOQUE, pero Textual mide el renderable y le da
+ * el ancho del texto mas largo: el titulo quedaba pegado a la izquierda del
+ * bloque (medido en 06_vacia.png). `text-align` es lo que centra cada linea
+ * dentro del ancho del widget. */
+#vacio {
+    display: none;
+    width: 1fr;
+    height: 1fr;
+    content-align: center middle;
+    text-align: center;
+    padding: 4 2;
+}
+
+/* ---- El panel de un agente -------------------------------------------- */
+
+.panel-agente {
+    height: 100%;
+    background: $surface;
+    border: round $border;
+    border-title-align: left;
+    border-title-color: $text-muted;
+    border-subtitle-align: right;
+    padding: 0 1;
+}
+
+/* El estado, de un vistazo: el borde y el subtitulo llevan el color semantico
+ * de la paleta. `corriendo` se queda con el gris estructural a proposito --
+ * cuatro bordes de colores compitiendo hacen que ninguno signifique nada, y lo
+ * que grita "esto esta pasando ahora" es el shimmer, que se mueve. */
+.panel-agente.est-corriendo {
+    border: round $border;
+    border-title-color: $foreground;
+    border-subtitle-color: $primary;
+}
+
+.panel-agente.est-ok {
+    border: round $success;
+    border-subtitle-color: $success;
+}
+
+.panel-agente.est-fallo {
+    border: round $error;
+    border-subtitle-color: $error;
+}
+
+.panel-agente.est-cancelado {
+    border: round $warning;
+    border-subtitle-color: $warning;
+}
+
+/* Texto incompleto: el titulo se pone en aviso. El BORDE no se toca (sigue
+ * diciendo el estado): "fallo" e "incompleto" son cosas distintas y se pueden
+ * dar juntas. */
+.panel-agente.incompleto {
+    border-title-color: $warning;
+    border-title-style: bold;
+}
+
+/* DONDE ESTOY. `:focus` alcanza porque el panel ES focusable (can_focus), pero
+ * se agrega `:focus-within` para el dia que el cuerpo reciba el foco. */
+.panel-agente:focus, .panel-agente:focus-within {
+    border: heavy $primary;
+    border-title-color: $primary;
+    background: $panel;
+}
+
+.panel-linea {
+    height: 1;
+    margin-bottom: 1;
+}
+
+.panel-aviso {
+    display: none;
+    height: auto;
+    max-height: 2;
+    margin-bottom: 1;
+    background: $panel;
+}
+
+.panel-cuerpo {
+    height: 1fr;
+    overflow-y: auto;
+    scrollbar-size-vertical: 1;
+}
+
+.panel-texto {
+    height: auto;
+    color: $foreground;
+}
+
+/* ---- El hueco de las acciones (tanda siguiente) ------------------------ */
+
+#acciones {
+    height: 3;
+    padding: 0 1;
+    border-top: solid $border;
+}
+
+#pista {
+    width: auto;
+    height: 1;
+    margin: 1 2 0 0;
+}
+
+#hablar {
+    width: 1fr;
+    border: none;
+    background: $surface;
+    color: $text-muted;
+}
+
+/* Un Input deshabilitado en Textual se pinta al 60% de opacidad; se le baja
+ * mas para que NADIE crea que puede escribir ahi todavia. */
+#hablar:disabled {
+    opacity: 0.5;
+}

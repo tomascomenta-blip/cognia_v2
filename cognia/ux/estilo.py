@@ -44,6 +44,29 @@ def ancho_comodo(console=None) -> int:
     return max(40, min(int(w) - len(_SANGRIA) * 2, ANCHO_MAX))
 
 
+# Token del tema con el que se pinta lo que CONTESTA el modelo. Decision 17
+# del dueno (2026-08-17): texto normal, no un color de acento -- el color es
+# de la interfaz. Es un token y no un hex para que /tema lo pueda cambiar
+# (en 'alto_contraste' la respuesta tambien sube).
+ESTILO_RESPUESTA = "respuesta"
+
+
+def estilo_seguro(console, nombre):
+    """El token si la consola sabe resolverlo; si no, None (sin estilo).
+
+    POR QUE: los tokens ('respuesta', 'info_dim') solo existen en las consolas
+    que llevan el Theme del CLI. Una Console pelada -- un test, un embebedor,
+    un script -- levanta MissingStyle y rompe el turno entero por un adorno.
+    Esta capa es best-effort por contrato (ver el docstring del modulo)."""
+    if console is None or not nombre:
+        return None
+    try:
+        console.get_style(nombre)
+        return nombre
+    except Exception:
+        return None
+
+
 def respirar(console=None, n: int = 1) -> None:
     """Espacio vertical entre secciones logicas. Barato y deliberado."""
     for _ in range(max(1, n)):
@@ -53,7 +76,7 @@ def respirar(console=None, n: int = 1) -> None:
             print()
 
 
-def respuesta(texto: str, console=None, color: str = "cyan") -> None:
+def respuesta(texto: str, console=None, color: str = ESTILO_RESPUESTA) -> None:
     """Una respuesta de Cognia: aire arriba, sangria de 2, ancho comodo, aire
     abajo. Sin marco: el espacio en blanco delimita, no el borde.
 
@@ -78,7 +101,8 @@ def respuesta(texto: str, console=None, color: str = "cyan") -> None:
     cuerpo = "\n".join(salida)
     if console is not None:
         respirar(console)
-        console.print(cuerpo, style=color, markup=False, highlight=False)
+        console.print(cuerpo, style=estilo_seguro(console, color),
+                      markup=False, highlight=False)
         respirar(console)
     else:
         print("\n" + cuerpo + "\n")
@@ -221,18 +245,20 @@ class FlujoSuave:
     no gota a gota — y en terminales lentas ademas imprime MENOS veces.
 
     Uso:
-        f = FlujoSuave(console=_console, style="cyan")
+        f = FlujoSuave(console=_console)          # respuesta = texto normal
         for tok in stream: f.escribir(tok)
         f.cerrar()          # vacia lo que quede (siempre, tambien en except)
     """
 
-    def __init__(self, console=None, style: str = "cyan", umbral: int = 24,
-                 sangria: str = _SANGRIA):
+    def __init__(self, console=None, style: str = ESTILO_RESPUESTA,
+                 umbral: int = 24, sangria: str = _SANGRIA):
         # ``sangria`` configurable (2026-08-10): el razonamiento en vivo del
         # renderer usa el MISMO flujo pero con su propio inicio de linea
         # ('    ∴ '); el default conserva la sangria de 2 de siempre.
         self._console = console
-        self._style = style
+        # se resuelve UNA vez: si la consola no conoce el token, se pinta sin
+        # estilo en vez de reventar en cada trozo del stream
+        self._style = estilo_seguro(console, style)
         self._umbral = max(4, int(umbral))
         self._sangria = sangria
         self._buf = ""

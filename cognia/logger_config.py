@@ -203,6 +203,44 @@ def poner_nivel_consola(nivel: str) -> None:
     _ROOT_LOGGER.setLevel(min(n, logging.INFO))
 
 
+# Nivel imposible: nada lo alcanza, ni CRITICAL. No se quita el handler de la
+# lista porque /debug (poner_nivel_consola) y los tests guardan referencias:
+# subir el nivel es reversible con una linea y no cambia la topologia.
+_NIVEL_MUDO = logging.CRITICAL + 1
+
+
+def silenciar_consola() -> Optional[int]:
+    """Calla el handler de CONSOLA y devuelve su nivel previo (None si no hay).
+
+    PARA QUE (medido 2026-08-17): el handler de consola se construye en el
+    import con `logging.StreamHandler(sys.stderr)`, o sea que se queda con el
+    OBJETO stderr de ese momento — el real. Cuando la TUI de Textual toma la
+    pantalla, Textual cambia `sys.stderr` por su _PrintCapture, pero este
+    handler ni se entera: sigue escribiendo ANSI crudo al terminal, encima de
+    la pantalla alterna. Verificado en el repro: con la App abierta,
+    `_CONSOLE_HANDLER.stream is sys.__stderr__` -> True y el WARNING salio por
+    el stderr real.
+
+    No se pierde NADA al callarlo: el handler de ARCHIVO
+    (~/.cognia/logs/cognia.log) recibe todo igual, y la TUI instala su propio
+    TuiLogHandler que pinta los logs en la vista Logs. Quien llama es
+    responsable de restaurar con restaurar_consola() al cerrar.
+    """
+    if _CONSOLE_HANDLER is None:
+        return None
+    previo = _CONSOLE_HANDLER.level
+    _CONSOLE_HANDLER.setLevel(_NIVEL_MUDO)
+    return previo
+
+
+def restaurar_consola(nivel_previo: Optional[int]) -> None:
+    """Deshace silenciar_consola(). Con None no hace nada (no habia handler,
+    o el llamador nunca lo silencio: restaurar a ciegas subiria el ruido)."""
+    if _CONSOLE_HANDLER is None or nivel_previo is None:
+        return
+    _CONSOLE_HANDLER.setLevel(nivel_previo)
+
+
 def get_logger(module_name: str) -> logging.Logger:
     """
     Obtiene un logger hijo del namespace 'cognia'.

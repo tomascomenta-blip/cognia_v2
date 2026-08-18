@@ -76,8 +76,30 @@ _ultimo: dict = {}
 
 
 def _silencioso() -> bool:
-    """COGNIA_BACKEND_LOG=0 apaga la linea visible (no el jsonl)."""
-    return os.environ.get("COGNIA_BACKEND_LOG", "1").strip() == "0"
+    """True si NO se imprime la linea visible. El jsonl no se apaga nunca.
+
+    2026-08-17: la linea pasa de OPT-OUT a OPT-IN. Medido en un REPL real
+    (dos turnos contra :8080): salia una vez por turno Y POR `via`, o sea DOS
+    veces en el turno que hace un stream_chat mas un generate interno -- 172
+    caracteres de diagnostico, envueltos en dos lineas, pegados justo encima
+    de la respuesta. Subirle el contraste (3,15 -> 6,15 con 'info_dim') lo
+    EMPEORO: ahora el log compite de igual a igual con lo que el usuario pidio.
+    La regla del repo es que la guerra es contra los logs, no contra su
+    legibilidad.
+
+    Que se conserva: el jsonl SIEMPRE (es la auditoria que impide volver a
+    tener dos backends sin saberlo) y sin_backend(), que grita pase lo que
+    pase -- la degradacion no es ruido, es el modo de fallo caro.
+
+    Como se enciende: COGNIA_BACKEND_LOG=1, o COGNIA_TRACE=1 / COGNIA_DEBUG=1
+    (los dos interruptores de diagnostico que el resto del repo ya usa; /debug
+    del REPL setea COGNIA_DEBUG). COGNIA_BACKEND_LOG explicito manda sobre los
+    dos, en los dos sentidos."""
+    v = os.environ.get("COGNIA_BACKEND_LOG", "").strip()
+    if v:
+        return v == "0"
+    diag = ("COGNIA_TRACE", "COGNIA_DEBUG")
+    return not any(os.environ.get(k, "").strip() == "1" for k in diag)
 
 
 def _emitir_evento(evento) -> bool:
@@ -131,8 +153,18 @@ def _sampling_de(dgs: dict) -> dict:
 
 def props(url: str, forzar: bool = False) -> dict:
     """
-    {'modelo': <basename del gguf>, 'n_ctx': int, 'puerto': int,
-     'sampling': {temperature, top_p, repeat_penalty}} del server.
+    {'modelo': <basename del gguf>, 'ruta': <model_path completo>,
+     'n_ctx': int, 'puerto': int,
+     'sampling': {temperature, top_p, repeat_penalty},
+     'plantilla': <chat_template crudo>, 'caps': {chat_template_caps}}
+    del server.
+
+    'ruta', 'plantilla' y 'caps' se agregaron el 2026-08-17 para que quien
+    decide el perfil pueda MEDIR en vez de adivinar por el nombre del fichero:
+    'ruta' abre los metadatos del GGUF (arquitectura real) y 'plantilla'/'caps'
+    dicen si el modelo lee enable_thinking / reasoning_effort. Son datos
+    CRUDOS: la decision vive en cognia/agent/model_profiles.py, aca solo se
+    reporta lo que el server dice.
 
     {} si no responde. Cacheado por URL con TTL de 60 s (ver _props_sello):
     un llama-server no cambia de modelo sin reiniciar, pero el summoner SI
@@ -168,11 +200,15 @@ def props(url: str, forzar: bool = False) -> dict:
             crudo = json.loads(r.read().decode("utf-8", errors="replace"))
         dgs = crudo.get("default_generation_settings") or {}
         ruta = crudo.get("model_path") or dgs.get("model", "")
+        caps = crudo.get("chat_template_caps")
         datos = {
             "modelo": Path(str(ruta)).name or "desconocido",
+            "ruta": str(ruta or ""),
             "n_ctx": dgs.get("n_ctx"),
             "puerto": _puerto_de(url),
             "sampling": _sampling_de(dgs),
+            "plantilla": str(crudo.get("chat_template") or ""),
+            "caps": dict(caps) if isinstance(caps, dict) else {},
         }
     except Exception:
         datos = {}

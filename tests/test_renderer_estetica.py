@@ -74,6 +74,8 @@ def _tema_de_prueba():
         "intencion": "italic dim white", "spinner": "green",
         "info_dim": "dim grey62", "footer": "dim grey50",
         "warn_cl": "yellow", "err_cl": "red",
+        # decision 17 (2026-08-17): la respuesta va en texto NORMAL
+        "respuesta": "default",
     })
 
 
@@ -90,6 +92,15 @@ def _entorno_limpio(monkeypatch):
     # call-time: cada test parte de un entorno conocido.
     monkeypatch.delenv("COGNIA_PENSAR", raising=False)
     monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    # el preview del agente pinta las bandas de la variante ACTIVA
+    # (diff_render.variante_activa lee COGNIA_THEME): la maquina que corre la
+    # suite no puede decidir con que tema se mide.
+    monkeypatch.delenv("COGNIA_THEME", raising=False)
+    # Bajo pytest stdout NO es un tty, y desde 2026-08-15 eso basta para que el
+    # spinner no arranque. Estos tests miden el ESTILO del status, no cuando
+    # aparece: se fuerza el modo interactivo. Quien mide lo otro es
+    # test_spinner_no_anima_sin_tty, que borra la variable a proposito.
+    monkeypatch.setenv("COGNIA_SPINNER", "1")
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +128,26 @@ def test_pensando_update_conserva_pensar_y_segundos():
     assert st.updates, "el segundo tick debe actualizar el status"
     assert "[pensar]" in st.updates[-1]
     assert "s)" in st.updates[-1]           # el (Ns) de hoy sigue
+
+def test_spinner_no_anima_sin_tty(monkeypatch, capsys):
+    """Sin terminal de verdad: linea quieta, NO status animado.
+
+    Regresion medida 2026-08-15 capturando el REPL a PNG: el modulo declara en
+    su cabecera 'sin terminal, a lineas quietas' pero nadie miraba el fd, asi
+    que con FORCE_COLOR (script de captura, CI, cualquier pipe) rich animaba
+    sin poder mover el cursor y escribia UNA LINEA POR FRAME — 6 s de
+    'pensando…' = ~250 lineas de basura en la traza donde se diagnostica.
+    """
+    monkeypatch.delenv("COGNIA_SPINNER", raising=False)   # autodeteccion real
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False, raising=False)
+    con = _ConsolaFalsa()
+    r = Renderer(console=con)
+    r(events.ToolInicio(tool="leer_archivo", args="motor.py", paso=1))
+    assert con.statuses == [], "sin tty no se arranca ningun status animado"
+    # y la informacion NO se pierde: cae a la linea quieta por la MISMA consola
+    texto = " ".join(str(a) for args, _ in con.impresos for a in args)
+    assert "Leyendo" in texto and "motor.py" in texto
+
 
 def test_tool_spinner_sigue_usando_spinner():
     # las tools NO cambian de clave: el verde les llega por el wiring del
@@ -277,6 +308,111 @@ def test_leer_archivo_no_tiene_preview(capsys):
 
 
 # ---------------------------------------------------------------------------
+# 3 bis) PUNTOS 2 y 3 del juicio visual: el preview del AGENTE es un diff
+# ---------------------------------------------------------------------------
+# El preview que sale en CADA /hacer escribia '+ linea' con style='escrito' y
+# '- linea' con style='borrado': texto pelado, sin banda, y con la asimetria
+# que la decision 12 ya habia matado en el diff de /editar ('+' 9,34:1 contra
+# '-' 4,92:1). Ahora pasa por console/diff_render.render_bloque: mismo lenguaje
+# visual, y las bandas salen del tema por variante.
+
+def _consola_grabadora(variante="oscuro"):
+    """Console de verdad (truecolor, ancho fijo) para mirar los BYTES."""
+    from rich.console import Console
+    from rich.theme import Theme
+    from cognia.ux import paleta
+    return Console(record=True, width=80, force_terminal=True,
+                   color_system="truecolor", legacy_windows=False,
+                   theme=Theme(paleta.tema_cli(variante)),
+                   file=io.StringIO(), highlight=False)
+
+
+def _fondo_ansi(hexa: str) -> str:
+    h = hexa.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return f"48;2;{r};{g};{b}"
+
+
+def test_preview_escritura_pinta_la_banda_del_diff():
+    from cognia.ux import paleta
+    con = _consola_grabadora()
+    r = Renderer(console=con)
+    r(events.ToolFin(tool="escribir_archivo", args="nota.txt | uno\ndos",
+                     ok=True, resumen="OK", paso=1))
+    crudo = con.export_text(styles=True, clear=False)
+    assert _fondo_ansi(paleta.DIFF_FONDO["oscuro"]["mas"]) in crudo, crudo
+    # y sigue siendo el MISMO texto que antes (sangria de 6 + '+ ')
+    plano = [l.rstrip() for l in con.export_text(clear=False).split("\n")]
+    assert "      + uno" in plano and "      + dos" in plano
+
+
+def test_preview_edicion_pinta_LAS_DOS_bandas():
+    from cognia.ux import paleta
+    con = _consola_grabadora()
+    r = Renderer(console=con)
+    r(events.ToolFin(tool="editar_archivo",
+                     args="app.py | <<<<<<< SEARCH\nviejo()\n=======\n"
+                          "nuevo()\n>>>>>>> REPLACE",
+                     ok=True, resumen="OK", paso=1))
+    crudo = con.export_text(styles=True, clear=False)
+    assert _fondo_ansi(paleta.DIFF_FONDO["oscuro"]["mas"]) in crudo
+    assert _fondo_ansi(paleta.DIFF_FONDO["oscuro"]["menos"]) in crudo
+    plano = [l.rstrip() for l in con.export_text(clear=False).split("\n")]
+    assert "      - viejo()" in plano and "      + nuevo()" in plano
+
+
+def test_preview_obedece_a_tema_claro(monkeypatch):
+    """Punto 3: con '/tema claro' el preview deja de ser una isla negra."""
+    from cognia.ux import paleta
+    monkeypatch.setenv("COGNIA_THEME", "claro")
+    con = _consola_grabadora("claro")
+    r = Renderer(console=con)
+    r(events.ToolFin(tool="escribir_archivo", args="nota.txt | uno",
+                     ok=True, resumen="OK", paso=1))
+    crudo = con.export_text(styles=True, clear=False)
+    assert _fondo_ansi(paleta.DIFF_FONDO["claro"]["mas"]) in crudo, crudo
+    assert _fondo_ansi(paleta.DIFF_FONDO["oscuro"]["mas"]) not in crudo
+
+
+def test_preview_del_agente_no_rompe_al_movil():
+    """CONTRATO. remoto/sesiones.py clasifica el chat del movil por el arranque
+    de la linea: '+ ' es ACTIVIDAD. Las lineas REALES que emite el preview
+    (pintadas, con ANSI y relleno de banda) tienen que clasificar EXACTAMENTE
+    igual que las lineas planas de siempre, o el diff del agente se le cuela al
+    dueno como prosa de Cognia en el chat."""
+    from cognia.remoto.sesiones import _es_actividad, _limpiar
+    con = _consola_grabadora()
+    r = Renderer(console=con)
+    r(events.ToolFin(tool="editar_archivo",
+                     args="app.py | <<<<<<< SEARCH\nviejo()\n=======\n"
+                          "nuevo()\n>>>>>>> REPLACE",
+                     ok=True, resumen="OK", paso=1))
+    limpias = [_limpiar(l) for l in con.export_text(styles=True, clear=False).split("\n")]
+    limpias = [l for l in limpias if l]
+    assert not any("\x1b" in l for l in limpias)
+    assert "      + nuevo()" in limpias, limpias
+    assert "      - viejo()" in limpias, limpias
+    # la clasificacion, contra la funcion REAL: '+ ' actividad, '- ' no (es lo
+    # que ya hacia el preview plano; el pintado no puede cambiarlo)
+    assert _es_actividad("      + nuevo()") is True
+    assert _es_actividad("      - viejo()") is False
+    pintadas = {l: _es_actividad(l) for l in limpias if l.strip()[:1] in "+-"}
+    assert pintadas == {"      - viejo()": False, "      + nuevo()": True}
+
+
+def test_sin_console_el_preview_cae_al_texto_plano_de_siempre(capsys):
+    """Degradacion: sin Console (o sin rich) no hay banda, pero el signo del
+    margen sigue distinguiendo agregado de borrado."""
+    r = Renderer(console=None)
+    r(events.ToolFin(tool="editar_archivo",
+                     args="app.py | <<<<<<< SEARCH\nviejo()\n=======\n"
+                          "nuevo()\n>>>>>>> REPLACE",
+                     ok=True, resumen="OK", paso=1))
+    out = capsys.readouterr().out
+    assert "      - viejo()" in out and "      + nuevo()" in out
+
+
+# ---------------------------------------------------------------------------
 # 4) PasoIntencion en italic ('intencion')
 # ---------------------------------------------------------------------------
 
@@ -408,3 +544,39 @@ def test_claves_fantasma_eliminadas():
     assert verbo_de("buscar") == "Buscando"
     assert verbo_de("copiar_archivo") == "Copiando"
     assert verbo_de("contar_lineas") == "Contando lineas"
+
+
+# ---------------------------------------------------------------------------
+# Decision 17 (2026-08-17): la RESPUESTA del modelo va en texto normal
+# ---------------------------------------------------------------------------
+# El streaming de la respuesta era el ultimo 'cyan' hardcodeado del renderer
+# (FlujoSuave(style="cyan")). Se veia asi: el bloque de texto MAS GRANDE de la
+# pantalla pintado de un acento que ni siquiera obedecia a /tema — con
+# alto_contraste salia hex por hex igual que con oscuro.
+
+def test_la_respuesta_streameada_usa_el_token_del_tema():
+    from cognia.ux.estilo import ESTILO_RESPUESTA
+    con, buf = _consola_rich()
+    r = Renderer(console=con)
+    r(events.TokenTexto(texto="Hola, esto es lo que contesta el modelo.\n"))
+    assert r._flujo is not None, "no se abrio el flujo de la respuesta"
+    assert r._flujo._style == ESTILO_RESPUESTA, (
+        "el stream de la respuesta no pasa por el token del tema")
+    r._cerrar_flujo()
+    assert "Hola, esto es lo que contesta" in buf.getvalue()
+
+
+def test_el_flujo_no_revienta_con_una_consola_sin_el_tema():
+    """estilo_seguro(): una Console pelada no conoce los tokens del CLI. Antes
+    de resolverlos con guarda, un embebedor o un test se comia un MissingStyle
+    por un ADORNO — y el turno entero se perdia."""
+    from rich.console import Console
+    from cognia.ux.estilo import FlujoSuave, respuesta
+    buf = io.StringIO()
+    pelada = Console(file=buf, width=80, force_terminal=False)
+    f = FlujoSuave(console=pelada)
+    f.escribir("texto sin tema ")
+    f.cerrar()
+    respuesta("y una respuesta entera", console=pelada)
+    salida = buf.getvalue()
+    assert "texto sin tema" in salida and "y una respuesta entera" in salida

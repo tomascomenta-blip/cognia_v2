@@ -37,9 +37,15 @@ _ROLE_LABEL = {
     "assistant": "Cognia",
     "system":    "Sistema",
 }
+# DECISION 17 (dueno, 2026-08-17): la RESPUESTA del modelo va en color de texto
+# normal, ni verde ni cyan -- el color queda para la interfaz (marco, actividad,
+# estados). La etiqueta 'Cognia' hacia lo mismo que el cuerpo del REPL y por eso
+# tambien baja a `text`: lo que la distingue del cuerpo es la negrita, no un
+# tono. 'Tu' y 'Sistema' conservan color porque no son la respuesta: son
+# atribucion del usuario y aviso de estado.
 _ROLE_COLOR = {
-    "user":      COLORS["info"],    # azul
-    "assistant": COLORS["accent"],  # violeta (identidad Cognia)
+    "user":      COLORS["info"],    # azul (atribucion, no respuesta)
+    "assistant": COLORS["text"],    # texto normal (decision 17)
     "system":    COLORS["warn"],    # amarillo (aviso / backend no disponible)
 }
 

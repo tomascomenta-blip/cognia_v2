@@ -43,6 +43,15 @@ _EXCLUDE_DIR_PARTS = {
     ".git", "__pycache__", "node_modules", "venv", ".venv",
     "tests", "scripts", "build", "dist",
     "generated_programs", "generated_games", ".repo_reverse",
+    # Un git worktree DENTRO del repo (.claude/worktrees/<id>/) es una COPIA
+    # del arbol: los mismos ficheros del baseline reaparecen con otro prefijo
+    # de ruta, no casan con KNOWN_BARE_SQLITE y el guard los denuncia como
+    # violaciones NUEVAS. Cazado 2026-08-15: cuatro worktrees de una corrida
+    # de workflow dispararon 32 falsos positivos, todos copias de las 8
+    # entradas ya congeladas. El ratchet mira el codigo del repo, no sus
+    # copias de trabajo — y con agentes trabajando en worktrees esto pasa
+    # cada vez que alguien corre la suite mientras hay uno vivo.
+    ".claude", "worktrees",
 }
 
 

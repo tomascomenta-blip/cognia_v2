@@ -155,11 +155,21 @@ python -m cognia
 Dentro del REPL, **cualquier texto sin `/` es chat cognitivo**; los comandos empiezan
 con `/`:
 
+La zona de entrada va encuadrada en verde, con la barra de estado (modelo,
+contexto, modo) colgando bajo el marco:
+
 ```
-cognia> hola, que sabes hacer?          <- chat libre (inferencia)
-cognia> /ayuda                          <- lista completa de comandos (206)
-cognia> /hacer crea un juego de la vida en vida.py y probalo
-cognia> /salir
+────────────────────────────────────────────────────────────────
+ cognia➤ hola, que sabes hacer?          <- chat libre (inferencia)
+────────────────────────────────────────────────────────────────
+qwythos-9b · ctx 12.4k/131k · chat
+tab completa · ↑↓ historial · @ archivo · / comandos
+```
+
+```
+ cognia➤ /ayuda                          <- lista completa de comandos (206)
+ cognia➤ /hacer crea un juego de la vida en vida.py y probalo
+ cognia➤ /salir
 ```
 
 ### Comandos principales

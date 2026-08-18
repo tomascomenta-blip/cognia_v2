@@ -22,14 +22,11 @@ Lo que se protege, en orden de importancia:
 from __future__ import annotations
 
 import os
-import re
-from pathlib import Path
 
 import pytest
 
 from cognia.harness import barra_estado as B
 
-RAIZ = Path(__file__).resolve().parents[1]
 HOME = os.path.expanduser("~").replace("\\", "/").rstrip("/")
 
 # 'ctx 12.4k/128.0k (10%)' y '3.2k tok' con estos numeros.
@@ -255,13 +252,17 @@ def test_el_contexto_avisa_cuando_se_llena(usado, estilo):
 
 def test_los_estilos_existen_en_los_temas_reales_del_cli():
     """Un nombre de estilo inventado sale SIN COLOR y nadie lo nota (paso ya
-    con [ok_cl]). Se valida contra el tema 'oscuro' real de cognia/cli.py."""
-    src = (RAIZ / "cognia" / "cli.py").read_text(encoding="utf-8",
-                                                 errors="ignore")
-    i = src.index('"oscuro": Theme({')
-    j = src.index("}),", i)
-    claves = set(re.findall(r'"(\w+)"\s*:', src[i:j]))
-    assert (B.ESTILOS - {""}) <= claves, (B.ESTILOS - {""}) - claves
+    con [ok_cl]).
+
+    2026-08-17: antes esto parseaba el bloque `"oscuro": Theme({...})` del
+    fuente de cognia/cli.py. Ese bloque ya no existe: los tres temas se derivan
+    de cognia/ux/paleta.py. Se valida contra LOS TRES temas resueltos, que es
+    mas fuerte que el scan de texto (un token puede faltar en una sola
+    variante)."""
+    from cognia.ux import paleta
+    faltantes = {v: (B.ESTILOS - {""}) - set(paleta.tema_cli(v))
+                 for v in paleta.ORDEN_VARIANTES}
+    assert not any(faltantes.values()), faltantes
 
 
 # ---------------------------------------------------------------------------

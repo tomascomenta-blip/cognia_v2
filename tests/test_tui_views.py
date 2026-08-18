@@ -110,6 +110,18 @@ async def test_log_handler_installed_at_info():
 
 # --- Memoria ----------------------------------------------------------------
 
+# Claves que devuelve DE VERDAD MemoryBackend.search: las de
+# ContextMap.query_hybrid ({id, score, vec_score, bm25_score, source_kind,
+# source_ref, text}) mas el `project` que le agrega el adaptador. El mock las
+# repite ENTERAS a proposito: la version anterior se olvidaba `project`, la
+# vista lo resolvia con .get(..., "") y el assert solo miraba un substring del
+# snippet, asi que un mock desalineado del backend real no rompia nada. Es la
+# razon de que el defecto del punto 6 (los resultados centrados) sobreviviera
+# meses: el arnes nunca miraba la linea completa.
+_CLAVES_REALES = {"id", "score", "vec_score", "bm25_score",
+                  "source_kind", "source_ref", "text", "project"}
+
+
 class _FakeMemoryBackend:
     """Backend de memoria mockeado (no toca DB): stats y search canned."""
 
@@ -118,11 +130,42 @@ class _FakeMemoryBackend:
 
     def search(self, query: str, limit: int = 20):
         return [{
+            "id": 1,
             "score": 0.91,
+            "vec_score": 0.0,
+            "bm25_score": 0.91,
             "text": "resultado de prueba para " + query,
             "source_kind": "text",
             "source_ref": "mem:1",
+            "project": "conversacion",
         }]
+
+
+def test_el_mock_de_memoria_usa_las_claves_del_backend_REAL(tmp_path):
+    """El mock tiene que devolver lo MISMO que la memoria de verdad.
+
+    Se arma un context-map real en una DB temporal, se busca con el
+    MemoryBackend real y se compara el juego de claves con el del mock. Sin este
+    test, el mock puede quedar desalineado y el arnes seguir en verde mientras
+    la vista real pinta campos vacios.
+    """
+    from cognia.context.context_map import ContextMap
+
+    db = tmp_path / "memoria.db"
+    cm = ContextMap(db_path=str(db), project="cognia")
+    cm.add_pointer("text", "mem:cognia",
+                   inline_text="el coste del selector se mide, nunca se declara")
+    reales = memory_view_mod.MemoryBackend(db_path=str(db)).search("coste")
+    assert reales, "la memoria real no devolvio nada: el test no esta midiendo nada"
+    claves_reales = set(reales[0])
+    assert claves_reales == _CLAVES_REALES, (
+        f"cambio el contrato del backend real: {sorted(claves_reales)}"
+    )
+    claves_mock = set(_FakeMemoryBackend().search("coste")[0])
+    assert claves_reales <= claves_mock, (
+        f"el mock se quedo sin claves que el backend real si trae: "
+        f"{sorted(claves_reales - claves_mock)}"
+    )
 
 
 @pytest.mark.asyncio
@@ -148,7 +191,16 @@ async def test_memory_view_search_shows_results():
         await app.workers.wait_for_complete()
         await pilot.pause()
         out = mv.output_text()
-        assert "resultado de prueba" in out
+        # La linea COMPLETA, no un substring: score, proyecto, tipo y snippet.
+        # Con el assert viejo ("resultado de prueba" in out) el panel podia
+        # estar pintando "0.91] /" y el test seguia en verde.
+        assert "[0.91]" in out, out
+        assert "conversacion/text" in out, out
+        assert "resultado de prueba para prueba" in out, out
+        # Y el panel deja de ser un empty-state: los resultados van alineados a
+        # la izquierda, no centrados (ver test_tui_foco_paleta_memoria.py).
+        from textual.widgets import Static
+        assert not app.query_one("#memory-output", Static).has_class("empty-state")
 
 
 @pytest.mark.asyncio

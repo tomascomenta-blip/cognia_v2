@@ -744,9 +744,18 @@ def main() -> None:
         # el usuario escriba nada. "Cognia degrada en silencio" llevaba meses
         # escrito como leccion y volvio a pasar igual, porque una leccion en
         # prosa no se ejecuta. Esta es la misma leccion como chequeo.
+        #
+        # silencioso_si_ok=True (2026-08-17): el chequeo se conserva ENTERO --
+        # si el backend esta roto sigue gritando a stderr antes del banner, que
+        # es para lo que existe. Lo que se va es la linea cuando todo esta bien:
+        # "  backend: <modelo> en :8080" salia por stderr ANTES del banner y
+        # decia exactamente lo mismo que la linea que el propio banner imprime
+        # dos pantallas mas abajo ("modelo <modelo> (:8080) modo ... tema ...").
+        # Era el primero de los DOS emisores del ruido de backend medido en el
+        # REPL; el otro es backend_activo.registrar() (ver _silencioso()).
         try:
             from cognia import backend_activo
-            backend_activo.chequeo_arranque()
+            backend_activo.chequeo_arranque(silencioso_si_ok=True)
         except Exception:
             pass
         from cognia.cli import repl

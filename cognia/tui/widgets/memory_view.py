@@ -23,6 +23,13 @@ Robustez: MemoryBackend.stats()/search() estan envueltos en try/except y nunca
 levantan (DB ausente, esquema nuevo, query rara) -> degradan a vacio. La vista
 muestra empty-states claros: "Escribi para buscar en la memoria" / "Memoria vacia".
 
+2026-08-17 -- la clase `empty-state` de #memory-output ahora se PONE Y SE QUITA
+(_set_output(..., vacio=)). Se ponia en compose() y no habia un solo
+remove_class en el modulo, y app.tcss le da `content-align: center middle`: los
+resultados reales de una busqueda salian centrados y desalineados con su
+encabezado. Los mensajes de estado (vacio / buscando / sin resultados) siguen
+centrados; una LISTA, no.
+
 Convencion: codigo ASCII; los textos de UI pueden ir en UTF-8.
 """
 
@@ -157,7 +164,8 @@ class MemoryView(Vertical):
         query = event.value.strip()
         if not query:
             return
-        self._set_output(self._build_searching(query))
+        # 'Buscando...' es un mensaje de estado, no una lista: va centrado.
+        self._set_output(self._build_searching(query), vacio=True)
         self._run_search(query)
 
     @work(thread=True)
@@ -172,13 +180,24 @@ class MemoryView(Vertical):
     def _show_results(self, query: str, results: List[dict]) -> None:
         """Corre en el hilo de la UI: pinta los resultados o el empty-state."""
         if not results:
-            self._set_output(self._build_no_results(query))
+            self._set_output(self._build_no_results(query), vacio=True)
             return
-        self._set_output(self._build_results(query, results))
+        self._set_output(self._build_results(query, results), vacio=False)
 
-    def _set_output(self, renderable: Text) -> None:
+    def _set_output(self, renderable: Text, vacio: bool = True) -> None:
+        """Pinta el panel de resultados y ajusta la clase `empty-state`.
+
+        La clase NO es decorativa: app.tcss le da `content-align: center middle`.
+        Se ponia en compose() y no habia un solo remove_class en el modulo, asi
+        que los RESULTADOS reales de una busqueda salian centrados y
+        desalineados con su encabezado (medido en el SVG: el bloque arrancaba en
+        la columna 42 de un panel de 85). Los mensajes de estado (empty-state,
+        'buscando...', 'sin resultados') SI van centrados; una lista, no.
+        """
         try:
-            self.query_one("#memory-output", Static).update(renderable)
+            salida = self.query_one("#memory-output", Static)
+            salida.set_class(vacio, "empty-state")
+            salida.update(renderable)
         except Exception:
             pass
 

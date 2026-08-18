@@ -22,10 +22,12 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 import time
 
 from . import events
-from .estilo import FlujoSuave, respirar, respuesta, verbo_de, objeto_de
+from .estilo import (ESTILO_RESPUESTA, FlujoSuave, respirar, respuesta,
+                     verbo_de, objeto_de)
 
 _SANGRIA = "  "
 _MARCA_ACTIVIDAD = "·"
@@ -49,6 +51,32 @@ _MAX_LINEAS_PREVIEW = 3
 # El productor (agent/loop.py) trunca ev.args a [:120]: si llega con ese largo
 # el payload quedo cortado y el preview lo dice con un '…' honesto.
 _TOPE_ARGS_PRODUCTOR = 120
+
+
+def _cabeza(texto: str, tope: int = 120) -> str:
+    """Primera linea no vacia, recortada. Un resultado de agente() puede ser
+    un JSON de 4 KB: la linea del turno quiere un titulo, no el volcado."""
+    linea = next((l.strip() for l in (texto or "").split("\n") if l.strip()), "")
+    return linea[:tope] + ("…" if len(linea) > tope else "")
+
+
+def _consola_interactiva() -> bool:
+    """¿Hay una terminal DE VERDAD al otro lado de stdout?
+
+    Se mira el descriptor, no ``Console.is_terminal``: FORCE_COLOR/CLICOLOR_FORCE
+    hacen que rich lo declare True sobre un pipe (es lo que queremos para el
+    COLOR de las capturas) y entonces el spinner anima sin poder mover el
+    cursor. Ante la duda, False: perder la animacion es cosmetico, inundar una
+    traza de diagnostico con una linea por frame no lo es.
+    """
+    forzado = os.environ.get("COGNIA_SPINNER", "").strip()
+    if forzado in ("0", "1"):
+        return forzado == "1"     # override explicito (tests del estilo, demos)
+    try:
+        import sys
+        return bool(sys.stdout.isatty())
+    except Exception:
+        return False
 
 
 class Renderer:
@@ -80,18 +108,47 @@ class Renderer:
         # declara con suprimir_stream(True); SOLO afecta TokenTexto — el
         # razonamiento ∴ sigue siendo del renderer (nadie mas lo pinta).
         self._stream_externo = False
+        # UN solo lock para TODO el estado de presentacion (_status, _flujo,
+        # _flujo_pensar, _avisos_vistos, _pensando_desde, _t0, _stream_externo
+        # y la Console de rich). POR QUE hace falta: emitir() copia la lista de
+        # suscriptores bajo su lock y reparte FUERA de el, en el HILO DEL
+        # EMISOR (events.py:250-256) — con el motor de workflows corriendo
+        # paralelo(cap=2) hay DOS hilos dentro de __call__ a la vez.
+        self._lock = threading.RLock()
 
     # -- despacho -----------------------------------------------------------
 
     def __call__(self, ev: events.Evento) -> None:
-        # emitir() ya es no-lanzante, pero el guard local evita que un evento
-        # malformado deje un spinner huerfano girando sobre la respuesta.
-        try:
-            handler = self._HANDLERS.get(type(ev).__name__)
-            if handler is not None:
+        handler = self._HANDLERS.get(type(ev).__name__)
+        if handler is None:
+            return
+        # El lock cubre el handler ENTERO, no cada escritura: el invariante no
+        # es "una escritura atomica" sino "un handler es una unidad
+        # indivisible". Los tres fallos que solo cierra esta granularidad:
+        #  1. _arrancar_status hace stop()+start(); dos hilos entrelazados
+        #     dejan un spinner HUERFANO girando encima de la respuesta.
+        #  2. _on_tool_fin emite 1-5 _print que son UNA linea logica + su
+        #     resumen sangrado; intercaladas, el de-dup del remoto
+        #     (es_eco_renderer) empieza a ver lineas partidas.
+        #  3. FlujoSuave tiene buffer interno: dos escritores lo corrompen
+        #     caracter a caracter y _cerrar_flujo lee _al_inicio_de_linea
+        #     despues de que otro hilo lo puso a None.
+        # RLock y no Lock — la razon REAL, medida 2026-08-17: emitir() reparte
+        # en el hilo del emisor, asi que si algo que corre DENTRO de un handler
+        # vuelve a emitir al bus (una Console-sink que ecoa, un suscriptor que
+        # republica), ese evento reentra por __call__ en el MISMO hilo. Repro:
+        # consola cuyo print() emite un Aviso -> con RLock termina e imprime
+        # las dos lineas; con Lock pelado se cuelga para siempre.
+        # NO es por el except de abajo: _parar_status() no toma el lock, y con
+        # un Lock pelado los tests de tests/test_renderer_concurrencia.py pasan
+        # los 6 igual (verificado). El guard local es independiente del tipo de
+        # lock: emitir() ya es no-lanzante, pero sin el un evento malformado
+        # dejaria un spinner huerfano girando sobre la respuesta.
+        with self._lock:
+            try:
                 handler(self, ev)
-        except Exception:
-            self._parar_status()
+            except Exception:
+                self._parar_status()
 
     # -- utilidades ---------------------------------------------------------
 
@@ -123,9 +180,19 @@ class Renderer:
 
         ``estilo``: clave del tema para el texto del status. Las tools siguen
         con 'spinner'; 'pensando…' usa 'pensar' (verde por pedido del dueno,
-        2026-08-10)."""
+        2026-08-10).
+
+        El docstring prometia la linea quieta desde siempre, pero nadie
+        comprobaba la interactividad: bastaba FORCE_COLOR (lo pone el script
+        de captura, y cualquier CI) para que rich diera is_terminal=True sobre
+        un PIPE y animara sin poder mover el cursor -> UNA LINEA POR FRAME.
+        Medido 2026-08-15 capturando el REPL: 6 s de 'pensando…' = ~250 lineas
+        y un PNG de 8264 px. Ensucia las trazas de e2e_happy_path y los logs
+        de las corridas nocturnas, que es justo donde se diagnostica. Se mira
+        el fd real, no rich: FORCE_COLOR miente sobre is_terminal a proposito
+        (queremos el COLOR en la captura, no la ANIMACION)."""
         self._parar_status()
-        if self._console is not None:
+        if self._console is not None and _consola_interactiva():
             try:
                 self._status = self._console.status(
                     f"[{estilo}]{_MARCA_ACTIVIDAD} {etiqueta}[/{estilo}]",
@@ -254,24 +321,83 @@ class Renderer:
         except Exception:
             return False
 
-    def _preview_edicion(self, payload: str, cortado: bool) -> None:
-        """1 linea '- <buscar>' y 1 linea '+ <reemplazar>' del bloque
-        SEARCH/REPLACE de editar_archivo (cabezas de cada seccion)."""
+    def _lineas_edicion(self, payload: str, cortado: bool) -> tuple:
+        """(lineas '-', lineas '+') del bloque SEARCH/REPLACE de
+        editar_archivo. Hasta _MAX_LINEAS_PREVIEW por lado; el productor ya
+        trunca ev.args a ~120 chars, asi que casi siempre es 1-2 por lado."""
         cuerpo = re.split(r"<{4,}\s*SEARCH[^\n]*\n?", payload, maxsplit=1)
         if len(cuerpo) != 2:
-            return
+            return [], []
         partes = re.split(r"\n={4,}[^\n]*\n?", cuerpo[1], maxsplit=1)
         buscar = partes[0]
         reemplazar = partes[1] if len(partes) == 2 else ""
         reemplazar = re.split(r"\n?>{4,}", reemplazar, maxsplit=1)[0]
-        b_head = next((l.strip() for l in buscar.split("\n") if l.strip()), "")
-        r_head = next((l.strip() for l in reemplazar.split("\n") if l.strip()), "")
-        if b_head:
-            suf = "…" if cortado and not r_head else ""
-            self._print(f"{_SANGRIA * 3}- {b_head}{suf}", style="borrado")
-        if r_head:
-            suf = "…" if cortado else ""
-            self._print(f"{_SANGRIA * 3}+ {r_head}{suf}", style="escrito")
+        menos = [l.strip() for l in buscar.split("\n") if l.strip()]
+        mas = [l.strip() for l in reemplazar.split("\n") if l.strip()]
+        menos = menos[:_MAX_LINEAS_PREVIEW]
+        mas = mas[:_MAX_LINEAS_PREVIEW]
+        # El '…' honesto va en la ULTIMA linea que se ve, y solo si el payload
+        # venia cortado por el tope del productor. Cuando hay las dos mitades,
+        # la cortada es la de abajo (el '+'): el SEARCH ya termino.
+        if cortado:
+            if mas:
+                mas[-1] += "…"
+            elif menos:
+                menos[-1] += "…"
+        return menos, mas
+
+    def _pintar_bloque_diff(self, menos: list, mas: list) -> bool:
+        """El preview con el MISMO lenguaje visual que el diff de /editar:
+        banda a todo el ancho y la marca +/- al margen (punto 2 del juicio
+        visual del dueno, 2026-08-17).
+
+        Antes esto eran self._print('+ linea', style='escrito') y
+        self._print('- linea', style='borrado'): texto pelado, sin fondo, y con
+        la asimetria que la decision 12 ya habia matado en el otro diff — '+'
+        a 9,34:1 y '-' a 4,92:1 sobre el fondo del tema, o sea el DOBLE de
+        contraste para lo agregado. Y este es el diff que aparece en TODA tarea
+        autonoma; el de /editar es el excepcional.
+
+        El pintado vive en console/diff_render.py — un solo sitio que sabe
+        pintar un diff — y de ahi salen tambien las bandas POR VARIANTE, asi
+        que el preview deja de ser una isla negra con '/tema claro'.
+
+        Devuelve False si no se pudo (sin rich, sin console, o cualquier fallo
+        del render): el caller pinta las lineas planas de siempre. El adorno
+        JAMAS rompe un turno."""
+        if self._console is None:
+            return False
+        try:
+            from cognia.console.diff_render import render_bloque
+            bloque = render_bloque(
+                menos, mas,
+                console=self._console,
+                sangria=len(_SANGRIA * 3),
+                # separador=' ' porque el preview YA emitia '+ linea': el
+                # clasificador del movil (remoto/sesiones._es_actividad) manda
+                # '+ ' al bloque de actividad y sin el espacio esas lineas
+                # pasarian a leerse como prosa de Cognia.
+                separador=" ")
+            if bloque is None:
+                return False
+            self._console.print(bloque)
+            return True
+        except Exception:
+            return False
+
+    def _preview_lineas(self, menos: list, mas: list) -> None:
+        """Pinta el preview: banda si hay con que, lineas planas si no."""
+        if not menos and not mas:
+            return
+        if self._pintar_bloque_diff(menos, mas):
+            return
+        # Fallback plano — el mismo texto EXACTO de siempre. Cubre el caso sin
+        # rich, sin console y el de NO_COLOR llevado al extremo: el signo del
+        # margen sigue distinguiendo agregado de borrado sin ningun color.
+        for l in menos:
+            self._print(f"{_SANGRIA * 3}- {l}", style="borrado")
+        for l in mas:
+            self._print(f"{_SANGRIA * 3}+ {l}", style="escrito")
 
     def _preview_escritura(self, ev: events.ToolFin) -> None:
         """PREVIEW de lo escrito (pedido del dueno 2026-08-10): ver de verdad
@@ -291,16 +417,16 @@ class Renderer:
         payload = args.split("|", 1)[1]
         cortado = len(args) >= _TOPE_ARGS_PRODUCTOR
         if ev.tool == "editar_archivo":
-            self._preview_edicion(payload, cortado)
+            self._preview_lineas(*self._lineas_edicion(payload, cortado))
             return
-        lineas = [l for l in payload.strip("\n").split("\n") if l.strip()]
+        lineas = [l.strip() for l in payload.strip("\n").split("\n")
+                  if l.strip()]
         if not lineas:
             return
         vistas = lineas[:_MAX_LINEAS_PREVIEW]
-        hay_mas = cortado or len(lineas) > len(vistas)
-        for i, l in enumerate(vistas):
-            suf = "…" if hay_mas and i == len(vistas) - 1 else ""
-            self._print(f"{_SANGRIA * 3}+ {l.strip()}{suf}", style="escrito")
+        if cortado or len(lineas) > len(vistas):
+            vistas[-1] += "…"
+        self._preview_lineas([], vistas)
 
     def _on_tool_fin(self, ev: events.ToolFin) -> None:
         self._parar_status()
@@ -383,7 +509,10 @@ class Renderer:
             # empieza la prosa: el spinner sobra y la respuesta respira arriba
             self._parar_status()
             respirar(self._console)
-            self._flujo = FlujoSuave(console=self._console, style="cyan")
+            # Decision 17 (2026-08-17): la respuesta del modelo va en el
+            # color de texto NORMAL del tema, no en un acento. El "cyan"
+            # de aca era el ultimo hardcodeo del stream de la respuesta.
+            self._flujo = FlujoSuave(console=self._console)
         self._flujo.escribir(ev.texto)
 
     def _on_aviso(self, ev: events.Aviso) -> None:
@@ -426,6 +555,96 @@ class Renderer:
         # evento para el sink JSONL/remoto; en pantalla va solo el footer.
         self._footer(ev)
 
+    # -- motor de workflows (cognia/agent/workflows.py) ---------------------
+    # UNA linea quieta por evento, con el vocabulario de siempre. Todavia NO
+    # hay panel: esta tanda solo cablea el consumidor.
+    #
+    # Dos reglas duras:
+    #  - la linea empieza (tras la sangria) por ⏺ · ✗, porque es_eco_renderer
+    #    de remoto/sesiones.py clasifica por esa marca. Sin ella el movil
+    #    pinta cada agente DOS veces: una por el evento y otra por esta linea
+    #    colada como prosa.
+    #  - AgenteInicio NO arranca spinner. _arrancar_status mantiene UN solo
+    #    _status ("nunca dos a la vez") y con paralelo(cap=2) hay dos agentes
+    #    vivos: el segundo mataria el spinner del primero.
+
+    @staticmethod
+    def _ref_agente(ev) -> str:
+        """'agente 2/6 resume TLS' — la identidad legible. AgenteFin repite
+        indice/total/etiqueta justo para poder componerla sin estado."""
+        cab = f"agente {ev.indice}" + (f"/{ev.total}" if ev.total else "")
+        etiqueta = (ev.etiqueta or "").strip()
+        return f"{cab} {etiqueta}".strip()
+
+    def _on_workflow_inicio(self, ev: events.WorkflowInicio) -> None:
+        self._parar_status()
+        self._cerrar_flujo()
+        self._cerrar_flujo_pensar()
+        linea = f"{_SANGRIA}{_MARCA_ACTIVIDAD} workflow «{ev.nombre or '?'}»"
+        if ev.total_agentes:
+            linea += f" — {ev.total_agentes} agentes"
+        if ev.cache_precargada:
+            # "4 de 6 agentes en 0 ms" se lee como roto si no se dice que ya
+            # estaba pagado: es el fallo silencioso de siempre.
+            linea += f" · {ev.cache_precargada} de cache"
+        self._print(linea, style="info_dim")
+
+    def _on_agente_inicio(self, ev: events.AgenteInicio) -> None:
+        # cerrar el flujo ANTES de imprimir, como _on_aviso: si el motor esta
+        # streameando prosa, la linea '· agente 2/6 …' se pega dentro de la
+        # frase a medias (el mismo bug que _on_aviso ya arreglo una vez).
+        self._cerrar_flujo()
+        self._cerrar_flujo_pensar()
+        self._print(f"{_SANGRIA}{_MARCA_ACTIVIDAD} {self._ref_agente(ev)}…",
+                    style="info_dim")
+
+    def _on_agente_fin(self, ev: events.AgenteFin) -> None:
+        self._cerrar_flujo()
+        self._cerrar_flujo_pensar()
+        ref = self._ref_agente(ev)
+        if not ev.ok:
+            # el fallo se VE: "devolvio vacio" y "reventó" piden decisiones
+            # distintas y el motor las distingue con ok/motivo.
+            self._print(f"{_SANGRIA}{_MARCA_ERROR} {ref} — fallo: "
+                        f"{_cabeza(ev.motivo)}", style="warn_cl")
+            return
+        if ev.cache_hit:
+            self._print(f"{_SANGRIA}{_MARCA_HECHO} {ref} — de cache",
+                        style="info_dim")
+            return
+        cab = _cabeza(ev.resumen)
+        cola = f" ({ev.duracion_s:.1f}s · {ev.tokens} tok)"
+        self._print(f"{_SANGRIA}{_MARCA_HECHO} {ref}"
+                    + (f" — {cab}" if cab else "") + cola, style="info_dim")
+
+    def _on_workflow_fin(self, ev: events.WorkflowFin) -> None:
+        self._parar_status()
+        self._cerrar_flujo()
+        nombre = f"workflow «{ev.nombre or '?'}»"
+        if not ev.ok:
+            self._print(f"{_SANGRIA}{_MARCA_ERROR} {nombre} — fallo: "
+                        f"{_cabeza(ev.resumen)}", style="warn_cl")
+            return
+        partes = []
+        if ev.agentes:
+            # 'agentes - fallidos de agentes' SIGUE valiendo con la contabilidad
+            # nueva del motor (workflows.cerrar 2026-08-17): ev.agentes es el
+            # denominador honesto max(arrancados, declarados) y los que no
+            # arrancaron / quedaron colgando ya vienen sumados en ev.fallidos,
+            # asi que la resta sigue siendo "cuantos terminaron BIEN". El caso
+            # que antes salia "1 de 1" ahora llega con ok=False y corta arriba
+            # (verificado e2e con el motor real 2026-08-17: '✗ workflow «repl»
+            # — fallo: 3 de 4 agentes no llegaron a arrancar').
+            partes.append(f"{ev.agentes - ev.fallidos} de {ev.agentes}")
+        if ev.tokens:
+            partes.append(f"{ev.tokens} tokens")
+        if ev.duracion_s:
+            partes.append(f"{ev.duracion_s:.1f}s")
+        linea = f"{_SANGRIA}{_MARCA_HECHO} {nombre}"
+        if partes:
+            linea += " — " + " · ".join(partes)
+        self._print(linea, style="info_dim")
+
     # -- respuesta final y footer ------------------------------------------
 
     def _respuesta_final(self, texto: str, ok: bool = True) -> None:
@@ -444,7 +663,7 @@ class Renderer:
             except Exception:
                 pass
         respuesta(texto, console=self._console,
-                  color="cyan" if ok else "yellow")
+                  color=ESTILO_RESPUESTA if ok else "warn_cl")
 
     def _footer(self, ev: events.TareaFin) -> None:
         """Footer HONESTO: solo datos reales del evento. Sin usage del
@@ -487,6 +706,10 @@ class Renderer:
         "Aviso":            _on_aviso,
         "Degradado":        _on_degradado,
         "TareaFin":         _on_tarea_fin,
+        "WorkflowInicio":   _on_workflow_inicio,
+        "AgenteInicio":     _on_agente_inicio,
+        "AgenteFin":        _on_agente_fin,
+        "WorkflowFin":      _on_workflow_fin,
     }
 
 
@@ -504,7 +727,10 @@ def activar(console=None) -> Renderer:
     if _renderer is None:
         _renderer = Renderer(console)
     elif console is not None:
-        _renderer._console = console
+        # mismo estado de presentacion que tocan los handlers, y el CLI puede
+        # cambiar de tema mientras un hilo de paralelo() esta pintando
+        with _renderer._lock:
+            _renderer._console = console
     events.suscribir(_renderer)
     return _renderer
 
@@ -514,12 +740,14 @@ def suprimir_stream(valor: bool) -> None:
     declara aqui para que el renderer no duplique TokenTexto. Restaurar con
     False en finally. No-op sin renderer activo."""
     if _renderer is not None:
-        _renderer._stream_externo = bool(valor)
+        with _renderer._lock:
+            _renderer._stream_externo = bool(valor)
 
 
 def desactivar() -> None:
     global _renderer
     if _renderer is not None:
         events.desuscribir(_renderer)
-        _renderer._parar_status()
+        with _renderer._lock:
+            _renderer._parar_status()
         _renderer = None

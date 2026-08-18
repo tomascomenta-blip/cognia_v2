@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -18,6 +19,7 @@ from pathlib import Path
 
 from .cognia import Cognia
 from .config import HAS_RESEARCH_ENGINE, HAS_PROGRAM_CREATOR
+from .ux import paleta   # unica fuente de verdad del color (datos planos)
 
 # ---------------------------------------------------------------------------
 # Skills directory
@@ -100,6 +102,7 @@ except ImportError:
 try:
     from prompt_toolkit import PromptSession
     from prompt_toolkit.completion import Completer, Completion, FuzzyCompleter
+    from prompt_toolkit.formatted_text import FormattedText
     from prompt_toolkit.history import InMemoryHistory
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.shortcuts import CompleteStyle
@@ -111,8 +114,47 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # ANSI fallback
 # ---------------------------------------------------------------------------
-_G = "\033[92m"
-_R = "\033[0m"
+# Los caminos SIN rich / SIN prompt_toolkit (input() pelado, banner de
+# emergencia, /ayuda de respaldo) no pueden pedirle el color al tema: escriben
+# el escape a mano. Hasta 2026-08-17 escribian \033[92m, o sea bright_green:
+# verde PASTO (#16c60c en Campbell) contra la rampa LIMA del resto. Se veia:
+# el 'cognia> ' de respaldo quedaba DOS LINEAS encima del 'cognia➤' del marco
+# y eran dos verdes distintos. Ahora el escape se DERIVA de la rampa, asi que
+# el respaldo y el marco son el mismo verde.
+def _ansi_24bit(hexa: str) -> str:
+    r, g, b = (int(hexa[i:i + 2], 16) for i in (1, 3, 5))
+    return f"\033[38;2;{r};{g};{b}m"
+
+
+# NO_COLOR (no-color.org) apaga el color en los caminos crudos; rich ya lo
+# respeta por su cuenta.
+_R = "" if os.environ.get("NO_COLOR") else "\033[0m"
+
+
+def _variante_actual() -> str:
+    """El nombre de la variante de tema ACTIVA ('oscuro'/'claro'/...).
+
+    Es la fuente de verdad de que rampa de identidad toca: la fija /tema, la
+    persiste COGNIA_THEME y de ella cuelgan el marco del prompt, el gradiente
+    del banner y los escapes crudos de los caminos sin rich."""
+    return _THEME_ORDER[_theme_idx]
+
+
+def _rampa() -> dict:
+    """Los siete escalones del verde de la variante activa."""
+    return paleta.rampa(_variante_actual())
+
+
+def _g() -> str:
+    """El escape del verde de identidad, en la variante ACTIVA.
+
+    Era la constante _G, calculada UNA vez al importar sobre la rampa oscura:
+    con '/tema claro' el 'cognia> ' del respaldo salia en lima a 1,53:1 sobre
+    blanco. Es una funcion y no una constante justamente porque /tema cambia
+    en caliente."""
+    if os.environ.get("NO_COLOR"):
+        return ""
+    return _ansi_24bit(_rampa()["prompt"])
 
 # ---------------------------------------------------------------------------
 # Banner
@@ -160,75 +202,145 @@ _BANNER_RAW = """
 # ---------------------------------------------------------------------------
 # Themes
 # ---------------------------------------------------------------------------
-_THEMES = {
-    "oscuro": Theme({
-        "ok":       "bold bright_green",
-        "ok_cl":    "green",              # FIX: 19 usos de [ok_cl] salian sin color
-        "mod":      "bold cyan",
-        "detail":   "dim white",
-        "info_dim": "dim grey62",
-        "footer":   "dim grey50",
-        "spinner":  "green",              # antes magenta: la actividad tambien en verde
-        "pensar":   "green",
-        "tool_verbo": "cyan",
-        "tool_obj": "bold bright_white",
-        "escrito":  "green",
-        "borrado":  "red",
-        "intencion": "italic dim white",
-        "warn_cl":  "yellow",
-        "err_cl":   "red",
-    }),
-    "claro": Theme({
-        "ok":       "bold green",
-        "ok_cl":    "dark_green",
-        "mod":      "bold blue",
-        "detail":   "grey30",
-        "info_dim": "grey50",
-        "footer":   "grey50",
-        "spinner":  "dark_green",         # antes dark_magenta
-        "pensar":   "dark_green",
-        "tool_verbo": "blue",
-        "tool_obj": "bold black",
-        "escrito":  "dark_green",
-        "borrado":  "red",
-        "intencion": "italic grey30",
-        "warn_cl":  "dark_orange",
-        "err_cl":   "red",
-    }),
-    "alto_contraste": Theme({
-        "ok":       "bold white",
-        "ok_cl":    "bold bright_green",
-        "mod":      "bold bright_white",
-        "detail":   "white",
-        "info_dim": "grey74",
-        "footer":   "grey74",
-        "spinner":  "bright_green",       # antes bright_white
-        "pensar":   "bright_green",
-        "tool_verbo": "bright_cyan",
-        "tool_obj": "bold bright_white",
-        "escrito":  "bright_green",
-        "borrado":  "bright_red",
-        "intencion": "italic grey74",
-        "warn_cl":  "bright_yellow",
-        "err_cl":   "bright_red",
-    }),
-}
+# Los tres temas del CLI se DERIVAN de cognia/ux/paleta.py (2026-08-17), la
+# unica fuente de verdad del color de Cognia: ahi viven la rampa del verde de
+# identidad, los semanticos y el mapa token->rol que comparten las tres
+# variantes. Antes los hex y los nombres de color estaban hardcodeados aca, en
+# el marco del prompt (mas abajo) y otra vez en cognia/tui/theme.py, que se
+# habia ido al violeta: al abrir la TUI parecia otra aplicacion.
+# Las tres variantes (oscuro / claro / alto_contraste) siguen existiendo y
+# siendo distinguibles; lo que se fue es la duplicacion de los literales.
+_THEMES = {nombre: Theme(paleta.tema_cli(nombre))
+           for nombre in paleta.ORDEN_VARIANTES}
 _THEME_ORDER = list(_THEMES)
 
 # Persisted look: theme + accent come from ~/.cognia/config.env (loaded into
 # os.environ by apply_config() before the CLI imports). Accent colors Cognia's
 # actual responses; the theme styles everything else. Both survive restarts.
-_DEFAULT_ACCENT = "cyan"
+# DECISION 17 del dueno (2026-08-17): el default deja de ser 'cyan' y pasa a
+# ser el TOKEN 'respuesta' del tema, que cada variante resuelve a texto normal
+# (ver paleta.ACENTO_DEFECTO). Consecuencias buscadas: la respuesta del modelo
+# ya no compite con la interfaz, y /tema alto_contraste POR FIN la sube (antes
+# el acento vivia fuera del tema y era el unico bloque que no cambiaba).
+# Lo que NO cambia: COGNIA_ACCENT se lee primero, asi que quien ya tenga cyan
+# (o cualquier otro) guardado en ~/.cognia/config.env lo conserva intacto.
+_DEFAULT_ACCENT = paleta.ACENTO_DEFECTO
 _ACCENT      = os.environ.get("COGNIA_ACCENT", "").strip() or _DEFAULT_ACCENT
 _saved_theme = os.environ.get("COGNIA_THEME", "").strip()
 _theme_idx   = _THEME_ORDER.index(_saved_theme) if _saved_theme in _THEMES else 0
 _console     = Console(theme=_THEMES[_THEME_ORDER[_theme_idx]], highlight=False) if _HAS_RICH else None
 
 # ---------------------------------------------------------------------------
+# Marco del prompt (2026-08-17, pedido del dueno)
+# ---------------------------------------------------------------------------
+# Donde se ESCRIBE va encuadrado en verde: una regla arriba, 'cognia➤' en el
+# medio, otra regla abajo (primera linea del bottom_toolbar) y la barra de
+# estado colgando debajo. Antes el prompt era una linea suelta amarilla que se
+# confundia con el scrollback de la conversacion; con el marco la zona de
+# entrada se ve SIEMPRE, sin buscarla.
+#
+# Estan a nivel de modulo (y no dentro de repl()) para que el render se pueda
+# VERIFICAR de verdad: el test arma una PromptSession con estas tres piezas
+# sobre un pipe y lee los ANSI que salen. Metidas adentro de repl() solo se
+# podria testear una copia, que es exactamente como se cuela una regresion.
+# Los tres tonos salen de la rampa de cognia/ux/paleta.py: el mismo verde que
+# hereda la TUI.
+#
+# POR QUE YA NO SON CONSTANTES (2026-08-17, bloqueante del juicio visual). Eran
+# tres hex resueltos AL IMPORTAR contra la rampa oscura, y prompt_toolkit no
+# pasa por el tema de rich: con '/tema claro' puesto, el marco media 1,96:1
+# sobre #fbfbfa, el 'cognia➤' 1,53 y lo que el dueno ESCRIBE 1,19 -- o sea el
+# tema claro no era un tema, era la misma pantalla con el prompt borrado. Ahora
+# el estilo se construye contra la rampa de la variante ACTIVA y /tema lo
+# reconstruye en caliente (ver _slash_tema).
+_MENU = paleta.MENU_PROMPT
+
+# La flecha y la regla caen a ASCII si la consola no las sabe codificar (cp1252
+# en una consola vieja escupiria UnicodeEncodeError en cada turno).
+_FLECHA = "➤ "
+_REGLA  = "─"
+try:
+    (_FLECHA + _REGLA).encode(getattr(sys.stdout, "encoding", None) or "utf-8")
+except Exception:
+    _FLECHA, _REGLA = "> ", "-"
+
+
+def _ancho_marco() -> int:
+    """Ancho de las reglas del marco, en celdas.
+
+    columns-1 a proposito: una linea de EXACTAMENTE `columns` celdas hace
+    envolver al terminal y regala una fila en blanco bajo el prompt."""
+    try:
+        w = int(shutil.get_terminal_size().columns)
+    except Exception:
+        w = 80
+    return max(8, w - 1)
+
+
+def _estilo_prompt(variante: str = ""):
+    """El Style de prompt_toolkit: marco verde, prompt verde, texto verde.
+
+    `variante` vacia = la del tema activo. Se pasa explicita solo para poder
+    medir/renderizar una variante concreta sin tocar el estado global."""
+    verde = paleta.rampa(variante or _variante_actual())
+    return PTStyle.from_dict({
+        "":                                        f"{verde['texto']} bold",
+        "marco":                                   verde["marco"],
+        "cognia":                                  f"{verde['prompt']} bold",
+        "flecha":                                  f"{verde['texto']} bold",
+        # Sin 'noreverse' prompt_toolkit pinta el pie en video inverso (barra
+        # clara) y el marco verde se cortaria justo ahi.
+        "bottom-toolbar":                          f"noreverse bg:default {verde['marco']}",
+        "bottom-toolbar.text":                     f"noreverse bg:default {verde['marco']}",
+        "estado":                                  f"noreverse bg:default {verde['estado']}",
+        # El menu flotante NO es verde a proposito (ver paleta.MENU_PROMPT):
+        # con el mismo tono se perderia el borde entre lo que escribo y lo que
+        # el completador me ofrece encima.
+        "completion-menu.completion":              f"bg:{_MENU['fondo']} fg:{_MENU['texto']}",
+        "completion-menu.completion.current":      f"bg:{_MENU['fondo_activo']} fg:{_MENU['texto_activo']}",
+        "completion-menu.meta.completion":         f"bg:{_MENU['fondo']} fg:{_MENU['meta']}",
+        "completion-menu.meta.completion.current": f"bg:{_MENU['fondo_activo']} fg:{_MENU['meta_activo']}",
+        "scrollbar.background":                    f"bg:{_MENU['scrollbar_fondo']}",
+        "scrollbar.button":                        f"bg:{_MENU['scrollbar_boton']}",
+    })
+
+
+def _mensaje_prompt():
+    """Regla superior + 'cognia➤'. prompt_toolkit reevalua el callable en cada
+    redibujado, asi que el marco se reajusta solo al cambiar el ancho."""
+    return FormattedText([
+        ("class:marco", _REGLA * _ancho_marco() + "\n"),
+        ("class:cognia", " cognia"),
+        ("class:flecha", _FLECHA),
+    ])
+
+
+def _pie_prompt(barra=None):
+    """Devuelve el bottom_toolbar: la regla que CIERRA el marco y, debajo, la
+    barra de estado que produzca `barra` (callable opcional).
+
+    La regla se dibuja aunque la barra falte o lance: el marco no puede
+    depender de un adorno opcional."""
+    def _toolbar():
+        partes = [("class:marco", _REGLA * _ancho_marco())]
+        try:
+            linea = barra() if callable(barra) else ""
+        except Exception:
+            linea = ""
+        if linea:
+            partes.append(("class:estado", "\n" + str(linea)))
+        return FormattedText(partes)
+    return _toolbar
+
+
+# ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
 _session_log      = []
 _session_start    = 0.0
+# La PromptSession viva del REPL. La necesita _reestilar_prompt(): el marco no
+# pasa por rich, asi que /tema tiene que repintarlo a mano.
+_sesion_prompt    = None
 _init_lines       = []
 _debug_mode       = False
 _fast_mode        = False
@@ -1302,14 +1414,18 @@ def _to_str(result):
 
 
 def _cmd_color(raw):
+    """Estilo del CUERPO de la salida de un comando, como TOKEN del tema.
+
+    Antes devolvia colores crudos por familia de comando (bright_green /
+    magenta / yellow / cyan): la salida de /investigar salia verde pasto, la
+    de /explicar magenta, y ninguno de los cuatro obedecia a /tema. Decision 17
+    del dueno: el cuerpo de una respuesta va en texto NORMAL y el color queda
+    para la interfaz. Lo unico que conserva color es lo que ES un estado
+    (los comandos destructivos siguen avisando en ambar)."""
     cmd = raw.lstrip("/").split()[0] if raw else ""
-    if cmd in {"aprender", "corregir", "hecho", "indice_add", "dormir", "investigar", "razonar", "crear", "encolar"}:
-        return "bright_green"
-    if cmd in {"hipotesis", "explicar", "narrativa", "inferir"}:
-        return "magenta"
     if cmd in {"olvido", "bloquear", "desbloquear", "escalar"}:
-        return "yellow"
-    return "cyan"
+        return "warn_cl"
+    return "respuesta"
 
 
 def _print_line(text):
@@ -1328,7 +1444,22 @@ def _print_line(text):
         print(_strip_markup(text))
 
 
-def _show_response(text, color="cyan", respuesta_final=False):
+def _estilo_tema(nombre, respaldo="none"):
+    """El token del tema si ESTA consola lo conoce; si no, sin estilo.
+
+    Los tokens ('listado', 'borde', 'titulo') solo existen en la Console que
+    lleva el Theme del CLI: una Console pelada -- un test, un embebedor, un
+    script -- levanta MissingStyle y tumba el turno entero por un adorno. Es el
+    mismo criterio de cognia.ux.estilo.estilo_seguro, que ya cubria el camino
+    sin panel; esto lo extiende a los Panel(), que pasaban el color directo."""
+    try:
+        from cognia.ux.estilo import estilo_seguro
+        return estilo_seguro(_console, nombre) or respaldo
+    except Exception:
+        return respaldo
+
+
+def _show_response(text, color="respuesta", respuesta_final=False):
     """Muestra una respuesta. `respuesta_final=True` = ESTO es lo que el
     usuario pidio (el cierre del agente), no chrome.
 
@@ -1354,7 +1485,10 @@ def _show_response(text, color="cyan", respuesta_final=False):
         # mandaria el chrome al chat del movil (regresion cazada por
         # test_remoto_respuesta_visible en la suite del 2026-08-02).
         if os.environ.get("COGNIA_REMOTO", "").strip() == "1":
-            _console.print(Panel(_escape(text.strip()), border_style=color, padding=(0, 1)))
+            _console.print(Panel(_escape(text.strip()),
+                                 border_style=_estilo_tema("borde"),
+                                 style=_estilo_tema(color),
+                                 padding=(0, 1)))
             return
         # Estilo conversacional (2026-08-02), solo terminal: la respuesta va
         # SIN panel — aire arriba, sangria de 2, ancho comodo, aire abajo. El
@@ -1377,7 +1511,10 @@ def _show_response(text, color="cyan", respuesta_final=False):
             from cognia.ux.estilo import respuesta as _respuesta_estilo
             _respuesta_estilo(text, console=_console, color=color)
         except Exception:
-            _console.print(Panel(_escape(text.strip()), border_style=color, padding=(0, 1)))
+            _console.print(Panel(_escape(text.strip()),
+                                 border_style=_estilo_tema("borde"),
+                                 style=_estilo_tema(color),
+                                 padding=(0, 1)))
     else:
         print(f"\n{text}\n")
 
@@ -1537,7 +1674,7 @@ def _print_startup_panel():
                 _estilo_ok = False
             if _HAS_RICH and _console:
                 _console.print(_escape(_linea),
-                               style="dim cyan" if _estilo_ok else "warn_cl",
+                               style="info_dim" if _estilo_ok else "warn_cl",
                                highlight=False)
             else:
                 print(_linea)
@@ -1570,20 +1707,20 @@ def _print_startup_panel():
 
     _cwd = os.getcwd()
     if _HAS_RICH and _console:
-        _console.print(f"[bright_green]cognia[/bright_green] "
-                       f"[dim]v{_ver} · sistema cognitivo local[/dim]",
+        _console.print(f"[marca]cognia[/marca] "
+                       f"[marca_dim]v{_ver} · sistema cognitivo local[/marca_dim]",
                        highlight=False)
         if _modelo_txt:
-            _console.print(f"  [dim]modelo[/dim] [cyan]{_escape(_modelo_txt)}[/cyan]",
+            _console.print(f"  [info_dim]modelo[/info_dim] [mod]{_escape(_modelo_txt)}[/mod]",
                            highlight=False)
         else:
             _console.print(f"  [warn_cl]{_escape(_modelo_warn)}[/warn_cl]",
                            highlight=False)
-        _console.print(f"  [dim]cwd[/dim]    {_escape(_cwd)}", highlight=False)
-        _console.print(f"  [dim]/ayuda para comandos · /hacer <tarea> "
-                       f"para el agente[/dim]", highlight=False)
+        _console.print(f"  [info_dim]cwd[/info_dim]    {_escape(_cwd)}", highlight=False)
+        _console.print(f"  [info_dim]/ayuda para comandos · /hacer <tarea> "
+                       f"para el agente[/info_dim]", highlight=False)
     else:
-        print(f"{_G}cognia{_R} v{_ver} · sistema cognitivo local")
+        print(f"{_g()}cognia{_R} v{_ver} · sistema cognitivo local")
         print(f"  modelo {_modelo_txt or _modelo_warn}")
         print(f"  cwd    {_cwd}")
         print("  /ayuda para comandos · /hacer <tarea> para el agente")
@@ -1591,10 +1728,16 @@ def _print_startup_panel():
 
 def _print_banner_completo():
     if not _HAS_RICH or not _console:
-        print(_G + _BANNER_RAW + _R)
+        print(_g() + _BANNER_RAW + _R)
         return
 
-    # Dark green (#003300) -> matrix green (#00FF41), interpolated per non-empty line
+    # Gradiente de la paleta ('profundo' -> 'matrix' de la variante ACTIVA),
+    # interpolado por linea no vacia. En los dos temas oscuros va de oscuro a
+    # brillante (decision 18: el gato visible desde la primera fila); en 'claro'
+    # va de claro a oscuro, que es el mismo efecto leido sobre blanco. Antes el
+    # degradado era el de la rampa oscura en las tres variantes y el logotipo
+    # COGNIA cerraba en el verde 'matrix': 1,32:1 sobre #fbfbfa, o sea que la
+    # marca era lo MENOS visible de la pantalla en el tema claro.
     banner_lines = _BANNER_RAW.split("\n")
     # El arte se AJUSTA a la altura real (variante 'medio' = mitad superior del
     # gato). No se esconde: se hace caber, que es distinto. Sin harness o ante
@@ -1615,16 +1758,12 @@ def _print_banner_completo():
     except Exception:
         pass
     non_empty = [l for l in banner_lines if l.strip()]
-    total = max(1, len(non_empty) - 1)
+    tonos = paleta.gradiente_banner(len(non_empty), _variante_actual())
     left_text = Text(no_wrap=False)
     colored_idx = 0
     for line in banner_lines:
         if line.strip():
-            t = colored_idx / total
-            g_val = int(0x33 + t * (0xFF - 0x33))
-            b_val = int(t * 0x41)
-            style = f"#00{g_val:02x}{b_val:02x}"
-            left_text.append(line + "\n", style=style)
+            left_text.append(line + "\n", style=tonos[colored_idx])
             colored_idx += 1
         else:
             left_text.append("\n")
@@ -1633,20 +1772,26 @@ def _print_banner_completo():
     _r = right_text.append
     # Comandos de arranque: un set curado y ACTUAL (antes listaba comandos
     # viejos y omitia /modelo, /hacer, /crear). El catalogo completo: /ayuda.
-    _r("Para empezar\n",                "bold bright_green")
-    _r("─" * 34 + "\n",                "dim bright_green")
-    _r("  chat        ", "bold cyan"); _r("escribe y conversa\n",      "dim white")
-    _r("  /hacer      ", "bold cyan"); _r("<tarea> agente autonomo\n", "dim white")
-    _r("  /crear      ", "bold cyan"); _r("<idea> genera un programa\n","dim white")
-    _r("  /modelo     ", "bold cyan"); _r("elegir modelo o flota\n",   "dim white")
-    _r("  /memoria    ", "bold cyan"); _r("estado de memoria\n",       "dim white")
-    _r("  /grafo      ", "bold cyan"); _r("<concepto> del saber\n",    "dim white")
-    _r("  /tutor      ", "bold cyan"); _r("aprende cualquier tema\n",  "dim white")
-    _r("  /doctor     ", "bold cyan"); _r("diagnostico del sistema\n", "dim white")
+    # TOKENS del tema, no literales. 'bold cyan' y 'dim white' eran los dos
+    # ultimos estilos a mano del banner y no obedecian a /tema: en 'claro' la
+    # columna de la derecha quedaba en gris clarito sobre blanco (medido en la
+    # captura, ~2:1) mientras el resto del banner ya se leia. 'mod' resuelve a
+    # 'bold cyan' en oscuro (identico a antes) y a 'bold blue' en claro;
+    # 'detail' a 'dim white' en oscuro y a grey30 (8,04:1) en claro.
+    _r("Para empezar\n",                "marca_fuerte")
+    _r("─" * 34 + "\n",                "marca_dim")
+    _r("  chat        ", "mod"); _r("escribe y conversa\n",      "detail")
+    _r("  /hacer      ", "mod"); _r("<tarea> agente autonomo\n", "detail")
+    _r("  /crear      ", "mod"); _r("<idea> genera un programa\n","detail")
+    _r("  /modelo     ", "mod"); _r("elegir modelo o flota\n",   "detail")
+    _r("  /memoria    ", "mod"); _r("estado de memoria\n",       "detail")
+    _r("  /grafo      ", "mod"); _r("<concepto> del saber\n",    "detail")
+    _r("  /tutor      ", "mod"); _r("aprende cualquier tema\n",  "detail")
+    _r("  /doctor     ", "mod"); _r("diagnostico del sistema\n", "detail")
     _r("\n", "")
-    _r("  Tab ", "bright_green");   _r("completar   ", "dim")
-    _r("↑↓ ", "bright_green"); _r("historial   ", "dim")
-    _r("/ayuda ", "bold bright_green"); _r("todo\n", "dim")
+    _r("  Tab ", "marca");   _r("completar   ", "info_dim")
+    _r("↑↓ ", "marca"); _r("historial   ", "info_dim")
+    _r("/ayuda ", "marca_fuerte"); _r("todo\n", "info_dim")
 
     try:
         from cognia import __version__ as _ver
@@ -1670,9 +1815,12 @@ def _print_banner_completo():
 
     _console.print(Panel(
         cuerpo,
-        title=f"[bright_green]COGNIA[/bright_green] [dim bright_green]v{_ver}[/dim bright_green]",
-        subtitle="[dim bright_green]sistema cognitivo local[/dim bright_green]",
-        border_style="bright_green",
+        # Tokens del tema, no literales: hasta 2026-08-17 el borde y el titulo
+        # eran 'bright_green' a mano y el banner salia verde pasto TAMBIEN con
+        # /tema claro (sobre fondo blanco, 2,4:1). Ahora /tema los cambia.
+        title=f"[marca_fuerte]COGNIA[/marca_fuerte] [marca_dim]v{_ver}[/marca_dim]",
+        subtitle="[marca_dim]sistema cognitivo local[/marca_dim]",
+        border_style="marca",
         padding=(0, 1),
     ))
     # La linea de estado que vivia aqui (modelo por LLAMA_GGUF_PATH) MENTIA:
@@ -1723,10 +1871,18 @@ def _strip_code_fences(text: str) -> str:
     return text
 
 
-_ANSI_GREEN = "\033[92m"
-_ANSI_RED   = "\033[91m"
+# Diff PLANO (camino sin rich: print_fn ajeno, remoto :8777). Los escapes se
+# derivan de la paleta por el mismo motivo que _g(): '\033[92m' era verde pasto
+# y '\033[91m' el rojo de la terminal, dos colores que no eran de nadie.
+# El diff RICO (cognia/console/diff_render.py) va por otro lado.
+_ANSI_RED   = _ansi_24bit(paleta.SEMANTICO["error"])
 _ANSI_DIM   = "\033[2m"
 _ANSI_RESET = "\033[0m"
+
+
+def _ansi_verde() -> str:
+    """El verde de las lineas '+' del diff plano, en la variante ACTIVA."""
+    return _ansi_24bit(_rampa()["marco"])
 
 
 def _show_file_diff(old_text: str, new_text: str, label: str, print_fn=None) -> None:
@@ -1777,7 +1933,7 @@ def _show_file_diff(old_text: str, new_text: str, label: str, print_fn=None) -> 
             if _HAS_RICH:
                 _pf(f"[ok]+ {_esc(dl_s[1:])}[/ok]")
             else:
-                _pf(f"{_ANSI_GREEN}+ {dl_s[1:]}{_ANSI_RESET}")
+                _pf(f"{_ansi_verde()}+ {dl_s[1:]}{_ANSI_RESET}")
         elif dl_s.startswith("-"):
             if _HAS_RICH:
                 _pf(f"[err_cl]- {_esc(dl_s[1:])}[/err_cl]")
@@ -1796,7 +1952,7 @@ def _slash_limpiar():
         _print_startup_panel()
     else:
         os.system("cls" if sys.platform == "win32" else "clear")
-        print(_G + _BANNER_RAW + _R)
+        print(_g() + _BANNER_RAW + _R)
 
 
 def _slash_compactar():
@@ -1811,8 +1967,8 @@ def _slash_compactar():
                 rows.append(f"[mod]{inp}[/mod]\n[detail]{out}[/detail]")
             _console.print(Panel(
                 "\n\n".join(rows),
-                title="[cyan]Ultimas interacciones[/cyan]",
-                border_style="cyan",
+                title="[titulo]Ultimas interacciones[/titulo]",
+                border_style="borde",
                 padding=(0, 1),
             ))
         else:
@@ -1829,8 +1985,8 @@ def _slash_modulos():
     if _HAS_RICH and _console:
         _console.print(Panel(
             _escape("\n".join(ok_lines)),
-            title="[cyan]Modulos activos[/cyan]",
-            border_style="cyan",
+            title="[titulo]Modulos activos[/titulo]",
+            border_style="borde",
             padding=(0, 1),
         ))
     else:
@@ -1900,7 +2056,7 @@ def _slash_exportar_stats() -> None:
             f"  Primer mensaje: {first_ts}",
             f"  Ultimo mensaje: {last_ts}",
         ]
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         print(f"Error al obtener estadisticas: {e}")
 
@@ -1915,8 +2071,8 @@ def _slash_costo():
         f"Modelo         Cognia v3.2 (local)"
     )
     if _HAS_RICH and _console:
-        _console.print(Panel(content, title="[cyan]Costo de sesion[/cyan]",
-                             border_style="cyan", padding=(0, 1)))
+        _console.print(Panel(content, title="[titulo]Costo de sesion[/titulo]",
+                             border_style="borde", padding=(0, 1)))
     else:
         print(content)
 
@@ -1934,8 +2090,8 @@ def _slash_stats() -> None:
         f"  Duracion         : {elapsed_min} min"
     )
     if _HAS_RICH and _console:
-        _console.print(Panel(content, title="[cyan]Stats de sesion[/cyan]",
-                             border_style="cyan", padding=(0, 1)))
+        _console.print(Panel(content, title="[titulo]Stats de sesion[/titulo]",
+                             border_style="borde", padding=(0, 1)))
     else:
         print(content)
 
@@ -2462,6 +2618,12 @@ def _slash_debug():
         poner_nivel_consola("INFO" if _debug_mode else "WARNING")
     except Exception:
         pass
+    # /debug tambien enciende la linea "backend: <modelo> :8080 via chat"
+    # (2026-08-17): esa linea salia SIEMPRE, hasta dos veces por turno, pegada
+    # encima de la respuesta. Ahora es opt-in y este es su interruptor en vivo;
+    # backend_activo._silencioso() lee COGNIA_DEBUG. COGNIA_BACKEND_LOG puesto
+    # a mano sigue mandando sobre esto.
+    os.environ["COGNIA_DEBUG"] = "1" if _debug_mode else "0"
     _print_line(f"[detail]debug {'activado' if _debug_mode else 'desactivado'}[/detail]")
 
 
@@ -2673,7 +2835,7 @@ def _slash_metas() -> None:
         lines = ["Metas activas:"]
         for g in goals:
             lines.append(f"  [{g['id']}] {g['title']} -- {g['progress_pct']}% ({g['status']})")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al listar metas: {e}[/err_cl]")
 
@@ -2805,7 +2967,7 @@ def _slash_metas_alta(args: str) -> None:
         lines = ["Metas de alta prioridad:"]
         for g in alta:
             lines.append(f"  [{g['id']}] {g['title']} -- {g['progress_pct']}% ({g['status']})")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al listar metas alta prioridad: {e}[/err_cl]")
 
@@ -2826,7 +2988,7 @@ def _slash_meta_prioridad_ver(args: str) -> None:
             lines.append(f"  [{g['id']}] {g['title']} -- {nivel}")
         if len(lines) == 1:
             lines.append("  Sin metas activas.")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al mostrar prioridades: {e}[/err_cl]")
 
@@ -2855,7 +3017,7 @@ def _slash_metas_ordenar(args: str) -> None:
             lines.append(f"  {tag} [{g['id']}] {g['title']} -- {g['progress_pct']}%")
         if len(lines) == 1:
             lines.append("  Sin metas activas.")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al ordenar metas: {e}[/err_cl]")
 
@@ -2880,7 +3042,7 @@ def _slash_notif(args: str) -> None:
         for i, n in enumerate(items, 1):
             body_part = f" -- {n['body']}" if n.get("body") else ""
             lines.append(f"  [{i}] [{n['level']}] {n['title']}{body_part}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al listar notificaciones: {e}[/err_cl]")
 
@@ -2902,7 +3064,7 @@ def _slash_notif_todas(args: str) -> None:
             read_tag = " [leida]" if n.get("read") else ""
             body_part = f" -- {n['body']}" if n.get("body") else ""
             lines.append(f"  [{i}] [{n['level']}]{read_tag} {n['title']}{body_part}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al listar notificaciones: {e}[/err_cl]")
 
@@ -3184,7 +3346,7 @@ def _slash_recordatorios(args: str) -> None:
             else:
                 time_label = f"en {total_min} min"
             lines.append(f"  [{r['id']}] {r['title']} -- {time_label} (a las {fire_str})")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al listar recordatorios: {e}[/err_cl]")
 
@@ -3553,11 +3715,11 @@ def _slash_ayuda_detallada(args: str) -> None:
         cmd = "/" + cmd
     detail = _CMD_DETAILS.get(cmd)
     if detail:
-        _show_response(f"{cmd}\n\n{detail}", "cyan")
+        _show_response(f"{cmd}\n\n{detail}", "listado")
         return
     short = _CMD_DESCRIPTIONS.get(cmd)
     if short:
-        _show_response(f"Descripcion: {short}", "cyan")
+        _show_response(f"Descripcion: {short}", "listado")
         return
     print("Comando no encontrado. Usa /help para ver todos los comandos.")
 
@@ -3719,7 +3881,7 @@ def _slash_skills():
         lines.append(f"  [{tag}] {name:<22} {s.description[:60]}")
     if _HAS_RICH and _console:
         from rich.markup import escape as _esc
-        _console.print(f"[cyan]Skills disponibles ({len(skills)}) -- usa /skill <nombre> [tarea]:[/cyan]")
+        _console.print(f"[titulo]Skills disponibles ({len(skills)}) -- usa /skill <nombre> [tarea]:[/titulo]")
         for ln in lines:
             _console.print(f"[detail]{_esc(ln)}[/detail]")
     else:
@@ -3807,7 +3969,7 @@ def _slash_skill_cargar(ai, nombre: str, args: str):
         return
     _, body = _parse_frontmatter(text)
     prompt = body.replace("{input}", args)
-    _run(f"/skill-cargar {nombre}", lambda: _call_articulated(ai, prompt), color="magenta")
+    _run(f"/skill-cargar {nombre}", lambda: _call_articulated(ai, prompt), color=_ACCENT)
 
 
 def _call_articulated(ai, prompt: str) -> str:
@@ -4474,7 +4636,7 @@ def _slash_modelo(ai, args: str) -> None:
             marca = "*" if Path(ruta).name in activo else " "
             lines.append(f"  {marca} {tam}  {k}")
         lines.append("Uso: /modelo <clave-o-substring>  -- ej: /modelo gpt-oss")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
         return
 
     candidatas = match_gguf_key(key, registro)
@@ -4613,7 +4775,7 @@ def _slash_templates(args: str) -> None:
             lines.append(f"  [{t['id']}] {t['name']} -- {t['description']} (~{est} turnos)")
         if custom_tpls:
             lines.append(f"  + {len(custom_tpls)} templates custom")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al listar templates: {e}[/err_cl]")
 
@@ -4646,7 +4808,7 @@ def _slash_template(args: str) -> None:
             lines.append(f"  {i}. {q}")
         lines.append("")
         lines.append("(escribe tu primera respuesta)")
-        _show_response("\n".join(lines), "bright_cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al cargar template: {e}[/err_cl]")
 
@@ -4671,7 +4833,7 @@ def _slash_template_guia(args: str) -> None:
         lines = [f"Preguntas guia -- {tpl['name']}:"]
         for i, q in enumerate(tpl["guide_questions"], 1):
             lines.append(f"  {i}. {q}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al cargar guia: {e}[/err_cl]")
 
@@ -4710,7 +4872,7 @@ def _slash_buscar_web(args: str) -> None:
                 lines.append(f"  - {t}")
         if not answer and not abstract and not topics:
             lines.append("(Sin resultados)")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]buscar-web error: {e}[/err_cl]")
 
@@ -4736,7 +4898,7 @@ def _slash_buscar_kg(args: str) -> None:
         lines = [f"Hechos sobre '{concepto}':"]
         for f in facts:
             lines.append(f"  - {f['subject']} {f['predicate']} {f['object']}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]buscar-kg error: {e}[/err_cl]")
 
@@ -4796,7 +4958,7 @@ def _slash_kg_stats(args: str) -> None:
             f"  Conceptos unicos: {conceptos}",
             f"  Predicados unicos: {predicados}",
         ]
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]kg-stats error: {e}[/err_cl]")
 
@@ -4821,7 +4983,7 @@ def _slash_kg_predicados(args: str) -> None:
         lines = ["Predicados en el KG:"]
         for (pred,) in rows:
             lines.append(f"  - {pred}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]kg-predicados error: {e}[/err_cl]")
 
@@ -4878,7 +5040,7 @@ def _slash_kg_inferir(args: str) -> None:
         lines.append(f"Hechos heredados ({len(result['inherited_facts'])}):")
         for f in result["inherited_facts"]:
             lines.append(f"  - {f['subject']} {f['predicate']} {f['object']}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]kg-inferir error: {e}[/err_cl]")
 
@@ -4906,7 +5068,7 @@ def _slash_kg_relacionar(args: str) -> None:
         ]
         if result["common_ancestors"]:
             lines.append(f"Ancestros comunes: {result['common_ancestors']}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]kg-relacionar error: {e}[/err_cl]")
 
@@ -4931,7 +5093,7 @@ def _slash_kg_responder(args: str) -> None:
             result["answer_text"],
             f"Entidades encontradas: {', '.join(result['entities_found']) if result['entities_found'] else '(ninguna)'}",
         ]
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]kg-responder error: {e}[/err_cl]")
 
@@ -4953,7 +5115,7 @@ def _slash_kg_camino(args: str) -> None:
         engine = MultiHopEngine()
         path = engine.find_path(concept_a, concept_b)
         if not path:
-            _show_response(f"(Sin camino entre {concept_a} y {concept_b})", "cyan")
+            _show_response(f"(Sin camino entre {concept_a} y {concept_b})", "listado")
             return
         chain_parts = []
         for subj, pred, obj in path:
@@ -4963,7 +5125,7 @@ def _slash_kg_camino(args: str) -> None:
             f"Camino de '{concept_a}' a '{concept_b}':",
             " ".join(chain_parts),
         ]
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]kg-camino error: {e}[/err_cl]")
 
@@ -5002,7 +5164,7 @@ def _slash_reporte_json() -> None:
             f"- Sesiones: {stats.get('sessions_total', 0)}",
             f"- Insights de curiosidad: {stats.get('insights_count', 0)}",
         ]
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al obtener estadisticas: {e}[/err_cl]")
 
@@ -5113,7 +5275,7 @@ def _slash_yo_perfil() -> None:
             lines.append("Top temas de interes: (ninguno aun)")
         lines.append(f"Patrones de consulta: {', '.join(patterns) if patterns else '(ninguno)'}")
         lines.append(f"Idioma dominante: {lang}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as e:
         _print_line(f"[err_cl]Error al obtener perfil: {e}[/err_cl]")
 
@@ -5164,11 +5326,7 @@ def _slash_tema(arg: str = ""):
         # un menu). REGLA: no hay Live/status activo aca (comando directo).
         from cognia.ux import selector as _selector
         if _selector.hay_tty():
-            _descr = {
-                "oscuro": "colores vivos sobre fondo oscuro (default)",
-                "claro": "paleta sobria para terminal con fondo claro",
-                "alto_contraste": "blanco brillante, maxima legibilidad",
-            }
+            _descr = paleta.DESCRIPCION_VARIANTES
             _sel = _selector.elegir(
                 "Tema del CLI:",
                 [(n, n, _descr.get(n, "")) for n in _THEME_ORDER],
@@ -5181,10 +5339,28 @@ def _slash_tema(arg: str = ""):
     name = _THEME_ORDER[_theme_idx]
     if _HAS_RICH:
         _console = Console(theme=_THEMES[name], highlight=False)
-        _console.rule(f"[dim]Tema: {name} (guardado)[/dim]")
+        _console.rule(f"[info_dim]Tema: {name} (guardado)[/info_dim]")
     else:
         print(f"Tema: {name} (Rich no disponible)")
+    _reestilar_prompt()
     _persist_setting("COGNIA_THEME", name)
+
+
+def _reestilar_prompt() -> None:
+    """Repinta el marco del prompt con la rampa de la variante recien elegida.
+
+    El Style de prompt_toolkit se construye UNA vez al armar la PromptSession
+    (en repl()), asi que sin esto '/tema claro' cambiaba todo lo que pasa por
+    rich y dejaba el marco, el 'cognia➤' y el texto que se escribe en la lima
+    del tema oscuro: 1,96 / 1,53 / 1,19:1 sobre blanco. PromptSession.style es
+    reasignable y la Application la lee por DynamicStyle en cada redibujado,
+    asi que el cambio se ve en el turno siguiente sin reiniciar nada."""
+    if _sesion_prompt is None:
+        return
+    try:
+        _sesion_prompt.style = _estilo_prompt()
+    except Exception:
+        pass  # el tema ya cambio en rich; el marco no puede tumbar el REPL
 
 
 def _slash_color(arg: str = ""):
@@ -5193,10 +5369,16 @@ def _slash_color(arg: str = ""):
     color = (arg or "").strip()
     if not color:
         _print_line(f"[detail]Color de acento actual: {_ACCENT}. "
-                    "Uso: /color <nombre|#hex> (ej: cyan, magenta, green, #ff8800)[/detail]")
+                    "Uso: /color <nombre|#hex> (ej: normal, cyan, magenta, "
+                    "green, #ff8800)[/detail]")
         return
+    # 'normal' vuelve al defecto de la decision 17 (texto de la terminal). Es
+    # un TOKEN del tema, no un color: Style.parse no lo sabe leer, asi que la
+    # validacion de abajo se saltea para los tokens conocidos.
+    if color.lower() in {"normal", "texto", "defecto", "default"}:
+        color = _DEFAULT_ACCENT
     # Validate via rich.Style; reject anything rich can't parse so we never break output.
-    if _HAS_RICH:
+    if _HAS_RICH and color not in paleta.TOKENS_CLI:
         try:
             from rich.style import Style as _RStyle
             _RStyle.parse(color)
@@ -5375,7 +5557,7 @@ def _slash_sesiones(args: str) -> None:
         for sid, cwd, cnt, last_ts in rows:
             sid_short = str(sid)[:8] if sid else "?"
             lines.append(f"  [{sid_short}] {_fmt_ts(last_ts)}  {cnt:>3} msgs  {cwd or '?'}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as _e:
         _print_line(f"[err_cl]sesiones error: {_e}[/err_cl]")
 
@@ -5406,7 +5588,7 @@ def _slash_resume(args: str, ai) -> None:
             sid_short = (s["session_id"] or "?")[:8]
             lines.append(f"  [{sid_short}] {_fmt_ts(s['last_ts'])}  "
                          f"{s['count']:>3} msgs  {s['cwd'] or '?'}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
         return
 
     target_sid = None
@@ -5494,7 +5676,7 @@ def _slash_buscar_historial(args: str) -> None:
             sid_short = str(sid)[:8] if sid else "?"
             preview = content[:80].replace("\n", " ")
             lines.append(f"  [{sid_short}] {fecha} ({role}): {preview}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as _e:
         _print_line(f"[err_cl]buscar-historial error: {_e}[/err_cl]")
 
@@ -5529,7 +5711,7 @@ def _slash_sesion_ver(args: str) -> None:
             label = "User" if role == "user" else "Cognia"
             preview = content[:100].replace("\n", " ")
             lines.append(f"  [{label}]: {preview}")
-        _show_response("\n".join(lines), "cyan")
+        _show_response("\n".join(lines), "listado")
     except Exception as _e:
         _print_line(f"[err_cl]sesion-ver error: {_e}[/err_cl]")
 
@@ -6614,8 +6796,18 @@ def _slash_workflow(arg: str = ""):
     res = _wf.ejecutar(pasos, modo=modo, nombre="repl", print_fn=_print_line)
     if not res["ok"]:
         _print_line(f"[err_cl]{_escape(res['error'])}[/err_cl]")
+        # Lo YA PAGADO se muestra igual. El adaptador conserva el texto de los
+        # pasos que si salieron cuando el fallo llega despues (el critico que
+        # revienta tras 2 pasos OK): tirarlo aca dejaba al usuario sin nada y
+        # con los tokens gastados. Mismo argumento por el que el envelope
+        # conserva 'critica'.
+        if res.get("texto"):
+            _print_line(f"[warn_cl]lo que si se resolvio antes del fallo "
+                        f"({res.get('pasos', 0)} paso(s), "
+                        f"{res.get('tokens', 0)} tokens):[/warn_cl]")
+            _show_response(res["texto"], "listado")
         return
-    _show_response(res["texto"], "cyan")
+    _show_response(res["texto"], "listado")
     _print_line(f"[info_dim]corrida {res['run_id']} · {res['tokens']} tokens[/info_dim]")
 
 
@@ -6738,15 +6930,7 @@ def repl():
     session = None
     if _HAS_PT:
         try:
-            _pt_style = PTStyle.from_dict({
-                "":                                        "ansiyellow bold",
-                "completion-menu.completion":              "bg:#1c1c2e fg:#c8c8d8",
-                "completion-menu.completion.current":      "bg:#004466 fg:#ffffff",
-                "completion-menu.meta.completion":         "bg:#1c1c2e fg:#667788",
-                "completion-menu.meta.completion.current": "bg:#004466 fg:#aaccdd",
-                "scrollbar.background":                    "bg:#1c1c2e",
-                "scrollbar.button":                        "bg:#334455",
-            })
+            _pt_style = _estilo_prompt()
             _kb = KeyBindings()
 
             @_kb.add("tab")
@@ -6763,11 +6947,11 @@ def repl():
             # esto, nadie sabe cuanto contexto le queda hasta que se rompe.
             # prompt_toolkit llama a la funcion en cada redibujado, asi que la
             # barra se actualiza sola. Degrada a None ante cualquier fallo.
-            _toolbar = None
+            _barra = None
             try:
                 from cognia.harness.barra_estado import toolbar_prompt_toolkit
-                _toolbar = toolbar_prompt_toolkit(_datos_barra_estado,
-                                                  contexto_atajos="repl")
+                _barra = toolbar_prompt_toolkit(_datos_barra_estado,
+                                                contexto_atajos="repl")
             except Exception as _exc_barra:
                 # Antes: 'except Exception: _toolbar = None'. La barra es una
                 # capacidad VISIBLE: sin aviso, "todavia no la cablearon" y "se
@@ -6776,7 +6960,9 @@ def repl():
                 _aviso_degradado(
                     "cli.barra_estado",
                     f"{type(_exc_barra).__name__}: {_exc_barra}")
-                _toolbar = None
+                _barra = None
+
+            _toolbar = _pie_prompt(_barra)
 
             session = PromptSession(
                 bottom_toolbar=_toolbar,
@@ -6795,6 +6981,8 @@ def repl():
                 key_bindings=_kb,
                 style=_pt_style,
             )
+            # /tema repinta el marco sobre ESTA sesion (ver _reestilar_prompt).
+            globals()["_sesion_prompt"] = session
         except Exception as _exc_pt:
             # Sin consola Win32 (stdin piped, subprocess, CI): prompt_toolkit
             # muere con NoConsoleScreenBufferError al crear la PromptSession y
@@ -6816,16 +7004,17 @@ def repl():
                 return _inyectadas.pop(0)
             # Aire antes del prompt: cada turno respira (estilo 2026-08-02).
             print()
-            line = session.prompt("cognia> ").strip()
+            line = session.prompt(_mensaje_prompt).strip()
             while line.endswith("\\"):
-                continuation = session.prompt("  ").strip()
+                continuation = session.prompt(
+                    FormattedText([("class:flecha", "   ")])).strip()
                 line = line[:-1].rstrip() + " " + continuation
             return line
     else:
         def _get_input():
             if _inyectadas:
                 return _inyectadas.pop(0)
-            return input(_G + "cognia> " + _R).strip()
+            return input(_g() + "cognia> " + _R).strip()
 
     # Warm-up del 0.5B del fast-path en background (portero instalado o cascada
     # opt-in): el 1er turno trivial arranca warm (~30 tok/s) en vez de cold (~18).
@@ -6904,7 +7093,7 @@ def repl():
         elif raw == "/compactar":
             _slash_compactar()
         elif raw == "/memoria":
-            _run(raw, ai.introspect, color="cyan")
+            _run(raw, ai.introspect, color="listado")
         elif raw == "/modulos":
             _slash_modulos()
         elif raw == "/modelos" or raw.startswith("/modelos "):
@@ -7063,9 +7252,9 @@ def repl():
                 _texto_ayuda = None       # degrada al HELP_TEXT de emergencia
             _salida_ayuda = _texto_ayuda if _texto_ayuda is not None else HELP_TEXT
             if _HAS_RICH and _console:
-                _console.print(_salida_ayuda, style="bright_green", markup=False)
+                _console.print(_salida_ayuda, style="respuesta", markup=False)
             else:
-                print(_G + _salida_ayuda + _R)
+                print(_g() + _salida_ayuda + _R)
 
         # -- Reporte y perfil ----------------------------------------------
         elif raw == "/reporte":
@@ -7087,23 +7276,23 @@ def repl():
 
         # -- Cognitive: simple ---------------------------------------------
         elif raw == "/yo-introspect":
-            _run(raw, ai.introspect, color="cyan")
+            _run(raw, ai.introspect, color="listado")
         elif raw == "/conceptos":
-            _run(raw, ai.list_concepts, color="cyan")
+            _run(raw, ai.list_concepts, color="listado")
         elif raw == "/olvido":
-            _run(raw, ai.forget_cycle, color="yellow")
+            _run(raw, ai.forget_cycle, color="warn_cl")
         elif raw == "/dormir":
-            _run(raw, ai._sleep_sync, color="bright_green")
+            _run(raw, ai._sleep_sync, color="respuesta")
         elif raw == "/repasar":
-            _run(raw, ai.review_due, color="cyan")
+            _run(raw, ai.review_due, color="listado")
         elif raw == "/contradicciones":
-            _run(raw, ai.show_contradictions, color="yellow")
+            _run(raw, ai.show_contradictions, color="listado")
         elif raw == "/objetivos":
-            _run(raw, ai.show_goals, color="cyan")
+            _run(raw, ai.show_goals, color="listado")
         elif raw in ("/research", "/investigaciones"):
             if HAS_RESEARCH_ENGINE:
                 from cognia.research_engine import show_research_history
-                _run(raw, lambda: show_research_history(ai.db), color="cyan")
+                _run(raw, lambda: show_research_history(ai.db), color="listado")
             else:
                 _print_line("[warn_cl][WARN] Modulo de investigacion no disponible.[/warn_cl]")
         elif (raw.startswith("/biblioteca ver ") or raw.startswith("/library ver ")
@@ -7122,13 +7311,13 @@ def repl():
                     if not _bib_code:
                         _print_line(f"[warn_cl]sin codigo para {_escape(_bib_id)}[/warn_cl]")
                     else:
-                        _show_response(_bib_code[:6000], "cyan")
+                        _show_response(_bib_code[:6000], "listado")
                 except Exception as _bv_e:
                     _print_line(f"[err_cl]biblioteca ver no disponible: {_bv_e}[/err_cl]")
         elif raw in ("/programs", "/library", "/biblioteca"):
             if HAS_PROGRAM_CREATOR:
                 from cognia.program_creator import show_library
-                _run(raw, show_library, color="cyan")
+                _run(raw, show_library, color="listado")
             else:
                 _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
         elif raw in ("/autoprueba", "/verificar-productos") or raw.startswith("/autoprueba "):
@@ -7153,7 +7342,7 @@ def repl():
             _ver_q = raw[len("/ver "):].strip() if raw.startswith("/ver ") else ""
             try:
                 from cognia.vision.mirar import ver as _mirar
-                _run(raw, lambda: _mirar(_ver_q, ai), color="cyan")
+                _run(raw, lambda: _mirar(_ver_q, ai), color="listado")
             except Exception as _v_e:
                 _print_line(f"[err_cl]vision no disponible: {_v_e}[/err_cl]")
         elif raw == "/vigilar" or raw.startswith("/vigilar "):
@@ -7180,7 +7369,7 @@ def repl():
                         _vg_line += f"  ({_vg_motivo})"
                     _vg_out.append(_vg_line)
                 _show_response("\n".join(_vg_out) if _vg_out
-                               else "Sin percepciones.", "cyan")
+                               else "Sin percepciones.", "listado")
             except Exception as _vg_e:
                 _print_line(f"[err_cl]vigilar no disponible: {_vg_e}[/err_cl]")
         elif raw.startswith("/arbitro ") or raw.startswith("/árbitro "):
@@ -7191,10 +7380,10 @@ def repl():
                 from cognia.arbitro import dueno_de
                 _ar_dueno = dueno_de(_ar_ruta)
                 if _ar_dueno:
-                    _show_response(f"{_ar_ruta}\n  dueno: {_ar_dueno}", "cyan")
+                    _show_response(f"{_ar_ruta}\n  dueno: {_ar_dueno}", "listado")
                 else:
                     _show_response(f"{_ar_ruta}\n  sin dueno registrado "
-                                   f"(ningun generador la reclamo)", "cyan")
+                                   f"(ningun generador la reclamo)", "listado")
             except Exception as _ar_e:
                 _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
         elif raw == "/arbitro" or raw == "/árbitro":
@@ -7203,21 +7392,21 @@ def repl():
             # activarlo (COGNIA_ARBITRO_SOMBRA=0).
             try:
                 from cognia.arbitro import resumen_estado
-                _show_response(resumen_estado(), "cyan")
+                _show_response(resumen_estado(), "listado")
             except Exception as _ar_e:
                 _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
         elif raw == "/mcp":
-            _show_response(_slash_mcp(""), "cyan")
+            _show_response(_slash_mcp(""), "listado")
         elif raw.startswith("/mcp "):
-            _show_response(_slash_mcp(raw[len("/mcp "):].strip()), "cyan")
+            _show_response(_slash_mcp(raw[len("/mcp "):].strip()), "listado")
         elif raw == "/mapa-codigo":
-            _show_response(_slash_mapa_codigo(""), "cyan")
+            _show_response(_slash_mapa_codigo(""), "listado")
         elif raw.startswith("/mapa-codigo "):
-            _show_response(_slash_mapa_codigo(raw[len("/mapa-codigo "):].strip()), "cyan")
+            _show_response(_slash_mapa_codigo(raw[len("/mapa-codigo "):].strip()), "listado")
         elif raw == "/imagenes" or raw == "/imágenes":
             if HAS_PROGRAM_CREATOR:
                 from cognia.program_creator.vista_navegador import formatear_imagenes
-                _run(raw, formatear_imagenes, color="cyan")
+                _run(raw, formatear_imagenes, color="listado")
             else:
                 _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
         elif raw.startswith("/imagenes ") or raw.startswith("/imágenes "):
@@ -7225,7 +7414,7 @@ def repl():
                 _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
             else:
                 _show_response(_slash_imagenes(raw.split(" ", 1)[1].strip()),
-                               "bright_green")
+                               "respuesta")
         elif raw == "/program_stats":
             if HAS_PROGRAM_CREATOR:
                 from cognia.program_creator import get_session_stats
@@ -7235,7 +7424,7 @@ def repl():
                     f"Intentos:    {stats['programs_attempted']}\n"
                     f"Guardados:   {stats['programs_stored']}\n"
                     f"Ultima vez:  {stats['last_run']}",
-                    "cyan",
+                    "listado",
                 )
             else:
                 _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
@@ -7246,20 +7435,20 @@ def repl():
             try:
                 ep_id    = int(parts[0])
                 correcto = len(parts) < 2 or parts[1].lower() in ("correcto", "si", "sí", "yes")
-                _run(raw, lambda: ai.mark_review(ep_id, correcto), color="bright_green")
+                _run(raw, lambda: ai.mark_review(ep_id, correcto), color="respuesta")
             except Exception:
                 _print_line("[warn_cl]Uso: /repasar <id> correcto|incorrecto[/warn_cl]")
         elif raw.startswith("/aprender ") and "|" in raw:
             _slash_aprender_card(raw[len("/aprender "):].strip())
         elif raw.startswith("/investigar "):
             _query = raw[len("/investigar "):].strip()
-            _run(raw, lambda: ai.github_research(_query), color="bright_green")
+            _run(raw, lambda: ai.github_research(_query), color="respuesta")
         elif raw == "/investigar":
             _print_line("[warn_cl]Uso: /investigar <query>  -- ejemplo: /investigar machine learning Python[/warn_cl]")
         elif raw.startswith("/razonar ") and raw[len("/razonar "):].strip():
             # Loop cientifico: hipotesis -> evaluar valor -> analogias -> validar.
             texto = raw[len("/razonar "):].strip()
-            _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="bright_green")
+            _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="respuesta")
         elif raw.startswith("/razonar"):
             _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
         elif raw.strip().lower() in ("/pensar on", "/pensar off", "/pensar ver"):
@@ -7308,7 +7497,7 @@ def repl():
                 return _resumen(pensar_profundo(
                     _pregunta, runner=_runner, print_fn=_print_line,
                     ejecutar_plan=not _solo_idea))
-            _run(raw, _pensar, color="bright_green")
+            _run(raw, _pensar, color="respuesta")
         elif raw.startswith("/pensar"):
             # /pensar sin pedido: elegir como mostrar el pensamiento. El
             # razonamiento sale en lineas [detail] (razonador.py:145-157) que
@@ -7338,12 +7527,12 @@ def repl():
             _ar_result = _slash_aprende_repo(ai, _ar_target)
             # respuesta_final: es el cierre del comando; enmarcado, el movil lo
             # plegaba en "actividad" y el chat quedaba mudo (mismo patron 8315).
-            _show_response(_ar_result, "bright_green", respuesta_final=True)
+            _show_response(_ar_result, "respuesta", respuesta_final=True)
         elif raw == "/aprende-repo":
             _print_line("[warn_cl]Uso: /aprende-repo <url_o_query>  -- ejemplo: /aprende-repo https://github.com/huggingface/transformers[/warn_cl]")
         elif raw.startswith("/crear "):
             _idea = raw[len("/crear "):].strip()
-            _run(raw, lambda: ai.create_program(_idea), color="bright_green")
+            _run(raw, lambda: ai.create_program(_idea), color="respuesta")
         elif raw == "/crear":
             _print_line("[warn_cl]Uso: /crear <idea>  — ejemplo: /crear juego de Snake en terminal[/warn_cl]")
         elif raw.startswith("/construir "):
@@ -7365,7 +7554,7 @@ def repl():
             else:
                 _run(raw, lambda: ai.construir_web(
                         _arg_c, usar_mockup=_use_mock, usar_sprites=_use_spr),
-                     color="bright_green")
+                     color="respuesta")
         elif raw == "/construir":
             _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>  — ejemplo: "
                         "/construir landing de una cafeteria de especialidad[/warn_cl]")
@@ -7382,7 +7571,7 @@ def repl():
                 _show_response(
                     _pl_res.resumen() + (
                         f"\nGuardado en: {_pl_res.directorio}" if _pl_res.directorio else ""),
-                    "bright_green")
+                    "respuesta")
             except Exception as _pe:
                 _print_line(f"[err_cl]Error en /pulir: {_escape(str(_pe))}[/err_cl]")
         elif raw == "/sellar-biblioteca" or raw.startswith("/sellar-biblioteca "):
@@ -7395,7 +7584,7 @@ def repl():
                 _sb_r = sellar_biblioteca(limite=_sb_lim)
                 _show_response(
                     f"Sellados: {len(_sb_r.get('sellados', _sb_r)) if isinstance(_sb_r, dict) else _sb_r}",
-                    "bright_green")
+                    "respuesta")
             except Exception as _se:
                 _print_line(f"[err_cl]Error sellando: {_escape(str(_se))}[/err_cl]")
         elif raw == "/fatiga":
@@ -7403,7 +7592,7 @@ def repl():
             # su reporte legible no era alcanzable (barrido 2026-07-24).
             try:
                 if getattr(ai, "fatigue", None):
-                    _show_response(ai.fatigue.format_status(), "cyan")
+                    _show_response(ai.fatigue.format_status(), "listado")
                 else:
                     _print_line("[detail]Monitor de fatiga no activo en esta sesion.[/detail]")
             except Exception as _fe:
@@ -7445,7 +7634,7 @@ def repl():
                         f"Ideas pendientes: {n}"
                         if ok else
                         f"La idea ya estaba en la cola.",
-                        "bright_green",
+                        "respuesta",
                     )
                 except Exception as _e:
                     _print_line(f"[warn_cl][ERROR] {_e}[/warn_cl]")
@@ -7468,18 +7657,18 @@ def repl():
                         _n_borr = clear_custom_ideas()
                         _show_response(
                             f"Cola de ideas propias vaciada ({_n_borr} borrada(s)).",
-                            "bright_green")
+                            "respuesta")
                     else:
                         _todas = get_all_ideas()
                         _lst = "\n".join(f"  {_i+1}. {_idea}"
                                          for _i, _idea in enumerate(_todas[:40]))
                         _show_response(
-                            f"Ideas disponibles ({len(_todas)}):\n{_lst}", "cyan")
+                            f"Ideas disponibles ({len(_todas)}):\n{_lst}", "listado")
                 except Exception as _id_e:
                     _print_line(f"[err_cl]ideas no disponible: {_id_e}[/err_cl]")
         elif raw.startswith("/observar "):
             texto = raw[len("/observar "):].strip()
-            _run(raw, lambda: ai.process(texto), color="cyan")
+            _run(raw, lambda: ai.process(texto), color="listado")
         elif raw == "/observar":
             _print_line("[warn_cl]Uso: /observar <texto>[/warn_cl]")
         elif raw.startswith("/aprender ") and "|" not in raw:
@@ -7489,66 +7678,66 @@ def repl():
         elif raw.startswith("/corregir ") and raw.count("|") >= 2:
             partes = raw[len("/corregir "):].split("|")
             _run(raw, lambda: ai.correct(
-                partes[0].strip(), partes[1].strip(), partes[2].strip()), color="bright_green")
+                partes[0].strip(), partes[1].strip(), partes[2].strip()), color="respuesta")
         elif raw.startswith("/corregir"):
             _print_line("[warn_cl]Uso: /corregir <obs> | <incorrecto> | <correcto>[/warn_cl]")
         elif raw.startswith("/hipotesis ") and "|" in raw:
             partes = raw[len("/hipotesis "):].split("|", 1)
             _run(raw, lambda: ai.generate_hypothesis(
-                partes[0].strip(), partes[1].strip()), color="magenta")
+                partes[0].strip(), partes[1].strip()), color=_ACCENT)
         elif raw.startswith("/hipotesis ") and raw[len("/hipotesis "):].strip():
             texto = raw[len("/hipotesis "):].strip()
             _run(raw, lambda: ai.generate_hypotheses_many(
-                texto, n=_active_effort()["alternativas"]), color="magenta")
+                texto, n=_active_effort()["alternativas"]), color=_ACCENT)
         elif raw.startswith("/hipotesis"):
             _print_line("[warn_cl]Uso: /hipotesis <A> | <B>  (pares)  o  /hipotesis <problema>  (N hipotesis)[/warn_cl]")
         elif raw.startswith("/experimento ") and raw[len("/experimento "):].strip():
             texto = raw[len("/experimento "):].strip()
-            _run(raw, lambda: ai.run_experiment(texto), color="cyan")
+            _run(raw, lambda: ai.run_experiment(texto), color="listado")
         elif raw.startswith("/experimento"):
             _print_line("[warn_cl]Uso: /experimento <afirmacion>  -- ejemplo: /experimento bubble sort es O(n^2)[/warn_cl]")
         elif raw.startswith("/evaluar-idea ") and raw[len("/evaluar-idea "):].strip():
             texto = raw[len("/evaluar-idea "):].strip()
-            _run(raw, lambda: ai.evaluate_idea(texto), color="magenta")
+            _run(raw, lambda: ai.evaluate_idea(texto), color=_ACCENT)
         elif raw.startswith("/evaluar-idea"):
             _print_line("[warn_cl]Uso: /evaluar-idea <idea>  -- ejemplo: /evaluar-idea un IDE que escribe sus propios tests[/warn_cl]")
         elif raw.startswith("/analogia ") and raw[len("/analogia "):].strip():
             texto = raw[len("/analogia "):].strip()
-            _run(raw, lambda: ai.find_analogies(texto), color="cyan")
+            _run(raw, lambda: ai.find_analogies(texto), color="listado")
         elif raw.startswith("/analogia"):
             _print_line("[warn_cl]Uso: /analogia <problema>  -- ejemplo: /analogia el contexto del modelo se satura con conversaciones largas[/warn_cl]")
         elif raw.startswith("/abstraer ") and raw[len("/abstraer "):].strip():
             texto = raw[len("/abstraer "):].strip()
-            _run(raw, lambda: ai.solve_by_abstraction(texto), color="cyan")
+            _run(raw, lambda: ai.solve_by_abstraction(texto), color="listado")
         elif raw.startswith("/abstraer"):
             _print_line("[warn_cl]Uso: /abstraer <problema>  -- ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia[/warn_cl]")
         elif raw.startswith("/transferir ") and "|" in raw:
             partes = raw[len("/transferir "):].split("|", 1)
             _run(raw, lambda: ai.transfer_principle(
-                partes[0].strip(), partes[1].strip()), color="cyan")
+                partes[0].strip(), partes[1].strip()), color="listado")
         elif raw.startswith("/transferir"):
             _print_line("[warn_cl]Uso: /transferir <fuente> | <objetivo>[/warn_cl]")
         elif raw.startswith("/diversidad ") and "||" in raw:
             ideas = [p.strip() for p in raw[len("/diversidad "):].split("||")]
             ideas = [p for p in ideas if p]
-            _run(raw, lambda: ai.measure_diversity(ideas), color="cyan")
+            _run(raw, lambda: ai.measure_diversity(ideas), color="listado")
         elif raw.startswith("/diversidad"):
             _print_line("[warn_cl]Uso: /diversidad <idea1> || <idea2> || ...  "
                         "-- ejemplo: /diversidad recolectar agua de lluvia || juntar lluvia en azoteas[/warn_cl]")
         elif raw.startswith("/explorar ") and raw[len("/explorar "):].strip():
             texto = raw[len("/explorar "):].strip()
-            _run(raw, lambda: ai.explore_problem(texto), color="cyan")
+            _run(raw, lambda: ai.explore_problem(texto), color="listado")
         elif raw.startswith("/explorar"):
             _print_line("[warn_cl]Uso: /explorar <problema>  "
                         "-- ejemplo: /explorar como reducir el consumo de agua en una ciudad[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
-            _run(raw, lambda: ai.explain(texto), color="magenta")
+            _run(raw, lambda: ai.explain(texto), color=_ACCENT)
         elif raw == "/explicar":
             _print_line("[warn_cl]Uso: /explicar <texto>[/warn_cl]")
         elif raw.startswith("/grafo "):
             concepto = raw[len("/grafo "):].strip()
-            _run(raw, lambda: ai.show_graph(concepto), color="cyan")
+            _run(raw, lambda: ai.show_graph(concepto), color="listado")
         elif raw == "/grafo":
             _print_line("[warn_cl]Uso: /grafo <concepto>[/warn_cl]")
         elif raw == "/grafo-html" or raw.startswith("/grafo-html "):
@@ -7561,7 +7750,7 @@ def repl():
                                            open_browser=True)
                 _show_response(
                     f"Grafo exportado y abierto en el navegador:\n  {_gh_ruta}",
-                    "cyan")
+                    "listado")
             except Exception as _gh_e:
                 _print_line(f"[err_cl]grafo-html no disponible: {_gh_e}[/err_cl]")
         elif raw == "/indexar-codigo":
@@ -7575,7 +7764,7 @@ def repl():
                     f"  modulos:          {_ix_m.get('modulos', 0)}\n"
                     f"  triples:          {_ix_m.get('triples', 0)}\n"
                     f"  borrados previos: {_ix_m.get('borrados_previos', 0)}\n"
-                    f"  tiempo:           {_ix_m.get('secs', 0)}s", "cyan")
+                    f"  tiempo:           {_ix_m.get('secs', 0)}s", "listado")
             except Exception as _ix_e:
                 _print_line(f"[err_cl]indexar-codigo no disponible: {_ix_e}[/err_cl]")
         elif raw == "/atencion" or raw == "/atención":
@@ -7617,13 +7806,13 @@ def repl():
                         _at_obs = (_at_row[1] or "")[:80]
                         _show_response(
                             f"Episodio #{_at_id} ({_at_row[2] or 'sin etiqueta'}): "
-                            f"{_at_obs}\n{_at_expl}", "cyan")
+                            f"{_at_obs}\n{_at_expl}", "listado")
                 except Exception as _at_e:
                     _print_line(f"[err_cl]atencion no disponible: {_at_e}[/err_cl]")
         elif raw.startswith("/hecho ") and raw.count("|") >= 2:
             partes = raw[len("/hecho "):].split("|")
             _run(raw, lambda: ai.add_fact(
-                partes[0].strip(), partes[1].strip(), partes[2].strip()), color="bright_green")
+                partes[0].strip(), partes[1].strip(), partes[2].strip()), color="respuesta")
         elif raw.startswith("/hecho") and not raw.startswith("/hechos-"):
             # `and not /hechos-`: sin la guarda este catch-all capturaba
             # /hechos-solidos (empieza por "/hecho") y su rama real quedaba
@@ -7631,40 +7820,40 @@ def repl():
             _print_line("[warn_cl]Uso: /hecho <sujeto> | <predicado> | <objeto>[/warn_cl]")
         elif raw.startswith("/predecir "):
             concepto = raw[len("/predecir "):].strip()
-            _run(raw, lambda: ai.predict_next(concepto), color="cyan")
+            _run(raw, lambda: ai.predict_next(concepto), color="listado")
         elif raw.startswith("/inferir "):
             concepto = raw[len("/inferir "):].strip()
-            _run(raw, lambda: ai.infer_about(concepto), color="magenta")
+            _run(raw, lambda: ai.infer_about(concepto), color=_ACCENT)
         elif raw.startswith("/narrativa "):
             concepto = raw[len("/narrativa "):].strip()
-            _run(raw, lambda: ai.get_narrative(concepto), color="magenta")
+            _run(raw, lambda: ai.get_narrative(concepto), color=_ACCENT)
 
         # -- Mesh -----------------------------------------------------------
         elif raw.startswith("/mesh_iniciar"):
             parts = raw.split()
             port  = int(parts[1]) if len(parts) > 1 else 7474
-            _run(raw, lambda: ai.start_mesh(port), color="cyan")
+            _run(raw, lambda: ai.start_mesh(port), color="listado")
         elif raw.startswith("/mesh_peer "):
             peer = raw[len("/mesh_peer "):].strip()
-            _run(raw, lambda: ai.connect_mesh_peer(peer), color="cyan")
+            _run(raw, lambda: ai.connect_mesh_peer(peer), color="listado")
         elif raw.startswith("/mesh_publicar ") and raw.count("|") >= 2:
             partes = raw[len("/mesh_publicar "):].split("|")
             triple = [{"subject":   partes[0].strip(),
                        "predicate": partes[1].strip(),
                        "object":    partes[2].strip()}]
-            _run(raw, lambda: ai.publish_knowledge(triple), color="bright_green")
+            _run(raw, lambda: ai.publish_knowledge(triple), color="respuesta")
         elif raw == "/mesh_estado":
-            _run(raw, ai.mesh_status, color="cyan")
+            _run(raw, ai.mesh_status, color="listado")
 
         # -- Security -------------------------------------------------------
         elif raw == "/seguridad":
-            _run(raw, ai.security_status, color="yellow")
+            _run(raw, ai.security_status, color="listado")
         elif raw == "/bloquear":
-            _run(raw, ai.lock_security, color="yellow")
+            _run(raw, ai.lock_security, color="warn_cl")
         elif raw.startswith("/desbloquear "):
             passphrase = raw[len("/desbloquear "):].strip()
             if passphrase:
-                _run(raw, lambda: ai.unlock_security(passphrase), color="yellow")
+                _run(raw, lambda: ai.unlock_security(passphrase), color="warn_cl")
             else:
                 _print_line("[warn_cl]Uso: /desbloquear <passphrase>[/warn_cl]")
 
@@ -7682,7 +7871,7 @@ def repl():
                     f"Memorias     {st['memories']}\n"
                     f"Peers        {st['peers']}\n"
                     f"Historial    {st['hit_counts']}",
-                    "cyan",
+                    "listado",
                 )
             except Exception as e:
                 _print_line(f"[warn_cl]ScaleManager no disponible: {e}[/warn_cl]")
@@ -7700,7 +7889,7 @@ def repl():
                             f"- {uid}" + ("  (actual)" if uid == current else "")
                             for uid in users
                         ),
-                        "cyan",
+                        "listado",
                     )
                 else:
                     _print_line("[detail]No hay usuarios registrados.[/detail]")
@@ -7719,7 +7908,7 @@ def repl():
                     f"  Estilo        : {getattr(profile, 'response_style', '?')}\n"
                     f"  Idioma        : {getattr(profile, 'preferred_language', '?')}\n"
                     f"  Interacciones : {getattr(profile, 'total_interactions', 0)}",
-                    "cyan",
+                    "listado",
                 )
             except Exception as e:
                 _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
@@ -7733,7 +7922,7 @@ def repl():
                     if getattr(ai, "cognitive_profile", None) else "default"
                 se   = StyleEngine.load(uid, ai.db)
                 info = se.stats()
-                _show_response("\n".join(f"{k}: {v}" for k, v in info.items()), "cyan")
+                _show_response("\n".join(f"{k}: {v}" for k, v in info.items()), "listado")
             except Exception as e:
                 _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
         elif raw == "/indice_personal":
@@ -7743,7 +7932,7 @@ def repl():
                 pi        = PersonalIndex.load(uid, ai.db)
                 conceptos = pi.list_concepts()
                 if conceptos:
-                    _show_response("\n".join(f"- {c}" for c in conceptos), "cyan")
+                    _show_response("\n".join(f"- {c}" for c in conceptos), "listado")
                 else:
                     _print_line("[detail]Indice vacio. Usa: /indice_add <concepto>[/detail]")
             except Exception as e:
@@ -7757,7 +7946,7 @@ def repl():
                     pi  = PersonalIndex.load(uid, ai.db)
                     pi.add(concepto)
                     pi.save(ai.db)
-                    _print_line(f"[bright_green]Concepto agregado al indice: {concepto}[/bright_green]")
+                    _print_line(f"[ok_cl]Concepto agregado al indice: {concepto}[/ok_cl]")
                 except Exception as e:
                     _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
             else:
@@ -7778,7 +7967,7 @@ def repl():
                                 for i, page in enumerate(_pages)
                             )
                         content = _pdf_text[:4000]
-                        _show_response(content, "bright_green")
+                        _show_response(content, "respuesta")
                         _session_log.append({"input": raw, "output": content, "elapsed": 0})
                     except ImportError:
                         _print_line("[err_cl]pdfplumber no instalado -- pip install pdfplumber[/err_cl]")
@@ -7786,14 +7975,14 @@ def repl():
                         _print_line(f"[err_cl]Error leyendo PDF: {_escape(str(_pdf_e))}[/err_cl]")
                 else:
                     from cognia.ingest import ingest_file
-                    _run(raw, lambda: ingest_file(ai, ruta), color="bright_green")
+                    _run(raw, lambda: ingest_file(ai, ruta), color="respuesta")
             else:
                 _print_line("[warn_cl]Uso: /leer <ruta_al_archivo>[/warn_cl]")
         elif raw.startswith("/proyecto "):
             ruta = raw[len("/proyecto "):].strip()
             if ruta:
                 from cognia.ingest import ingest_directory
-                _run(raw, lambda: ingest_directory(ai, ruta), color="bright_green")
+                _run(raw, lambda: ingest_directory(ai, ruta), color="respuesta")
             else:
                 _print_line("[warn_cl]Uso: /proyecto <ruta_al_directorio>[/warn_cl]")
 
@@ -8006,7 +8195,7 @@ def repl():
                     from shattering.orchestrator import ShatteringOrchestrator as _O
                     _orch_d = getattr(ai, '_orchestrator', None) or _O(mode='local')
                     _diff_result = _orch_d.infer(_diff_prompt)
-                    _show_response(_diff_result.text, "cyan")
+                    _show_response(_diff_result.text, "listado")
             except FileNotFoundError:
                 _print_line("[err_cl]git no disponible en PATH[/err_cl]")
             except Exception as _de:
@@ -8116,7 +8305,7 @@ def repl():
                         guidance=resumen_para_prompt(
                             _est_rt, _est_rt.get("faltan", [])))
                     if _resp:
-                        _show_response(_resp, "cyan", respuesta_final=True)
+                        _show_response(_resp, _ACCENT, respuesta_final=True)
                     _session_log.append({"input": raw, "output": _resp,
                                          "elapsed": 0})
                     continue
@@ -8127,7 +8316,7 @@ def repl():
                 _print_line("[detail]Iniciando agente...[/detail]")
                 _resp = _run_agent_task(ai, _tarea, _print_line)
                 if _resp:
-                    _show_response(_resp, "cyan", respuesta_final=True)
+                    _show_response(_resp, _ACCENT, respuesta_final=True)
                 else:
                     _print_line("[warn_cl]El agente no produjo respuesta.[/warn_cl]")
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
@@ -8168,7 +8357,7 @@ def repl():
                                            print_fn=_print_line)
                     _texto_rlm = _res_rlm.get("texto") or ""
                     if _texto_rlm:
-                        _show_response(_texto_rlm, "cyan", respuesta_final=True)
+                        _show_response(_texto_rlm, _ACCENT, respuesta_final=True)
                     else:
                         _print_line("[warn_cl]El modo RLM no produjo "
                                     "respuesta.[/warn_cl]")
@@ -8212,7 +8401,7 @@ def repl():
                     from cognia.chimera import ChimeraSystem
                     _sys = ChimeraSystem(db_path=ai.db)
                     _res = _sys.run(_q)
-                    _show_response(_sys.format_report(_res), "cyan", respuesta_final=True)
+                    _show_response(_sys.format_report(_res), _ACCENT, respuesta_final=True)
                 except Exception as _ce:
                     _print_line(f"[warn_cl]Chimera no disponible: {_escape(str(_ce))}[/warn_cl]")
 
@@ -8239,7 +8428,7 @@ def repl():
                 from cognia.agent.agent_status import (
                     agent_status_snapshot, format_agent_status,
                 )
-                _show_response(format_agent_status(agent_status_snapshot()), "cyan")
+                _show_response(format_agent_status(agent_status_snapshot()), "listado")
             except Exception as _e:
                 _print_line(f"[warn_cl]No se pudo leer el estado del agente: {_e}[/warn_cl]")
 
@@ -8253,16 +8442,16 @@ def repl():
             if _plan_goal:
                 _print_line("[detail]Descomponiendo objetivo...[/detail]")
                 _plan_result = _slash_plan_crear(ai, _plan_goal)
-                _show_response(_plan_result, "bright_cyan")
+                _show_response(_plan_result, "listado")
             else:
                 _print_line("[warn_cl]Uso: /plan <objetivo>[/warn_cl]")
         elif raw == "/plan-ver" or raw == "/plan":
-            _show_response(_slash_plan_ver(), "cyan")
+            _show_response(_slash_plan_ver(), "listado")
         elif raw.startswith("/plan-ok "):
             _plan_parts = raw[len("/plan-ok "):].strip().split()
             if len(_plan_parts) >= 2:
                 try:
-                    _show_response(_slash_plan_ok(_plan_parts[0], int(_plan_parts[1])), "bright_green")
+                    _show_response(_slash_plan_ok(_plan_parts[0], int(_plan_parts[1])), "respuesta")
                 except ValueError:
                     _print_line("[warn_cl]Uso: /plan-ok <id> <n>  -- n debe ser un numero[/warn_cl]")
             else:
@@ -8272,7 +8461,7 @@ def repl():
         elif raw.startswith("/plan-borrar "):
             _pb_id = raw[len("/plan-borrar "):].strip()
             if _pb_id:
-                _show_response(_slash_plan_borrar(_pb_id), "yellow")
+                _show_response(_slash_plan_borrar(_pb_id), "warn_cl")
             else:
                 _print_line("[warn_cl]Uso: /plan-borrar <id>  -- ejemplo: /plan-borrar p1[/warn_cl]")
         elif raw == "/plan-borrar":
@@ -8536,7 +8725,7 @@ def repl():
                     _orch_rev = getattr(ai, '_orchestrator', None) or _O(mode='local')
                     _print_line(f"[detail]Revisando {_p_rev.name}...[/detail]")
                     _rev_result = _orch_rev.infer(_review_prompt)
-                    _show_response(_rev_result.text, "cyan")
+                    _show_response(_rev_result.text, "listado")
                     try:
                         ai.observe(
                             f"Revision de {_p_rev.name}: {_rev_result.text[:200]}",
@@ -8599,7 +8788,7 @@ def repl():
                 except Exception:
                     pass
                 if _ms_lines:
-                    _show_response("\n".join(_ms_lines), "cyan")
+                    _show_response("\n".join(_ms_lines), "listado")
                 else:
                     _print_line("[detail]No hay estadisticas disponibles.[/detail]")
             except Exception as _e:
@@ -8650,7 +8839,7 @@ def repl():
                         encoding="utf-8", errors="replace",
                     )
                     _out = (_ps_res.stdout + _ps_res.stderr).strip()
-                    _show_response(_out or f"(exit {_ps_res.returncode})", "green")
+                    _show_response(_out or f"(exit {_ps_res.returncode})", "respuesta")
                 except Exception as _e:
                     _print_line(f"[err_cl]PowerShell error: {_e}[/err_cl]")
 
@@ -8669,7 +8858,7 @@ def repl():
 
         elif raw in ("/tarea-lista", "/tareas"):
             from cognia.tasks_board import render_board
-            _show_response(render_board(), "cyan")
+            _show_response(render_board(), "listado")
 
         elif raw.startswith("/tarea-ok ") or raw == "/tarea-ok":
             _tok_id = raw[len("/tarea-ok "):].strip() if raw.startswith("/tarea-ok ") else ""
@@ -8725,7 +8914,7 @@ def repl():
                     _text = _re2.sub(r"\s{3,}", "\n\n", _text).strip()
                     _text = _html_mod.unescape(_text)
                     _preview = _text[:3000]
-                    _show_response(f"[{_wf_url}]\n\n{_preview}", "cyan")
+                    _show_response(f"[{_wf_url}]\n\n{_preview}", "listado")
                     # Inject into session context
                     try:
                         ai.observe(f"Contenido de {_wf_url}:\n{_text[:500]}", provided_label="web_fetch")
@@ -8767,7 +8956,7 @@ def repl():
                             _lines2.append(f"  - {_rr['Text'][:90]}")
                     if len(_lines2) <= 1:
                         _lines2.append("(Sin resultados directos — prueba otra busqueda)")
-                    _show_response("\n".join(_lines2), "cyan")
+                    _show_response("\n".join(_lines2), "listado")
                 except Exception as _e:
                     _print_line(f"[err_cl]web-buscar error: {_e}[/err_cl]")
 
@@ -9147,7 +9336,7 @@ def repl():
                 # usuario, y un '[' suelto ahi reventaria el parser de rich.
                 _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
                 if _HAS_RICH and _console:
-                    _console.print(_msg_desc, style="yellow", markup=False)
+                    _console.print(_msg_desc, style="detail", markup=False)
                 else:
                     print(_msg_desc)
             else:
