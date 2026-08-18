@@ -295,8 +295,12 @@ def test_fallback_ascii_completo():
 def test_atajos_textos_exactos_del_encargo():
     assert B.barra_atajos("generando", unicode_ok=True) == \
         "esc interrumpe \u00b7 ctrl+c corta"
+    # 'f2 agentes' se agrego el 2026-08-18 (carril de fondo): el prompt de
+    # espera nombraba F2 en su marco y esta barra no, asi que la unica forma
+    # de descubrir la vista de agentes era lanzar una corrida.
     assert B.barra_atajos("repl", unicode_ok=True) == \
-        "tab completa \u00b7 \u2191\u2193 historial \u00b7 @ archivo \u00b7 / comandos"
+        ("tab completa \u00b7 \u2191\u2193 historial \u00b7 @ archivo \u00b7 "
+         "/ comandos \u00b7 f2 agentes")
 
 
 def test_atajos_permiso_y_selector():

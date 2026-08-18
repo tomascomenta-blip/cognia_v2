@@ -6,6 +6,7 @@ Interfaz de linea de comandos (REPL) para Cognia v3.
 
 import contextlib
 import datetime
+import functools
 import io
 import json
 import logging
@@ -14,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -105,6 +107,12 @@ try:
     from prompt_toolkit.formatted_text import FormattedText
     from prompt_toolkit.history import InMemoryHistory
     from prompt_toolkit.key_binding import KeyBindings
+    # patch_stdout con raw=True (OBLIGATORIO): sin raw, Vt100_Output.write()
+    # reemplaza cada ESC por '?' (prompt_toolkit/output/vt100.py:517;
+    # write_raw NO lo hace) y TODO el color de rich sale mutilado. Medido en
+    # el spike T4: 10 secuencias '?[36m' y 0 intactas con raw=False; 0
+    # mutiladas y 5 intactas con raw=True. Cognia es un REPL entero de rich.
+    from prompt_toolkit.patch_stdout import patch_stdout
     from prompt_toolkit.shortcuts import CompleteStyle
     from prompt_toolkit.styles import Style as PTStyle
     _HAS_PT = True
@@ -789,8 +797,749 @@ def _slash_hibrido(args: str) -> None:
         print("Uso: /hibrido on|off")
 
 
+# ---------------------------------------------------------------------------
+# CARRIL DE FONDO: la corrida larga en un hilo, la consola ARBITRADA
+# ---------------------------------------------------------------------------
+# POR QUE (T4, 2026-08-18): /workflow y /hacer se despachaban INLINE en el
+# bucle del REPL, asi que mientras corrian NADIE leia el teclado y la vista de
+# agentes no podia existir. Aca vive lo minimo para que la corrida viva en un
+# hilo daemon y el hilo PRINCIPAL siga siendo el UNICO dueno de la consola.
+#
+# LA REGLA QUE MANDA, Y ESTA MEDIDA (spike T4, ConPTY por ctypes = la misma
+# maquinaria de Windows Terminal, sondas GetConsoleMode/GetConsoleCursorInfo
+# leidas DESDE DENTRO del hijo):
+#   un hilo que abre una Application de prompt_toolkit NO VUELVE NUNCA.
+#   Se midio cognia.ux.selector.confirmar() desde un hilo en los DOS
+#   escenarios posibles y en los dos se colgo para siempre:
+#     - con la App de Textual abierta ....... NO VOLVIO (ni al cerrar la App)
+#     - con solo el prompt del REPL abierto . NO VOLVIO (la tecla se la comio
+#                                             el prompt, que devolvio '')
+#   Y estas dos SI funcionan:
+#     - hilo -> modal de Textual (call_from_thread + push_screen) . 1229,5 ms
+#     - hilo -> despertar el prompt y que conteste el principal ... 1032,9 ms
+# Por eso el hilo NUNCA pregunta: delega en quien tenga la consola.
+
+# Centinelas del prompt de espera. Empiezan con \x00 (imposible de teclear) y
+# ARRASTRAN la linea que el usuario tenia a medio escribir: app.exit() DESCARTA
+# el buffer (medido: 'hola mun' desaparecio) y devolverla como `default=` del
+# proximo prompt la conserva entera (medido: volvio intacta).
+_FONDO_F2      = "\x00@f2@"
+_FONDO_FIN     = "\x00@fin@"
+_FONDO_PERMISO = "\x00@permiso@"
+
+# Tope del hilo esperando una respuesta de permiso. Vencido -> DENY, que es el
+# default del gate, con aviso visible. Un hilo esperando para siempre es el
+# fallo silencioso que este repo persigue.
+_ESPERA_PERMISO_S = 600.0
+
+# Ventana para que dos Ctrl-C seguidos en el prompt IDLE signifiquen "salir".
+_VENTANA_CTRLC_S = 2.0
+_ULTIMO_CTRLC = [0.0]
+
+# Lineas que el usuario tecleo MIENTRAS corria algo: se ejecutan cuando
+# termina. Es una lista de MODULO (y no la local de repl()) para que el carril
+# de fondo, que vive aca afuera, pueda encolar en ella.
+_COLA_ENTRADA: list = []
+
+_VISTA = {"app": None}          # la App de agentes abierta, o None
+_LOCK_FONDO = threading.RLock()
+_CORRIDA = None                 # la _Corrida viva, o None
+
+
+class _Corrida:
+    """Una corrida de fondo. UNA por vez: el carril es exclusivo.
+
+    Por que exclusivo: dos corridas comparten _history, _session_log, el cwd y
+    el gate de permisos, y ademas el unico slot de :8080. El adaptador de
+    workflows ya serializa con cap=2 DENTRO de una corrida; dos corridas encima
+    seria pelearse por el mismo slot sin que nadie lo pidiera.
+    """
+
+    __slots__ = ("etiqueta", "hilo", "fin", "excepcion", "pedido",
+                 "cancelada", "t0")
+
+    def __init__(self, etiqueta: str):
+        self.etiqueta = etiqueta
+        self.hilo = None
+        self.fin = threading.Event()
+        self.excepcion = None
+        self.pedido = None       # dict del permiso pendiente, o None
+        self.cancelada = False
+        self.t0 = time.time()
+
+
+def _corrida_viva():
+    """La corrida en curso, o None. Lo leen el gate de permisos y el agente."""
+    c = _CORRIDA
+    return c if (c is not None and not c.fin.is_set()) else None
+
+
+def corrida_en_curso() -> bool:
+    """Publica, para quien lo necesite sin tocar el privado (tests, barra)."""
+    return _corrida_viva() is not None
+
+
+def control_de_la_corrida() -> dict:
+    """El CONTROL de lo que esta corriendo, accesible desde fuera del hilo.
+
+    Devuelve la etiqueta, los segundos, si ya se pidio el corte y las corridas
+    de workflow vivas (con su run_id) segun el motor. Es lo que hace que
+    "corre en un hilo" no signifique "se fue y no hay forma de tocarlo": con
+    el run_id se puede cancelar_agente/decirle/cancelar_corrida por el
+    adaptador, que es el mismo puente que usa la vista.
+    """
+    c = _corrida_viva()
+    try:
+        from cognia.harness import workflows_adapter as _wf
+        vivas = list(_wf.corridas_vivas())
+    except Exception:
+        vivas = []
+    if c is None:
+        return {"activa": False, "etiqueta": "", "segundos": 0.0,
+                "cancelada": False, "corridas": vivas}
+    return {"activa": True, "etiqueta": c.etiqueta,
+            "segundos": round(time.time() - c.t0, 1),
+            "cancelada": bool(c.cancelada), "corridas": vivas}
+
+
+def _texto_a_medias() -> str:
+    """Lo que el usuario tenia a medio escribir. '' ante cualquier duda."""
+    try:
+        return _sesion_prompt.app.current_buffer.text or ""
+    except Exception:
+        return ""
+
+
+def _despertar_prompt(centinela: str, intentos: int = 200) -> bool:
+    """Saca al prompt del bloqueo DESDE OTRO HILO. Nunca lanza.
+
+    MEDIDO: app.exit() tiene que correr en el hilo del event loop de
+    prompt_toolkit; llamarla derecho desde el hilo del workflow no despierta
+    nada. La via es app.loop.call_soon_threadsafe (Application.loop se setea en
+    run_async y vuelve a None al terminar).
+      * con el prompt ya abierto: desperto al PRIMER intento y el prompt
+        devolvio el centinela a los 2001,7 ms de una corrida de 2,0 s.
+      * con el hilo terminando ANTES de que el prompt existiera: 30 intentos de
+        10 ms lo cazaron y el prompt bloqueo 11,6 ms. SIN el bucle de reintento
+        esa carrera deja al usuario esperando un prompt que ya no llega.
+    """
+    ses = _sesion_prompt
+    if ses is None:
+        return False
+    for _ in range(max(1, intentos)):
+        try:
+            app = getattr(ses, "app", None)
+            loop = getattr(app, "loop", None)
+            if app is not None and loop is not None and app.is_running:
+                loop.call_soon_threadsafe(
+                    functools.partial(app.exit,
+                                      result=centinela + _texto_a_medias()))
+                return True
+        except Exception:
+            return False
+        time.sleep(0.01)
+    return False
+
+
+def _mensaje_espera(c):
+    """El prompt del carril de fondo: MISMO marco que el de siempre.
+
+    Lo unico que cambia es la palabra, para que se vea que hay algo corriendo
+    y cuales son las teclas. Se devuelve un callable porque prompt_toolkit lo
+    reevalua en cada redibujado (igual que _mensaje_prompt)."""
+    def _msg():
+        return FormattedText([
+            ("class:marco", _REGLA * _ancho_marco() + "\n"),
+            ("class:cognia", f" {c.etiqueta} {int(time.time() - c.t0)}s"),
+            ("class:estado", "  F2 agentes · Ctrl-C corta la corrida"),
+            ("class:flecha", _FLECHA),
+        ])
+    return _msg
+
+
+def _vista_con_corte(base):
+    """PantallaAgentes + lo que el REPL necesita de ella. Devuelve la CLASE.
+
+    Es una SUBCLASE y no un parche a cognia/tui/agentes.py porque ese fichero
+    es de otra tanda. Cuando alli se cablee ctrl+x ('cancelar la corrida'),
+    el binding de aca sobra y se borra.
+
+    Tres cosas se agregan, cada una por una medicion:
+
+    1. CSS_PATH ABSOLUTO. Textual resuelve un CSS_PATH relativo contra
+       inspect.getfile(type(self)) (textual/_path.py), que en una subclase
+       definida en cli.py daria 'cognia/agentes.tcss' — un fichero que no
+       existe y una App que no arranca.
+    2. ctrl+c = cortar LA CORRIDA. MEDIDO: dentro de una App de Textual el
+       Ctrl-C llega como TECLA normal ('ctrl+c'), no como SIGINT (durante la
+       App ENABLE_PROCESSED_INPUT esta apagado, in_mode=512, y conhost nunca
+       genera CTRL_C_EVENT); por defecto no hace NADA. Verificado: el binding
+       se disparo, la App siguio viva, esc la cerro y los modos volvieron a
+       503/7. El pie lo ANUNCIA ("^c Cancelar corrida"): hasta hoy no lo
+       nombraba y en cambio prometia un ^x que no hacia nada (ver abajo).
+    3. begin_capture_print. MEDIDO: con la App abierta, Textual pone
+       redirect_stdout(_PrintCapture) y la pantalla queda limpia (0 lineas de
+       suciedad), PERO "tragado" es "perdido": 6 de 18 lineas del hilo no
+       aparecieron en ningun lado. Con begin_capture_print(self) en on_mount +
+       on_print se recuperan EXACTAS, y se vuelcan al cerrar la vista.
+       NO se intenta el otro camino (cambiar sys.stdout/sys.__stdout__ por un
+       StringIO para silenciar al hilo): esta MEDIDO que ROMPE Textual — su
+       driver de Windows se queda con sys.__stdout__ al construirse, la UI se
+       escribe dentro del StringIO y la App nunca se pinta.
+    """
+    from textual.binding import Binding
+
+    _tcss = Path(sys.modules[base.__module__].__file__).with_name("agentes.tcss")
+
+    # EL PIE NO PUEDE MENTIR (T4, 2026-08-18). La clase base declara
+    # ctrl+x -> pendiente('...') con la etiqueta "Cancelar corrida (prox.)":
+    # el pie ANUNCIA una tecla que no corta nada y CALLA la que si corta
+    # (ctrl+c). Aca se corrige para la vista del REPL, que es la unica que
+    # tiene una corrida que cortar.
+    # SE COORDINA SOLO con la tanda que esta cableando ctrl+x en
+    # cognia/tui/agentes.py: solo se pisa MIENTRAS el binding de la base siga
+    # siendo el placeholder 'pendiente'. En cuanto alli haga algo de verdad,
+    # esta rama se apaga sola y manda el suyo (Textual resuelve BINDINGS por
+    # MRO REEMPLAZANDO la lista de cada tecla, no acumulandola:
+    # DOMNode._merge_bindings hace keys[key] = key_bindings).
+    _cx = [b for b in (getattr(base, "BINDINGS", None) or [])
+           if getattr(b, "key", None) == "ctrl+x"]
+    _cx_es_placeholder = bool(_cx) and all(
+        str(getattr(b, "action", "")).startswith("pendiente") for b in _cx)
+
+    # Textual fusiona BINDINGS por el MRO: aca solo va lo que se AGREGA.
+    # priority=True NO es decoracion: MEDIDO en textual 8.2.8, la Screen por
+    # defecto trae su propio ctrl+c -> screen.copy_text (show=False) y en
+    # Screen.active_bindings — el mapa del que come el Footer — gana el
+    # PRIMERO de la cadena (la screen) salvo que el otro sea prioritario. Sin
+    # priority la tecla igual cortaba (el dispatch SI prefiere la del App:
+    # medido, action_cortar_corrida disparo), pero el pie NO la nombraba, que
+    # es justo la mitad del bug que se viene a arreglar.
+    # Y la ETIQUETA depende de si la base ya cableo ctrl+x. A las 03:11 del
+    # 2026-08-18 lo cableo: su action_cancelar_corrida corta por el MOTOR la
+    # corrida PINTADA y ANTES PREGUNTA (ConfirmModal). El ^c de aca corta la
+    # corrida DEL REPL y corta YA, sin preguntar. Con las dos teclas rotuladas
+    # "Cancelar corrida" el pie volvia a mentir por otra puerta: dos teclas,
+    # el mismo cartel, dos comportamientos. Se distingue por el VERBO, y
+    # "Cortar la corrida" es ademas la palabra exacta que ya usa el prompt de
+    # espera ("Ctrl-C corta la corrida"), asi que los dos carteles del REPL
+    # dicen lo mismo. Si la base vuelve al placeholder, vuelve el cartel viejo.
+    _rotulo_cc = "Cortar la corrida" if not _cx_es_placeholder else "Cancelar corrida"
+    _bindings = [Binding("ctrl+c", "cortar_corrida", _rotulo_cc,
+                         priority=True)]
+    if _cx_es_placeholder:
+        # Alias oculto: la tecla que la base prometia ahora HACE lo que decia,
+        # pero el pie nombra una sola vez la accion (y nombra ^c, que es la
+        # misma tecla que anuncia el prompt de espera del REPL).
+        _bindings.append(Binding("ctrl+x", "cortar_corrida", "Cancelar corrida",
+                                 show=False))
+
+    class _VistaAgentesREPL(base):
+        CSS_PATH = str(_tcss)
+        BINDINGS = _bindings
+
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            self.lineas_tragadas: list = []
+
+        def on_mount(self) -> None:
+            super().on_mount()
+            # stdout Y stderr: el hilo puede escribir por los dos.
+            try:
+                self.begin_capture_print(self)
+            except Exception as exc:
+                _aviso_degradado("cli.vista.capturar",
+                                 f"{type(exc).__name__}: {exc}")
+
+        def on_print(self, event) -> None:
+            texto = getattr(event, "text", "")
+            if texto:
+                self.lineas_tragadas.append(texto)
+
+        def action_cortar_corrida(self) -> None:
+            linea = _cancelar_corrida(_corrida_viva(), callado=True)
+            try:
+                self.notify(linea, title="Ctrl-C", severity="warning",
+                            timeout=5)
+            except Exception:
+                pass
+
+    return _VistaAgentesREPL
+
+
+def _abrir_vista_agentes() -> None:
+    """Abre la pantalla de agentes y vuelve al REPL al salir.
+
+    MEDIDO (spike T4, 7 escenarios): Textual entra y sale de la pantalla
+    alterna con ESC[?1049h/l balanceados 1/1, cero ESC[3J (el scrollback de
+    antes sigue arriba) y devuelve los modos EXACTOS: in 503 -> 512 dentro de
+    la App -> 503 al salir, out 7 estable, cursor visible.
+
+    Se abre AFUERA del bucle de prompt_toolkit a proposito (el keybinding de F2
+    solo sale con un centinela): anidar el event loop de Textual dentro del de
+    prompt_toolkit es el modo de fallo que este diseno evita.
+
+    Degrada con AVISO, nunca con traceback: la vista la construye otra tanda y
+    puede no existir todavia.
+    """
+    try:
+        from cognia.tui.agentes import PantallaAgentes
+    except Exception as exc:
+        _print_line(f"[warn_cl]La vista de agentes no esta disponible "
+                    f"({_escape(type(exc).__name__)}: "
+                    f"{_escape(str(exc))}). La corrida sigue.[/warn_cl]")
+        _aviso_degradado("cli.vista.import", f"{type(exc).__name__}: {exc}")
+        return
+    try:
+        app = _vista_con_corte(PantallaAgentes)()
+    except Exception as exc:
+        _print_line(f"[warn_cl]No pude construir la vista de agentes "
+                    f"({_escape(type(exc).__name__)}: "
+                    f"{_escape(str(exc))}).[/warn_cl]")
+        _aviso_degradado("cli.vista.construir", f"{type(exc).__name__}: {exc}")
+        return
+    _VISTA["app"] = app
+    try:
+        app.run()
+    except Exception as exc:
+        _print_line(f"[warn_cl]La vista de agentes se cerro con un fallo: "
+                    f"{_escape(str(exc))}[/warn_cl]")
+        _aviso_degradado("cli.vista.run", f"{type(exc).__name__}: {exc}")
+    finally:
+        _VISTA["app"] = None
+        _volcar_lineas_tragadas(app)
+
+
+def _volcar_lineas_tragadas(app) -> None:
+    """Lo que el hilo imprimio con la vista abierta, de vuelta en pantalla.
+
+    Textual TRAGA los print() de fondo (redirect_stdout a _PrintCapture) y sin
+    begin_capture_print los DESCARTA — medido: 6 de 18 lineas desaparecidas.
+    Se escriben tal cual (ya traen el ANSI de rich) al sys.stdout del momento,
+    NUNCA a sys.__stdout__: el sink del movil es el que decide por tty, y este
+    volcado es texto para el humano que acaba de cerrar la vista.
+    """
+    lineas = list(getattr(app, "lineas_tragadas", None) or [])
+    if not lineas:
+        return
+    try:
+        _print_line(f"[info_dim]— {len(lineas)} linea(s) que la vista habia "
+                    f"tragado —[/info_dim]")
+        sys.stdout.write("".join(lineas))
+        if not lineas[-1].endswith("\n"):
+            sys.stdout.write("\n")
+        sys.stdout.flush()
+    except Exception as exc:
+        _aviso_degradado("cli.vista.volcado", f"{type(exc).__name__}: {exc}")
+
+
+def _cancelar_corrida(c, callado: bool = False) -> str:
+    """Ctrl-C = cortar LA CORRIDA, jamas el REPL. Devuelve la linea a mostrar.
+
+    Limite HONESTO, declarado porque cambia lo que el usuario puede esperar:
+      * /workflow SI se corta de verdad: el motor tiene cancelacion cooperativa
+        por agente (workflows_adapter.cancelar_corrida -> el motor) y el
+        envelope vuelve con `cancelados`>0 y el texto YA PAGADO adentro.
+      * /hacer se corta AL TERMINAR EL PASO EN CURSO: el bucle del agente no
+        tenia ningun hook de cancelacion y ahora lo comprueba entre pasos. Una
+        tool larga (un build, un subprocess) NO se interrumpe: termina y ahi
+        corta.
+    Se usa cancelar_corrida("") = todas las corridas vivas, y es correcto
+    porque el carril de fondo es EXCLUSIVO: solo hay una.
+    """
+    if c is None:
+        return "no hay corrida que cortar"
+    c.cancelada = True
+    partes = []
+    try:
+        from cognia.harness import workflows_adapter as _wf
+        env = _wf.cancelar_corrida("", "el usuario corto con Ctrl-C")
+        partes.append(f"{int(env.get('agentes', 0) or 0)} agente(s) alcanzado(s)")
+    except Exception as exc:
+        partes.append(f"el motor de workflows no acepto el corte ({exc})")
+    linea = ("corte pedido: " + "; ".join(partes)
+             + ". El paso en curso termina antes de cerrar.")
+    if not callado:
+        _print_line(f"[warn_cl]Ctrl-C: {_escape(linea)} "
+                    f"El REPL sigue vivo.[/warn_cl]")
+    return linea
+
+
+def _tomar_pedido(c):
+    """Se LLEVA el permiso pendiente de la corrida (o None). Bajo el lock.
+
+    Quien se lo lleva es el unico que puede contestarlo: sin esto, el hilo que
+    lo puso podia retirarlo (su _despertar_prompt fallo y se iba a la 2a
+    pasada) mientras el principal ya lo estaba preguntando, y la respuesta del
+    usuario se perdia contra un pedido que ya no existia."""
+    with _LOCK_FONDO:
+        p = c.pedido
+        c.pedido = None
+    return p
+
+
+def _retirar_pedido(c, p) -> bool:
+    """True si el pedido `p` seguia puesto y lo retiro quien lo pidio.
+
+    False = otro (el principal) ya se lo llevo y esta preguntando: hay que
+    esperar SU respuesta, no montar un segundo pedido."""
+    with _LOCK_FONDO:
+        if c.pedido is p:
+            c.pedido = None
+            return True
+    return False
+
+
+def _atender_permiso(c) -> None:
+    """El hilo PRINCIPAL contesta el permiso que pidio el hilo de la corrida.
+
+    Aca la consola es NUESTRA, asi que se llama al selector de siempre: el
+    mismo menu con flechas, el mismo texto plano para los pipes, el mismo
+    default."""
+    p = _tomar_pedido(c)
+    if not p:
+        return
+    try:
+        p["resp"] = _preguntar_en_consola(p["kind"], p["detalle"])
+    except KeyboardInterrupt:
+        # Ctrl-C JUSTO en la ventana entre que el prompt devolvio el centinela
+        # y el selector toma el teclado: sin este except la excepcion sube por
+        # _esperar_corrida -> _lanzar_en_fondo -> el dispatch del REPL, que NO
+        # la atrapa (el except KeyboardInterrupt del bucle principal solo
+        # envuelve _get_input), y el REPL se muere con la corrida viva. Se
+        # deniega, que es lo MISMO que ya hacen las dos ramas de
+        # _preguntar_en_consola (selector: binding c-c -> False; input():
+        # except KeyboardInterrupt -> False), y la corrida sigue.
+        p["resp"] = False
+        _print_line("[warn_cl]Ctrl-C durante el permiso: la accion se DENIEGA. "
+                    "La corrida sigue (Ctrl-C otra vez para cortarla).[/warn_cl]")
+    except Exception as exc:
+        p["resp"] = False
+        _aviso_degradado("cli.permiso.consola", f"{type(exc).__name__}: {exc}")
+    finally:
+        p["listo"].set()
+    if p.get("vencido"):
+        # El hilo dejo de esperar antes de que el usuario contestara: decirlo.
+        # Sin esto, un "si" tecleado tarde se traga en silencio y el usuario
+        # queda creyendo que autorizo algo que ya se denego.
+        _print_line(f"[warn_cl]La respuesta llego tarde: el hilo dejo de "
+                    f"esperar a los {_ESPERA_PERMISO_S:.0f}s y la accion ya se "
+                    f"denego. Si hace falta, pedila de nuevo.[/warn_cl]")
+
+
+def _permiso_en_vista(app, kind: str, detalle: str):
+    """El permiso preguntado DENTRO de la vista. None si no se pudo.
+
+    MEDIDO: True en 1.229,5 ms, la App siguio sana y los modos volvieron a
+    503/7. Se usa push_screen CON CALLBACK (y no push_screen_wait): el wait
+    exige un worker de Textual y quien pregunta es un threading.Thread pelado
+    — pedirselo lanza NoActiveWorker."""
+    try:
+        from cognia.tui.permiso import PantallaPermiso
+    except Exception as exc:
+        _aviso_degradado("cli.permiso.modal", f"{type(exc).__name__}: {exc}")
+        return None
+    listo = threading.Event()
+    caja = {}
+
+    def _cb(valor):
+        caja["v"] = bool(valor)
+        listo.set()
+
+    def _empujar():
+        app.push_screen(PantallaPermiso(kind, detalle), _cb)
+
+    try:
+        app.call_from_thread(_empujar)
+    except Exception as exc:
+        _aviso_degradado("cli.permiso.post", f"{type(exc).__name__}: {exc}")
+        return None
+    # Espera CON PULSO: si el usuario cierra la vista con el modal abierto, el
+    # callback no llega nunca y quedarse 600 s seria colgar al agente igual que
+    # el bug que este codigo viene a arreglar. Al morir la App se devuelve None
+    # y el enrutador reintenta por el prompt.
+    limite = time.time() + _ESPERA_PERMISO_S
+    while time.time() < limite:
+        if listo.wait(0.25):
+            return caja.get("v", False)
+        if not getattr(app, "is_running", False):
+            return None
+    _aviso_degradado("cli.permiso.timeout_vista",
+                     f"{_ESPERA_PERMISO_S:.0f}s sin respuesta: se deniega")
+    return False
+
+
+def _preguntar_desde_hilo(kind: str, detalle: str):
+    """La pregunta del hilo, contestada por el DUENO de la consola.
+
+    True/False, o None si no hay a quien delegarla. Dos pasadas porque la
+    vista se puede abrir o cerrar justo en el medio.
+
+    MEDIDO (2026-08-18): vista abierta -> modal arriba en 10,2 ms y respuesta
+    en 10,9 ms; vista cerrada con el prompt de espera abierto -> 1,0 ms; el
+    usuario cierra la vista con el modal arriba -> el permiso se RESCATA por
+    el prompt en 262,9 ms (el pulso de 250 ms de _permiso_en_vista).
+    """
+    for _ in range(2):
+        app = _VISTA.get("app")
+        if app is not None and getattr(app, "is_running", False):
+            r = _permiso_en_vista(app, kind, detalle)
+            if r is not None:
+                return r
+        c = _corrida_viva()
+        if c is None:
+            return None
+        p = {"kind": kind, "detalle": detalle,
+             "listo": threading.Event(), "resp": False}
+        with _LOCK_FONDO:
+            c.pedido = p
+        if not _despertar_prompt(_FONDO_PERMISO):
+            if _retirar_pedido(c, p):
+                continue                   # nadie lo tomo: 2a pasada (vista?)
+            # El principal se lo llevo mientras reintentabamos (lo vio al
+            # ciclar en _esperar_corrida): SU respuesta es la buena. Montar un
+            # segundo pedido aca preguntaria dos veces lo mismo.
+        if not p["listo"].wait(_ESPERA_PERMISO_S):
+            p["vencido"] = True            # lo lee _atender_permiso si contesta tarde
+            _retirar_pedido(c, p)
+            _aviso_degradado(
+                "cli.permiso.timeout_prompt",
+                f"{_ESPERA_PERMISO_S:.0f}s sin respuesta: se deniega")
+            return False
+        return bool(p["resp"])
+    return None
+
+
+def _sin_carril() -> bool:
+    """COGNIA_SIN_FONDO=1 devuelve el REPL al despacho INLINE de siempre.
+
+    Es la salida de emergencia y el brazo de control del e2e: con esto se
+    compara, linea a linea, que la salida impresa del carril de fondo es la
+    MISMA que la de hoy."""
+    return os.environ.get("COGNIA_SIN_FONDO", "") == "1"
+
+
+def _lanzar_en_fondo(etiqueta: str, fn, *args, **kw) -> bool:
+    """Corre fn(*args) en un hilo daemon y espera con el TECLADO VIVO.
+
+    Devuelve False cuando no hay carril de fondo posible (sin PromptSession:
+    pipes, CI, subprocess; o COGNIA_SIN_FONDO=1) y el caller tiene que seguir
+    por el camino INLINE de siempre — ese camino queda BYTE-IDENTICO a hoy,
+    que es el contrato.
+    """
+    global _CORRIDA
+    if _sesion_prompt is None or _sin_carril():
+        return False
+    with _LOCK_FONDO:
+        if _corrida_viva() is not None:
+            _print_line(f"[warn_cl]Ya hay una corrida en curso "
+                        f"({_escape(_CORRIDA.etiqueta)}). F2 para verla, "
+                        f"Ctrl-C para cortarla.[/warn_cl]")
+            return True                    # atendido: NO ejecutar tambien inline
+        c = _Corrida(etiqueta)
+        _CORRIDA = c
+
+    # El spinner de rich (Live) y el prompt no pueden compartir la consola.
+    # MEDIDO con el prompt abierto: un status() de 3,0 s dejo 14 lineas
+    # 'pensando…' en el scrollback (~4,7 lineas/s) y CERO secuencias ESC[1A /
+    # ESC[2K — el Live no reescribe en sitio, cada frame pasa por el
+    # redibujado de patch_stdout. En 3 minutos de /hacer son ~850 lineas de
+    # basura. En el carril de fondo el spinner se apaga; la actividad se mira
+    # con F2. renderer._consola_interactiva() lee COGNIA_SPINNER a CALL-TIME,
+    # asi que esto surte efecto sin recargar nada, y se restaura al terminar.
+    _spinner_antes = os.environ.get("COGNIA_SPINNER")
+    os.environ["COGNIA_SPINNER"] = "0"
+
+    def _correr():
+        try:
+            fn(*args, **kw)
+        except BaseException as exc:       # noqa: BLE001 — el hilo no muere mudo
+            c.excepcion = exc
+        finally:
+            c.fin.set()
+            _despertar_prompt(_FONDO_FIN)
+
+    c.hilo = threading.Thread(target=_correr, name=f"cognia-{etiqueta}",
+                              daemon=True)
+    try:
+        try:
+            c.hilo.start()
+        except RuntimeError as exc:
+            # Sin hilo no hay carril. Se devuelve False y el caller ejecuta
+            # INLINE, que es exactamente el camino de siempre: mejor lento que
+            # con una corrida que nadie arranco. El finally limpia el estado.
+            c.fin.set()
+            _aviso_degradado("cli.fondo.hilo", f"{type(exc).__name__}: {exc}")
+            return False
+        # EL HUECO DEL CTRL-C, cerrado (T4, 2026-08-18). RAZONADO, no medido:
+        # el ConPTY del spike no entrega CTRL_C_EVENT en modo cocido, asi que
+        # aca no se puede tocar la tecla de verdad. El razonamiento:
+        #   en Windows un Ctrl-C llega como CTRL_C_EVENT y CPython levanta el
+        #   KeyboardInterrupt en el HILO PRINCIPAL en el limite de bytecode
+        #   siguiente — o sea, en CUALQUIER punto de este camino, no solo
+        #   dentro de prompt(). El except de _esperar_corrida cubre SOLO la
+        #   llamada a prompt(); todo lo demas que corre entre medias (abrir la
+        #   vista con F2, volcar las lineas tragadas, atender un permiso,
+        #   encolar una linea, el propio arranque del hilo) quedaba al aire, y
+        #   el bucle principal del REPL NO atrapa KeyboardInterrupt en el
+        #   dispatch (su except envuelve solo _get_input). Resultado: el REPL
+        #   se moria con la corrida daemon viva — justo lo que este diseno
+        #   viene a impedir.
+        # REPRODUCIDO en pytest haciendo que _abrir_vista_agentes lance
+        # KeyboardInterrupt (el centinela F2 la llama desde _esperar_corrida,
+        # fuera del prompt): sin este bucle la excepcion SALIA de
+        # _lanzar_en_fondo. Ver tests/test_cli_carril_fondo.py.
+        # El `if` va DENTRO del try a proposito: asi el unico bytecode que
+        # queda fuera de la proteccion es el salto del while.
+        while True:
+            try:
+                if c.fin.is_set():
+                    break
+                _esperar_corrida(c)
+            except KeyboardInterrupt:
+                _cancelar_corrida(c)
+    finally:
+        with _LOCK_FONDO:
+            _CORRIDA = None
+        if _spinner_antes is None:
+            os.environ.pop("COGNIA_SPINNER", None)
+        else:
+            os.environ["COGNIA_SPINNER"] = _spinner_antes
+    if c.excepcion is not None:
+        _print_line(f"[err_cl]{_escape(type(c.excepcion).__name__)}: "
+                    f"{_escape(str(c.excepcion))}[/err_cl]")
+        _aviso_degradado("cli.fondo",
+                         f"{type(c.excepcion).__name__}: {c.excepcion}")
+    return True
+
+
+def _esperar_corrida(c) -> None:
+    """El hilo PRINCIPAL mientras la corrida vive: teclado vivo, consola suya.
+
+    Cada decision con su medicion:
+      * patch_stdout(raw=True): sin raw, prompt_toolkit reemplaza cada ESC por
+        '?' y todo el color de rich sale mutilado (10 de 10 secuencias rotas);
+        con raw=True, 0 rotas. Y con el, la linea a medio escribir se redibuja
+        INTACTA cuando el hilo imprime — es lo unico que lo conserva (con
+        msvcrt la linea sale pegada al texto del trabajo).
+      * el prompt bloquea DE VERDAD: 0,00 % de CPU en reposo (msvcrt: 0,47 %)
+        y la tecla llega en 0,52 ms de mediana (msvcrt: 5,59 ms).
+      * erase_when_done: el prompt de espera se BORRA al cerrarse, para que el
+        scrollback que queda sea EXACTAMENTE el de hoy. Sin esto, cada ciclo
+        de espera dejaria su marco y su reloj pegados en el historial.
+      * refresh_interval=1.0 es lo que hace correr el reloj del prompt, y solo
+        mientras hay corrida.
+    """
+    pendiente = ""
+    app = getattr(_sesion_prompt, "app", None)
+    _borrar_antes = getattr(app, "erase_when_done", False)
+    try:
+        if app is not None:
+            app.erase_when_done = True
+        while True:
+            # El pedido de permiso se comprueba ACA, y no solo cuando llega el
+            # centinela, porque el centinela se PIERDE: si el usuario aprieta
+            # Enter (o F2) en el mismo instante en que el hilo llama a
+            # app.exit, el prompt devuelve la linea tecleada y el centinela se
+            # descarta ('Return value already set'). MEDIDO con el wake
+            # perdido: el hilo esperaba el tope ENTERO (3.021,9 ms con el tope
+            # bajado a 3 s; 600 s en produccion) con el dueno de la consola
+            # sentado en el prompt de espera, y terminaba denegando. Con esta
+            # comprobacion lo atiende en el ciclo siguiente.
+            if c.pedido is not None:
+                _atender_permiso(c)
+                continue
+            if c.fin.is_set():
+                return
+            try:
+                with patch_stdout(raw=True):
+                    r = _sesion_prompt.prompt(_mensaje_espera(c),
+                                              default=pendiente,
+                                              refresh_interval=1.0)
+                pendiente = ""
+            except KeyboardInterrupt:
+                # Ctrl-C EN EL PROMPT: prompt_toolkit lo entrega como excepcion
+                # y corta SOLO la linea (medido). Aca corta LA CORRIDA y sigue
+                # esperando a que el hilo cierre: matar el REPL con trabajo
+                # vivo es justo lo que este diseno viene a impedir.
+                _cancelar_corrida(c)
+                continue
+            except EOFError:
+                _cancelar_corrida(c)
+                _print_line("[warn_cl]Ctrl-D con una corrida viva: se pidio el "
+                            "corte y se espera a que cierre.[/warn_cl]")
+                c.fin.wait()
+                return
+            except Exception as exc:
+                # Sin consola no hay espera interactiva posible: se degrada a
+                # bloquear seco, que es el comportamiento de hoy.
+                _aviso_degradado("cli.fondo.espera",
+                                 f"{type(exc).__name__}: {exc}")
+                c.fin.wait()
+                return
+
+            if r.startswith(_FONDO_FIN):
+                pendiente = r[len(_FONDO_FIN):]
+                continue                   # el 'if' de arriba decide si cierra
+            if r.startswith(_FONDO_PERMISO):
+                pendiente = r[len(_FONDO_PERMISO):]
+                _atender_permiso(c)
+                continue
+            if r.startswith(_FONDO_F2):
+                pendiente = r[len(_FONDO_F2):]
+                _abrir_vista_agentes()
+                continue
+            linea = (r or "").strip()
+            if linea:
+                # Se ANOTA, no se ejecuta: dos turnos a la vez comparten
+                # _history, el cwd y el unico slot de :8080. El proximo
+                # _get_input la devuelve y entra por el MISMO dispatch.
+                _COLA_ENTRADA.append(linea)
+                _print_line(f"[info_dim]anotado ({len(_COLA_ENTRADA)} en cola): "
+                            f"se ejecuta cuando termine "
+                            f"{_escape(c.etiqueta)}.[/info_dim]")
+    finally:
+        if app is not None:
+            app.erase_when_done = _borrar_antes
+
+
+def _corte_pedido() -> bool:
+    """True si el usuario pidio cortar la corrida que esta en curso.
+
+    Lo consultan el bucle legacy del agente (cli.py) y el nativo
+    (cognia/agent/loop.py, via ctx['_cancelado']). Se comprueba ENTRE pasos:
+    una tool larga (un build, un subprocess) no se interrumpe — termina y ahi
+    corta. Eso esta dicho en la linea que se imprime, no escondido."""
+    c = _corrida_viva()
+    return c is not None and bool(c.cancelada)
+
+
+def _ctrlc_seguidos_idle() -> bool:
+    """True si este Ctrl-C llega a menos de _VENTANA_CTRLC_S del anterior.
+
+    Hasta 2026-08-18 un solo Ctrl-C en el prompt MATABA el REPL entero
+    (cli.py: `except (EOFError, KeyboardInterrupt): break`). Con corridas en
+    hilos eso pasa de molesto a destructivo, y ademas era incoherente: el
+    fast-path de streaming y el camino articulado ya trataban Ctrl-C como
+    "corta el turno, no la sesion". Dos seguidos siguen saliendo, que es lo
+    que hace todo REPL."""
+    ahora = time.monotonic()
+    seguido = (ahora - _ULTIMO_CTRLC[0]) < _VENTANA_CTRLC_S
+    _ULTIMO_CTRLC[0] = ahora
+    return seguido
+
+
 def _confirmar_accion(kind: str, detalle: str) -> bool:
-    """Gate central de permisos: True = proceder. Respeta el modo vigente."""
+    """Gate central de permisos: True = proceder. Respeta el modo vigente.
+
+    Desde 2026-08-18 es un ENRUTADOR: decide QUIEN contesta, no como. La
+    pregunta la responde SIEMPRE el dueno de la consola, porque un hilo que
+    abre una Application de prompt_toolkit no vuelve nunca (medido: colgado
+    para siempre con la vista abierta Y con solo el prompt abierto). Esta
+    funcion es el ctx['confirm'] del agente y el agente ahora puede correr en
+    un hilo: sin este enrutado, la primera accion sensible de un /hacer en
+    segundo plano cuelga la corrida sin decir una palabra.
+    """
     try:
         from cognia.console.permissions import needs_confirmation
         if not needs_confirmation(kind, detalle):
@@ -805,6 +1554,33 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
             "Clasificador de permisos fallo (%s=%r): se deniega la accion "
             "por seguridad: %s", kind, detalle[:80], exc)
         return False
+    if threading.current_thread() is not threading.main_thread():
+        r = _preguntar_desde_hilo(kind, detalle)
+        if r is not None:
+            return r
+        # No habia a quien delegar. Con un tty de por medio, preguntar aca
+        # colgaria el hilo PARA SIEMPRE (medido), asi que se deniega — que es
+        # el default del gate — y se dice por que. Sin tty (pipes, CI) el
+        # input() de abajo funciona igual de bien desde un hilo: se sigue.
+        try:
+            from cognia.ux import selector as _sel
+            if _sel.hay_tty():
+                _aviso_degradado(
+                    "cli.permiso.hilo_sin_carril",
+                    f"{kind}: un hilo pidio permiso sin carril de fondo al que "
+                    f"delegar; se deniega (preguntar aca colgaria el hilo)")
+                return False
+        except Exception:
+            pass
+    return _preguntar_en_consola(kind, detalle)
+
+
+def _preguntar_en_consola(kind: str, detalle: str) -> bool:
+    """La pregunta EN la consola. Solo la llama quien es dueno de ella.
+
+    Es el cuerpo de _confirmar_accion de siempre, intacto: el texto
+    '[permiso] ... (s/n) >' es contrato con los pipes y el e2e, el default es
+    False y el spinner se para antes de abrir el selector."""
     # Con tty real: confirmacion con flechas ([Si]/[No] + atajos s/n).
     # default=False conserva la paridad con hoy (Enter vacio = NO ejecutar).
     # El input() de abajo queda INTACTO como fallback textual: el texto
@@ -6941,6 +7717,17 @@ def repl():
                 else:
                     buff.start_completion(select_first=True)
 
+            @_kb.add("f2")
+            def _ver_agentes(event):
+                # F2 NO abre la vista aca adentro: eso anidaria el event loop
+                # de Textual dentro del de prompt_toolkit. Sale con un
+                # centinela y quien mande la abre AFUERA. Medido: 0,52 ms de
+                # mediana desde la pulsacion hasta el handler (el brazo msvcrt
+                # daba 5,59 ms y 0,47 % de CPU en reposo contra 0,00 %).
+                # El centinela ARRASTRA la linea a medio escribir porque
+                # app.exit() descarta el buffer (medido: se perdia entera).
+                event.app.exit(result=_FONDO_F2 + event.app.current_buffer.text)
+
             # Barra de estado inferior (2026-08-12): modelo, ocupacion de la
             # ventana y modo, SIEMPRE visibles. Es el unico rasgo que tienen
             # los seis CLI punteros medidos y a Cognia le faltaba entero: sin
@@ -6996,7 +7783,12 @@ def repl():
     # que un mensaje libre ES un /comando, la linea se encola aqui y el proximo
     # _get_input la devuelve — el comando entra por el MISMO camino que si el
     # usuario lo hubiera tecleado (todo el elif chain intacto).
-    _inyectadas: list = []
+    # La MISMA cola de siempre y la del carril de fondo (lineas que el usuario
+    # tecleo mientras corria algo). Es la lista de MODULO para que el carril,
+    # que vive fuera de repl(), pueda encolar en ella; se limpia al arrancar
+    # para que un repl() llamado dos veces no herede lineas viejas.
+    _COLA_ENTRADA.clear()
+    _inyectadas: list = _COLA_ENTRADA
 
     if session is not None:
         def _get_input():
@@ -7004,7 +7796,24 @@ def repl():
                 return _inyectadas.pop(0)
             # Aire antes del prompt: cada turno respira (estilo 2026-08-02).
             print()
-            line = session.prompt(_mensaje_prompt).strip()
+            _pre = ""
+            while True:
+                # patch_stdout(raw=True) tambien en el prompt IDLE: los
+                # monitores en background imprimen desde sus hilos y sin esto
+                # la linea del usuario se parte. raw=True es OBLIGATORIO (sin
+                # el, rich sale como '?[36m'). Con el prompt bloqueado y nadie
+                # imprimiendo, el coste medido es 0,00 % de CPU.
+                with patch_stdout(raw=True):
+                    line = (session.prompt(_mensaje_prompt, default=_pre)
+                            if _pre else
+                            session.prompt(_mensaje_prompt)).strip()
+                if not line.startswith(_FONDO_F2):
+                    break
+                # F2 sin corrida: la vista se abre igual y dice "sin corrida en
+                # curso". Se abre AFUERA del prompt (que ya devolvio) y se
+                # vuelve con la linea a medio escribir intacta.
+                _pre = line[len(_FONDO_F2):]
+                _abrir_vista_agentes()
             while line.endswith("\\"):
                 continuation = session.prompt(
                     FormattedText([("class:flecha", "   ")])).strip()
@@ -7043,9 +7852,22 @@ def repl():
             # primera linea ('/comando' deja de empezar con '/'): sanear aca,
             # el UNICO punto de entrada al dispatch.
             raw = _strip_input_bom(_get_input())
-        except (EOFError, KeyboardInterrupt):
+        except EOFError:
+            # Ctrl-D / fin de stdin: salir SIEMPRE a la primera. Es la salida
+            # de los pipes y de los scripts y no cambia.
             print("\nHasta luego.")
             break
+        except KeyboardInterrupt:
+            # Ctrl-C ya NO mata el REPL a la primera (T4, 2026-08-18): con
+            # corridas en hilos, matar la sesion de un tecleo es destructivo.
+            # Cancelar la LINEA y salir se distinguen; y salir sigue siendo
+            # obvio porque se dice en la misma linea, cada vez.
+            if _ctrlc_seguidos_idle():
+                print("\nHasta luego.")
+                break
+            _print_line("[info_dim]linea cancelada. Ctrl-C otra vez para "
+                        "salir (o /salir, o Ctrl-D).[/info_dim]")
+            continue
 
         if not raw:
             continue
@@ -7087,7 +7909,14 @@ def repl():
         elif raw == "/permisos" or raw.startswith("/permisos "):
             _slash_permisos(raw[len("/permisos"):])
         elif raw == "/workflow" or raw.startswith("/workflow "):
-            _slash_workflow(raw[len("/workflow"):])
+            # Al carril de fondo. _slash_workflow queda INTACTA (sigue siendo
+            # sincrona y sus tests la llaman derecho): lo unico que cambia es
+            # QUIEN la corre. Sin carril (pipes, CI, COGNIA_SIN_FONDO=1),
+            # _lanzar_en_fondo devuelve False y se ejecuta inline, con la
+            # misma llamada byte-identica a la de hoy.
+            if not _lanzar_en_fondo("workflow", _slash_workflow,
+                                    raw[len("/workflow"):]):
+                _slash_workflow(raw[len("/workflow"):])
         elif raw == "/limpiar":
             _slash_limpiar()
         elif raw == "/compactar":
@@ -8300,26 +9129,40 @@ def repl():
                         _cerrar_rt(_est_rt, "retomada")
                     except Exception:
                         pass
-                    _resp = _run_agent_task(
-                        ai, _tarea, _print_line,
-                        guidance=resumen_para_prompt(
-                            _est_rt, _est_rt.get("faltan", [])))
-                    if _resp:
-                        _show_response(_resp, _ACCENT, respuesta_final=True)
-                    _session_log.append({"input": raw, "output": _resp,
-                                         "elapsed": 0})
+                    # El turno ENTERO (correr + mostrar + registrar) va al
+                    # hilo: si el _show_response quedara en el principal, el
+                    # resultado se imprimiria DESPUES del prompt siguiente y
+                    # el orden de la pantalla cambiaria respecto de hoy.
+                    def _turno_retomar(_t=_tarea, _raw=raw, _est=_est_rt):
+                        _r = _run_agent_task(
+                            ai, _t, _print_line,
+                            guidance=resumen_para_prompt(
+                                _est, _est.get("faltan", [])))
+                        if _r:
+                            _show_response(_r, _ACCENT, respuesta_final=True)
+                        _session_log.append({"input": _raw, "output": _r,
+                                             "elapsed": 0})
+                    if not _lanzar_en_fondo("hacer", _turno_retomar):
+                        _turno_retomar()
                     continue
                 _print_line("[warn_cl]No hay ninguna tarea incompleta que "
                             "retomar.[/warn_cl]")
                 continue
             if _tarea:
                 _print_line("[detail]Iniciando agente...[/detail]")
-                _resp = _run_agent_task(ai, _tarea, _print_line)
-                if _resp:
-                    _show_response(_resp, _ACCENT, respuesta_final=True)
-                else:
-                    _print_line("[warn_cl]El agente no produjo respuesta.[/warn_cl]")
-                _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
+                # Mismo criterio que en 'retomar': el turno ENTERO al hilo,
+                # para que el orden de lo impreso sea el de hoy.
+                def _turno_hacer(_t=_tarea, _raw=raw):
+                    _resp = _run_agent_task(ai, _t, _print_line)
+                    if _resp:
+                        _show_response(_resp, _ACCENT, respuesta_final=True)
+                    else:
+                        _print_line("[warn_cl]El agente no produjo "
+                                    "respuesta.[/warn_cl]")
+                    _session_log.append({"input": _raw, "output": _resp,
+                                         "elapsed": 0})
+                if not _lanzar_en_fondo("hacer", _turno_hacer):
+                    _turno_hacer()
             else:
                 _print_line("[warn_cl]Uso: /hacer <descripcion de la tarea>[/warn_cl]")
 
@@ -10338,6 +11181,12 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # salvo COGNIA_SCREEN_AUTO=1. _confirmar_accion ya aplica el modo de
         # permisos vigente (/modo-permiso) antes de preguntar por consola.
         "confirm": _confirmar_accion,
+        # Corte cooperativo (T4, 2026-08-18). El bucle del agente NO tenia
+        # ningun hook de cancelacion: con /hacer corriendo en un hilo, Ctrl-C
+        # imprimia "corte pedido" y no cortaba nada — una mentira en pantalla.
+        # Es un callable y no un bool porque se consulta EN CADA TURNO, mucho
+        # despues de construir el ctx.
+        "_cancelado": _corte_pedido,
         "show_diff": (lambda old, new, path: _show_file_diff(old, new, path, _print_fn)),
         # Sub-agente acotado (delegar_subtarea): el rol restringe run_tool y el
         # runner recursivo se inyecta aca (evita el import circular tools<->cli).
@@ -10671,6 +11520,18 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                              f"{type(_e_nat).__name__}: {_e_nat}")
 
     while not _bon_ok and total_steps < AGENT_HARD_CAP:
+        # Corte pedido por el usuario (Ctrl-C en el prompt de espera o en la
+        # vista). Este bucle no tenia NINGUN hook de cancelacion: sin esto,
+        # Ctrl-C sobre un /hacer en segundo plano no cortaba nada y el usuario
+        # miraba un "corte pedido" que era mentira. Se comprueba ENTRE pasos:
+        # una tool larga (build, subprocess) termina antes de cerrar.
+        if _corte_pedido():
+            _print_fn(f"[warn_cl]Corte pedido: el agente se detiene tras el "
+                      f"paso {total_steps}.[/warn_cl]")
+            if not result_text:
+                result_text = (f"(corte pedido por el usuario: el agente se "
+                               f"detuvo tras el paso {total_steps})")
+            break
         # Llenar el checkbox del paso anterior al arrancar una vuelta nueva
         # (vuelta N arranca => la N-1 quedo completada). Jamas rompe el loop.
         if total_steps > 0 and _board_pos < len(_board_ids):

@@ -503,8 +503,14 @@ def barra_estado(datos, ancho: int = 80,
 # ---------------------------------------------------------------------------
 # {F} lo reemplaza el juego de glifos (flechas Unicode o su fallback ASCII).
 _ATAJOS = {
+    # 'f2 agentes' va ULTIMO (es el primero que se cae cuando la terminal es
+    # angosta) pero va: hasta 2026-08-18 la UNICA forma de enterarse de que F2
+    # existe era lanzar una corrida, porque el prompt de espera del carril de
+    # fondo lo nombra en su marco y esta barra no. F2 abre la vista de agentes
+    # SIEMPRE, con corrida o sin ella (sin corrida dice "Sin corrida ·
+    # esperando eventos del bus"), asi que en el contexto 'repl' no miente.
     "repl": (("tab", "completa"), ("{F}", "historial"), ("@", "archivo"),
-             ("/", "comandos")),
+             ("/", "comandos"), ("f2", "agentes")),
     "generando": (("esc", "interrumpe"), ("ctrl+c", "corta")),
     "permiso": (("s", "permite"), ("n", "rechaza"), ("a", "permite siempre"),
                 ("esc", "cancela")),
@@ -552,7 +558,8 @@ def barra_atajos_partes(contexto: str, ancho: int = 0,
 
 def barra_atajos(contexto: str, ancho: int = 0,
                  unicode_ok: bool | None = None) -> str:
-    """'tab completa \u00b7 \u2191\u2193 historial \u00b7 @ archivo \u00b7 / comandos' (contexto 'repl').
+    """'tab completa \u00b7 \u2191\u2193 historial \u00b7 @ archivo \u00b7 / comandos \u00b7 f2 agentes'
+    (contexto 'repl').
     Cadena vacia si el contexto no es uno de CONTEXTOS."""
     return "".join(t for t, _ in
                    barra_atajos_partes(contexto, ancho, unicode_ok))
