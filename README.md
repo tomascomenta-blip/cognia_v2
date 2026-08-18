@@ -85,7 +85,6 @@ imagenes/escenas** AI-nativo y los **prompts que se auto-mejoran**.
 
 ```bash
 pip install "cognia-ai[semantic]"   # + embeddings reales (sentence-transformers, ~2GB)
-pip install "cognia-ai[tui]"        # + interfaz TUI (textual)
 pip install "cognia-ai[llama]"      # + llama.cpp via pip (requiere wheel prebuilt o compilador C++)
 pip install "cognia-ai[all]"        # todo
 ```
@@ -195,7 +194,8 @@ tab completa · ↑↓ historial · @ archivo · / comandos
 | `/sesiones` | Listar sesiones de chat recientes. |
 | `/salir` | Salir del REPL. |
 
-Tambien hay una **TUI** (`pip install "cognia-ai[tui]"` + `python -m cognia.tui`).
+Tambien hay una **TUI** (`python -m cognia.tui`): textual viene en el core desde
+4.8.x, no hace falta ningun extra.
 
 ### Subcomandos de la CLI
 

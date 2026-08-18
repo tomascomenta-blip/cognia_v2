@@ -16,7 +16,6 @@ Opcionales:
 
 ```bash
 pip install "cognia-ai[semantic]"   # embeddings reales (sentence-transformers, ~2GB)
-pip install "cognia-ai[tui]"        # interfaz TUI (textual)
 cognia install-model --with-heavy-code   # especialista 7B de codigo (~4.7 GB, opt-in)
 ```
 
