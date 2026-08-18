@@ -13078,3 +13078,35 @@ Falta: T4 (runner), T5a/b (la pantalla de agentes), T6 (móvil + empaquetado).
 Se investiga a fondo antes de tocar nada: qué techo real tiene la máquina, qué límites impone
 hoy el motor (presupuesto, `max_tokens`, el tope de pared del stream, la ventana del backend), y
 qué de esto ya está resuelto por el modo RLM.
+
+### Cierre de la corrida (2026-08-18, ~05:30)
+
+**Objetivo 1 — el rediseño de UI: ENTREGADO.** Diez tandas, todas con contrafactual medido.
+El chat sigue siendo scroll; `F2` abre una pantalla de agentes en Textual con un panel por agente,
+su texto en vivo, el plan con casillas y la descripción de cada tool; `esc` vuelve y el terminal
+queda idéntico (medido dentro de un ConPTY: 503/7 → 512/7 → 503/7, `?1049h`/`?1049l` balanceados,
+cero `ESC[3J`). Ctrl-C dejó de significar «salir». El móvil no solo sobrevive: ve un bloque por
+agente. Interruptor de vuelta atrás: `COGNIA_SIN_FONDO=1`.
+
+**Objetivo 2 — 200k y 1M: uno alcanzado, el otro ya estaba y mal contado.**
+- 200k: **216.721 tokens** tokenizados del fichero, 176/176 secciones, 89 min, gate PASS. Como
+  documento en disco; el motor de workflows topa en 12.288 y un texto largo no puede volver al
+  modelo.
+- 1M: Qwythos ya lo declara (Qwen3.5-9B, YaRN horneado, híbrido 9/33). No había flag que poner.
+  Lo que faltaba —memoria entre turnos en el RLM— está hecho.
+
+**Lo que queda abierto, con su número:**
+1. 115 de 176 secciones cortadas a media frase (`per_task=1250` < mediana 1.392). El arreglo no
+   es subir el cap.
+2. El brazo RLM del banco de síntesis sin medir: el server corre sin `--jinja`
+   (`soporta_tools: false`). Necesita ventana de mantenimiento.
+3. `VERIFICAR_T4_A_MANO.md`: lo que el ConPTY no puede firmar (Windows Terminal real, SIGINT con
+   `PROCESSED_INPUT`, el shimmer a ojo). Cinco minutos del dueño.
+4. Un título duplicado exacto en el outline de 176 (índices 54 y 63): ni el conteo ni el detector
+   de familias lo ven. Chequeo barato pendiente.
+5. `cli.py:4911` llama a `generate_delegated` sin `on_aviso`: por el REPL un plan inválido sale
+   con el mensaje equivocado.
+
+**Lecciones que se llevaron a memoria:** cinco instrumentos aprobaron algo roto en una sola noche
+(ninguno falló), y contar bien no es medir lo que importa — un outline con 24/24 títulos
+distintos tenía once del mismo tema inventado.
