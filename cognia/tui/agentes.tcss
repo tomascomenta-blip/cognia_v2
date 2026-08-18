@@ -32,6 +32,18 @@ Screen {
     background: $surface;
 }
 
+/* La franja de "esta vista ya no recibe nada" (agentes.py: _revisar_puente).
+ * Oculta por defecto; se enciende cuando otra pantalla se quedo con el puente
+ * del proceso. Va ARRIBA, pegada a la cabecera, porque lo que dice invalida
+ * todo lo que hay debajo: los numeros que se ven quedaron congelados. */
+#desconectada {
+    display: none;
+    height: auto;
+    max-height: 2;
+    padding: 0 1;
+    background: $panel;
+}
+
 /* height 2, no 1: con `border-bottom` la caja necesita UNA fila para el
  * borde ademas de la del contenido. Con height:1 el contenido se quedaba con
  * cero filas y el plan no se veia (medido en 01_un_agente_corriendo.png: la
@@ -155,29 +167,139 @@ Screen {
     color: $foreground;
 }
 
-/* ---- El hueco de las acciones (tanda siguiente) ------------------------ */
+/* ---- Las acciones ------------------------------------------------------ */
 
+/* TRES filas, no dos columnas: la pista, la respuesta del motor y el Input.
+ * Con la pista y el Input en la misma fila, la pista -- que crecio para
+ * nombrar las teclas de lectura y despues las de accion -- le comia el ancho
+ * al Input y el placeholder se pintaba cortado. */
+/* height auto y no 4: por debajo de ~97 columnas la pista se envuelve en dos
+ * filas (no hay una sola fila que diga las tres familias de teclas sin callarse
+ * una) y el bloque tiene que crecer con ella en vez de recortarla. */
 #acciones {
-    height: 3;
+    height: auto;
     padding: 0 1;
     border-top: solid $border;
 }
 
+/* max-height 3 y no libre: a 32 columnas la compacta ya ocupa 3 filas, y una
+ * pista que se coma media pantalla deja de mostrar los agentes, que es el
+ * punto. Por debajo de eso la terminal no da para esta pantalla. */
 #pista {
-    width: auto;
-    height: 1;
-    margin: 1 2 0 0;
+    width: 1fr;
+    height: auto;
+    max-height: 3;
 }
 
+/* La respuesta del motor. Fila PROPIA y persistente: un `ya_termino` o un
+ * `buzon_lleno` que se desvanece como toast es lo mismo que tragarselo (y no
+ * sale en una captura). Una linea, recortada con elipsis desde el codigo.
+ * Oculta hasta la primera accion (la enciende _pintar_respuesta): una fila en
+ * blanco permanente le come una linea de texto a la rejilla. */
+#respuesta {
+    display: none;
+    width: 1fr;
+    height: 1;
+}
+
+/* height 1 EXPLICITO: el Input de Textual nace con `height: 3` (dos filas son
+ * el borde `tall`) y aca el borde esta apagado, asi que sin esto se llevaba
+ * dos filas vacias -- invisibles mientras #acciones tuvo alto fijo y recorto,
+ * y visibles apenas paso a `height: auto` (medido: dos filas en blanco entre
+ * el campo y el pie). Esas filas se las come la rejilla, que es lo que hay que
+ * mostrar. */
 #hablar {
     width: 1fr;
+    height: 1;
     border: none;
     background: $surface;
-    color: $text-muted;
+    color: $foreground;
 }
 
-/* Un Input deshabilitado en Textual se pinta al 60% de opacidad; se le baja
- * mas para que NADIE crea que puede escribir ahi todavia. */
-#hablar:disabled {
-    opacity: 0.5;
+/* El Input YA NO ESTA DESHABILITADO (antes se le bajaba la opacidad a 0.5 para
+ * que nadie creyera que podia escribir): manda de verdad. Enfocado se marca
+ * con el mismo acento que el panel enfocado -- es donde esta el cursor. */
+#hablar:focus {
+    background: $panel;
+    color: $foreground;
+}
+
+/* A QUIEN LE HABLAN LAS ACCIONES. La seleccion sobrevive al foco: mientras se
+ * escribe en el Input, ningun panel tiene `:focus` y sin esta clase no habria
+ * NADA en pantalla diciendo a quien se le va a hablar. Es el mismo fondo del
+ * panel enfocado y sin tocar el borde, que sigue diciendo el estado. */
+.panel-agente.seleccionado {
+    background: $panel;
+}
+
+/* ---- El modal de confirmacion de ctrl+x -------------------------------- */
+
+/* Copiado de app.tcss (esta App tiene su propio CSS_PATH y no ve aquel), con
+ * la jerarquia INTACTA -- que es el punto: ese dialogo se corrigio cuatro
+ * veces hasta que dejo de premiar la accion destructiva, y traerlo aca con
+ * "mejoras" seria deshacer esas cuatro vueltas.
+ *   * ningun boton lleva bloque de color (los dos pesan lo mismo);
+ *   * el destructivo se distingue por COLOR de texto/contorno, no por masa;
+ *   * no hay boton preseleccionado (ConfirmModal.AUTO_FOCUS = ""), y por eso
+ *     lo que hace enter se dice con TEXTO en #confirm-hint. */
+ConfirmModal {
+    align: center middle;
+    background: $background 60%;
+}
+
+#confirm-box {
+    width: auto;
+    min-width: 48;
+    max-width: 70;
+    height: auto;
+    padding: 2 4;
+    background: $panel;
+    border: round $border;
+    border-title-align: center;
+}
+
+#confirm-question {
+    width: 100%;
+    height: auto;
+    margin: 0 0 2 0;
+    content-align: center middle;
+    text-align: center;
+    color: $foreground;
+}
+
+#confirm-actions {
+    width: 100%;
+    height: auto;
+    align: center middle;
+}
+
+#confirm-actions Button {
+    margin: 0 2;
+    min-width: 14;
+    background: $panel;
+    text-style: bold;
+    border-top: tall $border;
+    border-bottom: tall $border;
+}
+
+/* Los dos selectores llevan el id del contenedor A PROPOSITO: `#confirm-yes` a
+ * secas (1 id, 0 tipos) PIERDE contra `#confirm-actions Button` (1 id, 1 tipo)
+ * en la especificidad de Textual, y el contorno rojo no se pintaba. */
+#confirm-actions #confirm-yes {
+    color: $error;
+    border-top: tall $error;
+    border-bottom: tall $error;
+}
+
+#confirm-actions #confirm-no {
+    color: $foreground;
+}
+
+#confirm-hint {
+    width: 100%;
+    height: auto;
+    margin: 1 0 0 0;
+    content-align: center middle;
+    text-align: center;
+    color: $text-muted;
 }

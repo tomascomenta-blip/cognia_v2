@@ -912,10 +912,21 @@ def conectar_puente(app=None, **kwargs) -> PuenteBus:
     return p.conectar(app)
 
 
-def desconectar_puente() -> None:
-    """Saca el puente del bus. Idempotente: llamarla sin puente no hace nada."""
+def desconectar_puente(solo_de=None) -> None:
+    """Saca el puente del bus. Idempotente: llamarla sin puente no hace nada.
+
+    ``solo_de``: desconecta SOLO si el puente del proceso es el de esa App.
+    Sin esto la llamada es GLOBAL, y como cada pantalla la hace en su
+    on_unmount, la primera en cerrarse apagaba el puente de la que estuviera
+    viva -- que se quedaba montada, con su timer corriendo y sin un solo
+    evento, en silencio. Con ``solo_de`` la pantalla solo puede apagar el
+    puente que es SUYO."""
     global _puente
     with _lock_modulo:
-        p, _puente = _puente, None
-    if p is not None:
-        p.desconectar()
+        p = _puente
+        if p is None:
+            return
+        if solo_de is not None and p.app is not solo_de:
+            return
+        _puente = None
+    p.desconectar()
