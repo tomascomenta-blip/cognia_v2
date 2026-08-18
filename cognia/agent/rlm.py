@@ -1,15 +1,43 @@
 """
 cognia/agent/rlm.py
 ===================
-Modo RLM: contexto mas grande que la ventana, tocado SOLO via tools.
+Modo RLM: contexto grande tocado SOLO via tools, por el RELOJ.
 
-POR QUE EXISTE: el contexto largo NO entra en la ventana del cerebro
-(Qwythos ctx 32768). En vez de truncarlo o resumirlo a ciegas, vive en un
+POR QUE EXISTE — CORREGIDO 2026-08-18. La justificacion vieja de este
+docstring ("el contexto largo NO entra en la ventana del cerebro, Qwythos
+ctx 32768") era FALSA en los dos terminos:
+
+1. Qwythos declara 1.048.576 de contexto (Qwen3.5-9B con YaRN horneado en el
+   GGUF, factor 4.0 sobre 262.144). No hay flag que poner y no son 32768.
+2. Y el millon CABE de verdad en esta maquina: es un hibrido (9 de 33 bloques
+   con atencion, 24 SSM), asi que el KV cuesta 36.864 B/token — la celda
+   medida en el repo es 1.010.176 tokens / q4_0 / 15.778 MiB.
+
+La razon real es el RELOJ, no la ventana. El millon nativo cuesta ~34 min de
+prefill y deja 533 MiB libres (o sea desaloja al VLM, al worker y al job de
+imagen): es una operacion puntual, no un modo de chat. El RLM contesta sobre
+el mismo corpus en 9-24 s porque NO lo prefillea: el texto vive en un
 ``ContextoRLM`` fuera de la conversacion y el modelo raiz lo explora con 5
-herramientas (info/ver/grep/partir/llamar). La recursion (``rlm_llamar``)
-manda un trozo a una subllamada LLM fresca SIN tools — profundidad 1
-ESTRUCTURAL: los hijos no pueden llamar herramientas porque no se les pasan,
-no porque un prompt se lo pida.
+herramientas (info/ver/grep/partir/llamar), pagando solo los trozos que mira.
+Medido: 229x mas rapido. La recursion (``rlm_llamar``) manda un trozo a una
+subllamada LLM fresca SIN tools — profundidad 1 ESTRUCTURAL: los hijos no
+pueden llamar herramientas porque no se les pasan, no porque un prompt se lo
+pida.
+
+LIMITE DECLARADO (no lo tapes): todo lo MEDIDO del RLM es LOCALIZACION de
+aguja literal. Contar, comparar o cruzar hilos entre documentos (SINTESIS) es
+otra tarea y NO esta demostrada. El examen que lo decide ya esta escrito y
+preregistrado: ``scripts/banco_rlm_sintesis.py`` + ``PREREG_RLM_SINTESIS.md``
+(90 preguntas, brazo nulo obligatorio y brazo "todo lo que quepa en la
+ventana"). Mientras ese banco no tenga la columna del brazo RLM llena, esta
+linea se queda como esta: el modo se llama LOCALIZACION, no comprension.
+
+CORPUS VIVO (2026-08-18): ademas del corpus de una ruta, el modo acepta un
+``ContextoVivo`` que CRECE entre turnos del REPL — la conversacion de la
+sesion y los ficheros tocados son el corpus. No es un cuarto almacen: el
+contenido durable ya vive en ``chat_history`` (sqlite, estampado con
+session_id) y en ``~/.cognia_agent_state.json`` (files_touched); el
+``ContextoVivo`` es el INDICE en proceso sobre eso, reconstruible.
 
 El contexto efectivo se MIDE SIEMPRE (``MedidorContexto``): que porcentaje
 vio el raiz, que porcentaje vieron los hijos, la ventana pico real y los
@@ -179,6 +207,54 @@ class ContextoRLM:
         """Char donde arranca la linea 1-index."""
         return self._offsets[linea - 1]
 
+    def aviso(self) -> str:
+        """Aviso que ctx_info y el informe deben mostrar SIEMPRE (vacio en un
+        corpus estatico). Lo sobreescribe ``ContextoVivo`` para declarar la
+        poda: si el corpus tira material, tiene que VERSE — un corpus que
+        encoge en silencio es el fallo silencioso que persigue el repo."""
+        return ""
+
+    def anexar(self, texto: str) -> int:
+        """Anexa texto al final y EXTIENDE el indice; devuelve lineas nuevas.
+
+        POR QUE incremental: reconstruir el ``ContextoRLM`` para agregar un
+        turno vuelve a splitear el corpus entero y a recorrer todas sus lineas
+        para los offsets — O(total) por turno, o sea O(total*turnos) sobre una
+        sesion. Aca el split y el bucle de offsets solo tocan el bloque nuevo;
+        lo unico que sigue siendo O(total) es el memcpy del buffer de texto
+        (medido: ver tests/test_rlm_vivo.py::test_costo_de_anexar_es_del_delta).
+
+        El primer trozo del bloque CONTINUA la ultima linea existente, igual
+        que haria ``(self.texto + texto).split('\\n')``: el invariante que
+        importa es que el indice quede identico al de reconstruir.
+        """
+        if not texto:
+            return 0
+        partes = texto.split("\n")
+        # La ultima linea existente se extiende con el primer trozo; su offset
+        # ya esta puesto y no cambia.
+        self.lineas[-1] = self.lineas[-1] + partes[0]
+        off = self._offsets[-1] + len(self.lineas[-1]) + 1
+        for p in partes[1:]:
+            self.lineas.append(p)
+            self._offsets.append(off)
+            off += len(p) + 1
+        self.texto += texto
+        self.chars = len(self.texto)
+        self.tokens_aprox = self.chars // 4
+        return len(partes) - 1
+
+    def _reindexar(self) -> None:
+        """Reconstruye lineas/offsets desde ``self.texto``. Solo para la poda
+        (que corta por delante y mueve TODOS los offsets): es O(total) y por
+        eso es la operacion rara, no la del camino de crecer."""
+        self.lineas = self.texto.split("\n")
+        self.chars = len(self.texto)
+        self.tokens_aprox = self.chars // 4
+        self._offsets = [0]
+        for ln in self.lineas[:-1]:
+            self._offsets.append(self._offsets[-1] + len(ln) + 1)
+
     @classmethod
     def cargar(cls, ruta: str) -> "ContextoRLM":
         """Archivo -> tal cual; directorio -> concatenado con cabeceras.
@@ -223,6 +299,239 @@ class ContextoRLM:
         raise FileNotFoundError(f"no existe la ruta '{ruta}'")
 
 
+# ── El corpus VIVO de la sesion ────────────────────────────────────────
+
+# Techo del corpus vivo, en chars. ~1M tokens aprox (4 chars/tok): el mismo
+# orden que la ventana nativa de Qwythos, pero sin pagar sus 34 min de
+# prefill. Override por COGNIA_RLM_VIVO_MAX_CHARS, leido a call-time.
+MAX_CHARS_VIVO = 4_000_000
+
+# Cuantas etiquetas podadas se recuerdan para el aviso: la poda se DECLARA
+# con nombres, no solo con un contador (un "se tiraron 12 bloques" no deja
+# saber si se fue justo el turno que interesaba).
+_MAX_ETIQUETAS_PODADAS = 12
+
+
+def clave_archivo(ruta: str) -> str:
+    """Clave de dedup de un fichero: ruta + mtime + tamano. Publica porque el
+    caller la necesita ANTES de leer — mirar el stat cuesta microsegundos y
+    releer 30 ficheros en cada turno costaria megabytes."""
+    p = Path(ruta)
+    st = p.stat()
+    return f"archivo:{p.as_posix()}:{int(st.st_mtime)}:{st.st_size}"
+
+
+class ContextoVivo(ContextoRLM):
+    """Corpus que CRECE entre turnos del REPL: la conversacion de la sesion
+    y los ficheros tocados.
+
+    DONDE VIVE EL CONTENIDO (y por que no hay un cuarto almacen): lo durable
+    ya esta escrito por el REPL — cada turno va a ``chat_history`` (sqlite,
+    estampado con session_id/cwd por ``ChatHistory.set_session``) y los
+    ficheros tocados a ``~/.cognia_agent_state.json``. Este objeto es el
+    INDICE en proceso sobre ese material: se siembra al primer ``/rlm`` de la
+    sesion y se reconstruye solo si el proceso muere. Guardar una copia del
+    corpus en disco seria duplicar la unica fuente de verdad.
+
+    CRECER es O(delta) (``ContextoRLM.anexar``); PODAR es O(total) y por eso
+    es la operacion rara. La poda tira BLOQUES ENTEROS por antiguedad (FIFO)
+    y lo declara en ``aviso()``, que ctx_info y el informe imprimen siempre.
+    """
+
+    def __init__(self, origen: str = "sesion", max_chars: int = 0):
+        super().__init__("", origen, "utf-8 (memoria)")
+        self.max_chars = int(max_chars or
+                             _env_int("COGNIA_RLM_VIVO_MAX_CHARS",
+                                      MAX_CHARS_VIVO))
+        # Bloques vivos: {clave, etiqueta, ini, fin, ts}. ini/fin son offsets
+        # de char dentro de self.texto (no una copia del texto: duplicar el
+        # corpus en memoria para poder podarlo saldria mas caro que podarlo).
+        self.bloques: list = []
+        self.claves: set = set()
+        self.turnos = 0
+        self.comandos = 0
+        self.archivos = 0
+        # Lo TIRADO y lo NO ENTRADO, que es lo que hay que poder ver. Un
+        # fichero que no se pudo leer y un fichero que no existe piden
+        # decisiones distintas: los dos se cuentan con su motivo en vez de
+        # desaparecer (leccion "un fallo que devuelve None es invisible").
+        self.podados = 0
+        self.chars_podados = 0
+        self.etiquetas_podadas: list = []
+        self.saltados: list = []
+        self.saltados_total = 0
+
+    # -- crecer ---------------------------------------------------------
+
+    def anexar_bloque(self, clave: str, etiqueta: str, texto: str) -> dict:
+        """Anexa un bloque con cabecera. Dedup por ``clave``: sembrar dos
+        veces la misma sesion no duplica nada.
+
+        Devuelve {'anexado', 'chars', 'lineas', 'podados'} — el caller puede
+        decidir con eso, y los tests miden con eso.
+        """
+        if not clave or clave in self.claves:
+            return {"anexado": False, "chars": 0, "lineas": 0, "podados": 0}
+        cuerpo = f"=== {etiqueta} ===\n{texto}\n"
+        ini = self.chars
+        lineas = self.anexar(cuerpo)
+        self.claves.add(clave)
+        self.bloques.append({"clave": clave, "etiqueta": etiqueta,
+                             "ini": ini, "fin": self.chars, "ts": time.time()})
+        podados = self.podar()
+        return {"anexado": True, "chars": len(cuerpo), "lineas": lineas,
+                "podados": podados}
+
+    def anexar_turno(self, rol: str, contenido: str, clave: str = "") -> dict:
+        """Un turno de la conversacion. La clave por defecto es el ORDINAL
+        (no un hash del contenido): preguntar dos veces lo mismo son dos
+        turnos distintos, y un dedup por contenido se comeria el segundo."""
+        self.turnos += 1
+        n = self.turnos
+        return self.anexar_bloque(clave or f"turno:{n}",
+                                  f"TURNO {n} ({rol})", contenido or "")
+
+    def anexar_comando(self, indice: int, entrada: str, salida: str) -> dict:
+        """Un comando slash del REPL (van por _session_log, no por _history:
+        sin ellos el corpus se perderia justo lo que el agente HIZO)."""
+        r = self.anexar_bloque(f"slash:{indice}", f"COMANDO {indice + 1}",
+                               f"{entrada}\n{salida}")
+        if r["anexado"]:
+            self.comandos += 1
+        return r
+
+    def anexar_archivo(self, ruta: str) -> dict:
+        """Un fichero tocado. La clave lleva mtime y tamano: si el fichero
+        cambio DESPUES de haberlo ingerido, entra otra vez como bloque nuevo
+        — el corpus es un LOG de la sesion, no un espejo del disco, y las dos
+        versiones son evidencia."""
+        try:
+            p = Path(ruta)
+            st = p.stat()
+            # Dedup ANTES de leer: la clave sale del stat, asi que un fichero
+            # ya ingerido no cuesta un read (el caller la puede precalcular
+            # con clave_archivo para ni siquiera entrar aca).
+            if clave_archivo(ruta) in self.claves:
+                return {"anexado": False, "chars": 0, "lineas": 0,
+                        "podados": 0, "motivo": "ya ingerido"}
+            if st.st_size > _MAX_BYTES_ARCHIVO:
+                return self._saltar(ruta, "fichero > 2 MB")
+            crudo = p.read_bytes()
+        except OSError as exc:
+            return self._saltar(ruta, f"{type(exc).__name__}: {exc}")
+        if b"\x00" in crudo[:4096]:
+            return self._saltar(ruta, "binario")
+        texto, _codec = _decodificar(crudo)
+        clave = f"archivo:{p.as_posix()}:{int(st.st_mtime)}:{st.st_size}"
+        # Cabecera '=== ARCHIVO: x ===': la MISMA que usa cargar() para un
+        # directorio, para que la lista de archivos de ctx_info salga sola.
+        res = self.anexar_bloque(clave, f"ARCHIVO: {p.as_posix()}", texto)
+        if res["anexado"]:
+            self.archivos += 1
+        return res
+
+    def _saltar(self, ruta: str, motivo: str) -> dict:
+        """Un fichero que NO entro, con su causa. Se registra en vez de
+        devolver un no-op mudo: "no entro" y "no habia nada" piden decisiones
+        distintas, y sin el registro el corpus tendria huecos invisibles."""
+        self.saltados_total += 1
+        self.saltados.append({"ruta": str(ruta), "motivo": motivo})
+        # La lista se capa (memoria), el CONTADOR no: si el aviso dijera
+        # "12 ficheros" con 300 saltados estaria mintiendo por recorte.
+        del self.saltados[:-_MAX_ETIQUETAS_PODADAS]
+        return {"anexado": False, "chars": 0, "lineas": 0, "podados": 0,
+                "motivo": motivo}
+
+    # -- podar (y decirlo) ----------------------------------------------
+
+    def podar(self) -> int:
+        """Tira bloques enteros por antiguedad hasta caber en ``max_chars``.
+        Devuelve cuantos tiro (0 = no hizo falta).
+
+        Nunca deja el corpus vacio: si UN bloque solo ya excede el techo se
+        conserva (y el aviso dice que el corpus esta por encima del techo).
+        Tirar lo ultimo que se dijo para respetar un numero seria peor que
+        pasarse: el turno mas nuevo es justo el que se esta preguntando.
+        """
+        if self.chars <= self.max_chars or len(self.bloques) <= 1:
+            return 0
+        tirados = 0
+        while len(self.bloques) > 1 and self.chars > self.max_chars:
+            b = self.bloques.pop(0)
+            corte = b["fin"]
+            self.texto = self.texto[corte:]
+            self.claves.discard(b["clave"])
+            self.podados += 1
+            self.chars_podados += corte
+            self.etiquetas_podadas.append(b["etiqueta"])
+            del self.etiquetas_podadas[:-_MAX_ETIQUETAS_PODADAS]
+            for otro in self.bloques:
+                otro["ini"] -= corte
+                otro["fin"] -= corte
+            # Reindexar por bloque tirado (no una sola vez al final): la poda
+            # es rara y cada vuelta necesita self.chars actualizado para saber
+            # si ya cabe. Con el corpus tipico son 0 o 1 vueltas.
+            self._reindexar()
+            tirados += 1
+        return tirados
+
+    def aviso(self) -> str:
+        partes = [f"corpus VIVO de la sesion: {len(self.bloques)} bloques "
+                  f"({self.turnos} turnos, {self.comandos} comandos, "
+                  f"{self.archivos} archivos) | "
+                  f"techo {self.max_chars:,} chars"]
+        if self.saltados:
+            partes.append(
+                f"NO entraron {self.saltados_total} ficheros: " +
+                "; ".join(f"{s['ruta']} ({s['motivo']})"
+                          for s in self.saltados[-3:]))
+        if self.podados:
+            partes.append(
+                f"PODADO: {self.podados} bloques / {self.chars_podados:,} "
+                f"chars tirados por techo (los mas VIEJOS primero). "
+                f"Ultimos tirados: " + ", ".join(self.etiquetas_podadas[-5:]))
+        if self.chars > self.max_chars:
+            partes.append(f"AVISO: el corpus ({self.chars:,} chars) supera el "
+                          "techo con un solo bloque; no se poda mas para no "
+                          "dejarlo vacio.")
+        return "\n".join(partes)
+
+
+def sembrar_vivo(vivo: ContextoVivo, turnos=(), archivos=(), desde=None) -> dict:
+    """Mete en el corpus vivo lo que aun no esta. Funcion PURA sobre las
+    listas que le pasan (el CLI le da _history y files_touched): asi el modo
+    se prueba headless, sin REPL ni sqlite.
+
+    ``turnos``: iterable de {'role', 'content'} en orden cronologico. Se
+    ingiere el DELTA (los que estan despues de los ya ingeridos), por
+    ordinal: la lista del REPL es append-only. Si viene mas corta que lo ya
+    ingerido (alguien la vacio), NO se re-siembra desde cero — se ignora el
+    prefijo y se sigue por ordinal, que es lo unico que no duplica.
+
+    ``desde``: cuantos elementos de ``turnos`` ya se ingirieron. Por defecto
+    ``vivo.turnos``, que solo vale cuando ESTA lista es la unica fuente de
+    turnos; el CLI lleva su propio contador porque ademas siembra el historial
+    profundo de chat_history, que tambien suma a ``vivo.turnos``.
+    """
+    res = {"turnos": 0, "comandos": 0, "archivos": 0, "chars": 0,
+           "podados": 0}
+    lista = list(turnos or ())
+    for t in lista[vivo.turnos if desde is None else int(desde):]:
+        r = vivo.anexar_turno(str(t.get("role") or "?"),
+                              str(t.get("content") or ""))
+        if r["anexado"]:
+            res["turnos"] += 1
+            res["chars"] += r["chars"]
+            res["podados"] += r["podados"]
+    for ruta in (archivos or ()):
+        r = vivo.anexar_archivo(str(ruta))
+        if r["anexado"]:
+            res["archivos"] += 1
+            res["chars"] += r["chars"]
+            res["podados"] += r["podados"]
+    return res
+
+
 # ── El medidor (el informe SIEMPRE sale de aca) ─────────────────────────
 
 
@@ -237,7 +546,8 @@ class MedidorContexto:
 
     def __init__(self, ctx_chars: int = 0, ctx_lineas: int = 0,
                  origen: str = "", n_ctx=None, max_hijos: int = 16,
-                 presupuesto_tokens: int = 120000, url_hijos: str = ""):
+                 presupuesto_tokens: int = 120000, url_hijos: str = "",
+                 aviso_corpus: str = ""):
         self.ctx_chars = ctx_chars
         self.ctx_tokens_aprox = ctx_chars // 4
         self.ctx_lineas = ctx_lineas
@@ -250,6 +560,10 @@ class MedidorContexto:
         # DECIR por donde salieron los hijos (un numero sin su via no se
         # puede comparar entre corridas con y sin worker).
         self.url_hijos = url_hijos
+        # Lo que el CORPUS tiene que declarar (la poda del corpus vivo, sobre
+        # todo). Va en el informe, que es lo unico que se imprime SIEMPRE: un
+        # corpus que encogio y no lo dijo es el fallo silencioso exacto.
+        self.aviso_corpus = aviso_corpus
         self.intervalos_raiz: list = []
         self.intervalos_hijos: list = []
         self.tokens_in_raiz = 0
@@ -348,6 +662,7 @@ class MedidorContexto:
             "presupuesto_tokens": self.presupuesto_tokens,
             "n_ctx": self.n_ctx,
             "url_hijos": self.url_hijos,
+            "aviso_corpus": self.aviso_corpus,
         }
 
     def informe(self) -> str:
@@ -383,6 +698,10 @@ class MedidorContexto:
         # en una corrida sin hijos ni worker la linea seria ruido fijo.
         if self.llamadas_hijo or self.url_hijos:
             lineas.append(f"hijos via: {self.url_hijos or 'cerebro (:8080)'}")
+        # El aviso del corpus va AL FINAL y sin flag: si el corpus vivo podo,
+        # el informe lo dice aunque nadie haya llamado a ctx_info.
+        if self.aviso_corpus:
+            lineas.extend(self.aviso_corpus.splitlines())
         return "\n".join(lineas)
 
 
@@ -454,6 +773,12 @@ def _ctx_info(args: str, ctx: dict) -> str:
     salida = [(f"RESULTADO ctx_info: {c.chars:,} chars "
                f"(~{c.tokens_aprox:,} tok aprox) | {n:,} lineas | "
                f"{cod}origen: {c.origen}")]
+    # El aviso del corpus (vacio si es estatico) va ARRIBA, antes del
+    # contenido: si el corpus vivo poda, el modelo tiene que enterarse en la
+    # primera tool que llama, no despues de buscar en vano lo que se tiro.
+    av = c.aviso()
+    if av:
+        salida.extend(av.splitlines())
     # Bordes del contexto: primeras 15 + ultimas 5 (sin solapar si es corto).
     prim_hasta = min(15, n)
     salida.append(f"primeras {prim_hasta} lineas:")
@@ -838,11 +1163,15 @@ def register(tool):
 # ── El runner ──────────────────────────────────────────────────────────
 
 
-def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
+def correr_rlm(pregunta: str, ruta: str = "", print_fn=None, completar_fn=None,
                max_turns: int = 24, url: str = "",
-               worker: bool = None) -> dict:
+               worker: bool = None, contexto=None) -> dict:
     """Corre el modo RLM: carga el contexto, arma el estado y lanza el bucle
     nativo con SOLO las 5 tools RLM.
+
+    contexto: un ``ContextoRLM`` YA armado (tipicamente el ``ContextoVivo`` de
+    la sesion). Cuando viene, ``ruta`` se ignora y no se toca el disco — es la
+    via del corpus vivo. Sin el, el camino de siempre: cargar ``ruta``.
 
     worker: rutear las subllamadas (hijos) al rol 'worker' del summoner en
     vez del cerebro. None (default) delega en COGNIA_RLM_WORKER == "1";
@@ -856,11 +1185,21 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
     premio del camino feliz).
     """
     pf = print_fn or (lambda *a, **k: None)
-    try:
-        contexto = ContextoRLM.cargar(ruta)
-    except Exception as exc:
-        # Ruta inexistente / ilegible: se degrada sin lanzar (contrato).
-        return {"texto": f"ERROR cargando el contexto de '{ruta}': {exc}",
+    if contexto is None:
+        try:
+            contexto = ContextoRLM.cargar(ruta)
+        except Exception as exc:
+            # Ruta inexistente / ilegible: se degrada sin lanzar (contrato).
+            return {"texto": f"ERROR cargando el contexto de '{ruta}': {exc}",
+                    "ok": False, "pasos": 0, "informe": "", "medidor": {}}
+    elif not contexto.chars:
+        # Corpus vivo VACIO: se dice, no se corre. Un bucle sobre 0 chars
+        # gastaria la GPU para que el modelo conteste de su cabeza y el
+        # informe dijera 0% — indistinguible de "no encontro nada".
+        return {"texto": ("ERROR: el corpus vivo de la sesion esta VACIO "
+                          "(todavia no hay turnos ni ficheros tocados). "
+                          "Conversa un poco, o pasa una ruta: "
+                          "/rlm <ruta> <pregunta>."),
                 "ok": False, "pasos": 0, "informe": "", "medidor": {}}
 
     # Imports PEREZOSOS: tools.py importa este modulo al final para
@@ -922,7 +1261,8 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
                 ctx_chars=contexto.chars, ctx_lineas=len(contexto.lineas),
                 origen=contexto.origen, n_ctx=(perfil or {}).get("n_ctx"),
                 max_hijos=_env_int("COGNIA_RLM_MAX_HIJOS", 16),
-                presupuesto_tokens=_env_int("COGNIA_RLM_PRESUPUESTO", 120000))
+                presupuesto_tokens=_env_int("COGNIA_RLM_PRESUPUESTO", 120000),
+                aviso_corpus=contexto.aviso())
             # El remedio depende de POR QUE no hay nativo: mandar a poner
             # --jinja a quien lo que tiene es un COGNIA_AGENT_LEGACY=1 puesto
             # a mano lo manda a arreglar un server que esta bien.
@@ -1026,7 +1366,7 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
         origen=contexto.origen, n_ctx=perfil.get("n_ctx"),
         max_hijos=_env_int("COGNIA_RLM_MAX_HIJOS", 16),
         presupuesto_tokens=_env_int("COGNIA_RLM_PRESUPUESTO", 120000),
-        url_hijos=url_hijos)
+        url_hijos=url_hijos, aviso_corpus=contexto.aviso())
     estado = EstadoRLM(
         contexto=contexto, medidor=medidor, completar_fn=completar_fn,
         perfil=perfil, max_hijos=medidor.max_hijos,
@@ -1046,9 +1386,14 @@ def correr_rlm(pregunta: str, ruta: str, print_fn=None, completar_fn=None,
 
     ctx = {"_rlm": estado, "_allowed_tools": set(RLM_TOOLS),
            "working_memory": {}, "agent_state": {}, "print_fn": pf}
+    # Con corpus vivo, el system DICE que el corpus es la sesion (y si podo).
+    # Sin eso el modelo trata la conversacion como un fichero anonimo y no
+    # sabe que "lo que dijimos antes" esta ahi adentro.
+    _av = contexto.aviso()
+    system = SYSTEM_RLM + ("\n" + _av if _av else "")
     try:
         res = _loop.bucle_nativo(
-            task=pregunta, system=SYSTEM_RLM, completar=_completar_raiz,
+            task=pregunta, system=system, completar=_completar_raiz,
             schemas=schemas_para(RLM_TOOLS), args_legacy=args_legacy,
             mensaje_assistant=mensaje_assistant, mensaje_tool=mensaje_tool,
             run_tool=_tools.run_tool, ctx=ctx, perfil=perfil,

@@ -414,6 +414,174 @@ def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
         pass
 
 
+# ---------------------------------------------------------------------------
+# Corpus VIVO del modo RLM (la sesion como contexto largo)
+# ---------------------------------------------------------------------------
+# DONDE VIVE (y por que no hay un almacen nuevo): el contenido durable ya lo
+# escribe el REPL — cada turno de chat va a chat_history (sqlite, estampado
+# con session_id por ChatHistory.set_session) y los ficheros tocados a
+# ~/.cognia_agent_state.json. _RLM_VIVO es el INDICE en proceso sobre eso,
+# sembrado desde _history (que a su vez se restaura de chat_history al
+# arrancar, ver _HISTORY_SEED_N) y desde _session_log. Si el proceso muere se
+# reconstruye solo; guardar una copia del corpus en disco duplicaria la unica
+# fuente de verdad, que es exactamente lo que este repo evita.
+_RLM_VIVO = None
+_RLM_VIVO_HIST = 0      # cuantos mensajes de _history ya se ingirieron
+_RLM_VIVO_SLASH = 0     # cuantas entradas de _session_log ya se ingirieron
+_RLM_VIVO_ARCH: set = set()   # ficheros ya ingeridos (clave ruta+mtime+size)
+# Profundidad de la semilla desde chat_history en el PRIMER /rlm. _history
+# solo trae _HISTORY_SEED_N (20) mensajes restaurados — suficiente para el
+# prompt, ridiculo para un corpus. Aca se baja mucho mas hondo porque el
+# corpus no paga ventana: leerlo cuesta una SELECT, no un prefill.
+_RLM_VIVO_SEED_N = 2000
+
+
+def _solape_turnos(previos: list, vivos: list) -> int:
+    """Cuantos mensajes del FINAL de `previos` son los mismos que el PRINCIPIO
+    de `vivos`.
+
+    POR QUE: al arrancar, el REPL siembra _history con las ultimas
+    _HISTORY_SEED_N filas de chat_history. Si el corpus vivo se sembrara con
+    las 2000 ultimas filas Y ADEMAS con _history, esas 20 entrarian dos veces
+    — y un corpus con turnos duplicados hace que el modelo cuente mal y cite
+    lineas que no distinguen una copia de la otra.
+    """
+    if not previos or not vivos:
+        return 0
+    tope = min(len(previos), len(vivos))
+    for j in range(len(previos) - tope, len(previos)):
+        k = len(previos) - j
+        if all(previos[j + i].get("role") == vivos[i].get("role") and
+               previos[j + i].get("content") == vivos[i].get("content")
+               for i in range(k)):
+            return k
+    return 0
+
+
+def _rlm_parsear(args: str) -> tuple:
+    """(ruta, pregunta) de los argumentos de /rlm.
+
+    SIN ruta = corpus VIVO de la sesion. El disparador es que el primer token
+    EXISTA en disco, no que "parezca" una ruta: una heuristica por barras o
+    puntos mandaria "que dijimos de rlm.py?" al camino de fichero y el usuario
+    veria un error de carga en vez de una respuesta. Las comillas siguen
+    significando RUTA siempre (lo explicito gana, y es como se pasan las rutas
+    de Windows con espacios desde antes de que existiera el corpus vivo).
+    """
+    args = (args or "").strip()
+    if not args:
+        return "", ""
+    if args[0] in ("'", '"'):
+        fin = args.find(args[0], 1)
+        if fin > 0:
+            return args[1:fin], args[fin + 1:].strip()
+        return "", args
+    partes = args.split(None, 1)
+    try:
+        es_ruta = os.path.exists(partes[0])
+    except (OSError, ValueError):
+        es_ruta = False
+    if es_ruta:
+        return partes[0], (partes[1].strip() if len(partes) > 1 else "")
+    return "", args
+
+
+def _rlm_corpus_vivo(ai=None):
+    """(corpus, delta): el ContextoVivo de la sesion, crecido con lo nuevo.
+
+    Crecer es INCREMENTAL: solo se anexa el delta (mensajes de _history por
+    ordinal, entradas de _session_log por indice, ficheros por
+    ruta+mtime+size), asi que el coste de un turno no depende del tamano del
+    corpus salvo por el memcpy del buffer. El delta devuelto trae ms medidos
+    para poder decirlo.
+
+    En el PRIMER armado se baja ademas el historial profundo de chat_history
+    (hasta _RLM_VIVO_SEED_N mensajes): _history solo conserva los 20 que el
+    REPL restaura para el prompt, y el corpus no tiene por que heredar ese
+    limite — no paga ventana.
+    """
+    global _RLM_VIVO, _RLM_VIVO_HIST, _RLM_VIVO_SLASH, _RLM_VIVO_ARCH
+    from cognia.agent.rlm import ContextoVivo, sembrar_vivo
+    t0 = time.perf_counter()
+    previos = 0
+    if _RLM_VIVO is None:
+        _RLM_VIVO = ContextoVivo(
+            origen=f"sesion {(_SESSION_ID or '?')[:8]} en "
+                   f"{_SESSION_CWD or os.getcwd()}")
+        _RLM_VIVO_HIST = 0
+        _RLM_VIVO_SLASH = 0
+        _RLM_VIVO_ARCH = set()
+        # Semilla profunda desde chat_history, sin el solape con _history.
+        # Best-effort: sin DB (tests, arranque degradado) el corpus es
+        # exactamente lo que haya en memoria, y eso se ve en el aviso.
+        try:
+            ch = getattr(ai, "chat_history", None)
+            _prev = (ch.get_recent_turns(_RLM_VIVO_SEED_N) or []) if ch else []
+            _k = _solape_turnos(_prev, list(_history))
+            for _m in (_prev[:len(_prev) - _k] if _k else _prev):
+                # El rol lleva ', previo': el modelo tiene que poder
+                # distinguir lo restaurado de disco de lo dicho en vivo.
+                if _RLM_VIVO.anexar_turno(
+                        f"{_m.get('role') or '?'}, previo",
+                        str(_m.get("content") or ""))["anexado"]:
+                    previos += 1
+        except Exception:
+            pass
+    vivo = _RLM_VIVO
+    if _RLM_VIVO_HIST > len(_history):
+        _RLM_VIVO_HIST = len(_history)      # alguien lo vacio: no duplicar
+    delta = sembrar_vivo(vivo, turnos=_history, desde=_RLM_VIVO_HIST)
+    delta["previos"] = previos
+    _RLM_VIVO_HIST = len(_history)
+
+    # Los comandos slash NO pasan por _history (solo por _session_log): sin
+    # ellos el corpus se perderia justo lo que el agente HIZO en la sesion.
+    if _RLM_VIVO_SLASH > len(_session_log):
+        _RLM_VIVO_SLASH = len(_session_log)     # alguien lo vacio: no duplicar
+    for _i in range(_RLM_VIVO_SLASH, len(_session_log)):
+        _e = _session_log[_i] or {}
+        _r = vivo.anexar_comando(_i, str(_e.get("input", "")),
+                                 str(_e.get("output", "")))
+        if _r["anexado"]:
+            delta["comandos"] += 1
+            delta["chars"] += _r["chars"]
+            delta["podados"] += _r["podados"]
+    _RLM_VIVO_SLASH = len(_session_log)
+
+    # Ficheros tocados: la lista la mantiene el agente en
+    # ~/.cognia_agent_state.json (files_touched). Best-effort: si el JSON no
+    # esta o esta roto, el corpus sigue siendo la conversacion.
+    try:
+        import json as _json_v
+        _p = Path.home() / ".cognia_agent_state.json"
+        _tocados = []
+        if _p.exists():
+            _tocados = (_json_v.loads(_p.read_text(encoding="utf-8"))
+                        .get("files_touched") or [])
+        from cognia.agent.rlm import clave_archivo as _clave_arch
+        for _f in _tocados[-30:]:
+            # La clave sale del stat (ruta+mtime+size): un fichero ya
+            # ingerido no cuesta un read, y uno EDITADO despues entra otra
+            # vez como bloque nuevo (el corpus es el log de la sesion).
+            try:
+                _k = _clave_arch(str(_f))
+            except OSError:
+                continue
+            if _k in _RLM_VIVO_ARCH:
+                continue
+            _RLM_VIVO_ARCH.add(_k)
+            _r = vivo.anexar_archivo(str(_f))
+            if _r["anexado"]:
+                delta["archivos"] += 1
+                delta["chars"] += _r["chars"]
+                delta["podados"] += _r["podados"]
+    except Exception:
+        pass
+
+    delta["ms"] = (time.perf_counter() - t0) * 1000.0
+    return vivo, delta
+
+
 def _build_memory_block_for(ai, query: str) -> str:
     """
     Bounded HYDRA memory block ([LOCAL]/[MEDIA]/[GLOBAL]) for the streaming
@@ -1726,7 +1894,7 @@ _CMD_DESCRIPTIONS = {
     "/plan-modo":       "Modo PLAN: el agente investiga sin escribir  [plan|ejecutar|ok]",
     "/permisos":        "Reglas de permiso del proyecto  [olvidar <patron>]",
     "/workflow":        "Repartir subtareas de razonamiento en paralelo  <t1; t2; ...>",
-    "/rlm":             "Contexto largo por tools (RLM)   <ruta> <pregunta>",
+    "/rlm":             "Contexto largo por tools (RLM)   [<ruta>] <pregunta>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
@@ -1945,7 +2113,18 @@ _CMD_DETAILS = {
         "rlm_llamar (sin tools: profundidad 1). Al final SIEMPRE se imprime el informe "
         "del contexto efectivo (cobertura raiz/hijos, ventana pico, subllamadas, "
         "presupuesto); no hay flag para apagarlo. La ruta admite comillas si tiene "
-        "espacios. Ejemplo: /rlm \"C:\\logs\\corrida larga.txt\" que errores aparecen?"
+        "espacios. Ejemplo: /rlm \"C:\\logs\\corrida larga.txt\" que errores aparecen?\n"
+        "SIN ruta, el corpus es la SESION VIVA: la conversacion (chat_history) mas los "
+        "ficheros tocados (~/.cognia_agent_state.json). Crece turno a turno de forma "
+        "incremental y, si pasa el techo (COGNIA_RLM_VIVO_MAX_CHARS, 4.000.000 chars "
+        "por defecto), poda los bloques mas VIEJOS y lo declara en ctx_info y en el "
+        "informe. Ejemplo: /rlm que decidimos sobre el presupuesto de tokens?\n"
+        "POR QUE existe el modo: NO es que el contexto no quepa (Qwythos declara "
+        "1.048.576 y el millon cabe en 16 GB); es el RELOJ — el millon nativo cuesta "
+        "~34 min de prefill y el RLM contesta en 9-24 s. LIMITE: lo medido es "
+        "LOCALIZACION de aguja literal; contar, comparar o cruzar hilos (SINTESIS) "
+        "NO esta demostrado — el examen preregistrado que lo decide es "
+        "scripts/banco_rlm_sintesis.py (ver PREREG_RLM_SINTESIS.md)."
     ),
     "/construir": (
         "Lazo diseno-a-codigo: el cerebro imagina como deberia verse el producto y "
@@ -9169,22 +9348,14 @@ def repl():
         # -- Modo RLM (contexto largo por tools) ------------------------------
         elif raw == "/rlm" or raw.startswith("/rlm "):
             _rlm_args = raw[len("/rlm "):].strip() if raw.startswith("/rlm ") else ""
-            _rlm_ruta, _rlm_preg = "", ""
-            if _rlm_args:
-                # La ruta puede venir entre comillas (rutas de Windows con
-                # espacios); la pregunta es todo lo que sigue, texto libre.
-                if _rlm_args[0] in ("'", '"'):
-                    _rlm_fin = _rlm_args.find(_rlm_args[0], 1)
-                    if _rlm_fin > 0:
-                        _rlm_ruta = _rlm_args[1:_rlm_fin]
-                        _rlm_preg = _rlm_args[_rlm_fin + 1:].strip()
-                else:
-                    _rlm_partes = _rlm_args.split(None, 1)
-                    _rlm_ruta = _rlm_partes[0]
-                    _rlm_preg = _rlm_partes[1].strip() if len(_rlm_partes) > 1 else ""
-            if not _rlm_ruta or not _rlm_preg:
-                _print_line("[warn_cl]Uso: /rlm <ruta> <pregunta>  "
-                            "(comillas si la ruta tiene espacios)[/warn_cl]")
+            _rlm_ruta, _rlm_preg = _rlm_parsear(_rlm_args)
+            if not _rlm_preg:
+                _print_line("[warn_cl]Uso: /rlm <pregunta>            "
+                            "(sobre la SESION: conversacion + ficheros "
+                            "tocados)[/warn_cl]")
+                _print_line("[warn_cl]     /rlm <ruta> <pregunta>     "
+                            "(sobre un fichero o directorio; comillas si la "
+                            "ruta tiene espacios)[/warn_cl]")
             else:
                 # Import perezoso: el modulo RLM solo carga cuando se usa el
                 # modo; un fallo de import avisa sin tumbar el REPL.
@@ -9196,8 +9367,27 @@ def repl():
                                 f"{_escape(str(_e_rlm))}[/warn_cl]")
                 if _correr_rlm is not None:
                     _print_line("[detail]Iniciando modo RLM...[/detail]")
+                    # Corpus VIVO cuando no hay ruta: crecer es incremental y
+                    # el coste se DICE (si tarda, que se vea por que).
+                    _ctx_vivo = None
+                    if not _rlm_ruta:
+                        _ctx_vivo, _delta_v = _rlm_corpus_vivo(ai)
+                        _print_line(
+                            f"[detail]corpus vivo: +{_delta_v['turnos']} "
+                            f"turnos (+{_delta_v['previos']} de historial) "
+                            f"+{_delta_v['comandos']} comandos "
+                            f"+{_delta_v['archivos']} archivos "
+                            f"(+{_delta_v['chars']:,} chars) en "
+                            f"{_delta_v['ms']:.1f} ms | total "
+                            f"{_ctx_vivo.chars:,} chars[/detail]")
+                        if _delta_v["podados"]:
+                            _print_line(
+                                f"[warn_cl]corpus vivo PODADO: "
+                                f"{_delta_v['podados']} bloques tirados por "
+                                f"techo[/warn_cl]")
                     _res_rlm = _correr_rlm(_rlm_preg, _rlm_ruta,
-                                           print_fn=_print_line)
+                                           print_fn=_print_line,
+                                           contexto=_ctx_vivo)
                     _texto_rlm = _res_rlm.get("texto") or ""
                     if _texto_rlm:
                         _show_response(_texto_rlm, _ACCENT, respuesta_final=True)
