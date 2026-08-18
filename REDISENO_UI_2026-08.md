@@ -95,11 +95,11 @@ Nunca la suite completa durante el bucle (11 min). La suite entera, como última
 | **T1c** TLS, la cola y el reloj | ✅ | HTTPS arreglado, no degradado. 12/12 índices de corte sin `tool_calls` ejecutables. Timeout devuelto a semántica de inactividad. |
 | **T2** control por agente | ✅ | Corte en **0,025 s** reproducible; resume re-llama al cancelado; «hablarle» verificado (respondió `CARPINCHO`). |
 | **T2b** honestidad del control | ✅ | Cancelar deja de decir «ningún paso devolvió resultado». El corte pasó de cobrar 0 a cobrar exacto (132 frames = 132 tokens de `/tokenize`, 3/3). 772 tests. |
-| **paleta** verde unificado | ⏳ | Termina con capturas PNG del REPL y SVG de la TUI. |
+| **paleta** verde unificado | ✅ | Una sola fuente de color, rampa **por variante**. `/tema claro` pasó de tener el prompt a 1,19:1 a 8,16. 115 literales migrados; hay test que falla si vuelve uno. |
 | **T3** sink honesto + puente | ✅ | 0/3 → **3/3** líneas `@EV` con la App abierta; e2e con el pipeline real del móvil 0/8 → **8/8**. El test viejo *pasaba sin vigilar nada*: `App._print` solo reenvía al stdout real en modo headless, o sea que el arnés era la condición que ocultaba el bug. De paso: `cli.py:1558` metía cada comando en un `redirect_stdout` (el móvil nunca vio esos eventos) y el handler de logs pintaba ANSI crudo sobre la pantalla alterna. Puente entregado: 921 líneas, descarte **visible** y atribuido al agente, despertador coalescido (8 wakeups / 1.610 eventos). |
-| **T4** runner (workflow al hilo, teclado al principal) | ⬜ | La tanda de riesgo. La firma el dueño en Windows Terminal. |
-| **T5a/b** la pantalla | ⬜ | Carril de paneles, shimmer, clic, `x` / `ctrl+x` / Input. |
-| **T6** móvil por agente + empaquetado | ⬜ | `textual` a dependencia dura. |
+| **T4** runner | ✅ | Medido en un ConPTY: 503/7 → 512/7 → **503/7**, `?1049h`/`?1049l` balanceados, 0 `ESC[3J`. Ctrl-C corta la corrida en 31 ms y el REPL vive. Dos cuelgues del permiso desde el hilo arreglados (uno de **600 s**). 49 tests nuevos. Interruptor: `COGNIA_SIN_FONDO=1`. |
+| **T5a/b** la pantalla | ✅ | Panel por agente con texto vivo, plan con casillas, descripción de tool, shimmer (**+2,13/+3,02 pts** con 8 paneles, re-medido contra control honesto). `x`, `ctrl+x` e «interrumpir y decir» cableados al motor. 19 defectos cerrados, todos vistos MIRANDO capturas. |
+| **T6** móvil + empaquetado | ✅ | Un bloque por agente en el teléfono, agrupado por el CAMPO. Cola del WS acotada con aviso. `textual>=0.86.0` (piso hallado por bisect funcional) como dep dura. Y el **gate de arranque que se comía la prosa de cada sesión**, arreglado. |
 
 ### Deuda declarada, con su número
 
