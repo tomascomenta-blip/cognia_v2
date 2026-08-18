@@ -56,3 +56,49 @@ que decidir qué modelo atiende el chat.
   Qwen3.5/`qwen35`: el ruteo por substring elige mal system prompt, sampling y `enable_thinking`.
 - **Subir `MAX_TOKENS_PASO` re-paga todas las corridas viejas**: `max_tokens` entra en
   `_clave_cache` (`workflows.py:745`). La palanca correcta es más PASOS, no pasos más largos.
+
+---
+
+## RESULTADO — la corrida de 200k, medida (2026-08-18, 03:05→04:34)
+
+**GATE PASS.** `LARGO_TARGET=220000`, 176 workers, `per_task=1250`.
+
+| medida | valor |
+|---|---|
+| **tokens del FICHERO** (`/tokenize`, no el contador) | **216.721** |
+| contador del sidecar | 213.126 (+1,69% de diferencia, **explicada**: 3.169 de los encabezados `## N.`, 221 de la introducción, 43 `<im_end>`, 162 de los bordes de los 147 trozos del tokenizador; residual 15 tok = 0,007%) |
+| secciones | **176/176**, `done_indices` contiguo |
+| tiempo de pared | **89,1 min** (39,88 tok/s), dentro de la banda preregistrada 70-89 |
+| bytes en disco | 905.892 |
+| avisos del sidecar | ninguno |
+
+**El KILL del esquema degenerado disparó EN VIVO** y funcionó: `esquema degenerado: 12 de 22
+titulos son variantes de 'Modelo de Consistencia de Sesgo'; reintentando`. Es la misma familia
+que lo motivó. Sin ese detector —escrito dos horas antes— el documento habría salido con doce
+secciones sobre un tema inventado y el gate habría impreso PASS.
+
+### Lo que el gate NO mira, y hay que arreglar antes de usar esto en serio
+
+| defecto | número |
+|---|---|
+| **secciones cortadas a media frase** | **115/176 (65%)** |
+| secciones con bloque de código sin cerrar | 40/176 (23%) |
+| secciones bajo las 700 palabras que pedía el prompt | 125/176 (71%) |
+| duplicación entre secciones | 6,7-10,8% (umbral 15: no dispara) |
+| contradicciones en 148 parejas juzgadas | 0 |
+| título duplicado exacto en el outline | 1 (índices 54 y 63) |
+
+**La causa del corte es una decisión de dimensionamiento, no del modelo**: `per_task=1250` está
+por debajo de la mediana natural del worker (1.392) para que mande el número de tareas, y 133 de
+176 cerraron por `limit`. El arreglo no es subir el cap (rompe el dimensionamiento): es una
+segunda pasada de cierre por sección, o pedir el cierre en el prompt del worker y medir si lo
+respeta.
+
+### Dos fallos de instrumento más, de la misma noche
+
+- El lanzador mató el intento 1 a los **60 minutos exactos** con 124/176 hechas: las tareas de
+  fondo del agente se cortan ahí. Confirmado tres veces. Y no se pudo reanudar porque el índice
+  de capítulos solo se persiste al FINAL. Relanzado desacoplado, no volvió a pasar.
+- El juez de calidad recortaba cada sección a 4.200 chars y **166 de 176 miden más**: el control
+  positivo daba 2/6. Con el recorte quitado, 6/6. Los números de arriba son los de la pasada
+  buena.

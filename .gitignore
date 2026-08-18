@@ -137,3 +137,7 @@ datos_bancos/
 # aca arriba; solo se habia colado la mitad .meta.json, que ademas viajaba con
 # una observacion real dentro.
 vector_cache.meta.json
+
+# Salidas de corridas largas (documentos de cientos de KB, reproducibles con el gate)
+salida_200k/
+salida_ensayo/
