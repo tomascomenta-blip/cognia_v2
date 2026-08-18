@@ -18,6 +18,19 @@ Esa frontera está escrita en la descripción de la tool porque es la forma de q
 el modelo no la use mal.
 
 TOPES (un agente que se lanza workflows a sí mismo puede irse de las manos)
+Los tres numéricos se abren por entorno desde el 2026-08-17 —los defectos NO
+cambian— porque eran constantes de módulo y por lo tanto un techo que nadie
+podía mover sin editar el fichero: 6 pasos x 2048 tokens = 12.288 tokens de
+salida por corrida, el 6,1% de los 200k que el dueño pide. Cada override tiene
+tope duro y avisa si se pasa (ver `_env_int`):
+  - COGNIA_WF_MAX_PASOS ....... `max_pasos()`, defecto 6, tope 64
+  - COGNIA_WF_MAX_TOKENS_PASO . `max_tokens_paso()`, defecto 2048, tope 32768
+  - COGNIA_WF_PRESUPUESTO ..... `presupuesto_defecto()`, defecto 60k, tope 2M
+LA PALANCA BUENA ES `PASOS`, y está MEDIDO (2026-08-17, :8080): subir
+max_tokens invalida el 100% de la cache de resume (mismos 3 pasos: 3 hits/0
+tokens con 2048, 0 hits/3 llamadas/220 tokens con 4096), mientras que sumar
+pasos deja los viejos intactos (4 pasos sobre un resume de 3: 3 hits, 1 llamada
+real, 69 tokens). El porqué está en el docstring de cada función.
   - MAX_PASOS = 6 por workflow. Más pasos no es más capacidad: es más espera.
   - PROFUNDIDAD 1: dentro de un workflow la herramienta se rechaza con un motivo
     legible. Sin esto, un paso podría lanzar otro workflow y multiplicarse.
@@ -32,10 +45,106 @@ from __future__ import annotations
 import os
 import re
 import threading
+import warnings
 
+# DEFECTOS. Los tres son el valor de SIEMPRE y no cambian: lo que se abre es la
+# posibilidad de subirlos por entorno (ver `max_pasos()` y compania). Se dejan
+# como constantes de modulo porque media docena de tests y el CLI las leen por
+# nombre, y porque un defecto es un numero, no una funcion.
 MAX_PASOS = 6
 PRESUPUESTO_DEFECTO = 60_000
 MAX_TOKENS_PASO = 2048
+
+# TOPES DUROS de los overrides. No son decoracion: un env no es una decision
+# revisada, es un numero que alguien escribio una vez en un .env y se olvido
+# (la BOMBA de LLAMA_CTX_SIZE=200192 contra un server de n_ctx=16384 es
+# exactamente esa historia, medida el 2026-08-16). El techo convierte un dedazo
+# en un aviso, no en una corrida de 3 horas o un HTTP 400 por prompt.
+#   - 64 pasos: a los ~70 s de pared por paso medidos, 64 pasos son ~40 min con
+#     cap=2. Mas que eso no es un workflow, es una obra.
+#   - 32768 tokens/paso: el DOBLE del n_ctx medido del server de :8080 (16384).
+#     Se deja holgura para backends con mas ventana, pero no infinito: pedir
+#     mas tokens de los que el server puede dar es garantizarse un truncado.
+#   - 2.000.000 de presupuesto: 100x el defecto.
+TOPE_PASOS = 64
+TOPE_TOKENS_PASO = 32_768
+TOPE_PRESUPUESTO = 2_000_000
+
+_ENV_PASOS = "COGNIA_WF_MAX_PASOS"
+_ENV_TOKENS_PASO = "COGNIA_WF_MAX_TOKENS_PASO"
+_ENV_PRESUPUESTO = "COGNIA_WF_PRESUPUESTO"
+
+
+def _env_int(nombre: str, defecto: int, tope: int) -> int:
+    """El override entero de `nombre`, acotado a [1, tope]. Nunca lanza.
+
+    Se lee A CALL-TIME y no en el import (misma regla que
+    `offloading.umbral_bytes()`): una constante congelada en el import no se
+    puede cambiar desde un test ni desde el CLI sin recargar el modulo, y ese
+    fue el motivo de que estos tres numeros fuesen inamovibles.
+
+    Basura -> defecto CON warning. Un env que no es el que el usuario escribio
+    es peor que no tener env, porque nadie lo mira (la regla ya escrita en
+    `harness/limites._env_num`; no se reutiliza esa funcion porque alli '0'
+    significa SIN LIMITE y aqui no existe "sin limite": cero pasos es cero
+    trabajo y cero tokens por paso es una llamada que no puede contestar).
+    """
+    crudo = os.environ.get(nombre)
+    if crudo is None or not str(crudo).strip():
+        return defecto
+    try:
+        valor = int(float(str(crudo).strip()))
+    except (TypeError, ValueError):
+        warnings.warn(f"{nombre}={crudo!r} no es un numero: se usa el defecto "
+                      f"{defecto}", RuntimeWarning, stacklevel=3)
+        return defecto
+    if valor < 1:
+        warnings.warn(f"{nombre}={crudo!r} no es positivo: se usa el defecto "
+                      f"{defecto}", RuntimeWarning, stacklevel=3)
+        return defecto
+    if valor > tope:
+        warnings.warn(f"{nombre}={crudo!r} pasa el tope {tope}: se acota a "
+                      f"{tope}", RuntimeWarning, stacklevel=3)
+        return tope
+    return valor
+
+
+def max_pasos() -> int:
+    """Pasos por workflow. LA PALANCA BUENA para crecer, y esto esta MEDIDO.
+
+    Sumar pasos NO invalida la cache de resume: la clave es
+    sha256({prompt, system, schema, rol, max_tokens}) por AGENTE, asi que un
+    paso nuevo es una clave nueva y los viejos siguen siendo hits. Medido el
+    2026-08-17 contra :8080 (qwen2.5-coder-14b): resume de una corrida de 3
+    pasos pidiendo 4 (los 3 de antes + 1) -> 3 hits, 1 llamada real, 69 tokens,
+    1,0 s. Comparar con `max_tokens_paso()`, que cuesta la cache ENTERA.
+    """
+    return _env_int(_ENV_PASOS, MAX_PASOS, TOPE_PASOS)
+
+
+def max_tokens_paso() -> int:
+    """Tokens de salida por paso. SUBIRLO RE-PAGA TODAS LAS CORRIDAS VIEJAS.
+
+    `max_tokens` entra en `_clave_cache` (workflows.py:745), asi que cambiarlo
+    cambia la clave de TODOS los agentes y ningun resume acierta. Medido el
+    2026-08-17 contra :8080, misma corrida de 3 pasos resumida dos veces:
+      - resume con max_tokens=2048 (el mismo): 3 hits, 0 llamadas, 0 tokens, 0,0 s
+      - resume con max_tokens=4096 (subido):   0 hits, 3 llamadas, 220 tokens, 8,3 s
+    O sea: 100% de la cache tirada. En un workflow de 6 pasos a ~2.000 tokens
+    eso son ~12.000 tokens y ~70 s re-pagados para volver a leer lo que ya
+    estaba en disco.
+    ASI QUE: para agrandar una corrida, subir PASOS, no tokens por paso. Este
+    override existe para el caso en que un paso NECESITE de verdad mas salida
+    (y entonces re-pagar es el precio correcto, porque el resultado viejo
+    estaba truncado), no como palanca de capacidad.
+    """
+    return _env_int(_ENV_TOKENS_PASO, MAX_TOKENS_PASO, TOPE_TOKENS_PASO)
+
+
+def presupuesto_defecto() -> int:
+    """Techo de tokens de la corrida entera. Neutro para la cache: no entra en
+    `_clave_cache`, asi que subirlo no invalida ningun resume."""
+    return _env_int(_ENV_PRESUPUESTO, PRESUPUESTO_DEFECTO, TOPE_PRESUPUESTO)
 
 # Las claves del envelope de ejecutar(), EXPORTADAS: el contrato de forma fija
 # se puede verificar desde fuera en vez de re-escribirse en cada test.
@@ -117,7 +226,19 @@ def _consolidar(pasos: list, resultados: list) -> str:
             continue
         if isinstance(res, dict) and res.get("_error"):
             fallos += 1
-            lineas.append(f"{cabecera}\nERROR: {res['_error']}")
+            bloque = f"{cabecera}\nERROR: {res['_error']}"
+            # EL PARCIAL PAGADO VIAJA (2026-08-17). Un truncado por
+            # finish_reason=length trae en `_crudo` todo lo que el modelo
+            # alcanzo a generar, y esos tokens ya se cobraron al presupuesto:
+            # tirarlos aqui deshace el fix de workflows.py y el usuario paga
+            # dos veces por el mismo texto. Sigue contando como FALLO (el paso
+            # no termino) — lo que cambia es que el fallo llega con su
+            # evidencia, no con un ERROR pelado.
+            crudo = res.get("_crudo")
+            if crudo:
+                bloque += (f"\n--- lo YA GENERADO y pagado ({len(str(crudo))} "
+                           f"chars, incompleto) ---\n{crudo}")
+            lineas.append(bloque)
             continue
         lineas.append(f"{cabecera}\n{res if isinstance(res, str) else res}")
     cierre = (f"\n({len(pasos) - fallos} de {len(pasos)} pasos con resultado)"
@@ -126,7 +247,7 @@ def _consolidar(pasos: list, resultados: list) -> str:
 
 
 def ejecutar(pasos, modo: str = "paralelo", nombre: str = "agente",
-             presupuesto: int = PRESUPUESTO_DEFECTO,
+             presupuesto: int = 0,
              system: str = "", print_fn=None,
              criticar_salida: bool = False,
              interactivo: bool = False) -> dict:
@@ -177,9 +298,18 @@ def ejecutar(pasos, modo: str = "paralelo", nombre: str = "agente",
     llamada a la rama SSE de chat_client, así que con `False` (el default)
     todo queda byte-idéntico a lo de hoy.
     """
+    # Los tres topes se leen AQUI, a call-time: un test o el CLI pueden
+    # moverlos por entorno sin recargar el modulo (ver `max_pasos()`).
+    # `presupuesto` explicito del caller manda sobre el entorno; 0/None = "el
+    # que toque". El defecto de la firma dejo de ser PRESUPUESTO_DEFECTO
+    # porque un default de firma se evalua en el IMPORT y ahi el override
+    # todavia no existe.
+    tope_pasos = max_pasos()
+    tokens_paso = max_tokens_paso()
+    presupuesto = int(presupuesto or 0) or presupuesto_defecto()
     if isinstance(pasos, str):
         pasos = partir_pasos(pasos)
-    pasos = [p for p in (pasos or []) if str(p).strip()][:MAX_PASOS]
+    pasos = [p for p in (pasos or []) if str(p).strip()][:tope_pasos]
     if not pasos:
         return _envelope(error="no hay subtareas: describe al menos una")
     if en_workflow():
@@ -209,7 +339,7 @@ def ejecutar(pasos, modo: str = "paralelo", nombre: str = "agente",
             _dentro.activo = True
             try:
                 return agente(c, prompt, system=system,
-                              max_tokens=MAX_TOKENS_PASO,
+                              max_tokens=tokens_paso,
                               indice=i, total=len(pasos), fase="pasos",
                               etiqueta=_etiqueta(prompt))
             finally:

@@ -62,11 +62,24 @@ _FAMILIAS_NATIVAS = {
     "gpt-oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
     "gpt_oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
     "gptoss":  {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
-    # Qwythos-9B (Qwen2.5 abliterado, razonador con <think>): sampling Qwen
-    # (0.7/0.8) medido 2026-08-09. Es RAZONADOR: piensa fuerte hasta en
-    # prompts triviales (854 chars de reasoning para "LISTO"; max_tokens=32
-    # -> content vacio, medido) -> el presupuesto de razonador y el clamp
-    # MIN_TOKENS_RAZONADOR lo protegen igual que a gpt-oss.
+    # Qwythos-9B: sampling Qwen (0.7/0.8) medido 2026-08-09. Es RAZONADOR:
+    # piensa fuerte hasta en prompts triviales (854 chars de reasoning para
+    # "LISTO"; max_tokens=32 -> content vacio, medido) -> el presupuesto de
+    # razonador y el clamp MIN_TOKENS_RAZONADOR lo protegen igual que a
+    # gpt-oss.
+    #
+    # NO ES QWEN2.5. Hasta el 2026-08-17 esta linea (y flota.py:63) decian
+    # "Qwen2.5 abliterado"; los metadatos del GGUF dicen otra cosa y estan
+    # VERIFICADOS con cognia.agent.gguf_meta contra el fichero real:
+    #   general.architecture      = qwen35
+    #   general.base_model.0.name = Qwen3.5 9B  (repo Qwen/Qwen3.5-9B)
+    #   qwen35.context_length     = 1048576 (yarn 4.0 sobre 262144)
+    #   qwen35.block_count        = 33, de los cuales 9 con attn_k y 24 SSM
+    # O sea: hibrido atencion+SSM de OTRA generacion. El coste de creerse el
+    # nombre no era solo documental -> ver `piensa` mas abajo.
+    #
+    # `piensa` NO se declara aca A PROPOSITO: lo MIDE _conducta_medida() de la
+    # plantilla que el server sirve. Declararlo seria repetir el error.
     "qwythos": {"temperature": 0.7, "top_p": 0.8, "usa_effort": False},
     # Nemotron 3.5 Lightning 30B-A3B (2026-08-14): MoE hibrido Mamba2 con
     # ventana NATIVA de 1.048.576 (medida entera en esta maquina: prompt real
@@ -86,6 +99,31 @@ _FAMILIAS_NATIVAS = {
     # largo a mas corto para que el orden de escritura deje de importar.
     "nemotron-3.5": {"temperature": 1.0, "top_p": 0.95, "usa_effort": False,
                      "piensa": True},
+}
+
+# EL BACKSTOP DE METADATOS (2026-08-17). La tabla de arriba casa por SUBSTRING
+# DEL NOMBRE DEL FICHERO, y la memoria del repo ya cobro esa factura: "toda
+# tabla que decida por nombre de modelo es una bomba". Renombrar un GGUF, o
+# bajarlo de otro repo con otro nombre, deja al modelo sin su sampling medido
+# y sin decir nada.
+#
+# Aca la clave es `general.architecture`, que viaja DENTRO del fichero. Las
+# tres entradas estan LEIDAS de los GGUF de esta maquina (no deducidas):
+#   qwen35         <- Huihui-Qwythos-9B-...-abliterated-Q4_K.gguf
+#   gpt-oss        <- gpt-oss-20b-MXFP4.gguf
+#   nemotron_h_moe <- nemotron-3.5-lightning-30b-a3b-Q4_0.gguf
+# El valor apunta a una entrada de _FAMILIAS_NATIVAS para NO duplicar numeros:
+# el sampling sigue teniendo una sola fuente de verdad.
+#
+# Es BACKSTOP y no reemplazo: solo se consulta cuando el nombre no caso con
+# nada, asi que ningun modelo que hoy funciona cambia de perfil. Deliberadamente
+# NO mapea 'qwen2' ni 'qwen3': arquitecturas con decenas de modelos distintos
+# (el coder-14b y OpenReasoning-Nemotron-14B son los dos 'qwen2') donde una
+# entrada seria otra vez declarar en vez de medir.
+_ARCH_A_FAMILIA = {
+    "qwen35": "qwythos",
+    "gpt-oss": "gpt-oss",
+    "nemotron_h_moe": "nemotron-3.5",
 }
 
 # Familias cuyo razonamiento se enciende/apaga por chat_template_kwargs.
@@ -200,10 +238,65 @@ def familias_usuario() -> dict:
     return limpio
 
 
-def _cfg_familia(modelo: str) -> tuple:
+def familia_por_arch(ruta: str) -> tuple:
+    """(cfg, familia) deducidos de `general.architecture` del GGUF en `ruta`.
+
+    (None, '') si no hay ruta, el fichero no se puede leer, o la arquitectura
+    no esta en _ARCH_A_FAMILIA. Nunca lanza: es un backstop, no un requisito.
+    """
+    if not ruta:
+        return None, ""
+    try:
+        from cognia.agent.gguf_meta import meta
+        arch = (meta(ruta) or {}).get("arch") or ""
+    except Exception:
+        return None, ""
+    fam = _ARCH_A_FAMILIA.get(arch.lower())
+    if fam and fam in _FAMILIAS_NATIVAS:
+        return dict(_FAMILIAS_NATIVAS[fam]), fam
+    return None, ""
+
+
+def _conducta_medida(plantilla: str, caps: dict) -> dict:
+    """{piensa, usa_effort} LEIDOS de la plantilla que el server sirve.
+
+    POR QUE (2026-08-17). Estos dos booleanos venian de un dict escrito a mano
+    y a Qwythos le faltaba `piensa`: su plantilla SI lee `enable_thinking`
+    (verificado en el GGUF), asi que `COGNIA_THINKING=off` era un NO-OP mudo
+    sobre el cerebro principal de la casa — el usuario apagaba el pensamiento
+    y el modelo seguia pensando.
+
+    La regla es la plantilla, que es el unico sitio donde esos kwargs se
+    consumen de verdad. Contrastada contra los 6 GGUF de esta maquina
+    (2026-08-17): reproduce EXACTO las 5 entradas escritas a mano
+    (gpt-oss reasoning_effort, nemotron-3.5 enable_thinking, y coder-14b /
+    OpenReasoning-14B / Qwen3-4B-Thinking sin ninguno de los dos) y agrega el
+    unico que faltaba, qwythos. Una regla que reproduce la tabla y ademas tapa
+    su agujero es la que se queda.
+
+    `caps` es chat_template_caps de /props: llama-server ya calcula
+    supports_reasoning_effort parseando la plantilla, asi que cuando viene se
+    prefiere a nuestro substring.
+    """
+    out = {}
+    t = plantilla or ""
+    if t:
+        out["piensa"] = _CLAVE_THINKING in t
+    soporte = (caps or {}).get("supports_reasoning_effort")
+    if isinstance(soporte, bool):
+        out["usa_effort"] = soporte
+    elif t:
+        out["usa_effort"] = "reasoning_effort" in t
+    return out
+
+
+def _cfg_familia(modelo: str, ruta: str = "") -> tuple:
     """(cfg, nombre_familia) de la primera familia que case por substring, con
     el fichero del usuario mirado ANTES que la tabla del codigo (asi 'pisa').
-    (None, '') si el modelo no se parece a ninguna."""
+
+    Si NINGUN nombre casa y hay `ruta` al GGUF, se cae al backstop por
+    arquitectura (familia_por_arch): el nombre del fichero se puede cambiar,
+    `general.architecture` no. (None, '') si tampoco por ahi."""
     bajo = (modelo or "").lower()
     if bajo:
         # De patron MAS LARGO a mas corto en las dos tablas: 'nemotron-3.5'
@@ -217,7 +310,7 @@ def _cfg_familia(modelo: str) -> tuple:
         for fam in sorted(_FAMILIAS_NATIVAS, key=len, reverse=True):
             if fam in bajo:
                 return dict(_FAMILIAS_NATIVAS[fam]), fam
-    return None, ""
+    return familia_por_arch(ruta)
 
 
 def _sampling_base(props_sampling: dict, cfg: dict) -> tuple:
@@ -255,7 +348,13 @@ def _kwargs_plantilla(cfg: dict) -> dict:
     bucle, y hasta no tener el A/B corrido el default es lo que el modelo
     trae entrenado (on).
     """
-    if "piensa" not in cfg:
+    # `piensa` falso o ausente = la plantilla NO lee enable_thinking -> no se
+    # manda nada y el body sale byte-identico al historico. Desde que
+    # _conducta_medida rellena la clave, `not cfg.get(...)` y el viejo
+    # `"piensa" not in cfg` valen lo mismo para las familias escritas a mano
+    # (ninguna declara piensa=False) y evitan mandarle enable_thinking=False
+    # a un coder-14b cuya plantilla lo ignora.
+    if not cfg.get("piensa"):
         return {}
     env = os.environ.get("COGNIA_THINKING", "").strip().lower()
     if env in ("on", "1", "true", "si"):
@@ -275,12 +374,19 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
     """
     url = (url or url_del_backend()).rstrip("/")
     modelo, n_ctx, base = "", None, {}
+    ruta, plantilla, caps = "", "", {}
     try:
         from cognia.backend_activo import props
         p = props(url, forzar=forzar)
         modelo = (p.get("modelo") or "").lower()
         n_ctx = p.get("n_ctx")
         base = dict(p.get("sampling") or {})
+        # Datos CRUDOS del server para no decidir por el nombre del fichero:
+        # `ruta` abre los metadatos del GGUF (arquitectura) y plantilla/caps
+        # dicen si el modelo lee enable_thinking / reasoning_effort.
+        ruta = str(p.get("ruta") or "")
+        plantilla = str(p.get("plantilla") or "")
+        caps = dict(p.get("caps") or {})
     except Exception:
         modelo, n_ctx, base = "", None, {}
 
@@ -309,6 +415,20 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
     #        server. Independiente del regimen: un modelo puede ser nativo sin
     #        estar en ninguna tabla, y entonces se le habla como el server dice.
     cfg, familia = _cfg_familia(modelo)
+    familia_via = "nombre del fichero"
+    if not cfg:
+        # Backstop: el nombre no dijo nada, la ARQUITECTURA del GGUF si puede.
+        cfg, familia = familia_por_arch(ruta)
+        if cfg:
+            familia_via = "arch del GGUF"
+    # (2b) CONDUCTA MEDIDA de la plantilla servida. La familia escrita a mano
+    # pisa lo medido SOLO donde declara la clave: hoy no la contradice en
+    # ninguno de los 6 GGUF de la casa, y asi un modelo nuevo no se queda sin
+    # enable_thinking por no estar en la tabla (el agujero de qwythos).
+    medido = _conducta_medida(plantilla, caps)
+    tabla = dict(cfg or {})
+    if medido:
+        cfg = dict(medido, **tabla)
     sampling, origen = _sampling_base(base, cfg or {})
 
     if not es_nativo:
@@ -332,7 +452,15 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
             # low: la seleccion de herramienta no necesita un ensayo; el eje
             # esfuerzo esta medido como plano (high-low +4, MDE +-8) y low
             # corta la latencia por paso. Subible por env para medir.
-            effort = "low"
+            #
+            # PERO solo cuando 'low' esta MEDIDO para esa familia, o sea
+            # cuando usa_effort viene de la tabla escrita a mano. Si lo unico
+            # que sabemos es que la plantilla ACEPTA reasoning_effort
+            # (_conducta_medida), el default se lo queda el server: inventarle
+            # 'low' a un modelo que nadie midio seria cambiarle el esfuerzo
+            # por defecto en silencio. Con "" el body sale byte-identico al
+            # historico (chat_client solo manda la clave si hay valor).
+            effort = "low" if tabla.get("usa_effort") else ""
     perfil = {
         "nombre": "razonador_nativo",
         "modelo": modelo,
@@ -350,8 +478,24 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
         "capacidad": via,
         "motivo": motivo,
         "familia": familia,
-        "sampling_origen": (f"familia '{familia}'" if familia else origen),
+        "sampling_origen": (f"familia '{familia}' (por {familia_via})"
+                            if familia else origen),
     }
+    # La ARQUITECTURA real del GGUF, no la que sugiere el nombre. Sin este
+    # campo, "Qwythos es Qwen2.5" se pudo repetir dos anos en dos ficheros sin
+    # que ninguna corrida lo desmintiera.
+    if ruta:
+        try:
+            from cognia.agent.gguf_meta import meta
+            m = meta(ruta) or {}
+        except Exception:
+            m = {}
+        if m.get("arch"):
+            perfil["arch"] = m["arch"]
+        if m.get("base"):
+            perfil["base"] = m["base"]
+    if medido:
+        perfil["conducta_medida"] = dict(medido)
     kwargs_plantilla = _kwargs_plantilla(cfg or {})
     if kwargs_plantilla:
         perfil["kwargs_plantilla"] = kwargs_plantilla

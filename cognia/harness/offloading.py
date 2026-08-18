@@ -428,6 +428,28 @@ def _buscar_fichero(handle: str) -> tuple:
     return None, ""
 
 
+def ruta_de(handle) -> str:
+    """Ruta ABSOLUTA del fichero de un handle, o "" si no resuelve.
+
+    Existe porque el handle solo sirve si la tool `recuperar` esta registrada,
+    y `recuperar` es opt-in (COGNIA_OFFLOAD=1). Con la ruta, cualquier consumidor
+    —el agente con `leer_archivo`, el usuario con un editor, otro proceso—
+    llega al contenido completo sin depender de ese flag. `listar()` ya la
+    publicaba por handle; esto es la misma verdad, consultable de a uno.
+
+    Valida el handle con `normalizar_handle` antes de tocar el filesystem: la
+    misma regla de traversal que el resto del modulo, sin excepciones nuevas.
+    """
+    h = normalizar_handle(handle)
+    if not h:
+        return ""
+    ruta, _ = _buscar_fichero(h)
+    try:
+        return str(ruta.resolve()) if ruta else ""
+    except OSError:
+        return str(ruta) if ruta else ""
+
+
 def _meta_de(sesion: str, handle: str) -> dict:
     try:
         return json.loads(_leer(_ruta_meta(sesion, handle)))

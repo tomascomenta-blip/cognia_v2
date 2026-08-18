@@ -862,6 +862,46 @@ def _emitir(evento) -> None:
         pass
 
 
+def _avisar_clamp(c, pedido: int, efectivo: int, minimo: int) -> None:
+    """Deja constancia de que max_tokens se SUBIO por debajo de la mano.
+
+    Dos canales con propositos distintos y a proposito desiguales:
+      - JOURNAL: una linea por AGENTE clampeado. Es la contabilidad, y contar
+        cuantas llamadas se clamparon solo se puede si estan todas.
+      - BUS (Aviso): UNA vez por corrida y valor pedido. Es la UI, y seis
+        avisos identicos en un workflow de seis pasos no informan: tapan.
+
+    Tolerante con una Corrida a medio construir (tests que llaman agente() con
+    un doble): sin `_clamps_avisados` se avisa igual, nunca se lanza. Este
+    aviso no puede costar un turno.
+    """
+    linea = (f"max_tokens={pedido} se subio a {efectivo}: por debajo de "
+             f"MIN_TOKENS_RAZONADOR={minimo} el pensamiento del razonador se "
+             f"come el techo y el content vuelve VACIO (medido). La llamada, "
+             f"la clave de cache y los errores hablan de {efectivo}, no de "
+             f"{pedido}")
+    try:
+        c._journal({"tipo": "clamp_max_tokens", "pedido": pedido,
+                    "efectivo": efectivo, "minimo": minimo,
+                    "ts": time.time()})
+    except Exception:
+        pass
+    try:
+        vistos = getattr(c, "_clamps_avisados", None)
+        if vistos is None:
+            vistos = set()
+            try:
+                c._clamps_avisados = vistos
+            except Exception:
+                pass            # dataclass con slots o doble de test: se avisa igual
+        if pedido in vistos:
+            return
+        vistos.add(pedido)
+    except Exception:
+        pass
+    _emitir(ux.Aviso(texto=linea, origen="workflows.agente"))
+
+
 def _tokens_desconocidos(usage: dict) -> bool:
     """True si el usage NO dice cuantos tokens se generaron.
 
@@ -1016,7 +1056,25 @@ def agente(c: Corrida, prompt: str, schema: dict = None, *, system: str = "",
     # Import perezoso: model_profiles arrastra la tabla de familias y aca
     # solo hace falta la constante.
     from cognia.agent.model_profiles import MIN_TOKENS_RAZONADOR
-    max_tokens = max(int(max_tokens), MIN_TOKENS_RAZONADOR)
+    _pedido = int(max_tokens)
+    max_tokens = max(_pedido, MIN_TOKENS_RAZONADOR)
+    if max_tokens != _pedido:
+        # EL CLAMP SE AVISA (2026-08-17). Se mantiene —quitarlo revive el modo
+        # de fallo medido: con un razonador y max_tokens=32 el `content` sale
+        # VACIO porque el pensamiento se come el techo (model_profiles.py:67,
+        # y "10 bugs identicos de max_tokens" en la memoria del repo)— pero
+        # deja de ser MUDO. Un instrumento que recibe 64 y llama con 1024 sin
+        # decirlo convierte en mentira toda tabla que anote "pedi 64": el que
+        # mide cree estar midiendo el techo bajo y esta midiendo 1024.
+        # Por que avisar y no obedecer: obedecer devuelve texto vacio y cuesta
+        # igual; el clamp entrega algo. La eleccion es del que mide, y para
+        # elegir tiene que ENTERARSE.
+        # UNA vez por corrida y por valor pedido: un workflow de 6 pasos con el
+        # mismo max_tokens emitiria 6 avisos identicos y el panel se vuelve
+        # ilegible. El JOURNAL, en cambio, lleva la linea de TODOS los agentes
+        # (es constancia, no UI) para que un analisis posterior pueda contar
+        # cuantas llamadas se clamparon, no solo que hubo alguna.
+        _avisar_clamp(c, _pedido, max_tokens, MIN_TOKENS_RAZONADOR)
 
     clave = _clave_cache(prompt, system, schema, rol, max_tokens)
 
@@ -1370,9 +1428,25 @@ def agente(c: Corrida, prompt: str, schema: dict = None, *, system: str = "",
                 # trunca igual (la leccion de los 10 bugs de max_tokens). El error
                 # lleva los numeros para que el caller suba el presupuesto.
                 usados = usage_resp.get("completion_tokens", "?")
+                # EL PARCIAL VIAJA EN `_crudo` (2026-08-17). Los tokens YA se
+                # cobraron al presupuesto: tirar el texto es pagarlos dos veces.
+                # Medido antes del fix: pedir "los numeros del 1 al 400" con
+                # max_tokens=1024 devolvia {"_error": ...} SIN _crudo, con 1076
+                # tokens cobrados y 23,7 s de pared en la basura — y los numeros
+                # del 1 al ~340 estaban generados y completos.
+                # Es la MISMA regla que ya cumple el camino de schema no
+                # conforme (crudo=texto mas abajo) y la que cumple el adaptador
+                # con su consolidado: lo pagado no se borra.
+                # SEGURO PARA EL RESUME: la linea de journal que escribe _falla
+                # lleva `error` no vacio y NO lleva la clave "resultado", asi
+                # que _cargar_cache_de_journal (que exige `not error and
+                # "resultado" in d`) jamas sirve un truncado como si estuviese
+                # completo. El parcial es para el CALLER de este turno, no para
+                # la cache.
                 return _falla(f"salida truncada (finish_reason=length): "
                               f"max_tokens={max_tokens}, completion_tokens="
                               f"{usados}; subir max_tokens, no reintentar",
+                              crudo=getattr(resp, "texto", "") or "",
                               usage=usage_resp, url_j=url_efectiva)
 
             texto = getattr(resp, "texto", "") or ""

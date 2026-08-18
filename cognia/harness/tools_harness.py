@@ -31,6 +31,7 @@ distinto y el modelo lo entiende distinto.
 
 from __future__ import annotations
 
+import os
 import re
 
 from cognia.agent.tools import tool
@@ -187,12 +188,101 @@ def _workflow(args: str, ctx: dict) -> str:
         # (el critico que revienta tras 2 pasos OK). Sin esto el modelo recibe
         # solo "ERROR" y vuelve a pedir el mismo trabajo ya pagado.
         if res.get("texto"):
-            return (f"RESULTADO workflow ERROR: {res['error']}\n"
-                    f"Lo ya resuelto y pagado ({res.get('pasos', 0)} pasos, "
-                    f"{res.get('tokens', 0)} tokens):\n{res['texto']}")
+            return _entregar(
+                f"RESULTADO workflow ERROR: {res['error']}\n"
+                f"Lo ya resuelto y pagado ({res.get('pasos', 0)} pasos, "
+                f"{res.get('tokens', 0)} tokens):",
+                res["texto"], args)
         return f"RESULTADO workflow ERROR: {res['error']}"
-    return (f"RESULTADO workflow ({res['pasos']} pasos, {res['tokens']} tokens, "
-            f"corrida {res['run_id']}):\n{res['texto']}")
+    return _entregar(
+        f"RESULTADO workflow ({res['pasos']} pasos, {res['tokens']} tokens, "
+        f"corrida {res['run_id']}):",
+        res["texto"], args)
+
+
+# Umbral EN BYTES por encima del cual el texto del workflow se entrega como
+# ruta+resumen en vez de entero. NO es el umbral de offloading (2000 B, el
+# TOOL_RESULT_CHAR_LIMIT de Cline): son dos numeros con dos trabajos distintos
+# y por eso no se comparten.
+#   - ESTE decide SI el texto entra entero. 8000 B ~ 2.000 tokens ~ 12% del
+#     n_ctx=16384 medido en :8080. Por debajo, un workflow de tres frases o de
+#     tres parrafos sigue llegando byte a byte como hasta hoy: el camino corto
+#     no puede empeorar, y offloadear a 2000 B lo habria roto.
+#   - EL DE OFFLOADING decide cuanto ocupa el RESUMEN cuando ya se decidio
+#     guardar. Ahi si conviene que sea chico: el resumen es lo que se queda en
+#     el historial para siempre.
+# POR QUE 8000 y no mas: loop.py:_recortar_mensajes recorta el content de los
+# turnos `tool` a 200 CHARS en cuanto el prompt pasa el 80% del n_ctx. Un
+# workflow de 6 pasos x 2048 tokens son ~45.000 chars: entraba entero, empujaba
+# el prompt por encima del 80% y en la pasada siguiente el documento ENTERO se
+# volvia 200 chars. Se perdia todo, y sin copia. Guardado en disco, el recorte
+# se lleva el resumen y el documento sigue estando.
+UMBRAL_TEXTO_WORKFLOW = 8000
+_ENV_UMBRAL_WORKFLOW = "COGNIA_WF_TOOL_MAX"
+
+
+def _umbral_texto_workflow() -> int:
+    """El umbral efectivo, a call-time. Basura o <=0 -> el defecto (misma regla
+    que `offloading.umbral_bytes`: con umbral 0 hasta un 'OK' iria a disco)."""
+    bruto = os.environ.get(_ENV_UMBRAL_WORKFLOW, "").strip()
+    if not bruto:
+        return UMBRAL_TEXTO_WORKFLOW
+    try:
+        valor = int(float(bruto))
+    except (TypeError, ValueError):
+        return UMBRAL_TEXTO_WORKFLOW
+    return valor if valor > 0 else UMBRAL_TEXTO_WORKFLOW
+
+
+def _entregar(cabecera: str, texto: str, args: str) -> str:
+    """El texto del workflow al modelo: entero si cabe, RUTA+resumen si no.
+
+    Las tres cosas que tiene que llevar un documento que no viene entero, y
+    ninguna es opcional:
+      1. la RUTA absoluta en disco — es lo unico que funciona SIEMPRE, porque
+         el handle depende de que `recuperar` este registrada y esa tool es
+         opt-in (COGNIA_OFFLOAD=1). Con la ruta basta `leer_archivo`, que es
+         una CORE_TOOL.
+      2. un RESUMEN con principio y final de verdad, no un tocon.
+      3. COMO consultarlo, con un rango que existe.
+    Los tres los da `offloading` ya probado; aqui se anade la ruta y se elige
+    el umbral.
+
+    DEGRADACION: si guardar en disco falla, se devuelve el texto ENTERO como
+    hasta hoy. Es peor para la ventana, pero esta es la UNICA copia del
+    trabajo: `formatear_observacion` degrada a resumen-sin-handle porque alli
+    el original siempre existe en otra parte (el fichero, el log); aqui no
+    existe, y un resumen sin copia es perder tokens ya pagados.
+    """
+    cuerpo = f"{cabecera}\n{texto}"
+    umbral = _umbral_texto_workflow()
+    if len(cuerpo.encode("utf-8", "ignore")) <= umbral:
+        return cuerpo                      # camino corto: identico a siempre
+    try:
+        from cognia.harness import offloading
+        handle = offloading.guardar(texto, tool="workflow", args=args)
+        ruta = offloading.ruta_de(handle)
+        resumen = offloading.resumir_para_modelo(
+            texto, tool="workflow", handle=handle)
+        # Quien ESCRIBE en el almacen se ocupa de que no crezca sin fin.
+        # `podar` existia y no lo llamaba NADIE (el offloading del interceptor
+        # es opt-in y nunca se cableo la limpieza); esta rama escribe con
+        # COGNIA_OFFLOAD apagado, asi que sin esto el almacen solo crece. Nunca
+        # toca la sesion en curso —o sea, jamas el fichero que se acaba de
+        # guardar— y no lanza: la politica es la del propio modulo (20 sesiones
+        # / 200 MB).
+        offloading.podar()
+    except Exception:
+        return cuerpo
+    if not ruta:
+        return cuerpo                      # sin ruta no hay a donde mandarlo
+    return (f"{cabecera}\n{resumen}\n"
+            f"[EL TEXTO COMPLETO ESTA EN DISCO, no se perdio nada:\n"
+            f"  {ruta}\n"
+            f"  leer_archivo {ruta}   (funciona siempre)\n"
+            f"  recuperar {handle} lineas 1-60   (si la tool `recuperar` esta "
+            f"activa)\n"
+            f"NO vuelvas a lanzar el workflow: ya esta pagado y guardado.]")
 
 
 @tool(

@@ -112,11 +112,17 @@ def url_por_defecto() -> str:
 
 def _modelo_de(url: str) -> str:
     """El basename del GGUF servido, '' si el server no responde."""
+    return _props_del_server(url).get("modelo") or ""
+
+
+def _props_del_server(url: str) -> dict:
+    """El /props cacheado de ese server, o {}. Nunca lanza: la sonda tiene que
+    poder correr con el backend a medio arrancar."""
     try:
         from cognia.backend_activo import props
-        return (props(url) or {}).get("modelo") or ""
+        return props(url) or {}
     except Exception:
-        return ""
+        return {}
 
 
 def _clave(url: str, modelo: str) -> str:
@@ -240,9 +246,19 @@ def sondar(url: str = "", timeout: float = _TIMEOUT_S) -> dict:
         # veredicto falso una capa mas abajo.
         kwargs = {}
         try:
-            from cognia.agent.model_profiles import _cfg_familia, _kwargs_plantilla
-            cfg, _fam = _cfg_familia(modelo)
-            kwargs = _kwargs_plantilla(cfg or {})
+            from cognia.agent.model_profiles import (_cfg_familia,
+                                                     _conducta_medida,
+                                                     _kwargs_plantilla)
+            # La PLANTILLA que sirve el server manda sobre la tabla por nombre:
+            # a la entrada 'qwythos' le faltaba `piensa` y este reintento salia
+            # SIN apagar el pensamiento justo con el cerebro principal, que es
+            # el que mas piensa (2026-08-17). Igual que en model_profiles, la
+            # tabla pisa lo medido solo donde declara la clave.
+            p = _props_del_server(url)
+            cfg, _fam = _cfg_familia(modelo, str(p.get("ruta") or ""))
+            medido = _conducta_medida(str(p.get("plantilla") or ""),
+                                      p.get("caps") or {})
+            kwargs = _kwargs_plantilla(dict(medido, **(cfg or {})))
             if kwargs:
                 kwargs = dict(kwargs, enable_thinking=False)
         except Exception:

@@ -60,11 +60,17 @@ COMBOS = {
     ],
     "pensar-qwythos": [
         # CEREBRO PRINCIPAL desde 2026-08-09 (pedido del dueño). Qwythos-9B
-        # (Qwen2.5 abliterado, 1M ctx) hace tool-calling NATIVO servido con
+        # (Qwen3.5 abliterado, 1M ctx) hace tool-calling NATIVO servido con
         # --jinja — verificado a mano: finish_reason=tool_calls, arguments
         # JSON. ctx 32768 y no el 8192 default: es un razonador (piensa fuerte
         # antes de responder) y 8192 lo cortaba; a 8192 usa 6.75 GB de 16.3,
         # asi que 32768 (~4 GB mas de KV) cabe holgado y corre SOLO.
+        # QWEN3.5 Y NO QWEN2.5 (corregido 2026-08-17, leido del GGUF con
+        # cognia.agent.gguf_meta): general.architecture='qwen35',
+        # general.base_model.0.name='Qwen3.5 9B', context_length=1048576 (yarn
+        # 4.0 sobre 262144) y 33 bloques de los que solo 9 llevan attn_k — los
+        # otros 24 son SSM. Lo decia mal aca y en model_profiles.py:65; ver
+        # ahi el fallo que costo de verdad (COGNIA_THINKING mudo).
         ("servir_modelo.py", ["--modelo", "qwythos", "--sin-draft",
                               "--ctx", "32768"]),
     ],
