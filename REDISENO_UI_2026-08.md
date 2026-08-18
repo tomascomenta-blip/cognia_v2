@@ -96,7 +96,7 @@ Nunca la suite completa durante el bucle (11 min). La suite entera, como última
 | **T2** control por agente | ✅ | Corte en **0,025 s** reproducible; resume re-llama al cancelado; «hablarle» verificado (respondió `CARPINCHO`). |
 | **T2b** honestidad del control | ✅ | Cancelar deja de decir «ningún paso devolvió resultado». El corte pasó de cobrar 0 a cobrar exacto (132 frames = 132 tokens de `/tokenize`, 3/3). 772 tests. |
 | **paleta** verde unificado | ⏳ | Termina con capturas PNG del REPL y SVG de la TUI. |
-| **T3** sink honesto (`sys.__stdout__`) | ⬜ | Sin esto, la vista deja mudo al móvil. |
+| **T3** sink honesto + puente | ✅ | 0/3 → **3/3** líneas `@EV` con la App abierta; e2e con el pipeline real del móvil 0/8 → **8/8**. El test viejo *pasaba sin vigilar nada*: `App._print` solo reenvía al stdout real en modo headless, o sea que el arnés era la condición que ocultaba el bug. De paso: `cli.py:1558` metía cada comando en un `redirect_stdout` (el móvil nunca vio esos eventos) y el handler de logs pintaba ANSI crudo sobre la pantalla alterna. Puente entregado: 921 líneas, descarte **visible** y atribuido al agente, despertador coalescido (8 wakeups / 1.610 eventos). |
 | **T4** runner (workflow al hilo, teclado al principal) | ⬜ | La tanda de riesgo. La firma el dueño en Windows Terminal. |
 | **T5a/b** la pantalla | ⬜ | Carril de paneles, shimmer, clic, `x` / `ctrl+x` / Input. |
 | **T6** móvil por agente + empaquetado | ⬜ | `textual` a dependencia dura. |
