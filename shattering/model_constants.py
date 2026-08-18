@@ -94,16 +94,56 @@ GEN_CHAT_MAX_TOKENS:    int = 1024  # interactive chat (desktop API)
 GEN_LONG_MAX_TOKENS:    int = 5000  # long-form generation target (FASE 1 goal)
 GEN_CONTINUATION_CHUNK: int = 2048  # per-round chunk in the continuation loop
 # Guarda de contexto para la continuacion: cuando prompt+texto acumulado se acerca
-# a _CTX_SIZE, generate_long deja de reenviar TODO y manda prompt + la cola reciente,
-# acotando el prefill (sin esto las rondas tardias desbordan el ctx de 16k). El
-# estimador es ~4 chars/token, consistente con el fallback del loop.
-GEN_CTX_GUARD_RATIO:    float = 0.75  # fraccion de _CTX_SIZE como techo del prefill
+# a la ventana REAL del server, generate_long deja de reenviar TODO y manda prompt +
+# la cola reciente, acotando el prefill (sin esto las rondas tardias desbordan el ctx
+# de 16k). El estimador es ~4 chars/token, consistente con el fallback del loop.
+# "REAL" es literal desde 2026-08-17: la ventana la da LlamaBackend.n_ctx_efectivo()
+# preguntando /props, no la env LLAMA_CTX_SIZE (que en esta maquina dice 200192
+# contra un server de 16384 y hacia que la guarda no recortara nunca).
+GEN_CTX_GUARD_RATIO:    float = 0.75  # fraccion del n_ctx del server como techo del prefill
 GEN_CTX_MARGIN_TOKENS:  int   = 64    # margen extra reservado por debajo del ctx
 # Generacion jerarquica (outline -> secciones con prompt fresco): rompe el techo de
 # ctx porque cada seccion parte de un prefill acotado (solo el outline + un resumen
 # corto de lo previo), no del texto completo acumulado.
 GEN_HIERARCHICAL_SECTIONS: int = 5    # secciones por defecto en generate_hierarchical
 GEN_SECTION_SUMMARY_CHARS: int = 200  # chars del resumen de la seccion previa (continuidad)
+# Outline por LOTES (dos niveles) para la generacion delegada. MEDIDO 2026-08-17
+# contra el :8080 (qwen2.5-coder-14b, n_ctx 16384): pedir el esquema de golpe NO
+# escala -- n=6 salio 6/6 en 3 de 4 corridas, n=40 salio 40/40 en 3 de 3, y n=144
+# devolvio 144 items en 1 de 2 corridas y 55 en la otra. Un outline que devuelve
+# 55 entrega ~77k tokens en vez de 200k y NO AVISA. Por eso un pedido de N
+# secciones se parte en ceil(N/GEN_OUTLINE_BATCH) capitulos y cada capitulo pide
+# su lote, siempre dentro del rango donde el parseo se midio fiable.
+GEN_OUTLINE_BATCH:      int = 24   # secciones por llamada de outline
+# El outline es FLAKY incluso a n=6 (2 de 7 corridas devolvieron la lista entera
+# en UNA linea), asi que cada lote se VALIDA contando los items parseados y se
+# reintenta; recien al agotar los intentos se reporta con los dos numeros.
+GEN_OUTLINE_REINTENTOS: int = 3
+# Contar los items NO alcanza: el conteo puede dar 24/24 con 24 strings DISTINTOS
+# y aun asi ser un bucle. MEDIDO 2026-08-18 (11 outlines contra el :8080, mismo
+# pedido y misma temperatura), 2 salieron encadenados:
+#   - 11 de 24 titulos eran variantes de "Modelos de Consistencia de Sesgo"
+#     (... Total, ... Parcial, ... Parcial Total, ... Parcial Parcial, ...): la
+#     mitad del documento sobre un tema inventado, y el gate decia PASS;
+#   - 7 de 100 eran "Replicacion y Tolerancia a Fallos en {Clusters,Redes,Nodos,
+#     Sistemas Hibridos,...}".
+# Los 9 outlines sanos tuvieron familia maxima 1. El umbral corta en 4 (con 3 de
+# margen sobre lo medido sano) y dispara un REINTENTO del lote, no un aborto.
+GEN_OUTLINE_MAX_FAMILIA: int = 4   # titulos que pueden compartir un mismo prefijo-titulo
+# Cabeza que teje (introduccion). Es lo primero que revienta al crecer N: el
+# prompt son ~400 chars de extracto x n_tasks y con castellano real (4,21
+# chars/token) 144 secciones daban 15.191 de 16.384 tokens; por encima de ~151
+# el server devolvia HTTP 400, generate() None y `head = ... or ""` se lo tragaba
+# -> documento sin introduccion y sin una linea de aviso. Ahora el extracto se
+# ENCOGE hasta que el prompt entra en el n_ctx REAL y, si ni con titulos pelados
+# entra, el resumen se trocea en bloques.
+GEN_HEAD_MAX_TOKENS:    int = 220                       # tokens reservados para la respuesta
+GEN_HEAD_EXCERPT_STEPS: tuple = (400, 200, 100, 50, 0)  # chars de extracto por seccion
+# Estimador de chars/token para cuando no se puede MEDIR (impl sin /tokenize).
+# Deliberadamente pesimista: en castellano se midieron 4,21 chars/token el
+# 2026-08-17, asi que 3,5 SOBREestima los tokens y el presupuesto recorta de mas
+# en vez de comerse un HTTP 400.
+GEN_CHARS_POR_TOKEN_EST: float = 3.5
 # Tope de entrada de usuario para /largo --tokens (validacion de la CLI, no del backend):
 # 200k tokens es "generacion de un libro corto"; por encima de eso el pedido casi seguro es
 # un error de tipeo. El modo plano sigue acotado ademas por GEN_LONG_MAX_TOKENS (ver _slash_largo).

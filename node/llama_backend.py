@@ -104,11 +104,16 @@ _DEFAULT_PORT   = int(os.environ.get("LLAMA_SERVER_PORT", "8080"))
 # poll a /health que CORTA apenas responde, asi que un timeout mas alto NO
 # ralentiza un arranque rapido — solo tolera cargas lentas. Env-overridable.
 _SERVER_TIMEOUT = int(os.environ.get("LLAMA_SERVER_TIMEOUT", "240"))  # seg
-# 32768 = n_ctx_train del GGUF (nativo, sin RoPE OOD). Qwen2.5-3B usa GQA
-# (2 KV heads) => KV cache ~36KB/token => ~1.2GB a 32k en una maquina de 12GB.
-# Duplica el prefill plano y el presupuesto de outline/seccion en generacion
-# larga. Env-overridable (bajar a 16384 si la RAM aprieta).
-_CTX_SIZE       = int(os.environ.get("LLAMA_CTX_SIZE", "32768"))
+# BORRADO 2026-08-17: `_CTX_SIZE = int(os.environ.get("LLAMA_CTX_SIZE", "32768"))`.
+# Era la env leida EN EL IMPORT y su unico consumidor era la guarda de ctx de
+# generate_long, que asi presupuestaba contra una cifra que nadie habia
+# comprobado contra el server. Con ~/.cognia/config.env poniendo
+# LLAMA_CTX_SIZE=200192 y el :8080 sirviendo 16.384, la guarda creia tener
+# 150.144 tokens de prefill y no recortaba nunca -> HTTP 400
+# exceed_context_size a mitad de una generacion larga (repro medida; ver
+# LlamaBackend.n_ctx_efectivo). Ahora la ventana se PREGUNTA al server via
+# /props, y la env sobrevive solo como respaldo en _ctx_size() de abajo, que
+# ademas se lee en tiempo de llamada.
 _N_GPU_LAYERS   = 0       # CPU only; Intel UHD integrated GPU (Vulkan) is slower than CPU on i3-10110U (3.8 vs 8.8 tok/s)
 
 def _env_int(name: str, default: int) -> int:
@@ -128,13 +133,16 @@ def _env_int(name: str, default: int) -> int:
 # On a machine with a real CUDA GPU set LLAMA_N_GPU_LAYERS=99 to offload every layer.
 
 def _ctx_size() -> int:
-    # 4096 es DELIBERADO (piso seguro para maquinas CPU de gama baja), no un
-    # desliz — pese a que _CTX_SIZE (arriba) diga 32768 para la MISMA perilla.
-    # Se evaluo unificarlos el 2026-08-02 y se descarto: _CTX_SIZE se evalua en
-    # tiempo de import, asi que no es una constante (en la suite resuelve a
-    # 16384 por el entorno), y subir este piso cambiaria el consumo de RAM de
-    # toda instalacion sin LLAMA_CTX_SIZE. Quien quiera mas contexto lo pide por
+    # 4096 es DELIBERADO (piso seguro para maquinas CPU de gama baja): es el
+    # ctx con el que se ARRANCA un server propio o un llama-cpp-python cuando
+    # nadie pide otra cosa, y subirlo cambiaria el consumo de RAM de toda
+    # instalacion sin LLAMA_CTX_SIZE. Quien quiera mas contexto lo pide por
     # env/perfil; ver cognia/perf_profiles.py.
+    # Ojo con el rol: esto dice CON QUE VENTANA SE ARRANCA, no con cual se
+    # esta sirviendo. Para presupuestar contra un server ya vivo (que puede
+    # ser adoptado, con otros flags) va LlamaBackend.n_ctx_efectivo(), que
+    # pregunta a /props. Confundir las dos cosas fue exactamente el bug de la
+    # guarda de ctx (2026-08-17).
     return _env_int("LLAMA_CTX_SIZE", 4096)
 
 
@@ -737,6 +745,27 @@ class _LlamaServerBackend:
             logger.debug("[llama_backend] GET /props failed: %s", exc)
             return None
 
+    def tokenize_len(self, texto: str) -> Optional[int]:
+        """Tokens REALES de `texto` segun POST /tokenize del server, o None si falla.
+
+        Se usa para presupuestar prompts contra el n_ctx del server (la cabeza de
+        generate_delegated) sin inventar la cifra: el estimador de chars/token
+        varia con el idioma (4,21 medidos en castellano el 2026-08-17) y el que
+        decide es el tokenizer del modelo cargado, no una constante."""
+        if not texto:
+            return 0
+        try:
+            req = self._urlreq.Request(
+                f"{self._base}/tokenize",
+                data=self._json.dumps({"content": texto}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            with self._urlreq.urlopen(req, timeout=60) as resp:
+                return len(self._json.loads(resp.read()).get("tokens", []))
+        except Exception as exc:
+            logger.debug("[llama_backend] POST /tokenize failed: %s", exc)
+            return None
+
     def _check_adopted_server(self) -> None:
         """Loguea la config real de un server preexistente; warn si n_ctx difiere.
 
@@ -1246,6 +1275,65 @@ class LlamaBackend:
         fn = getattr(self._impl, "props", None)
         return fn() if callable(fn) else None
 
+    def n_ctx_efectivo(self) -> int:
+        """La ventana REAL contra la que hay que presupuestar el prefill.
+
+        SE MIDE, NO SE DECLARA. Primero /props del server que atiende de
+        verdad (default_generation_settings.n_ctx); LLAMA_CTX_SIZE queda como
+        RESPALDO para cuando no hay server (impl in-process de
+        llama-cpp-python, que se construye con ese mismo `_ctx_size()`) o
+        /props no responde.
+
+        LA AVERIA QUE ARREGLA (medida 2026-08-17). generate_long presupuestaba
+        contra `_CTX_SIZE`, o sea la env LLAMA_CTX_SIZE leida EN EL IMPORT.
+        ~/.cognia/config.env trae LLAMA_CTX_SIZE=200192 (perfil 'gpu', ver
+        cognia/perf_profiles.py) y arranque.py la carga al entorno, mientras
+        que el :8080 de esta maquina sirve con --ctx-size 16384. Resultado: la
+        guarda creia tener 150.144 tokens de prefill (0,75 x 200.192) contra
+        una ventana de 16.384 y no recortaba NUNCA. A/B MEDIDO contra el :8080
+        vivo (mismo prompt de 11.501 tokens reales, chunk 1024, tope 6144):
+          ANTES (ctx de la env)   8 rondas, stop_reason='error' (HTTP 400
+                                  exceed_context_size), 4.883/6.144 tokens
+                                  entregados y el prompt reenviado creciendo
+                                  hasta 66.349 chars; las 3 ultimas rondas ya
+                                  no producian nada (el server sin sitio).
+          AHORA (n_ctx de /props) 6 rondas, stop_reason='limit', 6.144/6.144
+                                  tokens y el prefill clavado en 49.155 chars
+                                  = el budget de 12.288 tokens.
+
+        El adoptado es el caso NORMAL, no una rareza: `cognia flota arrancar`
+        levanta el server aparte y el backend se engancha, asi que la env del
+        proceso del agente y los flags del server son dos fuentes distintas
+        que nada obliga a coincidir.
+        """
+        try:
+            n = (_server_props_summary(self.server_props() or {}) or {}).get("n_ctx")
+        except Exception:
+            n = None
+        if isinstance(n, int) and not isinstance(n, bool) and n > 0:
+            return n
+        return _ctx_size()
+
+    def contar_tokens(self, texto: str) -> int:
+        """Cuantos tokens ocupa `texto` en ESTE backend. SE MIDE, NO SE DECLARA.
+
+        Primero POST /tokenize del server que atiende de verdad; solo si el impl
+        no lo expone (in-process) o el server no contesta se ESTIMA por chars, y
+        la estimacion es deliberadamente PESIMISTA (GEN_CHARS_POR_TOKEN_EST=3,5
+        frente a los 4,21 chars/token medidos en castellano el 2026-08-17): un
+        presupuesto que se pasa por arriba recorta de mas, uno que se pasa por
+        abajo se come un HTTP 400 a mitad de camino."""
+        from shattering.model_constants import GEN_CHARS_POR_TOKEN_EST
+        fn = getattr(self._impl, "tokenize_len", None)
+        if callable(fn):
+            try:
+                n = fn(texto)
+            except Exception:
+                n = None
+            if isinstance(n, int) and not isinstance(n, bool) and n >= 0:
+                return n
+        return int(len(texto or "") / GEN_CHARS_POR_TOKEN_EST) + 1
+
     def server_state(self) -> str:
         """Estado del server del impl: 'ok' | 'cargando' | 'ausente';
         'in-process' si el impl no tiene server (llama-cpp-python).
@@ -1326,9 +1414,10 @@ class LlamaBackend:
         prefix KV-cache and each continuation only prefills the new tail.
         Stop strings are kept: an emitted <|im_end|> is a legitimate natural end.
 
-        Ctx guard: cuando prompt+acumulado se acerca a _CTX_SIZE el loop deja de
-        reenviar el texto completo y manda prompt + la cola mas reciente, de modo
-        que el prefill nunca desborda la ventana (el output sigue siendo completo).
+        Ctx guard: cuando prompt+acumulado se acerca a la ventana REAL del server
+        (n_ctx_efectivo(), o sea /props y no la env) el loop deja de reenviar el
+        texto completo y manda prompt + la cola mas reciente, de modo que el
+        prefill nunca desborda la ventana (el output sigue siendo completo).
 
         resume_text: cola YA ESCRITA de una corrida anterior (p.ej. /largo
         --continuar retomando desde un archivo). Se usa SOLO como contexto de
@@ -1361,7 +1450,11 @@ class LlamaBackend:
 
         # Techo de prefill: una fraccion del ctx, dejando sitio para el chunk a
         # generar. ~4 chars/token (mismo estimador que el fallback de abajo).
-        prefill_cap = int(_CTX_SIZE * GEN_CTX_GUARD_RATIO)
+        # El ctx sale de /props (la ventana que el server sirve DE VERDAD) y no
+        # de LLAMA_CTX_SIZE: ver n_ctx_efectivo() para la averia que eso causaba.
+        # Una sola consulta para todo el bucle (GET local cacheado, ~3 ms).
+        ctx = self.n_ctx_efectivo()
+        prefill_cap = int(ctx * GEN_CTX_GUARD_RATIO)
 
         while total_tokens < max_total_tokens:
             ask   = min(chunk_tokens, max_total_tokens - total_tokens)
@@ -1369,7 +1462,7 @@ class LlamaBackend:
             # TODO -> mandar prompt + la cola mas reciente. text_parts conserva el
             # texto completo (la cola es solo input al modelo, no recorta el output).
             # resume_text (si hay) cuenta como acumulado YA ESCRITO -> va primero.
-            budget = min(prefill_cap, _CTX_SIZE - ask - GEN_CTX_MARGIN_TOKENS)
+            budget = min(prefill_cap, ctx - ask - GEN_CTX_MARGIN_TOKENS)
             accumulated = resume_text + "".join(text_parts)
             if (len(prompt) + len(accumulated)) // 4 > budget:
                 keep_tokens = max(0, budget - len(prompt) // 4)
@@ -1428,19 +1521,61 @@ class LlamaBackend:
         return f"{prompt}\n\n{extra}"
 
     @staticmethod
+    def _items_enumerados(text: str) -> list:
+        """Items de una enumeracion 1., 2., 3., ... siguiendo la numeracion
+        CONSECUTIVA por TODO el texto, crucen o no los saltos de linea.
+
+        POR QUE ASI Y NO LINEA A LINEA (fallo MEDIDO el 2026-08-17, 2 de 7
+        corridas del sondeo de outline): el modelo devuelve la lista entera en
+        UNA linea -- "1. Diseno Arquitectonico 2. Implementacion de Software
+        3. Configuracion de la GPU ..." -- y el parseo por lineas la tomaba como
+        UN item; con al menos otra linea numerada detras ya habia >=2 items, no
+        se disparaba el reparto inline y el item 1 se entregaba RECORTADO a 120
+        chars como titulo de la seccion 1. Un worker recibio exactamente ese
+        titulo y escribio el documento entero.
+
+        Encadenar por numero ESPERADO parte esa linea y a la vez no destroza
+        titulos con numeros sueltos: solo se acepta el marcador cuyo numero es
+        el siguiente de la cadena (1, 2, 3, ...). Si no hay cadena de >=2, el
+        caller cae a los heuristicos de siempre (vinetas, lineas sueltas)."""
+        import re
+        marcas = []
+        esperado = 1
+        for m in re.finditer(r"(?:(?<=\s)|^)[\(\[]?(\d{1,3})[\.\)]\s+", text):
+            if int(m.group(1)) == esperado:
+                marcas.append(m)
+                esperado += 1
+        if len(marcas) < 2:
+            return []
+        items = []
+        for i, m in enumerate(marcas):
+            fin = marcas[i + 1].start() if i + 1 < len(marcas) else len(text)
+            trozo = text[m.end():fin].strip()
+            # El titulo termina donde termina su linea: lo que siga (descripcion
+            # del item, epilogo del modelo) no es parte del titulo.
+            trozo = trozo.split("\n", 1)[0].strip(" .;:-\t")
+            if trozo:
+                items.append(trozo)
+        return items
+
+    @staticmethod
     def _parse_outline(text: str, max_sections: int) -> list:
-        """Extrae titulos de seccion de un outline LLM. Robusto al 3B (que a veces no
-        respeta 'uno por linea'): (1) lineas numeradas/vinetas; (2) si hay <2 items,
-        separa por marcadores numerados INLINE '(1.' / '2)'; (3) fallback a lineas no
-        vacias. Capa cada titulo a 120 chars."""
+        """Extrae titulos de seccion de un outline LLM. Robusto al modelo que no
+        respeta 'uno por linea': (1) cadena de numeracion consecutiva por todo el
+        texto -- parte tambien la lista escrita en UNA sola linea, ver
+        _items_enumerados; (2) lineas numeradas/vinetas; (3) marcadores numerados
+        INLINE '(1.' / '2)'; (4) fallback a lineas no vacias. Capa cada titulo a
+        120 chars."""
         import re
         text = text or ""
-        items = []
-        for line in text.splitlines():
-            line = line.strip()
-            m = re.match(r"^[\(\[]?(?:\d+[\.\)]|[-*•])\s*(.+)", line)
-            if m and m.group(1).strip():
-                items.append(m.group(1).strip())
+        items = LlamaBackend._items_enumerados(text)
+        if len(items) < 2:
+            items = []
+            for line in text.splitlines():
+                line = line.strip()
+                m = re.match(r"^[\(\[]?(?:\d+[\.\)]|[-*•])\s*(.+)", line)
+                if m and m.group(1).strip():
+                    items.append(m.group(1).strip())
         if len(items) < 2:
             # marcadores numerados en cualquier posicion (el 3B mete '(1. ...' inline)
             chunks = re.split(r"[\(\[]?\b\d+[\.\)]\s+", text)
@@ -1450,6 +1585,298 @@ class LlamaBackend:
         if not items:
             items = [ln.strip() for ln in text.splitlines() if ln.strip()]
         return [it[:120] for it in items][:max_sections]
+
+    # ── outline VALIDADO y por LOTES ─────────────────────────────────────────
+    # El outline es el punto donde /largo --delegado miente sin gritar: si el
+    # parseo devuelve menos items de los pedidos, el documento sale corto y
+    # nadie se entera (medido: n=144 -> 55 items = ~77k tokens de los 200k
+    # pedidos). De aca en adelante NADA corre workers sin contar los items
+    # primero.
+
+    @staticmethod
+    def _numerar(items: list, desde: int = 1) -> str:
+        """Lista numerada '1. titulo' lista para incrustar en un prompt."""
+        return "\n".join(f"{desde + i}. {s}" for i, s in enumerate(items))
+
+    @staticmethod
+    def _reparto(total: int, partes: int) -> list:
+        """Reparte `total` secciones en `partes` lotes lo mas parejos posible."""
+        partes = max(1, partes)
+        base, resto = divmod(total, partes)
+        return [base + (1 if i < resto else 0) for i in range(partes)]
+
+    @staticmethod
+    def _avisar(cb, tipo: str, mensaje: str) -> None:
+        """Callback de aviso, blindado (nunca revienta al caller).
+
+        Los fallos de esta ruta son MUDOS por naturaleza: un documento mas corto
+        sigue pareciendo un documento. Ademas de loguear, se ofrece un canal
+        explicito para que la UI pueda decirlo."""
+        if cb is None:
+            return
+        try:
+            cb(tipo, mensaje)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _familia_repetida(items: list):
+        """El bucle que el CONTEO no ve: (tamano, titulo_base) de la familia mas
+        grande de titulos que son extensiones de un mismo titulo del esquema.
+
+        MEDIDO 2026-08-18 en un ensayo de 24 secciones que el conteo dio por
+        bueno (24/24 items, los 24 strings distintos): del 12 al 23 el modelo
+        encadeno "Modelos de Consistencia de Sesgo" -> "... Total" ->
+        "... Parcial" -> "... Parcial Total" -> ... Once secciones, la mitad del
+        documento, sobre un tema que se invento sobre la marcha; y el gate
+        imprimio PASS porque los tokens salieron. En 9 outlines sanos medidos el
+        mismo dia la familia maxima fue 1."""
+        lo = [(it or "").strip().lower() for it in items]
+        mejor = (1, items[0] if items else "")
+        for j, base in enumerate(lo):
+            if not base:
+                continue
+            # +1: la propia base cuenta como miembro de su familia
+            n = 1 + sum(1 for i, a in enumerate(lo)
+                        if i != j and len(a) > len(base) and a.startswith(base + " "))
+            if n > mejor[0]:
+                mejor = (n, items[j])
+        return mejor
+
+    def _outline_validado(self, prompt: str, n: int, temperature: float,
+                          instruccion: str = None, intentos: int = None):
+        """Pide un esquema de EXACTAMENTE n items, los CUENTA y comprueba que no
+        sean un BUCLE antes de darlo por bueno.
+
+        Devuelve (items, error): error None si len(items) == n y ninguna familia
+        de titulos pasa de GEN_OUTLINE_MAX_FAMILIA. Si tras `intentos` llamadas
+        sigue sin cuadrar, devuelve el mejor intento y un error con los DOS
+        numeros ("esquema incompleto: pedi 24, parsee 9") -- el fallo mudo es lo
+        que convertia 200k tokens en 77k. Si el numero cuadra pero el esquema esta
+        degenerado, devuelve el ULTIMO (los items existen y son usables) con un
+        error que lo dice: la decision de correr igual o abortar es del caller.
+        """
+        from shattering.model_constants import (
+            GEN_OUTLINE_MAX_FAMILIA, GEN_OUTLINE_REINTENTOS,
+        )
+        if intentos is None:
+            intentos = GEN_OUTLINE_REINTENTOS
+        if instruccion is None:
+            # Texto historico, palabra por palabra: es el prompt con el que se
+            # midieron 6/6 y 40/40, y el que reconocen los fakes de los tests.
+            instruccion = (
+                f"Primero, devuelve SOLO un esquema de exactamente {n} secciones "
+                f"para responder lo anterior: una por linea, numeradas (1., 2., ...), con un "
+                f"titulo corto cada una. Sin texto adicional.")
+        mejor: list = []
+        sin_respuesta = 0
+        degenerado = None
+        for _ in range(max(1, int(intentos))):
+            texto = self.generate(self._append_to_user_turn(prompt, instruccion),
+                                  max_tokens=max(128, n * 32), temperature=temperature)
+            if texto is None:
+                sin_respuesta += 1
+                continue
+            items = self._parse_outline(texto, n)
+            if len(items) == n:
+                familia, base = self._familia_repetida(items)
+                if familia < GEN_OUTLINE_MAX_FAMILIA:
+                    return items, None
+                # El numero cuadra pero el modelo esta en bucle: se REINTENTA el
+                # lote (cuesta segundos) en vez de escribir el documento.
+                degenerado = (items, familia, base)
+                logger.warning("[llama_backend] esquema degenerado: %d de %d "
+                               "titulos son variantes de %r; reintentando",
+                               familia, n, base[:60])
+                continue
+            if len(items) > len(mejor):
+                mejor = items
+        if degenerado is not None:
+            items, familia, base = degenerado
+            return items, (f"esquema degenerado: {familia} de {n} titulos son "
+                           f"variantes de {base[:60]!r}")
+        if not mejor:
+            return [], (f"esquema de {n} secciones sin respuesta del backend "
+                        f"({sin_respuesta} de {intentos} intentos vacios)")
+        return mejor, f"esquema incompleto: pedi {n}, parsee {len(mejor)}"
+
+    def _plan_outline(self, prompt: str, n_tasks: int, temperature: float,
+                      batch: int = None, intentos: int = None):
+        """Plan de n_tasks secciones, en UN nivel o en DOS segun el tamano.
+
+        Un solo outline no aguanta 144 secciones (medido: 144 items en 1 de 2
+        corridas, 55 en la otra), pero si aguanta 40 (3 de 3) y 24. Asi que por
+        encima de `batch` se pide un INDICE de ceil(n/batch) capitulos y luego el
+        esquema de cada capitulo por separado: cada llamada se queda dentro del
+        rango donde el parseo se midio fiable.
+
+        Devuelve (tasks, bloques, meta):
+          tasks    titulos de seccion (len == n_tasks salvo que meta['error'])
+          bloques  paralela a tasks: el esquema que ve CADA worker. Con dos
+                   niveles el worker ve el indice de capitulos + las secciones de
+                   SU capitulo, numeradas con el indice GLOBAL (mandarle las 144
+                   a cada worker son ~4k tokens de prefill por worker, y el numero
+                   que se le pide escribir tiene que coincidir con el que ve).
+          meta     {'niveles','lote','capitulos','error'}
+        """
+        from shattering.model_constants import GEN_OUTLINE_BATCH
+        if batch is None:
+            batch = GEN_OUTLINE_BATCH
+        batch = max(1, int(batch))
+        meta = {"niveles": 1, "lote": batch, "capitulos": [], "error": None}
+
+        if n_tasks <= batch:
+            items, err = self._outline_validado(prompt, n_tasks, temperature,
+                                                intentos=intentos)
+            meta["error"] = err
+            bloque = self._numerar(items)
+            return items, [bloque] * len(items), meta
+
+        meta["niveles"] = 2
+        n_caps = -(-n_tasks // batch)          # ceil
+        tamanos = self._reparto(n_tasks, n_caps)
+        caps, err = self._outline_validado(
+            prompt, n_caps, temperature, intentos=intentos,
+            instruccion=(f"Primero, devuelve SOLO el indice de capitulos de un documento "
+                         f"extenso que responda lo anterior: exactamente {n_caps} capitulos, "
+                         f"uno por linea, numerados (1., 2., ...), con un titulo corto cada "
+                         f"uno. Sin texto adicional."))
+        if err:
+            meta["error"] = f"indice de capitulos: {err}"
+            return [], [], meta
+        meta["capitulos"] = list(caps)
+        indice = self._numerar(caps)
+
+        tasks: list = []
+        bloques: list = []
+        for j, (cap, k) in enumerate(zip(caps, tamanos)):
+            sub, err = self._outline_validado(
+                prompt, k, temperature, intentos=intentos,
+                instruccion=(f"El documento se organiza en estos capitulos:\n{indice}\n\n"
+                             f"Devuelve SOLO el esquema del capitulo {j + 1} ({cap}): "
+                             f"exactamente {k} secciones, una por linea, numeradas "
+                             f"(1., 2., ...), con un titulo corto cada una. Sin texto adicional."))
+            if err:
+                meta["error"] = f"capitulo {j + 1}/{n_caps} ({cap}): {err}"
+                return tasks, bloques, meta
+            desde = len(tasks) + 1
+            bloque = (f"Capitulos:\n{indice}\n\n"
+                      f"Secciones del capitulo {j + 1} ({cap}):\n"
+                      + self._numerar(sub, desde))
+            tasks.extend(sub)
+            bloques.extend([bloque] * len(sub))
+        return tasks, bloques, meta
+
+    # ── cabeza que teje, sin reventar muda ───────────────────────────────────
+
+    def _head_prompt(self, prompt: str, drafts: list, extracto_chars: int) -> str:
+        """Prompt de la cabeza con `extracto_chars` de cada draft (0 = solo titulos)."""
+        if extracto_chars > 0:
+            excerpts = "\n".join(
+                f"{i + 1}. {t}: {(txt[:extracto_chars]).strip()}"
+                for i, (t, txt) in enumerate(drafts)
+            ).replace("\n\n", " ")
+        else:
+            excerpts = "\n".join(f"{i + 1}. {t}" for i, (t, _txt) in enumerate(drafts))
+        # Prompt POSITIVO (sin negaciones) + repeat_penalty en el caller: las
+        # negaciones ("No repitas...") inducian un loop degenerado en el 3B.
+        return self._append_to_user_turn(
+            prompt,
+            f"Un documento tiene estas secciones (extractos):\n{excerpts}\n\n"
+            f"Escribe una introduccion breve de 2 a 4 frases que presente de que trata el "
+            f"documento y como se conectan sus secciones.")
+
+    def _cabeza_tejida(self, prompt: str, drafts: list, temperature: float):
+        """Introduccion que teje los drafts SIN reventar muda si no entra en el ctx.
+
+        LA AVERIA (medida 2026-08-17): el prompt de la cabeza son ~400 chars de
+        extracto x n_secciones; con castellano real (4,21 chars/token) 144
+        secciones daban 15.191 de 16.384 tokens -- entraba con 973 de margen --,
+        y por encima de ~151 el server devolvia HTTP 400, generate() devolvia
+        None y `head = ... or ""` se lo tragaba: documento sin introduccion y sin
+        una linea de aviso.
+
+        Ahora: el prompt se MIDE contra el n_ctx REAL (/props + /tokenize, nunca
+        la env), el extracto se ENCOGE por pasos hasta que entra, y si ni con los
+        titulos pelados entra se trocea el resumen. Cualquier fallo sale por
+        meta['error'] -- nunca en silencio.
+
+        Devuelve (texto, meta) con meta =
+        {'extracto_chars','bloques','prompt_tokens','ctx','presupuesto','error'}.
+        """
+        from shattering.model_constants import (
+            GEN_CTX_GUARD_RATIO, GEN_CTX_MARGIN_TOKENS, GEN_HEAD_MAX_TOKENS,
+            GEN_HEAD_EXCERPT_STEPS,
+        )
+        ctx = self.n_ctx_efectivo()
+        presupuesto = min(int(ctx * GEN_CTX_GUARD_RATIO),
+                          ctx - GEN_HEAD_MAX_TOKENS - GEN_CTX_MARGIN_TOKENS)
+        meta = {"extracto_chars": None, "bloques": 1, "prompt_tokens": None,
+                "ctx": ctx, "presupuesto": presupuesto, "error": None}
+        if presupuesto <= 0:
+            meta["error"] = (f"el ctx del server no da ni para la cabeza "
+                             f"(n_ctx={ctx}): documento sin introduccion")
+            return "", meta
+
+        for chars in GEN_HEAD_EXCERPT_STEPS:
+            p = self._head_prompt(prompt, drafts, chars)
+            n = self.contar_tokens(p)
+            if n <= presupuesto:
+                meta["extracto_chars"] = chars
+                meta["prompt_tokens"] = n
+                txt = self.generate(p, max_tokens=GEN_HEAD_MAX_TOKENS,
+                                    temperature=temperature, repeat_penalty=1.3)
+                if txt is None:
+                    meta["error"] = (f"la cabeza no respondio (prompt de {n} tokens "
+                                     f"contra n_ctx {ctx}): documento sin introduccion")
+                    return "", meta
+                return txt.strip(), meta
+
+        return self._cabeza_troceada(prompt, drafts, temperature, presupuesto, meta)
+
+    def _cabeza_troceada(self, prompt: str, drafts: list, temperature: float,
+                         presupuesto: int, meta: dict):
+        """Cabeza en DOS niveles: una sintesis por bloque de secciones y una cabeza
+        final sobre esas sintesis. Solo se usa cuando ni el prompt con titulos
+        pelados entra en el presupuesto (n muy grande o ctx muy chico)."""
+        from shattering.model_constants import GEN_HEAD_MAX_TOKENS
+        titulos_tok = self.contar_tokens(self._head_prompt(prompt, drafts, 0))
+        n_bloques = min(len(drafts),
+                        max(2, -(-titulos_tok // max(1, presupuesto)) + 1))
+        meta["bloques"] = n_bloques
+        sintesis: list = []
+        i = 0
+        for j, k in enumerate(self._reparto(len(drafts), n_bloques)):
+            bloque = drafts[i:i + k]
+            i += k
+            p = self._head_prompt(prompt, bloque, 0)
+            n = self.contar_tokens(p)
+            if n > presupuesto:
+                meta["error"] = (f"ni troceado en {n_bloques} bloques entra el resumen de "
+                                 f"{len(drafts)} secciones ({n} tokens > {presupuesto} de "
+                                 f"presupuesto, n_ctx {meta['ctx']}): documento sin introduccion")
+                return "", meta
+            txt = self.generate(p, max_tokens=GEN_HEAD_MAX_TOKENS,
+                                temperature=temperature, repeat_penalty=1.3)
+            if txt is None:
+                meta["error"] = (f"la sintesis del bloque {j + 1}/{n_bloques} no respondio: "
+                                 f"documento sin introduccion")
+                return "", meta
+            sintesis.append((f"Bloque {j + 1}", txt.strip()))
+
+        p = self._head_prompt(prompt, sintesis, 400)
+        n = self.contar_tokens(p)
+        meta["prompt_tokens"] = n
+        if n > presupuesto:
+            meta["error"] = (f"la cabeza final no entra ({n} tokens > {presupuesto}): "
+                             f"documento sin introduccion")
+            return "", meta
+        txt = self.generate(p, max_tokens=GEN_HEAD_MAX_TOKENS, temperature=temperature,
+                            repeat_penalty=1.3)
+        if txt is None:
+            meta["error"] = "la cabeza final no respondio: documento sin introduccion"
+            return "", meta
+        return txt.strip(), meta
 
     def generate_hierarchical(self, prompt: str, target_tokens: int = None,
                               n_sections: int = None, temperature: float = 0.7,
@@ -1541,34 +1968,45 @@ class LlamaBackend:
     def generate_delegated(self, prompt: str, target_tokens: int = None,
                            n_tasks: int = None, per_task_cap: int = None,
                            aggregate: bool = True, temperature: float = 0.7,
-                           on_task=None, on_outline=None) -> Optional[dict]:
+                           on_task=None, on_outline=None, outline_batch: int = None,
+                           outline_intentos: int = None, on_aviso=None) -> Optional[dict]:
         """
         Generacion larga por DELEGACION (orchestrator-workers). Descompone en un outline
         de N subtareas (spec compartido) y genera cada una con un worker de CONTEXTO LIMPIO:
-        el prompt de cada worker es prompt + outline + SOLO esa subtarea, SIN arrastrar el
+        el prompt de cada worker es prompt + esquema + SOLO esa subtarea, SIN arrastrar el
         resumen de las previas (a diferencia de generate_hierarchical). Cada worker corre
         hasta per_task_cap (<= GEN_LONG_MAX_TOKENS), asi el output TOTAL = suma de subtareas
         y deja de estar acotado por el ctx de 16k.
 
-        Si aggregate y hay >1 subtarea, una CABEZA final teje: recibe el outline + un extracto
-        acotado de cada draft y escribe una introduccion unificadora (y marca inconsistencias
-        si las nota). El cuerpo (drafts completos) se CONSERVA -> la cabeza ENMARCA, no
-        reescribe (no entraria todo en la ventana). Honesto: los workers son ciegos entre si;
-        la coherencia global la aporta el outline compartido + el frame de la cabeza, no una
-        reescritura global.
+        EL PLAN SE VALIDA ANTES DE GASTAR LA GPU (2026-08-18). El outline de golpe no
+        aguanta 144 secciones (medido: 144 items en 1 de 2 corridas, 55 en la otra) y
+        es flaky incluso a n=6, siempre en silencio. Ahora: por encima de
+        `outline_batch` (default GEN_OUTLINE_BATCH=24) el esquema se pide en DOS
+        NIVELES -- indice de capitulos + lote por capitulo, cada llamada dentro del
+        rango medido fiable --, cada lote se CUENTA y se reintenta, y si al final no
+        cuadra se devuelve None con el error ("pedi 24, parsee 9") en vez de correr
+        medio documento como si nada. Ver _plan_outline/_outline_validado.
 
-        on_outline: callback opcional on_outline(tasks) invocado UNA vez, apenas se parsea
-        el esquema (antes de correr ningun worker) -- persistir el plan completo temprano
-        (p.ej. sidecar de /largo --continuar) sin esperar la primera subtarea.
+        Si aggregate y hay >1 subtarea, una CABEZA final teje: recibe el esquema + un
+        extracto acotado de cada draft y escribe una introduccion unificadora. El cuerpo
+        (drafts completos) se CONSERVA -> la cabeza ENMARCA, no reescribe. El prompt de
+        la cabeza se MIDE contra el n_ctx real del server y se encoge/trocea hasta que
+        entra; si aun asi falla, sale por result['head_error'] y por on_aviso -- nunca en
+        silencio (ver _cabeza_tejida). Honesto: los workers son ciegos entre si; la
+        coherencia global la aporta el esquema compartido + el frame de la cabeza.
+
+        on_outline: callback opcional on_outline(tasks) invocado UNA vez, apenas el plan
+        esta COMPLETO y validado (antes de correr ningun worker).
         on_task: callback opcional on_task(idx, total, titulo, tokens, texto, stop_reason)
-        por cada subtarea COMPLETA (texto = el texto de esa subtarea, stop_reason = el de
-        su generate_long interno; para escritura incremental).
+        por cada subtarea COMPLETA.
+        on_aviso: callback opcional on_aviso(tipo, mensaje) para los fallos que antes eran
+        mudos; tipo in {'outline','worker','cabeza'}.
 
-        Returns {"text","outline","sections","total_tokens","rounds","head"}; None si falla
-        el outline o la primera subtarea (mismo contrato de None que generate()).
+        Returns {"text","outline","sections","total_tokens","rounds","head","head_error",
+        "truncado","plan"}; None si falla el plan o la primera subtarea.
         """
         from shattering.model_constants import (
-            GEN_LONG_MAX_TOKENS, GEN_HIERARCHICAL_SECTIONS, GEN_SECTION_SUMMARY_CHARS,
+            GEN_LONG_MAX_TOKENS, GEN_HIERARCHICAL_SECTIONS,
         )
         if n_tasks is None:
             n_tasks = GEN_HIERARCHICAL_SECTIONS
@@ -1577,42 +2015,46 @@ class LlamaBackend:
         if per_task_cap is None:
             per_task_cap = GEN_LONG_MAX_TOKENS
 
-        outline_prompt = self._append_to_user_turn(
-            prompt,
-            f"Primero, devuelve SOLO un esquema de exactamente {n_tasks} secciones "
-            f"para responder lo anterior: una por linea, numeradas (1., 2., ...), con un "
-            f"titulo corto cada una. Sin texto adicional."
-        )
-        outline_text = self.generate(outline_prompt,
-                                     max_tokens=max(128, n_tasks * 32),
-                                     temperature=temperature)
-        if outline_text is None:
+        tasks, bloques, plan = self._plan_outline(prompt, n_tasks, temperature,
+                                                  batch=outline_batch,
+                                                  intentos=outline_intentos)
+        if plan.get("error"):
+            # NO se gasta la GPU con un plan incompleto NI con uno degenerado: el
+            # documento saldria corto (55 de 144 secciones = ~77k tokens de los
+            # 200k) o saldria entero pero con media docena de capitulos que son
+            # variantes del mismo titulo (medido 2026-08-18: 11 de 24), y en los
+            # dos casos nadie se enteraria.
+            logger.error("[llama_backend] plan del outline: %s", plan["error"])
+            self._avisar(on_aviso, "outline", plan["error"])
             return None
-        tasks = self._parse_outline(outline_text, n_tasks) or [prompt]
         if on_outline is not None:
             try:
                 on_outline(tasks)
             except Exception:
                 pass
 
-        outline_block = "\n".join(f"{i+1}. {s}" for i, s in enumerate(tasks))
         per_task = min(per_task_cap, max(256, target_tokens // max(1, len(tasks))))
         parts: list = []
         drafts: list = []
         total_tokens = 0
         rounds = 0
+        truncado = None
 
         for i, sec in enumerate(tasks):
             # CAMBIO 1 vs generate_hierarchical: worker de CONTEXTO LIMPIO ->
-            # NO se incluye prev_summary; cada subtarea arranca con el outline puro.
+            # NO se incluye prev_summary; cada subtarea arranca con el esquema puro.
             sec_prompt = self._append_to_user_turn(
                 prompt,
-                f"Esquema:\n{outline_block}\n\n"
-                f"Escribe SOLO la seccion {i+1}: {sec}. No repitas las otras secciones."
+                f"Esquema:\n{bloques[i]}\n\n"
+                f"Escribe SOLO la seccion {i + 1}: {sec}. No repitas las otras secciones."
             )
             res = self.generate_long(sec_prompt, max_total_tokens=per_task,
                                      temperature=temperature)
             if res is None:
+                truncado = (f"el worker {i + 1} de {len(tasks)} no respondio: el documento "
+                            f"queda con {len(parts)} secciones de {len(tasks)}")
+                logger.warning("[llama_backend] %s", truncado)
+                self._avisar(on_aviso, "worker", truncado)
                 if not parts:
                     return None
                 break
@@ -1629,23 +2071,15 @@ class LlamaBackend:
 
         body = "\n\n".join(parts)
         head = ""
+        head_error = None
         # CAMBIO 2 vs generate_hierarchical: cabeza que teje (reemplaza el join crudo).
         if aggregate and len(drafts) > 1:
-            excerpts = "\n".join(
-                f"{i+1}. {t}: {(txt[:GEN_SECTION_SUMMARY_CHARS * 2]).strip()}"
-                for i, (t, txt) in enumerate(drafts)
-            ).replace("\n\n", " ")
-            # Prompt POSITIVO (sin negaciones) + repeat_penalty: las negaciones
-            # ("No repitas...") inducian un loop degenerado en el 3B ("No incluye...
-            # No incluye...") y max_tokens alto le daba espacio para degenerar.
-            head_prompt = self._append_to_user_turn(
-                prompt,
-                f"Un documento tiene estas secciones (extractos):\n{excerpts}\n\n"
-                f"Escribe una introduccion breve de 2 a 4 frases que presente de que trata el "
-                f"documento y como se conectan sus secciones."
-            )
-            head = self.generate(head_prompt, max_tokens=220, temperature=temperature,
-                                 repeat_penalty=1.3) or ""
+            head, hmeta = self._cabeza_tejida(prompt, drafts, temperature)
+            head_error = hmeta.get("error")
+            plan["cabeza"] = hmeta
+            if head_error:
+                logger.warning("[llama_backend] cabeza: %s", head_error)
+                self._avisar(on_aviso, "cabeza", head_error)
 
         text = (head.strip() + "\n\n" + body) if head.strip() else body
         return {
@@ -1655,6 +2089,9 @@ class LlamaBackend:
             "total_tokens": total_tokens,
             "rounds":       rounds,
             "head":         head.strip(),
+            "head_error":   head_error,
+            "truncado":     truncado,
+            "plan":         plan,
         }
 
     def stream_generate(self, prompt: str, max_tokens: int = 256,
