@@ -139,8 +139,10 @@ def _interesa(clave: str) -> bool:
                  "general.sampling.temp", "general.sampling.top_p",
                  "tokenizer.chat_template"):
         return True
-    # <arch>.context_length / <arch>.block_count, sin saber aun el arch.
-    return clave.endswith((".context_length", ".block_count"))
+    # <arch>.context_length / <arch>.block_count / <arch>.nextn_predict_layers,
+    # sin saber aun el arch.
+    return clave.endswith((".context_length", ".block_count",
+                           ".nextn_predict_layers"))
 
 
 def _crudo(ruta: str) -> dict:
@@ -178,6 +180,8 @@ def meta(ruta) -> dict:
       nombre      general.name
       n_ctx_train <arch>.context_length
       bloques     <arch>.block_count
+      mtp_capas   <arch>.nextn_predict_layers — cabezas MTP en el fichero
+                  (1 en Qwen3.8-27B; ausente en los modelos sin MTP)
       plantilla   tokenizer.chat_template (cruda)
       sampling    {'temperature','top_p'} si el GGUF los declara
                   (general.sampling.*: Nemotron 3.5 los trae, Qwythos no)
@@ -206,7 +210,15 @@ def meta(ruta) -> dict:
         if isinstance(v, str) and v:
             out[destino] = v
     for destino, sufijo in (("n_ctx_train", ".context_length"),
-                            ("bloques", ".block_count")):
+                            ("bloques", ".block_count"),
+                            # Cabeza MTP (multi-token prediction) DENTRO del
+                            # propio gguf: Qwen3.8-27B trae 1 (blk.64 de 65).
+                            # Se lee del fichero a proposito — decidir si un
+                            # modelo tiene cabeza MTP por su NOMBRE seria la
+                            # misma bomba que ya conocemos, y aca el coste de
+                            # equivocarse es un --spec-type draft-mtp que el
+                            # server acepta e ignora en silencio.
+                            ("mtp_capas", ".nextn_predict_layers")):
         v = kv.get(f"{arch}{sufijo}")
         if isinstance(v, int):
             out[destino] = v

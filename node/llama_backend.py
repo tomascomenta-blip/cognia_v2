@@ -441,22 +441,80 @@ def _lora_args(gguf_path: Optional[Path] = None) -> tuple:
 # bandwidth-bound compite por banda + nucleos y mide 0.37x en habla (exp021/cycle34).
 _SPEC_NGRAM_ALLOWED = {"ngram-mod", "ngram-simple", "ngram-map-k", "ngram-map-k4v", "ngram-cache"}
 
+# MTP (multi-token prediction) NATIVO: la cabeza de draft viaja DENTRO del gguf
+# (<arch>.nextn_predict_layers), asi que no es un "draft-* separado" y la
+# prohibicion de arriba no le aplica: no hay segundo modelo compitiendo por
+# banda ni por nucleos.
+#
+# MEDIDO 2026-08-18 en la RTX 5060 Ti sobre Qwythos-9B (ctx 32k, KV q8_0,
+# temp 0, 6 medidas por brazo en rondas de orden invertido, brazo nulo de
+# referencia):
+#     brazo             codigo          prosa        aceptacion
+#     sin-spec          71,4            71,3            --
+#     draft-mtp n=2    125,1 (1,75x)   94,2 (1,32x)   87% / 53%
+#     draft-mtp n=4    118,1 (1,65x)   73,3 (1,03x)   67% / 32%
+#     draft-mtp n=6     97,4 (1,36x)   55,3 (0,78x)   52% / 22%
+# De ahi el n-max 2: la aceptacion cae rapido y con 6 el trabajo desperdiciado
+# se come la ganancia (en prosa queda mas LENTO que sin nada).
+#
+# Y de ahi que el default cambie: en la MISMA corrida, ngram-mod acepto 0% en
+# la primera peticion (70,6 tok/s, o sea ninguna ganancia) y solo dio 216 tok/s
+# en la SEGUNDA peticion del mismo prompt, copiando su propia respuesta previa
+# del cache del server. El "1.45x lossless" de exp021 es real pero es eso: solo
+# aparece cuando el contexto ya contiene el texto que se va a escribir.
+#
+# LIMITE HONESTO: MTP no sale bit-identico. Con temp 0 el texto difirio del
+# brazo nulo en UNA palabra de 31 lineas (misma longitud, misma tasa de
+# repeticion) — divergencia numerica por el batching del verificador, no
+# degradacion. ngram-mod si salio bit-identico. Quien necesite identidad exacta
+# byte a byte tiene COGNIA_SPEC_TYPE=ngram-mod.
+_SPEC_MTP = "draft-mtp"
+_SPEC_MTP_N_MAX = "2"
 
-def _spec_args() -> list:
+
+def _tiene_cabeza_mtp(gguf_path) -> bool:
+    """True si el gguf DECLARA cabeza MTP. Se lee del fichero a proposito.
+
+    Decidirlo por el nombre del modelo seria la bomba de siempre, y aca el
+    fallo es SILENCIOSO: llama-server acepta --spec-type draft-mtp sobre un
+    modelo sin cabeza, sirve igual, no acelera y no dice nada."""
+    if gguf_path is None:
+        return False
+    try:
+        from cognia.agent.gguf_meta import meta
+        return int((meta(str(gguf_path)) or {}).get("mtp_capas") or 0) >= 1
+    except Exception:
+        return False
+
+
+def _spec_args(gguf_path=None) -> list:
     """Args de speculative decoding para el cmd de llama-server, o [].
 
-    Default 'ngram-mod': drafter n-gram que escanea el contexto y resulta BIT-IDENTICO
-    a la salida normal a temp=0 (verificacion exacta); gana en texto repetitivo/codigo/
-    RAG sin coste de modelo extra ni entrenamiento (exp021/cycle34: hasta 1.45x lossless
-    en eco; ngram-mod nunca mas lento en lo medido). COGNIA_SPEC_TYPE=none lo desactiva.
-    'draft-*' queda prohibido (en CPU bandwidth-bound un draft separado mide 0.37x).
+    Default: 'draft-mtp' con n-max 2 si el gguf trae cabeza MTP (1,75x en
+    codigo medido); 'ngram-mod' si no la trae (el default historico).
+    COGNIA_SPEC_TYPE pisa: 'none' apaga, las variantes ngram valen siempre, y
+    'draft-mtp' solo si el fichero declara la cabeza. Los 'draft-*' con modelo
+    aparte siguen prohibidos (en CPU bandwidth-bound miden 0.37x, exp021).
     """
-    spec = os.environ.get("COGNIA_SPEC_TYPE", "ngram-mod").strip()
+    spec = os.environ.get("COGNIA_SPEC_TYPE", "").strip()
+    cabeza = _tiene_cabeza_mtp(gguf_path)
+    mtp = ["--spec-type", _SPEC_MTP, "--spec-draft-n-max", _SPEC_MTP_N_MAX]
+    if not spec:
+        return mtp if cabeza else ["--spec-type", "ngram-mod"]
     if spec in _SPEC_NGRAM_ALLOWED:
         return ["--spec-type", spec]
-    if spec and spec != "none":
-        logger.warning("[llama_backend] COGNIA_SPEC_TYPE=%r ignorado (solo variantes "
-                       "ngram; draft-* prohibido en CPU); speculative OFF", spec)
+    if spec == _SPEC_MTP:
+        if cabeza:
+            return mtp
+        logger.warning("[llama_backend] COGNIA_SPEC_TYPE=draft-mtp pero %s no "
+                       "declara cabeza MTP (nextn_predict_layers): el server lo "
+                       "aceptaria y lo ignoraria en silencio. Uso ngram-mod.",
+                       getattr(gguf_path, "name", gguf_path))
+        return ["--spec-type", "ngram-mod"]
+    if spec != "none":
+        logger.warning("[llama_backend] COGNIA_SPEC_TYPE=%r ignorado (variantes "
+                       "ngram, draft-mtp con cabeza en el gguf, o none); "
+                       "speculative OFF", spec)
     return []
 
 
@@ -668,7 +726,7 @@ class _LlamaServerBackend:
                 "--spec-draft-p-min", "0.75",
             ]
         else:
-            cmd += _spec_args()
+            cmd += _spec_args(gguf_path)
         if self._lora_path is not None:
             # LoRA estatica por parametro (portero): aplicada al arrancar.
             cmd += ["--lora", str(self._lora_path)]

@@ -100,6 +100,10 @@ _CTX_POR_MODELO = {
     "qwen2.5-coder-14b": 16384,
     "qwen2.5-7b": 32768,
     "qwen3-4b": 32768,
+    # Ridge 27B: 65.536 MEDIDO (13.657 de 16.311 MiB, 31 tok/s). Cabe hasta
+    # 131.072 (15.961 MiB) y a 262.144 el server dice servirlos pero cae a 11
+    # tok/s: el KV que no entra lo sirve la RAM del sistema.
+    "qwen3.8-27b-ridge": 65536,
 }
 
 # Coste de KV por token, en BYTES. ESTIMACION GROSERA a partir de la
@@ -115,6 +119,12 @@ _KV_BYTES_TOKEN = {
     "qwen2.5-coder-14b": 196608,
     "qwen2.5-7b": 57344,      # 28 x 4 x 128
     "qwen3-4b": 147456,       # 36 x 8 x 128
+    # 16 capas con atencion completa (65 bloques, full_attention_interval=4)
+    # x 4 kv heads x (256+256) x 2 bytes = 65.536 B/token en f16. Es de los
+    # pocos de esta tabla que NO es estimacion a ojo: sale de los metadatos
+    # LEIDOS del gguf, y la VRAM medida en el barrido lo confirma (+1.243 MiB
+    # al pasar de 32k a 65k con KV q8_0, o sea ~38 KiB/token cuantizado).
+    "qwen3.8-27b-ridge": 65536,
 }
 _KV_DESCONOCIDO = 200000      # denso de 14B: el peor caso de esta carpeta
 

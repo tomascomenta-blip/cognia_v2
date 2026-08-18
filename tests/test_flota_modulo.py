@@ -35,7 +35,15 @@ class TestCombos:
     def test_combos_esperados(self):
         assert set(F.COMBOS) == {"construir", "construir-ui", "pensar",
                                  "pensar-qwythos", "pensar-nemotron",
-                                 "pensar-en-lazo", "juzgar", "solo"}
+                                 "pensar-qwen38", "pensar-en-lazo", "juzgar",
+                                 "solo"}
+
+    def test_cerebro_qwen38_no_fija_ctx(self):
+        # 2026-08-18: mismo trato que pensar-nemotron — los flags medidos
+        # (ctx, KV, MTP) los pone PERFILES_ARRANQUE y un --ctx aca los pisaria.
+        (script, args), = F.COMBOS["pensar-qwen38"]
+        assert script == "servir_modelo.py"
+        assert "Ridge" in args and "--ctx" not in args
 
     def test_cerebro_alternativo_nemotron(self):
         # 2026-08-14: cerebro alternativo con ventana de 1M MEDIDA. El combo

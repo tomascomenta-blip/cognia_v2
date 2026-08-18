@@ -92,6 +92,16 @@ COMBOS = {
         # mismo pajar: 9 s y 4.728 tokens contra 2.061 s y 1.046.706).
         ("servir_modelo.py", ["--modelo", "nemotron-3.5", "--sin-draft"]),
     ],
+    "pensar-qwen38": [
+        # Qwen3.8-27B Ridge (2026-08-18). Denso 27,78B hibrido: de sus 64
+        # bloques solo 16 llevan atencion completa (full_attention_interval=4),
+        # los otros 48 son Gated-DeltaNet -> el KV es de 16 capas, no de 64.
+        # Corre SOLO: 11,73 GiB de pesos de los 15,9 disponibles.
+        # Sin --ctx aca a proposito, igual que pensar-nemotron: los flags
+        # (ctx, KV, MTP) los pone servir_modelo.PERFILES_ARRANQUE con lo
+        # MEDIDO en esta maquina, y un --ctx aca los pisaria.
+        ("servir_modelo.py", ["--modelo", "Ridge"]),
+    ],
     "juzgar": [
         ("servir_vlm.py", ["--modelo", "VL-7B"]),
     ],
@@ -133,17 +143,28 @@ CEREBROS = {
     "uigen": "construir-ui",
     "openreasoning": "pensar-en-lazo",
     "nemotron-3.5": "pensar-nemotron",
+    # 'qwen3.8' y no 'qwen3': el 'qwen3' corto se llevaria Qwen3-1.7B y
+    # Qwen3-4B-Thinking, que no son cerebros de este combo. Sexta vez que el
+    # substring corto intenta robar; combo_de_modelo() ordena por longitud.
+    "qwen3.8": "pensar-qwen38",
     "nemotron": "pensar-en-lazo",
     "qwen2.5-coder-14b": "construir",
 }
 
 
 def combo_de_modelo(nombre_gguf: str) -> Optional[str]:
-    """A que combo pertenece el GGUF servido en :8080, o None si a ninguno."""
+    """A que combo pertenece el GGUF servido en :8080, o None si a ninguno.
+
+    De patron MAS LARGO a mas corto. Iterar en orden de inserccion hacia que
+    el resultado dependiera de en que linea escribio alguien su entrada: hoy
+    'nemotron-3.5' esta ANTES de 'nemotron' por suerte, y con las claves al
+    reves un Nemotron 3.5 caia en 'pensar-en-lazo' (el combo del
+    OpenReasoning-14B, otro modelo y otro contexto viable). model_profiles y
+    servir_modelo ya ordenaban asi; esta tabla era la que faltaba."""
     bajo = (nombre_gguf or "").lower()
-    for trozo, combo in CEREBROS.items():
+    for trozo in sorted(CEREBROS, key=len, reverse=True):
         if trozo in bajo:
-            return combo
+            return CEREBROS[trozo]
     return None
 
 

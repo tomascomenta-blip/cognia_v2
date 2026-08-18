@@ -69,10 +69,43 @@ CACHES_KV = ("f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl",
 # comparar_modelos._CTX_POR_MODELO). Por eso, ademas, el match va de patron
 # MAS LARGO a mas corto: que la proxima entrada no reabra el agujero por el
 # orden en que alguien la escriba.
+#
+# qwen3.8-27b-ridge (2026-08-18, RTX 5060 Ti 16.311 MiB): denso 27,78B en 11,7
+# GiB (cuantizacion Ridge, 3,69 bpw). Hibrido: de sus 64 bloques solo 16 llevan
+# atencion completa (qwen35.full_attention_interval=4), los otros 48 son
+# Gated-DeltaNet -> el KV es de 16 capas y por eso caben ventanas grandes.
+# BARRIDO MEDIDO (KV q8_0, sonda de 200 tokens generados):
+#     ctx        VRAM      gen tok/s
+#      32.768   12.414        31,02
+#      65.536   13.657        31,03   <- el perfil
+#     131.072   15.961        31,03   <- cabe, pero deja 350 MiB de margen
+#     262.144   15.961        11,06   <- MISMA VRAM y un TERCIO de velocidad
+# El 262k es la trampa: arranca, /props confirma 262.144 servidos y responde.
+# Lo que no cabe lo sirve la RAM del sistema (el driver de Windows spillea) y
+# solo el tok/s lo delata -- por eso el barrido genera 200 tokens y no 16.
+# Se elige 65.536 y no 131.072 porque los 350 MiB de margen del segundo se los
+# come el escritorio (Chrome solo ya ocupaba 2,4 GB en esta maquina): quien
+# tenga la GPU para el solo puede pedir --ctx 131072 a mano.
+#
+# spec_mtp 2: la cabeza MTP viaja DENTRO del gguf (qwen35.nextn_predict_layers
+# = 1, blk.64). MEDIDO en este modelo (ctx 65.536, temp 0, 3 medidas por brazo,
+# brazo nulo de referencia, prompts frescos):
+#     brazo       codigo            prosa           aceptacion
+#     sin-spec    30,97             30,94              --
+#     mtp n=2     56,27 (1,82x)     43,79 (1,42x)    85% / 57%
+#     mtp n=4     58,01 (1,87x)     35,36 (1,14x)    72% / 35%
+#     ngram-mod   30,91 (1,00x)     30,86 (1,00x)     0% en prosa
+# n=2 y no n=4 porque el 4 gana 3% en codigo y PIERDE 20% en prosa. El
+# ngram-mod (default historico del backend) no aporta NADA con prompts
+# frescos: sus ganancias aparecian al repetir el mismo prompt contra el mismo
+# server, copiando su propia respuesta anterior del cache.
 PERFILES_ARRANQUE = {
     "nemotron-3.5": {"ctx": 1048576, "ctk": "q8_0", "ctv": "q8_0",
                      "no_mmap": True, "batch": 4096, "ubatch": 1024,
                      "sin_draft": True, "ngl": 0},
+    "qwen3.8-27b-ridge": {"ctx": 65536, "ctk": "q8_0", "ctv": "q8_0",
+                          "spec_mtp": 2,
+                          "mmproj": "mmproj-Qwen3.8-27B-BF16.gguf"},
 }
 
 
@@ -205,6 +238,10 @@ def main() -> int:
                     help="tipo de cache KV para K (--cache-type-k)")
     ap.add_argument("--ctv", choices=CACHES_KV,
                     help="tipo de cache KV para V (--cache-type-v)")
+    ap.add_argument("--vision", action="store_true",
+                    help="carga el mmproj del perfil (visión). NO va por "
+                         "defecto: el proyector ocupa VRAM que en 16 GB sale "
+                         "del contexto, y el uso principal es texto/codigo")
     ap.add_argument("--fit-off", action="store_true",
                     help="pasa --fit off (b10066 auto-reduce el ctx en "
                          "silencio con fit on)")
@@ -277,6 +314,12 @@ def main() -> int:
     # esta confiado: 66% de aceptacion en prosa y sin penalizacion.
     # OJO: --spec-type draft-simple es OBLIGATORIO — sin el, el server acepta
     # --spec-draft-model, lo ignora EN SILENCIO y sirve sin draft.
+    # MTP NATIVO (cabeza dentro del propio gguf) — es la ruta del perfil y
+    # EXCLUYE al draft externo: son dos --spec-type y solo hay uno.
+    n_mtp = perfil.get("spec_mtp", 0)
+    if n_mtp:
+        args.sin_draft = True
+
     draft = None
     if not args.sin_draft:
         preferido = modelo.name.lower()
@@ -292,6 +335,28 @@ def main() -> int:
                   "--spec-draft-n-max", "16",
                   "--spec-draft-p-min", "0.6"]
         print(f"  + draft especulativo: {draft.name} (2.4x medido en codigo)")
+
+    if n_mtp:
+        # --spec-type draft-mtp usa la cabeza MTP que el gguf ya trae (el
+        # bloque extra que declara qwen35.nextn_predict_layers=1). Sin
+        # --spec-type el server IGNORA la cabeza en silencio, igual que
+        # ignora --spec-draft-model sin draft-simple.
+        orden += ["--spec-type", "draft-mtp", "--spec-draft-n-max", str(n_mtp)]
+        print(f"  + MTP nativo del gguf (--spec-draft-n-max {n_mtp})")
+
+    mmproj = perfil.get("mmproj", "")
+    if args.vision and mmproj:
+        ruta_mm = DIR_MODELOS / mmproj
+        if ruta_mm.is_file():
+            orden += ["--mmproj", str(ruta_mm)]
+            print(f"  + visión: {mmproj}")
+        else:
+            print(f"AVISO: pediste --vision y no encuentro {ruta_mm}. "
+                  f"Sirvo SIN visión (el server aceptaria imagenes y "
+                  f"fallaria por peticion).", file=sys.stderr)
+    elif args.vision and not mmproj:
+        print(f"AVISO: --vision no aplica a {modelo.name} (su perfil no "
+              f"declara mmproj).", file=sys.stderr)
 
     print(f"Sirviendo {modelo.name} en :{args.puerto} (ctx {ctx:,})...")
     proceso = subprocess.Popen(

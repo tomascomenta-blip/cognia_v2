@@ -99,6 +99,29 @@ _FAMILIAS_NATIVAS = {
     # largo a mas corto para que el orden de escritura deje de importar.
     "nemotron-3.5": {"temperature": 1.0, "top_p": 0.95, "usa_effort": False,
                      "piensa": True},
+    # Qwen3.8-27B (2026-08-18, cuantizacion Ridge de empero-ai). El sampling
+    # 1.0/0.95 lo DECLARA el propio gguf en general.sampling.temp/top_p
+    # (leido del fichero, no de la nota de prensa; top_k=20 tambien esta ahi
+    # pero _CLAVES_SAMPLING no lo propaga porque chat_client no lo consume).
+    #
+    # OJO CON LA CLAVE: es 'qwen3.8' y su arch es qwen35 -- LA MISMA que
+    # Qwythos-9B, con otro sampling (0.7/0.8). O sea: el backstop por
+    # arquitectura dejo de ser univoco el dia que entro este modelo, y por eso
+    # familia_por_arch ahora prefiere el sampling que el fichero declare. Es la
+    # QUINTA colision de tabla-por-substring del repo y la primera por
+    # arquitectura.
+    #
+    # NI `piensa` NI `usa_effort` se declaran: los MIDE _conducta_medida()
+    # sobre la plantilla servida. Escribi aqui `usa_effort: False` dando por
+    # hecho que reasoning_effort era cosa de harmony, y la plantilla REAL del
+    # fichero dice lo contrario: {'piensa': True, 'usa_effort': True}. O sea
+    # que la entrada escrita a mano le habria apagado a este modelo un control
+    # que si tiene. Es exactamente el fallo que ya dejo mudo a COGNIA_THINKING
+    # en Qwythos, y la razon de que este modulo mida en vez de declarar.
+    # Es RAZONADOR (356 chars de razonamiento para "responde en una frase",
+    # medido 2026-08-18): MIN_TOKENS_RAZONADOR aplica -- con max_tokens=120 el
+    # `content` sale VACIO porque el pensamiento se come el presupuesto.
+    "qwen3.8": {"temperature": 1.0, "top_p": 0.95},
 }
 
 # EL BACKSTOP DE METADATOS (2026-08-17). La tabla de arriba casa por SUBSTRING
@@ -110,6 +133,9 @@ _FAMILIAS_NATIVAS = {
 # Aca la clave es `general.architecture`, que viaja DENTRO del fichero. Las
 # tres entradas estan LEIDAS de los GGUF de esta maquina (no deducidas):
 #   qwen35         <- Huihui-Qwythos-9B-...-abliterated-Q4_K.gguf
+#                     (y TAMBIEN Qwen3.8-27B-Ridge: ver familia 'qwen3.8'.
+#                      arch ya no identifica al modelo, solo a su familia de
+#                      implementacion -> el sampling propio del fichero manda)
 #   gpt-oss        <- gpt-oss-20b-MXFP4.gguf
 #   nemotron_h_moe <- nemotron-3.5-lightning-30b-a3b-Q4_0.gguf
 # El valor apunta a una entrada de _FAMILIAS_NATIVAS para NO duplicar numeros:
@@ -248,12 +274,24 @@ def familia_por_arch(ruta: str) -> tuple:
         return None, ""
     try:
         from cognia.agent.gguf_meta import meta
-        arch = (meta(ruta) or {}).get("arch") or ""
+        m = meta(ruta) or {}
     except Exception:
         return None, ""
+    arch = m.get("arch") or ""
     fam = _ARCH_A_FAMILIA.get(arch.lower())
     if fam and fam in _FAMILIAS_NATIVAS:
-        return dict(_FAMILIAS_NATIVAS[fam]), fam
+        cfg = dict(_FAMILIAS_NATIVAS[fam])
+        # UNA ARQUITECTURA YA NO ES UN MODELO (2026-08-18): 'qwen35' es a la
+        # vez Qwythos-9B (0.7/0.8) y Qwen3.8-27B (1.0/0.95). Mapear arch ->
+        # familia y COPIAR su sampling le daba al segundo el del primero, y
+        # encima con la autoridad del backstop (cfg pisa lo que /props
+        # declara, ver _sampling_base). Cuando el fichero declara su propio
+        # sampling, ese gana: es del modelo, no de su vecino de arquitectura.
+        propio = {k: v for k, v in (m.get("sampling") or {}).items()
+                  if k in _CLAVES_SAMPLING}
+        if propio:
+            cfg.update(propio)
+        return cfg, fam
     return None, ""
 
 
