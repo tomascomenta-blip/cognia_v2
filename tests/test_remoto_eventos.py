@@ -96,6 +96,131 @@ def test_interpretar_tipo_desconocido_no_se_pierde_en_silencio():
     assert quien == "actividad" and "EventoNuevo" in texto
 
 
+# ── 2b. motor de workflows (tanda UI 2026-08-17) ───────────────────────────
+
+def test_los_cuatro_tipos_nuevos_estan_en_la_allowlist():
+    """La allowlist gobierna el JSON PELADO (la red por si el prefijo se
+    pierde en un pipe). Sin ellos, un WorkflowFin sin '@EV' se descartaba."""
+    for tipo in ("WorkflowInicio", "AgenteInicio", "AgenteFin", "WorkflowFin"):
+        assert tipo in _ses._TIPOS_EVENTO
+        crudo = json.dumps({"tipo": tipo, "run_id": "r1"})
+        assert parsear_evento(crudo)["tipo"] == tipo
+
+
+def test_workflow_inicio_anuncia_el_total_y_la_cache():
+    quien, texto, ecos = interpretar_evento(
+        {"tipo": "WorkflowInicio", "run_id": "r1", "nombre": "repl",
+         "total_agentes": 6, "presupuesto_tokens": 60000,
+         "cache_precargada": 2})
+    assert quien == "actividad" and ecos == []
+    assert texto == "· workflow «repl» — 6 agentes · 2 de cache"
+
+
+def test_agente_fin_se_lee_como_dos_de_seis():
+    quien, texto, ecos = interpretar_evento(
+        {"tipo": "AgenteFin", "run_id": "r1", "agente_id": "r1#pasos.2",
+         "indice": 2, "total": 6, "fase": "pasos", "etiqueta": "resume TLS",
+         "ok": True, "tokens": 812, "duracion_s": 4.1,
+         "resumen": "3 parrafos sobre TLS"})
+    assert quien == "actividad" and ecos == []
+    assert texto == "⏺ agente 2/6 resume TLS — 3 parrafos sobre TLS (4.1s · 812 tok)"
+
+
+def test_agente_fin_distingue_cache_de_fallo():
+    # un fin en 0 ms tiene que decir que ya estaba pagado, no parecer un bug
+    _, texto, _ = interpretar_evento(
+        {"tipo": "AgenteFin", "indice": 1, "total": 3, "etiqueta": "resume A",
+         "ok": True, "cache_hit": True})
+    assert texto == "⏺ agente 1/3 resume A — de cache"
+    _, texto, _ = interpretar_evento(
+        {"tipo": "AgenteFin", "indice": 1, "total": 3, "etiqueta": "resume A",
+         "ok": False, "motivo": "presupuesto de 60000 tokens agotado"})
+    assert texto == ("✗ agente 1/3 resume A — fallo: presupuesto de 60000 "
+                     "tokens agotado")
+
+
+def test_agente_sin_total_no_inventa_el_denominador():
+    # fase "suelto": el motor auto-numera y no sabe cuantos van
+    _, texto, _ = interpretar_evento(
+        {"tipo": "AgenteInicio", "indice": 3, "total": 0,
+         "etiqueta": "resume libre"})
+    assert texto == "· agente 3 resume libre…"
+
+
+def test_workflow_fin_cierra_con_el_recuento():
+    _, texto, _ = interpretar_evento(
+        {"tipo": "WorkflowFin", "nombre": "repl", "ok": True, "agentes": 6,
+         "fallidos": 1, "tokens": 4210, "duracion_s": 31.2})
+    assert texto == "⏺ workflow «repl» — 5 de 6 · 4210 tokens · 31.2s"
+    _, texto, _ = interpretar_evento(
+        {"tipo": "WorkflowFin", "nombre": "repl", "ok": False,
+         "resumen": "el workflow fallo: boom"})
+    assert texto == "✗ workflow «repl» — fallo: el workflow fallo: boom"
+
+
+def test_la_linea_del_renderer_de_agente_es_eco(capsys):
+    """EL TEST QUE ATA LOS DOS FICHEROS: el renderer real pinta los 4 eventos
+    nuevos y cada linea tiene que caer en es_eco_renderer. Sin esto el movil
+    muestra cada agente DOS veces (el evento + la linea pintada como prosa) y
+    nadie se entera hasta verlo en el telefono."""
+    from cognia.ux import events as _ev_mod
+    from cognia.ux.renderer import Renderer
+
+    ident = dict(run_id="r1", agente_id="r1#pasos.2", indice=2, total=6,
+                 fase="pasos", etiqueta="resume TLS")
+    eventos = [
+        _ev_mod.WorkflowInicio(run_id="r1", nombre="repl", total_agentes=6,
+                               cache_precargada=2),
+        _ev_mod.AgenteInicio(**ident),
+        _ev_mod.AgenteFin(ok=True, tokens=812, duracion_s=4.1,
+                          resumen="3 parrafos", **ident),
+        _ev_mod.AgenteFin(ok=True, cache_hit=True, **ident),
+        _ev_mod.AgenteFin(ok=False, motivo="presupuesto agotado", **ident),
+        _ev_mod.WorkflowFin(run_id="r1", nombre="repl", ok=True, agentes=6,
+                            fallidos=1, tokens=4210, duracion_s=31.2),
+        _ev_mod.WorkflowFin(run_id="r1", nombre="repl", ok=False,
+                            resumen="el workflow fallo: boom"),
+    ]
+    r = Renderer(console=None)
+    for ev in eventos:
+        r(ev)
+    lineas = [l for l in capsys.readouterr().out.split("\n") if l.strip()]
+    assert len(lineas) == len(eventos), lineas
+    for l in lineas:
+        assert es_eco_renderer(l), l
+
+
+def test_los_eventos_de_workflow_no_duplican_en_el_movil(tmp_path,
+                                                         monkeypatch):
+    """El circuito entero: el evento se anota como actividad y la linea que el
+    renderer pinta por el MISMO evento se salta por su marca."""
+    s = _sesion(tmp_path, monkeypatch)
+    s._arrancando = False
+    for linea in [
+        _ev("WorkflowInicio", run_id="r1", nombre="repl", total_agentes=2),
+        "  · workflow «repl» — 2 agentes",              # eco del renderer
+        _ev("AgenteInicio", run_id="r1", agente_id="r1#pasos.1", indice=1,
+            total=2, fase="pasos", etiqueta="resume A"),
+        "  · agente 1/2 resume A…",                     # eco del renderer
+        _ev("AgenteFin", run_id="r1", agente_id="r1#pasos.1", indice=1,
+            total=2, fase="pasos", etiqueta="resume A", ok=True, tokens=100,
+            duracion_s=1.0, resumen="listo"),
+        "  ⏺ agente 1/2 resume A — listo (1.0s · 100 tok)",   # eco
+        _ev("WorkflowFin", run_id="r1", nombre="repl", ok=True, agentes=2,
+            fallidos=0, tokens=200, duracion_s=2.0),
+        "  ⏺ workflow «repl» — 2 de 2 · 200 tokens · 2.0s",   # eco
+    ]:
+        s._procesar_linea(linea)
+    got = _transcrito(s)
+    assert all(q == "actividad" for q, _ in got), got
+    textos = [t for _, t in got]
+    assert len(textos) == 4, textos          # 4 eventos, 0 ecos colados
+    assert textos[0] == "· workflow «repl» — 2 agentes"
+    assert textos[1] == "· agente 1/2 resume A…"
+    assert textos[2].startswith("⏺ agente 1/2 resume A — listo")
+    assert textos[3] == "⏺ workflow «repl» — 2 de 2 · 200 tokens · 2.0s"
+
+
 # ── 3./4. pipeline de _procesar_linea ──────────────────────────────────────
 
 _PANEL_COMPACTO = [
@@ -286,14 +411,18 @@ def test_acceso_persiste_y_no_se_escala_al_reabrir(tmp_path, monkeypatch):
 
 # ── 7. el sink stdout de ux/events.py lleva el prefijo ─────────────────────
 
-def test_sink_stdout_prefija_las_lineas(capsys, monkeypatch):
+def test_sink_stdout_prefija_las_lineas(capfd, monkeypatch):
+    # capfd y no capsys: desde 2026-08-17 el sink escribe al stdout REAL
+    # (sys.__stdout__, ver events._stdout_real) para que una App de Textual no
+    # lo enmudezca. capsys solo ve el sys.stdout de Python; capfd ve el fd 1,
+    # que es EXACTAMENTE el pipe que lee remoto/sesiones.py.
     from cognia.ux import events
     # bus limpio y sink virgen para este test (es un singleton de modulo)
     monkeypatch.setattr(events, "_sink_jsonl", None)
     monkeypatch.setattr(events, "_suscriptores", [])
     events.activar_sink_jsonl("1")
     events.emitir(events.Aviso(texto="hola", origen="test"))
-    salida = capsys.readouterr().out.strip()
+    salida = capfd.readouterr().out.strip()
     assert salida.startswith(events.PREFIJO_STDOUT)
     d = json.loads(salida[len(events.PREFIJO_STDOUT):])
     assert d["tipo"] == "Aviso" and d["texto"] == "hola"
@@ -332,7 +461,7 @@ def test_aviso_eco_del_renderer_no_duplica(tmp_path, monkeypatch):
     assert got == [("actividad", "⚠ backend: gpt-oss-20b :8080")], got
 
 
-def test_sink_stdout_salta_streaming(capsys, monkeypatch):
+def test_sink_stdout_salta_streaming(capfd, monkeypatch):
     """TokenTexto/RazonamientoTick NO van por stdout: de alta frecuencia, se
     entrelazaban con la prosa a medias del renderer en el mismo stdout (e2e
     2026-08-09). El remoto no los usa; el modo archivo si los guarda."""
@@ -342,9 +471,9 @@ def test_sink_stdout_salta_streaming(capsys, monkeypatch):
     events.activar_sink_jsonl("1")
     events.emitir(events.TokenTexto(texto="hola"))
     events.emitir(events.RazonamientoTick(chars=10))
-    assert capsys.readouterr().out == ""
+    assert capfd.readouterr().out == ""
     events.emitir(events.Aviso(texto="si sale", origen="test"))
-    assert "@EV" in capsys.readouterr().out
+    assert "@EV" in capfd.readouterr().out
 
 
 def test_sink_stdout_va_primero_que_el_renderer(monkeypatch):
@@ -356,9 +485,9 @@ def test_sink_stdout_va_primero_que_el_renderer(monkeypatch):
     orden = []
     renderer_falso = lambda ev: orden.append("renderer")
     monkeypatch.setattr(events, "_suscriptores", [renderer_falso])
-    real_print = print
-    monkeypatch.setattr("builtins.print",
-                        lambda *a, **k: orden.append("sink"))
+    # El sink ya no usa print() sino un write() al stdout real: se marca ahi.
+    monkeypatch.setattr(events, "_escribir_stdout_real",
+                        lambda linea: orden.append("sink"))
     events.activar_sink_jsonl("1")
     events.emitir(events.Aviso(texto="x", origen="t"))
     monkeypatch.undo()

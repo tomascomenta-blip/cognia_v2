@@ -183,6 +183,13 @@ def _workflow(args: str, ctx: dict) -> str:
     res = _WF.ejecutar(crudo, modo=modo, nombre="agente",
                        print_fn=(ctx or {}).get("print_fn"))
     if not res["ok"]:
+        # El texto de los pasos que SI salieron viaja aunque la corrida falle
+        # (el critico que revienta tras 2 pasos OK). Sin esto el modelo recibe
+        # solo "ERROR" y vuelve a pedir el mismo trabajo ya pagado.
+        if res.get("texto"):
+            return (f"RESULTADO workflow ERROR: {res['error']}\n"
+                    f"Lo ya resuelto y pagado ({res.get('pasos', 0)} pasos, "
+                    f"{res.get('tokens', 0)} tokens):\n{res['texto']}")
         return f"RESULTADO workflow ERROR: {res['error']}"
     return (f"RESULTADO workflow ({res['pasos']} pasos, {res['tokens']} tokens, "
             f"corrida {res['run_id']}):\n{res['texto']}")

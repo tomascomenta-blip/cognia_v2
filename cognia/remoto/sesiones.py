@@ -33,9 +33,10 @@ _RUIDO = ("[OK]", "[WARN]", "[cognia_embedding]", "[>>]",
           "Warning: You are sending unauthenticated", "Loading weights:")
 
 # Escapes ANSI (el REPL colorea el prompt aunque NO_COLOR) y el propio
-# "cognia>" que en el movil es redundante.
+# "cognia>" que en el movil es redundante. Las dos flechas: el REPL con consola
+# usa 'cognia➤' (marco verde) y el fallback sin consola 'cognia>'.
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
-_PROMPT = re.compile(r"^(cognia>\s*)+")
+_PROMPT = re.compile(r"^(cognia[>➤]\s*)+")
 
 
 def _limpiar(linea: str) -> str:
@@ -172,7 +173,16 @@ except Exception:                       # el remoto no muere si el bus cambia
 # todo el tiempo y "tipo" es una clave comun en datos en espanol.
 _TIPOS_EVENTO = {"TareaInicio", "PasoIntencion", "ToolInicio", "ToolFin",
                  "TokenTexto", "RazonamientoTick", "Aviso", "Degradado",
-                 "TareaFin"}
+                 "TareaFin",
+                 # tanda UI 2026-08-17: los eventos del motor de workflows
+                 # (cognia/agent/workflows.py). Esta allowlist solo gobierna el
+                 # JSON PELADO (la red por si el prefijo se pierde en un pipe):
+                 # el camino primario "@EV {json}" acepta cualquier tipo, asi
+                 # que anadirlos AMPLIA la red, no restringe nada.
+                 "WorkflowInicio", "AgenteInicio", "AgenteFin", "WorkflowFin",
+                 # control por agente 2026-08-17: sin estos dos el movil
+                 # recibia el JSON crudo volcado como linea de actividad.
+                 "MensajeAlAgente", "AgenteProgreso"}
 
 
 def parsear_evento(linea: str) -> dict | None:
@@ -205,6 +215,18 @@ def _cabeza(texto: str) -> str:
         if l.strip():
             return l.strip()[:200]
     return ""
+
+
+def _ref_agente(d: dict) -> str:
+    """'agente 2/6 resume TLS' — la identidad legible, SIN estado: por eso
+    AgenteFin repite indice/total/etiqueta. interpretar_evento() recibe un
+    dict y devuelve una linea; si el Fin no trajera la identidad, el movil
+    tendria que mantener un mapa de AgenteInicio vivos y ese mapa se pierde en
+    cada reinicio del servidor."""
+    n = d.get("total") or 0
+    cab = f"agente {d.get('indice', 0)}" + (f"/{n}" if n else "")
+    etiqueta = (d.get("etiqueta") or "").strip()
+    return f"{cab} {etiqueta}".strip()
 
 
 def interpretar_evento(d: dict) -> tuple[str | None, str, list[str]]:
@@ -272,6 +294,74 @@ def interpretar_evento(d: dict) -> tuple[str | None, str, list[str]]:
         return "actividad", ("✗ tarea sin exito" +
                              (f" — {cab}" if cab else "") +
                              (f" · {detalle}" if detalle else "")), []
+    # ── motor de workflows (tanda UI 2026-08-17) ──
+    # Los cuatro caen en "actividad": el bloque plegable que el movil ya
+    # renderiza desde 2026-07-20, asi que el frontend no cambia. Y los cuatro
+    # van con ecos VACIOS: la linea que el renderer pinta por el mismo evento
+    # empieza por ⏺/·/✗ y la caza es_eco_renderer en el paso 3 de
+    # _procesar_linea — sin esa marca el movil mostraria cada agente dos veces.
+    if tipo == "WorkflowInicio":
+        n = d.get("total_agentes") or 0
+        texto = f"· workflow «{d.get('nombre', '?')}»"
+        if n:
+            texto += f" — {n} agentes"
+        if d.get("cache_precargada"):
+            texto += f" · {d['cache_precargada']} de cache"
+        return "actividad", texto, []
+    if tipo == "AgenteInicio":
+        return "actividad", f"· {_ref_agente(d)}…", []
+    if tipo == "AgenteFin":
+        ref = _ref_agente(d)
+        if not d.get("ok", True):
+            return "actividad", f"✗ {ref} — fallo: {_cabeza(d.get('motivo', ''))}", []
+        if d.get("cache_hit"):
+            # un fin en 0 ms no es un bug: ya estaba pagado
+            return "actividad", f"⏺ {ref} — de cache", []
+        cola = f" ({d.get('duracion_s', 0.0):.1f}s · {d.get('tokens', 0)} tok)"
+        cab = _cabeza(d.get("resumen", ""))
+        return "actividad", f"⏺ {ref}" + (f" — {cab}" if cab else "") + cola, []
+    if tipo == "MensajeAlAgente":
+        # DOS DESTINOS distintos a proposito (defecto #6, 2026-08-17). El
+        # aceptado es actividad (plegable): es el eco de algo que el usuario
+        # acaba de escribir y ya vio. El RECHAZADO va a "sistema", visible en
+        # el chat, porque es la unica noticia de que su mensaje no se va a
+        # atender — el mismo invariante que ux/events.py enuncia para el bus
+        # ("un mensaje descartado en silencio es peor que uno rechazado a la
+        # vista") vale del lado del movil o no vale.
+        texto = _cabeza(d.get("texto", ""))
+        if d.get("aceptado"):
+            n = d.get("pendientes") or 0
+            cola = f" ({n} en cola)" if n > 1 else ""
+            return "actividad", f"· le dijiste «{texto}»{cola}", []
+        estado = d.get("estado") or "rechazado"
+        return "sistema", (f"⚠ tu mensaje «{texto}» NO se entrego: "
+                           f"{estado}"), []
+    if tipo == "AgenteProgreso":
+        # LATIDO. Sale throttleado del motor (250 ms / 400 chars) y su trabajo
+        # es que el movil sepa que hay algo VIVO que se puede interrumpir; sin
+        # esto salia como el JSON entero, una linea por latido igual de
+        # frecuente pero ilegible. Va a actividad, que el movil ya pliega.
+        partes = [f"{d.get('chars', 0)} chars"]
+        if d.get("chars_razonamiento"):
+            partes.append(f"{d['chars_razonamiento']} de razonamiento")
+        if (d.get("intento") or 0) > 1:
+            partes.append(f"intento {d['intento']}")
+        return "actividad", "· generando… " + " · ".join(partes), []
+    if tipo == "WorkflowFin":
+        nombre = f"workflow «{d.get('nombre', '?')}»"
+        if not d.get("ok", True):
+            return "actividad", (f"✗ {nombre} — fallo: "
+                                 f"{_cabeza(d.get('resumen', ''))}"), []
+        partes = []
+        agentes = d.get("agentes") or 0
+        if agentes:
+            partes.append(f"{agentes - (d.get('fallidos') or 0)} de {agentes}")
+        if d.get("tokens"):
+            partes.append(f"{d['tokens']} tokens")
+        if d.get("duracion_s"):
+            partes.append(f"{d['duracion_s']:.1f}s")
+        return "actividad", (f"⏺ {nombre}" +
+                             (" — " + " · ".join(partes) if partes else "")), []
     # tipo desconocido (el contrato crecio): se anota crudo en actividad para
     # no perderlo en silencio — perderlo era el bug historico del remoto
     return "actividad", f"{tipo}: {json.dumps(d, ensure_ascii=False)[:300]}", []

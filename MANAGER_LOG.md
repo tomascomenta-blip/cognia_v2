@@ -13013,3 +13013,68 @@ y todo pusheado a `origin/main`. **26 commits**, cada uno con su medición o su 
   significancia). Default en `on`.
 - `test_e2e_inference.py::test_false_when_dir_not_set` está en rojo y es **preexistente**
   (comprobado con los cambios en stash).
+
+---
+
+## 2026-08-17 — Los 6 defectos del control por agente, cerrados
+
+Defectos reproducidos por un verificador independiente sobre la entrega del control por agente
+(`cancelar_agente` / `cancelar_corrida` / `decirle`). Repro primero: `tests/test_control_agente_defectos.py`
+salía **10 failed / 1 passed** contra el código de la entrega, y los 3 de chat_client **3 failed**.
+Tras los arreglos: **66 passed** en esos dos ficheros y **265 passed** en las suites del área.
+
+**#1 — el envelope de producción contradecía a WorkflowFin.** La regla, decidida y aplicada en UN
+sitio: `ok` del envelope **es** `WorkflowFin.ok`. `Corrida.cerrar()` DEVUELVE el evento que emitió y
+`ejecutar()` construye el envelope con eso, en un único punto (nada de `return` dentro del
+try/except: el `finally` corre después de que el return evalúe su expresión, y por ahí empezó la
+divergencia). Clave aditiva `cancelados` en los cinco caminos, vía el constructor `_envelope()`.
+Tras un pánico el usuario lee "2 agente(s) cancelados por el usuario" y no "ningun paso devolvio
+resultado".
+
+**#2 — ningún mensaje se descarta en silencio.** `_decidir_mensaje` consulta el corte y devuelve
+`ya_cancelado` con `ok=False`; `_cancelado()` drena el buzón dejando `mensaje_no_atendido` por cada
+mensaje. Cuatro caminos de descarte, una sola función que escribe la línea.
+
+**#3 — el orden de los checks.** Primero el ESTADO del agente, después el corte, y con
+`fue_cortado()` (que NO ORea el flag global) en vez de `esta_cancelado()`. Un agente que ya entregó
+sale `ya_termino` también después de un pánico.
+
+**#4 — `pendientes` significa una cosa.** Tres claves: `pendientes` (mensajes en cola), `agentes`
+(agentes vivos alcanzados) y `corridas` (corridas alcanzadas). Las ocho claves, siempre.
+
+**#5 — el corte se COBRA.** Al cortar no llega el frame final (usage + timings), así que se cuentan
+los frames de contenido recibidos: en SSE un frame = un token. **Validado con /tokenize del propio
+server sobre el texto descartado entero: 134/134, 125/125, 124/123.** Va marcado como estimado en el
+journal (`usage_estimado`, `usage_via`), en `PresupuestoTokens.estimados()` y en
+`WorkflowFin.tokens_estimados`. Lo que NO se estima es el prompt del turno cortado: se cuenta en
+`presupuesto.sin_prompt()` para que el agujero sea visible. Medido en la corrida real: **gastado 317
+con 258 estimados**, y quedan 73 tokens de prompt sin contar (19%) contra el 82% que se perdía
+cuando el corte entero valía CERO.
+
+**#6 — línea humana para el móvil.** `MensajeAlAgente` y `AgenteProgreso` dejan de volcarse como
+JSON crudo; el mensaje RECHAZADO va a "sistema" (visible en el chat) y no a actividad plegable.
+
+**Verificación REAL:** `scripts/e2e_control_defectos.py` contra :8080 (qwen2.5-coder-14b), por el
+camino de producción (`workflows_adapter.ejecutar(interactivo=True)`), con un corte a mitad de
+generación (0,021 s) y un mensaje en vuelo: **10/10 CHECK OK**, con el envelope, el WorkflowFin, el
+journal y el presupuesto impresos.
+
+---
+
+## Corrida AUTÓNOMA 2026-08-17 23:13 → 2026-08-18 07:00 (deadline con apagado programado)
+
+**Activación:** el dueño da autonomía total hasta las 07:00, modo ultracode, sin preguntas.
+`shutdown /s /t` programado a las 07:00 (verificado). Si se termina antes, se adelanta.
+
+**Objetivo 1 (en curso, heredado):** terminar el rediseño de UI — ver `REDISENO_UI_2026-08.md`.
+Hecho hasta ahora: T0, T0b, T1, T1b, T1c, T2, T2b, paleta unificada, vestido y cierre visual.
+En vuelo al arrancar la corrida: migración de los 104 literales de color, y T3 (sink honesto + puente).
+Falta: T4 (runner), T5a/b (la pantalla de agentes), T6 (móvil + empaquetado).
+
+**Objetivo 2 (nuevo, del dueño):**
+1. Que Qwythos maneje **workflows de hasta 200k tokens de respuesta**.
+2. Que el **chat principal tenga 1M de contexto** (YaRN o equivalente).
+
+Se investiga a fondo antes de tocar nada: qué techo real tiene la máquina, qué límites impone
+hoy el motor (presupuesto, `max_tokens`, el tope de pared del stream, la ventana del backend), y
+qué de esto ya está resuelto por el modo RLM.
