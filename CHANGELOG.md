@@ -2,6 +2,115 @@
 
 ---
 
+## [4.9.0] - 2026-08-18
+
+### La vista viva de agentes: el rediseño de UI, cerrado entero
+
+79 commits desde 4.8.0. La entrega grande son las 19 decisiones de
+`REDISENO_UI_2026-08.md`, ejecutadas en 8 tandas (T0-T6) con criterio de corte
+medido en cada una.
+
+**La pantalla de agentes** (`F2` o `/agentes`)
+
+- Un panel por agente, en vivo, con el **contenido** generándose — no solo estado.
+- Interrumpir un agente (`x`) o la corrida (`ctrl+x`), y **«interrumpir y decir»**:
+  corta la generación, apendea tu mensaje como turno del usuario y vuelve a llamar.
+- Plan del agente con casillas que se marcan en vivo, descripción fija por
+  herramienta desde el catálogo, y shimmer animado mientras corre una tool
+  (+2,13/+3,02 pts de CPU con 8 paneles, re-medido contra control honesto).
+- El chat sigue append-only: la vista es una pantalla aparte que se abre bajo
+  demanda y devuelve el terminal como estaba. Medido en ConPTY: `?1049h`/`?1049l`
+  balanceados, 0 `ESC[3J`. Ctrl-C corta la corrida en 31 ms y el REPL vive.
+  Interruptor: `COGNIA_SIN_FONDO=1`.
+
+**El motor debajo** (lo que de verdad costó)
+
+- Stream SSE con `usage` exacto: el `usage` en stream cuadra con el del no-stream.
+  Sin `stream_options.include_usage` el presupuesto sumaba 0 **en silencio**.
+- Cancelación fuera de banda: de 5,01 s a **16 ms** con el backend mudo. Los tests
+  viejos la hacían parecer funcional porque disparaban con datos ya llegados.
+- Un agente cancelado deja de cobrar 0: cobra exacto por frames (132 frames = 132
+  tokens de `/tokenize`, 3/3), y ya no queda cacheado como bueno en el journal.
+- `agente_id = <run_id>#<fase>.<indice>@<n>` sellado por ContextVar, y lock en el
+  renderer (con `paralelo(cap=2)` dos handlers entraban a la vez sobre `_status`).
+
+**El canal del móvil, que Textual dejaba mudo**
+
+Con la App abierta `sys.stdout` es un `_PrintCapture`: 3 eventos emitidos → 0
+líneas `@EV`. Corregido escribiendo a `sys.__stdout__`: **0/3 → 3/3**, y el e2e
+con el pipeline real del teléfono **0/8 → 8/8**. El test viejo *pasaba sin vigilar
+nada* — `App._print` solo reenvía al stdout real en headless, o sea que el arnés
+era la condición que ocultaba el bug. De paso: `cli.py:1558` metía cada comando en
+un `redirect_stdout` y el móvil nunca vio esos eventos. El teléfono ahora ve un
+bloque plegable por agente, agrupado por campo (hitos, no contenido en vivo).
+
+**Paleta: el verde como identidad**
+
+Una sola fuente de color con rampa por variante; 115 literales migrados y un test
+que falla si vuelve uno. `/tema claro` pasó de tener el prompt a 1,19:1 de
+contraste a **8,16**. La respuesta del modelo va en color de texto normal — el
+color queda para la interfaz; el bloque de razonamiento sigue verde.
+
+**Empaquetado**
+
+`textual>=0.86.0` pasa a **dependencia dura** (+11 MB; el piso se halló por bisect
+funcional). El extra `[tui]` queda como alias vacío, no se borra. `pip install
+cognia-ai` trae la vista sin extras.
+
+### Contexto largo: el RLM y los 200k
+
+- **Modo RLM**: contexto mayor que la ventana vía tools, con contexto efectivo
+  MEDIDO en segundos, no declarado. Memoria entre turnos y un examen de SÍNTESIS
+  que el repo no tenía. El régimen se **mide** con una sonda; el corpus se
+  decodifica de verdad (cp1252, BOM).
+- **Objetivo 200k alcanzado**: PASS con **216.721 tokens** medidos en un fichero.
+- **Cognia deja de ser mono-familia (Qwen)**: el primer modelo de otra familia
+  (Nemotron) destapó 3 fallos silenciosos. El millón queda MEDIDO.
+- Medición honesta y sus correcciones: el pipeline de investigación sacaba 0/5 y
+  el modo medio 5/5; y **la corrección de que «ancho no gana a medio» era un
+  artefacto del propio banco**. El brazo real del RLM dio 41,7% y se anula por su
+  propio criterio (VOID).
+
+### Arnés de búsqueda
+
+Bucle «responder o investigar» con prefiltro determinista que corre **antes** de
+gastar Chromium, confianza calibrada contra un banco, y `cognia responder` desde
+la terminal. El fallo deja de ser invisible: el contexto se mide en segundos y la
+respuesta lleva su confianza. Diseño y números en `SEARCH_HARNESS.md`, incluido lo
+que **no** se midió.
+
+### Arreglos que valen su línea
+
+- **`-ngl 99` sobre un MoE que no cabe = spill a RAM**: el arranque oficial dejaba
+  el server spilleando. **16,6× de prefill** recuperado.
+- `status` y `/modelo` dejan de poder **mentir** el modelo servido.
+- El summoner adopta el llama-server vivo y deja de confundir a `tailscaled` con
+  el cerebro.
+- Una traza de **atasco** se capturaba como procedimiento verificado y secuestraba
+  tareas ajenas.
+- El fin de línea de un UTF-16 se contaba en bytes y LF-izaba el fichero entero.
+- Las 16 tools que publicaban **prosa** donde va una firma tipada (A4).
+- `paralelo_env`: una rama que revienta deja de ser indistinguible de una vacía.
+- Ctrl-C deja de matar el REPL; 5 módulos del arnés existían sin llamador.
+- Dos cuelgues del permiso desde el hilo, uno de **600 s**.
+- Los 2 rojos que solo aparecían en la suite ENTERA (la peor clase de rojo).
+- `cognia empezar`: un comando que deja la máquina lista o dice exactamente qué
+  falta.
+
+### Deuda declarada, con su número
+
+- **El prompt del turno cortado no se cobra** (los tokens generados sí, exacto).
+  Acotada por `max_repreguntas(8) × prompt_tokens` por agente y **contada** en
+  `presupuesto.sin_prompt()`.
+- **`interactivo=True` no lo enciende ningún consumidor todavía**: `/workflow` y la
+  tool `workflow` corren por el camino no-interactivo, byte-idéntico al histórico.
+- **Con `total_slots=1` el paralelismo es una cola.** Para que los paneles
+  paralelos no sean decorativos, arrancar el llama-server con `--parallel 2`.
+- **El teléfono nunca podrá abrir la vista** (su sesión es otro proceso con stdout
+  en un pipe). Lo simétrico es `/interrumpir <agente_id>` por stdin.
+
+---
+
 ## [4.8.0] - 2026-08-13
 
 ### El arnés: 107 harnesses punteros destilados al CLI + adaptador nativo real
