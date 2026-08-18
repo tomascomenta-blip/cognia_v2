@@ -2,26 +2,6 @@
   "idea_router": {
     "discrepancias": [
       {
-        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
-        "experto": "python_module",
-        "heuristica": "web"
-      },
-      {
-        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
-        "experto": "python_module",
-        "heuristica": "web"
-      },
-      {
-        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
-        "experto": "python_module",
-        "heuristica": "web"
-      },
-      {
-        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
-        "experto": "python_module",
-        "heuristica": "web"
-      },
-      {
         "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
         "experto": "python_module",
         "heuristica": "web"
@@ -1000,6 +980,26 @@
         "texto": "Crea un juego completo que funcione unicamente en un unico archivo HTML (sin depender de ningun servidor, backend, API, ",
         "experto": "python_module",
         "heuristica": "web"
+      },
+      {
+        "texto": "di hola en 3 palabras",
+        "experto": "web",
+        "heuristica": "no-web"
+      },
+      {
+        "texto": "di hola en 3 palabras",
+        "experto": "web",
+        "heuristica": "no-web"
+      },
+      {
+        "texto": "di hola en 3 palabras",
+        "experto": "web",
+        "heuristica": "no-web"
+      },
+      {
+        "texto": "di hola en 3 palabras",
+        "experto": "web",
+        "heuristica": "no-web"
       }
     ],
     "experto_acerto": 0,

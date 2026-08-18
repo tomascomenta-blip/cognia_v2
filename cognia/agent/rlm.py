@@ -24,13 +24,27 @@ subllamada LLM fresca SIN tools — profundidad 1 ESTRUCTURAL: los hijos no
 pueden llamar herramientas porque no se les pasan, no porque un prompt se lo
 pida.
 
-LIMITE DECLARADO (no lo tapes): todo lo MEDIDO del RLM es LOCALIZACION de
-aguja literal. Contar, comparar o cruzar hilos entre documentos (SINTESIS) es
-otra tarea y NO esta demostrada. El examen que lo decide ya esta escrito y
-preregistrado: ``scripts/banco_rlm_sintesis.py`` + ``PREREG_RLM_SINTESIS.md``
-(90 preguntas, brazo nulo obligatorio y brazo "todo lo que quepa en la
-ventana"). Mientras ese banco no tenga la columna del brazo RLM llena, esta
-linea se queda como esta: el modo se llama LOCALIZACION, no comprension.
+LIMITE DECLARADO — ESTE MODO ES **LOCALIZACION**, NO COMPRENSION (no lo tapes).
+Todo lo MEDIDO del RLM es localizacion de aguja literal
+(``scripts/e2e_rlm_smoke.py``, ``scripts/rlm_escala.py``). Contar, comparar o
+cruzar hilos entre documentos (SINTESIS) es otra tarea y **sigue sin estar
+demostrada**.
+
+El examen preregistrado que lo decide — ``scripts/banco_rlm_sintesis.py`` +
+``PREREG_RLM_SINTESIS.md`` (90 preguntas, brazo nulo obligatorio y brazo "todo
+lo que quepa en la ventana") — **se corrio el 2026-08-18 y salio VOID, que no es
+lo mismo que negativo**: brazo RLM en la celda NO_CABE (2.029.678 chars) con
+Qwythos, 5/12 = 41,7%, pero ``sin_formato`` 7/12 = 58,3%, muy por encima del 20%
+que el propio prereg fijo como anulacion. La causa esta medida y es del
+INSTRUMENTO: el ``reasoning_content`` del razonador agota ``max_tokens`` antes de
+la linea ``RESPUESTA:``. Y a N=12 el MDE alcanzado es 41,7% — el observado cae
+justo encima, sin un punto de margen, con IC95 [19,3%, 68,0%].
+
+O sea que la etiqueta LOCALIZACION se queda **por ausencia de evidencia para la
+etiqueta fuerte**, no porque un KILL haya disparado (ninguno disparo). Vender
+"comprension de 1M" con este respaldo seria mentir en la direccion comoda. Para
+cambiar esta linea hace falta una corrida VALIDA: ver ``PREREG_RLM_SINTESIS.md``
+seccion 8.5, que lista los pasos y su coste.
 
 CORPUS VIVO (2026-08-18): ademas del corpus de una ruta, el modo acepta un
 ``ContextoVivo`` que CRECE entre turnos del REPL — la conversacion de la

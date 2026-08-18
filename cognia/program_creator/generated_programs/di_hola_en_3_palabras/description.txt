@@ -1,0 +1,8 @@
+Title         : Di Hola en 3 Palabras
+Category      : di hola en 3 palabras
+Created at    : 2026-08-17T23:50:59.630272
+Score         : auto-asignado 7.3/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A simple terminal program that prints "Hola" in three different languages in a loop.

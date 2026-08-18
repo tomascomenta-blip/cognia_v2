@@ -1,0 +1,8 @@
+Title         : Automated Pet Feeder with Activity Tracking
+Category      : Automated pet feeder that tracks feeding times and pet activity
+Created at    : 2026-08-17T19:59:20.051441
+Score         : auto-asignado 5.1/10 (SIN VERIFICAR)
+Self-proposed : Yes — Cognia invented this idea
+
+Description:
+  A terminal-based program that simulates an automated pet feeder, tracks feeding times, and monitors pet activity.

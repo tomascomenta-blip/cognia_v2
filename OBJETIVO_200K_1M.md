@@ -38,10 +38,25 @@ que decidir qué modelo atiende el chat.
   ya tiene el cap en `GEN_USER_MAX_TOKENS_CAP=200000` y escribe incrementalmente con sidecar
   reanudable. Rendimiento medido por worker: **2.995 y 4.010 tokens** (n=2) → 58-67 workers.
   Lo que el workflow debe devolver es **la ruta**, y quien quiera consultarlo usa RLM.
-- **Objetivo 2 → 1M de contexto EFECTIVO por RLM**, que ya corre y está medido (9-24 s contra los
-  **34 min** de prefill que cuesta el millón nativo). Lo que falta ahí no es YaRN: es memoria
-  entre turnos. El millón nativo cabe (`summoner.py:113-120`: celda `1.010.176 / q4_0 /
-  15.778 MiB`) pero deja **533 MiB** y desaloja el VLM, el worker y el job de imagen.
+- **Objetivo 2 → 1M de contexto EFECTIVO por RLM: ABIERTO. Lo medido es LOCALIZACIÓN, no
+  comprensión.** Lo que está medido y se sostiene es el RELOJ y el ALCANCE: 9-24 s contra los
+  **34 min** de prefill del millón nativo, y localización de aguja literal
+  (`scripts/e2e_rlm_smoke.py`, `scripts/rlm_escala.py`). Lo que **NO** está demostrado es la
+  SÍNTESIS — contar, comparar y cruzar hilos sobre el corpus — que es lo que hace falta para
+  decir "el chat entiende 1M" en vez de "el chat busca en 1M".
+  El examen preregistrado (`PREREG_RLM_SINTESIS.md`, banco `scripts/banco_rlm_sintesis.py`)
+  corrió el 2026-08-18 y salió **VOID**, no negativo: brazo RLM en la celda NO_CABE
+  (2.029.678 chars) con Qwythos, **5/12 = 41,7%**, pero `sin_formato` **7/12 = 58,3%** — muy por
+  encima del 20% que el prereg fijó como anulación. Causa medida: el canal `reasoning_content`
+  del razonador se come `max_tokens=400` antes de la línea `RESPUESTA:`. **Es el instrumento,
+  no el modelo.** Detalle y veredicto completo en `PREREG_RLM_SINTESIS.md` §8.5.
+  Para cerrarlo: arreglar el presupuesto de tokens (una línea) → re-correr CABE+tonto con
+  Qwythos a N=90 (~10 min, decide el techo del CEREBRO) → solo si eso sintetiza, brazo RLM a
+  N=90 en NO_CABE (~3,5 h de GPU). **A N=12 el banco no resuelve la pregunta: el MDE alcanzado
+  es 41,7% y el observado cae justo encima, sin margen.**
+  Aparte de eso, y sigue en pie: lo que falta no es YaRN, es memoria entre turnos. El millón
+  nativo cabe (`summoner.py:113-120`: celda `1.010.176 / q4_0 / 15.778 MiB`) pero deja
+  **533 MiB** y desaloja el VLM, el worker y el job de imagen.
 
 ## Bombas encontradas de camino
 

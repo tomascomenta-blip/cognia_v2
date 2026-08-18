@@ -1894,7 +1894,7 @@ _CMD_DESCRIPTIONS = {
     "/plan-modo":       "Modo PLAN: el agente investiga sin escribir  [plan|ejecutar|ok]",
     "/permisos":        "Reglas de permiso del proyecto  [olvidar <patron>]",
     "/workflow":        "Repartir subtareas de razonamiento en paralelo  <t1; t2; ...>",
-    "/rlm":             "Contexto largo por tools (RLM)   [<ruta>] <pregunta>",
+    "/rlm":             "Contexto largo por tools: LOCALIZA, no sintetiza  [<ruta>] <pregunta>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
@@ -2121,10 +2121,18 @@ _CMD_DETAILS = {
         "informe. Ejemplo: /rlm que decidimos sobre el presupuesto de tokens?\n"
         "POR QUE existe el modo: NO es que el contexto no quepa (Qwythos declara "
         "1.048.576 y el millon cabe en 16 GB); es el RELOJ — el millon nativo cuesta "
-        "~34 min de prefill y el RLM contesta en 9-24 s. LIMITE: lo medido es "
-        "LOCALIZACION de aguja literal; contar, comparar o cruzar hilos (SINTESIS) "
-        "NO esta demostrado — el examen preregistrado que lo decide es "
-        "scripts/banco_rlm_sintesis.py (ver PREREG_RLM_SINTESIS.md)."
+        "~34 min de prefill y el RLM contesta en 9-24 s.\n"
+        "LIMITE — ESTE MODO ES *LOCALIZACION*, NO COMPRENSION. Lo medido es localizar "
+        "aguja literal en un corpus grande. Contar, comparar o cruzar hilos entre "
+        "documentos (SINTESIS) NO esta demostrado: el examen preregistrado "
+        "(scripts/banco_rlm_sintesis.py, PREREG_RLM_SINTESIS.md) se corrio el "
+        "2026-08-18 y salio VOID — 5/12 aciertos pero 58,3% de respuestas sin formato, "
+        "por encima del 20% que el prereg fijo como anulacion, y con la causa medida en "
+        "el INSTRUMENTO (el canal de razonamiento se come el presupuesto de tokens). "
+        "VOID no es 'no funciona': es 'no se midio'. Hasta que haya una corrida valida, "
+        "usa /rlm para BUSCAR en corpus grandes, y no te fies de un conteo o una "
+        "comparacion que salga de el sin verificarla. Veredicto completo en "
+        "PREREG_RLM_SINTESIS.md seccion 8.5."
     ),
     "/construir": (
         "Lazo diseno-a-codigo: el cerebro imagina como deberia verse el producto y "

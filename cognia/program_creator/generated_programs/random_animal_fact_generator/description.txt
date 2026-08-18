@@ -1,0 +1,8 @@
+Title         : Random Animal Fact Generator
+Category      : Random animal fact generator that displays a new fact every second
+Created at    : 2026-08-17T18:50:50.556612
+Score         : auto-asignado 5.6/10 (SIN VERIFICAR)
+Self-proposed : Yes — Cognia invented this idea
+
+Description:
+  A terminal program that displays a new random animal fact every second using only the standard library.

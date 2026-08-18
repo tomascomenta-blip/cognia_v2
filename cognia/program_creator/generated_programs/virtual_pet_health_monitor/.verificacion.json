@@ -1,0 +1,26 @@
+{
+  "verificado": true,
+  "puntaje_real": 9.5,
+  "fecha": "2026-08-17T22:02:42",
+  "motivos": [
+    "compila: 1/1 .py compilan",
+    "arranca: timeout 6s sin reventar = arranco (interactivo/bucle), 0 chars de salida",
+    "sin_stubs: sin senales de stub",
+    "documentacion: solo description.txt (generado por el pipeline, no es doc del autor)",
+    "descripcion: cumple lo que promete (6/6 palabras clave)"
+  ],
+  "id": "virtual_pet_health_monitor",
+  "title": "Virtual Pet Health Monitor",
+  "lenguaje": "python",
+  "entrypoint": "program.py",
+  "fallo_duro": null,
+  "desglose": {
+    "compila": 3.0,
+    "arranca": 3.0,
+    "sin_stubs": 2.0,
+    "documentacion": 0.5,
+    "coincide_descripcion": 1.0
+  },
+  "score_juez": 8.3,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

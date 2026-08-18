@@ -1,0 +1,16 @@
+{
+  "verificado": false,
+  "puntaje_real": 0.0,
+  "fecha": "2026-08-17T23:52:35",
+  "motivos": [
+    "no existe o no es una carpeta de producto: C:\\Users\\usuario\\Desktop\\cognia_v2\\cognia\\program_creator\\generated_programs\\di_hola_en_3_palabras_01"
+  ],
+  "id": "di_hola_en_3_palabras_01",
+  "title": null,
+  "lenguaje": "vacio",
+  "entrypoint": null,
+  "fallo_duro": "sin_producto",
+  "desglose": {},
+  "score_juez": null,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

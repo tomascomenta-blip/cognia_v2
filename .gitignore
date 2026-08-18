@@ -141,3 +141,6 @@ vector_cache.meta.json
 # Salidas de corridas largas (documentos de cientos de KB, reproducibles con el gate)
 salida_200k/
 salida_ensayo/
+
+sintesis_*.json
+sintesis_*.log

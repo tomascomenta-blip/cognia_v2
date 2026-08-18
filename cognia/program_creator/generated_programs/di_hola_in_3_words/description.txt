@@ -1,0 +1,8 @@
+Title         : Di Hola in 3 Words
+Category      : di hola en 3 palabras
+Created at    : 2026-08-17T23:52:35.025683
+Score         : auto-asignado 7.1/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A simple program that prints "hello" in three different words in the terminal.

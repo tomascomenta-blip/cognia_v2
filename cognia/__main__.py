@@ -676,6 +676,11 @@ def main() -> None:
     elif cmd == "flota":
         raise SystemExit(_cmd_flota())
     elif cmd == "tui":
+        # Importar el paquete cognia.tui NO exige textual (su __init__ es
+        # perezoso desde 4.8.x). Gracias a eso este camino llega al aviso
+        # legible de cognia/tui/__main__.py en vez de morir en un
+        # ModuleNotFoundError crudo: medido en un venv limpio con el wheel
+        # instalado y sin textual, antes el traceback salia aca.
         from cognia.tui.__main__ import main as _tui_main
         _tui_main()
     elif cmd == "voz":

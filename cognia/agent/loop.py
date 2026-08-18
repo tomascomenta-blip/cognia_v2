@@ -427,6 +427,27 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     fail_streak = 3
     result_text, finish, ok = "", "", False
     while pasos < max_turns:
+        # CORTE COOPERATIVO (T4, 2026-08-18). ctx['_cancelado'] es un callable
+        # que inyecta cli.py cuando la tarea corre en el carril de fondo: el
+        # usuario apreto Ctrl-C en el prompt de espera o en la vista de
+        # agentes. Sin esto, este bucle no tenia NINGUN hook de cancelacion y
+        # el "corte pedido" que se imprimia era una mentira: el agente seguia
+        # gastando pasos. Se comprueba ENTRE turnos, o sea que la tool en
+        # curso (un build, un subprocess) termina antes de cerrar; eso se dice
+        # en la linea que se imprime. Sin la clave, no existe.
+        _cancelado = ctx.get("_cancelado") if isinstance(ctx, dict) else None
+        if callable(_cancelado):
+            try:
+                _corta = bool(_cancelado())
+            except Exception:
+                _corta = False          # el hook jamas rompe el turno
+            if _corta:
+                print_fn(f"[warn_cl]Corte pedido: el agente se detiene tras "
+                         f"el paso {pasos}.[/warn_cl]")
+                result_text = (f"(corte pedido por el usuario: el agente se "
+                               f"detuvo tras el paso {pasos})")
+                finish = "cancelado"
+                break
         pasos += 1
         resp = completar(mensajes, tools=schemas, **sampling)
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)

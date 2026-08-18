@@ -335,5 +335,20 @@
     "verificado_en": "",
     "deleted_at": "2026-08-13T00:59:42.164679",
     "reason": "replaced by 'Text Similarity Analyzer' (score 8.0 > 6.9)"
+  },
+  {
+    "id": "di_hola_en_3_palabras_01",
+    "title": "Di Hola en 3 Palabras",
+    "category": "di hola en 3 palabras",
+    "description": "A simple Python program that prints \"di hola en 3 palabras\" to the terminal.",
+    "total_score": 5.5,
+    "created_at": "2026-08-17T23:52:26.540431",
+    "directory": "di_hola_en_3_palabras_01",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "deleted_at": "2026-08-17T23:52:35.025683",
+    "reason": "replaced by 'Di Hola in 3 Words' (score 7.1 > 5.5)"
   }
 ]
