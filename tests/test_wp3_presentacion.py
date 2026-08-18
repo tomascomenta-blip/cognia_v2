@@ -243,15 +243,41 @@ def test_sin_backend_grita_a_stderr_sin_oyentes(audit_aislado, capsys):
     assert "DEGRADADO" in capsys.readouterr().err
 
 
-def test_registrar_emite_aviso_sin_stderr(audit_aislado, capsys):
+def test_registrar_no_habla_salvo_que_se_lo_pidan(audit_aislado, capsys,
+                                                  monkeypatch):
+    """La linea de backend paso de OPT-OUT a OPT-IN el 2026-08-18.
+
+    Medido en un REPL real: salia una vez por turno Y POR `via`, o sea DOS
+    veces en el turno que hace un stream_chat mas un generate interno -- 172
+    caracteres de diagnostico pegados justo encima de la respuesta. Y subirle
+    el contraste (3,15 -> 6,15) lo EMPEORO: el log paso a competir de igual a
+    igual con lo que el usuario pidio. La regla del repo es que la guerra es
+    contra los logs, no contra su legibilidad.
+
+    Este test valia lo contrario y por eso se reescribe: fija la regla nueva
+    en sus DOS mitades -- callado por defecto, y que sigue saliendo entero
+    cuando alguien enciende el diagnostico."""
+    for k in ("COGNIA_BACKEND_LOG", "COGNIA_TRACE", "COGNIA_DEBUG"):
+        monkeypatch.delenv(k, raising=False)
+
     recibidos = []
     events.suscribir(recibidos.append)
     try:
         audit_aislado.registrar("chat", "http://127.0.0.1:1", rol="pensar")
     finally:
         events.desuscribir(recibidos.append)
-    err = capsys.readouterr().err
-    assert "[backend]" not in err
+    assert "[backend]" not in capsys.readouterr().err
+    assert not [e for e in recibidos if isinstance(e, events.Aviso)], (
+        "por defecto la linea de backend no se anuncia")
+
+    # Y con el diagnostico encendido vuelve, entera y con su origen.
+    monkeypatch.setenv("COGNIA_BACKEND_LOG", "1")
+    recibidos = []
+    events.suscribir(recibidos.append)
+    try:
+        audit_aislado.registrar("chat", "http://127.0.0.1:2", rol="pensar")
+    finally:
+        events.desuscribir(recibidos.append)
     avisos = [e for e in recibidos if isinstance(e, events.Aviso)]
     assert len(avisos) == 1 and avisos[0].origen == "backend_activo"
 

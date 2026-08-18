@@ -267,7 +267,22 @@ def test_trigger_requiere_4_calls_y_oraculo():
         {"action": "escribir_archivo", "ok": True, "args": "x", "result_head": "OK"}
     ] * 4
     r = skill_capture.maybe_capture_skill("tarea", trace_no_oracle)
-    assert not r["captured"] and "oraculo" in r["reason"]
+    assert not r["captured"]
+    # Cuatro veces la MISMA accion no llega al chequeo del oraculo: la corta
+    # antes el filtro de pasos DISTINTOS, que se agrego despues de que una
+    # traza de atasco se ascendiera a "procedimiento verificado". El motivo
+    # que se exige es el que el codigo da PRIMERO, no el que se esperaba
+    # cuando solo existia un filtro.
+    assert "DISTINTOS" in r["reason"], r["reason"]
+
+    # Y con cuatro acciones distintas SI llega al oraculo, que es lo que este
+    # test queria fijar en su origen.
+    trace_variado = [
+        {"action": a, "ok": True, "args": "x", "result_head": "OK"}
+        for a in ("leer_archivo", "escribir_archivo", "ejecutar", "buscar")
+    ]
+    r2 = skill_capture.maybe_capture_skill("tarea", trace_variado)
+    assert not r2["captured"] and "oraculo" in r2["reason"], r2["reason"]
 
 
 def test_trigger_captura_con_oraculo(monkeypatch, tmp_path):
