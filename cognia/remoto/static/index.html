@@ -155,6 +155,23 @@
   .act-linea { font-family: ui-monospace, monospace; font-size: 11.5px;
     color: var(--texto-2); border-left: 2px solid var(--borde);
     padding: 2px 8px; word-break: break-word; white-space: pre-wrap; }
+  /* UN bloque por AGENTE (tanda 2026-08-18): con 6 agentes, meter todo en el
+     unico bloque "Actividad" daba una lista plana ilegible. El estado se lee
+     de un vistazo por el color del borde y el punto de la cabecera. */
+  details.actividad.agente { border-color: var(--borde); }
+  details.actividad.agente[data-estado="vivo"] { border-color: #c98a1e; }
+  details.actividad.agente[data-estado="ok"] { border-color: var(--acento-2); }
+  details.actividad.agente[data-estado="fallo"] { border-color: #b4483f; }
+  details.actividad.agente > summary { color: var(--texto); }
+  .ag-punto { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
+    background: var(--borde); }
+  [data-estado="vivo"] .ag-punto { background: #e0a32e;
+    animation: latir 1.1s ease-in-out infinite; }
+  [data-estado="ok"] .ag-punto { background: var(--acento); }
+  [data-estado="fallo"] .ag-punto { background: #d9584c; }
+  @keyframes latir { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+  .ag-metrica { font-family: ui-monospace, monospace; font-weight: 500;
+    font-size: 11px; color: var(--texto-2); margin-left: 6px; }
   details.act-larga { border-left: 2px solid var(--acento-2); }
   details.act-larga > summary { list-style: none; cursor: pointer;
     font-family: ui-monospace, monospace; font-size: 11.5px;
@@ -730,6 +747,106 @@ function burbujaActividad(texto) {
   agregarImagen(grupoActividad.querySelector(".items"), texto);
 }
 
+/* ── UN BLOQUE PLEGABLE POR AGENTE ────────────────────────────────────────
+   Antes toda la actividad caia en el unico bloque de arriba: con un workflow
+   de 6 agentes eso es una lista plana ilegible y no se sabe quien esta vivo.
+   El servidor manda ahora el campo `ag` en cada linea de evento
+   (remoto/sesiones.py::agente_de_evento): {id, ref, estado, tokens, seg,
+   chars}. `id` es la clave ESTABLE del motor ("<run_id>#<fase>.<i>@<n>") y es
+   la que agrupa; ademas VIAJA EN EL JSONL, asi que un workflow terminado se
+   reabre con sus bloques intactos, no solo en vivo. */
+const bloquesAgente = new Map();      // clave -> estado del bloque
+// RESPALDO — solo para transcripciones grabadas antes de que el campo
+// existiera. Adivina por el texto y no distingue dos corridas distintas: por
+// eso el CAMPO manda siempre que este.
+const _RE_AG_TEXTO = /^[⏺·✗⚠→]?\s*agente\s+(\d+)(?:\/(\d+))?\s*(.*)$/;
+
+function agenteDeLinea(quien, texto, ag) {
+  if (ag && ag.id) return ag.id;                       // el CAMPO manda
+  if (quien !== "actividad") return null;
+  const m = _RE_AG_TEXTO.exec((texto || "").trim());
+  return m ? "~texto:" + m[1] + "/" + (m[2] || "?") : null;   // respaldo
+}
+
+function _refDeTexto(texto) {
+  const m = _RE_AG_TEXTO.exec((texto || "").trim());
+  if (!m) return "";
+  return "agente " + m[1] + (m[2] ? "/" + m[2] : "") +
+         (m[3] ? " " + m[3].replace(/[…\s]+$/, "").split(" — ")[0] : "");
+}
+
+function pintarCabeceraAgente(b) {
+  b.titulo.textContent = (b.ref || "agente") +
+    (b.pasos ? " · " + b.pasos + (b.pasos === 1 ? " paso" : " pasos") : "");
+  if (b.det.dataset.estado === "vivo") {
+    const partes = [];
+    // segundos VIVOS: se cuentan desde que la linea llego EN VIVO. En una
+    // transcripcion releida no hay reloj que valga (el evento es de ayer), asi
+    // que t0 queda en 0 y no se inventa un cronometro.
+    if (b.t0) partes.push(Math.round((Date.now() - b.t0) / 1000) + "s");
+    if (b.chars) partes.push(b.chars + " chars");
+    b.metrica.textContent = partes.join(" · ");
+  } else {
+    b.metrica.textContent = b.final || "";
+  }
+}
+
+function burbujaAgente(clave, texto, ag, envivo) {
+  let b = bloquesAgente.get(clave);
+  if (b && !chat.contains(b.det)) { bloquesAgente.delete(clave); b = null; }
+  if (!b) {
+    const det = document.createElement("details");
+    det.className = "actividad agente";
+    det.open = true;                 // se ve llegar en vivo; el − lo pliega
+    det.dataset.estado = "";
+    det.dataset.agente = clave;
+    det.innerHTML =
+      '<summary><span class="ag-punto"></span>' +
+      '<span class="act-titulo"></span><span class="ag-metrica"></span>' +
+      '<span class="mas-menos"></span></summary><div class="items"></div>';
+    chat.appendChild(det);
+    b = { det: det, items: det.querySelector(".items"),
+          titulo: det.querySelector(".act-titulo"),
+          metrica: det.querySelector(".ag-metrica"),
+          ref: "", pasos: 0, t0: 0, chars: 0, final: "" };
+    bloquesAgente.set(clave, b);
+  }
+  if (ag && ag.ref) b.ref = ag.ref;
+  else if (!b.ref) b.ref = _refDeTexto(texto);
+  if (ag && ag.estado) {
+    b.det.dataset.estado = ag.estado;
+    if (ag.estado === "vivo") { b.t0 = envivo ? Date.now() : 0; b.chars = 0; }
+    else {
+      b.t0 = 0;
+      const partes = [];
+      if (ag.cache) partes.push("de cache");
+      // un decimal SIEMPRE: el servidor manda 2.0 y JSON.parse lo deja en 2,
+      // asi que "2s" y "1.5s" salian mezclados en la misma columna
+      if (ag.seg) partes.push(Number(ag.seg).toFixed(1) + "s");
+      if (ag.tokens) partes.push(ag.tokens + " tok");
+      if (ag.tardio) partes.push("tardio");
+      b.final = partes.join(" · ");
+    }
+  }
+  if (ag && typeof ag.chars === "number") b.chars = ag.chars;
+  // El LATIDO no ensucia la lista: es el mismo "generando…" una y otra vez
+  // (sale throttleado a 250 ms). Su sitio es la cabecera, no una fila nueva.
+  const esLatido = !!(ag && typeof ag.chars === "number" && !ag.estado);
+  if (!esLatido) {
+    b.items.appendChild(filaActividad(texto));
+    b.pasos = b.items.children.length;
+    agregarImagen(b.items, texto);
+  }
+  pintarCabeceraAgente(b);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// cronometro de los agentes VIVOS (solo los que arrancaron en vivo tienen t0)
+setInterval(function () {
+  for (const b of bloquesAgente.values())
+    if (b.t0 && b.det.dataset.estado === "vivo") pintarCabeceraAgente(b);
+}, 500);
+
 /* Inserta en `cont` cada imagen nombrada en `texto`.
    El onerror ya NO borra el <img>: borrarlo hacia que una imagen no servible
    desapareciera sin dejar rastro y el chat mintiera por omision (el bug de
@@ -804,7 +921,10 @@ function burbujaCognia(texto, hora) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-function burbuja(quien, texto, hora) {
+/* `ag` = agrupacion por agente que manda el servidor (puede faltar: eventos
+   que no son de un agente, transcripciones viejas). `envivo` distingue el WS
+   de la relectura de la transcripcion — solo en vivo se cronometra. */
+function burbuja(quien, texto, hora, ag, envivo) {
   texto = texto.replace(/\[\/?[a-z_]+\]/g, "");
   // el servidor ya clasifica: quien=="log" va directo al Registro
   if (quien === "log" || (quien === "cognia" && ES_LOG(texto))) {
@@ -815,7 +935,14 @@ function burbuja(quien, texto, hora) {
       (quien === "cognia" && (ES_PENSANDO(texto) || ES_ACCION(texto)))) {
     grupoCognia = null;      // la actividad cierra el bloque de respuesta
     if (typeof dispararPorActividad === "function") dispararPorActividad(texto);
-    if (filtroTapa("actividad", texto)) return;   // filtro de expertos del chat
+    if (filtroTapa("actividad", texto, ag)) return;  // filtro de expertos
+    const claveAg = agenteDeLinea(quien, texto, ag);
+    if (claveAg) {
+      // una linea de agente cierra el bloque generico: lo que sigue del mismo
+      // agente vuelve a SU bloque, no a la lista plana
+      grupoActividad = null;
+      burbujaAgente(claveAg, texto, ag, envivo); return;
+    }
     burbujaActividad(texto); return;
   }
   grupoActividad = null;   // un mensaje normal cierra el grupo de actividad
@@ -957,16 +1084,22 @@ async function abrirSesion(proyecto, sid, titulo) {
   $("titulo-sub").textContent = proyecto.nombre;
   $("estado-punto").classList.add("vivo");
   chat.innerHTML = ""; logsBuffer = []; grupoCognia = null; grupoActividad = null; cogniaRaw = "";
+  bloquesAgente.clear();   // los <details> se fueron con el innerHTML
   $("filtro-expertos").classList.remove("oculto"); pintarFiltroExpertos();
   const trans = await api(`/api/proyectos/${proyecto.id}/sesiones/${sid}/transcripcion`);
-  for (const e of trans) if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t);
+  // relectura: `ag` viaja en el jsonl, asi que un workflow YA TERMINADO se
+  // reabre con un bloque por agente igual que en vivo (envivo=false: sin
+  // cronometro inventado)
+  for (const e of trans)
+    if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t, e.ag, false);
   if (S.ws) { S.ws.close(); S.ws = null; }
   const ws = new WebSocket(conToken(
     (location.protocol === "https:" ? "wss://" : "ws://") + location.host +
     `/ws/${proyecto.id}/${sid}`));
   ws.onmessage = ev => {
     const e = JSON.parse(ev.data);
-    if (e.quien !== "usuario" && e.quien !== "meta") burbuja(e.quien, e.texto, e.t);
+    if (e.quien !== "usuario" && e.quien !== "meta")
+      burbuja(e.quien, e.texto, e.t, e.ag, true);
   };
   ws.onclose = () => $("estado-punto").classList.remove("vivo");
   S.ws = ws;
@@ -1804,16 +1937,27 @@ ragL.addEventListener("wheel", e => { e.preventDefault();
 window.addEventListener("resize", () => { if (RG.abierto) ajustarRAG(); });
 
 /* ── Filtro de expertos en el chat: chips por color ── */
-// clasifica una línea a un experto (para el filtro y el color del chat)
-function expertoDeLinea(quien, texto) {
+// Un agente de workflow tiene UN experto para TODAS sus líneas: el que se
+// decidió con la primera. Sin esto, un mismo agente se repartía entre chips
+// (una línea "leer_archivo" → generador, la siguiente "ejecutar" → evaluador)
+// y filtrar por uno partía su bloque a la mitad.
+const _EXP_POR_AGENTE = new Map();
+// clasifica una línea a un experto (para el filtro y el color del chat).
+// PREFIERE el campo agente_id que manda el servidor; el regex es el respaldo
+// para las líneas que no pertenecen a ningún agente (y para el histórico).
+function expertoDeLinea(quien, texto, ag) {
   if (quien === "cerebro") return "cerebro";
-  for (const [re, id] of _MAP_EXP) if (re.test(texto)) return id;
-  return "cerebro";
+  const aid = ag && ag.id;
+  if (aid && _EXP_POR_AGENTE.has(aid)) return _EXP_POR_AGENTE.get(aid);
+  let id = "cerebro";
+  for (const [re, e] of _MAP_EXP) if (re.test(texto)) { id = e; break; }
+  if (aid) _EXP_POR_AGENTE.set(aid, id);
+  return id;
 }
 // ¿el filtro OCULTA esta línea? (filtro vacío = mostrar todo)
-function filtroTapa(quien, texto) {
+function filtroTapa(quien, texto, ag) {
   if (!JV.filtro.size) return false;
-  return !JV.filtro.has(expertoDeLinea(quien, texto));
+  return !JV.filtro.has(expertoDeLinea(quien, texto, ag));
 }
 async function pintarFiltroExpertos() {
   await cargarExpertos();

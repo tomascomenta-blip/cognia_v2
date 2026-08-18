@@ -1,2 +1,8 @@
 recursive-include shattering/manifests *.json
 recursive-include cognia/knowledge *.json *.txt
+# CSS de la TUI. Ya lo cubre [tool.setuptools.package-data], pero esa via depende
+# de include-package-data y de que el patron siga escrito ahi; el .tcss es lo
+# unico no-.py sin lo cual la TUI instalada NO arranca (CSS_PATH), asi que se
+# declara por las dos vias. Cubre app.tcss, agentes.tcss y cualquier CSS futuro
+# en widgets/.
+recursive-include cognia/tui *.tcss

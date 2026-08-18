@@ -22,10 +22,17 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .sesiones import (GestorSesiones, RAIZ_DATOS, cargar_proyectos,
-                       guardar_proyectos, registrar_proyecto)
+from .sesiones import (ColaSuscriptor, GestorSesiones, RAIZ_DATOS,
+                       cargar_proyectos, guardar_proyectos,
+                       registrar_proyecto)
 
 ESTATICOS = Path(__file__).parent / "static"
+
+# Cada cuanto despierta el WS a comprobar que el cliente sigue ahi. NO es un
+# poll (la espera es bloqueante y el evento la corta al instante): es el
+# techo para que un movil que se fue sin eventos pendientes no deje el hilo
+# clavado para siempre. Constante y no literal para poder bajarlo en tests.
+ESPERA_WS_S = 30.0
 
 # skills empaquetadas con Cognia (solo LECTURA desde el movil) y el dir de
 # skills del usuario (cognia_skills/, el mismo destino que persist_skill):
@@ -302,7 +309,9 @@ def crear_app() -> FastAPI:
             return
         await websocket.accept()
         s = gestor.obtener(_proyecto(pid), sid)
-        q: queue.Queue = queue.Queue()
+        # cola CON TECHO: un movil atascado en mitad de un workflow ya no la
+        # hace crecer sin limite. Lo que se tira se cuenta y se ANUNCIA abajo.
+        q = ColaSuscriptor()
         with s.lock:
             s.suscriptores.append(q)
         try:
@@ -315,7 +324,8 @@ def crear_app() -> FastAPI:
                     # despertar continuo por cada WS abierto. El timeout NO es
                     # un poll: solo evita que un cliente ya desconectado deje
                     # el hilo clavado para siempre en q.get().
-                    evento = await asyncio.to_thread(q.get, timeout=30.0)
+                    evento = await asyncio.to_thread(
+                        q.get, timeout=ESPERA_WS_S)
                 except queue.Empty:
                     # sin eventos en 30 s: verificar que el cliente siga ahi
                     # (la desconexion solo se detecta al enviar; sin esto un
@@ -323,6 +333,17 @@ def crear_app() -> FastAPI:
                     if websocket.client_state.name != "CONNECTED":
                         break
                     continue
+                # el agujero se anuncia PEGADO al primer evento que si llega,
+                # en el orden en que el usuario lo lee: primero "faltan N",
+                # despues lo que sobrevivio. Silencio aca = el movil creyendo
+                # que vio el workflow entero.
+                perdidas = q.tomar_descartadas()
+                if perdidas:
+                    await websocket.send_text(json.dumps(
+                        {"t": time.strftime("%H:%M:%S"), "quien": "sistema",
+                         "texto": (f"⚠ se perdieron {perdidas} lineas "
+                                   f"mientras estabas desconectado"),
+                         "perdidas": perdidas}, ensure_ascii=False))
                 await websocket.send_text(
                     json.dumps(evento, ensure_ascii=False))
         except WebSocketDisconnect:

@@ -72,6 +72,13 @@ _FRAGMENTOS_BANNER = (
 )
 # restos ANSI guardados como texto literal en transcripciones viejas
 _ANSI_LITERAL = re.compile(r"\[\d{1,3}m")
+# Las lineas de ESTADO que el CLI imprime justo debajo del banner completo
+# (modelo/modo/tema, sesion, continuidad). Su sitio es el Registro, igual que
+# el resto del arranque: van aca porque el gate de arranque ahora cierra en el
+# borde del panel y estas tres quedan del lado de fuera. Ver _FIN_ARRANQUE.
+_RE_ESTADO_ARRANQUE = re.compile(
+    r"^\s*(modelo .*\(:\d+\)|sin backend en |Sesion [0-9a-f]{6,} en "
+    r"|Continuidad: \d+ mensajes)")
 
 # ACTIVIDAD: lo que Cognia HACE (pasos del agente, acciones de herramientas,
 # workflows de la oficina, pipeline de creacion). En el chat va como bloque
@@ -119,6 +126,8 @@ def _es_log(linea: str) -> bool:
             return True
         return _es_log(interior)
     if any(f in t for f in _FRAGMENTOS_BANNER):
+        return True
+    if _RE_ESTADO_ARRANQUE.match(t):
         return True
     arte = len(_ARTE.findall(t))
     return arte >= 3 or arte >= max(1, len(t)) / 3
@@ -227,6 +236,57 @@ def _ref_agente(d: dict) -> str:
     cab = f"agente {d.get('indice', 0)}" + (f"/{n}" if n else "")
     etiqueta = (d.get("etiqueta") or "").strip()
     return f"{cab} {etiqueta}".strip()
+
+
+# ── AGRUPACION POR AGENTE (tanda UI 2026-08-18) ────────────────────────────
+# El movil metia TODA la actividad en un unico bloque plegable y adivinaba de
+# quien era cada linea con un regex sobre el texto (expertoDeLinea). Con 6
+# agentes eso es una lista plana y el regex adivina mal: los eventos YA traen
+# la identidad (ux/events.py sella agente_id en el contexto, asi que hasta un
+# ToolFin de dentro de un agente lo lleva). Aqui se extrae y viaja en la propia
+# anotacion (clave "ag" del jsonl); el regex del cliente queda de RESPALDO para
+# las transcripciones viejas, que no tienen el campo.
+
+# Estados que el movil pinta en la cabecera del bloque de cada agente.
+EST_AG_VIVO, EST_AG_OK, EST_AG_FALLO = "vivo", "ok", "fallo"
+
+
+def agente_de_evento(d: dict) -> dict:
+    """Campos de agrupacion del evento, o {} si no pertenece a ningun agente.
+
+    Siempre lleva "id" (la clave de agrupacion, estable: el agente_id del
+    motor). Los eventos de ciclo de vida agregan lo que la cabecera muestra:
+    "ref" legible, "estado", "tokens", "seg". Un latido agrega "chars".
+    """
+    tipo = d.get("tipo", "")
+    if tipo == "MensajeAlAgente":
+        # El agente_id HEREDADO sella al EMISOR (normalmente "": lo llama la
+        # UI); el agente del que habla la linea es el DESTINO. Agrupar por el
+        # emisor mandaria el eco del usuario al bloque equivocado.
+        destino = (d.get("destino") or "").strip()
+        return {"id": destino} if destino else {}
+    if tipo == "AgenteInicio":
+        ag = {"id": d.get("agente_id") or "", "ref": _ref_agente(d),
+              "estado": EST_AG_VIVO}
+        if d.get("fase"):
+            ag["fase"] = d["fase"]
+        return ag if ag["id"] else {}
+    if tipo == "AgenteFin":
+        ag = {"id": d.get("agente_id") or "", "ref": _ref_agente(d),
+              "estado": EST_AG_OK if d.get("ok", True) else EST_AG_FALLO,
+              "tokens": int(d.get("tokens") or 0),
+              "seg": round(float(d.get("duracion_s") or 0.0), 1)}
+        if d.get("cache_hit"):
+            ag["cache"] = True
+        if d.get("tardio"):
+            # huerfano de paralelo(): su bloque no cuelga de un workflow abierto
+            ag["tardio"] = True
+        return ag if ag["id"] else {}
+    if tipo == "AgenteProgreso":
+        aid = d.get("agente_id") or ""
+        return {"id": aid, "chars": int(d.get("chars") or 0)} if aid else {}
+    aid = d.get("agente_id") or ""
+    return {"id": aid} if aid else {}
 
 
 def interpretar_evento(d: dict) -> tuple[str | None, str, list[str]]:
@@ -367,6 +427,22 @@ def interpretar_evento(d: dict) -> tuple[str | None, str, list[str]]:
     return "actividad", f"{tipo}: {json.dumps(d, ensure_ascii=False)[:300]}", []
 
 
+# ── Fin del ARRANQUE: cuando dejar de tirar lineas ─────────────────────────
+# MEDIDO 2026-08-18 con un REPL real: el gate no cerraba NUNCA hasta el tope de
+# 200 lineas. El unico marcador vivo era el del panel COMPACTO ("/ayuda para
+# comandos") y hoy el REPL arranca con el banner COMPLETO, que imprime
+# "/ayuda para TODOS los comandos" y ya no dice "Sistema listo". Consecuencia
+# real, reproducida: en un /workflow llegaban los eventos tipados (se juzgan
+# ANTES del gate) y se perdian en silencio las ~50 lineas de prosa del CLI —
+# el panel con el resultado de los pasos y el "corrida … · N tokens".
+# El marcador nuevo es el BORDE INFERIOR del panel del banner, que las dos
+# variantes con banner imprimen; las tres lineas de estado que quedan debajo
+# (modelo/sesion/continuidad) las recoge _RE_ESTADO_ARRANQUE como Registro.
+_FIN_ARRANQUE = ("Sistema listo",            # banner full legacy
+                 "/ayuda para comandos")     # panel compacto (obra 2026-08-09)
+_RE_FIN_BANNER = re.compile(r"[└╰][─═]{3,}.*sistema cognitivo local")
+
+
 # El renderer del CLI pinta los MISMOS eventos como lineas con marca
 # (⏺ · ✗ ⚠ →) y un footer "3.2s · 500 tokens · 2 pasos". Cuando el stream de
 # eventos esta activo, esas lineas son duplicados y se saltan.
@@ -379,6 +455,74 @@ def es_eco_renderer(linea: str) -> bool:
     if t[:1] in ("⏺", "·", "✗", "⚠", "→"):
         return True
     return bool(_RE_FOOTER_RENDERER.match(t))
+
+
+# ── La COLA de un eco ENVUELTO ─────────────────────────────────────────────
+# es_eco_renderer clasifica por la marca inicial, y eso vale para UNA linea.
+# El renderer imprime con rich sobre un pipe (ancho 80) y un AgenteFin con
+# resumen largo sale ENVUELTO: solo la primera linea lleva ⏺, las siguientes
+# son prosa pelada que se colaba al chat duplicando lo que el evento ya dijo.
+# Medido con el REPL real (2026-08-18, /workflow contra :8080):
+#     "  ⏺ agente 1/2 di solo ALFA — I'm sorry, but your message…"   (75)
+#     "Could you please provide more context or clarify what you…"   (75)
+#     "(1.3s · 77 tok)"                                              (15)
+# Regla: tras un eco LARGO (rich solo parte lineas que llenan el ancho) las
+# siguientes son cola hasta que una salga corta. Con dos frenos, porque comerse
+# prosa de verdad es peor que duplicar una linea: tope de lineas, y nada que
+# empiece como OTRA cosa (panel rich, marco, linea de logger, evento).
+_ANCHO_ECO = 60          # conservador: rich parte a los 80
+_MAX_COLA_ECO = 4
+_RE_NO_ES_COLA = re.compile(r"^\s*[│┌└├┤╭╰@]|^\d{4}-\d{2}-\d{2} ")
+
+
+# ── Cola por WebSocket, CON TECHO ──────────────────────────────────────────
+# Cada WS suscrito tenia una queue.Queue() sin maxsize. Un movil que se va 30 s
+# en mitad de un workflow de 6 agentes (o simplemente con la red atascada: el
+# servidor solo detecta la baja al ENVIAR) dejaba la cola creciendo sin limite
+# — cada latido de AgenteProgreso, cada tool de cada agente. Con techo, lo que
+# se tira son los eventos MAS VIEJOS (el movil quiere el estado de AHORA) y el
+# descarte se CUENTA para anunciarlo: perder lineas en silencio es el modo de
+# fallo historico del remoto, y una cola muda lo reintroduciria por la puerta
+# de atras.
+
+TOPE_COLA_WS = 500          # eventos por suscriptor
+
+
+class ColaSuscriptor:
+    """Cola FIFO con tope. Misma API que usa Sesion.anotar (put_nowait) y el
+    WS (get), mas tomar_descartadas() para que el cliente vea el agujero."""
+
+    def __init__(self, tope: int | None = None):
+        # el default se lee EN LA CONSTRUCCION, no al definir la clase: asi
+        # TOPE_COLA_WS es ajustable (y verificable) sin tocar los llamadores
+        self.tope = max(1, int(TOPE_COLA_WS if tope is None else tope))
+        self._q: queue.Queue = queue.Queue()
+        self._descartadas = 0
+        self._lock = threading.Lock()
+
+    def put_nowait(self, evento: dict) -> None:
+        with self._lock:
+            while self._q.qsize() >= self.tope:
+                try:
+                    self._q.get_nowait()
+                except queue.Empty:
+                    break
+                self._descartadas += 1
+            self._q.put_nowait(evento)
+
+    def get(self, timeout: float | None = None):
+        return self._q.get(timeout=timeout)
+
+    def tomar_descartadas(self) -> int:
+        """Cuantas se tiraron desde la ultima vez (y resetea). El WS lo llama
+        antes de cada envio: el aviso viaja PEGADO al primer evento que si
+        llega, en el mismo orden en que el usuario lo va a leer."""
+        with self._lock:
+            n, self._descartadas = self._descartadas, 0
+            return n
+
+    def __len__(self) -> int:
+        return self._q.qsize()
 
 
 def _python_cognia() -> list[str]:
@@ -449,6 +593,10 @@ class Sesion:
     # lineas que el renderer va a imprimir por eventos ya anotados (intencion,
     # resumen de tools): el bombeo las salta para no duplicar en el movil
     _ecos_pendientes: deque = field(default_factory=lambda: deque(maxlen=64))
+    # cuantas lineas de COLA de un eco envuelto quedan por saltar (ver
+    # _ANCHO_ECO): un AgenteFin con resumen largo sale en 2-3 lineas y solo la
+    # primera lleva la marca ⏺
+    _cola_eco: int = 0
     # hilo lector: se guarda para poder join() en parar() — sin eso, su
     # anotar("sesion terminada") final corria DESPUES de mover/borrar el
     # jsonl y recreaba la carpeta de la sesion recien dada de baja
@@ -461,9 +609,14 @@ class Sesion:
         d.mkdir(exist_ok=True)
         return d / f"{self.id}.jsonl"
 
-    def anotar(self, quien: str, texto: str) -> dict:
+    def anotar(self, quien: str, texto: str, ag: dict | None = None) -> dict:
+        """`ag` = agrupacion por agente (ver agente_de_evento). Va al jsonl,
+        no solo al WS: un workflow terminado se REABRE desde la transcripcion
+        y el bloque por agente tiene que rearmarse igual que en vivo."""
         evento = {"t": time.strftime("%H:%M:%S"), "quien": quien,
                   "texto": texto}
+        if ag:
+            evento["ag"] = ag
         with self.fichero.open("a", encoding="utf-8") as f:
             f.write(json.dumps(evento, ensure_ascii=False) + "\n")
         with self.lock:
@@ -552,6 +705,7 @@ class Sesion:
         self._buffer_arranque = []
         self._con_eventos = False
         self._en_traza = False
+        self._cola_eco = 0
         env = self._entorno()
         self.proc = subprocess.Popen(
             _python_cognia(), cwd=self.ruta_proyecto,
@@ -589,21 +743,18 @@ class Sesion:
             for eco in ecos:
                 self._ecos_pendientes.append(eco)
             if quien is not None and texto:
-                self.anotar(quien, texto)
+                self.anotar(quien, texto, agente_de_evento(d))
             if resto_prosa.strip():
                 self._procesar_linea(resto_prosa)
             return
         # 2) banner/panel de arranque: se descarta de la transcripcion pero se
         # GUARDA — si el REPL muere aqui, el buffer es el traceback perdido.
-        # Fin del arranque: la ultima linea del panel compacto ("/ayuda para
-        # comandos"), el marcador del banner full legacy, o el tope. OJO: el
-        # compacto ya NO imprime "Sistema listo" (obra 2026-08-09) — con solo
-        # ese marcador, el gate se comia las primeras 200 lineas de CADA
-        # sesion, respuesta del modelo incluida.
+        # Fin del arranque: ver _FIN_ARRANQUE / _RE_FIN_BANNER, o el tope.
         if self._arrancando:
             self._lineas_arranque += 1
             self._buffer_arranque.append(linea)
-            if ("Sistema listo" in linea or "/ayuda para comandos" in linea
+            if (any(m in linea for m in _FIN_ARRANQUE)
+                    or _RE_FIN_BANNER.search(linea)
                     or self._lineas_arranque > 200):
                 self._arrancando = False
             return
@@ -611,7 +762,16 @@ class Sesion:
         # y los ecos ya anotados via evento son duplicados: se saltan
         if self._con_eventos:
             if es_eco_renderer(linea):
+                # un eco que llena el ancho viene ENVUELTO: lo que sigue es su
+                # cola sin marca (ver _ANCHO_ECO)
+                self._cola_eco = (_MAX_COLA_ECO
+                                  if len(linea.rstrip()) >= _ANCHO_ECO else 0)
                 return
+            if self._cola_eco and not _RE_NO_ES_COLA.match(linea):
+                self._cola_eco = (self._cola_eco - 1
+                                  if len(linea.rstrip()) >= _ANCHO_ECO else 0)
+                return
+            self._cola_eco = 0
             t = linea.strip()
             if t and t in self._ecos_pendientes:
                 self._ecos_pendientes.remove(t)

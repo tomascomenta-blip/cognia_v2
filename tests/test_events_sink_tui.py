@@ -312,3 +312,113 @@ def test_el_sink_escapa_de_un_redirect_stdout(bus_limpio, monkeypatch):
     with contextlib.redirect_stdout(tragadas):
         print("prosa interna del comando")
     assert "prosa interna del comando" in tragadas.getvalue()
+
+
+# ── T4 (2026-08-18): LOS DOS MUNDOS DEL SINK ────────────────────────────────
+#
+# El T3 escribia SIEMPRE a sys.__stdout__ y eso choca con el carril de fondo
+# del REPL: con la vista de agentes abierta, esas lineas "@EV {...}" se pintan
+# crudas ENCIMA de la pantalla alterna (el spike T4 midio 6 lineas de
+# suciedad). Escribir a sys.stdout arregla la pantalla y deja CIEGO al
+# telefono, que es una restriccion dura.
+#
+# No se elige: se MIDE. Los dos mundos son distinguibles por una razon FISICA,
+# comprobada el 2026-08-18 con el mismo ConPTY del spike:
+#
+#     mundo PIPE (el del movil) ... sys.__stdout__.isatty() -> False
+#                                   (remoto/sesiones.py:712, stdout=PIPE)
+#     mundo CONSOLA (el humano) ... sys.__stdout__.isatty() -> True
+#                                   (ConPTY = la maquinaria de Windows Terminal)
+#
+# Y la implicacion va en las dos direcciones: donde hay pantalla alterna NO hay
+# telefono escuchando, y donde hay telefono NO hay pantalla alterna. Un test
+# por mundo.
+
+
+class _Tty(io.StringIO):
+    """Un stream que dice ser un terminal. El mundo CONSOLA."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+class _Pipe(io.StringIO):
+    """Un stream que dice NO ser un terminal. El mundo PIPE (el del movil)."""
+
+    def isatty(self) -> bool:
+        return False
+
+
+def test_mundo_pipe_el_movil_ve_los_eventos(bus_limpio, monkeypatch):
+    """MUNDO PIPE: el stdout real no es un tty -> se escribe AHI, pase lo que
+    pase con sys.stdout. Es el canal unico de remoto/sesiones.py y la
+    restriccion dura: el movil no se rompe."""
+    real = _Pipe()
+    tapadera = io.StringIO()          # lo que Textual / redirect_stdout pondria
+    monkeypatch.setattr(sys, "__stdout__", real)
+    monkeypatch.setattr(sys, "stdout", tapadera)
+    events.activar_sink_jsonl("1")
+
+    events.emitir(events.Aviso(texto="para-el-movil", origen="test_sink_tui"))
+
+    assert [e["texto"] for e in _lineas_ev(real.getvalue())] == ["para-el-movil"]
+    assert "@EV" not in tapadera.getvalue(), "el evento se lo trago la tapadera"
+
+
+def test_mundo_consola_el_evento_no_pisa_la_pantalla(bus_limpio, monkeypatch):
+    """MUNDO CONSOLA: el stdout real ES un tty -> se escribe al sys.stdout DEL
+    MOMENTO. Sin Textual eso es el mismo terminal (nadie nota nada); con
+    Textual es su _PrintCapture, y ahi la vista lo recoge en vez de dejar que
+    se pinte sobre la pantalla alterna."""
+    real = _Tty()
+    events.activar_sink_jsonl("1")
+
+    # (a) mundo consola SIN Textual: sys.stdout es el terminal -> llega igual.
+    monkeypatch.setattr(sys, "__stdout__", real)
+    monkeypatch.setattr(sys, "stdout", real)
+    events.emitir(events.Aviso(texto="sin-textual", origen="test_sink_tui"))
+    assert [e["texto"] for e in _lineas_ev(real.getvalue())] == ["sin-textual"]
+
+    # (b) mundo consola CON algo interceptando stdout (lo que hace Textual):
+    #     la linea va al interceptor y NO se pinta sobre la pantalla alterna.
+    interceptor = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", interceptor)
+    events.emitir(events.Aviso(texto="con-textual", origen="test_sink_tui"))
+    assert [e["texto"] for e in _lineas_ev(interceptor.getvalue())] == ["con-textual"]
+    assert "con-textual" not in real.getvalue(), \
+        "la linea-evento se pinto sobre la pantalla alterna"
+
+
+@pytest.mark.asyncio
+async def test_la_vista_del_repl_recoge_los_eventos_del_mundo_consola(
+        bus_limpio, monkeypatch):
+    """LA INTEGRACION de los dos arreglos, en el mundo consola.
+
+    La subclase que abre el REPL (cli._vista_con_corte) llama a
+    begin_capture_print en on_mount porque Textual TRAGA lo que el hilo
+    imprime y sin eso lo DESCARTA (medido en el spike T4: 6 de 18 lineas
+    desaparecidas). Con el corte por tty, las lineas "@EV" del mundo consola
+    caen justo en esa captura: ni ensucian la pantalla ni se pierden."""
+    from cognia import cli
+    from cognia.tui.agentes import PantallaAgentes
+
+    real = _Tty()
+    monkeypatch.setattr(sys, "__stdout__", real)
+    events.activar_sink_jsonl("1")
+
+    app = cli._vista_con_corte(PantallaAgentes)()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert type(sys.stdout).__name__ == "_PrintCapture"
+        # Se apaga el reenvio de cortesia del modo headless (ver el docstring
+        # del modulo): sin esto el test no vigilaria nada.
+        app._original_stdout = _Nulo()
+        _emitir_desde_hilo(3)
+        await pilot.pause()
+        tragadas = "".join(app.lineas_tragadas)
+
+    assert [e["texto"] for e in _lineas_ev(tragadas)] == \
+        ["evento-0", "evento-1", "evento-2"], \
+        f"la vista recogio {tragadas!r}"
+    assert "@EV" not in real.getvalue(), \
+        "las lineas-evento se pintaron sobre la pantalla alterna"

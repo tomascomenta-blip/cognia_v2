@@ -385,7 +385,8 @@ _lock_stdout = threading.RLock()
 
 
 def _stdout_real():
-    """El stdout REAL del proceso, no el ``sys.stdout`` del momento.
+    """A donde escribe el sink stdout: el stdout REAL cuando es un PIPE (el
+    canal del movil), y el ``sys.stdout`` del momento cuando es un TERMINAL.
 
     POR QUE (medido 2026-08-17 sobre textual 8.2.8): con una App de Textual
     corriendo, ``sys.stdout`` es un ``textual.app._PrintCapture`` cuyo write()
@@ -408,16 +409,55 @@ def _stdout_real():
     LO QUE ESTO CUESTA, declarado: escribir al stdout real ignora TODA
     redireccion del proceso, incluida la de ``contextlib.redirect_stdout`` que
     cli.py:1558 pone alrededor de cada comando (ahi los eventos tambien se
-    perdian: mismo bug, otra tapadera). Y si alguien pone
-    COGNIA_EVENTS_JSONL=1 con el stdout en un TERMINAL y encima abre la TUI,
-    las lineas "@EV ..." se van a pintar sobre la pantalla alterna. No se pone
-    un "si es tty, callate": ese modo existe para el pipe de
-    remoto/sesiones.py (stdout=PIPE, nunca un tty) y un interruptor por
-    heuristica es justo lo que devolveria al telefono a la ceguera. Quien pide
-    el canal de eventos en una terminal esta pidiendo lineas en la terminal.
+    perdian: mismo bug, otra tapadera).
+
+    ── EL CORTE POR TTY (T4, 2026-08-18) ────────────────────────────────────
+    El T3 escribia SIEMPRE a ``sys.__stdout__``, y eso choca de frente con el
+    carril de fondo del REPL: con la vista de agentes abierta esas lineas
+    "@EV {...}" se pintan crudas ENCIMA de la pantalla alterna (el spike midio
+    6 lineas de suciedad). La tentacion es escribir a ``sys.stdout`` y dejar
+    que el ``_PrintCapture`` de Textual las recoja, pero eso deja CIEGO al
+    telefono, que es una restriccion dura.
+
+    Los dos mundos NO son una preferencia: son distinguibles por una razon
+    FISICA y MEDIDA (2026-08-18, mismo ConPTY del spike T4):
+
+        mundo PIPE (el del movil)  sys.__stdout__.isatty() -> False
+                                   remoto/sesiones.py:712 lanza el REPL con
+                                   stdout=subprocess.PIPE, JAMAS un tty.
+        mundo CONSOLA (el humano)  sys.__stdout__.isatty() -> True
+                                   la pantalla alterna solo existe aca.
+
+    Y la implicacion va en las dos direcciones: donde hay pantalla alterna NO
+    hay telefono escuchando (el telefono solo llega por el pipe), y donde hay
+    telefono NO hay pantalla alterna que ensuciar. Por eso:
+
+      * stdout real NO es un tty -> se escribe al stdout REAL. El movil ve
+        todo, tambien con la vista abierta, y sigue escapando del
+        redirect_stdout de cli.py:1558. Es el comportamiento del T3, intacto.
+      * stdout real SI es un tty -> se escribe al ``sys.stdout`` DEL MOMENTO.
+        Sin Textual es el mismo terminal de siempre (nadie nota nada); con
+        Textual abierto es su ``_PrintCapture``, y la vista lo recoge con
+        ``begin_capture_print`` en vez de dejar que se pinte sobre la pantalla.
+
+    ``sys.__stdout__`` puede ser None (pythonw, algunos empaquetados): se cae a
+    ``sys.stdout``, que es exactamente a donde escribia el print() de antes —
+    nunca peor que hoy. Si tampoco hay, devuelve None y no se escribe nada.
     """
     real = sys.__stdout__
-    return real if real is not None else sys.stdout
+    if real is None:
+        return sys.stdout
+    try:
+        es_tty = bool(real.isatty())
+    except Exception:
+        # Un stream sin isatty() (StringIO viejo, doble de test) se trata como
+        # NO-tty: el default se inclina hacia el canal del movil, que es la
+        # restriccion dura. Perder un evento del telefono es un fallo; pintar
+        # una linea de mas en un terminal es cosmetico.
+        es_tty = False
+    if not es_tty:
+        return real
+    return sys.stdout if sys.stdout is not None else real
 
 
 def _escribir_stdout_real(linea: str) -> None:

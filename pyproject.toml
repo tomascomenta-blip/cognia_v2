@@ -42,6 +42,17 @@ dependencies = [
     "python-dateutil>=2.8.2",  # RRULE RFC-5545 en reminders (Cal.com nativo): cadencias arbitrarias
     "httpx>=0.27",
     "pillow>=10.0.0",   # creador de imagenes/escenas (cognia/lcd): render PNG/GIF
+    # TUI (python -m cognia.tui / cognia tui) y el panel de agentes: DEPENDENCIA
+    # DURA desde 4.8.x (decision del dueno). Deja de ser extra porque la TUI ya no
+    # es un adorno opcional: es la vista de los workflows por agente.
+    # El piso >=0.86.0 esta MEDIDO, no estimado (antes decia >=0.60.0 y era falso):
+    # el sistema de temas (textual.theme.Theme, App.register_theme,
+    # App.get_theme_variable_defaults, ThemeProvider) nace en 0.86.0. Con 0.85.2 el
+    # arranque muere en "No module named 'textual.theme'"; con 0.86.0 la app monta
+    # (52 widgets, tema 'cognia' activo) y sigue montando en 1.0.0, 2.1.2, 3.5.0,
+    # 5.0.1 y 8.2.8. El piso de rich lo empuja textual por su propia metadata
+    # (0.86 pide rich>=13.3.3; 8.2.8 pide rich>=14.2.0), por eso NO se duplica aca.
+    "textual>=0.86.0",
 ]
 
 # Heavy/optional features are NOT installed by default: Cognia runs fully on the
@@ -56,9 +67,18 @@ pdf      = ["pdfplumber>=0.10.0"]
 # via el binding de Python. Alternativa al llama-server.exe / al path numpy-shards.
 #   pip install "cognia-ai[llama]"
 llama    = ["llama-cpp-python>=0.2.20"]
-# TUI (python -m cognia.tui): textual no va en las deps duras (pesado);
-# sin el extra, el entry point avisa "pip install cognia-ai[tui]".
-tui      = ["textual>=0.60.0"]
+# TUI: el extra queda como ALIAS VACIO, no se borra. textual paso a dependencia
+# dura, asi que no hay nada que instalar de mas; pero `pip install cognia-ai[tui]`
+# quedo escrito en el CHANGELOG, en docs viejas y en scripts de usuarios.
+# Que pasa si se borra, MEDIDO contra este mismo wheel (no supuesto):
+#   pip 26.1.2 y 26.2.1  -> ignoran el extra inexistente EN SILENCIO (sin warning)
+#   uv 0.12.5            -> "warning: The package `cognia-ai` does not have an
+#                           extra named `noexiste`"
+# O sea: borrarlo no rompe a nadie, pero le mete un warning a todo el que use uv
+# y haya hecho lo que decia la documentacion. Con `tui = []` las dos herramientas
+# quedan calladas y METADATA sigue publicando `Provides-Extra: tui`.
+# Cuesta una linea. Se puede retirar recien en un mayor.
+tui      = []
 # OJOS (comando /ver): Cognia mira la pantalla y responde sobre lo que ve.
 # Captura con mss + arbol de controles con uiautomation (Windows). Sin VLM: la
 # percepcion se rinde como TEXTO y la consume el cerebro de siempre.
@@ -70,8 +90,11 @@ vision   = ["mss>=9.0", "uiautomation>=2.0; sys_platform == 'win32'"]
 # y voz. Pesados y muy dependientes del SO, por eso van aparte del core.
 #   pip install "cognia-ai[voz]"
 voz      = ["sounddevice>=0.4", "faster-whisper>=1.0", "openwakeword>=0.6", "piper-tts>=1.2"]
+# OJO: textual YA NO figura aca. Esta en las deps duras; repetirlo en `all` con
+# su propio piso creaba una segunda restriccion que se desincronizaba (tenia
+# >=0.60.0 mientras el codigo exigia >=0.86.0).
 all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0", "llama-cpp-python>=0.2.20",
-            "textual>=0.60.0", "mss>=9.0", "uiautomation>=2.0; sys_platform == 'win32'"]
+            "mss>=9.0", "uiautomation>=2.0; sys_platform == 'win32'"]
 
 [project.urls]
 Homepage   = "https://github.com/tomascomenta-blip/cognia_v2"
@@ -119,8 +142,12 @@ exclude = [
 # "falta el build 3d" (cazado e2e 2026-07-15). Solo el dist compilado
 # (~KBs), no node_modules/src (esos siguen fuera del wheel).
 "cognia.oficina" = ["web3d/dist/*", "web3d/dist/assets/*"]
-# CSS de la TUI (CSS_PATH de app.py): sin esto la TUI instalada no arranca
+# CSS de la TUI (CSS_PATH de app.py y de agentes.py): sin esto la TUI instalada
+# no arranca. Verificado en el wheel 4.8.0: viajan app.tcss y agentes.tcss.
+# widgets/ no tiene .tcss hoy; se declara igual para que un CSS nuevo ahi no se
+# quede fuera en silencio (un patron que no matchea nada no cuesta nada).
 "cognia.tui" = ["*.tcss"]
+"cognia.tui.widgets" = ["*.tcss"]
 # Los patrones curados que guian la generacion web (2026-07-20): sin ellos el
 # generador instalado pierde la mejora medida (cero defectos de navegador).
 "cognia.program_creator" = ["patrones_web/*.html"]
