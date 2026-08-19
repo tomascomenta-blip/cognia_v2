@@ -67,6 +67,43 @@ Así se modifica este repo (es el método demostrado en las sesiones autónomas;
     **Caso real de este repo:** arreglar el ranking de relevancia costó 4 intentos el 2026-07-19;
     los 3 primeros fueron parches y el 4º encontró la causa. El corte habría llegado en el 2º.
 
+## REGLA — Toda adición se entrega EN EL CLI y se prueba TECLEÁNDOLA (VINCULANTE)
+Pedido del dueño: **todas las adiciones se añaden directamente al CLI como producto entregable y
+expandible, y se prueban con tareas humanas cotidianas.** Cognia es un producto, no una carpeta de
+módulos: lo que no se puede teclear en el REPL, para el dueño no existe.
+
+1. **ENTREGA EN EL CLI.** Una capacidad NO está entregada hasta que tiene **puerta visible**:
+   comando slash y/o atajo, registrado en `_CMD_DESCRIPTIONS` (`cognia/cli.py`, ~1830) — eso es lo
+   que alimenta autocompletado y `/ayuda` — y comprobado saliendo en `/ayuda`. Código sin puerta
+   **no está entregado**: no se reporta como feature ni se cierra la tarea. "Está el módulo" no
+   cuenta; cuenta que el dueño lo teclee y pase algo.
+2. **EXPANDIBLE.** La adición nace preparada para crecer:
+   - config persistida con `_load_config()` / `_save_config()` (`cli.py:4479`) y **default sensato**
+     que funciona sin que nadie configure nada;
+   - **modo on/off** explícito (clave de config o env var documentada en `/ayuda`);
+   - **un punto de extensión claro** (dict/registry donde se añade el siguiente caso), no un
+     if-chain enterrado;
+   - **degradación explícita**: todo fallo del subsistema pasa por `_aviso_degradado(origen, motivo)`.
+     **Prohibido el `except: pass` mudo.** Lección del repo: *"no lo cablearon" y "se rompió" no
+     pueden verse igual desde afuera*; el fallo típico de Cognia es el vacío silencioso, y confundir
+     esos dos estados cuesta días de diagnóstico.
+3. **PROBADO CON TAREAS HUMANAS COTIDIANAS.** Antes de cerrar, correr **N≥3 tareas reales del día a
+   día TECLEÁNDOLAS en el REPL** (`venv312\Scripts\python.exe -m cognia`) — tareas que el dueño
+   haría, no demos hechas a medida de la feature — y **pegar la salida real** en el commit y en
+   `MANAGER_LOG.md`. pytest es necesario y NO suficiente. Medido aquí: **siete bugs de comandos
+   nuevos se cazaron tecleándolos, ninguno lo cazó la suite** (estaba en verde). Si no hay salida
+   real pegada, la adición no está probada.
+4. **CAPACIDAD INTERNA O DE LIBRERÍA: sin excepción.** Si es infraestructura sin uso directo, igual
+   necesita su puerta, aunque sea de diagnóstico: un subcomando (`/<cmd> estado`) que imprima si
+   está activa, con qué config, y el último error/degradación. Sin puerta no entra al repo.
+
+### CHECKLIST de cierre (5 tildes, ninguna opcional)
+- [ ] **Puerta**: el comando/atajo funciona, está en `_CMD_DESCRIPTIONS` y aparece en `/ayuda`.
+- [ ] **Expandible**: config persistida con default sensato + on/off, y punto de extensión señalado.
+- [ ] **No calla**: todo camino de fallo llama a `_aviso_degradado`; cero `except: pass`.
+- [ ] **Tecleado**: ≥3 tareas humanas cotidianas corridas en el REPL, con la salida real pegada.
+- [ ] **Regresión**: test que falla sin el fix + suite dirigida en verde, con el conteo real.
+
 ## Restricciones duras (no negociar)
 - Sin PyTorch en nodos. Sin sharding WAN síncrono. Sin draft model centralizado.
 - **FedAvg:** permitido SOLO sobre adapters LoRA (el coordinator agrega/redistribuye adapters),

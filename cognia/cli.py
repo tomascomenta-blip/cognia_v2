@@ -1004,6 +1004,12 @@ def _slash_hibrido(args: str) -> None:
 _FONDO_F2      = "\x00@f2@"
 _FONDO_FIN     = "\x00@fin@"
 _FONDO_PERMISO = "\x00@permiso@"
+# F3 en el prompt: reformular la linea a medio escribir. Sale por centinela por
+# el MISMO motivo que F2: llamar al modelo dentro del handler bloquearia el
+# event loop de prompt_toolkit; afuera el prompt ya devolvio y no hay ninguna
+# Application viva.
+_FONDO_MEJORA  = "\x00@mejora@"
+
 
 # Tope del hilo esperando una respuesta de permiso. Vencido -> DENY, que es el
 # default del gate, con aviso visible. Un hilo esperando para siempre es el
@@ -1018,6 +1024,26 @@ _ULTIMO_CTRLC = [0.0]
 # termina. Es una lista de MODULO (y no la local de repl()) para que el carril
 # de fondo, que vive aca afuera, pueda encolar en ella.
 _COLA_ENTRADA: list = []
+
+# La linea que _get_input acaba de devolver, VINO de la cola de inyeccion?
+# El enrutador por inferencia, los monitores, las rutinas y el carril de fondo
+# empujan por la MISMA lista que las lineas tecleadas, asi que sin esta marca
+# no hay forma de distinguirlas. El mejorador de prompts jamas puede tocar una
+# linea que genero el sistema: reformular el '/hacer <tarea>' que decidio un
+# monitor seria cambiar una orden que el usuario nunca escribio.
+_LINEA_INYECTADA = [False]
+
+# Texto con el que arranca el PROXIMO prompt (mecanismo 'default=' de
+# prompt_toolkit, el mismo con el que F2 conserva la linea a medio escribir).
+# Lo llena la opcion "Editar el mejorado" del menu de mejora.
+_PRECARGA_PROMPT = [""]
+
+# Marca de UN SOLO USO: la proxima linea ya paso por el mejorador (F3, "Editar
+# el mejorado") o el usuario ya dijo que no (Esc). Sin ella el texto reformulado
+# volvia al prompt y al dar Enter salia OTRA VEZ el menu sobre algo ya aprobado
+# -- y con el estado en 'auto' se llamaba al modelo una segunda vez para
+# reformular la reformulacion. La consume _mejora_aplica.
+_MEJORA_YA_DECIDIDA = [False]
 
 _VISTA = {"app": None}          # la App de agentes abierta, o None
 _LOCK_FONDO = threading.RLock()
@@ -1667,6 +1693,20 @@ def _esperar_corrida(c) -> None:
                 pendiente = r[len(_FONDO_F2):]
                 _abrir_vista_agentes()
                 continue
+            if r.startswith(_FONDO_MEJORA):
+                # F3 vive en la MISMA sesion, asi que tambien llega aca. Sin
+                # esta rama el centinela caia al 'anotado en cola' de abajo
+                # ('\x00' NO es whitespace: strip() no lo quita) y el turno
+                # entero viajaba al modelo con el NUL pegado delante.
+                # NO se reformula con una corrida viva a proposito: el
+                # mejorador tarda cientos de ms contra el UNICO slot que la
+                # corrida esta usando, y este bucle es tambien el que atiende
+                # los pedidos de permiso. La linea vuelve intacta al prompt.
+                pendiente = r[len(_FONDO_MEJORA):]
+                _print_line("[info_dim]F3 no mejora mientras hay una corrida "
+                            "(el modelo esta ocupado): la linea sigue en el "
+                            "prompt.[/info_dim]")
+                continue
             linea = (r or "").strip()
             if linea:
                 # Se ANOTA, no se ejecuta: dos turnos a la vez comparten
@@ -1912,6 +1952,9 @@ _CMD_DESCRIPTIONS = {
     "/proyectos":       "Estado persistente de flujos /flujo (retomar entre sesiones)",
     "/recap":           "Recapitulacion extractiva de la sesion (auto cada N turnos, sin LLM)",
     "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
+    # Corta a proposito: seccion() recorta por ancho y la version larga perdia
+    # justo los estados y el atajo, que es lo que busca quien quiere apagarlo.
+    "/mejorar":         "Mejorar el prompt con IA (preguntar|auto|off, F3)",
     "/lazo":            "Lazo de verificacion post-respuesta con tools reales  [on|off]",
     "/hermes":          "Estado del arnes Hermes: presupuesto, guardia de bucle, parada verificada",
     "/rutinas":         "Tareas programadas que corren solas.  Uso: /rutinas [crear|borrar|ahora]",
@@ -2097,6 +2140,25 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/mejorar": (
+        "Un experto local (cognia/harness/mejorar_prompt.py) reescribe lo que tecleaste como "
+        "una instruccion mas precisa ANTES de enviarla, preservando tu intencion y sin inventar "
+        "requisitos. Estados, persistidos en ~/.cognia_config.json (clave 'mejorar_prompt'): "
+        "preguntar (default: al dar Enter abre un menu y NO gasta modelo si eliges enviar tal "
+        "cual), auto (reformula y envia, mostrando el prompt final), off. "
+        "'/mejorar <texto>' reformula ESE texto y lo imprime sin enviarlo. "
+        "ATAJO: F3 en el prompt reformula la linea a medio escribir y te la devuelve al buffer "
+        "para retocarla (funciona incluso con el estado en off). "
+        "ESTILO de reformulacion (clave de config 'mejorar_prompt_estilo', se cambia con "
+        "'/mejorar estilo v1|v2|v3|auto' y se ve en '/mejorar' a secas): manda v2, que fija el "
+        "entregable, pregunta lo que falta y da criterio de cierre. Lo MEDIDO sobre 12 tareas "
+        "cotidianas (48 llamadas): v2 entrega una reformulacion en 24/24 llamadas y v1 devolvia "
+        "tu texto INTACTO en 22 de 24 (test de signos apareado p=1,95e-3). Lo que NO esta medido "
+        "es que v2 escriba mejor que v1: en las 2 unicas filas donde ambos escribieron algo el "
+        "marcador fue 1-1. v1 es mas rapido (~218 ms contra ~1400 ms) y v3 anade ejemplos de "
+        "otras formas de pedido (sin medir todavia). COGNIA_MEJORA_PROMPT gana a la config. "
+        "Sin tty (pipes, CI) el enganche del REPL no se activa nunca."
+    ),
     "/deliberar": (
         "Ejecuta el loop deliberativo del CognitiveLoop: planner simbolico -> self-critic "
         "heuristico -> verifier -> world-model (action-simulator), con hasta 2 iteraciones de "
@@ -4473,6 +4535,17 @@ _CONFIG_DEFAULTS: dict = {
     "nivel_detalle":    "normal",
     "esfuerzo":         "medio",   # nivel /esfuerzo (ver cognia/effort_levels.py)
     "modelo_modo":      "flota",   # "flota" (ruteo por roles) | "unico" (/modelo unico)
+    # Mejora del prompt con IA antes de enviarlo (ver /mejorar):
+    # "preguntar" (default: pregunta al dar Enter y NO gasta modelo si dices
+    # que no) | "auto" (reformula y envia) | "off".
+    "mejorar_prompt":   "preguntar",
+    # ESTILO del reformulador (v1 conservador | v2 medido | v3 con mas formas
+    # de ejemplo). "" = el default del modulo. Existe como CLAVE DE CONFIG y no
+    # solo como env var porque una COGNIA_MEJORA_PROMPT=v1 olvidada en el shell
+    # devuelve 22 de cada 24 reformulaciones como "identico al original" y nada
+    # en el CLI decia que el estilo conservador estaba puesto: el sintoma se
+    # diagnostica como "el mejorador no mejora" o como backend caido.
+    "mejorar_prompt_estilo": "",
 }
 
 
@@ -4567,6 +4640,427 @@ def _slash_config(args: str) -> None:
 # config): cuesta 1-2 llamadas extra de tools por respuesta, se enciende a
 # demanda como /esfuerzo cambia niveles.
 _LAZO = {"on": False}
+
+
+# ---------------------------------------------------------------------------
+# Mejora del prompt con IA (2026-08-19, pedido del dueno)
+# ---------------------------------------------------------------------------
+# "cuando escriba un prompt y le de enter, que me de la opcion de mejorarlo con
+# IA": un experto local reformula la linea entre el Enter y el envio. El
+# experto vive en cognia/harness/mejorar_prompt.py y es PURO (no imprime, no
+# lee config, nunca lanza); TODO lo que decide, pregunta y pinta esta aca.
+#
+# Punto de extension: _MEJORA_ALIAS (como se escribe cada estado) y la lista de
+# opciones de _mejorar_linea_interactiva (que se puede hacer con la mejora).
+_MEJORA_ALIAS = {
+    "on": "preguntar", "si": "preguntar", "yes": "preguntar",
+    "ask": "preguntar", "preguntar": "preguntar",
+    "auto": "auto", "automatico": "auto",
+    "off": "off", "no": "off", "0": "off",
+}
+
+# Ultimo resultado del experto, para la puerta de diagnostico ('/mejorar' a
+# secas). Sin esto, "no lo cablearon" y "el backend esta caido" se ven igual.
+_MEJORA_ULTIMO = {"motivo": "", "ms": 0, "modelo": ""}
+
+# Env var que elige el ESTILO (system prompt) del reformulador. Se copia aca
+# como constante para poder nombrarla sin importar el modulo (que puede no
+# cargar) en la puerta de diagnostico; el modulo es la fuente de verdad y
+# _estilo_mejorar() usa mod.ENV_VERSION.
+_MEJORA_ENV = "COGNIA_MEJORA_PROMPT"
+
+
+def _mod_mejorar():
+    """El modulo del experto, o None avisando (nunca un silencio)."""
+    try:
+        from cognia.harness import mejorar_prompt
+        return mejorar_prompt
+    except Exception as exc:
+        _aviso_degradado("cli.mejorar.import", f"{type(exc).__name__}: {exc}")
+        return None
+
+
+def _estado_mejorar() -> str:
+    """Estado persistido: off | preguntar | auto. Un valor invalido cae en el
+    default ('preguntar'): una config corrupta no puede apagar en silencio una
+    funcion que el dueno pidio."""
+    valor = str(_load_config().get("mejorar_prompt", "preguntar")).strip().lower()
+    valor = _MEJORA_ALIAS.get(valor, valor)
+    return valor if valor in ("off", "preguntar", "auto") else "preguntar"
+
+
+def _estilo_mejorar():
+    """(version_activa, aviso, origen) del system prompt del reformulador.
+
+    Precedencia: env var COGNIA_MEJORA_PROMPT > config 'mejorar_prompt_estilo' >
+    default del modulo. La env var gana porque es lo que usa el banco del A/B
+    para forzar un brazo; la config existe para que la marcha atras sea
+    persistente y VISIBLE, no una variable de entorno invisible.
+
+    `origen` sale de AQUI y no se recalcula en el caller: si la puerta de
+    diagnostico dedujera la fuente por su cuenta, las dos copias de la
+    precedencia se separarian con el primer cambio y la puerta mentiria sobre
+    de donde viene el estilo -- que es justo el fallo que vino a arreglar.
+    """
+    mod = _mod_mejorar()
+    if mod is None:
+        return "", "el modulo del mejorador no cargo", "?"
+    pedido = os.environ.get(mod.ENV_VERSION, "").strip()
+    origen = "env " + mod.ENV_VERSION
+    if not pedido:
+        pedido = str(_load_config().get("mejorar_prompt_estilo", "")).strip()
+        origen = "config mejorar_prompt_estilo"
+    if not pedido:
+        return mod.VERSION_DEFECTO, "", "default del modulo"
+    nombre, aviso = mod._resolver_version(pedido)
+    return nombre, (aviso + " [" + origen + "]") if aviso else "", origen
+
+
+def _guardar_estado_mejorar(valor: str) -> bool:
+    cfg = _load_config()
+    cfg["mejorar_prompt"] = valor
+    try:
+        _save_config(cfg)
+    except Exception as exc:
+        _aviso_degradado("cli.mejorar.config", f"{type(exc).__name__}: {exc}")
+        return False
+    return True
+
+
+def _parar_status_mejora() -> None:
+    """Para el spinner del renderer ANTES de abrir el selector. REGLA DURA del
+    repo: el selector jamas se abre con un rich Live activo (ver
+    _preguntar_en_consola)."""
+    try:
+        from cognia.ux import renderer as _rmod
+        if _rmod._renderer is not None:
+            _rmod._renderer._parar_status()
+    except Exception as exc:
+        _aviso_degradado("cli.mejorar.renderer", f"{type(exc).__name__}: {exc}")
+
+
+def _mejora_generar(texto: str, via: str):
+    """Llama al experto con un indicador breve. Devuelve una Mejora o None.
+
+    Un fallo del BACKEND (no hay, timeout, error de red) es degradacion y se
+    grita; que el experto RECHACE su propia salida (identica, demasiado corta,
+    respondio en vez de reformular) es una decision suya y solo se cuenta."""
+    mod = _mod_mejorar()
+    if mod is None:
+        return None
+    _parar_status_mejora()
+    # El ESTILO se resuelve aca (env > config > default) y viaja como argumento:
+    # si la eleccion solo viviera dentro del modulo, la clave de config no
+    # tendria efecto y la unica marcha atras seria una env var invisible.
+    estilo, aviso_estilo, _ = _estilo_mejorar()
+    if aviso_estilo:
+        _aviso_degradado(via, aviso_estilo)
+    try:
+        if _HAS_RICH and _console:
+            with _console.status("[spinner]Mejorando el prompt...[/spinner]",
+                                 spinner="dots"):
+                mejora = mod.mejorar(texto, version=estilo or None)
+        else:
+            _print_line("[detail]Mejorando el prompt...[/detail]")
+            mejora = mod.mejorar(texto, version=estilo or None)
+    except Exception as exc:
+        # mejorar() promete no lanzar; si lanza es un bug del cableado y tiene
+        # que verse, no convertirse en "no mejoro nada".
+        _aviso_degradado(via, f"{type(exc).__name__}: {exc}")
+        return None
+    _MEJORA_ULTIMO.update({"motivo": mejora.motivo, "ms": mejora.ms,
+                           "modelo": mejora.modelo})
+    aviso = getattr(mejora, "aviso", "")
+    if aviso:
+        # Fallo interno que el modulo (que es puro y no imprime) no puede
+        # gritar: el audit sin la llamada, el perfil del modelo sin leer. Antes
+        # era un 'except: pass' y no lo veia nadie.
+        _aviso_degradado(via, aviso)
+    if not mejora.ok and mejora.motivo.startswith(
+            ("sin backend", "no hay backend", "backend ", "timeout", "error",
+             "el backend", "salida no")):
+        _aviso_degradado(via, mejora.motivo)
+    return mejora
+
+
+def _mejora_aplica(raw: str) -> bool:
+    """Decide si el enganche del REPL actua sobre ESTA linea."""
+    if _LINEA_INYECTADA[0]:
+        # Va PRIMERO para que una linea del sistema no CONSUMA la marca de
+        # abajo: la decision del usuario tiene que sobrevivir a que un monitor
+        # se cuele con un turno en medio.
+        return False              # enrutador / monitores / rutinas: jamas
+    if _MEJORA_YA_DECIDIDA[0]:
+        # De un solo uso: esta linea sale de F3 o del menu, o el usuario
+        # cancelo. Preguntar de nuevo (o re-mejorar en 'auto') seria pisar una
+        # decision que el usuario acaba de tomar.
+        _MEJORA_YA_DECIDIDA[0] = False
+        return False
+    try:
+        from cognia.ux import selector as _selector
+        if not _selector.hay_tty():
+            # Sin tty (pipes, CI, tests e2e) el enganche NO existe: preguntar
+            # a un stdin que no puede contestar cuelga el REPL.
+            return False
+    except Exception as exc:
+        _aviso_degradado("cli.mejorar.tty", f"{type(exc).__name__}: {exc}")
+        return False
+    if _estado_mejorar() == "off":
+        return False
+    mod = _mod_mejorar()
+    return bool(mod is not None and mod.es_candidato(raw))
+
+
+def _linea_sin_mejorar(mejora, prefijo: str = "sin mejorar") -> None:
+    motivo = mejora.motivo if mejora is not None else "el experto no cargo"
+    _print_line(f"[info_dim]{prefijo} ({_escape(str(motivo))}): "
+                f"se envia tal cual[/info_dim]")
+
+
+def _mejora_devolver_al_prompt(texto: str):
+    """Deja `texto` precargado en el proximo prompt y devuelve None (= no se
+    envia nada este turno). Marca la linea como YA DECIDIDA para que al dar
+    Enter no vuelva a salir el menu sobre algo que el usuario acaba de
+    aprobar (ni se llame al modelo por segunda vez en estado 'auto')."""
+    _PRECARGA_PROMPT[0] = texto
+    _MEJORA_YA_DECIDIDA[0] = True
+    return None
+
+
+def _mejorar_linea_interactiva(raw: str):
+    """Enganche del REPL. Devuelve el texto A ENVIAR, o None si el usuario se
+    llevo la mejora de vuelta al prompt para editarla."""
+    from cognia.ux import selector as _selector
+
+    if _estado_mejorar() == "auto":
+        mejora = _mejora_generar(raw, "cli.mejorar.auto")
+        if mejora is None or not mejora.ok:
+            _linea_sin_mejorar(mejora)
+            return raw
+        # UNA linea con el prompt final: en auto el usuario no elige, pero
+        # tiene que VER que se envio algo distinto de lo que tecleo.
+        _print_line(f"[ok_cl]prompt mejorado:[/ok_cl] {_escape(mejora.texto)}")
+        return mejora.texto
+
+    # "preguntar": el modelo NO se toca antes de la respuesta. Enter (default)
+    # envia tal cual, que es exactamente lo que pasaba antes de esta funcion.
+    _parar_status_mejora()
+    eleccion = _selector.elegir(
+        "Enviar el prompt, o mejorarlo con IA?",
+        [("enviar",   "Enviar tal cual",       "lo que escribiste (Enter)"),
+         ("mejorar",  "Mejorar con IA",        "un experto local lo reformula"),
+         ("cancelar", "Cancelar",              "vuelve al prompt sin enviar (Esc)"),
+         ("off",      "No volver a preguntar", "apaga /mejorar (off)")],
+        default=0)
+    if eleccion is None or eleccion == "cancelar":
+        # Esc/Ctrl-C es el gesto universal de CANCELAR y hasta aca significaba
+        # "enviar" (el peor default posible: el unico momento en que el usuario
+        # cree poder abortar). La linea vuelve al prompt, no se envia nada.
+        return _mejora_devolver_al_prompt(raw)
+    if eleccion == "off":
+        if _guardar_estado_mejorar("off"):
+            _print_line("[info_dim]mejora de prompts: off "
+                        "(se vuelve a encender con /mejorar on)[/info_dim]")
+        else:
+            # El aviso de degradacion ya salio; lo que no puede pasar es que
+            # ADEMAS se afirme que quedo apagado y siga preguntando en cada
+            # Enter. Justo la promesa que da nombre a la opcion.
+            _print_line("[warn_cl]no pude guardar el estado: sigue en "
+                        "'preguntar' (proba /mejorar off)[/warn_cl]")
+        return raw
+    if eleccion != "mejorar":
+        return raw                # "enviar": la linea intacta
+
+    mejora = _mejora_generar(raw, "cli.mejorar.preguntar")
+    if mejora is None or not mejora.ok:
+        _linea_sin_mejorar(mejora)
+        return raw
+
+    _print_line(f"[info_dim]original: {_escape(mejora.original)}[/info_dim]")
+    _print_line(f"[ok_cl]mejorado:[/ok_cl] {_escape(mejora.texto)}")
+    _parar_status_mejora()
+    eleccion = _selector.elegir(
+        "Que envio?",
+        [("mejorado", "Enviar mejorado", f"{mejora.ms} ms"),
+         ("original", "Enviar original", "descarta la mejora"),
+         ("editar",   "Editar el mejorado", "vuelve al prompt para retocarlo")],
+        default=0)
+    if eleccion == "editar":
+        return _mejora_devolver_al_prompt(mejora.texto)
+    if eleccion is None:
+        # Mismo criterio que el menu de arriba: cancelar jamas envia.
+        return _mejora_devolver_al_prompt(raw)
+    if eleccion == "mejorado":
+        return mejora.texto
+    return raw                    # "original": nunca se envia otra cosa
+
+
+def _mejora_en_el_sitio(texto: str) -> str:
+    """F3 en el prompt: reformula el buffer y devuelve el texto con el que se
+    reentra al prompt. Corre AFUERA del prompt (ya devolvio), asi que no hay
+    event loop anidado ni Live activo. Funciona aunque el estado sea 'off':
+    apretar F3 es una orden explicita, no una pregunta automatica."""
+    base = (texto or "").strip()
+    if not base:
+        _print_line("[info_dim]F3 mejora el prompt: escribe algo primero."
+                    "[/info_dim]")
+        return texto
+    mod = _mod_mejorar()
+    if mod is not None and not mod.es_candidato(base):
+        _print_line("[info_dim]F3: esta linea no se mejora (es un comando, o "
+                    "es demasiado corta/larga).[/info_dim]")
+        return texto
+    mejora = _mejora_generar(base, "cli.mejorar.f3")
+    if mejora is None or not mejora.ok:
+        _linea_sin_mejorar(mejora, "F3 sin mejorar")
+        return texto
+    _print_line(f"[ok_cl]mejorado (F3):[/ok_cl] {_escape(mejora.texto)}")
+    # El texto vuelve al buffer: al dar Enter NO se pregunta ni se re-mejora.
+    _MEJORA_YA_DECIDIDA[0] = True
+    return mejora.texto
+
+
+def _slash_mejorar_estilo(pedido: str) -> None:
+    """'/mejorar estilo [v1|v2|v3|auto]': lee o fija el estilo persistido.
+
+    'auto' (o vacio con la clave puesta) borra la clave y devuelve el mando al
+    default del modulo. Un nombre desconocido NO se guarda: guardarlo dejaria
+    al usuario creyendo que cambio algo mientras el modulo cae al default.
+    """
+    mod = _mod_mejorar()
+    if mod is None:
+        _print_line("[warn_cl]El mejorador no esta disponible (ver el aviso de "
+                    "arriba).[/warn_cl]")
+        return
+    conocidas = ", ".join(sorted(mod.VERSIONES_SYSTEM))
+    activo, aviso, _ = _estilo_mejorar()
+    if not pedido:
+        guardado = str(_load_config().get("mejorar_prompt_estilo", "")).strip()
+        _print_line(f"Estilo del system: [ok]{_escape(activo or '?')}[/ok] "
+                    f"(config: {_escape(guardado or 'sin fijar')}; "
+                    f"hay: {conocidas})")
+        if aviso:
+            _aviso_degradado("cli.mejorar.estilo", aviso)
+        return
+
+    valor = pedido.strip().lower()
+    if valor in ("auto", "default", "defecto", ""):
+        valor = ""
+    elif valor not in mod.VERSIONES_SYSTEM:
+        _print_line(f"[warn_cl]estilo desconocido '{_escape(valor)}' "
+                    f"(hay: {conocidas}). No se guardo nada.[/warn_cl]")
+        return
+    cfg = _load_config()
+    cfg["mejorar_prompt_estilo"] = valor
+    try:
+        _save_config(cfg)
+    except Exception as exc:
+        _aviso_degradado("cli.mejorar.config", f"{type(exc).__name__}: {exc}")
+        return
+    nuevo, _, _ = _estilo_mejorar()
+    _print_line(f"Estilo del system: [ok]{_escape(nuevo or '?')}[/ok] "
+                f"(guardado: {_escape(valor or 'default del modulo')})")
+    if os.environ.get(_MEJORA_ENV, "").strip():
+        # La env var GANA a la config: si no se dice, el usuario guarda v3 y
+        # sigue corriendo v1 sin entender por que.
+        _print_line(f"[warn_cl]{_MEJORA_ENV} esta puesta en el entorno y manda "
+                    f"sobre la config: corre '{_escape(nuevo or '?')}'"
+                    f"[/warn_cl]")
+
+
+def _slash_mejorar(args: str) -> None:
+    """/mejorar: estado, cambio de estado, o reformular un texto suelto."""
+    args = (args or "").strip()
+    estado = _estado_mejorar()
+
+    if not args or args.lower() in ("estado", "ayuda", "help", "?"):
+        # Puerta de DIAGNOSTICO: dice si esta activa, con que config y como
+        # fue la ultima llamada al experto.
+        _print_line(f"Mejora del prompt con IA: [ok]{estado}[/ok]")
+        _print_line("  /mejorar preguntar   pregunta al dar Enter (alias: on)")
+        _print_line("  /mejorar auto        reformula y envia sin preguntar")
+        _print_line("  /mejorar off         apagado")
+        _print_line("  /mejorar <texto>     reformula ESE texto y lo imprime")
+        _print_line("  /mejorar estilo v1|v2|v3|auto   cambia el system prompt")
+        _print_line("  F3 en el prompt      reformula la linea a medio escribir")
+        # El ESTILO va en la puerta de diagnostico porque sin el, un
+        # COGNIA_MEJORA_PROMPT=v1 olvidado en el shell devuelve "identico al
+        # original" en 22 de cada 24 llamadas y el CLI no da ni una pista de
+        # que el estilo conservador esta puesto: se diagnostica como "no
+        # mejora" o como backend caido. Es la misma confusion "no lo
+        # cablearon" vs "se rompio" que _motivo_backend() elimino al lado.
+        estilo, aviso_estilo, origen_estilo = _estilo_mejorar()
+        _print_line(f"[info_dim]estilo del system: "
+                    f"[ok]{_escape(estilo or '?')}[/ok] ({origen_estilo})"
+                    f"[/info_dim]")
+        if aviso_estilo:
+            # Se grita AQUI y no solo tras una llamada: la puerta de
+            # diagnostico es justo donde alguien viene a mirar por que no
+            # mejora, y hasta ahora el aviso solo aparecia despues de gastar
+            # una reformulacion. Va por los DOS canales: _aviso_degradado (bus
+            # de eventos, puede no tener renderer escuchando en un pipe) y una
+            # linea impresa junto al resto del diagnostico, que es donde el
+            # dueno esta mirando.
+            _print_line(f"[warn_cl]{_escape(aviso_estilo)}[/warn_cl]")
+            _aviso_degradado("cli.mejorar.estilo", aviso_estilo)
+        mod = _mod_mejorar()
+        destino = None
+        motivo_backend = ""
+        if mod is not None:
+            try:
+                destino = mod._detectar_url()
+                if not destino:
+                    # El motivo REAL: con Ollama vivo, "no hay backend local"
+                    # manda a levantar un llama-server sin decir que el problema
+                    # es que ESE backend no lo soporta el mejorador.
+                    motivo_backend = mod._motivo_backend()
+            except Exception as exc:
+                _aviso_degradado("cli.mejorar.backend",
+                                 f"{type(exc).__name__}: {exc}")
+        # info_dim y no detail: el modo sencillo (el default) SUPRIME
+        # '[detail]', y una puerta de diagnostico invisible no diagnostica.
+        _print_line(f"[info_dim]backend: "
+                    f"{_escape(str(destino or motivo_backend or 'no hay backend local'))}"
+                    f"[/info_dim]")
+        if _MEJORA_ULTIMO["motivo"]:
+            _print_line(f"[info_dim]ultima mejora: {_escape(_MEJORA_ULTIMO['motivo'])}"
+                        f"  ({_MEJORA_ULTIMO['ms']} ms, "
+                        f"{_escape(_MEJORA_ULTIMO['modelo'] or 'modelo local')})[/info_dim]")
+        return
+
+    partes = args.split(None, 1)
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    if partes[0].lower() == "estilo" and (
+            not resto or resto.lower() in ("auto", "default", "defecto")
+            or " " not in resto):
+        # Puerta TECLEABLE de la clave de config: sin esto el unico mando del
+        # estilo era una env var, y la regla del repo pide config + on/off.
+        # El resto tiene que ser UNA palabra: si alguien teclea "estilo de
+        # redaccion para el correo" eso es texto a reformular, no un mando, y
+        # tragarselo como mando le comeria la peticion en silencio.
+        return _slash_mejorar_estilo(resto)
+
+    destino = _MEJORA_ALIAS.get(args.lower()) if " " not in args else None
+    if destino:
+        if _guardar_estado_mejorar(destino):
+            _print_line(f"Mejora del prompt: [ok]{destino}[/ok] (guardado)")
+        return
+
+    # Cualquier otra cosa es TEXTO a reformular: se imprime, no se envia. Es
+    # la puerta testeable sin tty (y la forma de probar el experto a mano).
+    mejora = _mejora_generar(args, "cli.mejorar.comando")
+    if mejora is None:
+        _print_line("[warn_cl]El mejorador no esta disponible (ver el aviso de "
+                    "arriba).[/warn_cl]")
+        return
+    if not mejora.ok:
+        _print_line(f"[warn_cl]Sin mejorar: {_escape(mejora.motivo)}[/warn_cl]")
+        _print_line(f"[info_dim]{_escape(mejora.original)}[/info_dim]")
+        return
+    _print_line(f"[info_dim]original: {_escape(mejora.original)}[/info_dim]")
+    _print_line(f"[ok_cl]mejorado:[/ok_cl] {_escape(mejora.texto)}")
+    _print_line(f"[detail]{mejora.ms} ms  "
+                f"{_escape(mejora.modelo or 'modelo local')}[/detail]")
 
 
 def _slash_esfuerzo(args: str) -> None:
@@ -8714,6 +9208,16 @@ def repl():
                 # app.exit() descarta el buffer (medido: se perdia entera).
                 event.app.exit(result=_FONDO_F2 + event.app.current_buffer.text)
 
+            @_kb.add("f3")
+            def _mejorar_buffer(event):
+                # Mismo patron que F2 y por el mismo motivo: la llamada al
+                # modelo dura cientos de ms y dentro del handler congelaria el
+                # prompt entero. Sale con centinela ARRASTRANDO el buffer y
+                # _get_input lo reformula afuera y lo devuelve precargado.
+                # f3 esta libre: prompt_toolkit solo la tiene en su lista de
+                # teclas ignoradas (basic.py), igual que f2.
+                event.app.exit(result=_FONDO_MEJORA + event.app.current_buffer.text)
+
             # Barra de estado inferior (2026-08-12): modelo, ocupacion de la
             # ventana y modo, SIEMPRE visibles. Es el unico rasgo que tienen
             # los seis CLI punteros medidos y a Cognia le faltaba entero: sin
@@ -8797,10 +9301,18 @@ def repl():
     if session is not None:
         def _get_input():
             if _inyectadas:
+                # Marcar el ORIGEN de la linea: lo que sale de la cola lo
+                # genero el sistema (enrutador, monitores, rutinas, carril de
+                # fondo) y el mejorador de prompts no puede tocarlo.
+                _LINEA_INYECTADA[0] = True
                 return _inyectadas.pop(0)
+            _LINEA_INYECTADA[0] = False
             # Aire antes del prompt: cada turno respira (estilo 2026-08-02).
             print()
-            _pre = ""
+            # "Editar el mejorado" deja el prompt reformulado precargado en el
+            # buffer, por el mismo camino con el que F2 recupera la linea.
+            _pre = _PRECARGA_PROMPT[0]
+            _PRECARGA_PROMPT[0] = ""
             while True:
                 # patch_stdout(raw=True) tambien en el prompt IDLE: los
                 # monitores en background imprimen desde sus hilos y sin esto
@@ -8811,6 +9323,12 @@ def repl():
                     line = (session.prompt(_mensaje_prompt, default=_pre)
                             if _pre else
                             session.prompt(_mensaje_prompt)).strip()
+                if line.startswith(_FONDO_MEJORA):
+                    # F3: reformular EN EL SITIO. El modelo se llama aca, con
+                    # el prompt ya devuelto (nada de Application anidada), y
+                    # se reentra con el texto nuevo precargado.
+                    _pre = _mejora_en_el_sitio(line[len(_FONDO_MEJORA):])
+                    continue
                 if not line.startswith(_FONDO_F2):
                     break
                 # F2 sin corrida: la vista se abre igual y dice "sin corrida en
@@ -8819,15 +9337,47 @@ def repl():
                 _pre = line[len(_FONDO_F2):]
                 _abrir_vista_agentes()
             while line.endswith("\\"):
-                continuation = session.prompt(
-                    FormattedText([("class:flecha", "   ")])).strip()
+                _sig = ""
+                while True:
+                    continuation = session.prompt(
+                        FormattedText([("class:flecha", "   ")]),
+                        default=_sig).strip()
+                    # F2 y F3 tambien estan vivas en el prompt de continuacion
+                    # (misma sesion, mismos keybindings). Sin estas dos ramas
+                    # el centinela se concatenaba EN MEDIO del mensaje y
+                    # viajaba al modelo: '\x00' no es whitespace y strip() no
+                    # lo quita, y es_candidato ya no mejora nada que lo lleve.
+                    if continuation.startswith(_FONDO_MEJORA):
+                        _sig = _mejora_en_el_sitio(
+                            continuation[len(_FONDO_MEJORA):])
+                        continue
+                    if continuation.startswith(_FONDO_F2):
+                        _sig = continuation[len(_FONDO_F2):]
+                        _abrir_vista_agentes()
+                        continue
+                    break
                 line = line[:-1].rstrip() + " " + continuation
             return line
     else:
         def _get_input():
             if _inyectadas:
+                _LINEA_INYECTADA[0] = True
                 return _inyectadas.pop(0)
-            return input(_g() + "cognia> " + _R).strip()
+            _LINEA_INYECTADA[0] = False
+            # Sin prompt_toolkit no hay keybindings: F3 no existe en esta rama.
+            # El ENGANCHE si puede llegar aca: hay_tty() no mira si la
+            # PromptSession se construyo (en Linux/macOS ni la toca), asi que
+            # si su construccion fallo el usuario puede elegir "Editar el
+            # mejorado" igual. Sin esto la precarga se perdia SIN UN AVISO y
+            # el usuario se quedaba con el prompt vacio.
+            _pre = _PRECARGA_PROMPT[0]
+            _PRECARGA_PROMPT[0] = ""
+            if _pre:
+                _print_line("[info_dim]sin buffer editable en este terminal; "
+                            "Enter envia el texto de abajo, o escribi otro:"
+                            "[/info_dim]")
+                _print_line(f"[ok_cl]{_escape(_pre)}[/ok_cl]")
+            return input(_g() + "cognia> " + _R).strip() or _pre
 
     # Warm-up del 0.5B del fast-path en background (portero instalado o cascada
     # opt-in): el 1er turno trivial arranca warm (~30 tok/s) en vez de cold (~18).
@@ -8902,6 +9452,21 @@ def repl():
 
         if not raw:
             continue
+
+        # Mejora del prompt con IA. Va ANTES de las @-menciones A PROPOSITO:
+        # se reformula lo que el usuario TECLEO, no los 256 KiB de ficheros
+        # que expandir() puede inyectar en la misma linea. Cualquier fallo
+        # deja `raw` intacto: mejorar es opcional, tragarse el turno no.
+        if _mejora_aplica(raw):
+            try:
+                _raw_mejorado = _mejorar_linea_interactiva(raw)
+            except Exception as _exc_mej:
+                _aviso_degradado("cli.mejorar",
+                                 f"{type(_exc_mej).__name__}: {_exc_mej}")
+                _raw_mejorado = raw
+            if _raw_mejorado is None:
+                continue          # el usuario se lo llevo al prompt a editar
+            raw = _raw_mejorado
 
         # @-menciones: '@ruta' mete el CONTENIDO del fichero en el mensaje.
         # Sin esto el modelo veia el texto '@cli.py' y no tenia forma de saber
@@ -10988,6 +11553,11 @@ def repl():
         elif raw == "/config" or raw.startswith("/config "):
             _cfg_arg = raw[len("/config "):].strip() if raw.startswith("/config ") else ""
             _slash_config(_cfg_arg)
+
+        # -- /mejorar (mejora del prompt con IA) ---------------------------
+        elif raw == "/mejorar" or raw.startswith("/mejorar "):
+            _slash_mejorar(raw[len("/mejorar "):] if raw.startswith("/mejorar ")
+                           else "")
 
         # -- /esfuerzo -----------------------------------------------------
         elif raw == "/esfuerzo" or raw.startswith("/esfuerzo "):

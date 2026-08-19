@@ -1,0 +1,990 @@
+{
+  "que_se_audito": "las salidas ACEPTADAS de las 48 llamadas de crudo.json (r1 y r2 de los dos brazos)",
+  "auditadas": 26,
+  "no_auditadas_por_rechazo": 22,
+  "veredictos": {
+    "SIN INVENCION": 22,
+    "ENTREGABLE": 1,
+    "LIMITE": 1,
+    "INVENCION": 2
+  },
+  "quien": "el mismo agente que escribio v2 (conflicto declarado); la criba es reproducible corriendo este script",
+  "filas": [
+    {
+      "clave": "compras/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "compras/v2/r1",
+      "auditada": true,
+      "original": "hazme una lista de compras para la semana",
+      "salida": "Arma una lista de compras semanal para mí. Antes de proponer nada, preguntame qué días de la semana necesito cubrir, si tengo algún producto base en casa que pueda aprovechar y si prefiero que la lista esté organizada por categorías o por orden de uso. Con esas respuestas devuelve una lista clara y concreta que me permita ir comprando sin dudar.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "comprando",
+        "dudar",
+        "esas",
+        "permita",
+        "semanal"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "aprovechar",
+        "base",
+        "casa",
+        "categoria",
+        "cubrir",
+        "dias",
+        "necesito",
+        "orden",
+        "organizada",
+        "producto",
+        "proponer",
+        "uso"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "compras/v2/r2",
+      "auditada": true,
+      "original": "hazme una lista de compras para la semana",
+      "salida": "Arma una lista de compras para cubrir mis necesidades de la próxima semana. Antes de proponer nada, preguntame qué platos o cenas tengo programadas, si tengo algún producto congelado o despensa que pueda aprovechar y qué restricciones de presupuesto o tiempo de compra tengo. Con esas respuestas devuelve una lista ordenada por secciones de tienda, con cantidades sugeridas y una senal concreta para saber si la lista es suficiente para no quedarme sin nada.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "cantidad",
+        "cubrir",
+        "esas",
+        "necesidad",
+        "proxima",
+        "quedarme",
+        "seccion",
+        "suficiente",
+        "sugerida",
+        "tienda"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "aprovechar",
+        "cena",
+        "congelado",
+        "despensa",
+        "plato",
+        "presupuesto",
+        "producto",
+        "programada",
+        "proponer",
+        "restriccion",
+        "tiempo"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "compras/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "aumento/v2/r1",
+      "auditada": true,
+      "original": "ayudame a escribir un correo para pedir un aumento",
+      "salida": "Redacta un correo formal para solicitar un aumento de sueldo. Antes de escribirlo, preguntame qué puesto tengo actualmente, cuánto gano ahora, cuáles son mis logros o responsabilidades clave y si tengo alguna fecha límite o motivo urgente para la petición. Con esos datos devuelve el cuerpo del correo listo para enviar, con un tono profesional y persuasivo, y una frase clara que resuma el objetivo del mensaje.",
+      "candidatas_en_afirmacion": [
+        "cuerpo",
+        "dato",
+        "enviar",
+        "formal",
+        "frase",
+        "mensaje",
+        "persuasivo",
+        "profesional",
+        "redacta",
+        "resuma",
+        "solicitar",
+        "sueldo",
+        "tono"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "actualmente",
+        "ahora",
+        "ant",
+        "clave",
+        "escribirlo",
+        "fecha",
+        "gano",
+        "limite",
+        "logro",
+        "motivo",
+        "peticion",
+        "puesto",
+        "responsabilidad",
+        "son",
+        "urgente"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "aumento/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "aumento/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "aumento/v2/r2",
+      "auditada": true,
+      "original": "ayudame a escribir un correo para pedir un aumento",
+      "salida": "Redacta un correo formal para solicitar un aumento de sueldo. Antes de escribirlo, pregúntame qué puesto tengo, cuánto tiempo llevo en él y qué logros o argumentos específicos quiero destacar. Con esa información devuelve el cuerpo del mensaje listo para enviar, con un tono profesional y una llamada a la acción clara.",
+      "candidatas_en_afirmacion": [
+        "accion",
+        "cuerpo",
+        "enviar",
+        "formal",
+        "llamada",
+        "mensaje",
+        "profesional",
+        "redacta",
+        "solicitar",
+        "sueldo",
+        "tono"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "argumento",
+        "destacar",
+        "escribirlo",
+        "especifico",
+        "llevo",
+        "logro",
+        "puesto",
+        "tiempo"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "bug_login/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "bug_login/v2/r1",
+      "auditada": true,
+      "original": "arregla el bug del login",
+      "salida": "Arregla el bug del login. Antes de tocar nada, preguntame en qué entorno o sistema operativo estoy, qué navegador o cliente uso y si el problema ocurre siempre o solo en ciertas condiciones. Con esa información devuelve una lista de pasos concretos para diagnosticar y solucionar el fallo, indicando claramente cuándo el login debería funcionar correctamente.",
+      "candidatas_en_afirmacion": [
+        "claramente",
+        "correctamente",
+        "deberia",
+        "diagnosticar",
+        "fallo",
+        "funcionar",
+        "solucionar"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "cierta",
+        "cliente",
+        "condicion",
+        "entorno",
+        "estoy",
+        "navegador",
+        "ocurre",
+        "operativo",
+        "problema",
+        "siempre",
+        "sistema",
+        "tocar",
+        "uso"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "bug_login/v2/r2",
+      "auditada": true,
+      "original": "arregla el bug del login",
+      "salida": "Arregla el bug del login. Antes de tocar nada, pregúntame qué sistema operativo o entorno estoy usando, qué navegador o cliente tengo abierto y si el problema es visual, funcional o de autenticación. Con esa información devuelve los pasos exactos para replicar el error, la causa raíz y la solución concreta, indicando claramente cuándo el login estará resuelto.",
+      "candidatas_en_afirmacion": [
+        "causa",
+        "claramente",
+        "error",
+        "estara",
+        "exacto",
+        "raiz",
+        "replicar",
+        "resuelto",
+        "solucion"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "abierto",
+        "ant",
+        "autenticacion",
+        "cliente",
+        "entorno",
+        "estoy",
+        "funcional",
+        "navegador",
+        "operativo",
+        "problema",
+        "sistema",
+        "tocar",
+        "usando",
+        "visual"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "bug_login/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "escritorio/v2/r1",
+      "auditada": true,
+      "original": "organizame el escritorio",
+      "salida": "Arma una lista de los elementos que debería tener mi escritorio organizado. Antes de proponer nada, preguntame qué tipo de trabajo realizo, si tengo ordenador de sobremesa o portátil, si uso monitor externo y qué herramientas o aplicaciones suelo manejar a diario. Con esas respuestas devuelve una lista ordenada por prioridad, con una señal concreta para saber si el resultado me satisface.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "deberia",
+        "elemento",
+        "esas",
+        "organizado",
+        "satisface"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "aplicacion",
+        "diario",
+        "externo",
+        "herramienta",
+        "manejar",
+        "monitor",
+        "ordenador",
+        "portatil",
+        "proponer",
+        "realizo",
+        "sobremesa",
+        "suelo",
+        "trabajo",
+        "uso"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "ENTREGABLE",
+      "dato": "cambia el pedido: de organizar el escritorio a 'arma una lista de los elementos que deberia tener'. No inventa un dato, pero cambia lo que se entrega, que para el usuario es el mismo dano"
+    },
+    {
+      "clave": "escritorio/v1/r1",
+      "auditada": true,
+      "original": "organizame el escritorio",
+      "salida": "Organiza el escritorio.",
+      "candidatas_en_afirmacion": [
+        "organiza"
+      ],
+      "nuevas_dentro_de_preguntas": [],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "escritorio/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "escritorio/v2/r2",
+      "auditada": true,
+      "original": "organizame el escritorio",
+      "salida": "Organiza mi escritorio de forma que todo esté ordenado y accesible. Antes de mover nada, pregúntame qué tipo de superficie tengo (mesa, escritorio de pared, bandeja de escritorio o incluso un tablero de pizarra), qué elementos físicos o virtuales debo incluir (ordenadores, pilas de papeles, post-its, iconos, carpetas) y si tengo alguna restricción de espacio o estética. Con esas respuestas devuelve un plan paso a paso, detallando qué hacer en cada momento y una señal concreta para saber si el resultado final cumple con lo que yo busco.",
+      "candidatas_en_afirmacion": [
+        "accesible",
+        "busco",
+        "cumple",
+        "detallando",
+        "esas",
+        "final",
+        "organiza"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "bandeja",
+        "carpeta",
+        "debo",
+        "elemento",
+        "espacio",
+        "estetica",
+        "fisico",
+        "icono",
+        "incluir",
+        "incluso",
+        "its",
+        "mesa",
+        "mover",
+        "ordenador",
+        "papel",
+        "pared",
+        "pila",
+        "pizarra",
+        "post",
+        "restriccion",
+        "superficie",
+        "tablero",
+        "virtual"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "guitarra/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "guitarra/v2/r1",
+      "auditada": true,
+      "original": "quiero aprender guitarra",
+      "salida": "Arma un plan de aprendizaje para que yo aprenda guitarra desde cero. Antes de proponer nada, preguntame si tengo algún instrumento a mano o si debo comprar uno, si tengo algún conocimiento previo de música y cuánto tiempo puedo dedicar cada semana. Con esas respuestas devuelve un itinerario paso a paso, con que hacer cada día y una señal concreta para saber si voy progresando.",
+      "candidatas_en_afirmacion": [
+        "aprenda",
+        "aprendizaje",
+        "arma",
+        "cero",
+        "dia",
+        "esas",
+        "itinerario",
+        "progresando",
+        "voy"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "comprar",
+        "conocimiento",
+        "debo",
+        "dedicar",
+        "instrumento",
+        "mano",
+        "musica",
+        "previo",
+        "proponer",
+        "semana",
+        "tiempo"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "guitarra/v2/r2",
+      "auditada": true,
+      "original": "quiero aprender guitarra",
+      "salida": "Arma un plan de aprendizaje de guitarra para que yo pueda empezar desde cero. Antes de proponer nada, preguntame si tengo algún instrumento a mano, si tengo acceso a un profesor o a clases online, cuantos minutos por dia puedo dedicar y si ya sé leer partituras o si debo empezar por cero. Con esas respuestas devuelve un plan paso a paso, con que hacer cada dia y una senal concreta para saber si voy progresando.",
+      "candidatas_en_afirmacion": [
+        "aprendizaje",
+        "arma",
+        "esas",
+        "progresando",
+        "voy"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "acceso",
+        "ant",
+        "cero",
+        "clas",
+        "debo",
+        "dedicar",
+        "dia",
+        "empezar",
+        "instrumento",
+        "leer",
+        "mano",
+        "minuto",
+        "online",
+        "partitura",
+        "profesor",
+        "proponer"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "guitarra/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "viaje/v2/r1",
+      "auditada": true,
+      "original": "planeame un viaje para las vacaciones",
+      "salida": "Planea un viaje para mis vacaciones. Antes de proponer nada, preguntame a dónde voy, cuándo viajo, cuánto tiempo tengo, qué presupuesto tengo y qué tipo de experiencia busco (relajante, cultural, aventura, etc.). Con esas respuestas devuelve un itinerario detallado día a día, con qué hacer cada día y una señal concreta para saber si voy progresando.",
+      "candidatas_en_afirmacion": [
+        "detallado",
+        "dia",
+        "esas",
+        "itinerario",
+        "planea",
+        "progresando"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "aventura",
+        "busco",
+        "cultural",
+        "etc",
+        "experiencia",
+        "presupuesto",
+        "proponer",
+        "relajante",
+        "tiempo",
+        "viajo",
+        "voy"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "viaje/v1/r1",
+      "auditada": true,
+      "original": "planeame un viaje para las vacaciones",
+      "salida": "Planea un viaje para mis vacaciones.",
+      "candidatas_en_afirmacion": [
+        "planea"
+      ],
+      "nuevas_dentro_de_preguntas": [],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "viaje/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "viaje/v2/r2",
+      "auditada": true,
+      "original": "planeame un viaje para las vacaciones",
+      "salida": "Planea un viaje para mis vacaciones. Antes de proponer nada, preguntame a dónde voy, cuándo es el periodo exacto, con quién viajo y qué presupuesto tengo disponible. Con esas respuestas devuelve una ruta detallada, día por día, con los alojamientos y actividades concretos para cada momento.",
+      "candidatas_en_afirmacion": [
+        "actividad",
+        "alojamiento",
+        "detallada",
+        "dia",
+        "esas",
+        "planea",
+        "ruta"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "disponible",
+        "exacto",
+        "periodo",
+        "presupuesto",
+        "proponer",
+        "quien",
+        "viajo",
+        "voy"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "gastos/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "gastos/v2/r1",
+      "auditada": true,
+      "original": "necesito ordenar mis gastos del mes",
+      "salida": "Arma un resumen ordenado de mis gastos del mes actual. Antes de proponer nada, preguntame qué herramienta o formato prefiero para verlos (una lista simple, una tabla, un correo o un script) y si debo incluir solo los movimientos de este mes o también los saldos acumulados. Con esas respuestas devuelve el desglose con una señal concreta para saber si el total coincide con lo que yo esperaba.",
+      "candidatas_en_afirmacion": [
+        "actual",
+        "arma",
+        "coincide",
+        "desglose",
+        "esas",
+        "esperaba",
+        "resumen",
+        "total"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "acumulado",
+        "ant",
+        "debo",
+        "formato",
+        "herramienta",
+        "incluir",
+        "movimiento",
+        "proponer",
+        "saldo",
+        "simple",
+        "verlo"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "gastos/v2/r2",
+      "auditada": true,
+      "original": "necesito ordenar mis gastos del mes",
+      "salida": "Arma una lista detallada de mis gastos del mes. Antes de proponer nada, preguntame qué concepto de \"mes\" me interesa (el que acabo de cerrar, el actual o el próximo), qué herramientas o archivos tengo a mano para extraer los datos y si debo incluir solo movimientos bancarios o también gastos en efectivo. Con esas respuestas devuelve una lista ordenada por fecha y categoría, con una señal concreta para saber si he capturado el total correcto.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "capturado",
+        "categoria",
+        "correcto",
+        "detallada",
+        "esas",
+        "fecha",
+        "total"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "acabo",
+        "actual",
+        "ant",
+        "archivo",
+        "bancario",
+        "cerrar",
+        "concepto",
+        "dato",
+        "debo",
+        "efectivo",
+        "extraer",
+        "herramienta",
+        "incluir",
+        "interesa",
+        "mano",
+        "movimiento",
+        "proponer",
+        "proximo"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "gastos/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "curriculum/v2/r1",
+      "auditada": true,
+      "original": "hazme el curriculum",
+      "salida": "Arma un currículum profesional para mí. Antes de redactarlo, preguntame qué puesto o sector objetivo tengo en mente, qué logros o habilidades destacadas quiero resaltar y si debo incluir una foto o un enlace a portafolio. Con esas respuestas devuelve el contenido completo listo para copiar y pegar, con una estructura clara de encabezado, experiencia y habilidades.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "completo",
+        "contenido",
+        "copiar",
+        "encabezado",
+        "esas",
+        "estructura",
+        "experiencia",
+        "pegar",
+        "profesional"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "debo",
+        "destacada",
+        "enlace",
+        "foto",
+        "habilidad",
+        "incluir",
+        "logro",
+        "mente",
+        "portafolio",
+        "puesto",
+        "redactarlo",
+        "resaltar",
+        "sector"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "curriculum/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "curriculum/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "curriculum/v2/r2",
+      "auditada": true,
+      "original": "hazme el curriculum",
+      "salida": "Arma un currículum profesional para mí. Antes de redactar nada, preguntame qué puesto o industria me interesa, qué logros o habilidades destaco y si tengo alguna foto o enlace a portafolio que incluir. Con esas respuestas devuelve un documento estructurado por secciones (datos personales, experiencia, formación y habilidades) listo para copiar y pegar o guardar como PDF.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "copiar",
+        "dato",
+        "documento",
+        "esas",
+        "estructurado",
+        "experiencia",
+        "formacion",
+        "guardar",
+        "pdf",
+        "pegar",
+        "personal",
+        "profesional",
+        "seccion"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "destaco",
+        "enlace",
+        "foto",
+        "habilidad",
+        "incluir",
+        "industria",
+        "interesa",
+        "logro",
+        "portafolio",
+        "puesto",
+        "redactar"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "LIMITE",
+      "dato": "anade 'guardar como PDF': un formato de fichero que el usuario no pidio. No cambia el entregable ni afirma un dato sobre el usuario, pero 'formatos y herramientas' es justo lo que el system v2 lista como prohibido"
+    },
+    {
+      "clave": "mudanza/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "mudanza/v2/r1",
+      "auditada": true,
+      "original": "me mudo el mes que viene ayudame",
+      "salida": "Arma un plan de mudanza para que yo me mude el mes que viene. Antes de proponer nada, preguntame qué tipo de vivienda o espacio voy a ocupar, qué cosas tengo que transportar y si necesito ayuda con el desmontaje o el transporte. Con esas respuestas devuelve una secuencia de pasos ordenada, con qué hacer cada día y una señal concreta para saber si la mudanza va bien.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "dia",
+        "esas",
+        "mudanza",
+        "mude",
+        "secuencia"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "ayuda",
+        "cosa",
+        "desmontaje",
+        "espacio",
+        "necesito",
+        "ocupar",
+        "proponer",
+        "transportar",
+        "transporte",
+        "vivienda",
+        "voy"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "mudanza/v2/r2",
+      "auditada": true,
+      "original": "me mudo el mes que viene ayudame",
+      "salida": "Arma un plan de mudanza para que yo me mude el mes que viene. Antes de proponer nada, preguntame qué tipo de vivienda ocupo ahora, a dónde voy a ir, si tengo ayuda o si tengo que hacerlo solo, qué cosas son prioritarias y si tengo algún plazo interno o fecha límite. Con esas respuestas devuelve un plan paso a paso, con qué hacer cada día y una señal concreta para saber si voy avanzando.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "avanzando",
+        "dia",
+        "esas",
+        "mudanza",
+        "mude"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ahora",
+        "ant",
+        "ayuda",
+        "cosa",
+        "fecha",
+        "hacerlo",
+        "interno",
+        "limite",
+        "ocupo",
+        "plazo",
+        "prioritaria",
+        "proponer",
+        "son",
+        "vivienda",
+        "voy"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "mudanza/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "correr/v2/r1",
+      "auditada": true,
+      "original": "quiero empezar a correr",
+      "salida": "Arma un plan de entrenamiento para que yo empiece a correr partiendo de cero. Antes de proponer nada, preguntame si tengo lesiones o dolores previos, si corro en la calle o en pista, de cuanto tiempo dispongo cada sesión y si tengo algún material específico. Con esas respuestas devuelve un plan semanal, con que hacer cada dia y una senal concreta para saber si voy progresando.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "cero",
+        "dia",
+        "empiece",
+        "entrenamiento",
+        "esas",
+        "partiendo",
+        "progresando",
+        "semanal",
+        "voy"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "calle",
+        "corro",
+        "dispongo",
+        "dolor",
+        "especifico",
+        "lesion",
+        "material",
+        "pista",
+        "previo",
+        "proponer",
+        "sesion",
+        "tiempo"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "correr/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "correr/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "correr/v2/r2",
+      "auditada": true,
+      "original": "quiero empezar a correr",
+      "salida": "Arma un plan de entrenamiento para que yo empiece a correr desde cero. Antes de proponer nada, preguntame si tengo experiencia previa con el running, que tipo de superficie suelo usar (asfalto, césped, pista), si tengo alguna lesión o molestia y cuánto tiempo puedo dedicar a la sesión. Con esas respuestas devuelve un plan semanal, con que hacer cada día y una señal concreta para saber si voy progresando.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "cero",
+        "dia",
+        "empiece",
+        "entrenamiento",
+        "esas",
+        "progresando",
+        "semanal",
+        "voy"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "asfalto",
+        "cesped",
+        "dedicar",
+        "experiencia",
+        "lesion",
+        "molestia",
+        "pista",
+        "previa",
+        "proponer",
+        "running",
+        "sesion",
+        "suelo",
+        "superficie",
+        "tiempo"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "receta/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "receta/v2/r1",
+      "auditada": true,
+      "original": "que cocino hoy con lo que tengo",
+      "salida": "Arma una lista de recetas para que yo cocine hoy con lo que tengo en la despensa. Antes de proponer nada, preguntame qué ingredientes tengo disponibles, si tengo algún utensilio específico a mano y si prefiero algo rápido o algo más elaborado. Con esas respuestas devuelve un par de opciones concretas, con los pasos básicos y una señal clara para saber si el plato sale bien.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "basico",
+        "cocine",
+        "despensa",
+        "esas",
+        "par",
+        "plato",
+        "receta",
+        "sale"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "disponibl",
+        "elaborado",
+        "especifico",
+        "ingredient",
+        "mano",
+        "proponer",
+        "rapido",
+        "utensilio"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "INVENCION",
+      "dato": "anade 'en la despensa': un lugar que el usuario no dijo, y 'lugares' esta en la lista de PROHIBIDO del propio system v2"
+    },
+    {
+      "clave": "receta/v2/r2",
+      "auditada": true,
+      "original": "que cocino hoy con lo que tengo",
+      "salida": "Propón un menú de cocina para que yo prepare hoy con los ingredientes que tengo en casa. Antes de sugerir nada, preguntame qué productos frescos, conservas o congelados tengo disponibles y si tengo algún utensilio específico o restricción dietética. Con esa información devuelve una lista de platos, uno por uno, con el nombre del plato y los ingredientes exactos que requiere cada uno.",
+      "candidatas_en_afirmacion": [
+        "casa",
+        "cocina",
+        "exacto",
+        "ingredient",
+        "menu",
+        "nombre",
+        "plato",
+        "prepare",
+        "propon",
+        "requiere"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "ant",
+        "congelado",
+        "conserva",
+        "dietetica",
+        "disponibl",
+        "especifico",
+        "fresco",
+        "producto",
+        "restriccion",
+        "sugerir",
+        "utensilio"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "INVENCION",
+      "dato": "anade 'en casa' como lugar de los ingredientes; el usuario solo dijo 'lo que tengo'"
+    },
+    {
+      "clave": "receta/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "tramite/v2/r1",
+      "auditada": true,
+      "original": "tengo que renovar el dni y no se como",
+      "salida": "Arma una guía paso a paso para que yo pueda renovar mi DNI sin saber exactamente por dónde empezar. Antes de proponer nada, preguntame qué tipo de DNI tengo actualmente (nacional, europeo o extranjero), si ya he solicitado la renovación y si tengo los documentos básicos a mano. Con esas respuestas devuelve una secuencia clara de acciones, indicando qué trámites hacer, qué papeles presentar y dónde acudir, terminando con una señal concreta para saber si el trámite se ha cerrado correctamente.",
+      "candidatas_en_afirmacion": [
+        "accion",
+        "acudir",
+        "arma",
+        "cerrado",
+        "correctamente",
+        "empezar",
+        "esas",
+        "exactamente",
+        "guia",
+        "papel",
+        "presentar",
+        "secuencia",
+        "terminando",
+        "tramit",
+        "tramite"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "actualmente",
+        "ant",
+        "basico",
+        "documento",
+        "europeo",
+        "extranjero",
+        "mano",
+        "nacional",
+        "proponer",
+        "renovacion",
+        "solicitado"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    },
+    {
+      "clave": "tramite/v1/r1",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "tramite/v1/r2",
+      "auditada": false,
+      "motivo_rechazo": "identico al original"
+    },
+    {
+      "clave": "tramite/v2/r2",
+      "auditada": true,
+      "original": "tengo que renovar el dni y no se como",
+      "salida": "Arma una guía paso a paso para que yo pueda renovar mi DNI sin saber exactamente por dónde empezar. Antes de proponer nada, preguntame qué tipo de DNI tengo actualmente (nacional, europeo o extranjero), si ya he solicitado la renovación y dónde encuentro mi cita previa o si tengo que pedir una. Con esas respuestas devuelve un plan secuencial, con qué hacer en cada momento y una señal concreta para saber si el trámite ha salido bien.",
+      "candidatas_en_afirmacion": [
+        "arma",
+        "empezar",
+        "esas",
+        "exactamente",
+        "guia",
+        "salido",
+        "secuencial",
+        "tramite"
+      ],
+      "nuevas_dentro_de_preguntas": [
+        "actualmente",
+        "ant",
+        "cita",
+        "encuentro",
+        "europeo",
+        "extranjero",
+        "nacional",
+        "pedir",
+        "previa",
+        "proponer",
+        "renovacion",
+        "solicitado"
+      ],
+      "cifras_nuevas": [],
+      "veredicto": "SIN INVENCION",
+      "dato": ""
+    }
+  ]
+}

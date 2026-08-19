@@ -1,0 +1,30 @@
+{
+  "v1": {
+    "llamadas": 24,
+    "aceptadas": 2,
+    "rechazadas": 22,
+    "motivos": {
+      "identico al original": 22
+    },
+    "ms_mediana": 218,
+    "ms_min": 125,
+    "ms_max": 875,
+    "chars_mediana_aceptadas": 29,
+    "chars_n_aceptadas": 2,
+    "chars_mediana_todas": 31,
+    "chars_n_todas": 24
+  },
+  "v2": {
+    "llamadas": 24,
+    "aceptadas": 24,
+    "rechazadas": 0,
+    "motivos": {},
+    "ms_mediana": 1413,
+    "ms_min": 811,
+    "ms_max": 1921,
+    "chars_mediana_aceptadas": 382,
+    "chars_n_aceptadas": 24,
+    "chars_mediana_todas": 382,
+    "chars_n_todas": 24
+  }
+}

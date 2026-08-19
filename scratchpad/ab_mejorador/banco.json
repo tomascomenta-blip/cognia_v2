@@ -1,0 +1,62 @@
+[
+  {
+    "id": "compras",
+    "dominio": "vida",
+    "texto": "hazme una lista de compras para la semana"
+  },
+  {
+    "id": "aumento",
+    "dominio": "trabajo",
+    "texto": "ayudame a escribir un correo para pedir un aumento"
+  },
+  {
+    "id": "bug_login",
+    "dominio": "codigo",
+    "texto": "arregla el bug del login"
+  },
+  {
+    "id": "escritorio",
+    "dominio": "vida",
+    "texto": "organizame el escritorio"
+  },
+  {
+    "id": "guitarra",
+    "dominio": "aprender",
+    "texto": "quiero aprender guitarra"
+  },
+  {
+    "id": "viaje",
+    "dominio": "vida",
+    "texto": "planeame un viaje para las vacaciones"
+  },
+  {
+    "id": "gastos",
+    "dominio": "dinero",
+    "texto": "necesito ordenar mis gastos del mes"
+  },
+  {
+    "id": "curriculum",
+    "dominio": "trabajo",
+    "texto": "hazme el curriculum"
+  },
+  {
+    "id": "mudanza",
+    "dominio": "vida",
+    "texto": "me mudo el mes que viene ayudame"
+  },
+  {
+    "id": "correr",
+    "dominio": "aprender",
+    "texto": "quiero empezar a correr"
+  },
+  {
+    "id": "receta",
+    "dominio": "vida",
+    "texto": "que cocino hoy con lo que tengo"
+  },
+  {
+    "id": "tramite",
+    "dominio": "tramite",
+    "texto": "tengo que renovar el dni y no se como"
+  }
+]

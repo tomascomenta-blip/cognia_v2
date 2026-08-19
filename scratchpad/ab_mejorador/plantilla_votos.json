@@ -1,0 +1,16 @@
+{
+  "juez": "SIN DECLARAR (nombre + si escribio alguno de los brazos)",
+  "rubrica": "gana el lado que un humano podria ejecutar mejor a la primera sin datos inventados",
+  "votos": [
+    {
+      "id": "escritorio",
+      "letra": null,
+      "motivo": ""
+    },
+    {
+      "id": "viaje",
+      "letra": null,
+      "motivo": ""
+    }
+  ]
+}

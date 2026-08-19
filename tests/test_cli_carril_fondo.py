@@ -928,5 +928,43 @@ class TestAtajosQueNoMienten(unittest.TestCase):
         self.assertTrue(corta.startswith("tab completa"))
 
 
+# ---------------------------------------------------------------------------
+# 8. F3 (mejora del prompt) en el prompt de ESPERA
+# ---------------------------------------------------------------------------
+class TestF3EnLaEspera(_BaseCarril):
+    """El keybinding f3 se anadio a la MISMA PromptSession que usa el prompt de
+    espera, asi que su centinela tambien aterriza en este bucle. Sin la rama que
+    lo enruta, `\\x00@mejora@...` caia al `linea = r.strip()` de abajo -- y
+    '\\x00' NO es whitespace, asi que str.strip() no lo quita -- y se ENCOLABA:
+    al terminar la corrida ese turno viajaba entero al modelo con el NUL
+    delante, sin mejorar nada."""
+
+    def test_f3_no_encola_el_centinela_y_lo_dice(self):
+        def fn():
+            self.assertTrue(self.esperar_prompt(), "el prompt de espera no abrio")
+            pipe.send_text("resume el README y dime que falta")
+            t0 = time.perf_counter()
+            while (cli._texto_a_medias() != "resume el README y dime que falta"
+                   and time.perf_counter() - t0 < 10):
+                time.sleep(0.005)
+            cli._despertar_prompt(cli._FONDO_MEJORA)   # esto hace F3
+            t0 = time.perf_counter()
+            while ("F3 no mejora" not in self.visto()
+                   and time.perf_counter() - t0 < 10):
+                time.sleep(0.005)
+
+        with self.carril() as pipe:
+            cli._lanzar_en_fondo("hacer", fn)
+
+        self.assertEqual([l for l in cli._COLA_ENTRADA if "\x00" in l], [],
+                         f"el centinela de F3 entro a la cola: {cli._COLA_ENTRADA!r}")
+        self.assertEqual(cli._COLA_ENTRADA, [],
+                         "F3 no encola: la linea se queda en el prompt")
+        pantalla = self.visto()
+        self.assertIn("F3 no mejora", pantalla,
+                      "F3 con corrida viva tiene que DECIR por que no aplica")
+        self.assertNotIn("anotado (1 en cola)", pantalla)
+
+
 if __name__ == "__main__":                                  # pragma: no cover
     unittest.main(verbosity=2)

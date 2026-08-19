@@ -1,0 +1,23 @@
+{
+  "_que_es": "Los 12 votos de la ronda 2, RECONSTRUIDOS desde la tabla de MANAGER_LOG.md el 2026-08-19 durante la revision adversarial. NO se emitieron en el momento del juicio: ese es el defecto que este fichero documenta y que plantilla_votos.json evita en adelante. Lo unico verificable de ellos es que la columna A/B->GANA cuadra con clave.json en las 12 filas.",
+  "juez": "el mismo agente que escribio el system prompt v2, argumento su adopcion y aplico el cambio de default",
+  "conflicto_declarado": "SI. El autor de un brazo juzgo su propio brazo, y no habia rubrica escrita ni artefacto de votos. Un juez que no sea el autor sigue pendiente.",
+  "ciego_real": "NO. En 10 de las 12 filas una de las dos celdas era byte-identica al campo 'original' publicado en la misma fila (v1 devolvio passthrough en 22 de 24 llamadas), asi que el brazo v1 era identificable sin la clave. Ver no_juzgables.json.",
+  "votos": [
+    {"id": "compras",    "letra": "B", "brazo": "v2", "comparable": false, "motivo": "el lado A era el texto del usuario intacto: no habia dos reformulaciones que comparar"},
+    {"id": "aumento",    "letra": "A", "brazo": "v2", "comparable": false, "motivo": "el lado B era el texto del usuario intacto"},
+    {"id": "bug_login",  "letra": "B", "brazo": "v2", "comparable": false, "motivo": "el lado A era el texto del usuario intacto"},
+    {"id": "escritorio", "letra": "B", "brazo": "v1", "comparable": true,  "motivo": "v2 cambio el entregable: de organizar a 'arma una lista de los elementos que deberia tener'"},
+    {"id": "guitarra",   "letra": "B", "brazo": "v2", "comparable": false, "motivo": "el lado A era el texto del usuario intacto"},
+    {"id": "viaje",      "letra": "A", "brazo": "v2", "comparable": true,  "motivo": "v2 conserva el verbo del usuario y ademas pide los datos que faltan"},
+    {"id": "gastos",     "letra": "B", "brazo": "v2", "comparable": false, "motivo": "el lado A era el texto del usuario intacto"},
+    {"id": "curriculum", "letra": "A", "brazo": "v2", "comparable": false, "motivo": "el lado B era el texto del usuario intacto"},
+    {"id": "mudanza",    "letra": "B", "brazo": "v2", "comparable": false, "motivo": "el lado A era el texto del usuario intacto"},
+    {"id": "correr",     "letra": "A", "brazo": "v2", "comparable": false, "motivo": "el lado B era el texto del usuario intacto; ademas es la tarea mas parecida al EJEMPLO 1 del system v2 ('quiero ponerme en forma')"},
+    {"id": "receta",     "letra": "B", "brazo": "v2", "comparable": false, "motivo": "el lado A era el texto del usuario intacto; y la salida de v2 anade 'en la despensa' (ver rubrica_invenciones.json)"},
+    {"id": "tramite",    "letra": "A", "brazo": "v2", "comparable": false, "motivo": "el lado B era el texto del usuario intacto"}
+  ],
+  "marcador_publicado": "v2 11 - v1 1 (neto +10)",
+  "marcador_sobre_filas_COMPARABLES": "v2 1 - v1 1 (n=2, sin poder)",
+  "lo_que_si_esta_medido": "v2 entrega reformulacion en 24/24 llamadas y v1 en 2/24; apareado por tarea sobre la replica 1, 10 discordantes a favor de v2 y 0 a favor de v1, test de signos exacto p = 1,95e-3. Eso es 'reformular bate a no reformular', no 'v2 escribe mejor que v1'."
+}

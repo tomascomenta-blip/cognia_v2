@@ -26,6 +26,8 @@ Todo lo demas en el repo, especialmente:
 - Nunca `sqlite3.connect()` directo — usar `storage/db_pool.py`
 - Nunca hardcodear constantes de arquitectura — usar `shattering/model_constants.py`
 - Tests primero si afecta consolidacion, VectorCache o relay
+- Toda adicion se entrega EN EL CLI (comando slash + `_CMD_DESCRIPTIONS` + visible en `/ayuda`) y
+  se prueba tecleando >=3 tareas humanas cotidianas en el REPL — regla VINCULANTE completa en CLAUDE.md
 
 ## Flujo de sub-agente
 1. Leer este archivo

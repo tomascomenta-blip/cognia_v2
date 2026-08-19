@@ -1,0 +1,14 @@
+[
+  {
+    "id": "escritorio",
+    "original": "organizame el escritorio",
+    "A": "Arma una lista de los elementos que debería tener mi escritorio organizado. Antes de proponer nada, preguntame qué tipo de trabajo realizo, si tengo ordenador de sobremesa o portátil, si uso monitor externo y qué herramientas o aplicaciones suelo manejar a diario. Con esas respuestas devuelve una lista ordenada por prioridad, con una señal concreta para saber si el resultado me satisface.",
+    "B": "Organiza el escritorio."
+  },
+  {
+    "id": "viaje",
+    "original": "planeame un viaje para las vacaciones",
+    "A": "Planea un viaje para mis vacaciones. Antes de proponer nada, preguntame a dónde voy, cuándo viajo, cuánto tiempo tengo, qué presupuesto tengo y qué tipo de experiencia busco (relajante, cultural, aventura, etc.). Con esas respuestas devuelve un itinerario detallado día a día, con qué hacer cada día y una señal concreta para saber si voy progresando.",
+    "B": "Planea un viaje para mis vacaciones."
+  }
+]

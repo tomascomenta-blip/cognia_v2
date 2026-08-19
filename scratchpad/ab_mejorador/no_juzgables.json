@@ -1,0 +1,112 @@
+[
+  {
+    "id": "compras",
+    "original": "hazme una lista de compras para la semana",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v1": "identico al original",
+      "v2": "ok"
+    }
+  },
+  {
+    "id": "aumento",
+    "original": "ayudame a escribir un correo para pedir un aumento",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v2": "ok",
+      "v1": "identico al original"
+    }
+  },
+  {
+    "id": "bug_login",
+    "original": "arregla el bug del login",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v1": "identico al original",
+      "v2": "ok"
+    }
+  },
+  {
+    "id": "guitarra",
+    "original": "quiero aprender guitarra",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v1": "identico al original",
+      "v2": "ok"
+    }
+  },
+  {
+    "id": "gastos",
+    "original": "necesito ordenar mis gastos del mes",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v1": "identico al original",
+      "v2": "ok"
+    }
+  },
+  {
+    "id": "curriculum",
+    "original": "hazme el curriculum",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v2": "ok",
+      "v1": "identico al original"
+    }
+  },
+  {
+    "id": "mudanza",
+    "original": "me mudo el mes que viene ayudame",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v1": "identico al original",
+      "v2": "ok"
+    }
+  },
+  {
+    "id": "correr",
+    "original": "quiero empezar a correr",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v2": "ok",
+      "v1": "identico al original"
+    }
+  },
+  {
+    "id": "receta",
+    "original": "que cocino hoy con lo que tengo",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v1": "identico al original",
+      "v2": "ok"
+    }
+  },
+  {
+    "id": "tramite",
+    "original": "tengo que renovar el dni y no se como",
+    "brazos_sin_salida": [
+      "v1"
+    ],
+    "motivos": {
+      "v2": "ok",
+      "v1": "identico al original"
+    }
+  }
+]
