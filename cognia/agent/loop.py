@@ -443,6 +443,31 @@ def _catalogo_para_ofertas() -> list:
         return []
 
 
+# Comandos que CUENTAN como verificacion cuando el agente los ejecuta. La
+# politica de parada (cognia/hermes/parada_verificada.py) solo decide; quien
+# ejecuta es quien escribe la evidencia, y por eso el filtro vive aca. Correr
+# el artefacto que acabas de escribir (python x.py, node x.js) SI es evidencia:
+# el gate del camino feliz de este repo ya juzga esa tarea ejecutando el .py.
+_RE_VERIFICACION = re.compile(
+    r"\b(pytest|unittest|nosetests|tox|ruff|flake8|mypy|pylint|"
+    r"npm\s+(run\s+)?test|yarn\s+test|jest|vitest|go\s+test|cargo\s+test|"
+    r"dotnet\s+test|mvn\s+test|gradle\s+test)\b|"
+    r"\b(python3?|py)\b[^|]*\.py\b|\bnode\b[^|]*\.(js|mjs|ts)\b",
+    re.IGNORECASE)
+
+
+def _es_verificacion(nombre_tool: str, args: str) -> bool:
+    """True si esta llamada es un comando de verificacion ya ejecutado."""
+    if nombre_tool == "tests":
+        return True
+    if nombre_tool not in ("ejecutar", "ejecutar_fondo"):
+        return False
+    try:
+        return bool(_RE_VERIFICACION.search(str(args or "")))
+    except Exception:
+        return False
+
+
 def bucle_nativo(task: str, system: str, completar, schemas: list,
                  args_legacy, mensaje_assistant, mensaje_tool,
                  run_tool, ctx: dict, perfil: dict, history: list,
@@ -468,6 +493,53 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _ev.emitir(evento)
             except Exception:
                 pass
+
+    # -- ARNES HERMES (2026-08-19) -----------------------------------------
+    # Cinco mecanismos destilados del fuente de Hermes Agent 0.19.1 y cableados
+    # AQUI, que es el bucle vivo (el while legacy de cli.py solo corre con el
+    # perfil 3B o COGNIA_AGENT_LEGACY=1). Cada uno ataca una patologia MEDIDA:
+    #   presupuesto+refund   la vuelta administrativa se comia el presupuesto
+    #                        de la tarea (iteration_budget.py:37-49 + los
+    #                        refunds de conversation_loop.py:1996/6257)
+    #   RazonSalida          "Cognia degrada en silencio": todo break sella su
+    #                        razon y se loguea SIEMPRE (_turn_exit_reason)
+    #   GuardiaBucle         register_action solo caza A-A-A; el ping-pong
+    #                        A-B-A-B y los ciclos A-B-C se le escapaban
+    #   RegistroMutaciones   el modelo afirmaba haber escrito lo que fallo
+    #                        (footer de mutaciones fallidas del turn_finalizer)
+    #   parada_verificada    cerrar "listo" sin haber corrido nada; en el
+    #                        analisis de 526 fallos de tareas largas el 99,6%
+    #                        tenia senal de validacion disponible y no la uso
+    # COGNIA_HERMES=0 apaga los cinco de golpe (una sola palanca para el A/B).
+    _hermes = os.environ.get("COGNIA_HERMES", "1").strip().lower() not in (
+        "0", "off", "false", "no")
+    _pres = _salida = _guardia = _muta = None
+    _hz_mod = None
+    if _hermes:
+        try:
+            from cognia.hermes.presupuesto_turno import (
+                PresupuestoTurno, RazonSalida, MOTIVO_REINTENTO_FORMATO,
+                MOTIVO_REINTENTO_RED, RAZON_RESPUESTA_TEXTO,
+                RAZON_PRESUPUESTO_AGOTADO, RAZON_ERROR_BACKEND,
+                RAZON_BUCLE_DETECTADO, RAZON_INTERRUMPIDO)
+            from cognia.hermes.guardia_bucle import GuardiaBucle, EXENTAS_COGNIA
+            from cognia.hermes.mutaciones import (
+                RegistroMutaciones, es_operacion_de_fichero, ruta_de_args)
+            from cognia.hermes import parada_verificada as _hz_mod
+            _pres = PresupuestoTurno(max_turns)
+            _salida = RazonSalida(_pres, etiqueta="bucle_nativo")
+            _guardia = GuardiaBucle(exentas=EXENTAS_COGNIA)
+            _muta = RegistroMutaciones()
+        except Exception as _e_hm:
+            # El arnes es instrumentacion: si no carga, el bucle sigue igual.
+            _hermes = False
+            print_fn(f"[warn_cl]arnes hermes no disponible ({type(_e_hm).__name__}): "
+                     f"sigo sin el[/warn_cl]")
+    _nudges_verif = 0          # nudges de parada verificada ya inyectados
+    _ts_1a_edicion = None      # epoch de la primera escritura del turno
+    _reint_backend = 0         # reintentos por error transitorio del backend
+    _pendiente_verif = ""      # respuesta ya compuesta, en rescate tras un nudge
+    _aviso_guardia = ""        # mensaje del guardia de bucle para el modelo
 
     t0 = __import__("time").time()
     if _ev is not None:
@@ -548,6 +620,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                f"detuvo tras el paso {pasos})")
                 finish = "cancelado"
                 break
+        if _pres is not None and not _pres.consume():
+            # El contador de Hermes corre EN PARALELO al while: la guarda de
+            # arriba es el corte blando; esto es el techo auditado, con los
+            # refunds descontados (que es toda la diferencia).
+            _salida.sellar(RAZON_PRESUPUESTO_AGOTADO, f"techo {max_turns}")
+            result_text = result_text or (
+                f"(presupuesto de {max_turns} pasos agotado sin cierre)")
+            break
         pasos += 1
         resp = completar(mensajes, tools=schemas, **sampling)
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
@@ -566,6 +646,11 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _antes = sampling["max_tokens"]
             sampling["max_tokens"] = min(_TECHO_REINTENTO, max(2048, _antes * 2))
             _reintentos_corte += 1
+            if _pres is not None:
+                # Repetir el MISMO paso con mas presupuesto no es razonamiento
+                # nuevo: es administracion. Sin el refund, un fichero largo se
+                # comia dos vueltas de la tarea (conversation_loop.py:1996).
+                _pres.refund(MOTIVO_REINTENTO_FORMATO)
             print_fn(f"[warn_cl]{_motivo_corte}: repito el paso con "
                      f"max_tokens {_antes} -> {sampling['max_tokens']}"
                      f"[/warn_cl]")
@@ -604,12 +689,53 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
 
         if not resp.ok:
             # Server caido / respuesta rota: degradar con causa VISIBLE (la
-            # degradacion silenciosa es el modo de fallo historico).
+            # degradacion silenciosa es el modo de fallo historico). Con el
+            # arnes, ademas, se CLASIFICA: un timeout o un 503 "Loading model"
+            # es transitorio y merece repetir la llamada; un contexto excedido
+            # o un modelo ausente no (repetir da el mismo error, mas caro).
+            _accion = "python scripts/servir_flota.py pensar"
+            if _hermes:
+                try:
+                    from cognia.hermes.errores_backend import (
+                        clasificar as _clas_err, accion_sugerida as _acc_err)
+                    _diag = _clas_err(resp.error or "")
+                    _accion = _acc_err(_diag)
+                    _puede_reintentar = (_diag.get("reintentable")
+                                         and _reint_backend < 2)
+                    if _puede_reintentar and _diag.get("comprimir_contexto"):
+                        # Contexto excedido: repetir la MISMA peticion da el
+                        # mismo error. Solo se reintenta si el recorte libero
+                        # algo de verdad (Hermes separa retryable de
+                        # should_compress justo por esto).
+                        _liberados = _recortar_mensajes(
+                            mensajes, perfil.get("n_ctx"), 10 ** 9)
+                        if not _liberados:
+                            print_fn("[warn_cl]contexto excedido y no queda "
+                                     "nada recortable: no reintento[/warn_cl]")
+                            _puede_reintentar = False
+                        else:
+                            print_fn(f"[warn_cl]contexto excedido: recorte "
+                                     f"{_liberados} chars y reintento[/warn_cl]")
+                    if _puede_reintentar:
+                        _reint_backend += 1
+                        if _pres is not None:
+                            _pres.refund(MOTIVO_REINTENTO_RED)
+                        _espera = min(float(_diag.get("esperar_s") or 0.0), 5.0)
+                        print_fn(f"[warn_cl]{_diag['razon']}: reintento "
+                                 f"{_reint_backend}/2 en {_espera:.1f}s "
+                                 f"({resp.error})[/warn_cl]")
+                        if _espera > 0:
+                            __import__("time").sleep(_espera)
+                        continue
+                    _salida.sellar(RAZON_ERROR_BACKEND, _diag.get("razon", ""))
+                except Exception:
+                    pass
             print_fn(f"[err_cl]Agente (nativo): {resp.error}[/err_cl]")
+            print_fn(f"[warn_cl]{_accion}[/warn_cl]")
             if _ev is not None:
                 _emitir(_ev.Degradado(
                     donde="agente.bucle_nativo", motivo=resp.error,
-                    accion_sugerida="python scripts/servir_flota.py pensar"))
+                    accion_sugerida=_accion))
             result_text = f"(el agente no pudo hablar con el modelo: {resp.error})"
             break
 
@@ -667,6 +793,36 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # —stop mal puesto vs presupuesto— se veian iguales antes).
                 print_fn("[warn_cl]respuesta final truncada por max_tokens "
                          f"({sampling['max_tokens']})[/warn_cl]")
+            # PUERTA DE PARADA VERIFICADA (Hermes: verification_stop.py).
+            # El modelo no cierra un turno que EDITO CODIGO sin evidencia
+            # fresca de haberlo corrido. No es un prompt: es una continuacion
+            # ACOTADA del bucle (maximo 2 nudges) con la respuesta ya compuesta
+            # en rescate, para que la compuerta nunca destruya trabajo hecho.
+            if (_hermes and _hz_mod is not None and _muta is not None
+                    and ok and _nudges_verif < 2 and _muta.ficheros_escritos()):
+                _nudge = None
+                try:
+                    _nudge = _hz_mod.decidir({
+                        "ficheros_editados": _muta.ficheros_escritos(),
+                        "nudges_usados": _nudges_verif,
+                        "superficie": "cli",
+                        "workspace": os.getcwd(),
+                        "ts_primera_edicion": _ts_1a_edicion,
+                    })
+                except Exception:
+                    _nudge = None
+                if _nudge:
+                    _nudges_verif += 1
+                    print_fn("[warn_cl]parada verificada: el turno edito ficheros "
+                             "y no hay evidencia fresca de haberlos probado; "
+                             "pido la verificacion[/warn_cl]")
+                    _pendiente_verif = result_text or _pendiente_verif
+                    mensajes.append({"role": "user", "content": _nudge})
+                    result_text, ok = "", False
+                    continue
+            if _salida is not None:
+                _salida.sellar(RAZON_RESPUESTA_TEXTO,
+                               f"finish={finish or '?'}")
             break
 
         # La intencion se emite SOLO cuando hay tools que ejecutar: en el
@@ -711,12 +867,29 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _emitir(_ev.ToolInicio(tool=tc.nombre, args=args_str[:120],
                                        paso=pasos))
             t_tool = __import__("time").time()
+            if _guardia is not None:
+                # register_action solo caza A-A-A (mismo par tool+args 3 veces).
+                # El guardia anade ping-pong A-B-A-B y ciclos A-B-C-A-B-C, que
+                # es como se ve de verdad un agente atascado con dos ficheros.
+                _vg = _guardia.registrar(tc.nombre, args_str)
+                if _vg.get("estado") == "bloqueo":
+                    print_fn(f"[warn_cl]{_vg.get('mensaje') or 'bucle detectado'}"
+                             f"[/warn_cl]")
+                    _salida.sellar(RAZON_BUCLE_DETECTADO, _vg.get("patron", ""))
+                    result_text = ("(interrumpida: el agente entro en bucle -- "
+                                   f"{_vg.get('patron', 'repeticion')})")
+                    mensajes = None
+                    break
+                if _vg.get("estado") == "aviso":
+                    _aviso_guardia = _vg.get("mensaje") or ""
             verdict = register_action(sig_counts, tc.nombre, args_str)
             if verdict == "stop":
                 # Estancamiento (3ra vez el MISMO par tool+args): cierre
                 # honesto con lo que hay, sin quemar mas presupuesto.
                 print_fn("[warn_cl]Agente estancado (tool repetida 3 veces): "
                          "cierre honesto.[/warn_cl]")
+                if _salida is not None:
+                    _salida.sellar(RAZON_BUCLE_DETECTADO, f"repite {tc.nombre}")
                 result_text = ("(interrumpida por estancamiento: repitio "
                                f"'{tc.nombre}' con los mismos argumentos)")
                 mensajes = None
@@ -728,6 +901,22 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             # disparar el corte por no-progreso (fix 2026-08-11).
             tool_ok = not re.search(r"\bERROR\b",
                                     resultado.split("\n", 1)[0][:120])
+            if _muta is not None and es_operacion_de_fichero(tc.nombre):
+                # Se anota el INTENTO y su resultado MEDIDO. El footer del
+                # epilogo hace imposible que el modelo afirme haber escrito
+                # cinco ficheros cuando tres patches fallaron.
+                _idm = _muta.intento(ruta_de_args(args_str), tc.nombre)
+                _muta.resultado(_idm, tool_ok, resultado)
+                if tool_ok and _ts_1a_edicion is None:
+                    _ts_1a_edicion = __import__("time").time()
+            if _hermes and _hz_mod is not None and _es_verificacion(tc.nombre, args_str):
+                # Evidencia de verificacion: la escribe QUIEN EJECUTA, con el
+                # resultado real. La politica (parada_verificada) no corre nada.
+                try:
+                    _hz_mod.registrar_verificacion(
+                        os.getcwd(), args_str[:200], tool_ok, resultado[:600])
+                except Exception:
+                    pass
             history.append(resultado)
             trace.append({"action": tc.nombre, "args": args_str[:200],
                           "ok": tool_ok, "result_head": resultado[:160]})
@@ -752,6 +941,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             except Exception:
                 resultado_msg = resultado
             mensajes.append(mensaje_tool(tc.id, resultado_msg))
+            if _aviso_guardia:
+                mensajes.append({"role": "user", "content": _aviso_guardia})
+                _aviso_guardia = ""
             if verdict == "warn":
                 mensajes.append({
                     "role": "user",
@@ -767,6 +959,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         if len(recientes) >= fail_streak and not any(a["ok"] for a in recientes):
             print_fn(f"[warn_cl]Agente sin progreso ({fail_streak} tools "
                      "seguidas fallaron): cierre honesto.[/warn_cl]")
+            if _salida is not None:
+                _salida.sellar(RAZON_BUCLE_DETECTADO,
+                               f"{fail_streak} tools fallidas")
             result_text = (f"(interrumpida: {fail_streak} herramientas seguidas "
                            "fallaron sin avanzar; el modelo no logro la tarea)")
             break
@@ -796,6 +991,35 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         result_text = (f"(presupuesto de {max_turns} pasos agotado sin cierre) "
                        + ultimo[:300])
 
+    # RESCATE de la respuesta pendiente: si la puerta de verificacion pidio un
+    # nudge y despues se agoto el presupuesto, la respuesta que el modelo YA
+    # habia compuesto no se puede perder (turn_finalizer.py:100-124).
+    if _pendiente_verif and not (result_text or "").strip():
+        result_text = _pendiente_verif
+        ok = True
+    # FOOTER DE MUTACIONES FALLIDAS: hecho medido, no resumen del modelo.
+    if _muta is not None:
+        try:
+            _foot = _muta.footer()
+        except Exception:
+            _foot = None
+        if _foot:
+            result_text = (result_text or "") + "\n\n" + _foot
+    _envelope = {}
+    if _salida is not None:
+        try:
+            _hist_cierre = list(mensajes) if isinstance(mensajes, list) else []
+            if (result_text or "").strip():
+                # La respuesta final del turno NO se apendea a `mensajes` (el
+                # bucle sale con el break), asi que sin esto el ultimo mensaje
+                # siempre era un resultado de tool y la alarma saltaba en cada
+                # turno sano -- una alarma que suena siempre no es una alarma.
+                _hist_cierre.append({"role": "assistant",
+                                     "content": result_text})
+            _envelope = _salida.cerrar(_hist_cierre)
+        except Exception:
+            _envelope = {}
+
     if _ev is not None:
         _emitir(_ev.TareaFin(ok=ok, resumen=(result_text or "")[:300],
                              pasos=pasos, tokens_predichos=tokens_total,
@@ -815,4 +1039,6 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     except Exception:
         pass
     return {"texto": result_text, "pasos": pasos, "ok": ok,
-            "tokens": tokens_total, "finish": finish}
+            "tokens": tokens_total, "finish": finish,
+            "razon": (_envelope or {}).get("razon", ""),
+            "envelope": _envelope}

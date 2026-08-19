@@ -267,10 +267,28 @@ def test_bucle_nativo_tool_call_y_fin_natural():
 
 
 def test_bucle_nativo_error_de_server_degrada_con_causa():
-    out, _, _ = _correr([RespuestaChat(error="HTTP 503 de :9")],
-                        lambda *a: "no llega")
+    """Un 503 es TRANSITORIO (llama-server contesta 503 mientras carga el
+    modelo): desde el arnes Hermes (2026-08-19) se reintenta hasta 2 veces
+    antes de degradar, y la vuelta gastada se devuelve al presupuesto porque
+    no gasto razonamiento. Por eso el doble tiene que dar 3 respuestas: el
+    intento y los dos reintentos. La causa sigue llegando al texto final."""
+    err = RespuestaChat(error="HTTP 503 de :9")
+    out, _, _ = _correr([err, err, err], lambda *a: "no llega")
     assert not out["ok"]
     assert "HTTP 503" in out["texto"]
+    assert out["razon"] == "error_backend"
+
+
+def test_bucle_nativo_error_no_reintentable_no_gasta_reintentos():
+    """El otro lado de la moneda: un contexto excedido NO se reintenta (la
+    misma peticion da el mismo error, mas caro). Una sola respuesta basta."""
+    out, _, _ = _correr(
+        [RespuestaChat(error="HTTP 400: the request exceeds the available "
+                             "context size, try increasing it")],
+        lambda *a: "no llega")
+    assert not out["ok"]
+    assert "context" in out["texto"]
+    assert out["razon"] == "error_backend"
 
 
 def test_bucle_nativo_estancamiento_corta_honesto():
