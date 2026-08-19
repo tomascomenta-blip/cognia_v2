@@ -1916,8 +1916,8 @@ _CMD_DESCRIPTIONS = {
     "/hermes":          "Estado del arnes Hermes: presupuesto, guardia de bucle, parada verificada",
     "/rutinas":         "Tareas programadas que corren solas.  Uso: /rutinas [crear|borrar|ahora]",
     "/grabar":          "Graba lo que hace el agente para convertirlo en flujo.  Uso: /grabar inicio|fin|lista",
-    "/flujo":           "Flujos aprendidos: aprender de una grabacion, examinar y correr.  Uso: /flujo lista",
-    "/vigilar":         "Monitores persistentes con acciones (avisar, ejecutar, despertar al agente)",
+    "/receta":          "Recetas aprendidas: aprender de una grabacion, examinar y correr.  Uso: /receta lista",
+    "/centinela":       "Monitores persistentes con acciones (avisar, ejecutar, despertar al agente)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
     "/historial":       "Muestra tareas recientes del agente y archivos modificados",
@@ -8213,8 +8213,13 @@ def _slash_grabar(arg: str = ""):
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
 
 
-def _slash_flujo(ai, arg: str = ""):
-    """/flujo — aprender, examinar y correr flujos parametrizados."""
+def _slash_receta(ai, arg: str = ""):
+    """/receta — aprender, examinar y correr recetas parametrizadas.
+
+    Se llama RECETA y no /flujo porque /flujo ya es el orquestador
+    analisis->plan->ejecucion de este REPL: dos comandos con el mismo nombre
+    dejan uno muerto (la trampa de precedencia de /modelos vs /modelo).
+    """
     try:
         from cognia.flujos import generalizador as _gen
         from cognia.flujos import examen as _ex
@@ -8231,7 +8236,7 @@ def _slash_flujo(ai, arg: str = ""):
             filas = _gen.listar_flujos()
             if not filas:
                 _print_line("[info_dim]sin flujos. Graba una tarea (/grabar inicio) "
-                            "y luego /flujo aprender <id>[/info_dim]")
+                            "y luego /receta aprender <id>[/info_dim]")
                 return
             for f in filas:
                 est = _ex.estado_de(f.get("nombre", ""))
@@ -8255,7 +8260,7 @@ def _slash_flujo(ai, arg: str = ""):
             _print_line(f"  postcondiciones: {len(post)}"
                         + ("" if post else "  [warn_cl](sin efectos verificables: "
                                            "NO se podra examinar)[/warn_cl]"))
-            _print_line("[info_dim]sigue con: /flujo examinar " + str(nombre) + "[/info_dim]")
+            _print_line("[info_dim]sigue con: /receta examinar " + str(nombre) + "[/info_dim]")
         elif cmd == "examinar" and resto:
             nombre = resto.split()[0]
             flujo = _gen.cargar_flujo(nombre)
@@ -8298,15 +8303,19 @@ def _slash_flujo(ai, arg: str = ""):
             _ex.cuarentena(resto.split()[0], motivo="pedido por el usuario")
             _print_line("[ok]en cuarentena[/ok] (deja de sugerirse)")
         else:
-            _print_line("[warn_cl]Uso: /flujo [lista | aprender <grabacion> | "
+            _print_line("[warn_cl]Uso: /receta [lista | aprender <grabacion> | "
                         "examinar <nombre> | correr <nombre> k=v | cuarentena <nombre>]"
                         "[/warn_cl]")
     except Exception as exc:
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
 
 
-def _slash_vigilar(ai, arg: str = ""):
-    """/vigilar — monitores persistentes con acciones."""
+def _slash_centinela(ai, arg: str = ""):
+    """/centinela — monitores persistentes con acciones.
+
+    /vigilar ya existe (vigilancia de PANTALLA en dry-run) y /monitores es el
+    motor efimero de siempre: este es el motor que persiste y actua.
+    """
     try:
         from cognia.monitores import nucleo as _mon
         from cognia.monitores import sondas as _snd
@@ -8320,9 +8329,9 @@ def _slash_vigilar(ai, arg: str = ""):
             filas = _mon.listar()
             if not filas:
                 _print_line("[info_dim]sin monitores. Ejemplos:[/info_dim]")
-                _print_line("  /vigilar fichero build/out.gguf")
-                _print_line("  /vigilar backend http://127.0.0.1:8080/health")
-                _print_line("  /vigilar comando \"git status --porcelain\"")
+                _print_line("  /centinela fichero build/out.gguf")
+                _print_line("  /centinela backend http://127.0.0.1:8080/health")
+                _print_line("  /centinela comando \"git status --porcelain\"")
                 return
             for m in filas:
                 _print_line(f"  [mod]{m['id']:<10}[/mod] {m['nombre'][:34]:<34} "
@@ -8351,7 +8360,7 @@ def _slash_vigilar(ai, arg: str = ""):
             _mon.arrancar_hilo()
         elif cmd == "tarea" and len(partes) >= 3:
             # /vigilar tarea <id_monitor_existente> <tarea>  -> cambia la accion
-            _print_line("[warn_cl]usa /vigilar comando y luego edita la accion "
+            _print_line("[warn_cl]usa /centinela comando y luego edita la accion "
                         "desde el fichero de monitores[/warn_cl]")
         elif cmd == "parar" and len(partes) >= 2:
             _print_line("[ok]borrado[/ok]" if _mon.borrar(partes[1])
@@ -8363,7 +8372,7 @@ def _slash_vigilar(ai, arg: str = ""):
             for ev in _mon.pop_eventos():
                 _print_line(f"[warn_cl]* {_escape(str(ev))}[/warn_cl]")
         else:
-            _print_line("[warn_cl]Uso: /vigilar [lista | fichero <ruta> | "
+            _print_line("[warn_cl]Uso: /centinela [lista | fichero <ruta> | "
                         "backend <url> | comando <cmd> | parar <id> | tick][/warn_cl]")
     except Exception as exc:
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
@@ -8741,10 +8750,10 @@ def repl():
             _slash_rutinas(ai, raw[len("/rutinas"):])
         elif raw == "/grabar" or raw.startswith("/grabar "):
             _slash_grabar(raw[len("/grabar"):])
-        elif raw == "/flujo" or raw.startswith("/flujo "):
-            _slash_flujo(ai, raw[len("/flujo"):])
-        elif raw == "/vigilar" or raw.startswith("/vigilar "):
-            _slash_vigilar(ai, raw[len("/vigilar"):])
+        elif raw == "/receta" or raw.startswith("/receta "):
+            _slash_receta(ai, raw[len("/receta"):])
+        elif raw == "/centinela" or raw.startswith("/centinela "):
+            _slash_centinela(ai, raw[len("/centinela"):])
         elif raw == "/workflow" or raw.startswith("/workflow "):
             # Al carril de fondo. _slash_workflow queda INTACTA (sigue siendo
             # sincrona y sus tests la llaman derecho): lo unico que cambia es

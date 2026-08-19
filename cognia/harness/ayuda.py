@@ -208,14 +208,15 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     ),
     "Codigo y ficheros": (
         "/leer", "/proyecto", "/listar", "/buscar", "/escribir", "/editar",
-        "/ejecutar", "/powershell", "/monitor", "/monitores", "/shells",
+        "/ejecutar", "/powershell", "/monitor", "/monitores", "/centinela",
+        "/shells",
         "/shell-kill", "/diff", "/cat", "/mapa-codigo", "/indexar-codigo",
         "/mcp", "/backup", "/worktree",   # worktree es git, no gestion de tareas
     ),
     "Crear y construir": (
         "/crear", "/construir", "/pulir", "/autoprueba", "/biblioteca",
         "/ideas", "/encolar", "/arbitro", "/tutor", "/oficina", "/imagenes",
-        "/ver", "/vigilar", "/chimera",
+        "/ver", "/vigilar", "/chimera", "/grabar", "/receta",
     ),
     "Pensar y razonar": (
         "/pensar", "/razonar", "/hipotesis", "/experimento", "/evaluar-idea",
@@ -271,6 +272,11 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         "/sesion-stats", "/temas", "/costo",
     ),
     "Sistema y diagnostico": (
+        # /hermes y /rutinas viven aca (y no en una categoria propia) porque la
+        # portada de /ayuda cabe en 25 lineas: una categoria nueva mas la
+        # desbordaba y se comia la fila de comandos esenciales. Un tope que se
+        # respeta a medias no es un tope.
+        "/hermes", "/rutinas",
         "/doctor", "/update", "/estado", "/debug", "/seguridad", "/bloquear",
         "/desbloquear", "/mesh_*", "/modulos", "/notificar", "/notif*",
         "/salir", "/cognia-info", "/ayuda", "/comandos",
