@@ -538,6 +538,20 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _nudges_verif = 0          # nudges de parada verificada ya inyectados
     _ts_1a_edicion = None      # epoch de la primera escritura del turno
     _reint_backend = 0         # reintentos por error transitorio del backend
+    # ESPECULACION (multiverso/especulacion.py). El predictor por defecto es
+    # deterministico (bigramas sobre la traza) y no cuesta un token: si tras
+    # 'listar' este agente pidio 'leer_archivo' el 70% de las veces, adelantarlo
+    # mientras el modelo piensa es gratis. Solo acciones PURAS, comprobado dos
+    # veces (al predecir y al ejecutar).
+    _especular = os.environ.get("COGNIA_ESPECULAR", "0").strip().lower() in (
+        "1", "on", "true", "yes")
+    _espec = None
+    _cache_espec = None
+    if _especular:
+        try:
+            from cognia.multiverso import especulacion as _espec
+        except Exception:
+            _especular = False
     _pendiente_verif = ""      # respuesta ya compuesta, en rescate tras un nudge
     _aviso_guardia = ""        # mensaje del guardia de bucle para el modelo
 
@@ -629,6 +643,15 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 f"(presupuesto de {max_turns} pasos agotado sin cierre)")
             break
         pasos += 1
+        if _especular and _espec is not None:
+            # El hilo corre DURANTE completar(): la pared que se ahorra es la
+            # del modelo pensando, no la de la tool.
+            try:
+                _acc = _espec.predecir({"historial": trace}, k=2)
+                _cache_espec = (_espec.ejecutar_especulativo(
+                    _acc, lambda n, a: run_tool(n, a, ctx), ctx) if _acc else None)
+            except Exception:
+                _cache_espec = None
         resp = completar(mensajes, tools=schemas, **sampling)
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
 
@@ -894,7 +917,19 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                f"'{tc.nombre}' con los mismos argumentos)")
                 mensajes = None
                 break
-            resultado = run_tool(tc.nombre, args_str, ctx)
+            _servido = None
+            if _especular and _cache_espec is not None and _espec is not None:
+                try:
+                    _hit = _espec.aceptar({"tool": tc.nombre, "args": args_str},
+                                          _cache_espec)
+                    if _hit.get("aceptada"):
+                        _servido = _hit.get("resultado")
+                        print_fn(f"[detail]especulacion aceptada por "
+                                 f"{_hit.get('via')}: {tc.nombre}[/detail]")
+                except Exception:
+                    _servido = None
+            resultado = (_servido if _servido is not None
+                         else run_tool(tc.nombre, args_str, ctx))
             # Solo la PRIMERA linea clasifica: los errores del registry ponen
             # ERROR en la linea 1; el CONTENIDO de un exito (un log con
             # errores via ctx_grep/leer_archivo) no debe marcar fallo y
