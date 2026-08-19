@@ -13268,3 +13268,27 @@ del día, con verificación adversarial detrás: **33 hallazgos, 8 verificados,
 Lo que queda anotado y NO arreglado: `cli.py` tira el `ok` que ya devuelve
 `bucle_nativo` (hoy se compensa con una heurística de marcas en `cognia hacer`),
 y el agente puede LEER fuera del workspace (el gate solo confina escritura).
+
+## 2026-08-19 — Nocturna: Hermes, flujos aprendidos, monitores y tres sistemas nuevos
+
+Corrida autonoma 18/08 23:00 -> 19/08 ~06:00. Detalle completo en
+`ENTREGA_NOCTURNA_20260819.md`. Resumen de lo VERIFICADO:
+
+- Baseline antes de tocar nada: e2e camino feliz 5/5 en 1,6 min. Al cerrar: 5/5 en 1,8 min.
+- `cognia/hermes/` (5 mecanismos destilados del fuente real de Hermes Agent 0.19.1 +
+  rutinas programadas), cableados en `bucle_nativo`. A/B intercalado n=4 de la parada
+  verificada: neto +0 de acierto, -4 s de pared (no degrada; el 41 s de la primera
+  corrida era varianza).
+- `cognia/flujos/` (grabar -> generalizar -> EXAMINAR -> correr) y `cognia/monitores/`
+  (persistentes, con acciones). e2e propio 14/14: flujo verificado 3/3 casos nuevos y
+  1305x mas barato que rehacer la tarea con el agente.
+- `cognia/multiverso/` (reversibilidad + instantaneas + ramas + especulacion),
+  `cognia/autopsia/` + `cognia/inmune/`, `cognia/estado/`. e2e propio 17/17.
+  Numeros: reparto de reversibilidad sobre 86.496 llamadas reales (7,31% irreversible);
+  precision@1 1.000 vs 0.05/0.10 de las lineas base; recall de artefactos 0,07 -> 1,00;
+  87,9% de tiempo ahorrado en una traza real de promptevo.
+- KILL medido y declarado: la especulacion de acciones no dispara con tareas cortas
+  (1 especulada, 0 aceptadas). Queda opt-in.
+- Cuatro bugs propios cazados por los e2e y la suite (dos comandos que tapaban a
+  `/flujo` y `/vigilar`, la clave `action` vs `tool` del sistema inmune, la alarma que
+  sonaba siempre, y un check de test que leia una clave inexistente).

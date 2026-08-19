@@ -456,6 +456,12 @@ _RE_VERIFICACION = re.compile(
     re.IGNORECASE)
 
 
+def _escape_seguro(texto) -> str:
+    """El motivo del veredicto va a un print con markup: se neutralizan los
+    corchetes para que un '[algo]' no se coma la linea entera."""
+    return str(texto or "").replace("[", "(").replace("]", ")")
+
+
 def _es_verificacion(nombre_tool: str, args: str) -> bool:
     """True si esta llamada es un comando de verificacion ya ejecutado."""
     if nombre_tool == "tests":
@@ -535,6 +541,28 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _hermes = False
             print_fn(f"[warn_cl]arnes hermes no disponible ({type(_e_hm).__name__}): "
                      f"sigo sin el[/warn_cl]")
+    # CANAL DE ESTADO + GOBERNADOR POR PROGRESO (2026-08-19). El canal es el
+    # registro estructurado de lo que se hizo, medido del disco y no de lo que
+    # el modelo dice; el gobernador mide COSTE POR AVANCE VERIFICADO. Medido
+    # sobre trazas reales de este repo: una corrida de promptevo de 2,69 h que
+    # acabo en +0,000 se habria cortado tras el 12% del tiempo, y 314 de 318
+    # intentos de tool_rota (churn puro, cero verificaciones) se habrian
+    # ahorrado. COGNIA_ESTADO=0 apaga los dos.
+    _estado_on = os.environ.get("COGNIA_ESTADO", "1").strip().lower() not in (
+        "0", "off", "false", "no")
+    _canal = _estado = _prog = None
+    if _estado_on:
+        try:
+            from cognia.estado import canal as _canal
+            from cognia.estado.presupuesto_progreso import Progreso as _Progreso
+            _estado = _canal.EstadoVerificado(objetivo=task)
+            # umbral_arranque 6 y no 4: la calibracion de 4 salio de tareas de
+            # reparacion, que verifican temprano. Aqui hay tareas que leen
+            # mucho antes de producir el primer avance verificable.
+            _prog = _Progreso(nombre="bucle_nativo", umbral_arranque=6,
+                              umbral_estancado=6)
+        except Exception:
+            _estado_on = False
     _nudges_verif = 0          # nudges de parada verificada ya inyectados
     _ts_1a_edicion = None      # epoch de la primera escritura del turno
     _reint_backend = 0         # reintentos por error transitorio del backend
@@ -634,6 +662,21 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                f"detuvo tras el paso {pasos})")
                 finish = "cancelado"
                 break
+        if _prog is not None:
+            _v = _prog.veredicto()
+            if _v.get("estado") == "estancado":
+                # No es un tope de cantidad: son N vueltas GASTANDO sin un solo
+                # avance verificado. Se le dice al modelo con la evidencia y se
+                # cierra honesto, que es mas barato que seguir hasta el tope.
+                print_fn(f"[warn_cl]sin progreso verificado: "
+                         f"{_escape_seguro(_v.get('motivo', ''))}[/warn_cl]")
+                mensajes.append({"role": "user", "content": _v.get("sugerencia") or ""})
+                if _salida is not None:
+                    _salida.sellar("estancado_sin_progreso", _v.get("motivo", ""))
+                result_text = result_text or (
+                    "(cerrada sin progreso verificado: " + str(_v.get("motivo")) + ")")
+                _prog = None          # una sola vez por tarea
+                break
         if _pres is not None and not _pres.consume():
             # El contador de Hermes corre EN PARALELO al while: la guarda de
             # arriba es el corte blando; esto es el techo auditado, con los
@@ -652,8 +695,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     _acc, lambda n, a: run_tool(n, a, ctx), ctx) if _acc else None)
             except Exception:
                 _cache_espec = None
+        _t_paso = __import__("time").time()
         resp = completar(mensajes, tools=schemas, **sampling)
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
+        if _prog is not None:
+            try:
+                _u = resp.usage or {}
+                _prog.gastar(tokens=int(_u.get("prompt_tokens") or 0)
+                             + int(_u.get("completion_tokens") or 0),
+                             segundos=__import__("time").time() - _t_paso,
+                             pasos=1)
+            except Exception:
+                pass
 
         # El cupo se renueva en CADA paso. Era global de la tarea, asi que un
         # paso que gastara los dos reintentos dejaba a todos los siguientes sin
@@ -944,6 +997,25 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _muta.resultado(_idm, tool_ok, resultado)
                 if tool_ok and _ts_1a_edicion is None:
                     _ts_1a_edicion = __import__("time").time()
+            if _estado_on and _canal is not None:
+                # Hechos MEDIDOS: anotar_fichero le lee el sha256 y los bytes al
+                # disco, no le cree al resultado de la tool.
+                try:
+                    if es_operacion_de_fichero(tc.nombre):
+                        _r = ruta_de_args(args_str)
+                        _canal.anotar_fichero(_estado, _r, tc.nombre, ok=tool_ok)
+                        if _prog is not None and tool_ok:
+                            _prog.observar_fichero(_r)
+                    elif tc.nombre in ("ejecutar", "ejecutar_fondo", "tests"):
+                        _canal.anotar_comando(_estado, args_str[:200],
+                                              0 if tool_ok else 1, resultado)
+                    if _es_verificacion(tc.nombre, args_str):
+                        _canal.anotar_verificacion(_estado, args_str[:200], tool_ok)
+                        if _prog is not None:
+                            _prog.observar_verificacion(args_str[:120], ok=tool_ok,
+                                                        evidencia=resultado[:200])
+                except Exception:
+                    pass
             if _hermes and _hz_mod is not None and _es_verificacion(tc.nombre, args_str):
                 # Evidencia de verificacion: la escribe QUIEN EJECUTA, con el
                 # resultado real. La politica (parada_verificada) no corre nada.
@@ -1013,11 +1085,26 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         est += sum(len(str(m.get("content") or ""))
                    + len(str(m.get("reasoning_content") or ""))
                    for m in mensajes[idx_turno:]) // 4
+        _libero_algo = False
         while True:
             liberados = _recortar_mensajes(mensajes, perfil.get("n_ctx"), est)
             if not liberados:
                 break
+            _libero_algo = True
             est -= liberados // 4
+        if _libero_algo and _estado_on and _canal is not None:
+            # AQUI es donde se pierde el estado: el recorte resume o tira los
+            # turnos viejos y con ellos que ficheros se tocaron y que
+            # restricciones habia. El canal vuelve a entrar ENTERO, y nunca
+            # pasa por el resumidor (esa es toda la inmunidad).
+            try:
+                _bloque = _canal.render(_estado, tope_chars=1200)
+                if _bloque:
+                    mensajes.append({"role": "user", "content": _bloque})
+                    print_fn("[detail]contexto recortado: reinyecto el canal de "
+                             "estado verificado[/detail]")
+            except Exception:
+                pass
     else:
         # Presupuesto agotado sin cierre: redaccion final honesta con la
         # evidencia del history (no un volcado crudo).
@@ -1040,6 +1127,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _foot = None
         if _foot:
             result_text = (result_text or "") + "\n\n" + _foot
+    if _prog is not None or _estado is not None:
+        try:
+            ctx["_progreso"] = _prog.informe() if _prog is not None else {}
+            ctx["_estado_verificado"] = _estado
+        except Exception:
+            pass
     _envelope = {}
     if _salida is not None:
         try:
