@@ -1913,6 +1913,11 @@ _CMD_DESCRIPTIONS = {
     "/recap":           "Recapitulacion extractiva de la sesion (auto cada N turnos, sin LLM)",
     "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
     "/lazo":            "Lazo de verificacion post-respuesta con tools reales  [on|off]",
+    "/hermes":          "Estado del arnes Hermes: presupuesto, guardia de bucle, parada verificada",
+    "/rutinas":         "Tareas programadas que corren solas.  Uso: /rutinas [crear|borrar|ahora]",
+    "/grabar":          "Graba lo que hace el agente para convertirlo en flujo.  Uso: /grabar inicio|fin|lista",
+    "/flujo":           "Flujos aprendidos: aprender de una grabacion, examinar y correr.  Uso: /flujo lista",
+    "/vigilar":         "Monitores persistentes con acciones (avisar, ejecutar, despertar al agente)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
     "/historial":       "Muestra tareas recientes del agente y archivos modificados",
@@ -8029,6 +8034,376 @@ def _slash_permisos(arg: str = ""):
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# Arnes Hermes, flujos aprendidos y monitores persistentes (obra 2026-08-19).
+# Los cinco comandos comparten una regla: NADA auto-aprendido se activa sin
+# pasar un examen ejecutable. Es la leccion mas cara de este repo (una skill
+# auto-capturada que era una traza de ATASCO bajo el camino feliz de 5/5 a
+# 2-4/5), y aca es codigo, no una advertencia en un README.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _ctx_tools(ai=None):
+    """El ctx minimo que espera run_tool fuera del bucle del agente."""
+    return {"ai": ai, "print_fn": _print_line, "working_memory": {},
+            "agent_state": {}, "show_diff": False}
+
+
+def _slash_hermes(arg: str = ""):
+    """/hermes — estado del arnes destilado de Hermes Agent."""
+    arg = (arg or "").strip().lower()
+    if arg in ("on", "off"):
+        os.environ["COGNIA_HERMES"] = "1" if arg == "on" else "0"
+        _print_line(f"[ok]arnes hermes {arg}[/ok] (afecta a las tareas nuevas)")
+        return
+    activo = os.environ.get("COGNIA_HERMES", "1").strip().lower() not in (
+        "0", "off", "false", "no")
+    _print_line(f"[mod]Arnes Hermes[/mod]: {'ACTIVO' if activo else 'apagado'} "
+                f"[info_dim](COGNIA_HERMES)[/info_dim]")
+    _print_line("  presupuesto con refund  la vuelta administrativa no gasta el "
+                "presupuesto de la tarea")
+    _print_line("  razon de salida         todo cierre queda sellado y logueado")
+    _print_line("  guardia de bucle        A-A-A, ping-pong A-B-A-B y ciclos A-B-C")
+    _print_line("  footer de mutaciones    lo que fallo al escribir se anexa medido")
+    _print_line("  parada verificada       no cierra tras editar codigo sin probarlo")
+    try:
+        from cognia.hermes import parada_verificada as _pv
+        ruta = _pv.ruta_ledger()
+        est = _pv.estado_verificacion(os.getcwd())
+        _print_line(f"  evidencia de este workspace: [mod]{est['estado']}[/mod]"
+                    + (f"  ({_escape(est['comando'][:60])})" if est.get("comando") else ""))
+        _print_line(f"  ledger: [info_dim]{_escape(str(ruta))}[/info_dim]")
+    except Exception as exc:
+        _print_line(f"[warn_cl]ledger no disponible: {_escape(str(exc))}[/warn_cl]")
+    try:
+        from cognia.hermes import rutinas as _rut
+        _print_line(f"  rutinas programadas: {len(_rut.listar())}  "
+                    "[info_dim](/rutinas)[/info_dim]")
+    except Exception:
+        pass
+
+
+def _agente_de_rutina(ai):
+    """El correr_agente_fn que las rutinas inyectan (no escupe en el REPL)."""
+    def _correr(prompt, rutina, latir=None):
+        def _mudo(linea):
+            if latir:
+                latir()          # cada linea es senal de vida: el timeout es
+                                 # por INACTIVIDAD, no por reloj de pared
+        return _run_agent_task(ai, prompt, _mudo, max_steps=8)
+    return _correr
+
+
+def _slash_rutinas(ai, arg: str = ""):
+    """/rutinas — tareas programadas (cron propio, ledger de 3 estados)."""
+    try:
+        from cognia.hermes import rutinas as _rut
+    except Exception as exc:
+        _print_line(f"[err_cl]rutinas no disponibles: {_escape(str(exc))}[/err_cl]")
+        return
+    partes = (arg or "").strip().split(None, 2)
+    cmd = partes[0].lower() if partes else "listar"
+    try:
+        if cmd in ("", "listar"):
+            filas = _rut.listar()
+            if not filas:
+                _print_line("[info_dim]sin rutinas. Ejemplo:[/info_dim]")
+                _print_line('  /rutinas crear "cada 2h" resumi los cambios del repo')
+                return
+            for r in filas:
+                _print_line(f"  [mod]{r['nombre']:<18}[/mod] {r.get('horario_txt', ''):<14} "
+                            f"proxima: {r.get('proxima_en') or '-'}  "
+                            f"[info_dim]{r.get('ultimo_estado') or 'sin correr'}[/info_dim]")
+            edad = _rut.edad_latido()
+            _print_line("  [info_dim]reloj: " + ("nadie esta tickeando"
+                        if edad is None else f"ultimo tick hace {int(edad)}s")
+                        + "[/info_dim]")
+        elif cmd == "crear" and len(partes) >= 3:
+            nombre = f"rutina-{len(_rut.listar()) + 1}"
+            r = _rut.crear(nombre, partes[1].strip('"\''), partes[2])
+            _print_line(f"[ok]creada[/ok] {r['nombre']} -> {r.get('proxima_en')}")
+            _arrancar_carril_rutinas(ai)
+        elif cmd == "borrar" and len(partes) >= 2:
+            _print_line("[ok]borrada[/ok]" if _rut.borrar(partes[1])
+                        else "[warn_cl]no existe[/warn_cl]")
+        elif cmd == "ahora" and len(partes) >= 2:
+            r = _rut.obtener(partes[1])
+            if not r:
+                _print_line("[warn_cl]no existe[/warn_cl]")
+                return
+            inf = _rut.ejecutar(r, _agente_de_rutina(ai))
+            _rut.marcar_corrida(r["nombre"], inf["estado"], inf.get("detalle"))
+            if inf.get("entregado"):
+                _show_response(inf.get("salida") or "")
+            else:
+                _print_line(f"[info_dim]entrega suprimida: "
+                            f"{_escape(str(inf.get('suprimido')))}[/info_dim]")
+        else:
+            _print_line('[warn_cl]Uso: /rutinas [listar | crear "<horario>" <tarea> '
+                        '| borrar <nombre> | ahora <nombre>][/warn_cl]')
+            _print_line('[info_dim]horarios: "30m", "cada 2h", "0 2 * * *", ISO[/info_dim]')
+    except ValueError as exc:
+        _print_line(f"[warn_cl]{_escape(str(exc))}[/warn_cl]")
+    except Exception as exc:
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+
+
+def _slash_grabar(arg: str = ""):
+    """/grabar — graba la trayectoria del agente para aprender un flujo."""
+    try:
+        from cognia.flujos import grabador as _gr
+    except Exception as exc:
+        _print_line(f"[err_cl]grabador no disponible: {_escape(str(exc))}[/err_cl]")
+        return
+    partes = (arg or "").strip().split(None, 1)
+    cmd = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    try:
+        if cmd in ("", "estado"):
+            ab = _gr.abiertas()
+            if ab:
+                _print_line(f"[mod]grabando[/mod]: {', '.join(ab)}  "
+                            "[info_dim](/grabar fin para cerrar)[/info_dim]")
+            else:
+                _print_line("[info_dim]sin grabacion activa. /grabar inicio "
+                            "[titulo] | fin | lista | ver <id> | borrar <id>[/info_dim]")
+        elif cmd == "inicio":
+            _gr.suscribir()
+            gid = _gr.iniciar(titulo=resto, workspace=os.getcwd())
+            _print_line(f"[ok]grabando[/ok] {gid} — corre la tarea y luego /grabar fin")
+        elif cmd == "fin":
+            ids = list(_gr.abiertas())
+            if not ids:
+                _print_line("[warn_cl]no habia nada grabando[/warn_cl]")
+                return
+            for gid in ids:
+                _gr.cerrar(gid, resultado=resto, ok=True)
+                g = _gr.cargar(gid)
+                _print_line(f"[ok]grabacion {gid}[/ok]: {len(g.pasos)} pasos")
+                _print_line(f"  [info_dim]aprende un flujo con: /flujo aprender {gid}"
+                            "[/info_dim]")
+            _gr.desuscribir()
+        elif cmd == "lista":
+            filas = _gr.listar()
+            if not filas:
+                _print_line("[info_dim]no hay grabaciones[/info_dim]")
+            for f in filas[:20]:
+                estado = "cerrada" if f["cerrada"] else "A MEDIAS"
+                _print_line(f"  [mod]{f['id']}[/mod] [{estado}] {f['pasos']} pasos  "
+                            f"{_escape(str(f['titulo'])[:48])}")
+        elif cmd == "ver" and resto:
+            g = _gr.cargar(resto.split()[0])
+            if g is None:
+                _print_line("[warn_cl]no existe[/warn_cl]")
+                return
+            _print_line(f"[mod]{g.id}[/mod] {_escape(g.titulo)}  "
+                        f"tarea: {_escape(g.tarea[:70])}")
+            for p in g.pasos:
+                _print_line(f"  {p['n']:>3} [{'ok  ' if p['ok'] else 'FALLA'}] "
+                            f"{p['tool']} {_escape(str(p['args'])[:64])}")
+            if g.lineas_malas:
+                _print_line(f"[warn_cl]{g.lineas_malas} lineas ilegibles: la "
+                            "trayectoria tiene agujeros[/warn_cl]")
+        elif cmd == "borrar" and resto:
+            _print_line("[ok]borrada[/ok]" if _gr.borrar(resto.split()[0])
+                        else "[warn_cl]no existe[/warn_cl]")
+        else:
+            _print_line("[warn_cl]Uso: /grabar inicio [titulo] | fin | lista | "
+                        "ver <id> | borrar <id>[/warn_cl]")
+    except Exception as exc:
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+
+
+def _slash_flujo(ai, arg: str = ""):
+    """/flujo — aprender, examinar y correr flujos parametrizados."""
+    try:
+        from cognia.flujos import generalizador as _gen
+        from cognia.flujos import examen as _ex
+        from cognia.flujos import reproductor as _rep
+        from cognia.agent.tools import run_tool as _rt
+    except Exception as exc:
+        _print_line(f"[err_cl]flujos no disponibles: {_escape(str(exc))}[/err_cl]")
+        return
+    partes = (arg or "").strip().split(None, 1)
+    cmd = partes[0].lower() if partes else "lista"
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    try:
+        if cmd in ("", "lista"):
+            filas = _gen.listar_flujos()
+            if not filas:
+                _print_line("[info_dim]sin flujos. Graba una tarea (/grabar inicio) "
+                            "y luego /flujo aprender <id>[/info_dim]")
+                return
+            for f in filas:
+                est = _ex.estado_de(f.get("nombre", ""))
+                _print_line(f"  [mod]{f.get('nombre', '?'):<24}[/mod] "
+                            f"{est.get('estado', 'borrador'):<12} "
+                            f"{len(f.get('params', []))} params  "
+                            f"{_escape(str(f.get('descripcion', ''))[:44])}")
+            _print_line("[info_dim]solo los VERIFICADOS se sugieren solos "
+                        "(/flujo examinar <nombre>)[/info_dim]")
+        elif cmd == "aprender" and resto:
+            flujo = _gen.desde_grabacion(resto.split()[0])
+            if not flujo:
+                _print_line("[warn_cl]no pude derivar un flujo de esa grabacion"
+                            "[/warn_cl]")
+                return
+            nombre = _gen.guardar_flujo(flujo)
+            _print_line(f"[ok]flujo aprendido[/ok]: {nombre}")
+            _print_line(f"  pasos: {len(flujo.get('pasos', []))}  "
+                        f"params: {[p['nombre'] for p in flujo.get('params', [])]}")
+            post = flujo.get("postcondiciones") or []
+            _print_line(f"  postcondiciones: {len(post)}"
+                        + ("" if post else "  [warn_cl](sin efectos verificables: "
+                                           "NO se podra examinar)[/warn_cl]"))
+            _print_line("[info_dim]sigue con: /flujo examinar " + str(nombre) + "[/info_dim]")
+        elif cmd == "examinar" and resto:
+            nombre = resto.split()[0]
+            flujo = _gen.cargar_flujo(nombre)
+            if not flujo:
+                _print_line("[warn_cl]no existe ese flujo[/warn_cl]")
+                return
+            ctx = _ctx_tools(ai)
+
+            def _reproducir(fl, valores, ws=None):
+                return _rep.reproducir(fl, valores,
+                                       lambda n, a, c=None: _rt(n, a, ctx),
+                                       workspace=ws)
+
+            _print_line("[info_dim]examinando en workspaces temporales con "
+                        "parametros NUEVOS...[/info_dim]")
+            ver = _ex.examinar_y_decidir(flujo, _reproducir)
+            estado = (ver.get("veredicto") or ver).get("estado", "?")
+            color = "ok" if estado == "verificado" else "warn_cl"
+            _print_line(f"[{color}]{estado}[/{color}] — "
+                        f"{_escape(str((ver.get('veredicto') or ver).get('motivo', '')))}")
+        elif cmd == "correr" and resto:
+            trozos = resto.split()
+            nombre = trozos[0]
+            valores = {}
+            for t in trozos[1:]:
+                if "=" in t:
+                    k, v = t.split("=", 1)
+                    valores[k] = v
+            flujo = _gen.cargar_flujo(nombre)
+            if not flujo:
+                _print_line("[warn_cl]no existe ese flujo[/warn_cl]")
+                return
+            ctx = _ctx_tools(ai)
+            inf = _rep.reproducir(flujo, valores,
+                                  lambda n, a, c=None: _rt(n, a, ctx),
+                                  workspace=os.getcwd(), print_fn=_print_line)
+            _print_line(_rep.resumen_linea(inf))
+            _ex.registrar_uso(nombre, bool(inf.get("ok")))
+        elif cmd == "cuarentena" and resto:
+            _ex.cuarentena(resto.split()[0], motivo="pedido por el usuario")
+            _print_line("[ok]en cuarentena[/ok] (deja de sugerirse)")
+        else:
+            _print_line("[warn_cl]Uso: /flujo [lista | aprender <grabacion> | "
+                        "examinar <nombre> | correr <nombre> k=v | cuarentena <nombre>]"
+                        "[/warn_cl]")
+    except Exception as exc:
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+
+
+def _slash_vigilar(ai, arg: str = ""):
+    """/vigilar — monitores persistentes con acciones."""
+    try:
+        from cognia.monitores import nucleo as _mon
+        from cognia.monitores import sondas as _snd
+    except Exception as exc:
+        _print_line(f"[err_cl]monitores no disponibles: {_escape(str(exc))}[/err_cl]")
+        return
+    partes = (arg or "").strip().split(None, 2)
+    cmd = partes[0].lower() if partes else "lista"
+    try:
+        if cmd in ("", "lista"):
+            filas = _mon.listar()
+            if not filas:
+                _print_line("[info_dim]sin monitores. Ejemplos:[/info_dim]")
+                _print_line("  /vigilar fichero build/out.gguf")
+                _print_line("  /vigilar backend http://127.0.0.1:8080/health")
+                _print_line("  /vigilar comando \"git status --porcelain\"")
+                return
+            for m in filas:
+                _print_line(f"  [mod]{m['id']:<10}[/mod] {m['nombre'][:34]:<34} "
+                            f"{m['estado']:<10} disparos:{m.get('disparos', 0)}"
+                            + (f"  [warn_cl]{_escape(str(m['ultimo_error'])[:40])}[/warn_cl]"
+                               if m.get("ultimo_error") else ""))
+            _print_line(f"[info_dim]hilo: {'vivo' if _mon.motor().hilo_vivo() else 'parado'}"
+                        "[/info_dim]")
+        elif cmd == "fichero" and len(partes) >= 2:
+            m = _mon.crear(f"aparece {partes[1]}",
+                           {"tipo": "fichero_existe", "ruta": partes[1]},
+                           {"tipo": "avisar"})
+            _print_line(f"[ok]monitor {m['id']}[/ok] creado")
+            _mon.arrancar_hilo()
+        elif cmd == "backend" and len(partes) >= 2:
+            m = _mon.crear(f"caida de {partes[1]}", _snd.backend_caido(partes[1]),
+                           {"tipo": "avisar"}, modo="recurrente", intervalo_s=30)
+            _print_line(f"[ok]monitor {m['id']}[/ok] creado (recurrente)")
+            _mon.arrancar_hilo()
+        elif cmd == "comando" and len(partes) >= 2:
+            cmd_txt = " ".join(partes[1:]).strip().strip('"')
+            m = _mon.crear(f"salida de: {cmd_txt[:30]}",
+                           {"tipo": "comando", "cmd": cmd_txt, "dispara_si": "salida"},
+                           {"tipo": "avisar"}, modo="recurrente", intervalo_s=60)
+            _print_line(f"[ok]monitor {m['id']}[/ok] creado (recurrente, cada 60s)")
+            _mon.arrancar_hilo()
+        elif cmd == "tarea" and len(partes) >= 3:
+            # /vigilar tarea <id_monitor_existente> <tarea>  -> cambia la accion
+            _print_line("[warn_cl]usa /vigilar comando y luego edita la accion "
+                        "desde el fichero de monitores[/warn_cl]")
+        elif cmd == "parar" and len(partes) >= 2:
+            _print_line("[ok]borrado[/ok]" if _mon.borrar(partes[1])
+                        else "[warn_cl]no existe[/warn_cl]")
+        elif cmd == "tick":
+            inf = _mon.tick()
+            _print_line(f"evaluados {inf.get('evaluados', 0)}, "
+                        f"disparos {inf.get('disparos', 0)}")
+            for ev in _mon.pop_eventos():
+                _print_line(f"[warn_cl]* {_escape(str(ev))}[/warn_cl]")
+        else:
+            _print_line("[warn_cl]Uso: /vigilar [lista | fichero <ruta> | "
+                        "backend <url> | comando <cmd> | parar <id> | tick][/warn_cl]")
+    except Exception as exc:
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+
+
+_CARRIL_RUTINAS = {"vivo": False}
+
+
+def _arrancar_carril_rutinas(ai):
+    """Hilo unico que tickea las rutinas. Se arranca cuando HAY rutinas."""
+    if _CARRIL_RUTINAS["vivo"]:
+        return
+    if os.environ.get("COGNIA_RUTINAS", "1") in ("0", "off", "false"):
+        return
+    try:
+        from cognia.hermes import rutinas as _rut
+        if not _rut.listar():
+            return                      # nada que tickear: no gastamos un hilo
+    except Exception:
+        return
+
+    def _bucle():
+        from cognia.hermes import rutinas as _r
+        fn = _agente_de_rutina(ai)
+        while True:
+            try:
+                inf = _r.tick(None, fn)
+                for c in inf.get("entregables", []):
+                    _COLA_RUTINAS.append(c)
+            except Exception:
+                pass                    # el hilo del reloj NUNCA muere
+            time.sleep(60)
+
+    _CARRIL_RUTINAS["vivo"] = True
+    threading.Thread(target=_bucle, name="cognia-rutinas", daemon=True).start()
+
+
+_COLA_RUTINAS = []
+
+
 def repl():
     global _session_start, _init_lines, _console, _debug_mode, _fast_mode
 
@@ -8272,6 +8647,33 @@ def repl():
                 _print_line(f"[warn_cl][monitor] {_escape(_ev)}[/warn_cl]")
         except Exception:
             pass
+        # Monitores PERSISTENTES (cognia/monitores): sobreviven al reinicio del
+        # REPL, disparan mas de una vez y traen accion. Se drenan igual que los
+        # efimeros: entre turnos, para no pisar la linea del prompt.
+        try:
+            from cognia.monitores import nucleo as _mnuc
+            for _ev in _mnuc.pop_eventos():
+                _print_line(f"[warn_cl]* {_escape(str(_ev))}[/warn_cl]")
+            for _t in _mnuc.tareas_pendientes():
+                # Un monitor pidio DESPERTAR AL AGENTE: la tarea entra por la
+                # misma cola que el enrutador, o sea por el mismo dispatch que
+                # si la hubiera tecleado el usuario. Nada se ejecuta a
+                # escondidas: se ve la linea.
+                _tarea = (_t.get("tarea") or "").strip() if isinstance(_t, dict) else str(_t)
+                if _tarea:
+                    _print_line(f"[mod]monitor -> agente:[/mod] {_escape(_tarea[:120])}")
+                    _COLA_ENTRADA.append(f"/hacer {_tarea}")
+        except Exception:
+            pass
+        # Entregas de las rutinas programadas que terminaron en el hilo del reloj.
+        try:
+            while _COLA_RUTINAS:
+                _c = _COLA_RUTINAS.pop(0)
+                _print_line(f"[mod]* rutina '{_escape(str(_c.get('rutina', '')))}'"
+                            f"[/mod]")
+                _show_response(str(_c.get("salida") or ""))
+        except Exception:
+            pass
         try:
             # El BOM que PowerShell antepone al pipe rompe el dispatch de la
             # primera linea ('/comando' deja de empezar con '/'): sanear aca,
@@ -8333,6 +8735,16 @@ def repl():
             _slash_plan(raw[len("/plan-modo"):])
         elif raw == "/permisos" or raw.startswith("/permisos "):
             _slash_permisos(raw[len("/permisos"):])
+        elif raw == "/hermes" or raw.startswith("/hermes "):
+            _slash_hermes(raw[len("/hermes"):])
+        elif raw == "/rutinas" or raw.startswith("/rutinas "):
+            _slash_rutinas(ai, raw[len("/rutinas"):])
+        elif raw == "/grabar" or raw.startswith("/grabar "):
+            _slash_grabar(raw[len("/grabar"):])
+        elif raw == "/flujo" or raw.startswith("/flujo "):
+            _slash_flujo(ai, raw[len("/flujo"):])
+        elif raw == "/vigilar" or raw.startswith("/vigilar "):
+            _slash_vigilar(ai, raw[len("/vigilar"):])
         elif raw == "/workflow" or raw.startswith("/workflow "):
             # Al carril de fondo. _slash_workflow queda INTACTA (sigue siendo
             # sincrona y sus tests la llaman derecho): lo unico que cambia es
