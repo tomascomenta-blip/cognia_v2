@@ -285,6 +285,38 @@ def error_accionable_de_ejecucion(history) -> str:
 # regex, sin stops que decapiten razonadores, sin cierre-por-prosa degradado.
 # El marco texto queda en cli.py como fallback para modelos sin tool-calling.
 
+def _corte_en_tool_call(resp, schemas) -> str:
+    """Motivo si el turno se corto MIENTRAS emitia un tool call, o ''.
+
+    Las dos caras del mismo fallo, segun donde caiga el corte dentro del JSON:
+
+    1. El server no puede parsear los argumentos y devuelve HTTP 500
+       ("Failed to parse tool call arguments as JSON ... missing closing
+       quote"). Llega como resp.ok=False.
+    2. El corte cae fuera de la cadena y el server devuelve un turno limpio
+       con finish_reason='length' y CERO tool_calls. Esta cara es la peor: se
+       parece a "el modelo decidio no usar herramientas" y el bucle culpaba al
+       modelo de un problema de presupuesto.
+
+    No se toca el caso legitimo de cerrar sin tools (finish_reason='stop'):
+    eso es el contrato del regimen nativo y sigue intacto.
+    """
+    if not getattr(resp, "ok", False):
+        err = str(getattr(resp, "error", "") or "").lower()
+        if "parse tool call arguments" in err or "missing closing quote" in err:
+            return "el server no pudo parsear el tool call (se corto a medias)"
+        return ""
+    if (schemas and getattr(resp, "finish_reason", "") == "length"
+            and not getattr(resp, "tool_calls", None)):
+        return "el turno se corto por max_tokens antes de emitir el tool call"
+    # Tercera cara: el server DEVUELVE el tool call pero sus argumentos no son
+    # JSON valido porque se cortaron a media cadena. chat_client lo marca.
+    for tc in getattr(resp, "tool_calls", None) or []:
+        if getattr(tc, "argumentos_rotos", False):
+            return "los argumentos del tool call llegaron cortados"
+    return ""
+
+
 def _intencion_de(resp) -> str:
     """1 linea legible de que decidio el modelo en este paso (para el
     evento PasoIntencion): primera frase del razonamiento, o del contenido."""
@@ -406,6 +438,23 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # estancamiento (el rebind no toca el objeto ya referenciado).
     mensajes_dump = mensajes
 
+    # Reintento por TOOL CALL CORTADO (2026-08-18). Cazado probando el CLI con
+    # una tarea normal ("hazme una landing page de cafeteria"): el modelo emite
+    # escribir_archivo con el HTML dentro, el presupuesto del turno se acaba a
+    # mitad de la cadena JSON y el server responde
+    #   HTTP 500 "Failed to parse tool call arguments as JSON ... column 860:
+    #   invalid string: missing closing quote; last read: '"<!DOCTYPE html>...'
+    # Segun donde caiga el corte, la otra cara es un turno con finish_reason
+    # 'length' y CERO tool_calls, que el bucle interpretaba como "el agente
+    # cerro sin usar herramientas" -- o sea, culpaba al modelo de un problema
+    # de presupuesto. Las dos caras son el mismo fallo y ninguna se reintentaba:
+    # la tarea moria con el workspace VACIO tras 100 segundos.
+    # Es el bug numero 11 de la familia "presupuesto de tokens con razonadores"
+    # que este repo ya tiene documentada.
+    _TECHO_REINTENTO = 16384
+    _MAX_REINTENTOS_CORTE = 2
+    _reintentos_corte = 0
+
     sampling = {
         "temperature": perfil.get("temperature", 1.0),
         "top_p": perfil.get("top_p", 1.0),
@@ -451,6 +500,38 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         pasos += 1
         resp = completar(mensajes, tools=schemas, **sampling)
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
+
+        # ¿Se corto el turno mientras emitia un tool call? Entonces el problema
+        # es el PRESUPUESTO, no el modelo: se sube y se repite el mismo turno.
+        _motivo_corte = _corte_en_tool_call(resp, schemas)
+        while (_motivo_corte and _reintentos_corte < _MAX_REINTENTOS_CORTE
+               and sampling["max_tokens"] < _TECHO_REINTENTO):
+            _antes = sampling["max_tokens"]
+            sampling["max_tokens"] = min(_TECHO_REINTENTO, max(2048, _antes * 2))
+            _reintentos_corte += 1
+            print_fn(f"[warn_cl]{_motivo_corte}: repito el paso con "
+                     f"max_tokens {_antes} -> {sampling['max_tokens']}"
+                     f"[/warn_cl]")
+            resp = completar(mensajes, tools=schemas, **sampling)
+            tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
+            _motivo_corte = _corte_en_tool_call(resp, schemas)
+        if _motivo_corte:
+            # Ya no queda presupuesto que subir: en vez de morir en silencio, se
+            # le DICE al modelo lo que pasa y como salir (escribir por partes).
+            print_fn("[warn_cl]el contenido no cabe en un solo tool call ni con "
+                     f"max_tokens={sampling['max_tokens']}: le pido al modelo "
+                     f"que lo escriba por partes[/warn_cl]")
+            mensajes.append({
+                "role": "user",
+                "content": ("AVISO DEL SISTEMA: tu ultima llamada a una "
+                            "herramienta se corto porque el contenido era "
+                            "demasiado largo para un solo mensaje. Escribe el "
+                            "fichero POR PARTES: primero escribir_archivo con "
+                            "la primera mitad y luego apendar_archivo con el "
+                            "resto. No repitas la llamada entera."),
+            })
+            resp = completar(mensajes, tools=schemas, **sampling)
+            tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
 
         if not resp.ok:
             # Server caido / respuesta rota: degradar con causa VISIBLE (la
@@ -528,6 +609,33 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         idx_turno = len(mensajes)   # desde aca: lo apendeado en ESTE turno
         mensajes.append(mensaje_assistant(resp))
         for tc in resp.tool_calls:
+            # ARGUMENTOS CORTADOS (2026-08-18). chat_client ya marcaba esto
+            # (argumentos_rotos) y NADIE lo miraba: se llamaba a la tool con el
+            # crudo sin parsear y la tool se quejaba de lo que le llegara. En la
+            # corrida que lo cazo, el modelo mando
+            #   {"path":"cafeteria.html","contenido":"<!DOCTYPE html>...
+            # con el JSON cortado a media cadena, y el agente recibio
+            #   "ERROR: path outside agent workspace"
+            # o sea: se puso a arreglar la RUTA -- que era correcta -- mientras
+            # el problema real era el TAMANO del contenido. Tres intentos
+            # persiguiendo el sintoma equivocado y el workspace vacio.
+            if getattr(tc, "argumentos_rotos", False):
+                crudo = getattr(tc, "argumentos_crudos", "") or ""
+                resultado = (
+                    f"RESULTADO {tc.nombre} ERROR: los argumentos llegaron "
+                    f"CORTADOS ({len(crudo)} chars, JSON incompleto). No es un "
+                    f"problema de la ruta ni del formato: el contenido es "
+                    f"demasiado largo para un solo mensaje. Escribelo POR "
+                    f"PARTES: escribir_archivo con la primera parte y luego "
+                    f"apendar_archivo con el resto.")
+                print_fn(f"[warn_cl]{tc.nombre}: argumentos cortados a los "
+                         f"{len(crudo)} chars; le pido al modelo que escriba "
+                         f"por partes[/warn_cl]")
+                history.append(resultado)
+                trace.append({"action": tc.nombre, "args": crudo[:200],
+                              "ok": False, "result_head": resultado[:160]})
+                mensajes.append(mensaje_tool(tc.id, resultado))
+                continue
             args_str = args_legacy(tc.nombre, tc.argumentos)
             if _ev is not None:
                 _emitir(_ev.ToolInicio(tool=tc.nombre, args=args_str[:120],

@@ -98,11 +98,26 @@ def _script_que_corre(ws: Path) -> tuple:
     return False, "no hay .py que corra y escriba algo"
 
 
-def _algo_escrito(ws: Path) -> tuple:
+def _pidio_contexto(ws: Path, salida: str = "") -> tuple:
+    """Ante una peticion sin sujeto, el ACIERTO es preguntar, no inventar.
+
+    La primera version de esta postcondicion exigia "que quede algo escrito", y
+    penalizaba justo lo correcto: en la corrida del 2026-08-18 el agente miro el
+    workspace (ls + find), busco en memoria episodica y contesto "arregla esto
+    no tiene objeto; dame la ruta, el error o el comportamiento esperado". Eso
+    es lo que hace un buen harness, y mi banco lo marcaba como fallo. El test
+    estaba midiendo lo que era facil de medir, no lo que importaba.
+    """
+    texto = (salida or "").lower()
+    señales = ("necesito", "que archivo", "cual", "cuál", "no tiene objeto",
+               "dame", "especifica", "mensaje de error", "ruta del archivo")
+    if any(s in texto for s in señales) and "?" in texto:
+        return True, "pidio contexto en vez de inventar"
     hijos = [p for p in ws.rglob("*") if p.is_file()]
     if hijos:
-        return True, ", ".join(p.name for p in hijos[:5])
-    return False, "el workspace quedo vacio"
+        return False, ("invento un arreglo sin preguntar: "
+                       + ", ".join(p.name for p in hijos[:5]))
+    return False, "ni pregunto ni hizo nada"
 
 
 TAREAS = {
@@ -140,7 +155,8 @@ TAREAS = {
     },
     "pregunta_ambigua": {
         "pide": "arregla esto",
-        "post": _algo_escrito,
+        "post": _pidio_contexto,
+        "usa_salida": True,
         "espera_pregunta": True,
         "por_que": ("un buen harness PREGUNTA en vez de inventar. Aqui lo que se "
                     "evalua es si pide contexto o si se lanza a adivinar"),
@@ -239,7 +255,10 @@ def corre_tarea(nombre: str, dst: Path, timeout: int, capturas: bool) -> dict:
     ruta_ansi.write_text(texto, encoding="utf-8")
     png = rasterizar(ruta_ansi, caso / "salida.png") if texto.strip() else False
 
-    ok, detalle = spec["post"](ws)
+    if spec.get("usa_salida"):
+        ok, detalle = spec["post"](ws, texto)
+    else:
+        ok, detalle = spec["post"](ws)
     veredicto = {
         "tarea": nombre,
         "pide": spec["pide"],

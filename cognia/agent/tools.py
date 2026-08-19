@@ -982,7 +982,11 @@ def _leer_lote(args, ctx):
       desc="Crea un archivo nuevo (o SOBRESCRIBE uno existente ENTERO) con el "
            "contenido dado; crea los directorios intermedios. Para cambiar "
            "solo una parte de un archivo existente usa editar_archivo (no "
-           "reescribas el archivo entero: perderias lo que no repitas).",
+           "reescribas el archivo entero: perderias lo que no repitas). "
+           "SI EL ARCHIVO ES LARGO (mas de ~120 lineas, por ejemplo una pagina "
+           "web con estilos): escribelo POR PARTES -- esta llamada con la "
+           "primera parte y luego apendar_archivo con el resto. Una sola "
+           "llamada gigante se corta a medias y se pierde entera.",
       params=[
           {"nombre": "path", "tipo": "string", "requerido": True,
            "descripcion": "ruta del archivo (dentro del workspace)"},
