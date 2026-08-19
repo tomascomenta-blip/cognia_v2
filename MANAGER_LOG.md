@@ -13145,3 +13145,94 @@ escritas.
 | Instrumentos que aprobaban algo roto | **6**, todos arreglados |
 
 Lo abierto, con su número, arriba en la entrada anterior + el VOID del RLM.
+
+---
+
+## 2026-08-18 — Qwen3.8-27B Ridge + arranque de DSH (ola 0 y 1)
+
+Sesión pedida por el dueño: instalar el Qwen3.8-27B, y después "curar el CLI"
+hasta que sea un producto profesional (nombre de trabajo: DSH).
+
+### Modelo nuevo: Qwen3.8-27B Ridge
+
+Instalado, verificado por SHA256 y **medido** (`empero-ai/Qwen3.8-27B-Ridge-GGUF`,
+3,69 bpw, 11,73 GiB, arch `qwen35`, 65 bloques con `nextn_predict_layers=1`).
+
+| ctx | VRAM | gen tok/s |
+|---|---|---|
+| 32.768 | 12.414 MiB | 31,0 |
+| 65.536 | 13.657 MiB | 31,0 |
+| 131.072 | 15.961 MiB | 31,0 |
+| 262.144 | 15.961 MiB | **11,1** |
+
+El 262k es una TRAMPA: arranca, `/props` confirma 262.144 servidos y responde,
+pero el KV que no cabe lo sirve la RAM del sistema. Solo el tok/s lo delata —
+por eso el barrido genera 200 tokens y no 16.
+
+MTP nativo (`--spec-type draft-mtp`), brazo nulo de referencia:
+- Qwythos-9B: 71,4 → **125,1 tok/s en código (1,75×)** y 94,2 en prosa (1,32×)
+  con n-max 2. Con n-max 6 la prosa CAE a 0,78×.
+- Qwen3.8-27B: 30,97 → **56,27 (1,82×)** y 43,79 (1,42×).
+- `ngram-mod`, el default histórico del backend, aceptó **0%** en petición
+  fresca en los dos modelos: sus ganancias salían de repetir el mismo prompt
+  contra el mismo server y copiar su propia respuesta del cache.
+
+Qwythos-9B SIEMPRE tuvo cabeza MTP y nadie la usaba.
+
+### DSH — ola 0: ocho fallos que mentían en voz baja
+
+Todos arreglados con test que falla sin el fix (`tests/test_dsh_ola0.py`, 15):
+la verificación de tests cegada por el color de pytest (arreglarlo puso en
+verde 3 tests que fallaban en la suite), la excepción del verificador que se
+presentaba como aprobación, `kill_shell` devolviendo True sobre un proceso
+vivo, los logs escribiendo por un stderr que ni el spinner ni el prompt
+capturan, la code page de Windows sin UTF-8, los avisos de arranque gritando
+encima del banner, `/tema` sin repintar el renderer y el stream del modelo
+pasando por el parser de markup.
+
+### DSH — ola 1: superficie
+
+- `cognia hacer "<tarea>"`: el agente SIN REPL (stdout=resultado,
+  stderr=progreso, códigos con significado). Sin esto no se podía automatizar
+  ni medir el CLI: el propio gate e2e tenía que saltárselo.
+- `/capacidades` + `/activar`: había ~111 tools registrables y **13**
+  anunciadas; el resto tras 9 env vars que ningún comando encendía. Medido en
+  vivo: **de 55 a 103 tools** activando 4 familias en caliente.
+- `/vram`: qué cabe en la GPU, qué ocupa cada rol y POR QUÉ no cabe lo que no
+  cabe. `grep summoner cognia/cli.py` daba CERO.
+- `cognia --help` reescrita con jerarquía (era una lista plana monocroma de 24
+  comandos, la primera pantalla del producto).
+- 12 tools nuevas para el agente (segundo plano, git escribible con patch real,
+  mover/mkdir/glob/leer_lote, cwd en shell). Solo `ejecutar_fondo` entra en
+  CORE_TOOLS: se gasta una línea del prompt por lo que era IMPOSIBLE, no por lo
+  que era incómodo.
+
+### El bug más caro, y cómo se encontró
+
+El agente no podía escribir ficheros grandes: el tool call se cortaba y el
+error que recibía era **"path outside agent workspace"** — se ponía a arreglar
+una ruta correcta mientras el problema era el tamaño. `chat_client` ya marcaba
+`argumentos_rotos` y el bucle no miraba la marca.
+
+Se encontró **usando el producto**, no leyendo código, y respetando el
+disyuntor: dos intentos con el síntoma idéntico → parar, reproducir, bisecar
+con la petición exacta de la traza. Verificado end-to-end: la misma tarea que
+dejaba el workspace vacío ahora entrega una landing page de 23.370 chars.
+
+### Banco de tareas humanas (nuevo)
+
+`scripts/dsh_probar_tareas.py`: 6 tareas como las pide una persona, con
+postcondición comprobada en DISCO y captura de la salida real. **5/6**.
+Una de mis postcondiciones estaba MAL diseñada: penalizaba que el agente
+pidiera contexto ante "arregla esto", que es justo lo correcto.
+
+### Lo que queda abierto
+
+- El agente se sale del workspace en LECTURA (el gate solo confina escritura):
+  ante una petición sin objeto se puso a listar ficheros de otras carpetas
+  hasta agotar el presupuesto de pasos.
+- El prompt de permiso aparece en modo no interactivo (no bloquea, pero ensucia
+  y confunde): falta una política explícita sin TTY.
+- Del plan de DSH quedan las olas 2+: modo plan real read-only, permisos
+  ciclables con Shift+Tab, checkpoints/rewind con snapshot de árbol, contexto
+  efectivo impreso, y la poda de 244 comandos a ~30 de primera clase.
