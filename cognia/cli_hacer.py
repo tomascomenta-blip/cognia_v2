@@ -144,6 +144,23 @@ def _hacer(args, tarea: str, progreso) -> int:
 
     segundos = round(time.time() - t0, 1)
     texto = str(respuesta or "").strip()
+    # Una tarea que DEGRADO no puede salir con exito (2026-08-18). El bucle
+    # devuelve solo el texto, asi que el estado se lee de sus marcadores de
+    # cierre conocidos. Es una heuristica y se declara como tal, pero es
+    # infinitamente mejor que el exit 0 anterior: `cognia hacer ... && desplegar`
+    # desplegaba despues de que el backend se cayera.
+    _MARCAS_FALLO = (
+        "(el agente no pudo hablar con el modelo",
+        "(presupuesto de",           # pasos agotados sin cierre
+        "(interrumpida por estancamiento",
+        "(el modelo cerro con una respuesta vacia",
+        "(corte pedido por el usuario",
+    )
+    if codigo == 0 and any(m in texto for m in _MARCAS_FALLO):
+        codigo = 1
+        if not args.silencioso:
+            print("[cognia] la tarea NO se completo (mira el motivo arriba): "
+                  "salgo con codigo 1", file=sys.stderr)
     if args.json:
         json.dump({"tarea": tarea, "respuesta": texto, "segundos": segundos,
                    "cwd": os.getcwd(), "ok": codigo == 0},

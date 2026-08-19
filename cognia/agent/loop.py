@@ -285,6 +285,39 @@ def error_accionable_de_ejecucion(history) -> str:
 # regex, sin stops que decapiten razonadores, sin cierre-por-prosa degradado.
 # El marco texto queda en cli.py como fallback para modelos sin tool-calling.
 
+def _parece_cortado(crudo: str) -> bool:
+    """True si el JSON de los argumentos se quedo a medias (no si es raro).
+
+    LA DISTINCION IMPORTA (2026-08-18): `argumentos_rotos` marca cualquier JSON
+    que no parsea, y ahi caben DOS cosas muy distintas:
+      - CORTADO: {"path":"x.html","contenido":"<!DOCTYPE...   <- se acabo el turno
+      - MALFORMADO pero COMPLETO: {'path': 'a.txt'}           <- comillas simples
+    El segundo lo rescataba el passthrough de args_legacy y la tool se ejecutaba
+    bien. Bloquear los dos por igual convertia un caso que FUNCIONABA en un
+    fallo -- lo cazo la revision adversarial con un contrafactual contra el
+    commit anterior. Solo el cortado justifica no ejecutar.
+    """
+    texto = (crudo or "").strip()
+    if not texto:
+        return True
+    # Comillas sin escapar impares -> la cadena quedo abierta.
+    fuera, escapando, en_cadena = 0, False, False
+    for ch in texto:
+        if escapando:
+            escapando = False
+            continue
+        if ch == "\\":
+            escapando = True
+        elif ch == '"':
+            en_cadena = not en_cadena
+        elif not en_cadena:
+            if ch in "{[":
+                fuera += 1
+            elif ch in "}]":
+                fuera -= 1
+    return en_cadena or fuera > 0
+
+
 def _corte_en_tool_call(resp, schemas) -> str:
     """Motivo si el turno se corto MIENTRAS emitia un tool call, o ''.
 
@@ -308,12 +341,26 @@ def _corte_en_tool_call(resp, schemas) -> str:
         return ""
     if (schemas and getattr(resp, "finish_reason", "") == "length"
             and not getattr(resp, "tool_calls", None)):
+        # ...PERO solo si no estaba escribiendo PROSA. Una respuesta final
+        # larga que se trunca tambien llega como length + cero tool_calls, y
+        # tratarla como "tool call cortado" la reintentaba tres veces y encima
+        # le inyectaba al modelo un "escribe el fichero por partes" que no
+        # venia a cuento. Con texto sustancial, lo que se corto es la
+        # RESPUESTA, y de eso ya avisa el bucle mas abajo.
+        if len((getattr(resp, "texto", "") or "").strip()) >= 200:
+            return ""
         return "el turno se corto por max_tokens antes de emitir el tool call"
     # Tercera cara: el server DEVUELVE el tool call pero sus argumentos no son
     # JSON valido porque se cortaron a media cadena. chat_client lo marca.
-    for tc in getattr(resp, "tool_calls", None) or []:
-        if getattr(tc, "argumentos_rotos", False):
-            return "los argumentos del tool call llegaron cortados"
+    llamadas = getattr(resp, "tool_calls", None) or []
+    rotas = [tc for tc in llamadas
+             if getattr(tc, "argumentos_rotos", False)
+             and _parece_cortado(getattr(tc, "argumentos_crudos", ""))]
+    if rotas and len(rotas) == len(llamadas):
+        # Solo si TODAS estan rotas. Si alguna llego sana, repetir el turno
+        # tiraria trabajo bueno: se ejecutan las sanas y a la rota se le
+        # contesta con el aviso (lo hace el bucle, mas abajo).
+        return "los argumentos del tool call llegaron cortados"
     return ""
 
 
@@ -451,9 +498,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # la tarea moria con el workspace VACIO tras 100 segundos.
     # Es el bug numero 11 de la familia "presupuesto de tokens con razonadores"
     # que este repo ya tiene documentada.
-    _TECHO_REINTENTO = 16384
-    _MAX_REINTENTOS_CORTE = 2
-    _reintentos_corte = 0
+    _MAX_REINTENTOS_CORTE = 2   # POR PASO: ver el reset dentro del bucle
 
     sampling = {
         "temperature": perfil.get("temperature", 1.0),
@@ -462,6 +507,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         "reasoning_effort": perfil.get("reasoning_effort", ""),
         "url": perfil.get("url", ""),
     }
+    # El techo es RELATIVO al presupuesto del perfil, no una constante: con un
+    # perfil de 16384 o mas, un techo fijo de 16384 dejaba la rampa sin recorrido
+    # y el aviso decia "no cabe ni con max_tokens=32768" sin haber probado nunca
+    # con mas. Lo cazo la revision adversarial.
+    _TECHO_REINTENTO = max(16384, int(sampling.get("max_tokens") or 4096) * 4)
+
     # Familias que controlan el razonamiento por otra clave del template
     # (Nemotron: enable_thinking). Ausente en Qwen/harmony -> body intacto.
     if perfil.get("kwargs_plantilla"):
@@ -501,6 +552,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         resp = completar(mensajes, tools=schemas, **sampling)
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
 
+        # El cupo se renueva en CADA paso. Era global de la tarea, asi que un
+        # paso que gastara los dos reintentos dejaba a todos los siguientes sin
+        # rampa: el segundo fichero largo moria sin un solo reintento.
+        _reintentos_corte = 0
+        _presupuesto_base = sampling["max_tokens"]
+
         # ¿Se corto el turno mientras emitia un tool call? Entonces el problema
         # es el PRESUPUESTO, no el modelo: se sube y se repite el mismo turno.
         _motivo_corte = _corte_en_tool_call(resp, schemas)
@@ -518,9 +575,17 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         if _motivo_corte:
             # Ya no queda presupuesto que subir: en vez de morir en silencio, se
             # le DICE al modelo lo que pasa y como salir (escribir por partes).
-            print_fn("[warn_cl]el contenido no cabe en un solo tool call ni con "
-                     f"max_tokens={sampling['max_tokens']}: le pido al modelo "
-                     f"que lo escriba por partes[/warn_cl]")
+            # El texto distingue "agote la rampa" de "no habia rampa": decir
+            # "no cabe ni con N" sin haber probado con mas de N seria afirmar
+            # algo que no se midio.
+            if _reintentos_corte:
+                print_fn("[warn_cl]el contenido no cabe en un solo tool call "
+                         f"ni con max_tokens={sampling['max_tokens']}: le pido "
+                         f"al modelo que lo escriba por partes[/warn_cl]")
+            else:
+                print_fn("[warn_cl]el tool call se corto y el presupuesto ya "
+                         f"estaba en el techo ({sampling['max_tokens']}): le "
+                         f"pido al modelo que lo escriba por partes[/warn_cl]")
             mensajes.append({
                 "role": "user",
                 "content": ("AVISO DEL SISTEMA: tu ultima llamada a una "
@@ -532,6 +597,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             })
             resp = completar(mensajes, tools=schemas, **sampling)
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
+
+        # El presupuesto vuelve al del perfil: la subida era para ESTE paso. Si
+        # se queda alta, el resto de la tarea paga un techo que no pidio nadie.
+        sampling["max_tokens"] = _presupuesto_base
 
         if not resp.ok:
             # Server caido / respuesta rota: degradar con causa VISIBLE (la
@@ -619,7 +688,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             # o sea: se puso a arreglar la RUTA -- que era correcta -- mientras
             # el problema real era el TAMANO del contenido. Tres intentos
             # persiguiendo el sintoma equivocado y el workspace vacio.
-            if getattr(tc, "argumentos_rotos", False):
+            if (getattr(tc, "argumentos_rotos", False)
+                    and _parece_cortado(getattr(tc, "argumentos_crudos", ""))):
                 crudo = getattr(tc, "argumentos_crudos", "") or ""
                 resultado = (
                     f"RESULTADO {tc.nombre} ERROR: los argumentos llegaron "

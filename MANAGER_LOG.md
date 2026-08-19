@@ -13236,3 +13236,35 @@ pidiera contexto ante "arregla esto", que es justo lo correcto.
 - Del plan de DSH quedan las olas 2+: modo plan real read-only, permisos
   ciclables con Shift+Tab, checkpoints/rewind con snapshot de árbol, contexto
   efectivo impreso, y la poda de 244 comandos a ~30 de primera clase.
+
+### Revisión adversarial de cierre (mismo día)
+
+Tres revisores en paralelo (corrección / regresión / honestidad) sobre el diff
+del día, con verificación adversarial detrás: **33 hallazgos, 8 verificados,
+5 graves — todos míos**. Arreglados antes de cerrar:
+
+1. **Regresión que introdujo el propio arreglo**: `argumentos_rotos` marca dos
+   cosas distintas — JSON *cortado* y JSON *malformado pero completo*
+   (`{'path': 'a.txt'}`), que `args_legacy` rescataba y ejecutaba bien.
+   Bloquear ambos rompió un caso que funcionaba. Ahora `_parece_cortado()`
+   los distingue (llaves/comillas sin cerrar).
+2. Una **respuesta larga en prosa truncada** se confundía con un tool call
+   cortado: 3 reintentos y un "escribe por partes" en tareas sin ficheros.
+3. El cupo de reintentos era **global de la tarea**: el segundo fichero largo
+   moría sin rampa. Ahora es por paso, y el presupuesto se restaura al salir.
+4. El techo era **constante**: con un perfil ≥16.384 la rampa no corría y el
+   aviso afirmaba "no cabe ni con N" sin haber probado con más. Ahora es
+   relativo (`max(16384, perfil*4)`) y el mensaje distingue "agoté la rampa"
+   de "no había rampa".
+5. **Silenciar un aviso es perderlo si nadie lo enseña**: `cognia doctor` no
+   leía `config.degradados()`. Nuevo check "Capacidades degradadas".
+6. `/shell-kill` decía "no existe el shell" cuando el proceso **seguía vivo**
+   (efecto de que `kill_shell` ahora dice la verdad). Tres casos distintos.
+7. `/capacidades` decía "encendida" con 0 tools; `/vram` llamaba "VRAM" a un
+   presupuesto declarado; `cognia hacer` devolvía exit 0 con la tarea fallida.
+8. `enrutar_consola_a` + `/debug` duplicaba los logs y `restaurar_enrutado`
+   revertía el nivel en silencio.
+
+Lo que queda anotado y NO arreglado: `cli.py` tira el `ok` que ya devuelve
+`bucle_nativo` (hoy se compensa con una heurística de marcas en `cognia hacer`),
+y el agente puede LEER fuera del workspace (el gate solo confina escritura).

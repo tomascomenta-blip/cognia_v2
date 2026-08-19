@@ -197,7 +197,15 @@ def poner_nivel_consola(nivel: str) -> None:
     """Sube/baja el nivel de la CONSOLA en caliente (lo usa /debug del REPL).
     El archivo no se toca: siempre recibe el detalle."""
     n = _nivel(nivel, logging.WARNING)
-    if _CONSOLE_HANDLER is not None:
+    # Con el enrutado puesto (el REPL), el nivel se le aplica a EL: tocar el
+    # handler de consola lo despertaria y los logs saldrian DOS veces -- una por
+    # la interfaz y otra en crudo por stderr, encima del dibujo. Lo cazo la
+    # revision adversarial con /debug on.
+    if _ENRUTADO is not None:
+        _ENRUTADO.setLevel(n)
+        if _CONSOLE_HANDLER is not None:
+            _CONSOLE_HANDLER.setLevel(_NIVEL_MUDO)
+    elif _CONSOLE_HANDLER is not None:
         _CONSOLE_HANDLER.setLevel(n)
     # el raiz debe dejar pasar lo que la consola quiere ver
     _ROOT_LOGGER.setLevel(min(n, logging.INFO))
@@ -270,6 +278,8 @@ def restaurar_enrutado() -> None:
     except Exception:
         pass
     if _CONSOLE_HANDLER is not None:
+        # El nivel VIVO del enrutado (que /debug pudo cambiar), no el que tenia
+        # al instalarse: si no, salir del REPL revertia el /debug en silencio.
         _CONSOLE_HANDLER.setLevel(_ENRUTADO.level)
     _ENRUTADO = None
 

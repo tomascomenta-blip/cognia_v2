@@ -866,14 +866,24 @@ def _slash_shells(args: str) -> None:
 
 def _slash_shell_kill(args: str) -> None:
     """Termina un shell en background por id."""
-    from cognia.console.proc_registry import kill_shell
+    from cognia.console.proc_registry import get_status, kill_shell
     try:
         sid = int(args.strip())
     except ValueError:
         print("Uso: /shell-kill <id>")
         return
-    print(f"Shell #{sid} terminado." if kill_shell(sid)
-          else f"[WARN] No existe el shell #{sid} (o ya termino).")
+    # TRES casos, no dos (2026-08-18). Desde que kill_shell dice la verdad
+    # ("False" = sigue vivo), el mensaje de antes convertia "no lo pude matar"
+    # en "no existe (o ya termino)" — justo al reves de lo que pasa, y con el
+    # proceso todavia agarrado al puerto, al fichero o a la GPU.
+    if get_status(sid) is None:
+        _print_line(f"[warn_cl]No existe el shell #{sid}.[/warn_cl]")
+    elif kill_shell(sid):
+        _print_line(f"Shell #{sid} terminado.")
+    else:
+        _print_line(f"[err_cl]El shell #{sid} SIGUE VIVO tras terminate y "
+                    f"kill: matalo a mano (Administrador de tareas) antes de "
+                    f"contar con su puerto o sus ficheros.[/err_cl]")
 
 
 def _slash_monitores(args: str) -> None:
@@ -6370,8 +6380,12 @@ def _slash_vram(args: str = "") -> None:
         _ancho = 100
     _sitio_nota = max(16, _ancho - 40)   # 40 = rol + estado + vram + puerto
     _print_line("")
-    _print_line(f"  [info_dim]{'rol':<9} {'estado':<9} {'VRAM':>8}  {'puerto':<7} "
-                f"que pasa[/info_dim]")
+    # "presupuesto" y no "VRAM": la columna sale de ROLES[rol]['vram_mib'], que
+    # es lo que el summoner RESERVA para decidir si cabe -- no lo que ese rol
+    # esta gastando ahora. Llamarlo VRAM invitaba a leer un consumo medido
+    # donde hay una declaracion.
+    _print_line(f"  [info_dim]{'rol':<9} {'estado':<9} {'presup.':>8}  "
+                f"{'puerto':<7} que pasa[/info_dim]")
     for rol, cfg in _sm.ROLES.items():
         vram = cfg.get("vram_mib") or 0
         puerto = cfg.get("puerto") or 0
@@ -6464,8 +6478,12 @@ def _slash_capacidades(args: str = "") -> None:
     for f in filas:
         if not f["instalada"]:
             marca, estado = "[err_cl]x[/err_cl]", "no instalada"
-        elif f["encendida"]:
+        elif f["encendida"] and f["n_tools"]:
             marca, estado = "[ok_cl]*[/ok_cl]", f"{f['n_tools']} tools"
+        elif f["encendida"]:
+            # Flag puesto y CERO tools en el registro: decir "encendida" seria
+            # exactamente la mentira que este comando existe para deshacer.
+            marca, estado = "[warn_cl]![/warn_cl]", "ON, 0 tools"
         else:
             marca, estado = "[info_dim]-[/info_dim]", "apagada"
         peligro = " (toca tu maquina)" if f["peligrosa"] else ""

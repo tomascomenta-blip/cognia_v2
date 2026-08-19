@@ -193,3 +193,36 @@ class TestElArranqueNoGrita:
             capture_output=True, text=True, timeout=120,
             cwd=str(Path(__file__).resolve().parent.parent))
         assert "WARNING" not in (r.stderr or ""), r.stderr[:400]
+
+
+class TestLosAvisosSilenciadosSE_MUESTRAN:
+    """Silenciar un aviso solo vale si alguien lo ENSEÑA en otro sitio. Si no,
+    no se ha silenciado: se ha perdido. Lo cazó la revisión adversarial."""
+
+    def test_el_doctor_lee_los_degradados(self):
+        from cognia import doctor
+        assert hasattr(doctor, "check_degradados")
+        fuente = (Path(__file__).resolve().parent.parent / "cognia" /
+                  "doctor.py").read_text(encoding="utf-8")
+        assert "check_degradados" in fuente
+        assert "Capacidades degradadas" in fuente,             "el check tiene que estar en la lista de secciones, no solo definido"
+
+    def test_el_check_reporta_lo_registrado(self, capsys):
+        from cognia import config, doctor
+        config.registrar_degradado("cosa-de-prueba", "algo va peor", "instala x")
+        doctor.check_degradados()
+        salida = capsys.readouterr().out
+        assert "cosa-de-prueba" in salida and "algo va peor" in salida
+
+
+class TestShellKillNoMienteEnElCli:
+    """kill_shell ya devuelve la verdad; el CLI la contaba al reves."""
+
+    def test_el_cli_distingue_los_TRES_casos(self):
+        fuente = (Path(__file__).resolve().parent.parent / "cognia" /
+                  "cli.py").read_text(encoding="utf-8")
+        i = fuente.index("def _slash_shell_kill")
+        bloque = fuente[i:i + 1400]
+        assert "get_status" in bloque, "hay que preguntar si EXISTE"
+        assert "SIGUE VIVO" in bloque, "un kill fallido no es 'no existe'"
+

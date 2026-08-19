@@ -31,6 +31,10 @@ _CHECKS = [
     "check_ollama", "check_llm_backend", "check_flota", "check_backend_audit",
     "check_sentinel", "check_fleet30", "check_env", "check_db",
     "check_shards", "check_inference_speed",
+    # 2026-08-18: seccion nueva ("Capacidades degradadas"). Sin listarla aqui,
+    # el test la corria de verdad y sumaba los degradados REALES de la maquina
+    # a la cuenta de avisos -- justo lo que este comentario avisaba.
+    "check_degradados",
 ]
 
 

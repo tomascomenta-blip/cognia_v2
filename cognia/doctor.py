@@ -598,6 +598,30 @@ def check_sentinel() -> bool:
     return _ok(f"centinela {estado}, 'rm -rf /' -> BLOCK{aud}")
 
 
+def check_degradados() -> bool:
+    """Lo que falta y en que se nota (cognia.config.degradados()).
+
+    POR QUE ESTA AQUI (2026-08-18): esos avisos ANTES se imprimian en cada
+    arranque encima del banner -- ruido permanente que el usuario aprende a
+    ignorar -- y se cambiaron por un registro. El cambio solo vale si alguien
+    los ENSEÑA: un aviso que se deja de imprimir y no se muestra en ningun
+    sitio no se ha silenciado, se ha PERDIDO. Este es el sitio donde el usuario
+    viene a preguntar que le falta.
+    """
+    try:
+        from cognia.config import degradados
+    except Exception as exc:
+        return _warn("degradados", f"no pude leerlos: {exc}")
+    faltan = degradados()
+    if not faltan:
+        return _ok("capacidades", "nada degradado: no falta ninguna opcional")
+    for d in faltan:
+        _warn(d.get("que", "?"),
+              f"{d.get('efecto', '')}"
+              + (f" -> {d['arreglo']}" if d.get("arreglo") else ""))
+    return True
+
+
 def run_all() -> int:
     # config.env ANTES de cualquier check. El bloque __main__ de abajo ya lo
     # hacia, pero el wrapper scripts/cognia_doctor.py y el /doctor del CLI
@@ -629,6 +653,7 @@ def run_all() -> int:
         ("FLEET-30",          check_fleet30),
         ("Configuracion",     check_env),
         ("Base de datos",     check_db),
+        ("Capacidades degradadas", check_degradados),
         ("Shards del modelo", check_shards),
         ("Velocidad inferencia", check_inference_speed),
     ]

@@ -214,19 +214,12 @@ class TestArgumentosRotosNoSeEjecutan:
         """El agente tiene que enterarse de que sobra CONTENIDO, no de que la
         ruta esta mal: si no, arregla lo que no toca."""
         mensajes_tool = []
-        respuestas = [_Resp(finish_reason="tool_calls",
-                            tool_calls=[self._TC()]),
-                      _Resp(finish_reason="tool_calls",
-                            tool_calls=[self._TC()]),
-                      _Resp(finish_reason="tool_calls",
-                            tool_calls=[self._TC()]),
-                      _Resp(finish_reason="stop", texto="ok")]
-        n = {"i": 0}
 
         def _completar(mensajes, tools=None, **sampling):
-            r = respuestas[min(n["i"], len(respuestas) - 1)]
-            n["i"] += 1
-            return r
+            # SIEMPRE rota: se agota la rampa, se inyecta el aviso y el bucle
+            # acaba llegando al for de ejecucion, que es donde se le contesta
+            # a la llamada rota. Ese turno tool es lo que se mide aqui.
+            return _Resp(finish_reason="tool_calls", tool_calls=[self._TC()])
 
         L.bucle_nativo(
             task="escribe una pagina", system="", completar=_completar,
@@ -242,4 +235,120 @@ class TestArgumentosRotosNoSeEjecutan:
         assert "CORTADOS" in texto
         assert "POR PARTES" in texto.upper()
         assert "workspace" not in texto,             "el mensaje no puede culpar a la ruta: ese era el bug"
+
+
+class TestLoQueLaRevisionAdversarialCazo:
+    """Tres agentes revisores encontraron esto en el arreglo de arriba, el mismo
+    dia que se escribio. Los dos primeros eran de gravedad ALTA."""
+
+    def test_una_respuesta_larga_truncada_NO_es_un_tool_call_cortado(self):
+        # El bug: una respuesta final en prosa que se corta por presupuesto
+        # llega igual (length + cero tool_calls). Se reintentaba TRES veces y
+        # encima se le inyectaba al modelo un "escribe el fichero por partes"
+        # que no venia a cuento -- en una tarea que no escribia ningun fichero.
+        larga = _Resp(finish_reason="length", tool_calls=[],
+                      texto="x" * 400)
+        assert L._corte_en_tool_call(larga, SCHEMAS) == ""
+
+    def test_un_turno_sin_texto_sigue_siendo_corte(self):
+        # CONTRAFACTUAL: el caso real (cero texto, cero tools) no se pierde.
+        vacio = _Resp(finish_reason="length", tool_calls=[], texto="")
+        assert L._corte_en_tool_call(vacio, SCHEMAS)
+
+    def test_un_tool_call_SANO_no_se_tira_por_culpa_de_uno_roto(self):
+        # El bug: con dos tool calls en el turno y uno solo cortado, se
+        # descartaba el turno ENTERO y el trabajo bueno se perdia.
+        class _TC:
+            def __init__(self, roto):
+                self.id, self.nombre = "c", "escribir_archivo"
+                self.argumentos, self.argumentos_crudos = {}, "{"
+                self.argumentos_rotos = roto
+
+        mixto = _Resp(finish_reason="tool_calls",
+                      tool_calls=[_TC(True), _TC(False)])
+        assert L._corte_en_tool_call(mixto, SCHEMAS) == ""
+        todas_rotas = _Resp(finish_reason="tool_calls",
+                            tool_calls=[_TC(True), _TC(True)])
+        assert L._corte_en_tool_call(todas_rotas, SCHEMAS)
+
+
+class TestLaRampaDePresupuesto:
+    """Lo que la verificacion adversarial midio del reintento en si."""
+
+    def _correr(self, respuestas, perfil):
+        vistos = []
+
+        def _completar(mensajes, tools=None, **sampling):
+            vistos.append(sampling.get("max_tokens"))
+            return respuestas[min(len(vistos) - 1, len(respuestas) - 1)]
+
+        L.bucle_nativo(
+            task="t", system="", completar=_completar, schemas=SCHEMAS,
+            args_legacy=lambda *a, **k: "",
+            mensaje_assistant=lambda r: {"role": "assistant", "content": ""},
+            mensaje_tool=lambda tid, txt: {"role": "tool", "content": txt},
+            run_tool=lambda *a, **k: "RESULTADO ok",
+            ctx={}, perfil=perfil, history=[], trace=[],
+            print_fn=lambda *a, **k: None, max_turns=4)
+        return vistos
+
+    def test_el_techo_es_relativo_al_perfil(self):
+        # Con un perfil de 32768 y techo fijo de 16384 la rampa no corria: 0
+        # reintentos y un aviso que decia "no cabe ni con 32768" sin haberlo
+        # probado con mas.
+        cortada = _Resp(finish_reason="length", tool_calls=[], texto="")
+        vistos = self._correr([cortada], {"max_tokens": 32768})
+        assert max(vistos) > 32768, f"la rampa no subio: {vistos}"
+
+    def test_el_presupuesto_vuelve_a_su_sitio_en_el_paso_siguiente(self):
+        """La subida es para ESE paso. Si persiste, el resto de la tarea corre
+        con un techo que nadie pidio (lo midio la revision adversarial)."""
+        class _TCSano:
+            id, nombre = "c1", "leer_archivo"
+            argumentos, argumentos_crudos = {}, "{}"
+            argumentos_rotos = False
+
+        guion = [
+            # paso 1: se corta, se reintenta (sube), y acaba con una tool sana
+            _Resp(finish_reason="length", tool_calls=[], texto=""),
+            _Resp(finish_reason="length", tool_calls=[], texto=""),
+            _Resp(finish_reason="tool_calls", tool_calls=[_TCSano()]),
+            # paso 2: turno normal -> tiene que ir con el presupuesto del perfil
+            _Resp(finish_reason="stop", texto="listo"),
+        ]
+        vistos = []
+
+        def _completar(mensajes, tools=None, **sampling):
+            vistos.append(sampling.get("max_tokens"))
+            return guion[min(len(vistos) - 1, len(guion) - 1)]
+
+        L.bucle_nativo(
+            task="t", system="", completar=_completar, schemas=SCHEMAS,
+            args_legacy=lambda *a, **k: "",
+            mensaje_assistant=lambda r: {"role": "assistant", "content": ""},
+            mensaje_tool=lambda tid, txt: {"role": "tool", "content": txt},
+            run_tool=lambda *a, **k: "RESULTADO ok",
+            ctx={}, perfil={"max_tokens": 4096}, history=[], trace=[],
+            print_fn=lambda *a, **k: None, max_turns=4)
+        assert vistos[0] == 4096
+        assert vistos[1] > 4096, f"no subio en el paso 1: {vistos}"
+        assert vistos[-1] == 4096, f"quedo el presupuesto subido: {vistos}"
+
+
+class TestCortadoNoEsLoMismoQueMalformado:
+    """La regresion que introdujo el propio arreglo: un JSON raro pero COMPLETO
+    (comillas simples) lo rescataba args_legacy y la tool corria. Bloquear los
+    dos por igual rompia un caso que funcionaba."""
+
+    def test_distingue_los_dos(self):
+        assert L._parece_cortado('{"path":"x","contenido":"<!DOC')      # cortado
+        assert L._parece_cortado("")                                    # vacio
+        assert not L._parece_cortado("{'path': 'a.txt'}")               # raro
+        assert not L._parece_cortado('{"path":"a.txt"}')                # sano
+
+    def test_una_llave_sin_cerrar_es_corte(self):
+        assert L._parece_cortado('{"a": {"b": 1}')
+
+    def test_las_comillas_escapadas_no_confunden(self):
+        assert not L._parece_cortado('{"t":"dice \\"hola\\" y ya"}')
 
