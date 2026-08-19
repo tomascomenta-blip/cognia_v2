@@ -148,6 +148,36 @@ def antes(name: str, args: str, ctx: dict) -> str | None:
     ctx = ctx if isinstance(ctx, dict) else {}
     ctx.pop("_harness_checkpoint", None)
 
+    # 0) RAMA ESPECULATIVA (multiverso, 2026-08-19) — dentro de una rama que
+    # puede perder, lo IRREVERSIBLE no se ejecuta: se veta y se encola para
+    # correr UNA vez, en el mundo real, si la rama gana. Va primero porque es la
+    # unica comprobacion cuyo fallo es irreparable: si un push se escapa, no hay
+    # checkpoint ni hook que lo arregle.
+    try:
+        from cognia.multiverso import ramas as _ramas
+        _veto_rama = _ramas.veto_activo(name, args)
+        if _veto_rama:
+            return _veto_rama
+    except Exception:
+        pass
+
+    # 0.5) SISTEMA INMUNE — anticuerpos ejecutables derivados de fallos ya
+    # atribuidos por la autopsia causal. Un anticuerpo NO es una leccion en
+    # prosa: es un chequeo determinista que veta la accion que reprodujo el
+    # fallo, y solo se activa tras aprobar un examen con casos sanos. Con cero
+    # anticuerpos registrados esto cuesta una lectura de lista vacia.
+    # COGNIA_INMUNE=0 lo apaga.
+    if os.environ.get("COGNIA_INMUNE", "1").strip().lower() not in ("0", "off", "false", "no"):
+        try:
+            from cognia.inmune import anticuerpos as _inm
+            _v = _inm.evaluar(name, args, ctx)
+            if _v and _v.get("veto"):
+                return _v.get("mensaje") or (
+                    "BLOQUEADO por un anticuerpo del sistema inmune: esta "
+                    "accion reprodujo un fallo ya diagnosticado.")
+        except Exception:
+            pass
+
     # 1) MODO PLAN — investigar sin tocar nada. El motivo es para el modelo.
     try:
         from cognia.harness import modo_plan

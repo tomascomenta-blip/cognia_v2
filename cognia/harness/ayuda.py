@@ -276,7 +276,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         # portada de /ayuda cabe en 25 lineas: una categoria nueva mas la
         # desbordaba y se comia la fila de comandos esenciales. Un tope que se
         # respeta a medias no es un tope.
-        "/hermes", "/rutinas",
+        "/hermes", "/rutinas", "/autopsia", "/multiverso",
         "/doctor", "/update", "/estado", "/debug", "/seguridad", "/bloquear",
         "/desbloquear", "/mesh_*", "/modulos", "/notificar", "/notif*",
         "/salir", "/cognia-info", "/ayuda", "/comandos",

@@ -1,0 +1,56 @@
+{
+ "A_bitacora_con_args": {
+  "n": 20,
+  "porcentaje": {
+   "puro": 20.0,
+   "reversible": 35.0,
+   "irreversible": 0.0,
+   "desconocido": 45.0
+  },
+  "conteo": {
+   "puro": 4,
+   "reversible": 7,
+   "irreversible": 0,
+   "desconocido": 9
+  }
+ },
+ "B_tool_usage_agregado": {
+  "n": 86496,
+  "porcentaje": {
+   "puro": 26.05,
+   "reversible": 57.86,
+   "irreversible": 7.31,
+   "desconocido": 8.77
+  },
+  "conteo": {
+   "puro": 22531,
+   "reversible": 50049,
+   "irreversible": 6326,
+   "desconocido": 7590
+  }
+ },
+ "C_checkpoints_mutaciones": {
+  "n": 413,
+  "porcentaje": {
+   "puro": 0.0,
+   "reversible": 100.0,
+   "irreversible": 0.0,
+   "desconocido": 0.0
+  },
+  "conteo": {
+   "puro": 0,
+   "reversible": 413,
+   "irreversible": 0,
+   "desconocido": 0
+  }
+ },
+ "A+C": {
+  "n": 433,
+  "porcentaje": {
+   "puro": 0.92,
+   "reversible": 97.0,
+   "irreversible": 0.0,
+   "desconocido": 2.08
+  }
+ }
+}
