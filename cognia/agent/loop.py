@@ -1108,6 +1108,13 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     else:
         # Presupuesto agotado sin cierre: redaccion final honesta con la
         # evidencia del history (no un volcado crudo).
+        # Este era el UNICO punto de salida sin sellar, y por eso una tarea
+        # compleja real (paquete + tests) cerraba con razon='desconocida' y el
+        # WARNING de "ningun punto del bucle sello". Lo cazo la primera tarea
+        # que agoto el presupuesto de verdad, no la revision.
+        if _salida is not None:
+            _salida.sellar(RAZON_PRESUPUESTO_AGOTADO,
+                           f"{max_turns} pasos sin cierre")
         ultimo = next((h for h in reversed(history)
                        if h.startswith("RESULTADO ")), "")
         result_text = (f"(presupuesto de {max_turns} pasos agotado sin cierre) "

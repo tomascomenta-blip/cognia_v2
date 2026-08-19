@@ -8181,7 +8181,7 @@ def _slash_grabar(arg: str = ""):
                 _gr.cerrar(gid, resultado=resto, ok=True)
                 g = _gr.cargar(gid)
                 _print_line(f"[ok]grabacion {gid}[/ok]: {len(g.pasos)} pasos")
-                _print_line(f"  [info_dim]aprende un flujo con: /flujo aprender {gid}"
+                _print_line(f"  [info_dim]aprende una receta con: /receta aprender {gid}"
                             "[/info_dim]")
             _gr.desuscribir()
         elif cmd == "lista":
@@ -8241,21 +8241,36 @@ def _slash_receta(ai, arg: str = ""):
                             "y luego /receta aprender <id>[/info_dim]")
                 return
             for f in filas:
-                est = _ex.estado_de(f.get("nombre", ""))
-                _print_line(f"  [mod]{f.get('nombre', '?'):<24}[/mod] "
-                            f"{est.get('estado', 'borrador'):<12} "
-                            f"{len(f.get('params', []))} params  "
-                            f"{_escape(str(f.get('descripcion', ''))[:44])}")
+                # La fila de listar_flujos trae n_params y estado YA calculados.
+                # Leer f["params"] daba 0 siempre (esa clave no existe en la
+                # fila, solo dentro del flujo cargado): la lista decia "0
+                # params" de una receta con 4. Cazado tecleando el comando.
+                # La fuente de verdad del estado es el INDICE DEL EXAMEN, no el
+                # campo del fichero del flujo: promover() escribe en el indice y
+                # el fichero se queda en 'borrador' para siempre. Preferir el
+                # campo del fichero mostraba "borrador" en una receta ya
+                # verificada que YA se estaba sugiriendo (aptos_para_sugerir).
+                est = _ex.estado_de(f.get("nombre", "")).get(
+                    "estado") or f.get("estado") or "borrador"
+                _print_line(f"  [mod]{f.get('nombre', '?'):<26}[/mod] "
+                            f"{str(est):<11} "
+                            f"{f.get('n_pasos', '?')} pasos  "
+                            f"{f.get('n_params', 0)} params  "
+                            f"{_escape(str(f.get('descripcion', ''))[:40])}")
             _print_line("[info_dim]solo los VERIFICADOS se sugieren solos "
-                        "(/flujo examinar <nombre>)[/info_dim]")
+                        "(/receta examinar <nombre>)[/info_dim]")
         elif cmd == "aprender" and resto:
             flujo = _gen.desde_grabacion(resto.split()[0])
             if not flujo:
                 _print_line("[warn_cl]no pude derivar un flujo de esa grabacion"
                             "[/warn_cl]")
                 return
-            nombre = _gen.guardar_flujo(flujo)
-            _print_line(f"[ok]flujo aprendido[/ok]: {nombre}")
+            _ruta = _gen.guardar_flujo(flujo)
+            # guardar_flujo devuelve la RUTA y cargar_flujo espera el NOMBRE:
+            # imprimir la ruta mandaba al usuario a "/receta examinar C:\...json",
+            # que no carga nada. El nombre es el stem del fichero.
+            nombre = Path(str(_ruta)).stem
+            _print_line(f"[ok]receta aprendida[/ok]: [mod]{nombre}[/mod]")
             _print_line(f"  pasos: {len(flujo.get('pasos', []))}  "
                         f"params: {[p['nombre'] for p in flujo.get('params', [])]}")
             post = flujo.get("postcondiciones") or []
@@ -8300,6 +8315,19 @@ def _slash_receta(ai, arg: str = ""):
                                   lambda n, a, c=None: _rt(n, a, ctx),
                                   workspace=os.getcwd(), print_fn=_print_line)
             _print_line(_rep.resumen_linea(inf))
+            if not inf.get("ok"):
+                # resumen_linea dice "FALLO - 0/0 pasos" y se queda callado
+                # sobre la CAUSA. La causa esta en razon_parada (p.ej. "faltan
+                # parametros obligatorios: hola, texto") y es justo lo que el
+                # usuario necesita para reintentar.
+                _razon = str(inf.get("razon_parada") or "").strip()
+                if _razon:
+                    _print_line(f"  [warn_cl]{_escape(_razon)}[/warn_cl]")
+                _faltan = (inf.get("ligado") or {}).get("faltan") or []
+                if _faltan:
+                    _obl = " ".join(f"{p}=<valor>" for p in _faltan)
+                    _print_line(f"  [info_dim]reintenta con: /receta correr "
+                                f"{nombre} {_obl}[/info_dim]")
             _ex.registrar_uso(nombre, bool(inf.get("ok")))
         elif cmd == "cuarentena" and resto:
             _ex.cuarentena(resto.split()[0], motivo="pedido por el usuario")
@@ -8496,7 +8524,7 @@ def _slash_centinela(ai, arg: str = ""):
         elif cmd == "fichero" and len(partes) >= 2:
             m = _mon.crear(f"aparece {partes[1]}",
                            {"tipo": "fichero_existe", "ruta": partes[1]},
-                           {"tipo": "avisar"})
+                           {"tipo": "avisar"}, intervalo_s=5)
             _print_line(f"[ok]monitor {m['id']}[/ok] creado")
             _mon.arrancar_hilo()
         elif cmd == "backend" and len(partes) >= 2:
@@ -8519,11 +8547,15 @@ def _slash_centinela(ai, arg: str = ""):
             _print_line("[ok]borrado[/ok]" if _mon.borrar(partes[1])
                         else "[warn_cl]no existe[/warn_cl]")
         elif cmd == "tick":
-            inf = _mon.tick()
+            # forzar=True: un tick TECLEADO es "comproba ahora", no "si toca".
+            inf = _mon.tick(forzar=True)
+            # 'disparados' es una LISTA; 'disparos' no existe en el informe y
+            # daba 0 con el monitor disparando. Y NO se drena aca: el dueno del
+            # stream de eventos es el drenaje del REPL (entre turnos). Drenar
+            # en los dos sitios imprimia el mismo evento dos veces.
+            _disp = inf.get("disparados") or []
             _print_line(f"evaluados {inf.get('evaluados', 0)}, "
-                        f"disparos {inf.get('disparos', 0)}")
-            for ev in _mon.pop_eventos():
-                _print_line(f"[warn_cl]* {_escape(str(ev))}[/warn_cl]")
+                        f"disparos {len(_disp)}")
         else:
             _print_line("[warn_cl]Uso: /centinela [lista | fichero <ruta> | "
                         "backend <url> | comando <cmd> | parar <id> | tick][/warn_cl]")

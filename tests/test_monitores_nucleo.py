@@ -638,3 +638,29 @@ def test_api_de_modulo_usa_el_env(almacen, tmp_path):
     assert nucleo.pop_eventos() == []              # drenado, como el motor viejo
     assert (almacen / "monitores.json").exists()
     assert nucleo.borrar("m1") is True
+
+
+# ── regresion 2026-08-19: el tick MANUAL ignora el intervalo ────────────────
+
+def test_tick_forzado_evalua_aunque_no_toque(tmp_path, monkeypatch):
+    """`/centinela tick` es "comproba AHORA", no "si toca".
+
+    Sin forzar=True, crear un monitor con el intervalo por defecto (60 s) y
+    tickear a los 2 s devolvia "evaluados 0" con el monitor activo y la
+    condicion ya cumplida: indistinguible de un motor roto. Lo cazo tecleando
+    el comando en el REPL, no un test.
+    """
+    monkeypatch.setenv("COGNIA_MONITORES_DIR", str(tmp_path))
+    from cognia.monitores import nucleo
+    nucleo.reiniciar_motor()
+    objetivo = tmp_path / "aparece.txt"
+    nucleo.crear("aparece el fichero",
+                 {"tipo": "fichero_existe", "ruta": str(objetivo)},
+                 {"tipo": "avisar"}, intervalo_s=60)
+    nucleo.tick()                       # marca ultimo_chequeo
+    objetivo.write_text("ya", encoding="utf-8")
+    sin_forzar = nucleo.tick()
+    assert sin_forzar["evaluados"] == 0, "dentro del intervalo no toca"
+    forzado = nucleo.tick(forzar=True)
+    assert forzado["evaluados"] == 1
+    assert len(forzado["disparados"]) == 1

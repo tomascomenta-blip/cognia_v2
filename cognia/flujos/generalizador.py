@@ -1036,6 +1036,12 @@ def listar_flujos() -> list:
             continue
         if not isinstance(d, dict):
             continue
+        if not isinstance(d.get("pasos"), list):
+            # cognia/flujos/examen.py guarda su indice (indice.json) en el MISMO
+            # directorio, y el glob de *.json lo listaba como si fuera una
+            # receta: "/receta lista" mostraba una fila fantasma llamada
+            # 'indice' con 0 pasos. Un flujo SIN lista de pasos no es un flujo.
+            continue
         out.append({
             "nombre": _s(d.get("nombre")) or f.stem,
             "descripcion": _s(d.get("descripcion")),

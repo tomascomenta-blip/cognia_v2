@@ -744,7 +744,7 @@ class MotorMonitores:
 
     # ── el tick ───────────────────────────────────────────────────────────
 
-    def tick(self, ahora: float = None) -> dict:
+    def tick(self, ahora: float = None, forzar: bool = False) -> dict:
         """Evalua los monitores a los que les toca. Devuelve el informe; NUNCA
         lanza. Motor SIN hilos: con ``ahora`` inyectado se prueba el debounce,
         el intervalo y las horas de silencio con un reloj fijo."""
@@ -760,7 +760,12 @@ class MotorMonitores:
                     continue
                 intervalo = float(mon.get("intervalo_s") or 0.0)
                 ultimo = float(mon.get("ultimo_chequeo") or 0.0)
-                if ultimo and (ahora - ultimo) < intervalo:
+                # `forzar` es el tick MANUAL ("/centinela tick"): el usuario pide
+                # comprobar AHORA y el intervalo no manda. Sin esto, crear un
+                # monitor y tickear a los 2 segundos devolvia "evaluados 0" con
+                # el monitor activo y la condicion ya cumplida -- indistinguible
+                # de un motor roto. Cazado tecleando el comando, no en un test.
+                if not forzar and ultimo and (ahora - ultimo) < intervalo:
                     continue
                 informe["evaluados"] += 1
                 self._evaluar_uno(mon, ahora, informe)
@@ -1099,8 +1104,8 @@ def borrar(mid: str) -> bool:
     return motor().borrar(mid)
 
 
-def tick(ahora: float = None) -> dict:
-    return motor().tick(ahora)
+def tick(ahora: float = None, forzar: bool = False) -> dict:
+    return motor().tick(ahora, forzar=forzar)
 
 
 def pop_eventos() -> list:
