@@ -8348,6 +8348,7 @@ def _juez_de_rama(ws):
     """
     import py_compile
     import subprocess
+    import tempfile
     from pathlib import Path as _P
     ws = _P(str(ws))
     puntaje, motivos = 0, []
@@ -8357,7 +8358,16 @@ def _juez_de_rama(ws):
     pys = [p for p in ficheros if p.suffix == ".py"]
     for p in pys:
         try:
-            py_compile.compile(str(p), doraise=True, cfile=str(p) + "c")
+            # El .pyc va a un TEMPORAL, no al lado del fuente: escribirlo en la
+            # rama lo metia en la fusion y el workspace del usuario acababa con
+            # un tabla.pyc que no pidio nadie (visto al teclear /multiverso).
+            with tempfile.NamedTemporaryFile(suffix=".pyc", delete=False) as _t:
+                _cf = _t.name
+            py_compile.compile(str(p), doraise=True, cfile=_cf)
+            try:
+                os.unlink(_cf)
+            except Exception:
+                pass
             puntaje += 3
         except Exception as exc:
             puntaje -= 5
