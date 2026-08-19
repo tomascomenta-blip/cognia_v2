@@ -42,6 +42,11 @@ def _reader_loop(entry: dict) -> None:
     try:
         for line in proc.stdout:
             with _LOCK:
+                # lineas_total cuenta TODO lo emitido, no lo retenido: la resta
+                # con len(output_tail) es cuanto se DESCARTO del buffer
+                # circular. Sin ese dato, ver_salida presentaria la cola de un
+                # build de 10k lineas como si fuera la salida entera.
+                entry["lineas_total"] += 1
                 entry["output_tail"].append(line.rstrip("\r\n"))
     except Exception:
         # pipe roto (kill) -- el estado final lo decide el returncode
@@ -52,15 +57,19 @@ def _reader_loop(entry: dict) -> None:
         entry["status"] = "done" if rc == 0 else "failed"
 
 
-def spawn_shell(cmd: str, shell: bool = True) -> int:
+def spawn_shell(cmd: str, shell: bool = True, cwd: str = None,
+                env: dict = None) -> int:
     """Lanza cmd en background y devuelve su id en el registro.
 
     stdout+stderr van combinados al buffer circular del entry; un hilo lector
-    daemon los consume sin bloquear al REPL.
+    daemon los consume sin bloquear al REPL. ``cwd`` corre el comando en otro
+    directorio sin tener que prefijar 'cd ... &&' (el encadenado, ademas, el
+    sentinel lo reclasifica a CONFIRM). ``env`` reemplaza el entorno del hijo
+    (None = hereda el del proceso).
     """
     global _NEXT_ID
     proc = subprocess.Popen(
-        cmd, shell=shell,
+        cmd, shell=shell, cwd=cwd or None, env=env or None,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True, encoding="utf-8", errors="replace",
     )
@@ -71,6 +80,8 @@ def spawn_shell(cmd: str, shell: bool = True) -> int:
         "started": time.time(),
         "status": "running",
         "returncode": None,
+        "cwd": cwd or None,
+        "lineas_total": 0,
         "output_tail": deque(maxlen=_MAX_TAIL),
     }
     with _LOCK:
@@ -102,6 +113,7 @@ def list_shells() -> list[dict]:
                 "uptime_s":   round(time.time() - e["started"], 1) if running else None,
                 "returncode": e["returncode"],
                 "tail_lines": len(e["output_tail"]),
+                "lineas_total": e["lineas_total"],
             })
     return sorted(out, key=lambda d: d["id"])
 
@@ -125,8 +137,45 @@ def get_status(shell_id: int) -> str | None:
         return entry["status"] if entry else None
 
 
+def get_info(shell_id: int):
+    """Ficha del shell (sin el Popen), o None si el id no existe.
+
+    Trae 'descartadas' = lineas que el buffer circular ya tiro. Quien muestra
+    la salida TIENE que poder decir "no viste el principio": una cola
+    presentada como salida completa es un vacio silencioso, y de esos salen
+    las conclusiones falsas.
+    """
+    with _LOCK:
+        e = _REGISTRY.get(shell_id)
+        if e is None:
+            return None
+        retenidas = len(e["output_tail"])
+        return {
+            "id":           e["id"],
+            "cmd":          e["cmd"],
+            "cwd":          e["cwd"],
+            "status":       e["status"],
+            "returncode":   e["returncode"],
+            "uptime_s":     round(time.time() - e["started"], 1),
+            "retenidas":    retenidas,
+            "lineas_total": e["lineas_total"],
+            "descartadas":  max(0, e["lineas_total"] - retenidas),
+            "buffer_max":   _MAX_TAIL,
+        }
+
+
 def kill_shell(shell_id: int) -> bool:
-    """Termina el shell (terminate, luego kill). False si el id no existe."""
+    """Termina el shell. True si al volver YA NO ESTA VIVO; False si no existe
+    o si sigue corriendo.
+
+    POR QUE SE MIRA EL RESULTADO (2026-08-18): antes esto devolvia True
+    incondicionalmente, con terminate() y kill() dentro de un `except:
+    pass`. O sea: un proceso que sobrevivio al kill (elevado, colgado en E/S
+    del kernel, con hijos propios) se reportaba como "shell terminado" y el
+    usuario -- o el agente -- seguia adelante creyendo que habia liberado el
+    puerto, el fichero o la GPU. Es exactamente la leccion de la casa "matar
+    el shell NO mata el proceso", esta vez escrita en el codigo que mata.
+    """
     with _LOCK:
         entry = _REGISTRY.get(shell_id)
     if entry is None:
@@ -139,6 +188,10 @@ def kill_shell(shell_id: int) -> bool:
                 proc.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 proc.kill()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    pass          # sigue vivo: lo dice el return de abajo
         except Exception:
             pass
     # el hilo lector marca done/failed al cerrar el pipe; si el proceso ya no
@@ -147,7 +200,7 @@ def kill_shell(shell_id: int) -> bool:
         if entry["status"] == "running" and proc.poll() is not None:
             entry["status"] = "failed"
             entry["returncode"] = proc.poll()
-    return True
+    return proc.poll() is not None
 
 
 def cleanup_atexit() -> None:

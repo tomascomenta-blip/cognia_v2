@@ -1981,6 +1981,9 @@ _CMD_DESCRIPTIONS = {
     "/modo rapido":     "Toggle: saltar confirmaciones",
     "/debug":           "Toggle: mostrar logs INFO",
     "/costo":           "Tokens y tiempo de sesión",
+    "/vram":            "Que cabe en tu GPU: roles vivos, VRAM medida por rol y la escalera de contexto",
+    "/capacidades":     "Que sabe hacer el agente: familias de herramientas, cuales estan encendidas y que las enciende  [familia]",
+    "/activar":         "Enciende una familia de herramientas sin reiniciar  <familia>",
     "/tema":            "Tema visual: /tema cicla, /tema <oscuro|claro|alto_contraste> fija (persiste)",
     "/prompt":          "System prompt del cerebro: /prompt [editar | set <texto> | reset | off | on]",
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
@@ -6302,11 +6305,210 @@ def _slash_tema(arg: str = ""):
     name = _THEME_ORDER[_theme_idx]
     if _HAS_RICH:
         _console = Console(theme=_THEMES[name], highlight=False)
+        # El renderer del bus de eventos guarda SU PROPIA referencia a la
+        # Console: sin re-activarlo, /tema repintaba el banner y dejaba el
+        # spinner, las tools y los avisos con la rampa VIEJA el resto de la
+        # sesion. activar() ya soporta el reemplazo en caliente; nadie lo
+        # llamaba desde aqui (2026-08-18).
+        try:
+            from cognia.ux import renderer as _ux_renderer
+            _ux_renderer.activar(console=_console)
+        except Exception as _exc:
+            _aviso_degradado("cli.tema.renderer",
+                             f"el tema no llego al renderer: {_exc}")
         _console.rule(f"[info_dim]Tema: {name} (guardado)[/info_dim]")
     else:
         print(f"Tema: {name} (Rich no disponible)")
     _reestilar_prompt()
     _persist_setting("COGNIA_THEME", name)
+
+
+def _vram_gpu() -> tuple:
+    """(usada_mib, total_mib) de la GPU, o (0, 0) si no hay nvidia-smi."""
+    try:
+        import subprocess as _sp
+        out = _sp.run(["nvidia-smi",
+                       "--query-gpu=memory.used,memory.total",
+                       "--format=csv,noheader,nounits"],
+                      capture_output=True, text=True, timeout=10).stdout
+        usada, total = out.strip().splitlines()[0].split(",")
+        return int(usada), int(total)
+    except Exception:
+        return 0, 0
+
+
+def _slash_vram(args: str = "") -> None:
+    """Que cabe en TU GPU ahora mismo, y por que no cabe lo que no cabe.
+
+    POR QUE EXISTE (2026-08-18): los harnesses de codigo asumen un modelo
+    remoto e infinito, asi que ninguno tiene esta pantalla. Aqui el limite es
+    fisico y se paga en cada decision: que modelo sirve, con cuanta ventana, y
+    si cabe ademas el VLM. Cognia ya tenia el summoner con la VRAM MEDIDA por
+    rol y una escalera de contexto con celdas medidas -- lo que faltaba era
+    poder verlo. `grep summoner cognia/cli.py` daba CERO.
+    """
+    usada, total = _vram_gpu()
+    if total:
+        libre = total - usada
+        _print_line(f"[mod]VRAM[/mod]  {usada:,} de {total:,} MiB usados  "
+                    f"[info_dim]({libre:,} libres)[/info_dim]")
+    else:
+        _print_line("[warn_cl]sin nvidia-smi: no puedo leer la VRAM real[/warn_cl]")
+    try:
+        from cognia import summoner as _sm
+    except Exception as exc:
+        _print_line(f"[err_cl]summoner no disponible: {_escape(str(exc))}[/err_cl]")
+        return
+
+    try:
+        vivos = _sm.vivos() or {}
+    except Exception:
+        vivos = {}
+    try:
+        _ancho = _console.size.width if (_HAS_RICH and _console) else 100
+    except Exception:
+        _ancho = 100
+    _sitio_nota = max(16, _ancho - 40)   # 40 = rol + estado + vram + puerto
+    _print_line("")
+    _print_line(f"  [info_dim]{'rol':<9} {'estado':<9} {'VRAM':>8}  {'puerto':<7} "
+                f"que pasa[/info_dim]")
+    for rol, cfg in _sm.ROLES.items():
+        vram = cfg.get("vram_mib") or 0
+        puerto = cfg.get("puerto") or 0
+        # "vivo" para el summoner es "lo lance yo". Pero el usuario ve la
+        # VRAM ocupada, y un server que arranco a mano (o la flota) ocupa
+        # igual: preguntarle al PUERTO evita el mensaje absurdo de "no cabe"
+        # junto a un modelo que esta sirviendo ahi mismo.
+        propio = rol in vivos
+        ajeno = False
+        if not propio and puerto:
+            try:
+                ajeno = bool(_sm._salud(int(puerto), timeout=1.0)[0] == 200)
+            except Exception:
+                ajeno = False
+        if propio or ajeno:
+            texto_estado = "vivo" if propio else "ocupado"
+            color = "ok_cl" if propio else "warn_cl"
+            nota = cfg.get("identidad", "") if propio else "hay algo sirviendo en ese puerto"
+        else:
+            texto_estado, color = "-", "info_dim"
+            try:
+                entra, motivo = _sm.cabe(rol)
+            except Exception as exc:
+                entra, motivo = False, f"no pude comprobarlo: {exc}"
+            nota = "cabe" if entra else (motivo or "no cabe")
+        # El padding se calcula sobre el TEXTO, no sobre el markup: si se
+        # aplica a la cadena con etiquetas, rich las cuenta como caracteres y
+        # la columna se descuadra (que es justo lo que pasaba).
+        hueco = " " * max(0, 9 - len(texto_estado))
+        nota = str(nota)
+        if len(nota) > _sitio_nota:
+            nota = nota[:_sitio_nota - 1].rstrip() + "…"
+        _print_line(f"  [mod]{rol:<9}[/mod] [{color}]{texto_estado}[/{color}]{hueco} "
+                    f"{vram:>8,}  :{str(puerto):<6} {_escape(nota)}")
+
+    # La escalera de contexto: celdas MEDIDAS en esta maquina, no estimadas.
+    _print_line("")
+    _print_line("  [info_dim]ventana del cerebro — celdas MEDIDAS en esta "
+                "maquina[/info_dim]")
+    for celda in getattr(_sm, "ESCALERA_CTX", []):
+        v = celda.get("vram_mib")
+        _print_line(f"    [mod]{celda['n_ctx']:>9,}[/mod] "
+                    f"[info_dim]{celda.get('cache','f16'):<5}[/info_dim] "
+                    f"{(f'{v:,} MiB' if v else '—'):>11}  "
+                    f"[info_dim]{_escape(str(celda.get('medida',''))[:34])}[/info_dim]")
+
+
+def _slash_capacidades(args: str = "") -> None:
+    """Que sabe hacer el agente, que esta encendido y que lo enciende.
+
+    POR QUE EXISTE (2026-08-18): de las ~111 herramientas registrables solo se
+    anuncian 13; el resto vive detras de nueve variables de entorno que ningun
+    comando encendia. El recorte esta MEDIDO y es correcto (un catalogo de 46
+    tools baja el camino feliz de 4,25/5 a 2,5/5), pero no habia forma de
+    deshacerlo desde dentro: habia que saber el nombre del flag y exportarlo
+    antes de arrancar. Subsistemas enteros verificados en GPU -- imagenes,
+    musica, 3D, escena -- eran inalcanzables en la practica.
+    """
+    try:
+        from cognia.harness import familias as _fam
+    except Exception as exc:
+        _print_line(f"[err_cl]no pude leer las capacidades: {_escape(str(exc))}[/err_cl]")
+        return
+    filas = _fam.estado()
+    detalle = (args or "").strip().lower()
+    if detalle and detalle in _fam.FAMILIAS:
+        f = next(x for x in filas if x["familia"] == detalle)
+        _print_line(f"[mod]{f['familia']}[/mod] — {_escape(f['que'])}")
+        _print_line(f"  enciende con [info_dim]/activar {f['familia']}[/info_dim] "
+                    f"(flag {f['flag']})")
+        if f["tools"]:
+            for t in f["tools"]:
+                _print_line(f"    [info_dim]{_escape(t)}[/info_dim]")
+        else:
+            _print_line("    [info_dim](sin cargar todavia)[/info_dim]")
+        return
+
+    encendidas = [f for f in filas if f["encendida"]]
+    _print_line(f"[mod]Capacidades[/mod]  "
+                f"{len(encendidas)} de {len(filas)} familias encendidas")
+    _print_line("")
+    # El ancho REAL de la terminal, no uno inventado: una descripcion que se
+    # envuelve rompe la alineacion de la tabla y la vuelve ilegible justo en
+    # las pantallas estrechas, que es donde mas falta hace que se entienda.
+    try:
+        _ancho = _console.size.width if (_HAS_RICH and _console) else 100
+    except Exception:
+        _ancho = 100
+    _sitio = max(20, _ancho - 42)      # 42 = marca + familia + estado + aire
+    for f in filas:
+        if not f["instalada"]:
+            marca, estado = "[err_cl]x[/err_cl]", "no instalada"
+        elif f["encendida"]:
+            marca, estado = "[ok_cl]*[/ok_cl]", f"{f['n_tools']} tools"
+        else:
+            marca, estado = "[info_dim]-[/info_dim]", "apagada"
+        peligro = " (toca tu maquina)" if f["peligrosa"] else ""
+        texto = f["que"] + peligro
+        if len(texto) > _sitio:
+            texto = texto[:_sitio - 1].rstrip() + "…"
+        _print_line(f"  {marca} [mod]{f['familia']:<18}[/mod] "
+                    f"[info_dim]{estado:<12}[/info_dim] {_escape(texto)}")
+    _print_line("")
+    _print_line("  [info_dim]/activar <familia>[/info_dim] la enciende sin reiniciar   "
+                "[info_dim]/capacidades <familia>[/info_dim] lista sus herramientas")
+
+
+def _slash_activar(args: str = "") -> None:
+    """Enciende una familia de herramientas EN CALIENTE (sin reiniciar)."""
+    nombre = (args or "").strip().lower()
+    try:
+        from cognia.harness import familias as _fam
+    except Exception as exc:
+        _print_line(f"[err_cl]no pude activar: {_escape(str(exc))}[/err_cl]")
+        return
+    if not nombre:
+        _print_line("Uso: [info_dim]/activar <familia>[/info_dim]  — familias: "
+                    + ", ".join(sorted(_fam.FAMILIAS)))
+        return
+    if nombre in ("todo", "todas"):
+        # A proposito NO se ofrece como camino comodo en la ayuda: encender las
+        # 14 familias mete ~100 tools en el catalogo y el A/B del repo midio que
+        # eso DEGRADA al modelo. Existe para pruebas, y se avisa.
+        _print_line("[warn_cl]encender todo mete ~100 herramientas en el "
+                    "catalogo, y el A/B del repo midio que un catalogo grande "
+                    "degrada al agente (4,25/5 -> 2,5/5). Activa solo lo que "
+                    "necesites.[/warn_cl]")
+        return
+    r = _fam.activar(nombre)
+    if not r["ok"]:
+        _print_line(f"[err_cl]{_escape(r['detalle'])}[/err_cl]")
+        return
+    _print_line(f"[ok_cl]{r['familia']}[/ok_cl] encendida — {_escape(r['detalle'])}")
+    for t in (r.get("nuevas") or [])[:12]:
+        _print_line(f"    [info_dim]{_escape(t)}[/info_dim]")
+    if len(r.get("nuevas") or []) > 12:
+        _print_line(f"    [info_dim]... y {len(r['nuevas']) - 12} mas[/info_dim]")
 
 
 def _reestilar_prompt() -> None:
@@ -7977,6 +8179,24 @@ def repl():
     _COLA_ENTRADA.clear()
     _inyectadas: list = _COLA_ENTRADA
 
+    # Los logs, POR LA INTERFAZ (2026-08-18). Hasta aqui el handler de consola
+    # escribia a un stderr que ni el spinner ni el prompt capturan: un WARNING
+    # de cualquier hilo de fondo aterrizaba encima de la linea que rich estaba
+    # reescribiendo, o partia en dos el marco del prompt. Enrutado -- no
+    # silenciado -- se conserva el aviso, se pinta con el tema y deja de
+    # romper el dibujo.
+    try:
+        from cognia import logger_config as _lc
+
+        def _log_a_interfaz(nivel: str, texto: str) -> None:
+            estilo = "err_cl" if nivel in ("ERROR", "CRITICAL") else "warn_cl"
+            _print_line(f"[{estilo}]{_escape(texto)}[/{estilo}]")
+
+        _lc.enrutar_consola_a(_log_a_interfaz)
+    except Exception as _exc:
+        _aviso_degradado("cli.logs.enrutado",
+                         f"los logs siguen yendo a stderr crudo: {_exc}")
+
     if session is not None:
         def _get_input():
             if _inyectadas:
@@ -8177,6 +8397,14 @@ def repl():
             _slash_debug()
         elif raw == "/modo rapido":
             _slash_modo_rapido()
+        elif raw == "/vram" or raw.startswith("/vram "):
+            _slash_vram(raw[len("/vram "):] if raw.startswith("/vram ") else "")
+        elif raw == "/capacidades" or raw.startswith("/capacidades "):
+            _slash_capacidades(raw[len("/capacidades "):]
+                               if raw.startswith("/capacidades ") else "")
+        elif raw == "/activar" or raw.startswith("/activar "):
+            _slash_activar(raw[len("/activar "):]
+                           if raw.startswith("/activar ") else "")
         elif raw == "/tema" or raw.startswith("/tema "):
             _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
         elif raw == "/color" or raw.startswith("/color "):
@@ -10699,7 +10927,16 @@ def repl():
                                         if _flujo is not None:
                                             _flujo.escribir(_tok)
                                         elif _HAS_RICH and _console:
-                                            _console.print(_tok, end="", style=_ACCENT, highlight=False)
+                                            # markup=False: el texto del MODELO
+                                            # no es markup. Sin esto rich se
+                                            # come cualquier [1], [TODO] o
+                                            # array en prosa, y un [/x] mal
+                                            # balanceado levanta MarkupError a
+                                            # mitad de respuesta. La leccion ya
+                                            # estaba escrita 130 lineas mas
+                                            # abajo y este camino se la salto.
+                                            _console.print(_tok, end="", style=_ACCENT,
+                                                           highlight=False, markup=False)
                                         else:
                                             print(_tok, end="", flush=True)
                                     # finish_reason REAL del backend ('limit' =

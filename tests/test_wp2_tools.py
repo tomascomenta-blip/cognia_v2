@@ -126,8 +126,12 @@ def test_shell_conserva_la_cola(monkeypatch):
 def test_ejecutar_timeout_parametrizable(monkeypatch):
     capturado = {}
 
-    def fake_shell(cmd, ctx, timeout=30):
+    # cwd es parametro de _shell desde 2026-08-18 (ejecutar lo pasa siempre):
+    # el doble sin el reventaba con TypeError y run_tool se lo tragaba, dejando
+    # el test en KeyError en vez de en el assert que le importa.
+    def fake_shell(cmd, ctx, timeout=30, cwd=""):
         capturado["cmd"], capturado["timeout"] = cmd, timeout
+        capturado["cwd"] = cwd
         return "RESULTADO ejecutar: ok"
 
     monkeypatch.setattr(T, "_shell", fake_shell)

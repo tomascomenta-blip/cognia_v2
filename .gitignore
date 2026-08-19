@@ -144,3 +144,6 @@ salida_ensayo/
 
 sintesis_*.json
 sintesis_*.log
+
+# Evidencia de las pruebas humanas de DSH (PNG y workspaces): no va al repo
+dsh_pruebas/

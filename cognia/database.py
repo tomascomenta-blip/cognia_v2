@@ -100,10 +100,21 @@ def init_db(path: str = DB_PATH):
     """
     global _encrypt_warned
     if not _os.getenv("COGNIA_ENCRYPT_PASSPHRASE") and not _encrypt_warned:
-        _log.getLogger("cognia.db").warning(
-            "COGNIA_ENCRYPT_PASSPHRASE not set — episodic memory is stored unencrypted. "
-            "Run: python scripts/migrate_db_encrypt.py"
-        )
+        # Se REGISTRA, no se grita (2026-08-18). Esto salia como una linea
+        # amarilla con formato de servidor por ENCIMA del banner, en cada
+        # arranque, para siempre. Un aviso permanente que el usuario no va a
+        # accionar hoy no informa: entrena a ignorar esa zona de la pantalla,
+        # que es justo donde despues aparecen los avisos que SI importan.
+        # Sigue visible donde tiene sentido: `cognia doctor`.
+        try:
+            from cognia.config import registrar_degradado
+            registrar_degradado(
+                "cifrado de la memoria episodica",
+                "la memoria episodica se guarda SIN cifrar",
+                "define COGNIA_ENCRYPT_PASSPHRASE y corre "
+                "scripts/migrate_db_encrypt.py")
+        except Exception:
+            _log.getLogger("cognia.db").debug("passphrase no definida")
         _encrypt_warned = True
     # Migrado al pool (deuda 2026-07-16): init_db abre y cierra en la misma
     # funcion, el caso seguro para poolear. close() devuelve la conexion al

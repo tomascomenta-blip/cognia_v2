@@ -80,9 +80,17 @@ def build_tools_doc(allowed: set = None) -> str:
 # es la via barata del modelo chico. El resto del registry SIGUE registrado e
 # invocable (run_tool no filtra por esto): solo deja de anunciarse en el
 # prompt. Modo avanzado y los flags opt-in (ver flag_de_optin) lo re-exponen.
+# ejecutar_fondo es la 14a y la UNICA que se agrego al core (2026-08-18): las
+# demas tools nuevas de esa tanda (ver_salida/matar_proceso/procesos, git_*,
+# mover_archivo/crear_directorio/buscar_ficheros/leer_lote) quedan registradas
+# e invocables pero NO anunciadas, porque el criterio para gastar una linea del
+# prompt es "hoy es IMPOSIBLE", no "hoy es incomodo". Sin ejecutar_fondo un
+# servidor, un build largo o un watcher no se pueden ni intentar (ejecutar es
+# bloqueante y muere a los 600s); sus companeras se descubren por el TEXTO del
+# resultado ("leelo con: ver_salida <id>"), que cuesta cero en el catalogo.
 CORE_TOOLS = frozenset({
     "leer_archivo", "escribir_archivo", "editar_archivo", "apendar_archivo",
-    "borrar_archivo", "listar", "buscar", "ejecutar", "tests",
+    "borrar_archivo", "listar", "buscar", "ejecutar", "ejecutar_fondo", "tests",
     "generar_codigo", "delegar_subtarea", "recordar", "calcular",
 })
 
@@ -131,8 +139,14 @@ def armar_args(name: str, argumentos: dict) -> str:
             posicionales.append(str(val))
     args = " | ".join(posicionales)
     if claves:
-        sep = " | " if name == "ejecutar" else " "
-        args += sep + " ".join(claves)
+        # 'ejecutar' exige el pipe delante de CADA clave: su parser lo pide
+        # para no confundir 'timeout='/'cwd=' con un token del comando. Con dos
+        # claves, unirlas entre si con un espacio dejaba la segunda sin pipe y
+        # se la comia el comando (se ve con timeout + cwd juntos).
+        if name == "ejecutar":
+            args += " | " + " | ".join(claves)
+        else:
+            args += " " + " ".join(claves)
     return args
 
 
@@ -140,15 +154,23 @@ def armar_args(name: str, argumentos: dict) -> str:
 # subconjunto de tools -- un investigador no puede escribir/ejecutar, un
 # implementador si. Acota el blast-radius de una subtarea delegada.
 ROLE_TOOLS = {
-    "investigador": {"leer_archivo", "listar", "arbol", "contar_lineas",
-                     "buscar", "repo_map", "code_grafo", "recordar", "kg_buscar",
+    "investigador": {"leer_archivo", "leer_lote", "listar", "arbol",
+                     "contar_lineas",
+                     "buscar", "buscar_ficheros", "repo_map", "code_grafo",
+                     "recordar", "kg_buscar",
+                     "git_estado", "git_diff", "git_log",
                      "notas", "anotar", "resumir", "responder"},
-    "implementador": {"leer_archivo", "listar", "buscar", "repo_map",
+    "implementador": {"leer_archivo", "leer_lote", "listar", "buscar",
+                      "buscar_ficheros", "repo_map",
                       "code_grafo", "escribir_archivo", "editar_archivo",
                       "apendar_archivo", "borrar_archivo",
-                      "copiar_archivo", "generar_codigo", "contratos",
+                      "copiar_archivo", "mover_archivo", "crear_directorio",
+                      "generar_codigo", "contratos",
                       "py_validar",
-                      "json_validar", "tests", "ejecutar", "notas", "anotar",
+                      "json_validar", "tests", "ejecutar", "ejecutar_fondo",
+                      "ver_salida", "matar_proceso", "procesos",
+                      "git_estado", "git_diff", "git_log",
+                      "notas", "anotar",
                       "responder"},
 }
 
@@ -374,8 +396,14 @@ def _flag_activo(flag: str) -> bool:
 # MAX_CHARS_VISTA y ctx_partir esta acotada por n<=64 (~3k chars de indice,
 # sin contenido); sin la exencion aci_trim les comeria el MEDIO y el modelo
 # veria texto del contexto que no existe (o perderia trozos del indice).
-ACI_EXENTAS = frozenset({"responder", "leer_archivo", "ejecutar", "tests",
-                         "editar_archivo",
+# git_diff/leer_lote/ver_salida (2026-08-18) por la MISMA razon que
+# leer_archivo: traen texto que el modelo va a copiar literalmente (un hunk de
+# patch, un fichero, la cola de un log) y el head+tail generico de aci_trim les
+# comeria el MEDIO — el modelo escribiria bloques SEARCH con lineas que nunca
+# existieron. Las tres llevan su propio tope con aviso explicito de truncado.
+ACI_EXENTAS = frozenset({"responder", "leer_archivo", "leer_lote", "ejecutar",
+                         "tests",
+                         "editar_archivo", "git_diff", "ver_salida",
                          "ctx_info", "ctx_ver", "ctx_grep", "ctx_partir",
                          "rlm_llamar"})
 
@@ -877,6 +905,78 @@ def _leer_archivo(args, ctx):
     return f"RESULTADO leer_archivo {_disp(path)}: {content}"
 
 
+# leer_lote (2026-08-18): leer N ficheros costaba N turnos del PRESUPUESTO DE
+# PASOS (el loop corta por pasos, no por tokens), y el agente se quedaba sin
+# vueltas antes de entender el codigo que iba a tocar. Topes propios (por
+# fichero y total) + esta tool en ACI_EXENTAS: el head+tail generico mezclaria
+# el final de un fichero con el principio de otro.
+_LOTE_MAX_FICHEROS = 8
+_LOTE_CAP_FICHERO = int(os.environ.get("COGNIA_LOTE_CAP_FICHERO", "6000"))
+_LOTE_CAP_TOTAL = int(os.environ.get("COGNIA_LOTE_CAP_TOTAL", "24000"))
+
+
+@tool("leer_lote",
+      "leer_lote <path1> | <path2> | ...     -- lee VARIOS archivos en UNA "
+      "llamada (hasta 8)",
+      desc="Lee varios archivos de una sola vez y los devuelve separados por "
+           "una cabecera con su ruta. Sirve para entender un modulo y sus "
+           "vecinos sin gastar un turno por fichero. Cada archivo se corta si "
+           "es largo (avisa); para leer uno entero usa leer_archivo con "
+           "offset/limit.",
+      params=[
+          {"nombre": "paths", "tipo": "string", "requerido": True,
+           "descripcion": "rutas separadas por ' | ' (hasta 8)"},
+      ])
+def _leer_lote(args, ctx):
+    rutas = [r.strip().strip("\"\'") for r in re.split(r"\s*\|\s*", args or "")
+             if r.strip()]
+    if not rutas:
+        return ("RESULTADO leer_lote ERROR: pasa al menos una ruta "
+                "(varias separadas por ' | ')")
+    sobran = rutas[_LOTE_MAX_FICHEROS:]
+    rutas = rutas[:_LOTE_MAX_FICHEROS]
+    bloques, usados = [], 0
+    for ruta in rutas:
+        path = Path(ruta)
+        cab = f"===== {_disp(path)} ====="
+        if not path.exists():
+            bloques.append(f"{cab}\nERROR: no existe")
+            continue
+        if path.is_dir():
+            bloques.append(f"{cab}\nERROR: es un directorio (usa listar)")
+            continue
+        try:
+            texto, _codec, _nl = _leer_texto(path)
+        except Exception as e:
+            bloques.append(f"{cab}\nERROR: {e}")
+            continue
+        n_lineas = len(texto.splitlines())
+        if not texto:
+            bloques.append(f"{cab}\n(archivo vacio)")
+            continue
+        # Presupuesto restante REAL: cortar por fichero y ademas por total,
+        # para que 8 ficheros medianos no revienten igual el contexto.
+        resto = max(0, _LOTE_CAP_TOTAL - usados)
+        cap = min(_LOTE_CAP_FICHERO, resto)
+        if cap <= 0:
+            bloques.append(f"{cab}\n[NO LEIDO: se agoto el tope total de "
+                           f"{_LOTE_CAP_TOTAL} chars; pidelo con leer_archivo]")
+            continue
+        cuerpo = texto[:cap]
+        if len(texto) > cap:
+            cuerpo += (f"\n... [TRUNCADO: {len(cuerpo)} de {len(texto)} chars "
+                       f"({n_lineas} lineas); sigue con leer_archivo "
+                       f"{_disp(path)} offset=N]")
+        usados += len(cuerpo)
+        bloques.append(f"{cab} ({n_lineas} lineas)\n{cuerpo}")
+    nota = ""
+    if sobran:
+        nota = (f" [se ignoraron {len(sobran)} rutas: el tope es "
+                f"{_LOTE_MAX_FICHEROS} por llamada]")
+    return (f"RESULTADO leer_lote ({len(rutas)} archivos){nota}:\n"
+            + "\n".join(bloques))
+
+
 @tool("escribir_archivo",
       "escribir_archivo <path> | <contenido>  -- crea/sobrescribe en el workspace (crea dirs)",
       desc="Crea un archivo nuevo (o SOBRESCRIBE uno existente ENTERO) con el "
@@ -1075,6 +1175,73 @@ def _copiar_archivo(args, ctx):
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
     return f"RESULTADO copiar_archivo: {src} -> {_disp(dst)} OK"
+
+
+# mover_archivo (2026-08-18): mover/renombrar costaba DOS tools y dos turnos
+# (copiar_archivo + borrar_archivo) y dejaba el original si el borrado fallaba.
+# Src y dst pasan los dos por el gate de escritura: mover BORRA el origen, asi
+# que el origen tambien es una escritura (copiar_archivo puede leer de fuera
+# del workspace justamente porque no lo toca).
+@tool("mover_archivo",
+      "mover_archivo <src> | <dst>           -- mueve/renombra un archivo (los "
+      "dos dentro del workspace)",
+      danger=True,
+      desc="Mueve o renombra un archivo dentro del workspace del agente (crea "
+           "el directorio destino si hace falta). Para duplicarlo sin quitar "
+           "el original usa copiar_archivo.",
+      params=[
+          {"nombre": "src", "tipo": "string", "requerido": True,
+           "descripcion": "ruta actual del archivo"},
+          {"nombre": "dst", "tipo": "string", "requerido": True,
+           "descripcion": "ruta nueva (si es un directorio existente, se mueve "
+                          "dentro conservando el nombre)"},
+      ])
+def _mover_archivo(args, ctx):
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO mover_archivo ERROR: formato (usa src | dst)"
+    import shutil
+    try:
+        src = _resolve_write_path(parts[0].strip().strip("\"\'"))
+        dst = _resolve_write_path(parts[1].strip().strip("\"\'"))
+    except ValueError as e:
+        return f"RESULTADO mover_archivo ERROR: {e}"
+    if not src.exists():
+        return f"RESULTADO mover_archivo ERROR: {_disp(src)} no existe"
+    if src.is_dir():
+        return (f"RESULTADO mover_archivo ERROR: {_disp(src)} es un directorio; "
+                f"esta tool solo mueve archivos")
+    # dst es un directorio que ya existe -> destino = ese dir / nombre del src
+    # (es lo que hace 'mv a.txt carpeta/' y lo que el modelo espera).
+    if dst.is_dir():
+        dst = dst / src.name
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), str(dst))
+    return f"RESULTADO mover_archivo: {_disp(src)} -> {_disp(dst)} OK"
+
+
+@tool("crear_directorio",
+      "crear_directorio <ruta>               -- crea un directorio (y los "
+      "intermedios) en el workspace",
+      desc="Crea un directorio dentro del workspace, con los intermedios que "
+           "falten. No hace falta antes de escribir_archivo (esa ya los crea): "
+           "sirve para preparar la estructura de un proyecto.",
+      params=[
+          {"nombre": "ruta", "tipo": "string", "requerido": True,
+           "descripcion": "ruta del directorio a crear"},
+      ])
+def _crear_directorio(args, ctx):
+    try:
+        wpath = _resolve_write_path(args.strip().strip("\"\'"))
+    except ValueError as e:
+        return f"RESULTADO crear_directorio ERROR: {e}"
+    if wpath.is_file():
+        return (f"RESULTADO crear_directorio ERROR: {_disp(wpath)} ya existe y "
+                f"es un ARCHIVO")
+    ya = wpath.is_dir()
+    wpath.mkdir(parents=True, exist_ok=True)
+    return (f"RESULTADO crear_directorio {_disp(wpath)}: "
+            + ("ya existia" if ya else "OK (creado)"))
 
 
 # borrar_archivo (2026-08-09, catalogo core A5): el agente no tenia forma de
@@ -1405,6 +1572,73 @@ def _buscar(args, ctx):
             f"(ej: buscar que es <tema>) y se consulta la web.")
 
 
+# buscar_ficheros (2026-08-18): buscar POR NOMBRE existia solo como fallback
+# escondido al final de `buscar` — y solo se llegaba a el si el scan por
+# CONTENIDO no devolvia nada, que es justo lo que no pasa cuando buscas
+# "config.json" (aparece citado en cualquier .md y el glob no llega a correr).
+# Un glob es una pregunta distinta y merece su tool, no un premio de consuelo.
+_BUSCAR_FICH_MAX = 40
+
+
+@tool("buscar_ficheros",
+      "buscar_ficheros <glob> [| directorio]  -- busca archivos por NOMBRE/patron "
+      "(*.py, test_*.py, **/conftest.py)",
+      desc="Encuentra archivos por su nombre o patron glob (*.py, test_*.py, "
+           "config.*), recursivamente desde un directorio. Es la tool para "
+           "'donde esta el fichero X': 'buscar' mira el CONTENIDO de los "
+           "archivos, esta mira sus NOMBRES.",
+      params=[
+          {"nombre": "glob", "tipo": "string", "requerido": True,
+           "descripcion": "patron de nombre, p.ej. '*.py' o 'test_*.py'"},
+          {"nombre": "directorio", "tipo": "string", "requerido": False,
+           "descripcion": "raiz de la busqueda (default: '.')"},
+      ])
+def _buscar_ficheros(args, ctx):
+    parts = re.split(r"\s*\|\s*", args or "", maxsplit=1)
+    patron = parts[0].strip().strip("\"\'")
+    directorio = (parts[1].strip().strip("\"\'") if len(parts) > 1 else ".") or "."
+    # 'buscar_ficheros *.py cognia' (sin pipe) es lo que escribe el modelo:
+    # mismo rescate que hace `buscar` con su ultimo token si es una ruta real.
+    if len(parts) == 1 and " " in patron:
+        cabeza, _, cola = patron.rpartition(" ")
+        if cola and Path(cola).exists():
+            patron, directorio = cabeza.strip(), cola
+    if not patron:
+        return ("RESULTADO buscar_ficheros ERROR: falta el patron "
+                "(p.ej. '*.py' o 'test_*.py')")
+    base = Path(directorio)
+    if not base.exists():
+        return (f"RESULTADO buscar_ficheros ERROR: el directorio "
+                f"'{directorio}' no existe")
+    # Sin comodin, el modelo quiere el fichero ESE: se busca *nombre* en vez de
+    # devolver 0 resultados por una igualdad exacta que casi nunca acierta.
+    glob_pat = patron if any(c in patron for c in "*?[") else f"*{patron}*"
+    if "/" not in glob_pat and "\\" not in glob_pat:
+        glob_pat = f"**/{glob_pat}"          # recursivo por defecto
+    deadline = _time.time() + _deadline_s()
+    hits, cortado = [], False
+    try:
+        for path in base.glob(glob_pat):
+            if _time.time() > deadline:
+                cortado = True
+                break
+            if _dir_saltable(path.parts):
+                continue
+            hits.append(_disp(path) + ("/" if path.is_dir() else ""))
+            if len(hits) >= _BUSCAR_FICH_MAX:
+                cortado = True
+                break
+    except (ValueError, OSError) as e:
+        return f"RESULTADO buscar_ficheros ERROR: patron invalido ({e})"
+    if not hits:
+        return (f"RESULTADO buscar_ficheros '{patron}': ningun archivo en "
+                f"'{directorio}'. Ojo: esto es busqueda por NOMBRE; para "
+                f"buscar TEXTO dentro de los archivos usa 'buscar'.")
+    nota = f" (primeros {len(hits)}, hay mas)" if cortado else ""
+    return (f"RESULTADO buscar_ficheros '{patron}' en '{directorio}'"
+            f"{nota}: " + " | ".join(hits))
+
+
 # ══════════════════════════════════════════════════════════════════════
 # SHELL / DEV TOOLS
 # ══════════════════════════════════════════════════════════════════════
@@ -1415,7 +1649,7 @@ def _buscar(args, ctx):
 # muerta se borro (0 referencias; sentinel tiene su propia _BLOCK_SUB/_BLOCK_RE).
 
 
-def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
+def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
     # Sentinel (default-ON, mandato 2026-07-14): validación pre-acción
     # unificada — allowlist de dev + bloqueo duro + confirmación para lo
     # desconocido (default-deny). Con COGNIA_SENTINEL=0 replica la denylist
@@ -1424,9 +1658,21 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
     permitido, msg = evaluar_shell(cmd, ctx)
     if not permitido:
         return msg
+    # cwd (2026-08-18): sin el, correr algo en otra carpeta obligaba al modelo
+    # a escribir 'cd X && ...' — y ese encadenado el sentinel lo reclasifica a
+    # CONFIRM (dos comandos), asi que el atajo natural del modelo era ademas el
+    # que mas friccion tenia. Se valida ANTES de lanzar: subprocess con un cwd
+    # inexistente tira NotADirectoryError/FileNotFoundError, que el modelo lee
+    # como "el comando fallo" en vez de "la ruta no existe".
+    if cwd:
+        _cw = Path(cwd).expanduser()
+        if not _cw.is_dir():
+            return (f"RESULTADO ejecutar ERROR: cwd='{cwd}' no es un directorio "
+                    f"existente")
+        cwd = str(_cw)
     pf = ctx.get("print_fn")
     if callable(pf):
-        pf(f"[detail]$ {cmd}[/detail]")
+        pf(f"[detail]$ {cmd}" + (f"   (cwd={cwd})" if cwd else "") + "[/detail]")
     try:
         # BYTES, no text=True (bug 1, reproducido 2026-08-13): con text=True y
         # sin encoding, subprocess decodifica en el hilo lector con el locale
@@ -1439,7 +1685,8 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
         # _env_utf8 le pide al hijo Python que EMITA utf-8 (si no, es el hijo
         # el que revienta al imprimir un acento hacia un pipe cp1252).
         r = subprocess.run(cmd, shell=True, capture_output=True,
-                           timeout=timeout, env=_env_utf8())
+                           timeout=timeout, env=_env_utf8(),
+                           cwd=cwd or None)
     except subprocess.TimeoutExpired:
         # Timeout accionable en vez de un stacktrace generico: el modelo necesita
         # saber que debe ACOTAR el comando (ruta/test mas especifico) y reintentar.
@@ -1468,34 +1715,247 @@ def _head_cola(out: str) -> str:
             + out[-_EJEC_COLA:])
 
 
-# timeout=N al final de los args, tras un '|': un comando shell real nunca
-# termina en '| timeout=120' (seria pipear a un ejecutable llamado asi), y el
-# pipe NO se lo come auto_fix (la regla de 'ejecutar' es solo nonempty).
-_RE_EJEC_TIMEOUT = re.compile(r"\s*\|\s*timeout\s*=\s*(\d+)\s*$", re.I)
+# timeout=N / cwd=RUTA al final de los args, tras un '|': un comando shell real
+# nunca termina en '| timeout=120' (seria pipear a un ejecutable llamado asi), y
+# el pipe NO se lo come auto_fix (la regla de 'ejecutar' es solo nonempty). El
+# pipe sigue siendo OBLIGATORIO tambien para cwd, por el mismo motivo: sin el,
+# un 'python -c "x=1"' o un 'set VAR=valor' se comerian su propia cola.
+_RE_EJEC_KV = re.compile(r"\s*\|\s*(timeout|cwd)\s*=\s*([^|]+?)\s*$", re.I)
 
 
 @tool("ejecutar",
-      "ejecutar <comando shell> [| timeout=N]  -- corre un comando (bloqueos de "
-      "seguridad; timeout default 30s, max 600)",
+      "ejecutar <comando shell> [| timeout=N] [| cwd=RUTA]  -- corre un comando "
+      "(bloqueos de seguridad; timeout default 30s, max 600)",
       desc="Ejecuta un comando de shell y devuelve stdout+stderr (si el output "
            "es largo conserva la cabeza y la COLA, donde vive el traceback). "
-           "Para correr tests usa la tool 'tests'. Comandos peligrosos se "
-           "bloquean o piden confirmacion.",
+           "Para correr tests usa la tool 'tests'; para algo que no termina "
+           "(servidor, build largo, watcher) usa 'ejecutar_fondo'. Comandos "
+           "peligrosos se bloquean o piden confirmacion.",
       params=[
           {"nombre": "comando", "tipo": "string", "requerido": True,
            "descripcion": "el comando de shell a ejecutar"},
           {"nombre": "timeout", "tipo": "integer", "requerido": False,
            "clave": True,
            "descripcion": "segundos maximos de ejecucion (default 30, max 600)"},
+          {"nombre": "cwd", "tipo": "string", "requerido": False,
+           "clave": True,
+           "descripcion": "directorio donde correr el comando (en vez de "
+                          "prefijar 'cd RUTA &&')"},
       ])
 def _ejecutar(args, ctx):
-    cmd = args.strip()
-    timeout = 30
-    m = _RE_EJEC_TIMEOUT.search(cmd)
-    if m:
-        timeout = min(600, max(1, int(m.group(1))))
+    cmd, timeout, cwd = _partir_ejec(args)
+    return _shell(cmd, ctx, timeout=timeout, cwd=cwd)
+
+
+def _partir_ejec(args: str) -> tuple:
+    """(comando, timeout, cwd) desde los args crudos. Las claves van al FINAL,
+    en cualquier orden y cualquiera de las dos puede faltar."""
+    cmd = (args or "").strip()
+    timeout, cwd = 30, ""
+    while True:
+        m = _RE_EJEC_KV.search(cmd)
+        if not m:
+            break
+        if m.group(1).lower() == "timeout":
+            try:
+                timeout = min(600, max(1, int(m.group(2).strip())))
+            except ValueError:
+                pass          # 'timeout=rapido': se ignora, no se rompe
+        else:
+            cwd = m.group(2).strip().strip("\"\'")
         cmd = cmd[:m.start()].strip()
-    return _shell(cmd, ctx, timeout=timeout)
+    return cmd, timeout, cwd
+
+
+# ══════════════════════════════════════════════════════════════════════
+# EJECUCION EN SEGUNDO PLANO (2026-08-18)
+# ══════════════════════════════════════════════════════════════════════
+# `ejecutar` es BLOQUEANTE y muere a los 600s: levantar un servidor, correr un
+# build largo o dejar un watcher era literalmente IMPOSIBLE para el agente (o
+# timeout sin senal, o el loop colgado sin poder observar nada). La
+# infraestructura ya existia y estaba conectada SOLO al humano (/shells):
+# cognia/console/proc_registry.py. Estas cuatro tools la exponen al loop con el
+# MISMO gate que `ejecutar` (sentinel.evaluar_shell): lanzar en background no
+# puede ser el agujero por el que pasa lo que el primer plano frena.
+#
+# Solo ejecutar_fondo entra en CORE_TOOLS. Las otras tres se descubren por el
+# TEXTO del resultado (que nombra 'ver_salida <id>' y 'matar_proceso <id>') y
+# siguen siendo invocables siempre: run_tool no filtra por CORE_TOOLS. Asi el
+# catalogo anunciado crece en 1 y no en 4 (el A/B del repo midio que inflarlo
+# degrada al modelo: 4.25/5 -> 2.5/5 con 46 tools).
+
+# Tope de chars de ver_salida. Se conserva la COLA (lo ultimo que dijo el
+# proceso es lo que importa en un servidor o un build), como _head_cola.
+_VER_SALIDA_CAP = int(os.environ.get("COGNIA_VER_SALIDA_CAP", "4000"))
+
+
+def _proc_id(raw: str):
+    """Primer entero de los args, o None. El modelo escribe '3', 'id=3' o '#3'
+    indistintamente y ninguna de las tres deberia ser un error de formato."""
+    m = re.search(r"\d+", raw or "")
+    return int(m.group(0)) if m else None
+
+
+@tool("ejecutar_fondo",
+      "ejecutar_fondo <comando> [| cwd=RUTA]  -- lanza en SEGUNDO PLANO (servidor, "
+      "build largo, watcher) y devuelve un id; luego ver_salida <id> / "
+      "matar_proceso <id>",
+      danger=True,
+      desc="Lanza un comando en segundo plano y devuelve enseguida un id, sin "
+           "esperar a que termine. Es la unica forma de levantar un servidor, "
+           "correr un build largo o dejar un watcher: 'ejecutar' bloquea y "
+           "muere a los 600s. La salida se lee despues con 'ver_salida <id>', "
+           "se mata con 'matar_proceso <id>' y se listan los vivos con "
+           "'procesos'.",
+      params=[
+          {"nombre": "comando", "tipo": "string", "requerido": True,
+           "descripcion": "el comando a lanzar en segundo plano"},
+          {"nombre": "cwd", "tipo": "string", "requerido": False,
+           "clave": True,
+           "descripcion": "directorio donde lanzarlo"},
+      ])
+def _ejecutar_fondo(args, ctx):
+    cmd, _timeout, cwd = _partir_ejec(args)
+    if not cmd:
+        return "RESULTADO ejecutar_fondo ERROR: falta el comando a lanzar"
+    # MISMO gate que `ejecutar`: si el sentinel frena el comando en primer
+    # plano, mandarlo al background no puede saltarselo.
+    from cognia.agent.sentinel import evaluar_shell
+    permitido, msg = evaluar_shell(cmd, ctx)
+    if not permitido:
+        return (msg or "").replace("RESULTADO ejecutar", "RESULTADO ejecutar_fondo", 1)
+    if cwd:
+        _cw = Path(cwd).expanduser()
+        if not _cw.is_dir():
+            return (f"RESULTADO ejecutar_fondo ERROR: cwd='{cwd}' no es un "
+                    f"directorio existente")
+        cwd = str(_cw)
+    pf = ctx.get("print_fn")
+    if callable(pf):
+        pf(f"[detail]$ (fondo) {cmd}" + (f"   (cwd={cwd})" if cwd else "") + "[/detail]")
+    try:
+        from cognia.console.proc_registry import spawn_shell
+        # PYTHONUNBUFFERED: un hijo Python detecta que stdout es un PIPE y pasa
+        # a buffer de bloque -- un servidor Flask o un script largo no soltaban
+        # NADA hasta terminar, y ver_salida contestaba "(sin salida todavia)"
+        # de un proceso que llevaba minutos imprimiendo. Medido aqui mismo al
+        # probar la tool. Solo arregla a los hijos Python: un binario que
+        # bufferiza por su cuenta sigue mudo hasta que el decida vaciar, y eso
+        # esta fuera del alcance de esta tool (no se le puede mentir a su libc).
+        _env = dict(_env_utf8(), PYTHONUNBUFFERED="1")
+        sid = spawn_shell(cmd, cwd=cwd or None, env=_env)
+    except Exception as e:
+        return f"RESULTADO ejecutar_fondo ERROR: no se pudo lanzar: {e}"
+    # El id y los nombres de las tools companeras van en el RESULTADO a
+    # proposito: es discoverability con coste CERO en el catalogo del prompt.
+    return (f"RESULTADO ejecutar_fondo: lanzado en segundo plano con id={sid} "
+            f"({cmd[:80]}). Sigue corriendo; NO esperes su salida aca. "
+            f"Leela con: ver_salida {sid}. Matalo con: matar_proceso {sid}.")
+
+
+@tool("ver_salida",
+      "ver_salida <id> [| lineas=N]           -- salida acumulada de un proceso "
+      "lanzado con ejecutar_fondo (+ su estado)",
+      desc="Devuelve la salida acumulada (stdout+stderr) de un proceso de "
+           "segundo plano y su estado actual (running/done/failed). Avisa "
+           "explicitamente si se descartaron lineas del principio.",
+      params=[
+          {"nombre": "id", "tipo": "integer", "requerido": True,
+           "descripcion": "el id que devolvio ejecutar_fondo"},
+          {"nombre": "lineas", "tipo": "integer", "requerido": False,
+           "clave": True,
+           "descripcion": "cuantas lineas finales mostrar (default: todas las "
+                          "retenidas)"},
+      ])
+def _ver_salida(args, ctx):
+    from cognia.console.proc_registry import get_info, get_output
+    raw = (args or "").strip()
+    lineas = None
+    m = re.search(r"(?:\s*\|)?\s*lineas\s*=\s*(\d+)\s*$", raw, re.I)
+    if m:
+        lineas = max(1, int(m.group(1)))
+        raw = raw[:m.start()].strip().rstrip("|").strip()
+    sid = _proc_id(raw)
+    if sid is None:
+        return ("RESULTADO ver_salida ERROR: falta el id numerico que devolvio "
+                "ejecutar_fondo (mira 'procesos')")
+    info = get_info(sid)
+    if info is None:
+        return (f"RESULTADO ver_salida ERROR: no hay ningun proceso con id "
+                f"{sid} (listalos con 'procesos')")
+    texto = "\n".join(get_output(sid, last_n=lineas))
+    avisos = []
+    if info["descartadas"]:
+        avisos.append(f"{info['descartadas']} lineas del PRINCIPIO ya se "
+                      f"descartaron (el buffer retiene las ultimas "
+                      f"{info['buffer_max']})")
+    if len(texto) > _VER_SALIDA_CAP:
+        avisos.append(f"{len(texto) - _VER_SALIDA_CAP} chars recortados del "
+                      f"principio (tope {_VER_SALIDA_CAP}; acota con "
+                      f"lineas=N)")
+        texto = texto[-_VER_SALIDA_CAP:]
+    estado = info["status"]
+    if estado == "running":
+        cab = f"id={sid} CORRIENDO hace {info['uptime_s']}s"
+    else:
+        cab = f"id={sid} {estado} (exit {info['returncode']})"
+    nota = (" [" + "; ".join(avisos) + "]") if avisos else ""
+    return (f"RESULTADO ver_salida {cab}{nota}: "
+            + (texto or "(sin salida todavia)"))
+
+
+@tool("matar_proceso",
+      "matar_proceso <id>                    -- termina un proceso de "
+      "ejecutar_fondo (dice si NO murio)",
+      danger=True,
+      desc="Termina un proceso lanzado con ejecutar_fondo. Si el proceso "
+           "sobrevive al terminate+kill lo dice: no da por muerto lo que "
+           "sigue vivo.",
+      params=[
+          {"nombre": "id", "tipo": "integer", "requerido": True,
+           "descripcion": "el id que devolvio ejecutar_fondo"},
+      ])
+def _matar_proceso(args, ctx):
+    from cognia.console.proc_registry import get_info, kill_shell
+    sid = _proc_id(args)
+    if sid is None:
+        return "RESULTADO matar_proceso ERROR: falta el id numerico"
+    info = get_info(sid)
+    if info is None:
+        return (f"RESULTADO matar_proceso ERROR: no hay ningun proceso con id "
+                f"{sid} (listalos con 'procesos')")
+    if info["status"] != "running":
+        return (f"RESULTADO matar_proceso: el id {sid} ya habia terminado "
+                f"({info['status']}, exit {info['returncode']})")
+    ok = kill_shell(sid)
+    if not ok:
+        # kill_shell devuelve el estado REAL (leccion de la casa: matar el
+        # shell NO mata el proceso). Un False aqui es un proceso VIVO tras
+        # terminate+kill: decirlo, porque de esto dependen el puerto, el
+        # fichero o la GPU que el agente cree haber liberado.
+        return (f"RESULTADO matar_proceso ERROR: el proceso {sid} SIGUE VIVO "
+                f"tras terminate y kill ({info['cmd'][:60]}). No asumas que "
+                f"liberaste su puerto/fichero; puede necesitar el humano.")
+    return f"RESULTADO matar_proceso: id {sid} terminado ({info['cmd'][:60]})"
+
+
+@tool("procesos",
+      "procesos                              -- lista los procesos lanzados con "
+      "ejecutar_fondo",
+      desc="Lista los procesos de segundo plano con su id, estado, comando y "
+           "lineas de salida acumuladas.")
+def _procesos(args, ctx):
+    from cognia.console.proc_registry import list_shells
+    filas = list_shells()
+    if not filas:
+        return ("RESULTADO procesos: ninguno lanzado todavia (usa "
+                "ejecutar_fondo <comando>)")
+    lineas = []
+    for f in filas[-15:]:
+        edad = f"{f['uptime_s']}s" if f["status"] == "running" else f"exit {f['returncode']}"
+        lineas.append(f"  id={f['id']} {f['status']} ({edad}) "
+                      f"{f['lineas_total']} lineas | {f['cmd'][:60]}")
+    return f"RESULTADO procesos ({len(filas)}):\n" + "\n".join(lineas)
 
 
 @tool("abrir", "abrir <url-o-ruta-o-app>              -- abre una URL/archivo/app en el sistema (Chrome, YouTube, un archivo, una app)")
@@ -1636,14 +2096,217 @@ def _git_estado(args, ctx):
     return _shell("git status --short --branch", ctx, timeout=15)
 
 
-@tool("git_diff", "git_diff [ruta]                       -- git diff (cambios sin commitear)")
+# Tope del patch de git_diff. El diff REAL (no --stat) es lo que cierra el
+# ciclo central de un harness de programacion —edito, REVISO el diff linea a
+# linea, commiteo—: con --stat el agente solo veia "3 files changed" y no podia
+# revisar su propio cambio. Un refactor grande son cientos de KB, asi que se
+# corta con aviso EXPLICITO (y la salida esta en ACI_EXENTAS: el head+tail
+# generico partiria los hunks por el medio).
+_GIT_DIFF_CAP = int(os.environ.get("COGNIA_GIT_DIFF_CAP", "6000"))
+
+# Palabras que git_diff acepta como opcion en vez de como ruta.
+_RE_GIT_FLAG = re.compile(r"^(?:--)?(staged|cached|stat)\b\s*", re.I)
+
+# Nombre de rama valido: sin espacios ni metacaracteres. No es paranoia
+# decorativa — el argumento viene del modelo y acaba en una linea de comando.
+_RE_RAMA = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")
+
+
+def _git(argv: list, ctx: dict, cap: int = 2000, timeout: int = 20,
+         cmd_auditado: str = "") -> tuple:
+    """Corre git con argv (SIN shell) y devuelve (ok, texto ya capado).
+
+    Sin shell=True a proposito: los argumentos vienen del modelo y con shell
+    una 'ruta; git push --force' seria una inyeccion en toda regla. Igual pasa
+    por el sentinel con el comando reconstruido, para que cualquier git quede
+    en la auditoria append-only como el resto de la ejecucion.
+    ``cmd_auditado`` permite auditar la ACCION y no el texto libre que la
+    acompana (ver git_commit).
+    """
+    from cognia.agent.sentinel import evaluar_shell
+    cmd = cmd_auditado or " ".join(argv)
+    permitido, msg = evaluar_shell(cmd, ctx)
+    if not permitido:
+        return False, (msg or "")
+    pf = ctx.get("print_fn")
+    if callable(pf):
+        pf(f"[detail]$ {cmd}[/detail]")
+    try:
+        r = subprocess.run(argv, capture_output=True, timeout=timeout,
+                           env=_env_utf8())
+    except FileNotFoundError:
+        return False, "git no esta instalado o no esta en el PATH"
+    except subprocess.TimeoutExpired:
+        return False, f"timeout tras {timeout}s"
+    out = (_decodificar_bytes(r.stdout) + _decodificar_bytes(r.stderr)).strip()
+    if len(out) > cap:
+        out = (out[:cap] + f"\n[... {len(out) - cap} chars omitidos (tope "
+               f"{cap}); acota pasando una ruta concreta ...]")
+    return r.returncode == 0, out
+
+
+@tool("git_diff",
+      "git_diff [ruta] [| staged] [| stat]   -- diff REAL linea a linea (el "
+      "patch); 'staged'=lo ya agregado, 'stat'=solo el resumen",
+      desc="Muestra el diff de los cambios sin commitear COMO PATCH (lineas + "
+           "y -), que es lo que hace falta para revisar el propio cambio antes "
+           "de commitearlo. Acota a un fichero pasando su ruta; 'staged' mira "
+           "lo que ya esta en el indice y 'stat' devuelve solo el resumen.",
+      params=[
+          {"nombre": "ruta", "tipo": "string", "requerido": False,
+           "descripcion": "fichero o carpeta al que acotar el diff"},
+      ])
 def _git_diff(args, ctx):
-    return _shell(f"git diff --stat {args.strip()}".strip(), ctx, timeout=15)
+    flags, rutas = [], []
+    for chunk in re.split(r"\s*\|\s*", (args or "").strip()):
+        chunk = chunk.strip().strip("\"\'")
+        while True:
+            m = _RE_GIT_FLAG.match(chunk)
+            if not m:
+                break
+            flags.append("--cached" if m.group(1).lower() != "stat" else "--stat")
+            chunk = chunk[m.end():]
+        if chunk:
+            rutas.append(chunk)
+    for r in rutas:
+        if r.startswith("-"):
+            return (f"RESULTADO git_diff ERROR: '{r}' no parece una ruta "
+                    f"(las opciones validas son 'staged' y 'stat')")
+    argv = ["git", "diff"] + sorted(set(flags))
+    if rutas:
+        argv += ["--"] + rutas          # '--' separa rutas de opciones
+    ok, out = _git(argv, ctx, cap=_GIT_DIFF_CAP)
+    if not ok:
+        return f"RESULTADO git_diff ERROR: {out}"
+    if not out:
+        return ("RESULTADO git_diff: sin cambios en el ambito pedido. Si ya "
+                "hiciste git_add, mira lo del indice con: git_diff | staged")
+    return f"RESULTADO git_diff:\n{out}"
 
 
 @tool("git_log", "git_log                               -- ultimos 5 commits")
 def _git_log(args, ctx):
     return _shell("git log --oneline -5", ctx, timeout=15)
+
+
+# git_add/git_commit/git_branch/git_stash (2026-08-18): las tres tools git
+# previas eran de SOLO LECTURA, asi que el agente podia ver el repo pero jamas
+# cerrar el ciclo edito -> reviso -> commiteo. Lo que NO entra, a proposito:
+# push, reset --hard, clean -f y cualquier --force. Publicar y destruir
+# historia es del humano; el sentinel ademas los bloquea en duro.
+@tool("git_add",
+      "git_add <ruta>                        -- agrega cambios al indice (ruta "
+      "obligatoria; '.' para todo)",
+      danger=True,
+      desc="Agrega al indice de git los cambios de una ruta concreta, para "
+           "poder commitearlos despues con git_commit. La ruta es obligatoria: "
+           "un 'add' a ciegas del repo entero mete cosas que el agente no miro.",
+      params=[
+          {"nombre": "ruta", "tipo": "string", "requerido": True,
+           "descripcion": "fichero o carpeta a agregar ('.' = todo el repo)"},
+      ])
+def _git_add(args, ctx):
+    rutas = [c.strip().strip("\"\'") for c in re.split(r"\s*\|\s*", (args or "").strip()) if c.strip()]
+    if not rutas:
+        return ("RESULTADO git_add ERROR: falta la ruta a agregar (usa '.' "
+                "para todo el repo, pero mira antes git_estado)")
+    for r in rutas:
+        if r.startswith("-"):
+            return f"RESULTADO git_add ERROR: '{r}' no es una ruta"
+    ok, out = _git(["git", "add", "--"] + rutas, ctx)
+    if not ok:
+        return f"RESULTADO git_add ERROR: {out}"
+    ok2, estado = _git(["git", "diff", "--cached", "--stat"], ctx, cap=1200)
+    return (f"RESULTADO git_add: agregado {', '.join(rutas)}. En el indice:\n"
+            + (estado if ok2 and estado else "(nada nuevo)"))
+
+
+@tool("git_commit",
+      "git_commit <mensaje>                  -- commitea lo que este en el "
+      "indice (mensaje obligatorio; NO hace push)",
+      danger=True,
+      desc="Crea un commit LOCAL con lo que ya este en el indice (usa git_add "
+           "antes). El mensaje es obligatorio. Nunca publica: push, reset "
+           "--hard y --force son del humano.",
+      params=[
+          {"nombre": "mensaje", "tipo": "string", "requerido": True,
+           "descripcion": "mensaje del commit (que cambio y por que)"},
+      ])
+def _git_commit(args, ctx):
+    mensaje = (args or "").strip().strip("\"\'").strip()
+    if not mensaje:
+        return ("RESULTADO git_commit ERROR: el mensaje es obligatorio "
+                "(que cambio y por que)")
+    # El mensaje NO es shell (argv sin shell=True), asi que pasarselo al
+    # clasificador solo produce BLOCK falsos: un commit legitimo que diga
+    # "quita el rm -rf del script" casaba con el patron destructivo. Se audita
+    # la ACCION ('git commit -m') y el mensaje queda en el propio commit.
+    ok, out = _git(["git", "commit", "-m", mensaje], ctx,
+                   cmd_auditado="git commit -m")
+    if not ok:
+        if "nothing to commit" in out or "nada para hacer commit" in out:
+            return ("RESULTADO git_commit ERROR: no hay nada en el indice; "
+                    "usa git_add <ruta> primero")
+        return f"RESULTADO git_commit ERROR: {out}"
+    return f"RESULTADO git_commit: {out}"
+
+
+@tool("git_branch",
+      "git_branch [nombre]                   -- lista las ramas, o cambia/crea "
+      "la rama <nombre>",
+      danger=True,
+      desc="Sin argumento lista las ramas locales y marca la actual. Con un "
+           "nombre, cambia a esa rama (y la crea si no existe).",
+      params=[
+          {"nombre": "nombre", "tipo": "string", "requerido": False,
+           "descripcion": "rama a la que cambiar o crear"},
+      ])
+def _git_branch(args, ctx):
+    nombre = (args or "").strip().strip("\"\'")
+    if not nombre:
+        ok, out = _git(["git", "branch", "--list"], ctx, cap=1200)
+        return (f"RESULTADO git_branch:\n{out}" if ok
+                else f"RESULTADO git_branch ERROR: {out}")
+    if not _RE_RAMA.match(nombre):
+        return (f"RESULTADO git_branch ERROR: '{nombre[:40]}' no es un nombre "
+                f"de rama valido (letras, digitos, . _ - /)")
+    existe, _ = _git(["git", "rev-parse", "--verify", "--quiet",
+                      f"refs/heads/{nombre}"], ctx)
+    argv = ["git", "checkout"] + ([] if existe else ["-b"]) + [nombre]
+    ok, out = _git(argv, ctx)
+    if not ok:
+        return f"RESULTADO git_branch ERROR: {out}"
+    verbo = "cambiado a" if existe else "creada y activada"
+    return f"RESULTADO git_branch: rama '{nombre}' {verbo}. {out}"
+
+
+# 'drop' y 'clear' NO estan: tiran trabajo sin red (el stash es justamente la
+# red). Guardar, recuperar y mirar si.
+_GIT_STASH_SUB = {"": ["push", "-u"], "push": ["push", "-u"],
+                  "save": ["push", "-u"], "pop": ["pop"], "list": ["list"],
+                  "apply": ["apply"], "show": ["show"]}
+
+
+@tool("git_stash",
+      "git_stash [push|pop|list]             -- guarda los cambios sin "
+      "commitear (default push), los recupera (pop) o los lista",
+      danger=True,
+      desc="Guarda temporalmente los cambios sin commitear para dejar el arbol "
+           "limpio (push, el default), los devuelve (pop), o los lista (list). "
+           "No borra stashes: 'drop' y 'clear' no estan disponibles.",
+      params=[
+          {"nombre": "subcomando", "tipo": "string", "requerido": False,
+           "descripcion": "push (default) | pop | list | apply | show"},
+      ])
+def _git_stash(args, ctx):
+    sub = (args or "").strip().strip("\"\'").lower()
+    if sub not in _GIT_STASH_SUB:
+        return (f"RESULTADO git_stash ERROR: '{sub[:30]}' no esta permitido. "
+                f"Validos: push (default), pop, list, apply, show")
+    ok, out = _git(["git", "stash"] + _GIT_STASH_SUB[sub], ctx, cap=1500)
+    if not ok:
+        return f"RESULTADO git_stash ERROR: {out}"
+    return f"RESULTADO git_stash {sub or 'push'}: {out or '(sin salida)'}"
 
 
 # ══════════════════════════════════════════════════════════════════════

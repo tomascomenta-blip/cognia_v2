@@ -88,10 +88,33 @@ HAS_SEMANTIC = importlib.util.find_spec("sentence_transformers") is not None
 # boundary. See scripts/migrate_vector_dim.py to re-embed any legacy 64-dim rows.
 VECTOR_DIM   = 384
 
+# DEGRADADOS DEL ARRANQUE (2026-08-18). Antes esto eran logger.warning() en el
+# cuerpo del modulo, y como cli.py importa .config en su linea 22, el usuario
+# veia dos lineas amarillas con formato de servidor ("WARNING cognia.config:
+# ...") colgando ENCIMA del banner, en cada sesion, para siempre. Un aviso que
+# no puedes accionar y que ademas ensucia la primera pantalla no es informacion:
+# es ruido. Ahora se REGISTRAN y quien quiera los muestra donde corresponde
+# (`cognia doctor`, /doctor, o COGNIA_DEBUG=1), en vez de imponerse a todos.
+_DEGRADADOS: list = []
+
+
+def registrar_degradado(que: str, efecto: str, arreglo: str = "") -> None:
+    """Anota una capacidad ausente sin escribir en la pantalla del usuario."""
+    _DEGRADADOS.append({"que": que, "efecto": efecto, "arreglo": arreglo})
+    logger.debug("degradado: %s -> %s (%s)", que, efecto, arreglo or "sin arreglo")
+
+
+def degradados() -> list:
+    """Lo que falta y en que se nota. Lo consume el doctor, no el arranque."""
+    return list(_DEGRADADOS)
+
+
 if HAS_SEMANTIC:
     logger.debug("sentence-transformers detectado (se cargara en primer uso)")
 else:
-    logger.warning("sentence-transformers no encontrado. Usando n-gramas.")
+    registrar_degradado("sentence-transformers",
+                        "la busqueda semantica cae a n-gramas",
+                        "pip install sentence-transformers")
 
 # PORQUE find_spec: el simbolo `np` NO se usaba en este modulo y HAS_NUMPY no
 # tiene ningun consumidor en todo el repo (grep 2026-07-23), asi que el import
@@ -100,7 +123,7 @@ else:
 # memory/semantic_search.py, semantic_cache.py) lo importan por su cuenta.
 HAS_NUMPY = importlib.util.find_spec("numpy") is not None
 if not HAS_NUMPY:
-    logger.warning("numpy no encontrado. Clustering basico disponible.")
+    registrar_degradado("numpy", "solo clustering basico", "pip install numpy")
 
 # PORQUE find_spec y no `import networkx`: importar networkx aca costaba 110ms
 # de los 436ms de `import cognia` (medido con -X importtime en la maquina del
@@ -113,7 +136,8 @@ HAS_NETWORKX = importlib.util.find_spec("networkx") is not None
 if HAS_NETWORKX:
     logger.debug("networkx cargado (knowledge graph activo)")
 else:
-    logger.warning("networkx no encontrado. Instala con: pip install networkx")
+    registrar_degradado("networkx", "el grafo de conocimiento queda inactivo",
+                        "pip install networkx")
 
 # ── Cache de embeddings ───────────────────────────────────────────────
 _embedding_cache = BoundedLRUCache(max_entries=512)

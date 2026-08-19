@@ -567,6 +567,9 @@ Comandos:
   voz                Asistente de voz Jarvis (requiere extra [voz])
   remoto             Servidor de control remoto desde el movil
   tutor              Tutor web que ensena cualquier tema (localhost:8899)  [--lan]
+  hacer "<tarea>"    Ejecuta una tarea con el agente y sale (sin REPL).
+                     stdout = el resultado, stderr = el progreso -> sirve en
+                     tuberias y scripts. [--pasos N] [--json] [--silencioso]
   rlm <ruta> "<pregunta>"  Pregunta sobre contexto mas grande que la ventana
   responder "<pregunta>"   Responde con CONFIANZA (no si/no); si le falta,
                            investiga en la web y cita. [--segundos N]
@@ -624,7 +627,15 @@ def main() -> None:
     apply_config()
 
     if cmd in ("help", "--help", "-h"):
-        print(_HELP)
+        # La ayuda con jerarquia (2026-08-18): era una lista plana de 24
+        # comandos, todos con el mismo peso y sin color, en la PRIMERA pantalla
+        # del producto. _HELP se conserva como respaldo: si la capa nueva falla
+        # por lo que sea, el usuario ve la ayuda de siempre y no un traceback.
+        try:
+            from cognia.ayuda_cli import imprimir as _imprimir_ayuda
+            _imprimir_ayuda()
+        except Exception:
+            print(_HELP)
     elif cmd == "init":
         _cmd_init(force=True)
     elif cmd == "install-weights":
@@ -712,6 +723,13 @@ def main() -> None:
         if _informe:
             print(_informe)
         sys.exit(0 if _res.get("ok") else 1)
+    elif cmd in ("hacer", "do"):
+        # El agente SIN el REPL: automatizar, encadenar por tuberia y MEDIR el
+        # CLI de verdad. Hasta hoy /hacer solo existia dentro del REPL, y el
+        # propio gate de pre-release tenia que saltarse el CLI y llamar a
+        # cli._run_agent_task() por dentro para poder probarlo.
+        from cognia.cli_hacer import main as _hacer_main
+        sys.exit(_hacer_main(sys.argv[2:]))
     elif cmd in ("responder", "confianza"):
         # Responder con CONFIANZA en vez de con si/no, y si no la hay, ir a
         # buscar. El grado NO se le pregunta al modelo (contesta 0,9 casi

@@ -238,8 +238,14 @@ def _spec(name: str) -> dict:
 def _verificar(destino: str, ctx: dict) -> str:
     """El bloque RESULTADO de la verificación, o '' si no aplica.
 
-    Sólo mira ficheros que sabemos verificar y que existen tras la escritura;
-    cualquier fallo de la capa devuelve '' (el agente no se entera).
+    Sólo mira ficheros que sabemos verificar y que existen tras la escritura.
+
+    EL SILENCIO ES AMBIGUO Y ESO COSTABA CARO (2026-08-18). Antes, cualquier
+    excepción de la capa de verificación devolvía '' — y '' YA significaba
+    "verificado y todo bien". Un ImportError, un fichero bloqueado o un pytest
+    que no arranca se le presentaban al agente EXACTAMENTE igual que un visto
+    bueno, y el agente seguía construyendo encima. Un fallo del instrumento no
+    puede leerse como aprobación del sujeto: ahora se dice.
     """
     try:
         if not destino.lower().endswith(_VERIFICABLES):
@@ -259,5 +265,7 @@ def _verificar(destino: str, ctx: dict) -> str:
         if veredicto.get("sintaxis_ok") and veredicto.get("tests_ok") is None:
             return ""
         return verificacion.texto_resultado(veredicto)
-    except Exception:
-        return ""
+    except Exception as exc:
+        return (f"RESULTADO: no pude verificar {destino} "
+                f"({type(exc).__name__}: {exc}). El fichero se escribió, pero "
+                f"NADIE comprobó que sea válido.")

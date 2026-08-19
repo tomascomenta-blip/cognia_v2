@@ -210,8 +210,16 @@ _RE_SUMARIO = re.compile(
     r"|no tests ran)\b")
 
 
+_RE_ANSI = re.compile(r"\[[0-9;]*[A-Za-z]")
+
+
 def _resumen_pytest(salida: str, returncode: int) -> str:
-    """La linea de resumen de pytest -q ('3 passed in 0.12s'), o el exit code."""
+    """La linea de resumen de pytest -q ('3 passed in 0.12s'), o el exit code.
+
+    Se limpian los codigos ANSI ANTES de buscar: --color=no lo evita en el
+    camino normal, pero esta funcion tambien recibe salidas de terceros (un
+    runner del usuario, un wrapper) y no puede quedarse ciega por un color."""
+    salida = _RE_ANSI.sub("", salida or "")
     lineas = [l.strip() for l in (salida or "").splitlines() if l.strip()]
     for l in reversed(lineas):
         if _RE_SUMARIO.search(l):
@@ -248,7 +256,14 @@ def correr_tests(rutas, python_exe=None, timeout: int = 120, cwd=None) -> dict:
                 "error_harness": False}
 
     exe = str(python_exe) if python_exe else sys.executable
-    cmd = [exe, "-m", "pytest", *rutas, "-q", "--no-header"]
+    # --color=no NO es cosmetica (2026-08-18). pytest colorea cuando cree que hay
+    # terminal, y entonces el sumario llega como "[32m1 passed[0m": el
+    #  de _RE_SUMARIO no casa contra el ESC y el agente recibe "pytest termino
+    # con exit 0" en vez de "1 failed, 2 passed". Eso es lo UNICO que lee para
+    # saber si acaba de romper algo, asi que un resumen ciego convierte un fallo
+    # en un visto bueno. Cazado con la propia suite del repo, donde estos tests
+    # fallan cuando algo activa el color.
+    cmd = [exe, "-m", "pytest", *rutas, "-q", "--no-header", "--color=no"]
     # UTF-8 forzado: en Windows el hijo hereda cp1252 y un traceback con acentos
     # llega mutilado (o revienta el decode) justo cuando mas se necesita leerlo.
     env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")

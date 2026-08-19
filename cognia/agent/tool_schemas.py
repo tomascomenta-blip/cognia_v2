@@ -244,7 +244,7 @@ _TIPADAS: dict = {
 
 # Tools sin argumentos: schema de objeto vacio y string legacy vacio.
 _SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado",
-             "ctx_info")
+             "ctx_info", "procesos")
 
 
 def _descripcion_de(doc: str) -> str:

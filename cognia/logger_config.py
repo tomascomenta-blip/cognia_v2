@@ -209,6 +209,71 @@ def poner_nivel_consola(nivel: str) -> None:
 _NIVEL_MUDO = logging.CRITICAL + 1
 
 
+class _HandlerEnrutado(logging.Handler):
+    """Manda cada record a un callback de la interfaz en vez de a stderr."""
+
+    def __init__(self, destino) -> None:
+        super().__init__()
+        self._destino = destino
+        self._dentro = False        # anti-recursion: si el destino loguea
+
+    def emit(self, record) -> None:
+        if self._dentro:
+            return
+        self._dentro = True
+        try:
+            self._destino(record.levelname, self.format(record))
+        except Exception:
+            pass                     # un fallo al pintar no puede tumbar el log
+        finally:
+            self._dentro = False
+
+
+_ENRUTADO: Optional[logging.Handler] = None
+
+
+def enrutar_consola_a(destino) -> None:
+    """Los logs de consola pasan a pintarse POR LA INTERFAZ, no por stderr.
+
+    POR QUE (2026-08-18). El handler de consola se queda con el objeto stderr
+    del import, y ni el spinner (que redirige stdout) ni el prompt (que
+    sustituye los streams con patch_stdout) lo ven. Resultado: un WARNING de
+    cualquier hilo de fondo aterriza ENCIMA de la linea que rich esta
+    reescribiendo, o parte en dos el marco verde del prompt. Silenciarlo a
+    secas perderia avisos que importan; enrutarlo los conserva y ademas los
+    hace obedecer al tema. Reversible con restaurar_consola().
+
+    `destino` recibe (nivel, texto_formateado).
+    """
+    global _ENRUTADO
+    if _CONSOLE_HANDLER is None:
+        return
+    if _ENRUTADO is not None:
+        # Reemplazo, no no-op: si una sesion anterior dejo uno instalado, el
+        # destino nuevo tiene que ganar (si no, el segundo llamador cree que
+        # esta recibiendo los logs y no le llega ni uno).
+        restaurar_enrutado()
+    _ENRUTADO = _HandlerEnrutado(destino)
+    _ENRUTADO.setLevel(_CONSOLE_HANDLER.level)
+    _ENRUTADO.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+    _ROOT_LOGGER.addHandler(_ENRUTADO)
+    _CONSOLE_HANDLER.setLevel(_NIVEL_MUDO)
+
+
+def restaurar_enrutado() -> None:
+    """Deshace enrutar_consola_a() (el handler de consola vuelve a stderr)."""
+    global _ENRUTADO
+    if _ENRUTADO is None:
+        return
+    try:
+        _ROOT_LOGGER.removeHandler(_ENRUTADO)
+    except Exception:
+        pass
+    if _CONSOLE_HANDLER is not None:
+        _CONSOLE_HANDLER.setLevel(_ENRUTADO.level)
+    _ENRUTADO = None
+
+
 def silenciar_consola() -> Optional[int]:
     """Calla el handler de CONSOLA y devuelve su nivel previo (None si no hay).
 

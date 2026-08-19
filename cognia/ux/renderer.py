@@ -501,7 +501,12 @@ class Renderer:
             return    # remoto: la respuesta final llega entera via _show_response
         if self._stream_externo:
             # el fast-path ya esta pintando este stream: cerrar la prosa del
-            # razonamiento (la respuesta empieza) y no duplicar ni un token
+            # razonamiento (la respuesta empieza) y no duplicar ni un token.
+            # _parar_status() PRIMERO (2026-08-18): si no, rich sigue girando
+            # su status sobre la MISMA Console en la que el fast-path escribe
+            # tokens, y el "· pensando... (0s)" acaba incrustado dentro de las
+            # frases de la respuesta.
+            self._parar_status()
             self._cerrar_flujo_pensar()
             return
         self._cerrar_flujo_pensar()

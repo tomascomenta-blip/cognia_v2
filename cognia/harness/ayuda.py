@@ -199,6 +199,13 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     "Permisos del agente": (
         "/permisos", "/modo-permiso",
     ),
+    # Categoria propia (2026-08-18) y no un hueco en "Agente y tareas": los
+    # tres contestan la MISMA pregunta -- que sabe hacer esta instalacion y que
+    # cabe en esta maquina -- y juntos se explican entre si. Ademas /capacidades
+    # caia en "Agente y tareas" y la dejaba en 26 con el tope en 25.
+    "Capacidades y maquina": (
+        "/capacidades", "/activar", "/vram",
+    ),
     "Codigo y ficheros": (
         "/leer", "/proyecto", "/listar", "/buscar", "/escribir", "/editar",
         "/ejecutar", "/powershell", "/monitor", "/monitores", "/shells",
