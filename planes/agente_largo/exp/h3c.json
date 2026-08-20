@@ -1,0 +1,29 @@
+[
+ {
+  "variant": "critic_persona",
+  "detect_wrong": "43/43",
+  "TPR": 1.0,
+  "accept_correct": "2/60",
+  "TNR": 0.033,
+  "balanced_acc": 0.517,
+  "wall_s": 12.9
+ },
+ {
+  "variant": "neutral",
+  "detect_wrong": "2/43",
+  "TPR": 0.047,
+  "accept_correct": "60/60",
+  "TNR": 1.0,
+  "balanced_acc": 0.523,
+  "wall_s": 26.8
+ },
+ {
+  "variant": "neutral_with_compute",
+  "detect_wrong": "16/37",
+  "TPR": 0.432,
+  "accept_correct": "53/57",
+  "TNR": 0.93,
+  "balanced_acc": 0.681,
+  "wall_s": 494.6
+ }
+]

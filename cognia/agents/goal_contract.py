@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -32,6 +33,86 @@ except Exception:  # pragma: no cover - defensive import guard
 
 
 _COMMAND_TIMEOUT_SECONDS = 30
+
+# P0-3 (ESPEC agente largo 14.1 y 9.5) -- TIMEOUT CONFIGURABLE.
+# El 30 s fijo hacia inejecutable como criterio cualquier cosa mas lenta que un
+# import, y a la vez dejaba correr criterios de minutos por ciclo. Ahora: el
+# default se mueve por env var, y CADA criterio puede traer el suyo en su spec
+# ('timeout': N). Sigue habiendo tope duro, por la misma razon que en _shell.
+_TIMEOUT_ENV = "COGNIA_CONTRATO_TIMEOUT"
+_TIMEOUT_MAX = 600
+
+# Un criterio POR CICLO tiene que costar menos que esto o el overhead del ciclo
+# se come el diseno (con un pytest de 40 s la compuerta G5 sube el overhead al
+# 31 % [D]). La suite de este repo son 6.909 tests / 12 min: no es un criterio,
+# es un cierre. `coste_ms` se MIDE en la primera ejecucion, no se declara.
+CRITERIO_BARATO_MS = 5000
+
+
+def _timeout_default() -> int:
+    """Segundos por defecto para command_succeeds. NUNCA lanza."""
+    crudo = (os.environ.get(_TIMEOUT_ENV) or "").strip()
+    if not crudo:
+        return _COMMAND_TIMEOUT_SECONDS
+    try:
+        return max(1, min(_TIMEOUT_MAX, int(crudo)))
+    except ValueError:
+        # Un valor basura no puede APAGAR el timeout en silencio: se cae al
+        # default declarado. (El aviso lo da /tx estado, que lee esta misma
+        # funcion y compara con lo que hay en el entorno.)
+        return _COMMAND_TIMEOUT_SECONDS
+
+
+def timeout_de(spec: dict) -> int:
+    """El timeout de ESTE criterio: su 'timeout' si lo trae, si no el default."""
+    crudo = (spec or {}).get("timeout")
+    if crudo is None:
+        return _timeout_default()
+    try:
+        return max(1, min(_TIMEOUT_MAX, int(crudo)))
+    except (TypeError, ValueError):
+        return _timeout_default()
+
+
+def workspace_por_defecto() -> Optional[str]:
+    """El workspace del agente, o None si no hay ninguno (y entonces se
+    conserva el comportamiento viejo: CWD del proceso).
+
+    Call-time y no constante de import: la campana cambia
+    COGNIA_AGENT_WORKSPACE por tarea DENTRO del mismo proceso, y una constante
+    fijada al importar deja el contrato midiendo la carpeta de la tarea
+    anterior (el mismo bug que ya cazo `dev_tools._root_actual`).
+    """
+    crudo = (os.environ.get("COGNIA_AGENT_WORKSPACE") or "").strip()
+    if crudo and os.path.isdir(crudo):
+        return crudo
+    try:
+        from cognia.agents.workers import dev_tools
+        raiz = dev_tools._root_actual()
+    except Exception:
+        return None
+    if raiz and os.path.isdir(str(raiz)):
+        return str(raiz)
+    return None
+
+
+def _resolver(path: str, workspace: Optional[str]) -> str:
+    """La ruta del criterio resuelta contra el WORKSPACE, no contra el CWD.
+
+    P0-3, bug identificado en el inventario: `GoalContract` resolvia
+    'cognia/estado/canal.py' contra el directorio del proceso. El agente
+    escribe en su workspace (`COGNIA_AGENT_WORKSPACE`), asi que un criterio
+    file_exists daba `missing:` sobre un fichero que SI existia, o --peor-- daba
+    `exists:` porque en el CWD del proceso habia otro fichero con ese nombre:
+    un PASS sobre un artefacto que la tarea nunca produjo.
+    """
+    if not path:
+        return path
+    if not workspace:
+        return path
+    if os.path.isabs(path):
+        return path
+    return os.path.join(str(workspace), path)
 
 
 @dataclass
@@ -46,6 +127,17 @@ class CriterionResult:
     criterion: Criterion
     satisfied: bool
     detail: str        # evidence string or error text (never raised, always captured)
+    # P0-3: lo que costo MEDIDO, no declarado. None = no se llego a ejecutar.
+    coste_ms: Optional[int] = None
+    # Un criterio que se pasa de timeout NO es un FAIL: es un flaky del
+    # instrumento (ESPEC 9.5, C2) y no puede disparar un rollback. Se separa
+    # del `satisfied=False` normal porque piden decisiones opuestas.
+    timeout: bool = False
+    # HEREDADO: no se ejecuto en ESTA pasada; vale el veredicto de la anterior
+    # (ESPEC 9.5: "si nada cambio, el resultado anterior vale por construccion:
+    # mismos bytes -> mismo exit"). Se marca para que la evidencia no mienta
+    # sobre CUANDO se midio.
+    heredado: bool = False
 
 
 @dataclass
@@ -56,6 +148,11 @@ class ContractStatus:
     complete: bool
     results: list
     drift: Optional[float] = None
+    # Cuantos criterios de `results` vienen heredados de una pasada anterior.
+    # `complete` EXIGE que sea 0: afirmar "objetivo cumplido" habiendo
+    # ejecutado la mitad de los criterios es capitalizar una victoria que nadie
+    # midio en este momento.
+    heredados: int = 0
 
 
 # --- individual real checks -------------------------------------------------
@@ -63,8 +160,8 @@ class ContractStatus:
 # must downgrade the criterion to unsatisfied with an explanatory detail so the
 # contract can never hallucinate completion from an exception.
 
-def _check_file_exists(spec: dict) -> tuple:
-    path = spec.get("path", "")
+def _check_file_exists(spec: dict, workspace: Optional[str] = None) -> tuple:
+    path = _resolver(spec.get("path", ""), workspace)
     try:
         ok = os.path.exists(path)
         return ok, ("exists: " + path) if ok else ("missing: " + path)
@@ -72,8 +169,8 @@ def _check_file_exists(spec: dict) -> tuple:
         return False, "error: " + repr(exc)
 
 
-def _check_text_in_file(spec: dict) -> tuple:
-    path = spec.get("path", "")
+def _check_text_in_file(spec: dict, workspace: Optional[str] = None) -> tuple:
+    path = _resolver(spec.get("path", ""), workspace)
     substring = spec.get("substring", "")
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as handle:
@@ -85,20 +182,30 @@ def _check_text_in_file(spec: dict) -> tuple:
     return False, "absent '" + substring + "' in " + path
 
 
-def _check_command_succeeds(spec: dict) -> tuple:
+def _check_command_succeeds(spec: dict, workspace: Optional[str] = None) -> tuple:
     # WHY: evidence must be RUNNABLE, not claimed. A zero exit code from a real
     # subprocess is the strongest non-self-report signal of progress.
+    #
+    # P0-3: cwd = WORKSPACE. Un 'python -m pytest tests/foo.py' lanzado desde el
+    # CWD del proceso corre los tests de OTRO arbol; el criterio pasaba (o
+    # fallaba) por un repo que la tarea nunca toco. Y el timeout ya no es la
+    # constante de 30 s: sale de `timeout_de(spec)`.
     command = spec.get("command", "")
+    limite = timeout_de(spec)
+    cwd = str(workspace) if workspace and os.path.isdir(str(workspace)) else None
     try:
         proc = subprocess.run(
             command,
             shell=True,
             capture_output=True,
             text=True,
-            timeout=_COMMAND_TIMEOUT_SECONDS,
+            timeout=limite,
+            cwd=cwd,
         )
     except subprocess.TimeoutExpired:
-        return False, "timeout after " + str(_COMMAND_TIMEOUT_SECONDS) + "s: " + str(command)
+        # El prefijo 'timeout' lo lee `_es_timeout` para NO contarlo como FAIL:
+        # un instrumento que no llega a tiempo no es evidencia de nada.
+        return False, "timeout after " + str(limite) + "s: " + str(command)
     except Exception as exc:
         return False, "error: " + repr(exc)
     tail = (proc.stdout or proc.stderr or "").strip().splitlines()
@@ -123,21 +230,46 @@ def _check_text_present(spec: dict, evidence: Optional[dict]) -> tuple:
     return False, "absent '" + substring + "' in evidence['" + (key or "text") + "']"
 
 
+# Punto de extension: para anadir un tipo de criterio se registra aqui una
+# funcion (spec, evidence, workspace) -> (ok, detalle). Nada mas.
 _CHECKS = {
-    "file_exists": lambda spec, evidence: _check_file_exists(spec),
-    "text_in_file": lambda spec, evidence: _check_text_in_file(spec),
-    "command_succeeds": lambda spec, evidence: _check_command_succeeds(spec),
-    "text_present": lambda spec, evidence: _check_text_present(spec, evidence),
+    "file_exists": lambda spec, evidence, ws=None: _check_file_exists(spec, ws),
+    "text_in_file": lambda spec, evidence, ws=None: _check_text_in_file(spec, ws),
+    "command_succeeds": lambda spec, evidence, ws=None: _check_command_succeeds(spec, ws),
+    "text_present": lambda spec, evidence, ws=None: _check_text_present(spec, evidence),
 }
+
+
+def _es_timeout(detail: str) -> bool:
+    return str(detail or "").startswith("timeout after ")
 
 
 class GoalContract:
     """A goal bound to verifiable criteria, with anchor-based drift detection."""
 
-    def __init__(self, goal: str, criteria: list, session_id: str = "default") -> None:
+    def __init__(self, goal: str, criteria: list, session_id: str = "default",
+                 workspace: Optional[str] = None) -> None:
         self.goal = goal
         self.criteria = list(criteria)
         self.session_id = session_id
+        # P0-3: contra QUE se resuelven las rutas y desde donde se lanzan los
+        # comandos. None = comportamiento viejo (CWD del proceso), para no
+        # romper a los llamadores actuales. `workspace_por_defecto()` es lo que
+        # usa el loop del agente.
+        self.workspace = str(workspace) if workspace else None
+        # coste_ms MEDIDO por criterio, indexado por su posicion. Se mide en la
+        # PRIMERA ejecucion y no se vuelve a medir: el ruido de las siguientes
+        # (cache de disco caliente) haria parecer barato lo que no lo es.
+        self.coste_ms = {}
+        # El ULTIMO CriterionResult por posicion. Es lo que se hereda cuando un
+        # criterio caro se salta: sin esto, el criterio desaparecia del recuento
+        # y `satisfied_count` BAJABA solo por haberlo saltado. Medido: un
+        # contrato con un criterio de 118 ms que falla y otro de 6063 ms que
+        # pasa daba 1/2 en el ciclo 1 y 0/1 en el ciclo 2, G5 leia "progreso
+        # 1 -> 0" y reportaba un RETROCESO que nunca ocurrio -- y como
+        # `salud['progreso']` solo se actualiza en las salidas HECHO/ANCHO, se
+        # quedaba clavado y el agente dejaba de resetear PARA SIEMPRE.
+        self.ultimo = {}
         # WHY: tolerate missing AnchorTracker dep -> drift simply unavailable.
         self._tracker = None
         if AnchorTracker is not None:
@@ -148,7 +280,8 @@ class GoalContract:
                 self._tracker = None
 
     @classmethod
-    def from_spec(cls, goal: str, specs: list, session_id: str = "default") -> "GoalContract":
+    def from_spec(cls, goal: str, specs: list, session_id: str = "default",
+                  workspace: Optional[str] = None) -> "GoalContract":
         criteria = []
         for raw in specs:
             kind = raw.get("kind", "")
@@ -159,26 +292,75 @@ class GoalContract:
                 if k not in ("kind", "description")
             }
             criteria.append(Criterion(kind=kind, spec=spec, description=description))
-        return cls(goal, criteria, session_id=session_id)
+        return cls(goal, criteria, session_id=session_id, workspace=workspace)
 
-    def check(self, evidence: Optional[dict] = None, current_query: Optional[str] = None) -> ContractStatus:
+    def check(self, evidence: Optional[dict] = None, current_query: Optional[str] = None,
+              solo_baratos: bool = False) -> ContractStatus:
+        """Corre los criterios y devuelve el estado.
+
+        `solo_baratos=True` (P0-3, regla del criterio barato de la ESPEC 9.5):
+        salta los criterios cuyo coste MEDIDO supera `CRITERIO_BARATO_MS`. Es
+        lo que se corre POR CICLO; el cierre corre `check()` entero. Un criterio
+        que nunca se midio NO se salta: se ejecuta una vez, precisamente para
+        conocer su coste. Un check saltado NO desaparece del recuento: hereda
+        el veredicto de la ultima vez que SI se ejecuto (ESPEC 9.5, "mismos
+        bytes -> mismo exit"), marcado como heredado en su `detail`. Y
+        `complete` exige que no haya ni uno heredado: cero criterios saltados
+        es la condicion para poder decir "objetivo cumplido".
+        """
         results = []
         satisfied_count = 0
-        for criterion in self.criteria:
+        total = 0
+        heredados = 0
+        for idx, criterion in enumerate(self.criteria):
             checker = _CHECKS.get(criterion.kind)
             if checker is None:
                 results.append(CriterionResult(criterion, False, "unknown kind: " + str(criterion.kind)))
+                total += 1
                 continue
+            previo = self.coste_ms.get(idx)
+            if solo_baratos and previo is not None and previo > CRITERIO_BARATO_MS:
+                # No se ejecuta, pero SI cuenta: se arrastra el ultimo veredicto
+                # medido. Tirarlo hacia que `satisfied_count` bajase solo por
+                # haber saltado el criterio, y G5 leia ese descenso como
+                # RETROCESO (= deriva) y cerraba el reset para siempre.
+                ult = self.ultimo.get(idx)
+                heredado_ok = bool(ult.satisfied) if ult is not None else False
+                cuando = "" if ult is None else " el veredicto anterior fue %s" % (
+                    "PASS" if heredado_ok else "FAIL")
+                results.append(CriterionResult(
+                    criterion, heredado_ok,
+                    "HEREDADO, no reejecutado en esta pasada (caro: %d ms > "
+                    "%d ms; corre en el cierre).%s"
+                    % (previo, CRITERIO_BARATO_MS, cuando),
+                    coste_ms=previo,
+                    timeout=bool(getattr(ult, "timeout", False)),
+                    heredado=True))
+                total += 1
+                heredados += 1
+                if heredado_ok:
+                    satisfied_count += 1
+                continue
+            t0 = time.perf_counter()
             try:
-                ok, detail = checker(criterion.spec, evidence)
+                ok, detail = checker(criterion.spec, evidence, self.workspace)
             except Exception as exc:  # WHY: never let one bad criterion abort the whole contract.
                 ok, detail = False, "error: " + repr(exc)
+            gastado = int((time.perf_counter() - t0) * 1000)
+            if previo is None:
+                self.coste_ms[idx] = gastado      # se mide UNA vez, la primera
+            total += 1
             if ok:
                 satisfied_count += 1
-            results.append(CriterionResult(criterion, bool(ok), detail))
+            res = CriterionResult(criterion, bool(ok), detail,
+                                  coste_ms=self.coste_ms.get(idx, gastado),
+                                  timeout=_es_timeout(detail))
+            results.append(res)
+            self.ultimo[idx] = res
 
-        total = len(self.criteria)
-        complete = satisfied_count == total and total > 0
+        # `heredados == 0` es parte de la condicion: `complete` significa "los
+        # criterios pasan", no "los que me dio tiempo a correr pasan".
+        complete = satisfied_count == total and total > 0 and heredados == 0
 
         drift = None
         if current_query is not None and self._tracker is not None:
@@ -194,6 +376,7 @@ class GoalContract:
             complete=complete,
             results=results,
             drift=drift,
+            heredados=heredados,
         )
 
     def record_turn(self) -> None:
@@ -288,9 +471,20 @@ def format_status(status: ContractStatus) -> str:
     lines = []
     lines.append("GOAL: " + status.goal)
     for res in status.results:
-        mark = "[OK]" if res.satisfied else "[--]"
-        lines.append("  " + mark + " " + res.criterion.description + " -- " + res.detail)
+        # [TO] y no [--]: un timeout del instrumento NO es un criterio fallado
+        # (ESPEC 9.5). Verlos iguales dispararia rollbacks por lentitud.
+        # [==] es el heredado: no se midio AHORA, y verlo como un [OK] recien
+        # medido es exactamente la mentira que este subsistema no puede contar.
+        if getattr(res, "heredado", False):
+            mark = "[==]"
+        else:
+            mark = "[OK]" if res.satisfied else ("[TO]" if res.timeout else "[--]")
+        coste = "" if res.coste_ms is None else ("  (%d ms)" % res.coste_ms)
+        lines.append("  " + mark + " " + res.criterion.description + " -- " + res.detail + coste)
     lines.append("SATISFIED: " + str(status.satisfied_count) + "/" + str(status.total))
+    if getattr(status, "heredados", 0):
+        lines.append("HEREDADOS: " + str(status.heredados)
+                     + " criterio(s) NO reejecutados en esta pasada")
     lines.append("COMPLETE: " + ("yes" if status.complete else "no"))
     if status.drift is not None:
         lines.append("DRIFT: " + ("%.3f" % status.drift))

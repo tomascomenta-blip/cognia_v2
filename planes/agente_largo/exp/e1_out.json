@@ -1,0 +1,1192 @@
+{
+ "experimento": "E1",
+ "ts": "2026-08-19 16:26:05",
+ "segundos": 1.4,
+ "resumen": {
+  "n_tareas": 12,
+  "por_gate": [
+   {
+    "gate": "G1",
+    "nombre": "restriccion borrada",
+    "via": "driver.mutar (/tx mutar)",
+    "n": 12,
+    "detecta": 12,
+    "discrimina": 12,
+    "sano_falla": 0
+   },
+   {
+    "gate": "G1p",
+    "nombre": "parafrasis fiel",
+    "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+    "n": 12,
+    "detecta": 12,
+    "discrimina": 12,
+    "sano_falla": 0
+   },
+   {
+    "gate": "G2",
+    "nombre": "digito de trazador cambiado",
+    "via": "driver.mutar (/tx mutar)",
+    "n": 12,
+    "detecta": 12,
+    "discrimina": 12,
+    "sano_falla": 0
+   },
+   {
+    "gate": "G3",
+    "nombre": "sha falseado",
+    "via": "driver.mutar (/tx mutar)",
+    "n": 12,
+    "detecta": 12,
+    "discrimina": 12,
+    "sano_falla": 0
+   },
+   {
+    "gate": "G6",
+    "nombre": "ciclo mudo",
+    "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+    "n": 12,
+    "detecta": 12,
+    "discrimina": 12,
+    "sano_falla": 0
+   }
+  ],
+  "mutaciones": 60,
+  "deteccion": 1.0,
+  "discriminacion": 1.0,
+  "controles_sanos": 60,
+  "falsos_positivos": 0,
+  "tasa_fp": 0.0,
+  "ms_mutar_medio": 2.5
+ },
+ "filas": [
+  {
+   "tarea": 0,
+   "forma": {
+    "restricciones": 2,
+    "trazadores": 2,
+    "artefactos": 1
+   },
+   "task_id": "e1-mut-00-1787174764",
+   "ms_mutar": 1.7,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 3de9b96ff86a24 (esperado 3de9b96ff86a24)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 2/2 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 1/1"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (2 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "2 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P d6efe1a02df2ca (esperado 3de9b96ff86a24)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-DBA2EF -> TRZ-DBA2E0 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 1/2 (perdidos: TRZ-DBA2EF)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: 45b3944fd636ca -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 0/1 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws00/art00.txt 00000000000000->45b3944fd636ca"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 2 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P f5a6432e1d76d0 (esperado 3de9b96ff86a24)"
+    }
+   ]
+  },
+  {
+   "tarea": 1,
+   "forma": {
+    "restricciones": 3,
+    "trazadores": 5,
+    "artefactos": 2
+   },
+   "task_id": "e1-mut-01-1787174764",
+   "ms_mutar": 4.4,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 3f042225c8320d (esperado 3f042225c8320d)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 5/5 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 2/2"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (3 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "3 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 48dc8f15dbbc76 (esperado 3f042225c8320d)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-1E0441 -> TRZ-1E0440 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 4/5 (perdidos: TRZ-1E0441)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: d27d705893c581 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 1/2 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws01/art00.txt 00000000000000->d27d705893c581"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 3 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P df89993ab0b238 (esperado 3f042225c8320d)"
+    }
+   ]
+  },
+  {
+   "tarea": 2,
+   "forma": {
+    "restricciones": 4,
+    "trazadores": 3,
+    "artefactos": 3
+   },
+   "task_id": "e1-mut-02-1787174764",
+   "ms_mutar": 4.2,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P ab293c0b163bf3 (esperado ab293c0b163bf3)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 3/3 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 3/3"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (4 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "4 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P a5edcb65f4887c (esperado ab293c0b163bf3)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-D7AE1B -> TRZ-D7AE10 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 2/3 (perdidos: TRZ-D7AE1B)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: de50a4eebb16a1 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 2/3 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws02/art00.txt 00000000000000->de50a4eebb16a1"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 4 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 41b36fd5c0446c (esperado ab293c0b163bf3)"
+    }
+   ]
+  },
+  {
+   "tarea": 3,
+   "forma": {
+    "restricciones": 5,
+    "trazadores": 6,
+    "artefactos": 4
+   },
+   "task_id": "e1-mut-03-1787174764",
+   "ms_mutar": 3.0,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 8a62136804f0f9 (esperado 8a62136804f0f9)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 6/6 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 4/4"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (5 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "5 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 375b0c75bf0a8b (esperado 8a62136804f0f9)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-FEA388 -> TRZ-FEA380 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 5/6 (perdidos: TRZ-FEA388)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: da7e1d18cc3355 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 3/4 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws03/art00.txt 00000000000000->da7e1d18cc3355"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 5 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P a5f139593a5c7a (esperado 8a62136804f0f9)"
+    }
+   ]
+  },
+  {
+   "tarea": 4,
+   "forma": {
+    "restricciones": 6,
+    "trazadores": 4,
+    "artefactos": 1
+   },
+   "task_id": "e1-mut-04-1787174764",
+   "ms_mutar": 2.1,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 52b3acc89f6219 (esperado 52b3acc89f6219)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 4/4 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 1/1"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (2 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "2 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 7d8888a6f6de09 (esperado 52b3acc89f6219)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-D79DAF -> TRZ-D79DA0 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 3/4 (perdidos: TRZ-D79DAF)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: 12d66ba8d5794d -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 0/1 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws04/art00.txt 00000000000000->12d66ba8d5794d"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 2 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 3669f4319cbfd6 (esperado 52b3acc89f6219)"
+    }
+   ]
+  },
+  {
+   "tarea": 5,
+   "forma": {
+    "restricciones": 2,
+    "trazadores": 2,
+    "artefactos": 2
+   },
+   "task_id": "e1-mut-05-1787174764",
+   "ms_mutar": 1.9,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P d20bd4e6147cac (esperado d20bd4e6147cac)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 2/2 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 2/2"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (3 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "3 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P c5957e732dbc11 (esperado d20bd4e6147cac)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-F75A3E -> TRZ-F75A30 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 1/2 (perdidos: TRZ-F75A3E)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: ef0fee523b1b67 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 1/2 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws05/art00.txt 00000000000000->ef0fee523b1b67"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 3 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P f3df5514ebf648 (esperado d20bd4e6147cac)"
+    }
+   ]
+  },
+  {
+   "tarea": 6,
+   "forma": {
+    "restricciones": 3,
+    "trazadores": 5,
+    "artefactos": 3
+   },
+   "task_id": "e1-mut-06-1787174764",
+   "ms_mutar": 3.0,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 101026e69005f4 (esperado 101026e69005f4)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 5/5 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 3/3"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (4 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "4 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P bfc55a36b2cf8d (esperado 101026e69005f4)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-B1782B -> TRZ-B17820 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 4/5 (perdidos: TRZ-B1782B)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: 36e15ab91028cc -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 2/3 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws06/art00.txt 00000000000000->36e15ab91028cc"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 4 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 15af058dc3caf3 (esperado 101026e69005f4)"
+    }
+   ]
+  },
+  {
+   "tarea": 7,
+   "forma": {
+    "restricciones": 4,
+    "trazadores": 3,
+    "artefactos": 4
+   },
+   "task_id": "e1-mut-07-1787174764",
+   "ms_mutar": 3.5,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 331cc99764548a (esperado 331cc99764548a)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 3/3 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 4/4"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (5 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "5 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P e3d0850f5d5750 (esperado 331cc99764548a)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-107F61 -> TRZ-107F60 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 2/3 (perdidos: TRZ-107F61)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: 95ef17836ff1fd -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 3/4 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws07/art00.txt 00000000000000->95ef17836ff1fd"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 5 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 2c72d58af2d640 (esperado 331cc99764548a)"
+    }
+   ]
+  },
+  {
+   "tarea": 8,
+   "forma": {
+    "restricciones": 5,
+    "trazadores": 6,
+    "artefactos": 1
+   },
+   "task_id": "e1-mut-08-1787174765",
+   "ms_mutar": 1.6,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P d8904d1dee2422 (esperado d8904d1dee2422)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 6/6 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 1/1"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (2 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "2 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P bfb650b83061d8 (esperado d8904d1dee2422)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-E3E444 -> TRZ-E3E440 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 5/6 (perdidos: TRZ-E3E444)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: 7240c0aa0358c5 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 0/1 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws08/art00.txt 00000000000000->7240c0aa0358c5"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 2 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P f3c9f6b5cbdce3 (esperado d8904d1dee2422)"
+    }
+   ]
+  },
+  {
+   "tarea": 9,
+   "forma": {
+    "restricciones": 6,
+    "trazadores": 4,
+    "artefactos": 2
+   },
+   "task_id": "e1-mut-09-1787174765",
+   "ms_mutar": 1.2,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 2a8873dd12938b (esperado 2a8873dd12938b)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 4/4 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 2/2"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (3 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "3 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 96a3aed4460852 (esperado 2a8873dd12938b)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-5C422E -> TRZ-5C4220 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 3/4 (perdidos: TRZ-5C422E)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: 6a9086cc404b00 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 1/2 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws09/art00.txt 00000000000000->6a9086cc404b00"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 3 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P aa163e441fbe9a (esperado 2a8873dd12938b)"
+    }
+   ]
+  },
+  {
+   "tarea": 10,
+   "forma": {
+    "restricciones": 2,
+    "trazadores": 2,
+    "artefactos": 3
+   },
+   "task_id": "e1-mut-10-1787174765",
+   "ms_mutar": 1.1,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P ac9753dfb784d0 (esperado ac9753dfb784d0)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 2/2 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 3/3"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (4 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "4 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P c3f83f053c7917 (esperado ac9753dfb784d0)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-7E7453 -> TRZ-7E7450 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 1/2 (perdidos: TRZ-7E7453)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: ae8c178d20dc41 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 2/3 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws10/art00.txt 00000000000000->ae8c178d20dc41"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 4 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 71862ca0353add (esperado ac9753dfb784d0)"
+    }
+   ]
+  },
+  {
+   "tarea": 11,
+   "forma": {
+    "restricciones": 3,
+    "trazadores": 5,
+    "artefactos": 4
+   },
+   "task_id": "e1-mut-11-1787174765",
+   "ms_mutar": 2.2,
+   "sanos": [
+    {
+     "gate": "G1",
+     "ok": true,
+     "detalle": "sha P 0a42f7c1bcffea (esperado 0a42f7c1bcffea)"
+    },
+    {
+     "gate": "G2",
+     "ok": true,
+     "detalle": "trazadores en la respuesta 5/5 (perdidos: -)"
+    },
+    {
+     "gate": "G3",
+     "ok": true,
+     "detalle": "artefactos 4/4"
+    },
+    {
+     "gate": "G4",
+     "ok": true,
+     "detalle": "0 contradicciones vivas (5 claves verificadas)"
+    },
+    {
+     "gate": "G6",
+     "ok": true,
+     "detalle": "5 evento(s) medido(s) en el ciclo 1"
+    }
+   ],
+   "mutaciones": [
+    {
+     "gate": "G1",
+     "nombre": "restriccion borrada",
+     "que": "quito P-R01 de la banda P",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 7bc527333f9dbe (esperado 0a42f7c1bcffea)"
+    },
+    {
+     "gate": "G2",
+     "nombre": "digito de trazador cambiado",
+     "que": "TRZ-BBDD0A -> TRZ-BBDD00 en la respuesta",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "trazadores en la respuesta 4/5 (perdidos: TRZ-BBDD0A)"
+    },
+    {
+     "gate": "G3",
+     "nombre": "sha falseado",
+     "que": "A-00: 19c695ea300261 -> 00000000000000",
+     "via": "driver.mutar (/tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "artefactos 3/4 | sha cambio: A-00 C:/Users/usuario/AppData/Local/Temp/e1_ws_20080/ws11/art00.txt 00000000000000->19c695ea300261"
+    },
+    {
+     "gate": "G6",
+     "nombre": "ciclo mudo",
+     "que": "quitados los 5 eventos medidos del ciclo 1",
+     "via": "e1.mut_ciclo_mudo (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "0 evento(s) medido(s) en el ciclo 1"
+    },
+    {
+     "gate": "G1p",
+     "nombre": "parafrasis fiel",
+     "que": "P-R01 reescrito con el mismo sentido",
+     "via": "e1.mut_parafrasis (NO esta en /tx mutar)",
+     "sano_ok": true,
+     "mutado_ok": false,
+     "aborta": true,
+     "discrimina": true,
+     "detalle_mutado": "sha P 4ddd8b9cd2073c (esperado 0a42f7c1bcffea)"
+    }
+   ]
+  }
+ ]
+}

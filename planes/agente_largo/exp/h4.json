@@ -1,0 +1,210 @@
+{
+ "cascade": [
+  {
+   "cycle": 1,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 626,
+   "prompt_n": 764,
+   "s": 2.48
+  },
+  {
+   "cycle": 2,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 950,
+   "prompt_n": 477,
+   "s": 3.21
+  },
+  {
+   "cycle": 3,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 950,
+   "prompt_n": 539,
+   "s": 1.03
+  },
+  {
+   "cycle": 4,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 950,
+   "prompt_n": 539,
+   "s": 1.03
+  },
+  {
+   "cycle": 5,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 1000,
+   "prompt_n": 539,
+   "s": 1.81
+  },
+  {
+   "cycle": 6,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 1336,
+   "prompt_n": 547,
+   "s": 4.07
+  },
+  {
+   "cycle": 7,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 1336,
+   "prompt_n": 615,
+   "s": 0.99
+  },
+  {
+   "cycle": 8,
+   "n_ids": 2,
+   "ids": [
+    "R01",
+    "R24"
+   ],
+   "chars": 1336,
+   "prompt_n": 615,
+   "s": 0.97
+  }
+ ],
+ "selection": [
+  {
+   "cycle": 1,
+   "subtask": "preparar la rama y el entorno",
+   "selected": [
+    "R01",
+    "R03",
+    "R08",
+    "R17",
+    "R20",
+    "R24"
+   ],
+   "cum_coverage": 6
+  },
+  {
+   "cycle": 2,
+   "subtask": "cambiar el esquema de la tabla de pagos",
+   "selected": [
+    "R01",
+    "R02",
+    "R03",
+    "R08",
+    "R17",
+    "R24"
+   ],
+   "cum_coverage": 7
+  },
+  {
+   "cycle": 3,
+   "subtask": "escribir el cliente HTTP al proveedor",
+   "selected": [
+    "R01",
+    "R07",
+    "R10",
+    "R11",
+    "R16",
+    "R24"
+   ],
+   "cum_coverage": 11
+  },
+  {
+   "cycle": 4,
+   "subtask": "guardar importes y fechas de las transacciones",
+   "selected": [
+    "R01",
+    "R07",
+    "R10",
+    "R11",
+    "R13",
+    "R16"
+   ],
+   "cum_coverage": 12
+  },
+  {
+   "cycle": 5,
+   "subtask": "anadir logging y manejo de errores",
+   "selected": [
+    "R06",
+    "R11",
+    "R16",
+    "R23",
+    "R24"
+   ],
+   "cum_coverage": 14
+  },
+  {
+   "cycle": 6,
+   "subtask": "escribir los tests",
+   "selected": [
+    "R06",
+    "R11",
+    "R16",
+    "R23",
+    "R24"
+   ],
+   "cum_coverage": 14
+  },
+  {
+   "cycle": 7,
+   "subtask": "preparar el despliegue",
+   "selected": [
+    "R01",
+    "R06",
+    "R11",
+    "R16",
+    "R23",
+    "R24"
+   ],
+   "cum_coverage": 14
+  },
+  {
+   "cycle": 8,
+   "subtask": "revisar rendimiento y cache",
+   "selected": [
+    "R02",
+    "R06",
+    "R11",
+    "R16",
+    "R22",
+    "R23"
+   ],
+   "cum_coverage": 15
+  }
+ ],
+ "cascade_final_ids": 2,
+ "selection_cum_coverage": 15,
+ "never_selected": [
+  "R04",
+  "R05",
+  "R09",
+  "R12",
+  "R14",
+  "R15",
+  "R18",
+  "R19",
+  "R21"
+ ],
+ "n_never": 9
+}

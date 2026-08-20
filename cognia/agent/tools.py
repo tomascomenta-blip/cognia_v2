@@ -370,6 +370,19 @@ _OPTIN_NOMBRES = {
     "buscar_herramientas": "COGNIA_TOOLSEARCH",
     "deshacer_edicion": "COGNIA_UNDO_TOOL",
     "workflow": "COGNIA_WORKFLOW_TOOL",
+    # TX/LIBRO (agente de horizonte largo, ESPEC 14.2 M3). Las 7 puertas
+    # tipadas por las que el modelo escribe en la memoria append-only. Solo se
+    # REGISTRAN con COGNIA_TX=1 (ver el final del modulo); estas entradas
+    # existen para que con el flag apagado el mensaje sea "DESHABILITADA --
+    # activala con COGNIA_TX=1" en vez de "no existe", que manda al
+    # background researcher a sintetizar duplicados de tools ya escritas.
+    "libro_grep": "COGNIA_TX",
+    "libro_ver": "COGNIA_TX",
+    "decidir": "COGNIA_TX",
+    "afirmar": "COGNIA_TX",
+    "pendiente": "COGNIA_TX",
+    "resolver": "COGNIA_TX",
+    "leccion": "COGNIA_TX",
 }
 
 
@@ -406,6 +419,27 @@ ACI_EXENTAS = frozenset({"responder", "leer_archivo", "leer_lote", "ejecutar",
                          "editar_archivo", "git_diff", "ver_salida",
                          "ctx_info", "ctx_ver", "ctx_grep", "ctx_partir",
                          "rlm_llamar"})
+
+
+# P0-1: TRES estados distintos, no dos. `_SIN_EXIT` = la tool ni siquiera paso
+# por el shell (leer_archivo, responder...): no hay nada que medir y 'ok' lo
+# sigue decidiendo la regex. `None` = paso por el shell pero NO se ejecuto
+# (bloqueado / timeout / cwd malo): eso es FALLO, no exito. Un entero = exit
+# real. Confundir los tres es justo el bug que P0-1 arregla.
+_SIN_EXIT = object()
+
+
+def _es_libro_caido(exc: BaseException) -> bool:
+    """True si `exc` es la excepcion tipada del LIBRO (P0-2).
+
+    Se importa AQUI y no arriba a proposito: solo corre en la rama de
+    excepcion, asi que el camino caliente de run_tool no paga ni un import.
+    """
+    try:
+        from cognia.tx.errores import LibroCaido
+    except Exception:
+        return False
+    return isinstance(exc, LibroCaido)
 
 
 def run_tool(name: str, args: str, ctx: dict) -> str:
@@ -463,14 +497,50 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         return _veto
     try:
         out = spec["fn"](args, ctx)
+        # P0-1: el exit code REAL, si la tool paso por el shell. Se saca ANTES
+        # de calcular 'ok' porque MANDA sobre la regex (ver abajo). `pop` para
+        # que no se filtre al ctx de la llamada siguiente: un exit rancio es
+        # exactamente el bug de "evento sellado con el reloj rancio".
+        _exit = ctx.pop("_exit", _SIN_EXIT) if isinstance(ctx, dict) else _SIN_EXIT
         # \bERROR\b sobre la cabeza de la PRIMERA linea: todos los retornos de
         # error del registry ponen ERROR en la linea 1, pero un exito cuyo
         # CONTENIDO arranca temprano (ctx_grep sobre un log con errores,
         # leer_archivo de un log) no debe marcarse fallido (fix 2026-08-11).
         ok = not re.search(r"\bERROR\b", out.split("\n", 1)[0][:120])
+        # P0-1 (ESPEC agente largo 14.1) -- LA REGEX NO DECIDE EL EXITO CUANDO
+        # HAY UN EXIT CODE. Dos fallos MEDIDOS que esto arregla:
+        #   - `tests`/`ejecutar` con exit 1: la salida es "RESULTADO ejecutar
+        #     (exit 1): ..." y NO contiene ERROR en los 120 primeros chars ->
+        #     llegaba ok=True. Un pytest en rojo se contaba como victoria.
+        #   - comando BLOQUEADO por el sentinel: "RESULTADO ejecutar: BLOQUEADO
+        #     por Sentinel (...)" tampoco contiene ERROR -> ok=True SIN haberse
+        #     ejecutado nunca.
+        # La correccion es en UNA direccion sola: el exit puede TUMBAR un ok,
+        # nunca resucitarlo. Un exit 0 con 'ERROR' en la cabeza (una tool que
+        # devuelve su propio error tras un subprocess sano) sigue siendo fallo.
+        if _exit is not _SIN_EXIT and _exit != 0:
+            ok = False
     except Exception as exc:  # a broken tool must not kill the loop
         out = f"RESULTADO {name} ERROR: {exc}"
         ok = False
+        # La tool reviento: no hubo exit real. None, que no es 0.
+        _exit = None
+        if isinstance(ctx, dict):
+            ctx.pop("_exit", None)
+    if isinstance(ctx, dict):
+        # P0-1, LA MITAD QUE FALTABA: el `ok` corregido por el exit real NO
+        # SALIA DE AQUI. Solo alimentaba `_record_usage`, un `emit` sin
+        # suscriptores y el LIBRO (opt-in), mientras el bucle nativo se
+        # calculaba el suyo con la MISMA regex que P0-1 vino a sustituir. Con
+        # eso, `run_tool('tests', <suite en rojo>)` devolvia
+        # "RESULTADO ejecutar (exit 1): F ..." y loop.py concluia tool_ok=True:
+        # escribia `exit: 0` en el canal de estado (que documenta "su exit code
+        # REAL"), contaba una suite roja como verificacion aprobada en el
+        # presupuesto por progreso y se lo pasaba a la parada verificada de
+        # Hermes. Se publican los dos, y se SOBREESCRIBEN en cada llamada (no
+        # `pop` diferido) para que nadie lea el exit del turno anterior.
+        ctx["_ultimo_exit"] = None if _exit is _SIN_EXIT else _exit
+        ctx["_ultimo_ok"] = bool(ok)
     try:
         _record_usage(name, ok)
     except Exception:
@@ -494,9 +564,16 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
     # truncado en vez de sumarse (el doble truncado esta MEDIDO como danino).
     try:
         from cognia.harness.interceptor import despues as _harness_despues
-        out = _harness_despues(name, args, ctx, out, ok)
-    except Exception:
-        pass
+        # exit_code: None cuando no hubo exit REAL (tool que no es shell, o
+        # comando bloqueado). El interceptor tiene prohibido tratarlo como 0.
+        out = _harness_despues(name, args, ctx, out, ok,
+                               exit_code=(None if _exit is _SIN_EXIT else _exit))
+    except Exception as _exc_harness:
+        # P0-2: LA UNICA excepcion del arnes que NO se traga. Si el LIBRO no
+        # pudo dejar constancia, seguir significa decidir el ciclo siguiente
+        # sobre un pasado incompleto SIN SABERLO. Para y lo dice.
+        if _es_libro_caido(_exc_harness):
+            raise
     return out if name in ACI_EXENTAS else aci_trim(out, name)
 
 
@@ -1653,7 +1730,29 @@ def _buscar_ficheros(args, ctx):
 # muerta se borro (0 referencias; sentinel tiene su propia _BLOCK_SUB/_BLOCK_RE).
 
 
+def _marcar_exit(ctx: dict, code) -> None:
+    """Deja el exit REAL del proceso en el ctx para que `run_tool` lo lea.
+
+    P0-1 (ESPEC agente largo 14.1): hasta hoy el exito de una tool se decidia
+    con una regex sobre los 120 primeros chars ('ok = not \\bERROR\\b'), asi que
+    un `pytest` con exit 1 llegaba como ok=True y un comando BLOQUEADO por el
+    sentinel llegaba como ok=True SIN HABERSE EJECUTADO. Con eso un criterio
+    pasa a PASS y el sistema capitaliza una victoria inexistente.
+
+    REGLA: `None` NO es 0. None significa "no hubo exit code real" (bloqueado,
+    timeout, cwd invalido) y por tanto el evento NO puede marcarse como medido.
+    La ausencia de la clave significa otra cosa distinta: la tool ni siquiera
+    paso por el shell.
+    """
+    if isinstance(ctx, dict):
+        ctx["_exit"] = code
+
+
 def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
+    # El exit arranca en None y solo lo pisa un subprocess que HAYA CORRIDO:
+    # asi toda salida temprana (bloqueo del sentinel, cwd inexistente, timeout)
+    # queda como "sin medicion" en vez de heredar el 0 del comando anterior.
+    _marcar_exit(ctx, None)
     # Sentinel (default-ON, mandato 2026-07-14): validación pre-acción
     # unificada — allowlist de dev + bloqueo duro + confirmación para lo
     # desconocido (default-deny). Con COGNIA_SENTINEL=0 replica la denylist
@@ -1661,6 +1760,7 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
     from cognia.agent.sentinel import evaluar_shell
     permitido, msg = evaluar_shell(cmd, ctx)
     if not permitido:
+        # BLOQUEADO != exit 0: el ctx["_exit"] se queda en None a proposito.
         return msg
     # cwd (2026-08-18): sin el, correr algo en otra carpeta obligaba al modelo
     # a escribir 'cd X && ...' — y ese encadenado el sentinel lo reclasifica a
@@ -1696,6 +1796,7 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
         # saber que debe ACOTAR el comando (ruta/test mas especifico) y reintentar.
         return (f"RESULTADO ejecutar ERROR: timeout tras {timeout}s. "
                 f"Acota el comando (ruta/target mas especifico) y reintenta.")
+    _marcar_exit(ctx, r.returncode)      # el UNICO sitio que escribe un exit real
     out = (_decodificar_bytes(r.stdout) + _decodificar_bytes(r.stderr)).strip()
     code = "" if r.returncode == 0 else f" (exit {r.returncode})"
     return f"RESULTADO ejecutar{code}: {_head_cola(out) or '(sin output)'}"
@@ -2128,6 +2229,7 @@ def _git(argv: list, ctx: dict, cap: int = 2000, timeout: int = 20,
     acompana (ver git_commit).
     """
     from cognia.agent.sentinel import evaluar_shell
+    _marcar_exit(ctx, None)              # P0-1: mismo criterio que _shell
     cmd = cmd_auditado or " ".join(argv)
     permitido, msg = evaluar_shell(cmd, ctx)
     if not permitido:
@@ -2142,6 +2244,7 @@ def _git(argv: list, ctx: dict, cap: int = 2000, timeout: int = 20,
         return False, "git no esta instalado o no esta en el PATH"
     except subprocess.TimeoutExpired:
         return False, f"timeout tras {timeout}s"
+    _marcar_exit(ctx, r.returncode)
     out = (_decodificar_bytes(r.stdout) + _decodificar_bytes(r.stderr)).strip()
     if len(out) > cap:
         out = (out[:cap] + f"\n[... {len(out) - cap} chars omitidos (tope "
@@ -3521,3 +3624,32 @@ try:
     from cognia.harness import tools_harness as _tools_harness  # noqa: F401
 except Exception as _exc:
     print(f"[cognia] tools del arnes no cargaron: {_exc}", file=sys.stderr)
+
+
+# ── Tools TX/LIBRO (agente de horizonte largo, 2026-08-19) ────────────────
+# OPT-IN DURO, como las tools VLM: con COGNIA_TX apagado el registry NO cambia
+# ni un byte. Esa es la condicion que puso el dueno para todo el subsistema TX
+# (el bucle del agente lo usa a diario) y se testea en tests/test_cli_tx.py.
+# Con el flag encendido tampoco entran en CORE_TOOLS: las anuncia el modo TX.
+# `tx.flag.activo()` y no `_flag_activo("COGNIA_TX")`: `/tx on` guarda el flag
+# en la CONFIG, y con el env sin poner este bloque no corria nunca. En una
+# sesion nueva eso dejaba al modelo sin las 7 puertas por las que escribe
+# memoria mientras el REPL decia ACTIVO, y `run_tool('decidir', ...)`
+# contestaba "no existe" -- justo el mensaje que el comentario de
+# `_OPTIN_NOMBRES` dice haber eliminado.
+def _tx_encendido() -> bool:
+    try:
+        from cognia.tx.flag import activo as _flag_tx
+        return _flag_tx()
+    except Exception:
+        return _flag_activo("COGNIA_TX")
+
+
+if _tx_encendido():
+    try:
+        from cognia.tx import tools as _tx_tools
+        _tx_tools.register(tool)
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_TX=1 pero cognia/tx/tools.py no cargo: {_exc}",
+              file=sys.stderr)

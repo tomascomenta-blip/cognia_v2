@@ -206,6 +206,16 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     "Capacidades y maquina": (
         "/capacidades", "/activar", "/vram",
     ),
+    # Categoria propia (2026-08-19), por el MISMO criterio que las dos de
+    # arriba: los dos comandos contestan la misma pregunta -- que recuerda de
+    # verdad una tarea larga y con que evidencia -- y se explican entre si.
+    # /libro caia en "Memoria y notas", junto a /nota* y /conceptos, y eso
+    # confunde dos cosas distintas: la memoria personal del dueno contra el
+    # registro append-only de UNA tarea, con sus gates y su provenance. Y /tx
+    # dejaba "Agente y tareas" en 26 con el tope en 25.
+    "Horizonte largo (TX)": (
+        "/tx", "/libro",
+    ),
     "Codigo y ficheros": (
         "/leer", "/proyecto", "/listar", "/buscar", "/escribir", "/editar",
         "/ejecutar", "/powershell", "/monitor", "/monitores", "/centinela",

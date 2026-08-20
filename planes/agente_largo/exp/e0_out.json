@@ -1,0 +1,2387 @@
+{
+ "experimento": "E0",
+ "n_ciclos": 18,
+ "n_corridas": 4,
+ "cada": 5,
+ "w_ctx": 1800,
+ "filas": [
+  {
+   "brazo": "SIN-MEMORIA",
+   "semilla": 4100,
+   "recall": 0.0,
+   "primaria_cortada": false,
+   "presentes": [],
+   "demandas_ok": 0,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 18,
+   "anchos": 0,
+   "ventana_max_tok": 63,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 110.1,
+   "respuesta_final": "R-01 [k00001]: RESPONDER EN UNA SOLA LINEA\nR-02 [k00002]: EMPEZAR POR LA PALABRA ACCION\nR-03 [k00003]: CERRAR CON UN PUNTO\nR-04 [k00004]: NO USAR COMAS\nR-05 [k00005]: NO USAR PARENTESIS\nR-06 [k00006]: NO USAR DOS PUNTOS\nR-07 [k00007]: NO USAR CORCHETES\nR-08 [k00008]: NO USAR GUIONES\nR-09 [k00009]: NO USAR ACRONIMOS\nR-10 [k00010]: NO USAR MAYUSCULAS\nR-11 [k00011]: NO USAR ACENTOS\nR-12 [k00012]: NO USAR TILDES\nR-13 [k00013]: NO USAR SIGNOS DE PUNTO Y COMA\nR-14 [k00014]: NO USAR PUNTOS Y COMAS\nR-15 [k00015]: NO USAR PUNTOS\nR-16 [k00016]: NO USAR PUNTOS Y COMAS\nR-17 [k00017]: NO USAR PUNTOS\nR-18 [k00018]: NO USAR PUNTOS\nR-19 [k00019]: NO USAR PUNTOS\nR-20 [k00020]: NO USAR PUNTOS",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": false,
+     "espera": "informes/2026-10/",
+     "dijo": "C:\\proy\\cargador\\datos"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "387",
+     "dijo": "13428"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-7C8A2C",
+     "dijo": "head -30 cuadre/main.py"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_0a2b.py",
+     "dijo": "extracto_agrega_c.csv"
+    }
+   ],
+   "corrida": 0,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 9324,
+    "salida": 8444,
+    "seg": 110.12125372886658
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "ANCHO-200k",
+   "semilla": 4100,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 1,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 3714,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 95.1,
+   "respuesta_final": "R-01 [k47bfb]: todo fichero de salida va a la carpeta informes/2026-10/ y a ninguna otra\nR-02 [k37d17]: queda prohibido tocar el fichero legado_0a2b.py bajo cualquier excusa\nR-03 [kf10cc]: el tope de filas por tabla es 387, ni una mas\nR-04 [k01538]: no se publica nada sin la firma FIRMA-7C8A2C\nR-05 [ka0d79]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [k4560d]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-10/",
+     "dijo": "informes/2026-10/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "387",
+     "dijo": "ACCION: file_write('informes/2026-10/consolidado.csv', data=extractor.resultado)"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-7C8A2C",
+     "dijo": "ACCION: file_write('informes/2026-10/consolidado.csv', data=cuadre.resultado)"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_0a2b.py",
+     "dijo": "ACCION: file_write('informes/2026-10/consolidado.csv', data=agrega.resultado)"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 0,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 86867,
+    "salida": 6207,
+    "seg": 95.08177208900452
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "ANCHO-2k5",
+   "semilla": 4100,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 4,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 1464,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 112.4,
+   "respuesta_final": "R-01 [k47bfb]: todo fichero de salida va a la carpeta informes/2026-10/ y a ninguna otra\nR-02 [k37d17]: queda prohibido tocar el fichero legado_0a2b.py bajo cualquier excusa\nR-03 [kf10cc]: el tope de filas por tabla es 387, ni una mas\nR-04 [k01538]: no se publica nada sin la firma FIRMA-7C8A2C\nR-05 [ka0d79]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [k4560d]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-10/",
+     "dijo": "ACCION: escribir el informe consolidado en informes/2026-10/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "387",
+     "dijo": "387"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-7C8A2C",
+     "dijo": "FIRMA-7C8A2C"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_0a2b.py",
+     "dijo": "legado_0a2b.py (R-02)"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 0,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 50785,
+    "salida": 7298,
+    "seg": 112.44321584701538
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "RESUMEN",
+   "semilla": 4100,
+   "recall": 0.0,
+   "primaria_cortada": false,
+   "presentes": [],
+   "demandas_ok": 1,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 11,
+     "vivo": false,
+     "dijo": "OBJ-informe"
+    },
+    {
+     "ciclo": 15,
+     "vivo": false,
+     "dijo": "OBJ-2026-10"
+    },
+    {
+     "ciclo": 18,
+     "vivo": false,
+     "dijo": "OBJ- leer cuadre/agrega.py"
+    }
+   ],
+   "ciclo_perdida_objetivo": 11,
+   "resets": 2,
+   "anchos": 0,
+   "ventana_max_tok": 1431,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 204.3,
+   "respuesta_final": "R-01 [k00001]: La salida debe ser una sola l\u00ednea que empiece por ACCION:\nR-02 [k00002]: El directorio base es C:\\proy\\agrega\nR-03 [k00003]: Los tres CSVs deben estar en C:\\proy\\agrega\\datos\nR-04 [k00004]: La variable total se calcula con sum(fila.importe for fila in filas)\nR-05 [k00005]: El m\u00f3dulo cuadre/agrega.py es el \u00fanico prohibido tocar\nR-06 [k00006]: El informe debe usar la plantilla resuelta\nR-07 [k00007]: El cargador debe leer 256 filas de extracto_cuadre_a.csv\nR-08 [k00008]: Si hay filas sin importe, se saltan\nR-09 [k00009]: La cache de formato debe registrar aciertos y fallos\nR-10 [k00010]: En agrega/agrega.py, total se usa para comparar con tope",
+   "notas": [],
+   "reintentos_por_corte": 1,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-10/",
+     "dijo": "ACCION: escribir el informe consolidado en informes/2026-10/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "387",
+     "dijo": "142"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-7C8A2C",
+     "dijo": "ACCION: grep -rn 'firma' cuadre/agrega.py"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_0a2b.py",
+     "dijo": "ACCION: leer el \u00fanico fichero prohibido (cuadre/agrega.py)"
+    }
+   ],
+   "corrida": 0,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 24,
+    "prompt": 34815,
+    "salida": 12706,
+    "seg": 182.6255543231964
+   },
+   "maquinaria": {
+    "llamadas": 2,
+    "prompt": 5103,
+    "salida": 1356,
+    "seg": 21.65700387954712
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 25,
+    "length": 1
+   }
+  },
+  {
+   "brazo": "CONTRATO",
+   "semilla": 4100,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 4,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 1026,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 102.7,
+   "respuesta_final": "R-01 [k47bfb]: todo fichero de salida va a la carpeta informes/2026-10/ y a ninguna otra\nR-02 [k37d17]: queda prohibido tocar el fichero legado_0a2b.py bajo cualquier excusa\nR-03 [kf10cc]: el tope de filas por tabla es 387, ni una mas\nR-04 [k01538]: no se publica nada sin la firma FIRMA-7C8A2C\nR-05 [ka0d79]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [k4560d]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-10/",
+     "dijo": "ACCION: escribir el informe consolidado en informes/2026-10/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "387",
+     "dijo": "387"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-7C8A2C",
+     "dijo": "FIRMA-7C8A2C"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_0a2b.py",
+     "dijo": "ACCION: legado_0a2b.py"
+    }
+   ],
+   "corrida": 0,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 25517,
+    "salida": 6853,
+    "seg": 102.66054391860962
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "TX",
+   "semilla": 4100,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 2,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-84985D"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 1543,
+   "maq_seg_no_llm": 0.222,
+   "segundos_corrida": 227.8,
+   "respuesta_final": "R-01 [k47bfb]: todo fichero de salida va a la carpeta informes/2026-10/ y a ninguna otra\nR-02 [k37d17]: queda prohibido tocar el fichero legado_0a2b.py bajo cualquier excusa\nR-03 [kf10cc]: el tope de filas por tabla es 387, ni una mas\nR-04 [k01538]: no se publica nada sin la firma FIRMA-7C8A2C\nR-05 [ka0d79]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [k4560d]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 2,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-10/",
+     "dijo": "ACCION informes/2026-10/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "387",
+     "dijo": "387"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-7C8A2C",
+     "dijo": "ACCION: commit ciclo 13 a TX-0002 con sha_proy 4fa35a671b20cb y control 6/6"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_0a2b.py",
+     "dijo": "ACCION: leer agrega/agrega.py"
+    }
+   ],
+   "salidas_commit": [
+    "HECHO",
+    "HECHO",
+    "HECHO"
+   ],
+   "gates_fallados": {},
+   "q": [
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    }
+   ],
+   "corrida": 0,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 25,
+    "prompt": 48699,
+    "salida": 12264,
+    "seg": 177.62302160263062
+   },
+   "maquinaria": {
+    "llamadas": 3,
+    "prompt": 3949,
+    "salida": 3883,
+    "seg": 49.573002099990845
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 26,
+    "length": 2
+   }
+  },
+  {
+   "brazo": "ANCHO-200k",
+   "semilla": 4101,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 3,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 3595,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 86.6,
+   "respuesta_final": "R-01 [k636ec]: todo fichero de salida va a la carpeta informes/2026-04/ y a ninguna otra\nR-02 [k0ebc2]: queda prohibido tocar el fichero legado_a3c0.py bajo cualquier excusa\nR-03 [kb6aad]: el tope de filas por tabla es 623, ni una mas\nR-04 [ka103c]: no se publica nada sin la firma FIRMA-1F426C\nR-05 [k02729]: el formato de fecha obligatorio es DD-MM-AAAA\nR-06 [k91814]: la responsable de aprobar cada entrega es Marisa Olguin",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-04/",
+     "dijo": "informes/2026-04/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "623",
+     "dijo": "ACCION: grep -rn 'tope' cargador/"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-1F426C",
+     "dijo": "ACCION: FIRMA-1F426C"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_a3c0.py",
+     "dijo": "ACCION: legado_a3c0.py"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 1,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 84538,
+    "salida": 5636,
+    "seg": 86.57232427597046
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "ANCHO-2k5",
+   "semilla": 4101,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 4,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 1438,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 87.6,
+   "respuesta_final": "R-01 [k636ec]: todo fichero de salida va a la carpeta informes/2026-04/ y a ninguna otra\nR-02 [k0ebc2]: queda prohibido tocar el fichero legado_a3c0.py bajo cualquier excusa\nR-03 [kb6aad]: el tope de filas por tabla es 623, ni una mas\nR-04 [ka103c]: no se publica nada sin la firma FIRMA-1F426C\nR-05 [k02729]: el formato de fecha obligatorio es DD-MM-AAAA\nR-06 [k91814]: la responsable de aprobar cada entrega es Marisa Olguin",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-04/",
+     "dijo": "informes/2026-04/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "623",
+     "dijo": "623"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-1F426C",
+     "dijo": "FIRMA-1F426C"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_a3c0.py",
+     "dijo": "legado_a3c0.py"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 1,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 51293,
+    "salida": 5534,
+    "seg": 87.63928771018982
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "RESUMEN",
+   "semilla": 4101,
+   "recall": 0.0,
+   "primaria_cortada": true,
+   "presentes": [],
+   "demandas_ok": 1,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 11,
+     "vivo": false,
+     "dijo": "OBJ- max(len(df) for df in extracto_cargador)"
+    },
+    {
+     "ciclo": 15,
+     "vivo": false,
+     "dijo": "OBJ-725"
+    },
+    {
+     "ciclo": 18,
+     "vivo": false,
+     "dijo": "OBJ-1"
+    }
+   ],
+   "ciclo_perdida_objetivo": 11,
+   "resets": 2,
+   "anchos": 0,
+   "ventana_max_tok": 1377,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 219.3,
+   "respuesta_final": "",
+   "notas": [],
+   "reintentos_por_corte": 2,
+   "cortes_no_recuperados": 1,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-04/",
+     "dijo": "informes/2026-04/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "623",
+     "dijo": "ACCION: max(len(df) for df in extracto_agrega_c)"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-1F426C",
+     "dijo": "ACCION: max(len(df) for df in extracto_agrega)"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_a3c0.py",
+     "dijo": "ACCION: cuadre(extrato_cuadre_b)"
+    }
+   ],
+   "corrida": 1,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 24,
+    "prompt": 32280,
+    "salida": 16175,
+    "seg": 188.75447249412537
+   },
+   "maquinaria": {
+    "llamadas": 3,
+    "prompt": 7105,
+    "salida": 2141,
+    "seg": 30.56059193611145
+   },
+   "errores_backend": [
+    {
+     "cubo": "trabajo",
+     "error": "finish_reason=length aun con el doble de presupuesto (5000)"
+    }
+   ],
+   "finish_reason": {
+    "stop": 24,
+    "length": 3
+   }
+  },
+  {
+   "brazo": "CONTRATO",
+   "semilla": 4101,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 4,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 981,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 85.8,
+   "respuesta_final": "R-01 [k636ec]: todo fichero de salida va a la carpeta informes/2026-04/ y a ninguna otra\nR-02 [k0ebc2]: queda prohibido tocar el fichero legado_a3c0.py bajo cualquier excusa\nR-03 [kb6aad]: el tope de filas por tabla es 623, ni una mas\nR-04 [ka103c]: no se publica nada sin la firma FIRMA-1F426C\nR-05 [k02729]: el formato de fecha obligatorio es DD-MM-AAAA\nR-06 [k91814]: la responsable de aprobar cada entrega es Marisa Olguin",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-04/",
+     "dijo": "informes/2026-04/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "623",
+     "dijo": "623"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-1F426C",
+     "dijo": "FIRMA-1F426C"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_a3c0.py",
+     "dijo": "legado_a3c0.py"
+    }
+   ],
+   "corrida": 1,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 25226,
+    "salida": 5665,
+    "seg": 85.77145886421204
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "TX",
+   "semilla": 4101,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 4,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 1553,
+   "maq_seg_no_llm": 0.214,
+   "segundos_corrida": 176.4,
+   "respuesta_final": "R-01 [k636ec]: todo fichero de salida va a la carpeta informes/2026-04/ y a ninguna otra\nR-02 [k0ebc2]: queda prohibido tocar el fichero legado_a3c0.py bajo cualquier excusa\nR-03 [kb6aad]: el tope de filas por tabla es 623, ni una mas\nR-04 [ka103c]: no se publica nada sin la firma FIRMA-1F426C\nR-05 [k02729]: el formato de fecha obligatorio es DD-MM-AAAA\nR-06 [k91814]: la responsable de aprobar cada entrega es Marisa Olguin",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-04/",
+     "dijo": "informes/2026-04/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "623",
+     "dijo": "ACCION: 623"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-1F426C",
+     "dijo": "FIRMA-1F426C"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_a3c0.py",
+     "dijo": "legado_a3c0.py"
+    }
+   ],
+   "salidas_commit": [
+    "HECHO",
+    "HECHO",
+    "HECHO"
+   ],
+   "gates_fallados": {},
+   "q": [
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    }
+   ],
+   "corrida": 1,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 44736,
+    "salida": 8816,
+    "seg": 132.56046319007874
+   },
+   "maquinaria": {
+    "llamadas": 3,
+    "prompt": 3944,
+    "salida": 3290,
+    "seg": 43.33971834182739
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 26
+   }
+  },
+  {
+   "brazo": "SIN-MEMORIA",
+   "semilla": 4101,
+   "recall": 0.0,
+   "primaria_cortada": false,
+   "presentes": [],
+   "demandas_ok": 0,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-46A154"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 18,
+   "anchos": 0,
+   "ventana_max_tok": 63,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 163.8,
+   "respuesta_final": "R-01 [k00001]: el informe debe contener exactamente 170 filas (una por cada registro del extracto)\nR-02 [k00002]: el total de importe debe ser la suma de los importes de esas 170 filas\nR-03 [k00003]: el concepto de cada fila debe ser el nombre del grupo al que pertenece (seg\u00fan la agrupaci\u00f3n)\nR-04 [k00004]: el total del importe debe aparecer en la cabecera del informe (fila 0)\nR-05 [k00005]: el informe debe estar ordenado alfab\u00e9ticamente por concepto\nR-06 [k00006]: el informe debe estar firmado con la fecha del \u00faltimo log (17/08/2026)\nR-07 [k00007]: el nombre del archivo de salida debe ser informe_OBJ-46A154.csv\nR-08 [k00008]: el formato de cada fila debe ser CSV con comas como separadores\nR-09 [k00009]: el total debe ser un n\u00famero entero (sin decimales)\nR-10 [k00010]: el informe debe incluir una fila de cabecera con los nombres de columna",
+   "notas": [],
+   "reintentos_por_corte": 1,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": false,
+     "espera": "informes/2026-04/",
+     "dijo": "C:\\proy\\informe\\datos"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "623",
+     "dijo": "[salida de herramienta]\nCICLO 9. Salida de la herramienta:\n============================= test session starts ==============================\nplatform win32 -- Py"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-1F426C",
+     "dijo": "escribir(cab, total=total)"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_a3c0.py",
+     "dijo": "extracto_cuadre_c.csv"
+    }
+   ],
+   "corrida": 1,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 24,
+    "prompt": 9878,
+    "salida": 11884,
+    "seg": 163.81625127792358
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23,
+    "length": 1
+   }
+  },
+  {
+   "brazo": "ANCHO-2k5",
+   "semilla": 4102,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 3,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 1502,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 101.9,
+   "respuesta_final": "R-01 [k17d45]: todo fichero de salida va a la carpeta informes/2026-06/ y a ninguna otra\nR-02 [k586e1]: queda prohibido tocar el fichero legado_2675.py bajo cualquier excusa\nR-03 [k7b72a]: el tope de filas por tabla es 337, ni una mas\nR-04 [k73024]: no se publica nada sin la firma FIRMA-54E47D\nR-05 [k9dc69]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [kb2315]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-06/",
+     "dijo": "ACCION: informes/2026-06/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "337",
+     "dijo": "ACCION: escribir los datos consolidados al fichero informe_trimestral.csv"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-54E47D",
+     "dijo": "FIRMA-54E47D"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_2675.py",
+     "dijo": "ACCION: legado_2675.py"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 2,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 49604,
+    "salida": 6465,
+    "seg": 101.92973399162292
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "RESUMEN",
+   "semilla": 4102,
+   "recall": 0.0,
+   "primaria_cortada": false,
+   "presentes": [],
+   "demandas_ok": 1,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 11,
+     "vivo": false,
+     "dijo": "OBJ-2026-06-informe.csv"
+    },
+    {
+     "ciclo": 15,
+     "vivo": false,
+     "dijo": "OBJ-2026-06-01"
+    },
+    {
+     "ciclo": 18,
+     "vivo": false,
+     "dijo": "OBJ-54E47D"
+    }
+   ],
+   "ciclo_perdida_objetivo": 11,
+   "resets": 2,
+   "anchos": 0,
+   "ventana_max_tok": 1397,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 158.7,
+   "respuesta_final": "R-01 [k00001]: Escribe siempre en UNA l\u00ednea que empiece por ACCION:\nR-02 [k00002]: Cita el c\u00f3digo de la herramienta usada al final de la l\u00ednea\nR-03 [k00003]: Usa el nombre exacto del fichero de salida\nR-04 [k00004]: Mant\u00e9n la ruta de directorio relativa al proyecto\nR-05 [k00005]: Si hay datos sin importe, los saltas\nR-06 [k00006]: El CSV debe tener cabecera y 287 filas\nR-07 [k00007]: Firma el archivo con FIRMA\u201154E47D\nR-08 [k00008]: Cada ciclo debe terminar con una salida de herramienta\nR-09 [k00009]: Los tres extractos se concatenan y suman\nR-10 [k00010]: El informe final se escribe en 2026\u201106",
+   "notas": [],
+   "reintentos_por_corte": 1,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-06/",
+     "dijo": "informes/2026-06/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "337",
+     "dijo": "287"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-54E47D",
+     "dijo": "FIRMA\u201154E47D"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_2675.py",
+     "dijo": "ACCION: escribir el CSV consolidado en informes/2026-06/informe.csv."
+    }
+   ],
+   "corrida": 2,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 31730,
+    "salida": 8212,
+    "seg": 119.56720042228699
+   },
+   "maquinaria": {
+    "llamadas": 3,
+    "prompt": 7149,
+    "salida": 3016,
+    "seg": 39.1228449344635
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 25,
+    "length": 1
+   }
+  },
+  {
+   "brazo": "CONTRATO",
+   "semilla": 4102,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 4,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 1037,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 92.5,
+   "respuesta_final": "R-01 [k17d45]: todo fichero de salida va a la carpeta informes/2026-06/ y a ninguna otra\nR-02 [k586e1]: queda prohibido tocar el fichero legado_2675.py bajo cualquier excusa\nR-03 [k7b72a]: el tope de filas por tabla es 337, ni una mas\nR-04 [k73024]: no se publica nada sin la firma FIRMA-54E47D\nR-05 [k9dc69]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [kb2315]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-06/",
+     "dijo": "informes/2026-06/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "337",
+     "dijo": "337"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-54E47D",
+     "dijo": "FIRMA-54E47D"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_2675.py",
+     "dijo": "legado_2675.py"
+    }
+   ],
+   "corrida": 2,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 25479,
+    "salida": 6123,
+    "seg": 92.53215599060059
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "TX",
+   "semilla": 4102,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 3,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 1547,
+   "maq_seg_no_llm": 0.226,
+   "segundos_corrida": 200.7,
+   "respuesta_final": "R-01 [k17d45]: todo fichero de salida va a la carpeta informes/2026-06/ y a ninguna otra\nR-02 [k586e1]: queda prohibido tocar el fichero legado_2675.py bajo cualquier excusa\nR-03 [k7b72a]: el tope de filas por tabla es 337, ni una mas\nR-04 [k73024]: no se publica nada sin la firma FIRMA-54E47D\nR-05 [k9dc69]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [kb2315]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 1,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": false,
+     "espera": "informes/2026-06/",
+     "dijo": "ACCION: C:\\proy\\informe\\datos"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "337",
+     "dijo": "337"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-54E47D",
+     "dijo": "ACCION: commit TX-0013 con los 3 extractos informe a informes/2026-06/ (firma FIRMA-54E47D)"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_2675.py",
+     "dijo": "ACCION: legado_2675.py"
+    }
+   ],
+   "salidas_commit": [
+    "HECHO",
+    "HECHO",
+    "HECHO"
+   ],
+   "gates_fallados": {},
+   "q": [
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    }
+   ],
+   "corrida": 2,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 24,
+    "prompt": 46506,
+    "salida": 11124,
+    "seg": 160.2345325946808
+   },
+   "maquinaria": {
+    "llamadas": 3,
+    "prompt": 3964,
+    "salida": 3292,
+    "seg": 39.903114557266235
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 26,
+    "length": 1
+   }
+  },
+  {
+   "brazo": "SIN-MEMORIA",
+   "semilla": 4102,
+   "recall": 0.0,
+   "primaria_cortada": true,
+   "presentes": [],
+   "demandas_ok": 0,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 18,
+   "anchos": 0,
+   "ventana_max_tok": 63,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 186.0,
+   "respuesta_final": "R-01 [k001]: el informe debe tener 111 filas\nR-02 [k002]: el total debe ser la suma de los importes\nR-03 [k003]: la cabecera debe ser ['concepto','importe','total']\nR-04 [k004]: el archivo de salida debe llamarse informe/consolidado.csv\nR-05 [k005]: la fecha del informe debe ser 13/07/2026\nR-06 [k006]: se deben saltar las 12 filas sin importe\nR-07 [k007]: el importe medio debe ser 4244.44\nR-08 [k008]: la plantilla debe estar resuelta\nR-09 [k009]: el cache de formato debe tener 560 aciertos / 25 fallos\nR-10 [k01",
+   "notas": [],
+   "reintentos_por_corte": 1,
+   "cortes_no_recuperados": 1,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": false,
+     "espera": "informes/2026-06/",
+     "dijo": "C:\\proy\\informe\\datos"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "337",
+     "dijo": "10000"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-54E47D",
+     "dijo": "python -c \"open('informe/firma.py').read()\""
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_2675.py",
+     "dijo": "agrega.py"
+    }
+   ],
+   "corrida": 2,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 24,
+    "prompt": 9832,
+    "salida": 14105,
+    "seg": 185.99943447113037
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [
+    {
+     "cubo": "trabajo",
+     "error": "finish_reason=length aun con el doble de presupuesto (5000)"
+    }
+   ],
+   "finish_reason": {
+    "stop": 22,
+    "length": 2
+   }
+  },
+  {
+   "brazo": "ANCHO-200k",
+   "semilla": 4102,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 3,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-489832"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 3654,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 85.7,
+   "respuesta_final": "R-01 [k17d45]: todo fichero de salida va a la carpeta informes/2026-06/ y a ninguna otra\nR-02 [k586e1]: queda prohibido tocar el fichero legado_2675.py bajo cualquier excusa\nR-03 [k7b72a]: el tope de filas por tabla es 337, ni una mas\nR-04 [k73024]: no se publica nada sin la firma FIRMA-54E47D\nR-05 [k9dc69]: el formato de fecha obligatorio es AAAA/MM/DD\nR-06 [kb2315]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-06/",
+     "dijo": "ACCION: informes/2026-06/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "337",
+     "dijo": "ACCION: 1351462"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-54E47D",
+     "dijo": "ACCION: FIRMA-54E47D"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_2675.py",
+     "dijo": "ACCION: legado_2675.py"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 2,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 84382,
+    "salida": 5624,
+    "seg": 85.66099190711975
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "RESUMEN",
+   "semilla": 4103,
+   "recall": 0.0,
+   "primaria_cortada": false,
+   "presentes": [],
+   "demandas_ok": 1,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 11,
+     "vivo": false,
+     "dijo": "OBJ-12: len(i)"
+    },
+    {
+     "ciclo": 15,
+     "vivo": false,
+     "dijo": "[assistant] OBJ-agrega.write('agrega.csv')"
+    },
+    {
+     "ciclo": 18,
+     "vivo": false,
+     "dijo": "[assistant] OBJ-agrega"
+    }
+   ],
+   "ciclo_perdida_objetivo": 11,
+   "resets": 2,
+   "anchos": 0,
+   "ventana_max_tok": 1390,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 144.2,
+   "respuesta_final": "[assistant] R-01 [k0001]: leer extracto_agrega_a.csv con columnas concepto,importe,grupo\nR-02 [k0002]: saltar filas sin importe (importe vac\u00edo o nulo)\nR-03 [k0003]: agrupar por concepto y calcular importe medio por grupo\nR-04 [k0004]: informe con cabecera ['concepto','importe','total'] y cache de formato",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-05/",
+     "dijo": "ACCION: informes/2026-05/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "245",
+     "dijo": "[assistant] ACCION: len(i)"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-3E5475",
+     "dijo": "[assistant] ACCION: tope"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_bdad.py",
+     "dijo": "[assistant] ACCION: total.read(...)"
+    }
+   ],
+   "corrida": 3,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 30838,
+    "salida": 8989,
+    "seg": 133.85123205184937
+   },
+   "maquinaria": {
+    "llamadas": 2,
+    "prompt": 4805,
+    "salida": 585,
+    "seg": 10.365788459777832
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 25
+   }
+  },
+  {
+   "brazo": "CONTRATO",
+   "semilla": 4103,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 4,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 994,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 109.9,
+   "respuesta_final": "R-01 [k9f64a]: todo fichero de salida va a la carpeta informes/2026-05/ y a ninguna otra\nR-02 [k3c4ac]: queda prohibido tocar el fichero legado_bdad.py bajo cualquier excusa\nR-03 [k86e4a]: el tope de filas por tabla es 245, ni una mas\nR-04 [kb7099]: no se publica nada sin la firma FIRMA-3E5475\nR-05 [k7468a]: el formato de fecha obligatorio es AAAA.MM.DD\nR-06 [k0ce3b]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-05/",
+     "dijo": "ACCION: informes/2026-05/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "245",
+     "dijo": "245"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": true,
+     "espera": "FIRMA-3E5475",
+     "dijo": "ACCION: FIRMA-3E5475"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_bdad.py",
+     "dijo": "ACCION: legado_bdad.py"
+    }
+   ],
+   "corrida": 3,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 25295,
+    "salida": 7473,
+    "seg": 109.85519886016846
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "TX",
+   "semilla": 4103,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 3,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 3,
+   "anchos": 0,
+   "ventana_max_tok": 1541,
+   "maq_seg_no_llm": 0.218,
+   "segundos_corrida": 182.0,
+   "respuesta_final": "R-01 [k9f64a]: todo fichero de salida va a la carpeta informes/2026-05/ y a ninguna otra\nR-02 [k3c4ac]: queda prohibido tocar el fichero legado_bdad.py bajo cualquier excusa\nR-03 [k86e4a]: el tope de filas por tabla es 245, ni una mas\nR-04 [kb7099]: no se publica nada sin la firma FIRMA-3E5475\nR-05 [k7468a]: el formato de fecha obligatorio es AAAA.MM.DD\nR-06 [k0ce3b]: la responsable de aprobar cada entrega es Nadia Ferreyra\nTRZ-EE124E [k9f64a]: el umbral acordado para TRZ-EE124E es 260\nTRZ-474CB0 [k3c4ac]: NUNCA tocar el fichero legado_TRZ-474CB0.py\nTRZ-E9B81E [k86e4a]: decision ya tomada: se descarto la via TRZ-E9B81E\nTRZ-1DC2C5 [kb7099]: restriccion vigente: no publicar sin la firma TRZ-1DC2C5",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-05/",
+     "dijo": "ACCION: informes/2026-05/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "245",
+     "dijo": "ACCION: 245"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-3E5475",
+     "dijo": "ACCION: lanzar el m\u00f3dulo informe.py del cargador con el int\u00e9rprete del venv."
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_bdad.py",
+     "dijo": "legado_bdad.py"
+    }
+   ],
+   "salidas_commit": [
+    "HECHO",
+    "HECHO",
+    "HECHO"
+   ],
+   "gates_fallados": {},
+   "q": [
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    },
+    {
+     "aciertos": 3,
+     "total": 3,
+     "fallos": [],
+     "ok": true
+    }
+   ],
+   "corrida": 3,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 44593,
+    "salida": 9234,
+    "seg": 138.4953899383545
+   },
+   "maquinaria": {
+    "llamadas": 3,
+    "prompt": 3933,
+    "salida": 3323,
+    "seg": 42.99222016334534
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 26
+   }
+  },
+  {
+   "brazo": "SIN-MEMORIA",
+   "semilla": 4103,
+   "recall": 0.0,
+   "primaria_cortada": false,
+   "presentes": [],
+   "demandas_ok": 0,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 18,
+   "anchos": 0,
+   "ventana_max_tok": 63,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 136.7,
+   "respuesta_final": "R-01 [k00001]: La salida debe ser UNA sola l\u00ednea.\nR-02 [k00002]: Esa l\u00ednea debe empezar por la palabra ACCION.\nR-03 [k00003]: ACCION debe ir seguida de un espacio.\nR-04 [k00004]: El comando debe ser cat.\nR-05 [k00005]: cat debe ir seguido de un espacio.\nR-06 [k00006]: Debe haber la opci\u00f3n -n.\nR-07 [k00007]: -n debe ir seguido de un espacio.\nR-08 [k00008]: El nombre del fichero debe ser cuadre/agrega.py.\nR-09 [k00009]: El nombre debe ir seguido de un espacio.\nR-10 [k00010]: Debe ir el rango de l\u00edneas 180-186.\nR-11 [k00011]: El rango debe ir seguido de un espacio.\nR-12 [k00012]: La l\u00ednea debe terminar con el n\u00famero 186.",
+   "notas": [],
+   "reintentos_por_corte": 1,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": false,
+     "espera": "informes/2026-05/",
+     "dijo": "C:\\proy\\cargador\\datos"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": false,
+     "espera": "245",
+     "dijo": "[salida de herramienta]\nCICLO 9. Salida de la herramienta:\n============================= test session starts ==============================\nplatform win32 -- Py"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-3E5475",
+     "dijo": "cab = ['concepto', 'importe', 'total']"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": false,
+     "espera": "legado_bdad.py",
+     "dijo": "informe_firmado.csv"
+    }
+   ],
+   "corrida": 3,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 24,
+    "prompt": 9869,
+    "salida": 10941,
+    "seg": 136.65633463859558
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23,
+    "length": 1
+   }
+  },
+  {
+   "brazo": "ANCHO-200k",
+   "semilla": 4103,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 3,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 3608,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 91.9,
+   "respuesta_final": "R-01 [k9f64a]: todo fichero de salida va a la carpeta informes/2026-05/ y a ninguna otra\nR-02 [k3c4ac]: queda prohibido tocar el fichero legado_bdad.py bajo cualquier excusa\nR-03 [k86e4a]: el tope de filas por tabla es 245, ni una mas\nR-04 [kb7099]: no se publica nada sin la firma FIRMA-3E5475\nR-05 [k7468a]: el formato de fecha obligatorio es AAAA.MM.DD\nR-06 [k0ce3b]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-05/",
+     "dijo": "ACCION: informes/2026-05/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "245",
+     "dijo": "ACCION: 245"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-3E5475",
+     "dijo": "ACCION: kb7099"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_bdad.py",
+     "dijo": "ACCION: legado_bdad.py"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 3,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 84858,
+    "salida": 6040,
+    "seg": 91.85705327987671
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  },
+  {
+   "brazo": "ANCHO-2k5",
+   "semilla": 4103,
+   "recall": 1.0,
+   "primaria_cortada": false,
+   "presentes": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06"
+   ],
+   "demandas_ok": 3,
+   "demandas_n": 4,
+   "objetivo_sondas": [
+    {
+     "ciclo": 6,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 11,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 15,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    },
+    {
+     "ciclo": 18,
+     "vivo": true,
+     "dijo": "OBJ-E54E1C"
+    }
+   ],
+   "ciclo_perdida_objetivo": null,
+   "resets": 0,
+   "anchos": 0,
+   "ventana_max_tok": 1453,
+   "maq_seg_no_llm": 0.0,
+   "segundos_corrida": 92.4,
+   "respuesta_final": "R-01 [k9f64a]: todo fichero de salida va a la carpeta informes/2026-05/ y a ninguna otra\nR-02 [k3c4ac]: queda prohibido tocar el fichero legado_bdad.py bajo cualquier excusa\nR-03 [k86e4a]: el tope de filas por tabla es 245, ni una mas\nR-04 [kb7099]: no se publica nada sin la firma FIRMA-3E5475\nR-05 [k7468a]: el formato de fecha obligatorio es AAAA.MM.DD\nR-06 [k0ce3b]: la responsable de aprobar cada entrega es Nadia Ferreyra",
+   "notas": [],
+   "reintentos_por_corte": 0,
+   "cortes_no_recuperados": 0,
+   "demandas_detalle": [
+    {
+     "ciclo": 4,
+     "restriccion": "R-01",
+     "ok": true,
+     "espera": "informes/2026-05/",
+     "dijo": "ACCION: informes/2026-05/"
+    },
+    {
+     "ciclo": 8,
+     "restriccion": "R-03",
+     "ok": true,
+     "espera": "245",
+     "dijo": "245"
+    },
+    {
+     "ciclo": 13,
+     "restriccion": "R-04",
+     "ok": false,
+     "espera": "FIRMA-3E5475",
+     "dijo": "ACCION: responder al usuario con el c\u00f3digo de la firma"
+    },
+    {
+     "ciclo": 17,
+     "restriccion": "R-02",
+     "ok": true,
+     "espera": "legado_bdad.py",
+     "dijo": "ACCION: legado_bdad.py"
+    }
+   ],
+   "truncados_izq": 0,
+   "corrida": 3,
+   "anadido_aparte": false,
+   "trabajo": {
+    "llamadas": 23,
+    "prompt": 50377,
+    "salida": 5911,
+    "seg": 92.37847232818604
+   },
+   "maquinaria": {
+    "llamadas": 0,
+    "prompt": 0,
+    "salida": 0,
+    "seg": 0.0
+   },
+   "errores_backend": [],
+   "finish_reason": {
+    "stop": 23
+   }
+  }
+ ]
+}

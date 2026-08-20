@@ -1,0 +1,57 @@
+[
+ {
+  "label": "prefill_500",
+  "wall_s": 1.277,
+  "prompt_n": 2944,
+  "prompt_ms": 1189.134,
+  "prompt_per_second": 2475.7512610017034,
+  "predicted_per_second": 0.0,
+  "vram_min": 13168,
+  "vram_max": 13168,
+  "vram_samples": 5
+ },
+ {
+  "label": "prefill_2000",
+  "wall_s": 4.217,
+  "prompt_n": 11688,
+  "prompt_ms": 4160.868,
+  "prompt_per_second": 2809.0292698542708,
+  "predicted_per_second": 0.0,
+  "vram_min": 13168,
+  "vram_max": 13168,
+  "vram_samples": 15
+ },
+ {
+  "label": "prefill_8000",
+  "wall_s": 19.014,
+  "prompt_n": 46919,
+  "prompt_ms": 18914.307,
+  "prompt_per_second": 2480.608990855441,
+  "predicted_per_second": 0.0,
+  "vram_min": 13168,
+  "vram_max": 13176,
+  "vram_samples": 66
+ },
+ {
+  "label": "prefill_16000",
+  "wall_s": 43.996,
+  "prompt_n": 93963,
+  "prompt_ms": 43959.481,
+  "prompt_per_second": 2137.49111369172,
+  "predicted_per_second": 0.0,
+  "vram_min": 13155,
+  "vram_max": 13173,
+  "vram_samples": 152
+ },
+ {
+  "label": "prefill_32000",
+  "wall_s": 112.33,
+  "prompt_n": 187874,
+  "prompt_ms": 112256.45,
+  "prompt_per_second": 1673.614300113713,
+  "predicted_per_second": 0.0,
+  "vram_min": 13155,
+  "vram_max": 13155,
+  "vram_samples": 388
+ }
+]

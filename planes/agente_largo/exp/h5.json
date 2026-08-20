@@ -1,0 +1,42 @@
+[
+ {
+  "depth": "~0.4k",
+  "ctx_tokens": 454,
+  "first_call_s": 0.68,
+  "constraint_recall": "10/10",
+  "rate": 1.0,
+  "total_s_10_probes": 5.6
+ },
+ {
+  "depth": "~8k",
+  "ctx_tokens": 7386,
+  "first_call_s": 2.92,
+  "constraint_recall": "10/10",
+  "rate": 1.0,
+  "total_s_10_probes": 9.0
+ },
+ {
+  "depth": "~32k",
+  "ctx_tokens": 28022,
+  "first_call_s": 11.0,
+  "constraint_recall": "10/10",
+  "rate": 1.0,
+  "total_s_10_probes": 16.9
+ },
+ {
+  "depth": "~64k",
+  "ctx_tokens": 55830,
+  "first_call_s": 23.64,
+  "constraint_recall": "10/10",
+  "rate": 1.0,
+  "total_s_10_probes": 31.8
+ },
+ {
+  "depth": "~128k",
+  "ctx_tokens": 111406,
+  "first_call_s": 55.24,
+  "constraint_recall": "10/10",
+  "rate": 1.0,
+  "total_s_10_probes": 64.9
+ }
+]

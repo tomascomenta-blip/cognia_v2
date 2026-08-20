@@ -1,0 +1,24 @@
+R01 Nunca escribir en la rama main; usar siempre una rama de trabajo.
+R02 Todo cambio de esquema exige una migracion reversible.
+R03 El puerto 8080 esta reservado al backend; no usarlo para pruebas.
+R04 Los tests de red deben correr con mock, nunca contra produccion.
+R05 No superar 16 GB de VRAM en ninguna configuracion.
+R06 Los ficheros de log se rotan a 50 MB.
+R07 Prohibido usar la libreria requests; usar httpx.
+R08 Las claves API viven en .env y jamas en el codigo.
+R09 Los nombres de tabla van en singular y en minusculas.
+R10 El timeout por defecto de cualquier llamada externa es 30 s.
+R11 Toda funcion publica necesita docstring en espanol.
+R12 No usar float para dinero; usar Decimal.
+R13 Las fechas se guardan siempre en UTC.
+R14 El indice de la tabla eventos no se puede borrar.
+R15 Prohibido pip install sin fijar la version exacta.
+R16 Los reintentos usan backoff exponencial con jitter.
+R17 El fichero config.yaml es de solo lectura en runtime.
+R18 Ninguna consulta SQL puede construirse por concatenacion.
+R19 El usuario de base de datos de la app no tiene permiso DROP.
+R20 Los binarios compilados no se versionan en git.
+R21 Cada endpoint nuevo exige un test de contrato.
+R22 El cache se invalida por evento, nunca por TTL.
+R23 Prohibido bloquear el hilo principal mas de 100 ms.
+R24 Toda excepcion capturada debe registrar el stack completo.

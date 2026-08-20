@@ -981,14 +981,31 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                  f"{_hit.get('via')}: {tc.nombre}[/detail]")
                 except Exception:
                     _servido = None
+            if isinstance(ctx, dict):
+                # El veredicto del turno ANTERIOR no puede sobrevivir a este:
+                # un resultado servido por la especulacion no pasa por run_tool
+                # y heredaria su exit ("evento sellado con el reloj rancio").
+                ctx.pop("_ultimo_exit", None)
+                ctx.pop("_ultimo_ok", None)
             resultado = (_servido if _servido is not None
                          else run_tool(tc.nombre, args_str, ctx))
-            # Solo la PRIMERA linea clasifica: los errores del registry ponen
-            # ERROR en la linea 1; el CONTENIDO de un exito (un log con
-            # errores via ctx_grep/leer_archivo) no debe marcar fallo y
-            # disparar el corte por no-progreso (fix 2026-08-11).
-            tool_ok = not re.search(r"\bERROR\b",
-                                    resultado.split("\n", 1)[0][:120])
+            # P0-1: EL EXIT REAL MANDA SOBRE LA REGEX. `run_tool` ya corrigio
+            # su `ok` con el returncode del proceso y lo deja en el ctx; usar
+            # aqui la regex otra vez hacia que un pytest en rojo
+            # ("RESULTADO ejecutar (exit 1): F ...", sin ERROR en los 120
+            # primeros chars) se contase como victoria en el canal de estado,
+            # en el presupuesto por progreso y en la parada verificada.
+            # Solo la PRIMERA linea clasifica cuando NO hay exit: los errores
+            # del registry ponen ERROR en la linea 1; el CONTENIDO de un exito
+            # (un log con errores via ctx_grep/leer_archivo) no debe marcar
+            # fallo y disparar el corte por no-progreso (fix 2026-08-11).
+            _exit_real = ctx.get("_ultimo_exit") if isinstance(ctx, dict) else None
+            _exit_medido = isinstance(_exit_real, int) and not isinstance(_exit_real, bool)
+            if isinstance(ctx, dict) and "_ultimo_ok" in ctx:
+                tool_ok = bool(ctx["_ultimo_ok"])
+            else:
+                tool_ok = not re.search(r"\bERROR\b",
+                                        resultado.split("\n", 1)[0][:120])
             if _muta is not None and es_operacion_de_fichero(tc.nombre):
                 # Se anota el INTENTO y su resultado MEDIDO. El footer del
                 # epilogo hace imposible que el modelo afirme haber escrito
@@ -1007,8 +1024,17 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                         if _prog is not None and tool_ok:
                             _prog.observar_fichero(_r)
                     elif tc.nombre in ("ejecutar", "ejecutar_fondo", "tests"):
-                        _canal.anotar_comando(_estado, args_str[:200],
-                                              0 if tool_ok else 1, resultado)
+                        # El exit REAL, no `0 if tool_ok else 1`: el docstring
+                        # de anotar_comando dice literalmente "su exit code
+                        # REAL", y `commit._fuzzy` lee este canal desde TX. Sin
+                        # exit medido (bloqueado por el sentinel, timeout,
+                        # ejecutar_fondo) NO se anota: inventar un 0 seria
+                        # afirmar que corrio y salio bien, e inventar un 1 que
+                        # corrio y fallo. Las dos son mentira; la constancia de
+                        # que se intento queda en el LIBRO con origen derivado.
+                        if _exit_medido:
+                            _canal.anotar_comando(_estado, args_str[:200],
+                                                  _exit_real, resultado)
                     if _es_verificacion(tc.nombre, args_str):
                         _canal.anotar_verificacion(_estado, args_str[:200], tool_ok)
                         if _prog is not None:

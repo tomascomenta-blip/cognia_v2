@@ -49,7 +49,9 @@ API publica
     render(estado, tope_chars=1200)                -> str  (lo que se reinyecta)
     conservacion(estado_antes, texto_post)         -> dict (recall de artefactos)
     sembrar_trazadores(estado, k=4, semilla=None)  -> [dict] hechos no inferibles
-    comprobar_trazadores(estado, texto)            -> dict
+    comprobar_trazadores(estado, texto, fuente="") -> dict (+fuente, mide_lectura)
+    g2_sobre_respuesta(estado, respuesta)          -> dict (G2: si el modelo LEYO)
+    assert_integridad_proyeccion(estado, proy)     -> dict (+integridad_ok)
     serializar(estado) / deserializar(txt)         -> str / dict
     guardar(estado, directorio=None)               -> ruta str
     cargar(turno, directorio=None)                 -> dict
@@ -504,8 +506,41 @@ def sembrar_trazadores(estado, k=4, semilla=None):
     return nuevos
 
 
-def comprobar_trazadores(estado, texto):
-    """Cuantos trazadores siguen presentes en `texto`. Se busca por ID."""
+# P0-4 (ESPEC agente largo 14.1 y 6.5) -- DE QUE TEXTO VIENE LO QUE SE MIDE.
+# El recall de trazadores solo informa si el texto lo escribio ALGUIEN QUE
+# PODIA PERDERLOS. Aplicado a la salida de una funcion pura que acaba de
+# escribir los trazadores verbatim, pregunta "esta en el texto lo que acabo de
+# escribir en el texto": da 6/6 en el ciclo 1 y en el 500, informacion CERO.
+# Por eso la fuente es un campo del resultado y no un detalle del llamador.
+FUENTE_RESPUESTA = "respuesta"      # lo escribio el MODELO -> mide si leyo
+FUENTE_RESUMEN = "resumen"          # lo escribio un resumidor LLM -> mide perdida
+FUENTE_PROYECCION = "proyeccion"    # funcion pura -> NO mide lectura: es un assert
+FUENTE_DESCONOCIDA = "desconocida"  # el llamador no lo dijo
+
+# Las unicas fuentes cuyo recall es evidencia de que algo SOBREVIVIO a un
+# proceso con perdida. G2 (la compuerta del reset) solo puede leer de aqui.
+_FUENTES_QUE_MIDEN = (FUENTE_RESPUESTA, FUENTE_RESUMEN)
+
+
+def comprobar_trazadores(estado, texto, fuente=FUENTE_DESCONOCIDA):
+    """Cuantos trazadores siguen presentes en `texto`. Se busca por ID.
+
+    CAMBIO DE CONTRATO (2026-08-19, P0-4). El resultado gana dos campos y NO
+    pierde ninguno: los llamadores que solo leen `recall`/`presentes`/
+    `perdidos`/`n` siguen funcionando igual, y `fuente` es opcional con el
+    default mas conservador.
+
+      - `fuente`: de donde salio `texto` (ver las constantes FUENTE_*).
+      - `mide_lectura`: True solo si `fuente` es una en la que perder un
+        trazador era POSIBLE. Con `proyeccion` es False y con `desconocida`
+        tambien: no se puede afirmar que se midio algo cuando nadie dijo que
+        se midio.
+
+    NORMATIVO para el subsistema TX: G2 se mide sobre la PRIMERA RESPUESTA DE
+    LA SESION NUEVA (`fuente=FUENTE_RESPUESTA`), nunca sobre la proyeccion.
+    Comprobar la proyeccion sigue estando bien, pero es otra cosa y se llama
+    por su nombre: `assert_integridad_proyeccion`.
+    """
     tn = _norm(texto)
     trz = list(estado.get("trazadores") or [])
     presentes, perdidos = [], []
@@ -519,7 +554,41 @@ def comprobar_trazadores(estado, texto):
         "presentes": presentes,
         "perdidos": perdidos,
         "recall": (len(presentes) / float(len(trz))) if trz else None,
+        "fuente": fuente,
+        "mide_lectura": fuente in _FUENTES_QUE_MIDEN,
     }
+
+
+def g2_sobre_respuesta(estado, respuesta):
+    """G2: cuantos trazadores cito el MODELO en su primera respuesta tras el
+    reset. Esto SI mide algo -- si el modelo leyo la cabecera o la ignoro.
+
+    Se niega a evaluar una respuesta vacia: 0 trazadores en 0 chars no es "no
+    leyo", es "no hubo respuesta", y son dos decisiones distintas (reintentar
+    contra abortar el reset). El vacio silencioso es el fallo tipico de este
+    sistema; aqui se declara.
+    """
+    if not (respuesta or "").strip():
+        d = comprobar_trazadores(estado, "", fuente=FUENTE_RESPUESTA)
+        d["mide_lectura"] = False
+        d["motivo"] = ("respuesta VACIA: no se puede concluir nada sobre la "
+                       "lectura del modelo")
+        return d
+    return comprobar_trazadores(estado, respuesta, fuente=FUENTE_RESPUESTA)
+
+
+def assert_integridad_proyeccion(estado, proyeccion):
+    """Lo que la comprobacion sobre la proyeccion REALMENTE es: un assert de
+    integridad del proyector (los trazadores que el proyector dice escribir
+    estan escritos), no una medida de conservacion.
+
+    Devuelve el mismo dict, con `mide_lectura=False` y un `integridad_ok` que
+    es lo unico accionable: si sale False el roto esta en el PROYECTOR, no en
+    el modelo ni en el reset.
+    """
+    d = comprobar_trazadores(estado, proyeccion, fuente=FUENTE_PROYECCION)
+    d["integridad_ok"] = (not d["perdidos"])
+    return d
 
 
 # --------------------------------------------------------------- persistencia

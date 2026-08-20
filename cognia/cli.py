@@ -1955,6 +1955,12 @@ _CMD_DESCRIPTIONS = {
     # Corta a proposito: seccion() recorta por ancho y la version larga perdia
     # justo los estados y el atajo, que es lo que busca quien quiere apagarlo.
     "/mejorar":         "Mejorar el prompt con IA (preguntar|auto|off, F3)",
+    # La plantilla larga va DETRAS de dos espacios, como el resto del registro:
+    # `ayuda.resumir_desc` corta por ese hueco, asi que a 80 columnas se lee la
+    # frase entera en vez de "...: iniciar|estado|pr...". Los subcomandos
+    # completos viven en `_CMD_DETAILS` (y en `/tx` pelado).
+    "/tx":              "Agente de horizonte largo (TX)  [iniciar | estado | probar | commit | ancho | bandas | mutar | exp | vram | reanudar | diagnostico | cerrar | on | off]",
+    "/libro":           "Memoria append-only de la tarea TX  [N | ver <n> | grep <pat> | auditar <n> | restringir | retractar | fsck | exportar]",
     "/lazo":            "Lazo de verificacion post-respuesta con tools reales  [on|off]",
     "/hermes":          "Estado del arnes Hermes: presupuesto, guardia de bucle, parada verificada",
     "/rutinas":         "Tareas programadas que corren solas.  Uso: /rutinas [crear|borrar|ahora]",
@@ -2140,6 +2146,35 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    # /tx y /libro no estaban aqui, y su descripcion se corta a 80-120
+    # columnas: el subsistema con MAS subcomandos del CLI era el unico sin
+    # ningun sitio donde leerlos enteros.
+    "/tx": (
+        "Agente de horizonte largo: memoria append-only (LIBRO) + reset del contexto con la "
+        "COMPUERTA ANTES de destruir. OPT-IN: '/tx on' (o COGNIA_TX=1); apagado, Cognia se "
+        "comporta byte-identico. "
+        "SUBCOMANDOS: iniciar \"<objetivo>\" --criterio \"<cmd>\" [--restriccion \"<txt>\"] "
+        "[--pasos N] [--horas H] [--workspace <ruta>] | estado | probar (corre los gates SIN "
+        "resetear) | commit (el 2PC completo) | ancho (marca el ciclo como 'no destruir') | "
+        "bandas | mutar (corrompe la proyeccion a proposito y EXIGE que los gates aborten) | "
+        "exp [e0|e1] | vram [--verificar] | reanudar [<task_id>] | diagnostico | cerrar | on | "
+        "off. "
+        "EL CRITERIO ES OBLIGATORIO y se corre UNA vez al sembrar: sin un comando cuyo exit 0 "
+        "signifique 'hecho', G5 no mide monotonia y el sistema se queda sin la unica senal que "
+        "no viene de un LLM. "
+        "SALIDAS de un commit: HECHO (se reseteo), ANCHO (no se reseteo -- salida LEGITIMA, el "
+        "brazo que no destruye midio recall 1,000) y HARD_STOP. "
+        "Tras reiniciar el REPL la sesion se pierde pero el LIBRO no: '/tx reanudar'."),
+    "/libro": (
+        "La memoria append-only de la tarea TX abierta: un evento JSON por linea, cadena "
+        "prev-sha, sin delete ni update (retractar es APENDAR un invalidate). "
+        "SUBCOMANDOS: /libro [N] (los N ultimos eventos) | ver <n> [--contexto K] | "
+        "grep <patron> [--banda P|T|N|D|F|A|E|Q|X] | auditar <n> (la cadena de provenance hasta "
+        "los eventos MEDIDOS: si termina en una frase del modelo, la fila no la sostiene nada) | "
+        "restringir \"<texto>\" (anade a la banda P y RE-SIEMBRA el sha_P0) | "
+        "retractar <n> \"<motivo>\" | fsck [--reparar] | exportar [<ruta>]. "
+        "fsck --reparar copia el fichero entero a .corrupto-<ts> antes de tocar nada y saca a "
+        ".huerfanos-<ts> los eventos intactos que hubiera detras del corte."),
     "/mejorar": (
         "Un experto local (cognia/harness/mejorar_prompt.py) reescribe lo que tecleaste como "
         "una instruccion mas precisa ANTES de enviarla, preservando tu intencion y sin inventar "
@@ -4504,6 +4539,1266 @@ def _slash_oficina(args: str) -> None:
         f"[err_cl]La oficina no respondio en 10s en el puerto {puerto}. "
         f"Puede que el puerto este ocupado por otra cosa -- proba con /oficina <otro_puerto>.[/err_cl]"
     )
+
+
+# ---------------------------------------------------------------------------
+# /tx -- subsistema TX/LIBRO (agente de horizonte largo). OPT-IN: COGNIA_TX=1
+# ---------------------------------------------------------------------------
+# Puerta de DIAGNOSTICO (regla 4 de CLAUDE.md: la infraestructura tambien
+# necesita puerta). Hoy el subsistema esta en P0 --los prerrequisitos-- asi que
+# lo que este comando ensena es exactamente eso: si el instrumento MIDE. Sin
+# exit codes reales, "la provenance la escribe la maquina" es mentira, y esta
+# pantalla es donde se ve si lo es.
+
+_TX_ENV = "COGNIA_TX"
+
+
+def _tx_activo() -> bool:
+    """El env manda; si no esta puesto, la config persistida.
+
+    Y cuando manda la config, SE PROPAGA AL ENV. Sin esa linea habia cuatro
+    lecturas del mismo flag que no coincidian: esta y `driver.activo()` miraban
+    env+config, mientras `agent.tools` (registro de las 7 tools) y
+    `harness.interceptor._libro` (la escritura en el LIBRO) miraban SOLO el
+    env. Medido: con `tx_activo=true` guardado y sin la variable puesta,
+    `/tx estado` decia ACTIVO, `/tx iniciar` abria la tarea... y una llamada
+    real a run_tool dejaba el libro en 7 eventos, los mismos 7 de la siembra.
+    Ver `cognia/tx/flag.py`.
+    """
+    crudo = os.environ.get(_TX_ENV, "").strip().lower()
+    if crudo:
+        return crudo in ("1", "on", "true", "yes", "si")
+    encendido = bool(_load_config().get("tx_activo", False))
+    if encendido:
+        try:
+            from cognia.tx.flag import propagar
+            propagar(True)
+        except Exception as exc:
+            _aviso_degradado("cli.tx.flag", f"{type(exc).__name__}: {exc}")
+            os.environ[_TX_ENV] = "1"
+    return encendido
+
+
+def _tx_driver():
+    """El driver, o None con el motivo dicho en voz alta.
+
+    El import es PEREZOSO y va detras del flag: con COGNIA_TX apagado el
+    paquete `cognia.tx` no se toca, que es la condicion dura del subsistema
+    (con la variable apagada, Cognia se comporta byte-identico a hoy).
+    """
+    if not _tx_activo():
+        _print_line("[warn_cl]TX esta apagado.[/warn_cl] Enciendelo con "
+                    + _escape("/tx on") + " (o COGNIA_TX=1) y volve a probar.")
+        return None
+    try:
+        from cognia.tx import driver
+        return driver
+    except Exception as exc:
+        _aviso_degradado("cli.tx.driver", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]No pude cargar cognia/tx/driver.py: "
+                    f"{_escape(str(exc))}[/err_cl]")
+        return None
+
+
+_TX_TOOLS = ("libro_grep", "libro_ver", "decidir", "afirmar", "pendiente",
+             "resolver", "leccion")
+
+
+def _tx_registrar_tools() -> str:
+    """Registra las 7 tools del LIBRO AHORA y dice cuantas quedaron.
+
+    Idempotente: `tool()` sobreescribe la entrada del registry, asi que
+    llamarlo dos veces no apila nada. Devuelve la linea que se imprime (no
+    imprime aqui) para que el mensaje se pueda testear sin capturar stdout.
+    """
+    try:
+        from cognia.agent import tools as _t
+        from cognia.tx import tools as _tx_tools
+        _tx_tools.register(_t.tool)
+    except Exception as exc:
+        _aviso_degradado("cli.tx.tools", f"{type(exc).__name__}: {exc}")
+        return ("NO pude registrar las tools del LIBRO (%s): el agente no "
+                "podra escribir memoria. Reinicia el REPL con COGNIA_TX=1."
+                % exc)
+    try:
+        from cognia.agent.tools import TOOLS
+        faltan = [n for n in _TX_TOOLS if n not in TOOLS]
+    except Exception as exc:
+        _aviso_degradado("cli.tx.tools", f"{type(exc).__name__}: {exc}")
+        return "tools del LIBRO registradas (no pude verificarlo: %s)" % exc
+    if faltan:
+        return ("tools del LIBRO: faltan %s. Reinicia el REPL con COGNIA_TX=1."
+                % ", ".join(faltan))
+    return ("%d tools del LIBRO disponibles para el agente: %s"
+            % (len(_TX_TOOLS), ", ".join(_TX_TOOLS)))
+
+
+def _tx_partir(args: str) -> list:
+    """Trocea respetando comillas SIN comerse las barras invertidas.
+
+    `shlex.split(posix=True)` trata '\\' como escape FUERA de comillas:
+    '--workspace C:\\Users\\x' llega como 'C:Usersx' (medido; dentro de comillas
+    si se salva). Exigirle comillas al dueno para escribir una ruta de Windows
+    es pedirle que recuerde una regla que no rige en ningun otro comando del
+    REPL. Con posix=False las comillas viajan dentro del token y se quitan a
+    mano.
+    """
+    import shlex
+    lex = shlex.shlex(args or "", posix=False)
+    lex.whitespace_split = True
+    lex.commenters = ""
+    out = []
+    try:
+        for t in lex:
+            if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'":
+                t = t[1:-1]
+            out.append(t)
+    except ValueError as exc:
+        # UNA COMILLA SIN CERRAR MATABA EL REPL ENTERO. `shlex` lanza
+        # "ValueError: No closing quotation" y la llamada estaba FUERA de todo
+        # try, en el cuerpo del `while True:` de `repl()`: el dueno perdia la
+        # conversacion, el modelo cargado y la sesion TX en memoria por
+        # olvidarse una comilla en el comando cuyo propio mensaje de ayuda le
+        # pide comillas. Se convierte en un error TIPADO que la puerta de /tx
+        # y /libro atrapa y explica.
+        raise _TxSintaxis(str(exc))
+    return out
+
+
+class _TxSintaxis(ValueError):
+    """La linea de /tx o /libro no se puede trocear (comilla sin cerrar)."""
+
+
+def _tx_flags(tokens: list) -> tuple:
+    """(posicionales, {flag: [valores]}). Un flag repetido ACUMULA: --criterio
+    dos veces son dos criterios, no el segundo pisando al primero.
+
+    UN FLAG CONSUME HASTA EL SIGUIENTE `--`, no un solo token. Antes cogia uno
+    y mandaba el resto a los posicionales, y eso rompia EN SILENCIO el comando
+    de ejemplo de la propia ESPEC cuando el dueno no ponia comillas:
+
+        /tx iniciar "arreglar el canal" --criterio venv312\\Scripts\\python.exe
+                                        -m pytest tests/estado -q
+        objetivo -> "arreglar el canal -m pytest tests/estado -q"
+        criterio -> "venv312\\Scripts\\python.exe"
+
+    Las dos cosas se sellan en la banda P con conf 1,00 y en el sha_P0, que por
+    diseno ya no se puede tocar; y el criterio resultante da exit 0 SIEMPRE,
+    asi que la unica senal del sistema que no viene de un LLM quedaba falseada
+    para el resto de la tarea sin que nadie lo notara.
+    """
+    libres, flags, actual, buffer = [], {}, None, []
+
+    def _cerrar():
+        if actual is not None and buffer:
+            flags[actual].append(" ".join(buffer))
+
+    for t in tokens:
+        if t.startswith("--"):
+            _cerrar()
+            buffer = []
+            actual = t[2:].lower()
+            flags.setdefault(actual, [])
+        elif actual is not None:
+            buffer.append(t)
+        else:
+            libres.append(t)
+    _cerrar()
+    return libres, flags
+
+
+def _tx_uno(flags: dict, nombre: str, defecto=None):
+    vals = flags.get(nombre) or []
+    return vals[0] if vals else defecto
+
+
+def _tx_iniciar(args: str) -> None:
+    """/tx iniciar "<objetivo>" --criterio "<cmd>" --restriccion "<txt>"
+    --pasos N --horas H"""
+    drv = _tx_driver()
+    if drv is None:
+        return
+    libres, flags = _tx_flags(_tx_partir(args))
+    objetivo = " ".join(libres).strip()
+    try:
+        pasos = int(_tx_uno(flags, "pasos", drv.PASOS_DEFECTO))
+        horas = float(_tx_uno(flags, "horas", drv.HORAS_DEFECTO))
+    except ValueError:
+        _print_line("[warn_cl]--pasos y --horas son numeros.[/warn_cl]")
+        return
+    try:
+        ses = drv.iniciar(objetivo,
+                          criterios=flags.get("criterio") or [],
+                          restricciones=flags.get("restriccion") or [],
+                          pasos=pasos, horas=horas,
+                          workspace=_tx_uno(flags, "workspace"))
+    except ValueError as exc:
+        # PUERTA 1 de la ESPEC 9.4: no arrancar sin criterio verificable NO es
+        # un error del usuario, es el sistema negandose a montar la maquinaria
+        # de verificacion sobre nada que verificar. Por eso se explica entero.
+        _print_line(f"[warn_cl]{_escape(str(exc))}[/warn_cl]")
+        # SIN [detail]: `simple_mode.should_show_detail` suprime la LINEA
+        # ENTERA que lo contenga, y el modo sencillo es el DEFECTO. El dueno
+        # que se equivocaba recibia una negativa que cita una seccion de un
+        # documento que no tiene delante y ni un solo ejemplo de la sintaxis
+        # correcta. Un ejemplo copiable es accion recuperable, no ampliacion.
+        _print_line("Ejemplo: " + _escape(
+            '/tx iniciar "cablear el canal de estado" --criterio '
+            '"venv312\\Scripts\\python.exe -m pytest tests/estado -q" '
+            '--restriccion "no tocar loop.py" --pasos 8 --horas 4'))
+        return
+    except Exception as exc:
+        _aviso_degradado("cli.tx.iniciar", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]No pude sembrar la tarea: {_escape(str(exc))}[/err_cl]")
+        return
+    cfg = _load_config()
+    cfg["tx_tarea"] = ses["task_id"]
+    try:
+        _save_config(cfg)
+    except Exception as exc:
+        _aviso_degradado("cli.tx.config", f"{type(exc).__name__}: {exc}")
+    _print_line(f"[ok_cl]TAREA TX ABIERTA[/ok_cl] {_escape(ses['task_id'])}")
+    _print_line(f"  objetivo    {_escape(ses['objetivo'])}")
+    for c in ses["criterios"]:
+        _print_line(f"  criterio    {_escape(c)}")
+    for r in ses["restricciones"]:
+        _print_line(f"  restriccion {_escape(r)}")
+    _print_line(f"  sha_P0      {ses['sha_p0']}   (la banda P tiene que volver "
+                f"byte a byte con este sha en CADA reset)")
+    _print_line(f"  trazadores  {len((ses['estado_canal'] or {}).get('trazadores') or [])}"
+                f"   presupuesto {ses['pasos']} pasos/ciclo, {ses['horas']} h")
+    _print_line(f"  libro       {_escape(ses['libro'].ruta)}")
+    # LA SIEMBRA MIDIO LOS CRITERIOS. Antes nada comprobaba jamas que el
+    # criterio fuese ejecutable, y la secuencia del DIA 1 de la ESPEC sembraba
+    # un `pytest tests/estado` cuyo path NO EXISTE: G5 lo daba por PASA tras
+    # tirar 5,5 s. Ahora el exit y el coste se ven ANTES de que la banda P
+    # quede sellada.
+    for f in (ses.get("siembra") or {}).get("filas") or []:
+        marca = "VERDE" if f["ok"] else ("TIMEOUT" if f["timeout"] else "rojo ")
+        est = "warn_cl" if f["ok"] else "ok"
+        _print_line(f"  [{est}]{marca}[/{est}] al sembrar ({f['coste_ms']} ms): "
+                    f"{_escape(str(f['detalle'])[:110])}")
+    if (ses.get("siembra") or {}).get("verdes"):
+        _print_line("[warn_cl]OJO: un criterio que YA esta verde antes de "
+                    "empezar no puede medir progreso: G5 no vera avanzar "
+                    "nada por ese lado.[/warn_cl]")
+    _print_line("Ahora: " + _escape("/tx mutar") + " (TIENE que abortar 3 de 3), "
+                + _escape("/tx probar") + ", " + _escape("/libro 20") + ".")
+
+
+def _tx_tabla_gates(prep_o_res: dict) -> None:
+    for v in prep_o_res.get("gates") or []:
+        est = "ok" if v["ok"] else "err"
+        marca = "PASA " if v["ok"] else "ABORTA"
+        _print_line(f"  [{est}]{marca}[/{est}] {v['gate']:<3} "
+                    f"{_escape(str(v['detalle'])[:200])}")
+    # G5 con CERO criterios ejecutados aprueba sin haber medido nada. Pasa de
+    # verdad: `solo_baratos=True` salta los criterios cuyo coste MEDIDO supera
+    # el liston (aqui, un pytest de 6 s), y si TODOS son caros el gate queda
+    # verde con total=0. El gate es de M2 y no se toca desde aqui, pero la
+    # puerta no puede mostrarlo como un aprobado limpio: "no midio" y "midio y
+    # paso" son los dos estados que este subsistema existe para no confundir.
+    # UN GATE VACIO NO ES UN GATE VERDE. G3 sin una sola fila en la banda A y
+    # G4 sin una sola fila verificada devuelven `ok=True` porque no hay nada
+    # que suspender -- y desde fuera eso se lee igual que "esta todo bien".
+    # Verificado: `g3_artefactos` sobre los eventos que produce el interceptor
+    # daba {'ok': True, 'detalle': 'artefactos 0/0'}, y g4 con dos valores
+    # distintos de la misma clave daba "0 contradicciones (0 claves)".
+    for v in prep_o_res.get("gates") or []:
+        # Solo los VERDES: un gate vacio que ya aborta (G6 en el ciclo 1) ya
+        # dice lo suyo en su propia linea, y repetirlo seria ruido.
+        if not v["ok"] or not (v["datos"] or {}).get("vacia"):
+            continue
+        _print_line(f"  [warn_cl]     {v['gate']} no midio NADA en este ciclo: "
+                    f"su PASA significa 'no habia que mirar', no 'esta "
+                    f"bien'.[/warn_cl]")
+    for v in prep_o_res.get("gates") or []:
+        if v["gate"] != "G5":
+            continue
+        heredados = (v["datos"] or {}).get("heredados") or 0
+        if heredados:
+            _print_line(f"  [warn_cl]     G5 arrastro {heredados} criterio(s) "
+                        f"del ciclo anterior sin reejecutarlos (son caros): "
+                        f"cuentan, pero NO se midieron ahora.[/warn_cl]")
+        if not (v["datos"] or {}).get("total"):
+            _print_line("  [warn_cl]     G5 no ejecuto NINGUN criterio (todos "
+                        "por encima del liston de criterio barato): su PASA no "
+                        "significa progreso, significa que no se midio.[/warn_cl]")
+        for flaky in (v["datos"] or {}).get("flaky") or []:
+            _print_line(f"  [warn_cl]     G5 criterio en TIMEOUT (flaky de "
+                        f"instrumento, no FAIL): {_escape(str(flaky)[:120])}[/warn_cl]")
+
+    fz = prep_o_res.get("fuzzy")
+    if fz is not None:
+        # SE CALCULA, SE MUESTRA y NO VOTA (ESPEC 6.4). Va etiquetado como tal
+        # para que nadie lo lea como un gate mas.
+        _print_line(f"  [detail]fuzzy (NO VOTA) conservacion="
+                    f"{_escape(str(fz.get('recall', fz)))}[/detail]")
+
+
+def _tx_probar(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        return
+    try:
+        prep = drv.probar()
+    except ValueError as exc:
+        _print_line(f"[warn_cl]{_escape(str(exc))}[/warn_cl]")
+        return
+    except Exception as exc:
+        _aviso_degradado("cli.tx.probar", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    ses = drv.activa()
+    _print_line(f"[ok]COMPUERTA (sin resetear nada)[/ok] ciclo {ses['ciclo']} "
+                f"- proyeccion {prep['informe'].get('tokens')} tok "
+                f"({prep['ms_proy']} ms) - gates {prep['ms_gates']} ms")
+    _tx_tabla_gates(prep)
+    if prep["abre"]:
+        _print_line("[ok_cl]VERDE: un commit AHORA destruiria la ventana y la "
+                    "reconstruiria del LIBRO.[/ok_cl]")
+        # LA MITAD HONESTA DE ESA FRASE. `destruir_por_defecto` escribe
+        # `ses['history']`, y un grep confirma que ese campo no lo lee NADIE:
+        # la conversacion del REPL sigue intacta y el "reset" ocurre sobre una
+        # lista que se descarta. Sin esta linea, el dueno que teclea /tx probar
+        # sin haber leido la ESPEC concluye que su contexto se reseteo.
+        _print_line("  El reset todavia NO esta cableado al bucle del REPL: se "
+                    "ensaya sobre la proyeccion, tu conversacion no se toca.")
+    else:
+        _print_line(f"[warn_cl]ROJO: {len(prep['fallos'])} gate(s) abortan. "
+                    f"No se resetea.[/warn_cl]")
+    _print_line("[detail]G2 y Q1..Q3 NO estan aqui: se miden DESPUES de "
+                "destruir, sobre la respuesta de la sesion nueva. Medirlos "
+                "contra la proyeccion seria una tautologia (P0-4).[/detail]")
+
+
+def _tx_commit(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        return
+    try:
+        res = drv.commit_ya()
+    except ValueError as exc:
+        _print_line(f"[warn_cl]{_escape(str(exc))}[/warn_cl]")
+        return
+    except Exception as exc:
+        _aviso_degradado("cli.tx.commit", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    est = {"HECHO": "ok_cl", "ANCHO": "warn_cl", "HARD_STOP": "err_cl"}.get(
+        res["salida"], "warn_cl")
+    _tx_tabla_gates(res)
+    # `driver.linea_ciclo` YA pega el detalle al final cuando la salida no es
+    # HECHO. Imprimirlo otra vez repetia literalmente la mitad mas larga de la
+    # linea, y entre la tabla de gates y la duplicacion cada ciclo ocupaba 4-6
+    # lineas de terminal.
+    _print_line(f"[{est}]{_escape(res.get('linea') or '')}[/{est}]")
+    if res["salida"] == "ANCHO" and not res["destruido"]:
+        # SIN [detail]: en modo sencillo (el defecto) el dueno veia
+        # "[TX] c1 ANCHO ..." en ambar y nada que le dijera que eso NO es un
+        # error. Saber que ANCHO es una salida legitima cambia lo que hace
+        # despues; eso es accion, no ampliacion.
+        _print_line("  ANCHO no es un fallo: es la salida legitima 'no "
+                    "resetear'. El brazo que no destruye midio recall 1,000; "
+                    "va acotado porque degrada en silencio, no porque sea malo.")
+
+
+def _tx_ancho(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        return
+    try:
+        ciclo = drv.forzar_ancho()
+    except ValueError as exc:
+        _print_line(f"[warn_cl]{_escape(str(exc))}[/warn_cl]")
+        return
+    _print_line(f"[ok_cl]MODO ANCHO marcado para el ciclo {ciclo}[/ok_cl]: el "
+                f"proximo commit NO destruira la ventana.")
+    _print_line("[detail]Se contabiliza igual que un ancho automatico (tope 3 "
+                "seguidos, 10 % de los ciclos): si el manual no contase, el "
+                "tope se esquivaria tecleando.[/detail]")
+
+
+def _tx_bandas(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        return
+    panel = drv.panel_bandas()
+    if panel is None:
+        _print_line("[warn_cl]No hay tarea TX abierta (/tx iniciar).[/warn_cl]")
+        return
+    _print_line(f"[ok]BANDAS[/ok]  total {panel['total']} tok  sha {panel['sha']}")
+    for f in panel["filas"]:
+        aviso = ""
+        if f["fuera"]:
+            aviso = f"   [warn_cl]{f['fuera']} fila(s) FUERA del tope -> libro_grep[/warn_cl]"
+        _print_line(f"  {f['banda']}  {str(f['tokens']):>5} / {str(f['tope']):>5} tok"
+                    f"   {str(f['filas']):>3} filas{aviso}")
+    if panel["p_desborda"]:
+        _print_line("[err_cl]La banda P DESBORDA: no se recorta jamas. Hace "
+                    "falta poda humana o partir la tarea (HARD_STOP).[/err_cl]")
+
+
+def _tx_mutar(args: str) -> None:
+    """La pieza que hace honesto al sistema. Un gate que nunca aborta es una
+    AVERIA, no salud."""
+    drv = _tx_driver()
+    if drv is None:
+        return
+    try:
+        r = drv.mutar()
+    except ValueError as exc:
+        _print_line(f"[warn_cl]{_escape(str(exc))}[/warn_cl]")
+        return
+    except Exception as exc:
+        _aviso_degradado("cli.tx.mutar", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    _print_line("[ok]MUTACION DIRIGIDA[/ok] (la proyeccion se corrompe a "
+                "proposito; el LIBRO no se toca)")
+    for p in r["pruebas"]:
+        est = "ok" if p["discrimina"] else "err"
+        v = "ABORTA" if p["aborta"] else "NO ABORTA"
+        _print_line(f"  [{est}]{v:<9}[/{est}] {p['gate']:<3} {_escape(p['nombre'])}"
+                    f"   {_escape(str(p['que'])[:110])}")
+        if not p["sano"]["ok"]:
+            _print_line(f"    [err_cl]y ademas suspende la version SANA: "
+                        f"{_escape(str(p['sano']['detalle'])[:160])}[/err_cl]")
+    if r["ok"]:
+        _print_line(f"[ok_cl]{r['abortan']}/{r['total']} abortan y "
+                    f"{r['discriminan']}/{r['total']} discriminan: los gates "
+                    f"MIDEN.[/ok_cl]")
+    else:
+        _print_line(f"[err_cl]EL GATE ESTA ROTO: solo {r['abortan']}/{r['total']} "
+                    f"abortan y {r['discriminan']}/{r['total']} discriminan. Un "
+                    f"gate que no aborta ante una corrupcion deliberada aprueba "
+                    f"cualquier cosa: NO uses este subsistema hasta "
+                    f"arreglarlo.[/err_cl]")
+        _aviso_degradado("tx.mutar",
+                         f"{r['abortan']}/{r['total']} mutaciones abortaron: "
+                         f"la compuerta no discrimina")
+
+
+def _tx_exp_dir():
+    """La carpeta de los experimentos, o None con motivo dicho en voz alta.
+
+    Vive en `planes/agente_largo/exp/` del REPO, no dentro del paquete: son
+    scripts de plan, no producto. En una instalacion de PyPI no estan, y ese
+    caso se DICE en vez de fallar con un ImportError pelado -- "no lo cablearon"
+    y "se rompio" no pueden verse igual desde afuera.
+    """
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    d = os.path.join(raiz, "planes", "agente_largo", "exp")
+    if not os.path.isdir(d):
+        _aviso_degradado("cli.tx.exp",
+                         f"no encuentro {d}: los experimentos viven en el repo, "
+                         f"no en el paquete instalado")
+        return None
+    return d
+
+
+def _tx_exp_cargar(nombre, d):
+    import importlib.util
+    ruta = os.path.join(d, nombre + ".py")
+    if not os.path.exists(ruta):
+        _aviso_degradado("cli.tx.exp", f"falta {ruta}")
+        return None
+    try:
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        spec = importlib.util.spec_from_file_location("tx_exp_" + nombre, ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception as exc:
+        _aviso_degradado("cli.tx.exp", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return None
+
+
+def _tx_exp(args: str) -> None:
+    """/tx exp [e1 | e0 --tabla | e0 --correr]: los experimentos del MVP.
+
+    E1 (mutacion del gate) corre en segundos y sin modelo: es el drill que
+    decide si el subsistema se puede desplegar. E0 (el brazo nulo) gasta ~1,5 h
+    de GPU, asi que NO se lanza por accidente: hace falta --correr.
+    """
+    d = _tx_exp_dir()
+    if d is None:
+        return
+    partes = (args or "").split()
+    cual = (partes[0].lower() if partes else "")
+    flags = [x.lower() for x in partes[1:]]
+
+    if not cual:
+        _print_line("[ok]Experimentos del MVP TX[/ok] (ESPEC seccion 15.5)")
+        for nombre, que, salida in (
+                ("e1", "mutacion del gate: deteccion y falsos positivos",
+                 "e1_out.json"),
+                ("e0", "el brazo nulo: TX contra ancho, resumen y contrato",
+                 "e0_out.json")):
+            ruta = os.path.join(d, salida)
+            if os.path.exists(ruta):
+                cuando = time.strftime("%Y-%m-%d %H:%M",
+                                       time.localtime(os.path.getmtime(ruta)))
+                est = f"[ok_cl]corrido {cuando}[/ok_cl]"
+            else:
+                est = "[warn_cl]sin correr[/warn_cl]"
+            _print_line(f"  {nombre:<4} {que:<58} {est}")
+        _print_line("Uso: " + _escape("/tx exp e1")
+                    + " (segundos, sin modelo) - "
+                    + _escape("/tx exp e0 --tabla")
+                    + " (relee la ultima corrida) - "
+                    + _escape("/tx exp e0 --correr") + " (~55 min de GPU)")
+        return
+
+    if cual == "e1":
+        mod = _tx_exp_cargar("e1", d)
+        if mod is None:
+            return
+        try:
+            mod.main()
+        except Exception as exc:
+            _aviso_degradado("cli.tx.exp.e1", f"{type(exc).__name__}: {exc}")
+            _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+
+    if cual == "e0":
+        if "--correr" in flags:
+            _print_line("[warn_cl]E0 corre 6 brazos x 4 corridas x 18 ciclos "
+                        "contra el modelo: 54 min medidos.[/warn_cl]")
+            mod = _tx_exp_cargar("e0", d)
+            if mod is None:
+                return
+            try:
+                # `main([])` y no `main()`: e0 lee sus flags de `sys.argv`, y
+                # el sys.argv de aqui es el del REPL. Sin la lista vacia, un
+                # argumento del CLI se colaria como flag del experimento.
+                mod.main([])
+            except KeyboardInterrupt:
+                _print_line("[warn_cl]E0 cortado a mano; lo corrido ya esta en "
+                            "e0_out.json[/warn_cl]")
+            except Exception as exc:
+                _aviso_degradado("cli.tx.exp.e0", f"{type(exc).__name__}: {exc}")
+                _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+            return
+        if not os.path.exists(os.path.join(d, "e0_out.json")):
+            _print_line("[warn_cl]E0 no se ha corrido todavia.[/warn_cl] "
+                        + _escape("/tx exp e0 --correr") + " (~55 min de GPU).")
+            return
+        mod = _tx_exp_cargar("e0_tabla", d)
+        if mod is None:
+            return
+        try:
+            mod.main()
+        except Exception as exc:
+            _aviso_degradado("cli.tx.exp.e0", f"{type(exc).__name__}: {exc}")
+            _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+
+    _print_line("[warn_cl]No conozco " + _escape("/tx exp " + cual)
+                + ". Hay: e0, e1.[/warn_cl]")
+
+
+def _tx_vram(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        return
+    verificar = "--verificar" in (args or "")
+    out = drv.vram_verificar() if verificar else dict(
+        zip(("antes", "motivo"), drv.leer_vram()))
+    antes = out.get("antes")
+    if antes is None:
+        _print_line(f"[warn_cl]No pude medir la VRAM: "
+                    f"{_escape(str(out.get('motivo') or ''))}[/warn_cl]")
+        _aviso_degradado("cli.tx.vram", str(out.get("motivo") or ""))
+        return
+    _print_line(f"[ok]VRAM[/ok] {antes['gpu']}: {antes['usada']} / "
+                f"{antes['total']} MiB usados")
+    if not verificar:
+        _print_line("Corre " + _escape("/tx vram --verificar")
+                    + " para medir el delta de un reset.")
+        return
+    if not out.get("reset"):
+        _print_line(f"[warn_cl]{_escape(str(out.get('motivo') or ''))}[/warn_cl]")
+        return
+    d = out.get("delta_pct")
+    est = "ok" if out.get("ok") else "err"
+    _print_line(f"  tras destruir la ventana: {out['despues']['usada']} MiB "
+                f"([{est}]delta {d:+.1f} %[/{est}], esperado <= "
+                f"{out['esperado_pct']:.0f} %)")
+    _print_line("[detail]El KV se reserva ENTERO al cargar el modelo: la "
+                "lobotomia NO libera VRAM, y este comando existe para "
+                "COMPROBARLO aqui en vez de creerselo. Un ahorro grande "
+                "significaria que el axioma es falso en esta maquina.[/detail]")
+
+
+def _tx_estado(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        _tx_diagnostico()
+        return
+    panel = drv.panel_estado()
+    if panel is None:
+        _print_line("[warn_cl]No hay tarea TX abierta.[/warn_cl] Abrila con "
+                    + _escape('/tx iniciar "<objetivo>" --criterio "<cmd>"')
+                    + ". Debajo, el estado del INSTRUMENTO:")
+        # LA LINEA QUE FALTABA. `_SESION` es estado de proceso: al reabrir el
+        # REPL no hay tarea viva aunque el LIBRO y el sesion.json sigan en
+        # disco. Sin nombrar `/tx reanudar` aqui, el unico camino visible era
+        # abrir OTRA tarea con otro task_id y otro LIBRO -- en un sistema cuya
+        # premisa entera es sobrevivir a los resets.
+        previa = _load_config().get("tx_tarea", "")
+        if previa:
+            _print_line(f"Hay una tarea previa [ok]{_escape(str(previa))}[/ok]: "
+                        + _escape("/tx reanudar")
+                        + " la retoma con su LIBRO intacto.")
+        _tx_diagnostico()
+        return
+    s = panel["salud"]
+    igual = panel["sha_p0"] == panel["sha_p_ahora"]
+    d = panel.get("diag") or {}
+    if d.get("truncadas") or d.get("ilegibles") or d.get("cadena_rota"):
+        # ANTES QUE NADA: todo lo que sigue esta calculado sobre el prefijo
+        # valido, no sobre el LIBRO entero.
+        _print_line(f"[err_cl]LIBRO CORRUPTO: {d.get('bytes_descartados')} "
+                    f"bytes descartados ({_escape(str(d.get('motivo')))}). "
+                    f"Corre /libro fsck ANTES de creerte este panel.[/err_cl]")
+    _print_line(f"[ok]TAREA TX[/ok] {_escape(panel['task_id'])}   ciclo "
+                f"{panel['ciclo']} ({panel['pasos_del_ciclo']}/{panel['pasos']} pasos)")
+    if panel.get("presupuesto_agotado"):
+        _print_line("  [warn_cl]presupuesto de pasos AGOTADO[/warn_cl]: toca "
+                    + _escape("/tx commit"))
+    _print_line("  disparador automatico: NO cableado al bucle; el commit es "
+                "manual (" + _escape("/tx commit") + ")")
+    _print_line(f"  objetivo   {_escape(panel['objetivo'])}")
+    _print_line(f"  workspace  {_escape(str(panel['workspace']))}")
+    _print_line(f"  banda P    sha {panel['sha_p_ahora']} vs sha_P0 "
+                f"{panel['sha_p0']}   "
+                f"[{'ok' if igual else 'err'}]{'IDENTICA' if igual else 'CAMBIO'}[/{'ok' if igual else 'err'}]")
+    _print_line(f"  LIBRO      {panel['eventos']} eventos, {panel['vivos']} vivos, "
+                f"{panel['invalidados']} invalidados")
+    _print_line(f"  salud      ciclos {s.get('ciclos')} | anchos {s.get('anchos')} "
+                f"({s.get('anchos_seguidos')} seguidos) | mudos "
+                f"{s.get('mudos_seguidos')} | loops {s.get('loops')} | tx "
+                f"{s.get('tx')}")
+    ratio = panel["ratio"]
+    pared_s = panel["horas_gastadas"] * 3600.0
+    if ratio is None:
+        _print_line("  maquinaria sin-medidor")
+    elif pared_s < 60.0:
+        # Con menos de un minuto de pared el ratio lo domina el arranque: un
+        # numero rojo aqui asustaria por nada, y uno verde tranquilizaria por
+        # nada. Se muestra, pero se dice que todavia no mide. El aviso va en su
+        # PROPIA linea: `simple_mode.should_show_detail` suprime la linea
+        # ENTERA que contenga [detail], asi que mezclarlo se comeria el dato.
+        _print_line(f"  maquinaria {ratio:.1f} % del tiempo de pared "
+                    f"(pared {pared_s:.0f} s: todavia NO significa nada)")
+        _print_line("[detail]     Por debajo de 60 s de pared el ratio lo "
+                    "domina el arranque del proceso, no la compuerta.[/detail]")
+    else:
+        est = "ok" if ratio < 15.0 else "err"
+        _print_line(f"  maquinaria [{est}]{ratio:.1f} %[/{est}] del tiempo de "
+                    f"pared (listo del MVP: < 15 %)")
+    _print_line(f"  horas      {panel['horas_gastadas']:.2f} de "
+                f"{panel['horas']:.1f} presupuestadas")
+    if panel["forzar_ancho"]:
+        _print_line("  [warn_cl]MODO ANCHO marcado a mano para este ciclo[/warn_cl]")
+    _tx_bandas("")
+    for linea in (panel["lineas"] or [])[-5:]:
+        _print_line("  " + _escape(linea))
+    _print_line(f"  ultimo     {_escape(str(s.get('ultimo') or '-'))}")
+
+
+def _tx_cerrar(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        return
+    task_id = drv.cerrar()
+    if task_id is None:
+        _print_line("[warn_cl]No habia tarea TX abierta.[/warn_cl]")
+        return
+    cfg = _load_config()
+    cfg["tx_tarea"] = ""
+    try:
+        _save_config(cfg)
+    except Exception as exc:
+        _aviso_degradado("cli.tx.config", f"{type(exc).__name__}: {exc}")
+    _print_line(f"[ok_cl]Tarea TX cerrada:[/ok_cl] {_escape(task_id)}. El LIBRO "
+                f"queda en disco: /libro exportar lo saca entero.")
+
+
+def _tx_reanudar(args: str) -> None:
+    drv = _tx_driver()
+    if drv is None:
+        return
+    task_id = (args or "").strip() or _load_config().get("tx_tarea", "")
+    if not task_id:
+        _print_line("[warn_cl]Uso: " + _escape("/tx reanudar <task_id>")
+                    + " (o deja que use la ultima de la config).[/warn_cl]")
+        return
+    try:
+        ses = drv.reanudar(task_id)
+    except Exception as exc:
+        _aviso_degradado("cli.tx.reanudar", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    _print_line(f"[ok_cl]Tarea TX reanudada:[/ok_cl] {_escape(ses['task_id'])} "
+                f"en el ciclo {ses['ciclo']}")
+
+
+_TX_SUB = {
+    "iniciar": _tx_iniciar,
+    "estado": _tx_estado,
+    "probar": _tx_probar,
+    "commit": _tx_commit,
+    "ancho": _tx_ancho,
+    "bandas": _tx_bandas,
+    "mutar": _tx_mutar,
+    "vram": _tx_vram,
+    "cerrar": _tx_cerrar,
+    "reanudar": _tx_reanudar,
+    "diagnostico": lambda _a: _tx_diagnostico(),
+    "exp": _tx_exp,
+}
+
+
+def _tx_red(fn, args: str) -> None:
+    """La red bajo TODA la familia /tx y /libro.
+
+    `repl()` despacha los slash-commands directamente en el cuerpo de su
+    `while True:`, sin try alrededor, y ni `cli.main` ni `__main__` envuelven
+    `repl()`: cualquier excepcion de un handler MATA la sesion (la
+    conversacion, el modelo cargado y la sesion TX, que es estado de proceso).
+    Aqui se atrapan las dos formas: la de sintaxis, que se explica, y
+    cualquier otra, que se dice degradada en vez de tumbar el REPL.
+    """
+    try:
+        fn(args)
+    except _TxSintaxis as exc:
+        _print_line("[warn_cl]Te falta cerrar una comilla.[/warn_cl] "
+                    + _escape(str(exc)))
+        _print_line("Ejemplo: " + _escape(
+            '/tx iniciar "arreglar el bug del canal" --criterio '
+            '"venv312\\Scripts\\python.exe -m pytest tests/estado -q"'))
+    except Exception as exc:
+        _aviso_degradado("cli.tx", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(type(exc).__name__)}: "
+                    f"{_escape(str(exc))}[/err_cl]")
+
+
+def _slash_tx(args: str) -> None:
+    """/tx <subcomando>. El punto de extension del subsistema es `_TX_SUB`:
+    un subcomando nuevo se anade ahi y no en un if-chain."""
+    return _tx_red(_slash_tx_impl, args)
+
+
+def _slash_tx_impl(args: str) -> None:
+    crudo = (args or "").strip()
+    partes = crudo.split(None, 1)
+    sub = (partes[0].lower() if partes else "")
+    resto = partes[1] if len(partes) > 1 else ""
+
+    if sub in ("on", "off"):
+        cfg = _load_config()
+        cfg["tx_activo"] = (sub == "on")
+        try:
+            _save_config(cfg)
+        except Exception as exc:
+            _aviso_degradado("cli.tx.config", f"{type(exc).__name__}: {exc}")
+            return
+        try:
+            from cognia.tx.flag import propagar as _tx_propagar
+            _tx_propagar(sub == "on")
+        except Exception as exc:
+            _aviso_degradado("cli.tx.flag", f"{type(exc).__name__}: {exc}")
+            os.environ[_TX_ENV] = "1" if sub == "on" else "0"
+        _print_line(f"[ok_cl]TX: {'ACTIVO' if sub == 'on' else 'apagado'}[/ok_cl] "
+                    f"(guardado en la config; {_TX_ENV} manda sobre ella)")
+        if sub == "on":
+            # EL REGISTRO EN CALIENTE. Las 7 tools del LIBRO se registran en el
+            # IMPORT de `cognia.agent.tools`, que ya ocurrio antes de que el
+            # REPL aceptase la primera tecla: sin esto, tras `/tx on` el modelo
+            # NO tenia `decidir`, `afirmar`, `leccion`, `pendiente`, `resolver`,
+            # `libro_ver` ni `libro_grep` -- la mitad del subsistema por la que
+            # el agente escribe memoria -- y `run_tool` contestaba
+            # "'decidir' no existe", que es justo lo que manda al background
+            # researcher a sintetizar duplicados.
+            _print_line(_escape(_tx_registrar_tools()))
+            _print_line("Corre " + _escape("/tx estado")
+                        + " para ver que piezas hay y cuales faltan.")
+        return
+
+    if sub in _TX_SUB:
+        _TX_SUB[sub](resto)
+        return
+
+    if sub in ("", "ayuda", "help", "?"):
+        _tx_estado("")
+        # SIN el `if sub:`. Con `/tx` pelado -- que es lo primero que teclea
+        # cualquiera -- no salia ni una palabra de que se puede escribir, y el
+        # subsistema con MAS subcomandos del CLI (12 + 7) era el unico sin
+        # sitio donde leerlos, salvo tecleando uno equivocado.
+        _print_line("Subcomandos: " + _escape(
+            "iniciar | estado | probar | commit | ancho | bandas | mutar | "
+            "exp | vram --verificar | reanudar | diagnostico | cerrar | "
+            "on | off"))
+        _print_line("La memoria: " + _escape(
+            "/libro [N] | ver <n> | grep <pat> | auditar <n> | "
+            'restringir "<txt>" | retractar <n> "<motivo>" | '
+            "fsck [--reparar] | exportar"))
+        return
+
+    _print_line("[warn_cl]No conozco " + _escape("/tx " + sub)
+                + ". Subcomandos: " + _escape(
+                    "iniciar, estado, probar, commit, ancho, bandas, mutar, exp, "
+                    "vram, reanudar, cerrar, on, off") + "[/warn_cl]")
+
+
+# ---------------------------------------------------------------------------
+# /libro -- la memoria append-only de la tarea TX
+# ---------------------------------------------------------------------------
+# La ventana es una CACHE del LIBRO. Estos comandos son la unica forma que
+# tiene el dueno de auditar la memoria sin creerle nada al modelo: nada de lo
+# que se ve aqui lo escribio un LLM en prosa libre.
+
+def _libro_activo():
+    drv = _tx_driver()
+    if drv is None:
+        return None, None
+    ses = drv.activa()
+    if ses is None:
+        _print_line("[warn_cl]No hay tarea TX abierta.[/warn_cl] Abrila con "
+                    + _escape('/tx iniciar "<objetivo>" --criterio "<cmd>"')
+                    + " o reanudala con " + _escape("/tx reanudar <task_id>") + ".")
+        return None, None
+    return drv, ses
+
+
+def _libro_linea(e: dict) -> str:
+    txt = " ".join(str(e.get("texto") or "").split())
+    cola = f"  [{e.get('clave')}={e.get('valor')}]" if e.get("clave") else ""
+    return (f"n={e.get('n'):<4} c{e.get('ciclo')} {e.get('banda')} "
+            f"{str(e.get('t')):<13} {str(e.get('origen')):<8} "
+            f"{txt[:110]}{cola}")
+
+
+def _libro_listar(ses, n_ultimos: int) -> None:
+    eventos = ses["libro"].leer()
+    recorte = eventos[-max(1, n_ultimos):]
+    _print_line(f"[ok]LIBRO[/ok] {len(eventos)} eventos (muestro {len(recorte)})"
+                f"   {_escape(ses['libro'].ruta)}")
+    for e in recorte:
+        _print_line("  " + _escape(_libro_linea(e)))
+
+
+def _libro_ver(ses, resto: str) -> None:
+    libres, flags = _tx_flags(_tx_partir(resto))
+    try:
+        n = int(libres[0])
+    except (IndexError, ValueError):
+        _print_line("[warn_cl]Uso: " + _escape("/libro ver <n> [--contexto K]")
+                    + "[/warn_cl]")
+        return
+    k = int(_tx_uno(flags, "contexto", 0) or 0)
+    from cognia.tx import tools as _tx_tools
+    _print_line(_escape(_tx_tools._libro_ver("%d | %d" % (n, k))))
+
+
+def _libro_grep(ses, resto: str) -> None:
+    libres, flags = _tx_flags(_tx_partir(resto))
+    patron = " ".join(libres).strip()
+    if not patron:
+        _print_line("[warn_cl]Uso: " + _escape('/libro grep "<patron>" [--banda X]')
+                    + "[/warn_cl]")
+        return
+    from cognia.tx import tools as _tx_tools
+    _print_line(_escape(_tx_tools._libro_grep(
+        "%s | %s" % (patron, _tx_uno(flags, "banda", "") or ""))))
+
+
+def _libro_auditar(ses, resto: str) -> None:
+    """La cadena de provenance hasta los eventos MEDIDOS.
+
+    Es la pregunta que importa de cualquier fila: en que exit code termina.
+    Si termina en una frase del modelo, la fila no esta sostenida por nada y
+    eso tiene que verse de un vistazo.
+    """
+    try:
+        n = int((resto or "").strip().split()[0])
+    except (IndexError, ValueError):
+        _print_line("[warn_cl]Uso: " + _escape("/libro auditar <n>") + "[/warn_cl]")
+        return
+    eventos = {int(e["n"]): e for e in ses["libro"].leer()}
+    if n not in eventos:
+        _print_line(f"[warn_cl]No existe el evento n={n}.[/warn_cl]")
+        return
+    vistos, pila, hojas = set(), [(n, 0)], []
+    _print_line(f"[ok]AUDITORIA de n={n}[/ok]")
+    while pila:
+        actual, nivel = pila.pop(0)
+        if actual in vistos or nivel > 12:
+            continue
+        vistos.add(actual)
+        e = eventos.get(actual)
+        if e is None:
+            continue
+        sangria = "  " * (nivel + 1)
+        _print_line(sangria + _escape(_libro_linea(e)))
+        prov = e.get("prov") or {}
+        padres = []
+        for b in prov.get("base") or []:
+            m = re.match(r"^n:(\d+)$", str(b))
+            if m and int(m.group(1)) in eventos:
+                padres.append(int(m.group(1)))
+            else:
+                # SIN [detail]: el modo sencillo suprime esas lineas
+                # enteras, y en una AUDITORIA la base que no es un evento del
+                # LIBRO es justo el dato que hay que ver.
+                _print_line(sangria + "  base externa: " + _escape(str(b)))
+        for p in padres:
+            pila.append((p, nivel + 1))
+        if not padres:
+            hojas.append(e)
+    medidas = [h for h in hojas if h.get("origen") in ("medido", "usuario")]
+    if medidas and len(medidas) == len(hojas):
+        _print_line(f"[ok_cl]Toda la cadena termina en {len(medidas)} evento(s) "
+                    f"MEDIDO(s) o del usuario.[/ok_cl]")
+    else:
+        flojas = [h for h in hojas if h.get("origen") not in ("medido", "usuario")]
+        _print_line(f"[warn_cl]{len(flojas)} de {len(hojas)} hoja(s) NO son "
+                    f"medidas ({', '.join(sorted({str(h.get('origen')) for h in flojas}))}): "
+                    f"esta fila no esta sostenida por un exit code.[/warn_cl]")
+
+
+def _libro_restringir(ses, resto: str) -> None:
+    """Anade una restriccion a la banda P y RE-SIEMBRA el sha_P0.
+
+    La banda P solo la puede tocar el HUMANO o el contrato (ESPEC 3.6). Y el
+    sha_P0 se mueve con ella a proposito: si no se moviera, G1 abortaria todos
+    los commits siguientes por un cambio AUTORIZADO, y el dueno acabaria
+    apagando el gate que le protege. Queda constancia en el LIBRO de que la
+    referencia se movio y de por que.
+    """
+    texto = " ".join(_tx_partir(resto)).strip()
+    if not texto:
+        _print_line("[warn_cl]Uso: " + _escape('/libro restringir "<texto>"')
+                    + "[/warn_cl]")
+        return
+    from cognia.tx import bandas as _bandas
+    libro = ses["libro"]
+    from cognia.tx.tools import _siguiente as _sig
+    # El id sale del MAXIMO ya usado y no de contar las vivas: tras una
+    # retractacion, contar daria un id ya ocupado y el fold (vivos[id] = ev)
+    # RESUCITARIA la restriccion retractada con el texto de la nueva.
+    idx = _sig(libro.leer(), r"^P-R(\d+)$")
+    try:
+        n = libro.append({
+            "t": "restriccion", "op": "add", "banda": "P",
+            "id": "P-R%02d" % idx, "quien": "usuario",
+            "origen": "usuario", "estado": "verificado", "texto": texto[:400],
+            "prov": {"tipo": "derivada", "fn": "cli./libro restringir",
+                     "base": ["usuario"]},
+        }, ciclo=ses["ciclo"])
+    except Exception as exc:
+        _aviso_degradado("cli.libro.restringir", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    eventos = libro.leer()
+    viejo = ses["sha_p0"]
+    ses["sha_p0"] = _bandas.sha_banda_permanente(eventos)
+    try:
+        libro.escribir_cabecera(_bandas.render_banda_permanente(eventos))
+    except Exception as exc:
+        _aviso_degradado("cli.libro.cabecera", f"{type(exc).__name__}: {exc}")
+    _print_line(f"[ok_cl]Restriccion anadida[/ok_cl] (n={n}, banda P, "
+                f"origen=usuario, conf 1,00)")
+    _print_line(f"  sha_P0 {viejo} -> {ses['sha_p0']}   (la referencia de G1 se "
+                f"mueve porque quien amplio el contrato fue el humano)")
+
+
+def _libro_retractar(ses, resto: str) -> None:
+    tokens = _tx_partir(resto)
+    if len(tokens) < 2:
+        _print_line("[warn_cl]Uso: " + _escape('/libro retractar <n> "<motivo>"')
+                    + "[/warn_cl]")
+        return
+    try:
+        n = int(tokens[0])
+    except ValueError:
+        _print_line("[warn_cl]El primer argumento es el numero de evento.[/warn_cl]")
+        return
+    motivo = " ".join(tokens[1:]).strip()
+    libro = ses["libro"]
+    victima = None
+    for e in libro.leer():
+        if int(e.get("n") or 0) == n:
+            victima = e
+    if victima is None:
+        _print_line(f"[warn_cl]No existe el evento n={n}.[/warn_cl]")
+        return
+    if victima.get("banda") == "P":
+        # Retractar de la banda P mueve el sha_P0, igual que restringir. Se
+        # avisa ANTES para que no parezca que G1 se rompio solo.
+        _print_line("[warn_cl]OJO: es una fila de la banda P; el sha_P0 se "
+                    "re-siembra.[/warn_cl]")
+    try:
+        nn = libro.append({
+            "t": victima.get("t"), "op": "invalidate", "banda": victima.get("banda"),
+            "id": victima.get("id"), "quien": "usuario", "origen": "usuario",
+            "texto": ("RETRACTADO por el usuario: " + motivo)[:400],
+            "prov": {"tipo": "derivada", "fn": "cli./libro retractar",
+                     "base": ["n:%d" % n]},
+        }, ciclo=ses["ciclo"])
+    except Exception as exc:
+        _aviso_degradado("cli.libro.retractar", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    if victima.get("banda") == "P":
+        from cognia.tx import bandas as _bandas
+        eventos = libro.leer()
+        ses["sha_p0"] = _bandas.sha_banda_permanente(eventos)
+        try:
+            libro.escribir_cabecera(_bandas.render_banda_permanente(eventos))
+        except Exception as exc:
+            _aviso_degradado("cli.libro.cabecera", f"{type(exc).__name__}: {exc}")
+    _print_line(f"[ok_cl]Evento {victima.get('id')} (n={n}) INVALIDADO[/ok_cl] "
+                f"(n={nn}). No se borro nada: sigue en el fichero y la "
+                f"proyeccion lo marca con '+'.")
+
+
+def _libro_fsck(ses, resto: str) -> None:
+    libro = ses["libro"]
+    inf = libro.fsck()
+    est = "ok" if inf["ok"] else "err"
+    _print_line(f"[{est}]FSCK {'OK' if inf['ok'] else 'CORRUPTO'}[/{est}]  "
+                f"{inf['eventos']} eventos de {inf['lineas']} lineas")
+    _print_line(f"  truncadas {inf['truncadas']} | ilegibles {inf['ilegibles']} "
+                f"| cadena rota {inf['cadena_rota']} | bytes descartados "
+                f"{inf['bytes_descartados']}")
+    if inf["motivo"]:
+        _print_line(f"  motivo: {_escape(inf['motivo'])}")
+    if inf["esquema_malo"]:
+        for n, exc in inf["esquema_malo"][:10]:
+            _print_line(f"  [err_cl]esquema n={n}: {_escape(str(exc)[:140])}[/err_cl]")
+    if inf["verificado_sin_prov"]:
+        _print_line(f"  [warn_cl]verificado sin provenance: "
+                    f"{inf['verificado_sin_prov'][:20]}[/warn_cl]")
+    if inf.get("firma_debil"):
+        _print_line(f"  [warn_cl]FIRMA DEBIL en {len(inf['firma_debil'])} "
+                    f"evento(s) (escritos antes del arreglo del sha): su sha no "
+                    f"cubre origen/conf/estado/quien, asi que una edicion a "
+                    f"mano de esos campos NO se detecta ahi.[/warn_cl]")
+    if inf["cabecera_ok"] is False:
+        _print_line("  [warn_cl]cabecera.txt NO casa con la banda P "
+                    "proyectada[/warn_cl]")
+    solo_cola = bool(inf["truncadas"]) and not (inf["ilegibles"]
+                                                or inf["cadena_rota"])
+    if "--reparar" not in (resto or ""):
+        if not inf["ok"]:
+            if solo_cola:
+                _print_line("Corre " + _escape("/libro fsck --reparar")
+                            + " para recortar la cola parcial (nunca borra el "
+                              "prefijo valido).")
+            else:
+                # NO es una cola parcial: la corrupcion esta EN MEDIO y detras
+                # puede haber eventos intactos. Reparar los saca del libro.
+                _print_line("[warn_cl]La corrupcion NO es una cola parcial: "
+                            "esta en medio, y detras puede haber eventos "
+                            "sanos.[/warn_cl]")
+                _print_line("Corre " + _escape("/libro fsck --reparar")
+                            + ": copia el fichero entero a .corrupto-<ts>, "
+                              "saca a .huerfanos-<ts> lo que se pueda salvar y "
+                              "recorta desde el corte.")
+        return
+    try:
+        saneo = libro._sanear()
+    except Exception as exc:
+        _aviso_degradado("cli.libro.fsck", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]No pude reparar: {_escape(str(exc))}[/err_cl]")
+        return
+    if not saneo.get("bytes"):
+        _print_line("[ok_cl]No habia nada que recortar.[/ok_cl]")
+        return
+    # "cola parcial" SOLO cuando de verdad fue una escritura cortada. Decirlo
+    # siempre hacia que el dueno leyera "el prefijo valido queda intacto" dos
+    # lineas despues de haber perdido tres eventos, dos de ellos con JSON y
+    # sha perfectos.
+    if saneo.get("solo_cola"):
+        _print_line(f"[ok_cl]Reparado:[/ok_cl] {saneo['bytes']} bytes de cola "
+                    f"parcial (escritura cortada) recortados. El prefijo "
+                    f"valido queda intacto.")
+    else:
+        _print_line(f"[warn_cl]Reparado con PERDIDA:[/warn_cl] "
+                    f"{saneo['bytes']} bytes recortados desde el corte "
+                    f"({_escape(str(saneo.get('motivo')))}).")
+        _print_line(f"  {saneo['eventos_rescatados']} evento(s) intactos "
+                    f"salvados, {saneo['eventos_perdidos']} irrecuperable(s).")
+    if saneo.get("respaldo"):
+        _print_line(f"  copia entera:  {_escape(saneo['respaldo'])}")
+    if saneo.get("huerfanos"):
+        _print_line(f"  huerfanos:     {_escape(saneo['huerfanos'])}")
+    _print_line("  Queda constancia en el propio LIBRO.")
+
+
+def _libro_exportar(ses, resto: str) -> None:
+    import shutil
+    origen = ses["libro"].ruta
+    destino = (resto or "").strip() or str(
+        Path.home() / f"libro_{ses['task_id']}.jsonl")
+    try:
+        shutil.copyfile(origen, destino)
+    except Exception as exc:
+        _aviso_degradado("cli.libro.exportar", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]No pude exportar: {_escape(str(exc))}[/err_cl]")
+        return
+    _print_line(f"[ok_cl]LIBRO exportado[/ok_cl] -> {_escape(destino)}")
+    _print_line("[detail]JSONL crudo, una linea por evento, con sha y prev: "
+                "cualquiera puede re-verificar la cadena sin Cognia.[/detail]")
+
+
+_LIBRO_SUB = {
+    "ver": _libro_ver,
+    "grep": _libro_grep,
+    "auditar": _libro_auditar,
+    "restringir": _libro_restringir,
+    "retractar": _libro_retractar,
+    "fsck": _libro_fsck,
+    "exportar": _libro_exportar,
+}
+
+
+def _slash_libro(args: str) -> None:
+    """/libro [N | ver | grep | auditar | restringir | retractar | fsck |
+    exportar]. Punto de extension: `_LIBRO_SUB`."""
+    return _tx_red(_slash_libro_impl, args)
+
+
+def _slash_libro_impl(args: str) -> None:
+    crudo = (args or "").strip()
+    partes = crudo.split(None, 1)
+    sub = (partes[0].lower() if partes else "")
+    resto = partes[1] if len(partes) > 1 else ""
+
+    drv, ses = _libro_activo()
+    if ses is None:
+        return
+    if sub in _LIBRO_SUB:
+        _LIBRO_SUB[sub](ses, resto)
+        return
+    if not sub or sub.isdigit():
+        _libro_listar(ses, int(sub) if sub.isdigit() else 20)
+        return
+    _print_line("[warn_cl]No conozco " + _escape("/libro " + sub)
+                + ". Uso: " + _escape(
+                    "/libro [N] | ver <n> --contexto K | grep <pat> --banda X | "
+                    "auditar <n> | restringir \"<txt>\" | retractar <n> "
+                    "\"<motivo>\" | fsck [--reparar] | exportar") + "[/warn_cl]")
+
+
+def _tx_diagnostico() -> None:
+    """El panel de PRERREQUISITOS (P0): si el INSTRUMENTO mide.
+
+    Es lo que sale con `/tx estado` SIN tarea abierta, y sigue siendo la
+    primera pantalla que hay que mirar: sin exit codes reales, "la provenance
+    la escribe la maquina" es mentira y todo lo de arriba mide humo.
+
+    OJO con el modo sencillo: lo que va dentro de [detail] NO se imprime por
+    defecto (cognia/simple_mode.py lo suprime). El VEREDICTO de cada
+    prerrequisito va fuera; dentro solo queda la explicacion ampliada.
+    """
+    activo = _tx_activo()
+    _print_line(f"TX / LIBRO (agente de horizonte largo): "
+                f"[ok]{'ACTIVO' if activo else 'apagado'}[/ok]")
+    _print_line(f"  on/off: /tx on | /tx off   (o {_TX_ENV}=1, que manda sobre "
+                f"la config)")
+    # Las CUATRO lecturas del flag, juntas. Si dejan de coincidir se ve aqui en
+    # vez de aparecer como "el LIBRO no graba y nadie dice por que".
+    try:
+        from cognia.tx import flag as _tx_flag
+        from cognia.harness import interceptor as _tx_int
+        _env = os.environ.get(_TX_ENV, "") or "(sin poner)"
+        _cfg = bool(_load_config().get("tx_activo", False))
+        _coinciden = (_tx_flag.activo() == _tx_int._tx_encendido() == activo)
+        _print_line(f"  lectores: env={_escape(_env)} config={_cfg} "
+                    f"flag={_tx_flag.activo()} interceptor="
+                    f"{_tx_int._tx_encendido()}   "
+                    f"[{'ok' if _coinciden else 'err'}]"
+                    f"{'coinciden' if _coinciden else 'NO COINCIDEN'}"
+                    f"[/{'ok' if _coinciden else 'err'}]")
+        if _tx_flag.ultimo_error():
+            _print_line(f"  [warn_cl]no pude leer la config persistida: "
+                        f"{_escape(_tx_flag.ultimo_error())}[/warn_cl]")
+    except Exception as exc:
+        _aviso_degradado("cli.tx.lectores", f"{type(exc).__name__}: {exc}")
+
+    # --- P0-1: el instrumento mide exit codes? -----------------------------
+    # Sonda REAL, no un chequeo de que la funcion exista: se lanza un 'exit 3'
+    # y se exige que vuelva un 3. El confirm=True es necesario porque el
+    # sentinel manda a CONFIRM todo lo que no esta en su allowlist (un 'exit'
+    # incluido) y sin canal deniega; el comando no toca nada y queda auditado
+    # como el resto.
+    try:
+        from cognia.agent import tools as _t
+        _ctx = {"confirm": lambda *_a, **_k: True}
+        _t._shell("exit 3", _ctx, timeout=10)
+        _exit_real = _ctx.get("_exit")
+        _mide = (_exit_real == 3)
+        _est = "ok" if _mide else "err"
+        _print_line(f"  P0-1 exit codes reales: [{_est}]{'SI' if _mide else 'NO'}"
+                    f"[/{_est}]   sonda 'exit 3' -> _exit={_exit_real!r}")
+        if not _mide:
+            _aviso_degradado(
+                "tx.p0-1",
+                f"la sonda 'exit 3' devolvio {_exit_real!r}: sin exit code real "
+                f"NINGUN evento puede marcarse como medido")
+        _print_line("[detail]     None NO es 0: significa que el comando no se "
+                    "ejecuto (bloqueado, timeout), y eso no es exito.[/detail]")
+    except Exception as exc:
+        _aviso_degradado("cli.tx.p0-1", f"{type(exc).__name__}: {exc}")
+
+    # --- P0-2: hay LIBRO donde escribir? -----------------------------------
+    try:
+        import importlib.util
+        _hay_libro = importlib.util.find_spec("cognia.tx.libro") is not None
+        _hay_err = importlib.util.find_spec("cognia.tx.errores") is not None
+        _print_line(f"  P0-2 LIBRO: enganche "
+                    f"[{'ok' if _hay_err else 'err'}]"
+                    f"{'listo' if _hay_err else 'AUSENTE'}"
+                    f"[/{'ok' if _hay_err else 'err'}], almacen "
+                    f"[{'ok' if _hay_libro else 'warn'}]"
+                    f"{'presente' if _hay_libro else 'todavia no construido (bloque M1)'}"
+                    f"[/{'ok' if _hay_libro else 'warn'}]")
+        if activo and not _hay_libro:
+            _aviso_degradado(
+                "tx.libro",
+                "COGNIA_TX=1 y cognia/tx/libro.py no existe: NO se esta "
+                "escribiendo memoria")
+    except Exception as exc:
+        _aviso_degradado("cli.tx.p0-2", f"{type(exc).__name__}: {exc}")
+
+    # --- P0-3: criterio barato y timeout ------------------------------------
+    try:
+        from cognia.agents import goal_contract as _gc
+        _ws = _gc.workspace_por_defecto()
+        _print_line(f"  P0-3 contrato: timeout {_gc._timeout_default()}s "
+                    f"(env {_gc._TIMEOUT_ENV}), criterio barato < "
+                    f"{_gc.CRITERIO_BARATO_MS} ms, workspace "
+                    f"{_escape(_ws or 'sin fijar -> CWD del proceso')}")
+    except Exception as exc:
+        _aviso_degradado("cli.tx.p0-3", f"{type(exc).__name__}: {exc}")
+
+    # --- P0-4: contra que se mide G2 ---------------------------------------
+    try:
+        from cognia.estado import canal as _canal
+        _print_line(f"  P0-4 G2 se mide sobre: [ok]{_canal.FUENTE_RESPUESTA}[/ok]"
+                    f"   (canal.g2_sobre_respuesta)")
+        _print_line("[detail]     La proyeccion pasa por "
+                    "assert_integridad_proyeccion, que NO mide lectura: "
+                    "comprobar lo que una funcion pura acaba de escribir es "
+                    "una tautologia.[/detail]")
+    except Exception as exc:
+        _aviso_degradado("cli.tx.p0-4", f"{type(exc).__name__}: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -11558,6 +12853,14 @@ def repl():
         elif raw == "/mejorar" or raw.startswith("/mejorar "):
             _slash_mejorar(raw[len("/mejorar "):] if raw.startswith("/mejorar ")
                            else "")
+
+        # -- /tx (subsistema de horizonte largo; puerta de diagnostico) -----
+        elif raw == "/tx" or raw.startswith("/tx "):
+            _slash_tx(raw[len("/tx "):] if raw.startswith("/tx ") else "")
+
+        # -- /libro (la memoria append-only de la tarea TX) -----------------
+        elif raw == "/libro" or raw.startswith("/libro "):
+            _slash_libro(raw[len("/libro "):] if raw.startswith("/libro ") else "")
 
         # -- /esfuerzo -----------------------------------------------------
         elif raw == "/esfuerzo" or raw.startswith("/esfuerzo "):
