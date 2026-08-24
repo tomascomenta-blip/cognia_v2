@@ -2034,7 +2034,6 @@ _CMD_DESCRIPTIONS = {
     "/kg-responder":    "Responder pregunta usando el KG          <pregunta>",
     "/kg-camino":       "Encontrar camino entre dos conceptos    <A> <B>",
     "/worktree":        "Crear git worktree en rama aislada       <rama>",
-    "/notificar":       "Enviar notificacion de escritorio        <mensaje>",
     "/notif":           "Ver notificaciones sin leer",
     "/notif-todas":     "Ver todas las notificaciones",
     "/notif-leer":      "Marcar notificacion como leida          <id>",
@@ -2050,7 +2049,6 @@ _CMD_DESCRIPTIONS = {
     "/contexto-stats":  "Ver punteros del mapa de contexto por project",
     "/contexto-auto":   "Auto-indexar cada turno de conversacion   on|off",
     "/limpiar":         "Limpiar pantalla",
-    "/compactar":       "Resumir historial de sesión",
     "/resumir":         "Resume la conversacion actual y guarda en memoria",
     "/memoria":         "Estado de memoria y KG",
     "/modulos":         "Módulos activos en tiempo real",
@@ -2068,8 +2066,8 @@ _CMD_DESCRIPTIONS = {
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
     "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
-    "/compactar":       "Compactacion del contexto del agente: resumen estructurado en 1 pasada (default) o mordiscos de truncado. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
-    "/notificar":       "Notificacion de escritorio (toast OSC 9) al terminar un turno largo del agente. Uso: /notificar [estado | on | off | prueba | modo <auto|osc|bell> | umbral <segundos> | degradados on|off]  (env COGNIA_NOTIFY=off|osc|bell gana)",
+    "/compactar":       "A secas: resumen visual de la sesion (limpiar + ultimas interacciones). Con args: compactacion del contexto del agente. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
+    "/notificar":       "Config del toast OSC 9 al terminar un turno largo; cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell> | umbral <segundos> | degradados on|off]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2196,8 +2194,9 @@ _CMD_DETAILS = {
         "(mutar el principio del contexto cuesta ~24x por ciclo, medido en este repo). "
         "RESILIENCIA: cualquier fallo construyendo el resumen avisa via degradado "
         "'compactacion' y ese turno cae al truncado; el historial no muta a medias. "
-        "USO: /compactar (estado: modo, umbral, retencion, cap, ultima compactacion con "
-        "tokens antes/despues, ultimo error) | resumen|truncado (persiste 'compactacion') "
+        "USO: /compactar a secas = la feature CLASICA (limpiar pantalla + panel de ultimas "
+        "interacciones de la sesion) | estado (modo, umbral, retencion, cap, ultima "
+        "compactacion con tokens antes/despues, ultimo error) | resumen|truncado (persiste 'compactacion') "
         "| umbral <frac 0.3-0.99> (persiste 'compactacion_umbral', default 0.8) | "
         "retencion <frac 0.02-0.5> (persiste 'compactacion_retencion', default 0.16) | "
         "cap <chars> (persiste 'compactacion_cap', default 4000). "
@@ -2246,7 +2245,9 @@ _CMD_DETAILS = {
         "verdad — un pipe/CI no recibe escapes jamas) | osc (forzado) | bell (BEL a secas, para "
         "terminales sin OSC 9) | off. "
         "USO: /notificar | estado (modo efectivo y su fuente, umbral, ultima emitida, ultimo "
-        "error) | on|off (persiste 'notificar') | prueba (emite un toast DE VERDAD y muestra "
+        "error) | <mensaje> (cualquier texto que no sea subcomando: popup de escritorio con "
+        "el mensaje, el uso clasico) | on|off (persiste 'notificar') | prueba (emite un toast "
+        "DE VERDAD y muestra "
         "los bytes) | modo <auto|osc|bell> | umbral <segundos> | degradados on|off (toast "
         "tambien cuando salta un degradado; default off para no spamear: el REPL ya lo pinta "
         "ambar). La env COGNIA_NOTIFY=off|osc|bell gana a la config (apagado de emergencia). "
@@ -3148,7 +3149,14 @@ def _slash_limpiar():
         print(_g() + _BANNER_RAW + _R)
 
 
-def _slash_compactar():
+def _slash_compactar_sesion():
+    # ANTES se llamaba _slash_compactar: la puerta F4 (compactacion del
+    # contexto del agente, mas abajo) redefinia el MISMO nombre y esta
+    # feature ('/compactar' a secas: limpiar pantalla + panel de ultimas
+    # interacciones) quedaba como codigo muerto en silencio — la clase de
+    # bug ya pagada el 2026-08-19 con /flujo y /vigilar (revision
+    # adversarial 2026-08-23). Hoy: '/compactar' a secas -> esta;
+    # '/compactar <sub>' -> la puerta F4.
     if _HAS_RICH and _console:
         _console.clear()
         _print_startup_panel()
@@ -8692,6 +8700,27 @@ def _slash_expandir(arg: str = "") -> None:
                          .encode(enc, errors="replace").decode(enc) + "\n")
 
 
+def _marcar_env_sembrada(*vars_env: str) -> None:
+    """Declara en harness/config_resuelta que estas envs las escribio el
+    PROPIO CLI copiando la config (siembra de arranque o handler de /offload
+    y /compactar): sin la marca, /config-resuelta atribuia el valor a
+    'env:COGNIA_*' — la mentira de origen que F6 existe para matar."""
+    try:
+        from cognia.harness import config_resuelta as _cr
+        _cr.marcar_sembrada(*vars_env)
+    except Exception as exc:
+        _aviso_degradado("config", f"no pude marcar env sembrada: {exc}")
+
+
+def _env_es_sembrada(var: str) -> bool:
+    """True si esa env la escribio el propio CLI (no el usuario)."""
+    try:
+        from cognia.harness import config_resuelta as _cr
+        return _cr.es_sembrada(var)
+    except Exception:
+        return False
+
+
 def _aplicar_config_offload() -> None:
     """Propaga la config del offload (F3) al entorno, SIN pisar lo que el
     usuario puso a mano: interceptor/tools/familias leen COGNIA_OFFLOAD del
@@ -8712,6 +8741,7 @@ def _aplicar_config_offload() -> None:
         for var, valor in pares:
             if not (os.environ.get(var) or "").strip():
                 os.environ[var] = valor
+                _marcar_env_sembrada(var)
         _off.registrar_avisador(_aviso_degradado)
     except Exception as exc:
         _aviso_degradado("offloading", f"config no aplicada: {exc}")
@@ -8739,6 +8769,7 @@ def _slash_offload(arg: str = "") -> None:
         cfg["offload"] = bajo
         _save_config(cfg)
         os.environ["COGNIA_OFFLOAD"] = "1" if bajo == "on" else "0"
+        _marcar_env_sembrada("COGNIA_OFFLOAD")
         _print_line(f"[info_dim]offload de salidas grandes: {bajo} (guardado; "
                     f"la tool recuperar {'se anuncia' if bajo == 'on' else 'deja de anunciarse'} "
                     f"en el proximo turno)[/info_dim]")
@@ -8756,6 +8787,7 @@ def _slash_offload(arg: str = "") -> None:
         cfg["offload_umbral"] = str(n)
         _save_config(cfg)
         os.environ["COGNIA_TOOL_RESULT_MAX"] = str(n)
+        _marcar_env_sembrada("COGNIA_TOOL_RESULT_MAX")
         _print_line(f"[info_dim]offload: umbral {n} bytes (guardado)[/info_dim]")
         return
     if bajo.startswith("preview"):
@@ -8772,9 +8804,11 @@ def _slash_offload(arg: str = "") -> None:
         cfg = _load_config()
         cfg["offload_cabeza"] = str(cab)
         os.environ["COGNIA_OFFLOAD_CABEZA"] = str(cab)
+        _marcar_env_sembrada("COGNIA_OFFLOAD_CABEZA")
         if cola is not None:
             cfg["offload_cola"] = str(cola)
             os.environ["COGNIA_OFFLOAD_COLA"] = str(cola)
+            _marcar_env_sembrada("COGNIA_OFFLOAD_COLA")
         _save_config(cfg)
         _print_line(f"[info_dim]offload: preview {cab} lineas de cabeza"
                     f"{'' if cola is None else f' + {cola} de cola'} (guardado)"
@@ -8790,7 +8824,11 @@ def _slash_offload(arg: str = "") -> None:
     # Estado (default): la foto entera del subsistema.
     est = _off.estado()
     env = (os.environ.get("COGNIA_OFFLOAD") or "").strip()
-    fuente = f"env COGNIA_OFFLOAD={env}" if env else "config 'offload'"
+    # una env sembrada por el propio CLI no es fuente 'env': el valor salio
+    # de la config (F6: el origen no se miente)
+    fuente = (f"env COGNIA_OFFLOAD={env}"
+              if env and not _env_es_sembrada("COGNIA_OFFLOAD")
+              else "config 'offload'")
     _print_line(f"[info_dim]offload de salidas grandes: "
                 f"{'ACTIVO' if est['activo'] else 'apagado'} ({fuente})[/info_dim]")
     _print_line(f"[info_dim]  dir spills: {est['dir']}  (sesion {est['sesion']}, "
@@ -8831,6 +8869,7 @@ def _aplicar_config_compactacion() -> None:
         for var, valor in pares:
             if not (os.environ.get(var) or "").strip():
                 os.environ[var] = valor
+                _marcar_env_sembrada(var)
     except Exception as exc:
         _aviso_degradado("compactacion", f"config no aplicada: {exc}")
 
@@ -8857,6 +8896,7 @@ def _slash_compactar(arg: str = "") -> None:
         cfg["compactacion"] = bajo
         _save_config(cfg)
         os.environ["COGNIA_COMPACT"] = bajo
+        _marcar_env_sembrada("COGNIA_COMPACT")
         _print_line(f"[info_dim]compactacion: modo {bajo} (guardado; aplica "
                     "en la proxima compactacion del agente)[/info_dim]")
         return
@@ -8875,6 +8915,7 @@ def _slash_compactar(arg: str = "") -> None:
         cfg[f"compactacion_{clave}"] = str(v)
         _save_config(cfg)
         os.environ["COGNIA_COMPACT_" + clave.upper()] = str(v)
+        _marcar_env_sembrada("COGNIA_COMPACT_" + clave.upper())
         _print_line(f"[info_dim]compactacion: {clave} {v} de n_ctx (guardado)"
                     f"[/info_dim]")
         return
@@ -8891,6 +8932,7 @@ def _slash_compactar(arg: str = "") -> None:
         cfg["compactacion_cap"] = str(n)
         _save_config(cfg)
         os.environ["COGNIA_COMPACT_CAP"] = str(n)
+        _marcar_env_sembrada("COGNIA_COMPACT_CAP")
         _print_line(f"[info_dim]compactacion: cap {n} chars (guardado)[/info_dim]")
         return
     if arg and bajo != "estado":
@@ -8900,7 +8942,10 @@ def _slash_compactar(arg: str = "") -> None:
     # Estado (default): la foto entera del subsistema.
     est = _comp.estado_puerta()
     env = (os.environ.get("COGNIA_COMPACT") or "").strip()
-    fuente = f"env COGNIA_COMPACT={env}" if env else "config 'compactacion'"
+    # misma regla que /offload estado: sembrada por el CLI != env del usuario
+    fuente = (f"env COGNIA_COMPACT={env}"
+              if env and not _env_es_sembrada("COGNIA_COMPACT")
+              else "config 'compactacion'")
     _print_line(f"[info_dim]compactacion del contexto: modo {est['modo']} "
                 f"({fuente})[/info_dim]")
     _print_line(f"[info_dim]  umbral: {est['umbral']:.2f} de n_ctx | retencion "
@@ -8938,6 +8983,32 @@ def _aplicar_config_notificaciones() -> None:
         _aviso_degradado("notificaciones", f"config no aplicada: {exc}")
 
 
+def _notificar_mensaje(mensaje: str) -> None:
+    """`/notificar <mensaje>`: la feature VIEJA (popup de escritorio con el
+    texto). Vivia como elif propio en el repl y la puerta F5 la tapaba en
+    silencio — mismo bug ya pagado con /flujo y /vigilar (revision adversarial
+    2026-08-23). Hoy _slash_notificar cae aca con cualquier texto que no sea
+    un subcomando de F5."""
+    try:
+        if sys.platform == "win32":
+            import subprocess as _sp3
+            seguro = mensaje.replace("'", "''")   # comilla simple de PS
+            _ps_notif = (
+                f"Add-Type -AssemblyName System.Windows.Forms; "
+                f"[System.Windows.Forms.MessageBox]::Show('{seguro}', 'Cognia')"
+            )
+            _sp3.Popen(
+                ["powershell.exe", "-WindowStyle", "Hidden", "-Command", _ps_notif],
+                creationflags=0x08000000,  # CREATE_NO_WINDOW
+            )
+        else:
+            import subprocess as _sp3
+            _sp3.Popen(["notify-send", "Cognia", mensaje])
+        _print_line(f"[ok_cl]Notificacion enviada: {_escape(mensaje)}[/ok_cl]")
+    except Exception as _e:
+        _print_line(f"[err_cl]notificar error: {_e}[/err_cl]")
+
+
 def _slash_notificar(arg: str = "") -> None:
     """`/notificar`: puerta de las notificaciones de escritorio OSC 9 (F5).
 
@@ -8949,7 +9020,9 @@ def _slash_notificar(arg: str = "") -> None:
       prueba              -> emite un toast DE VERDAD a la consola real
       modo <auto|osc|bell>-> clave 'notificar_modo'
       umbral <segundos>   -> clave 'notificar_umbral_s' (>= 1)
-      degradados on|off   -> clave 'notificar_degradado' (toast al degradarse)"""
+      degradados on|off   -> clave 'notificar_degradado' (toast al degradarse)
+    Cualquier otro texto es el uso VIEJO: '/notificar <mensaje>' manda un
+    popup de escritorio con el mensaje (_notificar_mensaje)."""
     try:
         from cognia.harness import notificaciones as _notif
     except Exception as exc:
@@ -9029,9 +9102,9 @@ def _slash_notificar(arg: str = "") -> None:
                     "(guardado)[/info_dim]")
         return
     if arg and bajo != "estado":
-        _print_line("[warn_cl]Uso: /notificar [estado | on | off | prueba | "
-                    "modo <auto|osc|bell> | umbral <segundos> | "
-                    "degradados on|off][/warn_cl]")
+        # No es ningun subcomando de F5: es el uso VIEJO documentado
+        # ('/notificar termino el build' -> popup de escritorio).
+        _notificar_mensaje(arg)
         return
     # Estado (default): la foto entera del subsistema.
     est = _notif.estado()
@@ -11612,7 +11685,10 @@ def repl():
         elif raw == "/limpiar":
             _slash_limpiar()
         elif raw == "/compactar":
-            _slash_compactar()
+            # A secas: la feature VIEJA (panel de ultimas interacciones).
+            # Con args ('/compactar estado', 'umbral 0.7'...) cae mas abajo
+            # a la puerta F4 de la compactacion del contexto del agente.
+            _slash_compactar_sesion()
         elif raw == "/memoria":
             _run(raw, ai.introspect, color="listado")
         elif raw == "/modulos":
@@ -11700,8 +11776,11 @@ def repl():
             _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
         elif raw == "/offload" or raw.startswith("/offload "):
             _slash_offload(raw[len("/offload "):] if raw.startswith("/offload ") else "")
-        elif raw == "/compactar" or raw.startswith("/compactar "):
-            _slash_compactar(raw[len("/compactar "):] if raw.startswith("/compactar ") else "")
+        elif raw.startswith("/compactar "):
+            # Solo CON args: '/compactar' a secas ya lo atendio arriba la
+            # rama vieja (_slash_compactar_sesion); el estado de F4 es
+            # '/compactar estado'.
+            _slash_compactar(raw[len("/compactar "):])
         elif raw == "/notificar" or raw.startswith("/notificar "):
             _slash_notificar(raw[len("/notificar "):] if raw.startswith("/notificar ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
@@ -13581,31 +13660,9 @@ def repl():
                 except Exception as _e:
                     _print_line(f"[err_cl]worktree error: {_e}[/err_cl]")
 
-        # ── /notificar <mensaje> ───────────────────────────────────────
-        elif raw.startswith("/notificar ") or raw == "/notificar":
-            _notif_msg = raw[len("/notificar "):].strip() if raw.startswith("/notificar ") else ""
-            if not _notif_msg:
-                _print_line("[warn_cl]Uso: /notificar <mensaje>[/warn_cl]")
-            else:
-                import sys as _sys2
-                try:
-                    if _sys2.platform == "win32":
-                        import subprocess as _sp3
-                        _ps_notif = (
-                            f"Add-Type -AssemblyName System.Windows.Forms; "
-                            f"[System.Windows.Forms.MessageBox]::Show('{_notif_msg}', 'Cognia')"
-                        )
-                        _sp3.Popen(
-                            ["powershell.exe", "-WindowStyle", "Hidden", "-Command", _ps_notif],
-                            creationflags=0x08000000,  # CREATE_NO_WINDOW
-                        )
-                        _print_line(f"[ok_cl]Notificacion enviada: {_escape(_notif_msg)}[/ok_cl]")
-                    else:
-                        import subprocess as _sp3
-                        _sp3.Popen(["notify-send", "Cognia", _notif_msg])
-                        _print_line(f"[ok_cl]Notificacion enviada: {_escape(_notif_msg)}[/ok_cl]")
-                except Exception as _e:
-                    _print_line(f"[err_cl]notificar error: {_e}[/err_cl]")
+        # /notificar (config F5 + '<mensaje>' viejo) se atiende mas arriba:
+        # este segundo elif era INALCANZABLE y tapaba/duplicaba el handler
+        # (cazado por la revision adversarial 2026-08-23).
 
         # ── /oficina [puerto] ──────────────────────────────────────────
         elif raw.startswith("/oficina ") or raw == "/oficina":
