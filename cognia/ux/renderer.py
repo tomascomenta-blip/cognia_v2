@@ -915,6 +915,14 @@ class Renderer:
         # Los fragmentos del razonamiento cuentan para el ~tok de la linea
         # viva: es lo unico que "llega" mientras el modelo piensa.
         self._chars_stream += len(ev.fragmento or "")
+        # Un tick de razonamiento que llega cuando la RESPUESTA ya se esta
+        # pintando (self._flujo abierto por TokenTexto) no puede volver a
+        # arrancar el status: _parar_status reseteo _pensando_desde y la rama
+        # de abajo abriria un 'pensando…' nuevo DEBAJO del texto, que el
+        # markdown vivo (repinta por cursor-arriba) deja huerfano en pantalla
+        # ("el dialogo de pensando se queda ahi", dueno 2026-08-24).
+        if self._flujo is not None:
+            return
         if self._pensar_en_vivo():
             # _parar_status resetea el reloj: pararlo PRIMERO y fijar despues.
             arranque = self._pensando_desde

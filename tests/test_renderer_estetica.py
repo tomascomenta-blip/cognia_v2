@@ -119,6 +119,26 @@ def test_pensando_usa_estilo_pensar_y_dots():
     assert st.spinner == "dots"
 
 
+def test_tick_de_razonamiento_tardio_no_rearma_el_spinner_sobre_la_respuesta():
+    """'El dialogo de pensando se bugea y se queda ahi' (dueno, 2026-08-24):
+    un RazonamientoTick que llega cuando la respuesta YA se esta pintando
+    (TokenTexto abrio el flujo) volvia a arrancar un status 'pensando…'
+    debajo del texto; el markdown vivo (cursor-arriba) lo dejaba huerfano.
+    Ahora el tick tardio se ignora: ni status nuevo ni update."""
+    con = _ConsolaFalsa()
+    r = Renderer(console=con)
+    r(events.RazonamientoTick(chars=10, fragmento="a"))
+    assert len(con.statuses) == 1
+    r(events.TokenTexto(texto="Hola, esta es la respuesta."))
+    assert r._status is None, "el primer token para el spinner"
+    r(events.RazonamientoTick(chars=20, fragmento="b"))
+    r(events.RazonamientoTick(chars=30, fragmento="c"))
+    assert len(con.statuses) == 1, "ningun status nuevo tras abrir la respuesta"
+    assert r._status is None
+    r(events.TokenTexto(texto=" Sigue."))
+    assert len(con.statuses) == 1
+
+
 def test_pensando_update_conserva_pensar_y_segundos(monkeypatch):
     # F2 (2026-08-23): con la linea VIVA activa el update es del ticker de
     # spinner_vivo; este test mide el camino CLASICO, que sigue intacto con
@@ -815,9 +835,9 @@ def test_razonamiento_sin_ticker_actualiza_la_linea_viva(monkeypatch):
 
 def test_ninguna_segunda_live_con_el_markdown_vivo_corriendo(monkeypatch):
     """La carrera del docstring de markdown_vivo: llega prosa (cola viva por
-    cursor-up) y DESPUES otro tick de razonamiento arranca un status animado
-    con la cola abierta. Con LineaViva DENTRO del status nunca hay dos Lives
-    a la vez y rich no levanta LiveError."""
+    cursor-up) y DESPUES otro tick de razonamiento. Con LineaViva DENTRO del
+    status nunca hay dos Lives a la vez y rich no levanta LiveError; y desde
+    el 2026-08-24 el tick tardio ni siquiera arranca un status."""
     monkeypatch.setenv("COGNIA_MARKDOWN", "1")
     _anim_on()
     _G.forzar_capacidades(_G.Caps("truecolor", True, ""))
@@ -831,15 +851,18 @@ def test_ninguna_segunda_live_con_el_markdown_vivo_corriendo(monkeypatch):
         r(events.TokenTexto(texto="# Hola\n\nprosa "))     # cierra el status, abre la cola
         from cognia.ux.markdown_vivo import MarkdownVivo
         assert isinstance(r._flujo, MarkdownVivo)
-        r(events.RazonamientoTick(chars=20, fragmento="b"))  # status animado con cola abierta
-        assert r._linea_viva is not None and r._status is not None
+        # tick TARDIO con la cola abierta: desde el 2026-08-24 se IGNORA (era
+        # el 'pensando' huerfano debajo de la respuesta que veia el dueno);
+        # sigue sin haber dos Lives y sin LiveError
+        r(events.RazonamientoTick(chars=20, fragmento="b"))
+        assert r._status is None and r._linea_viva is None
         r(events.TokenTexto(texto="mas prosa\n"))
         r._parar_status()
         r._cerrar_flujo()
     finally:
         r._parar_status()
         r._cerrar_flujo()
-    assert lives["max"] == 1 and lives["abiertas"] == 2
+    assert lives["max"] == 1 and lives["abiertas"] == 1
     assert "Hola" in buf.getvalue()
 
 
