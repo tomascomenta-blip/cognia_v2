@@ -206,9 +206,12 @@ def estado_subsistema(titulo: str, activo, filas=(), fuente: str = "",
         # Se mide la linea ENTERA (sangria + clave + valor) y luego se quita
         # el prefijo de la primera: asi la primera linea del valor no se pasa
         # del ancho aunque arranque en la columna del valor.
+        # break_long_words=True: una ruta sin espacios mas larga que el
+        # ancho se parte con la sangria colgante en vez de desbordar y caer
+        # a la columna 0 (cazado en la suite con un COGNIA_OFFLOAD_DIR largo).
         envuelto = textwrap.fill(
             valor, width=max(20, ancho), initial_indent=" " * col,
-            subsequent_indent=" " * col, break_long_words=False,
+            subsequent_indent=" " * col, break_long_words=True,
             break_on_hyphens=False)[col:]
         lineas.append(pref + f"[{estilo_v}]{_esc(envuelto)}[/{estilo_v}]")
     for a in (avisos or ()):
