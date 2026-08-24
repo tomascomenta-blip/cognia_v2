@@ -47,9 +47,13 @@ lo apaga cuando el dueno ya volvio. Lo cablea el renderer en TareaInicio/
 TareaFin, asi que el spinner vivo y el anillo comparten disparador.
 
 QUIEN NO NOTIFICA JAMAS: los subagentes (contexto de agente sellado en
-ux.events.agente_actual()) y el carril de fondo del REPL (cli.corrida_en_
-curso()): ahi el dueno esta EN el prompt tecleando; un toast por cada agente
-de un workflow seria spam puro.
+ux.events.agente_actual()): un toast por cada agente de un workflow seria
+spam puro. El carril de fondo del REPL (cli.corrida_en_curso()) SI notifica:
+en el REPL con tty CADA /hacer va al carril (cli._lanzar_en_fondo) y desde
+ahi se emiten TareaInicio/TareaFin — gatearlo apagaba el BEL, el toast y el
+anillo 9;4 justo en el camino por defecto, el que motivo F5 (revision
+adversarial 2026-08-24). Los bytes van al fd real y un OSC/BEL no pinta
+nada: no chocan con el prompt de espera.
 
 EL SINK: la secuencia va a ``sys.__stdout__`` (el fd real), NO a ``sys.stdout``
 del momento. Con la vista Textual abierta sys.stdout es su _PrintCapture y una
@@ -252,18 +256,16 @@ def secuencia_progreso(estado: int, pct: int | None = None) -> str:
 
 
 def _en_fondo() -> bool:
-    """True si esto corre en un subagente (contexto sellado en el bus de
-    eventos) o con el carril de fondo del REPL vivo: esos JAMAS notifican —
-    el dueno esta EN el prompt y un toast por agente de workflow es spam.
-    Se mira sys.modules sin importar nada (mismo criterio que _leer_config_
-    cli); ante un fallo del gate se avisa y se deja notificar (perder el gate
-    es spam recuperable; perder el toast del turno largo es el bug F5)."""
+    """True si esto corre en un SUBAGENTE (contexto sellado en el bus de
+    eventos): esos JAMAS notifican — un toast por agente de workflow es spam.
+    El carril de fondo del REPL NO cuenta como fondo (ver docstring del
+    modulo: es el turno del dueno, el que hay que avisar). Se mira sys.modules
+    sin importar nada (mismo criterio que _leer_config_cli); ante un fallo
+    del gate se avisa y se deja notificar (perder el gate es spam
+    recuperable; perder el toast del turno largo es el bug F5)."""
     try:
         _ev = sys.modules.get("cognia.ux.events")
         if _ev is not None and _ev.agente_actual():
-            return True
-        _cli = sys.modules.get("cognia.cli")
-        if _cli is not None and _cli.corrida_en_curso():
             return True
     except Exception as exc:
         _degradar("gate_fondo", exc)

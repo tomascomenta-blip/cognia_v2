@@ -2405,7 +2405,7 @@ _CMD_DETAILS = {
         "WezTerm/ConEmu — WT NO) | bell (BEL a secas) | toast (notificacion NATIVA del SO: "
         "plyer si esta en el venv o PowerShell NotifyIcon, sin dependencias; sin nada degrada a "
         "bell avisando una vez) | off. El texto SIEMPRE va saneado: sin ANSI/controles, tope "
-        "240 chars. Subagentes y carril de fondo JAMAS notifican. "
+        "240 chars. Subagentes JAMAS notifican (el carril de fondo del REPL SI: es el turno del dueno). "
         "USO: /notificar | estado (modo efectivo y su fuente, WT detectado, umbral, ultima "
         "emitida, ultimo error) | <mensaje> (cualquier texto que no sea subcomando: popup de "
         "escritorio con el mensaje, el uso clasico) | on|off (persiste 'notificar') | prueba "
@@ -9933,7 +9933,7 @@ def _slash_notificar(arg: str = "") -> None:
                 motivo = (": el fd real no es un terminal (pipe/CI) y el "
                           "gate anti-escape no emite ahi")
             elif est_p["en_fondo"]:
-                motivo = ": subagente/carril de fondo (jamas notifican)"
+                motivo = ": subagente (jamas notifica)"
             _print_line(f"[warn_cl]no se pudo emitir{motivo}[/warn_cl]")
         return
     if bajo.startswith("modo"):

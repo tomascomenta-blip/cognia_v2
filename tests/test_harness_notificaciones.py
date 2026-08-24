@@ -363,12 +363,32 @@ def test_subagente_jamas_notifica(monkeypatch):
         ux_ev.desmarcar_agente(token)
 
 
-def test_carril_de_fondo_jamas_notifica(monkeypatch):
-    """El gate _en_fondo tambien cubre cli.corrida_en_curso() (carril de
-    fondo del REPL); aqui se fija el contrato al nivel del gate."""
+def test_con_el_gate_de_fondo_activo_nada_emite(monkeypatch):
+    """Contrato al nivel del gate: si _en_fondo() dice True (subagente),
+    ni notificar ni el anillo escriben un byte."""
     monkeypatch.setattr(notif, "_en_fondo", lambda: True)
     monkeypatch.setenv("WT_SESSION", "un-guid")
     buf = _TtyFalsa()
     assert notif.notificar("Cognia", "x", destino=buf, modo="bell") is False
     assert notif.turno_fin(ok=False, destino=buf) is False
     assert buf.getvalue() == ""
+
+
+def test_el_carril_de_fondo_del_repl_si_notifica(monkeypatch):
+    """Revision adversarial 2026-08-24: _en_fondo() devolvia True con
+    cli.corrida_en_curso() (carril de fondo vivo), pero en el REPL con tty
+    CADA /hacer va al carril y TareaInicio/TareaFin se emiten desde ahi: el
+    BEL/toast del turno largo y el anillo 9;4 nunca salian en el camino por
+    defecto — justo el caso que motivo F5 (el 27B tarda minutos y el dueno
+    se va a otra ventana). Solo los subagentes callan."""
+    import cognia.cli as cli
+    monkeypatch.setattr(cli, "corrida_en_curso", lambda: True)
+    monkeypatch.setenv("WT_SESSION", "un-guid")
+    assert notif._en_fondo() is False
+    buf = _TtyFalsa()
+    assert notif.notificar("Cognia", "x", destino=buf, modo="bell") is True
+    assert "" in buf.getvalue()
+    buf = _TtyFalsa()
+    assert notif.turno_inicio(destino=buf) is True
+    assert notif.notificar_evento("turno_terminado", duracion_s=300,
+                                  destino=buf) is True
