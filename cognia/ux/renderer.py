@@ -26,7 +26,8 @@ import threading
 import time
 
 from . import events
-from .estilo import (ESTILO_RESPUESTA, FlujoSuave, respirar, respuesta,
+from .estilo import (ESTILO_RESPUESTA, FlujoSuave, ancho_comodo, respirar,
+                     respuesta,
                      verbo_de, objeto_de)
 
 _SANGRIA = "  "
@@ -203,6 +204,22 @@ class Renderer:
             print(texto, flush=True)
         except Exception:
             pass
+
+    def _print_colgante(self, texto: str, style: str = "",
+                        colgante: int = 4) -> None:
+        """Una linea del transcript con SANGRIA DE LAYOUT: si envuelve, la
+        continuacion cuelga bajo el texto (no vuelve a la columna 0). Antes
+        la sangria de 2 era texto y cada linea larga rompia la reja visual
+        del bloque ● / ⎿ (juez 2026-08-24)."""
+        import textwrap
+        ancho = ancho_comodo(self._console) + len(_SANGRIA)
+        for parrafo in (texto or "").split("\n"):
+            if not parrafo.strip():
+                continue
+            self._print(textwrap.fill(
+                parrafo, width=max(20, ancho), initial_indent=_SANGRIA,
+                subsequent_indent=" " * colgante,
+                break_long_words=False, break_on_hyphens=False), style=style)
 
     def _parar_status(self) -> None:
         # primero el ticker: si quedara vivo, su proximo tic veria un status
@@ -448,8 +465,12 @@ class Renderer:
         self._cerrar_flujo_pensar()
         intencion = (ev.intencion or "").strip().split("\n")[0]
         if intencion:
-            # italic: la intencion es un pensamiento del agente, no un hecho
-            self._print(f"{_SANGRIA}{intencion}", style="intencion")
+            # italic: la intencion es un pensamiento del agente, no un hecho.
+            # Con el glifo ∴ del razonamiento y sangria colgante: antes salia
+            # pelada, cortada en seco a 160 chars y envolviendo a columna 0.
+            self._print_colgante(f"{_MARCA_PENSAR} {intencion}",
+                                 style="intencion",
+                                 colgante=len(_SANGRIA) + len(_MARCA_PENSAR) + 1)
 
     def _degradar_render(self, exc: Exception) -> None:
         """El render nuevo fallo: avisar por _aviso_degradado (una vez por
@@ -533,8 +554,10 @@ class Renderer:
         buscar = partes[0]
         reemplazar = partes[1] if len(partes) == 2 else ""
         reemplazar = re.split(r"\n?>{4,}", reemplazar, maxsplit=1)[0]
-        menos = [l.strip() for l in buscar.split("\n") if l.strip()]
-        mas = [l.strip() for l in reemplazar.split("\n") if l.strip()]
+        # rstrip, NUNCA strip: la indentacion de una linea de codigo es
+        # informacion ('print(n * n)' salia al nivel de 'for'; juez 2026-08-24).
+        menos = [l.rstrip() for l in buscar.split("\n") if l.strip()]
+        mas = [l.rstrip() for l in reemplazar.split("\n") if l.strip()]
         menos = menos[:_MAX_LINEAS_PREVIEW]
         mas = mas[:_MAX_LINEAS_PREVIEW]
         # El '…' honesto va en la ULTIMA linea que se ve, y solo si el payload
@@ -616,11 +639,15 @@ class Renderer:
         if "|" not in args:
             return
         payload = args.split("|", 1)[1]
+        # args_legacy une 'ruta | contenido': el UNICO espacio tras la barra
+        # es separador, no indentacion del contenido (el resto se conserva).
+        if payload.startswith(" "):
+            payload = payload[1:]
         cortado = len(args) >= _TOPE_ARGS_PRODUCTOR
         if ev.tool == "editar_archivo":
             self._preview_lineas(*self._lineas_edicion(payload, cortado))
             return
-        lineas = [l.strip() for l in payload.strip("\n").split("\n")
+        lineas = [l.rstrip() for l in payload.strip("\n").split("\n")
                   if l.strip()]
         if not lineas:
             return

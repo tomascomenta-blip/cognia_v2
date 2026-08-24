@@ -414,12 +414,27 @@ def _corte_en_tool_call(resp, schemas) -> str:
     return ""
 
 
+_INTENCION_TOPE = 160
+
+
+def recortar_en_palabra(texto: str, tope: int = _INTENCION_TOPE) -> str:
+    """Recorta a `tope` chars en un LIMITE DE PALABRA y cierra con elipsis.
+    Antes era `linea[:160]`: 'Could it be t' a secas, sin senal de corte."""
+    texto = (texto or "").strip()
+    if len(texto) <= tope:
+        return texto
+    corte = texto.rfind(" ", 0, tope)
+    if corte < tope // 2:
+        corte = tope - 1
+    return texto[:corte].rstrip(" ,;:") + "\u2026"
+
+
 def _intencion_de(resp) -> str:
     """1 linea legible de que decidio el modelo en este paso (para el
     evento PasoIntencion): primera frase del razonamiento, o del contenido."""
     fuente = (resp.reasoning_content or resp.texto or "").strip()
     linea = fuente.splitlines()[0] if fuente else ""
-    return linea[:160]
+    return recortar_en_palabra(linea)
 
 
 # Por debajo de esto recortar no compensa: se destroza contexto para liberar

@@ -3272,6 +3272,24 @@ def _ansi_verde() -> str:
     return _ansi_24bit(_rampa()["marco"])
 
 
+def _show_diff_para_ctx(print_fn=None):
+    """El callback `show_diff` del ctx del agente (tools.escribir_archivo lo
+    llama DURANTE la escritura), o None cuando el renderer del bus ya pinta
+    el preview de lo escrito bajo el bloque ● / ⎿ (banda diff con la
+    indentacion intacta). Con los dos, el preview salia DOS veces: primero
+    en verde a columna 0 mientras corria la tool y despues dentro del bloque
+    (juez 2026-08-24). Bajo COGNIA_REMOTO el renderer no pinta preview y el
+    callback sigue haciendo falta."""
+    try:
+        from cognia.ux import renderer as _ux_r
+        remoto = os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+        if _ux_r._renderer is not None and not remoto:
+            return None
+    except Exception as exc:
+        _aviso_degradado("render_tools", f"show_diff sin renderer: {exc}")
+    return lambda old, new, path: _show_file_diff(old, new, path, print_fn)
+
+
 def _show_file_diff(old_text: str, new_text: str, label: str, print_fn=None) -> None:
     import difflib
     _pf = print_fn or _print_line
@@ -16142,7 +16160,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # Es un callable y no un bool porque se consulta EN CADA TURNO, mucho
         # despues de construir el ctx.
         "_cancelado": _corte_pedido,
-        "show_diff": (lambda old, new, path: _show_file_diff(old, new, path, _print_fn)),
+        "show_diff": _show_diff_para_ctx(_print_fn),
         # Sub-agente acotado (delegar_subtarea): el rol restringe run_tool y el
         # runner recursivo se inyecta aca (evita el import circular tools<->cli).
         "_allowed_tools": allowed_tools,
@@ -16934,13 +16952,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                           + "[/detail]")
             except Exception:
                 pass
+            # Con la sangria y el glifo del footer (misma reja que el bloque
+            # de tools); el texto 'Objetivo verificado' se conserva: es clave
+            # del clasificador del movil (remoto/sesiones.py).
             if _st.complete:
-                _print_fn(f"[ok_cl]Objetivo verificado: {_st.satisfied_count}/"
+                _print_fn(f"[ok_cl]  ✓ Objetivo verificado: {_st.satisfied_count}/"
                           f"{_st.total} criterios reales cumplidos[/ok_cl]")
             else:
                 _faltan = [r.criterion.description for r in _st.results
                            if not r.satisfied]
-                _print_fn(f"[warn_cl]Objetivo NO verificado ({_st.satisfied_count}/"
+                _print_fn(f"[warn_cl]  ✗ Objetivo NO verificado ({_st.satisfied_count}/"
                           f"{_st.total}): falta {'; '.join(_faltan)[:200]}[/warn_cl]")
                 # ── SEGUNDA PASADA dirigida (campana 2026-07-21) ──────────
                 # Patron medido en 7 tareas de agente multi-entregable: el
