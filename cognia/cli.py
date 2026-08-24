@@ -3096,6 +3096,26 @@ def _print_banner_completo():
     # COGNIA cerraba en el verde 'matrix': 1,32:1 sobre #fbfbfa, o sea que la
     # marca era lo MENOS visible de la pantalla en el tema claro.
     banner_lines = _BANNER_RAW.split("\n")
+    _ancho = getattr(_console, "width", 80) or 80
+    # La decision del layout (dos columnas o apilado) es del harness: dos
+    # columnas SOLO si el arte ENTERO (63) y la guia ENTERA (44) caben lado a
+    # lado. Antes se decidia por '_ancho >= 100' y el grid repartia por
+    # ratio: a 100 columnas la columna del arte quedaba en ~56 y cada fila
+    # del logo COGNIA envolvia, con la 'A' sola en la linea de abajo (cazado
+    # por el juez tecleando en el REPL real, 2026-08-24). Sin harness cae al
+    # umbral equivalente -- y avisa: una decision de layout tomada a ciegas
+    # es una degradacion, no un default.
+    _ancho_arte = 63
+    _ancho_guia = 44
+    _dos_columnas = _ancho >= 113
+    try:
+        from cognia.harness import banner_adaptativo as _ba
+        _ancho_arte = _ba.ancho_arte(banner_lines) or _ancho_arte
+        _dos_columnas = _ba.cabe_dos_columnas(_ancho, _ancho_arte, _ancho_guia)
+    except Exception as _exc_ba:
+        _aviso_degradado("banner_adaptativo",
+                         f"layout por umbral fijo: {type(_exc_ba).__name__}: "
+                         f"{_exc_ba}")
     # El arte se AJUSTA a la altura real (variante 'medio' = mitad superior del
     # gato). No se esconde: se hace caber, que es distinto. Sin harness o ante
     # cualquier fallo queda el arte entero, como siempre.
@@ -3109,9 +3129,12 @@ def _print_banner_completo():
             # guia bajo el arte (ver el Table.grid de abajo), asi que sus ~13
             # filas tambien hay que descontarlas: medido contra la salida real,
             # a 36 filas con ancho 98 el arranque se iba a 47 lineas.
-            _reserva = 10 if _medida.columnas >= 100 else 23
+            _reserva = 10 if _dos_columnas else 23
+            # Se recorta el GATO, nunca el logo COGNIA (identidad): el
+            # recorte simetrico sobre el bloque entero se comia el logo.
+            _gato, _logo = _ba.partir_arte_y_logo(banner_lines)
             banner_lines = _ba.recortar_arte(
-                banner_lines, max(6, _medida.filas - _reserva))
+                _gato, max(6, _medida.filas - _reserva - len(_logo))) + _logo
     except Exception:
         pass
     non_empty = [l for l in banner_lines if l.strip()]
@@ -3155,14 +3178,17 @@ def _print_banner_completo():
     except Exception:
         _ver = "4"
 
-    # Responsivo: el gato Braille mide ~63 columnas; con la columna de
-    # comandos (~34) la vista a dos columnas necesita ~100. En terminales
-    # angostas se apilan (banner arriba, comandos abajo) en vez de romperse.
-    _ancho = getattr(_console, "width", 80) or 80
-    if _ancho >= 100:
+    # Responsivo: el gato Braille mide 63 columnas y la guia 44; con marco y
+    # separacion la vista a dos columnas necesita 113 (cabe_dos_columnas). En
+    # terminales mas angostas se apilan (arte arriba, comandos abajo) en vez
+    # de romperse. La columna del arte va a su ancho EXACTO y sin envolver:
+    # con ratio, rich la achicaba y partia el logo.
+    if _dos_columnas:
+        left_text.no_wrap = True
+        left_text.overflow = "crop"
         cuerpo = Table.grid(expand=True, padding=(0, 2))
-        cuerpo.add_column(ratio=3, overflow="crop", no_wrap=True)
-        cuerpo.add_column(ratio=2)
+        cuerpo.add_column(width=_ancho_arte, overflow="crop", no_wrap=True)
+        cuerpo.add_column()
         cuerpo.add_row(left_text, right_text)
     else:
         cuerpo = Table.grid(expand=True)

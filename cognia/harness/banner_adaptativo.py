@@ -71,6 +71,22 @@ FILAS_COMPACTO = 20
 # Por debajo de 30 columnas ni la cabecera de dos columnas cabe: una linea.
 COLUMNAS_COMPACTO = 30
 
+# Layout a DOS columnas del banner completo/medio (arte a la izquierda, guia
+# "Para empezar" a la derecha). MEDIDO 2026-08-24 sobre la captura del juez:
+# a 100 columnas cli.py repartia el grid por RATIO (3:2) y la columna del
+# arte quedaba en ~56 para un logo COGNIA de 63 -> cada fila del logo
+# envolvia y la 'A' caia sola a la linea siguiente (10 lineas para un logo
+# de 5). La regla honesta: dos columnas SOLO si el arte ENTERO y la guia
+# ENTERA caben lado a lado; si no, se apila (logo bajo el gato, como a 80).
+#   MARCO_PANEL          bordes del Panel (2) + padding (0,1) a cada lado (2)
+#   SEPARACION_COLUMNAS  padding (0,2) entre las dos columnas del grid
+#   ANCHO_GUIA           la linea mas ancha de la guia real de cli.py (la de
+#                        atajos: 'Tab completar  ^v historial  /ayuda todo',
+#                        44 columnas). El integrador pasa la medida REAL.
+MARCO_PANEL = 4
+SEPARACION_COLUMNAS = 2
+ANCHO_GUIA = 44
+
 VARIANTES = ("completo", "medio", "compacto", "minimo")
 
 # Aire + linea del prompt que SIEMPRE se reservan al repartir filas.
@@ -152,6 +168,32 @@ def ancho_visible(texto: str) -> int:
             continue
         total += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
     return total
+
+
+def ancho_arte(lineas_arte) -> int:
+    """La columna mas ancha del arte (en columnas VISIBLES). 0 sin arte."""
+    return max((ancho_visible(str(l)) for l in (lineas_arte or [])),
+               default=0)
+
+
+def cabe_dos_columnas(columnas, ancho_del_arte, ancho_guia=ANCHO_GUIA) -> bool:
+    """Si en una terminal de ``columnas`` entran, LADO A LADO y sin envolver
+    ni recortar, un arte de ``ancho_del_arte`` y una guia de ``ancho_guia``
+    dentro del Panel del banner. Sin arte (0) no hay nada que poner al lado.
+
+    Con el gato real (63) y la guia real (44): 4 + 63 + 2 + 44 = 113. A 100
+    columnas devuelve False y el banner se apila; a 120, True.
+    """
+    try:
+        columnas = int(columnas)
+        ancho_del_arte = int(ancho_del_arte)
+        ancho_guia = int(ancho_guia)
+    except Exception:
+        return False
+    if ancho_del_arte <= 0:
+        return False
+    return columnas >= (MARCO_PANEL + ancho_del_arte + SEPARACION_COLUMNAS
+                        + max(0, ancho_guia))
 
 
 def _ancho_char(ch: str) -> int:
@@ -377,6 +419,33 @@ def recortar_arte(lineas_arte, filas_disponibles: int) -> list:
     trozo = lineas[arriba:len(lineas) - abajo]
     # El recorte pudo dejar relleno vacio justo en el borde nuevo.
     return _sin_bordes_en_blanco(trozo)
+
+
+def partir_arte_y_logo(lineas_arte) -> tuple:
+    """(gato, logo): el arte del CLI trae el gato Braille, un separador
+    punteado y el logo COGNIA en bloques, todo en un mismo bloque de texto.
+    El logo es IDENTIDAD (no se toca): cuando hay que recortar por altura se
+    recorta el GATO y el logo queda entero. Antes recortar_arte iba sobre el
+    bloque completo y, al ser simetrico, se comia el logo (a 80x40 y, tras
+    apilar el layout, tambien a 100x40: cazado 2026-08-24).
+
+    El logo empieza en la primera linea con bloques (U+2588 o los bordes
+    U+2550-U+256C); el separador (lineas vacias o de puntos) que lo precede
+    va CON el logo, para que el aire entre gato y logo se conserve. Sin
+    bloques devuelve (arte entero, [])."""
+    lineas = [str(l) for l in (lineas_arte or [])]
+    bloques = "\u2588\u2550\u2551\u2554\u2557\u255a\u255d\u2560\u2563\u2566\u2569\u256c"
+    ini = None
+    for i, l in enumerate(lineas):
+        if any(ch in bloques for ch in l):
+            ini = i
+            break
+    if ini is None:
+        return lineas, []
+    j = ini
+    while j > 0 and not lineas[j - 1].strip().replace("\u00b7", "").strip():
+        j -= 1
+    return lineas[:j], lineas[j:]
 
 
 def mitad_superior(lineas_arte) -> list:

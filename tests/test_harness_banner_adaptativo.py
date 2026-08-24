@@ -412,3 +412,43 @@ def test_fuente_ascii_puro_y_sin_dependencias_de_pintado():
     assert "import prompt_toolkit" not in txt
     assert "from prompt_toolkit" not in txt
     assert "2026-08-12" in txt.split('"""')[1], "falta la fecha en el docstring"
+
+
+# ---------------------------------------------------------------------------
+# Layout a dos columnas (juicio visual 2026-08-24: el logo partido a 100)
+# ---------------------------------------------------------------------------
+def test_ancho_arte_mide_la_columna_mas_ancha_en_columnas_visibles():
+    assert ba.ancho_arte([]) == 0
+    assert ba.ancho_arte(None) == 0
+    assert ba.ancho_arte(["ab", "abcd", ""]) == 4
+    assert ba.ancho_arte(["中文"]) == 4        # CJK: 2 columnas cada uno
+    assert ba.ancho_arte(_arte_real()) == 63
+
+
+def test_cabe_dos_columnas_exige_arte_y_guia_enteros():
+    # Gato real (63) + guia real (44) + marco (4) + separacion (2) = 113.
+    assert ba.cabe_dos_columnas(113, 63, 44) is True
+    assert ba.cabe_dos_columnas(120, 63, 44) is True
+    assert ba.cabe_dos_columnas(112, 63, 44) is False
+    assert ba.cabe_dos_columnas(100, 63, 44) is False   # el caso del juez
+    assert ba.cabe_dos_columnas(80, 63, 44) is False
+    # Sin arte no hay nada que poner al lado; basura no lanza.
+    assert ba.cabe_dos_columnas(200, 0) is False
+    assert ba.cabe_dos_columnas("ancho", 63) is False
+    # El default de ancho_guia es la guia real de cli.py.
+    assert ba.ANCHO_GUIA == 44
+    assert ba.cabe_dos_columnas(113, 63) is True
+
+
+def test_partir_arte_y_logo_separa_el_gato_del_logo_real():
+    arte = _arte_real()
+    gato, logo = ba.partir_arte_y_logo(arte)
+    assert gato + logo == arte
+    assert not any("█" in l for l in gato)
+    assert sum(1 for l in logo if "█" in l or "╗" in l) == 5
+    # El separador punteado y sus blancos viajan con el logo (aire intacto).
+    assert any("·" in l for l in logo)
+    assert not any("·" in l for l in gato)
+    # Sin bloques: todo es gato.
+    assert ba.partir_arte_y_logo(["a", "b"]) == (["a", "b"], [])
+    assert ba.partir_arte_y_logo([]) == ([], [])
