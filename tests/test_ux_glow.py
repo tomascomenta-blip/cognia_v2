@@ -363,7 +363,12 @@ def test_estilizar_devuelve_copia_y_no_ensucia_la_memo():
     assert glow.estilizar(e, "cognia", cuadro=1).plain == "cognia"
 
 
-def test_id_sin_resolver_avisa_por_stderr_y_pinta_sin_estilo(capsys):
+def test_id_sin_resolver_avisa_por_stderr_y_pinta_sin_estilo(capsys, monkeypatch):
+    # Sin cli cargado el aviso va a stderr; si otro test dejo cognia.cli en
+    # sys.modules (test_ux_aspecto lo importa), iria a _aviso_degradado y el
+    # test dependeria del ORDEN de la bateria.
+    monkeypatch.delitem(sys.modules, "cognia.cli", raising=False)
+    monkeypatch.setattr(glow, "RESOLVER", None)
     glow._AVISOS_STDERR.clear()
     t = glow.estilizar("prompt.etiqueta", "cognia", t=1.0)
     assert t.plain == "cognia" and not t.spans
