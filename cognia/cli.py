@@ -436,15 +436,30 @@ def _frag_prompt(id: str, clase: str, texto: str, estado: str | None = None,
             r = _aspecto.estilo_resuelto(id)
             if estado:
                 r = r.estados[estado]
-            info = (int(r.glow_intensidad or 0), _aspecto.tiene_override(id))
+            a = r.animacion
+            info = (int(r.glow_intensidad or 0), _aspecto.tiene_override(id),
+                    bool(a is not None and a.activa))
         except Exception as exc:
             _aviso_degradado("estilo", f"resolver {id} fallo, sin glow: "
                                        f"{type(exc).__name__}: {exc}")
-            info = (0, False)
+            info = (0, False, False)
         if len(_MEMO_FRAG) > 256:
             _MEMO_FRAG.clear()
         _MEMO_FRAG[clave] = info
-    glow_int, override = info
+    glow_int, override, anim = info
+    if anim:
+        # P9: mientras corre el pulso del prompt (glow.animando()) la pieza es
+        # el frame VIVO del motor, por caracter; con el pulso terminado se cae
+        # al frame estatico de abajo (memoizado): el scrollback queda quieto.
+        try:
+            from cognia.ux import glow as _glow
+            if _glow.RESOLVER is None:
+                _aspecto.conectar_glow(_load_config)
+            if _glow.animando():
+                return list(_glow.estilizar_pt(id, texto, estado=estado))
+        except Exception as exc:
+            _aviso_degradado("estilo", f"pulso de {id} fallo, frame estatico: "
+                                       f"{type(exc).__name__}: {exc}")
     if glow_int <= 0 and (clase_propia or not override):
         return [(f"class:{clase}", texto)]
     try:
@@ -595,6 +610,109 @@ def _linea_entrada() -> list:
     return partes
 
 
+# ---------------------------------------------------------------------------
+# P9: el PULSO del prompt (seccion 3.3 del diseno, E3)
+# ---------------------------------------------------------------------------
+# UN hilo daemon FINITO (glow.pulso_prompt) llama app.invalidate() a fps
+# durante duracion_pulso(...) (tope glow.PULSO_MAX_S = 3 s) y muere solo
+# dejando el frame estatico. refresh_interval de la sesion NO se toca: con
+# refresh_interval=1/fps se midio 17% de CPU sostenido (E3); con el pulso,
+# ~0% en cuanto termina. 'cada_s' rearma otro barrido desde un redibujado
+# que YA existe (el tick de 1 s de _esperar_corrida o una tecla en el prompt
+# idle) SOLO si el elemento declara pausa (cada_s > 0) y quedan
+# repeticiones; repetir=0 con cada_s=0 es un barrido acotado por apertura
+# del prompt: nunca CPU permanente.
+_IDS_PULSO_PROMPT = ("prompt.etiqueta", "prompt.marco", "prompt.flecha")
+_IDS_PULSO_ESPERA = ("prompt.espera", "prompt.marco", "prompt.flecha")
+_PULSO_PROMPT = {"ids": (), "t_fin": 0.0, "vueltas": 0, "cada_s": 0.0,
+                 "ciclo_s": 0.0, "repetir": 0, "solo": False}
+
+
+def _estilos_glow_vivos(ids) -> list:
+    """Los EstiloGlow de `ids` con animacion activa y visibles ([] si ninguno
+    o si capacidades() no anima). No lanza: degrada por 'estilo'."""
+    try:
+        from cognia.ux import glow as _glow
+        if not _glow.capacidades().animar:
+            return []
+        if _glow.RESOLVER is None:
+            _aspecto.conectar_glow(_load_config)
+        vivos = []
+        for id in ids:
+            est = _estilo_de_prompt(id)
+            a = est.animacion
+            if est.visible is False or a is None or not a.activa:
+                continue
+            vivos.append(_aspecto.estilo_glow(id, _variante_actual()))
+        return vivos
+    except Exception as exc:
+        _aviso_degradado("estilo", f"animacion del prompt no evaluada: "
+                                   f"{type(exc).__name__}: {exc}")
+        return []
+
+
+def _arrancar_pulso_prompt(app, ids=_IDS_PULSO_PROMPT) -> bool:
+    """Al ABRIR un prompt: arranca el pulso si algun id de `ids` anima.
+    True si arranco el hilo (False: nada anima, sin app, o ya hay pulso)."""
+    vivos = _estilos_glow_vivos(ids)
+    if not vivos or app is None:
+        return False
+    try:
+        from cognia.ux import glow as _glow
+        dur = _glow.duracion_pulso(vivos)
+        _PULSO_PROMPT.update(
+            ids=tuple(ids), vueltas=1, t_fin=time.monotonic() + dur,
+            cada_s=max(float(e.anim_cada_s) for e in vivos),
+            ciclo_s=max(float(e.ciclo_s) for e in vivos),
+            repetir=(0 if any(e.repeticiones == 0 for e in vivos)
+                     else max(int(e.repeticiones) for e in vivos)),
+            solo=all(bool(e.anim_solo_al_llegar) for e in vivos))
+        return bool(_glow.pulso_prompt(app, dur, _glow.FPS))
+    except Exception as exc:
+        _aviso_degradado("estilo", f"pulso del prompt no arranco: "
+                                   f"{type(exc).__name__}: {exc}")
+        return False
+
+
+def _rearmar_pulso_prompt(app) -> bool:
+    """Desde un redibujado que YA existe (tick de 1 s del prompt de espera,
+    una tecla en el idle): otro barrido si el elemento declara pausa
+    (cada_s > 0), la pausa ya paso y quedan repeticiones. Sin pausa no
+    rearma (E3). Barato: sin cada_s es una comparacion."""
+    p = _PULSO_PROMPT
+    if app is None or p["cada_s"] <= 0 or p["solo"]:
+        return False
+    try:
+        from cognia.ux import glow as _glow
+        if _glow.animando():
+            return False
+        if p["repetir"] and p["vueltas"] >= p["repetir"]:
+            return False
+        if time.monotonic() - p["t_fin"] < p["cada_s"]:
+            return False
+        if not _estilos_glow_vivos(p["ids"]):
+            return False
+        dur = min(float(_glow.PULSO_MAX_S), p["ciclo_s"])
+        if not _glow.pulso_prompt(app, dur, _glow.FPS):
+            return False
+        p["vueltas"] += 1
+        p["t_fin"] = time.monotonic() + dur
+        return True
+    except Exception as exc:
+        _aviso_degradado("estilo", f"rearme del pulso: {type(exc).__name__}: {exc}")
+        return False
+
+
+def _cerrar_pulso_prompt() -> None:
+    """Con el prompt devuelto: corta el hilo si sigue vivo (el siguiente
+    prompt arranca el suyo) sin esperar mas de 0,2 s."""
+    try:
+        from cognia.ux import glow as _glow
+        _glow.parar_pulso(0.2)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"cierre del pulso: {type(exc).__name__}: {exc}")
+
+
 def _mensaje_prompt():
     """Regla superior + 'cognia➤'. prompt_toolkit reevalua el callable en cada
     redibujado, asi que el marco se reajusta solo al cambiar el ancho (y al
@@ -630,6 +748,9 @@ def _pie_prompt(barra=None):
             _aspecto.recargar_si_cambio()
         except Exception as exc:
             _aviso_degradado("estilo", f"stat de estilo.json fallo: {exc}")
+        # P9: este redibujado (tecla o tick de 1 s de la espera) es el unico
+        # reloj que rearma un barrido con cada_s; sin cada_s no hace nada.
+        _rearmar_pulso_prompt(getattr(_sesion_prompt, "app", None))
         partes = []
         if _posicion_marco() in ("ambos", "abajo"):
             partes.extend(_frag_prompt("prompt.marco", "marco",
@@ -1458,6 +1579,9 @@ def _mensaje_espera(c):
         # P5: el texto de la pista y el color salen de prompt.espera (sin
         # override: las clases cognia/estado de siempre); marco, barra y
         # flecha, del mismo compositor que el prompt normal.
+        # P9: el tick de 1 s (refresh_interval=1.0) rearma el barrido con
+        # cada_s; el pulso en si lo arranca _esperar_corrida al abrir.
+        _rearmar_pulso_prompt(getattr(_sesion_prompt, "app", None))
         linea = _frag_prompt("prompt.espera", "cognia",
                              f" {c.etiqueta} {int(time.time() - c.t0)}s",
                              clase_propia=False)
@@ -1966,10 +2090,17 @@ def _esperar_corrida(c) -> None:
             if c.fin.is_set():
                 return
             try:
-                with patch_stdout(raw=True):
-                    r = _sesion_prompt.prompt(_mensaje_espera(c),
-                                              default=pendiente,
-                                              refresh_interval=1.0)
+                # P9 (E3): prompt.espera anima con el MISMO pulso finito que
+                # el prompt idle; refresh_interval se queda en 1.0 (con 1/fps
+                # se midio 17% de CPU durante toda la corrida).
+                _arrancar_pulso_prompt(app, _IDS_PULSO_ESPERA)
+                try:
+                    with patch_stdout(raw=True):
+                        r = _sesion_prompt.prompt(_mensaje_espera(c),
+                                                  default=pendiente,
+                                                  refresh_interval=1.0)
+                finally:
+                    _cerrar_pulso_prompt()
                 pendiente = ""
             except KeyboardInterrupt:
                 # Ctrl-C EN EL PROMPT: prompt_toolkit lo entrega como excepcion
@@ -13723,10 +13854,16 @@ def repl():
                 # la linea del usuario se parte. raw=True es OBLIGATORIO (sin
                 # el, rich sale como '?[36m'). Con el prompt bloqueado y nadie
                 # imprimiendo, el coste medido es 0,00 % de CPU.
-                with patch_stdout(raw=True):
-                    line = (session.prompt(_mensaje_prompt, default=_pre)
-                            if _pre else
-                            session.prompt(_mensaje_prompt)).strip()
+                # P9: si prompt.etiqueta/marco/flecha animan, un pulso finito
+                # de app.invalidate() (tope 3 s) barre el marco y muere solo.
+                _arrancar_pulso_prompt(session.app)
+                try:
+                    with patch_stdout(raw=True):
+                        line = (session.prompt(_mensaje_prompt, default=_pre)
+                                if _pre else
+                                session.prompt(_mensaje_prompt)).strip()
+                finally:
+                    _cerrar_pulso_prompt()
                 if line.startswith(_FONDO_MEJORA):
                     # F3: reformular EN EL SITIO. El modelo se llama aca, con
                     # el prompt ya devuelto (nada de Application anidada), y
