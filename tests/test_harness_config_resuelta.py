@@ -193,7 +193,13 @@ def test_el_arranque_del_repl_no_inventa_envs(tmp_path, monkeypatch):
                 "COGNIA_OFFLOAD_CABEZA", "COGNIA_OFFLOAD_COLA",
                 "COGNIA_COMPACT", "COGNIA_COMPACT_UMBRAL",
                 "COGNIA_COMPACT_RETENCION", "COGNIA_COMPACT_CAP"):
-        monkeypatch.delenv(var, raising=False)
+        # setenv ANTES de delenv: delenv(raising=False) sobre una var AUSENTE
+        # no registra nada que deshacer, y la env que siembra
+        # _aplicar_config_offload dentro del test se filtraba a los tests
+        # siguientes (cazado: test_run_tool_aplica_trim fallaba solo en la
+        # corrida conjunta porque COGNIA_OFFLOAD=1 quedaba puesta).
+        monkeypatch.setenv(var, "x")
+        monkeypatch.delenv(var)
     monkeypatch.setattr(cli, "_load_config", lambda: {})
     cli._aplicar_config_offload()
     cli._aplicar_config_compactacion()
