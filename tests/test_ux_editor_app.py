@@ -381,6 +381,10 @@ def test_el_estilo_se_rehace_al_cambiar_variante_o_version():
 
 
 def test_preview_rota_degrada_visible(monkeypatch, capsys):
+    # Sin cli cargado el aviso va a stderr; si otro test dejo cognia.cli en
+    # sys.modules (test_ux_aspecto lo importa) iria a _aviso_degradado y el
+    # test dependeria del ORDEN de la bateria.
+    monkeypatch.delitem(sys.modules, "cognia.cli", raising=False)
     m = EditorModelo(ancho=60)
     app = _app_sin_correr(m)
 
