@@ -273,7 +273,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     ),
     "Perfil y personalizacion": (
         "/yo", "/yo-actualizar", "/usuario", "/usuarios", "/mi-cognia",
-        "/perfil-completo", "/tema", "/color", "/config", "/modo",
+        "/perfil-completo", "/tema", "/color", "/estilo", "/config", "/modo",
         # /mejorar: es un interruptor de COMO se comporta el prompt del usuario
         # (preguntar/auto/off), igual que /tema o /modo. Sin darlo de alta caia
         # en "Otros", un cajon de UNO donde nadie lo busca y donde el recorte
