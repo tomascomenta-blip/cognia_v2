@@ -476,7 +476,7 @@ class EditorModelo:
             "presets": "PRESETS (Enter aplica en memoria, Esc vuelve)",
             "presets_preview": "PRESETS (preview al mover; Enter se queda, Esc revierte)",
             "ayuda": "AYUDA",
-            "confirmar_salir": "Hay cambios sin guardar: [g]uardar / [d]escartar / [v]olver",
+            "confirmar_salir": "Hay cambios sin guardar: [g]uardar / [d]escartar / [v]olver (Enter y Esc vuelven)",
             "confirmar_reset": "Volver TODO al default: [s]i / [n]o",
             "texto": f"{self._prop_en_edicion.etiqueta if self._prop_en_edicion else 'texto'} (Enter confirma, Esc cancela)",
             "numero": f"{self._prop_en_edicion.etiqueta if self._prop_en_edicion else 'numero'} (Enter confirma, Esc cancela)",
@@ -576,7 +576,7 @@ class EditorModelo:
                 "presets": "↑↓ mover  Enter aplicar  Esc volver",
                 "presets_preview": "↑↓ previsualizar  Enter quedarse  Esc revertir",
                 "ayuda": "cualquier tecla cierra",
-                "confirmar_salir": "g guardar  d descartar  v volver",
+                "confirmar_salir": "g guardar  d descartar  v/Enter/Esc volver",
                 "confirmar_reset": "s si  n no",
                 "texto": "escribe  Enter confirmar  Esc cancelar  (^G glifos)" if (
                     self._prop_en_edicion and self._prop_en_edicion.tipo == "glifo") else "escribe  Enter confirmar  Esc cancelar",
@@ -1356,7 +1356,9 @@ class EditorModelo:
 
     # -- salir ----------------------------------------------------------
     def _tecla_confirmar_salir(self, k: str) -> None:
-        if k in ("g", "G", "enter"):
+        # Enter NO guarda: un Enter distraido escribia estilo.json (juez visual
+        # 2026-08-24). Enter/Esc = volver, igual que /estilo reset (Enter = No).
+        if k in ("g", "G"):
             if self.guardar():
                 self._cerrar("guardado")
             else:
@@ -1365,7 +1367,7 @@ class EditorModelo:
             A.restaurar(self._base)
             self._mensaje = "cambios descartados"
             self._cerrar("descartado")
-        elif k in ("v", "V", "esc", "q"):
+        elif k in ("v", "V", "esc", "q", "enter"):
             self.modo = "normal"
 
 

@@ -808,3 +808,23 @@ def test_instantanea_restaurar_y_aplicar_en_memoria():
     with pytest.raises(A.EstiloInvalido):
         A.aplicar_en_memoria({"version": 1, "elementos": {"nadie": {}}})
     assert A.estilo_resuelto("prompt.flecha").color == "#c8ff7a", "invalido: no cambia nada"
+
+
+def test_enter_en_el_dialogo_de_salida_vuelve_y_no_guarda(entorno_editor=None, tmp_path=None, monkeypatch=None):
+    """Juez visual 2026-08-24: Enter en 'Hay cambios sin guardar' escribia
+    estilo.json sin anunciarlo. Ahora Enter (y Esc) vuelven al editor; solo
+    'g' guarda."""
+    import pytest as _pt
+    from cognia.ux import aspecto as A
+    from cognia.ux.editor_aspecto import EditorModelo
+    escrito = []
+    m = EditorModelo(ancho=60, guardar=lambda: escrito.append(1) or "x", elemento_inicial="prompt.etiqueta")
+    A.poner("prompt.etiqueta", "texto", "jarvis")
+    m.tecla("esc")
+    assert m.modo == "confirmar_salir"
+    m.tecla("enter")
+    assert m.modo == "normal" and not m.cerrado and escrito == []
+    m.tecla("esc"); m.tecla("g")
+    assert escrito == [1] and m.cerrado
+    A.reset()
+
