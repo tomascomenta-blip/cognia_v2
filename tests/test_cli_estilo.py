@@ -107,7 +107,8 @@ def test_lista_completa_y_por_grupo(entorno):
     t = entorno.texto()
     for id in A.REGISTRO:
         assert id in t
-    assert "(P5)" in t and "(P7)" in t, "los no enganchados dicen su paso"
+    assert "(P7)" in t and "(P8)" in t, "los no enganchados dicen su paso"
+    assert "(P5)" not in t, "P5 ya engancho prompt/barra/menu"
     entorno.salida.clear()
     cli._slash_estilo("lista sistema")
     t = entorno.texto()
@@ -153,12 +154,26 @@ def test_set_guarda_con_bak_y_recolorea_la_console_en_caliente(entorno):
 
 
 def test_set_en_elemento_no_enganchado_guarda_y_avisa_E8(entorno):
-    cli._slash_estilo("prompt.etiqueta texto jarvis")
+    cli._slash_estilo("banner.marco texto.titulo GATO")
     t = entorno.texto()
     assert "(guardado)" in t
-    assert "se aplica cuando su elemento este enganchado (paso P5)" in t
+    assert "se aplica cuando su elemento este enganchado (paso P7)" in t
+    assert A.texto("banner.marco", "titulo") == "GATO"
+    assert json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))["elementos"]["banner.marco"]["texto"]["titulo"] == "GATO"
+
+
+def test_set_en_el_prompt_ya_no_avisa_y_la_animacion_dice_P9(entorno):
+    """P5: prompt.etiqueta esta enganchado: el texto se ve en el prompt
+    siguiente (sin aviso E8); solo la animacion espera al pulso (P9)."""
+    cli._slash_estilo("prompt.etiqueta texto jarvis")
+    t = entorno.texto()
+    assert "(guardado)" in t and "se aplica cuando" not in t
     assert A.texto("prompt.etiqueta") == "jarvis"
-    assert json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))["elementos"]["prompt.etiqueta"]["texto"] == "jarvis"
+    assert [x for x, _ in cli._mensaje_prompt()] == ["class:marco", "class:cognia", "class:flecha"]
+    assert list(cli._mensaje_prompt())[1][1] == " jarvis"
+    entorno.salida.clear()
+    cli._slash_estilo("prompt.etiqueta animacion.activa on")
+    assert "animacion.activa se aplica con la animacion del prompt (paso P9)" in entorno.texto()
 
 
 def test_set_de_glifo_en_enganchado_por_token_avisa_pero_el_color_no(entorno):
@@ -295,7 +310,11 @@ def test_cargar_preset_del_paquete_y_avisa_lo_pendiente(entorno):
     cli._slash_estilo("cargar neon")
     t = entorno.texto()
     assert "'neon' cargado" in t
-    assert "prompt.* (P5)" in t and "banner.* (P7)" in t and "spinner.* (P8)" in t
+    # P5: prompt.* ya se ve; del neon solo queda pendiente la animacion del
+    # prompt (P9) y el banner/spinner de sus pasos
+    assert "prompt.* (P5)" not in t
+    assert "prompt.etiqueta.animacion (P9)" in t
+    assert "banner.* (P7)" in t and "spinner.* (P8)" in t
     assert A.tiene_override("prompt.etiqueta")
     assert json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))["nombre"] == "neon"
     assert entorno.avisos == []
@@ -454,3 +473,15 @@ def test_el_toolbar_no_deja_rastro_sin_fichero(entorno):
     assert frag == [("class:marco", cli._REGLA * cli._ancho_marco()),
                     ("class:estado", "\nbarra")]
     assert A.recarga_pendiente() is False
+
+
+def test_ver_de_un_elemento_con_glow_y_animacion_no_tumba_el_repl(entorno):
+    """REGRESION (cazada tecleando en P5): '/estilo ver prompt.etiqueta'
+    moria con AttributeError ('EstiloResuelto' no tiene 'glow') y se llevaba
+    el REPL entero; P4 solo lo habia probado con sistema.ok (sin GLOW)."""
+    for id in ("prompt.etiqueta", "prompt.marco", "barra.estado", "banner.arte", "spinner.pensar"):
+        entorno.salida.clear()
+        cli._slash_estilo(f"ver {id}")
+        t = entorno.texto()
+        assert id in t and "glow" in t and "animacion" in t, (id, t)
+    assert entorno.avisos == []

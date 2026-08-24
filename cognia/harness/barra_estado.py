@@ -243,9 +243,18 @@ def _encodable(texto: str) -> bool:
         return False
 
 
-def _glifos(unicode_ok: bool | None) -> dict:
+def _glifos(unicode_ok: bool | None, sep: str | None = None) -> dict:
     """Juego de glifos a usar. None = autodetectar POR GLIFO (el separador y
-    las flechas no tienen la misma suerte en cp1252)."""
+    las flechas no tienen la misma suerte en cp1252). `sep` (P5: el
+    'separador' de barra.estado / barra.atajos en /estilo) pisa el separador
+    del juego; None = el de siempre."""
+    g = _glifos_base(unicode_ok)
+    if sep is not None:
+        g["sep"] = str(sep)
+    return g
+
+
+def _glifos_base(unicode_ok: bool | None) -> dict:
     if unicode_ok is True:
         return {"sep": _SEP_UNI, "elip": _ELIP_UNI, "flechas": _FLECHAS_UNI,
                 "lleno": _BLOQUE_LLENO_UNI, "vacio": _BLOQUE_VACIO_UNI}
@@ -334,7 +343,28 @@ def _entero(x):
 # ---------------------------------------------------------------------------
 # Insignia de modo / permisos
 # ---------------------------------------------------------------------------
-def indicador_modo(modo: str = "", permiso: str = "") -> tuple:
+# Etiquetas de la insignia por clave; /estilo barra.modo texto.<clave> las
+# cambia (P5) y las pasa por `etiquetas`.
+ETIQUETAS_MODO = {"plan": "PLAN", "auto": "auto", "manual": "manual"}
+_ESTILO_MODO = {"plan": EST_PLAN, "auto": EST_PERMISO_AUTO,
+                "manual": EST_PERMISO_MANUAL}
+
+
+def _modo_clave(modo: str = "", permiso: str = "") -> str:
+    """'plan' | 'auto' | 'manual' | '' (nada que destacar)."""
+    m = str(modo or "").strip().lower()
+    p = str(permiso or "").strip().lower()
+    if m == "plan":
+        return "plan"
+    if p == "bypass":
+        return "auto"
+    if p == "manual":
+        return "manual"
+    return ""
+
+
+def indicador_modo(modo: str = "", permiso: str = "",
+                   etiquetas: dict | None = None) -> tuple:
     """El trocito destacado del estado del agente, como (texto, estilo).
 
     Devuelve ("", "") cuando NO hay nada que destacar - es decir, en el caso
@@ -348,16 +378,18 @@ def indicador_modo(modo: str = "", permiso: str = "") -> tuple:
         permiso 'bypass'    -> ("auto", 'warn_cl')  aprueba solo: se avisa.
         permiso 'manual'    -> ("manual", 'info_dim')
         cualquier otra cosa -> ("", "")
+
+    `etiquetas` (P5): {'plan': 'PLAN', 'auto': 'auto', 'manual': 'manual'}
+    con los textos del dueno; una clave ausente o vacia usa la de siempre.
     """
-    m = str(modo or "").strip().lower()
-    p = str(permiso or "").strip().lower()
-    if m == "plan":
-        return ("PLAN", EST_PLAN)
-    if p == "bypass":
-        return ("auto", EST_PERMISO_AUTO)
-    if p == "manual":
-        return ("manual", EST_PERMISO_MANUAL)
-    return ("", "")
+    clave = _modo_clave(modo, permiso)
+    if not clave:
+        return ("", "")
+    try:
+        texto = str((etiquetas or {}).get(clave) or "")
+    except Exception:
+        texto = ""
+    return (texto or ETIQUETAS_MODO[clave], _ESTILO_MODO[clave])
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +414,7 @@ def _sec_modelo(datos, g) -> list:
             nombre = nombre[:-len(ext)]
             break
     nombre = _acortar(nombre, _TOPE_MODELO, g["elip"])
-    return [(nombre, EST_MODELO)]
+    return [(nombre, EST_MODELO, "modelo")]
 
 
 def _sec_directorio(datos, g, corto: bool) -> list:
@@ -398,16 +430,16 @@ def _sec_directorio(datos, g, corto: bool) -> list:
                      or d.lower().startswith(home.lower() + "/")):
             d = "~" + d[len(home):]
         d = _acortar(d, _TOPE_DIR, g["elip"], por_izquierda=True)
-    return [(d, EST_DIR)]
+    return [(d, EST_DIR, "dir")]
 
 
 def _sec_rama(datos, g) -> list:
     rama = str(_dato(datos, "rama", "") or "").strip()
     if not rama:
         return []
-    partes = [(_acortar(rama, _TOPE_RAMA, g["elip"]), EST_RAMA)]
+    partes = [(_acortar(rama, _TOPE_RAMA, g["elip"]), EST_RAMA, "rama")]
     if bool(_dato(datos, "sucio", False)):
-        partes.append((_SUCIO, EST_SUCIO))
+        partes.append((_SUCIO, EST_SUCIO, "sucio"))
     return partes
 
 
@@ -453,18 +485,21 @@ def _sec_ctx(datos, g, con_bloques: bool = False) -> list:
         return []
     if not total:
         if usado:
-            return [("ctx " + tilde + humano(usado), EST_CTX)]
-        return [("ctx ?", EST_CTX)]
+            return [("ctx " + tilde + humano(usado), EST_CTX, "ctx")]
+        return [("ctx ?", EST_CTX, "ctx")]
     nc = nivel_contexto(usado, total)
     estilo = {"critico": EST_CTX_CRITICO, "aviso": EST_CTX_ALTO}.get(
         nc["nivel"], EST_CTX)
+    # la seccion logica sigue al nivel: es la clase PT 'estado.ctx-alto' /
+    # 'estado.ctx-critico' del preset barra-color (P5)
+    seccion = {"critico": "ctx_critico", "aviso": "ctx_alto"}.get(nc["nivel"], "ctx")
     partes = [("ctx {}{}/{} ({}% libre)".format(
-        tilde, humano(usado or 0), humano(total), nc["libre"]), estilo)]
+        tilde, humano(usado or 0), humano(total), nc["libre"]), estilo, seccion)]
     if con_bloques:
-        partes.append((" " + _bloques(nc["pct_usado"], g), estilo))
+        partes.append((" " + _bloques(nc["pct_usado"], g), estilo, seccion))
     if nc["nivel"]:
-        partes.append((g["sep"], EST_SEP))
-        partes.append(("/compactar", estilo))
+        partes.append((g["sep"], EST_SEP, "sep"))
+        partes.append(("/compactar", estilo, seccion))
     return partes
 
 
@@ -472,23 +507,27 @@ def _sec_tokens(datos) -> list:
     n = _entero(_dato(datos, "tokens_sesion"))
     if not n:
         return []
-    return [(humano(n) + " tok", EST_TOKENS)]
+    return [(humano(n) + " tok", EST_TOKENS, "tokens")]
 
 
-def _sec_modo(datos) -> list:
-    texto, estilo = indicador_modo(_dato(datos, "modo", ""),
-                                  _dato(datos, "permiso", ""))
-    return [(texto, estilo)] if texto else []
+def _sec_modo(datos, etiquetas: dict | None = None) -> list:
+    modo, permiso = _dato(datos, "modo", ""), _dato(datos, "permiso", "")
+    texto, estilo = indicador_modo(modo, permiso, etiquetas)
+    return [(texto, estilo, "modo." + _modo_clave(modo, permiso))] if texto else []
 
 
-def _grupos(datos, escalon: str, g, ancho: int = 0) -> tuple:
+def _grupos(datos, escalon: str, g, ancho: int = 0,
+            etiquetas_modo: dict | None = None) -> tuple:
     """(secciones_izquierda, secciones_derecha) para un escalon de recorte.
-    Cada seccion es una lista de fragmentos (texto, estilo) - la rama son dos
-    (nombre y '*') porque llevan estilos distintos."""
+    Cada seccion es una lista de fragmentos (texto, estilo, seccion) - la
+    rama son dos (nombre y '*') porque llevan estilos distintos. `seccion`
+    es el nombre logico ('modelo', 'dir', 'rama', 'sucio', 'ctx',
+    'ctx_alto', 'ctx_critico', 'tokens', 'modo.plan|auto|manual', 'sep',
+    'relleno', 'elip'): P5 lo mapea a clases de prompt_toolkit."""
     i = ESCALONES.index(escalon)
     izq = []
     if i < 5:
-        izq.append(_sec_modo(datos))
+        izq.append(_sec_modo(datos, etiquetas_modo))
     izq.append(_sec_modelo(datos, g))
     if i < 6:
         izq.append(_sec_directorio(datos, g, corto=i >= 3))
@@ -508,7 +547,7 @@ def _juntar(secciones: list, sep: str) -> list:
     out = []
     for k, sec in enumerate(secciones):
         if k:
-            out.append((sep, EST_SEP))
+            out.append((sep, EST_SEP, "sep"))
         out.extend(sec)
     return out
 
@@ -518,56 +557,65 @@ def _truncar(partes: list, ancho: int, elip: str) -> list:
 
     Si ya entra, se devuelve tal cual: la elipsis es la marca de que FALTA
     texto, y ponerla cuando no se corto nada miente y ademas gasta una celda."""
-    if sum(_ancho_visual(t) for t, _ in partes) <= ancho:
+    if sum(_ancho_visual(p[0]) for p in partes) <= ancho:
         return [p for p in partes if p[0]]
     if _ancho_visual(elip) > ancho:
         elip = ""            # ancho ridiculo: ni la elipsis entra
     cupo = max(0, ancho - _ancho_visual(elip))
     out, usado = [], 0
-    for texto, estilo in partes:
+    for p in partes:
+        texto = p[0]
         w = _ancho_visual(texto)
         if usado + w <= cupo:
-            out.append((texto, estilo))
+            out.append(p)
             usado += w
             continue
         resto = cupo - usado
         if resto > 0:
-            out.append((_acortar(texto, resto, ""), estilo))
+            out.append((_acortar(texto, resto, ""),) + tuple(p[1:]))
         break
     if elip:
-        out.append((elip, EST_SEP))
+        out.append((elip, EST_SEP, "elip"))
     return [p for p in out if p[0]]
 
 
-def barra_estado_partes(datos, ancho: int = 80,
-                        unicode_ok: bool | None = None) -> list:
-    """La barra como lista de (texto, estilo_logico) - para rich:
+def barra_estado_secciones(datos, ancho: int = 80,
+                           unicode_ok: bool | None = None, sep: str | None = None,
+                           etiquetas_modo: dict | None = None,
+                           alineacion: str = "izquierda") -> list:
+    """La barra como lista de (texto, estilo_logico, seccion). Es la que P5
+    consume para dar a cada seccion su clase de prompt_toolkit; los tres
+    parametros nuevos vienen de /estilo (barra.estado.separador, barra.modo
+    texto.*, barra.estado.alineacion) y con sus defaults la salida es
+    EXACTAMENTE la de siempre.
 
-        Text.assemble(*barra_estado_partes(datos, console.width))
-
-    El texto concatenado es EXACTAMENTE lo que devuelve barra_estado(), relleno
-    incluido, para que la version con color y la plana no se separen nunca."""
-    g = _glifos(unicode_ok)
+    alineacion 'derecha': todo el contenido va pegado al borde derecho, en un
+    solo grupo (modelo · dir · rama · ctx · tok) con el relleno delante."""
+    g = _glifos(unicode_ok, sep)
     sep = g["sep"]
     try:
         ancho = int(ancho)
     except (TypeError, ValueError, OverflowError):
         ancho = 80
     ancho = min(_ANCHO_MAX, max(1, ancho))
+    derecha = str(alineacion or "").strip().lower() == "derecha"
 
     ultimo = None
     for escalon in ESCALONES:
-        izq_secs, der_secs = _grupos(datos, escalon, g, ancho)
+        izq_secs, der_secs = _grupos(datos, escalon, g, ancho, etiquetas_modo)
         if not izq_secs and not der_secs:
             # Este escalon ya no muestra NADA. Si algun escalon anterior si
             # tenia contenido, ese es el candidato a truncar en duro; cortar
             # aca con [] borraba datos que entraban (una barra de solo modo
             # desaparecia entera porque 'sin_modo' queda vacio).
             break
-        izq = _juntar(izq_secs, sep)
-        der = _juntar(der_secs, sep)
-        w_izq = sum(_ancho_visual(t) for t, _ in izq)
-        w_der = sum(_ancho_visual(t) for t, _ in der)
+        if derecha:
+            izq, der = [], _juntar(izq_secs + der_secs, sep)
+        else:
+            izq = _juntar(izq_secs, sep)
+            der = _juntar(der_secs, sep)
+        w_izq = sum(_ancho_visual(p[0]) for p in izq)
+        w_der = sum(_ancho_visual(p[0]) for p in der)
         # Al menos un espacio separa los dos grupos, pero solo si hay DOS
         # grupos: sin grupo izquierdo no hay nada de lo que separarse, y sin
         # grupo derecho el relleno solo empuja el borde (la linea igual mide
@@ -578,7 +626,7 @@ def barra_estado_partes(datos, ancho: int = 80,
         if relleno >= minimo and ancho >= _ANCHO_MIN:
             partes = list(izq)
             if relleno > 0:
-                partes.append((" " * relleno, ""))
+                partes.append((" " * relleno, "", "relleno"))
             partes.extend(der)
             return [p for p in partes if p[0]]
     if ultimo is None:
@@ -588,20 +636,38 @@ def barra_estado_partes(datos, ancho: int = 80,
     # separados por un espacio (pegados, 'qwythos-9bctx 12.4k' es ilegible).
     crudo = [p for p in izq if p[0]]
     if crudo and der:
-        crudo.append((" ", ""))
+        crudo.append((" ", "", "relleno"))
     crudo += [p for p in der if p[0]]
     return _truncar(crudo, ancho, g["elip"])
 
 
+def barra_estado_partes(datos, ancho: int = 80,
+                        unicode_ok: bool | None = None, sep: str | None = None,
+                        etiquetas_modo: dict | None = None,
+                        alineacion: str = "izquierda") -> list:
+    """La barra como lista de (texto, estilo_logico) - para rich:
+
+        Text.assemble(*barra_estado_partes(datos, console.width))
+
+    El texto concatenado es EXACTAMENTE lo que devuelve barra_estado(), relleno
+    incluido, para que la version con color y la plana no se separen nunca."""
+    return [(t, e) for t, e, _ in
+            barra_estado_secciones(datos, ancho, unicode_ok, sep, etiquetas_modo,
+                                   alineacion)]
+
+
 def barra_estado(datos, ancho: int = 80,
-                 unicode_ok: bool | None = None) -> str:
+                 unicode_ok: bool | None = None, sep: str | None = None,
+                 etiquetas_modo: dict | None = None,
+                 alineacion: str = "izquierda") -> str:
     """La linea COMPLETA de estado, izquierda y derecha ancladas.
 
     Mide exactamente `ancho` celdas cuando el contenido entra (la derecha queda
     pegada al borde); si no entra en ningun escalon de recorte, sale truncada y
     mide `ancho` o menos. Nunca lanza y nunca se pasa del ancho.
     """
-    return "".join(t for t, _ in barra_estado_partes(datos, ancho, unicode_ok))
+    return "".join(t for t, _ in barra_estado_partes(datos, ancho, unicode_ok, sep,
+                                                     etiquetas_modo, alineacion))
 
 
 # ---------------------------------------------------------------------------
@@ -625,14 +691,19 @@ _ATAJOS = {
 CONTEXTOS = tuple(_ATAJOS)
 
 
-def barra_atajos_partes(contexto: str, ancho: int = 0,
-                        unicode_ok: bool | None = None) -> list:
-    """Los atajos del contexto como (texto, estilo): la TECLA con acento, la
-    accion tenue. Contexto desconocido -> [] (mejor nada que mentir).
+def _clave_atajo(tecla: str) -> str:
+    """La clave con la que /estilo barra.atajos texto.<clave> nombra cada
+    atajo: la tecla tal cual, salvo las flechas ('{F}' -> 'historial')."""
+    return "historial" if tecla == "{F}" else tecla
 
-    `ancho` > 0 recorta por la DERECHA (se caen los atajos menos importantes,
-    que estan al final de cada lista) hasta que entra."""
-    g = _glifos(unicode_ok)
+
+def barra_atajos_secciones(contexto: str, ancho: int = 0,
+                           unicode_ok: bool | None = None, sep: str | None = None,
+                           textos: dict | None = None) -> list:
+    """Los atajos como (texto, estilo, seccion) con seccion 'atajo_tecla' /
+    'atajo_accion' / 'sep' / 'elip' (P5). `sep` y `textos` ({clave: accion},
+    ver _clave_atajo) vienen de /estilo; con None la salida es la de siempre."""
+    g = _glifos(unicode_ok, sep)
     pares = _ATAJOS.get(str(contexto or "").strip().lower())
     if not pares:
         return []
@@ -641,34 +712,54 @@ def barra_atajos_partes(contexto: str, ancho: int = 0,
     except (TypeError, ValueError):
         ancho = 0
 
+    def accion_de(tecla: str, accion: str) -> str:
+        try:
+            propio = str((textos or {}).get(_clave_atajo(tecla)) or "")
+        except Exception:
+            propio = ""
+        return propio or accion
+
     def armar(n):
         out = []
         for k, (tecla, accion) in enumerate(pares[:n]):
             if k:
-                out.append((g["sep"], EST_SEP))
-            out.append((tecla.replace("{F}", g["flechas"]), EST_ATAJO_TECLA))
-            out.append((" " + accion, EST_ATAJO_ACCION))
+                out.append((g["sep"], EST_SEP, "sep"))
+            out.append((tecla.replace("{F}", g["flechas"]), EST_ATAJO_TECLA, "atajo_tecla"))
+            out.append((" " + accion_de(tecla, accion), EST_ATAJO_ACCION, "atajo_accion"))
         return out
 
     partes = armar(len(pares))
     if ancho <= 0:
         return partes
     n = len(pares)
-    while n > 1 and sum(_ancho_visual(t) for t, _ in partes) > ancho:
+    while n > 1 and sum(_ancho_visual(p[0]) for p in partes) > ancho:
         n -= 1
         partes = armar(n)
-    if sum(_ancho_visual(t) for t, _ in partes) > ancho:
+    if sum(_ancho_visual(p[0]) for p in partes) > ancho:
         partes = _truncar(partes, ancho, g["elip"])
     return partes
 
 
+def barra_atajos_partes(contexto: str, ancho: int = 0,
+                        unicode_ok: bool | None = None, sep: str | None = None,
+                        textos: dict | None = None) -> list:
+    """Los atajos del contexto como (texto, estilo): la TECLA con acento, la
+    accion tenue. Contexto desconocido -> [] (mejor nada que mentir).
+
+    `ancho` > 0 recorta por la DERECHA (se caen los atajos menos importantes,
+    que estan al final de cada lista) hasta que entra."""
+    return [(t, e) for t, e, _ in
+            barra_atajos_secciones(contexto, ancho, unicode_ok, sep, textos)]
+
+
 def barra_atajos(contexto: str, ancho: int = 0,
-                 unicode_ok: bool | None = None) -> str:
+                 unicode_ok: bool | None = None, sep: str | None = None,
+                 textos: dict | None = None) -> str:
     """'tab completa \u00b7 \u2191\u2193 historial \u00b7 @ archivo \u00b7 / comandos \u00b7 f2 agentes'
     (contexto 'repl').
     Cadena vacia si el contexto no es uno de CONTEXTOS."""
     return "".join(t for t, _ in
-                   barra_atajos_partes(contexto, ancho, unicode_ok))
+                   barra_atajos_partes(contexto, ancho, unicode_ok, sep, textos))
 
 
 # ---------------------------------------------------------------------------
@@ -694,11 +785,47 @@ def toolbar_prompt_toolkit(proveedor_datos, ancho: int | None = None,
     bottom_toolbar valido. Con `contexto_atajos` la barra sale de DOS lineas
     (estado arriba, atajos abajo), como el pie de Crush.
     """
+    partes = toolbar_partes(proveedor_datos, ancho, contexto_atajos, unicode_ok)
+
     def _toolbar() -> str:
+        return "".join(p[0] for p in partes())
+    return _toolbar
+
+
+# Claves que acepta el dict de `opciones` de toolbar_partes (P5): todas
+# opcionales; ausentes = el aspecto de siempre.
+OPCIONES_TOOLBAR = ("sep", "sep_atajos", "etiquetas_modo", "textos_atajos",
+                    "alineacion", "estado", "atajos")
+
+
+def toolbar_partes(proveedor_datos, ancho: int | None = None,
+                   contexto_atajos: str = "", unicode_ok: bool | None = None,
+                   opciones=None):
+    """Como toolbar_prompt_toolkit, pero la funcion devuelta da la barra como
+    lista de (texto, estilo_logico, seccion) con las DOS lineas separadas por
+    un fragmento ("\n", "", "salto"): P5 mapea cada `seccion` a una clase de
+    prompt_toolkit ('estado.modelo', 'estado.ctx-alto', 'modo.plan',
+    'atajos.tecla'...) y el texto concatenado es EXACTAMENTE el string de
+    toolbar_prompt_toolkit (test de regresion).
+
+    `opciones`: callable sin argumentos (o dict) con OPCIONES_TOOLBAR, leido
+    en CADA redibujado para que /estilo se vea sin reabrir el prompt:
+      sep / sep_atajos   separador de la barra / de los atajos (None = ' \u00b7 ')
+      etiquetas_modo     {'plan': 'PLAN', ...}   textos_atajos {'tab': 'completa', ...}
+      alineacion         'izquierda' | 'derecha'
+      estado / atajos    False esconde esa linea (barra.estado.visible, barra.atajos.visible)
+
+    TOLERANTE POR CONTRATO (como toolbar_prompt_toolkit): cualquier fallo ->
+    [] ; un adorno JAMAS puede romper el prompt. prompt_toolkit no se importa.
+    """
+    def _partes() -> list:
         try:
             datos = proveedor_datos() if callable(proveedor_datos) else proveedor_datos
             if not hasattr(datos, "get"):
-                return ""
+                return []
+            op = opciones() if callable(opciones) else (opciones or {})
+            if not hasattr(op, "get"):
+                op = {}
             w = ancho
             if not w:
                 try:
@@ -706,14 +833,20 @@ def toolbar_prompt_toolkit(proveedor_datos, ancho: int | None = None,
                 except Exception:
                     w = 80
             w = max(_ANCHO_MIN, int(w))
-            linea = barra_estado(datos, w, unicode_ok)
-            if contexto_atajos:
-                atajos = barra_atajos(contexto_atajos, w, unicode_ok)
-                # Sin estado (dict vacio) la barra es "": concatenar igual
+            linea = []
+            if op.get("estado", True):
+                linea = barra_estado_secciones(
+                    datos, w, unicode_ok, op.get("sep"), op.get("etiquetas_modo"),
+                    op.get("alineacion") or "izquierda")
+            if contexto_atajos and op.get("atajos", True):
+                atajos = barra_atajos_secciones(
+                    contexto_atajos, w, unicode_ok, op.get("sep_atajos"),
+                    op.get("textos_atajos"))
+                # Sin estado (dict vacio) la barra es []: concatenar igual
                 # dejaba una PRIMERA LINEA EN BLANCO en el pie del prompt.
                 if atajos:
-                    linea = (linea + "\n" + atajos) if linea else atajos
+                    linea = (linea + [("\n", "", "salto")] + atajos) if linea else atajos
             return linea
         except Exception:
-            return ""
-    return _toolbar
+            return []
+    return _partes

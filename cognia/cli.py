@@ -306,9 +306,29 @@ def _estilo_prompt(variante: str = ""):
     """El Style de prompt_toolkit: marco verde, prompt verde, texto verde.
 
     `variante` vacia = la del tema activo. Se pasa explicita solo para poder
-    medir/renderizar una variante concreta sin tocar el estado global."""
+    medir/renderizar una variante concreta sin tocar el estado global.
+
+    P5 (2026-08-24): el dict sale del registro de estilos (aspecto.clases_pt):
+    sin ~/.cognia/estilo.json es EXACTAMENTE el literal de _clases_pt_respaldo
+    mas las 4 claves de E2 (busqueda Ctrl-R, seleccion, validation-toolbar)
+    con los strings por defecto de prompt_toolkit, asi que el render no
+    cambia un byte (tests/golden/aspecto/prompt_marco_*.ansi); con overrides
+    suma 'estado.<seccion>', 'modo.<insignia>', 'atajos.<parte>'. Si el
+    registro falla se avisa y se usa el respaldo: el marco nunca desaparece."""
+    variante = variante or _variante_actual()
+    try:
+        return PTStyle.from_dict(_aspecto.clases_pt(variante))
+    except Exception as exc:
+        _aviso_degradado("estilo", f"clases_pt fallo, marco con el respaldo: "
+                                   f"{type(exc).__name__}: {exc}")
+        return PTStyle.from_dict(_clases_pt_respaldo(variante))
+
+
+def _clases_pt_respaldo(variante: str) -> dict:
+    """El dict LITERAL del marco (el de antes de P5): respaldo si el registro
+    no responde y referencia del test de byte-identico de test_ux_aspecto."""
     verde = paleta.rampa(variante or _variante_actual())
-    return PTStyle.from_dict({
+    return ({
         "":                                        f"{verde['texto']} bold",
         "marco":                                   verde["marco"],
         "cognia":                                  f"{verde['prompt']} bold",
@@ -330,22 +350,271 @@ def _estilo_prompt(variante: str = ""):
     })
 
 
+# ---------------------------------------------------------------------------
+# P5 (2026-08-24): el marco lo compone el registro de estilos (ux/aspecto.py)
+# ---------------------------------------------------------------------------
+# Lo que el dueno cambia con /estilo (texto de la etiqueta, glifo de la flecha
+# y de la regla, posicion del marco y de la barra, visible, separador y color
+# por seccion de la barra, glow estatico) se lee AQUI, en cada redibujado, asi
+# que se ve en el prompt siguiente sin reiniciar. REGLA UNO: sin fichero de
+# estilo las tres funciones devuelven EXACTAMENTE los fragmentos de antes
+# (class:marco / class:cognia / class:flecha / class:estado) y el golden
+# tests/golden/aspecto/prompt_marco_*.ansi lo fija en bytes. La animacion del
+# prompt (barrido por pulso) es del paso P9: aqui solo el frame ESTATICO.
+
+# La barra de estado que _pie_prompt recibio por ultima vez: la necesita
+# _mensaje_prompt cuando barra.estado.posicion == 'arriba' (la barra pasa del
+# pie a la cabecera del marco).
+_barra_prompt = None
+# Seccion logica de barra_estado.toolbar_partes -> clase PT cuando el dueno
+# coloreo las secciones (preset 'barra-color'); sin override todo es 'estado'.
+_CLASE_SECCION_BARRA = {
+    "modelo": "estado.modelo", "dir": "estado.dir", "rama": "estado.rama",
+    "sucio": "estado.sucio", "ctx": "estado.ctx", "ctx_alto": "estado.ctx-alto",
+    "ctx_critico": "estado.ctx-critico", "tokens": "estado.tokens",
+}
+# memo de _frag_prompt: (id, estado, version del registro, variante) ->
+# (glow_intensidad, tiene_override). PT llama al callable del message unas
+# 10 veces por render; resolver el registro cada vez seria tirar CPU.
+_MEMO_FRAG: dict = {}
+
+
+def _glifo_prompt(id: str, respaldo: str) -> str:
+    """A.glifo(id) (ya cae a ASCII si stdout no lo codifica); si el registro
+    falla, el literal de siempre y un aviso (nunca un marco vacio)."""
+    try:
+        g = _aspecto.glifo(id)
+        return g if g else respaldo
+    except Exception as exc:
+        _aviso_degradado("estilo", f"glifo de {id} fallo, uso el de siempre: "
+                                   f"{type(exc).__name__}: {exc}")
+        return respaldo
+
+
+def _texto_prompt(id: str, respaldo: str, clave: str | None = None) -> str:
+    try:
+        return _aspecto.texto(id, clave)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"texto de {id} fallo, uso el de siempre: "
+                                   f"{type(exc).__name__}: {exc}")
+        return respaldo
+
+
+def _estilo_de_prompt(id: str):
+    """aspecto.estilo_de(id) tolerante: el default del registro si falla."""
+    try:
+        return _aspecto.estilo_de(id)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"estilo de {id} fallo, uso el default: "
+                                   f"{type(exc).__name__}: {exc}")
+        return _aspecto.REGISTRO[id].default
+
+
+def _frag_prompt(id: str, clase: str, texto: str, estado: str | None = None,
+                 clase_propia: bool = True) -> list:
+    """Los fragmentos PT de UNA pieza del marco.
+
+    Sin glow es UN fragmento con la clase de siempre ('class:cognia'...):
+    byte-identico, y el color/negrita del dueno ya viaja en el PTStyle
+    (aspecto.clases_pt). Con glow (intensidad 1-3) el frame ESTATICO del
+    motor, por caracter (ux/glow.frame_estatico_pt). `clase_propia=False`
+    es para las piezas que no tienen clase en el PTStyle (la continuacion,
+    el prompt de espera): si el dueno las cambio, la clase heredada se
+    completa con el estilo resuelto ('class:cognia fg:#ff0000')."""
+    if not texto:
+        return []
+    clave = (id, estado, _aspecto.version(), _variante_actual())
+    info = _MEMO_FRAG.get(clave)
+    if info is None:
+        try:
+            r = _aspecto.estilo_resuelto(id)
+            if estado:
+                r = r.estados[estado]
+            info = (int(r.glow_intensidad or 0), _aspecto.tiene_override(id))
+        except Exception as exc:
+            _aviso_degradado("estilo", f"resolver {id} fallo, sin glow: "
+                                       f"{type(exc).__name__}: {exc}")
+            info = (0, False)
+        if len(_MEMO_FRAG) > 256:
+            _MEMO_FRAG.clear()
+        _MEMO_FRAG[clave] = info
+    glow_int, override = info
+    if glow_int <= 0 and (clase_propia or not override):
+        return [(f"class:{clase}", texto)]
+    try:
+        from cognia.ux import glow as _glow
+        if _glow.RESOLVER is None:
+            _aspecto.conectar_glow(_load_config)
+        if glow_int > 0:
+            return list(_glow.frame_estatico_pt(id, texto, estado=estado))
+        return [(f"class:{clase} {_glow.clase_pt(id, estado=estado)}".rstrip(), texto)]
+    except Exception as exc:
+        _aviso_degradado("estilo", f"glow de {id} fallo, pieza plana: "
+                                   f"{type(exc).__name__}: {exc}")
+        return [(f"class:{clase}", texto)]
+
+
+def _fusionar_frags(frags: list) -> list:
+    """Une fragmentos vecinos con el MISMO estilo: asi la barra por secciones
+    sin override queda en un solo ('class:estado', ...) como antes de P5."""
+    out = []
+    for estilo, texto in frags:
+        if not texto:
+            continue
+        if out and out[-1][0] == estilo:
+            out[-1] = (estilo, out[-1][1] + texto)
+        else:
+            out.append((estilo, texto))
+    return out
+
+
+def _clase_seccion_barra(seccion: str) -> str:
+    """Clase PT de una seccion de la barra. Sin override del elemento que la
+    colorea, 'estado' (monocroma, byte-identico); con override, la clase
+    que aspecto.clases_pt emitio para esa seccion."""
+    if seccion in _CLASE_SECCION_BARRA:
+        return (_CLASE_SECCION_BARRA[seccion]
+                if _aspecto.tiene_override("barra.estado.secciones") else "estado")
+    if seccion.startswith("modo."):
+        return seccion if _aspecto.tiene_override("barra.modo") else "estado"
+    if seccion in ("atajo_tecla", "atajo_accion"):
+        return ("atajos." + seccion[len("atajo_"):]
+                if _aspecto.tiene_override("barra.atajos") else "estado")
+    return "estado"
+
+
+def _barra_frags(barra) -> list:
+    """Los fragmentos PT de la barra: `barra` es el callable de
+    barra_estado.toolbar_partes (lista de (texto, estilo, seccion)) o uno
+    viejo que devuelve str (toolbar_prompt_toolkit, tests). [] si falta o
+    lanza: la barra es un adorno y el marco no depende de ella."""
+    try:
+        linea = barra() if callable(barra) else ""
+    except Exception as exc:
+        # antes: except mudo. _aviso_degradado de-duplica por turno, asi que
+        # un redibujado tras otro no inunda la consola.
+        _aviso_degradado("cli.barra_estado", f"la barra lanzo y el marco sigue sin "
+                                             f"ella: {type(exc).__name__}: {exc}")
+        linea = ""
+    if not linea:
+        return []
+    if isinstance(linea, str):
+        return [("class:estado", linea)]
+    try:
+        return _fusionar_frags([(f"class:{_clase_seccion_barra(sec)}", str(t))
+                                for t, _e, sec in linea])
+    except Exception as exc:
+        _aviso_degradado("estilo", f"barra por secciones fallo, va plana: "
+                                   f"{type(exc).__name__}: {exc}")
+        return [("class:estado", "".join(str(p[0]) for p in linea))]
+
+
+def _opciones_barra() -> dict:
+    """Lo que barra_estado.toolbar_partes lee del registro en cada redibujado
+    (separador, textos de la insignia y de los atajos, alineacion, visible).
+    Solo se pasa el separador si el dueno lo cambio: si no, la barra decide
+    por encoding como siempre (byte-identico)."""
+    try:
+        est = _aspecto.estilo_de("barra.estado")
+        sep = est.separador if "separador" in _aspecto.cambios("barra.estado") else None
+        sep_at = (_aspecto.estilo_de("barra.atajos").separador
+                  if "separador" in _aspecto.cambios("barra.atajos") else None)
+        return {"sep": sep, "sep_atajos": sep_at,
+                "etiquetas_modo": _aspecto.textos("barra.modo"),
+                "textos_atajos": _aspecto.textos("barra.atajos"),
+                "alineacion": est.alineacion or "izquierda",
+                "estado": _aspecto.visible("barra.estado"),
+                "atajos": _aspecto.visible("barra.atajos")}
+    except Exception as exc:
+        _aviso_degradado("estilo", f"opciones de la barra fallaron, va la de "
+                                   f"siempre: {type(exc).__name__}: {exc}")
+        return {}
+
+
+def _posicion_marco() -> str:
+    """'ambos' | 'arriba' | 'abajo' | 'ninguno' (visible=False = ninguno)."""
+    est = _estilo_de_prompt("prompt.marco")
+    if est.visible is False:
+        return "ninguno"
+    return est.posicion or "ambos"
+
+
+def _barra_arriba() -> bool:
+    return (_estilo_de_prompt("barra.estado").posicion or "abajo") == "arriba"
+
+
+def _cabecera_prompt(linea: list) -> list:
+    """Lo que va ENCIMA de lo que se escribe: la barra si esta 'arriba', la
+    regla superior (con la etiqueta incrustada si prompt.etiqueta.posicion
+    es 'arriba') y `linea` (los fragmentos de la linea de entrada: etiqueta
+    + flecha, o el reloj del carril de fondo)."""
+    partes = []
+    if _barra_arriba():
+        frags = _barra_frags(_barra_prompt)
+        if frags:
+            partes.extend(frags)
+            partes.append(("class:estado", "\n"))
+    regla = _glifo_prompt("prompt.marco", _REGLA)
+    ancho = _ancho_marco()
+    et = _estilo_de_prompt("prompt.etiqueta")
+    arriba = (et.posicion == "arriba") and et.visible is not False
+    texto_et = _texto_prompt("prompt.etiqueta", "cognia") if arriba else ""
+    if _posicion_marco() in ("ambos", "arriba"):
+        if arriba and texto_et:
+            # '── cognia ─────': la etiqueta dentro de la regla superior
+            resto = max(1, ancho - 2 - len(texto_et) - 2)
+            partes.extend(_frag_prompt("prompt.marco", "marco", regla * 2 + " "))
+            partes.extend(_frag_prompt("prompt.etiqueta", "cognia", texto_et))
+            partes.extend(_frag_prompt("prompt.marco", "marco", " " + regla * resto + "\n"))
+        else:
+            partes.extend(_frag_prompt("prompt.marco", "marco", regla * ancho + "\n"))
+    elif arriba and texto_et:
+        partes.extend(_frag_prompt("prompt.etiqueta", "cognia", " " + texto_et))
+        partes.append(("", "\n"))
+    partes.extend(linea)
+    return _fusionar_frags(partes)
+
+
+def _linea_entrada() -> list:
+    """' cognia' + '➤ ' (etiqueta en linea y flecha), lo que el dueno haya
+    puesto en /estilo prompt.etiqueta / prompt.flecha."""
+    partes = []
+    et = _estilo_de_prompt("prompt.etiqueta")
+    if et.visible is not False and (et.posicion or "linea") == "linea":
+        partes.extend(_frag_prompt("prompt.etiqueta", "cognia",
+                                   " " + _texto_prompt("prompt.etiqueta", "cognia")))
+    if _estilo_de_prompt("prompt.flecha").visible is not False:
+        partes.extend(_frag_prompt("prompt.flecha", "flecha",
+                                   _glifo_prompt("prompt.flecha", _FLECHA)))
+    return partes
+
+
 def _mensaje_prompt():
     """Regla superior + 'cognia➤'. prompt_toolkit reevalua el callable en cada
-    redibujado, asi que el marco se reajusta solo al cambiar el ancho."""
-    return FormattedText([
-        ("class:marco", _REGLA * _ancho_marco() + "\n"),
-        ("class:cognia", " cognia"),
-        ("class:flecha", _FLECHA),
-    ])
+    redibujado, asi que el marco se reajusta solo al cambiar el ancho (y al
+    cambiar el estilo: P5)."""
+    return FormattedText(_cabecera_prompt(_linea_entrada()))
+
+
+def _mensaje_continuacion():
+    """La sangria de la linea continuada con '\\' (prompt.continuacion):
+    hoy tres espacios con la clase de la flecha."""
+    texto = _texto_prompt("prompt.continuacion", "   ")
+    return FormattedText(_frag_prompt("prompt.continuacion", "flecha", texto,
+                                      clase_propia=False))
 
 
 def _pie_prompt(barra=None):
     """Devuelve el bottom_toolbar: la regla que CIERRA el marco y, debajo, la
-    barra de estado que produzca `barra` (callable opcional).
+    barra de estado que produzca `barra` (callable opcional: el de
+    barra_estado.toolbar_partes, o uno viejo que devuelva str).
 
     La regla se dibuja aunque la barra falte o lance: el marco no puede
-    depender de un adorno opcional."""
+    depender de un adorno opcional. Con barra.estado.posicion = 'arriba' la
+    barra se va a _mensaje_prompt y aqui queda solo la regla; con
+    prompt.marco.posicion 'arriba'/'ninguno' no hay regla inferior."""
+    globals()["_barra_prompt"] = barra
+
     def _toolbar():
         # Hot reload de ~/.cognia/estilo.json (E6): aqui SOLO un stat que
         # marca la recarga pendiente; reconstruir Console/renderer dentro
@@ -355,14 +624,17 @@ def _pie_prompt(barra=None):
             _aspecto.recargar_si_cambio()
         except Exception as exc:
             _aviso_degradado("estilo", f"stat de estilo.json fallo: {exc}")
-        partes = [("class:marco", _REGLA * _ancho_marco())]
-        try:
-            linea = barra() if callable(barra) else ""
-        except Exception:
-            linea = ""
-        if linea:
-            partes.append(("class:estado", "\n" + str(linea)))
-        return FormattedText(partes)
+        partes = []
+        if _posicion_marco() in ("ambos", "abajo"):
+            partes.extend(_frag_prompt("prompt.marco", "marco",
+                                       _glifo_prompt("prompt.marco", _REGLA) * _ancho_marco()))
+        if not _barra_arriba():
+            frags = _barra_frags(barra)
+            if frags:
+                if partes:
+                    partes.append(("class:estado", "\n"))
+                partes.extend(frags)
+        return FormattedText(_fusionar_frags(partes))
     return _toolbar
 
 
@@ -1177,12 +1449,19 @@ def _mensaje_espera(c):
     y cuales son las teclas. Se devuelve un callable porque prompt_toolkit lo
     reevalua en cada redibujado (igual que _mensaje_prompt)."""
     def _msg():
-        return FormattedText([
-            ("class:marco", _REGLA * _ancho_marco() + "\n"),
-            ("class:cognia", f" {c.etiqueta} {int(time.time() - c.t0)}s"),
-            ("class:estado", "  F2 agentes · Ctrl-C corta la corrida"),
-            ("class:flecha", _FLECHA),
-        ])
+        # P5: el texto de la pista y el color salen de prompt.espera (sin
+        # override: las clases cognia/estado de siempre); marco, barra y
+        # flecha, del mismo compositor que el prompt normal.
+        linea = _frag_prompt("prompt.espera", "cognia",
+                             f" {c.etiqueta} {int(time.time() - c.t0)}s",
+                             clase_propia=False)
+        pista = _texto_prompt("prompt.espera", "F2 agentes · Ctrl-C corta la corrida")
+        linea += _frag_prompt("prompt.espera", "estado", "  " + pista,
+                              estado="aviso", clase_propia=False)
+        if _estilo_de_prompt("prompt.flecha").visible is not False:
+            linea += _frag_prompt("prompt.flecha", "flecha",
+                                  _glifo_prompt("prompt.flecha", _FLECHA))
+        return FormattedText(_cabecera_prompt(linea))
     return _msg
 
 
@@ -2389,8 +2668,12 @@ _CMD_DETAILS = {
         "terminal, o {oscuro:..,claro:..,alto_contraste:..}. Fichero: ~/.cognia/estilo.json "
         "(override parcial, se recarga solo al editarlo; presets en ~/.cognia/estilos/). "
         "Cada cambio se valida (ruidoso), se guarda con .bak y se aplica en caliente; los "
-        "elementos que su paso aun no engancha (prompt/barra/menu P5, glifos/textos P6, banner "
-        "P7, spinner P8, animacion P9) se guardan y avisan. /tema convive: cambia la variante; "
+        "elementos que su paso aun no engancha (glifos/textos P6, banner P7, spinner P8, "
+        "animacion P9) se guardan y avisan. Prompt, barra y menus ya cambian en el prompt "
+        "siguiente (prompt.etiqueta texto, prompt.marco posicion ambos|arriba|abajo|ninguno, "
+        "prompt.etiqueta posicion linea|arriba, barra.estado posicion abajo|arriba, "
+        "barra.estado.secciones y preset barra-color, prompt.busqueda para Ctrl-R, "
+        "menu.selector glifo). /tema convive: cambia la variante; "
         "/estilo cambia elementos sobre la variante. Sin fichero el aspecto es byte-identico "
         "al de siempre. Editor interactivo (/estilo a secas): paso P11."),
     "/spinner": (
@@ -8853,8 +9136,12 @@ def _reestilar_prompt() -> None:
         return
     try:
         _sesion_prompt.style = _estilo_prompt()
-    except Exception:
-        pass  # el tema ya cambio en rich; el marco no puede tumbar el REPL
+    except Exception as exc:
+        # el tema ya cambio en rich; el marco no puede tumbar el REPL, pero
+        # tampoco callarse (P5: antes era un pass mudo)
+        _aviso_degradado("estilo", f"el marco del prompt no se repinto: "
+                                   f"{type(exc).__name__}: {exc}")
+    _MEMO_FRAG.clear()
 
 
 def _slash_color(arg: str = ""):
@@ -9037,10 +9324,17 @@ def _estilo_aviso_enganche(id: str, props) -> str:
     paso = _estilo_paso(id)
     if not e.enganchado:
         return f"guardado; se aplica cuando su elemento este enganchado (paso {paso})"
-    pendientes = [p for p in props if p.split(".")[0] not in _aspecto.PROPS_POR_TOKEN]
+    # P5: aspecto.paso_pendiente sabe que le falta a cada elemento enganchado
+    # (animacion del prompt/barra -> P9; glifos y textos por token -> P6)
+    pendientes = [(p, _aspecto.paso_pendiente(id, p)) for p in props]
+    pendientes = [(p, s) for p, s in pendientes if s]
     if pendientes:
-        return (f"guardado; {', '.join(pendientes)} se aplica cuando su elemento "
-                f"este enganchado (paso {paso}); color/negrita/italica ya cambian")
+        if all(s == "P9" for _, s in pendientes):
+            return (f"guardado; {', '.join(p for p, _ in pendientes)} se aplica con la "
+                    f"animacion del prompt (paso P9); el resto ya cambia")
+        return (f"guardado; {', '.join(p for p, _ in pendientes)} se aplica cuando su "
+                f"elemento este enganchado (paso {pendientes[0][1]}); "
+                f"color/negrita/italica ya cambian")
     return ""
 
 
@@ -9164,7 +9458,11 @@ def _estilo_ver(id: str = "") -> None:
     for cap, campo in _ESTILO_CAMPO_DE_CAP:
         if _aspecto.Cap(cap) not in e.caps:
             continue
-        v = getattr(r, campo)
+        # EstiloResuelto no tiene 'glow' (lleva glow_color/glow_intensidad):
+        # con getattr a secas '/estilo ver prompt.etiqueta' tumbaba el REPL
+        # entero con AttributeError (cazado tecleando en P5; P4 solo lo probo
+        # con sistema.ok, que no tiene GLOW).
+        v = getattr(r, campo, None)
         if campo == "glow":
             v = f"color {r.glow_color} intensidad {r.glow_intensidad}"
         elif campo == "animacion":
@@ -9297,12 +9595,22 @@ def _estilo_cargar(arg: str) -> None:
     _print_line(f"[ok_cl]estilo: '{_escape(arg)}' cargado en "
                 f"{_escape(str(_aspecto.RUTA_ESTILO))} ({len(cambiados)} elementos "
                 f"difieren del default; /estilo deshacer vuelve)[/ok_cl]")
-    pendientes = sorted({f"{_aspecto.elemento(i).grupo}.* ({_estilo_paso(i)})"
-                         for i in set(cambiados) | antes
-                         if not _aspecto.elemento(i).enganchado})
+    # Lo que el preset trae y todavia no se ve: por grupo si el elemento no
+    # esta enganchado; por propiedad (P5: la animacion del prompt -> P9) si
+    # el elemento ya lo esta y solo le falta esa.
+    pendientes = set()
+    for i in set(cambiados) | antes:
+        e = _aspecto.elemento(i)
+        if not e.enganchado:
+            pendientes.add(f"{e.grupo}.* ({_estilo_paso(i)})")
+            continue
+        for prop in _aspecto.cambios(i):
+            paso = _aspecto.paso_pendiente(i, prop)
+            if paso:
+                pendientes.add(f"{i}.{prop} ({paso})")
     if pendientes:
         _print_line(f"[warn_cl]guardado; se aplica cuando su elemento este enganchado: "
-                    f"{', '.join(pendientes)}[/warn_cl]")
+                    f"{', '.join(sorted(pendientes))}[/warn_cl]")
 
 
 def _estilo_deshacer() -> None:
@@ -12964,9 +13272,14 @@ def repl():
             # barra se actualiza sola. Degrada a None ante cualquier fallo.
             _barra = None
             try:
-                from cognia.harness.barra_estado import toolbar_prompt_toolkit
-                _barra = toolbar_prompt_toolkit(_datos_barra_estado,
-                                                contexto_atajos="repl")
+                # P5: toolbar_partes da la barra por SECCIONES (texto, estilo,
+                # seccion) y _pie_prompt les pone la clase PT; las opciones
+                # (separador, textos, alineacion, visible) se leen del registro
+                # de estilos en cada redibujado.
+                from cognia.harness.barra_estado import toolbar_partes
+                _barra = toolbar_partes(_datos_barra_estado,
+                                        contexto_atajos="repl",
+                                        opciones=_opciones_barra)
             except Exception as _exc_barra:
                 # Antes: 'except Exception: _toolbar = None'. La barra es una
                 # capacidad VISIBLE: sin aviso, "todavia no la cablearon" y "se
@@ -13085,8 +13398,7 @@ def repl():
                 _sig = ""
                 while True:
                     continuation = session.prompt(
-                        FormattedText([("class:flecha", "   ")]),
-                        default=_sig).strip()
+                        _mensaje_continuacion, default=_sig).strip()
                     # F2 y F3 tambien estan vivas en el prompt de continuacion
                     # (misma sesion, mismos keybindings). Sin estas dos ramas
                     # el centinela se concatenaba EN MEDIO del mensaje y

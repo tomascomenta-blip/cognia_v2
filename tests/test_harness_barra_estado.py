@@ -538,3 +538,118 @@ def test_el_modulo_no_imprime_nada(capsys):
     B.toolbar_prompt_toolkit(lambda: DATOS)()
     capturado = capsys.readouterr()
     assert capturado.out == "" and capturado.err == ""
+
+
+# ---------------------------------------------------------------------------
+# P5 (2026-08-24): la barra por SECCIONES para el sistema de estilos
+# ---------------------------------------------------------------------------
+# toolbar_partes da (texto, estilo, seccion) y cli._pie_prompt le pone a cada
+# seccion su clase de prompt_toolkit. El contrato: el texto concatenado es
+# EXACTAMENTE el string de toolbar_prompt_toolkit (que ahora se apoya en el),
+# y con las opciones en None la salida es la de siempre.
+
+SECCIONES_CONOCIDAS = {"modelo", "dir", "rama", "sucio", "ctx", "ctx_alto",
+                       "ctx_critico", "tokens", "modo.plan", "modo.auto",
+                       "modo.manual", "sep", "relleno", "elip", "salto",
+                       "atajo_tecla", "atajo_accion"}
+
+
+@pytest.mark.parametrize("datos", [DATOS, DATOS_PLAN, {}, dict(DATOS, permiso="bypass"),
+                                   dict(DATOS, ctx_usado=120000)])
+@pytest.mark.parametrize("ancho", [30, 60, 90, 140])
+def test_toolbar_partes_reconstruye_el_string_de_toolbar_prompt_toolkit(datos, ancho):
+    for ctx in ("", "repl"):
+        partes = B.toolbar_partes(lambda: datos, ancho=ancho, contexto_atajos=ctx,
+                                  unicode_ok=True)()
+        texto = B.toolbar_prompt_toolkit(lambda: datos, ancho=ancho, contexto_atajos=ctx,
+                                         unicode_ok=True)()
+        assert "".join(p[0] for p in partes) == texto
+        assert all(len(p) == 3 and p[2] in SECCIONES_CONOCIDAS for p in partes), partes
+        assert all(p[1] in B.ESTILOS for p in partes)
+
+
+def test_toolbar_partes_secciones_de_cada_dato():
+    partes = B.toolbar_partes(lambda: DATOS_PLAN, ancho=120, contexto_atajos="repl",
+                              unicode_ok=True)()
+    por_seccion = {}
+    for t, _, s in partes:
+        por_seccion.setdefault(s, []).append(t)
+    assert por_seccion["modo.plan"] == ["PLAN"]
+    assert por_seccion["modelo"] == ["qwythos-9b"]
+    assert por_seccion["rama"] == ["main"] and por_seccion["sucio"] == ["*"]
+    assert por_seccion["ctx"][0].startswith("ctx ")
+    assert por_seccion["tokens"] == ["3.2k tok"]
+    assert por_seccion["salto"] == ["\n"]
+    assert por_seccion["atajo_tecla"][0] == "tab" and por_seccion["atajo_accion"][0] == " completa"
+    assert all(t == B._SEP_UNI for t in por_seccion["sep"])
+
+
+def test_barra_estado_secciones_ctx_alto_y_critico():
+    def seccion_ctx(usado):
+        secs = B.barra_estado_secciones(dict(DATOS, ctx_usado=usado), 100, unicode_ok=True)
+        return {s for t, _, s in secs if t.startswith("ctx ") or t == "/compactar"}
+    assert seccion_ctx(12400) == {"ctx"}
+    assert seccion_ctx(110000) == {"ctx_alto"}
+    assert seccion_ctx(126000) == {"ctx_critico"}
+
+
+def test_separador_propio_en_barra_y_atajos():
+    linea = B.barra_estado(DATOS, 100, unicode_ok=True, sep=" | ")
+    assert " | " in linea and B._SEP_UNI not in linea
+    assert len(linea) == 100
+    atajos = B.barra_atajos("repl", 0, unicode_ok=True, sep=" / ")
+    assert atajos.count(" / ") == 4 and B._SEP_UNI not in atajos
+    # None = el de siempre
+    assert B.barra_estado(DATOS, 100, unicode_ok=True, sep=None) == B.barra_estado(DATOS, 100, unicode_ok=True)
+
+
+def test_etiquetas_de_la_insignia():
+    assert B.indicador_modo("plan", "", {"plan": "PLANIFICANDO"}) == ("PLANIFICANDO", B.EST_PLAN)
+    assert B.indicador_modo("plan", "", {"plan": ""}) == ("PLAN", B.EST_PLAN)
+    assert B.indicador_modo("ejecutar", "bypass", {"auto": "AUTO"}) == ("AUTO", B.EST_PERMISO_AUTO)
+    assert B.indicador_modo("ejecutar", "manual", "basura") == ("manual", B.EST_PERMISO_MANUAL)
+    assert B.indicador_modo("ejecutar", "automatico", {"plan": "X"}) == ("", "")
+    linea = B.barra_estado(DATOS_PLAN, 100, unicode_ok=True, etiquetas_modo={"plan": "PLANIFICANDO"})
+    assert linea.startswith("PLANIFICANDO") and len(linea) == 100
+
+
+def test_textos_de_los_atajos():
+    textos = {"tab": "autocompleta", "historial": "atras", "f2": "vista"}
+    atajos = B.barra_atajos("repl", 0, unicode_ok=True, textos=textos)
+    assert atajos == ("tab autocompleta · ↑↓ atras · @ archivo · "
+                      "/ comandos · f2 vista")
+    assert B.barra_atajos("repl", 0, unicode_ok=True, textos={}) == B.barra_atajos("repl", 0, unicode_ok=True)
+
+
+def test_alineacion_derecha_pega_todo_al_borde():
+    izq = B.barra_estado(DATOS, 100, unicode_ok=True)
+    der = B.barra_estado(DATOS, 100, unicode_ok=True, alineacion="derecha")
+    assert len(der) == 100 and der.startswith(" ") and not der.endswith(" ")
+    assert der.lstrip().startswith("qwythos-9b") and der.endswith("3.2k tok")
+    assert izq != der
+    for ancho in (20, 45, 80):
+        assert B._ancho_visual(B.barra_estado(DATOS, ancho, unicode_ok=True, alineacion="derecha")) <= ancho
+
+
+def test_opciones_del_toolbar_por_callable_y_apagados():
+    op = {"sep": " | ", "etiquetas_modo": {"plan": "P"}, "textos_atajos": {"tab": "tabula"}}
+    partes = B.toolbar_partes(lambda: DATOS_PLAN, ancho=100, contexto_atajos="repl",
+                              unicode_ok=True, opciones=lambda: op)()
+    texto = "".join(p[0] for p in partes)
+    assert texto.startswith("P | qwythos-9b") and "tab tabula" in texto
+    assert texto.split("\n")[1].count(B._SEP_UNI) == 4, "sep_atajos aparte del sep de la barra"
+    solo_atajos = B.toolbar_partes(lambda: DATOS, ancho=100, contexto_atajos="repl",
+                                   unicode_ok=True, opciones={"estado": False})()
+    assert "".join(p[0] for p in solo_atajos) == B.barra_atajos("repl", 100, unicode_ok=True)
+    solo_estado = B.toolbar_partes(lambda: DATOS, ancho=100, contexto_atajos="repl",
+                                   unicode_ok=True, opciones={"atajos": False})()
+    assert "".join(p[0] for p in solo_estado) == B.barra_estado(DATOS, 100, unicode_ok=True)
+    assert B.toolbar_partes(lambda: DATOS, ancho=100, opciones={"estado": False, "atajos": False})() == []
+
+
+def test_opciones_que_lanzan_no_rompen_el_prompt():
+    def explota():
+        raise RuntimeError("registro roto")
+    assert B.toolbar_partes(lambda: DATOS, ancho=100, opciones=explota)() == []
+    assert B.toolbar_partes(lambda: DATOS, ancho=100, opciones=lambda: "basura")() != []
+    assert B.toolbar_partes(explota, ancho=100)() == []

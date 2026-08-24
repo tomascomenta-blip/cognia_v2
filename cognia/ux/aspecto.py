@@ -529,6 +529,23 @@ for _id in ENGANCHADOS_P4:
     REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
 del _id
 
+# P5 (2026-08-24): el prompt, la barra y los menus los pinta prompt_toolkit
+# desde clases_pt y los compositores del marco (cli._mensaje_prompt /
+# _pie_prompt / _mensaje_espera / _mensaje_continuacion), la barra desde
+# barra_estado.toolbar_partes (clases por seccion) y el selector desde
+# clases_selector(). Texto, glifo, posicion, visible, separador, color y glow
+# ESTATICO ya se ven al guardar; lo unico que espera es la animacion (pulso
+# del prompt, P9) y el glow de la barra/insignia (van con el pulso).
+ENGANCHADOS_P5 = ("prompt.marco", "prompt.etiqueta", "prompt.flecha", "prompt.texto",
+                  "prompt.continuacion", "prompt.espera", "prompt.busqueda",
+                  "prompt.seleccion", "barra.estado", "barra.estado.secciones",
+                  "barra.atajos", "barra.modo", "menu.completado", "menu.selector")
+for _id in ENGANCHADOS_P5:
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
+del _id
+# La union de los pasos ya cableados (el test de enganchado compara contra esta).
+ENGANCHADOS = ENGANCHADOS_P4 + ENGANCHADOS_P5
+
 # Paso que engancha cada grupo (para el aviso E8 de /estilo): el grupo o el id
 # no enganchado dice en que paso se aplicara lo guardado.
 PASO_ENGANCHE = {"banner": "P7", "prompt": "P5", "barra": "P5", "menu": "P5",
@@ -538,6 +555,26 @@ PASO_ENGANCHE = {"banner": "P7", "prompt": "P5", "barra": "P5", "menu": "P5",
 # Propiedades que el Theme aplica en caliente en los ENGANCHADOS_P4: el resto
 # (texto, glifo, separador, visible, glow, animacion...) espera a su paso.
 PROPS_POR_TOKEN = ("color", "fondo", "negrita", "italica", "subrayado")
+# En los ENGANCHADOS_P5 todo se ve salvo la animacion (P9); en la barra y la
+# insignia tampoco el glow (se pinta por caracter con el pulso, P9).
+_PENDIENTES_P5 = {"animacion": "P9"}
+_PENDIENTES_P5_BARRA = {"animacion": "P9", "glow": "P9"}
+
+
+def paso_pendiente(id: str, prop: str) -> str:
+    """E8: '' si la propiedad se ve en cuanto se guarda; si no, el paso
+    ('P6'..'P9') que la aplicara. `prop` es 'color', 'glow.intensidad',
+    'animacion.activa', 'texto.titulo'... (se mira la raiz)."""
+    e = elemento(id)
+    raiz = str(prop or "").split(".")[0]
+    if not e.enganchado:
+        return PASO_ENGANCHE.get(e.grupo, "P6")
+    if id in ENGANCHADOS_P5:
+        tabla = _PENDIENTES_P5_BARRA if id in ("barra.estado", "barra.modo") else _PENDIENTES_P5
+        return tabla.get(raiz, "")
+    if raiz not in PROPS_POR_TOKEN:
+        return PASO_ENGANCHE.get(e.grupo, "P6")
+    return ""
 
 # Que tokens del Theme de rich RETINE cada elemento cuando se le cambia el
 # color/negrita/italica (tema_rich). Un token compartido (ok_cl lo usan
@@ -743,15 +780,22 @@ def cambios(id: str) -> dict:
 # 4. Colores: referencias '@' y traduccion a hex / nombre ansi
 # ---------------------------------------------------------------------------
 # rich -> prompt_toolkit para los 16 basicos (PT no entiende 'bright_cyan').
+# OJO con el blanco (cazado en P5 tecleando con /tema alto_contraste + preset
+# barra-color): en prompt_toolkit el blanco normal (SGR 37) se llama
+# 'ansigray' y el brillante (97) 'ansiwhite'; 'ansibrightwhite' NO existe
+# (styles/base.py ANSI_COLOR_NAMES) y PTStyle.from_dict lanza 'Wrong color
+# format', con lo que el marco entero caia al respaldo.
 _ANSI_RICH_A_PT = {
     "black": "ansiblack", "red": "ansired", "green": "ansigreen", "yellow": "ansiyellow",
-    "blue": "ansiblue", "magenta": "ansimagenta", "cyan": "ansicyan", "white": "ansiwhite",
+    "blue": "ansiblue", "magenta": "ansimagenta", "cyan": "ansicyan", "white": "ansigray",
     "bright_black": "ansibrightblack", "bright_red": "ansibrightred",
     "bright_green": "ansibrightgreen", "bright_yellow": "ansibrightyellow",
     "bright_blue": "ansibrightblue", "bright_magenta": "ansibrightmagenta",
-    "bright_cyan": "ansibrightcyan", "bright_white": "ansibrightwhite",
+    "bright_cyan": "ansibrightcyan", "bright_white": "ansiwhite",
 }
 _ANSI_PT_A_RICH = {v: k for k, v in _ANSI_RICH_A_PT.items()}
+# alias que prompt_toolkit tambien entiende (ANSI_COLOR_NAMES_ALIASES)
+_ANSI_PT_A_RICH.update({"ansilightgray": "white", "ansidarkgray": "bright_black"})
 # 'dim' no existe en prompt_toolkit: mezcla del color hacia el fondo.
 MEZCLA_DIM = 0.45
 _RE_HEX = __import__("re").compile(r"^#[0-9a-fA-F]{6}$")
@@ -1194,11 +1238,48 @@ def clases_pt(variante: str | None = None) -> dict:
         modo = R("barra.modo")
         for nombre, sub in modo.estados.items():
             d[f"modo.{nombre}"] = f"noreverse bg:default {_pt(sub)}".rstrip()
+    # P5: la barra de atajos con tecla/accion propias (preset 'barra-color')
+    if tiene_override("barra.atajos"):
+        atajos = R("barra.atajos")
+        for nombre, sub in atajos.estados.items():
+            d[f"atajos.{nombre}"] = f"noreverse bg:default {_pt(sub)}".rstrip()
     coin = menu.estados["coincidencia"]
     if coin.color or coin.negrita:
         d["completion-menu.completion fuzzymatch.inside"] = _pt(coin, prefijo_fg=True)
         d["completion-menu.completion fuzzymatch.outside"] = f"fg:{menu.color}"
     return d
+
+
+# Los tres style strings crudos que ux/selector.py usaba como literales.
+CLASES_SELECTOR_DEFECTO = {"titulo": "bold", "activo": "reverse",
+                           "descripcion": "fg:ansibrightblack"}
+
+
+def clases_selector(variante: str | None = None) -> dict:
+    """P5: los style strings del selector con flechas (ux/selector.py):
+    'titulo' (menu.selector), 'activo' (fila elegida) y 'descripcion'. Sin
+    override son EXACTAMENTE los literales de siempre ('bold', 'reverse',
+    'fg:ansibrightblack'). La fila activa sigue en video inverso salvo que
+    el dueno le ponga color o fondo propios (entonces manda lo suyo)."""
+    variante = variante or variante_activa()
+    e = elemento("menu.selector")
+    est = estilo_de("menu.selector")
+    titulo = _resolver("menu.selector", est, e.default, variante)
+
+    def _sub(nombre: str) -> str:
+        # SIN padre a proposito: la negrita del titulo no baja a la fila
+        # activa ni a la descripcion (hoy son 'reverse' y 'fg:ansibrightblack'
+        # pelados; con la herencia saldrian con 'bold' de regalo).
+        sub = est.estados.get(nombre, Estilo())
+        sub_def = e.default.estados.get(nombre, Estilo())
+        return _pt(_resolver(f"menu.selector.{nombre}", sub, sub_def, variante),
+                   prefijo_fg=True)
+
+    return {
+        "titulo": _pt(titulo, prefijo_fg=True),
+        "activo": _sub("activo") or CLASES_SELECTOR_DEFECTO["activo"],
+        "descripcion": _sub("descripcion"),
+    }
 
 
 def _estilo_rich_de(r: EstiloResuelto, token_base: str | None = None) -> str:
