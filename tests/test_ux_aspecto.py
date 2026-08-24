@@ -181,6 +181,27 @@ IDS_ENMIENDAS = ["prompt.busqueda", "prompt.seleccion", "enlace",
                  "agentes.acento", "agentes.panel", "agentes.borde", "agentes.texto"]
 
 
+def _limpiar_caches_de_style():
+    """rich cachea en cada Style su _ansi con el PRIMER color_system que lo
+    renderizo y Style.parse/__add__ estan lru-cacheados: si otro fichero
+    (test_ux_markdown_vivo) renderiza antes a 16 colores en el MISMO proceso,
+    el golden truecolor respuesta_md sale rojo aunque nada haya cambiado
+    (medido: 2 failed solo en el orden markdown_vivo -> aspecto). Mismo
+    limpiador que test_renderer_estetica."""
+    from rich.style import Style
+    for v in list(vars(Style).values()):
+        f = getattr(v, "cache_clear", None) or getattr(getattr(v, "__func__", None), "cache_clear", None)
+        if callable(f):
+            f()
+
+
+@pytest.fixture(autouse=True)
+def _style_fresco():
+    _limpiar_caches_de_style()
+    yield
+    _limpiar_caches_de_style()
+
+
 @pytest.fixture(autouse=True)
 def _aspecto_limpio(monkeypatch):
     """Cada test arranca sin overrides ni fichero y sin env que cambie la
