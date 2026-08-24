@@ -532,6 +532,10 @@ def test_hot_reload_editar_el_fichero_a_mano_cambia_el_prompt_al_siguiente_turno
     assert list(cli._mensaje_prompt())[1][1] == " friday"
     assert A.estilo_de("prompt.etiqueta").animacion.activa is True
     assert "recargado" in entorno.texto()
+    # el fichero editado no puede sobrevivir al test: el teardown de `entorno`
+    # recarga desde tmp y "friday" se colaba en test_marco_prompt (medido)
+    A.RUTA_ESTILO.unlink()
+    A.reset()
 
 
 def test_hot_reload_el_bucle_del_repl_aplica_tras_get_input_y_antes_de_despachar():
