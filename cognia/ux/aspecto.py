@@ -2176,8 +2176,9 @@ def conectar_glow() -> None:
 # E8: el renderer (_arrancar_status/_tick_spinner) y spinner_vivo leen estos
 # ids a call-time: glifo, textos (hint/tok/pensando/spinner_rich), separador,
 # color por token y animacion (glow.LineaViva dentro del console.status).
-# spinner.comando queda en False hasta que cli.py use spinner_vivo.comando().
-ENGANCHADOS_P8 = ("spinner.tool", "spinner.pensar")
+# spinner.comando: cli.py (_run, _mejora_generar y el camino articulado del
+# repl) llama spinner_vivo.comando() desde el gancho P8 (rama estilos/banner).
+ENGANCHADOS_P8 = ("spinner.tool", "spinner.pensar", "spinner.comando")
 for _id in ENGANCHADOS_P8:
     REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
 del _id

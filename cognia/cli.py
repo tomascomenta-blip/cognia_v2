@@ -2944,7 +2944,11 @@ def _run(raw, fn, color=None):
         logging.root.addFilter(flt)
         captured = io.StringIO()
         try:
-            with _console.status("[spinner]Procesando...[/spinner]", spinner="dots"):
+            # P8 (estilos por elemento): texto y spinner de spinner.comando salen
+            # del registro (default byte-identico: '[spinner]Procesando...[/spinner]', 'dots').
+            from cognia.ux import spinner_vivo as _sv
+            _markup_sp, _nombre_sp = _sv.comando("procesando")
+            with _console.status(_markup_sp, spinner=_nombre_sp):
                 t0 = time.time()
                 with contextlib.redirect_stdout(captured):
                     result = fn()
@@ -6596,8 +6600,10 @@ def _mejora_generar(texto: str, via: str):
         _aviso_degradado(via, aviso_estilo)
     try:
         if _HAS_RICH and _console:
-            with _console.status("[spinner]Mejorando el prompt...[/spinner]",
-                                 spinner="dots"):
+            # P8: spinner.comando (clave 'mejorando') del registro de estilos
+            from cognia.ux import spinner_vivo as _sv
+            _markup_sp, _nombre_sp = _sv.comando("mejorando")
+            with _console.status(_markup_sp, spinner=_nombre_sp):
                 mejora = mod.mejorar(texto, version=estilo or None)
         else:
             _print_line("[detail]Mejorando el prompt...[/detail]")
@@ -15720,7 +15726,10 @@ def repl():
                             logging.root.addFilter(flt)
                             captured = io.StringIO()
                             try:
-                                with _console.status("[spinner]Procesando...[/spinner]", spinner="dots"):
+                                # P8: spinner.comando del registro de estilos
+                                from cognia.ux import spinner_vivo as _sv
+                                _markup_sp, _nombre_sp = _sv.comando("procesando")
+                                with _console.status(_markup_sp, spinner=_nombre_sp):
                                     t0 = time.time()
                                     with contextlib.redirect_stdout(captured):
                                         result = responder_articulado(ai, raw)

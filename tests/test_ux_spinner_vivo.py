@@ -384,5 +384,73 @@ def test_spinner_tool_y_pensar_quedan_enganchados_en_el_registro():
     # E8: /estilo no dice "se aplica en la proxima version" para estos
     assert A.elemento("spinner.tool").enganchado is True
     assert A.elemento("spinner.pensar").enganchado is True
-    # spinner.comando espera al gancho de cli.py (spinner_vivo.comando)
-    assert A.elemento("spinner.comando").enganchado is False
+    # spinner.comando: cli.py usa spinner_vivo.comando() en sus tres status
+    # (gancho P8, ver test_los_tres_status_de_cli_usan_comando)
+    assert A.elemento("spinner.comando").enganchado is True
+
+
+# ---------------------------------------------------------------------------
+# Gancho P8 en cli.py: los TRES console.status de spinner.comando
+# ---------------------------------------------------------------------------
+
+class _StatusGrabador:
+    """Console falsa: graba (markup, spinner) de cada status y nada mas."""
+
+    def __init__(self):
+        self.llamadas = []
+        self.width = 100
+
+    def status(self, markup, spinner="dots", **kw):
+        import contextlib
+        self.llamadas.append((markup, spinner))
+        return contextlib.nullcontext()
+
+    def print(self, *a, **k):
+        pass
+
+
+def _fuente_cli() -> str:
+    import inspect
+    import cognia.cli as cli
+    return inspect.getsource(cli)
+
+
+def test_los_tres_status_de_cli_usan_comando():
+    """Regresion del gancho P8: ningun status de 'Procesando...' /
+    'Mejorando el prompt...' queda con el literal; los tres pasan por
+    spinner_vivo.comando() (que sin override devuelve EXACTAMENTE el literal
+    de antes, ver test_comando_default_byte_identico_y_override)."""
+    src = _fuente_cli()
+    assert 'status("[spinner]Procesando...[/spinner]"' not in src
+    assert 'status("[spinner]Mejorando el prompt...[/spinner]"' not in src
+    assert src.count('_sv.comando("procesando")') == 2, "los dos 'Procesando...' (_run y el camino articulado del repl)"
+    assert src.count('_sv.comando("mejorando")') == 1, "el 'Mejorando el prompt...' de _mejora_generar"
+
+
+def test_run_y_mejora_generar_pasan_el_texto_del_registro(monkeypatch):
+    import cognia.cli as cli
+    grab = _StatusGrabador()
+    monkeypatch.setattr(cli, "_console", grab)
+    monkeypatch.setattr(cli, "_HAS_RICH", True)
+    monkeypatch.setattr(cli, "_show_response", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "_show_footer", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "_session_log", [])
+    # _run: default byte-identico
+    cli._run("hola", lambda: "resultado")
+    assert grab.llamadas[-1] == ("[spinner]Procesando...[/spinner]", "dots")
+    # _mejora_generar: el mismo camino con la clave 'mejorando'
+    mejora = types.SimpleNamespace(ok=True, motivo="ok", ms=1, modelo="x", aviso="", texto="t")
+    monkeypatch.setattr(cli, "_mod_mejorar",
+                        lambda: types.SimpleNamespace(mejorar=lambda *a, **k: mejora))
+    monkeypatch.setattr(cli, "_parar_status_mejora", lambda: None)
+    monkeypatch.setattr(cli, "_estilo_mejorar", lambda: ("", "", None))
+    assert cli._mejora_generar("texto", "mejorar") is mejora
+    assert grab.llamadas[-1] == ("[spinner]Mejorando el prompt...[/spinner]", "dots")
+    # con override del registro los DOS cambian sin tocar cli.py
+    _poner("spinner.comando", "texto.procesando", "Rumiando...")
+    _poner("spinner.comando", "texto.mejorando", "Puliendo...")
+    _poner("spinner.comando", "glifo", "arc")
+    cli._run("hola", lambda: "resultado")
+    assert grab.llamadas[-1] == ("[spinner]Rumiando...[/spinner]", "arc")
+    cli._mejora_generar("texto", "mejorar")
+    assert grab.llamadas[-1] == ("[spinner]Puliendo...[/spinner]", "arc")
