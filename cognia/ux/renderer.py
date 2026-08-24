@@ -89,6 +89,19 @@ def _config_colapso() -> tuple:
     return activo, lineas
 
 
+class _AspectoQuieto:
+    """El aspecto del spinner si ni spinner_vivo importa (ya avisado): los
+    literales de siempre, sin animacion."""
+
+    def __init__(self, id: str):
+        self.id = id
+        self.marca = _MARCA_ACTIVIDAD
+        self.spinner_rich = "dots"
+        self.animar = False
+        self.fps = 12
+        self.pensando = "pensando…"
+
+
 def _consola_interactiva() -> bool:
     """¿Hay una terminal DE VERDAD al otro lado de stdout?
 
@@ -135,6 +148,15 @@ class Renderer:
         self._status_base: str | None = None
         self._status_estilo = "spinner"
         self._status_t0 = 0.0
+        # P8 (estilos por elemento): el id del registro de aspecto que pinta
+        # el status vigente (spinner.tool / spinner.pensar), su marca ('·' por
+        # defecto) y, SOLO cuando el elemento tiene animacion activa y la
+        # terminal puede, la glow.LineaViva que va DENTRO del console.status
+        # (la unica Live: ningun hilo ni Live nuevos; el ticker de 1 s hace
+        # lv.set y la Live del status recoge el cuadro del reloj glow.RELOJ).
+        self._status_id = "spinner.tool"
+        self._status_marca = _MARCA_ACTIVIDAD
+        self._linea_viva = None
         # Bajo el control remoto la prosa NO se streamea: el contrato con el
         # clasificador del movil es que la respuesta final llega ENTERA y
         # plana via _show_response, y streamearla ademas la pegaba duplicada
@@ -237,6 +259,13 @@ class Renderer:
             except Exception:
                 pass
             self._status = None
+        if self._linea_viva is not None:
+            # regla 4 del motor: toda animacion termina en frame estatico
+            try:
+                self._linea_viva.congelar()
+            except Exception as exc:
+                self._degradar_spinner(exc)
+            self._linea_viva = None
         self._pensando_desde = 0.0
 
     def _arrancar_status(self, etiqueta: str, estilo: str = "spinner",
@@ -261,14 +290,33 @@ class Renderer:
         ``rotar``: la fase de pensar no tiene tool que nombrar — la linea viva
         (spinner_vivo) pone ahi el verbo gato rotatorio; con una tool en curso
         la etiqueta se queda ('Leyendo motor.py' es mas honesto que
-        'Afilando garras') y la linea viva solo agrega (Ns · ~tok · hint)."""
+        'Afilando garras') y la linea viva solo agrega (Ns · ~tok · hint).
+
+        P8 (estilos por elemento, 2026-08-24): la marca, el spinner de rich y
+        los textos salen del registro de aspecto (spinner.pensar si ``rotar``,
+        spinner.tool si no) a call-time. Si el elemento tiene animacion activa
+        y glow.capacidades().animar, el renderable del status es una
+        glow.LineaViva (subclase de Text: mismo layout) y refresh_per_second
+        sube al fps del motor; si no, el camino de siempre byte a byte: el
+        markup '[estilo]· etiqueta[/estilo]' con el refresh por defecto de
+        rich (12,5). rich 15 APILA Lives anidadas en vez de lanzar LiveError,
+        pero aqui no hace falta ni eso: LineaViva vive DENTRO del status."""
         self._parar_status()
         if self._console is not None and _consola_interactiva():
             try:
-                self._status = self._console.status(
-                    f"[{estilo}]{_MARCA_ACTIVIDAD} {etiqueta}[/{estilo}]",
-                    spinner="dots")
+                asp = self._aspecto_status(rotar)
+                lv = None
+                if asp.animar:
+                    lv = self._crear_linea_viva(etiqueta, asp, estilo)
+                if lv is not None:
+                    self._status = self._console.status(
+                        lv, spinner=asp.spinner_rich, refresh_per_second=lv.fps)
+                else:
+                    self._status = self._console.status(
+                        f"[{estilo}]{asp.marca} {etiqueta}[/{estilo}]",
+                        spinner=asp.spinner_rich)
                 self._status.start()
+                self._linea_viva = lv
                 # la linea viva es un ADORNO sobre el status ya andando: si su
                 # arranque falla se avisa por degradado y queda el clasico
                 self._status_base = None if rotar else etiqueta
@@ -278,7 +326,49 @@ class Renderer:
                 return
             except Exception:
                 self._status = None
-        self._print(f"{_SANGRIA}{_MARCA_ACTIVIDAD} {etiqueta}")
+                self._linea_viva = None
+        self._print(f"{_SANGRIA}{self._status_marca} {etiqueta}")
+
+    def _aspecto_status(self, rotar: bool):
+        """El AspectoSpinner del status que va a arrancar (spinner.pensar si
+        rotar, spinner.tool si no). Deja _status_id/_status_marca para el
+        ticker y la linea quieta. spinner_vivo ya avisa y cae a los defaults
+        si el registro no se puede leer; si ni spinner_vivo importa, aqui se
+        avisa y se usan los literales de siempre."""
+        self._status_id = "spinner.pensar" if rotar else "spinner.tool"
+        try:
+            from . import spinner_vivo
+            asp = spinner_vivo.aspecto_spinner(self._status_id)
+        except Exception as exc:
+            self._degradar_spinner(exc)
+            self._status_marca = _MARCA_ACTIVIDAD
+            return _AspectoQuieto(self._status_id)
+        self._status_marca = asp.marca or _MARCA_ACTIVIDAD
+        return asp
+
+    def _texto_pensando(self) -> str:
+        """'pensando…' (spinner.pensar.texto.pensando del registro, P8)."""
+        try:
+            from . import spinner_vivo
+            return spinner_vivo.aspecto_spinner("spinner.pensar").pensando
+        except Exception as exc:
+            self._degradar_spinner(exc)
+            return "pensando…"
+
+    def _crear_linea_viva(self, etiqueta: str, asp, estilo: str):
+        """La glow.LineaViva del status animado, o None (con aviso) si el motor
+        no puede: entonces el status arranca por el camino clasico."""
+        try:
+            from . import glow, spinner_vivo
+            est = spinner_vivo.estilo_spinner(asp.id)
+            if est is None:
+                return None
+            lv = glow.LineaViva(etiqueta, est, marca=asp.marca, token=estilo,
+                                fps=asp.fps)
+            return lv if lv.animar else None
+        except Exception as exc:
+            self._degradar_spinner(exc)
+            return None
 
     # -- linea de estado viva (F2, ux/spinner_vivo) -------------------------
 
@@ -318,10 +408,18 @@ class Renderer:
             # -6: la marca '· ' nuestra + el glifo del spinner de rich + aire
             texto = spinner_vivo.linea_estado(
                 self._status_base, self._status_t0, time.time(),
-                self._chars_stream, ancho=max(12, ancho - 6))
-            self._status.update(
-                f"[{self._status_estilo}]{_MARCA_ACTIVIDAD} {texto}"
-                f"[/{self._status_estilo}]")
+                self._chars_stream, ancho=max(12, ancho - 6),
+                id=self._status_id)
+            if self._linea_viva is not None:
+                # P8: el texto cambia una vez por segundo; el barrido lo pinta
+                # la Live del status por cuadro del reloj (LineaViva refresca
+                # su frame en cada render). Ningun update() del status: seria
+                # un segundo escritor sobre la misma linea.
+                self._linea_viva.set(texto)
+            else:
+                self._status.update(
+                    f"[{self._status_estilo}]{self._status_marca} {texto}"
+                    f"[/{self._status_estilo}]")
             return True
         except Exception as exc:
             self._degradar_spinner(exc)
@@ -789,14 +887,20 @@ class Renderer:
             self._pensando_desde = ev.ts or time.time()
             # rotar=True: la fase de pensar es la que lleva el verbo gato de
             # spinner_vivo; con la linea viva apagada queda 'pensando…' clasico
-            self._arrancar_status("pensando…", estilo="pensar", rotar=True)
+            # (texto editable: spinner.pensar.texto.pensando, P8)
+            self._arrancar_status(self._texto_pensando(), estilo="pensar",
+                                  rotar=True)
             # _arrancar_status resetea _pensando_desde via _parar_status
             self._pensando_desde = ev.ts or time.time()
         elif self._status is not None and self._ticker is None:
             segs = int((ev.ts or time.time()) - self._pensando_desde)
             try:
-                self._status.update(
-                    f"[pensar]{_MARCA_ACTIVIDAD} pensando… ({segs}s)[/pensar]")
+                texto = f"{self._texto_pensando()} ({segs}s)"
+                if self._linea_viva is not None:
+                    self._linea_viva.set(texto)
+                else:
+                    self._status.update(
+                        f"[pensar]{self._status_marca} {texto}[/pensar]")
             except Exception:
                 pass
         # RAZONAMIENTO OPCIONAL EN VIVO (COGNIA_PENSAR=ver, leido a call-time):
