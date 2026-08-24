@@ -242,9 +242,11 @@ def test_cada_id_tiene_capacidades_coherentes(id):
     # sub-estados: los del default estan declarados
     assert set(d.estados) <= set(e.estados), f"{id}: sub-estados sin declarar"
     assert e.nombre and e.grupo
-    # E8: solo los que su paso ya cablea (P8: spinner.tool y spinner.pensar,
-    # que renderer/spinner_vivo leen a call-time); el resto sigue en False
-    assert e.enganchado is (id in A.ENGANCHADOS_P8), f"{id}: enganchado sin su paso"
+    # E8: solo los que su paso ya cablea (P8: spinner.*, que renderer/
+    # spinner_vivo/cli leen a call-time; P7: banner.*, que lee
+    # cli._aspecto_del_banner en cada arranque); el resto sigue en False
+    assert e.enganchado is (id in A.ENGANCHADOS_P8 or id in A.ENGANCHADOS_P7), (
+        f"{id}: enganchado sin su paso")
 
 
 def test_los_contratos_del_remoto_son_los_de_D7():
@@ -404,7 +406,7 @@ def test_validar_acepta_colores_validos(color):
 def test_validar_enums_y_rangos():
     doc = {"elementos": {
         "prompt.marco": {"posicion": "diagonal"},
-        "banner.arte": {"glow": {"intensidad": 4}, "alineacion": "centro",
+        "banner.arte": {"glow": {"intensidad": 4}, "alineacion": "vertical",
                         "animacion": {"velocidad": 9, "ancho": 0, "tipo": "flash", "direccion": "arriba"}},
         "banner.marco": {"glifo": "hexagonal"},
     }}

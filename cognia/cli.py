@@ -3032,10 +3032,84 @@ def _variante_banner() -> str:
         return "completo"
 
 
+def _aspecto_del_banner() -> dict:
+    """P7 (estilos por elemento): TODO lo que el banner lee del registro
+    (cognia/ux/aspecto.py) y del motor (cognia/ux/glow.py), resuelto de una
+    vez -- textos, estilos por estado, caja, visibilidad, alineacion -- con
+    los LITERALES de siempre como defecto. Sin fichero ~/.cognia/estilo.json
+    el registro devuelve exactamente esos literales y tokens (golden
+    banner_80/banner_120 byte-identico). Si el registro no se puede leer, se
+    avisa por _aviso_degradado('estilo') y el banner sale como siempre: una
+    cabecera rota no es una degradacion aceptable del arranque."""
+    b = {
+        "A": None, "G": None,
+        "titulo": "COGNIA", "subtitulo": "sistema cognitivo local",
+        "st_titulo": "marca_fuerte", "st_version": "marca_dim",
+        "st_subtitulo": "marca_dim", "st_borde": "marca", "caja": "rounded",
+        "marco_visible": True, "arte_visible": True, "guia_visible": True,
+        "alineacion": "izquierda",
+        "guia": {"cabecera": "Para empezar", "chat": "escribe y conversa",
+                 "hacer": "<tarea> agente autonomo", "crear": "<idea> genera un programa",
+                 "modelo": "elegir modelo o flota", "memoria": "estado de memoria",
+                 "grafo": "<concepto> del saber", "tutor": "aprende cualquier tema",
+                 "doctor": "diagnostico del sistema", "tab": "completar",
+                 "historial": "historial", "ayuda": "todo"},
+        "st_guia": {"comando": "mod", "cabecera": "marca_fuerte", "regla": "marca_dim",
+                    "descripcion": "detail", "atajo": "marca", "atajo_accion": "info_dim"},
+        "modelo": {"modelo": "modelo", "modo": "modo", "tema": "tema",
+                   "sin_backend": "sin backend en {url} — arranca: cognia flota arrancar"},
+        "st_modelo": "info_dim", "st_sin_backend": "warn_cl",
+    }
+    try:
+        from cognia.ux import aspecto as _A
+        from cognia.ux import glow as _G
+        try:
+            _A.conectar_glow()
+        except TypeError:
+            # La rama estilos/cli le pasa el lector de config: conectar_glow(_load_config)
+            _A.conectar_glow(_load_config)
+        b["A"], b["G"] = _A, _G
+        b["titulo"] = _A.texto("banner.marco", "titulo")
+        b["subtitulo"] = _A.texto("banner.marco", "subtitulo")
+        b["st_titulo"] = _G.estilo_rich("banner.marco", estado="titulo")
+        b["st_version"] = _G.estilo_rich("banner.marco", estado="version")
+        b["st_subtitulo"] = _G.estilo_rich("banner.marco", estado="subtitulo")
+        b["st_borde"] = _G.estilo_rich("banner.marco")
+        b["caja"] = _A.estilo_de("banner.marco").glifo or "rounded"
+        b["marco_visible"] = _A.visible("banner.marco")
+        b["arte_visible"] = _A.visible("banner.arte")
+        b["guia_visible"] = _A.visible("banner.guia")
+        b["alineacion"] = _A.estilo_resuelto("banner.arte").alineacion or "izquierda"
+        b["guia"] = {k: _A.texto("banner.guia", k) for k in b["guia"]}
+        b["st_guia"] = {"comando": _G.estilo_rich("banner.guia")}
+        for _est in ("cabecera", "regla", "descripcion", "atajo", "atajo_accion"):
+            b["st_guia"][_est] = _G.estilo_rich("banner.guia", estado=_est)
+        b["modelo"] = {k: _A.texto("banner.linea_modelo", k) for k in b["modelo"]}
+        b["st_modelo"] = _G.estilo_rich("banner.linea_modelo")
+        b["st_sin_backend"] = _G.estilo_rich("banner.linea_modelo", estado="sin_backend")
+    except Exception as _exc:
+        _aviso_degradado("estilo", f"banner con el aspecto por defecto: "
+                                   f"{type(_exc).__name__}: {_exc}")
+    return b
+
+
+def _aviso_banner_oculto(id: str) -> None:
+    """Identidad (D6 del diseno): el banner va POR DEFECTO y solo /estilo lo
+    esconde; cuando esta oculto se dice en una linea, con la orden que lo
+    devuelve, para que nadie crea que el arranque se rompio."""
+    _que = "banner" if id == "banner.marco" else "arte del banner"
+    _linea = (f"{_que} oculto por /estilo (identidad: /estilo {id} visible on lo devuelve)")
+    if _HAS_RICH and _console:
+        _console.print(f"[info_dim]{_escape(_linea)}[/info_dim]", highlight=False)
+    else:
+        print(_linea)
+
+
 def _print_startup_panel():
     _arranque_ux()
-    if _variante_banner() in ("completo", "medio"):
-        _print_banner_completo()
+    _b = _aspecto_del_banner()
+    if _variante_banner() in ("completo", "medio") and _b["marco_visible"]:
+        _print_banner_completo(_b)
         # La linea de verdad bajo el banner: que modelo contesta y donde
         # (segun el SERVER, no una env rancia), mas modo y tema.
         try:
@@ -3049,7 +3123,9 @@ def _print_startup_panel():
                 _tema = _THEME_ORDER[_theme_idx]
             except Exception:
                 _tema = ""
-            _sufijo = f"   modo {_modo}" + (f"   tema {_tema}" if _tema else "")
+            # Etiquetas editables (banner.linea_modelo: modelo/modo/tema/sin_backend)
+            _t = _b["modelo"]
+            _sufijo = f"   {_t['modo']} {_modo}" + (f"   {_t['tema']} {_tema}" if _tema else "")
             if _e.get("modelo"):
                 # El nombre del GGUF puede medir 50+ chars y con el sufijo se
                 # pasaba del ancho, partiendo 'tema oscuro' a la linea de
@@ -3057,19 +3133,24 @@ def _print_startup_panel():
                 # cuantizacion y variante) y el resto entra entero.
                 _ancho_pie = (getattr(_console, "width", 100) if _HAS_RICH else 100) - 2
                 _nombre = _e["modelo"]
-                _fijo = len(f"  modelo  (:{_e['puerto']}){_sufijo}")
+                _fijo = len(f"  {_t['modelo']}  (:{_e['puerto']}){_sufijo}")
                 _sitio = max(16, _ancho_pie - _fijo)
                 if len(_nombre) > _sitio:
                     _nombre = _nombre[:max(6, _sitio // 2 - 1)] + "…" + _nombre[-(_sitio // 2):]
-                _linea = f"  modelo {_nombre} (:{_e['puerto']}){_sufijo}"
+                _linea = f"  {_t['modelo']} {_nombre} (:{_e['puerto']}){_sufijo}"
                 _estilo_ok = True
             else:
-                _linea = (f"  sin backend en {_e['url']} — arranca: "
-                          f"cognia flota arrancar")
+                try:
+                    _sb = _t["sin_backend"].format(url=_e["url"])
+                except (KeyError, IndexError, ValueError) as _exc_fmt:
+                    _aviso_degradado("estilo", f"banner.linea_modelo.texto.sin_backend "
+                                               f"no se pudo formatear ({_exc_fmt}); texto por defecto")
+                    _sb = f"sin backend en {_e['url']} — arranca: cognia flota arrancar"
+                _linea = f"  {_sb}"
                 _estilo_ok = False
             if _HAS_RICH and _console:
                 _console.print(_escape(_linea),
-                               style="info_dim" if _estilo_ok else "warn_cl",
+                               style=_b["st_modelo"] if _estilo_ok else _b["st_sin_backend"],
                                highlight=False)
             else:
                 print(_linea)
@@ -3119,12 +3200,43 @@ def _print_startup_panel():
         print(f"  modelo {_modelo_txt or _modelo_warn}")
         print(f"  cwd    {_cwd}")
         print("  /ayuda para comandos · /hacer <tarea> para el agente")
+    if not _b["marco_visible"]:
+        _aviso_banner_oculto("banner.marco")
 
 
-def _print_banner_completo():
+def _reimprimir_banner() -> None:
+    """P7: repinta la cabecera de arranque con el aspecto VIGENTE del registro.
+    Es lo que llama '/estilo banner' (P4, rama estilos/cli) despues de aplicar
+    un cambio en banner.*: mismo camino que el arranque (_print_startup_panel),
+    asi que respeta la variante por altura (completo/medio/compacto/minimo),
+    la caja, los textos, la alineacion, el aviso de identidad si esta oculto y
+    la animacion (BannerVivo abre su Live solo si no hay otra: entre dos
+    prompts el status esta parado y la PromptSession no corre)."""
+    _print_startup_panel()
+
+
+def _texto_arte_clasico(banner_lines: list) -> "Text":
+    """El arte como lo pintaba el CLI antes de P7 (paleta.gradiente_banner por
+    linea no vacia): el camino sin registro de aspecto."""
+    non_empty = [l for l in banner_lines if l.strip()]
+    tonos = paleta.gradiente_banner(len(non_empty), _variante_actual())
+    left_text = Text(no_wrap=False)
+    colored_idx = 0
+    for line in banner_lines:
+        if line.strip():
+            left_text.append(line + "\n", style=tonos[colored_idx])
+            colored_idx += 1
+        else:
+            left_text.append("\n")
+    return left_text
+
+
+def _print_banner_completo(_b: dict | None = None):
     if not _HAS_RICH or not _console:
         print(_g() + _BANNER_RAW + _R)
         return
+    if _b is None:
+        _b = _aspecto_del_banner()
 
     # Gradiente de la paleta ('profundo' -> 'matrix' de la variante ACTIVA),
     # interpolado por linea no vacia. En los dos temas oscuros va de oscuro a
@@ -3133,6 +3245,9 @@ def _print_banner_completo():
     # degradado era el de la rampa oscura en las tres variantes y el logotipo
     # COGNIA cerraba en el verde 'matrix': 1,32:1 sobre #fbfbfa, o sea que la
     # marca era lo MENOS visible de la pantalla en el tema claro.
+    # P7: el gradiente, el glow y el barrido salen de banner.arte via
+    # glow.gradiente_lineas / glow.BannerVivo; sin override el gradiente es el
+    # mismo de paleta.gradiente_banner (misma aritmetica, byte-identico).
     banner_lines = _BANNER_RAW.split("\n")
     _ancho = getattr(_console, "width", 80) or 80
     # La decision del layout (dos columnas o apilado) es del harness: dos
@@ -3154,6 +3269,8 @@ def _print_banner_completo():
         _aviso_degradado("banner_adaptativo",
                          f"layout por umbral fijo: {type(_exc_ba).__name__}: "
                          f"{_exc_ba}")
+    if not (_b["arte_visible"] and _b["guia_visible"]):
+        _dos_columnas = False      # una sola columna: no hay con que emparejar
     # El arte se AJUSTA a la altura real (variante 'medio' = mitad superior del
     # gato). No se esconde: se hace caber, que es distinto. Sin harness o ante
     # cualquier fallo queda el arte entero, como siempre.
@@ -3175,16 +3292,6 @@ def _print_banner_completo():
                 _gato, max(6, _medida.filas - _reserva - len(_logo))) + _logo
     except Exception:
         pass
-    non_empty = [l for l in banner_lines if l.strip()]
-    tonos = paleta.gradiente_banner(len(non_empty), _variante_actual())
-    left_text = Text(no_wrap=False)
-    colored_idx = 0
-    for line in banner_lines:
-        if line.strip():
-            left_text.append(line + "\n", style=tonos[colored_idx])
-            colored_idx += 1
-        else:
-            left_text.append("\n")
 
     right_text = Text()
     _r = right_text.append
@@ -3196,54 +3303,133 @@ def _print_banner_completo():
     # captura, ~2:1) mientras el resto del banner ya se leia. 'mod' resuelve a
     # 'bold cyan' en oscuro (identico a antes) y a 'bold blue' en claro;
     # 'detail' a 'dim white' en oscuro y a grey30 (8,04:1) en claro.
-    _r("Para empezar\n",                "marca_fuerte")
-    _r("─" * 34 + "\n",                "marca_dim")
-    _r("  chat        ", "mod"); _r("escribe y conversa\n",      "detail")
-    _r("  /hacer      ", "mod"); _r("<tarea> agente autonomo\n", "detail")
-    _r("  /crear      ", "mod"); _r("<idea> genera un programa\n","detail")
-    _r("  /modelo     ", "mod"); _r("elegir modelo o flota\n",   "detail")
-    _r("  /memoria    ", "mod"); _r("estado de memoria\n",       "detail")
-    _r("  /grafo      ", "mod"); _r("<concepto> del saber\n",    "detail")
-    _r("  /tutor      ", "mod"); _r("aprende cualquier tema\n",  "detail")
-    _r("  /doctor     ", "mod"); _r("diagnostico del sistema\n", "detail")
-    _r("\n", "")
-    _r("  Tab ", "marca");   _r("completar   ", "info_dim")
-    _r("↑↓ ", "marca"); _r("historial   ", "info_dim")
-    _r("/ayuda ", "marca_fuerte"); _r("todo\n", "info_dim")
+    # P7: las descripciones son banner.guia.texto.<clave> y cada estilo es un
+    # estado de banner.guia (cabecera/regla/descripcion/atajo/atajo_accion);
+    # los nombres de comando son los del CLI y no se editan.
+    _gt, _gs = _b["guia"], _b["st_guia"]
+    if _b["guia_visible"]:
+        _r(_gt["cabecera"] + "\n",  _gs["cabecera"])
+        _r("─" * 34 + "\n",          _gs["regla"])
+        for _cmd, _clave in (("  chat        ", "chat"), ("  /hacer      ", "hacer"),
+                             ("  /crear      ", "crear"), ("  /modelo     ", "modelo"),
+                             ("  /memoria    ", "memoria"), ("  /grafo      ", "grafo"),
+                             ("  /tutor      ", "tutor"), ("  /doctor     ", "doctor")):
+            _r(_cmd, _gs["comando"]); _r(_gt[_clave] + "\n", _gs["descripcion"])
+        _r("\n", "")
+        _r("  Tab ", _gs["atajo"]);   _r(_gt["tab"] + "   ", _gs["atajo_accion"])
+        _r("↑↓ ", _gs["atajo"]);      _r(_gt["historial"] + "   ", _gs["atajo_accion"])
+        # '/ayuda' va en el estilo de la cabecera (marca_fuerte), como siempre
+        _r("/ayuda ", _gs["cabecera"]); _r(_gt["ayuda"] + "\n", _gs["atajo_accion"])
 
     try:
         from cognia import __version__ as _ver
     except Exception:
         _ver = "4"
 
-    # Responsivo: el gato Braille mide 63 columnas y la guia 44; con marco y
-    # separacion la vista a dos columnas necesita 113 (cabe_dos_columnas). En
-    # terminales mas angostas se apilan (arte arriba, comandos abajo) en vez
-    # de romperse. La columna del arte va a su ancho EXACTO y sin envolver:
-    # con ratio, rich la achicaba y partia el logo.
-    if _dos_columnas:
-        left_text.no_wrap = True
-        left_text.overflow = "crop"
-        cuerpo = Table.grid(expand=True, padding=(0, 2))
-        cuerpo.add_column(width=_ancho_arte, overflow="crop", no_wrap=True)
-        cuerpo.add_column()
-        cuerpo.add_row(left_text, right_text)
-    else:
-        cuerpo = Table.grid(expand=True)
-        cuerpo.add_column()
-        cuerpo.add_row(left_text)
-        cuerpo.add_row(right_text)
+    _alineacion = _b["alineacion"]
+    _expandir = _alineacion == "izquierda" or (_alineacion == "derecha" and _dos_columnas)
 
-    _console.print(Panel(
-        cuerpo,
+    def _envolver(cuerpo_arte):
+        """El Panel del banner alrededor del arte (un Text ya coloreado, o
+        None si banner.arte esta oculto). Lo llama BannerVivo en cada cuadro
+        del barrido y una vez mas con el frame estatico final; sin animacion,
+        una sola vez. Responsivo: el gato Braille mide 63 columnas y la guia
+        44; con marco y separacion la vista a dos columnas necesita 113
+        (cabe_dos_columnas). En terminales mas angostas se apilan (arte
+        arriba, comandos abajo) en vez de romperse. La columna del arte va a
+        su ancho EXACTO y sin envolver: con ratio, rich la achicaba y partia
+        el logo."""
+        if cuerpo_arte is not None:
+            # el Text de siempre terminaba en '\n' (una linea por elemento de
+            # _BANNER_RAW.split); el join de BannerVivo no: se repone
+            cuerpo_arte.append("\n")
+        if _dos_columnas:
+            cuerpo_arte.no_wrap = True
+            cuerpo_arte.overflow = "crop"
+            cuerpo = Table.grid(expand=True, padding=(0, 2))
+            if _alineacion == "derecha":
+                # arte a la derecha: la guia toma la columna flexible
+                cuerpo.add_column()
+                cuerpo.add_column(width=_ancho_arte, overflow="crop", no_wrap=True)
+                cuerpo.add_row(right_text, cuerpo_arte)
+            else:
+                cuerpo.add_column(width=_ancho_arte, overflow="crop", no_wrap=True)
+                cuerpo.add_column()
+                cuerpo.add_row(cuerpo_arte, right_text)
+        else:
+            cuerpo = Table.grid(expand=_expandir)
+            cuerpo.add_column()
+            if cuerpo_arte is not None:
+                cuerpo.add_row(cuerpo_arte)
+            if _b["guia_visible"]:
+                cuerpo.add_row(right_text)
         # Tokens del tema, no literales: hasta 2026-08-17 el borde y el titulo
         # eran 'bright_green' a mano y el banner salia verde pasto TAMBIEN con
         # /tema claro (sobre fondo blanco, 2,4:1). Ahora /tema los cambia.
-        title=f"[marca_fuerte]COGNIA[/marca_fuerte] [marca_dim]v{_ver}[/marca_dim]",
-        subtitle="[marca_dim]sistema cognitivo local[/marca_dim]",
-        border_style="marca",
-        padding=(0, 1),
-    ))
+        # P7: titulo/subtitulo son banner.marco.texto.*, sus estilos los
+        # estados titulo/version/subtitulo, el borde banner.marco y la caja
+        # banner.marco.glifo (rounded/square/heavy/double/none).
+        _titulo = Text.assemble((_b["titulo"], _b["st_titulo"]), " ",
+                                (f"v{_ver}", _b["st_version"]))
+        # como SPAN (no estilo base del Text): Panel.pad(1) anade un espacio a
+        # cada lado y esos espacios llevan el color del borde, como siempre
+        _subtitulo = Text.assemble((_b["subtitulo"], _b["st_subtitulo"]))
+        if _b["caja"] == "none":
+            from rich.console import Group
+            from rich.padding import Padding
+            panel = Padding(Group(_titulo, cuerpo, _subtitulo), (0, 1))
+        else:
+            from rich import box as _box
+            _cajas = {"rounded": _box.ROUNDED, "square": _box.SQUARE,
+                      "heavy": _box.HEAVY, "double": _box.DOUBLE}
+            panel = Panel(
+                cuerpo,
+                title=_titulo,
+                subtitle=_subtitulo,
+                border_style=_b["st_borde"],
+                box=_cajas.get(_b["caja"], _box.ROUNDED),
+                padding=(0, 1),
+                expand=_expandir,
+            )
+        if _alineacion == "centro":
+            from rich.align import Align
+            return Align(panel, align="center")
+        if _alineacion == "derecha" and not _expandir:
+            from rich.align import Align
+            return Align(panel, align="right")
+        return panel
+
+    if not _b["arte_visible"]:
+        _console.print(_envolver(None))
+        _aviso_banner_oculto("banner.arte")
+        return
+    _G = _b["G"]
+    if _G is None:
+        # sin registro de aspecto (ya avisado): el camino de siempre
+        _console.print(_envolver(_texto_arte_clasico(banner_lines)))
+        return
+    # BannerVivo: barrido con Live (UNICO slot libre: va ANTES de crear la
+    # PromptSession) si banner.arte.animacion esta activa y la terminal puede
+    # (glow.capacidades: tty, color, sin COGNIA_REMOTO/SSH/NO_COLOR); si no,
+    # el frame estatico con glow por console.print. Termina SIEMPRE en el
+    # frame estatico (regla 4 de convivencia). E7: si la terminal tiene menos
+    # filas que el banner ENTERO (panel + guia apilada), no se abre Live: rich
+    # no puede repintar lo que ya scrolleo y dejaria cuadros a medias.
+    bv = _G.BannerVivo(banner_lines, "banner.arte", envolver=_envolver)
+    try:
+        _filas_panel = len(_console.render_lines(bv.frame_final(), pad=False))
+        _alto = int(_console.size.height)
+    except Exception as _exc_alto:
+        _aviso_degradado("estilo", f"banner: no pude medir la altura "
+                                   f"({type(_exc_alto).__name__}: {_exc_alto}); frame estatico")
+        _filas_panel, _alto = 0, 0
+    if _alto and _filas_panel and _alto < _filas_panel + 2:
+        if _G.capacidades().animar and bv.duracion_s() > 0:
+            _aviso_degradado("estilo", f"banner: terminal de {_alto} filas para "
+                                       f"{_filas_panel} del banner; sin barrido")
+        _console.print(bv.frame_final())
+        return
+    bv.mostrar(_console)
     # La linea de estado que vivia aqui (modelo por LLAMA_GGUF_PATH) MENTIA:
     # decia Qwythos mientras :8080 servia gpt-oss-20b (baseline 2026-08-09).
     # El modelo REAL (via el server) lo imprime _print_startup_panel despues

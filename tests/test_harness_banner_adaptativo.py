@@ -452,3 +452,102 @@ def test_partir_arte_y_logo_separa_el_gato_del_logo_real():
     # Sin bloques: todo es gato.
     assert ba.partir_arte_y_logo(["a", "b"]) == (["a", "b"], [])
     assert ba.partir_arte_y_logo([]) == ([], [])
+
+
+# ---------------------------------------------------------------------------
+# P7 (2026-08-24): las variantes por ALTURA siguen mandando sobre el registro
+# de estilos (banner.arte.animacion, alineacion...): con COGNIA_BANNER=compacto
+# no hay arte y no hay Live; con 'medio' el gato se recorta y el logo sale
+# entero aunque el arte este animado y centrado.
+# ---------------------------------------------------------------------------
+
+def _cli_con_consola(monkeypatch, alto: int, ancho: int = 120):
+    """cognia.cli con una Console truecolor grabadora de `alto` filas, sin
+    backend ni bus (los monkeypatch de siempre) y con el registro limpio."""
+    import io
+    import cognia.cli as cli
+    from rich.console import Console
+    from cognia import backend_activo
+    from cognia.ux import aspecto as A
+    from cognia.ux import glow as G
+    for k in ("COGNIA_BANNER", "COGNIA_ANIMACION", "COGNIA_THEME", "NO_COLOR"):
+        monkeypatch.delenv(k, raising=False)
+    A.reset()
+    G.vaciar_memo()
+    con = Console(file=io.StringIO(), width=ancho, height=alto, force_terminal=True,
+                  color_system="truecolor", legacy_windows=False,
+                  theme=cli._THEMES[cli._THEME_ORDER[cli._theme_idx]], highlight=False)
+    monkeypatch.setattr(cli, "_console", con)
+    monkeypatch.setattr(cli, "_arranque_ux", lambda: None)
+    monkeypatch.setattr(backend_activo, "estado",
+                        lambda: {"url": "http://127.0.0.1:8080", "modelo": "m.gguf",
+                                 "puerto": 8080, "avisos": []})
+    return cli, con, A, G
+
+
+@pytest.fixture
+def _limpiar_registro():
+    from cognia.ux import aspecto as A
+    from cognia.ux import glow as G
+    yield
+    A.reset()
+    G.forzar_capacidades(None)
+    G.vaciar_memo()
+
+
+def _grabar_live(monkeypatch) -> list:
+    from rich import live as rich_live
+    abiertas = []
+    original = rich_live.Live.start
+
+    def _start(self, *a, **k):
+        abiertas.append(self)
+        return original(self, *a, **k)
+    monkeypatch.setattr(rich_live.Live, "start", _start)
+    return abiertas
+
+
+_BRAILLE = re.compile("[⠁-⣿]")
+_CURSOR_UP = re.compile(r"\x1b\[\d*A")
+
+
+def test_compacto_y_minimo_no_pintan_arte_ni_abren_live_aunque_el_registro_anime(
+        monkeypatch, _limpiar_registro):
+    cli, con, A, G = _cli_con_consola(monkeypatch, alto=24)
+    assert not A.poner("banner.arte", "animacion.activa", True)
+    G.forzar_capacidades(G.Caps("truecolor", True, ""))
+    abiertas = _grabar_live(monkeypatch)
+    for variante in ("compacto", "minimo"):
+        monkeypatch.setattr(cli, "_variante_banner", lambda v=variante: v)
+        con.file.seek(0)
+        con.file.truncate()
+        cli._print_startup_panel()
+        salida = con.file.getvalue()
+        assert not _BRAILLE.search(salida) and "█" not in salida, variante
+        assert not abiertas and not _CURSOR_UP.search(salida)
+        assert "cognia" in salida and "m.gguf" in salida
+
+
+def test_medio_recorta_el_gato_conserva_el_logo_y_anima_si_cabe(monkeypatch, _limpiar_registro):
+    """A 40 filas la variante 'medio' deja un banner que CABE, asi que la
+    animacion del registro si corre (Live abierta) y el frame final tiene el
+    logo entero y menos gato; la alineacion centro no rompe el recorte."""
+    cli, con, A, G = _cli_con_consola(monkeypatch, alto=40)
+    for prop, valor in (("animacion.activa", True), ("animacion.solo_al_llegar", True),
+                        ("animacion.velocidad", 5), ("alineacion", "centro")):
+        assert not A.poner("banner.arte", prop, valor)
+    G.forzar_capacidades(G.Caps("truecolor", True, ""))
+    monkeypatch.setattr(cli, "_variante_banner", lambda: "medio")
+    abiertas = _grabar_live(monkeypatch)
+    cli._print_startup_panel()
+    salida = con.file.getvalue()
+    assert len(abiertas) == 1 and _CURSOR_UP.search(salida)
+    # el frame FINAL (lo que queda en el scrollback): tras el ultimo cursor-up
+    final = _CURSOR_UP.split(salida)[-1]
+    limpio = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", final)
+    lineas = limpio.splitlines()
+    assert len([l for l in lineas if "█" in l or "╗" in l]) == 5
+    gato = [l for l in lineas if _BRAILLE.search(l)]
+    assert 6 <= len(gato) < 25, len(gato)
+    assert len(lineas) <= 40 - 3, len(lineas)
+    assert lineas[0].startswith(" ") and "COGNIA" in lineas[0]      # centrado

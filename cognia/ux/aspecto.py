@@ -229,7 +229,7 @@ _ELEMENTOS = (
        _caps(Cap.COLOR, Cap.GRADIENTE, Cap.GLOW, Cap.ANIMACION, Cap.ALINEACION, Cap.VISIBLE),
        Estilo(color="@rampa.profundo", gradiente=("@rampa.profundo", "@rampa.matrix"),
               alineacion="izquierda", glow=Glow(), animacion=_SIN_ANIM, visible=True),
-       vivo=True, alineaciones=("izquierda", "derecha"), grafico=True,
+       vivo=True, alineaciones=("izquierda", "centro", "derecha"), grafico=True,
        nota="identidad: el default no lo esconde (D6); vivo solo al arrancar"),
     _E("banner.marco", "Panel del banner (borde, titulo, subtitulo)",
        _caps(Cap.TEXTO, Cap.COLOR, Cap.NEGRITA, Cap.GLIFO, Cap.VISIBLE),
@@ -2180,5 +2180,19 @@ def conectar_glow() -> None:
 # repl) llama spinner_vivo.comando() desde el gancho P8 (rama estilos/banner).
 ENGANCHADOS_P8 = ("spinner.tool", "spinner.pensar", "spinner.comando")
 for _id in ENGANCHADOS_P8:
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
+del _id
+
+
+# ---------------------------------------------------------------------------
+# 14. P7 (banner, 2026-08-24): elementos ENGANCHADOS por cli._print_startup_panel
+# ---------------------------------------------------------------------------
+# cli._aspecto_del_banner() lee estos ids en cada arranque (y en /estilo
+# banner via cli._reimprimir_banner): textos (titulo/subtitulo, la guia, las
+# etiquetas de la linea del modelo), estilos por estado, caja, visibilidad,
+# alineacion (izquierda/centro/derecha) y, para banner.arte, gradiente, glow y
+# animacion (glow.BannerVivo dentro de la unica Live libre del arranque).
+ENGANCHADOS_P7 = ("banner.arte", "banner.marco", "banner.guia", "banner.linea_modelo")
+for _id in ENGANCHADOS_P7:
     REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
 del _id

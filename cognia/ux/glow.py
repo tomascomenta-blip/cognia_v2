@@ -374,9 +374,32 @@ def _config_animacion() -> str:
 
 
 def _deteccion_rich() -> tuple:
-    """(color_system, legacy_windows) de una Console de rich, cacheado 1 s
-    (crear una Console no es gratis y capacidades() se llama por frame)."""
+    """(color_system, legacy_windows) de la Console que PINTA: la del CLI
+    (cli._console) si esta cargado -- es la que decide si sale color -- y si
+    no una Console fresca, cacheada 1 s (crearla no es gratis y capacidades()
+    se llama por frame). P7 (banner): con una Console fresca bajo pytest o
+    en un pipe el nivel salia 'none' y gradiente_lineas (color por linea,
+    sin token) perdia el degradado aunque la Console grabadora del golden
+    fuera truecolor; el nivel es el de la consola que renderiza, no el de
+    sys.stdout. La del CLI se relee si cambia el objeto (los tests y
+    /tema la reconstruyen)."""
+    try:
+        _cli = sys.modules.get("cognia.cli")
+        con = getattr(_cli, "_console", None) if _cli is not None else None
+    except Exception:
+        con = None
+    if con is not None:
+        if _CAPS.get("rich_con") != id(con):
+            try:
+                _CAPS["rich"] = (con.color_system, bool(con.legacy_windows))
+            except Exception:
+                _CAPS["rich"] = (None, False)
+            _CAPS["rich_con"] = id(con)
+            _CAPS["rich_t"] = time.monotonic()
+        return _CAPS["rich"]
     ahora = time.monotonic()
+    if _CAPS.get("rich_con") is not None:
+        _CAPS["rich_con"], _CAPS["rich"] = None, None
     if _CAPS["rich"] is None or ahora - _CAPS["rich_t"] > 1.0:
         try:
             from rich.console import Console
@@ -836,13 +859,23 @@ def gradiente_lineas(id_o_estilo, lineas, *, t=None, cuadro=None, variante=None,
     """Banner: un tono por linea (el gradiente del elemento o
     paleta.gradiente_banner de la variante, como hoy) y glow/barrido por
     columna encima, con DESFASE_LINEA_S entre lineas (baja en diagonal).
-    Sin glow ni animacion devuelve exactamente Text(linea, style=tono)."""
+    Sin glow ni animacion devuelve exactamente Text(linea, style=tono).
+    Las lineas EN BLANCO no consumen un tono (el gradiente se interpola por
+    linea no vacia, como paleta.gradiente_banner en cli; el gato tiene una
+    fila vacia arriba, otra abajo y dos entre el arte y el logo) y salen
+    como Text('') sin estilo."""
     lineas = list(lineas)
     variante = _variante(variante)
     estilo = _resolver(id_o_estilo, variante, estado)
-    tonos = _tonos(estilo, len(lineas), variante)
+    con_texto = [l for l in lineas if l.strip()]
+    tonos = iter(_tonos(estilo, len(con_texto), variante))
     out = []
-    for i, (linea, tono) in enumerate(zip(lineas, tonos)):
+    for i, linea in enumerate(lineas):
+        if not linea.strip():
+            from rich.text import Text
+            out.append(Text(linea))
+            continue
+        tono = next(tonos)
         e = replace(estilo, token="", color=tono)
         ti, ci = t, cuadro
         if estilo.anim_activa and t is None and ci is None:
@@ -859,8 +892,13 @@ def _tonos(estilo: EstiloGlow, n: int, variante: str) -> list:
         return list(paleta.gradiente_banner(n, variante))
     a, b = _rgb(estilo.gradiente[0]), _rgb(estilo.gradiente[1])
     if n <= 1:
-        return [_hex(a)]
-    return [_hex(_mezcla(a, b, i / (n - 1))) for i in range(n)]
+        return [_hex(a)] * max(0, n)
+    # La MISMA aritmetica que paleta.gradiente_banner (int() trunca, no
+    # redondea): el registro resuelve el gradiente por defecto a los extremos
+    # de la rampa y con round() 57 de 59 largos daban un tono distinto en
+    # alguna linea -- el golden del banner lo cazo (P7).
+    return ["#%02x%02x%02x" % tuple(int(a[c] + (i / (n - 1)) * (b[c] - a[c])) for c in range(3))
+            for i in range(n)]
 
 
 def fila_halo(id_o_estilo, texto: str, *, variante=None, estado=None, sombra: str = "░"):
