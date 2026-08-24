@@ -663,11 +663,50 @@ class Renderer:
                 entrada["resultado"], max_lineas=max_lineas, ancho=ancho,
                 raiz=os.getcwd(), indice=indice)
             for linea, estilo in zip(lineas, estilos):
-                self._print(linea, style=estilo)
+                self._print_enlazado(linea, estilo)
             return True
         except Exception as exc:
             self._degradar_render(exc)
             return False
+
+    def _print_enlazado(self, texto: str, estilo: str) -> None:
+        """La linea del bloque colapsado con las rutas ABSOLUTAS existentes
+        como hyperlink OSC 8 file:// (harness/enlaces): ctrl+click abre el
+        fichero en Windows Terminal. El texto VISIBLE es byte-identico al
+        plano — el link vive en escapes invisibles y la seleccion/copia no
+        cambia. Solo con terminal de verdad y enlaces activos (config
+        'enlaces' / env COGNIA_ENLACES); cualquier fallo avisa degradado
+        'enlaces' UNA vez y cae al plano de siempre."""
+        try:
+            if (self._console is not None
+                    and getattr(self._console, "is_terminal", False)):
+                from cognia.harness import enlaces as _enl
+                if _enl.activo():
+                    rico = _enl.texto_rich(texto, estilo)
+                    if rico is not None:
+                        self._console.print(rico, highlight=False)
+                        return
+        except Exception as exc:
+            self._degradar_enlaces(exc)
+        self._print(texto, style=estilo)
+
+    def _degradar_enlaces(self, exc: Exception) -> None:
+        """Fallo linkeando rutas: avisar por _aviso_degradado (canal unico del
+        repo; una vez por motivo) y dejar que el caller pinte el plano."""
+        motivo = f"{type(exc).__name__}: {exc}"
+        try:
+            import sys
+            _cli = sys.modules.get("cognia.cli")
+            if _cli is not None:
+                _cli._aviso_degradado("enlaces", motivo)
+                return
+        except Exception:
+            pass
+        clave = ("degradado", "enlaces", motivo)
+        if clave not in self._avisos_vistos:
+            self._avisos_vistos.add(clave)
+            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — enlaces: "
+                        f"{motivo}", style="warn_cl")
 
     def _on_tool_fin(self, ev: events.ToolFin) -> None:
         self._parar_status()

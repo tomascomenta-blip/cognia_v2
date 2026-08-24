@@ -13960,3 +13960,28 @@ dejo el pipe LIMPIO (cat -A: cero `^G`/`]9;` colados en la captura — la regres
 anoche sigue cerrada). El cableado e2e renderer→notificaciones se probo con tty simulado como
 fd real: turno OK largo `9;4;3 + 9;4;0 + BEL`, turno error `9;4;3 + 9;4;2;100` y
 progreso_limpiar lo apaga una sola vez.
+
+## [2026-08-23] CYCLE — Pastes largos colapsados en el input (/pegado) + rutas clicables OSC 8 (/enlaces)
+Dos features de input/transcript entregadas en el CLI. (1) harness/pegados + binding de
+Keys.BracketedPaste (cli._manejar_pegado, funcion de MODULO para poder testearla con una
+PromptSession real): pegar >= 5 lineas u 800 chars inserta '[pegado #N: +X lineas]' en el buffer
+y AL ENVIAR la marca se sustituye por el contenido integro antes de mejora/menciones/dispatch;
+registro por sesion inspeccionable con /pegado (lista | N | on/off | umbral), config 'pegado' +
+COGNIA_PEGADO=0, y REGLA DURA verificada por test: si registrar falla el paste entra LITERAL con
+degradado 'pegado'. (2) harness/enlaces: rutas ABSOLUTAS que existen se pintan como hyperlink
+OSC 8 file:/// (reglas CodeWhale: target percent-encodeado con controles incluidos, jamas visible,
+fallback sin tty byte-identico) en el render colapsado de tools (ux/renderer._print_enlazado) y en
+la ruta del ultimo spill de /offload estado (cli._ruta_enlazada); puerta /enlaces, config 'enlaces'
++ COGNIA_ENLACES=0. NO se linkifica el texto que viaja AL MODELO (resumir_para_modelo queda
+intacto): el link es render, no contenido. Tests: 28 nuevos (normalizacion, umbrales, marcas
+multiples, no-cascada, binding corto/largo/apagado/degradado via create_pipe_input con la
+secuencia \x1b[200~...\x1b[201~ real; target saneado %07/%1B, spans solo absolutos existentes,
+Text.plain byte-identico, emision real con el par OSC 8, fallback sin tty); batch dirigido
+265 passed. Gate REPL real bajo ConPTY (pywinpty, terminal con VT de verdad): /pegado, /enlaces,
+'/hacer lee C:\Users\usuario\Desktop\nem.md...' (el agente leyo el fichero, la salida spilleo a
+offload y respondio la model card de Nemotron), /offload estado y /pegado umbral 5 800 tecleados;
+la captura trae 3 aperturas OSC 8 file:/// reales (2x nem.md en el render colapsado, 1x la ruta
+del spill) con sus 3 cierres \x1b]8;; y el texto visible limpio. HONESTO: el paste bracketed NO se
+dispara escribiendo a ConPTY (el input llega goteado y la heuristica win32 de prompt_toolkit no ve
+el batch), asi que el binding quedo probado con el test de integracion de prompt_toolkit que manda
+la secuencia real por pipe — no con un paste manual en el REPL.

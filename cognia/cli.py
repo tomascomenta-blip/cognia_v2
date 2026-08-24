@@ -119,6 +119,7 @@ try:
     from prompt_toolkit.formatted_text import FormattedText
     from prompt_toolkit.history import InMemoryHistory
     from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.keys import Keys
     # patch_stdout con raw=True (OBLIGATORIO): sin raw, Vt100_Output.write()
     # reemplaza cada ESC por '?' (prompt_toolkit/output/vt100.py:517;
     # write_raw NO lo hace) y TODO el color de rich sale mutilado. Medido en
@@ -2064,6 +2065,8 @@ _CMD_DESCRIPTIONS = {
     "/prompt":          "System prompt del cerebro: /prompt [editar | set <texto> | reset | off | on]",
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
+    "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
+    "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
     "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
     "/compactar":       "A secas: resumen visual de la sesion (limpiar + ultimas interacciones). Con args: compactacion del contexto del agente. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
@@ -2221,6 +2224,30 @@ _CMD_DETAILS = {
         "Bajo COGNIA_REMOTO el render clasico se conserva siempre: el clasificador del movil "
         "(es_eco_renderer) reconoce las marcas viejas. Todo fallo del render nuevo avisa via "
         "degradado 'render_tools' y cae al render clasico, jamas rompe el turno."),
+    "/pegado": (
+        "PASTES LARGOS COLAPSADOS en el input (harness/pegados, patron Claude Code/Codex): "
+        "al pegar >= 5 lineas u 800 chars en el prompt, el binding de BracketedPaste de "
+        "prompt_toolkit inserta la marca '[pegado #N: +X lineas]' en vez de la pared de texto; "
+        "al ENVIAR, la marca se sustituye por el contenido completo antes de mejora/menciones/"
+        "dispatch (el agente recibe el texto integro, nada se pierde). El registro es de sesion. "
+        "USO: /pegado | lista (indice: numero, lineas, chars) | <N> (el contenido crudo, "
+        "seleccionable) | on|off (persiste 'pegado') | umbral <lineas> [<chars>] (persisten "
+        "'pegado_lineas'/'pegado_chars', defaults 5/800). "
+        "La env COGNIA_PEGADO=0 apaga GANANDO a la config (y =1 fuerza); "
+        "COGNIA_PEGADO_LINEAS / COGNIA_PEGADO_CHARS mueven los umbrales por entorno. "
+        "REGLA DURA: cualquier fallo registrando hace que el paste entre LITERAL con aviso "
+        "degradado 'pegado' — el texto del dueno jamas se pierde. Sin prompt_toolkit (pipes, "
+        "CI) no hay colapso: el paste entra literal como siempre."),
+    "/enlaces": (
+        "RUTAS CLICABLES en el transcript (harness/enlaces, OSC 8): las rutas ABSOLUTAS que "
+        "existen en disco se pintan como hyperlink file:/// en el render colapsado de tools "
+        "(ux/renderer) y en el estado de /offload — ctrl+click en Windows Terminal abre el "
+        "fichero. Reglas CodeWhale: solo file:// absolutos, target percent-encodeado "
+        "(controles incluidos) y JAMAS visible — el texto de la linea es byte-identico con o "
+        "sin link, la seleccion/copia no cambia. Sin tty (pipes, CI) el fallback es el texto "
+        "plano identico. USO: /enlaces | estado | on|off (persiste 'enlaces', default on). "
+        "La env COGNIA_ENLACES=0 apaga GANANDO a la config (y =1 fuerza). Todo fallo avisa "
+        "via degradado 'enlaces' y cae al texto plano, jamas rompe la linea."),
     "/spinner": (
         "La linea de espera del turno responde las tres preguntas de Claude Code/Codex: "
         "¿esta vivo? ¿cuanto lleva? ¿como lo paro? Con la linea VIVA (default on) el spinner "
@@ -6054,6 +6081,19 @@ _CONFIG_DEFAULTS: dict = {
     # viejo). Se cambia con /markdown on|off|tema <pygments>.
     "markdown_stream":      "on",
     "markdown_tema":        "monokai",
+    # PASTES COLAPSADOS en el input (harness/pegados): pegar >= 'pegado_lineas'
+    # lineas o > 'pegado_chars' chars inserta '[pegado #N: +X lineas]' en el
+    # buffer y el contenido entra COMPLETO al enviar. COGNIA_PEGADO=0 apaga
+    # ganando a la config; COGNIA_PEGADO_LINEAS/CHARS mueven los umbrales.
+    # Se cambia con /pegado on|off|umbral.
+    "pegado":               "on",
+    "pegado_lineas":        "5",
+    "pegado_chars":         "800",
+    # RUTAS CLICABLES (harness/enlaces): hyperlinks OSC 8 file:// sobre rutas
+    # absolutas existentes en el render de tools y /offload; solo con tty, el
+    # fallback plano es byte-identico. COGNIA_ENLACES=0 apaga ganando a la
+    # config. Se cambia con /enlaces on|off.
+    "enlaces":              "on",
 }
 
 
@@ -8739,6 +8779,171 @@ def _slash_expandir(arg: str = "") -> None:
                          .encode(enc, errors="replace").decode(enc) + "\n")
 
 
+def _manejar_pegado(event) -> None:
+    """Binding de Keys.BracketedPaste: un paste LARGO se colapsa a la marca
+    '[pegado #N: +X lineas]' (harness/pegados) y se expande recien AL ENVIAR;
+    uno corto entra literal, igual que el binding por defecto de
+    prompt_toolkit (que este binding reemplaza en la sesion del REPL).
+
+    Es funcion de MODULO (no closure de repl) a proposito: el test de
+    integracion de prompt_toolkit la registra en su propia PromptSession con
+    un pipe input y dispara el paste real \\x1b[200~...\\x1b[201~.
+
+    REGLA DURA: el texto del dueno JAMAS se pierde. Cualquier fallo (registro,
+    config, import) inserta el paste literal y avisa degradado."""
+    data = getattr(event, "data", "") or ""
+    try:
+        from cognia.harness import pegados as _peg
+        texto = _peg.normalizar(data)
+        if _peg.activo() and _peg.es_largo(texto):
+            marca = _peg.registrar(texto)
+            event.app.current_buffer.insert_text(marca)
+            return
+        event.app.current_buffer.insert_text(texto)
+    except Exception as exc:
+        _aviso_degradado("pegado", f"{type(exc).__name__}: {exc}")
+        # normalizacion minima inline: sin ella un \r\n crudo rompe el buffer
+        event.app.current_buffer.insert_text(
+            data.replace("\r\n", "\n").replace("\r", "\n"))
+
+
+def _slash_pegado(arg: str = "") -> None:
+    """`/pegado`: los pastes colapsados de la sesion (harness/pegados).
+
+    Sin args o 'lista' muestra el indice; `N` reimprime el contenido CRUDO
+    (print pelado, seleccionable, mismo patron raw-view que /expandir).
+    Subcomandos de config (persisten via _save_config):
+      on|off               -> clave 'pegado' (COGNIA_PEGADO=0 gana a la config)
+      umbral <lin> [<ch>]  -> claves 'pegado_lineas' / 'pegado_chars'"""
+    try:
+        from cognia.harness import pegados as _peg
+    except Exception as exc:
+        _aviso_degradado("pegado", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["pegado"] = bajo
+        _save_config(cfg)
+        env = (os.environ.get("COGNIA_PEGADO") or "").strip()
+        extra = (f" (ojo: COGNIA_PEGADO={env} en el entorno GANA a la config)"
+                 if env else "")
+        _print_line(f"[info_dim]colapso de pastes largos: {bajo} (guardado)"
+                    f"{extra}[/info_dim]")
+        return
+    if bajo.startswith("umbral"):
+        partes = arg[len("umbral"):].split()
+        try:
+            lin = int(partes[0])
+            ch = int(partes[1]) if len(partes) > 1 else None
+            if lin < 1 or (ch is not None and ch < 1):
+                raise ValueError
+        except (ValueError, IndexError):
+            _print_line("[warn_cl]Uso: /pegado umbral <lineas >= 1> "
+                        "[<chars >= 1>][/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["pegado_lineas"] = str(lin)
+        if ch is not None:
+            cfg["pegado_chars"] = str(ch)
+        _save_config(cfg)
+        _print_line(f"[info_dim]pegado: colapsa desde {lin} lineas"
+                    f"{'' if ch is None else f' o {ch} chars'} (guardado)"
+                    f"[/info_dim]")
+        return
+    entradas = _peg.listar()
+    if bajo in ("", "lista", "estado"):
+        estado = "ACTIVO" if _peg.activo() else "apagado"
+        _print_line(f"[info_dim]colapso de pastes: {estado} (umbral "
+                    f"{_peg.umbral_lineas()} lineas / {_peg.umbral_chars()} "
+                    f"chars)[/info_dim]")
+        if not entradas:
+            _print_line("[info_dim]  sin pegados colapsados en esta sesion "
+                        "(pega >= 5 lineas en el prompt)[/info_dim]")
+            return
+        for e in entradas:
+            _print_line(f"[info_dim]  #{e['n']}: {e['lineas']} lineas, "
+                        f"{e['chars']} chars[/info_dim]")
+        _print_line("[info_dim]  /pegado <N> para ver uno completo[/info_dim]")
+        return
+    try:
+        n = int(arg)
+    except ValueError:
+        _print_line("[warn_cl]Uso: /pegado [lista | N | on | off | "
+                    "umbral <lineas> [<chars>]][/warn_cl]")
+        return
+    e = _peg.obtener(n)
+    if e is None:
+        _print_line(f"[warn_cl]/pegado {n}: fuera de rango (hay "
+                    f"{len(entradas)} pegados; /pegado lista)[/warn_cl]")
+        return
+    # RAW VIEW: print pelado, sin rich — el contenido tal cual se pego.
+    try:
+        print(f"--- /pegado {n}: {e['lineas']} lineas, {e['chars']} chars ---")
+        print(e["texto"])
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        sys.stdout.write(e["texto"].encode(enc, errors="replace").decode(enc)
+                         + "\n")
+
+
+def _ruta_enlazada(ruta: str) -> str:
+    """Una ruta para _print_line con hyperlink OSC 8 ([link=file:///...]) si la
+    consola es un tty de verdad y los enlaces estan activos (harness/enlaces).
+    En cualquier otro caso (pipe, config off, fallo) devuelve la ruta TAL CUAL:
+    el texto visible es byte-identico con o sin link."""
+    try:
+        if _HAS_RICH and _console is not None and getattr(
+                _console, "is_terminal", False):
+            from cognia.harness import enlaces as _enl
+            if _enl.activo():
+                return _enl.marcar_markup(ruta)
+    except Exception as exc:
+        _aviso_degradado("enlaces", f"{type(exc).__name__}: {exc}")
+    return ruta
+
+
+def _slash_enlaces(arg: str = "") -> None:
+    """`/enlaces`: rutas clicables (OSC 8) en el transcript (harness/enlaces).
+
+    Sin args muestra el estado; on|off persiste la clave 'enlaces'
+    (COGNIA_ENLACES=0 gana a la config, apagado de emergencia)."""
+    try:
+        from cognia.harness import enlaces as _enl
+    except Exception as exc:
+        _aviso_degradado("enlaces", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip().lower()
+    if arg in ("on", "off"):
+        cfg = _load_config()
+        cfg["enlaces"] = arg
+        _save_config(cfg)
+        env = (os.environ.get("COGNIA_ENLACES") or "").strip()
+        extra = (f" (ojo: COGNIA_ENLACES={env} en el entorno GANA a la config)"
+                 if env else "")
+        _print_line(f"[info_dim]enlaces de rutas (OSC 8): {arg} (guardado)"
+                    f"{extra}[/info_dim]")
+        return
+    if arg and arg != "estado":
+        _print_line("[warn_cl]Uso: /enlaces [estado | on | off][/warn_cl]")
+        return
+    tty = bool(_HAS_RICH and _console is not None
+               and getattr(_console, "is_terminal", False))
+    env = (os.environ.get("COGNIA_ENLACES") or "").strip()
+    fuente = f"env COGNIA_ENLACES={env}" if env else "config 'enlaces'"
+    _print_line(f"[info_dim]enlaces de rutas (OSC 8 file://): "
+                f"{'ACTIVOS' if _enl.activo() else 'apagados'} ({fuente})"
+                f"[/info_dim]")
+    modo_tty = ("si (tty)" if tty
+                else "no (pipe/CI: fallback plano byte-identico)")
+    _print_line(f"[info_dim]  terminal con hyperlinks: {modo_tty} — "
+                f"ctrl+click abre el fichero en Windows Terminal[/info_dim]")
+    _print_line("[info_dim]  se enlazan solo rutas ABSOLUTAS que existen; el "
+                "target va percent-encodeado y nunca en el texto visible"
+                "[/info_dim]")
+
+
 def _marcar_env_sembrada(*vars_env: str) -> None:
     """Declara en harness/config_resuelta que estas envs las escribio el
     PROPIO CLI copiando la config (siembra de arranque o handler de /offload
@@ -8876,10 +9081,12 @@ def _slash_offload(arg: str = "") -> None:
                 f"{est['cabeza']} cabeza + {est['cola']} cola[/info_dim]")
     ult = est["ultimo_spill"]
     if ult:
+        # La ruta del spill sale CLICABLE (OSC 8 file://, harness/enlaces) en
+        # un tty; en pipe o con /enlaces off el texto es byte-identico.
         _print_line(f"[info_dim]  ultimo spill: {ult.get('handle', '?')} "
                     f"({ult.get('tool') or 'tool'}, {ult.get('bytes', 0)} B, "
                     f"{ult.get('lineas', 0)} lineas) -> "
-                    f"{ult.get('ruta', '')}[/info_dim]")
+                    f"{_ruta_enlazada(ult.get('ruta', ''))}[/info_dim]")
     else:
         _print_line("[info_dim]  ultimo spill: ninguno en este proceso[/info_dim]")
     err = est["ultimo_error"]
@@ -11561,6 +11768,16 @@ def repl():
                 # teclas ignoradas (basic.py), igual que f2.
                 event.app.exit(result=_FONDO_MEJORA + event.app.current_buffer.text)
 
+            # Pastes largos COLAPSADOS (harness/pegados): prompt_toolkit
+            # entrega el paste ENTERO en un KeyPress(Keys.BracketedPaste)
+            # (vt100_parser; en Windows sin VT, heuristica win32: batch con
+            # >= 1 newline). Este binding REEMPLAZA al default (que insertaba
+            # el paste literal): largo -> marca '[pegado #N: +X lineas]',
+            # corto -> literal. La marca se expande al ENVIAR (main loop).
+            # El handler es la funcion de MODULO _manejar_pegado para que el
+            # test de integracion de prompt_toolkit la ejercite igual.
+            _kb.add(Keys.BracketedPaste)(_manejar_pegado)
+
             # Barra de estado inferior (2026-08-12): modelo, ocupacion de la
             # ventana y modo, SIEMPRE visibles. Es el unico rasgo que tienen
             # los seis CLI punteros medidos y a Cognia le faltaba entero: sin
@@ -11622,6 +11839,13 @@ def repl():
     # para que un repl() llamado dos veces no herede lineas viejas.
     _COLA_ENTRADA.clear()
     _inyectadas: list = _COLA_ENTRADA
+    # El registro de pastes colapsados es DE SESION: un repl() llamado dos
+    # veces no hereda pegados viejos (mismo criterio que la cola de arriba).
+    try:
+        from cognia.harness import pegados as _peg_ini
+        _peg_ini.limpiar()
+    except Exception as _exc_peg:
+        _aviso_degradado("pegado", f"{type(_exc_peg).__name__}: {_exc_peg}")
 
     # Los logs, POR LA INTERFAZ (2026-08-18). Hasta aqui el handler de consola
     # escribia a un stderr que ni el spinner ni el prompt capturan: un WARNING
@@ -11808,6 +12032,20 @@ def repl():
         if not raw:
             continue
 
+        # Pastes colapsados (harness/pegados): la marca '[pegado #N: +X
+        # lineas]' que dejo el binding de BracketedPaste se sustituye por su
+        # contenido AL ENVIAR, antes de todo lo demas (mejora, menciones,
+        # dispatch) — rio abajo nadie sabe que existio el colapso. EXCEPTO
+        # para el propio /pegado: inspecciona las marcas, no su contenido.
+        # Un fallo expandiendo deja la linea intacta y se VE como degradado.
+        if "[pegado #" in raw and not raw.startswith("/pegado"):
+            try:
+                from cognia.harness import pegados as _peg_exp
+                raw = _peg_exp.expandir(raw)
+            except Exception as _exc_pex:
+                _aviso_degradado("pegado",
+                                 f"{type(_exc_pex).__name__}: {_exc_pex}")
+
         # Mejora del prompt con IA. Va ANTES de las @-menciones A PROPOSITO:
         # se reformula lo que el usuario TECLEO, no los 256 KiB de ficheros
         # que expandir() puede inyectar en la misma linea. Cualquier fallo
@@ -11972,6 +12210,10 @@ def repl():
             _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
         elif raw == "/expandir" or raw.startswith("/expandir "):
             _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
+        elif raw == "/pegado" or raw.startswith("/pegado "):
+            _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
+        elif raw == "/enlaces" or raw.startswith("/enlaces "):
+            _slash_enlaces(raw[len("/enlaces "):] if raw.startswith("/enlaces ") else "")
         elif raw == "/spinner" or raw.startswith("/spinner "):
             _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
         elif raw == "/offload" or raw.startswith("/offload "):
