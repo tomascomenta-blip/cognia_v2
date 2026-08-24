@@ -13887,3 +13887,24 @@ emitio `ESC]9;Cognia: turno terminado (53s)BEL` tras el footer; con
 verificado por conteo de bytes); un turno de 15.6 s bajo umbral NO notifico.
 Dirigidos: 142 passed (renderer/ux/offloading) + 23 (cli_consistency/cableado)
 + 53 (apply_config_avisos/arranque) — 0 failed.
+
+## 2026-08-23 — F6: /config-resuelta (dump-config de deepseek-harness)
+Entregado `cognia/harness/config_resuelta.py` + puerta `/config-resuelta`
+(y subaccion `/config resuelta`) + subcomando `python -m cognia
+config-resuelta` (sale 0 sin abrir el REPL). Vuelca la config EFECTIVA tras
+las tres capas (defaults <- ~/.cognia_config.json <- env COGNIA_*) con el
+ORIGEN por clave ('default' | 'fichero' | 'env:NOMBRE'), agrupada por origen
+(env primero), no-default en ambar, secretos enmascarados (regex
+token/secret/key: COGNIA_CONTRIBUTOR_TOKEN salio `abcd...`) y lista aparte
+de las env COGNIA_* sueltas activas. Punto de extension: ENV_QUE_PISAN
+(clave->envs); degradacion: registrar_avisador + _aviso_degradado('config')
+con fallback a fichero+env si el CLI ni importa. Dos bugs cazados TECLEANDO
+(no por la suite, que estaba verde): (1) el modo sencillo suprime todo
+bloque con '[detail]' -> /config-resuelta salia VACIO en el REPL real; (2)
+rich se tragaba `[env:COGNIA_X]` como markup -> filas sin origen. REPL:
+COGNIA_SPINNER=0 salio como `spinner_info = 0 [env:COGNIA_SPINNER]`; 3
+tareas cotidianas OK (resumen de README, grep de _load_config con fichero y
+linea, script de dias-a-fin-de-mes creado y ejecutado). Dirigidos: 12 nuevos
++ 30 (cli_config/cableado/consistency) = 42 passed / 0 failed. Nota: la capa
+~/.cognia/config.env de first_run.apply_config se refleja via las env que
+inyecta al proceso (salen como pisadas/sueltas), no como capa propia.

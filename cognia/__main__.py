@@ -7,6 +7,7 @@ Usage:
     cognia empezar          -- camino unico: instala lo que falte, verifica y abre el REPL
     cognia                  -- first-run wizard (once), then REPL
     cognia doctor           -- diagnostico de la instalacion
+    cognia config-resuelta  -- config efectiva con el origen de cada clave
     cognia init             -- re-run setup wizard
     cognia install-model    -- download GGUF 3B + llama-server + expertos (recomendado)
     cognia install-weights  -- download shards and configure this machine as a node
@@ -550,6 +551,8 @@ Comandos:
                      verifica el backend y abre el REPL. Si no sabes que correr, esto.
   (ninguno)          Iniciar REPL (lanza wizard en primer uso)
   doctor             Diagnostico de la instalacion (backend GGUF, flota, velocidad)
+  config-resuelta    Config EFECTIVA tras todas las capas, con el origen de cada
+                     clave (default | fichero | env:NOMBRE) y las env sueltas
   init               Re-ejecutar wizard de configuracion
   modo               Ver o cambiar el modo (local/compartido/memoria) y personalizacion
   install-model      Descargar GGUF 3B + llama-server + expertos (recomendado)
@@ -665,6 +668,15 @@ def main() -> None:
         # podia correr con `python -m cognia.doctor`.
         from cognia.doctor import main as _doc_main
         raise SystemExit(_doc_main())
+    elif cmd in ("config-resuelta",):
+        # F6: la config EFECTIVA con el origen de cada clave, SIN abrir el
+        # REPL (la clase de bug que caza es justo "el proceso corre con otra
+        # config de la que crees", y a veces el REPL ni arranca). Render
+        # plano del harness: sirve igual en un pipe o un log.
+        from cognia.harness import config_resuelta as _cr
+        _res = _cr.config_resuelta()
+        _sueltas = _cr.env_sueltas()
+        print("\n".join(_cr.formatear_plano(_res, _sueltas)))
     elif cmd in ("empezar", "start"):
         # Camino unico de arranque (cognia/arranque.py). Import perezoso y con
         # mensaje legible: si el modulo no esta en esta instalacion, el usuario

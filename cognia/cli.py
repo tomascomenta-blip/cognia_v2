@@ -2077,6 +2077,7 @@ _CMD_DESCRIPTIONS = {
     "/recordar-cancelar":  "Cancelar un recordatorio           <id>",
     # Configuracion
     "/config":             "Configuracion persistente del usuario (~/.cognia_config.json)",
+    "/config-resuelta":    "Config EFECTIVA tras todas las capas, con el origen de cada clave (default | fichero | env:NOMBRE) y las env COGNIA_* sueltas",
     # Notas inteligentes
     "/notas":              "Ver notas guardadas (hechos, decisiones, acciones, insights, preguntas)",
     "/nota-agregar":       "Agregar nota manual al registro de notas",
@@ -2465,7 +2466,15 @@ _CMD_DETAILS = {
     ),
     "/config": (
         "Gestiona la configuracion persistente en ~/.cognia_config.json. "
-        "Subcomandos: ver, set, reset, exportar."
+        "Subcomandos: ver, set, reset, exportar, resuelta."
+    ),
+    "/config-resuelta": (
+        "Vuelca la configuracion RESUELTA tras aplicar las tres capas "
+        "(defaults <- ~/.cognia_config.json <- env COGNIA_*), diciendo de "
+        "que capa salio cada valor: 'default', 'fichero' o 'env:NOMBRE'. "
+        "Los valores que difieren del default van resaltados y los secretos "
+        "enmascarados; ademas lista las env COGNIA_* sueltas activas en el "
+        "proceso. Tambien fuera del REPL: `python -m cognia config-resuelta`."
     ),
     "/recordar": (
         "Crea un recordatorio con tiempo relativo. "
@@ -6077,14 +6086,82 @@ def _slash_config(args: str) -> None:
         cfg = _load_config()
         _print_line(json.dumps(cfg, indent=2, ensure_ascii=False))
 
+    elif sub == "resuelta":
+        _slash_config_resuelta("")
+
     else:
         _print_line(
             "[warn_cl]Uso:[/warn_cl]\n"
             "  /config              Mostrar configuracion\n"
             "  /config set k v      Cambiar valor\n"
             "  /config reset        Restablecer valores por defecto\n"
-            "  /config exportar     Exportar como JSON"
+            "  /config exportar     Exportar como JSON\n"
+            "  /config resuelta     Config RESUELTA con origen por clave (= /config-resuelta)"
         )
+
+
+def _slash_config_resuelta(args: str) -> None:
+    """/config-resuelta -- la config EFECTIVA tras las tres capas (defaults <-
+    ~/.cognia_config.json <- env COGNIA_*), con el ORIGEN de cada clave (F6,
+    patron dump-config de deepseek-harness). Mata la clase de bug 'que config
+    esta corriendo DE VERDAD' que ya se pago dos veces (los dos backends; el
+    token de PyPI que vivia donde nadie miraba). Datos y render plano viven en
+    harness/config_resuelta; aca solo se pinta con el tema si hay rich."""
+    try:
+        from cognia.harness import config_resuelta as _cr
+        _cr.registrar_avisador(_aviso_degradado)
+        resuelta = _cr.config_resuelta()
+        sueltas = _cr.env_sueltas()
+    except Exception as exc:
+        _aviso_degradado("config", f"config-resuelta no disponible: "
+                                   f"{type(exc).__name__}: {exc}")
+        return
+    if not (_HAS_RICH and _console):
+        _print_line("\n".join(_cr.formatear_plano(resuelta, sueltas)))
+        return
+    # Render con tema: grupos por ORIGEN (env primero: es lo que se busca
+    # cuando algo va raro), valor que difiere del default en ambar. OJO: nada
+    # de '[detail]' aca -- el modo sencillo (default) suprime el bloque entero
+    # si lo contiene (simple_mode.should_show_detail mira el string completo)
+    # y el origen es justo lo que este comando existe para ensenar; cazado
+    # tecleando /config-resuelta en el REPL real: salia VACIO. '[info_dim]'
+    # pinta tenue y pasa siempre.
+    lines = ["[mod]Configuracion RESUELTA[/mod] [info_dim](defaults <- "
+             "~/.cognia_config.json <- env)[/info_dim]"]
+    ancho = max(len(k) for k in resuelta) if resuelta else 1
+    grupos = (("env", "Pisadas por ENV (ganan a todo)"),
+              ("fichero", "Del fichero ~/.cognia_config.json"),
+              ("default", "Defaults"))
+    for prefijo, titulo in grupos:
+        filas = [(k, v) for k, v in resuelta.items()
+                 if v["origen"].startswith(prefijo)]
+        if not filas:
+            continue
+        lines.append(f"  [info_dim]-- {titulo} --[/info_dim]")
+        for clave, info in filas:
+            valor = (_cr.enmascarar(info["valor"]) if _cr.es_secreto(clave)
+                     else info["valor"])
+            pintado = (f"[warn_cl]{_escape(valor)}[/warn_cl]"
+                       if info["valor"] != info["default"]
+                       else _escape(valor))
+            # _escape OBLIGATORIO: '[env:COGNIA_X]' pelado es markup para rich
+            # y se lo traga entero (salia la fila SIN origen, que es justo el
+            # dato que este comando ensena)
+            origen = ("" if prefijo == "default"
+                      else "  [info_dim]" + _escape(f"[{info['origen']}]")
+                           + "[/info_dim]")
+            lines.append(f"    {clave:<{ancho}} = {pintado}{origen}")
+    if sueltas:
+        lines.append("  [info_dim]-- Env COGNIA_* sueltas activas (sin clave "
+                     "de config) --[/info_dim]")
+        ancho_e = max(len(n) for n, _ in sueltas)
+        for nombre, valor in sueltas:
+            mostrado = (_cr.enmascarar(valor) if _cr.es_secreto(nombre)
+                        else valor)
+            lines.append(f"    {nombre:<{ancho_e}} = "
+                         f"[warn_cl]{_escape(mostrado)}[/warn_cl]")
+    lines.append("  [info_dim]en ambar = difiere del default[/info_dim]")
+    _print_line("\n".join(lines))
 
 
 # /lazo (loop thinking de chat, opt-in): verificacion post-respuesta con
@@ -13568,6 +13645,12 @@ def repl():
         elif raw == "/config" or raw.startswith("/config "):
             _cfg_arg = raw[len("/config "):].strip() if raw.startswith("/config ") else ""
             _slash_config(_cfg_arg)
+
+        # -- /config-resuelta (F6: config efectiva con origen por clave) ----
+        elif raw == "/config-resuelta" or raw.startswith("/config-resuelta "):
+            _slash_config_resuelta(
+                raw[len("/config-resuelta "):].strip()
+                if raw.startswith("/config-resuelta ") else "")
 
         # -- /mejorar (mejora del prompt con IA) ---------------------------
         elif raw == "/mejorar" or raw.startswith("/mejorar "):
