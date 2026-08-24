@@ -31,7 +31,7 @@
   "definitions": {
     "colorString": {
       "type": "string",
-      "pattern": "^(#[0-9a-fA-F]{6}|@(rampa|semantico|superficie|menu|diff|token|mi)\\.[A-Za-z0-9_]+|terminal|rich|default|ansi[a-z]+|[a-z_0-9 ]+)$"
+      "pattern": "^(#[0-9a-fA-F]{6}|@(rampa|semantico|superficie|menu|diff|token|mi)\\.[A-Za-z0-9_.]+|terminal|rich|default|ansi[a-z]+|[a-z_0-9 ]+)$"
     },
     "color": {
       "oneOf": [

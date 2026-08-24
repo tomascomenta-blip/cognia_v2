@@ -625,13 +625,27 @@ def test_tema_rich_retine_el_token_del_elemento():
     # dim de 'italic dim white' no se re-mezcla)
     assert A.poner("tool.intencion", "negrita", True) == []
     assert A.tema_rich("oscuro")["intencion"] == "bold dim italic white"
-    # markdown solo lo que se toco
+    # markdown solo lo que se toco: desde 9f9c74e8 la paleta declara los
+    # tokens markdown.* (antes no estaban en el Theme y 'sin tocar' era 'no
+    # aparece'); ahora 'sin tocar' es 'el string de la paleta, byte a byte'
+    base = paleta.tema_cli("oscuro")
     A.poner("respuesta.markdown", "estados.h1.color", "#ffaa00")
     t = A.tema_rich("oscuro")
-    assert t["markdown.h1"] == "#ffaa00" and "markdown.h2" not in t
+    assert t["markdown.h1"] == "#ffaa00" and t["markdown.h2"] == base["markdown.h2"]
+    # un modificador sin tocar el color conserva el token de la paleta
+    # ('bold bright_white' no se re-mezcla), como con 'intencion' arriba
+    assert A.poner("respuesta.markdown", "estados.h2.italica", True) == []
+    t = A.tema_rich("oscuro")
+    assert t["markdown.h2"] == "bold italic bright_white"
+    # 'link' retine los dos tokens: rich pinta el texto del enlace con
+    # markdown.link_url cuando hay hyperlinks (el default)
+    A.poner("respuesta.markdown", "estados.link.color", "#00ffaa")
+    t = A.tema_rich("oscuro")
+    assert t["markdown.link"] == "#00ffaa" and t["markdown.link_url"] == "#00ffaa"
     # el resto del tema sigue intacto
-    for k, v in paleta.tema_cli("oscuro").items():
-        if k not in ("ok_cl", "ok", "intencion"):
+    for k, v in base.items():
+        if k not in ("ok_cl", "ok", "intencion", "markdown.h1", "markdown.h2",
+                     "markdown.link", "markdown.link_url"):
             assert t[k] == v
 
 

@@ -214,6 +214,14 @@ _SIN_ANIM = Animacion()
 _SECCIONES_BARRA = ("modelo", "dir", "rama", "sucio", "ctx", "ctx_alto",
                     "ctx_critico", "tokens")
 _MARKDOWN_CLAVES = ("h1", "h2", "h3", "code", "link", "strong", "em", "hr", "item")
+# 2026-08-24 (9f9c74e8): paleta.TOKENS_CLI declara los estilos 'markdown.*' y
+# el Theme del CLI ya no deja titulos/codigo/enlaces/regla a los defaults de
+# rich. El DEFAULT del registro es el aspecto ACTUAL, asi que cada sub-estado
+# con token apunta a SU token; lo que la paleta no declara (strong/em/item)
+# sigue en 'rich' (= no declarar).
+_MARKDOWN_DEFAULT = {"h1": "@token.markdown.h1", "h2": "@token.markdown.h2",
+                     "h3": "@token.markdown.h3", "code": "@token.markdown.code",
+                     "link": "@token.markdown.link", "hr": "@token.markdown.hr"}
 
 _ELEMENTOS = (
     # -- banner ---------------------------------------------------------------
@@ -399,9 +407,11 @@ _ELEMENTOS = (
        nota="E10: sin ANIMACION (solo glow estatico); la sangria es global.respuesta_sangria"),
     _E("respuesta.markdown", "Titulos, codigo inline, enlaces, negritas del markdown",
        _caps(Cap.COLOR, Cap.NEGRITA, Cap.ITALICA),
-       Estilo(color="rich", estados={k: Estilo(color="rich") for k in _MARKDOWN_CLAVES}),
+       Estilo(color="rich", estados={k: Estilo(color=_MARKDOWN_DEFAULT.get(k, "rich"))
+                                     for k in _MARKDOWN_CLAVES}),
        estados=_MARKDOWN_CLAVES,
-       nota="'rich' = no declarar (los defaults de rich, byte-identico)"),
+       nota="h1/h2/h3/code/link/hr = los tokens markdown.* de la paleta (9f9c74e8); "
+            "strong/em/item = 'rich' (no declarar: el default de rich, byte-identico)"),
     _E("respuesta.codigo", "Bloques de codigo (tema pygments)",
        _caps(Cap.TEXTO),
        Estilo(texto="monokai"),
@@ -1199,9 +1209,13 @@ def _estilo_rich_de(r: EstiloResuelto, token_base: str | None = None) -> str:
     return " ".join(partes)
 
 
-_MARKDOWN_TOKEN = {"h1": "markdown.h1", "h2": "markdown.h2", "h3": "markdown.h3",
-                   "code": "markdown.code", "link": "markdown.link", "strong": "markdown.strong",
-                   "em": "markdown.em", "hr": "markdown.hr", "item": "markdown.item"}
+# Sub-estado de respuesta.markdown -> tokens del Theme que retine. 'link'
+# retine los DOS: con hyperlinks (el default) rich pinta el texto del enlace
+# con 'markdown.link_url' y solo sin hyperlinks con 'markdown.link'.
+_MARKDOWN_TOKEN = {"h1": ("markdown.h1",), "h2": ("markdown.h2",), "h3": ("markdown.h3",),
+                   "code": ("markdown.code",), "link": ("markdown.link", "markdown.link_url"),
+                   "strong": ("markdown.strong",), "em": ("markdown.em",),
+                   "hr": ("markdown.hr",), "item": ("markdown.item",)}
 
 
 def tema_rich(variante: str | None = None) -> dict:
@@ -1225,7 +1239,12 @@ def tema_rich(variante: str | None = None) -> dict:
         for clave, sub in r.estados.items():
             c = (_cambios_de("respuesta.markdown").get("estados") or {}).get(clave)
             if c:
-                tema[_MARKDOWN_TOKEN[clave]] = _estilo_rich_de(sub)
+                for tok in _MARKDOWN_TOKEN[clave]:
+                    # como TOKENS_POR_ELEMENTO: con el color sin tocar se
+                    # conserva el string del token de la paleta y solo se
+                    # suman modificadores; un sub-estado sin token en la
+                    # paleta (strong/em/item) se declara de cero, como antes
+                    tema[tok] = _estilo_rich_de(sub, None if "color" in c else tema.get(tok))
     if any(k in _cambios_de("separador.regla") for k in ("color", "negrita")):
         tema["rule.line"] = _estilo_rich_de(estilo_resuelto("separador.regla", variante))
     if any(k in _cambios_de("panel.borde") for k in ("color",)):
