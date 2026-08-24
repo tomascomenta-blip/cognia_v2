@@ -1372,3 +1372,11 @@ class EditorModelo:
 def texto_plano(filas: list) -> str:
     """Las filas [(texto, clase, sel)] como texto plano (puerta / depuracion)."""
     return "\n".join(t for t, _, _ in filas)
+
+
+def abrir_editor(**kw) -> tuple:
+    """Puerta del editor full-screen (P11, cognia/ux/editor_app.py): importa
+    prompt_toolkit SOLO aqui, a call-time, para que este modulo siga siendo
+    puro. Firma y guardas: editor_app.abrir_editor."""
+    from .editor_app import abrir_editor as _abrir
+    return _abrir(**kw)
