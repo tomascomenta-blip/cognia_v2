@@ -253,6 +253,51 @@ def salida_de_ejecucion(history) -> str:
 
 from cognia.harness.veredicto_tool import es_fallo as _es_fallo_tool
 
+# Como se lee que la respuesta YA reporta un fallo: exit, excepcion,
+# traceback, 'fallo', 'no se pudo'... Sirve para NO anexar el cierre E8 de
+# error cuando el modelo ya lo conto (parafraseado: el substring literal de
+# los 120 chars del error casi nunca esta) y para que el footer no diga ✓
+# encima de un 'No se pudo completar' (juez 2026-08-24).
+_RE_REPORTA_FALLO = re.compile(
+    r"(?i)\b(traceback|\w*error\b|exit\s*(?:code\s*)?-?[1-9]\d*|"
+    r"c[o\u00f3]digo de salida|fall[o\u00f3]|fallad[oa]|no se pudo|no pude|"
+    r"excepci[o\u00f3]n|exception)\b")
+
+
+def ya_reporta_fallo(texto: str) -> bool:
+    """True si la respuesta final ya cuenta que algo fallo."""
+    return bool(_RE_REPORTA_FALLO.search(texto or ""))
+
+
+def anexo_fallo_final(result_text: str, err: str) -> str:
+    """La respuesta + el cierre E8 de ERROR como bloque FENCED, no como
+    prosa: el render Markdown se comia '<string>' y '<module>' del traceback
+    (los tomaba por HTML) y lo aplastaba en una linea."""
+    return (f"{result_text}\n\nNo se pudo completar: la \u00faltima "
+            f"operaci\u00f3n fall\u00f3. Causa:\n\n```text\n{err[:400]}\n```")
+
+
+# razon del envelope (hermes/presupuesto_turno) -> etiqueta del footer. Punto
+# de extension: una razon nueva que merezca verse en el footer se agrega aca.
+_MOTIVOS_CIERRE = {
+    "bucle_detectado": "parado",
+    "presupuesto_agotado": "presupuesto agotado",
+    "error_backend": "backend",
+    "excepcion": "excepcion",
+    "interrumpido": "interrumpido",
+    "estancado_sin_progreso": "sin progreso verificado",
+}
+
+
+def motivo_de_cierre(envelope) -> str:
+    """'parado: 3 tools seguidas fallaron' o '' si el turno cerro normal."""
+    env = envelope or {}
+    etiqueta = _MOTIVOS_CIERRE.get(str(env.get("razon") or ""), "")
+    if not etiqueta:
+        return ""
+    detalle = str(env.get("detalle") or "").strip()
+    return f"{etiqueta}: {detalle}" if detalle else etiqueta
+
 
 def error_accionable_de_ejecucion(history) -> str:
     """Causa del ULTIMO fallo de tool, o '' si la ultima tool fue exitosa /
@@ -1233,11 +1278,13 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # avanza (misma cota dura que el camino legacy).
         recientes = trace[-fail_streak:]
         if len(recientes) >= fail_streak and not any(a["ok"] for a in recientes):
-            print_fn(f"[warn_cl]Agente sin progreso ({fail_streak} tools "
-                     "seguidas fallaron): cierre honesto.[/warn_cl]")
+            # Sin aviso aparte: el hecho va UNA vez, en el footer del turno
+            # ('✗ 37.7s · 5 pasos · parado: 3 tools seguidas fallaron') via
+            # el motivo del envelope (juez 2026-08-24: tres mensajes, tres
+            # estilos, un hecho).
             if _salida is not None:
                 _salida.sellar(RAZON_BUCLE_DETECTADO,
-                               f"{fail_streak} tools fallidas")
+                               f"{fail_streak} tools seguidas fallaron")
             result_text = (f"(interrumpida: {fail_streak} herramientas seguidas "
                            "fallaron sin avanzar; el modelo no logro la tarea)")
             break
@@ -1382,10 +1429,21 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         except Exception:
             _envelope = {}
 
+    # CIERRE COHERENTE (juez 2026-08-24): el glifo del footer y el veredicto
+    # E8 de cli.py ('No se pudo completar') salen de la MISMA variable. Si la
+    # ultima tool fallo y la respuesta no lo cuenta, el turno NO fue exito.
+    if ok and (result_text or "").strip():
+        try:
+            _err_final = error_accionable_de_ejecucion(history)
+        except Exception:
+            _err_final = ""
+        if _err_final and not ya_reporta_fallo(result_text):
+            ok = False
     if _ev is not None:
         _emitir(_ev.TareaFin(ok=ok, resumen=(result_text or "")[:300],
                              pasos=pasos, tokens_predichos=tokens_total,
-                             duracion_s=__import__("time").time() - t0))
+                             duracion_s=__import__("time").time() - t0,
+                             motivo=motivo_de_cierre(_envelope)))
     # Volcado de traza chatml (COGNIA_TRAZAS=1): TODAS las salidas del bucle
     # (fin natural, estancamiento, no-progreso, infra, presupuesto) convergen
     # aca, fuera del camino caliente. volcar() devuelve el TASK_ID (no la

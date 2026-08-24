@@ -370,8 +370,21 @@ class RazonSalida:
                         self._suf(), envelope["razon"], envelope["pasos"],
                         envelope["vueltas"], len(envelope["refunds"]), self.aviso)
                 elif self.razon in (RAZON_DESCONOCIDA, RAZON_EXCEPCION,
-                                    RAZON_ERROR_BACKEND, RAZON_BUCLE_DETECTADO):
+                                    RAZON_ERROR_BACKEND):
                     logger.warning(
+                        "Turno terminado%s: razon=%s detalle=%s pasos=%s "
+                        "vueltas=%s refunds=%s",
+                        self._suf(), envelope["razon"], envelope["detalle"],
+                        envelope["pasos"], envelope["vueltas"],
+                        len(envelope["refunds"]))
+                elif self.razon == RAZON_BUCLE_DETECTADO:
+                    # INFO, no WARNING: el bucle detectado es un cierre
+                    # honesto que el REPL ya muestra en el footer del turno
+                    # ('parado: 3 tools seguidas fallaron'); como WARNING se
+                    # colaba enrutado al transcript entre dos avisos que
+                    # decian lo mismo (juez 2026-08-24). El detalle queda en
+                    # el log de archivo.
+                    logger.info(
                         "Turno terminado%s: razon=%s detalle=%s pasos=%s "
                         "vueltas=%s refunds=%s",
                         self._suf(), envelope["razon"], envelope["detalle"],

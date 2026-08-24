@@ -12503,8 +12503,12 @@ def repl():
         from cognia import logger_config as _lc
 
         def _log_a_interfaz(nivel: str, texto: str) -> None:
+            # Con la sangria y la marca del transcript (⚠), como los avisos
+            # del renderer: un log enrutado es un aviso mas, no una linea
+            # ajena a columna 0. El nombre del modulo Python ya no viene
+            # (logger_config._FormatoInterfaz lo quita para cognia.*).
             estilo = "err_cl" if nivel in ("ERROR", "CRITICAL") else "warn_cl"
-            _print_line(f"[{estilo}]{_escape(texto)}[/{estilo}]")
+            _print_line(f"[{estilo}]  ⚠ {_escape(texto)}[/{estilo}]")
 
         _lc.enrutar_consola_a(_log_a_interfaz)
     except Exception as _exc:
@@ -15880,7 +15884,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
         first_action_block, objective_context, register_action,
         task_pide_ejecucion as _task_pide_ejecucion, salida_de_ejecucion,
-        error_accionable_de_ejecucion,
+        error_accionable_de_ejecucion, ya_reporta_fallo, anexo_fallo_final,
     )
     from cognia.agent.structure import structure_action
     from cognia.agent.stepwise import (
@@ -16863,11 +16867,15 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # cubre exitos. Sin gate task_pide_ejecucion: el fallo puede ser de lectura
     # o copia, no solo de 'ejecutar'. NO se activa si la tarea termino bien
     # (bateria 17/17 intacta) ni si el modelo ya reporto el error.
+    # La MISMA regla que decide el glifo del footer en loop.py (ya_reporta_
+    # fallo): el modelo parafrasea el error y el substring literal casi nunca
+    # estaba, asi que el turno cerraba con ✓ y tres lineas despues decia 'No
+    # se pudo completar'. Y va como bloque fenced, no como prosa: el Markdown
+    # se comia '<string>' y '<module>' del traceback (juez 2026-08-24).
     if result_text:
         _err = error_accionable_de_ejecucion(history)
-        if _err and _err[:120] not in result_text:
-            result_text = (f"{result_text}\n\nNo se pudo completar: la última "
-                           f"operación falló. Causa:\n{_err[:400]}")
+        if _err and not ya_reporta_fallo(result_text):
+            result_text = anexo_fallo_final(result_text, _err)
 
     # Save summary to episodic memory
     summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"

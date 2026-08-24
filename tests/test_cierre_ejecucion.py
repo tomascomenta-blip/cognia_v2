@@ -104,4 +104,8 @@ def test_cierre_error_accionable_wiring():
     from cognia import cli
     src = inspect.getsource(cli._run_agent_task)
     assert "error_accionable_de_ejecucion" in src
-    assert "No se pudo completar" in src
+    # El texto vive en loop.anexo_fallo_final (bloque fenced, 2026-08-24) y
+    # el post-loop lo cablea con la misma regla que el footer (ya_reporta_fallo).
+    assert "anexo_fallo_final" in src and "ya_reporta_fallo" in src
+    from cognia.agent import loop as _loop
+    assert "No se pudo completar" in inspect.getsource(_loop.anexo_fallo_final)

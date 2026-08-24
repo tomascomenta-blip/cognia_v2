@@ -1014,14 +1014,21 @@ class Renderer:
         resto = " · ".join(partes)
         remoto = (self._sin_stream
                   or os.environ.get("COGNIA_REMOTO", "").strip() == "1")
+        # El MOTIVO del cierre ('parado: 3 tools seguidas fallaron') va en el
+        # footer, en ambar: antes eran tres mensajes con tres estilos para un
+        # solo hecho (aviso en warn, linea del logger, prosa). Solo local: el
+        # footer remoto tiene que seguir casando _RE_FOOTER_RENDERER.
+        motivo = (getattr(ev, "motivo", "") or "").strip()
         if not remoto and self._console is not None:
             try:
                 from rich.text import Text
                 glifo, est = ("✓", "ok_cl") if ev.ok else ("✗", "err_cl")
-                self._console.print(
-                    Text.assemble((_SANGRIA, ""), (glifo, est), (" ", ""),
-                                  (resto, "footer")),
-                    highlight=False)
+                partes_rich = [(_SANGRIA, ""), (glifo, est), (" ", ""),
+                               (resto, "footer")]
+                if motivo:
+                    partes_rich += [(" · ", "footer"), (motivo, "warn_cl")]
+                self._console.print(Text.assemble(*partes_rich),
+                                    highlight=False)
                 return
             except Exception:
                 pass

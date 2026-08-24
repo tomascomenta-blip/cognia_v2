@@ -155,6 +155,11 @@ class TareaFin(Evento):
     pasos: int = 0
     tokens_predichos: int = 0   # usage REAL del backend, no len//4
     duracion_s: float = 0.0
+    # Por que se cerro el turno cuando NO fue por respuesta ('parado: 3 tools
+    # seguidas fallaron', 'presupuesto agotado: techo 12'); "" en el cierre
+    # normal. Va al footer: UNA linea en vez de aviso + log + prosa
+    # (juez 2026-08-24).
+    motivo: str = ""
 
 
 # ---------------------------------------------------------------------------

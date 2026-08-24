@@ -217,6 +217,25 @@ def poner_nivel_consola(nivel: str) -> None:
 _NIVEL_MUDO = logging.CRITICAL + 1
 
 
+class _FormatoInterfaz(logging.Formatter):
+    """Formato de los logs que se pintan EN LA INTERFAZ: solo el mensaje
+    para los loggers de cognia.* (un nombre de modulo Python en el transcript
+    es ruido de desarrollador: 'cognia.hermes.presupuesto_turno: Turno
+    terminado ...' en amarillo entre dos avisos; juez 2026-08-24) y
+    'nombre: mensaje' para los ajenos (urllib3, httpx...), donde el nombre si
+    dice de donde viene el aviso."""
+
+    def __init__(self) -> None:
+        super().__init__("%(message)s")
+
+    def format(self, record) -> str:
+        base = super().format(record)
+        nombre = str(getattr(record, "name", "") or "")
+        if nombre == "cognia" or nombre.startswith("cognia."):
+            return base
+        return f"{nombre}: {base}" if nombre else base
+
+
 class _HandlerEnrutado(logging.Handler):
     """Manda cada record a un callback de la interfaz en vez de a stderr."""
 
@@ -263,7 +282,7 @@ def enrutar_consola_a(destino) -> None:
         restaurar_enrutado()
     _ENRUTADO = _HandlerEnrutado(destino)
     _ENRUTADO.setLevel(_CONSOLE_HANDLER.level)
-    _ENRUTADO.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+    _ENRUTADO.setFormatter(_FormatoInterfaz())
     _ROOT_LOGGER.addHandler(_ENRUTADO)
     _CONSOLE_HANDLER.setLevel(_NIVEL_MUDO)
 
