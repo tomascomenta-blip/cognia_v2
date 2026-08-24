@@ -109,6 +109,69 @@ def respuesta(texto: str, console=None, color: str = ESTILO_RESPUESTA) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Footer del turno: UNA forma para el chat y para el agente (2026-08-24)
+# ---------------------------------------------------------------------------
+# Antes el chat cerraba con '30.4s' pelado y el agente con '✓ 12.8s · 573
+# tokens · 3 pasos': dos idiomas para el mismo cierre (juez 2026-08-24). Las
+# dos vias construyen sus partes aca y las pintan con pintar_footer.
+_GLIFO_OK = "\u2713"      # ✓
+_GLIFO_FALLO = "\u2717"   # ✗
+_PUNTO = " \u00b7 "       # ' · '
+
+
+def footer_turno(ok: bool, segundos: float, tokens=None, pasos=None,
+                 ctx_libre_pct=None, motivo: str = "",
+                 ctx_estimado: bool = False) -> list:
+    """Las partes del footer como [(texto, estilo)], listas para
+    rich.Text.assemble: '✓ 30.4s · 412 tokens · 3 pasos · ctx 94% libre'
+    y, si el turno se cerro por algo, ' · parado: 3 tools seguidas fallaron'
+    en ambar. Solo datos REALES: sin usage no hay tokens (el len//4
+    historico mentia), sin n_ctx no hay ctx."""
+    try:
+        seg = float(segundos)
+    except (TypeError, ValueError):
+        seg = 0.0
+    partes = [f"{seg:.1f}s"]
+    if tokens:
+        partes.append(f"{int(tokens)} tokens")
+    if pasos:
+        partes.append(f"{int(pasos)} paso" + ("s" if int(pasos) != 1 else ""))
+    if ctx_libre_pct is not None:
+        # '~' cuando la ocupacion es ESTIMADA (chars/4, el camino de chat):
+        # misma marca que la barra de estado, un numero estimado con aspecto
+        # de medida es peor que decir que lo es.
+        partes.append(f"ctx {'~' if ctx_estimado else ''}{int(ctx_libre_pct)}% libre")
+    glifo, estilo = (_GLIFO_OK, "ok_cl") if ok else (_GLIFO_FALLO, "err_cl")
+    trozos = [(_SANGRIA, ""), (glifo, estilo), (" ", ""),
+              (_PUNTO.join(partes), "footer")]
+    if (motivo or "").strip():
+        trozos += [(_PUNTO, "footer"), (motivo.strip(), "warn_cl")]
+    return trozos
+
+
+def texto_footer(trozos: list) -> str:
+    """El footer plano (sin estilos), p.ej. para stdout sin rich."""
+    return "".join(t for t, _ in trozos)
+
+
+def pintar_footer(trozos: list, console=None) -> None:
+    """Pinta el footer con rich si hay consola (cada trozo con su token del
+    tema, resueltos con estilo_seguro) o plano si no. Nunca lanza."""
+    if console is not None:
+        try:
+            from rich.text import Text
+            partes = [(t, estilo_seguro(console, e) or "") for t, e in trozos]
+            console.print(Text.assemble(*partes), highlight=False)
+            return
+        except Exception:
+            pass
+    try:
+        print(texto_footer(trozos), flush=True)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Actividad de herramientas: "· Leyendo motor.py" -> "⏺ Leyendo motor.py"
 # ---------------------------------------------------------------------------
 # tool del registry -> verbo en gerundio, en el vocabulario del producto.

@@ -26,8 +26,8 @@ import threading
 import time
 
 from . import events
-from .estilo import (ESTILO_RESPUESTA, FlujoSuave, ancho_comodo, respirar,
-                     respuesta,
+from .estilo import (ESTILO_RESPUESTA, FlujoSuave, ancho_comodo, footer_turno,
+                     pintar_footer, respirar, respuesta,
                      verbo_de, objeto_de)
 
 _SANGRIA = "  "
@@ -1047,18 +1047,11 @@ class Renderer:
         # footer remoto tiene que seguir casando _RE_FOOTER_RENDERER.
         motivo = (getattr(ev, "motivo", "") or "").strip()
         if not remoto and self._console is not None:
-            try:
-                from rich.text import Text
-                glifo, est = ("✓", "ok_cl") if ev.ok else ("✗", "err_cl")
-                partes_rich = [(_SANGRIA, ""), (glifo, est), (" ", ""),
-                               (resto, "footer")]
-                if motivo:
-                    partes_rich += [(" · ", "footer"), (motivo, "warn_cl")]
-                self._console.print(Text.assemble(*partes_rich),
-                                    highlight=False)
-                return
-            except Exception:
-                pass
+            # El MISMO constructor que el footer del chat (estilo.footer_
+            # turno): un solo idioma para el cierre del turno.
+            pintar_footer(footer_turno(bool(ev.ok), dur, ev.tokens_predichos,
+                                       ev.pasos, motivo=motivo), self._console)
+            return
         self._print(f"{_SANGRIA}{resto}", style="footer")
 
     _HANDLERS = {

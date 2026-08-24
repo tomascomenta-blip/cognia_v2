@@ -431,10 +431,14 @@ def nivel_contexto(usado, total) -> dict:
 
 
 def _bloques(pct_usado: int, g) -> str:
-    """'█░░░░░░░' de CELDAS_BLOQUES celdas: lleno = usado (estandar Aider)."""
-    llenas = int(round(pct_usado * CELDAS_BLOQUES / 100.0))
-    llenas = min(CELDAS_BLOQUES, max(0, llenas))
-    return g["lleno"] * llenas + g["vacio"] * (CELDAS_BLOQUES - llenas)
+    """'███████░' de CELDAS_BLOQUES celdas: lleno = LIBRE, como un indicador
+    de combustible que se vacia al gastar contexto. Cuenta en la MISMA
+    direccion que el texto de al lado ('40% libre'): antes llenaba lo USADO
+    junto a un porcentaje LIBRE y a golpe de vista '(40% libre) █████░░░' se
+    leia como 60% libre (juez 2026-08-24)."""
+    libres = int(round((100 - pct_usado) * CELDAS_BLOQUES / 100.0))
+    libres = min(CELDAS_BLOQUES, max(0, libres))
+    return g["lleno"] * libres + g["vacio"] * (CELDAS_BLOQUES - libres)
 
 
 def _sec_ctx(datos, g, con_bloques: bool = False) -> list:

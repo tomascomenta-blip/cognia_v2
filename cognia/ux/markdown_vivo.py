@@ -331,7 +331,8 @@ class MarkdownVivo:
         from rich.markdown import Markdown
         buf = io.StringIO()
         c = Console(file=buf, width=self._ancho, highlight=False,
-                    force_terminal=self._color, no_color=not self._color)
+                    force_terminal=self._color, no_color=not self._color,
+                    theme=tema_del_cli())
         c.print(Markdown(texto or "", code_theme=self._tema))
         return buf.getvalue().splitlines()
 
@@ -461,6 +462,34 @@ class MarkdownVivo:
                 except Exception as exc2:
                     _avisar(f"fallback plano: {type(exc2).__name__}: {exc2}")
         self._reset()
+
+
+_TEMA_CACHE: dict = {}
+
+
+def tema_del_cli():
+    """El Theme de rich de la variante ACTIVA (paleta.tema_cli), para que la
+    Console fresca del render pinte los titulos, el codigo inline y los
+    numeros de lista con la rampa del producto y no con los defaults de rich
+    (magenta subrayado / cyan sobre negro; juez 2026-08-24). None si no se
+    puede (rich sin Theme o paleta rota): rich usa sus defaults y se avisa
+    UNA vez por el logger (que el REPL enruta a la interfaz)."""
+    try:
+        from rich.theme import Theme
+        from cognia.ux import paleta
+        from cognia.console.diff_render import variante_activa
+        variante = variante_activa()
+        if variante not in _TEMA_CACHE:
+            _TEMA_CACHE[variante] = Theme(paleta.tema_cli(variante))
+        return _TEMA_CACHE[variante]
+    except Exception as exc:
+        if not _TEMA_CACHE.get("_avisado"):
+            _TEMA_CACHE["_avisado"] = True
+            import logging
+            logging.getLogger(__name__).warning(
+                "markdown sin tema del CLI (defaults de rich): %s: %s",
+                type(exc).__name__, exc)
+        return None
 
 
 def crear(console=None):

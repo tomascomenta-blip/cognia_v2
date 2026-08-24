@@ -2890,9 +2890,30 @@ def _show_footer(elapsed, text, tokens=None):
     # inventado con aspecto de medida — peor que no decir nada.
     if elapsed < 1.0:
         return
-    if _HAS_RICH and _console:
+    if not (_HAS_RICH and _console):
+        return
+    # Remoto: el footer plano de siempre (_RE_FOOTER_RENDERER del de-dup de
+    # sesiones.py exige '^\d+(\.\d+)?s( · N tokens)*$').
+    if os.environ.get("COGNIA_REMOTO", "").strip() == "1":
         extra = f" · {int(tokens)} tokens" if tokens else ""
         _console.print(f"[footer]  {elapsed:.1f}s{extra}[/footer]")
+        return
+    # Local: el MISMO constructor que el footer del agente (ux/estilo.
+    # footer_turno), con el % libre del contexto que el chat ya conoce
+    # (contexto_vivo alimentado) y no ensenaba (juez 2026-08-24).
+    libre, estimado = None, False
+    try:
+        from cognia.harness import barra_estado as _be
+        d = _datos_barra_estado()
+        nc = _be.nivel_contexto(d.get("ctx_usado"), d.get("ctx_total"))
+        libre = nc.get("libre")
+        estimado = bool(d.get("ctx_estimado"))
+    except Exception as exc:
+        _aviso_degradado("cli.barra_estado",
+                         f"ctx del footer no disponible: {exc}")
+    from cognia.ux.estilo import footer_turno as _ft, pintar_footer as _pf
+    _pf(_ft(True, elapsed, tokens, ctx_libre_pct=libre, ctx_estimado=estimado),
+        _console)
 
 
 class _VerboseFilter(logging.Filter):

@@ -99,7 +99,7 @@ def test_barra_muestra_las_secciones_del_encargo():
     assert "~/Desktop/cognia_v2" in linea          # directorio con ~
     assert "main*" in linea                        # rama + arbol sucio
     assert "ctx 12.4k/128.0k (90% libre)" in linea  # % LIBRE, cuenta abajo
-    assert "\u2588" + "\u2591" * 7 in linea            # mini-barra: 1 de 8 lleno
+    assert "\u2588" * 7 + "\u2591" in linea            # mini-barra: 7 de 8 LIBRES
     assert "3.2k tok" in linea                     # tokens de la sesion
     # 4 separadores DENTRO de los grupos; entre izquierda y derecha va el
     # relleno de espacios que ancla la derecha al borde.
@@ -290,7 +290,9 @@ def test_bloques_solo_con_terminal_ancha_y_config(monkeypatch):
     """La mini-barra sale a >= 100 columnas; en angosto cae ELLA primero y
     el % queda; COGNIA_BARRA_BLOQUES=off la apaga del todo."""
     ancha = B.barra_estado(DATOS, 120, unicode_ok=True)
-    assert "\u2588" + "\u2591" * 7 in ancha            # 10% usado = 1 de 8
+    # 10% usado = 90% libre = 7 celdas llenas de 8 (la barra cuenta lo LIBRE,
+    # en la misma direccion que el '(90% libre)' de al lado)
+    assert "\u2588" * 7 + "\u2591" in ancha
     angosta = B.barra_estado(DATOS, 99, unicode_ok=True)
     assert "\u2588" not in angosta and "% libre" in angosta
     monkeypatch.setenv("COGNIA_BARRA_BLOQUES", "off")
@@ -324,10 +326,11 @@ def test_ocupacion_estimada_lleva_virgulilla():
 
 def test_llenado_de_la_mini_barra():
     g = B._glifos(True)
-    assert B._bloques(0, g) == "\u2591" * 8
+    # lleno = LIBRE (indicador que se vacia al gastar contexto)
+    assert B._bloques(0, g) == "\u2588" * 8
     assert B._bloques(50, g) == "\u2588" * 4 + "\u2591" * 4
-    assert B._bloques(100, g) == "\u2588" * 8
-    assert B._bloques(83, g) == "\u2588" * 7 + "\u2591" * 1
+    assert B._bloques(100, g) == "\u2591" * 8
+    assert B._bloques(83, g) == "\u2588" * 1 + "\u2591" * 7
 
 
 # ---------------------------------------------------------------------------

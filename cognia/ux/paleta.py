@@ -323,6 +323,27 @@ TOKENS_CLI = {
     "listado":    "cuerpo",           # el CUERPO de la salida de un comando
     "titulo":     "identidad_fuerte", # encabezado de panel / de seccion
     "borde":      "identidad",        # el borde de un panel de chrome
+    # 2026-08-24 (juez visual). rich.Markdown traia sus estilos por defecto:
+    # titulos en magenta subrayado, codigo inline en cyan negrita sobre
+    # NEGRO (una caja negra sobre #0d1117) y los numeros de lista en cyan --
+    # colores ajenos a la rampa. Como los nombres de estilo de rich se
+    # resuelven contra el Theme de la Console, basta declararlos aca: el CLI,
+    # el renderer y markdown_vivo pintan con el mismo tema.
+    "markdown.h1":         "identidad_fuerte",  # titulo de primer nivel
+    "markdown.h1.border":  "identidad_tenue",
+    "markdown.h2":         "objeto",            # negrita del color de texto
+    "markdown.h3":         "objeto",
+    "markdown.h4":         "objeto",
+    "markdown.h5":         "objeto",
+    "markdown.h6":         "objeto",
+    "markdown.h7":         "objeto",
+    "markdown.code":       "objeto",            # `codigo` inline: sin fondo
+    "markdown.item.number": "acento",
+    "markdown.item.bullet": "acento",
+    "markdown.link":       "acento",
+    "markdown.link_url":   "detalle",
+    "markdown.hr":         "identidad_tenue",
+    "markdown.block_quote": "detalle",
 }
 
 # Cada variante: rol -> estilo de rich (color de terminal + modificadores).
