@@ -28,7 +28,12 @@ from cognia.harness import offloading as off
 def almacen_aislado(tmp_path, monkeypatch):
     """El almacen NUNCA es el ~/.cognia real y cada test tiene su sesion."""
     monkeypatch.setenv("COGNIA_OFFLOAD_DIR", str(tmp_path / "offload"))
-    monkeypatch.delenv("COGNIA_TOOL_RESULT_MAX", raising=False)
+    for var in ("COGNIA_TOOL_RESULT_MAX", "COGNIA_OFFLOAD",
+                "COGNIA_OFFLOAD_CABEZA", "COGNIA_OFFLOAD_COLA"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(off, "_AVISADOR", None)
+    off._ULTIMO_SPILL.clear()
+    off._ULTIMO_ERROR.clear()
     off.nueva_sesion()
 
 
@@ -72,8 +77,9 @@ def test_lo_grande_no_entra_al_historial():
     crudo = _texto_largo()
     salida = off.formatear_observacion(crudo, "leer_archivo", "gigante.log")
     assert len(salida.encode("utf-8")) < len(crudo.encode("utf-8")) / 20
-    # El presupuesto es el umbral + el andamiaje declarado (~0.5 KB).
-    assert len(salida.encode("utf-8")) <= off.umbral_bytes() + 800
+    # El presupuesto es el umbral + el andamiaje declarado (~1.2 KB: la
+    # referencia lleva handle, ruta real del fichero y bytes exactos).
+    assert len(salida.encode("utf-8")) <= off.umbral_bytes() + 1200
 
 
 def test_el_resumen_lleva_principio_y_final():
@@ -178,7 +184,7 @@ def test_el_resumen_respeta_el_presupuesto_aunque_sea_multibyte():
     """
     emoji = "\n".join("\U0001F680" * 400 for _ in range(40))
     salida = off.formatear_observacion(emoji, "leer_archivo", "emoji.txt")
-    assert len(salida.encode("utf-8")) <= off.umbral_bytes() + 800
+    assert len(salida.encode("utf-8")) <= off.umbral_bytes() + 1200
     assert "chars en esta linea" in salida
 
 
@@ -228,7 +234,7 @@ def test_una_sola_linea_gigante_no_revienta_el_resumen():
     resumen tiene que seguir siendo chico y decir cuanto falta."""
     crudo = "a" * 400_000
     salida = off.formatear_observacion(crudo, "leer_archivo", "bundle.min.js")
-    assert len(salida.encode("utf-8")) <= off.umbral_bytes() + 800
+    assert len(salida.encode("utf-8")) <= off.umbral_bytes() + 1200
     assert "chars en esta linea" in salida            # la marca de corte
     assert "390.6 KB" in salida
     handle = off.listar()[0]["handle"]
@@ -374,3 +380,108 @@ def test_la_tool_esta_documentada_para_el_registro_nativo():
     assert off.PARAMS_RECUPERAR[0]["requerido"] is True
     assert all(p["descripcion"] for p in off.PARAMS_RECUPERAR)
     assert "recuperar" in off.recuperar.__doc__
+
+
+# ── F3: contrato deepseek-harness completo (2026-08-23) ───────────────────────
+
+def test_la_referencia_lleva_ruta_bytes_exactos_y_tools_reales():
+    """El contrato dsh: la referencia dice DONDE esta el fichero, CUANTO pesa
+    (bytes exactos, no '117.2 KB') y COMO recuperarlo con tools que existen de
+    verdad en agent/tools.py (recuperar, leer_archivo, buscar)."""
+    crudo = _texto_largo()
+    salida = off.formatear_observacion(crudo, "leer_archivo", "gigante.log")
+    handle = off.listar()[0]["handle"]
+    ruta = off.ruta_de(handle)
+    assert ruta and Path(ruta).is_file()
+    assert ruta in salida                                     # la ruta real
+    assert f"{len(crudo.encode('utf-8'))} bytes exactos" in salida
+    assert f"leer_archivo {ruta} offset=16" in salida         # tool real
+    assert f"buscar <texto> | {ruta}" in salida               # tool real
+    # Y la ruta que publica la referencia contiene el original byte a byte.
+    with open(ruta, encoding="utf-8", newline="") as fh:
+        assert fh.read() == crudo
+
+
+def test_fallo_de_escritura_conserva_inline_cabeza_y_cola_y_avisa(monkeypatch):
+    """Regla de resiliencia dsh: un fallo de ALMACENAMIENTO jamas convierte una
+    llamada exitosa en error. Si el disco falla: (a) no se lanza, (b) el modelo
+    conserva el resultado inline truncado al umbral — y con cabeza Y cola,
+    porque el truncado clasico solo conserva cabeza y ese es el bug de clase
+    que esto mata — y (c) el fallo se AVISA (nada de vacio silencioso)."""
+    avisos = []
+    off.registrar_avisador(lambda origen, motivo: avisos.append((origen, motivo)))
+    monkeypatch.setattr(off, "_escribir_atomico",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            OSError("disco lleno")))
+    crudo = _texto_largo(4000)
+    salida = off.formatear_observacion(crudo, "leer_archivo", "gigante.log")
+    # (b) inline conservado: cabeza Y cola, dentro del presupuesto.
+    assert "linea 00001 " in salida and "linea 04000 " in salida
+    assert len(salida.encode("utf-8")) <= off.umbral_bytes() + 1200
+    assert "NO esta disponible" in salida        # honesto: no hay handle
+    assert "res:" not in salida                  # ni un handle inventado
+    # (c) el fallo se ve: avisador del CLI + telemetria para /offload.
+    assert avisos and avisos[0][0] == "offloading"
+    assert "OSError" in avisos[0][1] and "disco lleno" in avisos[0][1]
+    assert "disco lleno" in off.estado()["ultimo_error"]["motivo"]
+    # Y un avisador ROTO tampoco mata la observacion (el aviso no puede
+    # romper el camino que esta avisando).
+    off.registrar_avisador(lambda *a: (_ for _ in ()).throw(RuntimeError("x")))
+    assert "linea 00001 " in off.formatear_observacion(
+        crudo + "y", "leer_archivo", "g2.log")
+
+
+def test_el_nombre_del_spill_es_un_solo_segmento():
+    """El nombre en disco JAMAS puede salirse del directorio de su sesion:
+    cualquier separador o char raro se sanea a '_' (ultima linea de defensa;
+    los handles validos ya son hex)."""
+    for veneno in ("res:abc123", "res:../../etc", r"a/b\c:d", r"..\..\x",
+                   "res:aaa/../bbb"):
+        ruta = off._ruta_txt("ses", veneno)
+        assert ruta.parent.name == "ses", veneno
+        assert "/" not in ruta.name and "\\" not in ruta.name, veneno
+        assert ":" not in ruta.name, veneno       # ADS de NTFS
+
+
+def test_el_preview_se_configura_por_entorno(monkeypatch):
+    """N/M de preview persisten en la config del CLI y llegan aca por env
+    (COGNIA_OFFLOAD_CABEZA/COLA, propagadas por _aplicar_config_offload)."""
+    monkeypatch.setenv("COGNIA_OFFLOAD_CABEZA", "3")
+    monkeypatch.setenv("COGNIA_OFFLOAD_COLA", "2")
+    salida = off.formatear_observacion(_texto_largo(), "leer_archivo", "g.log")
+    assert "primeras 3 lineas" in salida and "ultimas 2 lineas" in salida
+    assert "linea 00003 " in salida and "linea 00004 " not in salida
+    assert "linea 03999 " in salida and "linea 03998 " not in salida
+    # Basura o negativo caen al defecto en vez de reventar el formateador.
+    monkeypatch.setenv("COGNIA_OFFLOAD_CABEZA", "basura")
+    monkeypatch.setenv("COGNIA_OFFLOAD_COLA", "-1")
+    assert off.cabeza_defecto() == off.CABEZA_DEFECTO
+    assert off.cola_defecto() == off.COLA_DEFECTO
+
+
+def test_activo_es_el_env_y_el_env_lo_pone_el_cli(monkeypatch):
+    """El lector del flag es el ENV (COGNIA_OFFLOAD); el default 'on' del
+    producto lo propaga el CLI al arrancar (_aplicar_config_offload). Leer
+    aca la config real contaminaria cualquier proceso con la config del
+    dueno de la maquina — por eso sin env es APAGADO."""
+    monkeypatch.delenv("COGNIA_OFFLOAD", raising=False)
+    assert off.activo() is False
+    monkeypatch.setenv("COGNIA_OFFLOAD", "1")
+    assert off.activo() is True
+    monkeypatch.setenv("COGNIA_OFFLOAD", "0")
+    assert off.activo() is False
+    monkeypatch.setenv("COGNIA_OFFLOAD", "on")
+    assert off.activo() is True
+
+
+def test_estado_publica_dir_umbral_y_ultimo_spill():
+    est = off.estado()
+    assert est["handles"] == 0 and est["ultimo_spill"] == {}
+    off.formatear_observacion(_texto_largo(300), "ejecutar", "pytest -q")
+    est = off.estado()
+    assert est["umbral"] == off.umbral_bytes()
+    assert est["handles"] == 1 and est["bytes_sesion"] > 5000
+    assert est["ultimo_spill"]["tool"] == "ejecutar"
+    assert est["ultimo_spill"]["bytes"] == est["bytes_sesion"]
+    assert Path(est["ultimo_spill"]["ruta"]).is_file()
+    assert est["ultimo_error"] == {}

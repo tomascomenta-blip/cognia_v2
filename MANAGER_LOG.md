@@ -13811,3 +13811,26 @@ y verificado en vivo ('⎿ 643' sin fantasma).
 
 ## 2026-08-23 — F2: linea de estado VIVA del turno (/spinner)
 La linea de espera responde ahora las tres preguntas de Claude Code/Codex (¿vivo? ¿cuanto? ¿como paro?): nuevo `cognia/ux/spinner_vivo.py` (composicion PURA: 20 verbos gato ASCII, verbo rotatorio cada 4s con offset por turno, segundos, ~tokens estimados del stream con '~' honesto, hint REAL `ctrl+c corta` — verificado en cli.py que Ctrl-C corta el turno y no el REPL) + ticker de 1 Hz en `ux/renderer.py` (hilo daemon atado al status que lo pario; en la fase de pensar rota el verbo gato, con tool en curso conserva la etiqueta honesta y solo agrega la info). Anti-jitter: trunca por prioridad (caen ~tok, luego el hint, jamas los segundos) al ancho real de la consola; rich actualiza en sitio y el transcript queda limpio (verificado en 3 tareas /hacer por pipe: cero frames). Config `spinner_info` on/off (default on) + `spinner_verbos` (lista propia), env `COGNIA_SPINNER_INFO` gana a la config, `COGNIA_SPINNER=0` sigue apagando todo (carril de fondo intacto). Todo fallo -> `_aviso_degradado('spinner', ...)` y cae al spinner clasico. Puerta: `/spinner [estado|on|off|verbos ...]` en `_CMD_DESCRIPTIONS` + `_CMD_DETAILS` + rama del repl; sale en `/ayuda todo`. Probado tecleando contra el 27B vivo (:8080): resumen de tool_buffer.py, `_aviso_degradado` localizado en cli.py:70, script tabla del 7 creado+ejecutado; y con COGNIA_SPINNER=1 forzado la linea real capturada: `· Ejecutando python -c "…sleep(5)…"… (1s · ctrl+c corta)` -> `(5s · ctrl+c corta)`. Tests: 27 nuevos en `tests/test_ux_spinner_vivo.py` + 1 nuevo en estetica (el ticker es el dueno del update); dirigidos 232 passed / 0 failed.
+
+## 2026-08-23 — F3: offload de salidas grandes al contrato deepseek-harness completo (+ puerta /offload)
+`harness/offloading.py` ya existia cableado al interceptor pero le faltaba la mitad del contrato dsh:
+la referencia ahora lleva RUTA real del fichero + bytes EXACTOS + recetas con tools reales
+(`recuperar`, `leer_archivo <ruta> offset=N`, `buscar <texto> | <ruta>`); resiliencia verificada por
+test (un fallo de escritura conserva el inline cabeza+cola truncado al umbral y avisa via
+`_aviso_degradado('offloading', ...)` — avisador registrado por el CLI en `registrar_avisador`,
+punto de extension); nombres de spill saneados a UN segmento (`_un_segmento`). Config persistida:
+`offload` (on por defecto: cada byte inline se re-paga en prefill cada turno; el cache de llama.cpp
+solo reusa los ultimos 512 tokens), `offload_umbral` (2000 B, limite de Cline), `offload_cabeza`/
+`offload_cola` (15+5; la cola existe porque el truncado clasico solo conserva cabeza). El REPL
+propaga config→env al arrancar (`_aplicar_config_offload`, la clase de bug del flag TX);
+`COGNIA_OFFLOAD=0` gana siempre. `run_tool` salta `aci_trim` cuando el output ya es el preview
+(el doble truncado esta medido como danino). Puerta: `/offload [estado|on|off|umbral|preview|lista]`
+en `_CMD_DESCRIPTIONS` + `_CMD_DETAILS`, sale en `/ayuda buscar offload`. Tests: 38/38 en
+`test_harness_offloading.py` (6 nuevos F3), 962 tests `-k harness` en verde. Tecleado contra el 27B
+vivo en :8080: (t1) "lee offloading.py y dime que hace podar" → el modelo recibio
+`[SALIDA GRANDE de leer_archivo: 561 lineas...]`, llamo `recuperar res:1e3f94 buscar=def podar` y
+encontro `> 400: def podar(...)`; (t3) spill de `buscar` visible en `/offload` (res:9d8422, 2365 B);
+contrafactual con `COGNIA_OFFLOAD=0` corre igual (el corte a 6 pasos es del presupuesto del loop, no
+del offload). LIMITE declarado: sobre `leer_archivo` conviven dos mecanicas de continuacion (el
+`offset=` propio de la tool y el `recuperar` del offload) y el modelo a veces mezcla los conteos de
+lineas de una y otra; el detalle se recupera igual, pero es friccion medible para una F futura.

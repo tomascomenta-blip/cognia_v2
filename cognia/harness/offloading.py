@@ -86,9 +86,10 @@ LIMITES DECLARADOS (lo que este modulo NO hace):
   dos puntos abren un Alternate Data Stream de NTFS y el fichero se escribiria
   en un flujo invisible. El handle que ve el modelo lleva ':' igual.
 - Solo TEXTO. Un `bytes` entra por `str()`; no se guardan binarios.
-- El resumen visible pesa como mucho el umbral + ~0.5 KB de andamiaje
-  (cabecera + instruccion): con umbral 2000 son ~2.5 KB, no 2000 exactos. Se
-  prefiere pasarse medio KB antes que devolver un handle sin decir como usarlo.
+- El resumen visible pesa como mucho el umbral + ~1.2 KB de andamiaje
+  (cabecera + referencia con handle, ruta del fichero y bytes exactos + las
+  recetas de recuperacion): con umbral 2000 son ~3 KB, no 2000 exactos. Se
+  prefiere pasarse un KB antes que devolver un handle sin decir como usarlo.
 - Las lineas mas largas de _MAX_CHARS_LINEA se muestran cortadas CON marca. Un
   minificado de 400 KB en una sola linea no se puede "resumir por lineas": el
   resumen lo dira (0 lineas omitidas, 400 KB omitidos) y el modelo tendra que
@@ -111,10 +112,12 @@ LIMITES DECLARADOS (lo que este modulo NO hace):
 - Un `str` con surrogates sueltos (lo que deja `errors="surrogateescape"`) se
   sanea a utf-8 en la ENTRADA: `encode("utf-8")` lanzaria y se llevaria puesta
   la observacion entera, que es justo lo que este modulo promete no hacer.
-- FALTA CABLEAR (el integrador): la llamada a `formatear_observacion` en el
-  formateador de observaciones y el registro de `recuperar` como tool. Ojo con
-  el catalogo: el A/B de este repo (2026-07-25, n=4+4) midio que 46 tools
-  bajan el camino feliz de 4.25/5 a 2.5/5, y por eso existe CORE_TOOLS (12).
+- CABLEADO (F3, 2026-08-23): `harness/interceptor.despues` llama a
+  `formatear_observacion` cuando `activo()` (env COGNIA_OFFLOAD > config
+  'offload' de /offload; el CLI propaga su default 'on' al env al arrancar) y
+  `recuperar` esta registrada en tools_harness.py gated por el mismo flag.
+  Ojo con el catalogo: el A/B de este repo (2026-07-25, n=4+4) midio que 46
+  tools bajan el camino feliz de 4.25/5 a 2.5/5, y por eso existe CORE_TOOLS.
   `recuperar` se gana el sitio porque sin ella el offloading es TRUNCADO: es
   la mitad restaurable de una sola mecanica, no una tool mas.
 """
@@ -178,6 +181,23 @@ _RE_RANGO = re.compile(r"^(\d+)\s*[-:\s]\s*(\d+)$")
 # Id de la sesion en curso: se fija en el primer uso del proceso.
 _SESION: str | None = None
 
+# Telemetria minima para la puerta /offload del CLI: el ultimo spill guardado
+# y el ultimo fallo del subsistema. Solo memoria de proceso, nada en disco.
+_ULTIMO_SPILL: dict = {}
+_ULTIMO_ERROR: dict = {}
+
+# Punto de extension: el CLI registra aca su _aviso_degradado para que un
+# fallo de disco se VEA en el REPL ademas del logger. None = solo logger.
+_AVISADOR = None
+
+
+def registrar_avisador(fn) -> None:
+    """Registra el callable (origen, motivo) -> None que recibe los fallos del
+    subsistema (el CLI pasa su `_aviso_degradado`). Un solo avisador: el ultimo
+    registrado gana (el REPL se registra una vez al arrancar)."""
+    global _AVISADOR
+    _AVISADOR = fn
+
 
 # ── Documentacion para registrar `recuperar` como tool del agente ─────────────
 # (listo para el decorador @tool de cognia/agent/tools.py; el integrador solo
@@ -231,6 +251,48 @@ def umbral_bytes() -> int:
     except (TypeError, ValueError):
         return UMBRAL_BYTES
     return valor if valor > 0 else UMBRAL_BYTES
+
+
+def activo() -> bool:
+    """EL lector del flag de encendido: COGNIA_OFFLOAD en el entorno.
+
+    '1' enciende, '0' apaga, sin poner = apagado. El encendido por defecto
+    del PRODUCTO lo pone el CLI: `_aplicar_config_offload()` (cli.py) propaga
+    la clave persistida 'offload' (default on) al env en CADA arranque del
+    REPL, y /offload on|off actualiza config Y env a la vez — asi este lector,
+    tools.py y familias.py (todos leen el env) no pueden divergir de lo que
+    dice /offload (la clase de bug del flag TX, cognia/tx/flag.py). Embebido
+    sin CLI sigue siendo opt-in por env a proposito: leer aca el
+    ~/.cognia_config.json real contaminaria cualquier proceso (tests
+    incluidos) con la config del dueno de la maquina.
+    """
+    return os.environ.get("COGNIA_OFFLOAD", "").strip().lower() in (
+        "1", "on", "true", "yes", "si")
+
+
+def _entero_env(nombre: str, defecto: int, minimo: int = 1) -> int:
+    """Un knob entero de entorno; basura o < minimo caen al defecto."""
+    bruto = os.environ.get(nombre, "").strip()
+    if not bruto:
+        return defecto
+    try:
+        valor = int(float(bruto))
+    except (TypeError, ValueError):
+        return defecto
+    return valor if valor >= minimo else defecto
+
+
+def cabeza_defecto() -> int:
+    """Lineas de cabeza del preview; COGNIA_OFFLOAD_CABEZA la mueve (el CLI
+    la propaga desde la clave persistida 'offload_cabeza')."""
+    return _entero_env("COGNIA_OFFLOAD_CABEZA", CABEZA_DEFECTO)
+
+
+def cola_defecto() -> int:
+    """Lineas de cola del preview; COGNIA_OFFLOAD_COLA la mueve (0 = solo
+    cabeza, permitido). La cola existe porque el truncado clasico solo
+    conserva cabeza y la conclusion de un log/traceback vive al FINAL."""
+    return _entero_env("COGNIA_OFFLOAD_COLA", COLA_DEFECTO, minimo=0)
 
 
 def _umbral_efectivo(umbral) -> int:
@@ -299,14 +361,25 @@ def normalizar_handle(bruto) -> str:
     return txt if _RE_HANDLE.match(txt) else ""
 
 
+def _un_segmento(nombre: str) -> str:
+    """El nombre de fichero saneado a UN solo segmento de path.
+
+    Los handles validos ya son hex (los filtra `normalizar_handle`), pero esta
+    es la ULTIMA linea antes de construir una ruta: cualquier '/', '\\' o char
+    raro se vuelve '_' para que un nombre jamas pueda salirse del directorio
+    de su sesion. ':' aparte: en NTFS abre un Alternate Data Stream (el
+    contenido se escribiria en un flujo invisible y `listar` no lo veria).
+    """
+    limpio = re.sub(r"[^0-9A-Za-z._-]", "_", nombre.replace(":", "-"))
+    return limpio.lstrip(".") or "_"
+
+
 def _ruta_txt(sesion: str, handle: str) -> Path:
-    # ':' en un nombre de fichero de Windows = Alternate Data Stream de NTFS
-    # (el contenido se escribiria en un flujo invisible y `listar` no lo veria).
-    return _dir_sesion(sesion) / (handle.replace(":", "-") + _SUFIJO_TXT)
+    return _dir_sesion(sesion) / (_un_segmento(handle) + _SUFIJO_TXT)
 
 
 def _ruta_meta(sesion: str, handle: str) -> Path:
-    return _dir_sesion(sesion) / (handle.replace(":", "-") + _SUFIJO_META)
+    return _dir_sesion(sesion) / (_un_segmento(handle) + _SUFIJO_META)
 
 
 def _handle_de_fichero(p: Path) -> str:
@@ -414,6 +487,9 @@ def guardar(contenido, tool: str = "", args: str = "",
     except OSError as exc:
         # La meta es decoracion para `listar`: su perdida no invalida el handle.
         _degradar("guardar_meta", exc)
+    # Telemetria para /offload: el ultimo spill con sus bytes reales.
+    _ULTIMO_SPILL.clear()
+    _ULTIMO_SPILL.update(meta, ruta=str(_ruta_txt(ses, handle)))
     return handle
 
 
@@ -497,15 +573,18 @@ def _tomar(lineas: list, cuota: int, desde_el_final: bool = False) -> list:
 
 def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
                         umbral: int | None = None,
-                        cabeza: int = CABEZA_DEFECTO,
-                        cola: int = COLA_DEFECTO) -> str:
+                        cabeza: int | None = None,
+                        cola: int | None = None,
+                        ruta: str = "") -> str:
     """El texto que SI ve el modelo. PURA: no toca disco.
 
     Si el contenido cabe bajo el umbral se devuelve INTACTO — esta funcion no
     toca lo que ya es corto (ni una cabecera, ni un recorte, nada: el 90% de
     las observaciones son 'OK' y deben seguir siendo 'OK'). Por encima del
-    umbral: primeras `cabeza` lineas + ultimas `cola`, cuantas lineas y bytes
-    quedaron fuera, y la instruccion EXACTA para pedir el resto con `handle`.
+    umbral: primeras `cabeza` lineas + ultimas `cola` (None = los knobs de
+    entorno/config, ver cabeza_defecto/cola_defecto), cuantas lineas y bytes
+    quedaron fuera, y la REFERENCIA: handle + ruta del fichero + bytes exactos
+    + la instruccion concreta para pedir el resto (contrato deepseek-harness).
     """
     texto, crudo = _preparar(contenido)
     umb = _umbral_efectivo(umbral)
@@ -515,8 +594,8 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
 
     lineas = _lineas(texto)
     total_lineas = len(lineas)
-    n_cabeza = max(1, int(cabeza))
-    n_cola = max(0, int(cola))
+    n_cabeza = max(1, int(cabeza) if cabeza is not None else cabeza_defecto())
+    n_cola = max(0, int(cola) if cola is not None else cola_defecto())
     # Sin solape: con pocas lineas la cola cede a favor de la cabeza.
     if n_cabeza + n_cola > total_lineas:
         n_cola = max(0, total_lineas - n_cabeza)
@@ -559,17 +638,28 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
         partes.extend(bloque_cola)
 
     if handle:
-        # Instruccion EXACTA y con un rango que existe de verdad: un ejemplo
-        # fuera de rango entrena al modelo a pedir lineas que no hay.
+        # REFERENCIA (contrato dsh): handle + ruta real + bytes EXACTOS + la
+        # instruccion concreta. El rango de ejemplo existe de verdad: un
+        # ejemplo fuera de rango entrena al modelo a pedir lineas que no hay.
+        # La ruta va porque `recuperar` es solo una de las vias: con la ruta,
+        # `leer_archivo` y `buscar` (las tools que el modelo SIEMPRE tiene)
+        # tambien llegan al contenido completo.
         ini_ej = min(len(bloque_cabeza) + 1, total_lineas)
         fin_ej = min(ini_ej + _VENTANA_DEFECTO - 1, total_lineas)
+        donde = f" -> fichero: {ruta}" if ruta else ""
         partes.append(
-            f"[COMPLETO en {handle} ({total_lineas} lineas). Para ver mas usa la "
-            f"herramienta recuperar, NO repitas la llamada original:]\n"
+            f"[COMPLETO en {handle} ({total_lineas} lineas, {total_bytes} "
+            f"bytes exactos){donde}. Para ver mas usa la herramienta "
+            f"recuperar, NO repitas la llamada original:]\n"
             f"  recuperar {handle} lineas {ini_ej}-{fin_ej}   (rango de lineas, "
             f"1-{total_lineas})\n"
             f"  recuperar {handle} buscar=<texto>   (lineas que casan, con "
             f"{_CONTEXTO_BUSCAR} de contexto)")
+        if ruta:
+            partes.append(
+                f"  leer_archivo {ruta} offset={ini_ej}   (el fichero completo "
+                f"en disco)\n"
+                f"  buscar <texto> | {ruta}   (grep sobre el fichero completo)")
     else:
         partes.append("[el resto NO esta disponible: no se guardo handle]")
     return "\n".join(partes)
@@ -581,20 +671,24 @@ def formatear_observacion(contenido, tool: str = "", args: str = "",
     formateador de observaciones.
 
     Bajo el umbral devuelve el contenido intacto (sin tocar disco). Por encima,
-    lo guarda y devuelve el resumen con el handle. Si el disco falla, degrada
-    al resumen SIN handle en vez de romper el turno: perder la recuperabilidad
-    es malo, perder la observacion entera es peor.
+    lo guarda y devuelve el resumen con el handle + la ruta real del fichero.
+    RESILIENCIA (regla dsh): si el disco falla, se conserva el resultado
+    INLINE (cabeza+cola, truncado al umbral) sin handle y se avisa degradado —
+    un fallo de almacenamiento NUNCA convierte una llamada exitosa en error.
     """
     texto, crudo = _preparar(contenido)
     umb = _umbral_efectivo(umbral)
     if len(crudo) <= umb:
         return texto
+    ruta = ""
     try:
         handle = guardar(texto, tool, args)
+        ruta = ruta_de(handle)
     except (OSError, ValueError) as exc:
         _degradar("formatear_observacion", exc)
         handle = ""
-    return resumir_para_modelo(texto, tool=tool, handle=handle, umbral=umb)
+    return resumir_para_modelo(texto, tool=tool, handle=handle, umbral=umb,
+                               ruta=ruta)
 
 
 # ── Recuperacion (pensada para exponerse como TOOL del agente) ────────────────
@@ -947,6 +1041,34 @@ def _mtime(p: Path) -> float:
 
 def _degradar(donde: str, exc: Exception) -> None:
     """El offloading es una MEJORA del formateador: si el disco falla, se avisa
-    por log y el turno sigue. Nunca se mata la observacion por esto."""
-    logger.warning("harness.offloading.%s degradado: %s: %s",
-                   donde, exc.__class__.__name__, exc)
+    (logger + el avisador del CLI si esta registrado) y el turno sigue. Nunca
+    se mata la observacion por esto."""
+    motivo = f"{donde}: {exc.__class__.__name__}: {exc}"
+    logger.warning("harness.offloading degradado: %s", motivo)
+    _ULTIMO_ERROR.clear()
+    _ULTIMO_ERROR.update(motivo=motivo,
+                         ts=datetime.now().isoformat(timespec="seconds"))
+    if _AVISADOR is not None:
+        try:
+            _AVISADOR("offloading", motivo)
+        except Exception as exc2:
+            # El aviso jamas puede romper el camino que esta avisando.
+            logger.warning("harness.offloading avisador roto: %s", exc2)
+
+
+def estado() -> dict:
+    """Foto del subsistema para la puerta /offload del CLI: encendido, almacen,
+    knobs efectivos, handles vivos y la telemetria del ultimo spill/error."""
+    vivos = listar()
+    return {
+        "activo": activo(),
+        "dir": str(dir_offload()),
+        "sesion": sesion_actual(),
+        "umbral": umbral_bytes(),
+        "cabeza": cabeza_defecto(),
+        "cola": cola_defecto(),
+        "handles": len(vivos),
+        "bytes_sesion": sum(e["bytes"] for e in vivos),
+        "ultimo_spill": dict(_ULTIMO_SPILL),
+        "ultimo_error": dict(_ULTIMO_ERROR),
+    }

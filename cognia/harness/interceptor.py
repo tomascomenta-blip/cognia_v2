@@ -42,12 +42,15 @@ QUÉ VA ENCENDIDO POR DEFECTO Y POR QUÉ
                            la suite son 6909 tests / 12 min: dispararla sola tras
                            cada edición convertiría cada paso en una eternidad.
                            Aider también la trae opt-in (--auto-test).
-  - offloading ........... NO. `COGNIA_OFFLOAD=1` lo enciende. `run_tool` ya
-                           recorta con `aci_trim`, y el repo tiene MEDIDO que el
-                           doble truncado hace que el modelo edite con
-                           SEARCH/REPLACE texto que nunca vio (baseline
-                           2026-08-09). Adoptarlo exige medirlo CONTRA aci_trim,
-                           no encenderlo por fe.
+  - offloading ........... EN EL CLI si (F3, 2026-08-23): el REPL propaga la
+                           config 'offload' (default on) a COGNIA_OFFLOAD al
+                           arrancar; embebido sigue opt-in por env/config
+                           (offloading.activo()). NO se suma a `aci_trim`:
+                           run_tool salta el trim cuando el output ya es el
+                           preview del offloading — el doble truncado esta
+                           MEDIDO como danino (el modelo edita con
+                           SEARCH/REPLACE texto que nunca vio, baseline
+                           2026-08-09). `COGNIA_OFFLOAD=0` lo apaga siempre.
 """
 
 from __future__ import annotations
@@ -290,15 +293,25 @@ def despues(name: str, args: str, ctx: dict, out: str, ok: bool,
     except Exception:
         pass
 
-    # 3) OFFLOADING de salidas gigantes (opt-in: ver la cabecera del módulo).
-    if _activo("COGNIA_OFFLOAD"):
-        try:
-            from cognia.harness import offloading
-            if len(texto.encode("utf-8", "ignore")) > offloading.umbral_bytes():
-                handle = offloading.guardar(texto, tool=name, args=args)
-                texto = offloading.resumir_para_modelo(texto, tool=name, handle=handle)
-        except Exception:
-            pass
+    # 3) OFFLOADING de salidas gigantes (F3): preview cabeza+cola + referencia
+    #    con handle, ruta y bytes exactos. El flag lo lee offloading.activo()
+    #    (env COGNIA_OFFLOAD > config 'offload' de /offload) y NO `_activo` a
+    #    secas: leer solo el env aqui repetiria el bug del flag TX (config
+    #    verde, subsistema muerto). La resiliencia vive DENTRO de
+    #    formatear_observacion: si el disco falla conserva el inline truncado
+    #    y avisa degradado — nunca convierte una tool exitosa en error.
+    try:
+        from cognia.harness import offloading
+        if offloading.activo():
+            texto = offloading.formatear_observacion(texto, tool=name, args=args)
+    except Exception as exc:
+        # No hay _aviso_degradado importable aqui sin arrastrar el CLI; el
+        # modulo de offloading ya avisa sus propios fallos. Esto solo cubre
+        # el import roto, y lo dice en vez de callar.
+        import logging
+        logging.getLogger(__name__).warning(
+            "interceptor.offloading degradado: %s: %s",
+            exc.__class__.__name__, exc)
     return texto
 
 

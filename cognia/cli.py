@@ -2055,6 +2055,7 @@ _CMD_DESCRIPTIONS = {
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
+    "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2148,6 +2149,25 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/offload": (
+        "OFFLOADING de salidas grandes (harness/offloading, contrato deepseek-harness): cuando "
+        "el resultado de una tool supera el umbral de bytes inline, va ENTERO a disco y el "
+        "modelo ve un preview (N lineas de cabeza + '...' + M de cola — el truncado clasico "
+        "solo conserva cabeza y la conclusion de un log vive al final) + una referencia con "
+        "handle 'res:xxxxxx', ruta del fichero y bytes EXACTOS, y la receta concreta para "
+        "recuperar el detalle: la tool `recuperar` (rango de lineas o buscar=texto) o "
+        "`leer_archivo`/`buscar` sobre la ruta. Nada se pierde: es compresion RESTAURABLE. "
+        "RESILIENCIA: si el guardado falla (disco/permisos) se conserva el resultado inline "
+        "truncado al umbral y se avisa via degradado 'offloading' — un fallo de almacenamiento "
+        "jamas convierte una tool exitosa en error. "
+        "USO: /offload (estado: activo?, dir de spills, umbral, preview, ultimo spill con "
+        "bytes, ultimo error) | on|off (persiste 'offload'; default on) | umbral <bytes> "
+        "(persiste 'offload_umbral', default 2000 = limite de Cline; en local cada byte "
+        "inline se re-paga en prefill cada turno) | preview <N> [<M>] (persiste "
+        "'offload_cabeza'/'offload_cola', default 15+5) | lista (handles vivos). "
+        "La env COGNIA_OFFLOAD=0 apaga GANANDO a la config (y =1 fuerza); "
+        "COGNIA_TOOL_RESULT_MAX / COGNIA_OFFLOAD_CABEZA / COGNIA_OFFLOAD_COLA mueven los "
+        "knobs por entorno; COGNIA_OFFLOAD_DIR mueve el almacen (~/.cognia/offload)."),
     # /tx y /libro no estaban aqui, y su descripcion se corta a 80-120
     # columnas: el subsistema con MAS subcomandos del CLI era el unico sin
     # ningun sitio donde leerlos enteros.
@@ -5887,6 +5907,22 @@ _CONFIG_DEFAULTS: dict = {
     # Verbos propios (lista JSON o texto separado por comas; /spinner verbos).
     # Vacia = los ~20 VERBOS_GATO de ux/spinner_vivo.
     "spinner_verbos":        "",
+    # OFFLOAD de salidas grandes de tools (harness/offloading, F3): lo que
+    # supera el umbral va a disco y el modelo ve cabeza+cola + referencia con
+    # handle, ruta y bytes exactos (recuperable con `recuperar`/leer_archivo,
+    # no truncado). ON por defecto: en local cada byte inline se RE-PAGA en
+    # prefill en cada turno siguiente (el cache de llama.cpp solo reusa los
+    # ultimos 512 tokens: un output de 16 KB son ~4.500 tokens re-prefileados
+    # cada vuelta, decenas de segundos con el 27B; el round-trip de recuperar
+    # solo se paga cuando de verdad hace falta el detalle). Umbral 2000 B =
+    # TOOL_RESULT_CHAR_LIMIT de Cline; preview 15 cabeza + 5 cola (la cola
+    # existe porque la conclusion de un log/traceback vive al FINAL). La env
+    # COGNIA_OFFLOAD=0 gana a la config (apagado de emergencia); se cambia
+    # con /offload on|off|umbral|preview.
+    "offload":          "on",
+    "offload_umbral":   "2000",
+    "offload_cabeza":   "15",
+    "offload_cola":     "5",
 }
 
 
@@ -8504,6 +8540,127 @@ def _slash_expandir(arg: str = "") -> None:
                          .encode(enc, errors="replace").decode(enc) + "\n")
 
 
+def _aplicar_config_offload() -> None:
+    """Propaga la config del offload (F3) al entorno, SIN pisar lo que el
+    usuario puso a mano: interceptor/tools/familias leen COGNIA_OFFLOAD del
+    env, y sin esta propagacion la config diria 'on' con el subsistema muerto
+    (la clase de bug del flag TX, cognia/tx/flag.py). Registra ademas el
+    avisador para que un disco roto se VEA en el REPL como degradado."""
+    try:
+        from cognia.harness import offloading as _off
+        cfg = _load_config()
+        pares = (
+            ("COGNIA_OFFLOAD",
+             "1" if str(cfg.get("offload", "on")).lower() in ("on", "1", "true")
+             else "0"),
+            ("COGNIA_TOOL_RESULT_MAX", str(cfg.get("offload_umbral", "2000"))),
+            ("COGNIA_OFFLOAD_CABEZA", str(cfg.get("offload_cabeza", "15"))),
+            ("COGNIA_OFFLOAD_COLA", str(cfg.get("offload_cola", "5"))),
+        )
+        for var, valor in pares:
+            if not (os.environ.get(var) or "").strip():
+                os.environ[var] = valor
+        _off.registrar_avisador(_aviso_degradado)
+    except Exception as exc:
+        _aviso_degradado("offloading", f"config no aplicada: {exc}")
+
+
+def _slash_offload(arg: str = "") -> None:
+    """`/offload`: puerta del offloading de salidas grandes (F3).
+
+    Sin args muestra el ESTADO: activo?, dir de spills, umbral, preview,
+    ultimo spill con sus bytes y ultimo error del subsistema.
+    Subcomandos (persisten via _save_config y actualizan el env de la sesion):
+      on|off             -> clave 'offload' (COGNIA_OFFLOAD=0 gana a la config)
+      umbral <bytes>     -> clave 'offload_umbral' (min 200)
+      preview <N> [<M>]  -> claves 'offload_cabeza'/'offload_cola'
+      lista              -> handles vivos de la sesion (resumen_listado)"""
+    try:
+        from cognia.harness import offloading as _off
+    except Exception as exc:
+        _aviso_degradado("offloading", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["offload"] = bajo
+        _save_config(cfg)
+        os.environ["COGNIA_OFFLOAD"] = "1" if bajo == "on" else "0"
+        _print_line(f"[info_dim]offload de salidas grandes: {bajo} (guardado; "
+                    f"la tool recuperar {'se anuncia' if bajo == 'on' else 'deja de anunciarse'} "
+                    f"en el proximo turno)[/info_dim]")
+        return
+    if bajo.startswith("umbral"):
+        try:
+            n = int(arg[len("umbral"):].strip())
+            if n < 200:
+                raise ValueError(n)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /offload umbral <bytes> (>= 200; con "
+                        "menos hasta un 'OK' iria a disco)[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["offload_umbral"] = str(n)
+        _save_config(cfg)
+        os.environ["COGNIA_TOOL_RESULT_MAX"] = str(n)
+        _print_line(f"[info_dim]offload: umbral {n} bytes (guardado)[/info_dim]")
+        return
+    if bajo.startswith("preview"):
+        partes = arg[len("preview"):].split()
+        try:
+            cab = int(partes[0])
+            cola = int(partes[1]) if len(partes) > 1 else None
+            if cab < 1 or (cola is not None and cola < 0):
+                raise ValueError
+        except (ValueError, IndexError):
+            _print_line("[warn_cl]Uso: /offload preview <cabeza >= 1> "
+                        "[<cola >= 0>][/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["offload_cabeza"] = str(cab)
+        os.environ["COGNIA_OFFLOAD_CABEZA"] = str(cab)
+        if cola is not None:
+            cfg["offload_cola"] = str(cola)
+            os.environ["COGNIA_OFFLOAD_COLA"] = str(cola)
+        _save_config(cfg)
+        _print_line(f"[info_dim]offload: preview {cab} lineas de cabeza"
+                    f"{'' if cola is None else f' + {cola} de cola'} (guardado)"
+                    f"[/info_dim]")
+        return
+    if bajo == "lista":
+        _print_line(_off.resumen_listado())
+        return
+    if arg and bajo != "estado":
+        _print_line("[warn_cl]Uso: /offload [estado | on | off | umbral <bytes> "
+                    "| preview <N> [<M>] | lista][/warn_cl]")
+        return
+    # Estado (default): la foto entera del subsistema.
+    est = _off.estado()
+    env = (os.environ.get("COGNIA_OFFLOAD") or "").strip()
+    fuente = f"env COGNIA_OFFLOAD={env}" if env else "config 'offload'"
+    _print_line(f"[info_dim]offload de salidas grandes: "
+                f"{'ACTIVO' if est['activo'] else 'apagado'} ({fuente})[/info_dim]")
+    _print_line(f"[info_dim]  dir spills: {est['dir']}  (sesion {est['sesion']}, "
+                f"{est['handles']} handles, {est['bytes_sesion']} B)[/info_dim]")
+    _print_line(f"[info_dim]  umbral: {est['umbral']} bytes inline | preview: "
+                f"{est['cabeza']} cabeza + {est['cola']} cola[/info_dim]")
+    ult = est["ultimo_spill"]
+    if ult:
+        _print_line(f"[info_dim]  ultimo spill: {ult.get('handle', '?')} "
+                    f"({ult.get('tool') or 'tool'}, {ult.get('bytes', 0)} B, "
+                    f"{ult.get('lineas', 0)} lineas) -> "
+                    f"{ult.get('ruta', '')}[/info_dim]")
+    else:
+        _print_line("[info_dim]  ultimo spill: ninguno en este proceso[/info_dim]")
+    err = est["ultimo_error"]
+    if err:
+        _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
+                    f"({err.get('ts', '')})[/warn_cl]")
+    else:
+        _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
+
+
 def _slash_spinner(arg: str = "") -> None:
     """`/spinner [estado | on | off | verbos ...]`: la linea de estado VIVA
     del turno (F2, ux/spinner_vivo + ticker del renderer): verbo gato
@@ -10637,6 +10794,12 @@ def repl():
     except Exception:
         pass
 
+    # OFFLOAD de salidas grandes (F3): propagar config -> env ANTES del primer
+    # turno, porque interceptor/tools/familias leen COGNIA_OFFLOAD del entorno
+    # (sin esto la config diria 'on' con el subsistema muerto: la clase de bug
+    # del flag TX). Tambien registra el avisador de degradados en el modulo.
+    _aplicar_config_offload()
+
     # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
     # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
     # mas de 24h para que siempre refleje el entorno real. try/except total:
@@ -11130,6 +11293,8 @@ def repl():
             _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
         elif raw == "/spinner" or raw.startswith("/spinner "):
             _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
+        elif raw == "/offload" or raw.startswith("/offload "):
+            _slash_offload(raw[len("/offload "):] if raw.startswith("/offload ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):

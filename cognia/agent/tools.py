@@ -574,6 +574,12 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         # sobre un pasado incompleto SIN SABERLO. Para y lo dice.
         if _es_libro_caido(_exc_harness):
             raise
+    # F3: si el offloading ya sustituyo el output por su preview+referencia
+    # (empieza por su cabecera), aci_trim NO se aplica encima: el doble
+    # truncado esta MEDIDO como danino y con el cap chico (1800, backend sin
+    # /props) cortaria la referencia — la receta de recuperacion — al medio.
+    if isinstance(out, str) and out.startswith("[SALIDA GRANDE"):
+        return out
     return out if name in ACI_EXENTAS else aci_trim(out, name)
 
 
