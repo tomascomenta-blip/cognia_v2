@@ -164,6 +164,33 @@ _ESTADOS_APAGADOS = ("off", "apagado", "apagada", "apagados", "no", "0", "?",
                      "sin limite")
 
 
+def _envolver_crudo(valor: str, ancho_valor: int, col: int) -> str:
+    """Envuelve un valor con markup propio ('[link=file:///...]ruta[/link]')
+    sin romper sus etiquetas: rich mide el texto VISIBLE, parte con 'fold'
+    (una ruta sin espacios se corta como con textwrap) y `.markup` vuelve a
+    escribir las etiquetas en cada trozo, asi que el enlace sigue vivo en
+    todas las lineas y la continuacion cuelga bajo la columna del valor.
+    Si cabe sale TAL CUAL (byte-identico); sin rich o con markup que no
+    parsea, tambien. Cazado 2026-08-24: la fila 'ultimo spill' de /offload
+    (la unica cruda) se dejaba plegar por rich a columna 0."""
+    try:
+        import io
+        from rich.console import Console
+        from rich.text import Text
+        texto = Text.from_markup(valor)
+        if len(texto.plain) <= ancho_valor:
+            return valor
+        ancho_valor = max(10, ancho_valor)
+        con = Console(file=io.StringIO(), width=ancho_valor + col,
+                      force_terminal=False, legacy_windows=False)
+        trozos = texto.wrap(con, ancho_valor, overflow="fold")
+        for t in trozos:
+            t.rstrip()
+        return ("\n" + " " * col).join(t.markup for t in trozos)
+    except Exception:
+        return valor
+
+
 def estado_subsistema(titulo: str, activo, filas=(), fuente: str = "",
                       avisos=(), console=None) -> list:
     """Lineas (markup) del estado de un subsistema.
@@ -171,8 +198,9 @@ def estado_subsistema(titulo: str, activo, filas=(), fuente: str = "",
     ``activo``: bool (-> 'on'/'off') o una palabra de modo ('resumen',
     'viva', 'auto'...) que se pinta en ok_cl salvo que signifique apagado.
     ``filas``: (clave, valor[, estilo[, markup_ya_hecho]]). Un valor con
-    markup propio (p.ej. un [link=...]) se pasa con markup_ya_hecho=True y
-    no se escapa ni se envuelve. ``fuente``: de donde sale el estado
+    markup propio (p.ej. un [link=...]) se pasa con markup_ya_hecho=True: no
+    se escapa y se envuelve sin romper sus etiquetas (_envolver_crudo).
+    ``fuente``: de donde sale el estado
     ('config offload', 'env COGNIA_OFFLOAD=0'), en tenue tras el estado.
     """
     import textwrap
@@ -201,7 +229,8 @@ def estado_subsistema(titulo: str, activo, filas=(), fuente: str = "",
         crudo = bool(f[3]) if len(f) > 3 else False
         pref = f"{_SANGRIA}[info_dim]{_esc(clave.ljust(ancho_clave))}[/info_dim]  "
         if crudo:
-            lineas.append(pref + f"[{estilo_v}]{valor}[/{estilo_v}]")
+            envuelto = _envolver_crudo(valor, max(20, ancho) - col, col)
+            lineas.append(pref + f"[{estilo_v}]{envuelto}[/{estilo_v}]")
             continue
         # Se mide la linea ENTERA (sangria + clave + valor) y luego se quita
         # el prefijo de la primera: asi la primera linea del valor no se pasa
