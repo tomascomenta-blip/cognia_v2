@@ -242,7 +242,9 @@ def test_cada_id_tiene_capacidades_coherentes(id):
     # sub-estados: los del default estan declarados
     assert set(d.estados) <= set(e.estados), f"{id}: sub-estados sin declarar"
     assert e.nombre and e.grupo
-    assert e.enganchado is False, "E8: nada esta enganchado hasta su paso"
+    # E8: solo los que su paso ya cablea (P4: los que el Theme de rich
+    # recolorea en caliente); el resto sigue en False hasta P5-P9
+    assert e.enganchado is (id in A.ENGANCHADOS_P4), f"{id}: enganchado sin su paso"
 
 
 def test_los_contratos_del_remoto_son_los_de_D7():
@@ -717,7 +719,11 @@ def test_guardar_escribe_solo_el_diff_y_conserva_lo_desconocido(carpeta):
 def test_bak_y_deshacer_alternan(carpeta):
     A.poner("prompt.etiqueta", "texto", "uno")
     A.guardar()
-    assert not (carpeta / "estilo.json.bak").exists()
+    # P4: el primer guardado deja como .bak el documento VACIO, asi el primer
+    # cambio tambien se deshace (antes: sin .bak y deshacer() decia False)
+    assert _leer(carpeta / "estilo.json.bak") == A.DOC_VACIO
+    assert A.deshacer() is True and A.texto("prompt.etiqueta") == "cognia"
+    assert A.deshacer() is True and A.texto("prompt.etiqueta") == "uno"
     A.poner("prompt.etiqueta", "texto", "dos")
     A.guardar()
     assert (carpeta / "estilo.json.bak").exists()

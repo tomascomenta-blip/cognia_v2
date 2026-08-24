@@ -22,6 +22,10 @@ from pathlib import Path
 from .cognia import Cognia
 from .config import HAS_RESEARCH_ENGINE, HAS_PROGRAM_CREATOR
 from .ux import paleta   # unica fuente de verdad del color (datos planos)
+# Registro de estilos por elemento (/estilo, 2026-08-24): datos planos, sin
+# rich ni prompt_toolkit al importar; el motor (ux/glow.py) se conecta en
+# _aplicar_config_estilo al arrancar el REPL.
+from .ux import aspecto as _aspecto
 
 # ---------------------------------------------------------------------------
 # Skills directory
@@ -343,6 +347,14 @@ def _pie_prompt(barra=None):
     La regla se dibuja aunque la barra falte o lance: el marco no puede
     depender de un adorno opcional."""
     def _toolbar():
+        # Hot reload de ~/.cognia/estilo.json (E6): aqui SOLO un stat que
+        # marca la recarga pendiente; reconstruir Console/renderer dentro
+        # del render de prompt_toolkit seria reentrante. Se aplica en el
+        # bucle del REPL (_aplicar_recarga_estilo) con el prompt devuelto.
+        try:
+            _aspecto.recargar_si_cambio()
+        except Exception as exc:
+            _aviso_degradado("estilo", f"stat de estilo.json fallo: {exc}")
         partes = [("class:marco", _REGLA * _ancho_marco())]
         try:
             linea = barra() if callable(barra) else ""
@@ -2109,6 +2121,7 @@ _CMD_DESCRIPTIONS = {
     "/tema":            "Tema visual: /tema cicla, /tema <oscuro|claro|alto_contraste> fija (persiste)",
     "/prompt":          "System prompt del cerebro: /prompt [editar | set <texto> | reset | off | on]",
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
+    "/estilo":          "Editar el aspecto de cada elemento (banner, prompt, barra, spinner...)  [lista | ver <id> | <id> <prop> <valor> | reset | guardar | cargar <preset> | animacion on|off]",
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
     "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
@@ -2357,6 +2370,29 @@ _CMD_DETAILS = {
         "plano identico. USO: /enlaces | estado | on|off (persiste 'enlaces', default on). "
         "La env COGNIA_ENLACES=0 apaga GANANDO a la config (y =1 fuerza). Todo fallo avisa "
         "via degradado 'enlaces' y cae al texto plano, jamas rompe la linea."),
+    "/estilo": (
+        "ESTILOS POR ELEMENTO (ux/aspecto.py + ux/glow.py, 2026-08-24): cada pieza visual del "
+        "REPL (banner.*, prompt.*, barra.*, menu.*, spinner.*, tool.*, respuesta.*, pensando.*, "
+        "aviso.*, footer.*, panel.*, diff.*, separador.*, sistema.*, agentes.*) se edita por "
+        "separado: texto, color, fondo, negrita/italica/subrayado, glow (color+intensidad 0-3), "
+        "animacion (barrido/pulso), glifo, posicion, alineacion, visible, separador. "
+        "USO: /estilo lista [grupo] | /estilo ver <id> (valores resueltos y origen) | "
+        "/estilo <id> <prop> <valor> (ej: /estilo sistema.ok color #ff00ff · "
+        "/estilo prompt.etiqueta texto jarvis · /estilo banner.arte glow.intensidad 2 · "
+        "/estilo prompt.marco animacion.activa on) | /estilo <id> \"<style string>\" "
+        "(ej: \"bold fg:@rampa.prompt glow:@mi.lima/1 anim:barrido>2\") | "
+        "/estilo reset [<id>|todo] | /estilo animacion on|off|estado (config "
+        "'estilo_animacion'; COGNIA_ANIMACION=0 gana) | /estilo guardar <preset> | "
+        "/estilo cargar <preset|ruta.json> (paquete: clasico, barra-color, neon, sobrio, ansi16) | "
+        "/estilo presets | /estilo exportar <ruta> | /estilo deshacer (.bak) | /estilo ayuda. "
+        "Colores: #rrggbb, @rampa.<escalon>, @semantico.<k>, @token.<token>, @mi.<paleta local>, "
+        "terminal, o {oscuro:..,claro:..,alto_contraste:..}. Fichero: ~/.cognia/estilo.json "
+        "(override parcial, se recarga solo al editarlo; presets en ~/.cognia/estilos/). "
+        "Cada cambio se valida (ruidoso), se guarda con .bak y se aplica en caliente; los "
+        "elementos que su paso aun no engancha (prompt/barra/menu P5, glifos/textos P6, banner "
+        "P7, spinner P8, animacion P9) se guardan y avisan. /tema convive: cambia la variante; "
+        "/estilo cambia elementos sobre la variante. Sin fichero el aspecto es byte-identico "
+        "al de siempre. Editor interactivo (/estilo a secas): paso P11."),
     "/spinner": (
         "La linea de espera del turno responde las tres preguntas de Claude Code/Codex: "
         "¿esta vivo? ¿cuanto lleva? ¿como lo paro? Con la linea VIVA (default on) el spinner "
@@ -6239,6 +6275,12 @@ _CONFIG_DEFAULTS: dict = {
     "horizonte":               "off",
     "horizonte_max_rondas":    "",
     "horizonte_handoff_max":   "16384",
+    # Estilos por elemento (/estilo, 2026-08-24): interruptor GLOBAL de la
+    # animacion (glow/barrido) de los elementos vivos. on|off. La env
+    # COGNIA_ANIMACION=0 apaga GANANDO a la config (y =1 fuerza); el motor
+    # (ux/glow.capacidades) la lee a call-time: no se siembra ninguna env.
+    # Se cambia con /estilo animacion on|off.
+    "estilo_animacion":        "on",
 }
 
 
@@ -8566,7 +8608,7 @@ def _persist_setting(key: str, value: str) -> None:
 
 def _slash_tema(arg: str = ""):
     """`/tema` cicla; `/tema <nombre>` fija uno de: oscuro, claro, alto_contraste. Persiste."""
-    global _theme_idx, _console
+    global _theme_idx
     arg = (arg or "").strip().lower()
     if arg and arg in _THEMES:
         _theme_idx = _THEME_ORDER.index(arg)
@@ -8591,23 +8633,14 @@ def _slash_tema(arg: str = ""):
         else:
             _theme_idx = (_theme_idx + 1) % len(_THEME_ORDER)
     name = _THEME_ORDER[_theme_idx]
+    # Console + renderer + prompt, compartido con /estilo (2026-08-24): el
+    # Theme sale de aspecto.tema_rich(name), que sin fichero de estilo es
+    # paleta.tema_cli(name) tal cual.
+    _aplicar_tema_en_caliente()
     if _HAS_RICH:
-        _console = Console(theme=_THEMES[name], highlight=False)
-        # El renderer del bus de eventos guarda SU PROPIA referencia a la
-        # Console: sin re-activarlo, /tema repintaba el banner y dejaba el
-        # spinner, las tools y los avisos con la rampa VIEJA el resto de la
-        # sesion. activar() ya soporta el reemplazo en caliente; nadie lo
-        # llamaba desde aqui (2026-08-18).
-        try:
-            from cognia.ux import renderer as _ux_renderer
-            _ux_renderer.activar(console=_console)
-        except Exception as _exc:
-            _aviso_degradado("cli.tema.renderer",
-                             f"el tema no llego al renderer: {_exc}")
         _console.rule(f"[info_dim]Tema: {name} (guardado)[/info_dim]")
     else:
         print(f"Tema: {name} (Rich no disponible)")
-    _reestilar_prompt()
     _persist_setting("COGNIA_THEME", name)
 
 
@@ -8853,6 +8886,530 @@ def _slash_color(arg: str = ""):
         _console.print(f"Color de acento: {color} (guardado)", style=color)
     else:
         print(f"Color de acento: {color} (guardado)")
+
+
+# ---------------------------------------------------------------------------
+# /estilo: estilos por elemento (2026-08-24, paso P4 del sistema de estilos)
+# ---------------------------------------------------------------------------
+# Registro y fichero: cognia/ux/aspecto.py (~/.cognia/estilo.json, presets).
+# Motor de glow/barrido: cognia/ux/glow.py. Aqui vive la puerta slash, la
+# aplicacion EN CALIENTE (compartida con /tema) y la recarga por mtime (E6:
+# el toolbar solo marca; se recarga en el bucle del REPL, nunca dentro del
+# render de prompt_toolkit). El editor interactivo es el paso P11.
+_ESTILO_USO = ("Uso: /estilo lista [grupo] | ver [<id>] | <id> <prop> <valor> | "
+               "<id> \"<style string>\" | reset [<id>|todo] | animacion on|off|estado | "
+               "guardar <preset> | cargar <preset|ruta> | presets | exportar <ruta> | "
+               "deshacer | ayuda")
+_ESTILO_SUBCOMANDOS = ("lista", "ver", "reset", "animacion", "guardar", "cargar",
+                       "presets", "exportar", "deshacer", "ayuda")
+
+
+def _tema_de(nombre: str):
+    """Theme de rich de la variante CON los overrides de /estilo
+    (aspecto.tema_rich). Sin fichero de estilo es paleta.tema_cli(nombre)
+    tal cual: byte-identico al tema precalculado en _THEMES."""
+    try:
+        return Theme(_aspecto.tema_rich(nombre))
+    except Exception as exc:
+        _aviso_degradado("estilo", f"tema_rich({nombre}) fallo: "
+                                   f"{type(exc).__name__}: {exc}; uso el tema base")
+        return _THEMES[nombre]
+
+
+def _aplicar_tema_en_caliente() -> None:
+    """Reconstruye lo que PINTA con la variante activa + los overrides de
+    /estilo: la Console de rich, la referencia del renderer del bus y el
+    Style del prompt. La comparten /tema, /estilo y la recarga por mtime.
+    Extraida de _slash_tema (2026-08-24): antes /tema hacia esto inline."""
+    global _console
+    nombre = _variante_actual()
+    if _HAS_RICH:
+        _console = Console(theme=_tema_de(nombre), highlight=False)
+        # El renderer del bus de eventos guarda SU PROPIA referencia a la
+        # Console: sin re-activarlo, /tema repintaba el banner y dejaba el
+        # spinner, las tools y los avisos con la rampa VIEJA el resto de la
+        # sesion. activar() ya soporta el reemplazo en caliente (2026-08-18).
+        try:
+            from cognia.ux import renderer as _ux_renderer
+            _ux_renderer.activar(console=_console)
+        except Exception as _exc:
+            _aviso_degradado("cli.tema.renderer",
+                             f"el tema no llego al renderer: {_exc}")
+    _reestilar_prompt()
+    # El motor memoiza frames por version del registro y lee global.fps del
+    # fichero: reconectar vacia la memo y refresca el fps.
+    try:
+        _aspecto.conectar_glow(_load_config)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"motor de glow no conectado: "
+                                   f"{type(exc).__name__}: {exc}")
+
+
+def _estilo_avisos(avisos, prefijo: str = "") -> bool:
+    """Enruta los Aviso de aspecto: nivel 'error' por _aviso_degradado
+    ('estilo', ...) y nivel 'aviso' en ambar. True si hubo algun error."""
+    hubo = False
+    for a in avisos or ():
+        texto = f"{a.id}: {a.texto}" if getattr(a, "id", "") else a.texto
+        if prefijo:
+            texto = f"{prefijo}: {texto}"
+        if a.nivel == "error":
+            hubo = True
+            _aviso_degradado("estilo", texto)
+        else:
+            _print_line(f"[warn_cl]{_escape(texto)}[/warn_cl]")
+    return hubo
+
+
+def _aplicar_config_estilo() -> None:
+    """Arranque del REPL: conecta el motor de glow al registro y carga
+    ~/.cognia/estilo.json con validacion RUIDOSA (un fichero roto avisa por
+    degradado 'estilo' y se arranca con el aspecto por defecto: nunca sin
+    prompt). Si el fichero trae overrides, reconstruye la Console ANTES del
+    banner para que el Theme retenido pinte desde la primera linea."""
+    try:
+        _aspecto.conectar_glow(_load_config)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"motor de glow no conectado: "
+                                   f"{type(exc).__name__}: {exc}")
+    try:
+        doc = _aspecto.cargar()
+    except _aspecto.EstiloInvalido as exc:
+        _aviso_degradado("estilo", f"{exc}; arranco con el aspecto por defecto")
+        return
+    except Exception as exc:
+        _aviso_degradado("estilo", f"no pude leer {_aspecto.RUTA_ESTILO}: "
+                                   f"{type(exc).__name__}: {exc}; aspecto por defecto")
+        return
+    _estilo_avisos(_aspecto.ultimos_avisos())
+    if doc:
+        _aplicar_tema_en_caliente()
+
+
+def _aplicar_recarga_estilo() -> None:
+    """E6: _pie_prompt solo hace un stat y MARCA la recarga pendiente; aqui,
+    con el prompt ya devuelto y antes de despachar la linea, se recarga de
+    verdad (Console + renderer + prompt). Un fichero editado a mano con un
+    error avisa y se sigue con el estilo anterior (no se reintenta hasta que
+    el mtime vuelva a cambiar: aspecto.aplicar_recarga)."""
+    try:
+        if not _aspecto.recarga_pendiente():
+            return
+    except Exception as exc:
+        _aviso_degradado("estilo", f"recarga_pendiente fallo: {exc}")
+        return
+    try:
+        _aspecto.aplicar_recarga()
+    except _aspecto.EstiloInvalido as exc:
+        _aviso_degradado("estilo", f"{exc}; sigo con el estilo anterior")
+        return
+    except Exception as exc:
+        _aviso_degradado("estilo", f"recarga fallo: {type(exc).__name__}: {exc}")
+        return
+    _estilo_avisos(_aspecto.ultimos_avisos())
+    _aplicar_tema_en_caliente()
+    _print_line(f"[info_dim]estilo: recargado de {_escape(str(_aspecto.RUTA_ESTILO))}"
+                "[/info_dim]")
+
+
+def _estilo_guardar_y_aplicar() -> bool:
+    """Persiste (aspecto.guardar hace el .bak) y aplica en caliente."""
+    try:
+        _aspecto.guardar()
+    except Exception as exc:
+        _aviso_degradado("estilo", f"no pude guardar {_aspecto.RUTA_ESTILO}: "
+                                   f"{type(exc).__name__}: {exc}")
+        return False
+    _aplicar_tema_en_caliente()
+    return True
+
+
+def _estilo_paso(id: str) -> str:
+    e = _aspecto.elemento(id)
+    return _aspecto.PASO_ENGANCHE.get(e.grupo, "P6")
+
+
+def _estilo_aviso_enganche(id: str, props) -> str:
+    """E8: '' si el cambio ya se ve; si no, el aviso con el paso que lo
+    aplicara. Los ENGANCHADOS_P4 cambian color/negrita/italica por el Theme
+    de rich; texto, glifo, glow, animacion... esperan a su paso."""
+    e = _aspecto.elemento(id)
+    paso = _estilo_paso(id)
+    if not e.enganchado:
+        return f"guardado; se aplica cuando su elemento este enganchado (paso {paso})"
+    pendientes = [p for p in props if p.split(".")[0] not in _aspecto.PROPS_POR_TOKEN]
+    if pendientes:
+        return (f"guardado; {', '.join(pendientes)} se aplica cuando su elemento "
+                f"este enganchado (paso {paso}); color/negrita/italica ya cambian")
+    return ""
+
+
+def _estilo_id(id: str):
+    """El Elemento o None (con el aviso ruidoso de ids parecidos ya emitido)."""
+    try:
+        return _aspecto.elemento(id)
+    except KeyError as exc:
+        _aviso_degradado("estilo", str(exc).strip('"'))
+        return None
+
+
+def _estilo_poner(id: str, prop: str, valor: str) -> None:
+    if _estilo_id(id) is None:
+        return
+    try:
+        avisos = _aspecto.poner(id, prop, valor)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"{id}.{prop}: {type(exc).__name__}: {exc}")
+        return
+    if _estilo_avisos(avisos):
+        return
+    if not _estilo_guardar_y_aplicar():
+        return
+    _print_line(f"[ok_cl]{_escape(id)}.{_escape(prop)} = {_escape(valor)} (guardado)[/ok_cl]")
+    aviso = _estilo_aviso_enganche(id, [prop])
+    if aviso:
+        _print_line(f"[warn_cl]{aviso}[/warn_cl]")
+
+
+def _estilo_poner_string(id: str, s: str) -> None:
+    if _estilo_id(id) is None:
+        return
+    try:
+        estilo = _aspecto.parsear_style_string(s)
+        avisos = _aspecto.poner_style_string(id, s)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"{id}: style string invalido: {exc}")
+        return
+    if _estilo_avisos(avisos):
+        return
+    if not _estilo_guardar_y_aplicar():
+        return
+    import dataclasses as _dc
+    props = [f.name for f in _dc.fields(estilo)
+             if getattr(estilo, f.name) not in (None, {})]
+    _print_line(f"[ok_cl]{_escape(id)} = {_escape(s)} (guardado)[/ok_cl]")
+    aviso = _estilo_aviso_enganche(id, props)
+    if aviso:
+        _print_line(f"[warn_cl]{aviso}[/warn_cl]")
+
+
+def _estilo_lista(grupo: str = "") -> None:
+    grupos = [(g, ids) for g, ids in _aspecto.GRUPOS if not grupo or g == grupo]
+    if not grupos:
+        _print_line(f"[warn_cl]grupo desconocido '{_escape(grupo)}'; hay: "
+                    f"{', '.join(g for g, _ in _aspecto.GRUPOS)}[/warn_cl]")
+        return
+    _print_line("[mod]Elementos del aspecto[/mod] [info_dim](* animacion activa · "
+                "mod difiere del default · (Px) se aplica en ese paso)[/info_dim]")
+    for g, ids in grupos:
+        _print_line(f"[mod]{g}[/mod]")
+        for id in ids:
+            e = _aspecto.elemento(id)
+            caps = ", ".join(c.value for c in _aspecto.Cap if c in e.caps)
+            est = _aspecto.estilo_de(id)
+            marcas = []
+            if est.animacion is not None and est.animacion.activa:
+                marcas.append("*")
+            if _aspecto.tiene_override(id):
+                marcas.append("mod")
+            if not e.enganchado:
+                marcas.append(f"({_estilo_paso(id)})")
+            m = f" [warn_cl]{' '.join(marcas)}[/warn_cl]" if marcas else ""
+            _print_line(f"  [ok_cl]{_escape(id):<24}[/ok_cl] {_escape(e.nombre)}"
+                        f"  [info_dim]{caps}[/info_dim]{m}")
+
+
+_ESTILO_CAMPO_DE_CAP = (("texto", "texto"), ("color", "color"), ("fondo", "fondo"),
+                        ("negrita", "negrita"), ("italica", "italica"),
+                        ("subrayado", "subrayado"), ("glow", "glow"),
+                        ("animacion", "animacion"), ("glifo", "glifo"),
+                        ("posicion", "posicion"), ("alineacion", "alineacion"),
+                        ("visible", "visible"), ("gradiente", "gradiente"),
+                        ("separador", "separador"))
+
+
+def _estilo_ver(id: str = "") -> None:
+    if not id:
+        ruta = _aspecto.RUTA_ESTILO
+        _print_line(f"[mod]Estilo activo[/mod] [info_dim]{_escape(str(ruta))} "
+                    f"({'existe' if ruta.exists() else 'sin fichero: defaults'})[/info_dim]")
+        glob = _aspecto.global_doc()
+        if glob:
+            _print_line(f"  [info_dim]global: {_escape(str(glob))}[/info_dim]")
+        act, motivo = _aspecto.animacion_global()
+        _print_line(f"  [info_dim]animacion global: {'on' if act else 'off'}"
+                    f"{' (' + motivo + ')' if motivo else ''}[/info_dim]")
+        cambiados = [i for i in _aspecto.REGISTRO if _aspecto.tiene_override(i)]
+        if not cambiados:
+            _print_line("  [info_dim]ningun elemento difiere del default[/info_dim]")
+        for i in cambiados:
+            _print_line(f"  [ok_cl]{_escape(i)}[/ok_cl] [info_dim]"
+                        f"{_escape(str(_aspecto.cambios(i)))}[/info_dim]")
+        return
+    e = _estilo_id(id)
+    if e is None:
+        return
+    try:
+        r = _aspecto.estilo_resuelto(id)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"{id}: no resuelve: {type(exc).__name__}: {exc}")
+        return
+    est = _aspecto.estilo_de(id)
+    enganche = "si" if e.enganchado else f"no (paso {_estilo_paso(id)})"
+    _print_line(f"[mod]{_escape(id)}[/mod] {_escape(e.nombre)} [info_dim](grupo {e.grupo} · "
+                f"vivo {'si' if e.vivo else 'no'} · enganchado {enganche} · variante "
+                f"{r.variante})[/info_dim]")
+    if e.nota:
+        _print_line(f"  [info_dim]{_escape(e.nota)}[/info_dim]")
+    for cap, campo in _ESTILO_CAMPO_DE_CAP:
+        if _aspecto.Cap(cap) not in e.caps:
+            continue
+        v = getattr(r, campo)
+        if campo == "glow":
+            v = f"color {r.glow_color} intensidad {r.glow_intensidad}"
+        elif campo == "animacion":
+            a = r.animacion
+            v = (f"{'on' if a.activa else 'off'} {a.tipo} {a.direccion} velocidad {a.velocidad} "
+                 f"ancho {a.ancho} repetir {a.repetir} cada_s {a.cada_s}"
+                 f"{' solo_al_llegar' if a.solo_al_llegar else ''}")
+        elif campo == "glifo":
+            v = f"{v!r}" + (f" (ascii {est.glifo_ascii!r})" if est.glifo_ascii else "")
+        elif campo == "color" and r.token:
+            v = f"{v} (token {r.token})"
+        crudo = getattr(est, campo)
+        origen = _aspecto.origen(id, campo)
+        extra = (f"  [info_dim]<- {_escape(str(crudo))} ({origen})[/info_dim]"
+                 if origen != "default" and crudo is not None else
+                 f"  [info_dim]({origen})[/info_dim]")
+        _print_line(f"  {campo:<11} {_escape(str(v))}{extra}")
+    if r.estados:
+        _print_line(f"  {'estados':<11} [info_dim]{', '.join(r.estados)} "
+                    f"(/estilo {_escape(id)} estados.<nombre>.<prop> <valor>)[/info_dim]")
+    try:
+        ss = _aspecto.a_style_string(est)
+    except Exception as exc:
+        ss = f"(no representable: {exc})"
+    if ss:
+        _print_line(f"  {'style':<11} [info_dim]{_escape(ss)}[/info_dim]")
+
+
+def _estilo_reset(arg: str) -> None:
+    arg = (arg or "").strip()
+    if arg in ("", "todo"):
+        from cognia.ux import selector as _selector
+        if _selector.hay_tty() and not _selector.confirmar(
+                "Volver TODOS los elementos al aspecto por defecto?", default=False):
+            _print_line("[info_dim]reset cancelado[/info_dim]")
+            return
+        _aspecto.reset()
+        que = "todos los elementos"
+    else:
+        if _estilo_id(arg) is None:
+            return
+        _aspecto.reset(arg)
+        que = arg
+    if _estilo_guardar_y_aplicar():
+        _print_line(f"[ok_cl]estilo: {_escape(que)} al default (guardado)[/ok_cl]")
+
+
+def _estilo_animacion(arg: str) -> None:
+    arg = (arg or "").strip().lower()
+    if arg in ("on", "off"):
+        cfg = _load_config()
+        cfg["estilo_animacion"] = arg
+        _save_config(cfg)
+        env = (os.environ.get("COGNIA_ANIMACION") or "").strip()
+        extra = (f" (ojo: COGNIA_ANIMACION={env} en el entorno GANA a la config)"
+                 if env else "")
+        _print_line(f"[ok_cl]animacion de estilos: {arg} (guardado){extra}[/ok_cl]")
+        try:
+            from cognia.ux import glow as _glow
+            _glow.vaciar_memo()
+        except Exception as exc:
+            _aviso_degradado("estilo", f"memo del motor no vaciada: {exc}")
+        return
+    if arg not in ("", "estado"):
+        _print_line("[warn_cl]Uso: /estilo animacion on|off|estado[/warn_cl]")
+        return
+    cfg = _load_config()
+    valor = str(cfg.get("estilo_animacion", "on")).strip().lower()
+    env = (os.environ.get("COGNIA_ANIMACION") or "").strip()
+    origen = ("env COGNIA_ANIMACION" if env
+              else "default" if valor == _CONFIG_DEFAULTS.get("estilo_animacion")
+              else "config")
+    _print_line(f"[info_dim]animacion de estilos: {env or valor} ({origen}; "
+                "/estilo animacion on|off para cambiarla)[/info_dim]")
+    try:
+        from cognia.ux import glow as _glow
+        caps = _glow.capacidades()
+        _print_line(f"[info_dim]  esta terminal: color {caps.nivel} · animar "
+                    f"{'si' if caps.animar else 'no'}"
+                    f"{' (' + caps.motivo + ')' if caps.motivo else ''}[/info_dim]")
+    except Exception as exc:
+        _aviso_degradado("estilo", f"capacidades del motor: {type(exc).__name__}: {exc}")
+    _print_line("[info_dim]  env: COGNIA_ANIMACION=0 apaga y =1 fuerza (gana a la config); "
+                "sin tty, NO_COLOR, COGNIA_REMOTO=1 y SSH apagan solos[/info_dim]")
+
+
+def _estilo_presets() -> None:
+    try:
+        detalle = _aspecto.presets_detalle()
+    except Exception as exc:
+        _aviso_degradado("estilo", f"presets ilegibles: {type(exc).__name__}: {exc}")
+        return
+    if not detalle:
+        _print_line("[info_dim]sin presets[/info_dim]")
+        return
+    _print_line(f"[mod]Presets[/mod] [info_dim](los del dueno en {_escape(str(_aspecto.DIR_PRESETS))}; "
+                "/estilo cargar <nombre>)[/info_dim]")
+    for nombre, ruta, origen, nota in detalle:
+        _print_line(f"  [ok_cl]{_escape(nombre):<14}[/ok_cl] [info_dim]{origen:<8} "
+                    f"{_escape(nota)}[/info_dim]")
+
+
+def _estilo_cargar(arg: str) -> None:
+    arg = (arg or "").strip()
+    if not arg:
+        from cognia.ux import selector as _selector
+        detalle = _aspecto.presets_detalle()
+        if _selector.hay_tty() and detalle:
+            sel = _selector.elegir("Preset de estilo:",
+                                   [(n, n, f"{o} · {nota}"[:60]) for n, _, o, nota in detalle])
+            if sel is None:
+                return
+            arg = sel
+        else:
+            _estilo_presets()
+            _print_line("[warn_cl]Uso: /estilo cargar <preset|ruta.json>[/warn_cl]")
+            return
+    antes = {i for i in _aspecto.REGISTRO if _aspecto.tiene_override(i)}
+    try:
+        _aspecto.cargar_preset(arg)
+    except _aspecto.EstiloInvalido as exc:
+        _aviso_degradado("estilo", f"preset no cargado: {exc}")
+        return
+    except (ValueError, OSError) as exc:
+        _aviso_degradado("estilo", f"preset no cargado: {exc}")
+        return
+    _estilo_avisos(_aspecto.ultimos_avisos())
+    _aplicar_tema_en_caliente()
+    cambiados = [i for i in _aspecto.REGISTRO if _aspecto.tiene_override(i)]
+    _print_line(f"[ok_cl]estilo: '{_escape(arg)}' cargado en "
+                f"{_escape(str(_aspecto.RUTA_ESTILO))} ({len(cambiados)} elementos "
+                f"difieren del default; /estilo deshacer vuelve)[/ok_cl]")
+    pendientes = sorted({f"{_aspecto.elemento(i).grupo}.* ({_estilo_paso(i)})"
+                         for i in set(cambiados) | antes
+                         if not _aspecto.elemento(i).enganchado})
+    if pendientes:
+        _print_line(f"[warn_cl]guardado; se aplica cuando su elemento este enganchado: "
+                    f"{', '.join(pendientes)}[/warn_cl]")
+
+
+def _estilo_deshacer() -> None:
+    try:
+        ok = _aspecto.deshacer()
+    except _aspecto.EstiloInvalido as exc:
+        _aviso_degradado("estilo", f"deshacer: {exc}")
+        return
+    except Exception as exc:
+        _aviso_degradado("estilo", f"deshacer fallo: {type(exc).__name__}: {exc}")
+        return
+    if not ok:
+        _print_line("[warn_cl]nada que deshacer: no hay "
+                    f"{_escape(str(_aspecto.RUTA_ESTILO))}.bak[/warn_cl]")
+        return
+    _estilo_avisos(_aspecto.ultimos_avisos())
+    _aplicar_tema_en_caliente()
+    n = sum(1 for i in _aspecto.REGISTRO if _aspecto.tiene_override(i))
+    _print_line(f"[ok_cl]estilo: restaurado el anterior ({n} elementos difieren del "
+                "default; otro /estilo deshacer vuelve a este)[/ok_cl]")
+
+
+def _estilo_ayuda(nota_editor: bool = False) -> None:
+    _print_line(f"[info_dim]{_escape(_CMD_DETAILS.get('/estilo', ''))}[/info_dim]")
+    _print_line(f"[info_dim]{_escape(_ESTILO_USO)}[/info_dim]")
+    if nota_editor:
+        _print_line("[warn_cl]/estilo sin argumentos abrira el editor interactivo "
+                    "(editor interactivo: paso P11); por ahora, los subcomandos de arriba[/warn_cl]")
+
+
+def _sin_comillas(s: str) -> str:
+    s = s.strip()
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+        return s[1:-1]
+    return s
+
+
+def _slash_estilo(arg: str = "") -> None:
+    """`/estilo`: el aspecto de cada elemento del CLI, por separado y en
+    caliente (cognia/ux/aspecto.py). Cada escritura: validar (ruidoso) ->
+    guardar en ~/.cognia/estilo.json (con .bak) -> aplicar en caliente."""
+    arg = (arg or "").strip()
+    if not arg:
+        _estilo_ayuda(nota_editor=True)
+        return
+    partes = arg.split(None, 1)
+    sub = partes[0].lower()
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    if sub == "lista":
+        _estilo_lista(resto.lower())
+    elif sub == "ver":
+        _estilo_ver(resto)
+    elif sub == "reset":
+        _estilo_reset(resto)
+    elif sub == "animacion":
+        _estilo_animacion(resto)
+    elif sub == "guardar":
+        if not resto:
+            _print_line("[warn_cl]Uso: /estilo guardar <nombre-del-preset>[/warn_cl]")
+            return
+        try:
+            ruta = _aspecto.guardar_preset(resto)
+        except (ValueError, OSError) as exc:
+            _aviso_degradado("estilo", f"preset no guardado: {exc}")
+            return
+        _print_line(f"[ok_cl]estilo: preset guardado en {_escape(str(ruta))}[/ok_cl]")
+    elif sub == "cargar":
+        _estilo_cargar(_sin_comillas(resto))
+    elif sub == "presets":
+        _estilo_presets()
+    elif sub == "exportar":
+        if not resto:
+            _print_line("[warn_cl]Uso: /estilo exportar <ruta.json>[/warn_cl]")
+            return
+        try:
+            ruta = _aspecto.exportar(Path(_sin_comillas(resto)).expanduser())
+        except OSError as exc:
+            _aviso_degradado("estilo", f"no pude exportar: {exc}")
+            return
+        _print_line(f"[ok_cl]estilo: exportado completo a {_escape(str(ruta))}[/ok_cl]")
+    elif sub == "deshacer":
+        _estilo_deshacer()
+    elif sub in ("ayuda", "help"):
+        _estilo_ayuda()
+    elif sub == "banner":
+        _print_line("[warn_cl]/estilo banner (reimprimir el banner con el estilo actual) "
+                    "llega con el enganche del banner (paso P7)[/warn_cl]")
+    elif partes[0] in _aspecto.REGISTRO or "." in partes[0]:
+        id = partes[0]
+        if not resto:
+            _estilo_ver(id)
+        elif resto[0] in "\"'":
+            _estilo_poner_string(id, _sin_comillas(resto))
+        else:
+            p2 = resto.split(None, 1)
+            if len(p2) < 2:
+                _print_line(f"[warn_cl]falta el valor: /estilo {_escape(id)} {_escape(p2[0])} "
+                            f"<valor>  (o /estilo {_escape(id)} \"<style string>\")[/warn_cl]")
+                return
+            _estilo_poner(id, p2[0], _sin_comillas(p2[1]))
+    else:
+        import difflib as _difflib
+        parecidos = _difflib.get_close_matches(
+            partes[0], list(_ESTILO_SUBCOMANDOS) + list(_aspecto.REGISTRO), n=3, cutoff=0.5)
+        pista = f" ¿{', '.join(parecidos)}?" if parecidos else ""
+        _print_line(f"[warn_cl]/estilo: no entiendo '{_escape(partes[0])}'.{pista}[/warn_cl]")
+        _print_line(f"[info_dim]{_escape(_ESTILO_USO)}[/info_dim]")
 
 
 def _slash_expandir(arg: str = "") -> None:
@@ -12288,6 +12845,11 @@ def repl():
     # COGNIA_HORIZONTE del env, y horizonte.py el tope del traspaso; se
     # siembran desde la config y se validan (config invalida = grito).
     _aplicar_config_horizonte()
+    # ESTILOS POR ELEMENTO (/estilo): conectar el motor de glow al registro
+    # y cargar ~/.cognia/estilo.json con validacion ruidosa (roto = aviso
+    # 'estilo' y aspecto por defecto). Antes del banner: si hay overrides la
+    # Console se reconstruye con el Theme retenido.
+    _aplicar_config_estilo()
 
     # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
     # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
@@ -12633,6 +13195,10 @@ def repl():
                         "salir (o /salir, o Ctrl-D).[/info_dim]")
             continue
 
+        # Hot reload de estilo.json (E6): el toolbar solo marco; con el
+        # prompt ya devuelto y ANTES de despachar la linea se reconstruye.
+        _aplicar_recarga_estilo()
+
         # F5 (harness/notificaciones): si un turno anterior dejo el anillo
         # 9;4 de Windows Terminal en ROJO (error), se apaga AL TECLEAR el
         # siguiente prompt — no al mostrarlo, porque entonces el rojo viviria
@@ -12834,6 +13400,10 @@ def repl():
             _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
         elif raw == "/color" or raw.startswith("/color "):
             _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
+        # -- /estilo: estilos por elemento (P4). Comparacion exacta o con
+        # espacio: /estilo_info (== exacto) no colisiona.
+        elif raw == "/estilo" or raw.startswith("/estilo "):
+            _slash_estilo(raw[len("/estilo "):] if raw.startswith("/estilo ") else "")
         elif raw == "/expandir" or raw.startswith("/expandir "):
             _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
         elif raw == "/pegado" or raw.startswith("/pegado "):

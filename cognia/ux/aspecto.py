@@ -512,6 +512,33 @@ for _e in _ELEMENTOS:
     GRUPOS[-1][1].append(_e.id)
 del _e
 
+# E8 (P4, 2026-08-24): los elementos cuyo COLOR/negrita/italica pinta un token
+# del Theme de rich ya cambian EN CALIENTE con /estilo (cli._aplicar_tema_en_
+# caliente reconstruye la Console con tema_rich). Para ellos enganchado=True.
+# Los que pinta prompt_toolkit (prompt.*, barra.*, menu.*: P5), los glifos y
+# textos de tools/footer/avisos (P6), el banner (P7), el spinner (P8) y la
+# animacion (P9) siguen en False hasta su paso, y /estilo lo dice al guardar.
+ENGANCHADOS_P4 = ("sistema.ok", "sistema.detalle",
+                  "aviso.degradado", "aviso.info", "aviso.error",
+                  "tool.ok", "tool.error", "tool.curso", "tool.verbo",
+                  "tool.objeto", "tool.resultado", "tool.intencion",
+                  "footer.turno", "panel.borde", "panel.titulo", "panel.cuerpo",
+                  "separador.regla", "respuesta.markdown", "pensando.prosa",
+                  "pensando.plegado")
+for _id in ENGANCHADOS_P4:
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
+del _id
+
+# Paso que engancha cada grupo (para el aviso E8 de /estilo): el grupo o el id
+# no enganchado dice en que paso se aplicara lo guardado.
+PASO_ENGANCHE = {"banner": "P7", "prompt": "P5", "barra": "P5", "menu": "P5",
+                 "spinner": "P8", "tool": "P6", "respuesta": "P6", "pensando": "P6",
+                 "aviso": "P6", "footer": "P6", "panel": "P6", "diff": "P6",
+                 "separador": "P6", "sistema": "P6", "agentes": "P6"}
+# Propiedades que el Theme aplica en caliente en los ENGANCHADOS_P4: el resto
+# (texto, glifo, separador, visible, glow, animacion...) espera a su paso.
+PROPS_POR_TOKEN = ("color", "fondo", "negrita", "italica", "subrayado")
+
 # Que tokens del Theme de rich RETINE cada elemento cuando se le cambia el
 # color/negrita/italica (tema_rich). Un token compartido (ok_cl lo usan
 # sistema.ok, tool.ok y footer.turno.ok) lo manda el PRIMERO de la lista que
@@ -1723,15 +1750,30 @@ def _escribir_json(ruta: Path, doc: dict) -> None:
     ruta.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+DOC_VACIO = {"version": VERSION_FICHERO, "elementos": {}}
+
+
+def _hacer_bak(ruta: Path) -> None:
+    """Copia previa al guardado. Si el fichero NO existia, el .bak es el
+    documento VACIO (= defaults): asi el PRIMER cambio de la vida del fichero
+    tambien se deshace (cazado tecleando en el REPL, P4: '/estilo deshacer'
+    decia 'no hay .bak' justo despues del primer '/estilo sistema.ok color')."""
+    bak = ruta.with_suffix(ruta.suffix + ".bak")
+    if ruta.exists():
+        shutil.copyfile(ruta, bak)
+    else:
+        _escribir_json(bak, dict(DOC_VACIO))
+
+
 def guardar(ruta=None) -> Path:
     """Escribe documento() en estilo.json (o `ruta`), con copia previa en
-    .bak si ya existia. La memoria pasa a ser la capa 'fichero' (los
-    overrides se funden). Devuelve la ruta escrita."""
+    .bak (la anterior, o el documento vacio si es la primera). La memoria
+    pasa a ser la capa 'fichero' (los overrides se funden). Devuelve la ruta
+    escrita."""
     ruta = _ruta(ruta)
     doc = documento()
     doc["$schema"] = str(RUTA_SCHEMA)
-    if ruta.exists():
-        shutil.copyfile(ruta, ruta.with_suffix(ruta.suffix + ".bak"))
+    _hacer_bak(ruta)
     _escribir_json(ruta, doc)
     if ruta == RUTA_ESTILO:
         _estado["overrides"].clear()
@@ -1794,8 +1836,7 @@ def cargar_preset(nombre_o_ruta, ruta_destino=None) -> dict:
     if errores(avisos):
         raise EstiloInvalido(origen, sorted(avisos, key=lambda a: a.nivel != "error"))
     destino = _ruta(ruta_destino)
-    if destino.exists():
-        shutil.copyfile(destino, destino.with_suffix(destino.suffix + ".bak"))
+    _hacer_bak(destino)
     doc.setdefault("nombre", origen.stem)
     doc["$schema"] = str(RUTA_SCHEMA)
     _escribir_json(destino, doc)
@@ -2054,3 +2095,105 @@ def poner_style_string(id: str, s: str) -> list:
     _estado["overrides"][id] = _fusionar_dicts(_estado["overrides"].get(id) or {}, cambio)
     _subir_version()
     return avisos
+
+
+# ---------------------------------------------------------------------------
+# 12. P4: lo que el CLI necesita para conectar el motor y para /estilo ver
+# ---------------------------------------------------------------------------
+FPS_DEFECTO = 12
+
+
+def fps() -> int:
+    """global.fps del fichero cargado (validado 1..30); 12 si no se declaro."""
+    try:
+        v = (_estado["doc"].get("global") or {}).get("fps")
+        return int(v) if isinstance(v, int) and not isinstance(v, bool) else FPS_DEFECTO
+    except Exception:
+        return FPS_DEFECTO
+
+
+def global_doc() -> dict:
+    """La seccion 'global' del fichero cargado (fps, respuesta_sangria, glifos)."""
+    return dict(_estado["doc"].get("global") or {})
+
+
+def capas(id: str) -> tuple:
+    """(cambios del fichero, cambios en memoria) de un id: las dos capas que
+    _cambios_de fusiona, separadas para poder decir el ORIGEN de cada valor."""
+    elemento(id)
+    doc = (_estado["doc"].get("elementos") or {}).get(id) or {}
+    mem = _estado["overrides"].get(id) or {}
+    return dict(doc), dict(mem)
+
+
+def origen(id: str, campo: str) -> str:
+    """'memoria' | 'estilo.json' | 'default' para un campo de primer nivel
+    ('color', 'glow', 'animacion', 'estados'...) de un elemento."""
+    doc, mem = capas(id)
+    if campo in mem:
+        return "memoria"
+    if campo in doc:
+        return "estilo.json"
+    return "default"
+
+
+def estilo_glow(id: str, variante: str | None = None, estado: str | None = None):
+    """Adaptador para glow.RESOLVER (desviacion 1 del agente de glow): un
+    EstiloResuelto traducido al EstiloGlow del motor. `estado` elige un
+    sub-estado resuelto (activo/meta/h1...); desconocido -> KeyError ruidoso
+    (glow lo avisa por _aviso_degradado('glow', ...) y pinta neutro).
+    Colores: los nombres ansi de prompt_toolkit pasan al vocabulario de rich
+    y '' (terminal) queda '' (EstiloGlow no acepta 'default')."""
+    from . import glow as _glow
+    r = estilo_resuelto(id, variante)
+    c = _cambios_de(id)
+    if estado:
+        if estado not in r.estados:
+            raise KeyError(f"'{id}' no tiene el estado '{estado}'; tiene: "
+                           f"{', '.join(r.estados) or 'ninguno'}")
+        r = r.estados[estado]
+        c = (c.get("estados") or {}).get(estado) or {}
+
+    def _c(v: str) -> str:
+        if not v:
+            return ""
+        v = color_rich(v)
+        return "" if v == "default" else v
+
+    a = r.animacion or Animacion()
+    # Byte-identico: con token del Theme y sin override de color/modificador,
+    # ni glow ni animacion, el motor tiene que recibir SOLO el token (asi
+    # devuelve 'ok_cl' tal cual y rich lo pinta como hoy). El color resuelto
+    # solo viaja cuando hace falta mezclar o el dueno lo cambio.
+    tocado = (any(k in c for k in PROPS_POR_TOKEN) or int(r.glow_intensidad or 0) > 0
+              or bool(a.activa))
+    if r.token and not tocado:
+        return _glow.EstiloGlow(token=r.token, glow_color=r.glow_color or "",
+                                gradiente=tuple(r.gradiente) if r.gradiente else None)
+    return _glow.EstiloGlow(
+        token=r.token or "",
+        color=_c(r.color), fondo=_c(r.fondo),
+        negrita=bool(r.negrita), italica=bool(r.italica), subrayado=bool(r.subrayado),
+        glow_color=r.glow_color or "", glow_intensidad=int(r.glow_intensidad or 0),
+        anim_activa=bool(a.activa), anim_tipo=a.tipo, anim_direccion=a.direccion,
+        anim_velocidad=int(a.velocidad), anim_ancho=int(a.ancho),
+        anim_repetir=int(a.repetir), anim_cada_s=float(a.cada_s),
+        anim_solo_al_llegar=bool(a.solo_al_llegar),
+        gradiente=tuple(r.gradiente) if r.gradiente else None)
+
+
+def conectar_glow(leer_config=None) -> None:
+    """Cuelga este registro del motor (glow.RESOLVER/VERSION/VARIANTE/
+    LEER_CONFIG y FPS). Idempotente; lo llama el CLI al arrancar el REPL y
+    tras cada carga (el fps puede haber cambiado)."""
+    from . import glow as _glow
+    _glow.RESOLVER = estilo_glow
+    _glow.VERSION = version
+    _glow.VARIANTE = variante_activa
+    if leer_config is not None:
+        _glow.LEER_CONFIG = leer_config
+    _glow.FPS = fps()
+    try:
+        _glow.vaciar_memo()
+    except Exception:
+        pass
