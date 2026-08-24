@@ -2,34 +2,55 @@
 
 ---
 
-## [Sin publicar]
+## [4.10.0] - 2026-08-24
 
-### Sistema de estilos por elemento (parcial)
+### Sistema de estilos por elemento (`/estilo`)
 
-- 50 elementos visuales del REPL en 15 grupos, cada uno con id y propiedades
-  (texto, color, fondo, negrita/italica/subrayado, glow, animacion, glifo,
-  posicion, alineacion, visible, gradiente, separador) en `cognia/ux/aspecto.py`;
-  fichero `~/.cognia/estilo.json` (override parcial, `.bak`, deshacer, exportar),
-  5 presets del paquete (`clasico`, `barra-color`, `neon`, `sobrio`, `ansi16`),
-  JSON Schema y style string. Sin fichero, el aspecto es **byte-identico** al
-  de siempre (26 goldens en `tests/golden/aspecto/`).
-- Motor de glow/barrido (`cognia/ux/glow.py`) con deteccion de capacidades y
-  orden de apagado (`COGNIA_ANIMACION=0`, config `estilo_animacion`, `NO_COLOR`,
-  sin tty, `COGNIA_REMOTO`, SSH, consola legacy); siempre termina en frame
-  estatico; cero hilos permanentes.
-- Enganchados en el REPL: el banner (gradiente, glow, barrido al arrancar,
-  textos, caja, alineacion, visible) y el spinner (`spinner.tool`,
-  `spinner.pensar`, `spinner.comando`). Medido en ConPTY: 18 cuadros de barrido
-  distintos en el banner y 0 por pipe; 7 en el spinner y 0 con `COGNIA_ANIMACION=0`.
-- Editor interactivo full-screen (`cognia/ux/editor_aspecto.py` +
-  `cognia/ux/editor_app.py`): tres paneles, vista previa con el motor real,
-  undo/redo, presets con preview, guardar con `.bak`.
-- Documentacion de usuario: `docs/ESTILO.md`.
-- Pendiente (en fusion, rama `estilos/cli`): el comando `/estilo` y la carga del
-  fichero al arrancar, el enganche del prompt/barra/menus, el Theme de rich y los
-  glifos de tools/footer/avisos, el prompt animado y el hot reload cableado.
+- Cada elemento visual del REPL se edita por separado: 50 elementos en 15
+  grupos (banner, prompt, barra, menu, spinner, tool, respuesta, pensando,
+  aviso, footer, panel, diff, separador, sistema, agentes) con texto, color,
+  fondo, negrita/italica/subrayado, glow (color + intensidad), animacion
+  (barrido izquierda->derecha o pulso: velocidad, ancho, direccion,
+  repeticiones), glifo, posicion, alineacion, visible, gradiente y separador
+  (`cognia/ux/aspecto.py`). 46 de 50 ya enganchados al render.
+- `/estilo lista [grupo] | ver <id> | <id> <prop> <valor> | <id> "<style
+  string>" | reset | animacion on|off | guardar/cargar <preset> | presets |
+  exportar | deshacer | banner`; se aplica en caliente y convive con `/tema`
+  y `/color`. Fichero `~/.cognia/estilo.json` (override parcial, `.bak`,
+  hot reload al editarlo a mano), 5 presets del paquete (`clasico`,
+  `barra-color`, `neon`, `sobrio`, `ansi16`), JSON Schema.
+- `/estilo` a secas abre el EDITOR interactivo full-screen: paneles
+  elementos | propiedades, vista previa viva del elemento con el motor real,
+  selector de color con contraste por variante, glifos, undo/redo, presets
+  con preview de pantalla entera, Ctrl-S guarda; solo con terminal real, sin
+  corrida en fondo y fuera de `COGNIA_REMOTO` (si no, degrada a la ayuda).
+- Motor de glow/barrido (`cognia/ux/glow.py`): banner con barrido al
+  arrancar que termina y deja el halo, spinner con barrido dentro del status,
+  prompt con pulso finito (sin CPU permanente), interruptor global y apagado
+  automatico (`COGNIA_ANIMACION=0`, `NO_COLOR`, sin tty, `COGNIA_REMOTO`).
+- Sin fichero de estilo el aspecto es byte-identico al de 4.9 (26 goldens).
+  Contrato del remoto/movil intacto. Documentacion: `docs/ESTILO.md`.
 
----
+### Arnes del agente (ideas de deepseek-harness llevadas a Cognia)
+
+- Tools colapsadas estilo Claude Code con `/expandir`; spinner vivo con verbo,
+  segundos y tokens (`/spinner`); markdown en streaming sin flicker
+  (`/markdown`); pastes largos colapsados (`/pegado`); rutas clicables OSC 8
+  (`/enlaces`); notificaciones que funcionan en Windows Terminal (anillo de
+  progreso, BEL, toast; `/notificar`); offload de salidas grandes con
+  recuperacion (`/offload`); compactacion de contexto por resumen
+  (`/compactar`); `/config-resuelta` con el origen de cada clave.
+- Footer de contexto honesto: % libre con headroom, mini-barra, umbral
+  acoplado al de compactacion; el contexto vivo se alimenta de verdad desde
+  el bucle del agente.
+- `/bucle`: recordatorio advisory de llamadas repetidas y timeout por tool con
+  resultado tipado `TOOL_TIMEOUT` (el proceso hijo se espera y se mata de
+  verdad). Contrato RALPH en `/horizonte`: report de 5 campos validado dos
+  veces, traspaso acotado, "el worker reporta completado" nunca "completado".
+- Pulido visual medido tecleando contra el modelo: logo que no se parte a 100
+  columnas, una lectura sana ya no se pinta como error, cierre de turno
+  coherente, un solo footer, preview una vez, `/x estado` uniforme,
+  `/ayuda` con categoria "Consola y arnes".
 
 ## [4.9.0] - 2026-08-18
 
