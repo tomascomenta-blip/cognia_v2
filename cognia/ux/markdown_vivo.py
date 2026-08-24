@@ -15,6 +15,22 @@ MECANISMO (la maquina de Aider + el reloj de CodeWhale, leidos de sus fuentes):
   envejece (> CATCHUP_S) se vuelca ya. Nunca se comitea la linea parcial
   final, y una linea estable DENTRO de un fence abierto se RETIENE: un bloque
   de codigo jamas se parte al commitearlo.
+- REGLA DEL BLOQUE ABIERTO (revision adversarial 2026-08-24): solo se
+  comitean lineas de bloques CERRADOS. rich calcula los anchos de una tabla
+  sobre TODAS sus filas y la sangria de una lista ordenada sobre su ULTIMO
+  numero, asi que las primeras filas de una tabla (o los items 1..9 de una
+  lista de 10+) commiteadas con la ventana de 6 salian con un ancho distinto
+  al del render final: tabla partida en dos anchos en el transcript (medido:
+  11 de 12 lineas commiteadas distintas). Lo mismo un parrafo seguido de un
+  subrayado setext ('---'): se convierte en titulo. Por eso el tope de commit
+  es el inicio del ultimo bloque abierto (fence, tabla, lista ordenada —que
+  sigue abierta tras una linea en blanco—, parrafo hasta su linea en blanco).
+- TOPE DE ALTURA (mismo dia): la cola viva nunca supera la altura de la
+  terminal. CUU ('ESC[nA') se clampa en la fila 0 y ESC[J solo borra la
+  pantalla visible: un fence de 60 lineas en una terminal de 30 filas dejaba
+  30 lineas NUEVAS en el scrollback por repintado (N copias parciales del
+  bloque encima de la definitiva). Si el bloque abierto no cabe, se comitea
+  su cabeza aunque pueda reflowear: mejor un ancho distinto que N copias.
 
 POR QUE cursor-up ANSI y no rich Live para la cola:
 - rich permite UN solo Live por Console y console.status (el spinner vivo del
@@ -71,6 +87,12 @@ _SANGRIA = "  "
 
 # Un fence de CommonMark: hasta 3 espacios de sangria + ``` o ~~~ (3 o mas).
 _RE_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+# Item de lista ORDENADA (la que reflowea por el ancho del ultimo numero).
+_RE_ITEM_ORDENADO = re.compile(r"^ {0,3}\d{1,9}[.)](\s|$)")
+# Titulo ATX: bloque de UNA linea, cerrado al terminar la linea.
+_RE_ATX = re.compile(r"^ {0,3}#{1,6}(\s|$)")
+# Margen de filas que se deja libre bajo la cola viva (prompt, spinner).
+_MARGEN_ALTO = 2
 
 
 def _avisar(motivo: str) -> None:
@@ -161,6 +183,67 @@ def fence_abierto(texto: str):
     return None if abierto is None else abierto[0]
 
 
+def bloque_abierto(texto: str):
+    """Offset en chars del INICIO del ultimo bloque markdown todavia ABIERTO
+    (el que puede cambiar de forma cuando llegue mas texto), o None si el
+    texto termina en un bloque cerrado. Bloques y su cierre:
+      - fence: hasta su marca de cierre (regla de fence_abierto);
+      - tabla ('|' al inicio): hasta una linea en blanco o una que no sea fila;
+      - lista ordenada: hasta una linea en blanco seguida de algo que NO es
+        item ni continuacion sangrada (una lista 'loose' sigue siendo una);
+      - titulo ATX: una sola linea, cerrado;
+      - cualquier otra cosa (parrafo, lista con vinetas, cita): hasta una
+        linea en blanco (un '---' pegado debajo lo vuelve titulo setext).
+    """
+    tipo = None
+    inicio = None
+    fence = None
+    tras_blanco = False
+    off = 0
+    lineas = texto.split("\n")
+    if lineas and lineas[-1] == "":
+        # el texto termina en '\n': la linea siguiente NO empezo todavia; no
+        # es una linea en blanco (eso seria '\n\n') y no cierra nada
+        lineas.pop()
+    for linea in lineas:
+        m = _RE_FENCE.match(linea)
+        if fence is not None:
+            if (m and m.group(1)[0] == fence[0]
+                    and len(m.group(1)) >= len(fence)
+                    and not m.group(2).strip()):
+                fence, tipo, inicio = None, None, None
+        elif m:
+            fence, tipo, inicio = m.group(1), "fence", off
+        elif not linea.strip():
+            if tipo == "lista":
+                tras_blanco = True
+            else:
+                tipo, inicio = None, None
+        else:
+            es_item = bool(_RE_ITEM_ORDENADO.match(linea))
+            es_fila = linea.lstrip().startswith("|")
+            if tipo == "lista":
+                if tras_blanco and not (es_item or linea.startswith("  ")
+                                        or linea.startswith("\t")):
+                    tipo = None
+                else:
+                    tras_blanco = False
+            elif tipo == "tabla" and not es_fila:
+                tipo = None
+            if tipo is None:
+                inicio = off
+                if es_item:
+                    tipo, tras_blanco = "lista", False
+                elif es_fila:
+                    tipo = "tabla"
+                elif _RE_ATX.match(linea):
+                    inicio = None            # una linea: ya esta cerrado
+                else:
+                    tipo = "parrafo"
+        off += len(linea) + 1
+    return inicio if tipo is not None else None
+
+
 class MarkdownVivo:
     """Render markdown en streaming con commit de lineas estables.
 
@@ -173,8 +256,9 @@ class MarkdownVivo:
 
     def __init__(self, console=None, tema: str | None = None,
                  ventana: int = VENTANA, ancho: int | None = None,
-                 salida=None, reloj=None):
-        # ``salida``/``reloj`` inyectables para tests (StringIO / reloj fake).
+                 salida=None, reloj=None, alto: int | None = None):
+        # ``salida``/``reloj``/``alto`` inyectables para tests (StringIO /
+        # reloj fake / filas de la terminal).
         self._console = console
         self._tema = tema or config()[1]
         self._ventana = max(1, int(ventana))
@@ -190,6 +274,15 @@ class MarkdownVivo:
                 w = 80
             ancho = max(40, min(int(w) - len(_SANGRIA) * 2, ANCHO_MAX))
         self._ancho = max(20, int(ancho))
+        # tope de la cola viva: las filas de la terminal menos un margen; por
+        # debajo de la ventana no tiene sentido (la ventana ya es el minimo).
+        if alto is None:
+            try:
+                alto = (getattr(console, "height", None)
+                        or shutil.get_terminal_size().lines) - _MARGEN_ALTO
+            except Exception:
+                alto = 24 - _MARGEN_ALTO
+        self._alto = max(self._ventana, int(alto))
         # color: solo si la Console real lo pinta (FORCE_COLOR incluido via
         # is_terminal de rich); sin color el render interno sale plano.
         self._color = bool(console is not None
@@ -216,7 +309,7 @@ class MarkdownVivo:
         self._cola_altura = 0         # lineas de la cola viva en pantalla
         self._ultimo = 0.0            # ts del ultimo repintado
         self._retraso = RELOJ         # throttle adaptativo vigente
-        self._cache_fence = None      # (offset_fence, tope) — ver _tope_fence
+        self._cache_bloque = None     # (offset_bloque, tope) — ver _tope_bloque
         self._plano = None            # FlujoSuave del turno degradado, o None
 
     def _es_tty(self) -> bool:
@@ -242,23 +335,23 @@ class MarkdownVivo:
         c.print(Markdown(texto or "", code_theme=self._tema))
         return buf.getvalue().splitlines()
 
-    def _tope_fence(self):
-        """Tope de commit cuando hay un fence ABIERTO: el numero de lineas
-        renderizadas ANTES del fence (regla CodeWhale: no partir un bloque de
-        codigo al commitear — reteniendolo entero en la cola hasta que
-        cierre). None = sin fence abierto, sin tope. El render del prefijo se
-        cachea por offset del fence: no cambia mientras el mismo siga
-        abierto."""
-        off = fence_abierto(self._texto)
+    def _tope_bloque(self):
+        """Tope de commit cuando hay un bloque ABIERTO (ver bloque_abierto):
+        el numero de lineas renderizadas ANTES de el. Un fence no se parte
+        (regla CodeWhale) y una tabla/lista/parrafo no se comitea con una
+        forma que el render final va a cambiar. None = sin bloque abierto.
+        El render del prefijo se cachea por offset del bloque: no cambia
+        mientras el mismo siga abierto."""
+        off = bloque_abierto(self._texto)
         if off is None:
-            self._cache_fence = None
+            self._cache_bloque = None
             return None
-        if self._cache_fence is not None and self._cache_fence[0] == off:
-            return self._cache_fence[1]
+        if self._cache_bloque is not None and self._cache_bloque[0] == off:
+            return self._cache_bloque[1]
         lineas = self._render(self._texto[:off])
         while lineas and not lineas[-1].strip():
             lineas.pop()
-        self._cache_fence = (off, len(lineas))
+        self._cache_bloque = (off, len(lineas))
         return len(lineas)
 
     def _repintar(self, final: bool) -> None:
@@ -269,9 +362,14 @@ class MarkdownVivo:
             nuevo = len(lineas)
         else:
             nuevo = max(0, len(lineas) - self._ventana)
-            tope = self._tope_fence()
+            tope = self._tope_bloque()
             if tope is not None:
                 nuevo = min(nuevo, tope)
+            if self._animar and len(lineas) - nuevo > self._alto:
+                # La cola no cabe en la pantalla: repintarla duplicaria en el
+                # scrollback lo que ya scrolleo (CUU se clampa en la fila 0).
+                # Se comitea la cabeza del bloque abierto aunque reflowee.
+                nuevo = len(lineas) - self._alto
         # el commit NUNCA retrocede: lo impreso al scrollback ya es historia
         nuevo = max(nuevo, self._estables)
         frescas = lineas[self._estables:nuevo]

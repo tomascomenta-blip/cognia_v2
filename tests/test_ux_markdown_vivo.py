@@ -8,13 +8,14 @@ modulo estos tests revientan con ImportError; sin el cableado del renderer,
 test_renderer_abre_markdown_vivo falla.
 """
 import io
+import re
 import os
 
 import pytest
 
 from cognia.ux import markdown_vivo
 from cognia.ux.markdown_vivo import (CATCHUP_S, RELOJ, RETRASO_MAX,
-                                     MarkdownVivo, fence_abierto,
+                                     MarkdownVivo, bloque_abierto, fence_abierto,
                                      retraso_adaptativo)
 
 
@@ -177,7 +178,7 @@ def test_fence_abierto_no_se_comitea():
     for i in range(0, len(texto), 9):
         reloj.avanzar(10.0)
         mv.escribir(texto[i:i + 9])
-    tope = mv._tope_fence()
+    tope = mv._tope_bloque()
     assert tope is not None
     assert mv._estables <= tope, \
         "se commitearon lineas DENTRO de un fence abierto"
@@ -334,3 +335,94 @@ def test_renderer_remoto_conserva_camino_viejo(monkeypatch):
     # bajo remoto el renderer ni siquiera abre flujo (la respuesta llega
     # entera via _show_response): el contrato del movil queda intacto
     assert r._flujo is None
+
+
+# ---------------------------------------------------------------------------
+# revision adversarial 2026-08-24: solo se comitean bloques CERRADOS
+# ---------------------------------------------------------------------------
+
+TABLA = ("| col | valor |\n|---|---|\n"
+         + "".join(f"| r{i} | x |\n" for i in range(14))
+         + "| r14 | una celda mucho mas ancha que todas las otras |\n")
+LISTA = "".join(f"{i}. item {i}\n" for i in range(1, 13))
+SETEXT = "Una frase corta que parece un parrafo\n---\n"
+
+
+def _stream_invariante(texto, paso, cierre="\n\nfin.\n", **kw):
+    """Streamea `texto` y comprueba en CADA paso que lo commiteado es un
+    prefijo EXACTO del render final (no solo que no cambie despues: que
+    coincida con lo que el render batch pinta). Devuelve (mv, salida)."""
+    mv, salida, reloj = _mv(**kw)
+    todo = texto + cierre
+    final = MarkdownVivo(console=None, salida=io.StringIO(),
+                         ancho=mv._ancho)._render(todo)
+    for i in range(0, len(todo), paso):
+        reloj.avanzar(10.0)
+        mv.escribir(todo[i:i + paso])
+        n = len(mv._commiteadas)
+        assert mv._commiteadas == final[:n], \
+            f"commiteado con otra forma en el paso {i}: " \
+            f"{mv._commiteadas[-1]!r} != {final[n - 1]!r}"
+    return mv, salida
+
+
+def test_tabla_no_se_comitea_con_el_ancho_parcial():
+    # antes: 11 de 12 lineas commiteadas distintas del render final (la
+    # cabecera ' a   b ' a 10 columnas contra 44 en el final)
+    mv, salida = _stream_invariante(TABLA, 4)
+    assert mv._estables > 0, "la tabla cerrada tiene que commitearse"
+    mv.cerrar()
+    assert "r14" in salida.getvalue()
+
+
+def test_lista_ordenada_de_diez_o_mas_no_desplaza_lo_commiteado():
+    # antes: ' 1 item 1' commiteada y '  1 item 1' en el final (rich sangra
+    # al ancho del ULTIMO numero)
+    mv, _ = _stream_invariante(LISTA, 3)
+    assert mv._estables > 0
+
+
+def test_parrafo_seguido_de_subrayado_setext_no_se_comitea_como_prosa():
+    mv, _ = _stream_invariante(SETEXT, 5, ventana=1)
+    assert mv._estables > 0
+
+
+def test_bloque_abierto_reglas():
+    assert bloque_abierto("hola\n") == 0            # parrafo abierto
+    assert bloque_abierto("hola\n\n") is None       # cerrado por blanco
+    assert bloque_abierto("# titulo\n") is None     # ATX: una linea
+    assert bloque_abierto("# titulo\nprosa") == len("# titulo\n")
+    assert bloque_abierto("| a |\n|---|\n| 1 |\n") == 0
+    assert bloque_abierto("| a |\n|---|\n\nprosa") == len("| a |\n|---|\n\n")
+    # lista 'loose': la blanca no la cierra si sigue un item
+    assert bloque_abierto("1. a\n\n2. b\n") == 0
+    assert bloque_abierto("1. a\n\nprosa") == len("1. a\n\n")
+    # el fence manda: dentro de el, nada cierra
+    assert bloque_abierto("intro\n\n```py\n| no es tabla |\n\n") == len("intro\n\n")
+    assert bloque_abierto("intro\n\n```py\nx\n```\n") is None
+
+
+def test_bloque_mas_alto_que_la_pantalla_se_comitea_por_arriba():
+    # fence de 40 lineas, terminal de 10 filas utiles, animado: la cola viva
+    # jamas supera las 10 (CUU se clampa en la fila 0 y cada repintado
+    # duplicaba en el scrollback lo que ya scrolleo)
+    texto = "intro\n\n```python\n" + "\n".join(
+        f"x{i} = {i}" for i in range(40)) + "\n"
+    mv, salida, reloj = _mv(alto=10)
+    mv._animar = True
+    for i in range(0, len(texto), 9):
+        reloj.avanzar(10.0)
+        mv.escribir(texto[i:i + 9])
+        assert mv._cola_altura <= 10, mv._cola_altura
+    assert mv._estables > 3, "la cabeza del fence tiene que salir al scrollback"
+    subidas = [int(m) for m in re.findall(r"\x1b\[(\d+)A", salida.getvalue())]
+    assert subidas and max(subidas) <= 10
+    reloj.avanzar(10.0)
+    mv.escribir("```\n")
+    # la cabeza commiteada del fence es IDENTICA al render final (las lineas
+    # de codigo no reflowean): el transcript no tendra copias distintas
+    final = MarkdownVivo(console=None, salida=io.StringIO(),
+                         ancho=mv._ancho)._render(texto + "```\n")
+    assert mv._commiteadas == final[:len(mv._commiteadas)]
+    mv.cerrar()
+    assert mv._cola_altura == 0
