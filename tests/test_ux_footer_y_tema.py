@@ -144,3 +144,24 @@ def test_la_mini_barra_se_vacia_al_gastar_contexto():
     assert m, linea
     libre = int(m.group(1))
     assert m.group(2).count("█") == round(libre * 8 / 100), linea
+
+
+def test_el_enlace_del_markdown_lleva_el_acento_no_el_detalle():
+    """rich pinta el TEXTO de un enlace con hyperlinks (el default de Markdown
+    y del CLI) con 'markdown.link_url' + OSC 8, no con 'markdown.link'
+    (rich/markdown.py, link_open). 9f9c74e8 puso link='acento' y
+    link_url='detalle': el enlace salia en dim white (\x1b[2;37m), lo
+    contrario de lo que el commit decia. Los dos van en el acento."""
+    from rich.markdown import Markdown
+    from rich.style import Style
+    from rich.theme import Theme
+    con, buf = _consola(Theme(paleta.tema_cli("oscuro")), color=True)
+    con.print(Markdown("Un [enlace](https://example.org) aqui"))
+    crudo = buf.getvalue()
+    assert "enlace" in crudo
+    acento = Style.parse(paleta.tema_cli("oscuro")["markdown.link"])
+    assert acento.color.get_ansi_codes()[0] in crudo, crudo
+    assert "\x1b[2;37m" not in crudo, crudo
+    for variante in paleta.ORDEN_VARIANTES:
+        tema = paleta.tema_cli(variante)
+        assert tema["markdown.link_url"] == tema["markdown.link"], variante

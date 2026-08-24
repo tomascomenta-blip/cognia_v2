@@ -341,7 +341,12 @@ TOKENS_CLI = {
     "markdown.item.number": "acento",
     "markdown.item.bullet": "acento",
     "markdown.link":       "acento",
-    "markdown.link_url":   "detalle",
+    # OJO: con hyperlinks (el default de rich.Markdown y el del CLI) el TEXTO
+    # visible del enlace se pinta con 'markdown.link_url' (+ OSC 8), no con
+    # 'markdown.link' (rich/markdown.py, link_open); 'markdown.link' solo sale
+    # sin hyperlinks, con la URL entre parentesis detras. Con link_url en
+    # 'detalle' el enlace quedaba en dim white: los dos van en el acento.
+    "markdown.link_url":   "acento",
     "markdown.hr":         "identidad_tenue",
     "markdown.block_quote": "detalle",
 }
