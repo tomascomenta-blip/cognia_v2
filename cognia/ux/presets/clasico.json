@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "nombre": "clasico",
+  "nota": "El aspecto de siempre: los defaults del registro, sin glow ni animacion. Cargarlo equivale a /estilo reset todo.",
+  "elementos": {}
+}

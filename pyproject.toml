@@ -137,7 +137,10 @@ exclude = [
 
 [tool.setuptools.package-data]
 "shattering" = ["manifests/*.json"]
-"cognia" = ["knowledge/*.json", "knowledge/*.txt", "skills/*.md"]
+"cognia" = ["knowledge/*.json", "knowledge/*.txt", "skills/*.md",
+            # Sistema de estilos (/estilo): los 5 presets del paquete y el JSON
+            # Schema que VS Code usa al editar ~/.cognia/estilo.json a mano.
+            "ux/presets/*.json", "ux/estilo.schema.json"]
 # Build Vite de la oficina 3D: sin esto /oficina3d instalado respondia
 # "falta el build 3d" (cazado e2e 2026-07-15). Solo el dist compilado
 # (~KBs), no node_modules/src (esos siguen fuera del wheel).

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "nombre": "sobrio",
+  "nota": "Sin glow y sin animacion en TODOS los elementos vivos, dicho explicitamente (asi tapa cualquier estilo.json previo); la flecha y las reglas en ASCII y la barra de atajos apagada: lo minimo que sigue siendo Cognia.",
+  "elementos": {
+    "banner.arte": { "glow": { "intensidad": 0 }, "animacion": { "activa": false } },
+    "prompt.marco": { "glow": { "intensidad": 0 }, "animacion": { "activa": false }, "glifo": "-", "glifo_ascii": "-" },
+    "prompt.etiqueta": { "glow": { "intensidad": 0 }, "animacion": { "activa": false } },
+    "prompt.flecha": { "glow": { "intensidad": 0 }, "animacion": { "activa": false }, "glifo": "> ", "glifo_ascii": "> " },
+    "prompt.espera": { "glow": { "intensidad": 0 }, "animacion": { "activa": false } },
+    "barra.estado": { "glow": { "intensidad": 0 }, "animacion": { "activa": false } },
+    "barra.atajos": { "visible": false },
+    "barra.modo": { "glow": { "intensidad": 0 }, "animacion": { "activa": false } },
+    "spinner.tool": { "glow": { "intensidad": 0 }, "animacion": { "activa": false } },
+    "spinner.pensar": { "glow": { "intensidad": 0 }, "animacion": { "activa": false } },
+    "respuesta.texto": { "glow": { "intensidad": 0 } },
+    "separador.regla": { "glifo": "-", "glifo_ascii": "-" }
+  }
+}

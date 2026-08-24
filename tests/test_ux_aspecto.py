@@ -658,3 +658,468 @@ def test_el_modulo_no_arrastra_rich_ni_prompt_toolkit_al_importar():
                          cwd=str(REPO), env={**os.environ, "PYTHONUTF8": "1"})
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == "[]", out.stdout
+
+
+# ===========================================================================
+# P2: el fichero, los presets, el style string, el hot reload
+# ===========================================================================
+import json  # noqa: E402
+import random  # noqa: E402
+import re  # noqa: E402
+
+
+@pytest.fixture
+def carpeta(tmp_path, monkeypatch):
+    """~/.cognia apuntado a un tmp_path: nada de estos tests toca el HOME."""
+    monkeypatch.setattr(A, "RUTA_ESTILO", tmp_path / "estilo.json")
+    monkeypatch.setattr(A, "DIR_PRESETS", tmp_path / "estilos")
+    A.cargar()
+    return tmp_path
+
+
+def _leer(ruta):
+    return json.loads(Path(ruta).read_text(encoding="utf-8"))
+
+
+def test_cargar_sin_fichero_son_los_defaults(carpeta):
+    assert A.cargar() == {}
+    assert A.texto("prompt.etiqueta") == "cognia" and A.documento()["elementos"] == {}
+
+
+def test_guardar_escribe_solo_el_diff_y_conserva_lo_desconocido(carpeta):
+    original = {"version": 1, "nombre": "mio", "nota": "prueba", "extra_del_futuro": {"x": 1},
+                "paleta": {"lima": "#c8ff7a"}, "global": {"fps": 10},
+                "elementos": {"prompt.etiqueta": {"texto": "jarvis", "color": "@mi.lima"}}}
+    A.RUTA_ESTILO.write_text(json.dumps(original), encoding="utf-8")
+    A.cargar()
+    avisos = A.ultimos_avisos()
+    assert all(a.nivel == "aviso" for a in avisos)
+    assert any("extra_del_futuro" in a.texto for a in avisos)     # la clave desconocida
+    assert A.texto("prompt.etiqueta") == "jarvis"
+    assert A.estilo_resuelto("prompt.etiqueta").color == "#c8ff7a"
+    # un valor IGUAL al default no se escribe; uno distinto si
+    assert A.poner("prompt.etiqueta", "negrita", True) == []
+    assert A.poner("prompt.flecha", "glifo", "» ") == []
+    ruta = A.guardar()
+    escrito = _leer(ruta)
+    assert escrito["elementos"] == {"prompt.etiqueta": {"texto": "jarvis", "color": "@mi.lima"},
+                                    "prompt.flecha": {"glifo": "» "}}
+    for k in ("nombre", "nota", "extra_del_futuro", "paleta", "global"):
+        assert escrito[k] == original[k], k
+    assert escrito["$schema"].endswith("estilo.schema.json")
+    # round-trip: cargar(guardar(doc)) deja el mismo documento()
+    antes = A.documento()
+    A.cargar()
+    assert A.documento() == antes
+    assert not A._estado["overrides"], "guardar funde la memoria en la capa fichero"
+
+
+def test_bak_y_deshacer_alternan(carpeta):
+    A.poner("prompt.etiqueta", "texto", "uno")
+    A.guardar()
+    assert not (carpeta / "estilo.json.bak").exists()
+    A.poner("prompt.etiqueta", "texto", "dos")
+    A.guardar()
+    assert (carpeta / "estilo.json.bak").exists()
+    assert A.deshacer() is True and A.texto("prompt.etiqueta") == "uno"
+    assert A.deshacer() is True and A.texto("prompt.etiqueta") == "dos"
+    (carpeta / "estilo.json.bak").unlink()
+    assert A.deshacer() is False
+
+
+def test_cargar_con_errores_no_instala_nada_y_los_nombra(carpeta):
+    A.poner("prompt.etiqueta", "texto", "antes")
+    A.guardar()
+    A.RUTA_ESTILO.write_text(json.dumps({"version": 1, "elementos": {
+        "prompt.etiquta": {"texto": "x"}, "prompt.marco": {"posicion": "diagonal"}}}), encoding="utf-8")
+    with pytest.raises(A.EstiloInvalido) as exc:
+        A.cargar()
+    assert len(exc.value.avisos) == 2 and all(a.nivel == "error" for a in exc.value.avisos)
+    assert "prompt.etiqueta" in str(exc.value) and "diagonal" in str(exc.value)
+    # lo cargado antes sigue en pie
+    assert A.texto("prompt.etiqueta") == "antes"
+    A.RUTA_ESTILO.write_text("{no es json", encoding="utf-8")
+    with pytest.raises(A.EstiloInvalido, match="JSON invalido"):
+        A.cargar()
+    A.RUTA_ESTILO.write_text("[1, 2]", encoding="utf-8")
+    with pytest.raises(A.EstiloInvalido, match="objeto JSON"):
+        A.cargar()
+
+
+def test_cargar_descarta_los_overrides_en_memoria(carpeta):
+    A.poner("prompt.etiqueta", "texto", "sin guardar")
+    A.cargar()
+    assert A.texto("prompt.etiqueta") == "cognia"
+
+
+# -- presets -------------------------------------------------------------------
+
+def test_los_5_presets_del_paquete_existen_y_validan():
+    assert set(A.PRESETS_PAQUETE) == {"clasico", "barra-color", "neon", "sobrio", "ansi16"}
+    for nombre in A.PRESETS_PAQUETE:
+        ruta = A.DIR_PRESETS_PAQUETE / f"{nombre}.json"
+        assert ruta.exists(), ruta
+        doc = A.leer_doc(ruta)
+        assert doc.get("version") == A.VERSION_FICHERO and doc.get("nombre") == nombre
+        assert doc.get("nota"), f"{nombre}: sin nota"
+        av = A.validar(doc)
+        assert not A.errores(av), f"{nombre}: {[str(a) for a in av]}"
+        # E: 'neon' sin '!' (contraste) y sin ningun aviso; el unico con
+        # avisos es ansi16 (contraste en claro), que lo declara en la nota
+        if nombre == "ansi16":
+            assert doc["nota"].startswith("accesibilidad:")
+            assert av and all("contraste" in a.texto for a in av)
+        else:
+            assert av == [], f"{nombre}: {[str(a) for a in av]}"
+    assert A.leer_doc(A.DIR_PRESETS_PAQUETE / "clasico.json")["elementos"] == {}
+
+
+def test_ningun_preset_del_paquete_apaga_el_banner():
+    """D6: el banner es identidad; ningun preset del paquete lo esconde."""
+    for nombre in A.PRESETS_PAQUETE:
+        doc = A.leer_doc(A.DIR_PRESETS_PAQUETE / f"{nombre}.json")
+        assert doc["elementos"].get("banner.arte", {}).get("visible", True) is True
+
+
+def test_sobrio_y_neon_hacen_lo_que_dicen():
+    neon = A.leer_doc(A.DIR_PRESETS_PAQUETE / "neon.json")["elementos"]
+    assert neon["banner.arte"]["animacion"]["solo_al_llegar"] is True
+    assert neon["banner.arte"]["glow"]["intensidad"] == 2
+    assert neon["prompt.etiqueta"]["animacion"]["cada_s"] == 6
+    sobrio = A.leer_doc(A.DIR_PRESETS_PAQUETE / "sobrio.json")["elementos"]
+    for id, props in sobrio.items():
+        assert props.get("glow", {}).get("intensidad", 0) == 0
+        assert props.get("animacion", {}).get("activa", False) is False
+    for id, e in A.REGISTRO.items():
+        if A.Cap.ANIMACION in e.caps:
+            assert id in sobrio, f"sobrio no apaga la animacion de {id}"
+    ansi = A.leer_doc(A.DIR_PRESETS_PAQUETE / "ansi16.json")
+    for props in ansi["elementos"].values():
+        for k in ("color", "fondo"):
+            if k in props:
+                assert props[k].startswith("ansi"), props
+        for sub in props.get("estados", {}).values():
+            for k in ("color", "fondo"):
+                if k in sub:
+                    assert sub[k].startswith("ansi"), sub
+
+
+def test_cargar_preset_copia_a_estilo_json_con_bak(carpeta):
+    A.poner("prompt.etiqueta", "texto", "antes")
+    A.guardar()
+    doc = A.cargar_preset("neon")
+    assert doc["nombre"] == "neon"
+    assert _leer(A.RUTA_ESTILO)["nombre"] == "neon"
+    assert _leer(carpeta / "estilo.json.bak")["elementos"]["prompt.etiqueta"]["texto"] == "antes"
+    assert A.estilo_de("banner.arte").glow.intensidad == 2
+    assert A.estilo_resuelto("banner.arte").glow_color == "#c8ff7a"      # @mi.lima_alta
+    assert A.texto("prompt.etiqueta") == "cognia"
+    assert A.deshacer() and A.texto("prompt.etiqueta") == "antes"
+    # los de las 3 variantes siguen saliendo de la rampa (el preset no clava hex)
+    A.cargar_preset("barra-color")
+    assert A.clases_pt("claro")["estado.ctx-alto"] == "noreverse bg:default " + A.resolver_color("@token.warn_cl", "claro")
+    assert A.clases_pt("oscuro")["estado.rama"] == "noreverse bg:default ansicyan bold"
+
+
+def test_cargar_preset_desconocido_o_fuera_de_home(carpeta, monkeypatch):
+    with pytest.raises(ValueError, match="preset desconocido 'neom'.*neon"):
+        A.cargar_preset("neom")
+    with pytest.raises(ValueError, match="nombre de preset invalido"):
+        A.cargar_preset("mal nombre!")
+    with pytest.raises(ValueError, match="no existe"):
+        A.cargar_preset("~/no_existe_seguro_cognia.json")
+    # regla 2.4: una ruta explicita solo bajo $HOME (HOME falso = carpeta/home)
+    (carpeta / "home").mkdir()
+    monkeypatch.setattr(Path, "home", lambda: carpeta / "home")
+    fuera = carpeta / "fuera_de_home.json"
+    fuera.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="solo se cargan ficheros bajo"):
+        A.cargar_preset(str(fuera))
+    dentro = carpeta / "home" / "p.json"
+    dentro.write_text(json.dumps({"version": 1, "elementos": {"prompt.flecha": {"glifo": ">> "}}}),
+                      encoding="utf-8")
+    A.cargar_preset(str(dentro))
+    assert A.glifo("prompt.flecha") == ">> "
+    # un preset invalido no toca estilo.json
+    A.poner("prompt.etiqueta", "texto", "antes")
+    A.guardar()
+    (carpeta / "estilos").mkdir()
+    (carpeta / "estilos" / "roto.json").write_text(json.dumps({"elementos": {"nada": {}}}), encoding="utf-8")
+    with pytest.raises(A.EstiloInvalido):
+        A.cargar_preset("roto")
+    assert A.texto("prompt.etiqueta") == "antes"
+
+
+def test_guardar_preset_y_listar(carpeta):
+    A.poner("prompt.etiqueta", "texto", "jarvis")
+    ruta = A.guardar_preset("mio")
+    assert ruta == carpeta / "estilos" / "mio.json"
+    assert _leer(ruta)["elementos"] == {"prompt.etiqueta": {"texto": "jarvis"}}
+    assert A.listar_presets()[0] == "mio"
+    assert set(A.listar_presets()) == {"mio", *A.PRESETS_PAQUETE}
+    detalle = {n: (origen, nota) for n, _, origen, nota in A.presets_detalle()}
+    assert detalle["mio"][0] == "dueno" and detalle["neon"][0] == "paquete"
+    assert "barrido" in detalle["neon"][1]
+    # el del dueno tapa al del paquete con el mismo nombre
+    A.guardar_preset("neon")
+    assert A.listar_presets().count("neon") == 1
+    assert dict((n, o) for n, _, o, _ in A.presets_detalle())["neon"] == "dueno"
+    with pytest.raises(ValueError):
+        A.guardar_preset("con espacios")
+
+
+def test_exportar_es_autocontenido_y_recarga_igual(carpeta):
+    A.poner("prompt.etiqueta", "texto", "jarvis")
+    A.poner("menu.completado", "estados.activo.fondo", "#004466")
+    A.guardar()
+    antes = A.documento()
+    ruta = A.exportar(carpeta / "exportado.json")
+    d = _leer(ruta)
+    assert "$schema" not in d and len(d["elementos"]) == 50
+    assert d["elementos"]["prompt.etiqueta"]["texto"] == "jarvis"
+    assert d["elementos"]["prompt.marco"]["color"] == "@rampa.marco"     # @refs, no hex
+    assert not A.errores(A.validar(d))
+    A.cargar(ruta)
+    assert A.documento()["elementos"] == antes["elementos"]
+
+
+# -- schema --------------------------------------------------------------------
+
+def _valida_schema(doc, schema, raiz=None, ruta="$"):
+    """Validador MINIMO de JSON Schema draft-07 (el venv no trae jsonschema y
+    la regla del repo es no sumar dependencias): $ref, type, properties,
+    additionalProperties, required, enum, minimum/maximum, pattern, oneOf,
+    items, minItems/maxItems. Devuelve la lista de errores."""
+    raiz = raiz if raiz is not None else schema
+    if "$ref" in schema:
+        partes = schema["$ref"].lstrip("#/").split("/")
+        sub = raiz
+        for p in partes:
+            sub = sub[p]
+        return _valida_schema(doc, sub, raiz, ruta)
+    errs = []
+    if "oneOf" in schema:
+        ok = [s for s in schema["oneOf"] if not _valida_schema(doc, s, raiz, ruta)]
+        if len(ok) != 1:
+            errs.append(f"{ruta}: oneOf no casa exactamente una ({len(ok)})")
+        return errs
+    tipos = {"object": dict, "string": str, "integer": int, "number": (int, float),
+             "boolean": bool, "array": list}
+    t = schema.get("type")
+    if t:
+        esperado = tipos[t]
+        if isinstance(doc, bool) and t in ("integer", "number"):
+            errs.append(f"{ruta}: bool no es {t}")
+        elif not isinstance(doc, esperado):
+            errs.append(f"{ruta}: {type(doc).__name__} no es {t}")
+            return errs
+    if "enum" in schema and doc not in schema["enum"]:
+        errs.append(f"{ruta}: {doc!r} no esta en {schema['enum']}")
+    if "pattern" in schema and isinstance(doc, str) and not re.match(schema["pattern"], doc):
+        errs.append(f"{ruta}: {doc!r} no casa {schema['pattern']}")
+    if "minimum" in schema and isinstance(doc, (int, float)) and doc < schema["minimum"]:
+        errs.append(f"{ruta}: {doc} < {schema['minimum']}")
+    if "maximum" in schema and isinstance(doc, (int, float)) and doc > schema["maximum"]:
+        errs.append(f"{ruta}: {doc} > {schema['maximum']}")
+    if isinstance(doc, dict):
+        props = schema.get("properties", {})
+        for k in schema.get("required", []):
+            if k not in doc:
+                errs.append(f"{ruta}: falta {k}")
+        extra = schema.get("additionalProperties", True)
+        for k, v in doc.items():
+            if k in props:
+                errs += _valida_schema(v, props[k], raiz, f"{ruta}.{k}")
+            elif extra is False:
+                errs.append(f"{ruta}.{k}: propiedad no permitida")
+            elif isinstance(extra, dict):
+                errs += _valida_schema(v, extra, raiz, f"{ruta}.{k}")
+    if isinstance(doc, list):
+        if "minItems" in schema and len(doc) < schema["minItems"]:
+            errs.append(f"{ruta}: menos de {schema['minItems']} items")
+        if "maxItems" in schema and len(doc) > schema["maxItems"]:
+            errs.append(f"{ruta}: mas de {schema['maxItems']} items")
+        if "items" in schema:
+            for i, v in enumerate(doc):
+                errs += _valida_schema(v, schema["items"], raiz, f"{ruta}[{i}]")
+    return errs
+
+
+def test_el_validador_minimo_del_schema_rechaza_lo_que_debe():
+    """Que el test de abajo no pase por el motivo equivocado."""
+    schema = _leer(A.RUTA_SCHEMA)
+    assert _valida_schema({"version": 1, "elementos": {"x": {"colour": 1}}}, schema)
+    assert _valida_schema({"elementos": {"x": {"glow": {"intensidad": 4}}}}, schema)
+    assert _valida_schema({"elementos": {"x": {"color": "#12"}}}, schema)
+    assert _valida_schema({"elementos": {"x": {"color": {"oscuro": "#111111"}}}}, schema)
+    assert _valida_schema({"elementos": {"x": {"animacion": {"tipo": "flash"}}}}, schema)
+    assert not _valida_schema({"version": 1, "elementos": {"x": {"color": "#123456",
+                                                                   "estados": {"a": {"fondo": "@menu.fondo"}}}}}, schema)
+
+
+def test_los_presets_validan_contra_el_schema():
+    schema = _leer(A.RUTA_SCHEMA)
+    for nombre in A.PRESETS_PAQUETE:
+        doc = _leer(A.DIR_PRESETS_PAQUETE / f"{nombre}.json")
+        assert not _valida_schema(doc, schema), nombre
+
+
+def test_lo_que_guarda_y_exporta_cognia_valida_contra_el_schema(carpeta):
+    schema = _leer(A.RUTA_SCHEMA)
+    A.poner("prompt.etiqueta", "texto", "jarvis")
+    A.poner("prompt.marco", "animacion.activa", True)
+    A.poner("diff.mas", "estados.marca.color",
+            {"oscuro": "#ff0000", "claro": "#800000", "alto_contraste": "#ff0000"})
+    assert not _valida_schema(_leer(A.guardar()), schema)
+    assert not _valida_schema(_leer(A.exportar(carpeta / "e.json")), schema)
+
+
+# -- contraste de los presets (scripts/contraste_tema.py como libreria) -------
+
+def test_contraste_de_los_5_presets_con_el_medidor_del_repo():
+    """Los presets del paquete pasan el piso o lo declaran en la nota
+    ('accesibilidad: ...'). Se mide con el instrumento del repo (hex_medible
+    usa scripts/contraste_tema.py para los nombres ansi)."""
+    assert A._medidor() is not None, "scripts/contraste_tema.py no es usable como libreria"
+    for nombre in A.PRESETS_PAQUETE:
+        doc = A.leer_doc(A.DIR_PRESETS_PAQUETE / f"{nombre}.json")
+        flojos = [a for a in A.validar(doc) if "contraste" in a.texto]
+        if flojos:
+            assert doc["nota"].startswith("accesibilidad:"), f"{nombre}: {[str(a) for a in flojos]}"
+        else:
+            assert not doc["nota"].startswith("accesibilidad:")
+
+
+# -- style string ---------------------------------------------------------------
+
+def _estilo_aleatorio(rng: random.Random) -> A.Estilo:
+    """Un Estilo dentro de la gramatica de 2.3 (sin estados, gradiente ni
+    colores por variante, que van por JSON)."""
+    colores = ["#7ee62a", "@rampa.prompt", "@mi.lima", "terminal", "ansicyan", "@token.ok_cl"]
+    kw = {}
+    if rng.random() < 0.7:
+        kw["negrita"] = rng.random() < 0.5
+    if rng.random() < 0.5:
+        kw["italica"] = rng.random() < 0.5
+    if rng.random() < 0.5:
+        kw["subrayado"] = rng.random() < 0.5
+    if rng.random() < 0.8:
+        kw["color"] = rng.choice(colores)
+    if rng.random() < 0.4:
+        kw["fondo"] = rng.choice(colores)
+    if rng.random() < 0.6:
+        kw["glow"] = A.Glow(color=rng.choice([None, "#c8ff7a", "@mi.lima"]), intensidad=rng.randint(0, 3))
+    if rng.random() < 0.6:
+        if rng.random() < 0.3:
+            kw["animacion"] = A.Animacion(activa=False)
+        else:
+            kw["animacion"] = A.Animacion(activa=True, tipo=rng.choice(A.TIPOS_ANIMACION),
+                                          direccion=rng.choice(A.DIRECCIONES),
+                                          velocidad=rng.randint(1, 5), ancho=rng.randint(1, 20),
+                                          cada_s=rng.choice([0.0, 1.5, 6.0]))
+    if rng.random() < 0.5:
+        kw["glifo"] = rng.choice(["═", "─", "> ", "❯", "it's", 'a "b"', "x y"])
+    if rng.random() < 0.3:
+        kw["glifo_ascii"] = rng.choice(["=", "-", "> "])
+    if rng.random() < 0.5:
+        kw["texto"] = rng.choice(["jarvis", "ja rvis", "", "con 'comilla'", {"titulo": "X", "sub": "y z"}])
+    if rng.random() < 0.3:
+        kw["posicion"] = rng.choice(["ambos", "arriba", "linea"])
+    if rng.random() < 0.3:
+        kw["alineacion"] = rng.choice(["izquierda", "derecha"])
+    if rng.random() < 0.4:
+        kw["visible"] = rng.random() < 0.5
+    if rng.random() < 0.3:
+        kw["separador"] = rng.choice([" · ", " | ", "  "])
+    return A.Estilo(**kw)
+
+
+def test_style_string_es_inversa_para_20_estilos_aleatorios():
+    rng = random.Random(0)
+    for _ in range(20):
+        e = _estilo_aleatorio(rng)
+        s = A.a_style_string(e)
+        assert A.parsear_style_string(s) == e, f"{s!r}\n  {e}\n  {A.parsear_style_string(s)}"
+
+
+def test_style_string_ejemplo_del_diseno():
+    e = A.parsear_style_string('bold fg:@rampa.prompt glow:@mi.lima_alta/1 anim:barrido>2,3 texto:"jarvis"')
+    assert e.negrita is True and e.color == "@rampa.prompt" and e.texto == "jarvis"
+    assert e.glow == A.Glow("@mi.lima_alta", 1)
+    assert e.animacion == A.Animacion(activa=True, tipo="barrido", direccion="derecha", velocidad=2, ancho=3)
+    assert A.parsear_style_string("anim:pulso<>3 noitalic hidden").animacion.direccion == "ida_vuelta"
+    assert A.parsear_style_string("noanim").animacion == A.Animacion(activa=False)
+    assert A.parsear_style_string("") == A.Estilo()
+
+
+@pytest.mark.parametrize("malo", ["glow:x/9", "anim:flash>2", "anim:barrido^2", "fondo:#000", "bold 'sin cerrar",
+                                  'texto:"a" texto.b:"c"', "parpadeo"])
+def test_style_string_invalido_es_ValueError_ruidoso(malo):
+    with pytest.raises(ValueError):
+        A.parsear_style_string(malo)
+
+
+def test_poner_style_string_valida_y_escribe():
+    assert A.poner_style_string("prompt.etiqueta", 'bold fg:@rampa.prompt glow:/1 texto:"jarvis"') == []
+    assert A.texto("prompt.etiqueta") == "jarvis" and A.estilo_de("prompt.etiqueta").glow.intensidad == 1
+    av = A.poner_style_string("prompt.etiqueta", "fg:rojo")
+    assert av and av[0].nivel == "error" and A.estilo_resuelto("prompt.etiqueta").color == "#7ee62a"
+    av = A.poner_style_string("banner.marco", 'texto:"X"')
+    assert av[0].nivel == "error" and "texto.<clave>" in av[0].texto
+    assert A.poner_style_string("banner.marco", 'texto.titulo:"JARVIS"') == []
+    assert A.texto("banner.marco", "titulo") == "JARVIS"
+    av = A.poner_style_string("respuesta.texto", "pos:arriba")
+    assert av[0].nivel == "error"
+
+
+# -- hot reload por mtime (E6: solo detecta) ------------------------------------
+
+def test_recargar_si_cambio_solo_marca_pendiente(carpeta):
+    A.poner("prompt.etiqueta", "texto", "uno")
+    A.guardar()
+    assert A.recargar_si_cambio() is False and not A.recarga_pendiente()
+    # edicion a mano (mtime distinto: se fuerza para no depender del reloj)
+    A.RUTA_ESTILO.write_text(json.dumps({"version": 1, "elementos": {"prompt.etiqueta": {"texto": "dos"}}}),
+                             encoding="utf-8")
+    os.utime(A.RUTA_ESTILO, ns=(A._estado["mtime"] + 10 ** 9, A._estado["mtime"] + 10 ** 9))
+    assert A.recargar_si_cambio() is True
+    assert A.texto("prompt.etiqueta") == "uno", "E6: detectar no es recargar"
+    assert A.recarga_pendiente() and A.recargar_si_cambio() is True
+    A.aplicar_recarga()
+    assert A.texto("prompt.etiqueta") == "dos"
+    assert A.recargar_si_cambio() is False
+    # el fichero desaparece: tambien cuenta como cambio
+    A.RUTA_ESTILO.unlink()
+    assert A.recargar_si_cambio() is True
+    A.aplicar_recarga()
+    assert A.texto("prompt.etiqueta") == "cognia"
+
+
+def test_aplicar_recarga_con_fichero_roto_avisa_y_no_reintenta(carpeta):
+    A.poner("prompt.etiqueta", "texto", "uno")
+    A.guardar()
+    A.RUTA_ESTILO.write_text("{roto", encoding="utf-8")
+    os.utime(A.RUTA_ESTILO, ns=(A._estado["mtime"] + 10 ** 9, A._estado["mtime"] + 10 ** 9))
+    assert A.recargar_si_cambio() is True
+    with pytest.raises(A.EstiloInvalido, match="JSON invalido"):
+        A.aplicar_recarga()
+    assert A.texto("prompt.etiqueta") == "uno"
+    assert A.recargar_si_cambio() is False, "el mismo fichero roto no se reintenta en cada redibujado"
+
+
+# -- migracion -----------------------------------------------------------------
+
+def test_migrar_trata_sin_version_como_1_y_aplica_saltos(monkeypatch):
+    assert A._migrar({"elementos": {}})["version"] == 1
+    monkeypatch.setattr(A, "VERSION_FICHERO", 2)
+    monkeypatch.setitem(A._MIGRACIONES, 1, lambda d: {**d, "migrado": True})
+    d = A._migrar({"version": 1})
+    assert d["version"] == 2 and d["migrado"] is True
+    assert A._migrar({"version": 2}) == {"version": 2}
+    assert A._migrar({"version": "x"}) == {"version": "x"}     # validar lo rechaza
+
+
+def test_un_fichero_de_version_mas_nueva_no_se_instala(carpeta):
+    A.RUTA_ESTILO.write_text(json.dumps({"version": A.VERSION_FICHERO + 1}), encoding="utf-8")
+    with pytest.raises(A.EstiloInvalido, match="actualiza cognia"):
+        A.cargar()

@@ -668,7 +668,8 @@ def _a_dict(estilo: Estilo) -> dict:
         if v is None or (campo == "estados" and not v):
             continue
         if campo in ("glow", "animacion"):
-            d[campo] = dataclasses.asdict(v)
+            # sin claves None (glow.color=None = derivado): el schema no admite null
+            d[campo] = {k: x for k, x in dataclasses.asdict(v).items() if x is not None}
         elif campo == "estados":
             d[campo] = {k: _a_dict(sub) for k, sub in v.items()}
         elif campo == "gradiente":
@@ -1549,3 +1550,507 @@ def _aplicar_doc(doc: dict) -> None:
     _estado["doc"] = doc
     _estado["paleta_local"] = dict(doc.get("paleta") or {})
     _subir_version()
+
+
+# ---------------------------------------------------------------------------
+# 10. El fichero: ~/.cognia/estilo.json, .bak, presets, export, hot reload
+# ---------------------------------------------------------------------------
+# Cascada (seccion 2.1): REGISTRO.default <- estilo.json <- memoria. Un preset
+# se CARGA copiandolo a estilo.json (tras el .bak): no hay "preset activo"
+# como puntero, una sola fuente de verdad. Las rutas son atributos del modulo
+# para que los tests las apunten a un tmp_path.
+import json  # noqa: E402
+import shutil  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+DIR_COGNIA = Path.home() / ".cognia"
+RUTA_ESTILO = DIR_COGNIA / "estilo.json"
+DIR_PRESETS = DIR_COGNIA / "estilos"
+DIR_PRESETS_PAQUETE = Path(__file__).resolve().parent / "presets"
+RUTA_SCHEMA = Path(__file__).resolve().parent / "estilo.schema.json"
+PRESETS_PAQUETE = ("clasico", "barra-color", "neon", "sobrio", "ansi16")
+_CLAVES_DOC = ("$schema", "version", "nombre", "nota", "paleta", "global", "elementos")
+
+
+class EstiloInvalido(ValueError):
+    """El fichero no se puede instalar: JSON roto o validar() con errores.
+    `.avisos` trae la lista (los 'error' primero) y `.ruta` el fichero."""
+
+    def __init__(self, ruta, avisos):
+        self.ruta = ruta
+        self.avisos = list(avisos)
+        super().__init__(f"{ruta}: " + "; ".join(str(a) for a in self.avisos[:5])
+                         + (f" (+{len(self.avisos) - 5} mas)" if len(self.avisos) > 5 else ""))
+
+
+def _ruta(ruta=None) -> Path:
+    return Path(ruta) if ruta else RUTA_ESTILO
+
+
+def _mtime(ruta: Path):
+    try:
+        return ruta.stat().st_mtime_ns
+    except OSError:
+        return None
+
+
+# migraciones: version N -> N+1 (una funcion por salto). Vacio en la version 1.
+_MIGRACIONES: dict = {}
+
+
+def _migrar(doc: dict) -> dict:
+    """Un fichero sin 'version' se trata como 1; se aplican los saltos hasta
+    VERSION_FICHERO. Una version MAYOR no se migra (validar la rechaza)."""
+    doc = dict(doc)
+    ver = doc.get("version")
+    if ver is None:
+        ver = 1
+    if not isinstance(ver, int) or isinstance(ver, bool):
+        return doc
+    while ver < VERSION_FICHERO:
+        paso = _MIGRACIONES.get(ver)
+        if paso is None:
+            break
+        doc = paso(doc)
+        ver += 1
+        doc["version"] = ver
+    doc.setdefault("version", ver)
+    return doc
+
+
+def leer_doc(ruta) -> dict:
+    """JSON del fichero (sin instalar ni validar). EstiloInvalido si esta roto."""
+    ruta = Path(ruta)
+    try:
+        texto = ruta.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise EstiloInvalido(ruta, [Aviso("error", f"no se puede leer: {exc}")]) from None
+    try:
+        doc = json.loads(texto)
+    except ValueError as exc:
+        raise EstiloInvalido(ruta, [Aviso("error", f"JSON invalido: {exc}")]) from None
+    if not isinstance(doc, dict):
+        raise EstiloInvalido(ruta, [Aviso("error", "el fichero tiene que ser un objeto JSON")])
+    return doc
+
+
+_ULTIMOS_AVISOS: list = []
+
+
+def ultimos_avisos() -> list:
+    """Los avisos (nivel 'aviso') de la ultima cargar()/cargar_preset()."""
+    return list(_ULTIMOS_AVISOS)
+
+
+def cargar(ruta=None) -> dict:
+    """Instala ~/.cognia/estilo.json (o `ruta`) como capa 'fichero'. Sin
+    fichero -> defaults y devuelve {}. Con errores de validacion NO instala
+    nada y lanza EstiloInvalido (el CLI avisa por _aviso_degradado y arranca
+    con defaults: nunca sin prompt). Los avisos no bloqueantes quedan en
+    ultimos_avisos(). Descarta los overrides en memoria."""
+    ruta = _ruta(ruta)
+    _ULTIMOS_AVISOS.clear()
+    if not ruta.exists():
+        _estado["overrides"].clear()
+        _aplicar_doc({})
+        _estado["mtime"] = None
+        _estado["recarga_pendiente"] = False
+        return {}
+    doc = _migrar(leer_doc(ruta))
+    avisos = validar(doc)
+    if errores(avisos):
+        raise EstiloInvalido(ruta, sorted(avisos, key=lambda a: a.nivel != "error"))
+    _ULTIMOS_AVISOS.extend(avisos)
+    _estado["overrides"].clear()
+    _aplicar_doc(doc)
+    _estado["mtime"] = _mtime(ruta)
+    _estado["recarga_pendiente"] = False
+    return doc
+
+
+def _diff_contra_default(id: str, cambios_dict: dict) -> dict:
+    """Deja SOLO las hojas que difieren del default del elemento (una clave
+    puesta al mismo valor que el default no se escribe)."""
+    base = _a_dict(elemento(id).default)
+
+    def _podar(c, b):
+        out = {}
+        for k, v in c.items():
+            bv = b.get(k) if isinstance(b, dict) else None
+            if isinstance(v, dict) and isinstance(bv, dict):
+                sub = _podar(v, bv)
+                if sub:
+                    out[k] = sub
+            elif isinstance(v, dict) and bv is None:
+                sub = _podar(v, {})
+                if sub:
+                    out[k] = sub
+            elif isinstance(v, list) and isinstance(bv, (list, tuple)):
+                if list(v) != list(bv):
+                    out[k] = list(v)
+            elif v != bv:
+                out[k] = v
+        return out
+    return _podar(cambios_dict, base)
+
+
+def documento() -> dict:
+    """El estado ACTUAL con la forma del fichero: fichero cargado + memoria,
+    solo lo que difiere del default, claves desconocidas conservadas."""
+    previo = _estado["doc"]
+    doc = {}
+    for k in _CLAVES_DOC:
+        if k in previo and k != "elementos":
+            doc[k] = previo[k]
+    for k, v in previo.items():          # claves desconocidas: se conservan
+        if k not in _CLAVES_DOC:
+            doc[k] = v
+    doc["version"] = VERSION_FICHERO
+    elems = {}
+    for id in REGISTRO:
+        c = _cambios_de(id)
+        if not c:
+            continue
+        d = _diff_contra_default(id, c)
+        if d:
+            elems[id] = d
+    doc["elementos"] = elems
+    return doc
+
+
+def _escribir_json(ruta: Path, doc: dict) -> None:
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def guardar(ruta=None) -> Path:
+    """Escribe documento() en estilo.json (o `ruta`), con copia previa en
+    .bak si ya existia. La memoria pasa a ser la capa 'fichero' (los
+    overrides se funden). Devuelve la ruta escrita."""
+    ruta = _ruta(ruta)
+    doc = documento()
+    doc["$schema"] = str(RUTA_SCHEMA)
+    if ruta.exists():
+        shutil.copyfile(ruta, ruta.with_suffix(ruta.suffix + ".bak"))
+    _escribir_json(ruta, doc)
+    if ruta == RUTA_ESTILO:
+        _estado["overrides"].clear()
+        _aplicar_doc(doc)
+        _estado["mtime"] = _mtime(ruta)
+        _estado["recarga_pendiente"] = False
+    return ruta
+
+
+def deshacer(ruta=None) -> bool:
+    """Restaura estilo.json.bak (intercambiandolo con el actual, asi un
+    segundo deshacer vuelve) y lo carga. False si no hay .bak."""
+    ruta = _ruta(ruta)
+    bak = ruta.with_suffix(ruta.suffix + ".bak")
+    if not bak.exists():
+        return False
+    if ruta.exists():
+        tmp = ruta.with_suffix(ruta.suffix + ".deshacer")
+        shutil.copyfile(ruta, tmp)
+        shutil.copyfile(bak, ruta)
+        shutil.move(str(tmp), str(bak))
+    else:
+        shutil.copyfile(bak, ruta)
+    cargar(ruta)
+    return True
+
+
+def _ruta_preset(nombre_o_ruta) -> Path:
+    """Nombre -> ~/.cognia/estilos/<n>.json o el del paquete; una ruta
+    explicita solo bajo $HOME (regla 2.4) y tiene que existir."""
+    s = str(nombre_o_ruta).strip()
+    if not s:
+        raise ValueError("preset sin nombre")
+    parece_ruta = any(ch in s for ch in "/\\") or s.lower().endswith(".json")
+    if parece_ruta:
+        ruta = Path(s).expanduser().resolve()
+        try:
+            ruta.relative_to(Path.home().resolve())
+        except ValueError:
+            raise ValueError(f"solo se cargan ficheros bajo {Path.home()}: {ruta}") from None
+        if not ruta.exists():
+            raise ValueError(f"no existe: {ruta}")
+        return ruta
+    if not all(c.isalnum() or c in "-_" for c in s):
+        raise ValueError(f"nombre de preset invalido '{s}' (letras, numeros, - y _)")
+    for base in (DIR_PRESETS, DIR_PRESETS_PAQUETE):
+        ruta = base / f"{s}.json"
+        if ruta.exists():
+            return ruta
+    raise ValueError(f"preset desconocido '{s}'; hay: {', '.join(listar_presets())}"
+                     + _sugerir(s, listar_presets()))
+
+
+def cargar_preset(nombre_o_ruta, ruta_destino=None) -> dict:
+    """Valida el preset y lo COPIA a estilo.json (tras el .bak); luego
+    cargar(). Un preset invalido lanza EstiloInvalido y no toca nada."""
+    origen = _ruta_preset(nombre_o_ruta)
+    doc = _migrar(leer_doc(origen))
+    avisos = validar(doc)
+    if errores(avisos):
+        raise EstiloInvalido(origen, sorted(avisos, key=lambda a: a.nivel != "error"))
+    destino = _ruta(ruta_destino)
+    if destino.exists():
+        shutil.copyfile(destino, destino.with_suffix(destino.suffix + ".bak"))
+    doc.setdefault("nombre", origen.stem)
+    doc["$schema"] = str(RUTA_SCHEMA)
+    _escribir_json(destino, doc)
+    return cargar(destino)
+
+
+def guardar_preset(nombre: str) -> Path:
+    """documento() como ~/.cognia/estilos/<nombre>.json (autocontenido)."""
+    nombre = str(nombre).strip()
+    if not nombre or not all(c.isalnum() or c in "-_" for c in nombre):
+        raise ValueError(f"nombre de preset invalido '{nombre}' (letras, numeros, - y _)")
+    doc = documento()
+    doc["nombre"] = nombre
+    doc["$schema"] = str(RUTA_SCHEMA)
+    ruta = DIR_PRESETS / f"{nombre}.json"
+    _escribir_json(ruta, doc)
+    return ruta
+
+
+def listar_presets() -> list:
+    """Nombres: primero los del dueno (~/.cognia/estilos), luego los del
+    paquete; sin repetir (el del dueno tapa al del paquete)."""
+    vistos = []
+    for base in (DIR_PRESETS, DIR_PRESETS_PAQUETE):
+        try:
+            nombres = sorted(p.stem for p in base.glob("*.json"))
+        except OSError:
+            nombres = []
+        for n in nombres:
+            if n not in vistos:
+                vistos.append(n)
+    return vistos
+
+
+def presets_detalle() -> list:
+    """[(nombre, ruta, 'dueno'|'paquete', nota)] para /estilo presets."""
+    salida = []
+    vistos = set()
+    for base, origen in ((DIR_PRESETS, "dueno"), (DIR_PRESETS_PAQUETE, "paquete")):
+        try:
+            rutas = sorted(base.glob("*.json"))
+        except OSError:
+            rutas = []
+        for r in rutas:
+            if r.stem in vistos:
+                continue
+            vistos.add(r.stem)
+            try:
+                nota = str(leer_doc(r).get("nota", ""))
+            except EstiloInvalido as exc:
+                nota = f"INVALIDO: {exc.avisos[0].texto}"
+            salida.append((r.stem, r, origen, nota))
+    return salida
+
+
+def exportar(ruta) -> Path:
+    """Fichero AUTOCONTENIDO: los 50 elementos con su Estilo completo (con
+    los @refs tal cual, para que siga obedeciendo a /tema), la paleta local y
+    lo global; sin $schema ni nada dependiente de la maquina."""
+    ruta = Path(ruta)
+    doc = {"version": VERSION_FICHERO}
+    previo = _estado["doc"]
+    for k in ("nombre", "nota", "paleta", "global"):
+        if k in previo:
+            doc[k] = previo[k]
+    doc["elementos"] = {id: _a_dict(estilo_de(id)) for id in REGISTRO}
+    _escribir_json(ruta, doc)
+    return ruta
+
+
+def recargar_si_cambio(ruta=None) -> bool:
+    """SOLO detecta (un stat) y marca la recarga como pendiente. E6: la
+    reconstruccion de Console/renderer NO puede correr dentro del render de
+    prompt_toolkit; el CLI llama aplicar_recarga() cuando el prompt devolvio.
+    True si el fichero cambio (o aparecio/desaparecio) desde la ultima carga."""
+    ruta = _ruta(ruta)
+    actual = _mtime(ruta)
+    if actual == _estado.get("mtime"):
+        return _estado.get("recarga_pendiente", False)
+    _estado["mtime_visto"] = actual
+    _estado["recarga_pendiente"] = True
+    return True
+
+
+def recarga_pendiente() -> bool:
+    return bool(_estado.get("recarga_pendiente", False))
+
+
+def aplicar_recarga(ruta=None) -> dict:
+    """cargar() de verdad (fuera del render). Devuelve el doc; EstiloInvalido
+    si el fichero editado a mano esta mal (se sigue con lo cargado antes)."""
+    ruta = _ruta(ruta)
+    try:
+        return cargar(ruta)
+    except EstiloInvalido:
+        # que no se reintente en cada redibujado: se registra el mtime malo
+        _estado["mtime"] = _mtime(ruta)
+        _estado["recarga_pendiente"] = False
+        raise
+
+
+_estado.setdefault("mtime", None)
+_estado.setdefault("recarga_pendiente", False)
+
+
+# ---------------------------------------------------------------------------
+# 11. Style string (seccion 2.3): forma compacta para /estilo <id> "<string>"
+# ---------------------------------------------------------------------------
+# bold|nobold italic|noitalic underline|nounderline fg:<color> bg:<color>
+# glow:<color>/<0-3> anim:<barrido|pulso><</>/<>>[velocidad][,ancho][,cada_s]
+# noanim glifo:"<s>" ascii:"<s>" texto:"<s>" texto.<clave>:"<s>" pos:<enum>
+# align:<enum> hidden|visible sep:"<s>"
+# Lo que NO cabe en la gramatica (repetir, solo_al_llegar, estados, gradiente,
+# colores por variante) va por JSON o por /estilo <id> <prop> <valor>.
+_DIR_A_SIMBOLO = {"derecha": ">", "izquierda": "<", "ida_vuelta": "<>"}
+_SIMBOLO_A_DIR = {v: k for k, v in _DIR_A_SIMBOLO.items()}
+
+
+def _q(s: str) -> str:
+    """Entrecomilla como shlex lo va a leer (round-trip exacto)."""
+    import shlex
+    return shlex.quote(s) if s else "''"
+
+
+def a_style_string(estilo: Estilo) -> str:
+    partes = []
+    if estilo.negrita is not None:
+        partes.append("bold" if estilo.negrita else "nobold")
+    if estilo.italica is not None:
+        partes.append("italic" if estilo.italica else "noitalic")
+    if estilo.subrayado is not None:
+        partes.append("underline" if estilo.subrayado else "nounderline")
+    if isinstance(estilo.color, str):
+        partes.append(f"fg:{estilo.color}")
+    if isinstance(estilo.fondo, str):
+        partes.append(f"bg:{estilo.fondo}")
+    if estilo.glow is not None:
+        partes.append(f"glow:{estilo.glow.color or ''}/{estilo.glow.intensidad}")
+    if estilo.animacion is not None:
+        a = estilo.animacion
+        if not a.activa:
+            partes.append("noanim")
+        else:
+            partes.append(f"anim:{a.tipo}{_DIR_A_SIMBOLO[a.direccion]}{a.velocidad},{a.ancho},{a.cada_s:g}")
+    if estilo.glifo is not None:
+        partes.append(f"glifo:{_q(estilo.glifo)}")
+    if estilo.glifo_ascii is not None:
+        partes.append(f"ascii:{_q(estilo.glifo_ascii)}")
+    if isinstance(estilo.texto, str):
+        partes.append(f"texto:{_q(estilo.texto)}")
+    elif isinstance(estilo.texto, dict):
+        for k, v in estilo.texto.items():
+            partes.append(f"texto.{k}:{_q(str(v))}")
+    if estilo.posicion is not None:
+        partes.append(f"pos:{estilo.posicion}")
+    if estilo.alineacion is not None:
+        partes.append(f"align:{estilo.alineacion}")
+    if estilo.visible is not None:
+        partes.append("visible" if estilo.visible else "hidden")
+    if estilo.separador is not None:
+        partes.append(f"sep:{_q(estilo.separador)}")
+    return " ".join(partes)
+
+
+def parsear_style_string(s: str) -> Estilo:
+    """Inversa de a_style_string. ValueError ruidoso con el token que fallo."""
+    import shlex
+    try:
+        tokens = shlex.split(s or "", posix=True)
+    except ValueError as exc:
+        raise ValueError(f"style string mal entrecomillado: {exc}") from None
+    kw: dict = {}
+    textos: dict = {}
+    for tok in tokens:
+        bajo = tok.lower()
+        if bajo in ("bold", "nobold"):
+            kw["negrita"] = bajo == "bold"
+        elif bajo in ("italic", "noitalic"):
+            kw["italica"] = bajo == "italic"
+        elif bajo in ("underline", "nounderline"):
+            kw["subrayado"] = bajo == "underline"
+        elif bajo in ("visible", "hidden"):
+            kw["visible"] = bajo == "visible"
+        elif bajo == "noanim":
+            kw["animacion"] = Animacion(activa=False)
+        elif ":" in tok:
+            clave, valor = tok.split(":", 1)
+            clave = clave.lower()
+            if clave == "fg":
+                kw["color"] = valor
+            elif clave == "bg":
+                kw["fondo"] = valor
+            elif clave == "glow":
+                color, _, inten = valor.rpartition("/")
+                if not inten.isdigit() or not 0 <= int(inten) <= 3:
+                    raise ValueError(f"glow: '{valor}' no es <color>/<0-3>")
+                kw["glow"] = Glow(color=color or None, intensidad=int(inten))
+            elif clave == "anim":
+                kw["animacion"] = _parsear_anim(valor)
+            elif clave == "glifo":
+                kw["glifo"] = valor
+            elif clave == "ascii":
+                kw["glifo_ascii"] = valor
+            elif clave == "texto":
+                kw["texto"] = valor
+            elif clave.startswith("texto."):
+                textos[clave[len("texto."):]] = valor
+            elif clave == "pos":
+                kw["posicion"] = valor
+            elif clave == "align":
+                kw["alineacion"] = valor
+            elif clave == "sep":
+                kw["separador"] = valor
+            else:
+                raise ValueError(f"token desconocido '{tok}' (vale: bold italic underline fg: bg: "
+                                 f"glow: anim: noanim glifo: ascii: texto: pos: align: visible hidden sep:)")
+        else:
+            raise ValueError(f"token desconocido '{tok}'")
+    if textos:
+        if "texto" in kw:
+            raise ValueError("texto: y texto.<clave>: no se mezclan")
+        kw["texto"] = textos
+    return Estilo(**kw)
+
+
+def _parsear_anim(valor: str) -> Animacion:
+    import re
+    m = re.match(r"^(barrido|pulso)(<>|<|>)?(\d+)?(?:,(\d+))?(?:,([\d.]+))?$", valor)
+    if not m:
+        raise ValueError(f"anim: '{valor}' no es <barrido|pulso><</>/<>>[velocidad][,ancho][,cada_s]")
+    tipo, simbolo, vel, ancho, cada = m.groups()
+    a = Animacion(activa=True, tipo=tipo, direccion=_SIMBOLO_A_DIR.get(simbolo or ">", "derecha"))
+    if vel:
+        a = dataclasses.replace(a, velocidad=int(vel))
+    if ancho:
+        a = dataclasses.replace(a, ancho=int(ancho))
+    if cada:
+        a = dataclasses.replace(a, cada_s=float(cada))
+    return a
+
+
+def poner_style_string(id: str, s: str) -> list:
+    """/estilo <id> "<style string>": parsea, valida y escribe en memoria
+    (como poner, pero varias propiedades de golpe; con un error no escribe)."""
+    e = elemento(id)
+    estilo = parsear_style_string(s)
+    cambio = _a_dict(estilo)
+    if isinstance(cambio.get("texto"), dict) != isinstance(e.default.texto, dict) and "texto" in cambio:
+        if isinstance(e.default.texto, dict):
+            return [Aviso("error", f"'{id}' tiene varios textos: usa texto.<clave>: "
+                                   f"({', '.join(e.default.texto)})", id)]
+        return [Aviso("error", f"'{id}' tiene un solo texto: usa texto:\"...\"", id)]
+    avisos = validar({"version": VERSION_FICHERO, "elementos": {id: cambio}})
+    if errores(avisos):
+        return avisos
+    _estado["overrides"][id] = _fusionar_dicts(_estado["overrides"].get(id) or {}, cambio)
+    _subir_version()
+    return avisos
