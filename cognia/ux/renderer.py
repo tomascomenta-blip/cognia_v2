@@ -948,7 +948,7 @@ class Renderer:
             if self._flujo_pensar is None:
                 self._flujo_pensar = FlujoSuave(
                     console=self._console, style=self._estilo_pensar_stream(),
-                    sangria=_SANGRIA_PENSAR)
+                    sangria="    " + _glifo("pensando.prosa", _MARCA_PENSAR) + " ")
             self._flujo_pensar.escribir(ev.fragmento)
 
     def _on_token_texto(self, ev: events.TokenTexto) -> None:

@@ -208,17 +208,43 @@ def _construir_estilos(variante: str) -> dict:
     }
 
 
+def _con_overrides_del_registro(variante: str, est: dict) -> dict:
+    """P6 (2026-08-24): lo que el dueno cambio con /estilo en diff.mas /
+    diff.menos (fondo de la banda, color de la marca, fondo intra) pisa los
+    defaults de _construir_estilos; sin cambios el dict vuelve IDENTICO (los
+    defaults del registro son estos mismos hex, test_ux_aspecto lo fija)."""
+    from cognia.ux import aspecto as _A
+    for signo, id in (("mas", "diff.mas"), ("menos", "diff.menos")):
+        c = _A.cambios(id)
+        if not c:
+            continue
+        r = _A.estilo_resuelto(id, variante)
+        if "fondo" in c and r.fondo:
+            est[f"linea_{signo}"] = f"on {_A.color_rich(r.fondo)}"
+        sub = c.get("estados") or {}
+        if "color" in (sub.get("marca") or {}):
+            est[f"marca_{signo}"] = _bold(_A.color_rich(r.estados["marca"].color))
+        if "fondo" in (sub.get("intra") or {}):
+            est[f"{signo}_intra"] = (f"{_bold(est['contenido'])} on "
+                                     f"{_A.color_rich(r.estados['intra'].fondo)}")
+    return est
+
+
 _CACHE_ESTILOS: dict = {}
 
 
 def estilos(variante: str = VARIANTE_DEFECTO) -> dict:
-    """Los estilos del diff de una variante (cacheados). Variante desconocida
-    -> la de defecto, nunca KeyError: esto es adorno y jamas rompe un turno."""
+    """Los estilos del diff de una variante (cacheados por variante y version
+    del registro de estilos). Variante desconocida -> la de defecto, nunca
+    KeyError: esto es adorno y jamas rompe un turno."""
+    from cognia.ux import aspecto as _A
     if variante not in paleta.DIFF_FONDO:
         variante = VARIANTE_DEFECTO
-    est = _CACHE_ESTILOS.get(variante)
+    clave = (variante, _A.version())
+    est = _CACHE_ESTILOS.get(clave)
     if est is None:
-        est = _CACHE_ESTILOS[variante] = _construir_estilos(variante)
+        est = _CACHE_ESTILOS[clave] = _con_overrides_del_registro(
+            variante, _construir_estilos(variante))
     return est
 
 

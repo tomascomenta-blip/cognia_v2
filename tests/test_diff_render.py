@@ -560,3 +560,43 @@ def test_sin_rich_degrada_a_none(monkeypatch):
     assert render_diff("a\n", "b\n") is None
     # resumen_diff no depende de rich: sigue contando igual
     assert resumen_diff("a\n", "b\n") == "+1 \u22121"
+
+
+# ---------------------------------------------------------------------------
+# P6 (2026-08-24): diff.mas / diff.menos del registro de estilos
+# ---------------------------------------------------------------------------
+
+def test_estilos_del_diff_siguen_al_registro_y_vuelven_al_default():
+    from cognia.ux import aspecto as A
+    A.reset()
+    try:
+        base = dict(dr.estilos("oscuro"))
+        assert base["linea_mas"] == "on #173322" and base["marca_mas"] == "bold #3fb950"
+        assert not A.errores(A.poner("diff.mas", "fondo", "#123456"))
+        assert not A.errores(A.poner("diff.menos", "estados.marca.color", "#ff00ff"))
+        assert not A.errores(A.poner("diff.mas", "estados.intra.fondo", "#224466"))
+        est = dr.estilos("oscuro")
+        assert est["linea_mas"] == "on #123456"
+        assert est["marca_menos"] == "bold #ff00ff"
+        assert est["mas_intra"] == "bold default on #224466"
+        # lo no tocado sigue igual
+        assert est["linea_menos"] == base["linea_menos"]
+        assert est["marca_mas"] == base["marca_mas"]
+        A.reset()
+        assert dr.estilos("oscuro") == base, "sin override, byte-identico"
+    finally:
+        A.reset()
+
+
+def test_render_bloque_pinta_el_fondo_del_registro():
+    from cognia.ux import aspecto as A
+    A.reset()
+    try:
+        assert not A.errores(A.poner("diff.mas", "fondo", "#123456"))
+        buf = io.StringIO()
+        con = Console(file=buf, force_terminal=True, color_system="truecolor",
+                      legacy_windows=False, width=80)
+        con.print(dr.render_bloque([], ["nuevo"], variante="oscuro"))
+        assert "48;2;18;52;86" in buf.getvalue()
+    finally:
+        A.reset()

@@ -59,6 +59,11 @@ def activo(cfg: dict | None = None) -> bool:
         return False
     if v in ("1", "true", "si", "on"):
         return True
+    # P6 (2026-08-24): /estilo enlace visible off apaga el OSC 8 (E9). La env
+    # sigue ganando (arriba); el registro gana a la config 'enlaces'.
+    from cognia.ux import aspecto as _A
+    if not _A.visible("enlace"):
+        return False
     base = cfg
     if base is None:
         try:

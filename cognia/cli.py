@@ -9195,7 +9195,8 @@ def _slash_tema(arg: str = ""):
     # paleta.tema_cli(name) tal cual.
     _aplicar_tema_en_caliente()
     if _HAS_RICH:
-        _console.rule(f"[info_dim]Tema: {name} (guardado)[/info_dim]")
+        _console.rule(f"[info_dim]Tema: {name} (guardado)[/info_dim]",
+                      characters=_aspecto.glifo("separador.regla") or "\u2500")
     else:
         print(f"Tema: {name} (Rich no disponible)")
     _persist_setting("COGNIA_THEME", name)

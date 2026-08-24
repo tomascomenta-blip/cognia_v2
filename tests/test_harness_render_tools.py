@@ -833,3 +833,14 @@ def test_conector_y_textos_de_tool_resultado(unicode_on, aspecto_limpio, monkeyp
     monkeypatch.setenv("COGNIA_REMOTO", "1")
     assert rt.conector_colgante() == "⎿"
     assert rt.resumir_resultado("ejecutar", "") == "sin salida"
+
+
+def test_pensando_plegado_glifo_y_texto_del_registro(unicode_on, aspecto_limpio, monkeypatch):
+    A = aspecto_limpio
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert rt.linea_razonamiento(4).startswith("\u2234 pens\u00f3 4s")
+    assert not A.errores(A.poner("pensando.plegado", "glifo", "\u2733"))
+    assert not A.errores(A.poner("pensando.plegado", "texto.penso", "razono"))
+    assert rt.linea_razonamiento(4).startswith("\u2733 razono 4s")
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    assert rt.linea_razonamiento(4).startswith("\u2234 pens\u00f3 4s")

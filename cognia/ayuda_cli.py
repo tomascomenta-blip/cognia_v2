@@ -113,8 +113,12 @@ def imprimir() -> None:
         print(texto_plano())
         return
     try:
-        from cognia.ux.paleta import tema_cli
-        consola = Console(theme=tema_cli(), highlight=False)
+        # P6 (2026-08-24): el Theme con los overrides de /estilo (sin fichero
+        # de estilo es paleta.tema_cli tal cual). Antes: tema_cli() SIN la
+        # variante -> TypeError -> la ayuda salia con la consola neutra.
+        from rich.theme import Theme
+        from cognia.ux.aspecto import tema_rich
+        consola = Console(theme=Theme(tema_rich()), highlight=False)
         marca, tenue, acento = "mod", "info_dim", "ok_cl"
     except Exception:
         # Sin la paleta del proyecto seguimos pintando, con estilos neutros:

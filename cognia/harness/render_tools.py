@@ -710,9 +710,11 @@ def linea_razonamiento(segundos, visible: bool = False,
     pierde la tilde ('penso'): el acento es lo primero que revienta en una
     consola cp437, y una mojibake en la UI es peor que una tilde de menos.
     """
-    marca = _PENSAR_ASCII if usar_ascii() else _PENSAR_UNICODE
+    marca = _glifo_registro("pensando.plegado",
+                            _PENSAR_ASCII if usar_ascii() else _PENSAR_UNICODE)
     pista = PISTA_OCULTAR_RAZONAMIENTO if visible else PISTA_VER_RAZONAMIENTO
-    penso = _PENSO_ASCII if usar_ascii() else _PENSO_UNICODE
+    penso = _texto_registro("pensando.plegado", "penso",
+                            _PENSO_ASCII if usar_ascii() else _PENSO_UNICODE)
     base = f"{marca} {penso} {_fmt_segundos(segundos)}"
     if ancho_visual(base + " " + pista) <= ancho:
         return base + " " + pista

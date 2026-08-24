@@ -152,3 +152,20 @@ def test_marcar_markup_envuelve_y_conserva_visible(tmp_path):
     assert marcado == f"ultimo spill -> [link={target}]{f}[/link]"
     # sin rutas: intacto
     assert enlaces.marcar_markup("nada por aca") == "nada por aca"
+
+
+def test_enlace_visible_off_apaga_el_osc8_y_la_env_gana(monkeypatch):
+    """P6 (2026-08-24): /estilo enlace visible off apaga los enlaces; la env
+    COGNIA_ENLACES sigue mandando por encima del registro."""
+    from cognia.ux import aspecto as A
+    monkeypatch.delenv("COGNIA_ENLACES", raising=False)
+    A.reset()
+    try:
+        assert enlaces.activo({}) is True
+        assert not A.errores(A.poner("enlace", "visible", "off"))
+        assert enlaces.activo({}) is False
+        assert enlaces.activo({"enlaces": "on"}) is False
+        monkeypatch.setenv("COGNIA_ENLACES", "1")
+        assert enlaces.activo({}) is True
+    finally:
+        A.reset()

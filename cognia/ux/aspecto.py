@@ -2396,10 +2396,18 @@ ENGANCHADOS = tuple(ENGANCHADOS) + ENGANCHADOS_P7 + ENGANCHADOS_P8
 # - aviso.degradado: glifo ⚠ y textos 'degradado — ' / '→' (renderer).
 # - footer.turno: glifo por estado ok/error, textos tokens/pasos/paso,
 #   separador y visible (estilo.footer_turno + renderer._footer; solo local).
+# - pensando.prosa / pensando.plegado: glifo ∴ (renderer sangria del flujo;
+#   render_tools.linea_razonamiento) y texto 'penso' del plegado.
+# - separador.regla: glifo de la rule de /tema (cli) + color por rule.line.
+# - diff.mas / diff.menos: fondo, color de la marca y fondo intra
+#   (console/diff_render.estilos, cacheado por version del registro).
+# - enlace: visible=false apaga el OSC 8 (harness/enlaces.activo).
 ENGANCHADOS_P6 = ("tool.ok", "tool.error", "tool.curso", "tool.resultado",
-                  "tool.intencion", "aviso.degradado", "footer.turno")
+                  "tool.intencion", "aviso.degradado", "footer.turno",
+                  "pensando.prosa", "pensando.plegado", "separador.regla",
+                  "diff.mas", "diff.menos", "enlace")
 for _id in ENGANCHADOS_P6:
-    assert REGISTRO[_id].enganchado, _id   # ya venian de P4 (color por token)
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
 del _id
-# Sigue siendo la union (los P6 ya estaban en P4: sin duplicados).
-ENGANCHADOS = tuple(ENGANCHADOS)
+# La union de todos los pasos cableados (P4, P5, P6, P7, P8), sin duplicados.
+ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P6 if i not in ENGANCHADOS)
