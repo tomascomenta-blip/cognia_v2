@@ -1155,6 +1155,19 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             history.append(resultado)
             trace.append({"action": tc.nombre, "args": args_str[:200],
                           "ok": tool_ok, "result_head": resultado[:160]})
+            # Observabilidad opt-in (COGNIA_TRACE=1), la MISMA linea que el
+            # bucle legacy de cli.py imprime: sin ella el regimen nativo (el
+            # que corre de verdad) no dejaba ver que accion se repite. Print
+            # plano a proposito, y si la observacion lleva un recordatorio de
+            # repeticion (harness/repeticion, va al FINAL del texto) se
+            # imprime aparte: la cabeza de 100 chars jamas lo mostraria.
+            if os.environ.get("COGNIA_TRACE") == "1":
+                print(f"TRAZA paso {len(trace)}: ACCION {tc.nombre} "
+                      f"{args_str[:100]!r} -> {resultado[:100]!r}", flush=True)
+                if "[RECORDATORIO DE REPETICION]" in resultado:
+                    _i_rec = resultado.rfind("[RECORDATORIO DE REPETICION]")
+                    print(f"TRAZA recordatorio: {resultado[_i_rec:][:300]!r}",
+                          flush=True)
             # El output COMPLETO va al buffer ANTES de emitir ToolFin: el
             # renderer casa evento y entrada por resultado[:200] == resumen
             # (el evento solo lleva el recorte). Fallo del buffer -> Degradado

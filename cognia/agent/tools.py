@@ -46,7 +46,8 @@ TOOLS: dict = {}
 
 
 def tool(name: str, doc: str, danger: bool = False,
-         desc: str = "", params: list = None):
+         desc: str = "", params: list = None,
+         timeout_s=None, timeout_interno=None):
     """Register a tool. ``doc`` is one line shown to the model verbatim.
 
     ``desc``/``params`` (opcionales, 2026-08-09): documentación RICA para el
@@ -55,10 +56,19 @@ def tool(name: str, doc: str, danger: bool = False,
     lista de dicts {"nombre","tipo","requerido","descripcion","clave"} en el
     ORDEN posicional del protocolo texto ('a | b'); "clave"=True marca los que
     van como token 'clave=valor' (ver armar_args). Una tool sin params sigue
-    funcionando igual: el protocolo texto solo usa ``doc``."""
+    funcionando igual: el protocolo texto solo usa ``doc``.
+
+    ``timeout_s`` / ``timeout_interno`` (2026-08-24, harness/timeout_tool):
+    deadline propio en segundos (0 = sin limite; None = el global
+    COGNIA_TOOL_TIMEOUT, default 120) y, para las tools que ya acotan su
+    propio subprocess, un callable(args) -> segundos con ese timeout interno:
+    el deadline externo NUNCA corta antes que el interno (precedencia
+    documentada en timeout_tool)."""
     def deco(fn):
         TOOLS[name] = {"fn": fn, "doc": doc, "danger": danger,
-                       "desc": desc or "", "params": list(params or [])}
+                       "desc": desc or "", "params": list(params or []),
+                       "timeout_s": timeout_s,
+                       "timeout_interno": timeout_interno}
         return fn
     return deco
 
@@ -433,6 +443,24 @@ ACI_EXENTAS = frozenset({"responder", "leer_archivo", "leer_lote", "ejecutar",
 _SIN_EXIT = object()
 
 
+_TIMEOUT_AVISADO = []
+
+
+def _avisar_timeout_degradado(exc: BaseException) -> None:
+    """El subsistema de timeout no pudo decidir el deadline (config basura,
+    import roto): se dice UNA vez por proceso por el canal visible del CLI si
+    existe, y la tool corre sin limite. Nunca lanza."""
+    if _TIMEOUT_AVISADO:
+        return
+    _TIMEOUT_AVISADO.append(1)
+    motivo = f"{type(exc).__name__}: {exc}; las tools corren SIN deadline"
+    try:
+        from cognia.cli import _aviso_degradado
+        _aviso_degradado("timeout_tool", motivo)
+    except Exception:
+        print(f"[degradado] timeout_tool: {motivo}", file=sys.stderr)
+
+
 def _es_libro_caido(exc: BaseException) -> bool:
     """True si `exc` es la excepcion tipada del LIBRO (P0-2).
 
@@ -498,14 +526,43 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
     except Exception:
         _veto = None
     if _veto:
-        return _veto
+        # Una llamada VETADA tambien cuenta para el recordatorio de
+        # repeticion (harness/repeticion): repetir el mismo veto es el bucle
+        # mas frecuente. `vetado` nunca lanza; si falla, el veto sale pelado.
+        try:
+            from cognia.harness.interceptor import vetado as _harness_vetado
+            return _harness_vetado(name, args, ctx, _veto)
+        except Exception:
+            return _veto
+    _agotada = False
     try:
-        out = spec["fn"](args, ctx)
+        # TIMEOUT POR TOOL (harness/timeout_tool, 2026-08-24): deadline
+        # cooperativa; al vencer, `out` es un resultado TIPADO (TOOL_TIMEOUT)
+        # que sigue por el camino normal (despues, render, buffer) y el hijo
+        # se espera/mata de verdad. Sin limite (0) corre en linea como antes.
+        # Un fallo del propio subsistema (config basura) se avisa y la tool
+        # corre SIN deadline: el timeout es una mejora, no un requisito.
+        try:
+            from cognia.harness import timeout_tool as _tt
+            _limite = _tt.timeout_efectivo(name, spec, args)
+        except Exception as _exc_tt:
+            _tt = None
+            _limite = 0.0
+            _avisar_timeout_degradado(_exc_tt)
+        if _tt is not None and _limite > 0:
+            out, _agotada, _ = _tt.correr_con_deadline(
+                spec["fn"], name, args, ctx, _limite)
+        else:
+            out = spec["fn"](args, ctx)
         # P0-1: el exit code REAL, si la tool paso por el shell. Se saca ANTES
         # de calcular 'ok' porque MANDA sobre la regex (ver abajo). `pop` para
         # que no se filtre al ctx de la llamada siguiente: un exit rancio es
         # exactamente el bug de "evento sellado con el reloj rancio".
         _exit = ctx.pop("_exit", _SIN_EXIT) if isinstance(ctx, dict) else _SIN_EXIT
+        if _agotada:
+            # Agotada = paso por el camino y NO se ejecuto hasta el final:
+            # como un comando bloqueado, exit None (no es 0, no es _SIN_EXIT).
+            _exit = None
         # \bERROR\b sobre la cabeza de la PRIMERA linea: todos los retornos de
         # error del registry ponen ERROR en la linea 1, pero un exito cuyo
         # CONTENIDO arranca temprano (ctx_grep sobre un log con errores,
@@ -1856,7 +1913,11 @@ _RE_EJEC_KV = re.compile(r"\s*\|\s*(timeout|cwd)\s*=\s*([^|]+?)\s*$", re.I)
            "clave": True,
            "descripcion": "directorio donde correr el comando (en vez de "
                           "prefijar 'cd RUTA &&')"},
-      ])
+      ],
+      # El timeout que _shell aplica a su subprocess es el que MANDA: el
+      # deadline externo (harness/timeout_tool) se estira a interno+margen
+      # para no cortar antes y que el error de timeout sea el accionable.
+      timeout_interno=lambda a: _partir_ejec(a)[1])
 def _ejecutar(args, ctx):
     cmd, timeout, cwd = _partir_ejec(args)
     return _shell(cmd, ctx, timeout=timeout, cwd=cwd)
@@ -2122,7 +2183,8 @@ def _abrir(args, ctx):
           {"nombre": "ruta", "tipo": "string", "requerido": True,
            "descripcion": "archivo o directorio de tests, p.ej. "
                           "'tests/test_foo.py'"},
-      ])
+      ],
+      timeout_interno=lambda a: 180)   # el timeout=180 del _shell de abajo
 def _tests(args, ctx):
     ruta = args.strip()
     if not ruta:

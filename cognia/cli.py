@@ -2072,6 +2072,7 @@ _CMD_DESCRIPTIONS = {
     "/compactar":       "A secas: resumen visual de la sesion (limpiar + ultimas interacciones). Con args: compactacion del contexto del agente. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
     "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
+    "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args) y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | timeout <s>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2166,6 +2167,33 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/bucle": (
+        "HIGIENE DEL LAZO (harness/repeticion + harness/timeout_tool, patron deepseek-harness). "
+        "(1) RECORDATORIO DE REPETICION, advisory: por agente se cuenta la llamada CONSECUTIVA "
+        "en curso con clave canonica [tool, args] (JSON con key-sort recursivo: dos dicts con "
+        "las claves en otro orden son la misma llamada; en el protocolo texto solo se normalizan "
+        "espacios). Al cruzar el 1er umbral (default 3) se anexa al final de la observacion un "
+        "recordatorio SUAVE ('estas repitiendo la misma llamada... analiza el resultado previo'); "
+        "en los siguientes (5, 8) uno DETALLADO que nombra la tool, las N llamadas seguidas y cita "
+        "los args (cap 500 chars) y pide no volver a llamar con esos args exactos. Cuenta tambien "
+        "las llamadas vetadas/fallidas; se resetea con cada prompt humano; ver_salida/procesos/"
+        "tests son transparentes (polling legitimo). NUNCA veta ni corta: los cortes duros siguen "
+        "siendo register_action (3ra identica en la tarea) y GuardiaBucle (ping-pong/ciclos), y "
+        "con el umbral 3 el primer recordatorio coincide con ese corte en el bucle nativo: para "
+        "verlo antes, /bucle umbrales 2,4,6. "
+        "(2) TIMEOUT POR TOOL: deadline cooperativa por llamada; al vencer, el resultado es un "
+        "texto TIPADO 'ERROR: tool agotada tras Ns (TOOL_TIMEOUT)' que baja por el camino normal "
+        "(interceptor, render, buffer; exit None, nunca 0) y el proceso hijo registrado se mata "
+        "por arbol y se espera hasta la gracia (5 s); lo que no muere se dice (degradado "
+        "'timeout_tool'). PRECEDENCIA: timeout_s del @tool > global; 0 = sin limite; las tools "
+        "que llaman al modelo/subagente (delegar_subtarea, rlm_llamar, generar_codigo...) no "
+        "tienen deadline; y para ejecutar/tests el timeout INTERNO de su subprocess manda (el "
+        "externo se estira a interno+5 s, nunca corta antes). "
+        "USO: /bucle (estado de los dos) | on|off (persiste 'repeticion') | umbrales <a,b,c> "
+        "(persiste 'repeticion_umbrales'; enteros >= 2 crecientes, se VALIDAN y una config "
+        "invalida grita en vez de callar) | timeout <s> (persiste 'tool_timeout_s'; 0 = sin "
+        "limite). Envs: COGNIA_REPETICION=0 apaga GANANDO a la config; "
+        "COGNIA_REPETICION_UMBRALES, COGNIA_TOOL_TIMEOUT, COGNIA_TOOL_TIMEOUT_GRACIA."),
     "/offload": (
         "OFFLOADING de salidas grandes (harness/offloading, contrato deepseek-harness): cuando "
         "el resultado de una tool supera el umbral de bytes inline, va ENTERO a disco y el "
@@ -6118,6 +6146,17 @@ _CONFIG_DEFAULTS: dict = {
     "contexto_umbral_aviso":   "",
     "contexto_umbral_critico": "90",
     "barra_bloques":           "on",
+    # HIGIENE DEL LAZO (2026-08-24, deepseek-harness): 'repeticion' = el
+    # recordatorio ADVISORY que anexa a la observacion cuando el modelo repite
+    # la misma llamada con los mismos args (harness/repeticion; env
+    # COGNIA_REPETICION=0 apaga ganando a la config); 'repeticion_umbrales'
+    # = a que llamada consecutiva suena (suave al 1o, detallado en los
+    # siguientes; enteros >= 2 crecientes, COGNIA_REPETICION_UMBRALES).
+    # 'tool_timeout_s' = deadline global por tool en segundos, 0 = sin limite
+    # (harness/timeout_tool; COGNIA_TOOL_TIMEOUT). Se cambian con /bucle.
+    "repeticion":              "on",
+    "repeticion_umbrales":     "3,5,8",
+    "tool_timeout_s":          "120",
 }
 
 
@@ -9286,6 +9325,187 @@ def _slash_compactar(arg: str = "") -> None:
         _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
 
 
+def _aplicar_config_bucle() -> None:
+    """Propaga la config de la higiene del lazo (repeticion + timeout por
+    tool) al entorno SIN pisar lo del usuario y marcando la siembra (F6), y
+    VALIDA las dos al arrancar: una config invalida se grita via degradado y
+    se siembra el default en su lugar (el REPL no puede reventar por un
+    umbral mal tecleado, pero tampoco puede callarselo: patron dsh)."""
+    try:
+        from cognia.harness import repeticion as _rep
+        from cognia.harness import timeout_tool as _tt
+    except Exception as exc:
+        _aviso_degradado("repeticion", f"modulo no importable: {exc}")
+        return
+    _rep.registrar_avisador(_aviso_degradado)
+    _tt.registrar_avisador(_aviso_degradado)
+    try:
+        cfg = _load_config()
+    except Exception as exc:
+        _aviso_degradado("repeticion", f"config no aplicada: {exc}")
+        return
+    # umbrales: validar ANTES de sembrar; basura -> default y grito
+    umb = str(cfg.get("repeticion_umbrales", "3,5,8")).strip()
+    try:
+        _rep.parsear_umbrales(umb)
+    except _rep.ConfigInvalida as exc:
+        _aviso_degradado("repeticion", f"config 'repeticion_umbrales' "
+                         f"invalida ({exc}); uso 3,5,8")
+        umb = "3,5,8"
+    act = str(cfg.get("repeticion", "on")).strip().lower()
+    if act not in ("on", "off"):
+        _aviso_degradado("repeticion", f"config 'repeticion'={act!r} no es "
+                         f"on/off; uso on")
+        act = "on"
+    tmo = str(cfg.get("tool_timeout_s", "120")).strip()
+    try:
+        if int(float(tmo)) < 0:
+            raise ValueError(tmo)
+    except ValueError:
+        _aviso_degradado("timeout_tool", f"config 'tool_timeout_s'={tmo!r} "
+                         f"no es un entero >= 0; uso 120")
+        tmo = "120"
+    pares = (
+        (_rep.ENV_ACTIVO, "1" if act == "on" else "0"),
+        (_rep.ENV_UMBRALES, umb),
+        (_tt.ENV_TIMEOUT, tmo),
+    )
+    for var, valor in pares:
+        if not (os.environ.get(var) or "").strip():
+            os.environ[var] = valor
+            _marcar_env_sembrada(var)
+    # y si el USUARIO puso una env basura, tambien se dice al arrancar
+    try:
+        _rep.validar_config()
+    except _rep.ConfigInvalida as exc:
+        _aviso_degradado("repeticion", f"env invalida, guard apagado: {exc}")
+    try:
+        _tt.validar_config()
+    except _tt.ConfigInvalida as exc:
+        _aviso_degradado("timeout_tool", f"env invalida, sin deadline: {exc}")
+
+
+def _slash_bucle(arg: str = "") -> None:
+    """`/bucle`: puerta de la higiene del lazo (repeticion + timeout).
+
+    Sin args muestra el ESTADO de los dos subsistemas. Subcomandos (persisten
+    via _save_config y actualizan el env de la sesion, marcado como sembrado):
+      on|off              -> clave 'repeticion' (COGNIA_REPETICION)
+      umbrales <a,b,c>    -> clave 'repeticion_umbrales' (validados)
+      timeout <s>         -> clave 'tool_timeout_s' (0 = sin limite)"""
+    try:
+        from cognia.harness import repeticion as _rep
+        from cognia.harness import timeout_tool as _tt
+    except Exception as exc:
+        _aviso_degradado("repeticion", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["repeticion"] = bajo
+        _save_config(cfg)
+        os.environ[_rep.ENV_ACTIVO] = "1" if bajo == "on" else "0"
+        _marcar_env_sembrada(_rep.ENV_ACTIVO)
+        _rep._AVISADO[0] = False
+        _print_line(f"[info_dim]recordatorio de repeticion: {bajo} "
+                    f"(guardado)[/info_dim]")
+        return
+    if bajo.startswith("umbrales"):
+        crudo = arg[len("umbrales"):].strip()
+        try:
+            lista = _rep.parsear_umbrales(crudo)
+            if not crudo:
+                raise _rep.ConfigInvalida("faltan los umbrales")
+        except _rep.ConfigInvalida as exc:
+            _print_line(f"[warn_cl]Uso: /bucle umbrales <a,b,c> (enteros >= 2, "
+                        f"crecientes; p.ej. 3,5,8) -- {exc}[/warn_cl]")
+            return
+        texto = ",".join(str(v) for v in lista)
+        cfg = _load_config()
+        cfg["repeticion_umbrales"] = texto
+        _save_config(cfg)
+        os.environ[_rep.ENV_UMBRALES] = texto
+        _marcar_env_sembrada(_rep.ENV_UMBRALES)
+        _rep._AVISADO[0] = False
+        _print_line(f"[info_dim]repeticion: umbrales {texto} (guardado; suave "
+                    f"al {lista[0]}, detallado en {lista[1:] or 'ninguno mas'})"
+                    f"[/info_dim]")
+        return
+    if bajo.startswith("timeout"):
+        crudo = arg[len("timeout"):].strip()
+        try:
+            n = int(crudo)
+            if n < 0:
+                raise ValueError(n)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /bucle timeout <segundos> (entero >= 0; "
+                        "0 = sin limite)[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["tool_timeout_s"] = str(n)
+        _save_config(cfg)
+        os.environ[_tt.ENV_TIMEOUT] = str(n)
+        _marcar_env_sembrada(_tt.ENV_TIMEOUT)
+        _print_line(f"[info_dim]timeout por tool: "
+                    f"{'sin limite' if n == 0 else f'{n}s'} (guardado; "
+                    f"ejecutar/tests conservan su timeout interno si es mayor)"
+                    f"[/info_dim]")
+        return
+    if arg and bajo != "estado":
+        _print_line("[warn_cl]Uso: /bucle [estado | on | off | umbrales <a,b,c> "
+                    "| timeout <s>][/warn_cl]")
+        return
+    # Estado (default): la foto de los dos subsistemas.
+    er = _rep.estado()
+    et = _tt.estado()
+
+    def _fuente(var, clave):
+        env = (os.environ.get(var) or "").strip()
+        return (f"env {var}={env}" if env and not _env_es_sembrada(var)
+                else f"config '{clave}'")
+
+    _print_line(f"[info_dim]recordatorio de repeticion: "
+                f"{'ACTIVO' if er['activo'] else 'apagado'} "
+                f"({_fuente(_rep.ENV_ACTIVO, 'repeticion')})[/info_dim]")
+    _print_line(f"[info_dim]  umbrales: {','.join(str(v) for v in er['umbrales'])} "
+                f"(suave al {er['umbrales'][0]}, detallado despues; "
+                f"{_fuente(_rep.ENV_UMBRALES, 'repeticion_umbrales')}) | "
+                f"transparentes: {', '.join(er['exentas'])}[/info_dim]")
+    ult = er["ultimo"]
+    if ult:
+        _print_line(f"[info_dim]  recordatorios en este proceso: {er['total']}; "
+                    f"ultimo: {ult.get('tool')} x{ult.get('n')} "
+                    f"({ult.get('tipo')}, {ult.get('ts')})[/info_dim]")
+    else:
+        _print_line("[info_dim]  recordatorios en este proceso: 0[/info_dim]")
+    if er["config_error"]:
+        _print_line(f"[warn_cl]  config invalida (guard apagado): "
+                    f"{er['config_error']}[/warn_cl]")
+    tmo = et["timeout_s"]
+    _print_line(f"[info_dim]timeout por tool: "
+                f"{'sin limite' if tmo == 0 else f'{tmo}s'} "
+                f"({_fuente(_tt.ENV_TIMEOUT, 'tool_timeout_s')}; gracia "
+                f"{et['gracia_s']}s; ejecutar/tests: su timeout interno manda "
+                f"si es mayor; sin deadline: {len(et['sin_deadline'])} tools "
+                f"que llaman al modelo)[/info_dim]")
+    ult = et["ultimo"]
+    if ult:
+        _print_line(f"[info_dim]  timeouts en este proceso: {et['total']}; "
+                    f"ultimo: {ult.get('tool')} tras {ult.get('limite_s')}s "
+                    f"({'quiescente' if ult.get('quiescente') else 'NO quiescio'}, "
+                    f"{ult.get('ts')})[/info_dim]")
+    else:
+        _print_line("[info_dim]  timeouts en este proceso: 0[/info_dim]")
+    if et["config_error"]:
+        _print_line(f"[warn_cl]  config invalida (sin deadline): "
+                    f"{et['config_error']}[/warn_cl]")
+    for err in (er["ultimo_error"], et["ultimo_error"]):
+        if err:
+            _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
+                        f"({err.get('ts', '')})[/warn_cl]")
+
+
 def _aplicar_config_notificaciones() -> None:
     """Registra el avisador del subsistema de notificaciones (F5): un fallo
     emitiendo el toast se VE como degradado en el REPL (una vez por sesion,
@@ -11755,6 +11975,10 @@ def repl():
     # fallo emitiendo el toast se vea como degradado (el modulo lee la config
     # a call-time, no hay env que propagar).
     _aplicar_config_notificaciones()
+    # HIGIENE DEL LAZO (repeticion + timeout por tool): interceptor y run_tool
+    # leen COGNIA_REPETICION* / COGNIA_TOOL_TIMEOUT del env; se siembran desde
+    # la config y se VALIDAN aqui (config invalida = grito, no silencio).
+    _aplicar_config_bucle()
 
     # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
     # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
@@ -12115,6 +12339,16 @@ def repl():
         if not raw:
             continue
 
+        # Higiene del lazo (harness/repeticion): cada linea humana resetea el
+        # contador de llamadas repetidas de TODOS los agentes (el reset es por
+        # generacion: los ctx vivos lo ven en su proxima llamada). Nunca lanza.
+        try:
+            from cognia.harness import repeticion as _rep_reset
+            _rep_reset.nuevo_prompt_humano()
+        except Exception as _exc_rep:
+            _aviso_degradado("repeticion",
+                             f"{type(_exc_rep).__name__}: {_exc_rep}")
+
         # Pastes colapsados (harness/pegados): la marca '[pegado #N: +X
         # lineas]' que dejo el binding de BracketedPaste se sustituye por su
         # contenido AL ENVIAR, antes de todo lo demas (mejora, menciones,
@@ -12310,6 +12544,8 @@ def repl():
             _slash_notificar(raw[len("/notificar "):] if raw.startswith("/notificar ") else "")
         elif raw == "/markdown" or raw.startswith("/markdown "):
             _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
+        elif raw == "/bucle" or raw.startswith("/bucle "):
+            _slash_bucle(raw[len("/bucle "):] if raw.startswith("/bucle ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):

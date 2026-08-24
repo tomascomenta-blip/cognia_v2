@@ -69,6 +69,12 @@ ENV_QUE_PISAN: dict = {
     "contexto_umbral_aviso":   ("COGNIA_CTX_AVISO",),
     "contexto_umbral_critico": ("COGNIA_CTX_CRITICO",),
     "barra_bloques":           ("COGNIA_BARRA_BLOQUES",),
+    # Higiene del lazo (2026-08-24): recordatorio de repeticion advisory
+    # (harness/repeticion) y timeout por tool (harness/timeout_tool); el CLI
+    # las siembra desde _aplicar_config_bucle y /bucle las persiste.
+    "repeticion":              ("COGNIA_REPETICION",),
+    "repeticion_umbrales":     ("COGNIA_REPETICION_UMBRALES",),
+    "tool_timeout_s":          ("COGNIA_TOOL_TIMEOUT",),
 }
 
 # Nombres que huelen a credencial: se enmascaran SIEMPRE en cualquier render.

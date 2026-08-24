@@ -316,7 +316,35 @@ def despues(name: str, args: str, ctx: dict, out: str, ok: bool,
         logging.getLogger(__name__).warning(
             "interceptor.offloading degradado: %s: %s",
             exc.__class__.__name__, exc)
+
+    # 4) RECORDATORIO DE REPETICION (harness/repeticion, advisory): va el
+    #    ULTIMO a proposito — despues del offloading, para que el recordatorio
+    #    no se vaya a disco con la salida grande, y al FINAL del texto, que es
+    #    lo que aci_trim conserva (cabeza+cola) y lo ultimo que lee el modelo
+    #    antes de decidir. Cuenta tambien las fallidas (`ok` va en la
+    #    telemetria). Nunca lanza, nunca veta.
+    texto = _recordatorio_repeticion(name, args, ctx, texto, ok)
     return texto
+
+
+def vetado(name: str, args: str, ctx: dict, texto: str) -> str:
+    """Lo que ve el modelo cuando `antes` VETO la llamada. Una llamada
+    denegada tambien cuenta como repeticion (repetir un veto identico es el
+    bucle mas tonto y mas frecuente), asi que pasa por el mismo recordatorio.
+    Nunca lanza."""
+    return _recordatorio_repeticion(name, args, ctx, texto, False)
+
+
+def _recordatorio_repeticion(name, args, ctx, texto, ok) -> str:
+    try:
+        from cognia.harness import repeticion
+        return repeticion.anexar(name, args, ctx, texto, ok=ok)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "interceptor.repeticion degradado: %s: %s",
+            exc.__class__.__name__, exc)
+        return texto
 
 
 # ======================================================================

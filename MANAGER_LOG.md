@@ -14018,3 +14018,42 @@ valores del agente salen con '~' porque el stream del bucle no trae prompt_token
 por timings, solo completion) — pedir include_usage en chat_client es trabajo aparte; y el
 selector 'Enviar el prompt, o mejorarlo con IA?' se come la primera linea tecleada tras un texto
 libre (el driver manda un Enter extra).
+
+
+## 2026-08-24 — Higiene del lazo: recordatorio de repeticion (advisory) + timeout por tool con resultado tipado (/bucle)
+
+Dos piezas destiladas de deepseek-harness, cableadas al punto unico del arnes (interceptor +
+run_tool) sin duplicar los cortes que ya existen. (1) `harness/repeticion.py`: por agente (el ctx)
+cuenta la llamada CONSECUTIVA en curso con clave canonica JSON [tool, args] con key-sort recursivo
+(dict con otro orden = misma clave; string JSON = dict; espacios normalizados); al cruzar el 1er
+umbral (default 3) anexa al FINAL de la observacion un recordatorio SUAVE, en los siguientes (5, 8)
+uno DETALLADO que cita los args (cap 500) y prohibe repetir esos exactos; cuenta vetadas y fallidas
+(nuevo `interceptor.vetado`), se resetea por generacion con cada linea humana del REPL, ver_salida/
+procesos/tests son transparentes, y NUNCA veta. Va el ultimo en `despues` (tras el offloading, para
+que no se vaya a disco, y en la cola que aci_trim conserva). (2) `harness/timeout_tool.py`: run_tool
+corre la tool en un hilo con deadline; al vencer el resultado es 'RESULTADO <tool> ERROR: tool
+agotada tras Ns (TOOL_TIMEOUT)', ok=False, exit None (no 0), y baja por el pipeline normal
+(despues, render, buffer) sin excepcion; cancelacion cooperativa (ctx['_cancelar_tool']), los Popen
+registrados en ctx['_procesos_tool'] se matan por ARBOL (taskkill /T: 'matar el shell no mata el
+proceso') y se espera hasta la gracia (5 s) con sonda de PID; lo que no quiesce se dice (degradado
+'timeout_tool' + cola en el resultado). PRECEDENCIA documentada: timeout_s del @tool > global
+COGNIA_TOOL_TIMEOUT (config 'tool_timeout_s' 120, 0 = sin limite) > 12 tools LLM sin deadline; y
+para ejecutar/tests el interno del subprocess MANDA (externo = max(externo, interno+5), test con el
+spec real: 'sleep | timeout=300' -> 305). Config validada al arrancar (`_aplicar_config_bucle`):
+umbrales basura o timeout negativo gritan via _aviso_degradado y siembran el default (marcado
+sembrado: /config-resuelta no miente; ENV_QUE_PISAN con las 3 claves nuevas). Puerta /bucle [estado
+| on | off | umbrales <a,b,c> | timeout <s>], en /ayuda y con detalle. Tests: 37 nuevos (dos
+ficheros) + batch dirigido 229 passed / 0 failed; el test de cableado por run_tool FALLA sin el
+hook (contrafactual corrido a mano). Gate REPL real (Qwen3.8-27B-Ridge :8080, COGNIA_TRACE=1): tres
+tareas cotidianas ('lee enlaces.py y resume', 'crea notas_bucle.txt con 3 lineas y cuentalas',
+'busca OSC 8 en harness') con 5+5+5 pasos y CERO recordatorios (el guard no ensucia); '/bucle
+umbrales 2,4,6' + tarea dirigida 'llama leer_archivo 3 veces con los mismos args': la traza muestra
+`TRAZA recordatorio: "[RECORDATORIO DE REPETICION] Estas repitiendo la misma llamada a
+'leer_archivo' con los mismos argumentos (2 veces seguidas)..."` anexado a la 2da observacion y
+'/bucle' reporta 'recordatorios en este proceso: 1; ultimo: leer_archivo x2 (suave)'. HONESTO: la
+3ra llamada la corto register_action ('Agente estancado (tool repetida 3 veces)'), que en
+bucle_nativo corta a la 3ra identica de la TAREA — con el default 3,5,8 el primer recordatorio
+coincide con ese corte y solo llega antes con args canonicamente iguales pero distintos como string,
+en el bucle legacy/subagentes/flujos, o bajando el umbral; no se toco el corte duro (es el techo) y
+queda dicho en /ayuda /bucle. Anadido tambien el print COGNIA_TRACE=1 al bucle nativo (solo lo
+tenia el legacy).
