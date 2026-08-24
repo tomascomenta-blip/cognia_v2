@@ -2067,7 +2067,7 @@ _CMD_DESCRIPTIONS = {
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
     "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
     "/compactar":       "A secas: resumen visual de la sesion (limpiar + ultimas interacciones). Con args: compactacion del contexto del agente. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
-    "/notificar":       "Config del toast OSC 9 al terminar un turno largo; cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell> | umbral <segundos> | degradados on|off]",
+    "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
@@ -2256,22 +2256,29 @@ _CMD_DETAILS = {
         "depende de sus marcas). Todo fallo avisa via degradado 'markdown' y ese turno cae "
         "al flujo plano de siempre, re-imprimiendo el texto crudo: jamas rompe el turno."),
     "/notificar": (
-        "NOTIFICACIONES DE ESCRITORIO (harness/notificaciones, F5, patron Crush/Codex): cuando "
-        "un turno del agente termina tras >= umbral segundos (default 20; el 27B local tarda "
-        "minutos y uno se va a otra ventana), Cognia emite un toast OSC 9 del terminal "
-        "(ESC ] 9 ; texto BEL — Windows Terminal lo pinta como notificacion nativa; un terminal "
-        "sin soporte la ignora). MODOS: auto (default: OSC solo si hay consola interactiva de "
-        "verdad — un pipe/CI no recibe escapes jamas) | osc (forzado) | bell (BEL a secas, para "
-        "terminales sin OSC 9) | off. "
-        "USO: /notificar | estado (modo efectivo y su fuente, umbral, ultima emitida, ultimo "
-        "error) | <mensaje> (cualquier texto que no sea subcomando: popup de escritorio con "
-        "el mensaje, el uso clasico) | on|off (persiste 'notificar') | prueba (emite un toast "
-        "DE VERDAD y muestra "
-        "los bytes) | modo <auto|osc|bell> | umbral <segundos> | degradados on|off (toast "
-        "tambien cuando salta un degradado; default off para no spamear: el REPL ya lo pinta "
-        "ambar). La env COGNIA_NOTIFY=off|osc|bell gana a la config (apagado de emergencia). "
+        "NOTIFICACIONES (harness/notificaciones, F5 corregida 2026-08-23, patron Crush/Codex/"
+        "Aider): cuando un turno del agente termina tras >= umbral segundos (default 20; el 27B "
+        "local tarda minutos y uno se va a otra ventana), Cognia avisa. EVIDENCIA: el toast "
+        "OSC 9 PLANO (ESC ] 9 ; texto BEL) NO esta soportado en Windows Terminal (issue "
+        "microsoft/terminal#8592 abierto: WT interpreta 9;x como ConEmu); lo que SI funciona en "
+        "WT es el progreso OSC 9;4 (anillo en pestana/taskbar: 9;4;3 indeterminado al arrancar "
+        "el turno, 9;4;0 limpia al terminar OK, 9;4;2;100 ROJO en error — se limpia al "
+        "siguiente prompt tecleado) y el BEL (flash de taskbar sin foco). MODOS: auto (default: "
+        "solo con consola interactiva de verdad — un pipe/CI no recibe escapes jamas; bajo WT "
+        "avisa con BEL, en otras terminales con OSC 9 plano) | osc (OSC 9 plano forzado, para "
+        "WezTerm/ConEmu — WT NO) | bell (BEL a secas) | toast (notificacion NATIVA del SO: "
+        "plyer si esta en el venv o PowerShell NotifyIcon, sin dependencias; sin nada degrada a "
+        "bell avisando una vez) | off. El texto SIEMPRE va saneado: sin ANSI/controles, tope "
+        "240 chars. Subagentes y carril de fondo JAMAS notifican. "
+        "USO: /notificar | estado (modo efectivo y su fuente, WT detectado, umbral, ultima "
+        "emitida, ultimo error) | <mensaje> (cualquier texto que no sea subcomando: popup de "
+        "escritorio con el mensaje, el uso clasico) | on|off (persiste 'notificar') | prueba "
+        "(emite DE VERDAD y muestra los bytes, incluidas las secuencias 9;4 bajo WT) | modo "
+        "<auto|osc|bell|toast> | umbral <segundos> | degradados on|off (aviso tambien cuando "
+        "salta un degradado; default off para no spamear: el REPL ya lo pinta ambar). La env "
+        "COGNIA_NOTIFY=off|osc|bell|toast gana a la config (apagado de emergencia). "
         "La secuencia va al fd REAL del proceso (con la vista Textual abierta sys.stdout esta "
-        "capturado y el toast moriria ahi); un OSC no pinta nada visible, no ensucia pantalla. "
+        "capturado y moriria ahi); un OSC no pinta nada visible, no ensucia pantalla. "
         "Punto de extension: dict EVENTOS del modulo (nombre -> builder). Todo fallo avisa via "
         "degradado 'notificaciones' UNA vez por sesion, jamas rompe el turno."),
     "/tx": (
@@ -6023,11 +6030,13 @@ _CONFIG_DEFAULTS: dict = {
     "compactacion_umbral":    "0.8",
     "compactacion_retencion": "0.16",
     "compactacion_cap":       "4000",
-    # NOTIFICACIONES de escritorio (harness/notificaciones, F5): toast OSC 9
-    # del terminal cuando un turno del agente termina tras >= umbral segundos
-    # (el 27B local tarda minutos y el dueno se va a otra ventana). Modos:
-    # auto (OSC solo con consola interactiva) | osc | bell | off. La env
-    # COGNIA_NOTIFY=off|osc|bell gana a la config (apagado de emergencia).
+    # NOTIFICACIONES (harness/notificaciones, F5 corregida 2026-08-23): aviso
+    # cuando un turno del agente termina tras >= umbral segundos (el 27B local
+    # tarda minutos y el dueno se va a otra ventana) + anillo de progreso
+    # OSC 9;4 en Windows Terminal (el OSC 9 plano NO esta soportado en WT,
+    # issue #8592). Modos: auto (BEL bajo WT, OSC 9 plano en el resto; solo
+    # con consola interactiva) | osc | bell | toast (nativo del SO) | off. La
+    # env COGNIA_NOTIFY=off|osc|bell|toast gana a la config (emergencia).
     # 'notificar_degradado' on = toast tambien cuando salta _aviso_degradado
     # (default off: los degradados ya se ven ambar en el REPL).
     "notificar":            "on",
@@ -9047,8 +9056,11 @@ def _slash_notificar(arg: str = "") -> None:
     registrados y la ultima notificacion / ultimo error.
     Subcomandos (persisten via _save_config):
       on|off              -> clave 'notificar' (COGNIA_NOTIFY gana a la config)
-      prueba              -> emite un toast DE VERDAD a la consola real
-      modo <auto|osc|bell>-> clave 'notificar_modo'
+      prueba              -> emite una notificacion DE VERDAD a la consola real
+      modo <auto|osc|bell|toast> -> clave 'notificar_modo' (auto: BEL bajo
+                             Windows Terminal — el OSC 9 plano es un no-op
+                             ahi, issue #8592 — y OSC 9 en el resto; toast:
+                             notificacion nativa del SO)
       umbral <segundos>   -> clave 'notificar_umbral_s' (>= 1)
       degradados on|off   -> clave 'notificar_degradado' (toast al degradarse)
     Cualquier otro texto es el uso VIEJO: '/notificar <mensaje>' manda un
@@ -9069,41 +9081,77 @@ def _slash_notificar(arg: str = "") -> None:
                     "[/info_dim]")
         return
     if bajo == "prueba":
-        # Toast real: forzamos 'osc' salvo que el modo efectivo sea bell/off,
-        # para que la prueba sirva tambien con la config en auto sobre un
-        # terminal que rich no reconoce como tty.
+        # Prueba REAL con el modo EFECTIVO resuelto como en produccion:
+        # auto -> bell bajo Windows Terminal (el OSC 9 plano es un NO-OP ahi,
+        # issue microsoft/terminal#8592 abierto: WT interpreta 9;x como
+        # ConEmu) u osc en el resto; osc/bell/toast se prueban tal cual.
         modo = _notif.modo_activo()
         if modo == "off":
             _print_line("[warn_cl]notificaciones apagadas (modo off): "
                         "/notificar on o quitar COGNIA_NOTIFY=off[/warn_cl]")
             return
-        emitido = _notif.notificar("Cognia", "notificacion de prueba",
-                                   modo="bell" if modo == "bell" else "osc")
-        if emitido:
-            seq = (_notif.secuencia_osc9("Cognia", "notificacion de prueba")
-                   if modo != "bell" else "\a")
-            _print_line(f"[ok_cl]notificacion emitida (modo "
-                        f"{'bell' if modo == 'bell' else 'osc'}): "
-                        f"bytes {seq!r}[/ok_cl]")
-            _print_line("[detail]  si no viste el toast, tu terminal no "
-                        "soporta OSC 9 (Windows Terminal si): /notificar "
-                        "modo bell[/detail]")
+        modo_ef = modo
+        if modo == "auto":
+            modo_ef = "bell" if _notif.en_wt() else "osc"
+        # Los bytes se muestran SIEMPRE (aunque el gate de tty no deje
+        # emitirlos, p.ej. bajo un pipe): la prueba tambien es documentacion
+        # de que hace exactamente el modo efectivo.
+        if modo_ef == "toast":
+            _print_line("[info_dim]  modo efectivo toast: notificacion nativa "
+                        "del SO (plyer o PowerShell NotifyIcon), sin bytes "
+                        "al terminal[/info_dim]")
         else:
-            err = _notif.estado()["ultimo_error"]
-            _print_line(f"[warn_cl]no se pudo emitir"
-                        f"{': ' + err.get('motivo', '') if err else ''}"
-                        f"[/warn_cl]")
+            seq = (_notif.secuencia_osc9("Cognia", "notificacion de prueba")
+                   if modo_ef == "osc" else "\a")
+            _print_line(f"[info_dim]  modo efectivo {modo_ef}: bytes "
+                        f"{_escape(repr(seq))}[/info_dim]")
+        if modo_ef == "osc" and _notif.en_wt():
+            _print_line("[warn_cl]  OJO: Windows Terminal NO pinta el "
+                        "OSC 9 plano (#8592): usa /notificar modo toast, "
+                        "o deja auto (BEL + anillo 9;4)[/warn_cl]")
+        if _notif.en_wt():
+            _print_line(f"[info_dim]  anillo 9;4 de WT — inicio: "
+                        f"{_escape(repr(_notif.secuencia_progreso(3)))} | "
+                        f"fin ok: {_escape(repr(_notif.secuencia_progreso(0)))} | "
+                        f"error: {_escape(repr(_notif.secuencia_progreso(2, 100)))}"
+                        f"[/info_dim]")
+        emitido = _notif.notificar("Cognia", "notificacion de prueba",
+                                   modo=modo_ef)
+        if emitido:
+            _print_line(f"[ok_cl]notificacion emitida (modo {modo_ef})"
+                        f"[/ok_cl]")
+        else:
+            est_p = _notif.estado()
+            err = est_p["ultimo_error"]
+            motivo = ""
+            if err:
+                motivo = ": " + err.get("motivo", "")
+            elif not est_p["consola_interactiva"]:
+                # No es un fallo: es el gate anti-escape trabajando (un
+                # pipe/CI jamas recibe bytes de escape; revision 2026-08-23).
+                motivo = (": el fd real no es un terminal (pipe/CI) y el "
+                          "gate anti-escape no emite ahi")
+            elif est_p["en_fondo"]:
+                motivo = ": subagente/carril de fondo (jamas notifican)"
+            _print_line(f"[warn_cl]no se pudo emitir{motivo}[/warn_cl]")
         return
     if bajo.startswith("modo"):
         v = arg[len("modo"):].strip().lower()
-        if v not in ("auto", "osc", "bell"):
-            _print_line("[warn_cl]Uso: /notificar modo <auto|osc|bell> "
+        if v not in ("auto", "osc", "bell", "toast"):
+            _print_line("[warn_cl]Uso: /notificar modo <auto|osc|bell|toast> "
                         "(off es /notificar off)[/warn_cl]")
             return
         cfg = _load_config()
         cfg["notificar_modo"] = v
         _save_config(cfg)
         _print_line(f"[info_dim]notificaciones: modo {v} (guardado)[/info_dim]")
+        if v == "osc":
+            from cognia.harness import notificaciones as _n2
+            if _n2.en_wt():
+                _print_line("[warn_cl]  OJO: estas bajo Windows Terminal y "
+                            "WT NO pinta el OSC 9 plano (#8592) — este modo "
+                            "es para WezTerm/ConEmu; aqui conviene auto o "
+                            "toast[/warn_cl]")
         return
     if bajo.startswith("umbral"):
         try:
@@ -9145,6 +9193,17 @@ def _slash_notificar(arg: str = "") -> None:
                 f"{'on' if est['degradado_optin'] else 'off'} | consola "
                 f"interactiva: {'si' if est['consola_interactiva'] else 'no'}"
                 f"[/info_dim]")
+    if est.get("wt"):
+        _print_line("[info_dim]  Windows Terminal: si — el OSC 9 plano NO "
+                    "esta soportado (#8592, modo osc seria un no-op aqui); "
+                    "anillo 9;4 en pestana/taskbar activo"
+                    + (" | error ROJO pendiente de limpiar"
+                       if est.get("error_pendiente") else "")
+                    + "[/info_dim]")
+    else:
+        _print_line("[info_dim]  Windows Terminal: no (sin WT_SESSION) — el "
+                    "anillo 9;4 no se emite y el modo auto usa OSC 9 plano"
+                    "[/info_dim]")
     _print_line(f"[info_dim]  eventos: {', '.join(est['eventos'])}[/info_dim]")
     ult = est["ultima"]
     if ult:
@@ -11733,6 +11792,18 @@ def repl():
             _print_line("[info_dim]linea cancelada. Ctrl-C otra vez para "
                         "salir (o /salir, o Ctrl-D).[/info_dim]")
             continue
+
+        # F5 (harness/notificaciones): si un turno anterior dejo el anillo
+        # 9;4 de Windows Terminal en ROJO (error), se apaga AL TECLEAR el
+        # siguiente prompt — no al mostrarlo, porque entonces el rojo viviria
+        # milisegundos y el dueno en otra ventana no lo veria jamas. Sin
+        # error pendiente es un no-op barato; el modulo NUNCA lanza.
+        try:
+            from cognia.harness import notificaciones as _notif_prog
+            _notif_prog.progreso_limpiar()
+        except Exception as _exc_np:
+            _aviso_degradado("notificaciones",
+                             f"{type(_exc_np).__name__}: {_exc_np}")
 
         if not raw:
             continue

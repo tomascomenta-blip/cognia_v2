@@ -9,19 +9,47 @@ POR QUE EXISTE (2026-08-23): un turno del 27B local dura MINUTOS y el dueno se
 va a otra ventana mientras tanto. Hoy no hay NINGUNA senal de "ya termine":
 hay que volver a la ventana a mirar. Es el patron de Crush (notifica al
 terminar el turno y al pedir permiso, backends auto|native|osc|bell|disabled)
-y de Codex. Windows Terminal soporta OSC 9 (ESC ] 9 ; texto BEL) y lo pinta
-como toast nativo; cualquier terminal que no lo soporte ignora la secuencia
-sin ensuciar nada, y para esos queda el modo 'bell' (BEL a secas, que como
-minimo hace parpadear la pestana).
+y de Codex.
+
+CORRECCION CON EVIDENCIA (2026-08-23, misma noche): el toast OSC 9 PLANO
+(ESC ] 9 ; texto BEL) NO esta soportado en Windows Terminal — el issue
+microsoft/terminal#8592 sigue ABIERTO y WT interpreta la familia OSC 9;x como
+secuencias ConEmu, asi que el "toast del terminal" de la primera version era
+un no-op justo en la terminal del dueno. Lo que SI funciona en WT:
+  (a) OSC 9;4 progreso (ConEmu): ESC ] 9 ; 4 ; <estado> ; <pct> BEL pinta un
+      anillo en la pestana Y en la taskbar (0=ocultar 1=normal 2=error rojo
+      3=indeterminado 4=warning) — la senal "estoy trabajando" visible desde
+      otra ventana;
+  (b) BEL '\\a': flash de la taskbar si la ventana no tiene foco;
+  (c) el toast NATIVO de Windows via PowerShell (patron Aider
+      io.py get_default_notification_command: un comando por SO).
 
 MODOS (env COGNIA_NOTIFY gana a la config; /notificar la cambia persistida):
 
-    auto   (default) OSC 9 solo si hay una terminal DE VERDAD al otro lado
-           del stdout REAL (mismo criterio por fd que renderer._consola_
-           interactiva: un pipe/CI no recibe secuencias de escape jamas).
-    osc    OSC 9 siempre (para forzarlo en demos/capturas).
+    auto   (default) solo con una terminal DE VERDAD al otro lado del stdout
+           REAL (mismo criterio por fd que renderer._consola_interactiva: un
+           pipe/CI no recibe secuencias de escape jamas). Bajo Windows
+           Terminal (WT_SESSION en el env) el aviso de fin de turno es BEL
+           (el OSC 9 plano seria un no-op ahi); en otras terminales, OSC 9.
+    osc    OSC 9 plano siempre (terminales que SI lo pintan: WezTerm,
+           ConEmu... — Windows Terminal NO).
     bell   solo BEL (terminales sin soporte OSC 9).
+    toast  notificacion NATIVA del SO (PowerShell NotifyIcon en Windows,
+           plyer si esta en el venv, notify-send en Linux); si nada esta
+           disponible degrada a bell avisando una vez.
     off    nada.
+
+EL ANILLO DE PROGRESO (independiente del modo, solo bajo WT y modo != off):
+turno_inicio() emite 9;4;3 (indeterminado) al arrancar el turno del agente,
+turno_fin(ok=True) lo limpia con 9;4;0, turno_fin(ok=False) deja 9;4;2;100
+(rojo) y progreso_limpiar() — el REPL la llama al siguiente prompt tecleado —
+lo apaga cuando el dueno ya volvio. Lo cablea el renderer en TareaInicio/
+TareaFin, asi que el spinner vivo y el anillo comparten disparador.
+
+QUIEN NO NOTIFICA JAMAS: los subagentes (contexto de agente sellado en
+ux.events.agente_actual()) y el carril de fondo del REPL (cli.corrida_en_
+curso()): ahi el dueno esta EN el prompt tecleando; un toast por cada agente
+de un workflow seria spam puro.
 
 EL SINK: la secuencia va a ``sys.__stdout__`` (el fd real), NO a ``sys.stdout``
 del momento. Con la vista Textual abierta sys.stdout es su _PrintCapture y una
@@ -73,6 +101,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 from datetime import datetime
 
@@ -82,11 +111,31 @@ logger = logging.getLogger("cognia.harness.notificaciones")
 # el toast molesta (el dueno sigue mirando), por encima ya se fue a otra ventana.
 UMBRAL_SEGUNDOS = 20.0
 
-# Tope de chars del texto del toast: Windows Terminal trunca solo, pero un
-# titulo+cuerpo de 4 KB (un traceback entero) ni siquiera debe intentarse.
-_TOPE_TEXTO = 200
+# Tope de chars del texto del toast (patron OpenCode): un titulo+cuerpo de
+# 4 KB (un traceback entero) ni siquiera debe intentarse.
+_TOPE_TEXTO = 240
 
-_MODOS_VALIDOS = ("auto", "osc", "bell", "off")
+# Secuencias ANSI dentro del texto (un resumen puede traer el color del REPL):
+# CSI entera (colores/cursor), OSC entera (hasta BEL o ST) y cualquier otro
+# escape de dos bytes. Se quitan ANTES del filtro de controles para no dejar
+# la cola de la secuencia ('[31m') como texto literal en el toast.
+_RE_ANSI = re.compile(
+    r"\x1b\[[0-9;:?]*[ -/]*[@-~]"           # CSI
+    r"|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?"  # OSC
+    # Un ESC suelto (o el arranque de otra secuencia) lo quita el filtro de
+    # controles de _sanear: comerse tambien el char SIGUIENTE mutilaba texto
+    # legitimo ('Cog\x1bnia' -> 'Cogia', cazado por el test viejo).
+)
+
+_MODOS_VALIDOS = ("auto", "osc", "bell", "toast", "off")
+
+# Estados del OSC 9;4 (ConEmu; Windows Terminal los pinta en pestana+taskbar).
+PROG_OCULTAR, PROG_NORMAL, PROG_ERROR, PROG_INDET, PROG_WARN = 0, 1, 2, 3, 4
+
+# turno_fin(ok=False) dejo el anillo en ROJO y hay que apagarlo cuando el
+# dueno vuelva: progreso_limpiar() (el REPL la llama al siguiente prompt
+# tecleado) lo consume. Solo memoria de proceso, como _ULTIMO.
+_ERROR_PENDIENTE = [False]
 
 # Telemetria minima para la puerta /notificar del CLI: la ultima notificacion
 # emitida y el ultimo fallo del subsistema. Solo memoria de proceso.
@@ -168,18 +217,57 @@ def umbral_segundos() -> float:
 # ── El mecanismo: armar y emitir la secuencia ────────────────────────────────
 
 def _sanear(texto: str) -> str:
-    """Sin controles: un ESC o un BEL DENTRO del texto rompe/cierra la propia
-    secuencia OSC y el resto se pinta crudo en el terminal."""
-    limpio = "".join(c for c in (texto or "") if ord(c) >= 0x20)
+    """Sin ANSI ni controles, tope 240 chars (patron OpenCode): un ESC o un
+    BEL DENTRO del texto rompe/cierra la propia secuencia OSC y el resto se
+    pinta crudo; una secuencia de color entera ('\\x1b[31m') dejaria su cola
+    como basura literal en el toast nativo."""
+    sin_ansi = _RE_ANSI.sub("", texto or "")
+    limpio = "".join(c for c in sin_ansi if ord(c) >= 0x20 and ord(c) != 0x7f)
     return limpio[:_TOPE_TEXTO]
 
 
+def en_wt() -> bool:
+    """True bajo Windows Terminal (WT_SESSION en el env). WT NO pinta el
+    OSC 9 plano (issue microsoft/terminal#8592, abierto: interpreta 9;x como
+    ConEmu), pero SI el 9;4 de progreso y el BEL."""
+    return bool(os.environ.get("WT_SESSION", "").strip())
+
+
 def secuencia_osc9(titulo: str, cuerpo: str) -> str:
-    """La secuencia exacta: ESC ] 9 ; titulo: cuerpo BEL (Windows Terminal la
-    pinta como toast). Funcion pura, separada para que el test la fije."""
+    """La secuencia exacta del toast OSC 9 PLANO: ESC ] 9 ; titulo: cuerpo
+    BEL (la pintan WezTerm/ConEmu...; Windows Terminal NO — ver en_wt).
+    Funcion pura, separada para que el test la fije."""
     titulo, cuerpo = _sanear(titulo), _sanear(cuerpo)
     texto = f"{titulo}: {cuerpo}" if titulo and cuerpo else (titulo or cuerpo)
     return f"\x1b]9;{texto}\x07"
+
+
+def secuencia_progreso(estado: int, pct: int | None = None) -> str:
+    """La secuencia exacta del progreso ConEmu que WT SI soporta:
+    ESC ] 9 ; 4 ; estado [; pct] BEL. Estados en PROG_* (0=ocultar 1=normal
+    2=error rojo 3=indeterminado 4=warning); pct solo pesa en 1/2/4."""
+    if pct is None:
+        return f"\x1b]9;4;{int(estado)}\x07"
+    return f"\x1b]9;4;{int(estado)};{int(pct)}\x07"
+
+
+def _en_fondo() -> bool:
+    """True si esto corre en un subagente (contexto sellado en el bus de
+    eventos) o con el carril de fondo del REPL vivo: esos JAMAS notifican —
+    el dueno esta EN el prompt y un toast por agente de workflow es spam.
+    Se mira sys.modules sin importar nada (mismo criterio que _leer_config_
+    cli); ante un fallo del gate se avisa y se deja notificar (perder el gate
+    es spam recuperable; perder el toast del turno largo es el bug F5)."""
+    try:
+        _ev = sys.modules.get("cognia.ux.events")
+        if _ev is not None and _ev.agente_actual():
+            return True
+        _cli = sys.modules.get("cognia.cli")
+        if _cli is not None and _cli.corrida_en_curso():
+            return True
+    except Exception as exc:
+        _degradar("gate_fondo", exc)
+    return False
 
 
 def _destino_real():
@@ -210,6 +298,9 @@ def notificar(titulo: str, cuerpo: str, destino=None, modo: str | None = None) -
         m = (modo or modo_activo()).strip().lower()
         if m == "off" or m not in _MODOS_VALIDOS:
             return False
+        if _en_fondo():
+            # Subagente o carril de fondo: JAMAS notifican (ver docstring).
+            return False
         stream = destino if destino is not None else _destino_real()
         if stream is None:
             return False
@@ -226,7 +317,20 @@ def notificar(titulo: str, cuerpo: str, destino=None, modo: str | None = None) -
         if m == "auto":
             if not _es_tty(stream):
                 return False
-            m = "osc"
+            # Bajo Windows Terminal el OSC 9 plano es un NO-OP (#8592): el
+            # aviso audible/visible que si funciona ahi es el BEL (flash de
+            # taskbar sin foco). El anillo 9;4 va aparte (turno_inicio/fin).
+            m = "bell" if en_wt() else "osc"
+        if m == "toast":
+            if _toast_nativo(_sanear(titulo), _sanear(cuerpo)):
+                _ULTIMO.clear()
+                _ULTIMO.update(titulo=_sanear(titulo), cuerpo=_sanear(cuerpo),
+                               modo="toast",
+                               ts=datetime.now().isoformat(timespec="seconds"))
+                return True
+            # Sin toast nativo posible: _toast_nativo ya aviso (una vez);
+            # degradar a bell para que ALGO suene igual.
+            m = "bell"
         secuencia = secuencia_osc9(titulo, cuerpo) if m == "osc" else "\a"
         stream.write(secuencia)
         stream.flush()
@@ -237,6 +341,111 @@ def notificar(titulo: str, cuerpo: str, destino=None, modo: str | None = None) -
     except Exception as exc:
         _degradar("emitir", exc)
         return False
+
+
+# ── Toast nativo del SO (modo 'toast') ───────────────────────────────────────
+
+def _toast_nativo(titulo: str, cuerpo: str) -> bool:
+    """Notificacion NATIVA del SO, sin dependencias nuevas (patron Aider,
+    io.py get_default_notification_command: un comando por SO). Orden:
+    plyer si YA esta en el venv; en Windows, PowerShell con el NotifyIcon
+    estandar de WinForms (globo del area de notificacion — cero paquetes);
+    en Linux, notify-send. El proceso se lanza y NO se espera: el toast es
+    adorno y un PowerShell de 7 s no puede congelar el fin del turno.
+    False = nada disponible/fallo (ya degradado aca, una vez por sesion)."""
+    titulo = titulo or "Cognia"
+    cuerpo = cuerpo or "..."       # ShowBalloonTip revienta con texto vacio
+    try:
+        from plyer import notification as _plyer_notif
+    except Exception:
+        _plyer_notif = None
+    if _plyer_notif is not None:
+        try:
+            _plyer_notif.notify(title=titulo, message=cuerpo, timeout=6)
+            return True
+        except Exception as exc:
+            # plyer instalado pero sin backend util: cae al camino por SO.
+            logger.warning("harness.notificaciones plyer fallo: %s", exc)
+    try:
+        import subprocess
+        if sys.platform == "win32":
+            t = titulo.replace("'", "''")   # comilla simple de PS
+            c = cuerpo.replace("'", "''")
+            ps = (
+                "Add-Type -AssemblyName System.Windows.Forms; "
+                "Add-Type -AssemblyName System.Drawing; "
+                "$n = New-Object System.Windows.Forms.NotifyIcon; "
+                "$n.Icon = [System.Drawing.SystemIcons]::Information; "
+                "$n.Visible = $true; "
+                f"$n.ShowBalloonTip(6000, '{t}', '{c}', "
+                "[System.Windows.Forms.ToolTipIcon]::Info); "
+                "Start-Sleep -Seconds 7; $n.Dispose()"
+            )
+            subprocess.Popen(
+                ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden",
+                 "-Command", ps],
+                creationflags=0x08000000,   # CREATE_NO_WINDOW
+            )
+            return True
+        subprocess.Popen(["notify-send", titulo, cuerpo])
+        return True
+    except Exception as exc:
+        _degradar("toast", exc)
+        return False
+
+
+# ── El anillo de progreso OSC 9;4 (Windows Terminal) ─────────────────────────
+
+def progreso(estado: int, pct: int | None = None, destino=None) -> bool:
+    """Emite UNA secuencia 9;4 al fd real (o al `destino` de los tests).
+    Gates: modo != off, Windows Terminal presente (fuera de WT el 9;4 es
+    ruido para el terminal), ni subagente ni carril de fondo, y el mismo
+    gate de tty por fd que notificar. NUNCA lanza."""
+    try:
+        if modo_activo() == "off" or not en_wt() or _en_fondo():
+            return False
+        stream = destino if destino is not None else _destino_real()
+        if stream is None:
+            return False
+        if destino is None and not _es_tty(stream):
+            return False
+        stream.write(secuencia_progreso(estado, pct))
+        stream.flush()
+        return True
+    except Exception as exc:
+        _degradar("progreso", exc)
+        return False
+
+
+def turno_inicio(destino=None) -> bool:
+    """Arranca el turno del agente: anillo INDETERMINADO en pestana/taskbar
+    (la senal 'estoy trabajando' aunque el dueno este en otra ventana). Lo
+    llama el renderer en TareaInicio."""
+    return progreso(PROG_INDET, destino=destino)
+
+
+def turno_fin(ok: bool = True, destino=None) -> bool:
+    """Termina el turno: OK limpia el anillo (9;4;0); error lo deja ROJO al
+    100% (9;4;2;100) y queda pendiente hasta progreso_limpiar(). Lo llama el
+    renderer en TareaFin; el BEL/toast del turno largo va aparte
+    (notificar_evento('turno_terminado'))."""
+    if ok:
+        _ERROR_PENDIENTE[0] = False
+        return progreso(PROG_OCULTAR, destino=destino)
+    emitido = progreso(PROG_ERROR, 100, destino=destino)
+    _ERROR_PENDIENTE[0] = emitido
+    return emitido
+
+
+def progreso_limpiar(destino=None) -> bool:
+    """Apaga el anillo ROJO que dejo un turno en error. El REPL la llama al
+    siguiente prompt TECLEADO (no al mostrarse: si se limpiara al pintar el
+    prompt, el rojo viviria milisegundos y el dueno en otra ventana no lo
+    veria jamas). Sin error pendiente es un no-op barato."""
+    if not _ERROR_PENDIENTE[0]:
+        return False
+    _ERROR_PENDIENTE[0] = False
+    return progreso(PROG_OCULTAR, destino=destino)
 
 
 # ── Punto de extension: eventos con builder ──────────────────────────────────
@@ -315,6 +524,9 @@ def estado() -> dict:
         "umbral_s": umbral_segundos(),
         "degradado_optin": _encendido_en(_cfg("notificar_degradado", "off")),
         "consola_interactiva": _es_tty(destino) if destino is not None else False,
+        "wt": en_wt(),
+        "error_pendiente": _ERROR_PENDIENTE[0],
+        "en_fondo": _en_fondo(),
         "eventos": sorted(EVENTOS),
         "ultima": dict(_ULTIMO),
         "ultimo_error": dict(_ULTIMO_ERROR),

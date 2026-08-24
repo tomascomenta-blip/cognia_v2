@@ -13933,3 +13933,30 @@ transcripts limpios, sin basura de repintado. Pendiente honesto: la animacion cu
 cubierta por unidad (altura de cola exacta, clear \x1b[NA\r\x1b[J) pero no se pudo mirar en un
 tty interactivo real desde esta sesion; si algo se viera raro en vivo, COGNIA_MARKDOWN=0 es el
 apagado de emergencia.
+
+## 2026-08-23 — Notificaciones que FUNCIONAN en Windows Terminal (correccion de F5 con evidencia)
+La F5 de anoche emitia el toast OSC 9 plano (`ESC ] 9 ; texto BEL`) creyendo que Windows
+Terminal lo pintaba: el issue microsoft/terminal#8592 sigue ABIERTO y WT interpreta la familia
+9;x como ConEmu — el toast era un no-op justo en la terminal del dueno. Corregido en
+`cognia/harness/notificaciones.py` sobre la puerta `/notificar` existente (sin comando nuevo):
+(1) bajo WT (`WT_SESSION`) el modo auto avisa con BEL (flash de taskbar sin foco) y ademas se
+emite el anillo de progreso OSC 9;4 — `9;4;3` indeterminado al arrancar el turno (cableado en
+`renderer._on_tarea_inicio`, mismo disparador que el spinner vivo), `9;4;0` limpia al terminar
+OK, `9;4;2;100` ROJO en error, que el REPL apaga al siguiente prompt TECLEADO (no al mostrarlo:
+el rojo viviria milisegundos); (2) modo nuevo `toast` = notificacion nativa del SO sin
+dependencias (plyer si esta en el venv o PowerShell NotifyIcon; sin nada degrada a bell
+avisando una vez); `osc` se queda para WezTerm/ConEmu y `/notificar` lo documenta; (3) texto
+SIEMPRE saneado (ANSI enteras fuera + controles, tope 240 chars, patron OpenCode) — el filtro
+viejo dejaba la cola `[31m` como texto literal; (4) subagentes (ux.events.agente_actual) y
+carril de fondo (cli.corrida_en_curso) JAMAS notifican. Verificado: 31 tests del modulo (31
+errors sin el fix por el contrato nuevo; el clave: auto bajo WT emitia `\x1b]9;...` y ahora
+`\a`) + 198 en verde con los vecinos (cli notification/comandos tapados/renderer/eventos/
+carril/config-resuelta). Tecleado en el REPL real contra el 27B vivo: `/notificar estado`
+(muestra "Windows Terminal: si — el OSC 9 plano NO esta soportado"), `/notificar prueba`
+(bytes: modo efectivo bell `'\x07'`; anillo `'\x1b]9;4;3\x07' | '\x1b]9;4;0\x07' |
+'\x1b]9;4;2;100\x07'`), `/notificar modo toast` + `/config-resuelta` (notificar_modo = toast
+[fichero], sin siembra a env), y un turno real de 35.2 s (>umbral 20) donde el gate anti-escape
+dejo el pipe LIMPIO (cat -A: cero `^G`/`]9;` colados en la captura — la regresion del movil de
+anoche sigue cerrada). El cableado e2e renderer→notificaciones se probo con tty simulado como
+fd real: turno OK largo `9;4;3 + 9;4;0 + BEL`, turno error `9;4;3 + 9;4;2;100` y
+progreso_limpiar lo apaga una sola vez.

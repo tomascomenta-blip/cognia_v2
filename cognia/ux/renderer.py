@@ -428,6 +428,19 @@ class Renderer:
         self._chars_stream = 0           # el ~tok de la linea viva arranca en 0
         # Nada que imprimir: el usuario acaba de teclear la tarea; repetirsela
         # es eco. El modelo que respondera se ve en el footer si hace falta.
+        # F5 (harness/notificaciones): anillo 9;4 INDETERMINADO en la pestana
+        # y taskbar de Windows Terminal — "estoy trabajando" visible desde
+        # otra ventana. El modulo gatea WT/modo/tty/fondo y NUNCA lanza; el
+        # spinner vivo y este anillo comparten disparador (TareaInicio).
+        try:
+            from cognia.harness import notificaciones as _notif
+            _notif.turno_inicio()
+        except Exception as exc:
+            import sys
+            _cli = sys.modules.get("cognia.cli")
+            if _cli is not None:
+                _cli._aviso_degradado("notificaciones",
+                                      f"{type(exc).__name__}: {exc}")
 
     def _on_paso_intencion(self, ev: events.PasoIntencion) -> None:
         self._parar_status()
@@ -821,6 +834,11 @@ class Renderer:
         dur = ev.duracion_s or (ev.ts - self._t0 if self._t0 else 0.0)
         try:
             from cognia.harness import notificaciones as _notif
+            # Primero el anillo 9;4 (limpiar en OK, ROJO al 100% en error;
+            # el rojo lo apaga el REPL al siguiente prompt tecleado)...
+            _notif.turno_fin(ok=ev.ok)
+            # ...y despues el aviso del turno largo (BEL bajo WT, OSC 9
+            # plano en terminales que lo pintan, toast nativo en modo toast).
             _notif.notificar_evento("turno_terminado", duracion_s=dur)
         except Exception as exc:
             import sys
