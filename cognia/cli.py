@@ -10201,8 +10201,12 @@ def _slash_estilo(arg: str = "") -> None:
     elif sub in ("ayuda", "help"):
         _estilo_ayuda()
     elif sub == "banner":
-        _print_line("[warn_cl]/estilo banner (reimprimir el banner con el estilo actual) "
-                    "llega con el enganche del banner (paso P7)[/warn_cl]")
+        # P7: repinta la cabecera con el aspecto vigente (mismo camino que el
+        # arranque: variante por altura, caja, textos, alineacion, animacion).
+        try:
+            _reimprimir_banner()
+        except Exception as exc:
+            _aviso_degradado("estilo.banner", f"{type(exc).__name__}: {exc}")
     elif partes[0] in _aspecto.REGISTRO or "." in partes[0]:
         id = partes[0]
         if not resto:

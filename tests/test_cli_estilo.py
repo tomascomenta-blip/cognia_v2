@@ -667,3 +667,21 @@ def test_estilo_respuesta_texto_color_mueve_el_acento_como_color(entorno, monkey
     guardado.clear()
     cli._aplicar_tema_en_caliente()
     assert cli._ACCENT == "cyan" and not guardado
+
+
+def test_estilo_banner_reimprime_la_cabecera_con_el_aspecto_vigente(entorno, monkeypatch):
+    """P7: '/estilo banner' ya no es un stub que avisa 'llega con P7': repinta
+    la cabecera por el mismo camino del arranque (_reimprimir_banner)."""
+    llamadas = []
+    monkeypatch.setattr(cli, "_print_startup_panel", lambda *a, **k: llamadas.append(1))
+    cli._slash_estilo("banner")
+    assert llamadas == [1]
+    assert "llega con" not in entorno.texto()
+    assert entorno.avisos == []
+    # un fallo al repintar no calla: pasa por _aviso_degradado('estilo.banner')
+    def rota(*a, **k):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(cli, "_print_startup_panel", rota)
+    cli._slash_estilo("banner")
+    assert entorno.avisos and entorno.avisos[-1][0] == "estilo.banner"
+
