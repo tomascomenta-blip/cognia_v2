@@ -68,6 +68,29 @@ ENV_QUE_PISAN: dict = {
 _RE_SECRETO = re.compile(r"token|secret|passphrase|password|api.?key|_key\b",
                          re.IGNORECASE)
 
+# Envs SEMBRADAS por el propio CLI (config -> env en cada arranque del REPL:
+# _aplicar_config_offload/_aplicar_config_compactacion y los handlers de
+# /offload y /compactar). Sin este registro, /config-resuelta atribuia 8
+# claves a 'env:COGNIA_*' — justo la mentira de origen que F6 existe para
+# matar: el dueno buscando 'la env olvidada que gana a todo' veia falsas envs
+# puestas por el CLI, con el valor crudo ('1' en vez de 'on') pintado como
+# 'difiere del default' (revision adversarial 2026-08-23). Una env sembrada
+# lleva un valor que SALIO de config/default: el origen se resuelve en esas
+# capas. Una env que el usuario puso antes de arrancar NUNCA se marca (la
+# siembra solo escribe cuando la env esta vacia).
+_SEMBRADAS: set = set()
+
+
+def marcar_sembrada(*envs: str) -> None:
+    """El CLI declara que estas envs las escribio EL, copiando la config."""
+    _SEMBRADAS.update(e for e in envs if e)
+
+
+def es_sembrada(env: str) -> bool:
+    """True si esa env la escribio el propio CLI (no el usuario)."""
+    return env in _SEMBRADAS
+
+
 # Avisador de degradacion: el CLI registra su _aviso_degradado. None = logger.
 _AVISADOR = None
 
@@ -175,7 +198,9 @@ def config_resuelta(defaults: dict | None = None,
             valor, origen = str(fichero[clave]), "fichero"
         for env in ENV_QUE_PISAN.get(clave, ()):
             crudo = str(entorno.get(env, "")).strip()
-            if crudo:
+            # una env sembrada por el CLI no es una capa: su valor ya salio
+            # de config/default y reportarla como 'env:' es mentir el origen
+            if crudo and not es_sembrada(env):
                 valor, origen = crudo, f"env:{env}"
                 break
         resultado[clave] = {"valor": valor, "origen": origen, "default": base}

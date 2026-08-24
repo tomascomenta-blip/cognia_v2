@@ -30,8 +30,11 @@ from cognia.harness import config_resuelta as cr
 
 @pytest.fixture(autouse=True)
 def subsistema_aislado(monkeypatch):
-    """Sin avisador registrado del CLI real; cada test inyecta el suyo."""
+    """Sin avisador registrado del CLI real; cada test inyecta el suyo. Y sin
+    marcas de envs sembradas heredadas de otro test (o del propio CLI si un
+    test lo importo)."""
     monkeypatch.setattr(cr, "_AVISADOR", None)
+    monkeypatch.setattr(cr, "_SEMBRADAS", set())
 
 
 def _resolver(defaults, fichero_datos, entorno, tmp_path):
@@ -152,3 +155,51 @@ def test_subcomando_cli_sale_cero():
         cwd=str(Path(__file__).resolve().parent.parent), timeout=180)
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert "Configuracion RESUELTA" in proc.stdout
+
+
+# ── Regresion 2026-08-23 (revision adversarial): la env SEMBRADA por el CLI ──
+
+def test_env_sembrada_por_el_cli_no_es_origen_env(tmp_path):
+    """_aplicar_config_offload/_aplicar_config_compactacion copian la config
+    al env en CADA arranque del REPL: sin el registro de sembradas, las 8
+    claves salian 'Pisadas por ENV (ganan a todo)' con el valor crudo ('1' en
+    vez de 'on') aunque el usuario jamas puso una env — justo la mentira de
+    origen que este modulo existe para matar."""
+    cr.marcar_sembrada("COGNIA_OFFLOAD")
+    res = _resolver({"offload": "on"}, None, {"COGNIA_OFFLOAD": "1"}, tmp_path)
+    assert res["offload"] == {"valor": "on", "origen": "default",
+                              "default": "on"}
+    # con override en el fichero, el origen honesto es 'fichero'
+    res = _resolver({"offload": "on"}, {"offload": "off"},
+                    {"COGNIA_OFFLOAD": "0"}, tmp_path)
+    assert res["offload"]["valor"] == "off"
+    assert res["offload"]["origen"] == "fichero"
+
+
+def test_env_del_usuario_sigue_ganando_aunque_haya_sembradas(tmp_path):
+    """Una env que el usuario puso ANTES de arrancar nunca se marca (la
+    siembra solo escribe cuando la env esta vacia): sigue reportandose env."""
+    cr.marcar_sembrada("COGNIA_COMPACT")          # otra clave, no esta
+    res = _resolver({"offload": "on"}, None, {"COGNIA_OFFLOAD": "0"}, tmp_path)
+    assert res["offload"]["origen"] == "env:COGNIA_OFFLOAD"
+    assert res["offload"]["valor"] == "0"
+
+
+def test_el_arranque_del_repl_no_inventa_envs(tmp_path, monkeypatch):
+    """El cableado entero: sembrar como lo hace el REPL (config->env) y
+    resolver DESPUES — ninguna de las 8 claves puede salir con origen env."""
+    import cognia.cli as cli
+    for var in ("COGNIA_OFFLOAD", "COGNIA_TOOL_RESULT_MAX",
+                "COGNIA_OFFLOAD_CABEZA", "COGNIA_OFFLOAD_COLA",
+                "COGNIA_COMPACT", "COGNIA_COMPACT_UMBRAL",
+                "COGNIA_COMPACT_RETENCION", "COGNIA_COMPACT_CAP"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(cli, "_load_config", lambda: {})
+    cli._aplicar_config_offload()
+    cli._aplicar_config_compactacion()
+    res = cr.config_resuelta(defaults=cli._CONFIG_DEFAULTS,
+                             ruta_fichero=tmp_path / "no_existe.json")
+    con_env = [k for k, v in res.items() if v["origen"].startswith("env")]
+    assert con_env == []
+    # y la fuente que pinta /offload estado tampoco miente
+    assert cli._env_es_sembrada("COGNIA_OFFLOAD") is True
