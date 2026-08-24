@@ -1,10 +1,12 @@
 # Cognia — Estilos por elemento (`/estilo`)
 
 Documentacion de usuario del sistema de estilos por elemento del REPL.
-Fecha: 2026-08-24. Estado: **fusionado parcialmente en `main`**; lo que no
-esta verificado en `main` va marcado con **(en fusion)** y se documenta tal
-como lo fija el diseno (`DISENO_ESTILOS.md`, seccion 5). La seccion
-"Estado de la entrega", al final, dice exactamente que hay y que falta.
+Fecha: 2026-08-24 (revisada 16:20). Estado: **P0-P11 en `main`** (`/estilo`,
+editor, prompt/barra/menus, glifos y textos, banner, spinner, pulso del prompt
+y hot reload); cada afirmacion de este fichero se verifico con grep contra el
+codigo. La seccion "Estado de la entrega", al final, dice exactamente que hay
+y que falta (agentes.*, panel.* caja/titulos, `/color` <-> `respuesta.texto`,
+`global.*`, `/estilo banner`, P12).
 
 ---
 
@@ -44,12 +46,13 @@ Modulos: `cognia/ux/aspecto.py` (registro, fichero, presets, validacion),
 
 ## 2. En 5 minutos
 
-Los subcomandos `/estilo ...` son los del diseno **(en fusion)**: el comando
-`/estilo` vive en la rama `estilos/cli` y no esta en `main` hoy. La forma
-equivalente en `~/.cognia/estilo.json` es la que documenta este fichero y la
-que ya entienden los modulos; **en `main` el REPL todavia no carga ese fichero
-al arrancar** (lo hace el gancho de P4, en fusion). Mientras tanto se prueba
-con los scripts de puerta (seccion 9) o desde Python:
+Los subcomandos `/estilo ...` estan en `main` (`cli._slash_estilo`). El REPL
+carga `~/.cognia/estilo.json` **al arrancar** (`cli._aplicar_config_estilo`:
+`aspecto.conectar_glow(_load_config)` + `aspecto.cargar()`; un fichero roto
+avisa por el degradado `estilo` y se arranca con el aspecto por defecto, nunca
+sin prompt) y reconstruye la Console antes del banner si hay overrides. La
+forma equivalente en el fichero es la que documenta este fichero; tambien se
+prueba con los scripts de puerta (seccion 9) o desde Python:
 
 ```bash
 PYTHONUTF8=1 ./venv312/Scripts/python.exe -c "from cognia.ux import aspecto as A; A.cargar(); print(A.texto('prompt.etiqueta'))"
@@ -58,7 +61,7 @@ PYTHONUTF8=1 ./venv312/Scripts/python.exe -c "from cognia.ux import aspecto as A
 ### Ejemplo 1 — renombrar el prompt a `jarvis`
 
 ```
-/estilo prompt.etiqueta texto jarvis          (en fusion)
+/estilo prompt.etiqueta texto jarvis
 ```
 
 Equivalente en el fichero:
@@ -73,14 +76,14 @@ Equivalente en el fichero:
 ```
 
 Es lo mismo que hace el editor con la secuencia `↓ x7, Enter, Enter,
-Backspace x6, jarvis, Enter, Ctrl-S, Esc` (es la puerta medida de P11). Que se
-vea `jarvis➤` en el prompt real depende del enganche del prompt (P5, en
-fusion): hoy en `main` el valor se guarda, valida y previsualiza en el editor.
+Backspace x6, jarvis, Enter, Ctrl-S, Esc` (es la puerta medida de P11). El
+`jarvis➤` se ve en el prompt real al guardar (P5: `cli._mensaje_prompt` lee
+`aspecto.texto('prompt.etiqueta')` y el glifo de `prompt.flecha`).
 
 ### Ejemplo 2 — glow y barrido en el banner
 
 ```
-/estilo banner.arte glow.intensidad 2         (en fusion)
+/estilo banner.arte glow.intensidad 2
 /estilo banner.arte animacion.activa on
 /estilo banner.arte animacion.solo_al_llegar on
 /estilo banner                                reimprime el banner con el estilo actual
@@ -129,11 +132,16 @@ Tabla generada desde el registro (`aspecto.GRUPOS` y `REGISTRO[id].caps`,
 son lineas impresas y no declaran `animacion`).
 **estados** = sub-estilos que aceptan `estados.<nombre>.<prop>`.
 
-Enganchados hoy en `main` (el REPL los lee de verdad): `banner.arte`,
-`banner.marco`, `banner.guia`, `banner.linea_modelo` (P7) y `spinner.tool`,
-`spinner.pensar`, `spinner.comando` (P8). El resto se valida, se guarda y se
-previsualiza en el editor; su enganche en el REPL esta **(en fusion)**
-(P5 prompt/barra/menus, P6 tema rich y glifos, P9 prompt animado).
+Enganchados hoy en `main` (el REPL los lee de verdad; `aspecto.ENGANCHADOS`,
+45 de 50): banner (P7), spinner (P8), prompt/barra/menu (P5, animacion del
+prompt por P9), tool/aviso/footer/pensando/diff/separador/enlace/respuesta.
+markdown/respuesta.codigo (P6), y el color por token del Theme de rich de
+sistema.*, aviso.*, tool.verbo/objeto y panel.* (P4). Lo que NO se ve
+todavia lo dice `/estilo` al guardar (`aspecto.paso_pendiente`): `agentes.*`
+(vista F2) y `respuesta.texto` no estan enganchados; en `panel.*`,
+`sistema.*`, `aviso.info/error`, `tool.verbo/objeto` solo cambia el color; la
+animacion de `prompt.texto/continuacion/busqueda/seleccion`, `barra.*` y
+`menu.*` (y el glow de `barra.estado`/`barra.modo`) no se anima.
 
 ### banner
 | id | que es | propiedades | vivo | estados |
@@ -391,7 +399,7 @@ error con la lista de tokens validos.
 ~/.cognia/estilos/<nombre>.json  presets del dueno (mismo formato)
 cognia/ux/presets/*.json         presets del paquete (5)
 cognia/ux/estilo.schema.json     JSON Schema (draft-07) para editar a mano con ayuda del editor de texto
-~/.cognia_config.json            clave "estilo_animacion": "on" | "off" (interruptor global; la clave la agrega P4, en fusion)
+~/.cognia_config.json            clave "estilo_animacion": "on" | "off" (interruptor global; en cli._CONFIG_DEFAULTS, lo escribe /estilo animacion y la tecla `a` del editor)
 ```
 
 ### Forma del fichero (version 1)
@@ -415,7 +423,7 @@ cognia/ux/estilo.schema.json     JSON Schema (draft-07) para editar a mano con a
 - `global.fps` (1..30), `global.respuesta_sangria` (0..8) y `global.glifos`
   (`auto | unicode | ascii`) se **validan**; hoy el motor corre a `glow.FPS = 12`
   y los glifos los decide `COGNIA_ASCII` y el encoding. Aplicar `global.*`
-  esta **(en fusion)**.
+  esta **pendiente** (`aspecto.fps()` existe y `glow` no lo consume).
 - Un fichero sin `version` se trata como 1; una version **mayor** que la que
   entiende Cognia se rechaza con "actualiza cognia". Las claves que Cognia no
   conoce se avisan y se **conservan** al guardar.
@@ -437,8 +445,10 @@ cognia/ux/estilo.schema.json     JSON Schema (draft-07) para editar a mano con a
 como pendiente; `aplicar_recarga()` recarga de verdad fuera del render de
 prompt_toolkit (reconstruir la consola dentro del render es la misma carrera
 que el repo ya documenta). Si el fichero editado a mano esta mal, se avisa y
-se sigue con lo cargado antes, sin reintentar en cada redibujado. El cableado
-en el prompt es de P9 **(en fusion)**.
+se sigue con lo cargado antes, sin reintentar en cada redibujado. Cableado
+(P9): el `_toolbar` de `cli._pie_prompt` llama `recargar_si_cambio()` en cada
+redibujado y `cli._aplicar_recarga_estilo` aplica en el bucle del REPL con el
+prompt ya devuelto (test `test_cli_estilo`, hot reload por mtime).
 
 ### Presets del paquete
 
@@ -501,16 +511,15 @@ Un preset del dueno con el mismo nombre **tapa** al del paquete.
 
 ---
 
-## 6. El comando `/estilo` (en fusion)
+## 6. El comando `/estilo`
 
-Todo este apartado describe la rama `estilos/cli` como lo fija la seccion 5
-del diseno; **no esta en `main` hoy**. Cada escritura valida, guarda (con
+En `main` (`cli._slash_estilo`, `_estilo_*`). Cada escritura valida, guarda (con
 `.bak`), aplica en caliente e imprime una linea
 `prompt.etiqueta.texto = jarvis (guardado)`; los errores salen por el aviso de
 degradacion con nombre y motivo.
 
 ```
-/estilo                              abre el editor (sin tty o con COGNIA_REMOTO: imprime /estilo lista y avisa)
+/estilo                              abre el editor (cli._estilo_editor); si no se puede abrir, avisa y degrada a la ayuda textual
 /estilo lista [grupo]                tabla: id · nombre · props soportadas · marcas * (anim) / mod (difiere) / ! (contraste)
 /estilo ver [<id>]                   valores resueltos + origen por clave; sin id: global + cambios contra el default
 /estilo <id> <prop> <valor>          /estilo prompt.etiqueta texto jarvis · /estilo banner.arte glow.intensidad 2
@@ -523,7 +532,7 @@ degradacion con nombre y motivo.
 /estilo presets                      lista los del dueno y los del paquete
 /estilo exportar <ruta>              fichero autocontenido
 /estilo deshacer                     restaura estilo.json.bak
-/estilo banner                       reimprime el banner con el estilo actual (P7: existe cli._reimprimir_banner en main)
+/estilo banner                       PENDIENTE: hoy solo avisa; cli._reimprimir_banner existe y no esta cableado a este subcomando
 /estilo ayuda                        = /ayuda /estilo
 ```
 
@@ -534,7 +543,8 @@ variante. `/estilo_info` (estilo de aprendizaje) es otro comando y no colisiona.
 
 ## 7. El editor interactivo
 
-Se abre con `/estilo` a secas **(en fusion)**; hoy en `main` se abre desde
+Se abre con `/estilo` a secas (`cli._estilo_editor`, solo desde el bucle del
+REPL con el prompt ya devuelto; para el status del renderer antes) o desde
 Python (es la puerta medida de P11):
 
 ```bash
@@ -546,11 +556,12 @@ alterna**: el scrollback del REPL queda intacto y al salir la terminal vuelve
 como estaba. Devuelve `('guardado' | 'descartado' | 'cerrado', resumen)` o
 `('no_abrible', motivo)`.
 
-**Guardas** (en este orden; si una falla no se abre y se imprime la ayuda
-textual): no hay otra Application de prompt_toolkit corriendo (el editor
-nunca se anida: se cuelga); `COGNIA_REMOTO != 1`; no hay corrida en el carril
-de fondo; el renderer no tiene un status vivo; hay tty real (stdin y stdout
-tty y consola Win32).
+**Guardas** (en este orden; si una falla devuelve `no_abrible`, el REPL
+avisa por el degradado `estilo.editor` e imprime la ayuda textual): no hay
+otra Application de prompt_toolkit corriendo (el editor nunca se anida: se
+cuelga); `COGNIA_REMOTO != 1`; no hay corrida en el carril de fondo; el
+renderer no tiene un status vivo; hay tty real (stdin y stdout tty y consola
+Win32). Por stdin (pipe) `/estilo` a secas imprime la ayuda.
 
 ### Pantalla
 
@@ -608,6 +619,7 @@ vista; un aviso se acepta y se muestra.
 | `Ctrl-L` | presets con preview de TODA la pantalla al mover; Esc revierte, Enter se queda |
 | `Ctrl-N` | guardar el estado como preset (pide nombre) |
 | `Ctrl-E` | exportar a una ruta (pide ruta) |
+| `Backspace` / `Delete`, `Ctrl-U` | en un buffer de texto/glifo/numero/ruta: borrar el ultimo caracter / vaciar el buffer |
 | `Ctrl-G` | en un glifo: lista de los glifos que Cognia ya usa (`➤ ─ ═ ● ⏺ ✗ ⚠ → ⎿ ∴ ❯ · … ✓ ░`) con aviso si la consola no los codifica |
 | `?` / `F1` | ayuda de teclas |
 | `Esc` / `q` | salir (con cambios: Guardar / Descartar / Volver); en un sub-modo: cancelar |
@@ -658,7 +670,9 @@ arranque**, antes de crear la PromptSession, y dura como mucho 3 s.
 Cero hilos permanentes: el spinner se anima dentro del `console.status` que
 el renderer ya tiene (el ticker de 1 s existente y la Live del status recogen
 el cuadro del reloj compartido `glow.RELOJ`); el prompt se animara por un
-**pulso finito** de `app.invalidate()` acotado a 3 s (P9, en fusion), nunca
+**pulso finito** de `app.invalidate()` acotado a 3 s (P9: `cli._arrancar_pulso_prompt`
+antes de `session.prompt` y en la espera; `cli._rearmar_pulso_prompt` desde el
+redibujado para `cada_s`), nunca
 con `refresh_interval` fijo (medido: 17 % de CPU sostenido).
 
 ---
@@ -757,9 +771,9 @@ aviso: banner.arte: identidad: el banner va por defecto (se guarda, pero es la m
 
 ---
 
-## 11. Estado de la entrega (2026-08-24)
+## 11. Estado de la entrega (2026-08-24, 16:20)
 
-**Fusionado en `main` hoy** (verificado en este repo, HEAD `6b0d8d9f`):
+**En `main`** (verificado con grep en este repo):
 
 | paso | que | donde |
 |---|---|---|
@@ -767,27 +781,32 @@ aviso: banner.arte: identidad: el banner va por defecto (se guarda, pero es la m
 | P1 | registro de 50 elementos en 15 grupos, resolucion por variante, validacion ruidosa, `clases_pt` y `tema_rich` | `cognia/ux/aspecto.py` |
 | P2 | fichero `~/.cognia/estilo.json`, `.bak`/deshacer, presets (5 del paquete + los del dueno), exportar, schema, style string, deteccion de hot reload | `cognia/ux/aspecto.py`, `cognia/ux/presets/`, `cognia/ux/estilo.schema.json` |
 | P3 | motor de glow/barrido con reloj inyectable, capacidades y orden de degradacion, frame estatico siempre, `LineaViva`, `BannerVivo`, pulso del prompt | `cognia/ux/glow.py`, `scripts/aspecto_demo.py` |
+| P4 | `/estilo` con todos sus subcomandos (lista, ver, `<id> <prop> <valor>`, style string, reset, animacion, guardar, cargar, presets, exportar, deshacer, ayuda); `A.cargar()` al arrancar con aviso si el fichero esta mal (`_aplicar_config_estilo`); `_aplicar_tema_en_caliente()` compartido con `/tema`; `estilo_animacion` en `_CONFIG_DEFAULTS`; `/estilo` en `/ayuda` | `cognia/cli.py` (`_slash_estilo`, `_estilo_*`) |
+| P5 | prompt (texto, glifo, posicion, color, glow estatico), barra de estado (secciones, posicion, alineacion, separador), menus, Ctrl-R y el selector con `A.clases_pt` | `cognia/cli.py` (`_mensaje_prompt`, `_pie_prompt`, `_frag_prompt`), `cognia/ux/barra_estado.py`, `cognia/ux/selector.py` |
+| P6 | glifos y textos de `tool.*`, `aviso.degradado`, `footer.turno`, `pensando.*`, `separador.regla`, `diff.mas/menos`, `enlace` (visible apaga OSC 8), `respuesta.codigo` (tema pygments), `--help` con el Theme; contrato remoto intacto (`COGNIA_REMOTO=1` -> glifos clasicos) | `cognia/ux/renderer.py`, `cognia/harness/render_tools.py`, `cognia/console/diff_render.py`, `cognia/harness/enlaces.py`, `cognia/ux/markdown_vivo.py` |
 | P7 | banner por elemento: textos, estilos por estado, caja, alineacion, visible con aviso de identidad, gradiente, glow y barrido con `BannerVivo` en la Live del arranque; `cli._reimprimir_banner` | `cognia/cli.py` (`_aspecto_del_banner`, `_print_startup_panel`, `_print_banner_completo`), `scripts/banner_gate_conpty.py` |
 | P8 | spinner por elemento: `spinner.tool` / `spinner.pensar` animados con `LineaViva` dentro del `console.status`; los tres `console.status` de `spinner.comando` pasan por `spinner_vivo.comando()` | `cognia/ux/spinner_vivo.py`, `cognia/ux/renderer.py`, `cognia/cli.py`, `scripts/spinner_gate_conpty.py` |
+| P9 | pulso del prompt (`prompt.etiqueta/marco/flecha/espera`) con UN hilo finito (`_arrancar_pulso_prompt` / `_rearmar_pulso_prompt` / `_cerrar_pulso_prompt`) y hot reload por mtime (`_toolbar` marca, `_aplicar_recarga_estilo` aplica) | `cognia/cli.py`, `scripts/prompt_gate_conpty.py` |
 | P10 | modelo puro del editor (navegacion, filtro, edicion por tipo, undo/redo, presets en memoria, preview determinista) + transacciones en memoria del registro | `cognia/ux/editor_aspecto.py`, `cognia/ux/aspecto.py` (seccion 12) |
-| P11 | Application full-screen del editor con las guardas, la preview animada solo cuando toca y `abrir_editor()` | `cognia/ux/editor_app.py` |
+| P11 | Application full-screen del editor con las guardas, la preview animada solo cuando toca, `abrir_editor()` y el gancho `/estilo` a secas (`cli._estilo_editor`) | `cognia/ux/editor_app.py`, `cognia/cli.py` |
 
-Tests de estos pasos en `main`: `test_ux_aspecto` 172, `test_ux_glow` 38,
-`test_ux_spinner_vivo` 39, `test_renderer_estetica` 91, `test_cli_banner_layout`
-19, `test_harness_banner_adaptativo` 47, `test_ux_editor_aspecto` 62,
-`test_ux_editor_app` 25 = **493 passed / 0 failed** (23 s, 2026-08-24).
+Tests: `tests/test_ux_aspecto.py`, `test_ux_glow`, `test_ux_spinner_vivo`,
+`test_renderer_estetica`, `test_cli_banner_layout`, `test_harness_banner_adaptativo`,
+`test_ux_editor_aspecto`, `test_ux_editor_app`, `test_cli_estilo`,
+`test_harness_render_tools`, `test_marco_prompt` (el conteo del dia esta en
+`MANAGER_LOG.md`, seccion "Sistema de estilos: ultima tanda P6 + P9").
 
-**(en fusion)** — en la rama `estilos/cli`, documentado aqui como lo fija el
-diseno y sin verificar en `main`:
+**Pendiente REAL** (lo que `/estilo` avisa al guardar, `aspecto.paso_pendiente`):
 
-| paso | que | consecuencia hoy en `main` |
-|---|---|---|
-| P4 | el comando `/estilo` con todos sus subcomandos, `A.cargar()` al arrancar con aviso si el fichero esta mal, `_aplicar_tema_en_caliente()`, la clave `estilo_animacion` en `_CONFIG_DEFAULTS` | **el REPL no carga `~/.cognia/estilo.json` al arrancar**: los enganches P7/P8 leen el registro en defaults. Los scripts de puerta lo cargan ellos (`A.cargar() + A.conectar_glow()`) antes de lanzar el REPL |
-| P5 | enganche del prompt (texto, glifo, posicion), la barra de estado (secciones, posicion, alineacion, separador) y los menus con `A.clases_pt` | `prompt.*`, `barra.*`, `menu.*` se guardan y previsualizan, no se ven en el REPL |
-| P6 | Theme de rich con overrides de tokens, `markdown.*`, `panel.*`, `rule.line`; glifos de `tool.*`, footer, avisos, pensando, diff con contrato remoto | `tool.*`, `respuesta.*`, `pensando.*`, `aviso.*`, `footer.*`, `panel.*`, `diff.*`, `separador.*`, `sistema.*`, `enlace`, `agentes.*` idem |
-| P9 | prompt animado por pulso finito (`glow.pulso_prompt` antes de `session.prompt`), `prompt.espera`, hot reload cableado en `_pie_prompt` | editar `estilo.json` a mano no se recarga solo; el motor y la deteccion existen, falta el gancho |
-
-Queda ademas por aplicar `global.fps` / `global.respuesta_sangria` /
-`global.glifos` (se validan; en fusion) y la puerta final P13 (sesion e2e
-completa con `/estilo`, presets, `/tema` x3, remoto y pipe; contraste de los 5
-presets con `scripts/contraste_tema.py`).
+| que | estado hoy |
+|---|---|
+| `agentes.acento/panel/borde/texto` (vista F2) | se validan, guardan y previsualizan; la vista F2 no lee el registro (`enganchado=False`) |
+| `panel.borde` caja (`glifo`) y `panel.titulo` textos | los `Panel()` de `/historial`, `/modulos`, `/costo`, `/stats` usan `box` y titulos literales; solo el COLOR por token cambia |
+| `/color` <-> `respuesta.texto.color` | `/color` persiste `COGNIA_ACCENT` y no escribe el registro; `/estilo respuesta.texto color` no mueve el acento (`respuesta.texto` no enganchado) |
+| migracion E11 en `cli.py` | quedan `[success_dim]` x4 y `[bold]` x6 literales fuera de los tokens del tema |
+| `barra.*` animada, glow de `barra.estado`/`barra.modo`, animacion de `prompt.texto/continuacion/busqueda/seleccion` y `menu.*` | solo el pulso de P9 anima (etiqueta/marco/flecha/espera) |
+| `sistema.*`, `aviso.info/error`, `tool.verbo/objeto`, `panel.cuerpo`: texto/glifo/glow/visible | solo color/negrita/italica por token |
+| `/estilo banner` | avisa "llega con P7"; `cli._reimprimir_banner` existe y no esta cableado |
+| `global.fps` / `global.respuesta_sangria` / `global.glifos` | se validan; el motor corre a `glow.FPS = 12` |
+| P12 | no empezado |
+| P13 (puerta final: sesion e2e con `/estilo`, presets, `/tema` x3, remoto y pipe; contraste de los 5 presets con `scripts/contraste_tema.py`) | las puertas ConPTY de banner/spinner/prompt/editor existen por separado |
