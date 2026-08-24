@@ -2068,6 +2068,7 @@ _CMD_DESCRIPTIONS = {
     "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
     "/compactar":       "A secas: resumen visual de la sesion (limpiar + ultimas interacciones). Con args: compactacion del contexto del agente. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
     "/notificar":       "Config del toast OSC 9 al terminar un turno largo; cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell> | umbral <segundos> | degradados on|off]",
+    "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2236,6 +2237,24 @@ _CMD_DETAILS = {
         "fondo, ahi la actividad se mira con F2). Se actualiza en su sitio: jamas ensucia el "
         "scrollback y trunca elegante en consolas estrechas. Todo fallo avisa via degradado "
         "'spinner' y cae al spinner clasico, jamas rompe el turno."),
+    "/markdown": (
+        "MARKDOWN EN STREAMING sin flicker (ux/markdown_vivo): la respuesta se ve con "
+        "titulos, listas, tablas y bloques de codigo con sintaxis pygments MIENTRAS llega, "
+        "no solo al final. Mecanismo (la maquina de Aider + el reloj de CodeWhale): ventana "
+        "viva de 6 lineas al fondo; en cada repintado se renderiza TODO el markdown "
+        "acumulado, las lineas que salieron de la ventana se comitean al scrollback UNA vez "
+        "(lo commiteado jamas cambia) y solo la cola se repinta con cursor-up ANSI. Los "
+        "tokens del modelo son input, no timing: se drena con reloj de ~30 ms y throttle "
+        "adaptativo (10x el costo del ultimo render, techo de catch-up 1.2 s). Un fence de "
+        "codigo abierto se RETIENE en la cola hasta que cierra: nunca se parte un bloque al "
+        "commitear. USO: /markdown | estado (activo?, por que, tema y quien manda) | on|off "
+        "(persiste 'markdown_stream'; default on CON tty, sin tty se apaga solo) | "
+        "tema <nombre> (persiste 'markdown_tema', default 'monokai'; valida contra pygments). "
+        "La env COGNIA_MARKDOWN=0 apaga GANANDO a la config (y =1 fuerza aun sin tty, en "
+        "modo solo-commit: transcript limpio); COGNIA_CODE_THEME gana al tema. Bajo "
+        "COGNIA_REMOTO se conserva el camino viejo SIEMPRE (el clasificador del movil "
+        "depende de sus marcas). Todo fallo avisa via degradado 'markdown' y ese turno cae "
+        "al flujo plano de siempre, re-imprimiendo el texto crudo: jamas rompe el turno."),
     "/notificar": (
         "NOTIFICACIONES DE ESCRITORIO (harness/notificaciones, F5, patron Crush/Codex): cuando "
         "un turno del agente termina tras >= umbral segundos (default 20; el 27B local tarda "
@@ -6015,6 +6034,17 @@ _CONFIG_DEFAULTS: dict = {
     "notificar_modo":       "auto",
     "notificar_umbral_s":   "20",
     "notificar_degradado":  "off",
+    # MARKDOWN EN STREAMING de la respuesta (ux/markdown_vivo, maquina de
+    # Aider + reloj de CodeWhale): ventana viva de 6 lineas al fondo, las
+    # estables se comitean al scrollback una sola vez (sin flicker), bloques
+    # de codigo con sintaxis pygments. ON por defecto CON tty; sin tty se
+    # apaga solo (un pipe no tiene cursor y el repintado seria basura). La
+    # env COGNIA_MARKDOWN=0 apaga GANANDO a la config (y =1 fuerza aun sin
+    # tty); COGNIA_CODE_THEME gana a 'markdown_tema'; bajo COGNIA_REMOTO
+    # NUNCA (el clasificador del movil depende de las marcas del camino
+    # viejo). Se cambia con /markdown on|off|tema <pygments>.
+    "markdown_stream":      "on",
+    "markdown_tema":        "monokai",
 }
 
 
@@ -9219,6 +9249,105 @@ def _slash_spinner(arg: str = "") -> None:
                 "(el carril de fondo lo pone solo)[/info_dim]")
 
 
+def _slash_markdown(arg: str = "") -> None:
+    """`/markdown [estado | on | off | tema <pygments>]`: markdown en
+    STREAMING sin flicker para la respuesta (ux/markdown_vivo: la maquina de
+    Aider — ventana viva + commit de estables — con el reloj de CodeWhale).
+
+    Subcomandos de config (persisten via _save_config):
+      on|off         -> clave 'markdown_stream' (COGNIA_MARKDOWN gana:
+                        0 apaga, 1 fuerza aun sin tty)
+      tema <nombre>  -> clave 'markdown_tema' (tema pygments de los bloques
+                        de codigo, default 'monokai'; COGNIA_CODE_THEME gana)"""
+    try:
+        from cognia.ux import markdown_vivo
+    except Exception as exc:
+        _aviso_degradado("markdown", f"markdown_vivo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["markdown_stream"] = bajo
+        _save_config(cfg)
+        env = (os.environ.get("COGNIA_MARKDOWN") or "").strip()
+        extra = (f" (ojo: COGNIA_MARKDOWN={env} en el entorno GANA "
+                 f"a la config)" if env else "")
+        _print_line(f"[info_dim]markdown en streaming: {bajo}"
+                    f" (guardado){extra}[/info_dim]")
+        return
+    if bajo == "tema" or bajo.startswith("tema "):
+        resto = arg[len("tema"):].strip()
+        if not resto:
+            _, tema = markdown_vivo.config()
+            _print_line(f"[info_dim]tema de codigo: {_escape(tema)} "
+                        f"(/markdown tema <nombre pygments> para cambiarlo)"
+                        f"[/info_dim]")
+            return
+        try:
+            from pygments.styles import get_style_by_name
+            get_style_by_name(resto)
+        except Exception:
+            # sugerir algunos reales para no dejar al dueno adivinando
+            try:
+                from pygments.styles import get_all_styles
+                muestra = ", ".join(sorted(get_all_styles())[:12]) + ", …"
+            except Exception:
+                muestra = "monokai, dracula, github-dark, solarized-dark, …"
+            _print_line(f"[warn_cl]tema '{_escape(resto)}' no existe en "
+                        f"pygments. Algunos: {muestra}[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["markdown_tema"] = resto
+        _save_config(cfg)
+        env_t = (os.environ.get("COGNIA_CODE_THEME") or "").strip()
+        extra = (f" (ojo: COGNIA_CODE_THEME={env_t} en el entorno GANA "
+                 f"a la config)" if env_t else "")
+        _print_line(f"[info_dim]tema de codigo: {resto} (guardado){extra}"
+                    f"[/info_dim]")
+        return
+    if bajo not in ("", "estado"):
+        _print_line("[warn_cl]Uso: /markdown [estado | on | off | "
+                    "tema <pygments>][/warn_cl]")
+        return
+    # estado: activo?, por que, tema vigente y quien manda
+    act, tema = markdown_vivo.config()
+    md_env = (os.environ.get("COGNIA_MARKDOWN") or "").strip()
+    tema_env = (os.environ.get("COGNIA_CODE_THEME") or "").strip()
+    remoto = (os.environ.get("COGNIA_REMOTO") or "").strip() == "1"
+    try:
+        tty = bool(sys.stdout.isatty())
+    except Exception:
+        tty = False
+    if act:
+        modo = "activo (ventana viva de 6 lineas + commit de estables)"
+    elif remoto:
+        modo = ("apagado (COGNIA_REMOTO=1: el clasificador del movil "
+                "necesita el camino viejo)")
+    elif md_env in ("0", "false", "no", "off"):
+        modo = "apagado (COGNIA_MARKDOWN=0 en el entorno)"
+    elif str(_load_config().get("markdown_stream", "on")).lower() in (
+            "off", "0", "false", "no"):
+        modo = "apagado (config; /markdown on para prenderlo)"
+    elif not tty:
+        modo = ("apagado automatico (sin tty: un pipe no tiene cursor; "
+                "COGNIA_MARKDOWN=1 lo fuerza en modo solo-commit)")
+    else:
+        modo = "apagado"
+    _print_line(f"[info_dim]markdown en streaming: {modo}[/info_dim]")
+    # _load_config ya viene MERGEADO con los defaults: distinguir el default
+    # por VALOR, no por presencia (si no, el default salia como "config")
+    origen_tema = ("env COGNIA_CODE_THEME" if tema_env
+                   else "default" if tema == _CONFIG_DEFAULTS.get(
+                       "markdown_tema") else "config")
+    _print_line(f"[info_dim]tema de codigo: {_escape(tema)} ({origen_tema}; "
+                f"/markdown tema <pygments> para cambiarlo)[/info_dim]")
+    _print_line("[info_dim]env: COGNIA_MARKDOWN="
+                f"{md_env or '(sin fijar)'} gana a la config · "
+                f"COGNIA_CODE_THEME={tema_env or '(sin fijar)'} gana al tema"
+                "[/info_dim]")
+
+
 def _slash_prompt(arg: str = ""):
     """Administra el system prompt configurable del CEREBRO (2026-08-02).
 
@@ -11783,6 +11912,8 @@ def repl():
             _slash_compactar(raw[len("/compactar "):])
         elif raw == "/notificar" or raw.startswith("/notificar "):
             _slash_notificar(raw[len("/notificar "):] if raw.startswith("/notificar ") else "")
+        elif raw == "/markdown" or raw.startswith("/markdown "):
+            _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):
@@ -14273,12 +14404,30 @@ def repl():
                             # imprimirse gota a gota — se siente escrito, no
                             # teletipeado. Best-effort: sin estilo, gota a gota.
                             _flujo = None
+                            # Markdown en STREAMING (ux/markdown_vivo, patron
+                            # Aider + CodeWhale): misma maquina que usa el
+                            # renderer para la respuesta del agente. crear()
+                            # decide solo por config/tty/remoto y NUNCA lanza;
+                            # None = el FlujoSuave plano de siempre. Sus
+                            # escribir()/cerrar() tampoco lanzan (degradan
+                            # visibles via 'markdown' y caen a plano EN ESE
+                            # TURNO), asi este bloque no cambia de forma.
                             try:
-                                from cognia.ux.estilo import FlujoSuave as _FS
-                                _flujo = _FS(console=_console if _HAS_RICH else None,
-                                             style=_ACCENT)
-                            except Exception:
+                                from cognia.ux import markdown_vivo as _mdv
+                                _flujo = _mdv.crear(
+                                    _console if _HAS_RICH else None)
+                            except Exception as _e_md:
+                                _aviso_degradado(
+                                    "markdown",
+                                    f"{type(_e_md).__name__}: {_e_md}")
                                 _flujo = None
+                            if _flujo is None:
+                                try:
+                                    from cognia.ux.estilo import FlujoSuave as _FS
+                                    _flujo = _FS(console=_console if _HAS_RICH else None,
+                                                 style=_ACCENT)
+                                except Exception:
+                                    _flujo = None
                             t0 = time.time()
                             try:
                                 # el fast-path pinta su propio stream: que el

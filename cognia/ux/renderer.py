@@ -337,6 +337,26 @@ class Renderer:
             self._ticker, self._ticker_stop = None, None
             self._degradar_spinner(exc)
 
+    def _degradar_markdown(self, exc: Exception) -> None:
+        """El markdown vivo no se pudo ni importar/crear: avisar por
+        _aviso_degradado (canal unico) y seguir con el flujo plano. Mismo
+        patron que _degradar_spinner; los fallos DENTRO de un MarkdownVivo ya
+        vivo los avisa el propio modulo (escribir/cerrar no lanzan)."""
+        motivo = f"{type(exc).__name__}: {exc}"
+        try:
+            import sys
+            _cli = sys.modules.get("cognia.cli")
+            if _cli is not None:
+                _cli._aviso_degradado("markdown", motivo)
+                return
+        except Exception:
+            pass
+        clave = ("degradado", "markdown", motivo)
+        if clave not in self._avisos_vistos:
+            self._avisos_vistos.add(clave)
+            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — markdown: "
+                        f"{motivo}", style="warn_cl")
+
     def _cerrar_flujo(self) -> None:
         if self._flujo is not None:
             # cerrar() vacia el buffer; el print() termina la linea a medias
@@ -737,10 +757,21 @@ class Renderer:
             # empieza la prosa: el spinner sobra y la respuesta respira arriba
             self._parar_status()
             respirar(self._console)
-            # Decision 17 (2026-08-17): la respuesta del modelo va en el
-            # color de texto NORMAL del tema, no en un acento. El "cyan"
-            # de aca era el ultimo hardcodeo del stream de la respuesta.
-            self._flujo = FlujoSuave(console=self._console)
+            # Markdown en STREAMING (ux/markdown_vivo, maquina de Aider +
+            # reloj de CodeWhale): titulos, listas y codigo con sintaxis
+            # mientras llega, sin flicker. crear() decide solo por config/
+            # tty/remoto y NUNCA lanza; None = el flujo plano de siempre.
+            # Decision 17 (2026-08-17) intacta en ambos caminos: la
+            # respuesta va en el color de texto NORMAL del tema (el
+            # markdown usa los estilos default de rich, no un acento).
+            try:
+                from . import markdown_vivo
+                self._flujo = markdown_vivo.crear(self._console)
+            except Exception as exc:
+                self._degradar_markdown(exc)
+                self._flujo = None
+            if self._flujo is None:
+                self._flujo = FlujoSuave(console=self._console)
         self._flujo.escribir(ev.texto)
 
     def _on_aviso(self, ev: events.Aviso) -> None:
