@@ -55,7 +55,10 @@ API publica (lo que el integrador cablea; este modulo NO toca el CLI):
         de un indicador permanente.
 
     aviso_umbral() -> "" | "aviso" | "critico"
-        Para que el CLI sugiera compactar. >=75% aviso, >=90% critico, CON
+        Para que el CLI sugiera compactar. Aviso al umbral REAL de
+        compactacion (umbral_aviso_pct: COGNIA_CTX_AVISO > umbral_frac de
+        harness/compactacion > 80), critico a umbral_critico_pct
+        (COGNIA_CTX_CRITICO > 90), CON
         histeresis: un aviso ya emitido no se repite hasta que el porcentaje
         baja 5 puntos por debajo de su umbral (85 / 70). Solo avisa al
         ESCALAR: bajar de critico a aviso no vuelve a hablar. Es una funcion
@@ -92,14 +95,57 @@ LIMITES DECLARADOS (lo que este modulo NO hace):
 
 from __future__ import annotations
 
+import logging
+import os
 import shutil
 import sys
 import threading
 
-# Umbrales de ocupacion de ventana (en % de n_ctx) y ancho de la histeresis.
-UMBRAL_AVISO = 75
+# Umbrales FALLBACK de ocupacion de ventana (en % de n_ctx) y ancho de la
+# histeresis. Los vigentes los dan umbral_aviso_pct()/umbral_critico_pct():
+# el de aviso sigue al umbral REAL de compactacion (compactacion.umbral_frac,
+# default 0.8) para que la barra y el disparo de compactar digan lo mismo —
+# el 75 hardcodeado de antes mentia por 5 puntos (2026-08-23). Las env
+# COGNIA_CTX_AVISO / COGNIA_CTX_CRITICO (que el CLI siembra desde la config
+# contexto_umbral_aviso/critico) ganan a todo.
+UMBRAL_AVISO = 80
 UMBRAL_CRITICO = 90
 HISTERESIS = 5
+
+
+def _pct_env(var: str):
+    """Umbral por env como % entero 1-100, o None si no esta/ es basura (la
+    basura se dice por logging, no se calla)."""
+    crudo = (os.environ.get(var) or "").strip()
+    if not crudo:
+        return None
+    try:
+        v = int(float(crudo))
+    except ValueError:
+        logging.getLogger("cognia.harness.contexto_vivo").warning(
+            "%s=%r no es un porcentaje: lo ignoro", var, crudo)
+        return None
+    return min(100, max(1, v))
+
+
+def umbral_aviso_pct() -> int:
+    """% de uso que enciende el aviso (amarillo). Prioridad: COGNIA_CTX_AVISO
+    > umbral REAL de compactacion (se mueve con /compactar umbral) > 80."""
+    v = _pct_env("COGNIA_CTX_AVISO")
+    if v is not None:
+        return v
+    try:
+        from cognia.harness.compactacion import umbral_frac
+        return min(99, max(1, int(round(umbral_frac() * 100))))
+    except Exception:
+        return UMBRAL_AVISO
+
+
+def umbral_critico_pct() -> int:
+    """% de uso critico (rojo). COGNIA_CTX_CRITICO o el default 90."""
+    v = _pct_env("COGNIA_CTX_CRITICO")
+    return v if v is not None else UMBRAL_CRITICO
+
 
 _ANCHO_MAX = 80          # la barra tiene que caber en 80 columnas
 _MODELO_MAX = 12         # chars del nombre de modelo en la variante abreviada
@@ -325,15 +371,15 @@ def _porcentaje(ocupacion: int, n_ctx: int) -> int:
 
 
 def _nivel(pct: int) -> str:
-    if pct >= UMBRAL_CRITICO:
+    if pct >= umbral_critico_pct():
         return "critico"
-    if pct >= UMBRAL_AVISO:
+    if pct >= umbral_aviso_pct():
         return "aviso"
     return ""
 
 
 def _umbral(nivel: str) -> int:
-    return UMBRAL_CRITICO if nivel == "critico" else UMBRAL_AVISO
+    return umbral_critico_pct() if nivel == "critico" else umbral_aviso_pct()
 
 
 def _orden(nivel: str) -> int:

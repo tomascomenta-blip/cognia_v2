@@ -32,6 +32,15 @@ def consola_utf8(monkeypatch):
     monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(io.BytesIO(), encoding="utf-8"))
 
 
+@pytest.fixture(autouse=True)
+def umbrales_de_fabrica(monkeypatch):
+    """Pin de umbrales: sin envs del footer ni de compactacion, los niveles
+    son los de fabrica (aviso 80 = umbral de compactacion, critico 90)."""
+    for var in ("COGNIA_CTX_AVISO", "COGNIA_CTX_CRITICO",
+                "COGNIA_COMPACT_UMBRAL"):
+        monkeypatch.delenv(var, raising=False)
+
+
 # -- Acumulacion --------------------------------------------------------------
 
 def test_cuenta_entrada_y_salida_del_usage_real():
@@ -297,7 +306,9 @@ def test_aviso_umbral_con_histeresis():
     # Compactar de verdad desarma todo.
     CV.registrar_contexto(30, 100)
     assert CV.aviso_umbral() == ""
-    CV.registrar_contexto(78, 100)
+    # 81: sobre el umbral de aviso (80, el REAL de compactacion; el 78 de
+    # antes correspondia al 75 hardcodeado que mentia).
+    CV.registrar_contexto(81, 100)
     assert CV.aviso_umbral() == "aviso"
 
 
@@ -306,6 +317,27 @@ def test_nivel_del_estado_no_consume_el_aviso():
     assert CV.estado()["nivel"] == "critico"
     assert CV.estado()["nivel"] == "critico"
     assert CV.aviso_umbral() == "critico"   # estado() no armo nada
+
+
+def test_umbral_aviso_acoplado_a_compactacion(monkeypatch):
+    """REGRESION 2026-08-23: el aviso vivia en un 75 hardcodeado mientras la
+    compactacion REAL dispara al 80 (harness/compactacion.umbral_frac, que se
+    mueve con /compactar umbral): la barra amarilleaba 5 puntos antes de que
+    compactar fuera verdad. El umbral de aviso SIGUE al de compactacion; las
+    envs del footer (COGNIA_CTX_AVISO/CRITICO) ganan a todo."""
+    assert CV.umbral_aviso_pct() == 80           # default = el de compactacion
+    monkeypatch.setenv("COGNIA_COMPACT_UMBRAL", "0.6")
+    assert CV.umbral_aviso_pct() == 60           # /compactar umbral lo mueve
+    CV.registrar_contexto(65, 100)
+    assert CV.estado()["nivel"] == "aviso"
+    monkeypatch.setenv("COGNIA_CTX_AVISO", "70")
+    assert CV.umbral_aviso_pct() == 70           # la env del footer gana
+    assert CV.estado()["nivel"] == ""
+    monkeypatch.setenv("COGNIA_CTX_CRITICO", "64")
+    assert CV.umbral_critico_pct() == 64
+    assert CV.estado()["nivel"] == "critico"
+    monkeypatch.setenv("COGNIA_CTX_AVISO", "basura")
+    assert CV.umbral_aviso_pct() == 60           # basura se ignora, no calla
 
 
 def test_sin_n_ctx_no_hay_aviso():
@@ -330,3 +362,50 @@ def test_acumulador_no_pierde_cuentas_entre_hilos():
     assert est["turnos"] == 400
     assert est["entrada"] == 4000
     assert est["salida"] == 2000
+
+
+
+# -- Cableado: el bucle del agente ALIMENTA este modulo ------------------------
+
+def _correr_bucle(usages, n_ctx=4000):
+    """bucle_nativo con un completar falso que devuelve esos usages."""
+    from cognia.agent import loop as loop_mod
+    from cognia.agent.chat_client import (RespuestaChat, mensaje_assistant,
+                                          mensaje_tool)
+    from cognia.agent.tool_schemas import args_legacy
+    rs = [RespuestaChat(texto="Listo.", finish_reason="stop", usage=u)
+          for u in usages]
+    it = iter(rs)
+    perfil = {"nombre": "razonador_nativo", "modelo": "m.gguf",
+              "url": "http://127.0.0.1:9", "tools": "nativo", "n_ctx": n_ctx,
+              "temperature": 1.0, "top_p": 1.0, "max_tokens": 4096}
+    return loop_mod.bucle_nativo(
+        "di listo", "sos el agente", lambda m, tools=None, **kw: next(it), [],
+        args_legacy, mensaje_assistant, mensaje_tool,
+        lambda n, a, c: "", {}, perfil, ["TAREA: di listo"], [],
+        lambda *a, **k: None, 4)
+
+
+def test_el_bucle_nativo_alimenta_el_contexto_vivo():
+    """REGRESION (cazada TECLEANDO en el REPL, 2026-08-24): registrar_uso y
+    registrar_contexto no tenian NINGUN llamador; la barra decia
+    'ctx 0/65.5k (100% libre)' a 110 s de una corrida con varias lecturas
+    de cli.py. El bucle registra el usage REAL del turno y la ocupacion
+    post-compactacion con la ventana del perfil, sin marcar estimado."""
+    CV.reiniciar()
+    out = _correr_bucle([{"prompt_tokens": 1200, "completion_tokens": 30}])
+    assert out["ok"]
+    est = CV.estado()
+    assert est["turnos"] == 1 and est["total"] == 1230
+    assert est["n_ctx"] == 4000
+    assert est["ocupacion"] >= 1200          # prompt real + lo apendeado
+    assert est["estimado"] is False
+
+
+def test_el_bucle_sin_prompt_tokens_marca_estimado():
+    """Stream sin chunk de usage: la ocupacion sale de chars/4 y queda
+    MARCADA estimada (la barra la pinta con '~'), no disfrazada de medida."""
+    CV.reiniciar()
+    _correr_bucle([{"completion_tokens": 30}])
+    est = CV.estado()
+    assert est["ocupacion"] > 0 and est["estimado"] is True

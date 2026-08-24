@@ -522,6 +522,44 @@ def _es_verificacion(nombre_tool: str, args: str) -> bool:
         return False
 
 
+def _anotar_uso_vivo(resp, n_ctx, mensajes, print_fn) -> None:
+    """Alimenta harness/contexto_vivo con el usage REAL del turno (tokens de
+    la sesion del footer) y fija la ocupacion de la ventana: prompt+salida
+    si el server dijo prompt_tokens; si no (stream sin chunk de usage), el
+    historial a chars/4 MARCADO estimado — la barra lo pinta con '~'.
+    Best-effort CON aviso: la barra no puede costar el turno, pero un fallo
+    mudo aqui es justo lo que dejo el footer en '0/65.5k (100% libre)' toda
+    la sesion (cazado TECLEANDO 2026-08-24: registrar_uso no tenia NINGUN
+    llamador en el repo)."""
+    try:
+        from cognia.harness import contexto_vivo as _cv
+        u = (resp.usage or {}) if resp is not None else {}
+        entrada = int(u.get("prompt_tokens") or 0)
+        salida = int(u.get("completion_tokens") or 0)
+        estimado = bool(getattr(resp, "usage_estimado", False))
+        _cv.registrar_uso(entrada, salida, estimado=estimado)
+        if not entrada:
+            entrada = sum(len(str(m.get("content") or ""))
+                          + len(str(m.get("reasoning_content") or ""))
+                          for m in (mensajes or [])) // 4
+            estimado = True
+        _cv.registrar_contexto(entrada + salida, n_ctx, estimado=estimado)
+    except Exception as exc:
+        print_fn(f"[warn_cl]contexto vivo no anotado (uso): {exc}[/warn_cl]")
+
+
+def _anotar_ocupacion_viva(est, n_ctx, estimado: bool, print_fn) -> None:
+    """Fija la ocupacion de la ventana en contexto_vivo con la MISMA cuenta
+    que acaba de decidir la compactacion (`est` post-recorte): footer y
+    disparo de /compactar dicen el mismo numero, o el amarillo miente."""
+    try:
+        from cognia.harness import contexto_vivo as _cv
+        _cv.registrar_contexto(est, n_ctx, estimado=estimado)
+    except Exception as exc:
+        print_fn(f"[warn_cl]contexto vivo no anotado (ocupacion): {exc}"
+                 f"[/warn_cl]")
+
+
 def bucle_nativo(task: str, system: str, completar, schemas: list,
                  args_legacy, mensaje_assistant, mensaje_tool,
                  run_tool, ctx: dict, perfil: dict, history: list,
@@ -817,6 +855,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # El presupuesto vuelve al del perfil: la subida era para ESTE paso. Si
         # se queda alta, el resto de la tarea paga un techo que no pidio nadie.
         sampling["max_tokens"] = _presupuesto_base
+        # FOOTER de contexto (barra_estado): tokens reales del turno y
+        # ocupacion de la ventana (la refina el hook post-compactacion).
+        _anotar_uso_vivo(resp, perfil.get("n_ctx"), mensajes, print_fn)
 
         if not resp.ok:
             # Server caido / respuesta rota: degradar con causa VISIBLE (la
@@ -1255,6 +1296,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                              "estado verificado[/detail]")
             except Exception:
                 pass
+        # FOOTER de contexto: la ocupacion que ve la barra es ESTA `est`
+        # (post-compactacion), la misma que decidio compactar o no. Estimada
+        # si el stream no trajo prompt_tokens (chars/4) o el usage se dedujo.
+        _anotar_ocupacion_viva(
+            est, perfil.get("n_ctx"),
+            estimado=(not (resp.usage or {}).get("prompt_tokens")
+                      or bool(getattr(resp, "usage_estimado", False))),
+            print_fn=print_fn)
     else:
         # Presupuesto agotado sin cierre: redaccion final honesta con la
         # evidencia del history (no un volcado crudo).

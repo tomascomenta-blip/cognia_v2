@@ -28,30 +28,39 @@ JERARQUIA (lo que se corrige es la DENSIDAD, no la identidad del producto)
 -------------------------------------------------------------------------
 Una sola linea, secciones separadas por " \u00b7 ", izquierda y derecha ancladas:
 
-    PLAN \u00b7 qwythos-9b \u00b7 ~/Desktop/cognia_v2 \u00b7 main*        ctx 12.4k/128k (10%) \u00b7 3.2k tok
+    PLAN \u00b7 qwythos-9b \u00b7 ~/Desktop/cognia_v2 \u00b7 main*   ctx 12.4k/128k (90% libre) \u00b7 3.2k tok
 
 - IZQUIERDA (quien soy y donde estoy): insignia de modo, modelo, directorio,
   rama (con '*' si el arbol esta sucio).
 - DERECHA (cuanto me queda), pegada al borde: contexto y tokens de la sesion.
 - UN solo acento, reservado a la RAMA ('mod' del tema, igual que Claude Code
   reserva el coral). El resto es tenue: la barra informa, no compite con la
-  conversacion. El contexto se pone 'warn_cl' al 80% y 'err_cl' al 95%: ahi si
-  es una alarma.
+  conversacion. El contexto cuenta hacia ABAJO ('% libre', receta Codex) sobre
+  n_ctx MENOS un headroom fijo de 1024 tokens (receta CodeWhale), con una
+  mini-barra de bloques opcional a partir de 100 columnas; se pone 'warn_cl'
+  al cruzar el umbral REAL de compactacion (compactacion.umbral_frac, default
+  80%, movible con /compactar umbral o COGNIA_CTX_AVISO) con sufijo
+  '/compactar', y 'err_cl' al critico (default 90%, COGNIA_CTX_CRITICO): ahi
+  si es una alarma. Sin n_ctx del backend la barra dice 'ctx ?', jamas un %
+  inventado; con ocupacion ESTIMADA (datos['ctx_estimado'], chars/4 del
+  camino de chat) el usado lleva '~' delante: 'ctx ~3.1k/65.5k (95% libre)'.
 - Sin emojis (la consola de Windows por defecto no los renderiza). Los unicos
-  glifos no-ASCII son '\u00b7', '\u2026' y '\u2191\u2193', y los tres tienen fallback ASCII.
+  glifos no-ASCII son '\u00b7', '\u2026', '\u2191\u2193' y los bloques de la mini-barra, todos con
+  fallback ASCII.
 
 PRIORIDAD DE RECORTE (cuando la linea no cabe en `ancho`)
 --------------------------------------------------------
 Escalones, en este orden exacto; se usa el PRIMERO que entra:
 
     0. completa    todo
-    1. sin_tokens  cae tokens_sesion
-    2. dir_corto   el directorio se acorta a su ULTIMO componente
-    3. sin_rama    cae la rama
-    4. sin_modo    cae la insignia de modo
-    5. sin_dir     cae el directorio entero  (extension propia: los 4 escalones
-                   de arriba son los pedidos; si ni asi entra, antes de mutilar
-                   el modelo se sacrifica el directorio, que es lo unico que
+    1. sin_bloques cae la mini-barra de bloques (el % del ctx queda)
+    2. sin_tokens  cae tokens_sesion
+    3. dir_corto   el directorio se acorta a su ULTIMO componente
+    4. sin_rama    cae la rama
+    5. sin_modo    cae la insignia de modo
+    6. sin_dir     cae el directorio entero  (extension propia: los 4 escalones
+                   pedidos son 2-5; si ni asi entra, antes de mutilar el
+                   modelo se sacrifica el directorio, que es lo unico que
                    queda y no es ni modelo ni contexto)
 
 El MODELO y el CONTEXTO no se caen nunca. Si ni el ultimo escalon entra, la
@@ -112,6 +121,14 @@ _FLECHAS_UNI = "\u2191\u2193"
 _FLECHAS_ASCII = "arriba/abajo"
 _SUCIO = "*"                 # ASCII siempre: la marca de arbol sucio no negocia
 
+# Mini-barra de bloques (Aider usa '█░'; aca 8 celdas y solo con terminal
+# ancha). Fallback ASCII para consolas cp1252, que no codifican los bloques.
+_BLOQUE_LLENO_UNI = "█"     # bloque lleno
+_BLOQUE_VACIO_UNI = "░"     # sombra ligera
+_BLOQUE_LLENO_ASCII = "#"
+_BLOQUE_VACIO_ASCII = "."
+CELDAS_BLOQUES = 8
+
 # Estilos logicos (claves de los temas de cli.py). Se exponen para que el
 # integrador pueda mapearlos y para el test de regresion contra el tema real.
 EST_MODELO = "detail"
@@ -120,8 +137,8 @@ EST_RAMA = "mod"             # el UNICO acento de la barra
 EST_SUCIO = "warn_cl"
 EST_SEP = "footer"
 EST_CTX = "info_dim"
-EST_CTX_ALTO = "warn_cl"     # >= 80% del contexto
-EST_CTX_CRITICO = "err_cl"   # >= 95% del contexto
+EST_CTX_ALTO = "warn_cl"     # >= umbral de aviso (el de compactacion)
+EST_CTX_CRITICO = "err_cl"   # >= umbral critico (default 90%)
 EST_TOKENS = "footer"
 EST_ATAJO_TECLA = "mod"
 EST_ATAJO_ACCION = "footer"
@@ -138,9 +155,44 @@ ESTILOS = frozenset({
     EST_PERMISO_AUTO, EST_PERMISO_MANUAL, "",
 })
 
-# Umbrales de alarma del contexto (porcentaje consumido).
+# Headroom fijo (receta CodeWhale): se resta SIEMPRE del n_ctx antes de
+# calcular el porcentaje. El server necesita margen para la respuesta en
+# curso, y un 100% "matematico" que en la practica ya no admite ni un turno
+# mas es un numero mentiroso.
+HEADROOM_TOKENS = 1024
+
+# Umbrales de alarma FALLBACK (porcentaje consumido). Los vigentes los da
+# _umbrales(): salen de contexto_vivo, que a su vez lee el umbral REAL de
+# compactacion (harness/compactacion.umbral_frac) — si el dueno lo mueve con
+# /compactar umbral, el amarillo de esta barra se mueve con el. Estos dos
+# numeros solo mandan si el harness no importa (y coinciden con los defaults
+# de compactacion, no son un segundo umbral distinto que mienta).
 PCT_ALTO = 80
-PCT_CRITICO = 95
+PCT_CRITICO = 90
+
+
+def _umbrales() -> tuple:
+    """(aviso, critico) vigentes en % de uso, leidos a call-time para que
+    /compactar umbral y las env muevan la barra en caliente."""
+    try:
+        from cognia.harness import contexto_vivo as _cv
+        return _cv.umbral_aviso_pct(), _cv.umbral_critico_pct()
+    except Exception:
+        return PCT_ALTO, PCT_CRITICO
+
+
+def bloques_activos() -> bool:
+    """Mini-barra de bloques on/off. COGNIA_BARRA_BLOQUES=0|off la apaga (el
+    CLI siembra la config 'barra_bloques' ahi); default ENCENDIDA — pero solo
+    se pinta con terminal ancha (>= _ANCHO_BLOQUES), decision del integrador
+    via _grupos."""
+    crudo = (os.environ.get("COGNIA_BARRA_BLOQUES") or "").strip().lower()
+    return crudo not in ("0", "off", "no", "false")
+
+
+# Ancho minimo de terminal para que la mini-barra de bloques entre sin robarle
+# celdas a nada (con menos de 100 columnas cae ELLA primero, el % queda).
+_ANCHO_BLOQUES = 100
 
 # Topes de las secciones que pueden venir larguisimas.
 _TOPE_MODELO = 28
@@ -148,8 +200,10 @@ _TOPE_DIR = 40
 _TOPE_RAMA = 28              # las ramas de feature son largas de verdad
 
 # Escalones de recorte, en orden. Ver la seccion PRIORIDAD DE RECORTE.
-ESCALONES = ("completa", "sin_tokens", "dir_corto", "sin_rama", "sin_modo",
-             "sin_dir")
+# 'sin_bloques' es el primer sacrificio: la mini-barra de bloques es adorno
+# del %, y el % (que es el dato) queda.
+ESCALONES = ("completa", "sin_bloques", "sin_tokens", "dir_corto", "sin_rama",
+             "sin_modo", "sin_dir")
 
 # Ancho minimo con el que se intenta armar algo; por debajo se trunca en duro.
 _ANCHO_MIN = 8
@@ -190,15 +244,23 @@ def _glifos(unicode_ok: bool | None) -> dict:
     """Juego de glifos a usar. None = autodetectar POR GLIFO (el separador y
     las flechas no tienen la misma suerte en cp1252)."""
     if unicode_ok is True:
-        return {"sep": _SEP_UNI, "elip": _ELIP_UNI, "flechas": _FLECHAS_UNI}
+        return {"sep": _SEP_UNI, "elip": _ELIP_UNI, "flechas": _FLECHAS_UNI,
+                "lleno": _BLOQUE_LLENO_UNI, "vacio": _BLOQUE_VACIO_UNI}
     if unicode_ok is False:
         return {"sep": _SEP_ASCII, "elip": _ELIP_ASCII,
-                "flechas": _FLECHAS_ASCII}
+                "flechas": _FLECHAS_ASCII,
+                "lleno": _BLOQUE_LLENO_ASCII, "vacio": _BLOQUE_VACIO_ASCII}
     return {
         "sep": _SEP_UNI if _encodable(_SEP_UNI) else _SEP_ASCII,
         "elip": _ELIP_UNI if _encodable(_ELIP_UNI) else _ELIP_ASCII,
         "flechas": (_FLECHAS_UNI if _encodable(_FLECHAS_UNI)
                     else _FLECHAS_ASCII),
+        # cp1252 no codifica los bloques: se autodetecta POR GLIFO, igual que
+        # el separador (los dos van juntos porque se prueban juntos).
+        "lleno": (_BLOQUE_LLENO_UNI if _encodable(_BLOQUE_LLENO_UNI)
+                  else _BLOQUE_LLENO_ASCII),
+        "vacio": (_BLOQUE_VACIO_UNI if _encodable(_BLOQUE_VACIO_UNI)
+                  else _BLOQUE_VACIO_ASCII),
     }
 
 
@@ -346,23 +408,63 @@ def _sec_rama(datos, g) -> list:
     return partes
 
 
-def _sec_ctx(datos) -> list:
-    """'ctx 12.4k/128k (10%)'. Sin total: 'ctx 12.4k'. Sin usado no hay
-    seccion (no se inventa un porcentaje sobre un dato que no llego)."""
+def nivel_contexto(usado, total) -> dict:
+    """La cuenta HONESTA del contexto, la misma que pinta la barra — expuesta
+    para que la puerta /compactar estado diga lo mismo que el footer (nada de
+    dos aritmeticas que discrepen).
+
+    Devuelve {pct_usado, libre, nivel, aviso, critico, headroom}. Con el
+    headroom fijo restado del total; sin total conocido, pct_usado y libre son
+    None (jamas un % inventado) y nivel es ''."""
+    u = _entero(usado) or 0
+    t = _entero(total) or 0
+    aviso, critico = _umbrales()
+    base = {"aviso": aviso, "critico": critico, "headroom": HEADROOM_TOKENS}
+    if t <= 0:
+        return dict(base, pct_usado=None, libre=None, nivel="")
+    util = max(1, t - HEADROOM_TOKENS)
+    pct = min(100, max(0, int(round(u * 100.0 / util))))
+    nivel = ("critico" if pct >= critico
+             else "aviso" if pct >= aviso else "")
+    return dict(base, pct_usado=pct, libre=100 - pct, nivel=nivel)
+
+
+def _bloques(pct_usado: int, g) -> str:
+    """'█░░░░░░░' de CELDAS_BLOQUES celdas: lleno = usado (estandar Aider)."""
+    llenas = int(round(pct_usado * CELDAS_BLOQUES / 100.0))
+    llenas = min(CELDAS_BLOQUES, max(0, llenas))
+    return g["lleno"] * llenas + g["vacio"] * (CELDAS_BLOQUES - llenas)
+
+
+def _sec_ctx(datos, g, con_bloques: bool = False) -> list:
+    """'ctx 12.4k/128k (90% libre)': el % cuenta hacia ABAJO (receta Codex,
+    'context left') sobre el n_ctx MENOS el headroom. Sin total conocido no se
+    inventa porcentaje: 'ctx 12.4k' si hay ocupacion real, 'ctx ?' si no hay
+    ni eso (flota apagada). Sin dato cableado (usado y total None) no hay
+    seccion. Al nivel de aviso se suma el sufijo '/compactar' (receta
+    CodeWhale: High sugiere compactar) y el estilo pasa a amarillo/rojo."""
     usado = _entero(_dato(datos, "ctx_usado"))
     total = _entero(_dato(datos, "ctx_total"))
-    if usado is None:
+    # '~' delante del usado cuando la ocupacion es ESTIMADA (chars/4, +-25%):
+    # un numero estimado con aspecto de medida es peor que decir que lo es.
+    tilde = "~" if _dato(datos, "ctx_estimado") else ""
+    if usado is None and total is None:
         return []
     if not total:
-        return [("ctx " + humano(usado), EST_CTX)]
-    pct = int(round(usado * 100.0 / total))
-    estilo = EST_CTX
-    if pct >= PCT_CRITICO:
-        estilo = EST_CTX_CRITICO
-    elif pct >= PCT_ALTO:
-        estilo = EST_CTX_ALTO
-    return [("ctx {}/{} ({}%)".format(humano(usado), humano(total), pct),
-             estilo)]
+        if usado:
+            return [("ctx " + tilde + humano(usado), EST_CTX)]
+        return [("ctx ?", EST_CTX)]
+    nc = nivel_contexto(usado, total)
+    estilo = {"critico": EST_CTX_CRITICO, "aviso": EST_CTX_ALTO}.get(
+        nc["nivel"], EST_CTX)
+    partes = [("ctx {}{}/{} ({}% libre)".format(
+        tilde, humano(usado or 0), humano(total), nc["libre"]), estilo)]
+    if con_bloques:
+        partes.append((" " + _bloques(nc["pct_usado"], g), estilo))
+    if nc["nivel"]:
+        partes.append((g["sep"], EST_SEP))
+        partes.append(("/compactar", estilo))
+    return partes
 
 
 def _sec_tokens(datos) -> list:
@@ -378,21 +480,24 @@ def _sec_modo(datos) -> list:
     return [(texto, estilo)] if texto else []
 
 
-def _grupos(datos, escalon: str, g) -> tuple:
+def _grupos(datos, escalon: str, g, ancho: int = 0) -> tuple:
     """(secciones_izquierda, secciones_derecha) para un escalon de recorte.
     Cada seccion es una lista de fragmentos (texto, estilo) - la rama son dos
     (nombre y '*') porque llevan estilos distintos."""
     i = ESCALONES.index(escalon)
     izq = []
-    if i < 4:
+    if i < 5:
         izq.append(_sec_modo(datos))
     izq.append(_sec_modelo(datos, g))
-    if i < 5:
-        izq.append(_sec_directorio(datos, g, corto=i >= 2))
-    if i < 3:
+    if i < 6:
+        izq.append(_sec_directorio(datos, g, corto=i >= 3))
+    if i < 4:
         izq.append(_sec_rama(datos, g))
-    der = [_sec_ctx(datos)]
-    if i < 1:
+    # La mini-barra de bloques solo en el escalon completo Y con terminal
+    # ancha: en angosto cae ELLA primero (el % del ctx queda siempre).
+    con_bloques = (i < 1 and ancho >= _ANCHO_BLOQUES and bloques_activos())
+    der = [_sec_ctx(datos, g, con_bloques)]
+    if i < 2:
         der.append(_sec_tokens(datos))
     return ([s for s in izq if s], [s for s in der if s])
 
@@ -451,7 +556,7 @@ def barra_estado_partes(datos, ancho: int = 80,
 
     ultimo = None
     for escalon in ESCALONES:
-        izq_secs, der_secs = _grupos(datos, escalon, g)
+        izq_secs, der_secs = _grupos(datos, escalon, g, ancho)
         if not izq_secs and not der_secs:
             # Este escalon ya no muestra NADA. Si algun escalon anterior si
             # tenia contenido, ese es el candidato a truncar en duro; cortar

@@ -62,6 +62,13 @@ ENV_QUE_PISAN: dict = {
     "compactacion_cap":       ("COGNIA_COMPACT_CAP",),
     "notificar":              ("COGNIA_NOTIFY",),
     "notificar_modo":         ("COGNIA_NOTIFY",),
+    # Footer de contexto honesto (2026-08-23): el CLI siembra las tres desde
+    # _aplicar_config_barra (marcadas como sembradas); sin este registro una
+    # COGNIA_CTX_AVISO puesta por el dueno salia como env SUELTA y la clave
+    # decia 'default' — la barra obedecia a una env que esta vista no veia.
+    "contexto_umbral_aviso":   ("COGNIA_CTX_AVISO",),
+    "contexto_umbral_critico": ("COGNIA_CTX_CRITICO",),
+    "barra_bloques":           ("COGNIA_BARRA_BLOQUES",),
 }
 
 # Nombres que huelen a credencial: se enmascaran SIEMPRE en cualquier render.

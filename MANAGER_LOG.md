@@ -13985,3 +13985,36 @@ del spill) con sus 3 cierres \x1b]8;; y el texto visible limpio. HONESTO: el pas
 dispara escribiendo a ConPTY (el input llega goteado y la heuristica win32 de prompt_toolkit no ve
 el batch), asi que el binding quedo probado con el test de integracion de prompt_toolkit que manda
 la secuencia real por pipe — no con un paste manual en el REPL.
+
+
+## 2026-08-24 — Footer de contexto HONESTO: % libre con headroom, umbrales acoplados a /compactar y contexto_vivo por fin ALIMENTADO
+
+Cierre del trabajo que quedo a medias en disco (el agente anterior murio antes de probar y
+commitear). El diff heredado cumplia la especificacion punto por punto (barra_estado: '% libre'
+contando hacia abajo sobre n_ctx - 1024 de headroom, mini-barra de 8 bloques a >= 100 columnas
+con escalon 'sin_bloques' que cae ANTES que los tokens, amarillo + '/compactar' al umbral REAL
+de compactacion.umbral_frac, rojo al critico, 'ctx ?' sin backend; contexto_vivo.umbral_aviso_pct
+COGNIA_CTX_AVISO > umbral_frac > 80; /compactar estado con nivel_contexto, la MISMA aritmetica;
+_aplicar_config_barra sembrando via _marcar_env_sembrada). Dos huecos cerrados: (1) las tres
+claves nuevas (contexto_umbral_aviso/critico, barra_bloques) no estaban en ENV_QUE_PISAN de
+config_resuelta — una COGNIA_CTX_AVISO del dueno salia como env SUELTA y la clave decia 'default'
+(test de regresion que falla sin el fix). (2) EL GRANDE, cazado TECLEANDO bajo ConPTY (pywinpty,
+120 cols): la barra decia 'ctx 0/65.5k (100% libre)' a 110 s de un /hacer con varias lecturas de
+cli.py y tras una respuesta de chat — contexto_vivo.registrar_uso/registrar_contexto NO TENIAN
+NINGUN LLAMADOR en el repo; el footer llevaba semanas mostrando 0 con aspecto de medida. Cableado:
+agent/loop.py anota el usage de cada turno y la ocupacion post-compactacion (la misma `est` que
+decide compactar: footer y disparo dicen el mismo numero) y el camino de chat de cli.py registra
+una ESTIMACION chars/4 marcada como tal; la barra antepone '~' al usado estimado (ctx_estimado).
+Tests: 391 passed en el batch dirigido (barra_estado, contexto_vivo, compactacion, config_resuelta,
+agente_nativo, dsh_tool_call_cortado, agent_loop); los 2 tests del bucle y el de ENV_QUE_PISAN
+fallan sin sus fixes. Gate REPL real (Qwen3.8-27B-Ridge en :8080, ctx 65536, ConPTY 120x40):
+'/compactar estado' -> 'contexto ahora: 100% libre (0% usado con headroom 1024; nivel normal —
+amarillo al 80%, rojo al 90%)'; pregunta de chat -> barra 'ctx ~2.2k/65.5k (97% libre) ░░░░░░░░ ·
+2.2k tok'; '/hacer lee cognia/harness/barra_estado.py entero...' (✓ 54.9s · 2098 tokens · 6 pasos)
+-> la barra sube 85% -> 80% -> 77% -> 73% libre con '██░░░░░░' y 69.8k tok de sesion; '/hacer lee
+contexto_vivo.py...' -> ~2.5k (bucle nuevo) subiendo a ~11.1k (83% libre); '/compactar estado'
+final -> 'contexto ahora: 83% libre (17% usado...)', coherente con la barra. HONESTO: todos los
+valores del agente salen con '~' porque el stream del bucle no trae prompt_tokens (el usage llega
+por timings, solo completion) — pedir include_usage en chat_client es trabajo aparte; y el
+selector 'Enviar el prompt, o mejorarlo con IA?' se come la primera linea tecleada tras un texto
+libre (el driver manda un Enter extra).

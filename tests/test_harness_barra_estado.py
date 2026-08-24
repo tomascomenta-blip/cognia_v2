@@ -29,7 +29,8 @@ from cognia.harness import barra_estado as B
 
 HOME = os.path.expanduser("~").replace("\\", "/").rstrip("/")
 
-# 'ctx 12.4k/128.0k (10%)' y '3.2k tok' con estos numeros.
+# 'ctx 12.4k/128.0k (90% libre)' y '3.2k tok' con estos numeros: usado 12400
+# sobre util = 128000 - 1024 de headroom = 126976 -> 10% usado, 90% libre.
 DATOS = {
     "modelo": "qwythos-9b",
     "directorio": HOME + "/Desktop/cognia_v2",
@@ -43,8 +44,19 @@ DATOS = {
 }
 DATOS_PLAN = dict(DATOS, modo="plan")
 
-# Glifos no-ASCII PERMITIDOS en toda la salida del modulo.
-GLIFOS_OK = {"\u00b7", "\u2026", "\u2191", "\u2193"}
+# Glifos no-ASCII PERMITIDOS en toda la salida del modulo (los bloques de la
+# mini-barra entraron el 2026-08-23; tienen fallback ASCII '#'/'.').
+GLIFOS_OK = {"\u00b7", "\u2026", "\u2191", "\u2193", "\u2588", "\u2591"}
+
+
+@pytest.fixture(autouse=True)
+def umbrales_de_fabrica(monkeypatch):
+    """Sin envs del footer ni de compactacion: los umbrales quedan en los de
+    fabrica (aviso 80 = umbral de compactacion, critico 90) y la mini-barra
+    de bloques en su default (encendida)."""
+    for var in ("COGNIA_CTX_AVISO", "COGNIA_CTX_CRITICO",
+                "COGNIA_BARRA_BLOQUES", "COGNIA_COMPACT_UMBRAL"):
+        monkeypatch.delenv(var, raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +98,8 @@ def test_barra_muestra_las_secciones_del_encargo():
     assert "qwythos-9b" in linea                   # modelo
     assert "~/Desktop/cognia_v2" in linea          # directorio con ~
     assert "main*" in linea                        # rama + arbol sucio
-    assert "ctx 12.4k/128.0k (10%)" in linea       # contexto
+    assert "ctx 12.4k/128.0k (90% libre)" in linea  # % LIBRE, cuenta abajo
+    assert "\u2588" + "\u2591" * 7 in linea            # mini-barra: 1 de 8 lleno
     assert "3.2k tok" in linea                     # tokens de la sesion
     # 4 separadores DENTRO de los grupos; entre izquierda y derecha va el
     # relleno de espacios que ancla la derecha al borde.
@@ -123,11 +136,11 @@ def _flags(linea):
 def test_prioridad_de_recorte_documentada():
     """Al angostar: cae tokens, luego el directorio se acorta a su ultimo
     componente, luego la rama, luego el modo. Modelo y contexto SIEMPRE."""
-    # 33 celdas es el escalon minimo sin truncar: 'qwythos-9b' (10) + 1 de
-    # separacion + 'ctx 12.4k/128.0k (10%)' (22).
+    # 39 celdas es el escalon minimo sin truncar: 'qwythos-9b' (10) + 1 de
+    # separacion + 'ctx 12.4k/128.0k (90% libre)' (28).
     vistos = set()
     previo = None
-    for ancho in range(33, 130):
+    for ancho in range(39, 130):
         linea = B.barra_estado(DATOS_PLAN, ancho, unicode_ok=True)
         assert len(linea) == ancho, (ancho, repr(linea))
         assert "qwythos-9b" in linea, (ancho, linea)      # nunca se cae
@@ -157,8 +170,8 @@ def test_escalones_concretos():
     assert " tok" in lleno and "/Desktop/" in lleno
     sin_tokens = B.barra_estado(DATOS_PLAN, 60, unicode_ok=True)
     assert " tok" not in sin_tokens and "cognia_v2" in sin_tokens
-    minimo = B.barra_estado(DATOS_PLAN, 33, unicode_ok=True)
-    assert minimo == "qwythos-9b ctx 12.4k/128.0k (10%)"
+    minimo = B.barra_estado(DATOS_PLAN, 39, unicode_ok=True)
+    assert minimo == "qwythos-9b ctx 12.4k/128.0k (90% libre)"
     # Un ancho ridiculo trunca, pero el modelo sobrevive como prefijo legible.
     apretado = B.barra_estado(DATOS_PLAN, 20, unicode_ok=True)
     assert len(apretado) <= 20 and apretado.startswith("qwythos-9b ")
@@ -225,6 +238,99 @@ def test_secciones_sin_dato_simplemente_no_existen():
 
 
 # ---------------------------------------------------------------------------
+# Footer de contexto honesto (2026-08-23): % libre, headroom, umbrales
+# acoplados a compactacion, mini-barra de bloques
+# ---------------------------------------------------------------------------
+def test_headroom_restado_del_total():
+    """El % se calcula sobre n_ctx - 1024 (headroom fijo, receta CodeWhale):
+    50000 de 101024 es EXACTO 50% del util; sin headroom seria 49%."""
+    datos = dict(DATOS, ctx_usado=50_000, ctx_total=101_024)
+    linea = B.barra_estado(datos, 99, unicode_ok=True)
+    assert "(50% libre)" in linea
+    nc = B.nivel_contexto(50_000, 101_024)
+    assert (nc["pct_usado"], nc["libre"], nc["headroom"]) == (50, 50, 1024)
+
+
+def test_sin_backend_ctx_interrogante():
+    """Flota apagada (sin n_ctx y sin ocupacion): 'ctx ?' tenue, JAMAS un %
+    inventado. Con ocupacion real pero sin ventana: el numero pelado sin %."""
+    linea = B.barra_estado({"ctx_usado": 0, "ctx_total": 0}, 80,
+                           unicode_ok=True)
+    assert "ctx ?" in linea and "%" not in linea
+    partes = B.barra_estado_partes({"ctx_usado": 0, "ctx_total": 0}, 80,
+                                   unicode_ok=True)
+    assert [(t, e) for t, e in partes if t.strip()] == [("ctx ?", B.EST_CTX)]
+    assert B.nivel_contexto(0, 0)["pct_usado"] is None
+
+
+def test_sufijo_compactar_solo_en_aviso():
+    tranquila = B.barra_estado(DATOS, 120, unicode_ok=True)
+    assert "/compactar" not in tranquila
+    alta = B.barra_estado(dict(DATOS, ctx_usado=105_000), 120,
+                          unicode_ok=True)
+    assert "/compactar" in alta
+
+
+def test_umbral_amarillo_acoplado_al_de_compactacion(monkeypatch):
+    """REGRESION: el amarillo tiene que moverse con /compactar umbral
+    (COGNIA_COMPACT_UMBRAL); un segundo umbral hardcodeado mentiria. La env
+    del footer COGNIA_CTX_AVISO gana cuando el dueno fija uno aparte."""
+    datos = dict(DATOS, ctx_usado=83_000)          # 65% del util
+    def estilo_ctx(d):
+        partes = B.barra_estado_partes(d, 99, unicode_ok=True)
+        return [e for t, e in partes if t.startswith("ctx ")][0]
+    assert estilo_ctx(datos) == B.EST_CTX          # 65 < 80: normal
+    monkeypatch.setenv("COGNIA_COMPACT_UMBRAL", "0.6")
+    assert estilo_ctx(datos) == B.EST_CTX_ALTO     # el umbral bajo a 60
+    monkeypatch.setenv("COGNIA_CTX_AVISO", "70")
+    assert estilo_ctx(datos) == B.EST_CTX          # la env del footer gana
+
+
+def test_bloques_solo_con_terminal_ancha_y_config(monkeypatch):
+    """La mini-barra sale a >= 100 columnas; en angosto cae ELLA primero y
+    el % queda; COGNIA_BARRA_BLOQUES=off la apaga del todo."""
+    ancha = B.barra_estado(DATOS, 120, unicode_ok=True)
+    assert "\u2588" + "\u2591" * 7 in ancha            # 10% usado = 1 de 8
+    angosta = B.barra_estado(DATOS, 99, unicode_ok=True)
+    assert "\u2588" not in angosta and "% libre" in angosta
+    monkeypatch.setenv("COGNIA_BARRA_BLOQUES", "off")
+    apagada = B.barra_estado(DATOS, 120, unicode_ok=True)
+    assert "\u2588" not in apagada and "% libre" in apagada
+
+
+def test_bloques_caen_antes_que_los_tokens():
+    """Escalon 'sin_bloques': con >= 100 cols pero sin sitio para la
+    mini-barra, se sacrifica ELLA y los tokens de sesion quedan."""
+    datos = dict(DATOS, modelo="qwythos-9b-extra-larga")   # +12 celdas
+    # A 100 columnas la linea completa mide exactamente 100 y el espacio
+    # minimo entre grupos ya no entra: cae el escalon 'sin_bloques'.
+    justa = B.barra_estado(datos, 100, unicode_ok=True)
+    assert "\u2588" not in justa and " tok" in justa
+    assert "% libre" in justa
+    holgada = B.barra_estado(datos, 110, unicode_ok=True)
+    assert "\u2588" in holgada and " tok" in holgada
+
+
+def test_ocupacion_estimada_lleva_virgulilla():
+    """El camino de chat solo tiene chars/4: la barra antepone '~' al usado
+    (y al numero pelado sin ventana); con usage real no hay tilde."""
+    est = B.barra_estado(dict(DATOS, ctx_estimado=True), 99, unicode_ok=True)
+    assert "ctx ~12.4k/128.0k (90% libre)" in est
+    assert "ctx ~12.4k" in B.barra_estado(
+        {"ctx_usado": 12_400, "ctx_total": None, "ctx_estimado": True}, 80,
+        unicode_ok=True)
+    assert "ctx ~" not in B.barra_estado(DATOS, 99, unicode_ok=True)
+
+
+def test_llenado_de_la_mini_barra():
+    g = B._glifos(True)
+    assert B._bloques(0, g) == "\u2591" * 8
+    assert B._bloques(50, g) == "\u2588" * 4 + "\u2591" * 4
+    assert B._bloques(100, g) == "\u2588" * 8
+    assert B._bloques(83, g) == "\u2588" * 7 + "\u2591" * 1
+
+
+# ---------------------------------------------------------------------------
 # Partes con estilo logico
 # ---------------------------------------------------------------------------
 def test_partes_reconstruyen_el_texto_y_usan_estilos_conocidos():
@@ -240,8 +346,8 @@ def test_partes_reconstruyen_el_texto_y_usan_estilos_conocidos():
 
 @pytest.mark.parametrize("usado,estilo", [
     (12_400, B.EST_CTX),
-    (105_000, B.EST_CTX_ALTO),       # 82%
-    (125_000, B.EST_CTX_CRITICO),    # 98%
+    (105_000, B.EST_CTX_ALTO),       # 83% del util (aviso al 80)
+    (125_000, B.EST_CTX_CRITICO),    # 98% del util (critico al 90)
 ])
 def test_el_contexto_avisa_cuando_se_llena(usado, estilo):
     partes = B.barra_estado_partes(dict(DATOS, ctx_usado=usado), 100,
@@ -275,8 +381,11 @@ def test_sin_emojis_y_escribible_en_la_consola_de_windows():
         for ch in s:
             assert ord(ch) < 128 or ch in GLIFOS_OK, (hex(ord(ch)), s)
             assert ord(ch) < 0x1F000                 # cero emojis
-    # La barra de estado entra entera en cp1252 (consola por defecto).
-    B.barra_estado(DATOS_PLAN, 100, unicode_ok=True).encode("cp1252")
+    # La barra de estado SIN mini-barra entra entera en cp1252 (consola por
+    # defecto); los bloques (>= 100 cols) NO son cp1252, por eso el juego de
+    # glifos los autodetecta POR GLIFO y aqui se pide el fallback '#'.
+    B.barra_estado(DATOS_PLAN, 99, unicode_ok=True).encode("cp1252")
+    assert "#" in B.barra_estado(DATOS_PLAN, 100, unicode_ok=False)
 
 
 def test_fallback_ascii_completo():

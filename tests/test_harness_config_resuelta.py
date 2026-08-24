@@ -209,3 +209,54 @@ def test_el_arranque_del_repl_no_inventa_envs(tmp_path, monkeypatch):
     assert con_env == []
     # y la fuente que pinta /offload estado tampoco miente
     assert cli._env_es_sembrada("COGNIA_OFFLOAD") is True
+
+
+# ── Footer de contexto honesto (2026-08-23): las 3 claves nuevas ────────────
+
+def test_claves_del_footer_registradas_en_env_que_pisan(tmp_path):
+    """REGRESION: contexto_umbral_aviso/critico y barra_bloques nacieron con
+    env (COGNIA_CTX_AVISO/CRITICO, COGNIA_BARRA_BLOQUES) pero sin entrada en
+    ENV_QUE_PISAN: una env del dueno salia como SUELTA y la clave decia
+    'default' mientras la barra obedecia a la env."""
+    defaults = {"contexto_umbral_aviso": "", "contexto_umbral_critico": "90",
+                "barra_bloques": "on"}
+    entorno = {"COGNIA_CTX_AVISO": "70", "COGNIA_CTX_CRITICO": "95",
+               "COGNIA_BARRA_BLOQUES": "0"}
+    res = _resolver(defaults, None, entorno, tmp_path)
+    assert res["contexto_umbral_aviso"]["origen"] == "env:COGNIA_CTX_AVISO"
+    assert res["contexto_umbral_aviso"]["valor"] == "70"
+    assert res["contexto_umbral_critico"]["origen"] == "env:COGNIA_CTX_CRITICO"
+    assert res["barra_bloques"]["origen"] == "env:COGNIA_BARRA_BLOQUES"
+    assert cr.env_sueltas(entorno) == []
+
+
+def test_la_siembra_del_footer_no_inventa_envs(tmp_path, monkeypatch):
+    """_aplicar_config_barra copia critico y bloques al env en cada arranque
+    (aviso solo si el dueno lo fijo): con el registro de sembradas ninguna de
+    las 3 claves puede salir con origen env, y el valor del fichero se
+    atribuye al fichero."""
+    import cognia.cli as cli
+    for var in ("COGNIA_CTX_AVISO", "COGNIA_CTX_CRITICO",
+                "COGNIA_BARRA_BLOQUES"):
+        monkeypatch.setenv(var, "x")
+        monkeypatch.delenv(var)
+    monkeypatch.setattr(cli, "_load_config",
+                        lambda: {"contexto_umbral_aviso": "75"})
+    cli._aplicar_config_barra()
+    assert os.environ["COGNIA_CTX_CRITICO"] == "90"
+    assert os.environ["COGNIA_BARRA_BLOQUES"] == "on"
+    assert os.environ["COGNIA_CTX_AVISO"] == "75"
+    ruta = tmp_path / "cognia_config.json"
+    ruta.write_text(json.dumps({"contexto_umbral_aviso": "75"}),
+                    encoding="utf-8")
+    res = cr.config_resuelta(defaults=cli._CONFIG_DEFAULTS, ruta_fichero=ruta)
+    assert res["contexto_umbral_aviso"] == {"valor": "75", "origen": "fichero",
+                                            "default": ""}
+    assert res["contexto_umbral_critico"]["origen"] == "default"
+    assert res["barra_bloques"]["origen"] == "default"
+    # el vacio (acoplado a compactacion) NO siembra: sin env, el amarillo se
+    # mueve con /compactar umbral
+    monkeypatch.delenv("COGNIA_CTX_AVISO")
+    monkeypatch.setattr(cli, "_load_config", lambda: {})
+    cli._aplicar_config_barra()
+    assert "COGNIA_CTX_AVISO" not in os.environ

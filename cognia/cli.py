@@ -2206,7 +2206,18 @@ _CMD_DETAILS = {
         "cap <chars> (persiste 'compactacion_cap', default 4000). "
         "La env COGNIA_COMPACT=truncado fuerza el viejo GANANDO a la config; "
         "COGNIA_COMPACT_UMBRAL / COGNIA_COMPACT_RETENCION / COGNIA_COMPACT_CAP mueven los "
-        "knobs por entorno."),
+        "knobs por entorno. FOOTER ACOPLADO (2026-08-23): la barra inferior del REPL "
+        "muestra el contexto como '% libre' (cuenta hacia abajo, headroom fijo de 1024 "
+        "tokens restado del n_ctx) con mini-barra de bloques a partir de 100 columnas; se "
+        "pone amarilla con sufijo /compactar al cruzar ESTE umbral (cambiarlo con "
+        "/compactar umbral mueve el amarillo solo) y roja al critico (default 90%). "
+        "'estado' imprime el nivel actual con la misma aritmetica. Config: "
+        "contexto_umbral_aviso (vacio = acoplado al umbral de compactacion; 1-100 lo fija "
+        "aparte), contexto_umbral_critico (90), barra_bloques on|off; las envs "
+        "COGNIA_CTX_AVISO / COGNIA_CTX_CRITICO / COGNIA_BARRA_BLOQUES ganan a la config. "
+        "Sin n_ctx del backend la barra dice 'ctx ?': jamas un % inventado; un '~' "
+        "delante del usado = ocupacion ESTIMADA (chars/4: camino de chat o stream sin "
+        "usage), la del agente sale del usage real y de la cuenta de compactacion."),
     # /tx y /libro no estaban aqui, y su descripcion se corta a 80-120
     # columnas: el subsistema con MAS subcomandos del CLI era el unico sin
     # ningun sitio donde leerlos enteros.
@@ -6094,6 +6105,19 @@ _CONFIG_DEFAULTS: dict = {
     # fallback plano es byte-identico. COGNIA_ENLACES=0 apaga ganando a la
     # config. Se cambia con /enlaces on|off.
     "enlaces":              "on",
+    # FOOTER DE CONTEXTO HONESTO (harness/barra_estado + contexto_vivo,
+    # 2026-08-23): la barra inferior muestra '% libre' (cuenta hacia abajo,
+    # receta Codex) con headroom fijo de 1024 tokens restado del n_ctx
+    # (receta CodeWhale) y una mini-barra de bloques a partir de 100 columnas.
+    # 'contexto_umbral_aviso' VACIO = seguir el umbral REAL de compactacion
+    # (compactacion_umbral, default 0.8 => amarillo al 80%): asi /compactar
+    # umbral mueve el amarillo de la barra solo. Un numero 1-100 lo fija
+    # aparte (env COGNIA_CTX_AVISO). 'contexto_umbral_critico' = rojo
+    # (COGNIA_CTX_CRITICO). 'barra_bloques' on/off (COGNIA_BARRA_BLOQUES=0
+    # apaga ganando a la config).
+    "contexto_umbral_aviso":   "",
+    "contexto_umbral_critico": "90",
+    "barra_bloques":           "on",
 }
 
 
@@ -9120,6 +9144,30 @@ def _aplicar_config_compactacion() -> None:
         _aviso_degradado("compactacion", f"config no aplicada: {exc}")
 
 
+def _aplicar_config_barra() -> None:
+    """Propaga la config del footer de contexto (barra_estado/contexto_vivo)
+    al entorno, sin pisar lo del usuario y registrando la siembra (si no,
+    /config-resuelta atribuiria el valor a la env — bug ya cazado).
+
+    OJO: 'contexto_umbral_aviso' VACIO no siembra nada A PROPOSITO: sin env,
+    contexto_vivo.umbral_aviso_pct() sigue al umbral REAL de compactacion y
+    el amarillo de la barra se mueve con /compactar umbral. Sembrar un numero
+    aqui congelaria ese acople."""
+    try:
+        cfg = _load_config()
+        pares = (
+            ("COGNIA_CTX_AVISO", str(cfg.get("contexto_umbral_aviso", "")).strip()),
+            ("COGNIA_CTX_CRITICO", str(cfg.get("contexto_umbral_critico", "90")).strip()),
+            ("COGNIA_BARRA_BLOQUES", str(cfg.get("barra_bloques", "on")).strip()),
+        )
+        for var, valor in pares:
+            if valor and not (os.environ.get(var) or "").strip():
+                os.environ[var] = valor
+                _marcar_env_sembrada(var)
+    except Exception as exc:
+        _aviso_degradado("cli.barra_estado", f"config no aplicada: {exc}")
+
+
 def _slash_compactar(arg: str = "") -> None:
     """`/compactar`: puerta de la compactacion del contexto del agente (F4).
 
@@ -9197,6 +9245,27 @@ def _slash_compactar(arg: str = "") -> None:
     _print_line(f"[info_dim]  umbral: {est['umbral']:.2f} de n_ctx | retencion "
                 f"de cola: {est['retencion']:.2f} | cap del resumen: "
                 f"{est['cap']} chars[/info_dim]")
+    # Nivel ACTUAL del contexto, con la MISMA aritmetica del footer
+    # (barra_estado.nivel_contexto: headroom restado y umbrales acoplados) —
+    # dos cuentas distintas aqui y en la barra ya mintieron una vez (75 vs 80).
+    try:
+        from cognia.harness import barra_estado as _be
+        d = _datos_barra_estado()
+        nc = _be.nivel_contexto(d.get("ctx_usado"), d.get("ctx_total"))
+        if nc["pct_usado"] is None:
+            _print_line("[info_dim]  contexto ahora: ctx ? (sin n_ctx del "
+                        "backend; no se inventa un %)[/info_dim]")
+        else:
+            estilo = {"critico": "err_cl", "aviso": "warn_cl"}.get(
+                nc["nivel"], "info_dim")
+            nivel = nc["nivel"] or "normal"
+            _print_line(f"[{estilo}]  contexto ahora: {nc['libre']}% libre "
+                        f"({nc['pct_usado']}% usado con headroom "
+                        f"{nc['headroom']}; nivel {nivel} — amarillo al "
+                        f"{nc['aviso']}%, rojo al {nc['critico']}%)[/{estilo}]")
+    except Exception as exc:
+        _aviso_degradado("cli.barra_estado",
+                         f"nivel de contexto no disponible: {exc}")
     ult = est["ultima"]
     if ult:
         hace = max(0, int(time.time() - float(ult.get("ts") or 0)))
@@ -10899,13 +10968,23 @@ def _datos_barra_estado() -> dict:
             # POST real de generacion, y prompt_toolkit llama a esta funcion en
             # CADA REDIBUJADO del prompt — el primer pintado pasaba de 0,064 s a
             # 3,42 s con el cache frio, y hasta 30 s si el server va lento.
+            # Con la flota apagada devuelve None SIN lanzar: la barra pinta
+            # 'ctx ?' (jamas un % inventado) y eso no es un fallo que avisar.
             from cognia.agent.model_profiles import n_ctx_del_backend
             total = n_ctx_del_backend()
         datos.update({"ctx_usado": est.get("ocupacion"),
                       "ctx_total": total,
+                      # True si la ocupacion salio de chars/4 (camino de chat
+                      # o stream sin prompt_tokens): la barra antepone '~'.
+                      "ctx_estimado": bool(est.get("estimado")),
                       "tokens_sesion": est.get("total")})
-    except Exception:
-        pass
+    except Exception as exc:
+        # Antes: except-pass mudo. "no lo cablearon" y "se rompio" se veian
+        # igual (una barra sin ctx); con ctx_usado=0 + ctx_total=0 la barra
+        # dice 'ctx ?' y el degradado deja constancia (dedup por turno).
+        _aviso_degradado("cli.barra_estado",
+                         f"contexto no disponible: {type(exc).__name__}: {exc}")
+        datos.update({"ctx_usado": 0, "ctx_total": 0})
     try:
         from cognia.harness import modo_plan
         datos["modo"] = modo_plan.modo_actual()
@@ -11668,6 +11747,10 @@ def repl():
     # COGNIA_COMPACT del entorno, y sin propagar la config el modo persistido
     # con /compactar no llegaria nunca al bucle.
     _aplicar_config_compactacion()
+    # FOOTER DE CONTEXTO (barra_estado): umbral critico y mini-barra de
+    # bloques por config -> env; el de aviso solo si el dueno lo fijo (vacio
+    # = acoplado al umbral de compactacion, que ya quedo sembrado arriba).
+    _aplicar_config_barra()
     # NOTIFICACIONES de escritorio (F5): registrar el avisador para que un
     # fallo emitiendo el toast se vea como degradado (el modulo lee la config
     # a call-time, no hay env que propagar).
@@ -14814,6 +14897,28 @@ def repl():
                                         "cli.fast_path.stream_vacio",
                                         "el backend no emitio un solo token; "
                                         "el turno cae al camino articulado")
+                                else:
+                                    # FOOTER de contexto (barra_estado): el
+                                    # camino de chat no recibe usage del server
+                                    # (stream_chat solo expone predicted_n), asi
+                                    # que se registra una ESTIMACION marcada
+                                    # como tal y la barra la pinta con '~'.
+                                    # Sin esto la barra decia '0/65.5k (100%
+                                    # libre)' toda la sesion (cazado TECLEANDO
+                                    # 2026-08-24: contexto_vivo no tenia ningun
+                                    # llamador que lo alimentara).
+                                    try:
+                                        from cognia.harness import (
+                                            contexto_vivo as _cv_chat)
+                                        _cv_chat.registrar_uso_estimado(
+                                            "\n".join(str(_m.get("content") or "")
+                                                      for _m in _messages),
+                                            _full_response)
+                                    except Exception as _exc_cv:
+                                        _aviso_degradado(
+                                            "cli.barra_estado",
+                                            "ocupacion del chat no registrada: "
+                                            f"{type(_exc_cv).__name__}: {_exc_cv}")
                                 # LAZO (/lazo, opt-in): verificacion post-respuesta con
                                 # tools reales (P8: el critico ejecuta, no opina). Solo
                                 # camino terminal local: el remoto exige marcos limpios
