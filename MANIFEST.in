@@ -6,3 +6,7 @@ recursive-include cognia/knowledge *.json *.txt
 # declara por las dos vias. Cubre app.tcss, agentes.tcss y cualquier CSS futuro
 # en widgets/.
 recursive-include cognia/tui *.tcss
+# Presets y schema del sistema de estilos (/estilo): ya los cubre package-data;
+# se declaran tambien aqui por la misma razon que el .tcss de la TUI.
+recursive-include cognia/ux/presets *.json
+include cognia/ux/estilo.schema.json

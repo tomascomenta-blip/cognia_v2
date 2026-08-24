@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "nombre": "barra-color",
+  "nota": "La barra de estado con los colores LOGICOS de harness/barra_estado.py (rama con acento, ctx alto en ambar, ctx critico en rojo, insignias PLAN/auto/manual con su color). El resto, como el clasico.",
+  "elementos": {
+    "barra.estado.secciones": {
+      "estados": {
+        "modelo": { "color": "@token.detail" },
+        "dir": { "color": "@token.info_dim" },
+        "rama": { "color": "@token.mod" },
+        "sucio": { "color": "@token.warn_cl" },
+        "ctx": { "color": "@token.info_dim" },
+        "ctx_alto": { "color": "@token.warn_cl" },
+        "ctx_critico": { "color": "@token.err_cl" },
+        "tokens": { "color": "@token.footer" }
+      }
+    },
+    "barra.atajos": {
+      "estados": {
+        "tecla": { "color": "@token.mod" },
+        "accion": { "color": "@token.footer" }
+      }
+    },
+    "barra.modo": {
+      "estados": {
+        "plan": { "color": "@token.pensar" },
+        "auto": { "color": "@token.warn_cl" },
+        "manual": { "color": "@token.info_dim" }
+      }
+    }
+  }
+}

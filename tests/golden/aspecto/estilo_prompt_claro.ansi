@@ -1,0 +1,54 @@
+[
+ [
+  "",
+  "#174400 bold"
+ ],
+ [
+  "marco",
+  "#2c8400"
+ ],
+ [
+  "cognia",
+  "#1e5900 bold"
+ ],
+ [
+  "flecha",
+  "#174400 bold"
+ ],
+ [
+  "bottom-toolbar",
+  "noreverse bg:default #2c8400"
+ ],
+ [
+  "bottom-toolbar.text",
+  "noreverse bg:default #2c8400"
+ ],
+ [
+  "estado",
+  "noreverse bg:default #267300"
+ ],
+ [
+  "completion-menu.completion",
+  "bg:#1c1c2e fg:#c8c8d8"
+ ],
+ [
+  "completion-menu.completion.current",
+  "bg:#004466 fg:#ffffff"
+ ],
+ [
+  "completion-menu.meta.completion",
+  "bg:#1c1c2e fg:#667788"
+ ],
+ [
+  "completion-menu.meta.completion.current",
+  "bg:#004466 fg:#aaccdd"
+ ],
+ [
+  "scrollbar.background",
+  "bg:#1c1c2e"
+ ],
+ [
+  "scrollbar.button",
+  "bg:#334455"
+ ]
+]

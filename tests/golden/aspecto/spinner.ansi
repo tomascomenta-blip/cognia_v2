@@ -1,0 +1,5 @@
+status[0] spinner=dots markup=[spinner]· Leyendo motor.py…[/spinner]
+status[1] spinner=dots markup=[pensar]· pensando…[/pensar]
+tick_tool markup=[spinner]· Leyendo motor.py… (12s · ~340 tok · ctrl+c corta)[/spinner]
+tick_pensar markup=[pensar]· Maullando ideas… (3s · ctrl+c corta)[/pensar]
+componer_linea estrecha=Amasando la respuesta… (7s)

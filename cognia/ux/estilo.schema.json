@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cognia/ux/estilo.schema.json",
+  "title": "Estilo por elemento de Cognia (~/.cognia/estilo.json y presets)",
+  "description": "Override PARCIAL sobre los defaults de cognia/ux/aspecto.py: solo se escribe lo que difiere. Un color es #rrggbb, @rampa.x, @semantico.x, @superficie.x, @menu.x, @diff.x, @token.x, @mi.x (paleta local), terminal, rich, un nombre ansi* de prompt_toolkit, un nombre de color de rich, o un objeto por variante.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "nombre": { "type": "string" },
+    "nota": { "type": "string" },
+    "paleta": {
+      "type": "object",
+      "description": "Colores propios, referenciables como @mi.<nombre>.",
+      "additionalProperties": { "$ref": "#/definitions/color" }
+    },
+    "global": {
+      "type": "object",
+      "properties": {
+        "fps": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "respuesta_sangria": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "glifos": { "enum": ["auto", "unicode", "ascii"] }
+      }
+    },
+    "elementos": {
+      "type": "object",
+      "description": "id del elemento (banner.arte, prompt.etiqueta, ...) -> propiedades.",
+      "additionalProperties": { "$ref": "#/definitions/estilo" }
+    }
+  },
+  "definitions": {
+    "colorString": {
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{6}|@(rampa|semantico|superficie|menu|diff|token|mi)\\.[A-Za-z0-9_]+|terminal|rich|default|ansi[a-z]+|[a-z_0-9 ]+)$"
+    },
+    "color": {
+      "oneOf": [
+        { "$ref": "#/definitions/colorString" },
+        {
+          "type": "object",
+          "properties": {
+            "oscuro": { "$ref": "#/definitions/colorString" },
+            "claro": { "$ref": "#/definitions/colorString" },
+            "alto_contraste": { "$ref": "#/definitions/colorString" }
+          },
+          "required": ["oscuro", "claro", "alto_contraste"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "glow": {
+      "type": "object",
+      "properties": {
+        "color": { "$ref": "#/definitions/color" },
+        "intensidad": { "type": "integer", "minimum": 0, "maximum": 3 }
+      },
+      "additionalProperties": false
+    },
+    "animacion": {
+      "type": "object",
+      "properties": {
+        "activa": { "type": "boolean" },
+        "tipo": { "enum": ["barrido", "pulso"] },
+        "direccion": { "enum": ["derecha", "izquierda", "ida_vuelta"] },
+        "velocidad": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "ancho": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "repetir": { "type": "integer", "minimum": 0 },
+        "cada_s": { "type": "number", "minimum": 0 },
+        "solo_al_llegar": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "estilo": {
+      "type": "object",
+      "properties": {
+        "texto": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "object", "additionalProperties": { "type": "string" } }
+          ]
+        },
+        "color": { "$ref": "#/definitions/color" },
+        "fondo": { "$ref": "#/definitions/color" },
+        "negrita": { "type": "boolean" },
+        "italica": { "type": "boolean" },
+        "subrayado": { "type": "boolean" },
+        "glow": { "$ref": "#/definitions/glow" },
+        "animacion": { "$ref": "#/definitions/animacion" },
+        "glifo": { "type": "string" },
+        "glifo_ascii": { "type": "string" },
+        "posicion": { "type": "string" },
+        "alineacion": { "type": "string" },
+        "visible": { "type": "boolean" },
+        "gradiente": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/color" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "separador": { "type": "string" },
+        "estados": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/estilo" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
