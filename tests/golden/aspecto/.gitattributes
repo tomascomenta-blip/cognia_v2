@@ -1,0 +1,2 @@
+# Los golden se comparan BYTE A BYTE: sin conversion de finales de linea.
+* -text

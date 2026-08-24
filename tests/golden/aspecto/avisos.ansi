@@ -1,0 +1,4 @@
+[38;2;139;148;158m  [backend] via=llama.cpp :8080[0m
+[33m  ⚠ degradado — spinner: RuntimeError: sin tty[0m
+[33m    → COGNIA_SPINNER=0 lo apaga[0m
+[91mERROR: no se pudo abrir motor.py[0m
