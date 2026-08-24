@@ -13911,3 +13911,25 @@ inyecta al proceso (salen como pisadas/sueltas), no como capa propia.
 
 ## 2026-08-23 — Arreglador de la revision adversarial sobre F1-F6 (11 hallazgos, 0 falsos positivos)
 Los 3 revisores tenian razon en TODO: reproduje los 11 hallazgos antes de tocar nada y ninguno era falso positivo. Seis commits chicos (6a1cc7e..f2cfb512): (1) `recuperar` exenta del re-offload (EXENTAS_OFFLOAD en offloading.py + ACI_EXENTAS en tools.py — el spill del spill hacia irrestaurable el contrato de F3; verificado TECLEANDO: el 27B pidio `recuperar res:82c1a8 lineas=160-321` y recibio las 162 lineas enteras), la cabecera del spill propaga ` ERROR` cuando la linea 1 original trae ERROR o exit!=0 (los clasificadores de result[:120] vuelven a ver fallos), `_linea_tool` deja de declarar OK un exit 1, y el presupuesto proactivo de loop.py cae al truncado cuando compactar() devuelve 0 por encima del umbral (antes: context-shift silencioso del server). (2) /compactar y /notificar CONVIVEN de nuevo con las features viejas que F4/F5 tapaban (la clase de bug de /flujo y /vigilar del 2026-08-19), con antibody AST contra claves duplicadas en _CMD_DESCRIPTIONS/_CMD_DETAILS. (3+4) F6 ya no miente el origen: las envs sembradas por el propio CLI se registran (marcar_sembrada) y /config-resuelta, /offload estado y /compactar estado atribuyen el valor a config/default. (5) bloque_colapsado deduplica tambien con max_lineas=0 (el '+1 linea' fantasma). (6) osc/bell forzados ya no escriben escapes al fd real si no es tty (protege el canal @EV del movil). Bateria dirigida de las areas tocadas: 373 passed / 0 failed; 3 tareas humanas en el REPL vivo contra :8080 (resumen de fichero con recuperar, script fibonacci creado y ejecutado, busqueda de simbolo con fichero:linea correctos) + los comandos arreglados tecleados con su salida pegada en los commits. Leccion nueva de la propia sesion: monkeypatch.delenv(raising=False) sobre una var ausente no registra undo — el test que siembra envs necesita setenv antes de delenv (commit f2cfb512).
+
+## 2026-08-23 — Markdown en streaming sin flicker (/markdown, ux/markdown_vivo)
+
+Entregado el render markdown en streaming para la respuesta (commit 91256792): la maquina de
+Aider (ventana viva de 6 lineas; en cada repintado se renderiza TODO el markdown acumulado y
+las lineas que salen de la ventana se comitean al scrollback UNA vez) con el reloj de CodeWhale
+(tokens = input, drenado a ~30ms con throttle adaptativo 10x el costo del render y catch-up a
+1.2s; fence abierto RETENIDO en la cola — jamas se parte un bloque de codigo al commitear).
+Cola repintada con cursor-up ANSI y no rich Live: console.status del spinner vivo ya ocupa el
+unico slot de Live por Console, y prompt_toolkit solo es dueno de la terminal mientras pide
+input. Sin tty o conhost legacy no se anima (modo solo-commit, transcript limpio); bajo
+COGNIA_REMOTO el camino viejo queda intacto SIEMPRE. Config markdown_stream/markdown_tema
+persistidas, envs COGNIA_MARKDOWN y COGNIA_CODE_THEME a call-time (nada copiado a env:
+/config-resuelta no miente); todo fallo avisa por degradado 'markdown' y ese turno cae al
+flujo plano re-imprimiendo el texto crudo. Verificado: 196 tests dirigidos en verde (21 nuevos
+en test_ux_markdown_vivo.py, /markdown no tapa comandos) y 3 tareas cotidianas TECLEADAS en el
+REPL real contra el 27B de :8080 — lista+bloque de codigo (8.6s), mini-tabla renderizada
+(23.4s, 887 tok), /hacer resumen de demo_primos.py con tools colapsadas y lista numerada —
+transcripts limpios, sin basura de repintado. Pendiente honesto: la animacion cursor-up esta
+cubierta por unidad (altura de cola exacta, clear \x1b[NA\r\x1b[J) pero no se pudo mirar en un
+tty interactivo real desde esta sesion; si algo se viera raro en vivo, COGNIA_MARKDOWN=0 es el
+apagado de emergencia.
