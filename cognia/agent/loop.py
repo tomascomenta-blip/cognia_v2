@@ -251,6 +251,9 @@ def salida_de_ejecucion(history) -> str:
     return ""
 
 
+from cognia.harness.veredicto_tool import es_fallo as _es_fallo_tool
+
+
 def error_accionable_de_ejecucion(history) -> str:
     """Causa del ULTIMO fallo de tool, o '' si la ultima tool fue exitosa /
     no hubo tools.
@@ -272,8 +275,9 @@ def error_accionable_de_ejecucion(history) -> str:
     for h in reversed(history or []):
         if not h.startswith("RESULTADO "):
             continue
-        cabeza = h[:160]
-        if "ERROR" not in cabeza and "(exit " not in cabeza:
+        # Veredicto compartido (harness/veredicto_tool): una lectura cuyo
+        # contenido arranca con 'ERROR' NO es un fallo de la tool.
+        if not _es_fallo_tool(h):
             return ""          # la ultima ejecucion fue exitosa
         return h[len("RESULTADO "):].strip()[:300]
     return ""
@@ -1118,8 +1122,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             if isinstance(ctx, dict) and "_ultimo_ok" in ctx:
                 tool_ok = bool(ctx["_ultimo_ok"])
             else:
-                tool_ok = not re.search(r"\bERROR\b",
-                                        resultado.split("\n", 1)[0][:120])
+                tool_ok = not _es_fallo_tool(resultado, tc.nombre)
             if _muta is not None and es_operacion_de_fichero(tc.nombre):
                 # Se anota el INTENTO y su resultado MEDIDO. El footer del
                 # epilogo hace imposible que el modelo afirme haber escrito

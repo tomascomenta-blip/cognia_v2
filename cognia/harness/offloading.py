@@ -175,11 +175,16 @@ EXENTAS_OFFLOAD = frozenset({"recuperar"})
 _RE_FALLO_LINEA1 = re.compile(r"\bERROR\b|\(exit -?[1-9]\d*\)")
 
 
-def es_fallo_primera_linea(texto: str) -> bool:
-    """True si la PRIMERA linea de `texto` trae marcador de fallo (ERROR o
-    exit != 0). Lo usan el resumen del offload y compactacion._linea_tool."""
-    primera = (texto or "").split("\n", 1)[0]
-    return bool(_RE_FALLO_LINEA1.search(primera[:200]))
+def es_fallo_primera_linea(texto: str, tool: str = "") -> bool:
+    """True si la PRIMERA linea de `texto` trae marcador de fallo DE LA TOOL
+    (ERROR o exit != 0). Lo usan el resumen del offload y
+    compactacion._linea_tool. Delega en harness/veredicto_tool: para las
+    tools de CONTENIDO (leer_archivo, buscar...) el marcador solo cuenta en
+    el prefijo 'RESULTADO <tool> <obj>', nunca en el contenido -- antes un
+    log con 'ERROR' en su linea 1 spilleaba con ' ERROR' en la cabecera y el
+    modelo lo leia como fallo (juez 2026-08-24)."""
+    from cognia.harness.veredicto_tool import es_fallo as _es_fallo
+    return _es_fallo(texto, tool)
 
 # Lineas de contexto alrededor de cada acierto de `buscar` y tope de aciertos.
 _CONTEXTO_BUSCAR = 2
@@ -646,7 +651,7 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
     # de compactacion) leen \bERROR\b en la primera linea, y sin esto un
     # traceback spilleado se clasificaba como exito — el ERROR del contenido
     # quedaba enterrado bajo esta cabecera (revision adversarial 2026-08-23).
-    marca = " ERROR" if es_fallo_primera_linea(texto) else ""
+    marca = " ERROR" if es_fallo_primera_linea(texto, tool) else ""
     partes = [
         f"[SALIDA GRANDE{que}{marca}: {total_lineas} lineas, {_fmt_bytes(total_bytes)}. "
         f"NO esta entera aca: faltan {omitidas} lineas "

@@ -22,6 +22,10 @@ from pathlib import Path
 from .cognia import Cognia
 from .config import HAS_RESEARCH_ENGINE, HAS_PROGRAM_CREATOR
 from .ux import paleta   # unica fuente de verdad del color (datos planos)
+# Veredicto exito/fallo de un RESULTADO de tool, compartido con tools.py,
+# loop.py, offloading y render_tools (2026-08-24): una lectura cuyo contenido
+# arranca por 'ERROR' no es un fallo de la tool.
+from .harness.veredicto_tool import es_fallo as _es_fallo_tool
 
 # ---------------------------------------------------------------------------
 # Skills directory
@@ -16792,7 +16796,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 try:
                     _print_fn(_estilo.resumen_hecho(
                         action, args,
-                        ok=not re.search(r"\bERROR\b", result[:120])))
+                        ok=not _es_fallo_tool(result, action)))
                 except Exception:
                     pass
             else:
@@ -16804,7 +16808,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # RESULTADO exitoso con el marcador de error 'RESULTADO x ERROR: ...'.
         _actions_trace.append({
             "action": action, "args": args[:200],
-            "ok": not re.search(r"\bERROR\b", result[:120]),
+            "ok": not _es_fallo_tool(result, action),
             "result_head": result[:160],
         })
         # Observabilidad opt-in (COGNIA_TRACE=1): un diagnostico de estancamiento

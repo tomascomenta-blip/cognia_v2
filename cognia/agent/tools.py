@@ -41,6 +41,7 @@ from pathlib import Path
 # COGNIA_AGENT_WORKSPACE) y bloquea nombres sensibles (*.env, *secret*,
 # binarios). Levanta ValueError con mensaje ASCII que nombra el workspace.
 from cognia.agents.workers.dev_tools import resolve_write_path as _resolve_write_path
+from cognia.harness.veredicto_tool import es_fallo as _es_fallo_tool
 
 # name -> {"fn", "doc", "danger", "desc", "params"}
 TOOLS: dict = {}
@@ -564,11 +565,14 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
             # Agotada = paso por el camino y NO se ejecuto hasta el final:
             # como un comando bloqueado, exit None (no es 0, no es _SIN_EXIT).
             _exit = None
-        # \bERROR\b sobre la cabeza de la PRIMERA linea: todos los retornos de
-        # error del registry ponen ERROR en la linea 1, pero un exito cuyo
-        # CONTENIDO arranca temprano (ctx_grep sobre un log con errores,
-        # leer_archivo de un log) no debe marcarse fallido (fix 2026-08-11).
-        ok = not re.search(r"\bERROR\b", out.split("\n", 1)[0][:120])
+        # El veredicto por TEXTO es del helper compartido (harness/
+        # veredicto_tool): para las tools de CONTENIDO (leer_archivo, buscar,
+        # listar...) el marcador solo cuenta en el prefijo 'RESULTADO <tool>
+        # <obj>', nunca en lo que sigue al ':'. Con la regex \bERROR\b a
+        # secas, leer un log cuya linea 1 decia '... ERROR [cache] ...' salia
+        # como FALLO (vineta roja, ' ERROR' en la cabecera del offload y el
+        # modelo concluyendo que la lectura fallo; juez 2026-08-24).
+        ok = not _es_fallo_tool(out, name)
         # P0-1 (ESPEC agente largo 14.1) -- LA REGEX NO DECIDE EL EXITO CUANDO
         # HAY UN EXIT CODE. Dos fallos MEDIDOS que esto arregla:
         #   - `tests`/`ejecutar` con exit 1: la salida es "RESULTADO ejecutar

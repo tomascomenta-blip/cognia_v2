@@ -457,10 +457,21 @@ def _sin_prefijo(texto: str) -> str:
     return t[m.end():].lstrip() if m else t
 
 
-def es_error(texto: str) -> bool:
+def es_error(texto: str, tool: str = "") -> bool:
     """Si el RESULTADO es un fallo. Mira solo la cabeza: un 'ERROR' a mitad de
-    un volcado de logs no convierte en fallo una lectura que salio bien."""
+    un volcado de logs no convierte en fallo una lectura que salio bien --
+    y con `tool` de CONTENIDO (leer_archivo, buscar...) tampoco lo hace un
+    'ERROR' en la PRIMERA linea del contenido: el veredicto compartido
+    (harness/veredicto_tool) solo mira el prefijo 'RESULTADO <tool> <obj>'.
+    Esto es el FALLBACK: el estado real viene del evento (ToolFin.ok) y
+    bloque_colapsado lo recibe como `ok`."""
     cabeza = (texto or "")[:200]
+    try:
+        from cognia.harness.veredicto_tool import es_fallo, tool_de
+        if (tool or tool_de(cabeza)) and re.match(r"\s*(RESULTADO|\[SALIDA GRANDE)", cabeza):
+            return es_fallo(cabeza, tool)
+    except Exception:
+        pass
     if re.search(r"RESULTADO\s+\S+[^\n]{0,80}?\bERROR\b", cabeza):
         return True
     if re.match(r"\s*(ERROR|Error|Traceback)\b", cabeza):
@@ -512,8 +523,13 @@ def _contar_diff(texto: str) -> tuple:
     return mas, menos
 
 
-def resumir_resultado(tool: str, texto: str) -> str:
+def resumir_resultado(tool: str, texto: str, ok=None) -> str:
     """QUE se ve de un resultado: UNA linea, nunca vacia.
+
+    `ok` es el estado ESTRUCTURADO de la tool (ToolFin.ok) cuando el caller
+    lo tiene: True fuerza el resumen de exito aunque el texto huela a error
+    (una lectura sana de un log con 'ERROR'), False fuerza el de fallo. None
+    (default) cae al fallback textual es_error(texto, tool).
 
     - lecturas   -> 'N lineas'
     - busquedas  -> 'N resultados' (o 'sin resultados')
@@ -528,7 +544,8 @@ def resumir_resultado(tool: str, texto: str) -> str:
     """
     tool = (tool or "").strip()
     bruto = texto if texto is not None else ""
-    if es_error(bruto):
+    fallo = es_error(bruto, tool) if ok is None else (not ok)
+    if fallo:
         return truncar_medio(_mensaje_error(bruto), 120)
     cuerpo = _sin_prefijo(bruto)
     if not cuerpo.strip():
@@ -753,7 +770,10 @@ def bloque_colapsado(tool: str, args="", ok: bool = True, resultado: str = "",
     glifo, texto, estilo = linea_llamada(tool, args, est, ancho, raiz)
     lineas = [f"{glifo} {texto}"]
     estilos = [estilo]
-    resumen = resumir_resultado(tool, resultado)
+    # El estado del EVENTO manda sobre el olor del texto: con ok=True una
+    # lectura de un log que arranca por 'ERROR' se resume como '431 lineas',
+    # no como fallo (juez 2026-08-24).
+    resumen = resumir_resultado(tool, resultado, ok=bool(ok))
     prefijo = SANGRIA + conector_colgante() + " "
     libre = max(0, ancho - ancho_visual(prefijo))
     lineas.append(prefijo + truncar_medio(resumen, libre))

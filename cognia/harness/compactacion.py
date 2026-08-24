@@ -208,7 +208,7 @@ def _linea_tool(nombre: str, args: str, contenido: str) -> str:
     spilleado por F3 la cabecera del offload propaga el marcador ERROR."""
     try:
         from cognia.harness.offloading import es_fallo_primera_linea as _fallo
-        fallo = _fallo(contenido)
+        fallo = _fallo(contenido, nombre)
     except Exception:
         primera = contenido.split("\n", 1)[0]
         fallo = bool(re.search(r"\bERROR\b|\(exit -?[1-9]\d*\)", primera[:200]))
