@@ -365,3 +365,19 @@ def test_marcado_rich_no_mueve_el_ancho(catalogo):
     limpio = re.sub(r"\[/?[a-z_]+\]", "", rico).replace("\\[", "[")
     assert [l.rstrip() for l in limpio.splitlines()] == \
            [l.rstrip() for l in plano.splitlines()]
+
+
+def test_los_mandos_del_arnes_tienen_categoria_propia(catalogo):
+    """Revision adversarial 2026-08-24: /bucle caia por palabra clave en
+    'Agente y tareas' (26 > tope 25), /pegado y /spinner en 'Otros', /offload
+    en 'Modelos y flota', /expandir en 'Perfil' y /markdown, /enlaces y
+    /config-resuelta en 'Codigo y ficheros'. Los ocho son mandos del ARNES de
+    la consola y van juntos; y ninguno queda en el cajon de 'Otros'."""
+    esperados = ("/markdown", "/spinner", "/expandir", "/offload", "/pegado",
+                 "/enlaces", "/bucle", "/config-resuelta")
+    for cmd in esperados:
+        assert cmd in catalogo, cmd
+        assert ayuda.clasificar(cmd, catalogo[cmd]) == "Consola y arnes", cmd
+    cajones = dict(ayuda.indice(catalogo, 200))
+    assert len(cajones.get("Consola y arnes", [])) == len(esperados)
+    assert not cajones.get(ayuda._OTROS), cajones.get(ayuda._OTROS)

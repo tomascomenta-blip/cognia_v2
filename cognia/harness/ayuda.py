@@ -287,6 +287,20 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         "/calidad-respuestas", "/ver-criticas", "/fatiga", "/stats",
         "/sesion-stats", "/temas", "/costo",
     ),
+    # Categoria propia (2026-08-24) para los mandos del ARNES del REPL: como
+    # se pinta la respuesta (/markdown, /spinner), que ve el modelo de las
+    # tools (/expandir, /offload), como entra el texto del dueno (/pegado,
+    # /enlaces), la higiene del lazo (/bucle) y la config efectiva
+    # (/config-resuelta). Todos contestan la misma pregunta -- como se
+    # comporta la consola y con que config -- y ninguno tenia sitio: caian por
+    # palabra de la descripcion en "Otros", "Modelos y flota" (/offload),
+    # "Perfil" (/expandir) o "Codigo y ficheros" (/markdown, /enlaces,
+    # /config-resuelta), y /bucle dejaba "Agente y tareas" en 26 con el tope
+    # en 25 (revision adversarial 2026-08-24).
+    "Consola y arnes": (
+        "/markdown", "/spinner", "/expandir", "/offload", "/pegado",
+        "/enlaces", "/bucle", "/config-resuelta",
+    ),
     "Sistema y diagnostico": (
         # /hermes y /rutinas viven aca (y no en una categoria propia) porque la
         # portada de /ayuda cabe en 25 lineas: una categoria nueva mas la
