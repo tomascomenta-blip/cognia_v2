@@ -2,6 +2,20 @@
 
 ---
 
+## [4.10.1] - 2026-08-24
+
+### Arreglos (reportados por el dueno sobre 4.10.0 en Windows Terminal)
+
+- Parpadeo permanente durante cada respuesta: el markdown en streaming
+  borraba hasta el final de la pantalla (`ESC[J`) y reescribia toda la cola
+  cada ~30 ms. Ahora sobreescribe solo las lineas que cambian y envuelve
+  cada frame en synchronized output (DEC 2026). Medido en ConPTY con la
+  misma pregunta: 49 -> 5 `ESC[J`, 26,6 KB -> 10,4 KB. `COGNIA_SYNC_OUTPUT=0`
+  lo apaga.
+- "Pensando…" que se quedaba pegado debajo de la respuesta: un tick de
+  razonamiento tardio volvia a arrancar el spinner con la respuesta ya
+  abierta; ahora se ignora.
+
 ## [4.10.0] - 2026-08-24
 
 ### Sistema de estilos por elemento (`/estilo`)
