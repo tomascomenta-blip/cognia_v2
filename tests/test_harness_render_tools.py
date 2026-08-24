@@ -583,6 +583,25 @@ def test_bloque_colapsado_dedup_multilinea_cuenta_honesto(unicode_on):
     assert lineas[5].endswith("+1 linea (/expandir)")
 
 
+def test_bloque_colapsado_max_lineas_cero_dedup_honesto(unicode_on):
+    """Regresion (revision adversarial 2026-08-23): con '/expandir lineas 0'
+    (max_lineas=0, '0 = solo el resumen') la deduplicacion exigia
+    max_lineas > 0, asi que la UNICA linea del cuerpo — que ya esta en
+    pantalla como resumen — se contaba como oculta: '643' y debajo
+    '+1 linea (/expandir)' que /expandir no agrandaba. El mismo resumen
+    mentiroso que F1 dice haber cazado, vivo en la rama max_lineas=0."""
+    res = "RESULTADO ejecutar (exit 0): 643"
+    lineas, _ = rt.bloque_colapsado("ejecutar", "ls tests | wc -l", True, res,
+                                    max_lineas=0)
+    assert lineas[1] == "  ⎿ 643"
+    assert not any("/expandir" in l for l in lineas)
+    # y con lineas ocultas DE VERDAD la cola sigue diciendo la cuenta honesta
+    res2 = "RESULTADO ejecutar (exit 0): 643\nuno\ndos"
+    lineas2, _ = rt.bloque_colapsado("ejecutar", "wc -l", True, res2,
+                                     max_lineas=0)
+    assert lineas2[-1].endswith("+2 lineas (/expandir)")
+
+
 def test_bloque_colapsado_max_lineas_cero_solo_resumen(unicode_on):
     lineas, _ = rt.bloque_colapsado(
         "leer_archivo", "a.py", True, _resultado_lectura(6), max_lineas=0)

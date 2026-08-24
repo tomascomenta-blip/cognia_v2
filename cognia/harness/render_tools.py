@@ -764,16 +764,19 @@ def bloque_colapsado(tool: str, args="", ok: bool = True, resultado: str = "",
     filas = cuerpo.splitlines() if cuerpo.strip() else []
     if max_lineas is None or max_lineas < 0:
         max_lineas = 0
-    vistas = filas[:max_lineas]
     # La primera linea del cuerpo igual al resumen no se repite (el caso de
     # 'ejecutar', cuyo resumen ES la primera linea util) -- y lo deduplicado
     # NO se cuenta como oculto: un '... +1 linea' que /expandir no agranda es
     # un resumen mentiroso (cazado TECLEANDO en el REPL real, 2026-08-23:
     # 'ejecutar(ls tests | wc -l)' pintaba '643' y debajo '+1 linea').
+    # La deduplicacion se decide sobre `filas`, ANTES de cortar por
+    # max_lineas: con max_lineas=0 ('/expandir lineas 0', solo el resumen)
+    # la rama vieja exigia max_lineas > 0 y el mismo resumen mentiroso volvia
+    # por esa puerta (revision adversarial 2026-08-23).
     ya_visto = 0
-    if vistas and max_lineas > 0 and _una_linea(vistas[0]) == resumen:
+    if filas and _una_linea(filas[0]) == resumen:
         ya_visto = 1
-        vistas = filas[1:1 + max_lineas]
+    vistas = filas[ya_visto:ya_visto + max_lineas]
     sangria_cuerpo = SANGRIA + " " * ancho_visual(conector_colgante() + " ")
     hueco = max(0, ancho - ancho_visual(sangria_cuerpo))
     for fila in vistas:
