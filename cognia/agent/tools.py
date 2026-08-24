@@ -1004,6 +1004,7 @@ _RE_LEER_KV = re.compile(r"(?:\s*\|)?\s+(offset|limit)\s*=\s*(\d+)\s*$", re.I)
 def _leer_archivo(args, ctx):
     raw = args.strip()
     offset, limit = 1, _LEER_LIMIT_DEF
+    limit_explicito = False
     # extraer offset=/limit= del final (en cualquier orden, 0, 1 o 2 veces)
     while True:
         m = _RE_LEER_KV.search(raw)
@@ -1013,7 +1014,25 @@ def _leer_archivo(args, ctx):
             offset = max(1, int(m.group(2)))
         else:
             limit = max(1, int(m.group(2)))
+            limit_explicito = True
         raw = raw[:m.start()].rstrip().rstrip("|").rstrip()
+    # OFFLOAD activo y sin limit explicito: el fichero va ENTERO. El offload
+    # (harness/offloading) ES el mecanismo de recorte: guarda todo en disco,
+    # ensena cabeza+cola y deja recuperar por rango o busqueda. Antes se
+    # recortaba aqui a 2000 lineas / 24 KB ANTES de espillear y la cabecera
+    # del offload decia 'NO se perdio nada' sobre un tramo: el modelo
+    # concluyo que las 3000 lineas del log eran 'a red herring' y la tarea
+    # murio en bucle (juez 2026-08-24, fixture grande.log).
+    cap_chars = _LEER_CAP_CHARS
+    if not limit_explicito:
+        try:
+            from cognia.harness import offloading as _off
+            if _off.activo():
+                limit, cap_chars = None, None
+        except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "leer_archivo: offload no consultable, se recorta como "
+                "siempre: %s: %s", type(exc).__name__, exc)
     path = Path(raw.strip().strip("\"'"))
     # Codificacion DETECTADA, no asumida: con encoding='utf-8', errors='replace'
     # un fichero latin-1 del dueno llegaba al modelo con U+FFFD donde habia
@@ -1027,6 +1046,8 @@ def _leer_archivo(args, ctx):
         return (f"RESULTADO leer_archivo {_disp(path)} ERROR: offset={offset} "
                 f"pero el archivo tiene {total} lineas")
     sel, recorte_linea = [], False
+    if limit is None:
+        limit = max(1, total - offset + 1)
     for ln in lineas[offset - 1:offset - 1 + limit]:
         if len(ln) > _LEER_LINEA_MAX:
             ln = (ln[:_LEER_LINEA_MAX]
@@ -1037,7 +1058,7 @@ def _leer_archivo(args, ctx):
     # (nunca a mitad de linea: el modelo copia lo que ve en bloques SEARCH)
     mostradas, usados = [], 0
     for ln in sel:
-        if usados + len(ln) + 1 > _LEER_CAP_CHARS and mostradas:
+        if cap_chars is not None and usados + len(ln) + 1 > cap_chars and mostradas:
             break
         mostradas.append(ln)
         usados += len(ln) + 1

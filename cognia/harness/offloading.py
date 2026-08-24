@@ -173,6 +173,9 @@ EXENTAS_OFFLOAD = frozenset({"recuperar"})
 # del registry (agent/tools.py) pone "ERROR" en la linea 1, y ejecutar/tests
 # reportan "(exit N)" ahi mismo. Es la misma heuristica de fallback del bucle.
 _RE_FALLO_LINEA1 = re.compile(r"\bERROR\b|\(exit -?[1-9]\d*\)")
+# El marcador de recorte que deja agent/tools._leer_archivo (limit explicito).
+_RE_TRUNCADO_TOOL = re.compile(
+    r"\[TRUNCADO: mostrando lineas (\d+)-(\d+) de (\d+)")
 
 
 def es_fallo_primera_linea(texto: str, tool: str = "") -> bool:
@@ -646,6 +649,18 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
     bytes_omitidos = max(0, total_bytes - bytes_vistos)
 
     que = f" de {tool}" if tool else ""
+    # Si la tool YA habia recortado (leer_archivo con limit explicito deja su
+    # marcador '... [TRUNCADO: mostrando lineas A-B de T'), la cabecera lo
+    # dice: lo guardado es SOLO ese tramo. 'NO se perdio nada' sobre un
+    # fichero recortado antes del offload era mentira (juez 2026-08-24).
+    m_tr = _RE_TRUNCADO_TOOL.search(texto)
+    if m_tr:
+        a, b, t = m_tr.group(1), m_tr.group(2), m_tr.group(3)
+        guardado = (f"Guardado SOLO el tramo {a}-{b}: el fichero tiene {t} "
+                    f"lineas (leer_archivo <ruta> offset={int(b) + 1} para "
+                    f"seguir, o limit mayor).")
+    else:
+        guardado = "NO se perdio nada: esta guardada."
     # El marcador de FALLO viaja EN LA CABECERA: los clasificadores de rio
     # abajo (cli legacy `result[:120]`, la especulacion de loop.py, _linea_tool
     # de compactacion) leen \bERROR\b en la primera linea, y sin esto un
@@ -655,7 +670,7 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
     partes = [
         f"[SALIDA GRANDE{que}{marca}: {total_lineas} lineas, {_fmt_bytes(total_bytes)}. "
         f"NO esta entera aca: faltan {omitidas} lineas "
-        f"({_fmt_bytes(bytes_omitidos)}). NO se perdio nada: esta guardada.]"
+        f"({_fmt_bytes(bytes_omitidos)}). {guardado}]"
     ]
     if bloque_cabeza:
         partes.append(f"--- primeras {len(bloque_cabeza)} lineas "

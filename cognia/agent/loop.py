@@ -837,8 +837,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # No es un tope de cantidad: son N vueltas GASTANDO sin un solo
                 # avance verificado. Se le dice al modelo con la evidencia y se
                 # cierra honesto, que es mas barato que seguir hasta el tope.
-                print_fn(f"[warn_cl]sin progreso verificado: "
-                         f"{_escape_seguro(_v.get('motivo', ''))}[/warn_cl]")
+                # El hecho se ve UNA vez, en el footer del turno ('sin progreso
+                # verificado: sin_arranque' via motivo_de_cierre); antes salia
+                # ademas como aviso a columna 0 (juez 2026-08-24).
                 mensajes.append({"role": "user", "content": _v.get("sugerencia") or ""})
                 if _salida is not None:
                     _salida.sellar("estancado_sin_progreso", _v.get("motivo", ""))
