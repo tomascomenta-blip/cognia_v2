@@ -4034,6 +4034,25 @@ def _slash_limpiar():
         print(_g() + _BANNER_RAW + _R)
 
 
+def _panel_chrome(cuerpo, clave_titulo: str):
+    """Panel() de chrome (/compactar, /modulos, /costo, /stats) con la caja de
+    `panel.borde` (aspecto.caja: rounded/square/heavy/double; 'none' = sin
+    panel) y el titulo de `panel.titulo` (texto.<clave>). Sin override es
+    byte-identico al Panel(..., title='[titulo]<literal>[/titulo]',
+    border_style='borde', padding=(0, 1)) que habia (P6b, 2026-08-24)."""
+    try:
+        caja = _aspecto.caja("panel.borde")
+        titulo = _aspecto.texto("panel.titulo", clave_titulo)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"panel.{clave_titulo}: {type(exc).__name__}: {exc}")
+        from rich import box as _box
+        caja, titulo = _box.ROUNDED, _aspecto.elemento("panel.titulo").default.texto[clave_titulo]
+    if caja is None:
+        return cuerpo
+    return Panel(cuerpo, title=f"[titulo]{_escape(titulo)}[/titulo]",
+                 border_style="borde", box=caja, padding=(0, 1))
+
+
 def _slash_compactar_sesion():
     # ANTES se llamaba _slash_compactar: la puerta F4 (compactacion del
     # contexto del agente, mas abajo) redefinia el MISMO nombre y esta
@@ -4051,12 +4070,7 @@ def _slash_compactar_sesion():
                 inp = _escape(entry["input"][:70])
                 out = _escape(entry["output"][:100].replace("\n", " "))
                 rows.append(f"[mod]{inp}[/mod]\n[detail]{out}[/detail]")
-            _console.print(Panel(
-                "\n\n".join(rows),
-                title="[titulo]Ultimas interacciones[/titulo]",
-                border_style="borde",
-                padding=(0, 1),
-            ))
+            _console.print(_panel_chrome("\n\n".join(rows), "interacciones"))
         else:
             _console.print("[detail]Sin historial aun.[/detail]")
     else:
@@ -4069,12 +4083,7 @@ def _slash_modulos():
         _print_line("[detail]No hay informacion de modulos disponible.[/detail]")
         return
     if _HAS_RICH and _console:
-        _console.print(Panel(
-            _escape("\n".join(ok_lines)),
-            title="[titulo]Modulos activos[/titulo]",
-            border_style="borde",
-            padding=(0, 1),
-        ))
+        _console.print(_panel_chrome(_escape("\n".join(ok_lines)), "modulos"))
     else:
         print("\n".join(ok_lines))
 
@@ -4157,8 +4166,7 @@ def _slash_costo():
         f"Modelo         Cognia v3.2 (local)"
     )
     if _HAS_RICH and _console:
-        _console.print(Panel(content, title="[titulo]Costo de sesion[/titulo]",
-                             border_style="borde", padding=(0, 1)))
+        _console.print(_panel_chrome(content, "costo"))
     else:
         print(content)
 
@@ -4176,8 +4184,7 @@ def _slash_stats() -> None:
         f"  Duracion         : {elapsed_min} min"
     )
     if _HAS_RICH and _console:
-        _console.print(Panel(content, title="[titulo]Stats de sesion[/titulo]",
-                             border_style="borde", padding=(0, 1)))
+        _console.print(_panel_chrome(content, "stats"))
     else:
         print(content)
 

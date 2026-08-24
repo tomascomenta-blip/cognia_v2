@@ -584,6 +584,10 @@ def paso_pendiente(id: str, prop: str) -> str:
     # P6 idem para los glifos/textos/visible de tool.*, aviso.degradado y footer.
     if id in ENGANCHADOS_P7 or id in ENGANCHADOS_P8 or id in ENGANCHADOS_P6:
         return ""
+    # P6b (panel): cli._panel_chrome lee la caja (glifo) de panel.borde y los
+    # textos de panel.titulo; el resto de props de esos dos ya iba por token.
+    if id in ENGANCHADOS_P6B:
+        return ""
     # P9 (pulso del prompt): en prompt.etiqueta/marco/flecha/espera tambien
     # la animacion se ve al guardar (ENGANCHADOS_P9, al final del fichero).
     if id in ENGANCHADOS_P9:
@@ -2433,3 +2437,15 @@ ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P6 if i not in E
 # que la animacion dejo de estar pendiente (paso_pendiente -> '').
 ENGANCHADOS_P9 = ("prompt.etiqueta", "prompt.marco", "prompt.flecha", "prompt.espera")
 ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P9 if i not in ENGANCHADOS)
+
+
+# ---------------------------------------------------------------------------
+# 17. P6b (paneles de chrome, 2026-08-24): caja y titulos de panel.*
+# ---------------------------------------------------------------------------
+# cli._panel_chrome envuelve los Panel() de /compactar (Ultimas
+# interacciones), /modulos, /costo y /stats: box = aspecto.caja('panel.borde')
+# ('none' = cuerpo sin panel) y title = texto('panel.titulo', <clave>). Sin
+# override es byte-identico al Panel literal que habia (test_cli_estilo).
+# El COLOR de ambos ya iba por token desde P4; aqui se cablean glifo y texto.
+ENGANCHADOS_P6B = ("panel.borde", "panel.titulo")
+ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P6B if i not in ENGANCHADOS)

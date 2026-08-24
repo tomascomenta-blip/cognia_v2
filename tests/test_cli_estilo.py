@@ -569,3 +569,49 @@ def test_hot_reload_el_bucle_del_repl_aplica_tras_get_input_y_antes_de_despachar
     assert i < j
     # entre los dos solo hay el manejo de EOF/Ctrl-C: ningun dispatch
     assert "_dispatch" not in repl[i:j] and "_run(" not in repl[i:j]
+
+
+def _render(console_kw, renderable) -> str:
+    from io import StringIO
+    from rich.console import Console
+    buf = StringIO()
+    Console(file=buf, width=60, force_terminal=False, color_system=None,
+            legacy_windows=False, theme=cli._tema_de("oscuro"), **console_kw).print(renderable)
+    return buf.getvalue()
+
+
+def test_panel_chrome_sin_override_es_byte_identico_al_panel_literal(entorno):
+    """P6b: los Panel() de /compactar, /modulos, /costo y /stats pasan por
+    _panel_chrome; sin override, la caja (rounded) y el titulo literal son
+    los mismos bytes que el Panel(title='[titulo]X[/titulo]') de antes."""
+    from rich.panel import Panel
+    for clave, literal in (("interacciones", "Ultimas interacciones"),
+                           ("modulos", "Modulos activos"),
+                           ("costo", "Costo de sesion"),
+                           ("stats", "Stats de sesion")):
+        esperado = _render({}, Panel("a\nb", title=f"[titulo]{literal}[/titulo]",
+                                     border_style="borde", padding=(0, 1)))
+        assert _render({}, cli._panel_chrome("a\nb", clave)) == esperado
+    assert not entorno.avisos
+    # y los cuatro sitios usan el helper (ningun Panel literal con esos titulos)
+    for literal in ("Ultimas interacciones", "Modulos activos", "Costo de sesion", "Stats de sesion"):
+        assert f"[titulo]{literal}[/titulo]" not in _CLI_SRC
+    assert _CLI_SRC.count("_panel_chrome(") == 5   # def + 4 usos
+
+
+def test_panel_chrome_override_de_caja_y_titulo_cambia_el_borde(entorno):
+    from rich import box
+    base = _render({}, cli._panel_chrome("x", "costo"))
+    assert box.ROUNDED.top_left in base
+    assert not A.poner("panel.borde", "glifo", "double")
+    assert not A.poner("panel.titulo", "texto.costo", "Gasto")
+    con = _render({}, cli._panel_chrome("x", "costo"))
+    assert box.DOUBLE.top_left in con and box.ROUNDED.top_left not in con
+    assert "Gasto" in con and "Costo de sesion" not in con
+    assert A.paso_pendiente("panel.borde", "glifo") == ""
+    assert A.paso_pendiente("panel.titulo", "texto") == ""
+    assert "panel.borde" in A.ENGANCHADOS and "panel.titulo" in A.ENGANCHADOS
+    assert len(A.ENGANCHADOS) == len(set(A.ENGANCHADOS))
+    # 'none' = el cuerpo sin panel
+    assert not A.poner("panel.borde", "glifo", "none")
+    assert cli._panel_chrome("x", "costo") == "x"
