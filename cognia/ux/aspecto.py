@@ -2402,10 +2402,14 @@ ENGANCHADOS = tuple(ENGANCHADOS) + ENGANCHADOS_P7 + ENGANCHADOS_P8
 # - diff.mas / diff.menos: fondo, color de la marca y fondo intra
 #   (console/diff_render.estilos, cacheado por version del registro).
 # - enlace: visible=false apaga el OSC 8 (harness/enlaces.activo).
+# - respuesta.markdown: estados.h1..hr por tema_rich (ya desde P4; aqui se
+#   marca para que paso_pendiente no anuncie 'P6' por 'estados.*').
+# - respuesta.codigo: texto = tema pygments del markdown vivo (markdown_vivo.config).
 ENGANCHADOS_P6 = ("tool.ok", "tool.error", "tool.curso", "tool.resultado",
                   "tool.intencion", "aviso.degradado", "footer.turno",
                   "pensando.prosa", "pensando.plegado", "separador.regla",
-                  "diff.mas", "diff.menos", "enlace")
+                  "diff.mas", "diff.menos", "enlace",
+                  "respuesta.markdown", "respuesta.codigo")
 for _id in ENGANCHADOS_P6:
     REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
 del _id

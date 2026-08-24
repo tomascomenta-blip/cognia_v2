@@ -500,3 +500,18 @@ def test_ver_de_un_elemento_con_glow_y_animacion_no_tumba_el_repl(entorno):
         t = entorno.texto()
         assert id in t and "glow" in t and "animacion" in t, (id, t)
     assert entorno.avisos == []
+
+
+def test_set_en_respuesta_markdown_y_codigo_ya_no_avisa_P6(entorno):
+    """P6: los sub-estados del markdown los aplica tema_rich en caliente y
+    respuesta.codigo es el tema pygments del markdown vivo: sin aviso E8."""
+    cli._slash_estilo("respuesta.markdown estados.h2.color #ffaa00")
+    t = entorno.texto()
+    assert "(guardado)" in t and "se aplica cuando" not in t
+    assert cli._console.get_style("markdown.h2").color.get_truecolor().hex == "#ffaa00"
+    entorno.salida.clear()
+    cli._slash_estilo("respuesta.codigo texto dracula")
+    t = entorno.texto()
+    assert "(guardado)" in t and "se aplica cuando" not in t
+    from cognia.ux import markdown_vivo
+    assert markdown_vivo.config()[1] == "dracula"
