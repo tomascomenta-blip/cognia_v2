@@ -224,6 +224,23 @@ def _linea_tool(nombre: str, args: str, contenido: str) -> str:
     return "  * %s(%s) -> %s%s" % (nombre, args_c, veredicto, extra)
 
 
+def umbral_tokens(n_ctx, umbral=None) -> int:
+    """Tokens de prompt a partir de los cuales se compacta: la fraccion
+    (umbral_frac, /compactar umbral) de la CAPACIDAD UTIL (n_ctx menos el
+    headroom de contexto_vivo). Es la misma cuenta de la barra: antes la
+    barra restaba el headroom y esto no, y decian cosas distintas en el
+    mismo turno (revision adversarial 2026-08-24). 0 sin n_ctx."""
+    import math
+    from cognia.harness.contexto_vivo import capacidad_util
+    umb = float(umbral) if umbral is not None else umbral_frac()
+    util = capacidad_util(n_ctx)
+    if util <= 0:
+        return 0
+    # ceil: 'tokens >= umbral' coincide con 'porcentaje_uso (truncado) >=
+    # umbral_pct' token a token (ver contexto_vivo.porcentaje_uso).
+    return int(math.ceil(util * umb))
+
+
 def compactar(mensajes: list, n_ctx, prompt_tokens: int, estado=None,
               umbral=None, retencion=None, cap=None) -> dict:
     """UNA pasada: funde el historial viejo en un mensaje-resumen estructurado
@@ -242,8 +259,7 @@ def compactar(mensajes: list, n_ctx, prompt_tokens: int, estado=None,
     if not n_ctx:
         res["motivo"] = "sin n_ctx"
         return res
-    umb = float(umbral) if umbral is not None else umbral_frac()
-    if int(prompt_tokens or 0) < int(n_ctx * umb):
+    if int(prompt_tokens or 0) < umbral_tokens(n_ctx, umbral):
         res["motivo"] = "bajo el umbral"
         return res
     ret = float(retencion) if retencion is not None else retencion_frac()

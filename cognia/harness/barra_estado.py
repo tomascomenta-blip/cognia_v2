@@ -159,7 +159,10 @@ ESTILOS = frozenset({
 # calcular el porcentaje. El server necesita margen para la respuesta en
 # curso, y un 100% "matematico" que en la practica ya no admite ni un turno
 # mas es un numero mentiroso.
-HEADROOM_TOKENS = 1024
+# Definido en contexto_vivo (LA UNICA ARITMETICA): se re-exporta aqui por
+# compatibilidad con quien leia barra_estado.HEADROOM_TOKENS.
+from cognia.harness.contexto_vivo import (HEADROOM_TOKENS, nivel_uso,  # noqa: E402
+                                          porcentaje_uso)
 
 # Umbrales de alarma FALLBACK (porcentaje consumido). Los vigentes los da
 # _umbrales(): salen de contexto_vivo, que a su vez lee el umbral REAL de
@@ -422,10 +425,8 @@ def nivel_contexto(usado, total) -> dict:
     base = {"aviso": aviso, "critico": critico, "headroom": HEADROOM_TOKENS}
     if t <= 0:
         return dict(base, pct_usado=None, libre=None, nivel="")
-    util = max(1, t - HEADROOM_TOKENS)
-    pct = min(100, max(0, int(round(u * 100.0 / util))))
-    nivel = ("critico" if pct >= critico
-             else "aviso" if pct >= aviso else "")
+    pct = porcentaje_uso(u, t)        # la cuenta de contexto_vivo, no otra
+    nivel = nivel_uso(u, t)           # en TOKENS: exacto con compactar()
     return dict(base, pct_usado=pct, libre=100 - pct, nivel=nivel)
 
 

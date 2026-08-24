@@ -12,6 +12,7 @@ Concrete, not abstract: two plain functions and a couple of constants.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 
@@ -398,7 +399,18 @@ def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
     nadie lo diga). Reproducido en test_recorte_incluye_el_reasoning_de_los_
     assistant_viejos: 20 turnos x 5k chars de CoT -> 0 liberados.
     """
-    if not n_ctx or prompt_tokens < int(n_ctx * 0.8):
+    # El umbral es el MISMO de la compactacion y de la barra (capacidad util
+    # x umbral_frac): tres aritmeticas distintas discrepaban en el mismo
+    # turno (revision adversarial 2026-08-24). Sin el modulo (roto) se cae a
+    # la cuenta de siempre y se deja rastro.
+    try:
+        from cognia.harness.compactacion import umbral_tokens as _umbral
+        umbral = _umbral(n_ctx)
+    except ImportError as exc:
+        logging.getLogger(__name__).warning(
+            "compactacion no importable (%s): umbral 0.8*n_ctx", exc)
+        umbral = int(n_ctx * 0.8) if n_ctx else 0
+    if not n_ctx or prompt_tokens < umbral:
         return 0
     # El CoT del ULTIMO turno assistant es el que el modelo esta usando AHORA
     # (los tool calls de ese mismo turno acaban de volver): se preserva

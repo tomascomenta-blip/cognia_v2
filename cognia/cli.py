@@ -9379,7 +9379,8 @@ def _slash_compactar(arg: str = "") -> None:
               else "config 'compactacion'")
     _print_line(f"[info_dim]compactacion del contexto: modo {est['modo']} "
                 f"({fuente})[/info_dim]")
-    _print_line(f"[info_dim]  umbral: {est['umbral']:.2f} de n_ctx | retencion "
+    _print_line(f"[info_dim]  umbral: {est['umbral']:.2f} de n_ctx util "
+                f"(n_ctx - headroom) | retencion "
                 f"de cola: {est['retencion']:.2f} | cap del resumen: "
                 f"{est['cap']} chars[/info_dim]")
     # Nivel ACTUAL del contexto, con la MISMA aritmetica del footer
@@ -11500,7 +11501,7 @@ def _datos_barra_estado() -> dict:
                       "ctx_total": total,
                       # True si la ocupacion salio de chars/4 (camino de chat
                       # o stream sin prompt_tokens): la barra antepone '~'.
-                      "ctx_estimado": bool(est.get("estimado")),
+                      "ctx_estimado": bool(est.get("ocupacion_estimada")),
                       "tokens_sesion": est.get("total")})
     except Exception as exc:
         # Antes: except-pass mudo. "no lo cablearon" y "se rompio" se veian

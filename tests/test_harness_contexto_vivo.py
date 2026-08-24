@@ -41,6 +41,13 @@ def umbrales_de_fabrica(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
 
+# n_ctx cuya CAPACIDAD UTIL es 100 (n_ctx - HEADROOM_TOKENS): con el, la
+# ocupacion registrada ES el porcentaje y los umbrales se leen directos. Desde
+# 2026-08-24 el porcentaje va sobre la capacidad util (la unica aritmetica,
+# compartida con la barra y la compactacion), no sobre el n_ctx pelado.
+N100 = 100 + CV.HEADROOM_TOKENS
+
+
 # -- Acumulacion --------------------------------------------------------------
 
 def test_cuenta_entrada_y_salida_del_usage_real():
@@ -97,7 +104,7 @@ def test_registrar_uso_fija_la_ocupacion_del_proximo_prompt():
     CV.registrar_uso(12000, 800)
     est = CV.estado()
     assert est["ocupacion"] == 12800
-    assert est["porcentaje"] == 40
+    assert est["porcentaje"] == 41      # 12800 / (32000 - 1024 headroom)
     assert est["restante"] == 32000 - 12800
 
 
@@ -107,7 +114,7 @@ def test_registrar_contexto_pisa_la_ocupacion():
     est = CV.estado()
     assert est["ocupacion"] == 4000
     assert est["n_ctx"] == 8000
-    assert est["porcentaje"] == 50
+    assert est["porcentaje"] == 57      # 4000 / (8000 - 1024 headroom)
     assert est["restante"] == 4000
     assert est["total"] == 12800        # el acumulado de sesion no se toca
 
@@ -130,14 +137,14 @@ def test_estado_es_copia():
 
 def test_reiniciar_borra_todo_incluida_la_histeresis():
     CV.registrar_uso(1000, 100, modelo="modelo-x")
-    CV.registrar_contexto(95, 100)
+    CV.registrar_contexto(95, N100)
     assert CV.aviso_umbral() == "critico"
     CV.reiniciar()
     est = CV.estado()
     assert (est["total"], est["turnos"], est["modelo"]) == (0, 0, "")
     assert (est["ocupacion"], est["n_ctx"], est["porcentaje"]) == (0, 0, 0)
     assert est["estimado"] is False
-    CV.registrar_contexto(95, 100)
+    CV.registrar_contexto(95, N100)
     assert CV.aviso_umbral() == "critico"   # el aviso vuelve a estar armado
 
 
@@ -177,7 +184,7 @@ def _sesion_barra(modelo="modelo-x"):
 def test_barra_formato_completo():
     _sesion_barra()
     linea = CV.barra(ancho=80, con_color=False)
-    assert linea == "modelo-x · ctx 12.8k/32k (40%) · 1.2k tok"
+    assert linea == "modelo-x · ctx 12.8k/32k (41%) · 1.2k tok"
 
 
 def test_barra_cabe_en_80_columnas():
@@ -231,18 +238,18 @@ def test_barra_degrada_recortando_modelo_antes_que_ctx():
     assert len(media) <= 50
     assert "modelo-larguisimo-de-prueba" not in media
     assert media.startswith("modelo-larg")
-    assert "ctx 12.8k/32k (40%)" in media
+    assert "ctx 12.8k/32k (41%)" in media
 
     # 2o recorte: cae el modelo, el ctx aguanta.
     angosta = CV.barra(ancho=40, con_color=False)
     assert len(angosta) <= 40
     assert "modelo" not in angosta
-    assert angosta.startswith("ctx 12.8k/32k (40%)")
+    assert angosta.startswith("ctx 12.8k/32k (41%)")
 
     # 3er recorte: del ctx sobrevive el porcentaje.
     minima = CV.barra(ancho=20, con_color=False)
     assert len(minima) <= 20
-    assert "ctx 40%" in minima
+    assert "ctx 41%" in minima
     assert "12.8k" not in minima
 
     # 4o recorte: solo el gasto.
@@ -278,42 +285,42 @@ def test_barra_arranca_sin_datos():
 # -- Aviso con histeresis -----------------------------------------------------
 
 def test_aviso_umbral_con_histeresis():
-    # n_ctx=100 => ocupacion == porcentaje, la histeresis se lee directa.
-    CV.registrar_contexto(60, 100)
+    # util=100 => ocupacion == porcentaje, la histeresis se lee directa.
+    CV.registrar_contexto(60, N100)
     assert CV.aviso_umbral() == ""
 
-    CV.registrar_contexto(80, 100)
+    CV.registrar_contexto(80, N100)
     assert CV.aviso_umbral() == "aviso"
-    CV.registrar_contexto(82, 100)
+    CV.registrar_contexto(82, N100)
     assert CV.aviso_umbral() == ""        # no repite el mismo aviso
-    CV.registrar_contexto(88, 100)
+    CV.registrar_contexto(88, N100)
     assert CV.aviso_umbral() == ""
 
-    CV.registrar_contexto(92, 100)
+    CV.registrar_contexto(92, N100)
     assert CV.aviso_umbral() == "critico"
-    CV.registrar_contexto(95, 100)
+    CV.registrar_contexto(95, N100)
     assert CV.aviso_umbral() == ""
 
     # Bajar de critico a aviso no vuelve a hablar (solo se avisa al ESCALAR).
-    CV.registrar_contexto(86, 100)
+    CV.registrar_contexto(86, N100)
     assert CV.aviso_umbral() == ""
-    CV.registrar_contexto(80, 100)
+    CV.registrar_contexto(80, N100)
     assert CV.aviso_umbral() == ""
     # Pero el critico ya se re-armo al bajar de 85: si vuelve a subir, avisa.
-    CV.registrar_contexto(92, 100)
+    CV.registrar_contexto(92, N100)
     assert CV.aviso_umbral() == "critico"
 
     # Compactar de verdad desarma todo.
-    CV.registrar_contexto(30, 100)
+    CV.registrar_contexto(30, N100)
     assert CV.aviso_umbral() == ""
     # 81: sobre el umbral de aviso (80, el REAL de compactacion; el 78 de
     # antes correspondia al 75 hardcodeado que mentia).
-    CV.registrar_contexto(81, 100)
+    CV.registrar_contexto(81, N100)
     assert CV.aviso_umbral() == "aviso"
 
 
 def test_nivel_del_estado_no_consume_el_aviso():
-    CV.registrar_contexto(95, 100)
+    CV.registrar_contexto(95, N100)
     assert CV.estado()["nivel"] == "critico"
     assert CV.estado()["nivel"] == "critico"
     assert CV.aviso_umbral() == "critico"   # estado() no armo nada
@@ -328,7 +335,7 @@ def test_umbral_aviso_acoplado_a_compactacion(monkeypatch):
     assert CV.umbral_aviso_pct() == 80           # default = el de compactacion
     monkeypatch.setenv("COGNIA_COMPACT_UMBRAL", "0.6")
     assert CV.umbral_aviso_pct() == 60           # /compactar umbral lo mueve
-    CV.registrar_contexto(65, 100)
+    CV.registrar_contexto(65, N100)
     assert CV.estado()["nivel"] == "aviso"
     monkeypatch.setenv("COGNIA_CTX_AVISO", "70")
     assert CV.umbral_aviso_pct() == 70           # la env del footer gana
@@ -409,3 +416,48 @@ def test_el_bucle_sin_prompt_tokens_marca_estimado():
     _correr_bucle([{"completion_tokens": 30}])
     est = CV.estado()
     assert est["ocupacion"] > 0 and est["estimado"] is True
+
+
+# -- La UNICA aritmetica del contexto (revision adversarial 2026-08-24) --------
+
+def test_barra_compactacion_y_recorte_comparten_el_umbral():
+    """n_ctx=65536, usado=51700: la barra decia 'aviso · /compactar' (80% del
+    util) mientras compactar() seguia 'bajo el umbral' (< 0.8*n_ctx=52428) y
+    aviso_umbral() devolvia ''. Ahora las tres cuentas salen de
+    capacidad_util(n_ctx) x umbral_frac."""
+    from cognia.harness import barra_estado as B
+    from cognia.harness import compactacion as comp
+    n_ctx, usado = 65536, 51700
+    assert CV.capacidad_util(n_ctx) == n_ctx - CV.HEADROOM_TOKENS
+    umbral = comp.umbral_tokens(n_ctx)
+    assert umbral == __import__('math').ceil((n_ctx - 1024) * 0.8)
+    assert usado >= umbral, "el caso medido: por encima del umbral REAL"
+    nc = B.nivel_contexto(usado, n_ctx)
+    assert nc["nivel"] == "aviso"
+    CV.registrar_contexto(usado, n_ctx)
+    assert CV.estado()["porcentaje"] == nc["pct_usado"] == 80
+    assert CV.aviso_umbral() == "aviso"
+    # y compactar() esta de acuerdo: ya no dice 'bajo el umbral'
+    msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "u"}]
+    assert comp.compactar(msgs, n_ctx, usado)["motivo"] != "bajo el umbral"
+    assert comp.compactar(msgs, n_ctx, umbral - 1)["motivo"] == "bajo el umbral"
+    # justo por debajo del umbral real: NADIE avisa
+    CV.reiniciar()
+    assert B.nivel_contexto(umbral - 1, n_ctx)["nivel"] == ""
+    CV.registrar_contexto(umbral - 1, n_ctx)
+    assert CV.aviso_umbral() == ""
+
+
+def test_la_marca_de_ocupacion_estimada_no_es_pegajosa():
+    """Un turno de chat (chars/4) y luego turnos del agente con usage REAL: el
+    total de sesion sigue marcado (pegajoso, correcto) pero la OCUPACION
+    vigente es real y la barra no pinta '~' sobre un numero medido."""
+    CV.registrar_uso_estimado("hola " * 100, "resp " * 10)
+    assert CV.estado()["ocupacion_estimada"] is True
+    CV.registrar_uso(30000, 500, estimado=False)
+    CV.registrar_contexto(30500, 65536, estimado=False)
+    est = CV.estado()
+    assert est["estimado"] is True              # el acumulado sigue mezclado
+    assert est["ocupacion_estimada"] is False   # la ocupacion es medida
+    CV.registrar_contexto(31000, 65536, estimado=True)
+    assert CV.estado()["ocupacion_estimada"] is True

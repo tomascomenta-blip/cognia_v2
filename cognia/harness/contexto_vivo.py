@@ -88,9 +88,22 @@ LIMITES DECLARADOS (lo que este modulo NO hace):
     historial y no vuelve a registrar, la barra queda vieja hasta el proximo
     turno; no espia la lista de mensajes.
   - `estimado` es pegajoso a proposito: una vez que entro un numero estimado,
-    el total de la sesion queda marcado hasta `reiniciar()`. Mezclar real y
+    el TOTAL de la sesion queda marcado hasta `reiniciar()`. Mezclar real y
     estimado y presentarlo como real es justo el bug que esto viene a matar.
+    `ocupacion_estimada` NO es pegajosa: dice si la OCUPACION vigente (la del
+    ultimo registro) salio de chars/4 o del usage real; es la que la barra
+    pinta con '~'. Con la pegajosa, un solo turno de chat marcaba '~' todos los
+    turnos posteriores del agente con usage real (revision adversarial
+    2026-08-24).
   - `porcentaje` es 0 mientras no se conozca `n_ctx` (no se adivina la ventana).
+  - LA UNICA ARITMETICA (2026-08-24): el porcentaje se calcula sobre
+    capacidad_util(n_ctx) = n_ctx - HEADROOM_TOKENS (1024, receta CodeWhale: el
+    server necesita margen para la respuesta en curso). La barra
+    (barra_estado.nivel_contexto), el disparo de compactacion
+    (compactacion.umbral_tokens) y el recorte legacy del bucle usan ESTA
+    funcion: antes la barra restaba el headroom y la compactacion no, y la
+    barra decia 'aviso · /compactar' al 78,75% del n_ctx mientras compactar()
+    seguia 'bajo el umbral'.
 """
 
 from __future__ import annotations
@@ -111,6 +124,55 @@ import threading
 UMBRAL_AVISO = 80
 UMBRAL_CRITICO = 90
 HISTERESIS = 5
+# Headroom fijo restado SIEMPRE del n_ctx antes de cualquier porcentaje o
+# umbral (ver 'LA UNICA ARITMETICA' arriba). barra_estado lo importa de aqui.
+HEADROOM_TOKENS = 1024
+
+
+def capacidad_util(n_ctx) -> int:
+    """Tokens realmente disponibles: n_ctx menos el headroom (minimo 1).
+    0 si n_ctx es desconocido (<= 0): nadie inventa un porcentaje."""
+    n = _entero(n_ctx)
+    if n <= 0:
+        return 0
+    return max(1, n - HEADROOM_TOKENS)
+
+
+def porcentaje_uso(ocupacion, n_ctx) -> int:
+    """% de uso sobre la capacidad util, 0..100, redondeado (es lo que se
+    PINTA); 0 sin n_ctx. El NIVEL no se decide con este numero redondeado
+    sino en tokens (nivel_uso): a 320 tokens del umbral el % ya dice 80 y
+    la compactacion todavia no dispara."""
+    util = capacidad_util(n_ctx)
+    if util <= 0:
+        return 0
+    return min(100, max(0, int(round(_entero(ocupacion) * 100.0 / util))))
+
+
+def tokens_del_pct(n_ctx, pct) -> int:
+    """Tokens de ocupacion a partir de los cuales se esta AL `pct`% de la
+    capacidad util (redondeo hacia arriba: es la misma cuenta que
+    compactacion.umbral_tokens). 0 sin n_ctx."""
+    import math
+    util = capacidad_util(n_ctx)
+    if util <= 0:
+        return 0
+    return int(math.ceil(util * float(pct) / 100.0))
+
+
+def nivel_uso(ocupacion, n_ctx) -> str:
+    """'' | 'aviso' | 'critico', decidido en TOKENS contra los umbrales
+    vigentes (umbral_aviso_pct sigue a /compactar umbral): asi la barra
+    pinta amarillo y el sufijo '/compactar' exactamente cuando compactar()
+    dispara, ni un token antes."""
+    o = _entero(ocupacion)
+    if capacidad_util(n_ctx) <= 0:
+        return ""
+    if o >= tokens_del_pct(n_ctx, umbral_critico_pct()):
+        return "critico"
+    if o >= tokens_del_pct(n_ctx, umbral_aviso_pct()):
+        return "aviso"
+    return ""
 
 
 def _pct_env(var: str):
@@ -176,6 +238,7 @@ def _vacio() -> dict:
         "ocupacion": 0,
         "n_ctx": 0,
         "estimado": False,
+        "ocupacion_estimada": False,
         # Nivel de aviso ya emitido; lo consume la histeresis de aviso_umbral().
         "armado": "",
     }
@@ -213,6 +276,7 @@ def registrar_uso(prompt_tokens, completion_tokens, modelo: str = "",
             _ACUM["modelo"] = str(modelo)
         if entrada or salida:
             _ACUM["ocupacion"] = entrada + salida
+            _ACUM["ocupacion_estimada"] = bool(estimado)
         if estimado:
             _ACUM["estimado"] = True
     return estado()
@@ -230,6 +294,7 @@ def registrar_contexto(tokens_en_ventana, n_ctx, estimado: bool = False) -> dict
     with _LOCK:
         _ACUM["ocupacion"] = ocupacion
         _ACUM["n_ctx"] = ventana
+        _ACUM["ocupacion_estimada"] = bool(estimado)
         if estimado:
             _ACUM["estimado"] = True
     return estado()
@@ -277,10 +342,11 @@ def estado() -> dict:
             "modelo": _ACUM["modelo"],
             "turnos": _ACUM["turnos"],
             "estimado": _ACUM["estimado"],
+            "ocupacion_estimada": _ACUM["ocupacion_estimada"],
         }
     datos["porcentaje"] = _porcentaje(ocupacion, n_ctx)
     datos["restante"] = max(0, n_ctx - ocupacion) if n_ctx > 0 else 0
-    datos["nivel"] = _nivel(datos["porcentaje"])
+    datos["nivel"] = nivel_uso(ocupacion, n_ctx)
     return datos
 
 
@@ -290,8 +356,8 @@ def aviso_umbral() -> str:
     Tiene efecto de lado (arma/desarma el nivel ya avisado), asi que se llama
     UNA vez por turno. Para pintar sin avisar esta `estado()["nivel"]`.
     """
-    pct = estado()["porcentaje"]
-    nivel = _nivel(pct)
+    est = estado()
+    pct, nivel = est["porcentaje"], est["nivel"]
     with _LOCK:
         armado = _ACUM["armado"]
         # Desarmar hacia abajo: un aviso se re-arma recien 5 puntos por debajo
@@ -365,17 +431,7 @@ def _entero(valor) -> int:
 
 
 def _porcentaje(ocupacion: int, n_ctx: int) -> int:
-    if n_ctx <= 0:
-        return 0
-    return min(100, int(round(ocupacion * 100.0 / n_ctx)))
-
-
-def _nivel(pct: int) -> str:
-    if pct >= umbral_critico_pct():
-        return "critico"
-    if pct >= umbral_aviso_pct():
-        return "aviso"
-    return ""
+    return porcentaje_uso(ocupacion, n_ctx)
 
 
 def _umbral(nivel: str) -> int:
