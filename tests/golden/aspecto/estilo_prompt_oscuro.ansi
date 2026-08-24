@@ -50,5 +50,21 @@
  [
   "scrollbar.button",
   "bg:#334455"
+ ],
+ [
+  "prompt.search",
+  "noinherit"
+ ],
+ [
+  "prompt.search.text",
+  ""
+ ],
+ [
+  "selected",
+  "reverse"
+ ],
+ [
+  "validation-toolbar",
+  "bg:#550000 #ffffff"
  ]
 ]

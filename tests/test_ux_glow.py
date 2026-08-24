@@ -613,3 +613,14 @@ def test_nivel_none_solo_negrita():
     crudo = _nivel("none")
     assert "38;" not in crudo and "[3" not in crudo
     assert crudo.strip() and "Maullando ideas" in crudo
+
+
+def test_los_nombres_ansi_de_la_tabla_existen_en_prompt_toolkit():
+    """P5: 'white' es 'ansigray' y 'bright_white' es 'ansiwhite' en PT;
+    'ansibrightwhite' no existe (Wrong color format). Cazado con /tema
+    alto_contraste, cuyo 'mod' es 'bold bright_white'."""
+    from prompt_toolkit.styles.base import ANSI_COLOR_NAMES
+    from rich.style import Style
+    assert set(glow._PT_ANSI.values()) <= set(ANSI_COLOR_NAMES)
+    assert glow._pt_de_style(Style.parse("bold bright_white"), "oscuro") == "fg:ansiwhite bold"
+    assert glow._pt_de_style(Style.parse("white"), "oscuro") == "fg:ansigray"

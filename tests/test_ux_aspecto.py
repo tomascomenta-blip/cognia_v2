@@ -120,9 +120,21 @@ LITERAL_OSCURO = {
 
 @pytest.mark.parametrize("variante", ["oscuro", "claro", "alto_contraste"])
 def test_las_reglas_del_prompt_son_el_literal_actual(variante):
+    """P5: _estilo_prompt sale de A.clases_pt: el literal en el MISMO orden y,
+    detras, SOLO las 4 clases de E2 con los strings por defecto de
+    prompt_toolkit (busqueda Ctrl-R, seleccion, validation-toolbar), que no
+    cambian un byte del render (golden prompt_marco_*). _clases_pt_respaldo
+    sigue siendo el literal pelado."""
     import cognia.cli as C
+    from prompt_toolkit.styles.defaults import PROMPT_TOOLKIT_STYLE
+    literal = list(_clases_pt_literal(variante).items())
     reglas = list(C._estilo_prompt(variante).style_rules)
-    assert reglas == list(_clases_pt_literal(variante).items())
+    assert reglas[:len(literal)] == literal
+    extra = dict(reglas[len(literal):])
+    assert extra == A.PT_DEFAULTS_E2
+    pt = dict(PROMPT_TOOLKIT_STYLE)
+    assert all(pt[k] == v for k, v in extra.items())
+    assert list(C._clases_pt_respaldo(variante).items()) == literal
 
 
 def test_el_literal_oscuro_tiene_los_hex_de_hoy():
@@ -242,11 +254,10 @@ def test_cada_id_tiene_capacidades_coherentes(id):
     # sub-estados: los del default estan declarados
     assert set(d.estados) <= set(e.estados), f"{id}: sub-estados sin declarar"
     assert e.nombre and e.grupo
-    # E8: solo los que su paso ya cablea (P8: spinner.*, que renderer/
-    # spinner_vivo/cli leen a call-time; P7: banner.*, que lee
-    # cli._aspecto_del_banner en cada arranque); el resto sigue en False
-    assert e.enganchado is (id in A.ENGANCHADOS_P8 or id in A.ENGANCHADOS_P7), (
-        f"{id}: enganchado sin su paso")
+    # E8: solo los que su paso ya cablea (P4: los que el Theme de rich
+    # recolorea en caliente; P5: prompt, barra y menus por prompt_toolkit);
+    # el resto sigue en False hasta P6-P9
+    assert e.enganchado is (id in A.ENGANCHADOS), f"{id}: enganchado sin su paso"
 
 
 def test_los_contratos_del_remoto_son_los_de_D7():
@@ -735,7 +746,11 @@ def test_guardar_escribe_solo_el_diff_y_conserva_lo_desconocido(carpeta):
 def test_bak_y_deshacer_alternan(carpeta):
     A.poner("prompt.etiqueta", "texto", "uno")
     A.guardar()
-    assert not (carpeta / "estilo.json.bak").exists()
+    # P4: el primer guardado deja como .bak el documento VACIO, asi el primer
+    # cambio tambien se deshace (antes: sin .bak y deshacer() decia False)
+    assert _leer(carpeta / "estilo.json.bak") == A.DOC_VACIO
+    assert A.deshacer() is True and A.texto("prompt.etiqueta") == "cognia"
+    assert A.deshacer() is True and A.texto("prompt.etiqueta") == "uno"
     A.poner("prompt.etiqueta", "texto", "dos")
     A.guardar()
     assert (carpeta / "estilo.json.bak").exists()
@@ -1141,3 +1156,49 @@ def test_un_fichero_de_version_mas_nueva_no_se_instala(carpeta):
     A.RUTA_ESTILO.write_text(json.dumps({"version": A.VERSION_FICHERO + 1}), encoding="utf-8")
     with pytest.raises(A.EstiloInvalido, match="actualiza cognia"):
         A.cargar()
+
+
+# -- P5: los nombres ansi que emitimos EXISTEN en prompt_toolkit -----------------
+# Cazado tecleando: con /tema alto_contraste + preset barra-color, clases_pt
+# emitia 'ansibrightwhite' (mod = bold bright_white) y PTStyle.from_dict
+# lanzaba 'Wrong color format': el marco entero caia al respaldo y el preset
+# no se veia. En PT el blanco normal es 'ansigray' y el brillante 'ansiwhite'.
+
+def _nombres_ansi(d: dict) -> set:
+    import re
+    return set(re.findall(r"ansi[a-z]+", " ".join(d.values())))
+
+
+@pytest.mark.parametrize("variante", VARIANTES)
+def test_clases_pt_con_barra_color_es_un_PTStyle_valido_en_las_3_variantes(variante, carpeta):
+    from prompt_toolkit.styles import Style as PTStyle
+    from prompt_toolkit.styles.base import ANSI_COLOR_NAMES
+    A.cargar_preset("barra-color")
+    d = A.clases_pt(variante)
+    PTStyle.from_dict(d)             # lanzaba 'Wrong color format ansibrightwhite'
+    assert _nombres_ansi(d) <= set(ANSI_COLOR_NAMES), _nombres_ansi(d) - set(ANSI_COLOR_NAMES)
+    assert "estado.rama" in d and "atajos.tecla" in d
+
+
+def test_blanco_de_rich_a_prompt_toolkit_y_vuelta():
+    assert A.resolver_color("white", "oscuro") == "ansigray"
+    assert A.resolver_color("bright_white", "oscuro") == "ansiwhite"
+    assert A.color_rich("ansigray") == "white" and A.color_rich("ansiwhite") == "bright_white"
+    assert A.resolver_color("ansiwhite", "oscuro") == "ansiwhite"
+    with pytest.raises(Exception):   # rich: StyleSyntaxError; no existe en prompt_toolkit
+        A.resolver_color("ansibrightwhite", "oscuro")
+
+
+@pytest.mark.parametrize("variante", VARIANTES)
+def test_todos_los_tokens_del_tema_dan_un_style_string_valido(variante):
+    """Cada @token.<t> de la variante, puesto como color de un elemento del
+    prompt, tiene que producir un PTStyle que prompt_toolkit acepte."""
+    from prompt_toolkit.styles import Style as PTStyle
+    from prompt_toolkit.styles.base import ANSI_COLOR_NAMES
+    for tok in paleta.tema_cli(variante):
+        A.reset()
+        A.poner("prompt.etiqueta", "color", f"@token.{tok}")
+        d = A.clases_pt(variante)
+        PTStyle.from_dict(d)
+        assert _nombres_ansi(d) <= set(ANSI_COLOR_NAMES), (tok, d["cognia"])
+    A.reset()

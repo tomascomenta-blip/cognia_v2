@@ -85,11 +85,13 @@ _SANGRIA = "  "
 _PT_ANSI = {
     "black": "ansiblack", "red": "ansired", "green": "ansigreen",
     "yellow": "ansiyellow", "blue": "ansiblue", "magenta": "ansimagenta",
-    "cyan": "ansicyan", "white": "ansiwhite",
+    # el blanco normal de PT es 'ansigray' y el brillante 'ansiwhite';
+    # 'ansibrightwhite' no existe (cazado en P5 con /tema alto_contraste)
+    "cyan": "ansicyan", "white": "ansigray",
     "bright_black": "ansibrightblack", "bright_red": "ansibrightred",
     "bright_green": "ansibrightgreen", "bright_yellow": "ansibrightyellow",
     "bright_blue": "ansibrightblue", "bright_magenta": "ansibrightmagenta",
-    "bright_cyan": "ansibrightcyan", "bright_white": "ansibrightwhite",
+    "bright_cyan": "ansibrightcyan", "bright_white": "ansiwhite",
     "grey": "ansigray", "gray": "ansigray",
 }
 

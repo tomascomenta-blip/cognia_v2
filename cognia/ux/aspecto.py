@@ -522,6 +522,74 @@ for _e in _ELEMENTOS:
     GRUPOS[-1][1].append(_e.id)
 del _e
 
+# E8 (P4, 2026-08-24): los elementos cuyo COLOR/negrita/italica pinta un token
+# del Theme de rich ya cambian EN CALIENTE con /estilo (cli._aplicar_tema_en_
+# caliente reconstruye la Console con tema_rich). Para ellos enganchado=True.
+# Los que pinta prompt_toolkit (prompt.*, barra.*, menu.*: P5), los glifos y
+# textos de tools/footer/avisos (P6), el banner (P7), el spinner (P8) y la
+# animacion (P9) siguen en False hasta su paso, y /estilo lo dice al guardar.
+ENGANCHADOS_P4 = ("sistema.ok", "sistema.detalle",
+                  "aviso.degradado", "aviso.info", "aviso.error",
+                  "tool.ok", "tool.error", "tool.curso", "tool.verbo",
+                  "tool.objeto", "tool.resultado", "tool.intencion",
+                  "footer.turno", "panel.borde", "panel.titulo", "panel.cuerpo",
+                  "separador.regla", "respuesta.markdown", "pensando.prosa",
+                  "pensando.plegado")
+for _id in ENGANCHADOS_P4:
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
+del _id
+
+# P5 (2026-08-24): el prompt, la barra y los menus los pinta prompt_toolkit
+# desde clases_pt y los compositores del marco (cli._mensaje_prompt /
+# _pie_prompt / _mensaje_espera / _mensaje_continuacion), la barra desde
+# barra_estado.toolbar_partes (clases por seccion) y el selector desde
+# clases_selector(). Texto, glifo, posicion, visible, separador, color y glow
+# ESTATICO ya se ven al guardar; lo unico que espera es la animacion (pulso
+# del prompt, P9) y el glow de la barra/insignia (van con el pulso).
+ENGANCHADOS_P5 = ("prompt.marco", "prompt.etiqueta", "prompt.flecha", "prompt.texto",
+                  "prompt.continuacion", "prompt.espera", "prompt.busqueda",
+                  "prompt.seleccion", "barra.estado", "barra.estado.secciones",
+                  "barra.atajos", "barra.modo", "menu.completado", "menu.selector")
+for _id in ENGANCHADOS_P5:
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
+del _id
+# La union de los pasos ya cableados (el test de enganchado compara contra esta).
+ENGANCHADOS = ENGANCHADOS_P4 + ENGANCHADOS_P5
+
+# Paso que engancha cada grupo (para el aviso E8 de /estilo): el grupo o el id
+# no enganchado dice en que paso se aplicara lo guardado.
+PASO_ENGANCHE = {"banner": "P7", "prompt": "P5", "barra": "P5", "menu": "P5",
+                 "spinner": "P8", "tool": "P6", "respuesta": "P6", "pensando": "P6",
+                 "aviso": "P6", "footer": "P6", "panel": "P6", "diff": "P6",
+                 "separador": "P6", "sistema": "P6", "agentes": "P6"}
+# Propiedades que el Theme aplica en caliente en los ENGANCHADOS_P4: el resto
+# (texto, glifo, separador, visible, glow, animacion...) espera a su paso.
+PROPS_POR_TOKEN = ("color", "fondo", "negrita", "italica", "subrayado")
+# En los ENGANCHADOS_P5 todo se ve salvo la animacion (P9); en la barra y la
+# insignia tampoco el glow (se pinta por caracter con el pulso, P9).
+_PENDIENTES_P5 = {"animacion": "P9"}
+_PENDIENTES_P5_BARRA = {"animacion": "P9", "glow": "P9"}
+
+
+def paso_pendiente(id: str, prop: str) -> str:
+    """E8: '' si la propiedad se ve en cuanto se guarda; si no, el paso
+    ('P6'..'P9') que la aplicara. `prop` es 'color', 'glow.intensidad',
+    'animacion.activa', 'texto.titulo'... (se mira la raiz)."""
+    e = elemento(id)
+    raiz = str(prop or "").split(".")[0]
+    if not e.enganchado:
+        return PASO_ENGANCHE.get(e.grupo, "P6")
+    # P7 (banner) y P8 (spinner) cablean TODAS las props del elemento (texto,
+    # gradiente, glow, animacion, caja, alineacion, visible): nada pendiente.
+    if id in ENGANCHADOS_P7 or id in ENGANCHADOS_P8:
+        return ""
+    if id in ENGANCHADOS_P5:
+        tabla = _PENDIENTES_P5_BARRA if id in ("barra.estado", "barra.modo") else _PENDIENTES_P5
+        return tabla.get(raiz, "")
+    if raiz not in PROPS_POR_TOKEN:
+        return PASO_ENGANCHE.get(e.grupo, "P6")
+    return ""
+
 # Que tokens del Theme de rich RETINE cada elemento cuando se le cambia el
 # color/negrita/italica (tema_rich). Un token compartido (ok_cl lo usan
 # sistema.ok, tool.ok y footer.turno.ok) lo manda el PRIMERO de la lista que
@@ -726,15 +794,22 @@ def cambios(id: str) -> dict:
 # 4. Colores: referencias '@' y traduccion a hex / nombre ansi
 # ---------------------------------------------------------------------------
 # rich -> prompt_toolkit para los 16 basicos (PT no entiende 'bright_cyan').
+# OJO con el blanco (cazado en P5 tecleando con /tema alto_contraste + preset
+# barra-color): en prompt_toolkit el blanco normal (SGR 37) se llama
+# 'ansigray' y el brillante (97) 'ansiwhite'; 'ansibrightwhite' NO existe
+# (styles/base.py ANSI_COLOR_NAMES) y PTStyle.from_dict lanza 'Wrong color
+# format', con lo que el marco entero caia al respaldo.
 _ANSI_RICH_A_PT = {
     "black": "ansiblack", "red": "ansired", "green": "ansigreen", "yellow": "ansiyellow",
-    "blue": "ansiblue", "magenta": "ansimagenta", "cyan": "ansicyan", "white": "ansiwhite",
+    "blue": "ansiblue", "magenta": "ansimagenta", "cyan": "ansicyan", "white": "ansigray",
     "bright_black": "ansibrightblack", "bright_red": "ansibrightred",
     "bright_green": "ansibrightgreen", "bright_yellow": "ansibrightyellow",
     "bright_blue": "ansibrightblue", "bright_magenta": "ansibrightmagenta",
-    "bright_cyan": "ansibrightcyan", "bright_white": "ansibrightwhite",
+    "bright_cyan": "ansibrightcyan", "bright_white": "ansiwhite",
 }
 _ANSI_PT_A_RICH = {v: k for k, v in _ANSI_RICH_A_PT.items()}
+# alias que prompt_toolkit tambien entiende (ANSI_COLOR_NAMES_ALIASES)
+_ANSI_PT_A_RICH.update({"ansilightgray": "white", "ansidarkgray": "bright_black"})
 # 'dim' no existe en prompt_toolkit: mezcla del color hacia el fondo.
 MEZCLA_DIM = 0.45
 _RE_HEX = __import__("re").compile(r"^#[0-9a-fA-F]{6}$")
@@ -1177,11 +1252,48 @@ def clases_pt(variante: str | None = None) -> dict:
         modo = R("barra.modo")
         for nombre, sub in modo.estados.items():
             d[f"modo.{nombre}"] = f"noreverse bg:default {_pt(sub)}".rstrip()
+    # P5: la barra de atajos con tecla/accion propias (preset 'barra-color')
+    if tiene_override("barra.atajos"):
+        atajos = R("barra.atajos")
+        for nombre, sub in atajos.estados.items():
+            d[f"atajos.{nombre}"] = f"noreverse bg:default {_pt(sub)}".rstrip()
     coin = menu.estados["coincidencia"]
     if coin.color or coin.negrita:
         d["completion-menu.completion fuzzymatch.inside"] = _pt(coin, prefijo_fg=True)
         d["completion-menu.completion fuzzymatch.outside"] = f"fg:{menu.color}"
     return d
+
+
+# Los tres style strings crudos que ux/selector.py usaba como literales.
+CLASES_SELECTOR_DEFECTO = {"titulo": "bold", "activo": "reverse",
+                           "descripcion": "fg:ansibrightblack"}
+
+
+def clases_selector(variante: str | None = None) -> dict:
+    """P5: los style strings del selector con flechas (ux/selector.py):
+    'titulo' (menu.selector), 'activo' (fila elegida) y 'descripcion'. Sin
+    override son EXACTAMENTE los literales de siempre ('bold', 'reverse',
+    'fg:ansibrightblack'). La fila activa sigue en video inverso salvo que
+    el dueno le ponga color o fondo propios (entonces manda lo suyo)."""
+    variante = variante or variante_activa()
+    e = elemento("menu.selector")
+    est = estilo_de("menu.selector")
+    titulo = _resolver("menu.selector", est, e.default, variante)
+
+    def _sub(nombre: str) -> str:
+        # SIN padre a proposito: la negrita del titulo no baja a la fila
+        # activa ni a la descripcion (hoy son 'reverse' y 'fg:ansibrightblack'
+        # pelados; con la herencia saldrian con 'bold' de regalo).
+        sub = est.estados.get(nombre, Estilo())
+        sub_def = e.default.estados.get(nombre, Estilo())
+        return _pt(_resolver(f"menu.selector.{nombre}", sub, sub_def, variante),
+                   prefijo_fg=True)
+
+    return {
+        "titulo": _pt(titulo, prefijo_fg=True),
+        "activo": _sub("activo") or CLASES_SELECTOR_DEFECTO["activo"],
+        "descripcion": _sub("descripcion"),
+    }
 
 
 def _estilo_rich_de(r: EstiloResuelto, token_base: str | None = None) -> str:
@@ -1742,15 +1854,30 @@ def _escribir_json(ruta: Path, doc: dict) -> None:
     ruta.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+DOC_VACIO = {"version": VERSION_FICHERO, "elementos": {}}
+
+
+def _hacer_bak(ruta: Path) -> None:
+    """Copia previa al guardado. Si el fichero NO existia, el .bak es el
+    documento VACIO (= defaults): asi el PRIMER cambio de la vida del fichero
+    tambien se deshace (cazado tecleando en el REPL, P4: '/estilo deshacer'
+    decia 'no hay .bak' justo despues del primer '/estilo sistema.ok color')."""
+    bak = ruta.with_suffix(ruta.suffix + ".bak")
+    if ruta.exists():
+        shutil.copyfile(ruta, bak)
+    else:
+        _escribir_json(bak, dict(DOC_VACIO))
+
+
 def guardar(ruta=None) -> Path:
     """Escribe documento() en estilo.json (o `ruta`), con copia previa en
-    .bak si ya existia. La memoria pasa a ser la capa 'fichero' (los
-    overrides se funden). Devuelve la ruta escrita."""
+    .bak (la anterior, o el documento vacio si es la primera). La memoria
+    pasa a ser la capa 'fichero' (los overrides se funden). Devuelve la ruta
+    escrita."""
     ruta = _ruta(ruta)
     doc = documento()
     doc["$schema"] = str(RUTA_SCHEMA)
-    if ruta.exists():
-        shutil.copyfile(ruta, ruta.with_suffix(ruta.suffix + ".bak"))
+    _hacer_bak(ruta)
     _escribir_json(ruta, doc)
     if ruta == RUTA_ESTILO:
         _estado["overrides"].clear()
@@ -1813,8 +1940,7 @@ def cargar_preset(nombre_o_ruta, ruta_destino=None) -> dict:
     if errores(avisos):
         raise EstiloInvalido(origen, sorted(avisos, key=lambda a: a.nivel != "error"))
     destino = _ruta(ruta_destino)
-    if destino.exists():
-        shutil.copyfile(destino, destino.with_suffix(destino.suffix + ".bak"))
+    _hacer_bak(destino)
     doc.setdefault("nombre", origen.stem)
     doc["$schema"] = str(RUTA_SCHEMA)
     _escribir_json(destino, doc)
@@ -2123,51 +2249,102 @@ def paleta_local() -> dict:
     return dict(_estado["paleta_local"])
 
 
+# 12b. P4: lo que el CLI necesita para conectar el motor y para /estilo ver
+# ---------------------------------------------------------------------------
+FPS_DEFECTO = 12
+
+
+def fps() -> int:
+    """global.fps del fichero cargado (validado 1..30); 12 si no se declaro."""
+    try:
+        v = (_estado["doc"].get("global") or {}).get("fps")
+        return int(v) if isinstance(v, int) and not isinstance(v, bool) else FPS_DEFECTO
+    except Exception:
+        return FPS_DEFECTO
+
+
+def global_doc() -> dict:
+    """La seccion 'global' del fichero cargado (fps, respuesta_sangria, glifos)."""
+    return dict(_estado["doc"].get("global") or {})
+
+
+def capas(id: str) -> tuple:
+    """(cambios del fichero, cambios en memoria) de un id: las dos capas que
+    _cambios_de fusiona, separadas para poder decir el ORIGEN de cada valor."""
+    elemento(id)
+    doc = (_estado["doc"].get("elementos") or {}).get(id) or {}
+    mem = _estado["overrides"].get(id) or {}
+    return dict(doc), dict(mem)
+
+
+def origen(id: str, campo: str) -> str:
+    """'memoria' | 'estilo.json' | 'default' para un campo de primer nivel
+    ('color', 'glow', 'animacion', 'estados'...) de un elemento."""
+    doc, mem = capas(id)
+    if campo in mem:
+        return "memoria"
+    if campo in doc:
+        return "estilo.json"
+    return "default"
+
+
 def estilo_glow(id: str, variante: str | None = None, estado: str | None = None):
-    """EstiloResuelto -> glow.EstiloGlow (el tipo del motor). Es el callable
-    que va en glow.RESOLVER. Byte-identico: si el elemento no tiene override
-    de color/negrita/italica/subrayado, el motor recibe SOLO el token del
-    Theme (color '' y modificadores False) y devuelve el token tal cual; con
-    override recibe el color resuelto (hex o nombre de rich)."""
+    """Adaptador para glow.RESOLVER (desviacion 1 del agente de glow): un
+    EstiloResuelto traducido al EstiloGlow del motor. `estado` elige un
+    sub-estado resuelto (activo/meta/h1...); desconocido -> KeyError ruidoso
+    (glow lo avisa por _aviso_degradado('glow', ...) y pinta neutro).
+    Colores: los nombres ansi de prompt_toolkit pasan al vocabulario de rich
+    y '' (terminal) queda '' (EstiloGlow no acepta 'default')."""
     from . import glow as _glow
     r = estilo_resuelto(id, variante)
-    e = elemento(id)
-    est = estilo_de(id)
-    default = e.default
+    c = _cambios_de(id)
     if estado:
         if estado not in r.estados:
             raise KeyError(f"'{id}' no tiene el estado '{estado}'; tiene: "
-                           f"{', '.join(e.estados) or 'ninguno'}")
+                           f"{', '.join(r.estados) or 'ninguno'}")
         r = r.estados[estado]
-        est = est.estados.get(estado, Estilo())
-        default = default.estados.get(estado, Estilo())
-    tocado = any(getattr(est, c) != getattr(default, c)
-                 for c in ("color", "fondo", "negrita", "italica", "subrayado"))
+        c = (c.get("estados") or {}).get(estado) or {}
+
+    def _c(v: str) -> str:
+        if not v:
+            return ""
+        v = color_rich(v)
+        return "" if v == "default" else v
+
+    a = r.animacion or Animacion()
+    # Byte-identico: con token del Theme y sin override de color/modificador,
+    # ni glow ni animacion, el motor tiene que recibir SOLO el token (asi
+    # devuelve 'ok_cl' tal cual y rich lo pinta como hoy). El color resuelto
+    # solo viaja cuando hace falta mezclar o el dueno lo cambio.
+    tocado = (any(k in c for k in PROPS_POR_TOKEN) or int(r.glow_intensidad or 0) > 0
+              or bool(a.activa))
     if r.token and not tocado:
-        color, fondo, negrita, italica, subrayado = "", "", False, False, False
-    else:
-        color = color_rich(r.color) if r.color else ""
-        fondo = color_rich(r.fondo) if r.fondo else ""
-        negrita, italica, subrayado = r.negrita, r.italica, r.subrayado
-    a = r.animacion
+        return _glow.EstiloGlow(token=r.token, glow_color=r.glow_color or "",
+                                gradiente=tuple(r.gradiente) if r.gradiente else None)
     return _glow.EstiloGlow(
-        token=r.token, color=color, fondo=fondo, negrita=negrita, italica=italica,
-        subrayado=subrayado, glow_color=r.glow_color, glow_intensidad=r.glow_intensidad,
-        anim_activa=a.activa, anim_tipo=a.tipo, anim_direccion=a.direccion,
-        anim_velocidad=a.velocidad, anim_ancho=a.ancho, anim_repetir=a.repetir,
-        anim_cada_s=a.cada_s, anim_solo_al_llegar=a.solo_al_llegar, gradiente=r.gradiente)
+        token=r.token or "",
+        color=_c(r.color), fondo=_c(r.fondo),
+        negrita=bool(r.negrita), italica=bool(r.italica), subrayado=bool(r.subrayado),
+        glow_color=r.glow_color or "", glow_intensidad=int(r.glow_intensidad or 0),
+        anim_activa=bool(a.activa), anim_tipo=a.tipo, anim_direccion=a.direccion,
+        anim_velocidad=int(a.velocidad), anim_ancho=int(a.ancho),
+        anim_repetir=int(a.repetir), anim_cada_s=float(a.cada_s),
+        anim_solo_al_llegar=bool(a.solo_al_llegar),
+        gradiente=tuple(r.gradiente) if r.gradiente else None)
 
 
-def conectar_glow() -> None:
-    """Cuelga este registro del motor (glow.RESOLVER/VERSION/VARIANTE) si
-    nadie lo hizo antes. Idempotente: el editor y P4 lo llaman."""
+def conectar_glow(leer_config=None) -> None:
+    """Cuelga este registro del motor (glow.RESOLVER/VERSION/VARIANTE/
+    LEER_CONFIG y FPS). Idempotente; lo llama el CLI al arrancar el REPL y
+    tras cada carga (el fps puede haber cambiado)."""
     from . import glow as _glow
-    if _glow.RESOLVER is None:
-        _glow.RESOLVER = estilo_glow
-    if _glow.VERSION is None:
-        _glow.VERSION = version
-    if _glow.VARIANTE is None:
-        _glow.VARIANTE = variante_activa
+    _glow.RESOLVER = estilo_glow
+    _glow.VERSION = version
+    _glow.VARIANTE = variante_activa
+    if leer_config is not None:
+        _glow.LEER_CONFIG = leer_config
+    _glow.FPS = fps()
+    _glow.vaciar_memo()
 
 
 # ---------------------------------------------------------------------------
@@ -2196,3 +2373,8 @@ ENGANCHADOS_P7 = ("banner.arte", "banner.marco", "banner.guia", "banner.linea_mo
 for _id in ENGANCHADOS_P7:
     REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
 del _id
+
+
+# Union de todos los pasos que ya cablean (P4, P5, P7, P8): es lo que
+# test_cada_id_tiene_capacidades_coherentes compara contra REGISTRO.
+ENGANCHADOS = tuple(ENGANCHADOS) + ENGANCHADOS_P7 + ENGANCHADOS_P8

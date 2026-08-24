@@ -183,3 +183,61 @@ def test_confirmar_sin_tty_cae_a_texto(monkeypatch):
     import builtins
     monkeypatch.setattr(builtins, "input", _fn(["s"]))
     assert selector.confirmar("Ejecutar?") is True
+
+
+# ── P5: puntero y clases desde el registro de estilos (menu.selector) ────────
+# Sin override, EXACTAMENTE los literales que este modulo llevaba a mano
+# ('❯', 'bold', 'reverse', 'fg:ansibrightblack'); con /estilo menu.selector
+# cambian; si el registro falla, los literales y un aviso (nunca silencio).
+
+def test_puntero_y_clases_por_defecto_son_los_literales_de_siempre():
+    assert selector._puntero() == "❯"
+    assert selector._clases() == {"titulo": "bold", "activo": "reverse",
+                                  "descripcion": "fg:ansibrightblack"}
+    assert selector._CLASES_DEFECTO == selector._clases()
+
+
+def test_override_del_registro_cambia_puntero_y_clases(tmp_path, monkeypatch):
+    from cognia.ux import aspecto as A
+    monkeypatch.setattr(A, "RUTA_ESTILO", tmp_path / "estilo.json")
+    monkeypatch.delenv("COGNIA_ASCII", raising=False)
+    A.reset()
+    try:
+        A.poner("menu.selector", "glifo", ">>")
+        A.poner("menu.selector", "estados.activo.fondo", "#004466")
+        A.poner("menu.selector", "estados.descripcion.color", "#ff00ff")
+        A.poner("menu.selector", "negrita", False)
+        assert selector._puntero() == ">>"
+        assert selector._clases() == {"titulo": "", "activo": "bg:#004466",
+                                      "descripcion": "fg:#ff00ff"}
+    finally:
+        A.reset()
+    assert selector._puntero() == "❯"
+
+
+def test_puntero_cae_a_ascii_si_stdout_no_lo_codifica(monkeypatch):
+    class _Cp1252:
+        encoding = "cp1252"
+
+        def isatty(self):
+            return False
+    monkeypatch.setattr(sys, "stdout", _Cp1252())
+    monkeypatch.delenv("COGNIA_ASCII", raising=False)
+    assert selector._puntero() == ">"
+
+
+def test_si_el_registro_falla_caen_los_literales_y_se_avisa(monkeypatch):
+    from cognia.ux import aspecto as A
+    avisos = []
+    cli = sys.modules.get("cognia.cli")
+    if cli is not None:
+        monkeypatch.setattr(cli, "_aviso_degradado", lambda via, det="": avisos.append((via, det)))
+
+    def _rota(*a, **k):
+        raise RuntimeError("registro roto")
+    monkeypatch.setattr(A, "clases_selector", _rota)
+    monkeypatch.setattr(A, "glifo", _rota)
+    assert selector._clases() == selector._CLASES_DEFECTO
+    assert selector._puntero() == "❯"
+    if cli is not None:
+        assert len(avisos) == 2 and all(v == "selector" and "registro roto" in d for v, d in avisos)

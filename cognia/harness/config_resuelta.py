@@ -80,6 +80,10 @@ ENV_QUE_PISAN: dict = {
     "horizonte":               ("COGNIA_HORIZONTE",),
     "horizonte_max_rondas":    ("COGNIA_HORIZONTE_CICLOS",),
     "horizonte_handoff_max":   ("COGNIA_HORIZONTE_HANDOFF_MAX",),
+    # Estilos por elemento (2026-08-24): interruptor global de la animacion
+    # (/estilo animacion on|off); ux/glow.capacidades la lee a call-time y
+    # COGNIA_ANIMACION=0 (o =1) la pisa sin siembra.
+    "estilo_animacion":        ("COGNIA_ANIMACION",),
 }
 
 # Nombres que huelen a credencial: se enmascaran SIEMPRE en cualquier render.

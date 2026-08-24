@@ -71,14 +71,68 @@ def hay_tty() -> bool:
     return True
 
 
+_AVISOS_STDERR: set = set()
+
+
+def _avisar(motivo: str) -> None:
+    """Degradacion VISIBLE por _aviso_degradado('selector', motivo) del CLI;
+    sin cli cargado (tests, scripts) sale por stderr una vez por motivo.
+    Jamas se calla (regla del repo): que el selector caiga a sus literales
+    de siempre no puede verse igual que "el registro no existe"."""
+    try:
+        _cli = sys.modules.get("cognia.cli")
+        if _cli is not None:
+            _cli._aviso_degradado("selector", motivo)
+            return
+    except Exception:
+        pass
+    if motivo in _AVISOS_STDERR:
+        return
+    _AVISOS_STDERR.add(motivo)
+    try:
+        print(f"  degradado — selector: {motivo}", file=sys.stderr)
+    except Exception:
+        pass
+
+
 def _puntero() -> str:
-    """'>' si stdout no codifica el puntero Unicode (cp1252 mordio antes)."""
+    """El glifo de la fila activa: 'menu.selector' del registro de estilos
+    (P5; /estilo menu.selector glifo >), que ya cae a '>' si stdout no
+    codifica el Unicode (cp1252 mordio antes). Si el registro falla, el
+    literal de siempre con la misma prueba de encoding, y se avisa."""
+    try:
+        from cognia.ux import aspecto as _A
+        return _A.glifo("menu.selector") or ">"
+    except Exception as exc:
+        _avisar(f"puntero desde aspecto fallo: {type(exc).__name__}: {exc}")
     enc = getattr(sys.stdout, "encoding", "") or "utf-8"
     try:
         "❯".encode(enc)   # ❯
         return "❯"
     except Exception:
         return ">"
+
+
+# Los style strings crudos que este modulo usaba como literales (titulo en
+# negrita, fila activa en video inverso, descripcion tenue en ANSI de 16
+# colores para adaptarse al tema del terminal). Son el respaldo si el
+# registro no responde; con el registro sin override son IDENTICOS.
+_CLASES_DEFECTO = {"titulo": "bold", "activo": "reverse",
+                   "descripcion": "fg:ansibrightblack"}
+
+
+def _clases() -> dict:
+    """{'titulo', 'activo', 'descripcion'} -> style string de prompt_toolkit,
+    desde 'menu.selector' del registro (P5). Se lee UNA vez al abrir cada
+    selector: el menu vive medio segundo, no necesita hot reload."""
+    try:
+        from cognia.ux import aspecto as _A
+        c = dict(_CLASES_DEFECTO)
+        c.update(_A.clases_selector())
+        return c
+    except Exception as exc:
+        _avisar(f"clases desde aspecto fallaron: {type(exc).__name__}: {exc}")
+        return dict(_CLASES_DEFECTO)
 
 
 # ---------------------------------------------------------------------------
@@ -158,18 +212,19 @@ def _elegir_flechas(titulo, opciones, default):
 
     idx = [default]
     puntero = _puntero()
+    clases = _clases()
 
     def _fragmentos():
-        frags = [("bold", titulo + "\n")]
+        frags = [(clases["titulo"], titulo + "\n")]
         for i, (_valor, etiqueta, desc) in enumerate(opciones):
             if i == idx[0]:
-                frags.append(("reverse", f" {puntero} {etiqueta} "))
+                frags.append((clases["activo"], f" {puntero} {etiqueta} "))
             else:
                 frags.append(("", f"   {etiqueta} "))
             if desc:
-                # ansibrightblack ~ 'dim': se adapta al tema del terminal
-                # (16 colores ANSI, nunca hex fijo)
-                frags.append(("fg:ansibrightblack", f"  {desc}"))
+                # por defecto ansibrightblack ~ 'dim': se adapta al tema del
+                # terminal (16 colores ANSI, nunca hex fijo)
+                frags.append((clases["descripcion"], f"  {desc}"))
             frags.append(("", "\n"))
         return frags
 
@@ -252,11 +307,12 @@ def _confirmar_flechas(pregunta, default) -> bool:
     from prompt_toolkit.layout.controls import FormattedTextControl
 
     sel = [0 if default else 1]   # 0 = Si, 1 = No
+    clases = _clases()
 
     def _fragmentos():
-        frags = [("bold", pregunta + "  ")]
+        frags = [(clases["titulo"], pregunta + "  ")]
         for i, texto in enumerate(("Si", "No")):
-            frags.append(("reverse" if i == sel[0] else "", f" [{texto}] "))
+            frags.append((clases["activo"] if i == sel[0] else "", f" [{texto}] "))
             frags.append(("", " "))
         return frags
 
