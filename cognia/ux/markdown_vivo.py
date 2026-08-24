@@ -33,10 +33,14 @@ MECANISMO (la maquina de Aider + el reloj de CodeWhale, leidos de sus fuentes):
   su cabeza aunque pueda reflowear: mejor un ancho distinto que N copias.
 
 POR QUE cursor-up ANSI y no rich Live para la cola:
-- rich permite UN solo Live por Console y console.status (el spinner vivo del
-  renderer) ya ocupa ese slot: un Live anidado levanta LiveError si el spinner
-  pisa la llegada del primer token (carrera real: _parar_status corre dentro
-  del handler, en el hilo del emisor).
+- rich reserva UN slot de Live por Console y console.status (el spinner vivo
+  del renderer) ya lo ocupa. Con rich <= 13 un Live anidado levantaba
+  LiveError si el spinner pisaba la llegada del primer token (carrera real:
+  _parar_status corre dentro del handler, en el hilo del emisor); rich 15
+  APILA la Live anidada en vez de lanzar (medido 2026-08-24, P8), pero dos
+  Lives apiladas siguen siendo dos escritores sobre la misma zona. El
+  spinner animado de P8 (glow.LineaViva) va DENTRO del status, no en otra
+  Live; y esta cola sigue por cursor-up.
 - prompt_toolkit solo es dueno de la terminal MIENTRAS pide input; durante el
   streaming no hay prompt activo y los escapes crudos no chocan con nada.
 - el repintado por escapes se captura tal cual en un StringIO: la estabilidad

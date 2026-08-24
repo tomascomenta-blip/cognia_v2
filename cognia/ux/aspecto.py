@@ -2168,3 +2168,16 @@ def conectar_glow() -> None:
         _glow.VERSION = version
     if _glow.VARIANTE is None:
         _glow.VARIANTE = variante_activa
+
+
+# ---------------------------------------------------------------------------
+# 13. P8 (spinner, 2026-08-24): elementos ENGANCHADOS por renderer/spinner_vivo
+# ---------------------------------------------------------------------------
+# E8: el renderer (_arrancar_status/_tick_spinner) y spinner_vivo leen estos
+# ids a call-time: glifo, textos (hint/tok/pensando/spinner_rich), separador,
+# color por token y animacion (glow.LineaViva dentro del console.status).
+# spinner.comando queda en False hasta que cli.py use spinner_vivo.comando().
+ENGANCHADOS_P8 = ("spinner.tool", "spinner.pensar")
+for _id in ENGANCHADOS_P8:
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
+del _id

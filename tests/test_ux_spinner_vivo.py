@@ -247,3 +247,142 @@ def test_spinner_info_off_no_levanta_ticker(monkeypatch):
         assert r._ticker is None             # la linea viva no
     finally:
         r._parar_status()
+
+
+# ---------------------------------------------------------------------------
+# P8: aspecto por elemento (spinner.tool / spinner.pensar / spinner.comando)
+# ---------------------------------------------------------------------------
+
+from cognia.ux import aspecto as A, glow   # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _aspecto_y_motor_limpios(monkeypatch):
+    """Sin overrides, sin capacidades forzadas, sin env de animacion: cada
+    test decide lo que enciende (y lo deja apagado al salir)."""
+    for k in ("COGNIA_ANIMACION", "COGNIA_ASCII", "COGNIA_REMOTO", "COGNIA_THEME"):
+        monkeypatch.delenv(k, raising=False)
+    A.reset()
+    glow.forzar_capacidades(None)
+    glow.vaciar_memo()
+    yield
+    A.reset()
+    glow.forzar_capacidades(None)
+    glow.vaciar_memo()
+
+
+def _poner(id, prop, valor):
+    avisos = A.poner(id, prop, valor)
+    assert not A.errores(avisos), avisos
+
+
+def test_componer_linea_sep_y_tok_editables():
+    linea = spinner_vivo.componer_linea("Maullando ideas", 12, tokens=340,
+                                        sep=" | ", tok="tokens", ancho=100)
+    assert linea == "Maullando ideas… (12s | ~340 tokens | ctrl+c corta)"
+    # None = los literales de hoy (byte-identico con el golden 'spinner')
+    assert spinner_vivo.componer_linea("Maullando ideas", 12, tokens=340, sep=None, tok=None) \
+        == "Maullando ideas… (12s · ~340 tok · ctrl+c corta)"
+
+
+def test_aspecto_spinner_defaults_son_los_literales_de_hoy():
+    for id in ("spinner.tool", "spinner.pensar"):
+        asp = spinner_vivo.aspecto_spinner(id)
+        assert asp.id == id
+        assert (asp.marca, asp.spinner_rich, asp.hint, asp.tok, asp.sep) == \
+            ("·", "dots", spinner_vivo.HINT_CORTE, "tok", " · ")
+        assert asp.animar is False
+    assert spinner_vivo.aspecto_spinner("spinner.pensar").pensando == "pensando…"
+    # y linea_estado con id da EXACTAMENTE lo mismo que sin id
+    con = spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 12.0, 1360, ancho=94,
+                                    id="spinner.tool")
+    sin = spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 12.0, 1360, ancho=94)
+    assert con == sin == "Leyendo motor.py… (12s · ~340 tok · ctrl+c corta)"
+
+
+def test_aspecto_spinner_lee_los_overrides_del_registro():
+    _poner("spinner.tool", "texto.hint", "esc corta")
+    _poner("spinner.tool", "texto.tok", "tokens")
+    _poner("spinner.tool", "separador", " | ")
+    _poner("spinner.tool", "texto.spinner_rich", "line")
+    _poner("spinner.pensar", "texto.pensando", "cavilando…")
+    asp = spinner_vivo.aspecto_spinner("spinner.tool")
+    assert (asp.hint, asp.tok, asp.sep, asp.spinner_rich) == ("esc corta", "tokens", " | ", "line")
+    linea = spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 12.0, 1360, ancho=94,
+                                      id="spinner.tool")
+    assert linea == "Leyendo motor.py… (12s | ~340 tokens | esc corta)"
+    assert spinner_vivo.aspecto_spinner("spinner.pensar").pensando == "cavilando…"
+    # el override NO se filtra al otro elemento
+    assert spinner_vivo.aspecto_spinner("spinner.pensar").hint == spinner_vivo.HINT_CORTE
+
+
+def _cli_con_avisos(monkeypatch):
+    avisos = []
+    mod = types.SimpleNamespace(_load_config=lambda: {},
+                                _aviso_degradado=lambda donde, motivo: avisos.append((donde, motivo)))
+    monkeypatch.setitem(sys.modules, "cognia.cli", mod)
+    return avisos
+
+
+def test_spinner_rich_desconocido_avisa_y_cae_a_dots(monkeypatch):
+    avisos = _cli_con_avisos(monkeypatch)
+    _poner("spinner.tool", "texto.spinner_rich", "noexiste")
+    asp = spinner_vivo.aspecto_spinner("spinner.tool")
+    assert asp.spinner_rich == "dots"
+    assert avisos and avisos[-1][0] == "spinner" and "noexiste" in avisos[-1][1]
+
+
+def test_id_que_no_es_spinner_avisa_y_usa_tool(monkeypatch):
+    avisos = _cli_con_avisos(monkeypatch)
+    assert spinner_vivo.aspecto_spinner("prompt.etiqueta").id == "spinner.tool"
+    assert avisos and "prompt.etiqueta" in avisos[-1][1]
+
+
+def test_animar_exige_animacion_del_elemento_Y_capacidades():
+    glow.forzar_capacidades(glow.Caps("truecolor", True, ""))
+    assert spinner_vivo.aspecto_spinner("spinner.pensar").animar is False   # elemento apagado
+    _poner("spinner.pensar", "animacion.activa", "on")
+    assert spinner_vivo.aspecto_spinner("spinner.pensar").animar is True
+    assert spinner_vivo.aspecto_spinner("spinner.tool").animar is False     # solo pensar
+    glow.forzar_capacidades(glow.Caps("truecolor", False, "sin tty"))
+    assert spinner_vivo.aspecto_spinner("spinner.pensar").animar is False   # sin tty: no
+
+
+def test_animacion_global_apagada_gana_al_elemento(monkeypatch):
+    _poner("spinner.pensar", "animacion.activa", "on")
+    monkeypatch.setenv("COGNIA_ANIMACION", "0")
+    glow.forzar_capacidades(None)
+    assert spinner_vivo.aspecto_spinner("spinner.pensar").animar is False
+
+
+def test_estilo_spinner_pone_el_color_base_solo_cuando_anima():
+    # sin animacion: color '' -> el motor devuelve el TOKEN (byte-identico)
+    e = spinner_vivo.estilo_spinner("spinner.pensar")
+    assert e.token == "pensar" and e.color == "" and not e.anim_activa
+    assert glow.estilo_rich(e) == "pensar"
+    # con animacion: hace falta un color base que mezclar (sin el, el
+    # barrido salia como bold/dim sin color: 0 escapes 38;2; en la captura)
+    _poner("spinner.pensar", "animacion.activa", "on")
+    e = spinner_vivo.estilo_spinner("spinner.pensar")
+    assert e.anim_activa and e.color == A.color_rich(A.estilo_resuelto("spinner.pensar").color)
+    assert e.color.startswith("#")
+    glow.forzar_capacidades(glow.Caps("truecolor", True, ""))
+    a = glow.estilizar(e, "· pensando…", t=0.5)
+    b = glow.estilizar(e, "· pensando…", t=0.8)
+    assert a.spans != b.spans and len(a.spans) > 1
+
+
+def test_comando_default_byte_identico_y_override():
+    assert spinner_vivo.comando("procesando") == ("[spinner]Procesando...[/spinner]", "dots")
+    assert spinner_vivo.comando("mejorando") == ("[spinner]Mejorando el prompt...[/spinner]", "dots")
+    _poner("spinner.comando", "texto.procesando", "Rumiando...")
+    _poner("spinner.comando", "glifo", "arc")
+    assert spinner_vivo.comando("procesando") == ("[spinner]Rumiando...[/spinner]", "arc")
+
+
+def test_spinner_tool_y_pensar_quedan_enganchados_en_el_registro():
+    # E8: /estilo no dice "se aplica en la proxima version" para estos
+    assert A.elemento("spinner.tool").enganchado is True
+    assert A.elemento("spinner.pensar").enganchado is True
+    # spinner.comando espera al gancho de cli.py (spinner_vivo.comando)
+    assert A.elemento("spinner.comando").enganchado is False

@@ -971,6 +971,14 @@ class LineaViva(_Text):
         self._refrescar()
         return self._length
 
+    def __rich_console__(self, console, options):
+        # console.print(lv) directo (demos, frame final): Text lee _text/_spans
+        # antes de tocar plain/len, asi que el frame se refresca AQUI primero.
+        # Dentro del status no hace falta: Spinner.render -> Text.assemble ->
+        # append() pasa por len() y plain (medido, P8).
+        self._refrescar()
+        return _Text.__rich_console__(self, console, options)
+
     @property
     def plain(self) -> str:
         self._refrescar()
@@ -984,6 +992,24 @@ class LineaViva(_Text):
         """El frame estatico (glow fijo) para dejar al parar el status."""
         return frame_estatico(self._lv_id, f"{self._lv_marca} {self._lv_texto}",
                               variante=self._lv_variante, ancho=self._lv_ancho)
+
+    def congelar(self) -> None:
+        """Deja de animar PARA SIEMPRE y carga el frame estatico (regla 4:
+        toda animacion termina en frame_estatico). Lo llama el renderer al
+        parar el status: si la Live refresca una ultima vez tras stop(), o
+        alguien conserva la referencia, ya no hay barrido a medio recorrido."""
+        with self._lv_lock:
+            self._lv_animar = False
+            try:
+                frame = frame_estatico(self._lv_id, f"{self._lv_marca} {self._lv_texto}",
+                                       variante=self._lv_variante, ancho=self._lv_ancho)
+            except Exception as exc:
+                _avisar(f"linea viva: frame final: {type(exc).__name__}: {exc}; markup plano")
+                frame = _Text.from_markup(
+                    f"[{self._lv_token}]{self._lv_marca} {self._lv_texto}[/{self._lv_token}]")
+            self._lv_cuadro = -1
+            self._cargar(frame)
+            self.frames += 1
 
 
 # ---------------------------------------------------------------------------

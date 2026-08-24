@@ -242,7 +242,9 @@ def test_cada_id_tiene_capacidades_coherentes(id):
     # sub-estados: los del default estan declarados
     assert set(d.estados) <= set(e.estados), f"{id}: sub-estados sin declarar"
     assert e.nombre and e.grupo
-    assert e.enganchado is False, "E8: nada esta enganchado hasta su paso"
+    # E8: solo los que su paso ya cablea (P8: spinner.tool y spinner.pensar,
+    # que renderer/spinner_vivo leen a call-time); el resto sigue en False
+    assert e.enganchado is (id in A.ENGANCHADOS_P8), f"{id}: enganchado sin su paso"
 
 
 def test_los_contratos_del_remoto_son_los_de_D7():

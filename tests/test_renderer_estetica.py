@@ -600,3 +600,244 @@ def test_el_flujo_no_revienta_con_una_consola_sin_el_tema():
     respuesta("y una respuesta entera", console=pelada)
     salida = buf.getvalue()
     assert "texto sin tema" in salida and "y una respuesta entera" in salida
+
+
+# ---------------------------------------------------------------------------
+# 6) P8: spinner ANIMADO por elemento (glow.LineaViva dentro del status)
+# ---------------------------------------------------------------------------
+# Sin animacion el status recibe el MISMO markup de hoy (string + 'dots');
+# con animacion (elemento + capacidades) el renderable es una LineaViva
+# dentro del UNICO status, el refresh sube al fps del motor, el texto pintado
+# cambia entre dos cuadros del reloj y vuelve estatico al parar. Sin tty:
+# frame estatico (camino clasico). Ninguna Live nueva, ni con el markdown
+# vivo corriendo.
+
+from cognia.ux import aspecto as _A, glow as _G   # noqa: E402
+
+
+def _limpiar_caches_de_style():
+    """rich cachea en cada Style su _ansi con el PRIMER color_system que lo
+    renderizo, y Style.parse/__add__ estan lru-cacheados: un Console fresco
+    bajo pytest en Windows sale a 16 colores (sin handle de consola) y deja
+    'bold #7ee62a' cacheado como '1;92' para el golden truecolor que corra
+    despues en el MISMO proceso (cazado: tokens_oscuro/banner rojos solo en
+    la bateria combinada). Vaciar los lru de Style da objetos frescos."""
+    from rich.style import Style
+    for v in list(vars(Style).values()):
+        f = getattr(v, "cache_clear", None) or getattr(getattr(v, "__func__", None), "cache_clear", None)
+        if callable(f):
+            f()
+
+
+@pytest.fixture(autouse=True)
+def _aspecto_y_motor_limpios(monkeypatch):
+    for k in ("COGNIA_ANIMACION", "COGNIA_ASCII", "COGNIA_MARKDOWN"):
+        monkeypatch.delenv(k, raising=False)
+    _A.reset()
+    _G.forzar_capacidades(None)
+    _G.vaciar_memo()
+    yield
+    _A.reset()
+    _G.forzar_capacidades(None)
+    _G.vaciar_memo()
+    _limpiar_caches_de_style()
+
+
+def _anim_on(id="spinner.pensar"):
+    avisos = _A.poner(id, "animacion.activa", "on")
+    assert not _A.errores(avisos), avisos
+
+
+def _con_ts(ev, ts: float):
+    """ts es init=False en Evento (frozen): se fija a mano para el test."""
+    object.__setattr__(ev, "ts", ts)
+    return ev
+
+
+def _reloj_fijo(monkeypatch):
+    t = [0.0]
+    monkeypatch.setattr(_G.RELOJ, "ahora", lambda: t[0])
+    return t
+
+
+def _consola_truecolor():
+    from rich.console import Console
+    from rich.theme import Theme
+    from cognia.ux import paleta
+    buf = io.StringIO()
+    return Console(file=buf, force_terminal=True, color_system="truecolor",
+                   legacy_windows=False, width=80,
+                   theme=Theme(paleta.tema_cli("oscuro"))), buf
+
+
+def _pintar(renderable) -> str:
+    c, buf = _consola_truecolor()
+    c.print(renderable)
+    return buf.getvalue()
+
+
+def _contar_lives(monkeypatch):
+    """Cuenta Lives abiertas (start) y el maximo simultaneo (start - stop)."""
+    from rich import live as rich_live
+    cuenta = {"abiertas": 0, "vivas": 0, "max": 0}
+    start, stop = rich_live.Live.start, rich_live.Live.stop
+
+    def _start(self, *a, **k):
+        cuenta["abiertas"] += 1
+        cuenta["vivas"] += 1
+        cuenta["max"] = max(cuenta["max"], cuenta["vivas"])
+        return start(self, *a, **k)
+
+    def _stop(self, *a, **k):
+        cuenta["vivas"] -= 1
+        return stop(self, *a, **k)
+    monkeypatch.setattr(rich_live.Live, "start", _start)
+    monkeypatch.setattr(rich_live.Live, "stop", _stop)
+    return cuenta
+
+
+def test_status_sin_animacion_recibe_el_mismo_markup_de_hoy():
+    con = _ConsolaFalsa()
+    r = Renderer(console=con)
+    r(events.ToolInicio(tool="leer_archivo", args="motor.py", paso=1))
+    assert con.statuses[-1].texto == "[spinner]· Leyendo motor.py…[/spinner]"
+    assert con.statuses[-1].spinner == "dots"
+    r(events.RazonamientoTick(chars=10, fragmento="a"))
+    assert con.statuses[-1].texto == "[pensar]· pensando…[/pensar]"
+    assert r._linea_viva is None
+    r._parar_status()
+
+
+def test_animacion_del_elemento_sin_capacidad_sigue_por_el_camino_clasico():
+    # elemento encendido pero la terminal no puede (sin tty): string de hoy,
+    # ninguna LineaViva, ningun refresh nuevo (= frame estatico)
+    _anim_on()
+    _G.forzar_capacidades(_G.Caps("truecolor", False, "sin tty"))
+    con = _ConsolaFalsa()
+    r = Renderer(console=con)
+    r(events.RazonamientoTick(chars=10, fragmento="a"))
+    assert con.statuses[-1].texto == "[pensar]· pensando…[/pensar]"
+    assert isinstance(con.statuses[-1].texto, str) and r._linea_viva is None
+    r._parar_status()
+
+
+def test_status_animado_usa_linea_viva_y_cambia_entre_cuadros(monkeypatch):
+    _anim_on()
+    _G.forzar_capacidades(_G.Caps("truecolor", True, ""))
+    t = _reloj_fijo(monkeypatch)
+    lives = _contar_lives(monkeypatch)
+    con, _ = _consola_truecolor()
+    r = Renderer(console=con)
+    r(events.RazonamientoTick(chars=10, fragmento="a"))
+    try:
+        lv = r._linea_viva
+        assert isinstance(lv, _G.LineaViva) and lv.animar
+        # el renderable del UNICO status (la Live de rich) es el spinner + lv
+        assert r._status.status is lv
+        assert r._status._live.refresh_per_second == lv.fps == _G.FPS
+        f0 = _pintar(r._status.renderable)
+        t[0] = 0.5
+        f1 = _pintar(r._status.renderable)
+        t[0] = 0.8
+        f2 = _pintar(r._status.renderable)
+        assert f0 != f1 != f2, "el barrido tiene que moverse entre cuadros"
+        assert all("38;2;" in f for f in (f0, f1, f2))
+        assert "pensando…" in lv.plain
+        # el ticker de 1 s: lv.set(texto), sin update() del status
+        assert r._tick_spinner() is True
+        assert "ctrl+c corta" in lv.plain and lv.plain.startswith("· ")
+    finally:
+        r._parar_status()
+    # parar = congelar: frame estatico, identico en dos cuadros distintos
+    assert lv.animar is False and r._linea_viva is None
+    t[0] = 1.3
+    q1 = _pintar(lv)
+    t[0] = 1.9
+    q2 = _pintar(lv)
+    assert q1 == q2 and "38;2;" in q1
+    assert lives["abiertas"] == 1 and lives["max"] == 1
+
+
+def test_status_clasico_conserva_el_refresh_por_defecto_de_rich():
+    # sin animacion no se toca refresh_per_second (12,5 de rich): el CPU del
+    # spinner de hoy no cambia
+    _G.forzar_capacidades(_G.Caps("truecolor", True, ""))
+    con, _ = _consola_truecolor()
+    r = Renderer(console=con)
+    r(events.ToolInicio(tool="leer_archivo", args="motor.py", paso=1))
+    try:
+        assert r._linea_viva is None
+        assert r._status._live.refresh_per_second == 12.5
+        assert r._status.status == "[spinner]· Leyendo motor.py…[/spinner]"
+    finally:
+        r._parar_status()
+
+
+def test_tool_animada_conserva_la_etiqueta_y_la_marca_del_registro(monkeypatch):
+    _anim_on("spinner.tool")
+    avisos = _A.poner("spinner.tool", "glifo", "»")
+    assert not _A.errores(avisos), avisos
+    _G.forzar_capacidades(_G.Caps("truecolor", True, ""))
+    _reloj_fijo(monkeypatch)
+    con, _ = _consola_truecolor()
+    r = Renderer(console=con)
+    r(events.ToolInicio(tool="leer_archivo", args="motor.py", paso=1))
+    try:
+        lv = r._linea_viva
+        assert lv is not None and lv.plain == "» Leyendo motor.py…"
+        assert r._tick_spinner() is True
+        assert lv.plain.startswith("» Leyendo motor.py… (") and "tok" not in lv.plain
+    finally:
+        r._parar_status()
+
+
+def test_razonamiento_sin_ticker_actualiza_la_linea_viva(monkeypatch):
+    # COGNIA_SPINNER_INFO=0: el tick manual de _on_razonamiento_tick escribe
+    # en la LineaViva (no status.update con markup), con el texto editable
+    monkeypatch.setenv("COGNIA_SPINNER_INFO", "0")
+    _anim_on()
+    avisos = _A.poner("spinner.pensar", "texto.pensando", "cavilando…")
+    assert not _A.errores(avisos), avisos
+    _G.forzar_capacidades(_G.Caps("truecolor", True, ""))
+    _reloj_fijo(monkeypatch)
+    con, _ = _consola_truecolor()
+    r = Renderer(console=con)
+    r(_con_ts(events.RazonamientoTick(chars=10, fragmento="a"), 100.0))
+    try:
+        lv = r._linea_viva
+        assert lv is not None and r._ticker is None
+        assert lv.plain == "· cavilando…"
+        r(_con_ts(events.RazonamientoTick(chars=20, fragmento="b"), 103.0))
+        assert lv.plain == "· cavilando… (3s)"
+    finally:
+        r._parar_status()
+
+
+def test_ninguna_segunda_live_con_el_markdown_vivo_corriendo(monkeypatch):
+    """La carrera del docstring de markdown_vivo: llega prosa (cola viva por
+    cursor-up) y DESPUES otro tick de razonamiento arranca un status animado
+    con la cola abierta. Con LineaViva DENTRO del status nunca hay dos Lives
+    a la vez y rich no levanta LiveError."""
+    monkeypatch.setenv("COGNIA_MARKDOWN", "1")
+    _anim_on()
+    _G.forzar_capacidades(_G.Caps("truecolor", True, ""))
+    _reloj_fijo(monkeypatch)
+    lives = _contar_lives(monkeypatch)
+    con, buf = _consola_truecolor()
+    r = Renderer(console=con)
+    try:
+        r(events.RazonamientoTick(chars=10, fragmento="a"))
+        assert r._linea_viva is not None
+        r(events.TokenTexto(texto="# Hola\n\nprosa "))     # cierra el status, abre la cola
+        from cognia.ux.markdown_vivo import MarkdownVivo
+        assert isinstance(r._flujo, MarkdownVivo)
+        r(events.RazonamientoTick(chars=20, fragmento="b"))  # status animado con cola abierta
+        assert r._linea_viva is not None and r._status is not None
+        r(events.TokenTexto(texto="mas prosa\n"))
+        r._parar_status()
+        r._cerrar_flujo()
+    finally:
+        r._parar_status()
+        r._cerrar_flujo()
+    assert lives["max"] == 1 and lives["abiertas"] == 2
+    assert "Hola" in buf.getvalue()
