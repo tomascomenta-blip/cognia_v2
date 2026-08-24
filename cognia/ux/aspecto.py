@@ -584,6 +584,10 @@ def paso_pendiente(id: str, prop: str) -> str:
     # P6 idem para los glifos/textos/visible de tool.*, aviso.degradado y footer.
     if id in ENGANCHADOS_P7 or id in ENGANCHADOS_P8 or id in ENGANCHADOS_P6:
         return ""
+    # P9 (pulso del prompt): en prompt.etiqueta/marco/flecha/espera tambien
+    # la animacion se ve al guardar (ENGANCHADOS_P9, al final del fichero).
+    if id in ENGANCHADOS_P9:
+        return ""
     if id in ENGANCHADOS_P5:
         tabla = _PENDIENTES_P5_BARRA if id in ("barra.estado", "barra.modo") else _PENDIENTES_P5
         return tabla.get(raiz, "")
@@ -2415,3 +2419,17 @@ for _id in ENGANCHADOS_P6:
 del _id
 # La union de todos los pasos cableados (P4, P5, P6, P7, P8), sin duplicados.
 ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P6 if i not in ENGANCHADOS)
+
+
+# ---------------------------------------------------------------------------
+# 16. P9 (pulso del prompt, 2026-08-24): la ANIMACION de prompt.* cableada
+# ---------------------------------------------------------------------------
+# cli._arrancar_pulso_prompt (antes de session.prompt en el REPL y en
+# _esperar_corrida) arranca glow.pulso_prompt si alguno de estos ids tiene
+# animacion.activa y capacidades().animar; cli._frag_prompt devuelve el frame
+# vivo (glow.estilizar_pt) mientras glow.animando() y el estatico despues;
+# cada_s rearma desde el redibujado que ya existe (cli._rearmar_pulso_prompt).
+# Ya estaban en ENGANCHADOS_P5 (texto/glifo/color/glow): aqui solo se declara
+# que la animacion dejo de estar pendiente (paso_pendiente -> '').
+ENGANCHADOS_P9 = ("prompt.etiqueta", "prompt.marco", "prompt.flecha", "prompt.espera")
+ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P9 if i not in ENGANCHADOS)

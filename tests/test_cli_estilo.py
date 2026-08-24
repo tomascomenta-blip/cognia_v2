@@ -175,9 +175,10 @@ def test_set_en_elemento_no_enganchado_guarda_y_avisa_E8(entorno):
     assert json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))["elementos"]["agentes.texto"]["color"] == "#ff00ff"
 
 
-def test_set_en_el_prompt_ya_no_avisa_y_la_animacion_dice_P9(entorno):
+def test_set_en_el_prompt_ya_no_avisa_ni_por_la_animacion(entorno):
     """P5: prompt.etiqueta esta enganchado: el texto se ve en el prompt
-    siguiente (sin aviso E8); solo la animacion espera al pulso (P9)."""
+    siguiente (sin aviso E8); P9: la animacion tampoco avisa (pulso cableado).
+    barra.estado no va con el pulso: sigue diciendo P9 hasta que alguien lo cablee."""
     cli._slash_estilo("prompt.etiqueta texto jarvis")
     t = entorno.texto()
     assert "(guardado)" in t and "se aplica cuando" not in t
@@ -186,7 +187,11 @@ def test_set_en_el_prompt_ya_no_avisa_y_la_animacion_dice_P9(entorno):
     assert list(cli._mensaje_prompt())[1][1] == " jarvis"
     entorno.salida.clear()
     cli._slash_estilo("prompt.etiqueta animacion.activa on")
-    assert "animacion.activa se aplica con la animacion del prompt (paso P9)" in entorno.texto()
+    assert "(guardado)" in entorno.texto() and "paso P9" not in entorno.texto()
+    assert A.paso_pendiente("prompt.etiqueta", "animacion.activa") == ""
+    entorno.salida.clear()
+    cli._slash_estilo("barra.estado animacion.activa on")
+    assert "paso P9" in entorno.texto(), "la barra no va con el pulso todavia"
 
 
 def test_set_de_glifo_en_enganchado_por_token_avisa_pero_el_color_no(entorno):
@@ -328,7 +333,7 @@ def test_cargar_preset_del_paquete_y_avisa_lo_pendiente(entorno):
     # P5: prompt.* ya se ve; del neon solo queda pendiente la animacion del
     # prompt (P9) y el banner/spinner de sus pasos
     assert "prompt.* (P5)" not in t
-    assert "prompt.etiqueta.animacion (P9)" in t
+    assert "prompt.etiqueta.animacion" not in t, "P9: la animacion del prompt ya se ve"
     assert "(P7)" not in t and "(P8)" not in t, "banner y spinner ya se aplican"
     assert A.tiene_override("prompt.etiqueta")
     assert json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))["nombre"] == "neon"
@@ -515,3 +520,52 @@ def test_set_en_respuesta_markdown_y_codigo_ya_no_avisa_P6(entorno):
     assert "(guardado)" in t and "se aplica cuando" not in t
     from cognia.ux import markdown_vivo
     assert markdown_vivo.config()[1] == "dracula"
+
+
+# ---------------------------------------------------------------------------
+# P9 / E6: el hot reload de estilo.json llega al PROMPT en el turno siguiente
+# ---------------------------------------------------------------------------
+
+def test_hot_reload_editar_el_fichero_a_mano_cambia_el_prompt_al_siguiente_turno(entorno):
+    """Edicion EXTERNA (otro proceso, un editor): el toolbar del prompt vivo
+    solo ve el mtime; el bucle del REPL aplica con el prompt ya devuelto y el
+    prompt siguiente ya dice el texto nuevo (sin reiniciar)."""
+    cli._slash_estilo("prompt.etiqueta texto jarvis")
+    assert list(cli._mensaje_prompt())[1][1] == " jarvis"
+    doc = json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))
+    doc["elementos"]["prompt.etiqueta"]["texto"] = "friday"
+    doc["elementos"]["prompt.etiqueta"]["animacion"] = {"activa": True}
+    A.RUTA_ESTILO.write_text(json.dumps(doc), encoding="utf-8")
+    m = A._estado["mtime"] + 10 ** 9
+    os.utime(A.RUTA_ESTILO, ns=(m, m))
+    # el prompt vivo se redibuja (tecla): SOLO marca
+    cli._pie_prompt(None)()
+    assert A.recarga_pendiente() is True
+    assert list(cli._mensaje_prompt())[1][1] == " jarvis", "dentro del render no se aplica"
+    # session.prompt() devolvio: el bucle aplica antes de despachar la linea
+    cli._aplicar_recarga_estilo()
+    assert A.recarga_pendiente() is False
+    assert A.texto("prompt.etiqueta") == "friday"
+    assert list(cli._mensaje_prompt())[1][1] == " friday"
+    assert A.estilo_de("prompt.etiqueta").animacion.activa is True
+    assert "recargado" in entorno.texto()
+    # el fichero editado no puede sobrevivir al test: el teardown de `entorno`
+    # recarga desde tmp y "friday" se colaba en test_marco_prompt (medido)
+    A.RUTA_ESTILO.unlink()
+    A.reset()
+
+
+def test_hot_reload_el_bucle_del_repl_aplica_tras_get_input_y_antes_de_despachar():
+    """E6 en el fuente: el toolbar no reconstruye nada; repl() llama
+    _aplicar_recarga_estilo() justo despues de _get_input() y antes del
+    dispatch de la linea."""
+    pie = inspect.getsource(cli._pie_prompt)
+    assert "recargar_si_cambio()" in pie
+    assert "_aplicar_tema_en_caliente" not in pie and "aplicar_recarga" not in pie.replace(
+        "_aplicar_recarga_estilo) con el prompt devuelto", "")
+    repl = inspect.getsource(cli.repl)
+    i = repl.index("raw = _strip_input_bom(_get_input())")
+    j = repl.index("_aplicar_recarga_estilo()")
+    assert i < j
+    # entre los dos solo hay el manejo de EOF/Ctrl-C: ningun dispatch
+    assert "_dispatch" not in repl[i:j] and "_run(" not in repl[i:j]

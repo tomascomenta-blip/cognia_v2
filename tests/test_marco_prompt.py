@@ -18,6 +18,7 @@ prompt_toolkit pinte el pie en video inverso o que la barra de estado lance.
 """
 
 import re
+import threading
 
 import pytest
 
@@ -437,6 +438,167 @@ class TestLasOtrasPiezas:
                    "barra.atajos", "barra.modo", "menu.completado", "menu.selector"):
             assert A.REGISTRO[id].enganchado, id
             assert A.paso_pendiente(id, "color") == ""
-        assert A.paso_pendiente("prompt.etiqueta", "animacion.activa") == "P9"
+        assert A.paso_pendiente("prompt.etiqueta", "animacion.activa") == ""   # P9
+        assert A.paso_pendiente("prompt.espera", "animacion.activa") == ""
+        assert A.paso_pendiente("barra.estado", "animacion.activa") == "P9"
         assert A.paso_pendiente("barra.estado", "glow.intensidad") == "P9"
         assert A.paso_pendiente("prompt.marco", "glow.intensidad") == ""
+
+
+# ---------------------------------------------------------------------------
+# P9: el pulso del prompt (seccion 3.3, E3). Determinista: capacidades
+# forzadas, RELOJ fijado entre renders y el hilo del pulso con una app falsa.
+# ---------------------------------------------------------------------------
+from cognia.ux import glow as G
+
+
+class _AppFalsa:
+    def __init__(self):
+        self.n = 0
+
+    def invalidate(self):
+        self.n += 1
+
+
+@pytest.fixture
+def animado(registro, monkeypatch):
+    """prompt.etiqueta con barrido + glow 2 y la terminal forzada a animar."""
+    G.forzar_capacidades(G.Caps("truecolor", True, ""))
+    assert A.poner("prompt.etiqueta", "animacion.activa", True) == []
+    assert A.poner("prompt.etiqueta", "glow.intensidad", 2) == []
+    A.conectar_glow()
+    C._MEMO_FRAG.clear()
+    yield G
+    G.parar_pulso()
+    G.forzar_capacidades(None)
+    G.RELOJ.reiniciar()
+    C._MEMO_FRAG.clear()
+
+
+def _truecolors(crudo):
+    return set(re.findall(r"38;2;\d+;\d+;\d+", crudo))
+
+
+class TestPulsoDelPromptP9:
+
+    def test_dos_renders_distintos_durante_el_pulso_y_quieto_despues(self, animado):
+        app = _AppFalsa()
+        assert C._arrancar_pulso_prompt(app) is True
+        assert G.animando()
+        # (a t=0,3 el barrido pasa justo por la forma de la campana estatica:
+        # se miran 0,6 y 0,9, que difieren de ella y entre si)
+        G.RELOJ.fijar(G.RELOJ.t() + 0.6)
+        crudo1, filas1 = _render24(C._mensaje_prompt, C._pie_prompt())
+        G.RELOJ.fijar(G.RELOJ.t() + 0.3)
+        crudo2, filas2 = _render24(C._mensaje_prompt, C._pie_prompt())
+        assert filas1 == filas2, "el TEXTO no cambia, solo el color"
+        assert crudo1 != crudo2, "dos cuadros del barrido tienen que pintar distinto"
+        assert len(_truecolors(crudo1)) >= 2 and len(_truecolors(crudo2)) >= 2
+        # el pulso termina (aqui: cortado) y el frame es el ESTATICO, memoizado
+        G.parar_pulso()
+        assert not G.animando()
+        crudo3, _ = _render24(C._mensaje_prompt, C._pie_prompt())
+        crudo4, _ = _render24(C._mensaje_prompt, C._pie_prompt())
+        assert crudo3 == crudo4
+        assert crudo3 != crudo1 and crudo3 != crudo2
+        assert len(_truecolors(crudo3)) >= 2, "el glow fijo sigue por caracter"
+        assert "cognia-pulso-prompt" not in [h.name for h in threading.enumerate()]
+
+    def test_el_pulso_termina_solo_y_no_deja_hilos(self, animado):
+        app = _AppFalsa()
+        assert G.pulso_prompt(app, 0.25, 20) is True
+        hilo = G._PULSO["hilo"]
+        hilo.join(3.0)
+        assert not hilo.is_alive()
+        assert not G.animando()
+        assert app.n >= 3, app.n     # ~5 invalidates + el ultimo (frame estatico)
+        assert "cognia-pulso-prompt" not in [h.name for h in threading.enumerate()]
+        # con el pulso muerto, el mismo prompt vuelve a arrancar uno
+        assert C._arrancar_pulso_prompt(app) is True
+        G.parar_pulso()
+
+    def test_sin_animacion_no_hay_pulso_y_el_render_es_el_de_siempre(self, registro, monkeypatch):
+        G.forzar_capacidades(G.Caps("truecolor", True, ""))
+        try:
+            antes, _ = _render24(C._mensaje_prompt, C._pie_prompt())
+            app = _AppFalsa()
+            assert C._arrancar_pulso_prompt(app) is False
+            assert C._arrancar_pulso_prompt(app, C._IDS_PULSO_ESPERA) is False
+            assert app.n == 0
+            # aunque alguien deje el pulso "vivo", sin animacion las piezas
+            # siguen siendo las clases de siempre (byte-identico)
+            monkeypatch.setitem(G._PULSO, "activo", True)
+            assert [c for c, _ in C._mensaje_prompt()] == ["class:marco", "class:cognia", "class:flecha"]
+            despues, _ = _render24(C._mensaje_prompt, C._pie_prompt())
+            assert antes == despues
+        finally:
+            G.forzar_capacidades(None)
+
+    def test_sin_capacidad_de_animar_no_arranca(self, animado):
+        G.forzar_capacidades(G.Caps("truecolor", False, "sin tty"))
+        app = _AppFalsa()
+        assert C._arrancar_pulso_prompt(app) is False
+        assert not G.animando()
+
+    def test_prompt_espera_anima_con_el_mismo_pulso(self, animado):
+        assert A.poner("prompt.espera", "animacion.activa", True) == []
+        assert A.poner("prompt.espera", "glow.intensidad", 2) == []
+        A.conectar_glow()
+        C._MEMO_FRAG.clear()
+
+        import time
+
+        class _Corrida:
+            etiqueta, t0 = "corrida", time.time()
+
+        app = _AppFalsa()
+        assert C._arrancar_pulso_prompt(app, C._IDS_PULSO_ESPERA) is True
+        assert C._PULSO_PROMPT["ids"] == C._IDS_PULSO_ESPERA
+        G.RELOJ.fijar(G.RELOJ.t() + 0.6)   # 0,3-0,4 coincide con la campana
+        vivo = list(C._mensaje_espera(_Corrida())())
+        G.parar_pulso()
+        quieto = list(C._mensaje_espera(_Corrida())())
+        assert quieto == list(C._mensaje_espera(_Corrida())())
+        assert vivo != quieto
+        texto = "".join(t for _, t in vivo)
+        assert texto == "".join(t for _, t in quieto)
+        assert "corrida 0s" in texto and "F2 agentes" in texto
+        assert sum(1 for c, _ in vivo if c.startswith("fg:#")) > 3
+
+    def test_cada_s_rearma_desde_el_redibujado_y_respeta_repetir(self, animado):
+        import time
+        assert A.poner("prompt.etiqueta", "animacion.cada_s", 1.0) == []
+        assert A.poner("prompt.etiqueta", "animacion.repetir", 2) == []
+        A.conectar_glow()
+        app = _AppFalsa()
+        assert C._arrancar_pulso_prompt(app) is True
+        assert C._PULSO_PROMPT["vueltas"] == 1 and C._PULSO_PROMPT["cada_s"] == 1.0
+        assert C._rearmar_pulso_prompt(app) is False, "con el pulso vivo no rearma"
+        G.parar_pulso()
+        assert C._rearmar_pulso_prompt(app) is False, "la pausa cada_s no paso"
+        C._PULSO_PROMPT["t_fin"] = time.monotonic() - 2.0
+        assert C._rearmar_pulso_prompt(app) is True
+        assert C._PULSO_PROMPT["vueltas"] == 2
+        G.parar_pulso()
+        C._PULSO_PROMPT["t_fin"] = time.monotonic() - 2.0
+        assert C._rearmar_pulso_prompt(app) is False, "repetir=2 agotado"
+        # el toolbar es quien rearma en el prompt idle: sin cada_s es un no-op
+        assert A.poner("prompt.etiqueta", "animacion.cada_s", 0.0) == []
+        A.conectar_glow()
+        assert C._arrancar_pulso_prompt(app) is True
+        G.parar_pulso()
+        C._PULSO_PROMPT["t_fin"] = time.monotonic() - 2.0
+        assert C._rearmar_pulso_prompt(app) is False, "sin cada_s no hay CPU permanente (E3)"
+
+    def test_el_repl_y_la_espera_rodean_el_prompt_con_el_pulso(self):
+        import inspect
+        fuente = inspect.getsource(C.repl)
+        i = fuente.index("_arrancar_pulso_prompt(session.app)")
+        j = fuente.index("session.prompt(_mensaje_prompt, default=_pre)")
+        k = fuente.index("_cerrar_pulso_prompt()")
+        assert i < j < k
+        espera = inspect.getsource(C._esperar_corrida)
+        assert "_arrancar_pulso_prompt(app, _IDS_PULSO_ESPERA)" in espera
+        assert "refresh_interval=1.0" in espera and "1 / " not in espera and "1.0 / " not in espera
+        assert "_rearmar_pulso_prompt" in inspect.getsource(C._pie_prompt)
+        assert "_rearmar_pulso_prompt" in inspect.getsource(C._mensaje_espera)
