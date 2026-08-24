@@ -2,6 +2,35 @@
 
 ---
 
+## [Sin publicar]
+
+### Sistema de estilos por elemento (parcial)
+
+- 50 elementos visuales del REPL en 15 grupos, cada uno con id y propiedades
+  (texto, color, fondo, negrita/italica/subrayado, glow, animacion, glifo,
+  posicion, alineacion, visible, gradiente, separador) en `cognia/ux/aspecto.py`;
+  fichero `~/.cognia/estilo.json` (override parcial, `.bak`, deshacer, exportar),
+  5 presets del paquete (`clasico`, `barra-color`, `neon`, `sobrio`, `ansi16`),
+  JSON Schema y style string. Sin fichero, el aspecto es **byte-identico** al
+  de siempre (26 goldens en `tests/golden/aspecto/`).
+- Motor de glow/barrido (`cognia/ux/glow.py`) con deteccion de capacidades y
+  orden de apagado (`COGNIA_ANIMACION=0`, config `estilo_animacion`, `NO_COLOR`,
+  sin tty, `COGNIA_REMOTO`, SSH, consola legacy); siempre termina en frame
+  estatico; cero hilos permanentes.
+- Enganchados en el REPL: el banner (gradiente, glow, barrido al arrancar,
+  textos, caja, alineacion, visible) y el spinner (`spinner.tool`,
+  `spinner.pensar`, `spinner.comando`). Medido en ConPTY: 18 cuadros de barrido
+  distintos en el banner y 0 por pipe; 7 en el spinner y 0 con `COGNIA_ANIMACION=0`.
+- Editor interactivo full-screen (`cognia/ux/editor_aspecto.py` +
+  `cognia/ux/editor_app.py`): tres paneles, vista previa con el motor real,
+  undo/redo, presets con preview, guardar con `.bak`.
+- Documentacion de usuario: `docs/ESTILO.md`.
+- Pendiente (en fusion, rama `estilos/cli`): el comando `/estilo` y la carga del
+  fichero al arrancar, el enganche del prompt/barra/menus, el Theme de rich y los
+  glifos de tools/footer/avisos, el prompt animado y el hot reload cableado.
+
+---
+
 ## [4.9.0] - 2026-08-18
 
 ### La vista viva de agentes: el rediseño de UI, cerrado entero
