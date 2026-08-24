@@ -430,6 +430,54 @@ def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
     return liberados
 
 
+def _degradado_compactacion(print_fn, motivo: str) -> None:
+    """El fallo del resumen se VE (regla del repo: prohibido el vacio mudo) y
+    el turno cae al truncado de siempre. El import de cli es a call-time y
+    best-effort (mismo patron que harness/interceptor): sin CLI, el aviso sale
+    igual por print_fn."""
+    motivo = f"{motivo}; caigo al modo truncado en este turno"
+    try:
+        from cognia.cli import _aviso_degradado
+        _aviso_degradado("compactacion", motivo)
+    except Exception:
+        print_fn(f"[warn_cl]compactacion degradada: {motivo}[/warn_cl]")
+
+
+def _compactar_por_resumen(mensajes, n_ctx, prompt_tokens, estado, print_fn):
+    """F4: compactacion por RESUMEN estructurado en UNA pasada
+    (harness/compactacion): [system, objetivo, resumen, cola intacta], una
+    sola invalidacion de la KV cache en vez de una por mordisco.
+
+    Devuelve los CHARS liberados (0 = bajo el umbral o nada que fundir), o
+    None si toca usar el modo truncado: porque el modo configurado es
+    'truncado' (COGNIA_COMPACT o config de /compactar), porque el modulo no
+    carga, o porque construir el resumen FALLO en este turno. compactar()
+    no muta nada antes de lanzar, asi que el fallback trabaja sobre el
+    historial byte-identico."""
+    try:
+        from cognia.harness import compactacion as comp
+    except Exception as exc:
+        _degradado_compactacion(print_fn, f"modulo no importable: {exc}")
+        return None
+    try:
+        if comp.modo() != "resumen":
+            return None
+        info = comp.compactar(mensajes, n_ctx, prompt_tokens, estado=estado)
+    except Exception as exc:
+        motivo = f"{type(exc).__name__}: {exc}"
+        try:
+            comp.anotar_error(motivo)
+        except Exception:
+            pass
+        _degradado_compactacion(print_fn, motivo)
+        return None
+    if info.get("aplicada"):
+        print_fn(f"[detail]compactado por resumen: ~{info['tokens_antes']} -> "
+                 f"~{info['tokens_despues']} tokens ({info['descartados']} "
+                 f"mensajes viejos fundidos en un resumen)[/detail]")
+    return int(info.get("liberados") or 0)
+
+
 def _catalogo_para_ofertas() -> list:
     """El registry completo para buscar candidatas a ofrecer. [] si falla.
 
@@ -790,8 +838,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                         # mismo error. Solo se reintenta si el recorte libero
                         # algo de verdad (Hermes separa retryable de
                         # should_compress justo por esto).
-                        _liberados = _recortar_mensajes(
-                            mensajes, perfil.get("n_ctx"), 10 ** 9)
+                        # F4: primero la compactacion por resumen (una sola
+                        # pasada); None o 0 -> el truncado de siempre.
+                        _liberados = _compactar_por_resumen(
+                            mensajes, perfil.get("n_ctx"), 10 ** 9,
+                            _estado, print_fn) or 0
+                        if not _liberados:
+                            _liberados = _recortar_mensajes(
+                                mensajes, perfil.get("n_ctx"), 10 ** 9)
                         if not _liberados:
                             print_fn("[warn_cl]contexto excedido y no queda "
                                      "nada recortable: no reintento[/warn_cl]")
@@ -1125,6 +1179,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # n_ctx sin recortar nada (fix 2026-08-11). Se suma lo agregado
         # (chars/4) y se itera hasta bajar del umbral o agotar recortables.
         est = int((resp.usage or {}).get("prompt_tokens") or 0)
+        if not est:
+            # Stream SIN chunk de usage (F4, 2026-08-23, cazado TECLEANDO en
+            # el REPL): el usage estimado por timings/frames trae solo
+            # completion_tokens, y con prompt_tokens=0 este presupuesto
+            # contaba SOLO lo apendeado en este turno — dos leer_archivo de
+            # 97 KB daban est~24k contra un umbral de 26k y la compactacion
+            # (la nueva Y el truncado de siempre) no disparaba NUNCA bajo
+            # streaming. El estimado honesto es el historial entero a chars/4,
+            # la misma moneda del resto de la funcion.
+            est = sum(len(str(m.get("content") or ""))
+                      + len(str(m.get("reasoning_content") or ""))
+                      for m in mensajes[:idx_turno]) // 4
         # Se cuenta TAMBIEN el reasoning_content: mensaje_assistant lo
         # reinyecta y con un razonador pesa mas que el content (parte del fix
         # A3-bucle: el CoT era invisible para el presupuesto de punta a punta).
@@ -1132,13 +1198,42 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                    + len(str(m.get("reasoning_content") or ""))
                    for m in mensajes[idx_turno:]) // 4
         _libero_algo = False
-        while True:
-            liberados = _recortar_mensajes(mensajes, perfil.get("n_ctx"), est)
-            if not liberados:
-                break
-            _libero_algo = True
-            est -= liberados // 4
-        if _libero_algo and _estado_on and _canal is not None:
+        # F4 (2026-08-23): modo 'resumen' = UNA pasada que funde el historial
+        # viejo en un resumen estructurado (canal de estado + 1 linea por tool
+        # descartada con su spill de F3) y deja la cola reciente INTACTA: una
+        # sola invalidacion de la KV cache por compactacion, contra una por
+        # mordisco del modo viejo. None = modo 'truncado' o fallo del resumen
+        # en este turno: el camino de abajo sigue byte-identico de fallback.
+        _lib_resumen = _compactar_por_resumen(
+            mensajes, perfil.get("n_ctx"), est, _estado, print_fn)
+        if _lib_resumen is not None:
+            if _lib_resumen:
+                _libero_algo = True
+                est -= _lib_resumen // 4
+        else:
+            _est_antes, _lib_trunc = est, 0
+            while True:
+                liberados = _recortar_mensajes(mensajes, perfil.get("n_ctx"), est)
+                if not liberados:
+                    break
+                _libero_algo = True
+                _lib_trunc += liberados
+                est -= liberados // 4
+            if _lib_trunc:
+                # Telemetria para /compactar (el modo viejo tambien se anota).
+                # Best-effort CON aviso: la telemetria no puede costar el turno,
+                # pero su fallo tampoco puede ser mudo.
+                try:
+                    from cognia.harness import compactacion as _comp_t
+                    _comp_t.anotar_truncado(_lib_trunc, _est_antes,
+                                            perfil.get("n_ctx"))
+                except Exception as _exc_ct:
+                    print_fn(f"[warn_cl]telemetria de compactacion no anotada: "
+                             f"{_exc_ct}[/warn_cl]")
+        # La reinyeccion del canal es solo para el TRUNCADO: en modo resumen
+        # el bloque de estado ya viaja DENTRO del propio resumen.
+        if (_libero_algo and _lib_resumen is None
+                and _estado_on and _canal is not None):
             # AQUI es donde se pierde el estado: el recorte resume o tira los
             # turnos viejos y con ellos que ficheros se tocaron y que
             # restricciones habia. El canal vuelve a entrar ENTERO, y nunca

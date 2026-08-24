@@ -2056,6 +2056,7 @@ _CMD_DESCRIPTIONS = {
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
     "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
+    "/compactar":       "Compactacion del contexto del agente: resumen estructurado en 1 pasada (default) o mordiscos de truncado. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2168,6 +2169,27 @@ _CMD_DETAILS = {
         "La env COGNIA_OFFLOAD=0 apaga GANANDO a la config (y =1 fuerza); "
         "COGNIA_TOOL_RESULT_MAX / COGNIA_OFFLOAD_CABEZA / COGNIA_OFFLOAD_COLA mueven los "
         "knobs por entorno; COGNIA_OFFLOAD_DIR mueve el almacen (~/.cognia/offload)."),
+    "/compactar": (
+        "COMPACTACION del contexto del agente (harness/compactacion, F4, numeros de "
+        "deepseek-harness). Modo 'resumen' (default): al superar el umbral del n_ctx, UNA "
+        "pasada reescribe el historial a [system intacto, objetivo intacto, UN resumen "
+        "estructurado, cola reciente INTACTA (~16% del n_ctx)]. El resumen NO llama al "
+        "modelo: se deriva del canal de estado (objetivo, restricciones, hecho-hasta-ahora) "
+        "+ una linea por cada tool descartada (nombre, args, OK/FALLO y la referencia de "
+        "spill de F3 si existe: lo descartado sigue recuperable con `recuperar`). Una sola "
+        "invalidacion de KV cache por compactacion — el modo 'truncado' (el viejo, intacto "
+        "de fallback) muerde de a 3 turnos por pasada y paga una invalidacion por mordisco "
+        "(mutar el principio del contexto cuesta ~24x por ciclo, medido en este repo). "
+        "RESILIENCIA: cualquier fallo construyendo el resumen avisa via degradado "
+        "'compactacion' y ese turno cae al truncado; el historial no muta a medias. "
+        "USO: /compactar (estado: modo, umbral, retencion, cap, ultima compactacion con "
+        "tokens antes/despues, ultimo error) | resumen|truncado (persiste 'compactacion') "
+        "| umbral <frac 0.3-0.99> (persiste 'compactacion_umbral', default 0.8) | "
+        "retencion <frac 0.02-0.5> (persiste 'compactacion_retencion', default 0.16) | "
+        "cap <chars> (persiste 'compactacion_cap', default 4000). "
+        "La env COGNIA_COMPACT=truncado fuerza el viejo GANANDO a la config; "
+        "COGNIA_COMPACT_UMBRAL / COGNIA_COMPACT_RETENCION / COGNIA_COMPACT_CAP mueven los "
+        "knobs por entorno."),
     # /tx y /libro no estaban aqui, y su descripcion se corta a 80-120
     # columnas: el subsistema con MAS subcomandos del CLI era el unico sin
     # ningun sitio donde leerlos enteros.
@@ -5923,6 +5945,18 @@ _CONFIG_DEFAULTS: dict = {
     "offload_umbral":   "2000",
     "offload_cabeza":   "15",
     "offload_cola":     "5",
+    # COMPACTACION del contexto del agente (harness/compactacion, F4): al
+    # superar el umbral del n_ctx, el modo 'resumen' funde el historial viejo
+    # en UN resumen estructurado (canal de estado + 1 linea por tool
+    # descartada con su spill de F3) en UNA pasada y deja la cola reciente
+    # intacta — una sola invalidacion de KV cache por compactacion, contra
+    # una por mordisco del modo 'truncado' (el viejo, que queda de fallback:
+    # mutar el principio del contexto se paga ~24x por ciclo, medido). La env
+    # COGNIA_COMPACT=truncado gana a la config; se cambia con /compactar.
+    "compactacion":           "resumen",
+    "compactacion_umbral":    "0.8",
+    "compactacion_retencion": "0.16",
+    "compactacion_cap":       "4000",
 }
 
 
@@ -8661,6 +8695,119 @@ def _slash_offload(arg: str = "") -> None:
         _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
 
 
+def _aplicar_config_compactacion() -> None:
+    """Propaga la config de la compactacion (F4) al entorno, SIN pisar lo que
+    el usuario puso a mano: el bucle del agente (agent/loop) decide el modo
+    leyendo COGNIA_COMPACT via harness/compactacion, y sin esta propagacion la
+    config diria 'resumen' con el bucle en truncado (la clase de bug del flag
+    TX, cognia/tx/flag.py)."""
+    try:
+        cfg = _load_config()
+        pares = (
+            ("COGNIA_COMPACT", str(cfg.get("compactacion", "resumen")).lower()),
+            ("COGNIA_COMPACT_UMBRAL", str(cfg.get("compactacion_umbral", "0.8"))),
+            ("COGNIA_COMPACT_RETENCION",
+             str(cfg.get("compactacion_retencion", "0.16"))),
+            ("COGNIA_COMPACT_CAP", str(cfg.get("compactacion_cap", "4000"))),
+        )
+        for var, valor in pares:
+            if not (os.environ.get(var) or "").strip():
+                os.environ[var] = valor
+    except Exception as exc:
+        _aviso_degradado("compactacion", f"config no aplicada: {exc}")
+
+
+def _slash_compactar(arg: str = "") -> None:
+    """`/compactar`: puerta de la compactacion del contexto del agente (F4).
+
+    Sin args muestra el ESTADO: modo (y su fuente), umbral, retencion, cap,
+    la ultima compactacion con tokens antes/despues y el ultimo error.
+    Subcomandos (persisten via _save_config y actualizan el env de la sesion):
+      resumen|truncado -> clave 'compactacion' (COGNIA_COMPACT gana a config)
+      umbral <frac>    -> 'compactacion_umbral' (0.3-0.99 del n_ctx)
+      retencion <frac> -> 'compactacion_retencion' (0.02-0.5 del n_ctx)
+      cap <chars>      -> 'compactacion_cap' (>= 600)"""
+    try:
+        from cognia.harness import compactacion as _comp
+    except Exception as exc:
+        _aviso_degradado("compactacion", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("resumen", "truncado"):
+        cfg = _load_config()
+        cfg["compactacion"] = bajo
+        _save_config(cfg)
+        os.environ["COGNIA_COMPACT"] = bajo
+        _print_line(f"[info_dim]compactacion: modo {bajo} (guardado; aplica "
+                    "en la proxima compactacion del agente)[/info_dim]")
+        return
+    if bajo.startswith("umbral") or bajo.startswith("retencion"):
+        clave = "umbral" if bajo.startswith("umbral") else "retencion"
+        lo, hi = (0.3, 0.99) if clave == "umbral" else (0.02, 0.5)
+        try:
+            v = float(arg[len(clave):].strip())
+            if not (lo <= v <= hi):
+                raise ValueError(v)
+        except ValueError:
+            _print_line(f"[warn_cl]Uso: /compactar {clave} <fraccion de n_ctx, "
+                        f"{lo}-{hi}>[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg[f"compactacion_{clave}"] = str(v)
+        _save_config(cfg)
+        os.environ["COGNIA_COMPACT_" + clave.upper()] = str(v)
+        _print_line(f"[info_dim]compactacion: {clave} {v} de n_ctx (guardado)"
+                    f"[/info_dim]")
+        return
+    if bajo.startswith("cap"):
+        try:
+            n = int(arg[len("cap"):].strip())
+            if n < 600:
+                raise ValueError(n)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /compactar cap <chars> (>= 600; con "
+                        "menos no cabe ni el bloque de estado)[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["compactacion_cap"] = str(n)
+        _save_config(cfg)
+        os.environ["COGNIA_COMPACT_CAP"] = str(n)
+        _print_line(f"[info_dim]compactacion: cap {n} chars (guardado)[/info_dim]")
+        return
+    if arg and bajo != "estado":
+        _print_line("[warn_cl]Uso: /compactar [estado | resumen | truncado | "
+                    "umbral <frac> | retencion <frac> | cap <chars>][/warn_cl]")
+        return
+    # Estado (default): la foto entera del subsistema.
+    est = _comp.estado_puerta()
+    env = (os.environ.get("COGNIA_COMPACT") or "").strip()
+    fuente = f"env COGNIA_COMPACT={env}" if env else "config 'compactacion'"
+    _print_line(f"[info_dim]compactacion del contexto: modo {est['modo']} "
+                f"({fuente})[/info_dim]")
+    _print_line(f"[info_dim]  umbral: {est['umbral']:.2f} de n_ctx | retencion "
+                f"de cola: {est['retencion']:.2f} | cap del resumen: "
+                f"{est['cap']} chars[/info_dim]")
+    ult = est["ultima"]
+    if ult:
+        hace = max(0, int(time.time() - float(ult.get("ts") or 0)))
+        extra = (f", {ult['mensajes_descartados']} mensajes fundidos"
+                 if ult.get("mensajes_descartados") else "")
+        _print_line(f"[info_dim]  ultima compactacion: modo "
+                    f"{ult.get('modo', '?')}, ~{ult.get('tokens_antes', 0)} -> "
+                    f"~{ult.get('tokens_despues', 0)} tokens "
+                    f"(hace {hace}s{extra})[/info_dim]")
+    else:
+        _print_line("[info_dim]  ultima compactacion: ninguna en este proceso"
+                    "[/info_dim]")
+    err = est["ultimo_error"]
+    if err:
+        _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
+                    f"({err.get('ts', '')})[/warn_cl]")
+    else:
+        _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
+
+
 def _slash_spinner(arg: str = "") -> None:
     """`/spinner [estado | on | off | verbos ...]`: la linea de estado VIVA
     del turno (F2, ux/spinner_vivo + ticker del renderer): verbo gato
@@ -10799,6 +10946,10 @@ def repl():
     # (sin esto la config diria 'on' con el subsistema muerto: la clase de bug
     # del flag TX). Tambien registra el avisador de degradados en el modulo.
     _aplicar_config_offload()
+    # COMPACTACION por resumen (F4): misma razon que arriba — agent/loop lee
+    # COGNIA_COMPACT del entorno, y sin propagar la config el modo persistido
+    # con /compactar no llegaria nunca al bucle.
+    _aplicar_config_compactacion()
 
     # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
     # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
@@ -11295,6 +11446,8 @@ def repl():
             _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
         elif raw == "/offload" or raw.startswith("/offload "):
             _slash_offload(raw[len("/offload "):] if raw.startswith("/offload ") else "")
+        elif raw == "/compactar" or raw.startswith("/compactar "):
+            _slash_compactar(raw[len("/compactar "):] if raw.startswith("/compactar ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):

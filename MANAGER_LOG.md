@@ -13834,3 +13834,33 @@ contrafactual con `COGNIA_OFFLOAD=0` corre igual (el corte a 6 pasos es del pres
 del offload). LIMITE declarado: sobre `leer_archivo` conviven dos mecanicas de continuacion (el
 `offset=` propio de la tool y el `recuperar` del offload) y el modelo a veces mezcla los conteos de
 lineas de una y otra; el detalle se recupera igual, pero es friccion medible para una F futura.
+
+## 2026-08-23 — F4: compactacion por resumen estructurado en UNA pasada (+ puerta /compactar)
+Que: nuevo modo de compactacion 'resumen' (default) en `cognia/harness/compactacion.py`, cableado en
+`agent/loop.py`: al superar el umbral (0.8 de n_ctx, configurable), UNA pasada reescribe el historial a
+[system intacto, objetivo intacto, UN resumen estructurado, cola reciente intacta (~0.16 de n_ctx)].
+El resumen NO llama al modelo: canal de estado rendido (objetivo/restricciones/hecho) + 1 linea por tool
+descartada (nombre, args, OK/FALLO, y el spill de F3 con handle+ruta: lo descartado sigue recuperable).
+Por que: el truncado viejo muerde de a 3 turnos por pasada y cada pasada muta el principio del contexto
+(= invalida la KV cache, ~24x por ciclo medido en este repo); deepseek-harness compacta en una pasada con
+retencion de cola y este modo copia esos numeros. Una sola invalidacion por compactacion.
+Fallback: modo 'truncado' byte-identico al de hoy; COGNIA_COMPACT=truncado lo fuerza; cualquier fallo del
+resumen -> _aviso_degradado('compactacion', ...) y ese turno cae al truncado (compactar() no muta antes de
+lanzar). Idempotente: el resumen previo se FUNDE (marca [RESUMEN DE COMPACTACION]), nunca se apila.
+Puerta: /compactar (estado con modo/umbral/retencion/cap + ultima compactacion con tokens antes/despues +
+ultimo error | resumen|truncado | umbral | retencion | cap), en _CMD_DESCRIPTIONS y /ayuda; config
+persistida 'compactacion*' propagada a env en el arranque (_aplicar_config_compactacion, patron offload).
+Verificado: tests/test_harness_compactacion.py 11/11 (system/objetivo/cola intactos, spill en el resumen,
+truncado byte-identico congelado, idempotencia, degradacion sin mutar); dirigidos del area
+test_agent_loop + test_agent_loop_wires + test_harness_offloading 68/68, test_cli_consistency +
+test_agente_nativo 34/34, test_estado_canal 26/26. REPL real contra el 27B: ver commit.
+Addendum F4 (misma sesion): tecleando en el REPL se cazo que bajo streaming el usage puede venir sin
+prompt_tokens y el presupuesto de contexto contaba SOLO lo apendeado en el turno — ni la compactacion nueva
+ni el truncado viejo disparaban nunca. Fix en loop.py: fallback honesto (historial entero a chars/4) cuando
+prompt_tokens=0, con regresion test_bucle_compacta_aunque_el_stream_no_traiga_prompt_tokens (12/12 en el
+fichero). Probado tecleando contra el 27B vivo (:8080): tarea larga (leer cli.py + tools.py + listar tests,
+de a una llamada) disparo compactacion REAL — /compactar: "ultima compactacion: modo resumen, ~31455 ->
+~6998 tokens (3 mensajes fundidos)"; tarea de crear+ejecutar script cerro limpia (salida 110, verificada);
+tarea de busqueda uso el flujo F3 (recuperar sobre handle) sin romperse. Los cierres "sin progreso
+verificado (sin_arranque)" en tareas de solo-lectura son del gobernador de progreso preexistente
+(umbral_arranque=6), no de F4.
