@@ -107,10 +107,47 @@ def test_animado_repinta_solo_la_cola():
     reloj.avanzar(10.0)
     mv.escribir(DOC[60:])
     if cola_1:
-        assert f"\x1b[{cola_1}A\r\x1b[J" in salida.getvalue()
+        # sube exactamente la altura de la cola vieja y la SOBREESCRIBE linea a
+        # linea; el ED ('\x1b[J') ya no se emite salvo cola mas corta (parpadeo
+        # en Windows Terminal, 2026-08-24)
+        assert f"\x1b[{cola_1}A\r" in salida.getvalue()
+        assert f"\x1b[{cola_1}A\r\x1b[J" not in salida.getvalue()
     assert mv._estables >= est_1
     mv.cerrar()
     assert mv._cola_altura == 0
+
+
+def test_animado_sobreescribe_solo_las_lineas_que_cambian_y_sincroniza():
+    """Parpadeo en Windows Terminal (dueno, 2026-08-24): cada frame borraba
+    hasta el final de la pantalla y reescribia toda la cola. Ahora: cada
+    frame va entre BSU/ESU (DEC 2026), las lineas identicas se saltan con LF,
+    solo las distintas llevan CR+EL, y el ED solo aparece si la cola encoge."""
+    mv, salida, reloj = _mv()
+    mv._animar = True
+    reloj.avanzar(10.0)
+    mv.escribir("Primera linea de prosa.\n\nSegunda linea de prosa que sigue")
+    n0 = len(salida.getvalue())
+    alto = mv._cola_altura
+    assert alto >= 2
+    reloj.avanzar(10.0)
+    mv.escribir(" y crece un poco mas.")
+    frame = salida.getvalue()[n0:]
+    assert frame.startswith("\x1b[?2026h") and frame.endswith("\x1b[?2026l")
+    assert f"\x1b[{alto}A\r" in frame
+    assert "\x1b[J" not in frame, "la cola no encogio: nada que borrar por debajo"
+    # solo la ultima linea cambio: una sola CR+EL; las demas bajan con LF
+    assert frame.count("\r\x1b[2K") == 1
+    assert "Primera linea de prosa." not in frame, "la linea identica no se reescribe"
+    assert "crece un poco mas" in frame
+
+
+def test_sync_output_se_apaga_con_env(monkeypatch):
+    monkeypatch.setenv("COGNIA_SYNC_OUTPUT", "0")
+    mv, salida, reloj = _mv()
+    mv._animar = True
+    reloj.avanzar(10.0)
+    mv.escribir("Hola\n\nMundo")
+    assert "\x1b[?2026h" not in salida.getvalue()
 
 
 # ---------------------------------------------------------------------------

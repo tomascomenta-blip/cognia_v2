@@ -313,6 +313,9 @@ class MarkdownVivo:
         # compat con renderer._cerrar_flujo: tras cada repintado el cursor
         # queda en columna 0 (toda linea pintada termina en '\n').
         self._al_inicio_de_linea = True
+        # synchronized output (DEC 2026) en cada repintado; COGNIA_SYNC_OUTPUT=0
+        # lo apaga (diagnostico: si un terminal raro pintara los escapes).
+        self._sync = (os.environ.get("COGNIA_SYNC_OUTPUT") or "1").strip().lower() not in ("0", "off", "no")
         self._reset()
 
     def _reset(self) -> None:
@@ -320,6 +323,7 @@ class MarkdownVivo:
         self._estables = 0            # lineas renderizadas YA commiteadas
         self._commiteadas: list = []  # su texto pintado (invariante testeable)
         self._cola_altura = 0         # lineas de la cola viva en pantalla
+        self._cola_lineas: list = []  # su texto pintado (para sobreescribir solo lo que cambia)
         self._ultimo = 0.0            # ts del ultimo repintado
         self._retraso = RELOJ         # throttle adaptativo vigente
         self._cache_bloque = None     # (offset_bloque, tope) — ver _tope_bloque
@@ -390,18 +394,42 @@ class MarkdownVivo:
         cola = [] if final else lineas[nuevo:]
         out = []
         if self._animar and self._cola_altura:
-            # subir al inicio de la cola vieja y borrar de ahi para abajo
-            out.append(f"\x1b[{self._cola_altura}A\r\x1b[J")
-        for l in frescas:
-            out.append(self._sangria + l + "\n")
+            # Subir al inicio de la cola vieja y SOBREESCRIBIR linea a linea:
+            # una linea igual a la que ya esta pintada solo se salta (LF), una
+            # distinta se borra y se reescribe (CR + EL + texto). Antes se
+            # hacia CUU + ED ('\x1b[J': borrar hasta el final de la pantalla)
+            # y se reescribia todo: Windows Terminal alcanzaba a pintar el
+            # frame en blanco cada ~30 ms y el dueno lo veia como un parpadeo
+            # permanente durante toda respuesta (2026-08-24). El ED solo se
+            # emite al FINAL y solo si la cola nueva es mas corta que la vieja
+            # (borra lineas rancias por debajo, nunca lo recien pintado).
+            out.append(f"\x1b[{self._cola_altura}A\r")
+        nuevas = [self._sangria + l for l in frescas]
         if self._animar:
-            for l in cola:
-                out.append(self._sangria + l + "\n")
+            nuevas += [self._sangria + l for l in cola]
+        viejas = self._cola_lineas if (self._animar and self._cola_altura) else []
+        for i, l in enumerate(nuevas):
+            if i < len(viejas) and viejas[i] == l:
+                out.append("\n")            # identica: bajar sin tocarla
+            elif i < len(viejas):
+                out.append("\r\x1b[2K" + l + "\n")
+            else:
+                out.append(l + "\n")
+        if self._animar:
+            if len(nuevas) < len(viejas):
+                out.append("\x1b[J")        # cola mas corta: borrar lo rancio
             self._cola_altura = len(cola)
+            self._cola_lineas = nuevas[len(frescas):]
         # sin animar la cola NO se pinta (se pintara commiteada): un pipe no
         # tiene cursor que subir y repetirla seria la basura de repintado
         if out:
-            self._salida.write("".join(out))
+            texto = "".join(out)
+            if self._animar and self._sync:
+                # DEC 2026 (synchronized output): el terminal guarda el frame
+                # entero y lo pinta de una vez; los que no lo conocen lo
+                # ignoran (modo privado desconocido).
+                texto = "\x1b[?2026h" + texto + "\x1b[?2026l"
+            self._salida.write(texto)
             try:
                 self._salida.flush()
             except Exception:
