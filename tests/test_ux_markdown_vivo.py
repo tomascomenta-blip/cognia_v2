@@ -303,6 +303,22 @@ def test_tema_env_gana(monkeypatch):
     assert markdown_vivo.config()[1] == "dracula"
 
 
+def test_tema_espejo_de_respuesta_codigo(monkeypatch):
+    """P6: /estilo respuesta.codigo texto <tema> es el espejo de markdown_tema:
+    gana a la config, pierde contra COGNIA_CODE_THEME."""
+    from cognia.ux import aspecto as A
+    monkeypatch.delenv("COGNIA_CODE_THEME", raising=False)
+    A.reset()
+    try:
+        assert markdown_vivo.config()[1] == markdown_vivo.TEMA_DEFAULT
+        assert not A.errores(A.poner("respuesta.codigo", "texto", "dracula"))
+        assert markdown_vivo.config()[1] == "dracula"
+        monkeypatch.setenv("COGNIA_CODE_THEME", "github-dark")
+        assert markdown_vivo.config()[1] == "github-dark"
+    finally:
+        A.reset()
+
+
 def test_crear_nunca_lanza(monkeypatch):
     monkeypatch.setenv("COGNIA_MARKDOWN", "0")
     assert markdown_vivo.crear(None) is None

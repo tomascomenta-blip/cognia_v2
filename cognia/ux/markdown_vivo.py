@@ -138,6 +138,15 @@ def config() -> tuple:
                 tema = t
     except Exception:
         activo, tema = True, TEMA_DEFAULT
+    # P6 (2026-08-24): respuesta.codigo del registro de estilos (/estilo
+    # respuesta.codigo texto dracula) es el espejo de 'markdown_tema': gana a
+    # la config y pierde contra COGNIA_CODE_THEME, como la config misma.
+    try:
+        from . import aspecto as _A
+        if "texto" in _A.cambios("respuesta.codigo"):
+            tema = _A.texto("respuesta.codigo") or tema
+    except Exception as exc:
+        _avisar(f"respuesta.codigo: {type(exc).__name__}: {exc}")
     env_tema = (os.environ.get("COGNIA_CODE_THEME") or "").strip()
     if env_tema:
         tema = env_tema
