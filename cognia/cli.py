@@ -15123,7 +15123,7 @@ def repl():
                             _szstr = f"{_sz/1024:.1f} KB"
                         else:
                             _szstr = f"{_sz} B"
-                        _print_line(f"  [success_dim]{_e.name}[/success_dim]  [detail]({_szstr})[/detail]")
+                        _print_line(f"  [ok_cl]{_e.name}[/ok_cl]  [detail]({_szstr})[/detail]")
                 if len(_entries) > 50:
                     _print_line(f"[warn_cl]... {len(_entries)-50} entradas omitidas (max 50)[/warn_cl]")
                 _print_line(f"[detail]{min(len(_entries),50)}/{len(_entries)} entradas en {_ruta}[/detail]")
@@ -15172,7 +15172,7 @@ def repl():
                         _print_line(f"[detail]Sin coincidencias para '{_pat}'[/detail]")
                     else:
                         for _mf, _ml, _mc in _matches:
-                            _print_line(f"  [success_dim]{_mf}[/success_dim][detail]:{_ml}:[/detail] {_escape(_mc)}")
+                            _print_line(f"  [ok_cl]{_mf}[/ok_cl][detail]:{_ml}:[/detail] {_escape(_mc)}")
                         if len(_matches) == 20:
                             _print_line("[warn_cl]... limite de 20 coincidencias alcanzado[/warn_cl]")
 
@@ -15242,7 +15242,7 @@ def repl():
                                     _econfirm = "s"
                                 if _econfirm in ("s", "si", "y", "yes"):
                                     _epath.write_text(_enew, encoding="utf-8")
-                                    _print_line(f"[success_dim]Guardado: {_epath}[/success_dim]")
+                                    _print_line(f"[ok_cl]Guardado: {_epath}[/ok_cl]")
                                 else:
                                     _print_line("[detail]Operacion cancelada.[/detail]")
                         except (OSError, PermissionError) as _ee:
@@ -15681,11 +15681,11 @@ def repl():
                     _max_iters = _active_effort()["verificaciones"] + 1
                     _plan, _crit, _verify, _out, _risk = loop._run_deliberate(
                         _obj, None, max_iters=_max_iters)
-                    _print_line(f"[bold]PLAN ({len(_plan or [])} pasos):[/bold]")
+                    _print_line(f"[titulo]PLAN ({len(_plan or [])} pasos):[/titulo]")
                     for _i, _st in enumerate(_plan or [], 1):
                         _print_line(f"  {_i}. {getattr(_st, 'description', _st)} (tool={getattr(_st, 'tool_required', '?')})")
                     _sc = (_crit or {}).get("scores", {})
-                    _print_line(f"[bold]CRITICA[/bold] overall={float(_sc.get('overall', 0.0)):.2f}: {(_crit or {}).get('critique', '')}")
+                    _print_line(f"[titulo]CRITICA[/titulo] overall={float(_sc.get('overall', 0.0)):.2f}: {(_crit or {}).get('critique', '')}")
                     if _verify is not None:
                         _ok = getattr(_verify, "passed", False)
                         _extra = "" if _ok else f" reason={getattr(_verify, 'fail_reason', '')}"
@@ -15737,7 +15737,7 @@ def repl():
                             _print_line(f"[warn_cl]No existe el flujo #{_fid}.[/warn_cl]")
                         else:
                             _fd, _ft = len(_flow["stages_done"]), len(_flow["route"])
-                            _print_line(f"[bold]Flujo #{_flow['id']}[/bold] [{_flow['status']}]")
+                            _print_line(f"[titulo]Flujo #{_flow['id']}[/titulo] [{_flow['status']}]")
                             _print_line(f"  objetivo: {_flow['goal']}")
                             _print_line(f"  ruta: {' -> '.join(_flow['route']) or '(sin ruta)'}")
                             _print_line(f"  etapas hechas: {_fd}/{_ft} "
@@ -15749,7 +15749,7 @@ def repl():
                     if not _flows:
                         _print_line("[detail]Sin flujos registrados todavia (usa /flujo <objetivo>).[/detail]")
                     else:
-                        _print_line("[bold]Proyectos / flujos recientes:[/bold]")
+                        _print_line("[titulo]Proyectos / flujos recientes:[/titulo]")
                         for _f in _flows:
                             _done, _tot = len(_f["stages_done"]), len(_f["route"])
                             _sc = f" score={_f['score']}" if _f.get("score") is not None else ""
@@ -15770,14 +15770,14 @@ def repl():
                 import json as _json_h
                 _st = _json_h.loads(_AGENT_STATE_PATH.read_text(encoding="utf-8"))
                 if _st.get("tasks"):
-                    _print_line("[bold]Tareas recientes del agente:[/bold]")
+                    _print_line("[titulo]Tareas recientes del agente:[/titulo]")
                     for _t in reversed(_st["tasks"]):
                         _print_line(f"  [{_t.get('ts','?')}] {_t['task'][:60]} ({_t.get('steps',0)} pasos)")
                         _print_line(f"    -> {_t['result'][:100]}")
                 else:
                     _print_line("Sin historial de tareas.")
                 if _st.get("files_touched"):
-                    _print_line(f"[bold]Archivos tocados:[/bold] {', '.join(_st['files_touched'][-5:])}")
+                    _print_line(f"[titulo]Archivos tocados:[/titulo] {', '.join(_st['files_touched'][-5:])}")
             except FileNotFoundError:
                 _print_line("Sin historial. Usa /hacer <tarea> primero.")
             except Exception as _e:
@@ -15824,7 +15824,7 @@ def repl():
                         ai.observe(_summary_text, provided_label="resumen_sesion")
                     except Exception:
                         pass
-                    _print_line("[success_dim]Resumen guardado en memoria:[/success_dim]")
+                    _print_line("[ok_cl]Resumen guardado en memoria:[/ok_cl]")
                     _print_line(_summary_text)
             except Exception as _re:
                 _print_line(f"[err_cl]Error al resumir: {_re}[/err_cl]")
