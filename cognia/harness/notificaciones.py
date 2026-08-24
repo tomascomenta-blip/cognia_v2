@@ -213,6 +213,16 @@ def notificar(titulo: str, cuerpo: str, destino=None, modo: str | None = None) -
         stream = destino if destino is not None else _destino_real()
         if stream is None:
             return False
+        if destino is None and not _es_tty(stream):
+            # El fd REAL no es un terminal (sesion remota con stdout=PIPE, CI,
+            # redireccion): NINGUN modo, ni siquiera 'osc'/'bell' forzados,
+            # puede escribirle bytes de escape — la secuencia se pega como
+            # prefijo de la linea siguiente del canal JSONL y '@EV {...}' deja
+            # de casar en remoto/sesiones.py: el movil pierde justo el evento
+            # de fin de turno (revision adversarial 2026-08-23). El gate cubre
+            # solo el destino de produccion: un `destino` inyectado (tests,
+            # buffers propios) es responsabilidad de quien lo inyecta.
+            return False
         if m == "auto":
             if not _es_tty(stream):
                 return False

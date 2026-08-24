@@ -193,3 +193,28 @@ def test_registry_eventos_es_extensible(monkeypatch):
     assert notif.notificar_evento("permiso_pedido", tool="ejecutar",
                                   destino=buf) is True
     assert buf.getvalue() == "\x1b]9;Cognia: permiso: ejecutar\x07"
+
+
+# ── Regresion 2026-08-23 (revision adversarial): osc/bell a un PIPE ──────────
+
+def test_modos_forzados_no_escriben_a_un_fd_real_que_no_es_tty(monkeypatch):
+    """Solo 'auto' chequeaba tty: '/notificar modo osc' persistido en la
+    config compartida hacia que la sesion remota (stdout=PIPE, el UNICO canal
+    del movil) recibiera '\x1b]9;...\x07' pegado como prefijo de la linea
+    '@EV {json}' siguiente — que dejaba de casar con startswith('@EV ') y el
+    telefono perdia el evento de fin de turno. NINGUN modo puede escribirle
+    bytes de escape al fd real si no es un terminal."""
+    pipe = io.StringIO()                       # isatty() -> False, como un PIPE
+    monkeypatch.setattr(notif, "_destino_real", lambda: pipe)
+    for modo in ("osc", "bell", "auto"):
+        assert notif.notificar("Cognia", "x", modo=modo) is False, modo
+    assert pipe.getvalue() == ""               # ni un byte al canal
+    # con el fd real siendo un terminal, los modos forzados siguen emitiendo
+    tty = _TtyFalsa()
+    monkeypatch.setattr(notif, "_destino_real", lambda: tty)
+    assert notif.notificar("Cognia", "x", modo="osc") is True
+    assert tty.getvalue() == "\x1b]9;Cognia: x\x07"
+    # y un destino INYECTADO (tests, buffers propios) no queda gateado
+    buf = io.StringIO()
+    assert notif.notificar("Cognia", "y", destino=buf, modo="bell") is True
+    assert buf.getvalue() == "\a"
