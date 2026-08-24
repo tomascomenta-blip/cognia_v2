@@ -2054,3 +2054,98 @@ def poner_style_string(id: str, s: str) -> list:
     _estado["overrides"][id] = _fusionar_dicts(_estado["overrides"].get(id) or {}, cambio)
     _subir_version()
     return avisos
+
+
+# ---------------------------------------------------------------------------
+# 12. Transacciones en memoria (editor /estilo, P10) y puente con el motor
+# ---------------------------------------------------------------------------
+# El editor trabaja SOBRE la memoria del modulo (poner/reset) y nada toca el
+# disco hasta guardar(): estas funciones le dan instantaneas para undo/redo
+# y para "Esc descarta", y una forma de probar un preset sin copiarlo a
+# estilo.json (Ctrl-L previsualiza toda la pantalla; Esc revierte).
+import copy  # noqa: E402
+
+
+def instantanea() -> dict:
+    """Copia profunda del estado en memoria (fichero cargado + overrides +
+    paleta local). Es lo que el editor apila para deshacer/rehacer."""
+    return {"doc": copy.deepcopy(_estado["doc"]),
+            "overrides": copy.deepcopy(_estado["overrides"]),
+            "paleta_local": copy.deepcopy(_estado["paleta_local"])}
+
+
+def restaurar(inst: dict) -> None:
+    """Vuelve a una instantanea() (sube la version: los memo caducan)."""
+    _estado["doc"] = copy.deepcopy(inst.get("doc") or {})
+    _estado["overrides"] = copy.deepcopy(inst.get("overrides") or {})
+    _estado["paleta_local"] = copy.deepcopy(inst.get("paleta_local") or {})
+    _subir_version()
+
+
+def aplicar_en_memoria(doc: dict) -> list:
+    """Instala un documento (un preset) SOLO en memoria, como si el dueno lo
+    hubiera tecleado: no toca estilo.json. Valida primero; con errores lanza
+    EstiloInvalido y no cambia nada. Devuelve los avisos no bloqueantes. El
+    siguiente guardar() lo escribe (el nombre queda como etiqueta)."""
+    doc = _migrar(dict(doc))
+    avisos = validar(doc)
+    if errores(avisos):
+        raise EstiloInvalido(doc.get("nombre", "<memoria>"),
+                             sorted(avisos, key=lambda a: a.nivel != "error"))
+    _estado["doc"] = {k: copy.deepcopy(v) for k, v in doc.items() if k != "elementos"}
+    _estado["paleta_local"] = dict(doc.get("paleta") or {})
+    _estado["overrides"] = copy.deepcopy(doc.get("elementos") or {})
+    _subir_version()
+    return avisos
+
+
+def paleta_local() -> dict:
+    """Los @mi.* del fichero cargado (nombre -> color o dict por variante)."""
+    return dict(_estado["paleta_local"])
+
+
+def estilo_glow(id: str, variante: str | None = None, estado: str | None = None):
+    """EstiloResuelto -> glow.EstiloGlow (el tipo del motor). Es el callable
+    que va en glow.RESOLVER. Byte-identico: si el elemento no tiene override
+    de color/negrita/italica/subrayado, el motor recibe SOLO el token del
+    Theme (color '' y modificadores False) y devuelve el token tal cual; con
+    override recibe el color resuelto (hex o nombre de rich)."""
+    from . import glow as _glow
+    r = estilo_resuelto(id, variante)
+    e = elemento(id)
+    est = estilo_de(id)
+    default = e.default
+    if estado:
+        if estado not in r.estados:
+            raise KeyError(f"'{id}' no tiene el estado '{estado}'; tiene: "
+                           f"{', '.join(e.estados) or 'ninguno'}")
+        r = r.estados[estado]
+        est = est.estados.get(estado, Estilo())
+        default = default.estados.get(estado, Estilo())
+    tocado = any(getattr(est, c) != getattr(default, c)
+                 for c in ("color", "fondo", "negrita", "italica", "subrayado"))
+    if r.token and not tocado:
+        color, fondo, negrita, italica, subrayado = "", "", False, False, False
+    else:
+        color = color_rich(r.color) if r.color else ""
+        fondo = color_rich(r.fondo) if r.fondo else ""
+        negrita, italica, subrayado = r.negrita, r.italica, r.subrayado
+    a = r.animacion
+    return _glow.EstiloGlow(
+        token=r.token, color=color, fondo=fondo, negrita=negrita, italica=italica,
+        subrayado=subrayado, glow_color=r.glow_color, glow_intensidad=r.glow_intensidad,
+        anim_activa=a.activa, anim_tipo=a.tipo, anim_direccion=a.direccion,
+        anim_velocidad=a.velocidad, anim_ancho=a.ancho, anim_repetir=a.repetir,
+        anim_cada_s=a.cada_s, anim_solo_al_llegar=a.solo_al_llegar, gradiente=r.gradiente)
+
+
+def conectar_glow() -> None:
+    """Cuelga este registro del motor (glow.RESOLVER/VERSION/VARIANTE) si
+    nadie lo hizo antes. Idempotente: el editor y P4 lo llaman."""
+    from . import glow as _glow
+    if _glow.RESOLVER is None:
+        _glow.RESOLVER = estilo_glow
+    if _glow.VERSION is None:
+        _glow.VERSION = version
+    if _glow.VARIANTE is None:
+        _glow.VARIANTE = variante_activa
