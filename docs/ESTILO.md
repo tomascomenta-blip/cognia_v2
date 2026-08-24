@@ -5,8 +5,8 @@ Fecha: 2026-08-24 (revisada 16:20). Estado: **P0-P11 en `main`** (`/estilo`,
 editor, prompt/barra/menus, glifos y textos, banner, spinner, pulso del prompt
 y hot reload); cada afirmacion de este fichero se verifico con grep contra el
 codigo. La seccion "Estado de la entrega", al final, dice exactamente que hay
-y que falta (agentes.*, panel.* caja/titulos, `/color` <-> `respuesta.texto`,
-`global.*`, `/estilo banner`, P12).
+y que falta (agentes.*, migracion E11, barra.* animada, `global.*`, `/estilo banner`,
+P12).
 
 ---
 
@@ -133,12 +133,12 @@ son lineas impresas y no declaran `animacion`).
 **estados** = sub-estilos que aceptan `estados.<nombre>.<prop>`.
 
 Enganchados hoy en `main` (el REPL los lee de verdad; `aspecto.ENGANCHADOS`,
-47 de 50): banner (P7), spinner (P8), prompt/barra/menu (P5, animacion del
+48 de 50): banner (P7), spinner (P8), prompt/barra/menu (P5, animacion del
 prompt por P9), tool/aviso/footer/pensando/diff/separador/enlace/respuesta.
 markdown/respuesta.codigo (P6), y el color por token del Theme de rich de
 sistema.*, aviso.*, tool.verbo/objeto y panel.* (P4). Lo que NO se ve
 todavia lo dice `/estilo` al guardar (`aspecto.paso_pendiente`): `agentes.*`
-(vista F2) y `respuesta.texto` no estan enganchados; en `panel.cuerpo`,
+(vista F2) no esta enganchado y el glow de `respuesta.texto` tampoco; en `panel.cuerpo`,
 `sistema.*`, `aviso.info/error`, `tool.verbo/objeto` solo cambia el color; la
 animacion de `prompt.texto/continuacion/busqueda/seleccion`, `barra.*` y
 `menu.*` (y el glow de `barra.estado`/`barra.modo`) no se anima.
@@ -790,6 +790,7 @@ aviso: banner.arte: identidad: el banner va por defecto (se guarda, pero es la m
 | P10 | modelo puro del editor (navegacion, filtro, edicion por tipo, undo/redo, presets en memoria, preview determinista) + transacciones en memoria del registro | `cognia/ux/editor_aspecto.py`, `cognia/ux/aspecto.py` (seccion 12) |
 | P11 | Application full-screen del editor con las guardas, la preview animada solo cuando toca, `abrir_editor()` y el gancho `/estilo` a secas (`cli._estilo_editor`) | `cognia/ux/editor_app.py`, `cognia/cli.py` |
 | P6b | caja de `panel.borde` (`glifo`: rounded/square/heavy/double/none) y textos de `panel.titulo` en los paneles de `/compactar`, `/modulos`, `/costo`, `/stats` (`cli._panel_chrome`; default byte-identico) | `cognia/cli.py`, `cognia/ux/aspecto.py` (seccion 17) |
+| acento | `/color X` escribe `respuesta.texto.color` en el registro (`cli._acento_a_registro`) y `/estilo respuesta.texto color X` (o style string, o reset) mueve el acento en caliente y persiste `COGNIA_ACCENT` (`cli._acento_desde_registro`); un `COGNIA_ACCENT` heredado sin override no se pisa | `cognia/cli.py`, `cognia/ux/aspecto.py` (seccion 18) |
 
 Tests: `tests/test_ux_aspecto.py`, `test_ux_glow`, `test_ux_spinner_vivo`,
 `test_renderer_estetica`, `test_cli_banner_layout`, `test_harness_banner_adaptativo`,
@@ -802,7 +803,6 @@ Tests: `tests/test_ux_aspecto.py`, `test_ux_glow`, `test_ux_spinner_vivo`,
 | que | estado hoy |
 |---|---|
 | `agentes.acento/panel/borde/texto` (vista F2) | se validan, guardan y previsualizan; la vista F2 no lee el registro (`enganchado=False`) |
-| `/color` <-> `respuesta.texto.color` | `/color` persiste `COGNIA_ACCENT` y no escribe el registro; `/estilo respuesta.texto color` no mueve el acento (`respuesta.texto` no enganchado) |
 | migracion E11 en `cli.py` | quedan `[success_dim]` x4 y `[bold]` x6 literales fuera de los tokens del tema |
 | `barra.*` animada, glow de `barra.estado`/`barra.modo`, animacion de `prompt.texto/continuacion/busqueda/seleccion` y `menu.*` | solo el pulso de P9 anima (etiqueta/marco/flecha/espera) |
 | `sistema.*`, `aviso.info/error`, `tool.verbo/objeto`, `panel.cuerpo`: texto/glifo/glow/visible | solo color/negrita/italica por token |

@@ -38,7 +38,9 @@ def test_set_config_value_updates_in_place_preserving_others(cfg):
     assert text.count("COGNIA_THEME=") == 1     # updated in place, not duplicated
 
 
-def test_slash_color_accepts_valid_and_persists(monkeypatch):
+def test_slash_color_accepts_valid_and_persists(monkeypatch, tmp_path):
+    from cognia.ux import aspecto as A
+    monkeypatch.setattr(A, "RUTA_ESTILO", tmp_path / "estilo.json")   # /color tambien escribe el registro
     saved = {}
     monkeypatch.setattr(cli, "_persist_setting", lambda k, v: saved.update({k: v}))
     old = cli._ACCENT
@@ -48,16 +50,21 @@ def test_slash_color_accepts_valid_and_persists(monkeypatch):
         assert saved.get("COGNIA_ACCENT") == "magenta"
     finally:
         cli._ACCENT = old
+        A.reset()
 
 
-def test_slash_color_rejects_invalid(monkeypatch):
+def test_slash_color_rejects_invalid(monkeypatch, tmp_path):
+    from cognia.ux import aspecto as A
+    monkeypatch.setattr(A, "RUTA_ESTILO", tmp_path / "estilo.json")
     monkeypatch.setattr(cli, "_persist_setting", lambda k, v: None)
     old = cli._ACCENT
     try:
         cli._slash_color("no-es-un-color-valido-xyz")
         assert cli._ACCENT == old  # unchanged
+        assert not (tmp_path / "estilo.json").exists()
     finally:
         cli._ACCENT = old
+        A.reset()
 
 
 def test_slash_tema_sets_named_theme(monkeypatch):

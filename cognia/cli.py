@@ -9582,10 +9582,52 @@ def _slash_color(arg: str = ""):
             return
     _ACCENT = color
     _persist_setting("COGNIA_ACCENT", color)
+    _acento_a_registro(color)
     if _HAS_RICH and _console:
         _console.print(f"Color de acento: {color} (guardado)", style=color)
     else:
         print(f"Color de acento: {color} (guardado)")
+
+
+def _acento_a_registro(color: str) -> None:
+    """/color X tambien escribe respuesta.texto.color en el registro
+    (aspecto.poner + guardar), para que '/estilo ver respuesta.texto' diga
+    el origen y el editor lo vea. El acento por defecto ('respuesta', la
+    decision 17) vuelve el elemento a su default (@token.respuesta), que
+    guardar() no escribe. Un color que el registro rechaza se avisa y el
+    acento queda igual que antes de esta sincronizacion (COGNIA_ACCENT)."""
+    valor = "@token.respuesta" if color == _DEFAULT_ACCENT else color
+    try:
+        avisos = _aspecto.poner("respuesta.texto", "color", valor)
+    except Exception as exc:
+        _aviso_degradado("estilo", f"respuesta.texto.color: {type(exc).__name__}: {exc}")
+        return
+    if _estilo_avisos(avisos):
+        return
+    _estilo_guardar_y_aplicar()
+
+
+def _acento_desde_registro(forzar: bool = False) -> None:
+    """El camino inverso: respuesta.texto.color del registro -> _ACCENT y
+    COGNIA_ACCENT en caliente (lo que hace /color X). Con el elemento en su
+    default solo se toca si `forzar` (un /estilo reset explicito): al
+    arrancar, un COGNIA_ACCENT guardado sin estilo.json NO se pisa."""
+    global _ACCENT
+    try:
+        if _aspecto.origen("respuesta.texto", "color") == "default":
+            if not forzar:
+                return
+            color = _DEFAULT_ACCENT
+        else:
+            color = _aspecto._estilo_rich_de(
+                _aspecto.estilo_resuelto("respuesta.texto", _variante_actual())) or _DEFAULT_ACCENT
+    except Exception as exc:
+        _aviso_degradado("estilo", f"acento desde respuesta.texto: {type(exc).__name__}: {exc}")
+        return
+    if color == _ACCENT:
+        return
+    _ACCENT = color
+    _persist_setting("COGNIA_ACCENT", color)
 
 
 # ---------------------------------------------------------------------------
@@ -9636,6 +9678,7 @@ def _aplicar_tema_en_caliente() -> None:
             _aviso_degradado("cli.tema.renderer",
                              f"el tema no llego al renderer: {_exc}")
     _reestilar_prompt()
+    _acento_desde_registro()
     # El motor memoiza frames por version del registro y lee global.fps del
     # fichero: reconectar vacia la memo y refresca el fps.
     try:
@@ -9772,6 +9815,8 @@ def _estilo_poner(id: str, prop: str, valor: str) -> None:
         return
     if not _estilo_guardar_y_aplicar():
         return
+    if id == "respuesta.texto":
+        _acento_desde_registro(forzar=True)
     _print_line(f"[ok_cl]{_escape(id)}.{_escape(prop)} = {_escape(valor)} (guardado)[/ok_cl]")
     aviso = _estilo_aviso_enganche(id, [prop])
     if aviso:
@@ -9794,6 +9839,8 @@ def _estilo_poner_string(id: str, s: str) -> None:
     import dataclasses as _dc
     props = [f.name for f in _dc.fields(estilo)
              if getattr(estilo, f.name) not in (None, {})]
+    if id == "respuesta.texto":
+        _acento_desde_registro(forzar=True)
     _print_line(f"[ok_cl]{_escape(id)} = {_escape(s)} (guardado)[/ok_cl]")
     aviso = _estilo_aviso_enganche(id, props)
     if aviso:
@@ -9920,6 +9967,8 @@ def _estilo_reset(arg: str) -> None:
         _aspecto.reset(arg)
         que = arg
     if _estilo_guardar_y_aplicar():
+        if que in ("todos los elementos", "respuesta.texto"):
+            _acento_desde_registro(forzar=True)
         _print_line(f"[ok_cl]estilo: {_escape(que)} al default (guardado)[/ok_cl]")
 
 

@@ -2449,3 +2449,17 @@ ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P9 if i not in E
 # El COLOR de ambos ya iba por token desde P4; aqui se cablean glifo y texto.
 ENGANCHADOS_P6B = ("panel.borde", "panel.titulo")
 ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_P6B if i not in ENGANCHADOS)
+
+
+# ---------------------------------------------------------------------------
+# 18. Acento (2026-08-24): respuesta.texto <-> /color
+# ---------------------------------------------------------------------------
+# cli._acento_a_registro (/color X escribe respuesta.texto.color aqui) y
+# cli._acento_desde_registro (/estilo respuesta.texto color X mueve _ACCENT y
+# COGNIA_ACCENT en caliente). El color/fondo/negrita/italica ya iban por el
+# token 'respuesta' del Theme; el glow sigue pendiente (paso_pendiente 'P6').
+ENGANCHADOS_ACENTO = ("respuesta.texto",)
+for _id in ENGANCHADOS_ACENTO:
+    REGISTRO[_id] = dataclasses.replace(REGISTRO[_id], enganchado=True)
+del _id
+ENGANCHADOS = tuple(ENGANCHADOS) + tuple(i for i in ENGANCHADOS_ACENTO if i not in ENGANCHADOS)

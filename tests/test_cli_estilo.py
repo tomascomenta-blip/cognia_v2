@@ -615,3 +615,55 @@ def test_panel_chrome_override_de_caja_y_titulo_cambia_el_borde(entorno):
     # 'none' = el cuerpo sin panel
     assert not A.poner("panel.borde", "glifo", "none")
     assert cli._panel_chrome("x", "costo") == "x"
+
+
+def test_color_escribe_respuesta_texto_en_el_registro_y_ver_dice_el_origen(entorno, monkeypatch):
+    """/color X persiste COGNIA_ACCENT (como siempre) Y respuesta.texto.color
+    en estilo.json; '/estilo ver respuesta.texto' lo muestra con su origen.
+    /color normal vuelve el elemento al default (guardar no lo escribe)."""
+    guardado = {}
+    monkeypatch.setattr(cli, "_persist_setting", lambda k, v: guardado.update({k: v}))
+    monkeypatch.setattr(cli, "_ACCENT", cli._DEFAULT_ACCENT)
+    cli._slash_color("#ff00ff")
+    assert cli._ACCENT == "#ff00ff" and guardado["COGNIA_ACCENT"] == "#ff00ff"
+    assert A.origen("respuesta.texto", "color") != "default"
+    doc = json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))
+    assert doc["elementos"]["respuesta.texto"]["color"] == "#ff00ff"
+    assert A.tema_rich("oscuro")["respuesta"] == "#ff00ff", "el token del Theme sigue al acento"
+    entorno.salida.clear()
+    cli._slash_estilo("ver respuesta.texto")
+    texto = entorno.texto()
+    assert "#ff00ff" in texto and "enganchado si" in texto
+    assert "estilo.json" in texto or "memoria" in texto
+    cli._slash_color("normal")
+    assert cli._ACCENT == cli._DEFAULT_ACCENT
+    assert A.origen("respuesta.texto", "color") == "default"
+    doc = json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))
+    assert "respuesta.texto" not in doc.get("elementos", {})
+    assert not [a for a in entorno.avisos if a[0] == "estilo"], entorno.avisos
+
+
+def test_estilo_respuesta_texto_color_mueve_el_acento_como_color(entorno, monkeypatch):
+    """/estilo respuesta.texto color X == /color X (acento en caliente y
+    COGNIA_ACCENT); @refs se resuelven a hex; reset vuelve al token
+    'respuesta'; un COGNIA_ACCENT heredado sin override NO se pisa."""
+    guardado = {}
+    monkeypatch.setattr(cli, "_persist_setting", lambda k, v: guardado.update({k: v}))
+    monkeypatch.setattr(cli, "_ACCENT", cli._DEFAULT_ACCENT)
+    cli._slash_estilo("respuesta.texto color #00ffff")
+    assert cli._ACCENT == "#00ffff" and guardado["COGNIA_ACCENT"] == "#00ffff"
+    cli._slash_estilo("respuesta.texto color @rampa.prompt")
+    assert cli._ACCENT.startswith("#") and cli._ACCENT != "#00ffff"
+    cli._slash_estilo("respuesta.texto \"bold fg:#123456\"")
+    assert cli._ACCENT == "bold #123456"
+    cli._slash_estilo("reset respuesta.texto")
+    assert cli._ACCENT == cli._DEFAULT_ACCENT and guardado["COGNIA_ACCENT"] == cli._DEFAULT_ACCENT
+    assert A.paso_pendiente("respuesta.texto", "color") == ""
+    assert A.paso_pendiente("respuesta.texto", "glow") == "P6"
+    assert "respuesta.texto" in A.ENGANCHADOS and len(A.ENGANCHADOS) == len(set(A.ENGANCHADOS))
+    # arranque con COGNIA_ACCENT=cyan y sin override: la aplicacion en
+    # caliente (tema, recarga) no lo pisa
+    monkeypatch.setattr(cli, "_ACCENT", "cyan")
+    guardado.clear()
+    cli._aplicar_tema_en_caliente()
+    assert cli._ACCENT == "cyan" and not guardado
