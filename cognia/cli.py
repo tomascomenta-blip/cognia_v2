@@ -2073,6 +2073,7 @@ _CMD_DESCRIPTIONS = {
     "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
     "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args) y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | timeout <s>]",
+    "/horizonte":       "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2194,6 +2195,30 @@ _CMD_DETAILS = {
         "invalida grita en vez de callar) | timeout <s> (persiste 'tool_timeout_s'; 0 = sin "
         "limite). Envs: COGNIA_REPETICION=0 apaga GANANDO a la config; "
         "COGNIA_REPETICION_UMBRALES, COGNIA_TOOL_TIMEOUT, COGNIA_TOOL_TIMEOUT_GRACIA."),
+    "/horizonte": (
+        "MODO HORIZONTE (agent/horizonte.py + estado_tarea.py; contrato RALPH de deepseek-harness "
+        "tool-ralph). Con el modo encendido, cada /hacer corre en RONDAS: cada ronda es un worker "
+        "FRESCO (no recibe la conversacion previa; el objetivo es INMUTABLE; el workspace y su arbol "
+        "son la memoria de largo plazo y la fuente de verdad; el traspaso previo es solo un traspaso "
+        "ACOTADO que se confirma contra el workspace). Al terminar su ronda el worker emite un REPORT "
+        "de EXACTAMENTE 5 campos {status: continue|complete|blocked, summary, evidence[], "
+        "nextSteps[], blocker} con reglas duras: strings no vacios y == trim; continue exige "
+        "nextSteps>0 y blocker vacio; complete exige evidence>0 Y nextSteps==0 Y blocker vacio; "
+        "blocked exige blocker. Se valida DOS veces (al parsear la salida del worker y al consumirlo "
+        "para el traspaso, claves exactas por sort+join) y el traspaso serializado tiene tope de "
+        "chars. Un report invalido (p.ej. complete sin evidencia) se vuelve a pedir UNA vez citando "
+        "el error; al segundo fallo la ronda queda SIN report, con el motivo (jamas se inventa). "
+        "ANTI-RENDICION: 'blocked' solo se acepta si el MISMO blocker persistio 3 rondas seguidas; "
+        "antes se convierte en continue con el bloqueo anotado. Lo VERIFICADO sigue siendo solo el "
+        "sello ejecutable de GoalContract (criterios congelados de la letra original); el cierre dice "
+        "'el worker reporta completado (N rondas)' + la evidencia listada, nunca 'completado' a "
+        "secas. Sin criterios verificables gobierna el report (continue = otra ronda, hasta el tope). "
+        "USO: /horizonte (estado: modo y su fuente, rondas, tope del traspaso, ultima corrida con "
+        "su ultimo report resumido y el cierre) | on|off (persiste 'horizonte') | rondas <n> "
+        "(persiste 'horizonte_max_rondas'; vacio/0 = segun /esfuerzo; techo 8) | handoff <chars> "
+        "(persiste 'horizonte_handoff_max', default 16384, minimo 512). Envs: COGNIA_HORIZONTE=1 "
+        "enciende GANANDO a la config; COGNIA_HORIZONTE_CICLOS y COGNIA_HORIZONTE_HANDOFF_MAX "
+        "mueven los knobs por entorno. '/hacer retomar' relanza la ultima tarea incompleta."),
     "/offload": (
         "OFFLOADING de salidas grandes (harness/offloading, contrato deepseek-harness): cuando "
         "el resultado de una tool supera el umbral de bytes inline, va ENTERO a disco y el "
@@ -2417,9 +2442,10 @@ _CMD_DETAILS = {
         "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
         "Usa herramientas como /buscar-web, /kg-agregar, /ejecutar para completar la tarea. "
         "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask\n"
-        "Con COGNIA_HORIZONTE=1 las tareas largas corren en ciclos de contexto "
-        "fresco con estado durable (~/.cognia/data/tareas/); '/hacer retomar' "
-        "relanza la ultima tarea que quedo incompleta."
+        "Con /horizonte on (o COGNIA_HORIZONTE=1) las tareas corren en rondas de worker "
+        "fresco con report de 5 campos (contrato ralph) y estado durable "
+        "(~/.cognia/data/tareas/); '/hacer retomar' relanza la ultima tarea que quedo "
+        "incompleta. Detalle: /ayuda /horizonte."
     ),
     "/rlm": (
         "Modo RLM (contexto largo por tools): el archivo o directorio NO entra en la "
@@ -6157,6 +6183,17 @@ _CONFIG_DEFAULTS: dict = {
     "repeticion":              "on",
     "repeticion_umbrales":     "3,5,8",
     "tool_timeout_s":          "120",
+    # MODO HORIZONTE con contrato ralph (2026-08-24, deepseek-harness
+    # tool-ralph): 'horizonte' on/off = las tareas de /hacer corren en rondas
+    # de worker FRESCO con report de 5 campos y sello GoalContract (env
+    # COGNIA_HORIZONTE=1 enciende ganando a la config); 'horizonte_max_rondas'
+    # VACIO = segun /esfuerzo (1-3), un entero lo fija (COGNIA_HORIZONTE_CICLOS,
+    # techo duro 8); 'horizonte_handoff_max' = tope de chars del traspaso
+    # serializado entre rondas (COGNIA_HORIZONTE_HANDOFF_MAX; dsh: 16384).
+    # Se cambian con /horizonte.
+    "horizonte":               "off",
+    "horizonte_max_rondas":    "",
+    "horizonte_handoff_max":   "16384",
 }
 
 
@@ -9325,6 +9362,212 @@ def _slash_compactar(arg: str = "") -> None:
         _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
 
 
+def _aplicar_config_horizonte() -> None:
+    """Propaga la config del modo HORIZONTE (rondas de worker fresco con
+    contrato ralph) al entorno SIN pisar lo del usuario, marcando la siembra
+    (F6: /config-resuelta no miente el origen), y la VALIDA al arrancar: una
+    config invalida se grita via degradado y se siembra el default."""
+    try:
+        from cognia.agent import horizonte as _hz
+    except Exception as exc:
+        _aviso_degradado("horizonte", f"modulo no importable: {exc}")
+        return
+    try:
+        cfg = _load_config()
+    except Exception as exc:
+        _aviso_degradado("horizonte", f"config no aplicada: {exc}")
+        return
+    act = str(cfg.get("horizonte", "off")).strip().lower()
+    if act not in ("on", "off"):
+        _aviso_degradado("horizonte", f"config 'horizonte'={act!r} no es "
+                         f"on/off; uso off")
+        act = "off"
+    rondas = str(cfg.get("horizonte_max_rondas", "")).strip()
+    if rondas:
+        try:
+            if int(rondas) < 0:
+                raise ValueError(rondas)
+        except ValueError:
+            _aviso_degradado("horizonte", f"config 'horizonte_max_rondas'="
+                             f"{rondas!r} no es un entero >= 0; uso el de "
+                             f"/esfuerzo")
+            rondas = ""
+        if rondas == "0":
+            rondas = ""
+    hmax = str(cfg.get("horizonte_handoff_max", "16384")).strip()
+    try:
+        if int(hmax) < 512:
+            raise ValueError(hmax)
+    except ValueError:
+        _aviso_degradado("horizonte", f"config 'horizonte_handoff_max'="
+                         f"{hmax!r} no es un entero >= 512; uso 16384")
+        hmax = "16384"
+    pares = [(_hz.FLAG, "1" if act == "on" else "0"),
+             (_hz.ENV_HANDOFF_MAX, hmax)]
+    if rondas:
+        pares.append((_hz.ENV_CICLOS, rondas))
+    for var, valor in pares:
+        if not (os.environ.get(var) or "").strip():
+            os.environ[var] = valor
+            _marcar_env_sembrada(var)
+
+
+def _slash_horizonte(arg: str = "") -> None:
+    """`/horizonte`: puerta del modo HORIZONTE (rondas de worker fresco con
+    el contrato ralph de report de 5 campos + sello GoalContract).
+
+    Sin args (o 'estado') muestra modo, rondas, tope del traspaso, el contrato
+    y la ultima corrida (rondas, ultimo report resumido, cierre). Subcomandos
+    (persisten via _save_config y siembran el env de la sesion):
+      on|off            -> clave 'horizonte' (COGNIA_HORIZONTE)
+      rondas <n>        -> 'horizonte_max_rondas' (COGNIA_HORIZONTE_CICLOS)
+      handoff <chars>   -> 'horizonte_handoff_max' (COGNIA_HORIZONTE_HANDOFF_MAX)
+    Punto de extension: los subcomandos son ramas de este if; el contrato del
+    report vive en horizonte.validar_report / SCHEMA_REPORT."""
+    try:
+        from cognia.agent import horizonte as _hz
+    except Exception as exc:
+        _aviso_degradado("horizonte", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["horizonte"] = bajo
+        _save_config(cfg)
+        os.environ[_hz.FLAG] = "1" if bajo == "on" else "0"
+        _marcar_env_sembrada(_hz.FLAG)
+        _print_line(f"[info_dim]modo horizonte: {bajo} (guardado; aplica a "
+                    f"los proximos /hacer)[/info_dim]")
+        return
+    if bajo.startswith("rondas"):
+        crudo = arg[len("rondas"):].strip()
+        try:
+            n = int(crudo)
+            if n < 0:
+                raise ValueError(n)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /horizonte rondas <n> (entero >= 0; "
+                        "0 = segun /esfuerzo)[/warn_cl]")
+            return
+        if n > _hz._TECHO_CICLOS:
+            _print_line(f"[warn_cl]horizonte: el techo duro es "
+                        f"{_hz._TECHO_CICLOS} rondas; uso {_hz._TECHO_CICLOS}"
+                        f"[/warn_cl]")
+            n = _hz._TECHO_CICLOS
+        cfg = _load_config()
+        cfg["horizonte_max_rondas"] = str(n) if n else ""
+        _save_config(cfg)
+        if n:
+            os.environ[_hz.ENV_CICLOS] = str(n)
+            _marcar_env_sembrada(_hz.ENV_CICLOS)
+        else:
+            os.environ.pop(_hz.ENV_CICLOS, None)
+        _print_line(f"[info_dim]horizonte: rondas max "
+                    f"{n if n else 'segun /esfuerzo'} (guardado)[/info_dim]")
+        return
+    if bajo.startswith("handoff"):
+        crudo = arg[len("handoff"):].strip()
+        try:
+            n = int(crudo)
+            if n < 512:
+                raise ValueError(n)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /horizonte handoff <chars> (entero >= "
+                        "512; dsh usa 16384)[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["horizonte_handoff_max"] = str(n)
+        _save_config(cfg)
+        os.environ[_hz.ENV_HANDOFF_MAX] = str(n)
+        _marcar_env_sembrada(_hz.ENV_HANDOFF_MAX)
+        _print_line(f"[info_dim]horizonte: tope del traspaso {n} chars "
+                    f"(guardado)[/info_dim]")
+        return
+    if arg and bajo != "estado":
+        _print_line("[warn_cl]Uso: /horizonte [estado | on | off | rondas <n> "
+                    "| handoff <chars>][/warn_cl]")
+        return
+    # Estado (default).
+    cfg = _load_config()
+
+    def _fuente(var, clave):
+        env = (os.environ.get(var) or "").strip()
+        return (f"env {var}={env}" if env and not _env_es_sembrada(var)
+                else f"config '{clave}'")
+
+    activo = _hz.habilitado()
+    rondas_env = _hz.max_ciclos_env()
+    rondas_txt = (f"{rondas_env}" if rondas_env
+                  else f"{_active_effort().get('ciclos_horizonte', 2)} "
+                       f"(segun /esfuerzo {cfg.get('esfuerzo', 'medio')})")
+    _print_line(f"[info_dim]modo horizonte: {'ACTIVO' if activo else 'apagado'} "
+                f"({_fuente(_hz.FLAG, 'horizonte')})[/info_dim]")
+    _print_line(f"[info_dim]rondas max: {rondas_txt}; techo duro "
+                f"{_hz._TECHO_CICLOS} ({_fuente(_hz.ENV_CICLOS, 'horizonte_max_rondas')})"
+                f"[/info_dim]")
+    _print_line(f"[info_dim]traspaso max: {_hz.handoff_max_env()} chars "
+                f"({_fuente(_hz.ENV_HANDOFF_MAX, 'horizonte_handoff_max')})[/info_dim]")
+    _print_line(f"[info_dim]contrato del report: {{{_hz.FIRMA_REPORT}}} con status "
+                f"{'|'.join(_hz.ESTADOS_REPORT)}; validado 2 veces; blocked "
+                f"aceptado tras {_hz.BLOCKED_RONDAS_MIN} rondas iguales[/info_dim]")
+    foto = _hz.estado_actual()
+    if not foto:
+        # Sin corrida en este proceso: la ultima del disco, si hay.
+        try:
+            from cognia.agent import estado_tarea as _et
+            dirs = sorted((d for d in _et.dir_tareas().iterdir() if d.is_dir()),
+                          key=lambda d: d.name, reverse=True)
+            # El primero CON estado.json: el directorio comparte raiz con
+            # TX ('tx-...' ordena despues de '2026...' y no tiene estado);
+            # tomar dirs[0] a secas decia 'ninguna' con corridas en disco
+            # (cazado tecleando /horizonte estado, 2026-08-24).
+            est = None
+            for d in dirs:
+                est = _et.cargar(d.name)
+                if est:
+                    break
+        except Exception as exc:
+            _aviso_degradado("horizonte", f"no pude leer el estado durable: {exc}")
+            est = None
+        if not est:
+            _print_line("[info_dim]ultima corrida: ninguna (ni en este proceso "
+                        "ni en disco)[/info_dim]")
+            return
+        ciclos = est.get("ciclos", [])
+        ultimo = ciclos[-1] if ciclos else {}
+        foto = {"task_id": est.get("task_id", ""), "tarea": est.get("tarea", ""),
+                "activa": est.get("status") == "en_curso",
+                "rondas": len(ciclos), "max_rondas": "?",
+                "criterios": len(est.get("criterios", [])),
+                "contrato_ok": est.get("status"),
+                "report": ultimo.get("report"),
+                "report_error": ultimo.get("report_error", ""),
+                "cierre": est.get("cierre_worker", "")}
+    _print_line(f"[info_dim]ultima corrida: {foto.get('task_id', '')} "
+                f"({'EN CURSO' if foto.get('activa') else 'cerrada'}); rondas "
+                f"{foto.get('rondas')}/{foto.get('max_rondas')}; criterios "
+                f"{foto.get('criterios')}; contrato: {foto.get('contrato_ok')}"
+                f"[/info_dim]")
+    _print_line(f"[info_dim]  tarea: {_escape((foto.get('tarea') or '')[:120])}"
+                f"[/info_dim]")
+    rep_ = foto.get("report")
+    if rep_:
+        _print_line(f"[info_dim]  ultimo report: {rep_.get('status')} -- "
+                    f"{_escape(rep_.get('summary', '')[:200])}[/info_dim]")
+        _print_line(f"[info_dim]    evidence {len(rep_.get('evidence', []))}, "
+                    f"nextSteps {len(rep_.get('nextSteps', []))}"
+                    + (f", blocker: {_escape(rep_.get('blocker', '')[:120])}"
+                       if rep_.get("blocker") else "") + "[/info_dim]")
+    else:
+        _print_line(f"[info_dim]  ultimo report: ninguno"
+                    + (f" ({_escape(str(foto.get('report_error'))[:160])})"
+                       if foto.get("report_error") else "") + "[/info_dim]")
+    if foto.get("cierre"):
+        _print_line(f"[info_dim]  cierre: "
+                    f"{_escape(str(foto['cierre'])[:400])}[/info_dim]")
+
+
 def _aplicar_config_bucle() -> None:
     """Propaga la config de la higiene del lazo (repeticion + timeout por
     tool) al entorno SIN pisar lo del usuario y marcando la siembra (F6), y
@@ -11979,6 +12222,10 @@ def repl():
     # leen COGNIA_REPETICION* / COGNIA_TOOL_TIMEOUT del env; se siembran desde
     # la config y se VALIDAN aqui (config invalida = grito, no silencio).
     _aplicar_config_bucle()
+    # MODO HORIZONTE (contrato ralph): _run_agent_task y '/hacer retomar' leen
+    # COGNIA_HORIZONTE del env, y horizonte.py el tope del traspaso; se
+    # siembran desde la config y se validan (config invalida = grito).
+    _aplicar_config_horizonte()
 
     # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
     # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
@@ -12546,6 +12793,9 @@ def repl():
             _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
         elif raw == "/bucle" or raw.startswith("/bucle "):
             _slash_bucle(raw[len("/bucle "):] if raw.startswith("/bucle ") else "")
+        elif raw == "/horizonte" or raw.startswith("/horizonte "):
+            _slash_horizonte(
+                raw[len("/horizonte "):] if raw.startswith("/horizonte ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):

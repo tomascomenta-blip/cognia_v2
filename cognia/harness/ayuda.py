@@ -215,6 +215,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     # dejaba "Agente y tareas" en 26 con el tope en 25.
     "Horizonte largo (TX)": (
         "/tx", "/libro",
+        "/horizonte",
     ),
     "Codigo y ficheros": (
         "/leer", "/proyecto", "/listar", "/buscar", "/escribir", "/editar",

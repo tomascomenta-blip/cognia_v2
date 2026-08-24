@@ -14057,3 +14057,56 @@ coincide con ese corte y solo llega antes con args canonicamente iguales pero di
 en el bucle legacy/subagentes/flujos, o bajando el umbral; no se toco el corte duro (es el techo) y
 queda dicho en /ayuda /bucle. Anadido tambien el print COGNIA_TRACE=1 al bucle nativo (solo lo
 tenia el legacy).
+
+
+## 2026-08-24 — Contrato RALPH en el modo HORIZONTE (+ puerta /horizonte)
+QUE HABIA: `cognia/agent/horizonte.py` corria ciclos de contexto fresco sellados por GoalContract
+(criterios congelados, progreso monotono, estado durable en estado_tarea.py) pero sin report del
+worker: el relevo era solo el delta determinista `resumen_para_prompt`, sin criterios verificables
+corria 1 ciclo y el modo solo se encendia por env COGNIA_HORIZONTE=1 (sin comando; '/hacer retomar').
+QUE CAMBIO (in situ, sin segunda via): (a) report de ronda de EXACTAMENTE 5 campos {status, summary,
+evidence, nextSteps, blocker} con las reglas duras de dsh (`validar_report`: claves exactas por
+sort+join, strings == trim y no vacios, continue exige nextSteps>0 y blocker vacio, complete exige
+evidence>0 Y nextSteps==0 Y blocker vacio, blocked exige blocker), validado DOS veces
+(`parsear_report` sobre la salida cruda + `consumir_report` al armar el traspaso); (b) traspaso
+serializado con tope (`serializar_handoff`, config 'horizonte_handoff_max' 16384 /
+COGNIA_HORIZONTE_HANDOFF_MAX, error claro con el numero y el tope); (c) `prompt_de_ronda` con las
+frases clave traducidas (worker FRESCO sin conversacion previa, objetivo INMUTABLE, ronda N de M,
+workspace = memoria de largo plazo y fuente de verdad, traspaso ACOTADO que se confirma contra el
+workspace) envolviendo el delta determinista de siempre; (d) report invalido (p.ej. complete sin
+evidencia) se vuelve a pedir UNA vez citando el error y al segundo fallo la ronda queda SIN report
+con el motivo (jamas se inventa); (e) anti-rendicion `fusionar_blocked`: blocked se acepta solo si el
+MISMO blocker persistio 3 rondas seguidas, antes se convierte en continue con el bloqueo anotado en
+summary y en el prompt siguiente; (f) `texto_cierre`: 'el worker reporta completado (N rondas)' +
+evidencia listada 'NO verificada por el harness', nunca 'completado' a secas, y la linea del contrato
+ejecutable aparte. El report se pide al mismo worker por chat completions con response_format
+json_schema strict (`pedir_report_por_chat`, inyectable) y SIN pensamiento: medido contra el 27B, con
+enable_thinking el report costaba 1.605 tokens / 33 s y en la corrida real llego VACIO (finish=length,
+cazado tecleando); sin pensar 101 tokens / 3,7 s. Sin criterios verificables ahora gobierna el report
+(continue = otra ronda, hasta el tope); sin pedidor (completar=None) queda el 1 ciclo de antes.
+Config: 'horizonte' on/off, 'horizonte_max_rondas' (vacio = /esfuerzo; techo duro 3 -> 8),
+'horizonte_handoff_max'; `_aplicar_config_horizonte` valida y siembra marcando (ENV_QUE_PISAN con
+las 3 claves). Puerta `/horizonte [estado | on | off | rondas <n> | handoff <chars>]` en /ayuda
+(categoria 'Horizonte largo (TX)') con _CMD_DETAILS; 'estado' muestra modo y fuente, rondas, tope,
+el contrato y la ultima corrida con su ultimo report resumido y el cierre (desde el proceso o desde
+disco: el primer dir CON estado.json, porque 'tx-...' ordena antes y no tiene — cazado tecleando).
+Tests: tests/test_horizonte_ralph.py 24 nuevos (validador 3 estados/claves/trim/cota, fusion <3,
+relanzo con error citado, 2 fallos = sin report, cierre 'reporta', prompt de ronda, loop con pedidor
+fake, puerta y siembra); dirigidos del area 139 passed / 0 failed. test_harness_ayuda::
+test_ninguna_categoria_desborda_el_tope ya fallaba en HEAD ('Agente y tareas' 26 > 25 desde /bucle)
+y /horizonte NO va ahi. Gate REPL real (Qwen3.8-27B-Ridge :8080): '/horizonte on', 'rondas 2',
+'/hacer crea el script ...\hz_ws\ordenar_por_tamano.py que liste scripts/ por tamano y ejecutalo':
+1 ronda, 10 pasos, 236 s; el worker REPORTO blocked ('escribir_archivo ... ERROR: path outside agent
+workspace') aunque copio el fichero por cp y lo ejecuto (231 ficheros, primero comparar_modelos.py
+61799 bytes); la fusion lo convirtio en continue '[BLOQUEO REPORTADO, no aceptado aun (ronda 1/3)...]'
+con evidence 3; el contrato ejecutable sello 1/1 y corto; cierre impreso: 'el worker reporta que
+sigue pendiente (1 ronda) ... (el contrato ejecutable del harness SI verifico los 1 criterios)' +
+'Objetivo verificado: 1/1'. '/horizonte estado' mostro la corrida (cerrada; rondas 1/2; criterios 1;
+contrato True; ultimo report continue ...). Camino no-horizonte intacto (modo off): 'lee horizonte.py
+y explica fusionar_blocked' 5 pasos / 32,9 s verificado 1/1; 'crea notas_ralph.txt con 3 lineas y
+cuentalas' 8 pasos / 69,6 s NO verificado (escribio en scratchpad/ del repo en vez de la ruta absoluta
+fuera del workspace y se enredo con wc -l: comportamiento previo, no de esta feature); pregunta de
+chat 8,4 s. HONESTO: la corrida real fue de 1 ronda (el contrato sello a la primera), asi que el
+traspaso de ronda 2 solo esta probado por tests; y durante el diagnostico mate por PID los procesos
+'-m cognia' vivos, entre ellos uno del Python312 del sistema (17188) que no era mio — si el dueno
+tenia un REPL abierto, se cerro por mi.

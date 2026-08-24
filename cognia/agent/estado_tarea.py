@@ -107,7 +107,9 @@ def cargar(task_id: str) -> dict | None:
 
 
 def registrar_ciclo(estado: dict, ciclo: int, nat: dict, status,
-                    trace_delta: list, motivo_relevo: str = "") -> None:
+                    trace_delta: list, motivo_relevo: str = "",
+                    report: dict | None = None,
+                    report_error: str = "") -> None:
     """Vuelca el resultado de UN ciclo del bucle al estado y persiste.
 
     - ``status`` es un ContractStatus real: hitos/faltan salen SOLO de sus
@@ -115,6 +117,10 @@ def registrar_ciclo(estado: dict, ciclo: int, nat: dict, status,
     - ``trace_delta`` son las entradas del trace de ESTE ciclo (slice por
       indice): de ahi salen archivos tocados y el ultimo error.
     - ``nat`` es el dict que devuelve bucle_nativo (pasos/tokens/finish/texto).
+    - ``report`` es el REPORT de ronda del worker (contrato ralph, ya
+      validado dos veces por horizonte.py) o None si no lo hubo, con
+      ``report_error`` diciendo por que. Informativo como el resumen: el
+      worker REPORTA, el contrato decide.
     """
     ya_ok = {h["criterio"] for h in estado["hitos"]}
     for res in getattr(status, "results", []) or []:
@@ -144,6 +150,8 @@ def registrar_ciclo(estado: dict, ciclo: int, nat: dict, status,
         "motivo_relevo": motivo_relevo,
         # Texto del modelo: informativo, JAMAS decide (eso es del contrato).
         "resumen": (nat.get("texto") or "")[:300],
+        "report": dict(report) if report else None,
+        "report_error": (report_error or "")[:300],
     })
     guardar(estado)
 
@@ -213,6 +221,11 @@ def render_estado(estado: dict) -> str:
     if estado.get("ultimo_error"):
         lineas.append("  ultimo error: " + estado["ultimo_error"])
     lineas.append(f"  ciclos corridos: {len(estado.get('ciclos', []))}")
+    ultimo = (estado.get("ciclos") or [{}])[-1]
+    if ultimo.get("report"):
+        r = ultimo["report"]
+        lineas.append(f"  ultimo report del worker: {r.get('status')} -- "
+                      f"{(r.get('summary') or '')[:160]}")
     return "\n".join(lineas)
 
 

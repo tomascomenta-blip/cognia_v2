@@ -170,7 +170,7 @@ def test_max_ciclos_env(monkeypatch):
     monkeypatch.setenv("COGNIA_HORIZONTE_CICLOS", "2")
     assert max_ciclos_env() == 2
     monkeypatch.setenv("COGNIA_HORIZONTE_CICLOS", "9")
-    assert max_ciclos_env() == 3              # techo duro
+    assert max_ciclos_env() == 8              # techo duro (8 desde ralph)
     monkeypatch.setenv("COGNIA_HORIZONTE_CICLOS", "rara")
     assert max_ciclos_env() == 0
 

@@ -75,6 +75,11 @@ ENV_QUE_PISAN: dict = {
     "repeticion":              ("COGNIA_REPETICION",),
     "repeticion_umbrales":     ("COGNIA_REPETICION_UMBRALES",),
     "tool_timeout_s":          ("COGNIA_TOOL_TIMEOUT",),
+    # Modo horizonte con contrato ralph (2026-08-24): el CLI las siembra desde
+    # _aplicar_config_horizonte y /horizonte las persiste.
+    "horizonte":               ("COGNIA_HORIZONTE",),
+    "horizonte_max_rondas":    ("COGNIA_HORIZONTE_CICLOS",),
+    "horizonte_handoff_max":   ("COGNIA_HORIZONTE_HANDOFF_MAX",),
 }
 
 # Nombres que huelen a credencial: se enmascaran SIEMPRE en cualquier render.
