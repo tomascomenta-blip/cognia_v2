@@ -2674,14 +2674,18 @@ _CMD_DETAILS = {
         "terminal, o {oscuro:..,claro:..,alto_contraste:..}. Fichero: ~/.cognia/estilo.json "
         "(override parcial, se recarga solo al editarlo; presets en ~/.cognia/estilos/). "
         "Cada cambio se valida (ruidoso), se guarda con .bak y se aplica en caliente; los "
-        "elementos que su paso aun no engancha (glifos/textos P6, banner P7, spinner P8, "
-        "animacion P9) se guardan y avisan. Prompt, barra y menus ya cambian en el prompt "
+        "elementos que su paso aun no engancha (glifos/textos de tools, markdown y diff: P6; "
+        "barrido del prompt: P9) se guardan y avisan. Banner (glow, barrido al arrancar, "
+        "textos, alineacion), spinner (barrido en la linea de espera), prompt, barra y menus ya cambian en el prompt "
         "siguiente (prompt.etiqueta texto, prompt.marco posicion ambos|arriba|abajo|ninguno, "
         "prompt.etiqueta posicion linea|arriba, barra.estado posicion abajo|arriba, "
         "barra.estado.secciones y preset barra-color, prompt.busqueda para Ctrl-R, "
         "menu.selector glifo). /tema convive: cambia la variante; "
         "/estilo cambia elementos sobre la variante. Sin fichero el aspecto es byte-identico "
-        "al de siempre. Editor interactivo (/estilo a secas): paso P11."),
+        "al de siempre. /estilo a secas abre el EDITOR interactivo (paneles elementos | "
+        "propiedades + vista previa viva; flechas, Enter, Ctrl-S guarda, Ctrl-Z/Ctrl-Y, Ctrl-P presets, "
+        "Ctrl-L previsualiza un preset entero, ? ayuda, Esc sale); solo con terminal real, sin "
+        "corrida en fondo y fuera de COGNIA_REMOTO — si no, degrada a esta ayuda."),
     "/spinner": (
         "La linea de espera del turno responde las tres preguntas de Claude Code/Codex: "
         "¿esta vivo? ¿cuanto lleva? ¿como lo paro? Con la linea VIVA (default on) el spinner "
@@ -9907,8 +9911,8 @@ def _estilo_ayuda(nota_editor: bool = False) -> None:
     _print_line(f"[info_dim]{_escape(_CMD_DETAILS.get('/estilo', ''))}[/info_dim]")
     _print_line(f"[info_dim]{_escape(_ESTILO_USO)}[/info_dim]")
     if nota_editor:
-        _print_line("[warn_cl]/estilo sin argumentos abrira el editor interactivo "
-                    "(editor interactivo: paso P11); por ahora, los subcomandos de arriba[/warn_cl]")
+        _print_line("[warn_cl]/estilo sin argumentos abre el editor interactivo "
+                    "(solo con terminal real y sin corrida en fondo)[/warn_cl]")
 
 
 def _sin_comillas(s: str) -> str:
@@ -9918,13 +9922,56 @@ def _sin_comillas(s: str) -> str:
     return s
 
 
+def _estilo_editor() -> None:
+    """`/estilo` a secas (P11): el editor full-screen de cognia/ux/editor_app.
+    Solo se llama DESDE el bucle del REPL, con session.prompt() ya devuelto
+    (E12: anidar una Application dentro de un binding cuelga). Las guardas
+    (app anidada, COGNIA_REMOTO, corrida en fondo, status vivo, tty) las
+    aplica abrir_editor; si no se puede abrir, se degrada a la ayuda textual."""
+    from .ux import editor_app as _EA
+    from .ux import renderer as _rmod
+    _r = _rmod._renderer
+    if _r is not None:
+        try:
+            _r._parar_status()   # prompt_toolkit jamas con un rich Live activo
+        except Exception as exc:
+            _aviso_degradado("estilo.editor", f"parar status: {type(exc).__name__}: {exc}")
+
+    def _poner_config(clave, valor):
+        cfg = _load_config()
+        cfg[clave] = valor
+        _save_config(cfg)
+
+    try:
+        resultado, detalle = _EA.abrir_editor(
+            guardar=_aspecto.guardar,
+            aplicar=_aplicar_tema_en_caliente,
+            poner_config=_poner_config,
+            variante=_variante_actual(),
+            corrida_en_fondo=corrida_en_curso(),
+            status_activo=(_r is not None and _r._status is not None),
+        )
+    except Exception as exc:
+        _aviso_degradado("estilo.editor", f"{type(exc).__name__}: {exc}")
+        resultado, detalle = "no_abrible", f"{type(exc).__name__}: {exc}"
+    if resultado == "no_abrible":
+        _aviso_degradado("estilo.editor", detalle)
+        _print_line(f"[info_dim]editor no disponible: {_escape(detalle)}[/info_dim]")
+        _estilo_ayuda(nota_editor=False)
+        return
+    # abrir_editor ya aplico en caliente si guardo (callback `aplicar`); si
+    # volvio con cambios en memoria sin guardar, siguen en el registro (el
+    # siguiente /estilo guardar los escribe).
+    _print_line(f"[ok_cl]estilo: {_escape(detalle)} ({resultado})[/ok_cl]")
+
+
 def _slash_estilo(arg: str = "") -> None:
     """`/estilo`: el aspecto de cada elemento del CLI, por separado y en
     caliente (cognia/ux/aspecto.py). Cada escritura: validar (ruidoso) ->
     guardar en ~/.cognia/estilo.json (con .bak) -> aplicar en caliente."""
     arg = (arg or "").strip()
     if not arg:
-        _estilo_ayuda(nota_editor=True)
+        _estilo_editor()
         return
     partes = arg.split(None, 1)
     sub = partes[0].lower()

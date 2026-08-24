@@ -83,15 +83,23 @@ def test_estilo_no_esta_tapado_ni_tapa():
     assert _CLI_SRC.index('raw == "/color"') < _CLI_SRC.index('raw == "/estilo"')
 
 
-def test_sin_argumentos_imprime_la_ayuda_y_no_abre_application(entorno):
+def test_sin_argumentos_sin_tty_degrada_a_la_ayuda_y_no_abre_application(entorno):
+    """P11: `/estilo` a secas abre el editor SOLO con tty real; bajo pytest
+    (sin tty) abrir_editor devuelve no_abrible y el CLI degrada a la ayuda
+    textual avisando por _aviso_degradado (nada mudo)."""
     cli._slash_estilo("")
     t = entorno.texto()
-    assert "editor interactivo: paso P11" in t
+    assert "editor no disponible" in t
     # _print_line recibe markup: el [grupo] del uso viaja escapado (\[grupo])
     # para que rich no se lo coma como tag
     assert r"lista \[grupo]" in t, "el [grupo] de la ayuda tiene que ir escapado"
+    assert any(via == "estilo.editor" for via, _ in entorno.avisos)
+    # E12: el editor nunca se abre desde un binding de teclado, solo desde el
+    # bucle del REPL via _estilo_editor
+    assert "_estilo_editor" not in "".join(
+        l for l in _CLI_SRC.splitlines() if "@_kb.add" in l or "kb.add(" in l)
     fuente = inspect.getsource(cli._slash_estilo)
-    assert "Application" not in fuente and "editor_aspecto" not in fuente
+    assert "Application" not in fuente
 
 
 def test_config_default_estilo_animacion_on():
