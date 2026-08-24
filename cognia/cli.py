@@ -6666,6 +6666,22 @@ def _mejora_en_el_sitio(texto: str) -> str:
         _print_line("[info_dim]F3 mejora el prompt: escribe algo primero."
                     "[/info_dim]")
         return texto
+    # Pastes colapsados (harness/pegados): la marca '[pegado #N: +X lineas]'
+    # se expande AQUI, antes de reformular. El main loop la expande al ENVIAR,
+    # pero F3 corre antes y reemplaza el buffer con lo que devuelva el
+    # modelo: si el reformulador no copia la marca byte a byte, al dar Enter
+    # no hay nada que expandir y el paste se pierde en silencio (revision
+    # adversarial 2026-08-24; regla dura: el texto del dueno JAMAS se pierde).
+    # Un paste grande hace que es_candidato lo rechace (> MAX_CHARS): la linea
+    # vuelve INTACTA, con su marca, y se expande al enviar como siempre.
+    if "[pegado #" in base:
+        try:
+            from cognia.harness import pegados as _peg_f3
+            base = _peg_f3.expandir(base).strip()
+        except Exception as exc:
+            _aviso_degradado("pegado", f"F3 sin expandir el paste: "
+                             f"{type(exc).__name__}: {exc}")
+            return texto
     mod = _mod_mejorar()
     if mod is not None and not mod.es_candidato(base):
         _print_line("[info_dim]F3: esta linea no se mejora (es un comando, o "

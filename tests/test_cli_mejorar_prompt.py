@@ -518,3 +518,42 @@ def test_la_ayuda_NO_vende_un_A_B_ciego_que_no_lo_fue():
     assert "1-1" in detalle                      # el cara a cara real
     # y la puerta nueva del estilo se documenta
     assert "mejorar_prompt_estilo" in detalle
+
+
+# ---------------------------------------- F3 con un paste colapsado (2026-08-24)
+
+def test_f3_expande_el_paste_antes_de_reformular(monkeypatch):
+    """Revision adversarial 2026-08-24: la marca '[pegado #N: +X lineas]' solo
+    se expandia en el main loop AL ENVIAR, pero F3 corre antes y reemplaza el
+    buffer con lo que devuelve el modelo; si este no copia la marca byte a
+    byte, al dar Enter no hay nada que expandir y el paste se pierde en
+    silencio. Ahora el reformulador recibe el contenido pegado, no la marca."""
+    import cognia.cli as cli_mod
+    from cognia.harness import pegados
+    pegados.limpiar()
+    contenido = "\n".join(f"linea {i}" for i in range(10))
+    marca = pegados.registrar(contenido)
+    assert marca.startswith("[pegado #")
+    visto = []
+    _con_experto(monkeypatch, _mejora(texto="Analiza el log adjunto."), visto)
+    _con_tty(monkeypatch)
+    out = cli_mod._mejora_en_el_sitio(f"analiza esto {marca}")
+    assert visto, "el reformulador no se llamo"
+    assert "linea 9" in visto[0] and "[pegado #" not in visto[0]
+    assert out == "Analiza el log adjunto."
+
+
+def test_f3_con_paste_enorme_devuelve_la_linea_intacta(monkeypatch):
+    """Un paste por encima de MAX_CHARS no se reformula (es_candidato lo
+    rechaza): la linea vuelve con su marca, que se expande al enviar. Ni se
+    pierde ni se manda al modelo a reformular 4000 chars."""
+    import cognia.cli as cli_mod
+    from cognia.harness import pegados
+    pegados.limpiar()
+    marca = pegados.registrar("x" * 9000)
+    visto = []
+    _con_experto(monkeypatch, _mejora(), visto)
+    _con_tty(monkeypatch)
+    linea = f"resume esto {marca}"
+    assert cli_mod._mejora_en_el_sitio(linea) == linea
+    assert visto == []
