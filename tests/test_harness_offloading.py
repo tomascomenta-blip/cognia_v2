@@ -485,3 +485,60 @@ def test_estado_publica_dir_umbral_y_ultimo_spill():
     assert est["ultimo_spill"]["bytes"] == est["bytes_sesion"]
     assert Path(est["ultimo_spill"]["ruta"]).is_file()
     assert est["ultimo_error"] == {}
+
+
+# ── Regresion 2026-08-23 (revision adversarial): el spill del spill ──────────
+
+def test_recuperar_no_se_re_offloadea_por_el_interceptor(monkeypatch):
+    """`recuperar` es LA via de recuperacion del offload: si el interceptor
+    la vuelve a offloadear, cada intento acuna un handle anidado y el modelo
+    nunca ve el trozo que pidio (el contrato RESTAURABLE queda irrestaurable).
+    Reproducia el bucle: leer_archivo grande -> spill -> recuperar -> OTRO
+    spill con handle nuevo."""
+    from cognia.harness import interceptor
+    monkeypatch.setenv("COGNIA_OFFLOAD", "1")
+    grande = _texto_largo(300)
+    resumen = interceptor.despues("leer_archivo", "f.txt", {}, grande, True)
+    assert resumen.startswith("[SALIDA GRANDE")
+    import re
+    handle = re.search(r"res:[0-9a-f]{6,40}", resumen).group(0)
+    trozo = off.recuperar(handle, desde=16, hasta=160)      # ~5 KB, > umbral
+    final = interceptor.despues("recuperar", f"{handle} lineas 16-160",
+                                {}, trozo, True)
+    assert not final.startswith("[SALIDA GRANDE")
+    assert final == trozo                       # byte a byte, sin recorte
+    assert "linea 00100" in final               # el medio del rango pedido
+
+
+def test_recuperar_esta_exenta_del_aci_trim():
+    """La otra mitad del mismo bug: sin la exencion en ACI_EXENTAS, aci_trim
+    le comia el MEDIO al trozo recuperado (hasta 4x umbral por diseno) y el
+    modelo editaba con SEARCH/REPLACE texto que jamas vio."""
+    from cognia.agent.tools import ACI_EXENTAS
+    assert "recuperar" in ACI_EXENTAS
+    assert "recuperar" in off.EXENTAS_OFFLOAD
+
+
+def test_la_cabecera_del_spill_propaga_el_marcador_de_fallo():
+    """Una tool FALLIDA cuyo output grande se spillea NO puede clasificarse
+    como exito: los clasificadores de rio abajo (cli legacy result[:120],
+    especulacion de loop.py, _linea_tool de compactacion) leen \bERROR\b en
+    la primera linea, y la cabecera '[SALIDA GRANDE...' lo enterraba."""
+    fallo = ("RESULTADO ejecutar ERROR (exit 1): Traceback...\n"
+             + "\n".join(f"  traza {i}" for i in range(300)))
+    salida = off.formatear_observacion(fallo, "ejecutar", "python x.py")
+    import re
+    assert salida.startswith("[SALIDA GRANDE")
+    assert re.search(r"\bERROR\b", salida[:120])
+    # Y el (exit N) sin la palabra ERROR tambien es fallo.
+    solo_exit = ("RESULTADO ejecutar (exit 2): boom\n"
+                 + "\n".join(f"  linea {i}" for i in range(300)))
+    assert re.search(r"\bERROR\b",
+                     off.formatear_observacion(solo_exit, "ejecutar", "x")[:120])
+    # Un exito grande NO gana el marcador (exit 0 no es fallo).
+    exito = ("RESULTADO ejecutar (exit 0): ok\n"
+             + "\n".join(f"  linea {i}" for i in range(300)))
+    assert not re.search(r"\bERROR\b",
+                         off.formatear_observacion(exito, "ejecutar", "x")[:120])
+    assert off.es_fallo_primera_linea("RESULTADO ejecutar (exit 0): ok") is False
+    assert off.es_fallo_primera_linea("RESULTADO x ERROR: y") is True

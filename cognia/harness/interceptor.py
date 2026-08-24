@@ -300,9 +300,13 @@ def despues(name: str, args: str, ctx: dict, out: str, ok: bool,
     #    verde, subsistema muerto). La resiliencia vive DENTRO de
     #    formatear_observacion: si el disco falla conserva el inline truncado
     #    y avisa degradado — nunca convierte una tool exitosa en error.
+    #    EXENTAS_OFFLOAD (hoy: `recuperar`): la salida de la propia via de
+    #    recuperacion ya viene capada por _FACTOR_MAX_BYTES; re-offloadearla
+    #    anidaba spills (handle sobre handle) y el modelo nunca podia ver el
+    #    trozo que pidio — el contrato RESTAURABLE quedaba irrestaurable.
     try:
         from cognia.harness import offloading
-        if offloading.activo():
+        if name not in offloading.EXENTAS_OFFLOAD and offloading.activo():
             texto = offloading.formatear_observacion(texto, tool=name, args=args)
     except Exception as exc:
         # No hay _aviso_degradado importable aqui sin arrastrar el CLI; el

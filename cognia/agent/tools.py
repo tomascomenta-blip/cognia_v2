@@ -414,11 +414,15 @@ def _flag_activo(flag: str) -> bool:
 # patch, un fichero, la cola de un log) y el head+tail generico de aci_trim les
 # comeria el MEDIO — el modelo escribiria bloques SEARCH con lineas que nunca
 # existieron. Las tres llevan su propio tope con aviso explicito de truncado.
+# `recuperar` (2026-08-23) por la MISMA razon: su salida ya esta capada por
+# _FACTOR_MAX_BYTES (offloading.py) y trae el trozo EXACTO que el modelo
+# pidio de un spill; el head+tail de aci_trim le comia el medio y la
+# recuperacion prometida por el offload no llegaba nunca.
 ACI_EXENTAS = frozenset({"responder", "leer_archivo", "leer_lote", "ejecutar",
                          "tests",
                          "editar_archivo", "git_diff", "ver_salida",
                          "ctx_info", "ctx_ver", "ctx_grep", "ctx_partir",
-                         "rlm_llamar"})
+                         "rlm_llamar", "recuperar"})
 
 
 # P0-1: TRES estados distintos, no dos. `_SIN_EXIT` = la tool ni siquiera paso

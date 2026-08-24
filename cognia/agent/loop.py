@@ -1206,11 +1206,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # en este turno: el camino de abajo sigue byte-identico de fallback.
         _lib_resumen = _compactar_por_resumen(
             mensajes, perfil.get("n_ctx"), est, _estado, print_fn)
-        if _lib_resumen is not None:
-            if _lib_resumen:
-                _libero_algo = True
-                est -= _lib_resumen // 4
+        if _lib_resumen:
+            _libero_algo = True
+            est -= _lib_resumen // 4
         else:
+            # None (modo truncado / fallo del resumen) *y tambien 0*: cuando
+            # compactar() devuelve aplicada=False por encima del umbral
+            # ('nada viejo que fundir', 'el resumen no libera chars'...), no
+            # tratarlo como atendido — sin este fallback el prompt seguia por
+            # encima de n_ctx y el server hacia context-shift EN SILENCIO (la
+            # clase de fallo A3 de _recortar_mensajes; el camino de retry ya
+            # caia al truncado con su `or 0`, este no. Revision 2026-08-23).
+            # Bajo el umbral es inocuo: _recortar_mensajes devuelve 0 solo.
             _est_antes, _lib_trunc = est, 0
             while True:
                 liberados = _recortar_mensajes(mensajes, perfil.get("n_ctx"), est)
@@ -1231,8 +1238,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     print_fn(f"[warn_cl]telemetria de compactacion no anotada: "
                              f"{_exc_ct}[/warn_cl]")
         # La reinyeccion del canal es solo para el TRUNCADO: en modo resumen
-        # el bloque de estado ya viaja DENTRO del propio resumen.
-        if (_libero_algo and _lib_resumen is None
+        # el bloque de estado ya viaja DENTRO del propio resumen. `not
+        # _lib_resumen` (no `is None`): si el resumen devolvio 0 y libero el
+        # truncado, el estado tambien se perdio por el camino truncado.
+        if (_libero_algo and not _lib_resumen
                 and _estado_on and _canal is not None):
             # AQUI es donde se pierde el estado: el recorte resume o tira los
             # turnos viejos y con ellos que ficheros se tocaron y que

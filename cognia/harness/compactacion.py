@@ -200,11 +200,19 @@ def _chars_msg(m: dict) -> int:
 
 def _linea_tool(nombre: str, args: str, contenido: str) -> str:
     """UNA linea por tool descartada: nombre, args clave, exito/fallo y la
-    referencia de spill de F3 si el content la trae. El veredicto usa la misma
-    heuristica de fallback del bucle (ERROR en la primera linea): aca ya no
-    hay ctx con el exit medido."""
-    primera = contenido.split("\n", 1)[0]
-    veredicto = "FALLO" if re.search(r"\bERROR\b", primera[:120]) else "OK"
+    referencia de spill de F3 si el content la trae. El veredicto usa la
+    heuristica compartida es_fallo_primera_linea (ERROR *o* exit != 0 en la
+    linea 1): aca ya no hay ctx con el exit medido, y mirar solo \bERROR\b
+    contaba un "RESULTADO ejecutar (exit 1): FFF" como OK — el mismo bug P0-1
+    (pytest en rojo = victoria) reintroducido en la capa del resumen. Para lo
+    spilleado por F3 la cabecera del offload propaga el marcador ERROR."""
+    try:
+        from cognia.harness.offloading import es_fallo_primera_linea as _fallo
+        fallo = _fallo(contenido)
+    except Exception:
+        primera = contenido.split("\n", 1)[0]
+        fallo = bool(re.search(r"\bERROR\b|\(exit -?[1-9]\d*\)", primera[:200]))
+    veredicto = "FALLO" if fallo else "OK"
     extra = ""
     mh = _RE_SPILL.search(contenido)
     if mh:

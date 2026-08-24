@@ -160,6 +160,27 @@ _VENTANA_DEFECTO = 60
 # trozo tiene que caber en la ventana igual que la observacion original.
 _FACTOR_MAX_BYTES = 4
 
+# Tools cuya salida NO se re-offloadea (el interceptor consulta este set).
+# `recuperar` ES la via de recuperacion del propio offload y su salida ya
+# viene capada por _FACTOR_MAX_BYTES: volver a spillearla anidaba handles
+# (spill del spill) y el modelo nunca veia mas de cabeza+cola lineas por
+# recuperacion — el contrato "compresion RESTAURABLE" quedaba irrestaurable
+# (cazado por la revision adversarial 2026-08-23). Punto de extension: una
+# tool futura que se cape sola con criterio propio se anade aqui.
+EXENTAS_OFFLOAD = frozenset({"recuperar"})
+
+# Marcadores de FALLO en la PRIMERA linea de un resultado de tool: el contrato
+# del registry (agent/tools.py) pone "ERROR" en la linea 1, y ejecutar/tests
+# reportan "(exit N)" ahi mismo. Es la misma heuristica de fallback del bucle.
+_RE_FALLO_LINEA1 = re.compile(r"\bERROR\b|\(exit -?[1-9]\d*\)")
+
+
+def es_fallo_primera_linea(texto: str) -> bool:
+    """True si la PRIMERA linea de `texto` trae marcador de fallo (ERROR o
+    exit != 0). Lo usan el resumen del offload y compactacion._linea_tool."""
+    primera = (texto or "").split("\n", 1)[0]
+    return bool(_RE_FALLO_LINEA1.search(primera[:200]))
+
 # Lineas de contexto alrededor de cada acierto de `buscar` y tope de aciertos.
 _CONTEXTO_BUSCAR = 2
 _MAX_ACIERTOS = 40
@@ -620,8 +641,14 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
     bytes_omitidos = max(0, total_bytes - bytes_vistos)
 
     que = f" de {tool}" if tool else ""
+    # El marcador de FALLO viaja EN LA CABECERA: los clasificadores de rio
+    # abajo (cli legacy `result[:120]`, la especulacion de loop.py, _linea_tool
+    # de compactacion) leen \bERROR\b en la primera linea, y sin esto un
+    # traceback spilleado se clasificaba como exito — el ERROR del contenido
+    # quedaba enterrado bajo esta cabecera (revision adversarial 2026-08-23).
+    marca = " ERROR" if es_fallo_primera_linea(texto) else ""
     partes = [
-        f"[SALIDA GRANDE{que}: {total_lineas} lineas, {_fmt_bytes(total_bytes)}. "
+        f"[SALIDA GRANDE{que}{marca}: {total_lineas} lineas, {_fmt_bytes(total_bytes)}. "
         f"NO esta entera aca: faltan {omitidas} lineas "
         f"({_fmt_bytes(bytes_omitidos)}). NO se perdio nada: esta guardada.]"
     ]
