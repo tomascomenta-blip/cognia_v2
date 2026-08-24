@@ -22,6 +22,8 @@ from pathlib import Path
 from .cognia import Cognia
 from .config import HAS_RESEARCH_ENGINE, HAS_PROGRAM_CREATOR
 from .ux import paleta   # unica fuente de verdad del color (datos planos)
+# UNA reja para los '/x estado' (2026-08-24): ver ux/estilo.estado_subsistema.
+from .ux.estilo import estado_subsistema as _estado_subsistema_base
 # Veredicto exito/fallo de un RESULTADO de tool, compartido con tools.py,
 # loop.py, offloading y render_tools (2026-08-24): una lectura cuyo contenido
 # arranca por 'ERROR' no es un fallo de la tool.
@@ -2787,6 +2789,13 @@ def _cmd_color(raw):
     if cmd in {"olvido", "bloquear", "desbloquear", "escalar"}:
         return "warn_cl"
     return "respuesta"
+
+
+def _estado_subsistema(titulo, activo, filas=(), fuente="", avisos=()):
+    """estado_subsistema de ux/estilo con la Console del CLI (ancho real)."""
+    return _estado_subsistema_base(titulo, activo, filas, fuente=fuente,
+                                   avisos=avisos,
+                                   console=_console if _HAS_RICH else None)
 
 
 def _print_line(text):
@@ -6438,7 +6447,7 @@ def _slash_config_resuelta(args: str) -> None:
                  if v["origen"].startswith(prefijo)]
         if not filas:
             continue
-        lines.append(f"  [info_dim]-- {titulo} --[/info_dim]")
+        lines.append(f"  [info_dim]─ {titulo}[/info_dim]")
         for clave, info in filas:
             valor = (_cr.enmascarar(info["valor"]) if _cr.es_secreto(clave)
                      else info["valor"])
@@ -6453,8 +6462,8 @@ def _slash_config_resuelta(args: str) -> None:
                            + "[/info_dim]")
             lines.append(f"    {clave:<{ancho}} = {pintado}{origen}")
     if sueltas:
-        lines.append("  [info_dim]-- Env COGNIA_* sueltas activas (sin clave "
-                     "de config) --[/info_dim]")
+        lines.append("  [info_dim]─ Env COGNIA_* sueltas activas (sin clave "
+                     "de config)[/info_dim]")
         ancho_e = max(len(n) for n, _ in sueltas)
         for nombre, valor in sueltas:
             mostrado = (_cr.enmascarar(valor) if _cr.es_secreto(nombre)
@@ -8999,8 +9008,11 @@ def _slash_expandir(arg: str = "") -> None:
     # RAW VIEW: print pelado, sin rich — texto seleccionable tal cual salio
     # de la tool. La cabecera es texto plano a proposito (tambien cruda).
     idx = n if n is not None else len(entradas)
+    # La cabecera va por rich (tenue, con la regla ─ de la casa); el CUERPO
+    # sigue siendo print pelado: texto seleccionable tal cual salio.
+    _print_line(f"[info_dim]  ─ /expandir {idx}: {_escape(entrada['tool'])}"
+                f"({_escape(entrada['args'])})[/info_dim]")
     try:
-        print(f"--- /expandir {idx}: {entrada['tool']}({entrada['args']}) ---")
         print(entrada["resultado"])
     except UnicodeEncodeError:
         # consola cp1252: mejor con sustitutos que tragarse el output
@@ -9084,18 +9096,21 @@ def _slash_pegado(arg: str = "") -> None:
         return
     entradas = _peg.listar()
     if bajo in ("", "lista", "estado"):
-        estado = "ACTIVO" if _peg.activo() else "apagado"
-        _print_line(f"[info_dim]colapso de pastes: {estado} (umbral "
-                    f"{_peg.umbral_lineas()} lineas / {_peg.umbral_chars()} "
-                    f"chars)[/info_dim]")
+        env = (os.environ.get("COGNIA_PEGADO") or "").strip()
+        fuente = f"env COGNIA_PEGADO={env}" if env else "config pegado"
+        filas = [("umbral", f"{_peg.umbral_lineas()} lineas / "
+                            f"{_peg.umbral_chars()} chars")]
         if not entradas:
-            _print_line("[info_dim]  sin pegados colapsados en esta sesion "
-                        "(pega >= 5 lineas en el prompt)[/info_dim]")
-            return
-        for e in entradas:
-            _print_line(f"[info_dim]  #{e['n']}: {e['lineas']} lineas, "
-                        f"{e['chars']} chars[/info_dim]")
-        _print_line("[info_dim]  /pegado <N> para ver uno completo[/info_dim]")
+            filas.append(("pegados", "ninguno en esta sesion (pega >= "
+                                     f"{_peg.umbral_lineas()} lineas en el prompt)"))
+        else:
+            for e in entradas:
+                filas.append((f"#{e['n']}", f"{e['lineas']} lineas, "
+                                            f"{e['chars']} chars"))
+            filas.append(("ver uno", "/pegado <N>"))
+        _print_line("\n".join(_estado_subsistema(
+            "colapso de pastes largos", bool(_peg.activo()), filas,
+            fuente=fuente)))
         return
     try:
         n = int(arg)
@@ -9161,17 +9176,15 @@ def _slash_enlaces(arg: str = "") -> None:
     tty = bool(_HAS_RICH and _console is not None
                and getattr(_console, "is_terminal", False))
     env = (os.environ.get("COGNIA_ENLACES") or "").strip()
-    fuente = f"env COGNIA_ENLACES={env}" if env else "config 'enlaces'"
-    _print_line(f"[info_dim]enlaces de rutas (OSC 8 file://): "
-                f"{'ACTIVOS' if _enl.activo() else 'apagados'} ({fuente})"
-                f"[/info_dim]")
-    modo_tty = ("si (tty)" if tty
-                else "no (pipe/CI: fallback plano byte-identico)")
-    _print_line(f"[info_dim]  terminal con hyperlinks: {modo_tty} — "
-                f"ctrl+click abre el fichero en Windows Terminal[/info_dim]")
-    _print_line("[info_dim]  se enlazan solo rutas ABSOLUTAS que existen; el "
-                "target va percent-encodeado y nunca en el texto visible"
-                "[/info_dim]")
+    fuente = f"env COGNIA_ENLACES={env}" if env else "config enlaces"
+    modo_tty = ("si (tty): ctrl+click abre el fichero en Windows Terminal"
+                if tty else "no (pipe/CI: fallback plano byte-identico)")
+    _print_line("\n".join(_estado_subsistema(
+        "enlaces de rutas (OSC 8 file://)", bool(_enl.activo()), [
+            ("terminal", modo_tty),
+            ("alcance", "solo rutas ABSOLUTAS que existen; el target va "
+                        "percent-encodeado y nunca en el texto visible"),
+        ], fuente=fuente)))
 
 
 def _marcar_env_sembrada(*vars_env: str) -> None:
@@ -9302,29 +9315,32 @@ def _slash_offload(arg: str = "") -> None:
     # de la config (F6: el origen no se miente)
     fuente = (f"env COGNIA_OFFLOAD={env}"
               if env and not _env_es_sembrada("COGNIA_OFFLOAD")
-              else "config 'offload'")
-    _print_line(f"[info_dim]offload de salidas grandes: "
-                f"{'ACTIVO' if est['activo'] else 'apagado'} ({fuente})[/info_dim]")
-    _print_line(f"[info_dim]  dir spills: {est['dir']}  (sesion {est['sesion']}, "
-                f"{est['handles']} handles, {est['bytes_sesion']} B)[/info_dim]")
-    _print_line(f"[info_dim]  umbral: {est['umbral']} bytes inline | preview: "
-                f"{est['cabeza']} cabeza + {est['cola']} cola[/info_dim]")
+              else "config offload")
+    filas = [
+        ("dir spills", f"{est['dir']}  (sesion {est['sesion']}, "
+                       f"{est['handles']} handles, {est['bytes_sesion']} B)"),
+        ("umbral", f"{est['umbral']} bytes inline"),
+        ("preview", f"{est['cabeza']} lineas de cabeza + {est['cola']} de cola"),
+    ]
     ult = est["ultimo_spill"]
     if ult:
         # La ruta del spill sale CLICABLE (OSC 8 file://, harness/enlaces) en
         # un tty; en pipe o con /enlaces off el texto es byte-identico.
-        _print_line(f"[info_dim]  ultimo spill: {ult.get('handle', '?')} "
-                    f"({ult.get('tool') or 'tool'}, {ult.get('bytes', 0)} B, "
-                    f"{ult.get('lineas', 0)} lineas) -> "
-                    f"{_ruta_enlazada(ult.get('ruta', ''))}[/info_dim]")
+        filas.append(("ultimo spill",
+                      f"{_escape(str(ult.get('handle', '?')))} "
+                      f"({_escape(str(ult.get('tool') or 'tool'))}, "
+                      f"{ult.get('bytes', 0)} B, {ult.get('lineas', 0)} lineas) "
+                      f"-> {_ruta_enlazada(ult.get('ruta', ''))}", "listado", True))
     else:
-        _print_line("[info_dim]  ultimo spill: ninguno en este proceso[/info_dim]")
+        filas.append(("ultimo spill", "ninguno en este proceso"))
     err = est["ultimo_error"]
-    if err:
-        _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
-                    f"({err.get('ts', '')})[/warn_cl]")
-    else:
-        _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
+    avisos = ([f"ultimo error: {err.get('motivo', '')} ({err.get('ts', '')})"]
+              if err else [])
+    if not err:
+        filas.append(("ultimo error", "ninguno"))
+    _print_line("\n".join(_estado_subsistema(
+        "offload de salidas grandes", bool(est["activo"]), filas,
+        fuente=fuente, avisos=avisos)))
 
 
 def _aplicar_config_compactacion() -> None:
@@ -9445,13 +9461,12 @@ def _slash_compactar(arg: str = "") -> None:
     # misma regla que /offload estado: sembrada por el CLI != env del usuario
     fuente = (f"env COGNIA_COMPACT={env}"
               if env and not _env_es_sembrada("COGNIA_COMPACT")
-              else "config 'compactacion'")
-    _print_line(f"[info_dim]compactacion del contexto: modo {est['modo']} "
-                f"({fuente})[/info_dim]")
-    _print_line(f"[info_dim]  umbral: {est['umbral']:.2f} de n_ctx util "
-                f"(n_ctx - headroom) | retencion "
-                f"de cola: {est['retencion']:.2f} | cap del resumen: "
-                f"{est['cap']} chars[/info_dim]")
+              else "config compactacion")
+    filas = [
+        ("umbral", f"{est['umbral']:.2f} de n_ctx util (n_ctx - headroom)"),
+        ("retencion", f"{est['retencion']:.2f} de cola"),
+        ("cap", f"{est['cap']} chars de resumen"),
+    ]
     # Nivel ACTUAL del contexto, con la MISMA aritmetica del footer
     # (barra_estado.nivel_contexto: headroom restado y umbrales acoplados) —
     # dos cuentas distintas aqui y en la barra ya mintieron una vez (75 vs 80).
@@ -9460,16 +9475,17 @@ def _slash_compactar(arg: str = "") -> None:
         d = _datos_barra_estado()
         nc = _be.nivel_contexto(d.get("ctx_usado"), d.get("ctx_total"))
         if nc["pct_usado"] is None:
-            _print_line("[info_dim]  contexto ahora: ctx ? (sin n_ctx del "
-                        "backend; no se inventa un %)[/info_dim]")
+            filas.append(("contexto", "ctx ? (sin n_ctx del backend; no se "
+                                      "inventa un %)"))
         else:
             estilo = {"critico": "err_cl", "aviso": "warn_cl"}.get(
-                nc["nivel"], "info_dim")
+                nc["nivel"], "listado")
             nivel = nc["nivel"] or "normal"
-            _print_line(f"[{estilo}]  contexto ahora: {nc['libre']}% libre "
-                        f"({nc['pct_usado']}% usado con headroom "
-                        f"{nc['headroom']}; nivel {nivel} — amarillo al "
-                        f"{nc['aviso']}%, rojo al {nc['critico']}%)[/{estilo}]")
+            filas.append(("contexto",
+                          f"{nc['libre']}% libre ({nc['pct_usado']}% usado con "
+                          f"headroom {nc['headroom']}; nivel {nivel} — amarillo "
+                          f"al {nc['aviso']}%, rojo al {nc['critico']}%)",
+                          estilo))
     except Exception as exc:
         _aviso_degradado("cli.barra_estado",
                          f"nivel de contexto no disponible: {exc}")
@@ -9478,19 +9494,20 @@ def _slash_compactar(arg: str = "") -> None:
         hace = max(0, int(time.time() - float(ult.get("ts") or 0)))
         extra = (f", {ult['mensajes_descartados']} mensajes fundidos"
                  if ult.get("mensajes_descartados") else "")
-        _print_line(f"[info_dim]  ultima compactacion: modo "
-                    f"{ult.get('modo', '?')}, ~{ult.get('tokens_antes', 0)} -> "
-                    f"~{ult.get('tokens_despues', 0)} tokens "
-                    f"(hace {hace}s{extra})[/info_dim]")
+        filas.append(("ultima", f"modo {ult.get('modo', '?')}, "
+                                f"~{ult.get('tokens_antes', 0)} -> "
+                                f"~{ult.get('tokens_despues', 0)} tokens "
+                                f"(hace {hace}s{extra})"))
     else:
-        _print_line("[info_dim]  ultima compactacion: ninguna en este proceso"
-                    "[/info_dim]")
+        filas.append(("ultima", "ninguna en este proceso"))
     err = est["ultimo_error"]
-    if err:
-        _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
-                    f"({err.get('ts', '')})[/warn_cl]")
-    else:
-        _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
+    avisos = ([f"ultimo error: {err.get('motivo', '')} ({err.get('ts', '')})"]
+              if err else [])
+    if not err:
+        filas.append(("ultimo error", "ninguno"))
+    _print_line("\n".join(_estado_subsistema(
+        "compactacion del contexto", str(est["modo"]), filas, fuente=fuente,
+        avisos=avisos)))
 
 
 def _aplicar_config_horizonte() -> None:
@@ -9839,45 +9856,46 @@ def _slash_bucle(arg: str = "") -> None:
         return (f"env {var}={env}" if env and not _env_es_sembrada(var)
                 else f"config '{clave}'")
 
-    _print_line(f"[info_dim]recordatorio de repeticion: "
-                f"{'ACTIVO' if er['activo'] else 'apagado'} "
-                f"({_fuente(_rep.ENV_ACTIVO, 'repeticion')})[/info_dim]")
-    _print_line(f"[info_dim]  umbrales: {','.join(str(v) for v in er['umbrales'])} "
-                f"(suave al {er['umbrales'][0]}, detallado despues; "
-                f"{_fuente(_rep.ENV_UMBRALES, 'repeticion_umbrales')}) | "
-                f"transparentes: {', '.join(er['exentas'])}[/info_dim]")
     ult = er["ultimo"]
-    if ult:
-        _print_line(f"[info_dim]  recordatorios en este proceso: {er['total']}; "
-                    f"ultimo: {ult.get('tool')} x{ult.get('n')} "
-                    f"({ult.get('tipo')}, {ult.get('ts')})[/info_dim]")
-    else:
-        _print_line("[info_dim]  recordatorios en este proceso: 0[/info_dim]")
+    filas_r = [
+        ("umbrales", f"{','.join(str(v) for v in er['umbrales'])} (suave al "
+                     f"{er['umbrales'][0]}, detallado despues; "
+                     f"{_fuente(_rep.ENV_UMBRALES, 'repeticion_umbrales')})"),
+        ("transparentes", ", ".join(er["exentas"]) or "ninguna"),
+        ("recordatorios", (f"{er['total']} en este proceso; ultimo: "
+                           f"{ult.get('tool')} x{ult.get('n')} "
+                           f"({ult.get('tipo')}, {ult.get('ts')})") if ult
+                          else "0 en este proceso"),
+    ]
+    avisos_r = []
     if er["config_error"]:
-        _print_line(f"[warn_cl]  config invalida (guard apagado): "
-                    f"{er['config_error']}[/warn_cl]")
+        avisos_r.append(f"config invalida (guard apagado): {er['config_error']}")
+    if er["ultimo_error"]:
+        avisos_r.append(f"ultimo error: {er['ultimo_error'].get('motivo', '')} "
+                        f"({er['ultimo_error'].get('ts', '')})")
+    _print_line("\n".join(_estado_subsistema(
+        "recordatorio de repeticion", bool(er["activo"]), filas_r,
+        fuente=_fuente(_rep.ENV_ACTIVO, "repeticion"), avisos=avisos_r)))
     tmo = et["timeout_s"]
-    _print_line(f"[info_dim]timeout por tool: "
-                f"{'sin limite' if tmo == 0 else f'{tmo}s'} "
-                f"({_fuente(_tt.ENV_TIMEOUT, 'tool_timeout_s')}; gracia "
-                f"{et['gracia_s']}s; ejecutar/tests: su timeout interno manda "
-                f"si es mayor; sin deadline: {len(et['sin_deadline'])} tools "
-                f"que llaman al modelo)[/info_dim]")
     ult = et["ultimo"]
-    if ult:
-        _print_line(f"[info_dim]  timeouts en este proceso: {et['total']}; "
-                    f"ultimo: {ult.get('tool')} tras {ult.get('limite_s')}s "
-                    f"({'quiescente' if ult.get('quiescente') else 'NO quiescio'}, "
-                    f"{ult.get('ts')})[/info_dim]")
-    else:
-        _print_line("[info_dim]  timeouts en este proceso: 0[/info_dim]")
+    filas_t = [
+        ("gracia", f"{et['gracia_s']}s"),
+        ("ejecutar/tests", "su timeout interno manda si es mayor"),
+        ("sin deadline", f"{len(et['sin_deadline'])} tools que llaman al modelo"),
+        ("timeouts", (f"{et['total']} en este proceso; ultimo: {ult.get('tool')} "
+                      f"tras {ult.get('limite_s')}s "
+                      f"({'quiescente' if ult.get('quiescente') else 'NO quiescio'}, "
+                      f"{ult.get('ts')})") if ult else "0 en este proceso"),
+    ]
+    avisos_t = []
     if et["config_error"]:
-        _print_line(f"[warn_cl]  config invalida (sin deadline): "
-                    f"{et['config_error']}[/warn_cl]")
-    for err in (er["ultimo_error"], et["ultimo_error"]):
-        if err:
-            _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
-                        f"({err.get('ts', '')})[/warn_cl]")
+        avisos_t.append(f"config invalida (sin deadline): {et['config_error']}")
+    if et["ultimo_error"]:
+        avisos_t.append(f"ultimo error: {et['ultimo_error'].get('motivo', '')} "
+                        f"({et['ultimo_error'].get('ts', '')})")
+    _print_line("\n".join(_estado_subsistema(
+        "timeout por tool", "sin limite" if tmo == 0 else f"{tmo}s", filas_t,
+        fuente=_fuente(_tt.ENV_TIMEOUT, "tool_timeout_s"), avisos=avisos_t)))
 
 
 def _aplicar_config_notificaciones() -> None:
@@ -10056,38 +10074,32 @@ def _slash_notificar(arg: str = "") -> None:
         return
     # Estado (default): la foto entera del subsistema.
     est = _notif.estado()
-    _print_line(f"[info_dim]notificaciones de escritorio: modo "
-                f"{est['modo']} ({est['fuente']})[/info_dim]")
-    _print_line(f"[info_dim]  umbral turno largo: {est['umbral_s']:g}s | "
-                f"toast al degradarse: "
-                f"{'on' if est['degradado_optin'] else 'off'} | consola "
-                f"interactiva: {'si' if est['consola_interactiva'] else 'no'}"
-                f"[/info_dim]")
-    if est.get("wt"):
-        _print_line("[info_dim]  Windows Terminal: si — el OSC 9 plano NO "
-                    "esta soportado (#8592, modo osc seria un no-op aqui); "
-                    "anillo 9;4 en pestana/taskbar activo"
-                    + (" | error ROJO pendiente de limpiar"
-                       if est.get("error_pendiente") else "")
-                    + "[/info_dim]")
-    else:
-        _print_line("[info_dim]  Windows Terminal: no (sin WT_SESSION) — el "
-                    "anillo 9;4 no se emite y el modo auto usa OSC 9 plano"
-                    "[/info_dim]")
-    _print_line(f"[info_dim]  eventos: {', '.join(est['eventos'])}[/info_dim]")
     ult = est["ultima"]
-    if ult:
-        _print_line(f"[info_dim]  ultima: «{ult.get('titulo', '')}: "
-                    f"{ult.get('cuerpo', '')}» (modo {ult.get('modo', '?')}, "
-                    f"{ult.get('ts', '')})[/info_dim]")
-    else:
-        _print_line("[info_dim]  ultima: ninguna en este proceso[/info_dim]")
+    filas = [
+        ("umbral", f"{est['umbral_s']:g}s de turno largo"),
+        ("toast al degradarse", "on" if est["degradado_optin"] else "off"),
+        ("consola interactiva", "si" if est["consola_interactiva"] else "no"),
+        ("Windows Terminal",
+         ("si — el OSC 9 plano NO esta soportado (#8592, modo osc seria un "
+          "no-op aqui); anillo 9;4 en pestana/taskbar activo"
+          + (" | error ROJO pendiente de limpiar"
+             if est.get("error_pendiente") else ""))
+         if est.get("wt") else
+         "no (sin WT_SESSION) — el anillo 9;4 no se emite y el modo auto usa "
+         "OSC 9 plano"),
+        ("eventos", ", ".join(est["eventos"]) or "ninguno"),
+        ("ultima", (f"«{ult.get('titulo', '')}: {ult.get('cuerpo', '')}» "
+                    f"(modo {ult.get('modo', '?')}, {ult.get('ts', '')})") if ult
+                   else "ninguna en este proceso"),
+    ]
     err = est["ultimo_error"]
-    if err:
-        _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
-                    f"({err.get('ts', '')})[/warn_cl]")
-    else:
-        _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
+    avisos = ([f"ultimo error: {err.get('motivo', '')} ({err.get('ts', '')})"]
+              if err else [])
+    if not err:
+        filas.append(("ultimo error", "ninguno"))
+    _print_line("\n".join(_estado_subsistema(
+        "notificaciones de escritorio", str(est["modo"]), filas,
+        fuente=str(est.get("fuente") or ""), avisos=avisos)))
 
 
 def _slash_spinner(arg: str = "") -> None:
@@ -10158,24 +10170,27 @@ def _slash_spinner(arg: str = "") -> None:
     spinner_env = (os.environ.get("COGNIA_SPINNER") or "").strip()
     info_env = (os.environ.get("COGNIA_SPINNER_INFO") or "").strip()
     if spinner_env == "0":
-        modo = "apagado TOTAL (COGNIA_SPINNER=0: ni viva ni clasica)"
+        modo, detalle = "off", "COGNIA_SPINNER=0: ni viva ni clasica"
+        fuente = "env COGNIA_SPINNER=0"
     elif activo:
-        modo = "viva (verbo + segundos + ~tokens + ctrl+c corta)"
+        modo, detalle = "viva", "verbo + segundos + ~tokens + ctrl+c corta"
+        fuente = (f"env COGNIA_SPINNER_INFO={info_env}" if info_env
+                  else "config spinner_info")
     else:
-        modo = "clasica ('pensando… (Ns)'; /spinner on para la viva)"
-    _print_line(f"[info_dim]linea de estado: {modo}[/info_dim]")
+        modo, detalle = "clasica", "'pensando… (Ns)'; /spinner on para la viva"
+        fuente = (f"env COGNIA_SPINNER_INFO={info_env}" if info_env
+                  else "config spinner_info")
     ejemplo = spinner_vivo.componer_linea(
         spinner_vivo.verbo_rotante(time.time(), time.time(), verbos),
         segundos=7, tokens=340)
-    _print_line(f"[info_dim]ejemplo: · {_escape(ejemplo)}[/info_dim]")
     propios = bool(str(_load_config().get("spinner_verbos", "")).strip())
-    _print_line(f"[info_dim]verbos: {len(verbos)} "
-                f"({'propios' if propios else 'default gato'}; "
-                f"/spinner verbos para verlos)[/info_dim]")
-    _print_line("[info_dim]env: COGNIA_SPINNER_INFO="
-                f"{info_env or '(sin fijar)'} gana a la config · "
-                f"COGNIA_SPINNER={spinner_env or '(sin fijar)'} apaga todo "
-                "(el carril de fondo lo pone solo)[/info_dim]")
+    _print_line("\n".join(_estado_subsistema(
+        "linea de estado viva", modo, [
+            ("modo", detalle),
+            ("ejemplo", f"· {ejemplo}"),
+            ("verbos", f"{len(verbos)} ({'propios' if propios else 'default gato'}; "
+                       f"/spinner verbos para verlos)"),
+        ], fuente=fuente)))
 
 
 def _slash_markdown(arg: str = "") -> None:
@@ -10249,32 +10264,39 @@ def _slash_markdown(arg: str = "") -> None:
     except Exception:
         tty = False
     if act:
-        modo = "activo (ventana viva de 6 lineas + commit de estables)"
+        porque = "ventana viva de 6 lineas + commit de estables"
+        fuente = f"env COGNIA_MARKDOWN={md_env}" if md_env else "config markdown_stream"
     elif remoto:
-        modo = ("apagado (COGNIA_REMOTO=1: el clasificador del movil "
-                "necesita el camino viejo)")
+        porque = "COGNIA_REMOTO=1: el clasificador del movil necesita el camino viejo"
+        fuente = "env COGNIA_REMOTO=1"
     elif md_env in ("0", "false", "no", "off"):
-        modo = "apagado (COGNIA_MARKDOWN=0 en el entorno)"
+        porque = "apagado por el entorno"
+        fuente = f"env COGNIA_MARKDOWN={md_env}"
     elif str(_load_config().get("markdown_stream", "on")).lower() in (
             "off", "0", "false", "no"):
-        modo = "apagado (config; /markdown on para prenderlo)"
+        porque = "apagado en la config; /markdown on para prenderlo"
+        fuente = "config markdown_stream"
     elif not tty:
-        modo = ("apagado automatico (sin tty: un pipe no tiene cursor; "
-                "COGNIA_MARKDOWN=1 lo fuerza en modo solo-commit)")
+        porque = ("sin tty: un pipe no tiene cursor; COGNIA_MARKDOWN=1 lo "
+                  "fuerza en modo solo-commit")
+        fuente = "automatico"
     else:
-        modo = "apagado"
-    _print_line(f"[info_dim]markdown en streaming: {modo}[/info_dim]")
+        porque, fuente = "apagado", ""
     # _load_config ya viene MERGEADO con los defaults: distinguir el default
     # por VALOR, no por presencia (si no, el default salia como "config")
     origen_tema = ("env COGNIA_CODE_THEME" if tema_env
                    else "default" if tema == _CONFIG_DEFAULTS.get(
                        "markdown_tema") else "config")
-    _print_line(f"[info_dim]tema de codigo: {_escape(tema)} ({origen_tema}; "
-                f"/markdown tema <pygments> para cambiarlo)[/info_dim]")
-    _print_line("[info_dim]env: COGNIA_MARKDOWN="
-                f"{md_env or '(sin fijar)'} gana a la config · "
-                f"COGNIA_CODE_THEME={tema_env or '(sin fijar)'} gana al tema"
-                "[/info_dim]")
+    filas = [("por que", porque),
+             ("tema de codigo", f"{tema} ({origen_tema}; /markdown tema "
+                                "<pygments> para cambiarlo)")]
+    # La prosa de env vars solo cuando una env esta GANANDO a la config.
+    if md_env:
+        filas.append(("env", f"COGNIA_MARKDOWN={md_env} gana a la config"))
+    if tema_env:
+        filas.append(("env", f"COGNIA_CODE_THEME={tema_env} gana al tema"))
+    _print_line("\n".join(_estado_subsistema(
+        "markdown en streaming", bool(act), filas, fuente=fuente)))
 
 
 def _slash_prompt(arg: str = ""):
@@ -12396,7 +12418,19 @@ def repl():
         _SESSION_ID = _uuid.uuid4().hex[:12]
         _SESSION_CWD = os.path.normpath(os.path.abspath(os.getcwd()))
         ai.chat_history.set_session(_SESSION_ID, _SESSION_CWD)
-        _init_lines.append(f"[OK] Sesion {_SESSION_ID[:8]} en {_SESSION_CWD}")
+        # La ruta se acorta (~ por el home, elipsis en el medio) al ancho
+        # real: una ruta larga envolvia a columna 0 y rompia la reja (juez
+        # 2026-08-24).
+        try:
+            from cognia.harness.banner_adaptativo import acortar_ruta as _acr
+            _ancho_ses = (getattr(_console, "width", 100) if _HAS_RICH else 100)
+            _cwd_ses = _acr(_SESSION_CWD,
+                            max(20, _ancho_ses - len("  Sesion 12345678 en ") - 1))
+        except Exception as _exc_ruta:
+            _aviso_degradado("banner_adaptativo",
+                             f"ruta sin acortar: {_exc_ruta}")
+            _cwd_ses = _SESSION_CWD
+        _init_lines.append(f"[OK] Sesion {_SESSION_ID[:8]} en {_cwd_ses}")
     except Exception:
         pass
 

@@ -149,6 +149,74 @@ def footer_turno(ok: bool, segundos: float, tokens=None, pasos=None,
     return trozos
 
 
+# ---------------------------------------------------------------------------
+# Estado de un subsistema: la MISMA reja para los ocho '/x estado'
+# ---------------------------------------------------------------------------
+# Antes cada puerta escribia su estado a mano: 'ACTIVOS', 'ACTIVO', 'viva',
+# 'activo', 'modo auto', 'modo resumen' segun el modulo, dos sangrias
+# distintas, reglas ASCII, todo en el mismo gris (juez 2026-08-24). Aca vive
+# la unica forma: titulo en 'mod', estado en ok_cl/warn_cl, filas 'clave
+# valor' alineadas con sangria de 2 y sangria COLGANTE al envolver, avisos con
+# la marca del transcript. Devuelve lineas con markup de rich, listas para
+# _print_line (el CLI las une con '\n').
+_MARCA_AVISO = "\u26a0"       # ⚠
+_ESTADOS_APAGADOS = ("off", "apagado", "apagada", "apagados", "no", "0", "?",
+                     "sin limite")
+
+
+def estado_subsistema(titulo: str, activo, filas=(), fuente: str = "",
+                      avisos=(), console=None) -> list:
+    """Lineas (markup) del estado de un subsistema.
+
+    ``activo``: bool (-> 'on'/'off') o una palabra de modo ('resumen',
+    'viva', 'auto'...) que se pinta en ok_cl salvo que signifique apagado.
+    ``filas``: (clave, valor[, estilo[, markup_ya_hecho]]). Un valor con
+    markup propio (p.ej. un [link=...]) se pasa con markup_ya_hecho=True y
+    no se escapa ni se envuelve. ``fuente``: de donde sale el estado
+    ('config offload', 'env COGNIA_OFFLOAD=0'), en tenue tras el estado.
+    """
+    import textwrap
+    try:
+        from rich.markup import escape as _esc
+    except Exception:                       # sin rich: escapar a mano
+        def _esc(s):
+            return str(s).replace("[", "\\[")
+    if isinstance(activo, bool):
+        estado, est = ("on", "ok_cl") if activo else ("off", "warn_cl")
+    else:
+        estado = str(activo or "").strip() or "?"
+        est = ("warn_cl" if estado.lower() in _ESTADOS_APAGADOS
+               or estado.lower().startswith("apagad") else "ok_cl")
+    cab = f"[mod]{_esc(str(titulo))}[/mod]  [{est}]{_esc(estado)}[/{est}]"
+    if (fuente or "").strip():
+        cab += f"  [info_dim]({_esc(str(fuente).strip())})[/info_dim]"
+    lineas = [cab]
+    filas = [tuple(f) for f in (filas or ()) if f]
+    ancho_clave = max((len(str(f[0])) for f in filas), default=0)
+    col = len(_SANGRIA) + ancho_clave + 2
+    ancho = ancho_comodo(console) + len(_SANGRIA)
+    for f in filas:
+        clave, valor = str(f[0]), str(f[1])
+        estilo_v = (f[2] if len(f) > 2 and f[2] else "listado")
+        crudo = bool(f[3]) if len(f) > 3 else False
+        pref = f"{_SANGRIA}[info_dim]{_esc(clave.ljust(ancho_clave))}[/info_dim]  "
+        if crudo:
+            lineas.append(pref + f"[{estilo_v}]{valor}[/{estilo_v}]")
+            continue
+        # Se mide la linea ENTERA (sangria + clave + valor) y luego se quita
+        # el prefijo de la primera: asi la primera linea del valor no se pasa
+        # del ancho aunque arranque en la columna del valor.
+        envuelto = textwrap.fill(
+            valor, width=max(20, ancho), initial_indent=" " * col,
+            subsequent_indent=" " * col, break_long_words=False,
+            break_on_hyphens=False)[col:]
+        lineas.append(pref + f"[{estilo_v}]{_esc(envuelto)}[/{estilo_v}]")
+    for a in (avisos or ()):
+        if a:
+            lineas.append(f"{_SANGRIA}[warn_cl]{_MARCA_AVISO} {_esc(str(a))}[/warn_cl]")
+    return lineas
+
+
 def texto_footer(trozos: list) -> str:
     """El footer plano (sin estilos), p.ej. para stdout sin rich."""
     return "".join(t for t, _ in trozos)
