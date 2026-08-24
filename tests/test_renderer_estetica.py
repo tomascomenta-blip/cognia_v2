@@ -119,7 +119,11 @@ def test_pensando_usa_estilo_pensar_y_dots():
     assert st.spinner == "dots"
 
 
-def test_pensando_update_conserva_pensar_y_segundos():
+def test_pensando_update_conserva_pensar_y_segundos(monkeypatch):
+    # F2 (2026-08-23): con la linea VIVA activa el update es del ticker de
+    # spinner_vivo; este test mide el camino CLASICO, que sigue intacto con
+    # la linea viva apagada (COGNIA_SPINNER_INFO=0, el apagado de emergencia).
+    monkeypatch.setenv("COGNIA_SPINNER_INFO", "0")
     con = _ConsolaFalsa()
     r = Renderer(console=con)
     r(events.RazonamientoTick(chars=10, fragmento="a"))
@@ -128,6 +132,22 @@ def test_pensando_update_conserva_pensar_y_segundos():
     assert st.updates, "el segundo tick debe actualizar el status"
     assert "[pensar]" in st.updates[-1]
     assert "s)" in st.updates[-1]           # el (Ns) de hoy sigue
+
+
+def test_pensando_con_linea_viva_el_ticker_es_el_dueno(monkeypatch):
+    # F2: linea viva activa -> el segundo tick NO pisa el texto (el ticker de
+    # 1s es el unico que actualiza; dos escritores harian parpadear la linea)
+    monkeypatch.setenv("COGNIA_SPINNER_INFO", "1")
+    con = _ConsolaFalsa()
+    r = Renderer(console=con)
+    r(events.RazonamientoTick(chars=10, fragmento="a"))
+    try:
+        assert r._ticker is not None
+        r(events.RazonamientoTick(chars=20, fragmento="b"))
+        st = con.statuses[0]
+        assert not st.updates                # el tick manual quedo callado
+    finally:
+        r._parar_status()
 
 def test_spinner_no_anima_sin_tty(monkeypatch, capsys):
     """Sin terminal de verdad: linea quieta, NO status animado.

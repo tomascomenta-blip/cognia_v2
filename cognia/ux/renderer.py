@@ -123,6 +123,17 @@ class Renderer:
         self._avisos_vistos: set = set()
         self._pensando_desde: float = 0.0
         self._t0: float = 0.0
+        # Linea de estado VIVA (F2, ux/spinner_vivo): el ticker es UN hilo
+        # daemon que refresca el rich status cada segundo con verbo + segundos
+        # + ~tokens + hint de corte. Estado que necesita: chars del stream
+        # (TokenTexto y fragmentos de RazonamientoTick), la etiqueta base del
+        # status vigente (None = fase pensar, verbo gato rotatorio) y su t0.
+        self._chars_stream = 0
+        self._ticker = None              # threading.Thread del refresco, o None
+        self._ticker_stop = None         # threading.Event que lo corta
+        self._status_base: str | None = None
+        self._status_estilo = "spinner"
+        self._status_t0 = 0.0
         # Bajo el control remoto la prosa NO se streamea: el contrato con el
         # clasificador del movil es que la respuesta final llega ENTERA y
         # plana via _show_response, y streamearla ademas la pegaba duplicada
@@ -194,6 +205,15 @@ class Renderer:
             pass
 
     def _parar_status(self) -> None:
+        # primero el ticker: si quedara vivo, su proximo tic veria un status
+        # ajeno y saldria solo, pero mejor no pintar NI un frame huerfano
+        if self._ticker_stop is not None:
+            try:
+                self._ticker_stop.set()
+            except Exception:
+                pass
+            self._ticker_stop = None
+        self._ticker = None
         if self._status is not None:
             try:
                 self._status.stop()
@@ -202,7 +222,8 @@ class Renderer:
             self._status = None
         self._pensando_desde = 0.0
 
-    def _arrancar_status(self, etiqueta: str, estilo: str = "spinner") -> None:
+    def _arrancar_status(self, etiqueta: str, estilo: str = "spinner",
+                         rotar: bool = False) -> None:
         """Spinner efimero con rich; linea quieta sin el (consola no
         interactiva o sin rich). Nunca dos a la vez.
 
@@ -218,7 +239,12 @@ class Renderer:
         y un PNG de 8264 px. Ensucia las trazas de e2e_happy_path y los logs
         de las corridas nocturnas, que es justo donde se diagnostica. Se mira
         el fd real, no rich: FORCE_COLOR miente sobre is_terminal a proposito
-        (queremos el COLOR en la captura, no la ANIMACION)."""
+        (queremos el COLOR en la captura, no la ANIMACION).
+
+        ``rotar``: la fase de pensar no tiene tool que nombrar — la linea viva
+        (spinner_vivo) pone ahi el verbo gato rotatorio; con una tool en curso
+        la etiqueta se queda ('Leyendo motor.py' es mas honesto que
+        'Afilando garras') y la linea viva solo agrega (Ns · ~tok · hint)."""
         self._parar_status()
         if self._console is not None and _consola_interactiva():
             try:
@@ -226,10 +252,90 @@ class Renderer:
                     f"[{estilo}]{_MARCA_ACTIVIDAD} {etiqueta}[/{estilo}]",
                     spinner="dots")
                 self._status.start()
+                # la linea viva es un ADORNO sobre el status ya andando: si su
+                # arranque falla se avisa por degradado y queda el clasico
+                self._status_base = None if rotar else etiqueta
+                self._status_estilo = estilo
+                self._status_t0 = time.time()
+                self._arrancar_ticker()
                 return
             except Exception:
                 self._status = None
         self._print(f"{_SANGRIA}{_MARCA_ACTIVIDAD} {etiqueta}")
+
+    # -- linea de estado viva (F2, ux/spinner_vivo) -------------------------
+
+    def _degradar_spinner(self, exc: Exception) -> None:
+        """La linea viva fallo: avisar por _aviso_degradado (el canal unico
+        del repo) y dejar el spinner clasico andando. Sin cli cargado
+        (renderer suelto) el aviso sale por _print, una vez por motivo."""
+        motivo = f"{type(exc).__name__}: {exc}"
+        try:
+            import sys
+            _cli = sys.modules.get("cognia.cli")
+            if _cli is not None:
+                _cli._aviso_degradado("spinner", motivo)
+                return
+        except Exception:
+            pass
+        clave = ("degradado", "spinner", motivo)
+        if clave not in self._avisos_vistos:
+            self._avisos_vistos.add(clave)
+            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — spinner: "
+                        f"{motivo}", style="warn_cl")
+
+    def _tick_spinner(self) -> bool:
+        """UNA actualizacion de la linea viva sobre el status vigente (la
+        llama el ticker cada segundo, bajo el lock). Devuelve False si fallo:
+        el ticker se corta y el spinner clasico queda como estaba — la
+        degradacion es visible via _degradar_spinner, jamas rompe el turno.
+        El ancho se recorta al de la consola (anti-jitter: una linea que
+        envuelve salta de altura y ensucia el scrollback)."""
+        try:
+            from . import spinner_vivo
+            ancho = 100
+            try:
+                ancho = int(self._console.size.width)
+            except Exception:
+                pass
+            # -6: la marca '· ' nuestra + el glifo del spinner de rich + aire
+            texto = spinner_vivo.linea_estado(
+                self._status_base, self._status_t0, time.time(),
+                self._chars_stream, ancho=max(12, ancho - 6))
+            self._status.update(
+                f"[{self._status_estilo}]{_MARCA_ACTIVIDAD} {texto}"
+                f"[/{self._status_estilo}]")
+            return True
+        except Exception as exc:
+            self._degradar_spinner(exc)
+            return False
+
+    def _arrancar_ticker(self) -> None:
+        """El hilo que refresca la linea viva cada segundo. Solo arranca con
+        spinner_info activo (config/env a call-time); daemon y atado al status
+        que lo pario: si el status cambia o _parar_status corre, el proximo
+        tic lo ve y sale solo. Nunca dos tickers: _parar_status ya corto el
+        anterior (lo llama _arrancar_status antes de llegar aqui)."""
+        try:
+            from . import spinner_vivo
+            if not spinner_vivo.activo():
+                return
+            stop = threading.Event()
+            status = self._status
+            def _correr():
+                while not stop.wait(1.0):
+                    with self._lock:
+                        if stop.is_set() or self._status is not status:
+                            return
+                        if not self._tick_spinner():
+                            return
+            self._ticker_stop = stop
+            self._ticker = threading.Thread(
+                target=_correr, name="cognia-spinner-vivo", daemon=True)
+            self._ticker.start()
+        except Exception as exc:
+            self._ticker, self._ticker_stop = None, None
+            self._degradar_spinner(exc)
 
     def _cerrar_flujo(self) -> None:
         if self._flujo is not None:
@@ -299,6 +405,7 @@ class Renderer:
         self._cerrar_flujo()
         self._avisos_vistos.clear()
         self._t0 = ev.ts
+        self._chars_stream = 0           # el ~tok de la linea viva arranca en 0
         # Nada que imprimir: el usuario acaba de teclear la tarea; repetirsela
         # es eco. El modelo que respondera se ve en el footer si hace falta.
 
@@ -571,6 +678,9 @@ class Renderer:
         # En modo VER el spinner NO corre: la prosa ∴ ES el indicador, y el
         # status compitiendo con el stream entrelazaba '· pensando… (0s)'
         # dentro de las frases (cazado MIRANDO la escena pensar_visible).
+        # Los fragmentos del razonamiento cuentan para el ~tok de la linea
+        # viva: es lo unico que "llega" mientras el modelo piensa.
+        self._chars_stream += len(ev.fragmento or "")
         if self._pensar_en_vivo():
             # _parar_status resetea el reloj: pararlo PRIMERO y fijar despues.
             arranque = self._pensando_desde
@@ -578,10 +688,12 @@ class Renderer:
             self._pensando_desde = arranque or ev.ts or time.time()
         elif self._pensando_desde <= 0:
             self._pensando_desde = ev.ts or time.time()
-            self._arrancar_status("pensando…", estilo="pensar")
+            # rotar=True: la fase de pensar es la que lleva el verbo gato de
+            # spinner_vivo; con la linea viva apagada queda 'pensando…' clasico
+            self._arrancar_status("pensando…", estilo="pensar", rotar=True)
             # _arrancar_status resetea _pensando_desde via _parar_status
             self._pensando_desde = ev.ts or time.time()
-        elif self._status is not None:
+        elif self._status is not None and self._ticker is None:
             segs = int((ev.ts or time.time()) - self._pensando_desde)
             try:
                 self._status.update(
@@ -604,6 +716,10 @@ class Renderer:
         # la respuesta ya se streameo y se tragaria el resumen final
         if not ev.texto:
             return
+        # el contador de la linea viva SIEMPRE suma (tambien bajo remoto o
+        # stream externo: los tokens llegaron igual, el spinner de una tool
+        # posterior debe decir la verdad)
+        self._chars_stream += len(ev.texto)
         if self._sin_stream:
             return    # remoto: la respuesta final llega entera via _show_response
         if self._stream_externo:

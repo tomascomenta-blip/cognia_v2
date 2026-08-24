@@ -2054,6 +2054,7 @@ _CMD_DESCRIPTIONS = {
     "/prompt":          "System prompt del cerebro: /prompt [editar | set <texto> | reset | off | on]",
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
+    "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2164,6 +2165,22 @@ _CMD_DETAILS = {
         "Bajo COGNIA_REMOTO el render clasico se conserva siempre: el clasificador del movil "
         "(es_eco_renderer) reconoce las marcas viejas. Todo fallo del render nuevo avisa via "
         "degradado 'render_tools' y cae al render clasico, jamas rompe el turno."),
+    "/spinner": (
+        "La linea de espera del turno responde las tres preguntas de Claude Code/Codex: "
+        "¿esta vivo? ¿cuanto lleva? ¿como lo paro? Con la linea VIVA (default on) el spinner "
+        "muestra un verbo gato rotatorio en la fase de pensar ('Maullando ideas…', ~20 verbos en "
+        "ux/spinner_vivo), la etiqueta de la tool cuando hay una corriendo, los segundos "
+        "transcurridos, los ~tokens recibidos del stream (estimados; el footer final trae los "
+        "reales del backend) y el corte real: Ctrl-C corta el turno, el REPL sigue vivo. "
+        "USO: /spinner | /spinner estado (modo actual, verbo de ejemplo, env vars) | on|off "
+        "(persiste 'spinner_info'; off vuelve al spinner clasico 'pensando… (Ns)') | "
+        "verbos (lista vigente) | verbos <v1, v2, ...> (persiste 'spinner_verbos', separados "
+        "por comas) | verbos reset (vuelve a los verbos gato). "
+        "La env COGNIA_SPINNER_INFO=0 apaga la linea viva GANANDO a la config (y =1 la fuerza); "
+        "COGNIA_SPINNER=0 sigue apagando TODO el spinner (tambien lo apaga solo el carril de "
+        "fondo, ahi la actividad se mira con F2). Se actualiza en su sitio: jamas ensucia el "
+        "scrollback y trunca elegante en consolas estrechas. Todo fallo avisa via degradado "
+        "'spinner' y cae al spinner clasico, jamas rompe el turno."),
     "/tx": (
         "Agente de horizonte largo: memoria append-only (LIBRO) + reset del contexto con la "
         "COMPUERTA ANTES de destruir. OPT-IN: '/tx on' (o COGNIA_TX=1); apagado, Cognia se "
@@ -5862,6 +5879,14 @@ _CONFIG_DEFAULTS: dict = {
     # COGNIA_RENDER_COLAPSO=0 gana a la config (apagado de emergencia).
     "render_colapso":        "on",
     "render_colapso_lineas": "3",
+    # Linea de estado VIVA del turno (ux/spinner_vivo -> ticker del renderer):
+    # verbo gato rotatorio + segundos + ~tokens del stream + hint de corte
+    # (Ctrl-C). on/off con /spinner; la env COGNIA_SPINNER_INFO=0 gana a la
+    # config (y COGNIA_SPINNER=0 apaga TODO el spinner, viva y clasico).
+    "spinner_info":          "on",
+    # Verbos propios (lista JSON o texto separado por comas; /spinner verbos).
+    # Vacia = los ~20 VERBOS_GATO de ux/spinner_vivo.
+    "spinner_verbos":        "",
 }
 
 
@@ -8479,6 +8504,94 @@ def _slash_expandir(arg: str = "") -> None:
                          .encode(enc, errors="replace").decode(enc) + "\n")
 
 
+def _slash_spinner(arg: str = "") -> None:
+    """`/spinner [estado | on | off | verbos ...]`: la linea de estado VIVA
+    del turno (F2, ux/spinner_vivo + ticker del renderer): verbo gato
+    rotatorio + segundos + ~tokens del stream + 'ctrl+c corta'.
+
+    Subcomandos de config (persisten via _save_config):
+      on|off           -> clave 'spinner_info' (off = spinner clasico
+                          'pensando… (Ns)'; COGNIA_SPINNER_INFO gana a la config)
+      verbos           -> lista vigente
+      verbos <a, b>    -> clave 'spinner_verbos' (separados por comas)
+      verbos reset     -> vuelve a los VERBOS_GATO del modulo"""
+    try:
+        from cognia.ux import spinner_vivo
+    except Exception as exc:
+        _aviso_degradado("spinner", f"spinner_vivo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["spinner_info"] = bajo
+        _save_config(cfg)
+        env = (os.environ.get("COGNIA_SPINNER_INFO") or "").strip()
+        extra = (f" (ojo: COGNIA_SPINNER_INFO={env} en el entorno GANA "
+                 f"a la config)" if env else "")
+        _print_line(f"[info_dim]linea de estado viva: {bajo}"
+                    f" (guardado){extra}[/info_dim]")
+        return
+    if bajo == "verbos" or bajo.startswith("verbos "):
+        resto = arg[len("verbos"):].strip()
+        if not resto:
+            _, verbos = spinner_vivo.config()
+            propios = bool(str(_load_config().get("spinner_verbos", "")).strip())
+            origen = "propios (config)" if propios else "default (verbos gato)"
+            _print_line(f"[info_dim]{len(verbos)} verbos — {origen}:[/info_dim]")
+            for v in verbos:
+                _print_line(f"[info_dim]  · {_escape(v)}[/info_dim]")
+            return
+        if resto.lower() == "reset":
+            cfg = _load_config()
+            cfg["spinner_verbos"] = ""
+            _save_config(cfg)
+            _print_line(f"[info_dim]verbos: de vuelta a los "
+                        f"{len(spinner_vivo.VERBOS_GATO)} verbos gato "
+                        f"(guardado)[/info_dim]")
+            return
+        nuevos = spinner_vivo.verbos_config(resto)
+        if nuevos == list(spinner_vivo.VERBOS_GATO):
+            # verbos_config cae al default cuando la lista quedo vacia tras
+            # sanear: eso aqui es un error de uso, no una config valida
+            _print_line("[warn_cl]Uso: /spinner verbos <v1, v2, ...> "
+                        "(separados por comas; sin corchetes)[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["spinner_verbos"] = nuevos
+        _save_config(cfg)
+        _print_line(f"[info_dim]{len(nuevos)} verbos propios guardados "
+                    f"(ej: {_escape(nuevos[0])}…)[/info_dim]")
+        return
+    if bajo not in ("", "estado"):
+        _print_line("[warn_cl]Uso: /spinner [estado | on | off | verbos "
+                    "[<v1, v2, ...> | reset]][/warn_cl]")
+        return
+    # estado: modo actual, verbo de ejemplo, linea de muestra y env vars
+    activo, verbos = spinner_vivo.config()
+    spinner_env = (os.environ.get("COGNIA_SPINNER") or "").strip()
+    info_env = (os.environ.get("COGNIA_SPINNER_INFO") or "").strip()
+    if spinner_env == "0":
+        modo = "apagado TOTAL (COGNIA_SPINNER=0: ni viva ni clasica)"
+    elif activo:
+        modo = "viva (verbo + segundos + ~tokens + ctrl+c corta)"
+    else:
+        modo = "clasica ('pensando… (Ns)'; /spinner on para la viva)"
+    _print_line(f"[info_dim]linea de estado: {modo}[/info_dim]")
+    ejemplo = spinner_vivo.componer_linea(
+        spinner_vivo.verbo_rotante(time.time(), time.time(), verbos),
+        segundos=7, tokens=340)
+    _print_line(f"[info_dim]ejemplo: · {_escape(ejemplo)}[/info_dim]")
+    propios = bool(str(_load_config().get("spinner_verbos", "")).strip())
+    _print_line(f"[info_dim]verbos: {len(verbos)} "
+                f"({'propios' if propios else 'default gato'}; "
+                f"/spinner verbos para verlos)[/info_dim]")
+    _print_line("[info_dim]env: COGNIA_SPINNER_INFO="
+                f"{info_env or '(sin fijar)'} gana a la config · "
+                f"COGNIA_SPINNER={spinner_env or '(sin fijar)'} apaga todo "
+                "(el carril de fondo lo pone solo)[/info_dim]")
+
+
 def _slash_prompt(arg: str = ""):
     """Administra el system prompt configurable del CEREBRO (2026-08-02).
 
@@ -11015,6 +11128,8 @@ def repl():
             _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
         elif raw == "/expandir" or raw.startswith("/expandir "):
             _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
+        elif raw == "/spinner" or raw.startswith("/spinner "):
+            _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):
