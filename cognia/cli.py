@@ -2053,6 +2053,7 @@ _CMD_DESCRIPTIONS = {
     "/tema":            "Tema visual: /tema cicla, /tema <oscuro|claro|alto_contraste> fija (persiste)",
     "/prompt":          "System prompt del cerebro: /prompt [editar | set <texto> | reset | off | on]",
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
+    "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2149,6 +2150,20 @@ _CMD_DETAILS = {
     # /tx y /libro no estaban aqui, y su descripcion se corta a 80-120
     # columnas: el subsistema con MAS subcomandos del CLI era el unico sin
     # ningun sitio donde leerlos enteros.
+    "/expandir": (
+        "El render de tool-calls (ux/renderer -> harness/render_tools) colapsa cada resultado "
+        "a una vineta de estado + resumen + N lineas de cabeza + '⎿ … +N lineas (/expandir)'. "
+        "El output COMPLETO de cada tool del turno queda en memoria (ux/tool_buffer, lo llena "
+        "agent/loop.py y se vacia al arrancar la tarea siguiente). "
+        "USO: /expandir (el ultimo output, crudo: sin colores ni vinetas, texto seleccionable) | "
+        "/expandir <N> (el enesimo del turno, 1-based) | lista (indice, tool, ok y lineas de "
+        "cada output) | on|off (persiste la clave 'render_colapso'; apagado se vuelve al render "
+        "clasico '⏺ Verbo obj — resumen') | lineas <n> (cabeza visible, default 3; persiste "
+        "'render_colapso_lineas'). "
+        "La env COGNIA_RENDER_COLAPSO=0 apaga el colapso GANANDO a la config (y =1 lo fuerza). "
+        "Bajo COGNIA_REMOTO el render clasico se conserva siempre: el clasificador del movil "
+        "(es_eco_renderer) reconoce las marcas viejas. Todo fallo del render nuevo avisa via "
+        "degradado 'render_tools' y cae al render clasico, jamas rompe el turno."),
     "/tx": (
         "Agente de horizonte largo: memoria append-only (LIBRO) + reset del contexto con la "
         "COMPUERTA ANTES de destruir. OPT-IN: '/tx on' (o COGNIA_TX=1); apagado, Cognia se "
@@ -5841,6 +5856,12 @@ _CONFIG_DEFAULTS: dict = {
     # en el CLI decia que el estilo conservador estaba puesto: el sintoma se
     # diagnostica como "el mejorador no mejora" o como backend caido.
     "mejorar_prompt_estilo": "",
+    # Render COLAPSADO de tool-calls (ux/renderer -> harness/render_tools):
+    # vineta de estado + N lineas de cabeza + '⎿ … +N lineas (/expandir)'.
+    # on/off y umbral se cambian con /expandir on|off|lineas <n>; la env
+    # COGNIA_RENDER_COLAPSO=0 gana a la config (apagado de emergencia).
+    "render_colapso":        "on",
+    "render_colapso_lineas": "3",
 }
 
 
@@ -8371,6 +8392,91 @@ def _slash_color(arg: str = ""):
         _console.print(f"Color de acento: {color} (guardado)", style=color)
     else:
         print(f"Color de acento: {color} (guardado)")
+
+
+def _slash_expandir(arg: str = "") -> None:
+    """`/expandir [N]`: reimprime COMPLETO el output de una tool del turno,
+    crudo — sin colores, sin vinetas, seleccionable (patron 'raw view' de
+    Codex). Sin N va el ULTIMO; los indices los da `/expandir lista` y la
+    propia linea de colapso ('⎿ … +N lineas (/expandir 3)').
+
+    Subcomandos de config (persisten via _save_config):
+      on|off      -> clave 'render_colapso' (la env COGNIA_RENDER_COLAPSO=0
+                     gana a la config, apagado de emergencia)
+      lineas <n>  -> clave 'render_colapso_lineas' (cabeza visible, default 3)
+    El buffer lo alimenta agent/loop.py y se vacia al arrancar cada tarea."""
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["render_colapso"] = bajo
+        _save_config(cfg)
+        env = (os.environ.get("COGNIA_RENDER_COLAPSO") or "").strip()
+        extra = (f" (ojo: COGNIA_RENDER_COLAPSO={env} en el entorno GANA "
+                 f"a la config)" if env else "")
+        _print_line(f"[info_dim]render colapsado de tools: {bajo}"
+                    f" (guardado){extra}[/info_dim]")
+        return
+    if bajo.startswith("lineas"):
+        resto = arg[len("lineas"):].strip()
+        try:
+            n = int(resto)
+            if not 0 <= n <= 50:
+                raise ValueError(n)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /expandir lineas <0-50> (lineas de "
+                        "cabeza visibles; 0 = solo el resumen)[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["render_colapso_lineas"] = str(n)
+        _save_config(cfg)
+        _print_line(f"[info_dim]colapso: {n} lineas de cabeza (guardado)"
+                    f"[/info_dim]")
+        return
+    try:
+        from cognia.ux import tool_buffer as _tbuf
+        entradas = _tbuf.entradas()
+    except Exception as exc:
+        _aviso_degradado("render_tools",
+                         f"tool_buffer no disponible: {exc}")
+        return
+    if not entradas:
+        _print_line("[info_dim]sin outputs de tools en este turno todavia "
+                    "(corre una tarea que use herramientas, ej: /hacer)"
+                    "[/info_dim]")
+        return
+    if bajo == "lista":
+        for i, e in enumerate(entradas, 1):
+            marca = "ok " if e["ok"] else "ERR"
+            n_lin = len(e["resultado"].splitlines())
+            _print_line(f"[info_dim]{i:3d} {marca} {_escape(e['tool'])}"
+                        f"({_escape(e['args'][:60])}) — {n_lin} lineas"
+                        f"[/info_dim]")
+        return
+    n = None
+    if arg:
+        try:
+            n = int(arg)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /expandir [N | lista | on | off | "
+                        "lineas <n>][/warn_cl]")
+            return
+    entrada = _tbuf.obtener(n)
+    if entrada is None:
+        _print_line(f"[warn_cl]/expandir {n}: fuera de rango (hay "
+                    f"{len(entradas)} outputs; /expandir lista)[/warn_cl]")
+        return
+    # RAW VIEW: print pelado, sin rich — texto seleccionable tal cual salio
+    # de la tool. La cabecera es texto plano a proposito (tambien cruda).
+    idx = n if n is not None else len(entradas)
+    try:
+        print(f"--- /expandir {idx}: {entrada['tool']}({entrada['args']}) ---")
+        print(entrada["resultado"])
+    except UnicodeEncodeError:
+        # consola cp1252: mejor con sustitutos que tragarse el output
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        sys.stdout.write(entrada["resultado"]
+                         .encode(enc, errors="replace").decode(enc) + "\n")
 
 
 def _slash_prompt(arg: str = ""):
@@ -10907,6 +11013,8 @@ def repl():
             _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
         elif raw == "/color" or raw.startswith("/color "):
             _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
+        elif raw == "/expandir" or raw.startswith("/expandir "):
+            _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):

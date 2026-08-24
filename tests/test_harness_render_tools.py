@@ -506,3 +506,262 @@ def test_todas_las_salidas_son_ascii_con_COGNIA_ASCII(ascii_on):
     ]
     for s in salidas:
         s.encode("ascii")
+
+
+# ---------------------------------------------------------------------------
+# bloque_colapsado: el idioma Claude Code (colapso a N lineas + /expandir)
+# ---------------------------------------------------------------------------
+
+def _resultado_lectura(n):
+    return ("RESULTADO leer_archivo cli.py: "
+            + "\n".join(f"linea {i} del fichero" for i in range(1, n + 1)))
+
+
+def test_conector_colgante_unicode_y_ascii(monkeypatch):
+    monkeypatch.setenv("COGNIA_ASCII", "0")
+    assert rt.conector_colgante() == "⎿"
+    monkeypatch.setenv("COGNIA_ASCII", "1")
+    assert rt.conector_colgante() == "|_"
+
+
+def test_bloque_colapsado_colapsa_a_N_y_cuenta_lo_oculto(unicode_on):
+    lineas, estilos = rt.bloque_colapsado(
+        "leer_archivo", "cognia/cli.py", True, _resultado_lectura(10),
+        max_lineas=3)
+    assert lineas[0] == "● leer_archivo(cognia/cli.py)"
+    assert lineas[1] == "  ⎿ 10 lineas"                # resumen de UNA linea
+    assert lineas[2:5] == ("    linea 1 del fichero",
+                           "    linea 2 del fichero",
+                           "    linea 3 del fichero")
+    assert lineas[5] == "  ⎿ … +7 lineas (/expandir)"  # 10 - 3 vistas
+    assert estilos[0] == "ok_cl"
+    assert all(e == "info_dim" for e in estilos[1:])   # lo colgante va gris
+
+
+def test_bloque_colapsado_corto_no_pone_linea_de_colapso(unicode_on):
+    lineas, _ = rt.bloque_colapsado(
+        "leer_archivo", "a.py", True, _resultado_lectura(2), max_lineas=3)
+    assert not any("/expandir" in l for l in lineas)
+    assert "    linea 2 del fichero" in lineas
+
+
+def test_bloque_colapsado_indice_apunta_al_enesimo(unicode_on):
+    lineas, _ = rt.bloque_colapsado(
+        "leer_archivo", "a.py", True, _resultado_lectura(9), indice=4)
+    assert lineas[-1].endswith("(/expandir 4)")
+
+
+def test_bloque_colapsado_error_se_VE(unicode_on):
+    res = "RESULTADO editar_archivo x.py ERROR: el bloque SEARCH no casa"
+    lineas, estilos = rt.bloque_colapsado(
+        "editar_archivo", "x.py", False, res, max_lineas=3)
+    assert estilos[0] == "err_cl"
+    assert estilos[1] == "err_cl"          # el resumen del fallo, en rojo
+    assert "el bloque SEARCH no casa" in lineas[1]
+
+
+def test_bloque_colapsado_no_repite_el_cuerpo_de_UNA_linea(unicode_on):
+    # el resumen de 'ejecutar' ES la primera linea util: repetirla como
+    # cuerpo la mostraba dos veces seguidas
+    res = "RESULTADO ejecutar: 5 passed in 0.42s"
+    lineas, _ = rt.bloque_colapsado("ejecutar", "pytest -q", True, res)
+    assert sum("5 passed" in l for l in lineas) == 1
+    # y lo deduplicado NO se cuenta como oculto: '+1 linea' que /expandir no
+    # agranda es un resumen mentiroso (cazado en el REPL real, 2026-08-23)
+    assert not any("/expandir" in l for l in lineas)
+
+
+def test_bloque_colapsado_dedup_multilinea_cuenta_honesto(unicode_on):
+    # cuerpo de 5 lineas cuya PRIMERA es el resumen: se muestra el resumen,
+    # 3 lineas nuevas de cabeza, y quedan 5-1-3=1 oculta (no 2)
+    res = "RESULTADO ejecutar: 643\n---\nuno\ndos\ntres"
+    lineas, _ = rt.bloque_colapsado("ejecutar", "wc -l", True, res,
+                                    max_lineas=3)
+    assert lineas[1] == "  ⎿ 643"
+    assert sum("643" in l for l in lineas) == 1             # sin duplicado
+    assert lineas[2:5] == ("    ---", "    uno", "    dos")
+    assert lineas[5].endswith("+1 linea (/expandir)")
+
+
+def test_bloque_colapsado_max_lineas_cero_solo_resumen(unicode_on):
+    lineas, _ = rt.bloque_colapsado(
+        "leer_archivo", "a.py", True, _resultado_lectura(6), max_lineas=0)
+    assert lineas[1] == "  ⎿ 6 lineas"
+    assert lineas[2] == "  ⎿ … +6 lineas (/expandir)"
+    assert len(lineas) == 3
+
+
+def test_bloque_colapsado_respeta_el_ancho(unicode_on):
+    res = ("RESULTADO leer_archivo x: "
+           + "\n".join("x" * 300 for _ in range(6)))
+    lineas, _ = rt.bloque_colapsado(
+        "leer_archivo", "cognia/" + "sub/" * 30 + "f.py", True, res,
+        ancho=50)
+    assert all(rt.ancho_visual(l) <= 50 for l in lineas)
+
+
+def test_bloque_colapsado_ascii_es_ascii(ascii_on):
+    lineas, _ = rt.bloque_colapsado(
+        "leer_archivo", "a.py", True, _resultado_lectura(9))
+    for l in lineas:
+        l.encode("ascii")
+    assert any("+6 lineas (/expandir)" in l for l in lineas)
+
+
+# ---------------------------------------------------------------------------
+# SNAPSHOTS del render a string ANSI (COLUMNS=60/80/120)
+# ---------------------------------------------------------------------------
+# Leccion del repo: el juicio visual sin medir no vale (el capturador de PNG
+# pinto en blanco durante meses). El golden fija BYTES: glifo, estilo por
+# linea, elipsis del ancho y la linea de colapso, con rich de verdad.
+
+_ARGS_LARGOS = ("cognia/subsistema_de_render/con_un_camino/"
+                "deliberadamente_larguisimo/hasta/el_fichero_final.py")
+
+_GOLDEN_ANSI = {
+    60: ("\x1b[32m● leer_archivo(cognia/subsistema_de_…ta/el_fichero_final.py)\x1b[0m\n"
+         "\x1b[2m  ⎿ 7 lineas\x1b[0m\n"
+         "\x1b[2m    linea 1 del fichero\x1b[0m\n"
+         "\x1b[2m    linea 2 del fichero\x1b[0m\n"
+         "\x1b[2m    linea 3 del fichero\x1b[0m\n"
+         "\x1b[2m  ⎿ … +4 lineas (/expandir 1)\x1b[0m\n"),
+    80: ("\x1b[32m● leer_archivo(cognia/subsistema_de_render/con…uisimo/hasta/el_fichero_final.py)\x1b[0m\n"
+         "\x1b[2m  ⎿ 7 lineas\x1b[0m\n"
+         "\x1b[2m    linea 1 del fichero\x1b[0m\n"
+         "\x1b[2m    linea 2 del fichero\x1b[0m\n"
+         "\x1b[2m    linea 3 del fichero\x1b[0m\n"
+         "\x1b[2m  ⎿ … +4 lineas (/expandir 1)\x1b[0m\n"),
+    120: ("\x1b[32m● leer_archivo(cognia/subsistema_de_render/con_un_camino/deliberadamente_larguisimo/hasta/el_fichero_final.py)\x1b[0m\n"
+          "\x1b[2m  ⎿ 7 lineas\x1b[0m\n"
+          "\x1b[2m    linea 1 del fichero\x1b[0m\n"
+          "\x1b[2m    linea 2 del fichero\x1b[0m\n"
+          "\x1b[2m    linea 3 del fichero\x1b[0m\n"
+          "\x1b[2m  ⎿ … +4 lineas (/expandir 1)\x1b[0m\n"),
+}
+
+
+@pytest.mark.parametrize("columns", [60, 80, 120])
+def test_snapshot_ansi_del_bloque_colapsado(unicode_on, monkeypatch, columns):
+    import io
+    rich = pytest.importorskip("rich")     # noqa: F841 (venv312 lo tiene)
+    from rich.console import Console
+    from rich.theme import Theme
+    monkeypatch.setenv("COLUMNS", str(columns))
+    buf = io.StringIO()
+    con = Console(file=buf, width=columns, force_terminal=True,
+                  color_system="standard", legacy_windows=False,
+                  theme=Theme({"ok_cl": "green", "err_cl": "red",
+                               "info_dim": "dim"}), highlight=False)
+    res = ("RESULTADO leer_archivo x: "
+           + "\n".join(f"linea {i} del fichero" for i in range(1, 8)))
+    lineas, estilos = rt.bloque_colapsado(
+        "leer_archivo", _ARGS_LARGOS, True, res, max_lineas=3,
+        ancho=columns, raiz="C:/otro", indice=1)
+    for l, e in zip(lineas, estilos):
+        con.print(l, style=e, markup=False)
+    assert buf.getvalue() == _GOLDEN_ANSI[columns]
+
+
+# ---------------------------------------------------------------------------
+# El CABLEADO al renderer vivo (ux/renderer + ux/tool_buffer)
+# ---------------------------------------------------------------------------
+# La regresion que motiva la tanda: render_tools estaba ESCRITO Y TESTEADO
+# pero huerfano — nadie lo importaba y el renderer pintaba con su propio
+# codigo. Estos tests fallan sin el cableado.
+
+@pytest.fixture()
+def renderer_local(monkeypatch):
+    """Renderer local (sin remoto), colapso activo con umbral 3 fijo (la
+    config del usuario no puede mover el resultado del test)."""
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    monkeypatch.delenv("COGNIA_RENDER_COLAPSO", raising=False)
+    monkeypatch.setenv("COGNIA_ASCII", "0")
+    from cognia.ux import renderer as rmod
+    from cognia.ux import tool_buffer
+    monkeypatch.setattr(rmod, "_config_colapso", lambda: (True, 3))
+    tool_buffer.nuevo_turno()
+    yield rmod.Renderer(console=None), tool_buffer
+    tool_buffer.nuevo_turno()
+
+
+def test_renderer_delega_en_render_tools_con_el_output_completo(
+        renderer_local, capsys):
+    from cognia.ux import events
+    r, tool_buffer = renderer_local
+    res = _resultado_lectura(10)
+    tool_buffer.registrar("leer_archivo", "motor.py", res, True)
+    r(events.ToolFin(tool="leer_archivo", args="motor.py", ok=True,
+                     resumen=res[:200], paso=1))
+    out = capsys.readouterr().out
+    assert "● leer_archivo(motor.py)" in out
+    assert "⎿ 10 lineas" in out
+    assert "linea 3 del fichero" in out                # cabeza visible
+    assert "linea 4 del fichero" not in out            # colapsado
+    assert "⎿ … +7 lineas (/expandir 1)" in out
+    assert "⏺" not in out                              # el render viejo no sale
+
+
+def test_renderer_sin_buffer_cae_al_render_viejo_honesto(
+        renderer_local, capsys):
+    # sin output completo, resumir el resumen MENTIRIA (contarle las lineas
+    # al recorte de 200 chars): se conserva el render clasico
+    from cognia.ux import events
+    r, _ = renderer_local
+    r(events.ToolFin(tool="leer_archivo", args="motor.py", ok=True,
+                     resumen="42 lineas", paso=1))
+    out = capsys.readouterr().out
+    assert "⏺ Leyendo motor.py — 42 lineas" in out
+    assert "/expandir" not in out
+
+
+def test_renderer_colapso_apagado_por_env_conserva_el_render_viejo(
+        capsys, monkeypatch):
+    # SIN el fixture: aca actua la _config_colapso REAL, que lee el env
+    from cognia.ux import events
+    from cognia.ux import renderer as rmod
+    from cognia.ux import tool_buffer
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    monkeypatch.setenv("COGNIA_ASCII", "0")
+    monkeypatch.setenv("COGNIA_RENDER_COLAPSO", "0")
+    tool_buffer.nuevo_turno()
+    r = rmod.Renderer(console=None)
+    res = _resultado_lectura(10)
+    tool_buffer.registrar("leer_archivo", "motor.py", res, True)
+    r(events.ToolFin(tool="leer_archivo", args="motor.py", ok=True,
+                     resumen=res[:200], paso=1))
+    out = capsys.readouterr().out
+    tool_buffer.nuevo_turno()
+    assert "⏺ Leyendo motor.py" in out
+    assert "/expandir" not in out
+
+
+def test_renderer_bajo_remoto_conserva_el_formato_del_movil(
+        renderer_local, capsys, monkeypatch):
+    # es_eco_renderer clasifica por ⏺/✗: las lineas nuevas llegarian al chat
+    # del movil como prosa (contrato de remoto/sesiones.py)
+    from cognia.ux import events
+    from cognia.ux import renderer as rmod
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    _, tool_buffer = renderer_local
+    r = rmod.Renderer(console=None)          # relee el env en __init__
+    res = _resultado_lectura(10)
+    tool_buffer.registrar("leer_archivo", "motor.py", res, True)
+    r(events.ToolFin(tool="leer_archivo", args="motor.py", ok=True,
+                     resumen=res[:200], paso=1))
+    out = capsys.readouterr().out
+    assert "⏺ Leyendo motor.py" in out
+    assert "/expandir" not in out and "⎿" not in out
+
+
+def test_ultimo_para_casa_por_tool_y_prefijo():
+    from cognia.ux import tool_buffer
+    tool_buffer.nuevo_turno()
+    tool_buffer.registrar("leer_archivo", "a.py", "RESULTADO a: uno", True)
+    tool_buffer.registrar("buscar", "x", "RESULTADO buscar: hit", True)
+    idx, e = tool_buffer.ultimo_para("leer_archivo", "RESULTADO a: uno")
+    assert (idx, e["args"]) == (1, "a.py")
+    # el 'ultimo del buffer' es de OTRA tool: no se le cuelga su output
+    idx, e = tool_buffer.ultimo_para("leer_archivo", "RESULTADO otro: x")
+    assert (idx, e) == (0, None)
+    tool_buffer.nuevo_turno()
+    assert tool_buffer.obtener() is None

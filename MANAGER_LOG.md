@@ -13786,3 +13786,25 @@ env>config>default, la puerta dice el estilo y su origen, el estilo desconocido
 se grita en la puerta, `/mejorar estilo` persiste y vuelve al default, no guarda
 un nombre desconocido, el estilo resuelto VIAJA al experto, "estilo <frase>" sigue siendo texto a reformular, y la ayuda ya no
 vende el "A/B ciego 11-1").
+
+## 2026-08-23 — F1: render denso de tool-calls cableado + colapso estilo Claude Code + /expandir
+harness/render_tools.py (escrito y testeado 2026-08-12) estaba HUERFANO: nadie lo importaba y
+ux/renderer.py pintaba con su propio codigo. Cableado: _on_tool_inicio delega el resumen de args
+en render_tools (elipsis al medio, rutas relativas, jamas el payload) y _on_tool_fin pinta el
+bloque colapsado nuevo (vineta ● por estado + resumen colgando con ⎿ gris + 3 lineas de cabeza +
+'⎿ … +N lineas (/expandir)') via bloque_colapsado(). El output COMPLETO de cada tool del turno
+vive en ux/tool_buffer.py (lo llena agent/loop.py antes de emitir ToolFin; casa por
+resultado[:200]==resumen), y /expandir [N|lista|on|off|lineas <n>] lo reimprime CRUDO (raw view
+de Codex, sin colores). Config persistida: render_colapso on/off + render_colapso_lineas (3);
+COGNIA_RENDER_COLAPSO=0 apaga por env. Salvaguardas: bajo COGNIA_REMOTO se conserva el formato
+viejo (es_eco_renderer clasifica por ⏺/✗); sin output completo en buffer se cae al render viejo
+(resumir el recorte de 200 chars MENTIRIA, la leccion de contar_lineas); todo fallo ->
+_aviso_degradado('render_tools') y render viejo. Decisiones respetadas: 12 (el preview de diff
+sigue en console/diff_render, no se duplica), 14/17 (solo estilos logicos del tema). Tests:
+101 en test_harness_render_tools.py (colapso + snapshots ANSI con golden a COLUMNS=60/80/120 +
+cableado del renderer con regresion que falla sin el fix); area completa 274 passed. TECLEADO
+en el REPL real contra :8080 (Qwen3.8-27B-Ridge): listar tests (75 lineas colapsadas), buscar
+bloque_colapsado, leer tool_buffer.py — colapso visible, /expandir lista y /expandir 1 crudos.
+Bug cazado TECLEANDO (no por la suite): el cuerpo de 1 linea igual al resumen contaba
+'+1 linea' que /expandir no agrandaba; arreglada la contabilidad (dedup no cuenta como oculto)
+y verificado en vivo ('⎿ 643' sin fantasma).

@@ -80,6 +80,11 @@ ESTILO_PROGRESO = "spinner"
 
 _CONECTOR_UNICODE = "\u2514"        # esquina inferior izquierda
 _CONECTOR_ASCII = "|_"
+# El conector COLGANTE del resultado (\u23bf), el idioma de Claude Code/Codex:
+# distinto del \u2514 historico a proposito -- la sublinea de resultado y la
+# linea de colapso comparten glifo y se leen como un mismo bloque colgando.
+_COLGANTE_UNICODE = "\u23bf"
+_COLGANTE_ASCII = "|_"
 _ELIPSIS_UNICODE = "\u2026"         # puntos suspensivos
 _ELIPSIS_ASCII = "..."
 _PENSAR_UNICODE = "\u2234"          # 'therefore', la marca del razonamiento
@@ -92,6 +97,9 @@ _SEP_UNICODE = " \u00b7 "           # separador de atajos, como en Crush
 _SEP_ASCII = " | "
 
 PISTA_VER_TODO = "(ctrl+o para ver todo)"
+# La pista del bloque colapsado: un COMANDO, no un keybinding -- /expandir
+# existe en el REPL y reimprime el output crudo (patron 'raw view' de Codex).
+PISTA_EXPANDIR = "/expandir"
 PISTA_VER_RAZONAMIENTO = "(ctrl+o para ver el razonamiento)"
 PISTA_OCULTAR_RAZONAMIENTO = "(ctrl+o para ocultar el razonamiento)"
 
@@ -175,7 +183,8 @@ def usar_ascii() -> bool:
     if v in ("0", "false", "no", "off"):
         return False
     return not _soporta_unicode(_ELIPSIS_UNICODE + _CONECTOR_UNICODE
-                                + _PENSAR_UNICODE + "\u25cf")
+                                + _COLGANTE_UNICODE + _PENSAR_UNICODE
+                                + "\u25cf")
 
 
 def _elipsis() -> str:
@@ -185,6 +194,11 @@ def _elipsis() -> str:
 def conector() -> str:
     """El conector de la sublinea colgante: '\u2514' o su fallback '|_'."""
     return _CONECTOR_ASCII if usar_ascii() else _CONECTOR_UNICODE
+
+
+def conector_colgante() -> str:
+    """El conector del bloque de resultado colapsado: '\u23bf' o '|_'."""
+    return _COLGANTE_ASCII if usar_ascii() else _COLGANTE_UNICODE
 
 
 def glifo_estado(estado: str) -> str:
@@ -712,5 +726,66 @@ def bloque_llamada(tool: str, args="", estado: str = "ok",
     estilos = [estilo]
     if resultado:
         lineas.append(linea_resultado(resultado, ancho, expandible, tool))
+        estilos.append(ESTILO_RESULTADO)
+    return tuple(lineas), tuple(estilos)
+
+
+def bloque_colapsado(tool: str, args="", ok: bool = True, resultado: str = "",
+                     max_lineas: int = 3, ancho: int = ANCHO_MAX,
+                     raiz: str = "", indice: int = 0) -> tuple:
+    """El bloque estilo Claude Code: vineta de estado + resultado COLAPSADO.
+
+        <glifo> leer_archivo(cognia/cli.py)
+          <colgante> 200 lineas                  <- resumen de UNA linea
+            primera linea del cuerpo
+            segunda
+            tercera
+          <colgante> ... +197 lineas (/expandir) <- solo si quedo cuerpo oculto
+
+    (<glifo> es el circulo U+25CF con el color del estado; <colgante> es
+    U+23BF, el mismo que usa Claude Code, gris.) Devuelve `(lineas, estilos)` en paralelo, como `bloque_llamada`. El cuerpo
+    son las primeras `max_lineas` lineas del resultado SIN el prefijo
+    'RESULTADO tool obj:'; la linea de colapso dice cuantas quedan y como
+    verlas (`indice` > 0 la vuelve '/expandir N', el enesimo tool del turno).
+    Con `max_lineas=0` no se muestra cuerpo, solo el resumen y el colapso.
+    """
+    est = "ok" if ok else "error"
+    glifo, texto, estilo = linea_llamada(tool, args, est, ancho, raiz)
+    lineas = [f"{glifo} {texto}"]
+    estilos = [estilo]
+    resumen = resumir_resultado(tool, resultado)
+    prefijo = SANGRIA + conector_colgante() + " "
+    libre = max(0, ancho - ancho_visual(prefijo))
+    lineas.append(prefijo + truncar_medio(resumen, libre))
+    # El resumen de un fallo se pinta como fallo: la degradacion silenciosa
+    # es el enemigo, y un error en gris se lee como un dato mas.
+    estilos.append(ESTILO_RESULTADO if ok else ESTILOS_ESTADO["error"])
+    cuerpo = _sin_prefijo(resultado or "")
+    filas = cuerpo.splitlines() if cuerpo.strip() else []
+    if max_lineas is None or max_lineas < 0:
+        max_lineas = 0
+    vistas = filas[:max_lineas]
+    # La primera linea del cuerpo igual al resumen no se repite (el caso de
+    # 'ejecutar', cuyo resumen ES la primera linea util) -- y lo deduplicado
+    # NO se cuenta como oculto: un '... +1 linea' que /expandir no agranda es
+    # un resumen mentiroso (cazado TECLEANDO en el REPL real, 2026-08-23:
+    # 'ejecutar(ls tests | wc -l)' pintaba '643' y debajo '+1 linea').
+    ya_visto = 0
+    if vistas and max_lineas > 0 and _una_linea(vistas[0]) == resumen:
+        ya_visto = 1
+        vistas = filas[1:1 + max_lineas]
+    sangria_cuerpo = SANGRIA + " " * ancho_visual(conector_colgante() + " ")
+    hueco = max(0, ancho - ancho_visual(sangria_cuerpo))
+    for fila in vistas:
+        lineas.append(sangria_cuerpo + truncar_medio(fila, hueco))
+        estilos.append(ESTILO_RESULTADO)
+    ocultas = len(filas) - ya_visto - len(vistas)
+    if ocultas > 0:
+        pista = PISTA_EXPANDIR + (f" {indice}" if indice > 0 else "")
+        cola = (prefijo + _elipsis() + " +"
+                + _plural(ocultas, "linea", "lineas") + f" ({pista})")
+        if ancho_visual(cola) > ancho:
+            cola = truncar_medio(cola, ancho)
+        lineas.append(cola)
         estilos.append(ESTILO_RESULTADO)
     return tuple(lineas), tuple(estilos)

@@ -60,6 +60,34 @@ def _cabeza(texto: str, tope: int = 120) -> str:
     return linea[:tope] + ("…" if len(linea) > tope else "")
 
 
+def _config_colapso() -> tuple:
+    """(activo, max_lineas) del render colapsado de tools, a CALL-TIME.
+
+    COGNIA_RENDER_COLAPSO manda ('0' apaga, '1' fuerza); sin la env decide la
+    config persistida del CLI (claves 'render_colapso' y
+    'render_colapso_lineas', se cambian con /expandir on|off|lineas). Se mira
+    sys.modules y NO se importa cli: en el REPL ya esta cargado, y un renderer
+    suelto (tests, scripts) no paga los 15k lineas de cli.py por un default.
+    """
+    v = (os.environ.get("COGNIA_RENDER_COLAPSO") or "").strip().lower()
+    if v in ("0", "false", "no", "off"):
+        return False, 3
+    activo, lineas = True, 3
+    try:
+        import sys
+        _cli = sys.modules.get("cognia.cli")
+        if _cli is not None:
+            cfg = _cli._load_config()
+            activo = (str(cfg.get("render_colapso", "on")).strip().lower()
+                      not in ("off", "0", "false", "no"))
+            lineas = max(0, int(cfg.get("render_colapso_lineas", 3)))
+    except Exception:
+        activo, lineas = True, 3
+    if v in ("1", "true", "si", "on"):
+        activo = True
+    return activo, lineas
+
+
 def _consola_interactiva() -> bool:
     """¿Hay una terminal DE VERDAD al otro lado de stdout?
 
@@ -283,10 +311,43 @@ class Renderer:
             # italic: la intencion es un pensamiento del agente, no un hecho
             self._print(f"{_SANGRIA}{intencion}", style="intencion")
 
+    def _degradar_render(self, exc: Exception) -> None:
+        """El render nuevo fallo: avisar por _aviso_degradado (una vez por
+        turno; el canal unico del repo) y dejar que el caller pinte el render
+        viejo. Sin cli cargado (renderer suelto) el aviso sale por _print."""
+        motivo = f"{type(exc).__name__}: {exc}"
+        try:
+            import sys
+            _cli = sys.modules.get("cognia.cli")
+            if _cli is not None:
+                _cli._aviso_degradado("render_tools", motivo)
+                return
+        except Exception:
+            pass
+        clave = ("degradado", "render_tools", motivo)
+        if clave not in self._avisos_vistos:
+            self._avisos_vistos.add(clave)
+            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — render_tools: "
+                        f"{motivo}", style="warn_cl")
+
     def _on_tool_inicio(self, ev: events.ToolInicio) -> None:
         self._cerrar_flujo()
         self._cerrar_flujo_pensar()
         verbo, obj = verbo_de(ev.tool), objeto_de(ev.args)
+        # El resumen de args lo pone render_tools cuando el colapso esta
+        # activo: elipsis EN EL MEDIO, rutas relativas, jamas el payload de
+        # una escritura. El gerundio se queda (identidad del REPL y contrato
+        # del clasificador remoto); solo cambia el OBJETO.
+        if not self._sin_stream:
+            try:
+                from cognia.harness import render_tools as _rt
+                if _config_colapso()[0]:
+                    resumido = _rt.resumir_args(ev.tool, ev.args,
+                                                raiz=os.getcwd())
+                    if resumido:
+                        obj = resumido
+            except Exception as exc:
+                self._degradar_render(exc)
         etiqueta = f"{verbo} {obj}…".replace("  ", " ").strip()
         self._arrancar_status(etiqueta)
 
@@ -428,8 +489,54 @@ class Renderer:
             vistas[-1] += "…"
         self._preview_lineas([], vistas)
 
+    def _pintar_colapsado(self, ev: events.ToolFin) -> bool:
+        """El render NUEVO de ToolFin (harness/render_tools.bloque_colapsado):
+        vineta de estado + resultado colgando con ⎿, colapsado a N lineas de
+        cabeza + '⎿ … +N lineas (/expandir)'. Devuelve False cuando NO aplica
+        y el caller debe pintar el render viejo:
+        - bajo COGNIA_REMOTO: es_eco_renderer clasifica por ⏺/✗ y estas
+          lineas nuevas llegarian al chat del movil como prosa;
+        - colapso apagado (COGNIA_RENDER_COLAPSO=0 o config render_colapso);
+        - sin el output COMPLETO en tool_buffer: resumir el resumen de 200
+          chars MENTIRIA (contarle las lineas al recorte, la leccion de
+          contar_lineas), asi que se cae al render honesto de siempre;
+        - cualquier fallo -> _aviso_degradado('render_tools', motivo)."""
+        if self._sin_stream or os.environ.get("COGNIA_REMOTO", "").strip() == "1":
+            return False
+        try:
+            activo, max_lineas = _config_colapso()
+            if not activo:
+                return False
+            from cognia.ux import tool_buffer
+            from cognia.harness import render_tools as _rt
+            indice, entrada = tool_buffer.ultimo_para(ev.tool, ev.resumen or "")
+            if entrada is None:
+                return False
+            ancho = _rt.ANCHO_MAX
+            try:
+                if self._console is not None:
+                    ancho = min(int(self._console.size.width), _rt.ANCHO_MAX)
+            except Exception:
+                pass
+            lineas, estilos = _rt.bloque_colapsado(
+                ev.tool, entrada["args"] or ev.args, bool(ev.ok),
+                entrada["resultado"], max_lineas=max_lineas, ancho=ancho,
+                raiz=os.getcwd(), indice=indice)
+            for linea, estilo in zip(lineas, estilos):
+                self._print(linea, style=estilo)
+            return True
+        except Exception as exc:
+            self._degradar_render(exc)
+            return False
+
     def _on_tool_fin(self, ev: events.ToolFin) -> None:
         self._parar_status()
+        if self._pintar_colapsado(ev):
+            # decision 12: el preview de lo escrito sigue saliendo y el diff
+            # con banda lo pinta console/diff_render — aca no se duplica.
+            if ev.ok:
+                self._preview_escritura(ev)
+            return
         verbo, obj = verbo_de(ev.tool), objeto_de(ev.args)
         etiqueta = f"{verbo} {obj}".replace("  ", " ").strip()
         lineas = [l for l in (ev.resumen or "").strip().split("\n") if l.strip()]

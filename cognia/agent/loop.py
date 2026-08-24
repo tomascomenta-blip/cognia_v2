@@ -587,6 +587,13 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     if _ev is not None:
         _emitir(_ev.TareaInicio(tarea=task[:300], modo="agente",
                                 modelo=perfil.get("modelo", "")))
+    # Buffer de outputs COMPLETOS del turno (ux/tool_buffer): /expandir y el
+    # render colapsado hablan siempre de ESTA tarea, asi que se vacia aca.
+    try:
+        from cognia.ux import tool_buffer as _tbuf
+        _tbuf.nuevo_turno()
+    except Exception:
+        _tbuf = None
 
     mensajes: list = []
     if system:
@@ -1053,6 +1060,19 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             history.append(resultado)
             trace.append({"action": tc.nombre, "args": args_str[:200],
                           "ok": tool_ok, "result_head": resultado[:160]})
+            # El output COMPLETO va al buffer ANTES de emitir ToolFin: el
+            # renderer casa evento y entrada por resultado[:200] == resumen
+            # (el evento solo lleva el recorte). Fallo del buffer -> Degradado
+            # visible y el render cae al camino viejo; el turno sigue.
+            if _tbuf is not None:
+                try:
+                    _tbuf.registrar(tc.nombre, args_str[:120], resultado,
+                                    bool(tool_ok))
+                except Exception as _exc_buf:
+                    if _ev is not None:
+                        _emitir(_ev.Degradado(
+                            donde="render_tools.buffer",
+                            motivo=f"{type(_exc_buf).__name__}: {_exc_buf}"))
             if _ev is not None:
                 _emitir(_ev.ToolFin(
                     tool=tc.nombre, args=args_str[:120], ok=bool(tool_ok),
