@@ -41,6 +41,42 @@ _MARCA_AVISO = "⚠"
 _MARCA_PENSAR = "∴"
 _SANGRIA_PENSAR = "    " + _MARCA_PENSAR + " "
 
+
+def _glifo(id: str, clasico: str) -> str:
+    """P6 (2026-08-24): el glifo del registro de estilos (ux/aspecto) SOLO
+    si el dueno lo cambio con /estilo y NO estamos bajo COGNIA_REMOTO=1. El
+    clasico (⏺ ✗ ⚠ ·) es contrato del clasificador del movil y del e2e, y
+    ademas difiere del default del registro (● del render colapsado): sin
+    override tiene que seguir saliendo el clasico byte a byte. Sin try: los
+    ids son constantes de este modulo, un KeyError es un bug que debe sonar."""
+    from . import aspecto as _A
+    c = _A.cambios(id)
+    if _A._remoto() or ("glifo" not in c and "glifo_ascii" not in c):
+        return clasico
+    return _A.glifo(id) or clasico
+
+
+def _marca_hecho() -> str:
+    return _glifo("tool.ok", _MARCA_HECHO)
+
+
+def _marca_error() -> str:
+    return _glifo("tool.error", _MARCA_ERROR)
+
+
+def _marca_actividad() -> str:
+    return _glifo("tool.curso", _MARCA_ACTIVIDAD)
+
+
+def _marca_aviso() -> str:
+    return _glifo("aviso.degradado", _MARCA_AVISO)
+
+
+def _texto_aviso(clave: str) -> str:
+    """'degradado — ' / '→' de aviso.degradado (default bajo remoto)."""
+    from . import aspecto as _A
+    return _A.texto("aviso.degradado", clave)
+
 # Tope de lineas del resumen de una tool: el modelo ve el output completo por
 # su canal; el humano solo necesita saber QUE paso (estilo Claude Code: la
 # linea compacta, no el volcado).
@@ -388,7 +424,7 @@ class Renderer:
         clave = ("degradado", "spinner", motivo)
         if clave not in self._avisos_vistos:
             self._avisos_vistos.add(clave)
-            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — spinner: "
+            self._print(f"{_SANGRIA}{_marca_aviso()} {_texto_aviso('degradado')}spinner: "
                         f"{motivo}", style="warn_cl")
 
     def _tick_spinner(self) -> bool:
@@ -469,7 +505,7 @@ class Renderer:
         clave = ("degradado", "markdown", motivo)
         if clave not in self._avisos_vistos:
             self._avisos_vistos.add(clave)
-            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — markdown: "
+            self._print(f"{_SANGRIA}{_marca_aviso()} {_texto_aviso('degradado')}markdown: "
                         f"{motivo}", style="warn_cl")
 
     def _cerrar_flujo(self) -> None:
@@ -562,7 +598,8 @@ class Renderer:
         self._cerrar_flujo()
         self._cerrar_flujo_pensar()
         intencion = (ev.intencion or "").strip().split("\n")[0]
-        if intencion:
+        from . import aspecto as _A
+        if intencion and _A.visible("tool.intencion"):
             # italic: la intencion es un pensamiento del agente, no un hecho.
             # Con el glifo ∴ del razonamiento y sangria colgante: antes salia
             # pelada, cortada en seco a 160 chars y envolviendo a columna 0.
@@ -586,7 +623,7 @@ class Renderer:
         clave = ("degradado", "render_tools", motivo)
         if clave not in self._avisos_vistos:
             self._avisos_vistos.add(clave)
-            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — render_tools: "
+            self._print(f"{_SANGRIA}{_marca_aviso()} {_texto_aviso('degradado')}render_tools: "
                         f"{motivo}", style="warn_cl")
 
     def _on_tool_inicio(self, ev: events.ToolInicio) -> None:
@@ -623,7 +660,7 @@ class Renderer:
         try:
             from rich.text import Text
             partes = [(_SANGRIA, ""),
-                      (_MARCA_HECHO if ok else _MARCA_ERROR,
+                      (_marca_hecho() if ok else _marca_error(),
                        "ok_cl" if ok else "err_cl"),
                       (" ", ""),
                       (verbo, "tool_verbo")]
@@ -830,7 +867,7 @@ class Renderer:
         clave = ("degradado", "enlaces", motivo)
         if clave not in self._avisos_vistos:
             self._avisos_vistos.add(clave)
-            self._print(f"{_SANGRIA}{_MARCA_AVISO} degradado — enlaces: "
+            self._print(f"{_SANGRIA}{_marca_aviso()} {_texto_aviso('degradado')}enlaces: "
                         f"{motivo}", style="warn_cl")
 
     def _on_tool_fin(self, ev: events.ToolFin) -> None:
@@ -847,7 +884,7 @@ class Renderer:
         cabeza = lineas[0].strip() if lineas else ""
         if ev.ok:
             if not self._print_tool_fin_rico(True, verbo, obj, cabeza):
-                linea = f"{_SANGRIA}{_MARCA_HECHO} {etiqueta}"
+                linea = f"{_SANGRIA}{_marca_hecho()} {etiqueta}"
                 if cabeza:
                     linea += f" — {cabeza}"
                 self._print(linea, style="info_dim")
@@ -859,7 +896,7 @@ class Renderer:
             # el error se VE: es la diferencia entre "no hizo nada" y "fallo
             # aqui por esto" (la degradacion silenciosa es el enemigo).
             if not self._print_tool_fin_rico(False, verbo, obj, cabeza):
-                linea = f"{_SANGRIA}{_MARCA_ERROR} {etiqueta} — fallo"
+                linea = f"{_SANGRIA}{_marca_error()} {etiqueta} — fallo"
                 if cabeza:
                     linea += f": {cabeza}"
                 self._print(linea, style="warn_cl")
@@ -976,12 +1013,13 @@ class Renderer:
         self._avisos_vistos.add(clave)
         self._parar_status()
         self._cerrar_flujo()
-        linea = f"{_SANGRIA}{_MARCA_AVISO} degradado — {ev.donde}"
+        linea = f"{_SANGRIA}{_marca_aviso()} {_texto_aviso('degradado')}{ev.donde}"
         if ev.motivo:
             linea += f": {ev.motivo}"
         self._print(linea, style="warn_cl")
         if ev.accion_sugerida:
-            self._print(f"{_SANGRIA}  → {ev.accion_sugerida}", style="warn_cl")
+            self._print(f"{_SANGRIA}  {_texto_aviso('accion')} {ev.accion_sugerida}",
+                        style="warn_cl")
 
     def _on_tarea_fin(self, ev: events.TareaFin) -> None:
         self._parar_status()
@@ -1042,7 +1080,7 @@ class Renderer:
         self._parar_status()
         self._cerrar_flujo()
         self._cerrar_flujo_pensar()
-        linea = f"{_SANGRIA}{_MARCA_ACTIVIDAD} workflow «{ev.nombre or '?'}»"
+        linea = f"{_SANGRIA}{_marca_actividad()} workflow «{ev.nombre or '?'}»"
         if ev.total_agentes:
             linea += f" — {ev.total_agentes} agentes"
         if ev.cache_precargada:
@@ -1057,7 +1095,7 @@ class Renderer:
         # frase a medias (el mismo bug que _on_aviso ya arreglo una vez).
         self._cerrar_flujo()
         self._cerrar_flujo_pensar()
-        self._print(f"{_SANGRIA}{_MARCA_ACTIVIDAD} {self._ref_agente(ev)}…",
+        self._print(f"{_SANGRIA}{_marca_actividad()} {self._ref_agente(ev)}…",
                     style="info_dim")
 
     def _on_agente_fin(self, ev: events.AgenteFin) -> None:
@@ -1067,16 +1105,16 @@ class Renderer:
         if not ev.ok:
             # el fallo se VE: "devolvio vacio" y "reventó" piden decisiones
             # distintas y el motor las distingue con ok/motivo.
-            self._print(f"{_SANGRIA}{_MARCA_ERROR} {ref} — fallo: "
+            self._print(f"{_SANGRIA}{_marca_error()} {ref} — fallo: "
                         f"{_cabeza(ev.motivo)}", style="warn_cl")
             return
         if ev.cache_hit:
-            self._print(f"{_SANGRIA}{_MARCA_HECHO} {ref} — de cache",
+            self._print(f"{_SANGRIA}{_marca_hecho()} {ref} — de cache",
                         style="info_dim")
             return
         cab = _cabeza(ev.resumen)
         cola = f" ({ev.duracion_s:.1f}s · {ev.tokens} tok)"
-        self._print(f"{_SANGRIA}{_MARCA_HECHO} {ref}"
+        self._print(f"{_SANGRIA}{_marca_hecho()} {ref}"
                     + (f" — {cab}" if cab else "") + cola, style="info_dim")
 
     def _on_workflow_fin(self, ev: events.WorkflowFin) -> None:
@@ -1084,7 +1122,7 @@ class Renderer:
         self._cerrar_flujo()
         nombre = f"workflow «{ev.nombre or '?'}»"
         if not ev.ok:
-            self._print(f"{_SANGRIA}{_MARCA_ERROR} {nombre} — fallo: "
+            self._print(f"{_SANGRIA}{_marca_error()} {nombre} — fallo: "
                         f"{_cabeza(ev.resumen)}", style="warn_cl")
             return
         partes = []
@@ -1102,7 +1140,7 @@ class Renderer:
             partes.append(f"{ev.tokens} tokens")
         if ev.duracion_s:
             partes.append(f"{ev.duracion_s:.1f}s")
-        linea = f"{_SANGRIA}{_MARCA_HECHO} {nombre}"
+        linea = f"{_SANGRIA}{_marca_hecho()} {nombre}"
         if partes:
             linea += " — " + " · ".join(partes)
         self._print(linea, style="info_dim")
@@ -1151,6 +1189,9 @@ class Renderer:
         # footer remoto tiene que seguir casando _RE_FOOTER_RENDERER.
         motivo = (getattr(ev, "motivo", "") or "").strip()
         if not remoto and self._console is not None:
+            from . import aspecto as _A
+            if not _A.visible("footer.turno"):
+                return   # P6: footer.turno.visible=false (solo local)
             # El MISMO constructor que el footer del chat (estilo.footer_
             # turno): un solo idioma para el cierre del turno.
             pintar_footer(footer_turno(bool(ev.ok), dur, ev.tokens_predichos,

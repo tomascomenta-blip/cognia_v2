@@ -784,3 +784,52 @@ def test_ultimo_para_casa_por_tool_y_prefijo():
     assert (idx, e) == (0, None)
     tool_buffer.nuevo_turno()
     assert tool_buffer.obtener() is None
+
+
+# -- P6 (2026-08-24): glifos/textos por elemento via ux/aspecto ---------------
+
+@pytest.fixture()
+def aspecto_limpio():
+    from cognia.ux import aspecto as A
+    A.reset()
+    yield A
+    A.reset()
+
+
+def test_glifo_de_tool_ok_cambia_con_el_registro(unicode_on, aspecto_limpio, monkeypatch):
+    A = aspecto_limpio
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert rt.glifo_estado("ok") == "●"
+    assert not A.errores(A.poner("tool.ok", "glifo", "✔"))
+    assert rt.glifo_estado("ok") == "✔"
+    assert rt.glifo_estado("error") == "●", "solo cambia el estado tocado"
+    glifo, texto, estilo = rt.linea_llamada("leer_archivo", "motor.py", estado="ok")
+    assert glifo == "✔" and estilo == "ok_cl"
+
+
+def test_glifo_de_tool_ok_bajo_remoto_sigue_el_default(unicode_on, aspecto_limpio, monkeypatch):
+    A = aspecto_limpio
+    assert not A.errores(A.poner("tool.ok", "glifo", "✔"))
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    assert rt.glifo_estado("ok") == "●", "D7: el glifo es contrato del movil"
+
+
+def test_override_de_color_no_toca_el_glifo(unicode_on, aspecto_limpio, monkeypatch):
+    A = aspecto_limpio
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert not A.errores(A.poner("tool.ok", "color", "#ff00ff"))
+    assert rt.glifo_estado("ok") == "●"
+
+
+def test_conector_y_textos_de_tool_resultado(unicode_on, aspecto_limpio, monkeypatch):
+    A = aspecto_limpio
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert rt.conector_colgante() == "⎿"
+    assert rt.resumir_resultado("ejecutar", "") == "sin salida"
+    assert not A.errores(A.poner("tool.resultado", "glifo", "→"))
+    assert not A.errores(A.poner("tool.resultado", "texto.sin_salida", "nada"))
+    assert rt.conector_colgante() == "→" and rt.conector() == "→"
+    assert rt.resumir_resultado("ejecutar", "") == "nada"
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    assert rt.conector_colgante() == "⎿"
+    assert rt.resumir_resultado("ejecutar", "") == "sin salida"

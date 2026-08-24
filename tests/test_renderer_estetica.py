@@ -841,3 +841,94 @@ def test_ninguna_segunda_live_con_el_markdown_vivo_corriendo(monkeypatch):
         r._cerrar_flujo()
     assert lives["max"] == 1 and lives["abiertas"] == 2
     assert "Hola" in buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# P6 (2026-08-24): glifos comiteados al scrollback por elemento; remoto intacto
+# ---------------------------------------------------------------------------
+
+def test_tool_fin_con_glifo_del_registro(monkeypatch):
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert not _A.errores(_A.poner("tool.ok", "glifo", "✔"))
+    con, buf = _consola_rich()
+    Renderer(console=con)(events.ToolFin(tool="leer_archivo", args="motor.py", ok=True,
+                                         resumen="42 lineas", paso=1))
+    assert "✔ Leyendo motor.py — 42 lineas" in buf.getvalue()
+    assert "⏺" not in buf.getvalue()
+
+
+def test_tool_fin_bajo_remoto_conserva_el_glifo_clasico(monkeypatch):
+    """D7: el clasificador del movil y el e2e leen ⏺ literal aunque el
+    fichero de estilo diga otra cosa."""
+    assert not _A.errores(_A.poner("tool.ok", "glifo", "✔"))
+    assert not _A.errores(_A.poner("tool.error", "glifo", "✘"))
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    con, buf = _consola_rich()
+    r = Renderer(console=con)
+    r(events.ToolFin(tool="leer_archivo", args="motor.py", ok=True, resumen="42 lineas", paso=1))
+    r(events.ToolFin(tool="ejecutar", args="pytest -q", ok=False, resumen="exit 1", paso=2))
+    out = buf.getvalue()
+    assert "⏺ Leyendo motor.py — 42 lineas" in out
+    assert "✗ Ejecutando pytest — fallo: exit 1" in out
+    assert "✔" not in out and "✘" not in out
+
+
+def test_sin_fichero_de_estilo_los_glifos_clasicos_son_los_de_siempre(monkeypatch):
+    """El default del registro (● del render colapsado) NO se cuela en el
+    renderer clasico: sin override, ⏺/✗ byte a byte (no solo bajo remoto)."""
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert not _A.errores(_A.poner("tool.ok", "color", "#ff00ff"))   # color si, glifo no
+    con, buf = _consola_rich()
+    r = Renderer(console=con)
+    r(events.ToolFin(tool="leer_archivo", args="motor.py", ok=True, resumen="42 lineas", paso=1))
+    r(events.Degradado(donde="spinner", motivo="x", accion_sugerida="y"))
+    out = buf.getvalue()
+    assert "⏺ Leyendo motor.py — 42 lineas" in out
+    assert "⚠ degradado — spinner: x" in out and "  → y" in out
+
+
+def test_aviso_degradado_con_glifo_y_texto_del_registro(monkeypatch):
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert not _A.errores(_A.poner("aviso.degradado", "glifo", "!"))
+    assert not _A.errores(_A.poner("aviso.degradado", "texto.degradado", "OJO: "))
+    con, buf = _consola_rich()
+    Renderer(console=con)(events.Degradado(donde="spinner", motivo="x", accion_sugerida="y"))
+    assert "! OJO: spinner: x" in buf.getvalue()
+    _A.reset()
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    assert not _A.errores(_A.poner("aviso.degradado", "glifo", "!"))
+    con, buf = _consola_rich()
+    Renderer(console=con)(events.Degradado(donde="spinner", motivo="x"))
+    assert "⚠ degradado — spinner: x" in buf.getvalue()
+
+
+def test_footer_con_glifo_texto_y_visible_del_registro(monkeypatch):
+    monkeypatch.delenv("COGNIA_REMOTO", raising=False)
+    assert not _A.errores(_A.poner("footer.turno", "estados.ok.glifo", "✔"))
+    assert not _A.errores(_A.poner("footer.turno", "texto.tokens", "tok"))
+    con, buf = _consola_rich()
+    Renderer(console=con)(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
+                                          duracion_s=3.2))
+    assert "✔ 3.2s · 87 tok · 3 pasos" in buf.getvalue()
+    assert not _A.errores(_A.poner("footer.turno", "visible", "off"))
+    con, buf = _consola_rich()
+    Renderer(console=con)(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
+                                          duracion_s=3.2))
+    assert "3.2s" not in buf.getvalue(), "footer.turno.visible=false no imprime el footer"
+
+
+def test_footer_remoto_ignora_el_registro(monkeypatch):
+    assert not _A.errores(_A.poner("footer.turno", "visible", "off"))
+    assert not _A.errores(_A.poner("footer.turno", "estados.ok.glifo", "✔"))
+    monkeypatch.setenv("COGNIA_REMOTO", "1")
+    con, buf = _consola_rich()
+    Renderer(console=con)(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
+                                          duracion_s=3.2))
+    assert "3.2s · 87 tokens · 3 pasos" in buf.getvalue()
+
+
+def test_intencion_invisible_no_imprime(monkeypatch):
+    assert not _A.errores(_A.poner("tool.intencion", "visible", "off"))
+    con, buf = _consola_rich()
+    Renderer(console=con)(events.PasoIntencion(intencion="Voy a leer motor.py", paso=1))
+    assert "Voy a leer" not in buf.getvalue()

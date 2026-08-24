@@ -580,8 +580,9 @@ def paso_pendiente(id: str, prop: str) -> str:
     if not e.enganchado:
         return PASO_ENGANCHE.get(e.grupo, "P6")
     # P7 (banner) y P8 (spinner) cablean TODAS las props del elemento (texto,
-    # gradiente, glow, animacion, caja, alineacion, visible): nada pendiente.
-    if id in ENGANCHADOS_P7 or id in ENGANCHADOS_P8:
+    # gradiente, glow, animacion, caja, alineacion, visible): nada pendiente;
+    # P6 idem para los glifos/textos/visible de tool.*, aviso.degradado y footer.
+    if id in ENGANCHADOS_P7 or id in ENGANCHADOS_P8 or id in ENGANCHADOS_P6:
         return ""
     if id in ENGANCHADOS_P5:
         tabla = _PENDIENTES_P5_BARRA if id in ("barra.estado", "barra.modo") else _PENDIENTES_P5
@@ -2378,3 +2379,27 @@ del _id
 # Union de todos los pasos que ya cablean (P4, P5, P7, P8): es lo que
 # test_cada_id_tiene_capacidades_coherentes compara contra REGISTRO.
 ENGANCHADOS = tuple(ENGANCHADOS) + ENGANCHADOS_P7 + ENGANCHADOS_P8
+
+
+# ---------------------------------------------------------------------------
+# 15. P6 (glifos y textos comiteados al scrollback, 2026-08-24)
+# ---------------------------------------------------------------------------
+# Estos ids ya estaban en ENGANCHADOS_P4 por su COLOR (token del Theme); P6
+# cablea el RESTO de sus propiedades a call-time:
+# - tool.ok / tool.error / tool.curso: glifo (render_tools.glifo_estado y las
+#   marcas ⏺ ✗ · del renderer via renderer._glifo). Contrato del remoto: bajo
+#   COGNIA_REMOTO=1 aspecto.glifo devuelve el default y renderer._glifo el
+#   clasico, asi que el movil y el e2e siguen leyendo ⏺ · ✗ ⚠ → literales.
+# - tool.resultado: glifo (conector/conector_colgante) y textos sin_salida /
+#   expandir (render_tools._texto_registro).
+# - tool.intencion: visible (renderer._on_paso_intencion).
+# - aviso.degradado: glifo ⚠ y textos 'degradado — ' / '→' (renderer).
+# - footer.turno: glifo por estado ok/error, textos tokens/pasos/paso,
+#   separador y visible (estilo.footer_turno + renderer._footer; solo local).
+ENGANCHADOS_P6 = ("tool.ok", "tool.error", "tool.curso", "tool.resultado",
+                  "tool.intencion", "aviso.degradado", "footer.turno")
+for _id in ENGANCHADOS_P6:
+    assert REGISTRO[_id].enganchado, _id   # ya venian de P4 (color por token)
+del _id
+# Sigue siendo la union (los P6 ya estaban en P4: sin duplicados).
+ENGANCHADOS = tuple(ENGANCHADOS)

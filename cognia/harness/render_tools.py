@@ -193,19 +193,49 @@ def _elipsis() -> str:
 
 def conector() -> str:
     """El conector de la sublinea colgante: '\u2514' o su fallback '|_'."""
-    return _CONECTOR_ASCII if usar_ascii() else _CONECTOR_UNICODE
+    return _glifo_registro("tool.resultado",
+                           _CONECTOR_ASCII if usar_ascii() else _CONECTOR_UNICODE)
 
 
 def conector_colgante() -> str:
     """El conector del bloque de resultado colapsado: '\u23bf' o '|_'."""
-    return _COLGANTE_ASCII if usar_ascii() else _COLGANTE_UNICODE
+    return _glifo_registro("tool.resultado",
+                           _COLGANTE_ASCII if usar_ascii() else _COLGANTE_UNICODE)
+
+
+# P6 (2026-08-24): id del registro de estilos (cognia/ux/aspecto) por estado.
+_ID_ESTADO = {"curso": "tool.curso", "ok": "tool.ok", "error": "tool.error"}
+
+
+def _glifo_registro(id: str, defecto: str) -> str:
+    """P6: el glifo del registro de estilos SOLO si el dueno lo cambio con
+    /estilo (clave 'glifo' o 'glifo_ascii' en aspecto.cambios); si no, el
+    de la tabla de este modulo, byte a byte. aspecto.glifo ya devuelve el
+    default bajo COGNIA_REMOTO=1 (los glifos son contrato del clasificador
+    del movil) y elige glifo/glifo_ascii con COGNIA_ASCII y el encoding real
+    de stdout. Sin try: un id desconocido es un bug de este modulo y tiene
+    que sonar."""
+    from cognia.ux import aspecto as _A
+    c = _A.cambios(id)
+    if "glifo" not in c and "glifo_ascii" not in c:
+        return defecto
+    return _A.glifo(id) or defecto
+
+
+def _texto_registro(id: str, clave: str, defecto: str) -> str:
+    """P6: idem para un texto editable ('sin salida', '/expandir')."""
+    from cognia.ux import aspecto as _A
+    if "texto" not in _A.cambios(id):
+        return defecto
+    return _A.texto(id, clave) or defecto
 
 
 def glifo_estado(estado: str) -> str:
-    """El glifo del estado ('curso' | 'ok' | 'error'), ya en el juego correcto."""
+    """El glifo del estado ('curso' | 'ok' | 'error'), ya en el juego correcto
+    (o el que el dueno puso con /estilo tool.<estado> glifo ...)."""
     est = _validar_estado(estado)
     tabla = _GLIFOS_ASCII if usar_ascii() else _GLIFOS_UNICODE
-    return tabla[est]
+    return _glifo_registro(_ID_ESTADO[est], tabla[est])
 
 
 def estilo_estado(estado: str) -> str:
@@ -549,7 +579,7 @@ def resumir_resultado(tool: str, texto: str, ok=None) -> str:
         return truncar_medio(_mensaje_error(bruto), 120)
     cuerpo = _sin_prefijo(bruto)
     if not cuerpo.strip():
-        return "sin salida"
+        return _sin_salida()
 
     if tool in TOOLS_BUSQUEDA:
         return _resumen_busqueda(cuerpo)
@@ -560,10 +590,14 @@ def resumir_resultado(tool: str, texto: str, ok=None) -> str:
     if tool in TOOLS_LISTADO:
         return _resumen_listado(cuerpo)
     if tool in TOOLS_EJECUCION:
-        return truncar_medio(_primera_util(cuerpo) or "sin salida", 120)
+        return truncar_medio(_primera_util(cuerpo) or _sin_salida(), 120)
     # Tool desconocida: la primera linea util, que nunca miente.
     return truncar_medio(_primera_util(cuerpo) or _una_linea(cuerpo)
-                         or "sin salida", 120)
+                         or _sin_salida(), 120)
+
+
+def _sin_salida() -> str:
+    return _texto_registro("tool.resultado", "sin_salida", "sin salida")
 
 
 def _resumen_lectura(cuerpo: str) -> str:
@@ -804,7 +838,8 @@ def bloque_colapsado(tool: str, args="", ok: bool = True, resultado: str = "",
         estilos.append(ESTILO_RESULTADO)
     ocultas = len(filas) - ya_visto - len(vistas)
     if ocultas > 0:
-        pista = PISTA_EXPANDIR + (f" {indice}" if indice > 0 else "")
+        pista = (_texto_registro("tool.resultado", "expandir", PISTA_EXPANDIR)
+                 + (f" {indice}" if indice > 0 else ""))
         cola = (prefijo + _elipsis() + " +"
                 + _plural(ocultas, "linea", "lineas") + f" ({pista})")
         if ancho_visual(cola) > ancho:

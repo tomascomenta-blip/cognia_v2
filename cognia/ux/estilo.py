@@ -142,10 +142,21 @@ def footer_turno(ok: bool, segundos: float, tokens=None, pasos=None,
         # de medida es peor que decir que lo es.
         partes.append(f"ctx {'~' if ctx_estimado else ''}{int(ctx_libre_pct)}% libre")
     glifo, estilo = (_GLIFO_OK, "ok_cl") if ok else (_GLIFO_FALLO, "err_cl")
+    # P6 (2026-08-24): glifo por estado, textos y separador de footer.turno
+    # (registro ux/aspecto). Los defaults son estos mismos literales: sin
+    # /estilo la salida es byte-identica. Este constructor solo corre en
+    # LOCAL (el footer remoto va plano por _RE_FOOTER_RENDERER).
+    from . import aspecto as _A
+    glifo = _A.glifo("footer.turno", "ok" if ok else "error") or glifo
+    punto = _A.separador("footer.turno") or _PUNTO
+    t_tokens, t_pasos, t_paso = (_A.texto("footer.turno", k) for k in ("tokens", "pasos", "paso"))
+    partes = [p.replace(" tokens", " " + t_tokens, 1) if p.endswith(" tokens") else p for p in partes]
+    partes = [p.replace(" pasos", " " + t_pasos, 1) if p.endswith(" pasos") else
+              (p.replace(" paso", " " + t_paso, 1) if p.endswith(" paso") else p) for p in partes]
     trozos = [(_SANGRIA, ""), (glifo, estilo), (" ", ""),
-              (_PUNTO.join(partes), "footer")]
+              (punto.join(partes), "footer")]
     if (motivo or "").strip():
-        trozos += [(_PUNTO, "footer"), (motivo.strip(), "warn_cl")]
+        trozos += [(punto, "footer"), (motivo.strip(), "warn_cl")]
     return trozos
 
 

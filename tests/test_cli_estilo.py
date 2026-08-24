@@ -194,7 +194,9 @@ def test_set_de_glifo_en_enganchado_por_token_avisa_pero_el_color_no(entorno):
     assert "se aplica cuando" not in entorno.texto()
     entorno.salida.clear()
     cli._slash_estilo("tool.ok glifo x")
-    assert "glifo se aplica cuando su elemento este enganchado (paso P6)" in entorno.texto()
+    # P6: el glifo de tool.ok ya se ve (render_tools.glifo_estado y renderer._glifo)
+    assert "se aplica cuando" not in entorno.texto()
+    assert A.glifo("tool.ok") == "x"
 
 
 def test_style_string_entre_comillas(entorno):
