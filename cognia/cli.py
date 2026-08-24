@@ -79,6 +79,18 @@ def _aviso_degradado(via: str, detalle: str = "") -> None:
         return
     _AVISOS_VISTOS.add(clave)
     _gritar_degradado(via, detalle)
+    # F5 (harness/notificaciones): toast OSC 9 OPT-IN cuando algo se degrada
+    # (config 'notificar_degradado', default off para no spamear: el REPL ya
+    # lo pinta ambar; el toast es para el que se fue a otra ventana). El
+    # modulo decide y no lanza; su propio fallo NO vuelve a entrar aca (via
+    # 'notificaciones' se salta) para que el aviso no se notifique a si mismo.
+    if via != "notificaciones":
+        try:
+            from cognia.harness import notificaciones as _notif
+            _notif.notificar_evento("degradado", via=via, detalle=detalle)
+        except Exception as _ne:
+            _gritar_degradado("notificaciones",
+                              f"{type(_ne).__name__}: {_ne}")
 
 # ---------------------------------------------------------------------------
 # Optional: rich
@@ -2057,6 +2069,7 @@ _CMD_DESCRIPTIONS = {
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
     "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
     "/compactar":       "Compactacion del contexto del agente: resumen estructurado en 1 pasada (default) o mordiscos de truncado. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
+    "/notificar":       "Notificacion de escritorio (toast OSC 9) al terminar un turno largo del agente. Uso: /notificar [estado | on | off | prueba | modo <auto|osc|bell> | umbral <segundos> | degradados on|off]  (env COGNIA_NOTIFY=off|osc|bell gana)",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2223,6 +2236,23 @@ _CMD_DETAILS = {
         "fondo, ahi la actividad se mira con F2). Se actualiza en su sitio: jamas ensucia el "
         "scrollback y trunca elegante en consolas estrechas. Todo fallo avisa via degradado "
         "'spinner' y cae al spinner clasico, jamas rompe el turno."),
+    "/notificar": (
+        "NOTIFICACIONES DE ESCRITORIO (harness/notificaciones, F5, patron Crush/Codex): cuando "
+        "un turno del agente termina tras >= umbral segundos (default 20; el 27B local tarda "
+        "minutos y uno se va a otra ventana), Cognia emite un toast OSC 9 del terminal "
+        "(ESC ] 9 ; texto BEL — Windows Terminal lo pinta como notificacion nativa; un terminal "
+        "sin soporte la ignora). MODOS: auto (default: OSC solo si hay consola interactiva de "
+        "verdad — un pipe/CI no recibe escapes jamas) | osc (forzado) | bell (BEL a secas, para "
+        "terminales sin OSC 9) | off. "
+        "USO: /notificar | estado (modo efectivo y su fuente, umbral, ultima emitida, ultimo "
+        "error) | on|off (persiste 'notificar') | prueba (emite un toast DE VERDAD y muestra "
+        "los bytes) | modo <auto|osc|bell> | umbral <segundos> | degradados on|off (toast "
+        "tambien cuando salta un degradado; default off para no spamear: el REPL ya lo pinta "
+        "ambar). La env COGNIA_NOTIFY=off|osc|bell gana a la config (apagado de emergencia). "
+        "La secuencia va al fd REAL del proceso (con la vista Textual abierta sys.stdout esta "
+        "capturado y el toast moriria ahi); un OSC no pinta nada visible, no ensucia pantalla. "
+        "Punto de extension: dict EVENTOS del modulo (nombre -> builder). Todo fallo avisa via "
+        "degradado 'notificaciones' UNA vez por sesion, jamas rompe el turno."),
     "/tx": (
         "Agente de horizonte largo: memoria append-only (LIBRO) + reset del contexto con la "
         "COMPUERTA ANTES de destruir. OPT-IN: '/tx on' (o COGNIA_TX=1); apagado, Cognia se "
@@ -5957,6 +5987,17 @@ _CONFIG_DEFAULTS: dict = {
     "compactacion_umbral":    "0.8",
     "compactacion_retencion": "0.16",
     "compactacion_cap":       "4000",
+    # NOTIFICACIONES de escritorio (harness/notificaciones, F5): toast OSC 9
+    # del terminal cuando un turno del agente termina tras >= umbral segundos
+    # (el 27B local tarda minutos y el dueno se va a otra ventana). Modos:
+    # auto (OSC solo con consola interactiva) | osc | bell | off. La env
+    # COGNIA_NOTIFY=off|osc|bell gana a la config (apagado de emergencia).
+    # 'notificar_degradado' on = toast tambien cuando salta _aviso_degradado
+    # (default off: los degradados ya se ven ambar en el REPL).
+    "notificar":            "on",
+    "notificar_modo":       "auto",
+    "notificar_umbral_s":   "20",
+    "notificar_degradado":  "off",
 }
 
 
@@ -8808,6 +8849,138 @@ def _slash_compactar(arg: str = "") -> None:
         _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
 
 
+def _aplicar_config_notificaciones() -> None:
+    """Registra el avisador del subsistema de notificaciones (F5): un fallo
+    emitiendo el toast se VE como degradado en el REPL (una vez por sesion,
+    el propio modulo de-duplica). No hay env que propagar: harness/
+    notificaciones lee la config a call-time via sys.modules['cognia.cli']."""
+    try:
+        from cognia.harness import notificaciones as _notif
+        _notif.registrar_avisador(_aviso_degradado)
+    except Exception as exc:
+        _aviso_degradado("notificaciones", f"config no aplicada: {exc}")
+
+
+def _slash_notificar(arg: str = "") -> None:
+    """`/notificar`: puerta de las notificaciones de escritorio OSC 9 (F5).
+
+    Sin args muestra el ESTADO: modo efectivo (y su fuente), umbral del turno
+    largo, opt-in de degradados, si hay consola interactiva, eventos
+    registrados y la ultima notificacion / ultimo error.
+    Subcomandos (persisten via _save_config):
+      on|off              -> clave 'notificar' (COGNIA_NOTIFY gana a la config)
+      prueba              -> emite un toast DE VERDAD a la consola real
+      modo <auto|osc|bell>-> clave 'notificar_modo'
+      umbral <segundos>   -> clave 'notificar_umbral_s' (>= 1)
+      degradados on|off   -> clave 'notificar_degradado' (toast al degradarse)"""
+    try:
+        from cognia.harness import notificaciones as _notif
+    except Exception as exc:
+        _aviso_degradado("notificaciones", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["notificar"] = bajo
+        _save_config(cfg)
+        _print_line(f"[info_dim]notificaciones de escritorio: {bajo} "
+                    "(guardado; la env COGNIA_NOTIFY gana si esta puesta)"
+                    "[/info_dim]")
+        return
+    if bajo == "prueba":
+        # Toast real: forzamos 'osc' salvo que el modo efectivo sea bell/off,
+        # para que la prueba sirva tambien con la config en auto sobre un
+        # terminal que rich no reconoce como tty.
+        modo = _notif.modo_activo()
+        if modo == "off":
+            _print_line("[warn_cl]notificaciones apagadas (modo off): "
+                        "/notificar on o quitar COGNIA_NOTIFY=off[/warn_cl]")
+            return
+        emitido = _notif.notificar("Cognia", "notificacion de prueba",
+                                   modo="bell" if modo == "bell" else "osc")
+        if emitido:
+            seq = (_notif.secuencia_osc9("Cognia", "notificacion de prueba")
+                   if modo != "bell" else "\a")
+            _print_line(f"[ok_cl]notificacion emitida (modo "
+                        f"{'bell' if modo == 'bell' else 'osc'}): "
+                        f"bytes {seq!r}[/ok_cl]")
+            _print_line("[detail]  si no viste el toast, tu terminal no "
+                        "soporta OSC 9 (Windows Terminal si): /notificar "
+                        "modo bell[/detail]")
+        else:
+            err = _notif.estado()["ultimo_error"]
+            _print_line(f"[warn_cl]no se pudo emitir"
+                        f"{': ' + err.get('motivo', '') if err else ''}"
+                        f"[/warn_cl]")
+        return
+    if bajo.startswith("modo"):
+        v = arg[len("modo"):].strip().lower()
+        if v not in ("auto", "osc", "bell"):
+            _print_line("[warn_cl]Uso: /notificar modo <auto|osc|bell> "
+                        "(off es /notificar off)[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["notificar_modo"] = v
+        _save_config(cfg)
+        _print_line(f"[info_dim]notificaciones: modo {v} (guardado)[/info_dim]")
+        return
+    if bajo.startswith("umbral"):
+        try:
+            s = float(arg[len("umbral"):].strip())
+            if s < 1:
+                raise ValueError(s)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /notificar umbral <segundos> (>= 1)"
+                        "[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["notificar_umbral_s"] = str(s)
+        _save_config(cfg)
+        _print_line(f"[info_dim]notificaciones: umbral {s:g}s de turno "
+                    "(guardado)[/info_dim]")
+        return
+    if bajo.startswith("degradados"):
+        v = arg[len("degradados"):].strip().lower()
+        if v not in ("on", "off"):
+            _print_line("[warn_cl]Uso: /notificar degradados on|off[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["notificar_degradado"] = v
+        _save_config(cfg)
+        _print_line(f"[info_dim]notificaciones: toast al degradarse {v} "
+                    "(guardado)[/info_dim]")
+        return
+    if arg and bajo != "estado":
+        _print_line("[warn_cl]Uso: /notificar [estado | on | off | prueba | "
+                    "modo <auto|osc|bell> | umbral <segundos> | "
+                    "degradados on|off][/warn_cl]")
+        return
+    # Estado (default): la foto entera del subsistema.
+    est = _notif.estado()
+    _print_line(f"[info_dim]notificaciones de escritorio: modo "
+                f"{est['modo']} ({est['fuente']})[/info_dim]")
+    _print_line(f"[info_dim]  umbral turno largo: {est['umbral_s']:g}s | "
+                f"toast al degradarse: "
+                f"{'on' if est['degradado_optin'] else 'off'} | consola "
+                f"interactiva: {'si' if est['consola_interactiva'] else 'no'}"
+                f"[/info_dim]")
+    _print_line(f"[info_dim]  eventos: {', '.join(est['eventos'])}[/info_dim]")
+    ult = est["ultima"]
+    if ult:
+        _print_line(f"[info_dim]  ultima: «{ult.get('titulo', '')}: "
+                    f"{ult.get('cuerpo', '')}» (modo {ult.get('modo', '?')}, "
+                    f"{ult.get('ts', '')})[/info_dim]")
+    else:
+        _print_line("[info_dim]  ultima: ninguna en este proceso[/info_dim]")
+    err = est["ultimo_error"]
+    if err:
+        _print_line(f"[warn_cl]  ultimo error: {err.get('motivo', '')} "
+                    f"({err.get('ts', '')})[/warn_cl]")
+    else:
+        _print_line("[info_dim]  ultimo error: ninguno[/info_dim]")
+
+
 def _slash_spinner(arg: str = "") -> None:
     """`/spinner [estado | on | off | verbos ...]`: la linea de estado VIVA
     del turno (F2, ux/spinner_vivo + ticker del renderer): verbo gato
@@ -10950,6 +11123,10 @@ def repl():
     # COGNIA_COMPACT del entorno, y sin propagar la config el modo persistido
     # con /compactar no llegaria nunca al bucle.
     _aplicar_config_compactacion()
+    # NOTIFICACIONES de escritorio (F5): registrar el avisador para que un
+    # fallo emitiendo el toast se vea como degradado (el modulo lee la config
+    # a call-time, no hay env que propagar).
+    _aplicar_config_notificaciones()
 
     # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
     # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
@@ -11448,6 +11625,8 @@ def repl():
             _slash_offload(raw[len("/offload "):] if raw.startswith("/offload ") else "")
         elif raw == "/compactar" or raw.startswith("/compactar "):
             _slash_compactar(raw[len("/compactar "):] if raw.startswith("/compactar ") else "")
+        elif raw == "/notificar" or raw.startswith("/notificar "):
+            _slash_notificar(raw[len("/notificar "):] if raw.startswith("/notificar ") else "")
         elif raw == "/prompt" or raw.startswith("/prompt "):
             _slash_prompt(raw[len("/prompt"):])
         elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):

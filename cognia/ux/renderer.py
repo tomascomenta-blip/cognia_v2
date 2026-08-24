@@ -782,6 +782,21 @@ class Renderer:
         # enriquecida — imprimirla aqui la duplicaba. El resumen queda en el
         # evento para el sink JSONL/remoto; en pantalla va solo el footer.
         self._footer(ev)
+        # F5 (harness/notificaciones): toast OSC 9 si el turno fue largo —
+        # con el 27B local un turno dura minutos y el dueno se fue a otra
+        # ventana; este es el unico "ya termine" que le llega. El modulo
+        # decide umbral/modo/gate de interactividad y NUNCA lanza; si ni se
+        # puede importar, se avisa por el canal unico del repo.
+        dur = ev.duracion_s or (ev.ts - self._t0 if self._t0 else 0.0)
+        try:
+            from cognia.harness import notificaciones as _notif
+            _notif.notificar_evento("turno_terminado", duracion_s=dur)
+        except Exception as exc:
+            import sys
+            _cli = sys.modules.get("cognia.cli")
+            if _cli is not None:
+                _cli._aviso_degradado("notificaciones",
+                                      f"{type(exc).__name__}: {exc}")
 
     # -- motor de workflows (cognia/agent/workflows.py) ---------------------
     # UNA linea quieta por evento, con el vocabulario de siempre. Todavia NO

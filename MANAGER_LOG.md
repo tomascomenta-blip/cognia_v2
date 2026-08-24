@@ -13864,3 +13864,26 @@ de a una llamada) disparo compactacion REAL — /compactar: "ultima compactacion
 tarea de busqueda uso el flujo F3 (recuperar sobre handle) sin romperse. Los cierres "sin progreso
 verificado (sin_arranque)" en tareas de solo-lectura son del gobernador de progreso preexistente
 (umbral_arranque=6), no de F4.
+
+## 2026-08-23 — F5: notificaciones de escritorio OSC 9 (+ puerta /notificar)
+Modulo nuevo `cognia/harness/notificaciones.py` (patron Crush/Codex): toast OSC 9
+(`ESC ] 9 ; texto BEL`, Windows Terminal) cuando un turno del agente termina tras
+>= umbral segundos (default 20; config `notificar_umbral_s`) y, opt-in
+(`notificar_degradado`, default off), cuando salta `_aviso_degradado`. Modos
+auto|osc|bell|off (env `COGNIA_NOTIFY` gana a la config); en auto el gate es el
+isatty del fd REAL (`sys.__stdout__`, no el sys.stdout que Textual secuestra — un
+OSC no pinta nada visible, no ensucia la pantalla alterna; un pipe no recibe
+escapes jamas). Punto de extension: dict `EVENTOS={nombre: builder}`. Cableado en
+`renderer._on_tarea_fin` (duracion del TareaFin) y en `cli._aviso_degradado`;
+fallo del subsistema -> avisador (= `_aviso_degradado`) UNA vez por sesion, nunca
+lanza. Puerta `/notificar [estado|on|off|prueba|modo|umbral|degradados]` en
+`_CMD_DESCRIPTIONS` + `_CMD_DETAILS` + elif del repl; sale en `/ayuda buscar
+notificar`. Tests `tests/test_harness_notificaciones.py` 16/16 (secuencia exacta,
+gate tty, umbral, env off, opt-in degradados, avisa-una-vez, registry).
+Tecleado contra el 27B vivo (:8080): `/notificar prueba` emitio
+`'\x1b]9;Cognia: notificacion de prueba\x07'` real; tarea de busqueda de 52.9 s
+emitio `ESC]9;Cognia: turno terminado (53s)BEL` tras el footer; con
+`COGNIA_NOTIFY=off` un turno de 46.2 s emitio 0 toasts y 0 BELs (silencio
+verificado por conteo de bytes); un turno de 15.6 s bajo umbral NO notifico.
+Dirigidos: 142 passed (renderer/ux/offloading) + 23 (cli_consistency/cableado)
++ 53 (apply_config_avisos/arranque) — 0 failed.
