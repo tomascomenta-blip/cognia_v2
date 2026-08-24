@@ -93,3 +93,75 @@ class TestConfirmarAccionDenyOnException(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPermisoDesdeElHiloDeUnaToolConDeadline(unittest.TestCase):
+    """Revision adversarial 2026-08-24: con el timeout por tool
+    (harness/timeout_tool) TODA tool corre en un hilo worker, y
+    _confirmar_accion desde un hilo sin carril de fondo y con tty DENEGABA
+    con 'cli.permiso.hilo_sin_carril': en el despacho inline (COGNIA_SIN_FONDO
+    =1, /lazo, bucle legacy) el dueno jamas veia la pregunta y todo comando
+    CONFIRM se rechazaba. Ahora la pregunta SUBE al hilo que espera la tool."""
+
+    def _arnes(self):
+        import threading
+        import cognia.ux.selector as selector
+        from cognia.harness import timeout_tool as tt
+        llamadas, avisos = [], []
+        parches = [
+            patch.object(cli_mod, "_preguntar_en_consola",
+                         lambda k, d: (llamadas.append(
+                             threading.current_thread().name), True)[1]),
+            patch.object(selector, "hay_tty", lambda: True),
+            patch.object(cli_mod, "_CORRIDA", None),
+            patch.object(cli_mod, "_aviso_degradado",
+                         lambda o, m: avisos.append(o)),
+            patch.object(permissions_mod, "needs_confirmation",
+                         lambda k, d: True),
+        ]
+        return tt, parches, llamadas, avisos
+
+    def test_desde_el_worker_pregunta_en_el_principal(self):
+        import threading
+        tt, parches, llamadas, avisos = self._arnes()
+        res = {}
+
+        def _tool(a, ctx):
+            res["hilo"] = threading.current_thread().name
+            return cli_mod._confirmar_accion("shell", "git push origin main")
+
+        with patch.multiple(cli_mod) if False else _apilar(parches):
+            out, agotada, _ = tt.correr_con_deadline(_tool, "probe", "", {}, 5)
+        self.assertTrue(out)
+        self.assertFalse(agotada)
+        self.assertEqual(llamadas, [threading.main_thread().name])
+        self.assertNotEqual(res["hilo"], threading.main_thread().name)
+        self.assertEqual(avisos, [])
+
+    def test_la_espera_del_permiso_no_consume_el_deadline(self):
+        """Carril de fondo simulado: _preguntar_desde_hilo tarda 1,2 s (el
+        dueno pensando) con un deadline de 0,6 s. La tool NO se agota."""
+        tt, parches, llamadas, avisos = self._arnes()
+        import time
+
+        def _lento(k, d):
+            time.sleep(1.2)
+            return True
+
+        parches.append(patch.object(cli_mod, "_preguntar_desde_hilo", _lento))
+        with _apilar(parches):
+            with patch.dict("os.environ", {tt.ENV_GRACIA: "0"}):
+                out, agotada, _ = tt.correr_con_deadline(
+                    lambda a, c: cli_mod._confirmar_accion("shell", "x"),
+                    "probe", "", {}, 0.6)
+        self.assertTrue(out)
+        self.assertFalse(agotada)
+        self.assertEqual(avisos, [])
+
+
+def _apilar(parches):
+    import contextlib
+    pila = contextlib.ExitStack()
+    for p in parches:
+        pila.enter_context(p)
+    return pila

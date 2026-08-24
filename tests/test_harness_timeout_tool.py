@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import threading
 import time
 
 import pytest
@@ -225,3 +226,107 @@ def test_config_basura_avisa_y_corre_sin_deadline(tool_lenta, monkeypatch):
         "desc": "", "params": [], "timeout_s": None, "timeout_interno": None})
     assert T.run_tool("sin_spec", "", _ctx()).startswith("RESULTADO sin_spec: ok")
     assert avisos and "rapido" in avisos[0]
+
+
+# ── Revision adversarial 2026-08-24: permisos, pausa, huerfanos, hijos ───────
+
+def test_pedir_al_llamador_corre_en_el_hilo_que_espera():
+    """El worker sube un fn al hilo que espera en correr_con_deadline (el
+    dueno de la consola): es el camino por el que el sentinel pregunta
+    '[permiso]' en el despacho inline. Antes, con deadline, se auto-denegaba."""
+    quien = []
+
+    def _tool(a, ctx):
+        hay, r = tt.pedir_al_llamador(
+            lambda: threading.current_thread().name)
+        quien.append((hay, r))
+        return "ok"
+
+    out, agotada, _ = tt.correr_con_deadline(_tool, "t", "", _ctx(), 5)
+    assert out == "ok" and not agotada
+    assert quien == [(True, threading.current_thread().name)]
+    # fuera de un worker: nadie a quien pedir
+    assert tt.pedir_al_llamador(lambda: 1) == (False, None)
+
+
+def test_pausa_deadline_no_cuenta_para_el_reloj(monkeypatch):
+    """El tiempo esperando al dueno (permiso) no es tiempo de la tool: con
+    limite 0.6 s y 1.2 s en pausa, NO vence."""
+    monkeypatch.setenv(tt.ENV_GRACIA, "0")
+
+    def _tool(a, ctx):
+        with tt.pausa_deadline():
+            time.sleep(1.2)
+        return "ok"
+
+    out, agotada, _ = tt.correr_con_deadline(_tool, "t", "", _ctx(), 0.6)
+    assert out == "ok" and agotada is False
+    # y sin pausa el mismo sleep SI vence (control)
+    out, agotada, _ = tt.correr_con_deadline(
+        lambda a, c: time.sleep(1.2), "t", "", _ctx(), 0.6)
+    assert agotada is True
+
+
+def test_el_huerfano_no_escribe_el_exit_del_siguiente(monkeypatch):
+    """Tool agotada que termina DESPUES y marca su exit: el ctx NO lo hereda
+    (el 'evento sellado con el reloj rancio', otra vez)."""
+    monkeypatch.setenv(tt.ENV_GRACIA, "0")
+    from cognia.agent.tools import _marcar_exit
+    fin = threading.Event()
+
+    def _tool(a, ctx):
+        time.sleep(0.8)
+        _marcar_exit(ctx, 42)
+        fin.set()
+        return "tarde"
+
+    ctx = _ctx()
+    out, agotada, info = tt.correr_con_deadline(_tool, "t", "", ctx, 0.3)
+    assert agotada and info["hilo_vivo"] is True
+    assert fin.wait(5)
+    assert "_exit" not in ctx, ctx
+    assert tt.hilo_agotado() is False     # el principal no es un worker
+
+
+def test_pedido_tras_el_vencimiento_no_cuelga(monkeypatch):
+    """Un worker que pide DESPUES de que su llamador se fue recibe (False,
+    None) al instante, no un wait eterno."""
+    monkeypatch.setenv(tt.ENV_GRACIA, "0")
+    caja = {}
+    fin = threading.Event()
+
+    def _tool(a, ctx):
+        time.sleep(0.6)
+        caja["r"] = tt.pedir_al_llamador(lambda: "nadie")
+        fin.set()
+
+    tt.correr_con_deadline(_tool, "t", "", _ctx(), 0.2)
+    assert fin.wait(5)
+    assert caja["r"] == (False, None)
+
+
+def test_ejecutar_registra_el_popen_y_mata_el_arbol_en_su_timeout(
+        tmp_path, monkeypatch):
+    """'matar el shell NO mata el proceso': el nieto hereda el pipe y
+    subprocess.run se quedaba en communicate() los 7 s enteros (medido: 7,0 s
+    y TOOL_TIMEOUT del deadline externo). Con _correr_proceso: taskkill /T
+    del arbol, vuelve en ~1 s, el nieto esta MUERTO y el exit es None."""
+    from cognia.agent import tools as T
+    monkeypatch.setenv("COGNIA_SENTINEL", "0")
+    monkeypatch.setenv(tt.ENV_GRACIA, "1")
+    pidf = tmp_path / "nieto_pid.txt"
+    padre = tmp_path / "padre.py"
+    padre.write_text(
+        "import subprocess, sys\n"
+        "subprocess.Popen([sys.executable, '-c', "
+        f"\"import os,time;open('{pidf.as_posix()}','w').write(str(os.getpid()));"
+        "time.sleep(7)\"]).wait()\n", encoding="utf-8")
+    ctx = _ctx()
+    t0 = time.time()
+    out = T.run_tool("ejecutar", f'"{sys.executable}" "{padre}" | timeout=1', ctx)
+    assert time.time() - t0 < 5, out
+    assert "timeout tras 1s" in out and tt.CODIGO not in out
+    assert ctx["_ultimo_exit"] is None
+    time.sleep(0.3)
+    assert pidf.exists(), "el nieto no llego a arrancar"
+    assert tt.pid_vivo(int(pidf.read_text())) is False

@@ -1786,9 +1786,28 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
             "por seguridad: %s", kind, detalle[:80], exc)
         return False
     if threading.current_thread() is not threading.main_thread():
-        r = _preguntar_desde_hilo(kind, detalle)
-        if r is not None:
-            return r
+        # El tiempo que el dueno tarda en contestar NO es tiempo de la tool:
+        # con el deadline por tool (harness/timeout_tool, 120 s) y la espera
+        # del permiso (600 s), el deadline vencia con la pregunta abierta, el
+        # modelo recibia TOOL_TIMEOUT y el hilo huerfano ejecutaba el comando
+        # al contestar 's' tarde (revision adversarial 2026-08-24). Fuera de
+        # un worker del modulo la pausa es un no-op.
+        with _pausa_deadline_tool():
+            r = _preguntar_desde_hilo(kind, detalle)
+            if r is not None:
+                return r
+            # Sin carril ni vista. Si este hilo es el WORKER de una tool con
+            # deadline, quien espera esa tool (el principal en el despacho
+            # inline: COGNIA_SIN_FONDO=1, /lazo, bucle legacy) es el dueno de
+            # la consola: la pregunta sube a el. Recursivo a proposito: si el
+            # que espera es otro worker, vuelve a subir hasta el principal.
+            # Antes de esto, con el deadline TODA tool corria en un hilo y
+            # todo comando CONFIRM se auto-denegaba sin que el dueno viera
+            # la pregunta (revision adversarial 2026-08-24).
+            hay, r = _pedir_al_llamador_tool(
+                lambda: _confirmar_accion(kind, detalle))
+            if hay:
+                return bool(r)
         # No habia a quien delegar. Con un tty de por medio, preguntar aca
         # colgaria el hilo PARA SIEMPRE (medido), asi que se deniega — que es
         # el default del gate — y se dice por que. Sin tty (pipes, CI) el
@@ -1804,6 +1823,32 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
         except Exception:
             pass
     return _preguntar_en_consola(kind, detalle)
+
+
+def _pausa_deadline_tool():
+    """timeout_tool.pausa_deadline() o un no-op si el modulo no carga (se
+    avisa: sin pausa el permiso sigue funcionando, solo vuelve el riesgo del
+    deadline vencido con la pregunta abierta)."""
+    try:
+        from cognia.harness import timeout_tool as _tt
+        return _tt.pausa_deadline()
+    except Exception as exc:
+        _aviso_degradado("cli.permiso.pausa_deadline",
+                         f"sin pausa del deadline: {type(exc).__name__}: {exc}")
+        return contextlib.nullcontext()
+
+
+def _pedir_al_llamador_tool(fn):
+    """timeout_tool.pedir_al_llamador(fn); (False, None) si el modulo no carga
+    (se avisa: el permiso caera al deny de siempre, con su propio aviso)."""
+    try:
+        from cognia.harness import timeout_tool as _tt
+        return _tt.pedir_al_llamador(fn)
+    except Exception as exc:
+        _aviso_degradado("cli.permiso.llamador",
+                         f"no se pudo subir la pregunta al hilo que espera: "
+                         f"{type(exc).__name__}: {exc}")
+        return False, None
 
 
 def _preguntar_en_consola(kind: str, detalle: str) -> bool:

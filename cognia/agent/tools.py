@@ -27,6 +27,7 @@ import datetime
 import glob as _glob
 import json
 import locale
+import logging
 import operator
 import os
 import re
@@ -1811,8 +1812,62 @@ def _marcar_exit(ctx: dict, code) -> None:
     La ausencia de la clave significa otra cosa distinta: la tool ni siquiera
     paso por el shell.
     """
-    if isinstance(ctx, dict):
-        ctx["_exit"] = code
+    if not isinstance(ctx, dict):
+        return
+    # HUERFANO (revision adversarial 2026-08-24): si el deadline externo de
+    # esta tool (harness/timeout_tool) YA vencio, run_tool devolvio el
+    # TOOL_TIMEOUT hace rato y este hilo sigue solo. Escribir aqui dejaria
+    # el exit para que lo herede la SIGUIENTE tool: el mismo 'evento sellado
+    # con el reloj rancio' que P0-1 arreglo. Se calla el exit, no el hecho.
+    try:
+        from cognia.harness import timeout_tool as _tt
+        huerfano = _tt.hilo_agotado()
+    except ImportError as exc:
+        logging.getLogger(__name__).warning(
+            "timeout_tool no importable (%s): exit sin filtro de huerfanos", exc)
+        huerfano = False
+    if huerfano:
+        logging.getLogger(__name__).warning(
+            "exit %r de una tool ya agotada (TOOL_TIMEOUT): se descarta", code)
+        return
+    ctx["_exit"] = code
+
+
+def _correr_proceso(args, ctx, timeout, **kw):
+    """subprocess.run(capture_output=True) con DOS diferencias que importan:
+
+    1. REGISTRA el Popen en ctx['_procesos_tool'] (la lista que pone
+       harness/timeout_tool) para que el deadline externo lo mate por arbol
+       al vencer. Antes NINGUNA tool registraba nada y matar_hijos devolvia
+       siempre {'matados': 0}: el texto le decia al modelo 'pids vivos: []'
+       con el proceso real todavia corriendo (revision adversarial 2026-08-24).
+    2. En SU timeout mata el ARBOL antes de recoger los pipes. subprocess.run
+       solo hace kill() del cmd.exe y luego communicate() SIN timeout, que en
+       Windows bloquea hasta que el nieto (que hereda el pipe) termine: 'matar
+       el shell NO mata el proceso', la leccion del repo. Con taskkill /T el
+       nieto muere y communicate vuelve.
+    Devuelve un CompletedProcess (returncode, stdout, stderr en bytes) y
+    re-lanza TimeoutExpired como run(): los llamadores no cambian."""
+    from cognia.harness.timeout_tool import _matar_arbol
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         env=_env_utf8(), **kw)
+    registro = ctx.get("_procesos_tool") if isinstance(ctx, dict) else None
+    if isinstance(registro, list):
+        registro.append(p)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _matar_arbol(p)
+        try:
+            p.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            logging.getLogger(__name__).warning(
+                "pid %s: el arbol no solto los pipes tras taskkill", p.pid)
+        raise
+    finally:
+        if isinstance(registro, list) and p in registro:
+            registro.remove(p)
+    return subprocess.CompletedProcess(args, p.returncode, out, err)
 
 
 def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
@@ -1855,9 +1910,7 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
         # Capturar bytes y decodificar con la cascada no puede fallar; y
         # _env_utf8 le pide al hijo Python que EMITA utf-8 (si no, es el hijo
         # el que revienta al imprimir un acento hacia un pipe cp1252).
-        r = subprocess.run(cmd, shell=True, capture_output=True,
-                           timeout=timeout, env=_env_utf8(),
-                           cwd=cwd or None)
+        r = _correr_proceso(cmd, ctx, timeout, shell=True, cwd=cwd or None)
     except subprocess.TimeoutExpired:
         # Timeout accionable en vez de un stacktrace generico: el modelo necesita
         # saber que debe ACOTAR el comando (ruta/test mas especifico) y reintentar.
@@ -2310,8 +2363,7 @@ def _git(argv: list, ctx: dict, cap: int = 2000, timeout: int = 20,
     if callable(pf):
         pf(f"[detail]$ {cmd}[/detail]")
     try:
-        r = subprocess.run(argv, capture_output=True, timeout=timeout,
-                           env=_env_utf8())
+        r = _correr_proceso(argv, ctx, timeout)
     except FileNotFoundError:
         return False, "git no esta instalado o no esta en el PATH"
     except subprocess.TimeoutExpired:
