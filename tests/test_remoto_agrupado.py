@@ -187,7 +187,11 @@ def test_la_agrupacion_no_cambia_el_texto_de_las_lineas():
             {"tipo": tipo, "agente_id": AID, **campos})
         assert quien == "actividad" and ecos == []
         assert texto[0] in "·⏺✗", texto
-        assert es_eco_renderer(texto), texto
+        # el eco es lo que el renderer IMPRIME: con su sangria de 2 espacios
+        # (es_eco_renderer exige la sangria exacta desde 2026-08-25; sin ella
+        # una linea "· x" de la respuesta final es chat, no eco)
+        assert es_eco_renderer("  " + texto), texto
+        assert not es_eco_renderer(texto), texto
 
 
 def test_el_renderer_real_sigue_siendo_eco(capsys):
@@ -383,9 +387,16 @@ def test_el_ws_real_anuncia_las_lineas_perdidas(tmp_path, monkeypatch):
         assert vistas, "el endpoint no creo la sesion"
         colas = list(vistas[-1].suscriptores)
         assert len(colas) == 1 and isinstance(colas[0], ColaSuscriptor)
+        # la rafaga entra SIN despertar al WS y se le avisa una vez al final:
+        # lo que se prueba es el AVISO del agujero, no la carrera entre el
+        # productor y el consumidor (con el Event del WS, el loop puede
+        # drenar "linea 0" entre dos puts y el desborde seria de 16)
+        despertar, colas[0]._al_poner = colas[0]._al_poner, None
         for i in range(20):
             colas[0].put_nowait({"t": "00:00:00", "quien": "actividad",
                                  "texto": f"linea {i}"})
+        colas[0]._al_poner = despertar
+        despertar()
         aviso = ws.receive_json()
         assert aviso["quien"] == "sistema" and aviso["perdidas"] == 17
         assert "se perdieron 17 lineas" in aviso["texto"], aviso
@@ -535,17 +546,32 @@ def test_chromium_muestra_el_aviso_de_lineas_perdidas():
 
 
 # ── 8. el eco ENVUELTO (la cola sin marca) ─────────────────────────────────
-# Lineas COPIADAS de un REPL real (2026-08-18, /workflow contra :8080): rich
+# Forma COPIADA de un REPL real (2026-08-18, /workflow contra :8080): rich
 # parte el eco de AgenteFin en 3 y solo la primera lleva ⏺. Sin la regla de
 # cola, las otras dos entraban al chat como prosa de Cognia.
+# Desde el remate 2026-08-25 el REPL corre con COLUMNS=ANCHO_COLUMNAS_REMOTO
+# (300) y la cola solo se infiere para lineas que LLENAN ese ancho (a 80 la
+# heuristica se tragaba la respuesta final): el eco se construye con el
+# renderer de verdad (rich) a ese ancho, como llega hoy por el pipe.
 
-_ECO_ENVUELTO = [
-    "  ⏺ agente 1/2 di solo ALFA — I'm sorry, but your message seems "
-    "incomplete.",
-    "Could you please provide more context or clarify what you are asking "
-    "about…",
-    "(1.3s · 77 tok)",
-]
+
+def _eco_envuelto_real() -> list[str]:
+    import io
+    from rich.console import Console
+    from cognia.remoto.sesiones import ANCHO_COLUMNAS_REMOTO
+    logica = ("  ⏺ agente 1/2 di solo ALFA — I'm sorry, but your message "
+              "seems incomplete. " + "Could you please provide more context "
+              "or clarify what you are asking about… " * 8 + "(1.3s · 77 tok)")
+    buf = io.StringIO()
+    Console(file=buf, width=ANCHO_COLUMNAS_REMOTO, highlight=False,
+            force_terminal=False, no_color=True).print(
+        logica, markup=False, highlight=False)
+    lineas = [l for l in buf.getvalue().splitlines() if l.strip()]
+    assert len(lineas) == 3 and lineas[0].startswith("  ⏺ "), lineas
+    return lineas
+
+
+_ECO_ENVUELTO = _eco_envuelto_real()
 
 
 def test_la_cola_de_un_eco_envuelto_no_entra_al_chat(tmp_path, monkeypatch):
@@ -578,7 +604,7 @@ def test_la_cola_tiene_tope_y_no_se_come_media_respuesta(tmp_path,
     s = _sesion(tmp_path, monkeypatch)
     s._procesar_linea(_WORKFLOW_3[1])
     s._procesar_linea(_ECO_ENVUELTO[0])
-    larga = "x" * 70
+    larga = "x" * _ses._ANCHO_ECO             # "llena el ancho" del remoto
     for _ in range(6):                         # 6 lineas largas seguidas
         s._procesar_linea(larga)
     textos = [e["texto"] for e in _lineas(s)]

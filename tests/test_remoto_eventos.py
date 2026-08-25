@@ -462,10 +462,14 @@ def test_aviso_eco_del_renderer_no_duplica(tmp_path, monkeypatch):
 
 
 def test_sink_stdout_salta_streaming(capfd, monkeypatch):
-    """TokenTexto/RazonamientoTick NO van por stdout: de alta frecuencia, se
-    entrelazaban con la prosa a medias del renderer en el mismo stdout (e2e
-    2026-08-09). El remoto no los usa; el modo archivo si los guarda."""
+    """Con COGNIA_REMOTO_STREAM=0, TokenTexto/RazonamientoTick NO van por
+    stdout: es el comportamiento anterior a la paridad remota (2026-08-24),
+    cuando se entrelazaban con la prosa a medias del renderer (e2e
+    2026-08-09). Hoy el default deja pasar TokenTexto (el renderer no escribe
+    prosa bajo COGNIA_REMOTO: _sin_stream) y esta palanca es el kill-switch;
+    el default lo cubre tests/test_cli_remoto_paridad.py."""
     from cognia.ux import events
+    monkeypatch.setenv("COGNIA_REMOTO_STREAM", "0")
     monkeypatch.setattr(events, "_sink_jsonl", None)
     monkeypatch.setattr(events, "_suscriptores", [])
     events.activar_sink_jsonl("1")

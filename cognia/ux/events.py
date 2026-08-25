@@ -162,6 +162,45 @@ class TareaFin(Evento):
     motivo: str = ""
 
 
+@dataclass(frozen=True)
+class Confianza(Evento):
+    """El nivel de confianza de UNA respuesta de chat (cognia/agent/
+    confianza_chat.py), como DATO y no como prosa.
+
+    POR QUE existe (paridad remota 2026-08-24): cli.py imprimia la linea
+    '● confianza ALTA (0,90) · 2 fuentes: ...' con _print_line, y bajo
+    COGNIA_REMOTO=1 todo el subsistema estaba APAGADO por un guard
+    (_confianza_remoto) porque esa prosa llegaba al chat del movil como si
+    fuera otra respuesta. Con el evento, el remoto pinta un chip bajo la
+    burbuja y la investigacion vuelve a correr tambien desde el telefono.
+    ``texto`` es la linea legible entera (la misma que ve el terminal), para
+    un consumidor que no quiera armarla; los demas campos son para el que si."""
+    nivel: str = ""             # alta | media | baja | nula
+    glifo: str = ""             # ● ◐ ○ ✕
+    valor: float = 0.0          # la confianza numerica [0, 1]
+    fuentes: list = field(default_factory=list)   # dominios que sostienen
+    texto: str = ""             # la linea completa, legible
+
+
+@dataclass(frozen=True)
+class FooterTurno(Evento):
+    """El cierre de un turno de CHAT: lo que cli._show_footer pinta como
+    '✓ 14.6s · 312 tokens · ctx 95% libre', como dato.
+
+    Distinto de TareaFin a proposito: TareaFin es el cierre del AGENTE (pasos,
+    resumen) y lo emite el loop; el chat no pasa por ahi y su footer vivia
+    solo en el terminal. Bajo COGNIA_REMOTO el REPL sigue imprimiendo la
+    version plana ('14.6s · 312 tokens', que sesiones.py de-duplica por
+    _RE_FOOTER_RENDERER) y ADEMAS emite esto: el movil muestra la linea gris
+    a partir del evento, no de la prosa. ``ctx_libre_pct`` None = no se sabe
+    (sin n_ctx del backend), nunca un 0 inventado."""
+    ok: bool = True
+    segundos: float = 0.0
+    tokens: int = 0             # usage REAL del backend; 0 = no se conoce
+    ctx_libre_pct: Optional[float] = None
+    motivo: str = ""            # por que se cerro si no fue por respuesta
+
+
 # ---------------------------------------------------------------------------
 # Los eventos del MOTOR DE WORKFLOWS (cognia/agent/workflows.py). Una tarea del
 # agente puede contener varios workflows, y un workflow varios agentes: por eso
@@ -508,13 +547,29 @@ def activar_sink_jsonl(ruta: str = "") -> None:
         return
 
     if destino == "1":
-        # Los eventos de STREAMING no van por stdout: son de alta frecuencia
-        # y se ENTRELAZAN con la prosa que el renderer escribe a medias en el
-        # mismo stdout (medido en el e2e 2026-08-09: "¡Hola! ¿En qué puedo
-        # @EV {TokenTexto...}" — la linea-evento pegada a una frase a medias).
-        # El remoto no los usa (la respuesta llega entera como prosa); el modo
-        # archivo si los guarda todos (telemetria).
-        _saltar = ("TokenTexto", "RazonamientoTick") + _saltar_pedido()
+        # RazonamientoTick NO va por stdout: alta frecuencia y el remoto no
+        # lo consume (el indicador 'pensando…' del movil sale de
+        # AgenteProgreso, que ya viene throttleado).
+        #
+        # TokenTexto SI pasa desde la paridad remota (2026-08-24), salvo
+        # COGNIA_REMOTO_STREAM=0. La razon por la que se saltaba era MEDIDA
+        # (e2e 2026-08-09: "¡Hola! ¿En qué puedo @EV {TokenTexto...}", la
+        # linea-evento pegada a una frase a medias) y hoy ya no se da, por
+        # DOS piezas y no una: (1) bajo COGNIA_REMOTO el renderer arranca con
+        # _sin_stream=True (ux/renderer.py:201) y no pinta TokenTexto; (2) el
+        # fast-path del CLI, que tiene su PROPIO FlujoSuave, tampoco pinta
+        # cuando cli._remoto_stream_vivo() es True — sin la pieza (2) el
+        # entrelazado VOLVIO tal cual en la corrida real del 2026-08-25
+        # ('  Según los datos de hoy, @EV {"texto": " Ac"...}'). La respuesta
+        # llega entera y plana por _show_response al terminar. Sin nadie
+        # escribiendo prosa a medias en el mismo stdout, cada "@EV" queda en
+        # su propia linea y el consumidor (remoto/sesiones.py) puede agrupar
+        # los trozos en una burbuja viva.
+        # La palanca deja volver al comportamiento anterior si un renderer
+        # nuevo vuelve a escribir a medias: es un kill-switch, no un tuning.
+        _saltar = ("RazonamientoTick",) + _saltar_pedido()
+        if os.environ.get("COGNIA_REMOTO_STREAM", "").strip() == "0":
+            _saltar = ("TokenTexto",) + _saltar
 
         # Al stdout REAL, no al sys.stdout del momento: ver _stdout_real().
         _escribir = _escribir_stdout_real

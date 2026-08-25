@@ -2168,9 +2168,260 @@ def _corte_pedido() -> bool:
     Lo consultan el bucle legacy del agente (cli.py) y el nativo
     (cognia/agent/loop.py, via ctx['_cancelado']). Se comprueba ENTRE pasos:
     una tool larga (un build, un subprocess) no se interrumpe — termina y ahi
-    corta. Eso esta dicho en la linea que se imprime, no escondido."""
+    corta. Eso esta dicho en la linea que se imprime, no escondido.
+
+    Tambien True con la bandera de la interrupcion REMOTA levantada
+    (_INTERRUPCION_PENDIENTE): el agente inline la consulta entre pasos y
+    corta en el siguiente sin esperar a que el KeyboardInterrupt se procese
+    (o aunque algun except intermedio se lo haya comido)."""
+    if _INTERRUPCION_PENDIENTE[0]:
+        return True
     c = _corrida_viva()
     return c is not None and bool(c.cancelada)
+
+
+# ---------------------------------------------------------------------------
+# Paridad REMOTA (2026-08-24): interrumpir desde el movil y multilinea por pipe.
+# ---------------------------------------------------------------------------
+
+# True mientras el hilo principal esta BLOQUEADO leyendo la siguiente linea del
+# usuario. Lo consulta el handler de interrupcion remota: una senal que llega
+# con el REPL ocioso no tiene nada que cortar, y si el handler lanzara igual,
+# el KeyboardInterrupt caeria en el `except` que rodea a _get_input y se
+# COMERIA el mensaje recien leido ("linea cancelada"). Medido 2026-08-24 con
+# un hijo bloqueado en input() sobre un pipe: el handler de Python corre
+# DESPUES de que input() devuelve (la senal solo dispara el flag en C; el
+# eval loop lo ve al volver), o sea con este flag todavia en True — por eso
+# el flag se baja en un finally y no antes de la lectura.
+_EN_PROMPT = [False]
+_INTERRUPCIONES_REMOTAS = [0]     # cuantas senales llegaron (diagnostico)
+# Bandera COOPERATIVA de la interrupcion remota. La pone el handler nativo de
+# consola (Windows, hilo propio del sistema: corre EN EL ACTO) o el handler de
+# Python (al siguiente bytecode); la consulta _corte_pedido() entre pasos del
+# agente y la baja el bucle del REPL al empezar cada turno. POR QUE: medido
+# 2026-08-25 (revisores, hijo real): la senal llega en <10 ms pero el
+# KeyboardInterrupt solo se procesa al VOLVER de la llamada C bloqueada (el
+# urlopen al backend: 96-155 s con el 27B). Con la bandera, el agente no da
+# un paso mas despues de esa llamada aunque algun `except` intermedio se
+# hubiera comido el KeyboardInterrupt.
+_INTERRUPCION_PENDIENTE = [False]
+_CTRL_HANDLER_NATIVO = [None]     # referencia viva del callback ctypes (GC)
+
+
+def _interrupcion_remota_handler(signum=None, frame=None) -> None:
+    """Handler de SIGBREAK (Windows) / SIGINT (POSIX) bajo COGNIA_REMOTO=1.
+
+    Corre en el hilo principal entre dos bytecodes. Lanza KeyboardInterrupt
+    para caer en los `except KeyboardInterrupt` que el REPL YA tiene: el del
+    fast-path de chat (corta el stream, 'turno cortado', vuelve al prompt), el
+    del camino articulado, el de _esperar_corrida (cancela la corrida de
+    fondo), los que envuelven al agente inline (/hacer y la accion inferida)
+    y, desde 2026-08-25, el que envuelve la ITERACION ENTERA del bucle del
+    REPL (_repl_iteracion_interrumpida): sin ese ultimo, la senal recibida
+    entre el input() y el primer token (investigacion previa de confianza,
+    enrutador por inferencia, mejora de prompt) MATABA el REPL. Ocioso (en el
+    prompt) NO lanza: ver _EN_PROMPT.
+
+    Emite ANTES de lanzar: el Aviso viaja por el bus (sink stdout -> movil) y
+    el renderer local lo pinta; emitir() es no-lanzante por contrato y el
+    raise queda fuera de cualquier try para que nada lo trague."""
+    _INTERRUPCIONES_REMOTAS[0] += 1
+    ocioso = bool(_EN_PROMPT[0])
+    try:
+        from cognia.ux import events as _ev
+        if ocioso:
+            _ev.emitir(_ev.Aviso(texto="interrupcion remota ignorada: no hay "
+                                       "generacion en curso", origen="remoto"))
+        else:
+            _ev.emitir(_ev.Aviso(texto="generacion interrumpida desde el remoto",
+                                 origen="remoto"))
+    except Exception as exc:
+        # el aviso es adorno; la interrupcion (abajo) es la sustancia — pero
+        # que no salga se DICE (regla del repo: nada de degradacion muda)
+        _aviso_degradado("remoto.interrupcion",
+                         f"aviso no emitido ({type(exc).__name__}: {exc})")
+    if ocioso:
+        return
+    _INTERRUPCION_PENDIENTE[0] = True
+    raise KeyboardInterrupt("interrumpido desde el remoto")
+
+
+def _interrupcion_recibida_nativa(tipo_evento: int) -> bool:
+    """Cuerpo del handler NATIVO de consola (SetConsoleCtrlHandler, Windows).
+
+    Windows lo invoca en un hilo NUEVO en el instante en que llega
+    CTRL_BREAK_EVENT (1) / CTRL_C_EVENT (0), aunque el hilo principal este
+    bloqueado en un recv() sin datos: es el unico sitio desde donde el Aviso
+    puede salir EN EL ACTO. Aqui solo se avisa y se levanta la bandera; el
+    corte real sigue siendo el KeyboardInterrupt del handler de Python
+    (siguiente bytecode del hilo principal). Devuelve False SIEMPRE para que
+    la cadena siga hasta el handler del CRT, que es el que convierte el
+    evento en SIGBREAK/SIGINT y dispara el handler de Python: devolver True
+    aqui se COMERIA la senal y el turno no se cortaria nunca."""
+    try:
+        if tipo_evento not in (0, 1):
+            return False
+        if _EN_PROMPT[0]:
+            return False        # ocioso: el handler de Python dira 'ignorada'
+        _INTERRUPCION_PENDIENTE[0] = True
+        from cognia.ux import events as _ev
+        _ev.emitir(_ev.Aviso(texto="interrupcion recibida; se aplica al terminar "
+                                   "la llamada en curso", origen="remoto"))
+    except Exception as exc:
+        try:
+            _aviso_degradado("remoto.interrupcion",
+                             f"handler nativo: {type(exc).__name__}: {exc}")
+        except Exception as exc2:
+            # hilo del sistema y el avisador tambien roto: ultimo canal
+            # posible, stderr crudo (jamas lanzar desde un ctrl handler)
+            try:
+                sys.stderr.write(f"[remoto.interrupcion] handler nativo: {exc!r}; "
+                                 f"y _aviso_degradado fallo: {exc2!r}\n")
+            except Exception:
+                return False
+    return False
+
+
+def _instalar_ctrl_handler_nativo() -> bool:
+    """Registra _interrupcion_recibida_nativa con SetConsoleCtrlHandler (solo
+    Windows). Se registra DESPUES de que Python ya tiene el suyo (el CRT lo
+    instala con el primer signal()), y Windows llama a los handlers en orden
+    LIFO: el nuestro corre primero, avisa, y al devolver False pasa el turno
+    al del CRT. True si quedo instalado."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        proto = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)
+        cb = proto(lambda tipo: bool(_interrupcion_recibida_nativa(int(tipo))))
+        k32 = ctypes.windll.kernel32
+        k32.SetConsoleCtrlHandler.argtypes = [proto, wintypes.BOOL]
+        k32.SetConsoleCtrlHandler.restype = wintypes.BOOL
+        if not k32.SetConsoleCtrlHandler(cb, True):
+            _aviso_degradado("remoto.interrupcion",
+                             f"SetConsoleCtrlHandler fallo (GetLastError "
+                             f"{ctypes.get_last_error()}); el aviso inmediato "
+                             "no saldra, la interrupcion sigue funcionando")
+            return False
+        _CTRL_HANDLER_NATIVO[0] = cb      # sin referencia viva, el GC lo mata
+        return True
+    except Exception as exc:
+        _aviso_degradado("remoto.interrupcion",
+                         f"handler nativo no instalado ({type(exc).__name__}: "
+                         f"{exc}); el aviso inmediato no saldra")
+        return False
+
+
+def _repl_iteracion_interrumpida() -> bool:
+    """Que hacer con un KeyboardInterrupt que llego al bucle del REPL desde
+    DENTRO de una iteracion (fuera de los guards finos). Bajo COGNIA_REMOTO
+    es la senal del movil: se dice y se sigue (True = `continue`). En local
+    es Ctrl-C a mitad de un turno sin guard fino (la investigacion previa,
+    el enrutador por inferencia, un slash largo): mismo contrato que el
+    fast-path — 'turno cortado', el REPL sigue vivo (True). Solo devuelve
+    False, y el bucle se cierra, si el turno pidio salir de verdad (no hay
+    hoy tal caso: Ctrl-C doble vive en _get_input, que tiene su propio
+    except). Baja la bandera cooperativa: el turno ya se corto."""
+    _INTERRUPCION_PENDIENTE[0] = False
+    remoto = os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+    print()
+    if remoto:
+        _print_line("[warn_cl]generacion interrumpida desde el remoto: turno "
+                    "cortado. El REPL sigue vivo; /salir para salir.[/warn_cl]")
+    else:
+        _print_line("[warn_cl]Ctrl-C: turno cortado. El REPL sigue vivo; "
+                    "/salir para salir.[/warn_cl]")
+    return True
+
+
+def _instalar_interrupcion_remota() -> str:
+    """Instala el handler si COGNIA_REMOTO=1. Devuelve el nombre de la senal
+    instalada ('SIGBREAK' | 'SIGINT') o '' (fuera del remoto, sin la senal en
+    esta plataforma, o fuera del hilo principal: signal.signal lanza
+    ValueError ahi y se avisa degradado).
+
+    Windows: el servidor remoto crea el REPL con CREATE_NEW_PROCESS_GROUP y
+    manda CTRL_BREAK_EVENT, que el CRT entrega como SIGBREAK. Medido
+    2026-08-24 (scratch parent.py, 4 escenarios): llega con el servidor en
+    consola, desacoplado (DETACHED_PROCESS) y con consola nueva oculta.
+    POSIX: start_new_session + SIGINT, que Python ya entrega como
+    KeyboardInterrupt por defecto; se instala igual para que el Aviso y el
+    guard de _EN_PROMPT apliquen tambien alla."""
+    if os.environ.get("COGNIA_REMOTO", "").strip() != "1":
+        return ""
+    import signal as _sg
+    nombre = "SIGBREAK" if hasattr(_sg, "SIGBREAK") else "SIGINT"
+    sig = getattr(_sg, nombre, None)
+    if sig is None:
+        return ""
+    try:
+        _sg.signal(sig, _interrupcion_remota_handler)
+    except (ValueError, OSError) as exc:
+        _aviso_degradado("remoto.interrupcion",
+                         f"no pude instalar {nombre}: {exc}; el movil no "
+                         "podra interrumpir esta sesion")
+        return ""
+    # DESPUES del de Python (orden LIFO de Windows: el nativo corre primero y
+    # cede). Solo avisa en el acto y levanta la bandera; si no se instala, la
+    # interrupcion sigue funcionando (con el aviso tardio de siempre).
+    _instalar_ctrl_handler_nativo()
+    return nombre
+
+
+def _unir_continuacion(acumulado: str, siguiente: str, separador: str) -> str:
+    """'hola \\' + 'mundo' -> 'hola<sep>mundo': la MISMA regla que la rama
+    con PromptSession de _get_input (que une con ' ')."""
+    return acumulado[:-1].rstrip() + separador + siguiente
+
+
+def _leer_con_continuacion(primera: str, leer, separador: str = " ") -> str:
+    """Continuacion oficial del REPL ('linea que termina en \\ sigue en la
+    siguiente') para el modo input() PELADO (stdin en pipe: el remoto, los
+    scripts). Antes solo la tenia la rama con PromptSession, asi que el
+    servidor remoto no tenia forma de mandar un mensaje multilinea como UNA
+    entrada: escribia el texto con sus saltos y el REPL lo despachaba como N
+    mensajes (roto y sin test hasta 2026-08-24).
+
+    `leer()` devuelve la siguiente linea cruda (input()); si levanta EOFError
+    a mitad, se devuelve lo acumulado en vez de perderlo (un pipe que se
+    cierra tras 'a \\' entrega 'a', no nada). `separador`: ' ' como el prompt
+    rico; bajo COGNIA_REMOTO '\\n', porque ahi cada salto lo escribio el
+    usuario en un textarea y es CONTENIDO (un bloque de codigo pegado en el
+    movil se aplastaria a una linea con ' '). Con '\\n' las lineas de
+    continuacion conservan su sangria (solo rstrip); con ' ' se recortan
+    enteras, como en el prompt rico."""
+    linea = primera
+    while linea.endswith("\\"):
+        try:
+            siguiente = leer()
+        except EOFError:
+            return linea[:-1].rstrip()
+        siguiente = siguiente.rstrip() if separador == "\n" else siguiente.strip()
+        linea = _unir_continuacion(linea, siguiente, separador)
+    return linea
+
+
+def _remoto_stream_vivo() -> bool:
+    """True cuando el fast-path de chat NO debe pintar la prosa del stream:
+    bajo COGNIA_REMOTO=1 con TokenTexto pasando por el sink stdout
+    (COGNIA_REMOTO_STREAM != '0').
+
+    MEDIDO 2026-08-25 en la corrida real (e2e ii): el renderer no pinta bajo
+    remoto (_sin_stream), pero el fast-path tiene su PROPIO FlujoSuave y con
+    los TokenTexto pasando por el mismo stdout volvio EXACTAMENTE el
+    entrelazado de 2026-08-09: '  Según los datos de hoy, @EV {"texto": " Ac"
+    ...}'. Con esto el fast-path acumula en silencio y al terminar imprime la
+    respuesta ENTERA y plana (_show_response respuesta_final): el movil pinta
+    la burbuja viva con los deltas y la reemplaza por la final. Con
+    COGNIA_REMOTO_STREAM=0 no hay deltas y se vuelve a pintar como siempre."""
+    return (os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+            and os.environ.get("COGNIA_REMOTO_STREAM", "").strip() != "0")
+
+
+def _separador_continuacion_simple() -> str:
+    """'\\n' bajo COGNIA_REMOTO (los saltos son contenido), ' ' si no."""
+    return "\n" if os.environ.get("COGNIA_REMOTO", "").strip() == "1" else " "
 
 
 def _ctrlc_seguidos_idle() -> bool:
@@ -2448,6 +2699,9 @@ _CMD_DESCRIPTIONS = {
     "/tx":              "Agente de horizonte largo (TX)  [iniciar | estado | probar | commit | ancho | bandas | mutar | exp | vram | reanudar | diagnostico | cerrar | on | off]",
     "/libro":           "Memoria append-only de la tarea TX  [N | ver <n> | grep <pat> | auditar <n> | restringir | retractar | fsck | exportar]",
     "/lazo":            "Lazo de verificacion post-respuesta con tools reales  [on|off]",
+    "/remoto":          "Control remoto desde el movil (python -m cognia.remoto)  [estado | arrancar [--host ip] [--port n] | parar | url | limpiar [--dry-run]]",
+    "/decirle":         "Hablarle a un agente EN CURSO: corta su generacion y re-pregunta con tu texto  <agente_id> <texto>",
+    "/cancelar":        "Cortar un agente en curso (o todos)  <agente_id> | todo",
     "/hermes":          "Estado del arnes Hermes: presupuesto, guardia de bucle, parada verificada",
     "/rutinas":         "Tareas programadas que corren solas.  Uso: /rutinas [crear|borrar|ahora]",
     "/grabar":          "Graba lo que hace el agente para convertirlo en flujo.  Uso: /grabar inicio|fin|lista",
@@ -2643,6 +2897,41 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/remoto": (
+        "CONTROL REMOTO (cognia/remoto: FastAPI+uvicorn en https://0.0.0.0:8777, cert autofirmado y "
+        "token en ~/.cognia/remoto/). Cada sesion del movil es un REPL REAL hijo (python -m cognia "
+        "con COGNIA_REMOTO=1) al que el servidor le escribe por stdin y le lee el bus de eventos "
+        "por stdout. Esta es la PUERTA local: 'estado' (default) dice si el puerto escucha, la URL "
+        "con la IP de la LAN y el token, la version del servidor (/api/version) y las sesiones "
+        "vivas (/api/monitores); 'arrancar' lo lanza DESACOPLADO (Windows: DETACHED_PROCESS + "
+        "CREATE_NEW_PROCESS_GROUP; POSIX: sesion nueva), guarda el PID en servidor.pid y espera "
+        "hasta 10 s a que el puerto escuche (su salida va a servidor.log); 'parar' lo mata por ese "
+        "PID (los REPLs hijos quedan huerfanos hasta que el servidor los reconcilie al volver a "
+        "arrancar: es lo que hace al iniciar); 'url' imprime la URL para pegar en el telefono; "
+        "'limpiar [--dry-run]' delega en `python -m cognia.remoto --limpiar` (borra carpetas de "
+        "proyecto sin entrada en proyectos.json, listandolas). Puerto y host: --port/--host, o "
+        "env COGNIA_REMOTO_PORT / COGNIA_REMOTO_HOST (defaults 8777 y 0.0.0.0). Desde el movil: "
+        "interrumpir la generacion (POST /interrumpir -> CTRL_BREAK_EVENT/SIGINT al hijo), "
+        "mensajes multilinea (continuacion ' \\' del REPL), streaming de la respuesta, chips "
+        "de confianza y footer del turno, y el resultado de los slash en el chat."),
+    "/decirle": (
+        "HABLARLE A UN AGENTE EN CURSO (cognia/agent/workflows.py::decirle, control por agente "
+        "2026-08-17). Corta la generacion del agente <agente_id>, apendea tu texto como turno del "
+        "usuario y el agente vuelve a llamar al modelo con ese contexto; lo ya generado se tira "
+        "(descartado_chars en su AgenteFin) y cuesta una llamada mas del presupuesto. El id es el "
+        "que muestran la vista F2 y el movil ('<run_id>#<fase>.<indice>@<n>'). Hasta la paridad "
+        "remota (2026-08-24) solo se podia desde el panel F2, que bajo pipes/remoto no existe. "
+        "Siempre contesta con el estado del envelope (aceptado | ya_cancelado | ya_termino | "
+        "desconocido_agente | corrida_cerrada | desconocido_corrida | texto_vacio | buzon_lleno) — "
+        "un mensaje descartado en silencio es peor que uno rechazado a la vista. Sin argumentos "
+        "lista las corridas vivas y sus agentes."),
+    "/cancelar": (
+        "CORTAR UN AGENTE EN CURSO (workflows.cancelar_agente; 'todo' = cancelar_corrida sobre "
+        "todas las corridas vivas, el boton de panico). Idempotente: la segunda vez vuelve "
+        "ya_cancelado con ok. Si el agente ya entrego (comprometido/terminado) responde ya_termino "
+        "y NO se cancelo nada: se dice. Cooperativo: el agente sale en su siguiente punto de "
+        "chequeo (una tool larga termina y ahi corta). El id es el de la vista F2 / el movil; sin "
+        "argumentos lista los agentes vivos."),
     "/confianza": (
         "NIVELES DE CONFIANZA DEL CHAT (cognia/agent/confianza_chat.py, 2026-08-24). Medido: a "
         "'cuantos suscriptores tiene The Acua Boy en YouTube?' el modelo confesaba 'no tengo acceso "
@@ -3372,27 +3661,10 @@ def _show_response(text, color="respuesta", respuesta_final=False):
         print(f"\n{text}\n")
 
 
-def _show_footer(elapsed, text, tokens=None):
-    # Metadatos al minimo (estilo conversacional 2026-08-02): una sola linea
-    # tenue alineada con la respuesta, sin marca de version. En turnos rapidos
-    # (<1s) no aporta nada y no se imprime: menos ruido entre turnos.
-    #
-    # Footer HONESTO (2026-08-09): los tokens solo se muestran si el caller
-    # pasa el usage REAL del backend. El "~len//4" historico era un numero
-    # inventado con aspecto de medida — peor que no decir nada.
-    if elapsed < 1.0:
-        return
-    if not (_HAS_RICH and _console):
-        return
-    # Remoto: el footer plano de siempre (_RE_FOOTER_RENDERER del de-dup de
-    # sesiones.py exige '^\d+(\.\d+)?s( · N tokens)*$').
-    if os.environ.get("COGNIA_REMOTO", "").strip() == "1":
-        extra = f" · {int(tokens)} tokens" if tokens else ""
-        _console.print(f"[footer]  {elapsed:.1f}s{extra}[/footer]")
-        return
-    # Local: el MISMO constructor que el footer del agente (ux/estilo.
-    # footer_turno), con el % libre del contexto que el chat ya conoce
-    # (contexto_vivo alimentado) y no ensenaba (juez 2026-08-24).
+def _ctx_libre_footer():
+    """(libre_pct | None, estimado) del contexto para el footer del chat: el
+    % libre que la barra de estado ya conoce (contexto_vivo). None = no se
+    sabe; jamas un numero inventado. Nunca lanza: degrada con aviso."""
     libre, estimado = None, False
     try:
         from cognia.harness import barra_estado as _be
@@ -3403,9 +3675,49 @@ def _show_footer(elapsed, text, tokens=None):
     except Exception as exc:
         _aviso_degradado("cli.barra_estado",
                          f"ctx del footer no disponible: {exc}")
+    return libre, estimado
+
+
+def _show_footer(elapsed, text, tokens=None, ok=True, motivo=""):
+    # Metadatos al minimo (estilo conversacional 2026-08-02): una sola linea
+    # tenue alineada con la respuesta, sin marca de version. En turnos rapidos
+    # (<1s) no aporta nada y no se imprime: menos ruido entre turnos.
+    #
+    # Footer HONESTO (2026-08-09): los tokens solo se muestran si el caller
+    # pasa el usage REAL del backend. El "~len//4" historico era un numero
+    # inventado con aspecto de medida — peor que no decir nada.
+    #
+    # Paridad remota (2026-08-24): el footer va ADEMAS como evento tipado
+    # FooterTurno por el bus, SIEMPRE (tambien <1 s y sin rich): el movil
+    # pinta su linea gris a partir del dato, no de la prosa. El renderer local
+    # no tiene handler para este tipo (lo pinta esta misma funcion), asi que
+    # emitirlo en el terminal no duplica nada.
+    libre, estimado = _ctx_libre_footer()
+    try:
+        from cognia.ux import events as _ev
+        _ev.emitir(_ev.FooterTurno(
+            ok=bool(ok), segundos=float(elapsed), tokens=int(tokens or 0),
+            ctx_libre_pct=(float(libre) if libre is not None else None),
+            motivo=str(motivo or "")))
+    except Exception as exc:
+        _aviso_degradado("cli.footer.evento", f"{type(exc).__name__}: {exc}")
+    if elapsed < 1.0:
+        return
+    if not (_HAS_RICH and _console):
+        return
+    # Remoto: el footer plano de siempre (_RE_FOOTER_RENDERER del de-dup de
+    # sesiones.py exige '^\d+(\.\d+)?s( · N tokens)*$'); la version con
+    # ctx y glifo la arma el movil desde el evento.
+    if os.environ.get("COGNIA_REMOTO", "").strip() == "1":
+        extra = f" · {int(tokens)} tokens" if tokens else ""
+        _console.print(f"[footer]  {elapsed:.1f}s{extra}[/footer]")
+        return
+    # Local: el MISMO constructor que el footer del agente (ux/estilo.
+    # footer_turno), con el % libre del contexto que el chat ya conoce
+    # (contexto_vivo alimentado) y no ensenaba (juez 2026-08-24).
     from cognia.ux.estilo import footer_turno as _ft, pintar_footer as _pf
-    _pf(_ft(True, elapsed, tokens, ctx_libre_pct=libre, ctx_estimado=estimado),
-        _console)
+    _pf(_ft(bool(ok), elapsed, tokens, ctx_libre_pct=libre,
+            ctx_estimado=estimado, motivo=motivo), _console)
 
 
 class _VerboseFilter(logging.Filter):
@@ -3421,20 +3733,28 @@ def _run(raw, fn, color=None):
     bleed into the spinner line. In debug mode they appear below the panel.
     """
     effective_color = color or _cmd_color(raw)
+    remoto = os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+    captured = io.StringIO()
+    interrumpido = False
 
     if _HAS_RICH and _console:
         flt      = _VerboseFilter()
         logging.root.addFilter(flt)
-        captured = io.StringIO()
+        t0 = time.time()
         try:
             # P8 (estilos por elemento): texto y spinner de spinner.comando salen
             # del registro (default byte-identico: '[spinner]Procesando...[/spinner]', 'dots').
             from cognia.ux import spinner_vivo as _sv
             _markup_sp, _nombre_sp = _sv.comando("procesando")
             with _console.status(_markup_sp, spinner=_nombre_sp):
-                t0 = time.time()
                 with contextlib.redirect_stdout(captured):
                     result = fn()
+        except KeyboardInterrupt:
+            # Ctrl-C local o interrupcion remota (SIGBREAK -> KeyboardInterrupt)
+            # durante un comando: antes subia hasta el bucle del REPL, que
+            # solo protege a _get_input, y MATABA la sesion. El comando queda
+            # cortado y se dice; el REPL sigue.
+            interrumpido, result = True, None
         finally:
             logging.root.removeFilter(flt)
         elapsed = time.time() - t0
@@ -3444,14 +3764,120 @@ def _run(raw, fn, color=None):
                 _console.print(txt, style="info_dim", markup=False)
     else:
         t0     = time.time()
-        result = fn()
+        try:
+            result = fn()
+        except KeyboardInterrupt:
+            interrumpido, result = True, None
         elapsed = time.time() - t0
 
     result = _to_str(result)
+    if interrumpido:
+        _print_line("[warn_cl]Comando interrumpido; el REPL sigue vivo.[/warn_cl]")
+    if remoto and not result:
+        # Paridad remota (2026-08-24): un comando que IMPRIME en vez de
+        # devolver (varios /x escriben con print) dejaba su salida en el
+        # StringIO del redirect y el movil no veia nada. Lo capturado ES el
+        # resultado cuando no hubo otro.
+        result = captured.getvalue().strip()
     if result:
-        _show_response(result, effective_color)
+        # Bajo COGNIA_REMOTO el resultado de un slash va como RESPUESTA FINAL
+        # (print plano con flush): _show_response sin respuesta_final lo
+        # enmarcaba en un Panel y el clasificador del movil (sesiones.py) manda
+        # lo enmarcado a "actividad" PLEGADO — el dueno tecleaba /ver o
+        # /estado desde el telefono y no veia el resultado (2026-08-24). En el
+        # terminal no cambia nada: el chrome sigue con su marco.
+        _show_response(result, effective_color, respuesta_final=remoto)
         _show_footer(elapsed, result)
     _session_log.append({"input": raw, "output": result, "elapsed": elapsed})
+
+
+# ---------------------------------------------------------------------------
+# Paridad remota (2026-08-24): los slash INFORMATIVOS llegan al chat del movil.
+# ---------------------------------------------------------------------------
+# Muchos comandos no pasan por _run(): pintan directo con _print_line /
+# _console.print (paneles de estado, listas de /estilo, fichas de /ayuda).
+# Bajo COGNIA_REMOTO esas lineas salian una a una por el pipe y el clasificador
+# del movil (remoto/sesiones.py) las repartia entre "actividad" (todo lo
+# enmarcado) y prosa suelta: el dueno no veia el resultado de /estado ni de
+# /confianza desde el telefono. Para ESTOS comandos (allowlist: sincronos,
+# cortos, sin preguntas al usuario) la Console de rich captura todo lo que se
+# pinte durante el dispatch y, de vuelta en el bucle, se entrega ENTERO como
+# respuesta final (print plano con flush), sin marcos (_desenmarcar).
+#
+# Allowlist y no "todo slash", a proposito: un comando que pregunta s/n o que
+# corre largo (/hacer, /workflow) pintaria su pregunta DENTRO de la captura y
+# el usuario nunca la veria. Los que devuelven texto por _run() ya van como
+# respuesta final por su cuenta (print() directo, fuera de la Console).
+_SLASH_AL_CHAT_REMOTO = (
+    "/ayuda", "/help", "/estado", "/confianza", "/estilo", "/comandos",
+    "/remoto", "/decirle", "/cancelar", "/lazo", "/cognia-info", "/costo",
+    "/hermes", "/config-resuelta", "/modo", "/pensar", "/esfuerzo",
+    "/permisos", "/flota", "/monitores", "/rutinas", "/skills",
+)
+_CAPTURA_SLASH = {"activa": False, "raw": ""}
+
+_RE_LINEA_MARCO = re.compile(r"^\s*[╭╮╰╯┌┐└┘├┤┬┴┼─═│\s]+$")
+
+
+def _desenmarcar(texto: str) -> str:
+    """Quita los marcos de Panel de rich de un texto ya pintado: las lineas
+    que son SOLO borde desaparecen y a las de contenido se les recorta el
+    '│ … │'. Determinista y sin regex sobre la prosa: solo caracteres de
+    caja. Es lo que hace que el resultado de /estado quepa en una burbuja del
+    chat en vez de plegarse como chrome."""
+    salida = []
+    for linea in (texto or "").splitlines():
+        if linea.strip() and _RE_LINEA_MARCO.match(linea):
+            continue
+        t = linea.rstrip()
+        if t.lstrip().startswith("│"):
+            t = t.lstrip()[1:]
+            if t.endswith("│"):
+                t = t[:-1]
+            t = t.strip(" ")
+        salida.append(t)
+    return "\n".join(salida).strip("\n")
+
+
+def _slash_va_al_chat_remoto(raw: str) -> bool:
+    if os.environ.get("COGNIA_REMOTO", "").strip() != "1":
+        return False
+    cabeza = (raw or "").strip().split(" ", 1)[0].lower()
+    return cabeza in _SLASH_AL_CHAT_REMOTO
+
+
+def _captura_slash_remoto_inicio(raw: str) -> bool:
+    """Abre la captura de la Console para un slash de la allowlist. False si
+    no aplica (fuera del remoto, comando fuera de la lista, sin rich)."""
+    if _CAPTURA_SLASH["activa"]:
+        _captura_slash_remoto_fin()
+    if not (_HAS_RICH and _console) or not _slash_va_al_chat_remoto(raw):
+        return False
+    try:
+        _console.begin_capture()
+    except Exception as exc:
+        _aviso_degradado("remoto.captura", f"begin_capture fallo: {exc}")
+        return False
+    _CAPTURA_SLASH.update({"activa": True, "raw": raw})
+    return True
+
+
+def _captura_slash_remoto_fin() -> str:
+    """Cierra la captura (si habia) y entrega lo pintado como respuesta final.
+    Devuelve el texto entregado ('' si nada). Nunca lanza."""
+    if not _CAPTURA_SLASH["activa"]:
+        return ""
+    _CAPTURA_SLASH["activa"] = False
+    try:
+        texto = _console.end_capture()
+    except Exception as exc:
+        _aviso_degradado("remoto.captura", f"end_capture fallo: {exc}")
+        return ""
+    texto = _desenmarcar(texto)
+    if not texto.strip():
+        return ""
+    _show_response(texto, "respuesta", respuesta_final=True)
+    return texto
 
 
 # ---------------------------------------------------------------------------
@@ -11153,14 +11579,34 @@ def _confianza_config():
 
 
 def _confianza_remoto() -> bool:
-    """El remoto exige marcos limpios (clasificador del movil, memoria
-    estilo-conversacional): alla no se investiga ni se imprime nada extra.
-    Mismo guard que el /lazo."""
+    """True bajo COGNIA_REMOTO=1. Hasta la paridad remota (2026-08-24) este
+    guard APAGABA los dos ganchos de confianza en el remoto, porque su prosa
+    ('◐ confianza a priori BAJA…', '● confianza ALTA (0,90) · …') llegaba al
+    chat del movil como si fuera otra respuesta. Ya no apaga nada: decide
+    solo el CANAL de esa prosa (_linea_o_aviso) y el veredicto viaja como
+    evento tipado Confianza (ux/events.py) que el movil pinta como chip."""
     return os.environ.get("COGNIA_REMOTO", "").strip() == "1"
 
 
+def _linea_o_aviso(markup: str, plano: str, origen: str) -> None:
+    """Una linea de PROGRESO de un subsistema (confianza, lazo): en el
+    terminal se pinta con su markup; bajo COGNIA_REMOTO va como Aviso por el
+    bus (el sink stdout la entrega al movil como actividad, con ecos
+    registrados) y NO se imprime, porque como prosa el clasificador del movil
+    la tomaria por una respuesta. emitir() es no-lanzante."""
+    if _confianza_remoto():
+        try:
+            from cognia.ux import events as _ev
+            _ev.emitir(_ev.Aviso(texto=plano, origen=origen))
+            return
+        except Exception as exc:
+            _aviso_degradado(origen, f"aviso no emitido: {exc}")
+    _print_line(markup)
+
+
 def _confianza_evento(msg: str) -> None:
-    _print_line(f"[detail]  · {_escape(str(msg))}[/detail]")
+    _linea_o_aviso(f"[detail]  · {_escape(str(msg))}[/detail]",
+                   f"· {msg}", "confianza")
 
 
 def _confianza_registrar(inv, modo: str) -> None:
@@ -11178,8 +11624,10 @@ def _confianza_sin_evidencias(inv) -> None:
     if inv.aviso:
         _aviso_degradado("confianza.web", inv.aviso)
     else:
-        _print_line(f"[detail]  · la web no devolvió evidencias para "
-                    f"«{_escape(inv.consulta)}»[/detail]")
+        _linea_o_aviso(f"[detail]  · la web no devolvió evidencias para "
+                       f"«{_escape(inv.consulta)}»[/detail]",
+                       f"· la web no devolvió evidencias para «{inv.consulta}»",
+                       "confianza")
 
 
 def _confianza_previa(raw: str, cfg=None):
@@ -11197,8 +11645,10 @@ def _confianza_previa(raw: str, cfg=None):
     clasif = _cc.clasificar_pregunta(raw)
     if not clasif.volatil:
         return None
-    _print_line(f"[info_dim]◐ confianza a priori BAJA: {_escape(clasif.motivo)} "
-                f"→ investigando en la web…[/info_dim]")
+    _linea_o_aviso(f"[info_dim]◐ confianza a priori BAJA: {_escape(clasif.motivo)} "
+                   f"→ investigando en la web…[/info_dim]",
+                   f"◐ confianza a priori BAJA: {clasif.motivo} → investigando "
+                   "en la web…", "confianza")
     inv = _cc.investigar(raw, clasif, presupuesto_s=cfg.segundos,
                          max_paginas=cfg.max_paginas,
                          on_evento=_confianza_evento)
@@ -11223,8 +11673,23 @@ def _confianza_veredicto(respuesta: str, inv, investigado: bool = True):
     from cognia.agent import confianza_chat as _cc
     ver = _cc.evaluar_respuesta(respuesta, inv)
     linea = _cc.linea_confianza(ver, inv, investigado=investigado)
-    estilo = _CONFIANZA_ESTILO.get(_cc.nivel_de(ver.confianza), "info_dim")
-    _print_line(f"[{estilo}]{_escape(linea)}[/{estilo}]")
+    nivel = _cc.nivel_de(ver.confianza)
+    estilo = _CONFIANZA_ESTILO.get(nivel, "info_dim")
+    # El veredicto como DATO por el bus (paridad remota 2026-08-24): el movil
+    # pinta un chip bajo la burbuja; en el terminal el renderer no tiene
+    # handler para Confianza y la linea la pinta esta funcion. Las fuentes son
+    # las que la linea nombra (inv.fuentes: las paginas que hablan de la
+    # entidad), no las de busqueda.
+    fuentes = list(inv.fuentes) if (inv is not None and inv.fuentes) else list(ver.fuentes or [])
+    try:
+        from cognia.ux import events as _ev
+        _ev.emitir(_ev.Confianza(nivel=nivel, glifo=_cc.glifo_de(nivel),
+                                 valor=float(ver.confianza), fuentes=fuentes,
+                                 texto=linea))
+    except Exception as exc:
+        _aviso_degradado("confianza", f"evento Confianza no emitido: {exc}")
+    if not _confianza_remoto():
+        _print_line(f"[{estilo}]{_escape(linea)}[/{estilo}]")
     _CONFIANZA_ULTIMO.update({"veredicto": ver, "linea": linea})
     return ver
 
@@ -11251,8 +11716,10 @@ def _confianza_posterior(raw: str, respuesta: str, pedir, cfg=None,
     confiesa, motivo = _cc.detectar_incertidumbre(respuesta)
     if not confiesa:
         return None
-    _print_line(f"[info_dim]◐ la respuesta declara incertidumbre "
-                f"({_escape(motivo)}) → investigando en la web…[/info_dim]")
+    _linea_o_aviso(f"[info_dim]◐ la respuesta declara incertidumbre "
+                   f"({_escape(motivo)}) → investigando en la web…[/info_dim]",
+                   f"◐ la respuesta declara incertidumbre ({motivo}) → "
+                   "investigando en la web…", "confianza")
     inv = _cc.investigar(raw, _cc.clasificar_pregunta(raw),
                          presupuesto_s=cfg.segundos,
                          max_paginas=cfg.max_paginas,
@@ -11261,7 +11728,8 @@ def _confianza_posterior(raw: str, respuesta: str, pedir, cfg=None,
     if not inv.evidencias:
         _confianza_sin_evidencias(inv)
         return respuesta, inv, _confianza_veredicto(respuesta, inv)
-    _print_line("[detail]  · respondiendo con las fuentes…[/detail]")
+    _linea_o_aviso("[detail]  · respondiendo con las fuentes…[/detail]",
+                   "· respondiendo con las fuentes…", "confianza")
     final = (pedir(_confianza_prefijo(inv) + raw) or "").strip()
     if not final:
         _aviso_degradado("confianza",
@@ -13172,6 +13640,538 @@ def _partir_para_menciones(raw: str) -> tuple:
     return cabeza + " ", resto
 
 
+# ---------------------------------------------------------------------------
+# /remoto: la PUERTA local del control remoto (python -m cognia.remoto).
+# Paridad remota 2026-08-24. Todo lo que toca red es best-effort con aviso.
+# ---------------------------------------------------------------------------
+
+_REMOTO_PUERTO_DEFAULT = 8777
+
+
+def _remoto_raiz() -> Path:
+    """~/.cognia/remoto: la MISMA raiz que cognia/remoto/sesiones.RAIZ_DATOS
+    (importada, no duplicada: si alla se mueve, aca sigue). sesiones.py solo
+    importa stdlib, asi que el import es barato y no arrastra fastapi."""
+    try:
+        from cognia.remoto.sesiones import RAIZ_DATOS
+        return Path(RAIZ_DATOS)
+    except Exception as exc:
+        _aviso_degradado("remoto", f"RAIZ_DATOS no importable ({exc}); "
+                                   "uso ~/.cognia/remoto")
+        return Path.home() / ".cognia" / "remoto"
+
+
+def _remoto_puerto(explicito=None) -> int:
+    """El puerto: argumento, si no env COGNIA_REMOTO_PORT, si no 8777. Un
+    valor invalido se declara y cae al default (no a un puerto al azar)."""
+    crudo = explicito if explicito not in (None, "") else os.environ.get(
+        "COGNIA_REMOTO_PORT", "")
+    if crudo in (None, ""):
+        return _REMOTO_PUERTO_DEFAULT
+    try:
+        n = int(str(crudo).strip())
+        if not (1 <= n <= 65535):
+            raise ValueError("fuera de rango")
+        return n
+    except ValueError as exc:
+        _aviso_degradado("remoto", f"puerto invalido {crudo!r} ({exc}); "
+                                   f"uso {_REMOTO_PUERTO_DEFAULT}")
+        return _REMOTO_PUERTO_DEFAULT
+
+
+def _remoto_escucha(puerto: int, host: str = "127.0.0.1",
+                    timeout: float = 0.5) -> bool:
+    """True si algo acepta conexiones en host:puerto (socket connect)."""
+    import socket
+    try:
+        with socket.create_connection((host, int(puerto)), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _remoto_token() -> str:
+    try:
+        return (_remoto_raiz() / "token.txt").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _remoto_ip_lan() -> str:
+    """La IP de la LAN por el truco del UDP connect (no manda nada); si no
+    hay red, 127.0.0.1 — que al menos sirve desde la propia maquina."""
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(0.2)
+            s.connect(("10.255.255.255", 1))
+            return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+
+
+def _remoto_url(puerto=None) -> str:
+    puerto = _remoto_puerto(puerto)
+    tok = _remoto_token()
+    base = f"https://{_remoto_ip_lan()}:{puerto}/"
+    return base + (f"?token={tok}" if tok else "")
+
+
+def _remoto_leer_pid_servidor(raiz) -> dict:
+    """Lee <raiz>/servidor.pid -> {"pid": int, "host": str, "port": int|None}
+    o {} si no existe / no se entiende.
+
+    Lo ESCRIBE el servidor (cognia/remoto/servidor.py main()) como JSON
+    {"pid","host","port"}; hasta 2026-08-25 el CLI lo leia con int() y el
+    JSON daba ValueError -> None, asi que '/remoto estado' decia 'sin
+    servidor.pid' y '/remoto parar' no encontraba NUNCA el servidor que
+    '/remoto arrancar' acababa de lanzar (revisores, contra el fichero real).
+    El lector del paquete del servidor (remoto/sesiones.leer_pid_servidor)
+    manda: un solo formato, una sola verdad. Ademas VERIFICA que el PID sea
+    un servidor de Cognia vivo (`-m cognia[.remoto]` o escuchando en el
+    puerto que el fichero declara) y retira el fichero rancio (PID muerto o
+    RECICLADO por Windows, formato viejo): sin eso '/remoto parar' mataba
+    cualquier python que hoy tuviera ese PID. Si el paquete no importa (sin
+    psutil/fastapi) se parsea aqui, con fallback al int de los ficheros
+    viejos y SIN esa verificacion (se avisa)."""
+    ruta = Path(raiz) / "servidor.pid"
+    lector = None
+    try:
+        from cognia.remoto import sesiones as _ses
+        lector = getattr(_ses, "leer_pid_servidor", None)
+        if lector is None:
+            from cognia.remoto import servidor as _srv
+            lector = getattr(_srv, "leer_pid_servidor", None)
+    except Exception as exc:
+        # sin psutil/fastapi el import falla: el parseo local basta para
+        # leer, pero el motivo se anota (no es 'no hay fichero')
+        _aviso_degradado("remoto", f"lector del servidor no importable "
+                                   f"({type(exc).__name__}: {exc}); parseo local "
+                                   "sin verificar que el PID sea un servidor")
+    if lector is not None:
+        habia = ruta.exists()
+        try:
+            dato = lector(Path(raiz))
+        except Exception as exc:
+            _aviso_degradado("remoto", f"leer_pid_servidor fallo "
+                                       f"({type(exc).__name__}: {exc}); parseo local")
+        else:
+            if isinstance(dato, dict) and dato.get("pid"):
+                return dato
+            if isinstance(dato, int) and dato:
+                return {"pid": dato, "host": "", "port": None}
+            if habia:
+                # el lector lo juzgo rancio (el detalle va por su logger) y lo
+                # retiro: se dice aqui, en la pantalla del que tecleo /remoto
+                _print_line("[warn_cl]servidor.pid rancio (PID muerto, reciclado "
+                            "o formato viejo): retirado; ese servidor ya no "
+                            "existe.[/warn_cl]")
+            return {}
+    try:
+        texto = ruta.read_text(encoding="utf-8").strip()
+    except OSError:
+        return {}
+    if not texto:
+        return {}
+    try:
+        dato = json.loads(texto)
+    except ValueError:
+        dato = None
+    if isinstance(dato, dict):
+        try:
+            pid = int(dato.get("pid") or 0)
+        except (TypeError, ValueError):
+            pid = 0
+        if not pid:
+            return {}
+        try:
+            port = int(dato["port"]) if dato.get("port") else None
+        except (TypeError, ValueError):
+            port = None
+        return {"pid": pid, "host": str(dato.get("host") or ""), "port": port}
+    try:
+        return {"pid": int(texto), "host": "", "port": None}   # formato viejo
+    except ValueError:
+        _aviso_degradado("remoto", f"servidor.pid ilegible ({texto[:60]!r})")
+        return {}
+
+
+def _remoto_pid_servidor():
+    """PID del servidor segun servidor.pid (JSON del servidor o int viejo),
+    o None."""
+    return _remoto_leer_pid_servidor(_remoto_raiz()).get("pid") or None
+
+
+def _remoto_proceso_vivo(pid) -> bool:
+    """True si el PID existe y sigue corriendo. En Windows NO se usa
+    os.kill(pid, 0): ahi os.kill hace OpenProcess+TerminateProcess con
+    cualquier senal que no sea CTRL_*, o sea que 'preguntar' MATARIA al
+    servidor. Se consulta con OpenProcess(QUERY_LIMITED) + GetExitCodeProcess."""
+    if not pid:
+        return False
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        h = k32.OpenProcess(0x1000, False, int(pid))    # QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            codigo = ctypes.c_ulong()
+            if not k32.GetExitCodeProcess(h, ctypes.byref(codigo)):
+                return False
+            return codigo.value == 259                  # STILL_ACTIVE
+        finally:
+            k32.CloseHandle(h)
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def _remoto_api_get(ruta: str, puerto: int, token: str, timeout: float = 3.0):
+    """GET https://127.0.0.1:{puerto}{ruta} con el token. Devuelve (ok, dato):
+    dato es el JSON si ok, o el motivo (str) si no. verify=False porque el
+    cert es autofirmado (el propio servidor lo genera)."""
+    try:
+        import httpx
+    except Exception as exc:
+        return False, f"httpx no disponible: {exc}"
+    try:
+        r = httpx.get(f"https://127.0.0.1:{puerto}{ruta}",
+                      headers={"X-Cognia-Token": token}, verify=False,
+                      timeout=timeout)
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+    if r.status_code != 200:
+        return False, f"HTTP {r.status_code}: {r.text[:120]}"
+    try:
+        return True, r.json()
+    except ValueError:
+        return False, f"respuesta no JSON: {r.text[:120]}"
+
+
+def _remoto_estado(puerto: int) -> None:
+    raiz = _remoto_raiz()
+    escucha = _remoto_escucha(puerto)
+    tok = _remoto_token()
+    pid = _remoto_pid_servidor()
+    filas = [("puerto", f"{puerto}" + (" (escucha)" if escucha else " (nadie escucha)")),
+             ("URL", _remoto_url(puerto)),
+             ("token", str(raiz / "token.txt") + ("" if tok else "  (todavia no generado)")),
+             ("PID servidor", (f"{pid}" + ("" if _remoto_proceso_vivo(pid) else " (muerto)"))
+              if pid else "sin servidor.pid (el servidor lo escribe al arrancar; "
+                          "no hay ninguno arrancado por este CLI)")]
+    avisos = []
+    if escucha and tok:
+        ok, dato = _remoto_api_get("/api/version", puerto, tok)
+        if ok and isinstance(dato, dict):
+            filas.append(("version", str(dato.get("version") or dato)))
+        elif not ok and "HTTP 404" in str(dato):
+            ok2, _d2 = _remoto_api_get("/api/saludo", puerto, tok)
+            filas.append(("version", "servidor sin /api/version (anterior a la paridad)"
+                          if ok2 else f"no responde: {_d2}"))
+        else:
+            avisos.append(f"/api/version: {dato}")
+        ok, dato = _remoto_api_get("/api/monitores", puerto, tok)
+        if ok:
+            vivas = dato if isinstance(dato, list) else (dato or {}).get("items", dato)
+            try:
+                n = len(vivas)
+            except TypeError:
+                n, vivas = 0, []
+            filas.append(("sesiones vivas", str(n)))
+            for v in list(vivas)[:8]:
+                if isinstance(v, dict):
+                    filas.append(("  ·", " ".join(str(v.get(k)) for k in
+                                                  ("pid", "sid", "proyecto", "estado")
+                                                  if v.get(k) is not None) or str(v)))
+                else:
+                    filas.append(("  ·", str(v)))
+        else:
+            avisos.append(f"/api/monitores: {dato}")
+    elif escucha and not tok:
+        avisos.append("el puerto escucha pero no hay token.txt: no es este servidor "
+                      "o aun no lo genero")
+    _print_line("\n".join(_estado_subsistema(
+        "control remoto", escucha, filas,
+        fuente=f"python -m cognia.remoto · {raiz}", avisos=avisos)))
+    if not escucha:
+        _print_line("[detail]  /remoto arrancar para lanzarlo; /remoto url para la "
+                    "direccion del movil.[/detail]")
+
+
+def _remoto_arrancar(host: str, puerto_pedido, puerto: int) -> None:
+    if _remoto_escucha(puerto):
+        _print_line(f"[ok_cl]El remoto ya escucha en :{puerto}.[/ok_cl]  "
+                    f"[detail]{_escape(_remoto_url(puerto))}[/detail]")
+        return
+    raiz = _remoto_raiz()
+    raiz.mkdir(parents=True, exist_ok=True)
+    cmd = [sys.executable, "-m", "cognia.remoto"]
+    if host:
+        cmd += ["--host", host]
+    if puerto_pedido not in (None, "") or os.environ.get("COGNIA_REMOTO_PORT"):
+        cmd += ["--port", str(puerto)]
+    log = raiz / "servidor.log"
+    env = dict(os.environ, PYTHONUTF8="1")
+    kw = {}
+    if os.name == "nt":
+        # Desacoplado de ESTA consola: sobrevive al cierre del REPL y no
+        # recibe su Ctrl-C. Medido 2026-08-24: los hijos de un servidor
+        # DETACHED siguen recibiendo CTRL_BREAK_EVENT (lo que usa
+        # /interrumpir), asi que el desacople no rompe la interrupcion.
+        kw["creationflags"] = (subprocess.DETACHED_PROCESS
+                               | subprocess.CREATE_NEW_PROCESS_GROUP)
+    else:
+        kw["start_new_session"] = True
+    try:
+        f_log = open(log, "ab")
+    except OSError as exc:
+        _print_line(f"[err_cl]No pude abrir {_escape(str(log))}: {_escape(str(exc))}[/err_cl]")
+        return
+    try:
+        with f_log:
+            proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=f_log,
+                                    stderr=subprocess.STDOUT, cwd=os.getcwd(),
+                                    env=env, close_fds=True, **kw)
+    except Exception as exc:
+        _print_line(f"[err_cl]No pude lanzar el remoto: {type(exc).__name__}: "
+                    f"{_escape(str(exc))}[/err_cl]")
+        return
+    # servidor.pid NO se escribe aqui: lo escribe el servidor (main() de
+    # cognia/remoto/servidor.py, JSON {"pid","host","port"}) en el mismo
+    # proceso y lo borra al salir. Escribirlo tambien desde aqui (hasta
+    # 2026-08-25, un int pelado) era una carrera con dos formatos: el del
+    # servidor pisaba este y el CLI no sabia leerlo. Una sola fuente.
+    limite = time.time() + 10.0
+    while time.time() < limite:
+        if _remoto_escucha(puerto):
+            _print_line(f"[ok_cl]Remoto arrancado (PID {proc.pid}) en :{puerto}.[/ok_cl]")
+            _print_line(f"  URL para el movil: {_escape(_remoto_url(puerto))}")
+            _print_line(f"[detail]  log: {_escape(str(log))} · parar: /remoto parar[/detail]")
+            return
+        if proc.poll() is not None:
+            break
+        time.sleep(0.25)
+    cola = ""
+    try:
+        cola = log.read_text(encoding="utf-8", errors="replace")[-600:]
+    except OSError as exc:
+        _aviso_degradado("remoto", f"no pude leer {log}: {exc}")
+    if proc.poll() is not None:
+        _print_line(f"[err_cl]El remoto termino solo (exit {proc.returncode}). "
+                    f"Ultimas lineas de {_escape(str(log))}:[/err_cl]")
+    else:
+        _print_line(f"[warn_cl]El remoto (PID {proc.pid}) sigue vivo pero :{puerto} "
+                    f"no escucha tras 10 s; mira {_escape(str(log))}:[/warn_cl]")
+    if cola.strip():
+        _print_line(_escape(cola.strip()))
+
+
+def _remoto_parar(puerto: int) -> None:
+    pid = _remoto_pid_servidor()
+    ruta_pid = _remoto_raiz() / "servidor.pid"
+    if not pid:
+        if _remoto_escucha(puerto):
+            _print_line(f"[warn_cl]Algo escucha en :{puerto} pero no hay servidor.pid: "
+                        "se arranco a mano (python -m cognia.remoto). Cerralo desde "
+                        "su consola.[/warn_cl]")
+        else:
+            _print_line("[detail]El remoto no esta arrancado.[/detail]")
+        return
+    if not _remoto_proceso_vivo(pid):
+        _print_line(f"[warn_cl]servidor.pid apunta al PID {pid}, que ya no existe: "
+                    "borro el fichero.[/warn_cl]")
+        try:
+            ruta_pid.unlink()
+        except OSError as exc:
+            _aviso_degradado("remoto", f"no pude borrar {ruta_pid}: {exc}; "
+                                       "'/remoto estado' seguira viendo el PID muerto")
+        return
+    try:
+        import signal as _sg
+        os.kill(pid, getattr(_sg, "SIGTERM", 15))
+    except OSError as exc:
+        _print_line(f"[err_cl]No pude matar el PID {pid}: {_escape(str(exc))}[/err_cl]")
+        return
+    limite = time.time() + 5.0
+    while time.time() < limite and _remoto_proceso_vivo(pid):
+        time.sleep(0.1)
+    # El servidor lo borra en su finally SOLO si salio limpio; tras
+    # TerminateProcess (lo que hace os.kill en Windows) queda rancio, y un
+    # PID rancio hoy puede ser OTRO python manana: se borra aqui tambien.
+    try:
+        ruta_pid.unlink(missing_ok=True)   # ausente = ya lo borro el servidor
+    except OSError as exc:
+        _aviso_degradado("remoto", f"no pude borrar {ruta_pid}: {exc}; "
+                                   "el proximo '/remoto estado' vera un PID muerto")
+    if _remoto_proceso_vivo(pid):
+        _print_line(f"[warn_cl]Le mande terminar al PID {pid} pero sigue vivo tras 5 s.[/warn_cl]")
+        return
+    _print_line(f"[ok_cl]Remoto parado (PID {pid}).[/ok_cl] [detail]Las sesiones "
+                "abiertas (REPLs hijos) quedan huerfanas hasta el proximo arranque, "
+                "que las reconcilia y las cierra.[/detail]")
+
+
+def _remoto_limpiar(extra: list) -> None:
+    cmd = [sys.executable, "-m", "cognia.remoto", "--limpiar"] + list(extra)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=120,
+                           env=dict(os.environ, PYTHONUTF8="1"))
+    except Exception as exc:
+        _print_line(f"[err_cl]--limpiar fallo: {type(exc).__name__}: {_escape(str(exc))}[/err_cl]")
+        return
+    salida = (r.stdout or "").strip()
+    if salida:
+        _print_line(_escape(salida))
+    if r.returncode != 0:
+        _print_line(f"[err_cl]python -m cognia.remoto --limpiar salio con {r.returncode}"
+                    f"{': ' + _escape((r.stderr or '').strip()[-400:]) if (r.stderr or '').strip() else ''}[/err_cl]")
+    elif not salida:
+        _print_line("[detail]--limpiar no imprimio nada.[/detail]")
+
+
+def _slash_remoto(arg: str = "") -> None:
+    """`/remoto [estado | arrancar [--host ip] [--port n] | parar | url |
+    limpiar [--dry-run]]`. Sin argumento: estado."""
+    partes = (arg or "").split()
+    sub = partes[0].lower() if partes else "estado"
+    resto = partes[1:]
+    uso = ("[warn_cl]Uso: /remoto [estado | arrancar [--host ip] [--port n] | "
+           "parar | url | limpiar [--dry-run]][/warn_cl]")
+    host, puerto_pedido, otros = "", None, []
+    i = 0
+    while i < len(resto):
+        tok = resto[i]
+        if tok in ("--host", "--port") and i + 1 < len(resto):
+            if tok == "--host":
+                host = resto[i + 1]
+            else:
+                puerto_pedido = resto[i + 1]
+            i += 2
+            continue
+        if tok.startswith("--host="):
+            host = tok.split("=", 1)[1]
+        elif tok.startswith("--port="):
+            puerto_pedido = tok.split("=", 1)[1]
+        else:
+            otros.append(tok)
+        i += 1
+    puerto = _remoto_puerto(puerto_pedido)
+    if sub == "estado":
+        _remoto_estado(puerto)
+    elif sub == "arrancar":
+        _remoto_arrancar(host or os.environ.get("COGNIA_REMOTO_HOST", ""),
+                         puerto_pedido, puerto)
+    elif sub == "parar":
+        _remoto_parar(puerto)
+    elif sub == "url":
+        _print_line(f"  {_escape(_remoto_url(puerto))}")
+        if not _remoto_token():
+            _print_line("[detail]  (sin token.txt todavia: se genera al primer arranque; "
+                        "la URL de arriba va sin ?token=)[/detail]")
+        if not _remoto_escucha(puerto):
+            _print_line(f"[detail]  :{puerto} no escucha ahora — /remoto arrancar[/detail]")
+    elif sub == "limpiar":
+        _remoto_limpiar(otros)
+    else:
+        _print_line(uso)
+
+
+# ── /decirle y /cancelar: control por agente desde el prompt ────────────────
+# Hasta la paridad remota (2026-08-24) decirle()/cancelar_agente() solo eran
+# alcanzables desde la vista F2 (Textual), que no existe con stdin en pipe: ni
+# los scripts ni el movil podian hablarle a un agente en curso.
+
+def _agentes_vivos_lineas() -> list:
+    """Lineas markup con las corridas vivas y sus agentes (para la ayuda de
+    /decirle y /cancelar sin argumentos)."""
+    try:
+        from cognia.agent import workflows as _wf
+        vivas = _wf.corridas_vivas()
+    except Exception as exc:
+        return [f"[warn_cl]no pude listar las corridas: {_escape(str(exc))}[/warn_cl]"]
+    if not vivas:
+        return ["[detail]  (ninguna corrida en curso)[/detail]"]
+    out = []
+    for c in vivas:
+        ags = c.get("agentes_vivos") or []
+        out.append(f"  [mod]{_escape(str(c.get('run_id')))}[/mod] "
+                   f"«{_escape(str(c.get('nombre', '')))}»"
+                   f"{' (interactiva)' if c.get('interactivo') else ''} · "
+                   f"{len(ags)} agente(s) vivo(s)")
+        for a in ags:
+            out.append(f"      {_escape(str(a))}")
+    return out
+
+
+def _slash_decirle(arg: str = "") -> None:
+    partes = (arg or "").split(None, 1)
+    if len(partes) < 2 or not partes[1].strip():
+        _print_line("[warn_cl]Uso: /decirle <agente_id> <texto>[/warn_cl]")
+        for l in _agentes_vivos_lineas():
+            _print_line(l)
+        return
+    agente_id, texto = partes[0], partes[1].strip()
+    try:
+        from cognia.agent import workflows as _wf
+        res = _wf.decirle(agente_id, texto)
+    except Exception as exc:
+        _print_line(f"[err_cl]decirle fallo: {type(exc).__name__}: {_escape(str(exc))}[/err_cl]")
+        return
+    if res.get("ok"):
+        n = int(res.get("pendientes") or 0)
+        _print_line(f"[ok_cl]Mensaje entregado a {_escape(agente_id)}[/ok_cl] "
+                    f"[detail]({res.get('estado')}; {n} en cola; corta lo generado "
+                    "y vuelve a preguntar con tu texto)[/detail]")
+    else:
+        _print_line(f"[warn_cl]NO entregado a {_escape(agente_id)}: "
+                    f"{_escape(str(res.get('estado')))}"
+                    f"{' — ' + _escape(str(res.get('detalle'))) if res.get('detalle') else ''}"
+                    "[/warn_cl]")
+
+
+def _slash_cancelar(arg: str = "") -> None:
+    agente_id = (arg or "").strip()
+    if not agente_id:
+        _print_line("[warn_cl]Uso: /cancelar <agente_id> | todo[/warn_cl]")
+        for l in _agentes_vivos_lineas():
+            _print_line(l)
+        return
+    try:
+        from cognia.agent import workflows as _wf
+        if agente_id.lower() == "todo":
+            res = _wf.cancelar_corrida("", motivo="/cancelar todo")
+        else:
+            res = _wf.cancelar_agente(agente_id, motivo="/cancelar")
+    except Exception as exc:
+        _print_line(f"[err_cl]cancelar fallo: {type(exc).__name__}: {_escape(str(exc))}[/err_cl]")
+        return
+    if agente_id.lower() == "todo":
+        if res.get("ok"):
+            _print_line(f"[ok_cl]Cancelacion global: {int(res.get('corridas') or 0)} corrida(s), "
+                        f"{int(res.get('agentes') or 0)} agente(s) alcanzados.[/ok_cl]")
+        else:
+            _print_line(f"[warn_cl]Nada que cancelar: {_escape(str(res.get('estado')))}"
+                        f"{' — ' + _escape(str(res.get('detalle'))) if res.get('detalle') else ''}"
+                        "[/warn_cl]")
+        return
+    if res.get("ok"):
+        _print_line(f"[ok_cl]Cancelado {_escape(agente_id)}[/ok_cl] "
+                    f"[detail]({res.get('estado')}"
+                    f"{'; ' + _escape(str(res.get('detalle'))) if res.get('detalle') else ''})"
+                    "[/detail]")
+    else:
+        _print_line(f"[warn_cl]No se cancelo {_escape(agente_id)}: "
+                    f"{_escape(str(res.get('estado')))}"
+                    f"{' — ' + _escape(str(res.get('detalle'))) if res.get('detalle') else ''}"
+                    "[/warn_cl]")
+
+
 def _datos_barra_estado() -> dict:
     """Lo que muestra la barra inferior del prompt. Nunca lanza.
 
@@ -13950,6 +14950,29 @@ _COLA_RUTINAS = []
 
 
 def repl():
+    """Puerta del REPL. Bajo COGNIA_REMOTO=1 un KeyboardInterrupt RESIDUAL
+    (la senal del movil llegando durante el arranque, ya con el handler
+    instalado pero antes del bucle, o justo dentro del except del propio
+    bucle) no mata el proceso: se dice y se vuelve a entrar (tope 3, para no
+    ciclar si el arranque mismo esta roto). En local Ctrl-C ahi sale limpio
+    ('Hasta luego.'), sin traceback. El cuerpo vive en _repl_sesion."""
+    remoto = os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+    reentradas = 0
+    while True:
+        try:
+            return _repl_sesion()
+        except KeyboardInterrupt:
+            print()
+            if remoto and reentradas < 3:
+                reentradas += 1
+                _print_line("[warn_cl]interrupcion remota fuera de un turno: "
+                            f"el REPL sigue vivo (reentrada {reentradas}/3).[/warn_cl]")
+                continue
+            print("Hasta luego.")
+            return
+
+
+def _repl_sesion():
     global _session_start, _init_lines, _console, _debug_mode, _fast_mode
 
     # Force UTF-8 stdout on Windows so block/box chars render without crash.
@@ -13959,6 +14982,14 @@ def repl():
     forzar_utf8()
 
     _session_start = time.time()
+
+    # Paridad remota (2026-08-24): bajo COGNIA_REMOTO=1 el servidor puede
+    # mandar CTRL_BREAK_EVENT/SIGINT al hijo; sin handler la senal MATA el
+    # proceso (SIGBREAK) o cae en el except de _get_input (SIGINT) y se come
+    # la linea. Va lo primero: antes de cualquier cosa que pueda tardar.
+    _senal_remota = _instalar_interrupcion_remota()
+    if _senal_remota:
+        _init_lines.append(f"[OK] Remoto: interrupcion por {_senal_remota}")
 
     # Modo de modelos persistido (/modelo unico): aplicar los kill-switches
     # ANTES de construir Cognia() para que los routers por rol vean el modo
@@ -14238,12 +15269,14 @@ def repl():
                 # P9: si prompt.etiqueta/marco/flecha animan, un pulso finito
                 # de app.invalidate() (tope 3 s) barre el marco y muere solo.
                 _arrancar_pulso_prompt(session.app)
+                _EN_PROMPT[0] = True
                 try:
                     with patch_stdout(raw=True):
                         line = (session.prompt(_mensaje_prompt, default=_pre)
                                 if _pre else
                                 session.prompt(_mensaje_prompt)).strip()
                 finally:
+                    _EN_PROMPT[0] = False
                     _cerrar_pulso_prompt()
                 if line.startswith(_FONDO_MEJORA):
                     # F3: reformular EN EL SITIO. El modelo se llama aca, con
@@ -14298,7 +15331,25 @@ def repl():
                             "Enter envia el texto de abajo, o escribi otro:"
                             "[/info_dim]")
                 _print_line(f"[ok_cl]{_escape(_pre)}[/ok_cl]")
-            return input(_g() + "cognia> " + _R).strip() or _pre
+            # _EN_PROMPT alto SOLO mientras se lee: el handler de interrupcion
+            # remota lo consulta para no comerse la linea (ver _EN_PROMPT).
+            _EN_PROMPT[0] = True
+            try:
+                linea = input(_g() + "cognia> " + _R).strip() or _pre
+                if linea.endswith("\\"):
+                    # Continuacion ' \' tambien en este modo (paridad remota
+                    # 2026-08-24): en un pipe no se pinta sangria de
+                    # continuacion (seria prosa para el movil); en un tty si.
+                    try:
+                        _tty_in = bool(sys.stdin.isatty())
+                    except Exception:
+                        _tty_in = False
+                    _leer = (lambda: input("   ")) if _tty_in else input
+                    linea = _leer_con_continuacion(
+                        linea, _leer, _separador_continuacion_simple())
+            finally:
+                _EN_PROMPT[0] = False
+            return linea
 
     # Warm-up del 0.5B del fast-path en background (portero instalado o cascada
     # opt-in): el 1er turno trivial arranca warm (~30 tok/s) en vez de cold (~18).
@@ -14313,3237 +15364,3336 @@ def repl():
     # Main loop
     # -----------------------------------------------------------------------
     while True:
-        # Drenar avisos de monitores en background ANTES de pedir input
-        # (los monitores solo encolan desde sus hilos; imprimir aca evita
-        # pisar la linea del prompt). Jamas puede romper el REPL.
+        # Paridad remota (2026-08-25): la ITERACION ENTERA va bajo un solo
+        # `except KeyboardInterrupt`. Los guards de dentro (fast-path,
+        # articulado, agente inline, /hacer, _esperar_corrida) siguen: este es
+        # el de ULTIMA instancia para lo que corre ENTRE el input() y ellos
+        # (_confianza_previa, el enrutador por inferencia, la mejora de prompt,
+        # cualquier slash). Medido 2026-08-25 (revisores, hijo real con
+        # CTRL_BREAK_EVENT a los 0,5 s y a los 2,5 s de una pregunta volatil):
+        # el KeyboardInterrupt del handler de SIGBREAK salia del bucle, que solo
+        # protegia _get_input, y el REPL moria con exit 3221225786 y la sesion
+        # del movil entera. Ver _repl_iteracion_interrumpida.
         try:
-            from cognia.console.monitors import pop_fired_events as _pfe
-            for _ev in _pfe():
-                _print_line(f"[warn_cl][monitor] {_escape(_ev)}[/warn_cl]")
-        except Exception:
-            pass
-        # Monitores PERSISTENTES (cognia/monitores): sobreviven al reinicio del
-        # REPL, disparan mas de una vez y traen accion. Se drenan igual que los
-        # efimeros: entre turnos, para no pisar la linea del prompt.
-        try:
-            from cognia.monitores import nucleo as _mnuc
-            for _ev in _mnuc.pop_eventos():
-                _print_line(f"[warn_cl]* {_escape(str(_ev))}[/warn_cl]")
-            for _t in _mnuc.tareas_pendientes():
-                # Un monitor pidio DESPERTAR AL AGENTE: la tarea entra por la
-                # misma cola que el enrutador, o sea por el mismo dispatch que
-                # si la hubiera tecleado el usuario. Nada se ejecuta a
-                # escondidas: se ve la linea.
-                _tarea = (_t.get("tarea") or "").strip() if isinstance(_t, dict) else str(_t)
-                if _tarea:
-                    _print_line(f"[mod]monitor -> agente:[/mod] {_escape(_tarea[:120])}")
-                    _COLA_ENTRADA.append(f"/hacer {_tarea}")
-        except Exception:
-            pass
-        # Entregas de las rutinas programadas que terminaron en el hilo del reloj.
-        try:
-            while _COLA_RUTINAS:
-                _c = _COLA_RUTINAS.pop(0)
-                _print_line(f"[mod]* rutina '{_escape(str(_c.get('rutina', '')))}'"
-                            f"[/mod]")
-                _show_response(str(_c.get("salida") or ""))
-        except Exception:
-            pass
-        try:
-            # El BOM que PowerShell antepone al pipe rompe el dispatch de la
-            # primera linea ('/comando' deja de empezar con '/'): sanear aca,
-            # el UNICO punto de entrada al dispatch.
-            raw = _strip_input_bom(_get_input())
-        except EOFError:
-            # Ctrl-D / fin de stdin: salir SIEMPRE a la primera. Es la salida
-            # de los pipes y de los scripts y no cambia.
-            print("\nHasta luego.")
-            break
-        except KeyboardInterrupt:
-            # Ctrl-C ya NO mata el REPL a la primera (T4, 2026-08-18): con
-            # corridas en hilos, matar la sesion de un tecleo es destructivo.
-            # Cancelar la LINEA y salir se distinguen; y salir sigue siendo
-            # obvio porque se dice en la misma linea, cada vez.
-            if _ctrlc_seguidos_idle():
+            # Drenar avisos de monitores en background ANTES de pedir input
+            # (los monitores solo encolan desde sus hilos; imprimir aca evita
+            # pisar la linea del prompt). Jamas puede romper el REPL.
+            try:
+                from cognia.console.monitors import pop_fired_events as _pfe
+                for _ev in _pfe():
+                    _print_line(f"[warn_cl][monitor] {_escape(_ev)}[/warn_cl]")
+            except Exception:
+                pass
+            # Monitores PERSISTENTES (cognia/monitores): sobreviven al reinicio del
+            # REPL, disparan mas de una vez y traen accion. Se drenan igual que los
+            # efimeros: entre turnos, para no pisar la linea del prompt.
+            try:
+                from cognia.monitores import nucleo as _mnuc
+                for _ev in _mnuc.pop_eventos():
+                    _print_line(f"[warn_cl]* {_escape(str(_ev))}[/warn_cl]")
+                for _t in _mnuc.tareas_pendientes():
+                    # Un monitor pidio DESPERTAR AL AGENTE: la tarea entra por la
+                    # misma cola que el enrutador, o sea por el mismo dispatch que
+                    # si la hubiera tecleado el usuario. Nada se ejecuta a
+                    # escondidas: se ve la linea.
+                    _tarea = (_t.get("tarea") or "").strip() if isinstance(_t, dict) else str(_t)
+                    if _tarea:
+                        _print_line(f"[mod]monitor -> agente:[/mod] {_escape(_tarea[:120])}")
+                        _COLA_ENTRADA.append(f"/hacer {_tarea}")
+            except Exception:
+                pass
+            # Entregas de las rutinas programadas que terminaron en el hilo del reloj.
+            try:
+                while _COLA_RUTINAS:
+                    _c = _COLA_RUTINAS.pop(0)
+                    _print_line(f"[mod]* rutina '{_escape(str(_c.get('rutina', '')))}'"
+                                f"[/mod]")
+                    _show_response(str(_c.get("salida") or ""))
+            except Exception:
+                pass
+            # Paridad remota: si el turno anterior fue un slash INFORMATIVO cuya
+            # salida se capturo, aqui (ya de vuelta en el bucle, por cualquier
+            # camino: fin normal o `continue`) se entrega al movil como respuesta.
+            _captura_slash_remoto_fin()
+            try:
+                # El BOM que PowerShell antepone al pipe rompe el dispatch de la
+                # primera linea ('/comando' deja de empezar con '/'): sanear aca,
+                # el UNICO punto de entrada al dispatch.
+                raw = _strip_input_bom(_get_input())
+            except EOFError:
+                # Ctrl-D / fin de stdin: salir SIEMPRE a la primera. Es la salida
+                # de los pipes y de los scripts y no cambia.
                 print("\nHasta luego.")
                 break
-            _print_line("[info_dim]linea cancelada. Ctrl-C otra vez para "
-                        "salir (o /salir, o Ctrl-D).[/info_dim]")
-            continue
-
-        # Hot reload de estilo.json (E6): el toolbar solo marco; con el
-        # prompt ya devuelto y ANTES de despachar la linea se reconstruye.
-        _aplicar_recarga_estilo()
-
-        # F5 (harness/notificaciones): si un turno anterior dejo el anillo
-        # 9;4 de Windows Terminal en ROJO (error), se apaga AL TECLEAR el
-        # siguiente prompt — no al mostrarlo, porque entonces el rojo viviria
-        # milisegundos y el dueno en otra ventana no lo veria jamas. Sin
-        # error pendiente es un no-op barato; el modulo NUNCA lanza.
-        try:
-            from cognia.harness import notificaciones as _notif_prog
-            _notif_prog.progreso_limpiar()
-        except Exception as _exc_np:
-            _aviso_degradado("notificaciones",
-                             f"{type(_exc_np).__name__}: {_exc_np}")
-
-        if not raw:
-            continue
-
-        # Higiene del lazo (harness/repeticion): cada linea humana resetea el
-        # contador de llamadas repetidas de TODOS los agentes (el reset es por
-        # generacion: los ctx vivos lo ven en su proxima llamada). Nunca lanza.
-        try:
-            from cognia.harness import repeticion as _rep_reset
-            _rep_reset.nuevo_prompt_humano()
-        except Exception as _exc_rep:
-            _aviso_degradado("repeticion",
-                             f"{type(_exc_rep).__name__}: {_exc_rep}")
-
-        # Pastes colapsados (harness/pegados): la marca '[pegado #N: +X
-        # lineas]' que dejo el binding de BracketedPaste se sustituye por su
-        # contenido AL ENVIAR, antes de todo lo demas (mejora, menciones,
-        # dispatch) — rio abajo nadie sabe que existio el colapso. EXCEPTO
-        # para el propio /pegado: inspecciona las marcas, no su contenido.
-        # Un fallo expandiendo deja la linea intacta y se VE como degradado.
-        if "[pegado #" in raw and not raw.startswith("/pegado"):
-            try:
-                from cognia.harness import pegados as _peg_exp
-                raw = _peg_exp.expandir(raw)
-            except Exception as _exc_pex:
-                _aviso_degradado("pegado",
-                                 f"{type(_exc_pex).__name__}: {_exc_pex}")
-
-        # Mejora del prompt con IA. Va ANTES de las @-menciones A PROPOSITO:
-        # se reformula lo que el usuario TECLEO, no los 256 KiB de ficheros
-        # que expandir() puede inyectar en la misma linea. Cualquier fallo
-        # deja `raw` intacto: mejorar es opcional, tragarse el turno no.
-        if _mejora_aplica(raw):
-            try:
-                _raw_mejorado = _mejorar_linea_interactiva(raw)
-            except Exception as _exc_mej:
-                _aviso_degradado("cli.mejorar",
-                                 f"{type(_exc_mej).__name__}: {_exc_mej}")
-                _raw_mejorado = raw
-            if _raw_mejorado is None:
-                continue          # el usuario se lo llevo al prompt a editar
-            raw = _raw_mejorado
-
-        # @-menciones: '@ruta' mete el CONTENIDO del fichero en el mensaje.
-        # Sin esto el modelo veia el texto '@cli.py' y no tenia forma de saber
-        # que hay dentro. En texto libre se expande la linea entera; en los
-        # comandos de _SLASH_CON_MENCIONES, SOLO el argumento (la cabecera
-        # '/hacer ' se vuelve a pegar intacta para no tocar el dispatch). El
-        # tope de bytes es el que ya trae expandir() por defecto: 64 KiB por
-        # fichero, 256 KiB en total.
-        _pref_men, _cuerpo_men = _partir_para_menciones(raw)
-        if _cuerpo_men:
-            try:
-                from cognia.harness.menciones import expandir
-                _exp, _adj, _avisos = expandir(_cuerpo_men, os.getcwd())
-                for _aviso in _avisos:
-                    _print_line(f"[warn_cl]{_escape(str(_aviso))}[/warn_cl]")
-                if _adj:
-                    _resumen = ", ".join(
-                        f"@{a.get('ruta')} ({a.get('bytes', 0)} B)" for a in _adj)
-                    _print_line(f"[detail]{_escape(_resumen)} adjuntado(s)[/detail]")
-                    raw = _pref_men + _exp
-            except Exception as _exc_men:
-                # Antes: 'except Exception: pass'. Una mencion rota sigue sin
-                # poder tragarse el mensaje (raw queda intacto), pero ahora se
-                # VE: "no lo cablearon" y "se rompio" eran el mismo silencio.
-                _aviso_degradado(
-                    "cli.menciones",
-                    f"{type(_exc_men).__name__}: {_exc_men}")
-
-        # -- UI slash -------------------------------------------------------
-        # Arnes (2026-08-12): van primero porque son la red de seguridad —
-        # tienen que responder aunque el resto del REPL este degradado.
-        if raw == "/deshacer" or raw.startswith("/deshacer "):
-            _slash_deshacer(raw[len("/deshacer"):])
-        elif raw == "/plan-modo" or raw.startswith("/plan-modo "):
-            _slash_plan(raw[len("/plan-modo"):])
-        elif raw == "/permisos" or raw.startswith("/permisos "):
-            _slash_permisos(raw[len("/permisos"):])
-        elif raw == "/hermes" or raw.startswith("/hermes "):
-            _slash_hermes(raw[len("/hermes"):])
-        elif raw == "/rutinas" or raw.startswith("/rutinas "):
-            _slash_rutinas(ai, raw[len("/rutinas"):])
-        elif raw == "/grabar" or raw.startswith("/grabar "):
-            _slash_grabar(raw[len("/grabar"):])
-        elif raw == "/receta" or raw.startswith("/receta "):
-            _slash_receta(ai, raw[len("/receta"):])
-        elif raw == "/centinela" or raw.startswith("/centinela "):
-            _slash_centinela(ai, raw[len("/centinela"):])
-        elif raw == "/multiverso" or raw.startswith("/multiverso "):
-            _slash_multiverso(ai, raw[len("/multiverso"):])
-        elif raw == "/autopsia" or raw.startswith("/autopsia "):
-            _slash_autopsia(ai, raw[len("/autopsia"):])
-        elif raw == "/workflow" or raw.startswith("/workflow "):
-            # Al carril de fondo. _slash_workflow queda INTACTA (sigue siendo
-            # sincrona y sus tests la llaman derecho): lo unico que cambia es
-            # QUIEN la corre. Sin carril (pipes, CI, COGNIA_SIN_FONDO=1),
-            # _lanzar_en_fondo devuelve False y se ejecuta inline, con la
-            # misma llamada byte-identica a la de hoy.
-            if not _lanzar_en_fondo("workflow", _slash_workflow,
-                                    raw[len("/workflow"):]):
-                _slash_workflow(raw[len("/workflow"):])
-        elif raw == "/limpiar":
-            _slash_limpiar()
-        elif raw == "/compactar":
-            # A secas: la feature VIEJA (panel de ultimas interacciones).
-            # Con args ('/compactar estado', 'umbral 0.7'...) cae mas abajo
-            # a la puerta F4 de la compactacion del contexto del agente.
-            _slash_compactar_sesion()
-        elif raw == "/memoria":
-            _run(raw, ai.introspect, color="listado")
-        elif raw == "/modulos":
-            _slash_modulos()
-        elif raw == "/modelos" or raw.startswith("/modelos "):
-            # OJO: solo /modelos (expertos). /modelo (GGUF del backend) tiene
-            # su propia rama mas abajo; cuando esta condicion lo capturaba,
-            # el handler real _slash_modelo era codigo muerto y el usuario
-            # recibia el usage de expertos (huerfana cazada 2026-08-01).
-            _slash_modelos(ai, raw.split(" ", 1)[1] if " " in raw else "")
-        elif raw in ("/cpu", "/gpu") or raw.startswith("/cpu ") or raw.startswith("/gpu "):
-            _perf_name = raw.split()[0][1:]                 # cpu | gpu
-            _perf_rest = (raw.split(" ", 1)[1].strip().lower()
-                          if " " in raw else "")
-            _slash_perfil(_perf_name)
-            if _perf_rest in ("reiniciar", "restart", "kill"):
-                # Tras aplicar el perfil, reiniciar el backend para que tome los
-                # nuevos parametros: mata el llama-server (se relanza solo/con la
-                # flota). kill_llama_server ya existia sin puerta en el REPL.
-                try:
-                    from cognia.perf_profiles import kill_llama_server
-                    if kill_llama_server():
-                        _print_line("[ok_cl]Backend llama-server terminado; "
-                                    "reinicia la flota para aplicar el perfil.[/ok_cl]")
-                    else:
-                        _print_line("[detail]No habia llama-server corriendo "
-                                    "(nada que reiniciar).[/detail]")
-                except Exception as _pk_e:
-                    _print_line(f"[err_cl]No pude reiniciar el backend: {_pk_e}[/err_cl]")
-            elif _perf_rest:
-                _print_line("[detail]Sugerencia: /"+_perf_name+" reiniciar  "
-                            "para matar el backend y que tome el perfil.[/detail]")
-        elif raw == "/shells" or raw.startswith("/shells "):
-            _slash_shells(raw[len("/shells"):])
-        elif raw.startswith("/shell-kill"):
-            _slash_shell_kill(raw[len("/shell-kill"):])
-        elif raw == "/monitores" or raw.startswith("/monitores "):
-            _slash_monitores(raw[len("/monitores"):])
-        elif raw == "/modo-permiso" or raw.startswith("/modo-permiso "):
-            _slash_modo_permiso(raw[len("/modo-permiso"):])
-        elif raw == "/velocidad" or raw.startswith("/velocidad "):
-            _slash_velocidad(raw[len("/velocidad"):])
-        elif raw == "/hibrido" or raw.startswith("/hibrido "):
-            _slash_hibrido(raw[len("/hibrido"):])
-        elif raw.startswith("/exportar-stats"):
-            _slash_exportar_stats()
-        elif raw.startswith("/exportar ") or raw == "/exportar":
-            _exp_args = raw[len("/exportar"):].strip()
-            if not _exp_args:
-                print("Uso: /exportar <formato> [archivo]")
-                print("Formatos: json, md, csv")
-                print("Ejemplo: /exportar json historial.json")
-            else:
-                _slash_exportar(_exp_args)
-        elif raw == "/costo":
-            _slash_costo()
-        elif raw in ("/stats", "/sesion-stats"):
-            _slash_stats()
-        elif raw == "/sugerir":
-            _slash_sugerir()
-        elif raw == "/logros" or raw.startswith("/logros "):
-            _lg_args = raw[len("/logros "):].strip() if raw.startswith("/logros ") else ""
-            _slash_logros(_lg_args)
-        elif raw == "/patrones":
-            _slash_patrones("")
-        elif raw == "/debug":
-            _slash_debug()
-        elif raw == "/modo rapido":
-            _slash_modo_rapido()
-        elif raw == "/vram" or raw.startswith("/vram "):
-            _slash_vram(raw[len("/vram "):] if raw.startswith("/vram ") else "")
-        elif raw == "/capacidades" or raw.startswith("/capacidades "):
-            _slash_capacidades(raw[len("/capacidades "):]
-                               if raw.startswith("/capacidades ") else "")
-        elif raw == "/activar" or raw.startswith("/activar "):
-            _slash_activar(raw[len("/activar "):]
-                           if raw.startswith("/activar ") else "")
-        elif raw == "/tema" or raw.startswith("/tema "):
-            _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
-        elif raw == "/color" or raw.startswith("/color "):
-            _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
-        # -- /estilo: estilos por elemento (P4). Comparacion exacta o con
-        # espacio: /estilo_info (== exacto) no colisiona.
-        elif raw == "/estilo" or raw.startswith("/estilo "):
-            _slash_estilo(raw[len("/estilo "):] if raw.startswith("/estilo ") else "")
-        elif raw == "/expandir" or raw.startswith("/expandir "):
-            _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
-        elif raw == "/pegado" or raw.startswith("/pegado "):
-            _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
-        elif raw == "/enlaces" or raw.startswith("/enlaces "):
-            _slash_enlaces(raw[len("/enlaces "):] if raw.startswith("/enlaces ") else "")
-        elif raw == "/spinner" or raw.startswith("/spinner "):
-            _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
-        elif raw == "/offload" or raw.startswith("/offload "):
-            _slash_offload(raw[len("/offload "):] if raw.startswith("/offload ") else "")
-        elif raw.startswith("/compactar "):
-            # Solo CON args: '/compactar' a secas ya lo atendio arriba la
-            # rama vieja (_slash_compactar_sesion); el estado de F4 es
-            # '/compactar estado'.
-            _slash_compactar(raw[len("/compactar "):])
-        elif raw == "/notificar" or raw.startswith("/notificar "):
-            _slash_notificar(raw[len("/notificar "):] if raw.startswith("/notificar ") else "")
-        elif raw == "/markdown" or raw.startswith("/markdown "):
-            _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
-        elif raw == "/bucle" or raw.startswith("/bucle "):
-            _slash_bucle(raw[len("/bucle "):] if raw.startswith("/bucle ") else "")
-        elif raw == "/confianza" or raw.startswith("/confianza "):
-            _slash_confianza(
-                raw[len("/confianza "):] if raw.startswith("/confianza ") else "")
-        elif raw == "/horizonte" or raw.startswith("/horizonte "):
-            _slash_horizonte(
-                raw[len("/horizonte "):] if raw.startswith("/horizonte ") else "")
-        elif raw == "/prompt" or raw.startswith("/prompt "):
-            _slash_prompt(raw[len("/prompt"):])
-        elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):
-            _slash_memoria_limite(
-                raw[len("/memoria-limite "):] if raw.startswith("/memoria-limite ") else "", ai)
-
-        # -- System ---------------------------------------------------------
-        elif raw == "/salir":
-            print("Hasta luego.")
-            break
-        elif raw == "/doctor":
-            # In-process so it works both from the repo and a pip-installed wheel
-            # (scripts/ is not shipped in the package).
-            try:
-                from cognia.doctor import run_all as _doctor_run
-                _doctor_run()
-            except Exception as _de:
-                _print_line(f"[err_cl]Error en /doctor: {_escape(str(_de))}[/err_cl]")
-        elif raw == "/update":
-            _scr = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "scripts", "cognia_update.py",
-            )
-            if os.path.isfile(_scr):
-                import subprocess
-                subprocess.run([sys.executable, _scr])
-            else:
-                _print_line("[detail]Instalado por pip -- actualiza con:  pip install -U cognia-ai[/detail]")
-        elif raw in ("/distill", "/distill run"):
-            _scr = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "scripts", "distill.py",
-            )
-            if os.path.isfile(_scr):
-                import subprocess
-                _dargs = [] if raw == "/distill run" else ["--dry-run"]
-                subprocess.run([sys.executable, _scr] + _dargs)
-            else:
-                _print_line("[detail]/distill esta disponible desde el repo de Cognia (no en la instalacion pip).[/detail]")
-        elif ((raw.startswith("/ayuda ") or raw.startswith("/help "))
-              and _es_comando_conocido(raw.split(" ", 1)[1])):
-            # '/ayuda /hacer' sigue siendo la ficha del comando; lo que NO es un
-            # comando ('/ayuda memoria', '/ayuda buscar tokens') cae a la ayuda
-            # navegable de abajo en vez de responder "no existe".
-            _slash_ayuda_detallada(raw.split(" ", 1)[1])
-        elif raw in ("/ayuda", "/help") or raw.startswith(("/ayuda ", "/help ")):
-            # /help = alias de /ayuda (varios mensajes del propio CLI lo
-            # recomendaban y el comando no existia — cazado 2026-07-16).
-            # Navegable desde 2026-08-12: volcar los 240 comandos de una vez
-            # (13.438 px medidos) es inutilizable justo para quien mas ayuda
-            # necesita. Portada + categoria + busqueda, como cualquier CLI
-            # moderno. '/ayuda todo' conserva el volcado de siempre.
-            _arg_ayuda = raw.split(" ", 1)[1].strip() if " " in raw else ""
-            _texto_ayuda = None
-            try:
-                from cognia.harness import ayuda as _ah
-                # -2: el modulo sangra sus lineas, asi que el ancho UTIL es el
-                # de la consola menos la sangria. Sin esto la cabecera
-                # ('Ayuda de Cognia ... 240 comandos | 14 categorias') partia
-                # de linea en una terminal de 100 columnas.
-                _ancho = (getattr(_console, "width", 100) if _HAS_RICH else 100) - 2
-                if not _arg_ayuda:
-                    _texto_ayuda = _ah.portada(_CMD_DESCRIPTIONS, _ancho)
-                elif _arg_ayuda.startswith("buscar"):
-                    _hits = _ah.buscar(_CMD_DESCRIPTIONS,
-                                       _arg_ayuda[len("buscar"):].strip())
-                    _texto_ayuda = "\n".join(
-                        f"  {c:22} {d}" for c, d, _ in _hits) or "  (sin coincidencias)"
-                elif _arg_ayuda in ("todo", "all"):
-                    # '/ayuda todo' salia del HELP_TEXT escrito A MANO, al que
-                    # le faltaban 49 comandos (/deshacer, /permisos, /workflow,
-                    # /rlm, /flota...): el catalogo vivia por duplicado y la
-                    # copia de mano se quedaba vieja sola. Ahora tambien sale de
-                    # _CMD_DESCRIPTIONS -> UNA sola fuente.
-                    _texto_ayuda = _ah.todo(_CMD_DESCRIPTIONS, _ancho)
-                else:
-                    _texto_ayuda = _ah.seccion(_CMD_DESCRIPTIONS, _arg_ayuda, _ancho)
-            except Exception as _exc_ayuda:
-                # Antes: 'except Exception: pass'. Con la ayuda navegable rota,
-                # el HELP_TEXT de emergencia es indistinguible de la ayuda de
-                # verdad y nadie se entera nunca de que el modulo revento.
-                _aviso_degradado(
-                    "cli.ayuda",
-                    f"{type(_exc_ayuda).__name__}: {_exc_ayuda}")
-                _texto_ayuda = None       # degrada al HELP_TEXT de emergencia
-            _salida_ayuda = _texto_ayuda if _texto_ayuda is not None else HELP_TEXT
-            if _HAS_RICH and _console:
-                _console.print(_salida_ayuda, style="respuesta", markup=False)
-            else:
-                print(_g() + _salida_ayuda + _R)
-
-        # -- Reporte y perfil ----------------------------------------------
-        elif raw == "/reporte":
-            _slash_reporte()
-        elif raw == "/reporte-json":
-            _slash_reporte_json()
-        elif raw.startswith("/reporte-completo"):
-            _slash_reporte_completo(raw[len("/reporte-completo"):].strip())
-        elif raw == "/reporte-semanal":
-            _slash_reporte_semanal("")
-        elif raw.startswith("/cadena-causal"):
-            _slash_cadena_causal(ai, raw[len("/cadena-causal"):].strip())
-        elif raw == "/metas-pendientes":
-            _slash_metas_pendientes("")
-        elif raw == "/yo":
-            _slash_yo_perfil()
-        elif raw == "/yo-actualizar":
-            _slash_yo_actualizar()
-
-        # -- Cognitive: simple ---------------------------------------------
-        elif raw == "/yo-introspect":
-            _run(raw, ai.introspect, color="listado")
-        elif raw == "/conceptos":
-            _run(raw, ai.list_concepts, color="listado")
-        elif raw == "/olvido":
-            _run(raw, ai.forget_cycle, color="warn_cl")
-        elif raw == "/dormir":
-            _run(raw, ai._sleep_sync, color="respuesta")
-        elif raw == "/repasar":
-            _run(raw, ai.review_due, color="listado")
-        elif raw == "/contradicciones":
-            _run(raw, ai.show_contradictions, color="listado")
-        elif raw == "/objetivos":
-            _run(raw, ai.show_goals, color="listado")
-        elif raw in ("/research", "/investigaciones"):
-            if HAS_RESEARCH_ENGINE:
-                from cognia.research_engine import show_research_history
-                _run(raw, lambda: show_research_history(ai.db), color="listado")
-            else:
-                _print_line("[warn_cl][WARN] Modulo de investigacion no disponible.[/warn_cl]")
-        elif (raw.startswith("/biblioteca ver ") or raw.startswith("/library ver ")
-              or raw.startswith("/programs ver ")):
-            # Ver el CODIGO de un programa guardado por id. storage sabia cargarlo
-            # (load_program_code) pero no habia como pedirlo desde el REPL.
-            _bib_id = raw.split("ver ", 1)[1].strip()
-            if not HAS_PROGRAM_CREATOR:
-                _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
-            elif not _bib_id:
-                _print_line("[warn_cl]Uso: /biblioteca ver <id>[/warn_cl]")
-            else:
-                try:
-                    from cognia.program_creator.storage import load_program_code
-                    _bib_code = load_program_code(_bib_id)
-                    if not _bib_code:
-                        _print_line(f"[warn_cl]sin codigo para {_escape(_bib_id)}[/warn_cl]")
-                    else:
-                        _show_response(_bib_code[:6000], "listado")
-                except Exception as _bv_e:
-                    _print_line(f"[err_cl]biblioteca ver no disponible: {_bv_e}[/err_cl]")
-        elif raw in ("/programs", "/library", "/biblioteca"):
-            if HAS_PROGRAM_CREATOR:
-                from cognia.program_creator import show_library
-                _run(raw, show_library, color="listado")
-            else:
-                _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
-        elif raw in ("/autoprueba", "/verificar-productos") or raw.startswith("/autoprueba "):
-            # Cognia corre y puntua sus propios productos generados (compila/
-            # importa/arranca/sin-stubs). El cuerpo ya estaba listo en
-            # cognia/autoprueba.py; aca solo se cablea. Arg: un numero = limite.
-            _ap_args = raw[len("/autoprueba "):].strip() if raw.startswith("/autoprueba ") else ""
-            try:
-                # slash_autoprueba imprime el reporte en vivo (flush=True), asi
-                # que se llama directo y NO por _run (que captura stdout y
-                # tragaria el reporte linea por linea).
-                from cognia.autoprueba import slash_autoprueba
-                slash_autoprueba(_ap_args)
-            except Exception as _ap_e:
-                _print_line(f"[err_cl]autoprueba no disponible: {_ap_e}[/err_cl]")
-        elif raw == "/ver" or raw.startswith("/ver "):
-            # OJOS: mira la pantalla AHORA y la describe; con pregunta, la
-            # contesta usando lo que ve. cognia/vision/ ya sabia percibir
-            # (captura + arbol UIA -> texto, ventanas sensibles redactadas) pero
-            # no habia forma de alcanzarlo desde el CLI: capacidad construida y
-            # desconectada. Sin VLM ni VRAM extra: lo consume el cerebro de texto.
-            _ver_q = raw[len("/ver "):].strip() if raw.startswith("/ver ") else ""
-            try:
-                from cognia.vision.mirar import ver as _mirar
-                _run(raw, lambda: _mirar(_ver_q, ai), color="listado")
-            except Exception as _v_e:
-                _print_line(f"[err_cl]vision no disponible: {_v_e}[/err_cl]")
-        elif raw == "/vigilar" or raw.startswith("/vigilar "):
-            # OJOS PASIVOS: mira la pantalla durante N pasos SIN actuar
-            # (AgentePantalla en modo sombra, ejecutar=False). La politica no
-            # propone acciones -> cada paso solo percibe y describe. El agente
-            # de pantalla ya sabia mirar/actuar pero no habia puerta al modo
-            # sombra desde el REPL (huerfana). Sin VLM: describe el arbol UIA.
-            _vg_arg = raw[len("/vigilar "):].strip() if raw.startswith("/vigilar ") else ""
-            try:
-                _vg_n = max(1, int(_vg_arg)) if _vg_arg else 5
-            except ValueError:
-                _vg_n = 5
-            try:
-                from cognia.vision.agente_pantalla import AgentePantalla
-                _ag_vg = AgentePantalla(ejecutar=False)   # DRY-RUN (sombra)
-                _vg_out = []
-                for _vg_i, _vg_reg in enumerate(
-                        _ag_vg.bucle(lambda p: None, max_pasos=_vg_n), 1):
-                    _vg_txt = (getattr(_vg_reg, "percepcion_txt", "") or "").strip()
-                    _vg_line = f"[{_vg_i}] {getattr(_vg_reg, 'ventana', '?')}: {_vg_txt[:200]}"
-                    _vg_motivo = getattr(_vg_reg, "motivo", "") or ""
-                    if _vg_motivo and "no propuso" not in _vg_motivo:
-                        _vg_line += f"  ({_vg_motivo})"
-                    _vg_out.append(_vg_line)
-                _show_response("\n".join(_vg_out) if _vg_out
-                               else "Sin percepciones.", "listado")
-            except Exception as _vg_e:
-                _print_line(f"[err_cl]vigilar no disponible: {_vg_e}[/err_cl]")
-        elif raw.startswith("/arbitro ") or raw.startswith("/árbitro "):
-            # Consulta de DUENO: /arbitro <ruta> dice que generador es dueno de
-            # esa ruta segun el registro de propiedad (o si no tiene dueno).
-            _ar_ruta = raw.split(" ", 1)[1].strip()
-            try:
-                from cognia.arbitro import dueno_de
-                _ar_dueno = dueno_de(_ar_ruta)
-                if _ar_dueno:
-                    _show_response(f"{_ar_ruta}\n  dueno: {_ar_dueno}", "listado")
-                else:
-                    _show_response(f"{_ar_ruta}\n  sin dueno registrado "
-                                   f"(ningun generador la reclamo)", "listado")
-            except Exception as _ar_e:
-                _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
-        elif raw == "/arbitro" or raw == "/árbitro":
-            # Estado del arbitro de colisiones (solo lectura). Util para calibrar
-            # los umbrales viendo que incidentes acumulo en modo sombra antes de
-            # activarlo (COGNIA_ARBITRO_SOMBRA=0).
-            try:
-                from cognia.arbitro import resumen_estado
-                _show_response(resumen_estado(), "listado")
-            except Exception as _ar_e:
-                _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
-        elif raw == "/mcp":
-            _show_response(_slash_mcp(""), "listado")
-        elif raw.startswith("/mcp "):
-            _show_response(_slash_mcp(raw[len("/mcp "):].strip()), "listado")
-        elif raw == "/mapa-codigo":
-            _show_response(_slash_mapa_codigo(""), "listado")
-        elif raw.startswith("/mapa-codigo "):
-            _show_response(_slash_mapa_codigo(raw[len("/mapa-codigo "):].strip()), "listado")
-        elif raw == "/imagenes" or raw == "/imágenes":
-            if HAS_PROGRAM_CREATOR:
-                from cognia.program_creator.vista_navegador import formatear_imagenes
-                _run(raw, formatear_imagenes, color="listado")
-            else:
-                _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
-        elif raw.startswith("/imagenes ") or raw.startswith("/imágenes "):
-            if not HAS_PROGRAM_CREATOR:
-                _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
-            else:
-                _show_response(_slash_imagenes(raw.split(" ", 1)[1].strip()),
-                               "respuesta")
-        elif raw == "/program_stats":
-            if HAS_PROGRAM_CREATOR:
-                from cognia.program_creator import get_session_stats
-                stats = get_session_stats()
-                _show_response(
-                    f"Sesiones:    {stats['sessions_run']}\n"
-                    f"Intentos:    {stats['programs_attempted']}\n"
-                    f"Guardados:   {stats['programs_stored']}\n"
-                    f"Ultima vez:  {stats['last_run']}",
-                    "listado",
-                )
-            else:
-                _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
-
-        # -- Cognitive: with arguments --------------------------------------
-        elif raw.startswith("/repasar "):
-            parts = raw[len("/repasar "):].split()
-            try:
-                ep_id    = int(parts[0])
-                correcto = len(parts) < 2 or parts[1].lower() in ("correcto", "si", "sí", "yes")
-                _run(raw, lambda: ai.mark_review(ep_id, correcto), color="respuesta")
-            except Exception:
-                _print_line("[warn_cl]Uso: /repasar <id> correcto|incorrecto[/warn_cl]")
-        elif raw.startswith("/aprender ") and "|" in raw:
-            _slash_aprender_card(raw[len("/aprender "):].strip())
-        elif raw.startswith("/investigar "):
-            _query = raw[len("/investigar "):].strip()
-            _run(raw, lambda: ai.github_research(_query), color="respuesta")
-        elif raw == "/investigar":
-            _print_line("[warn_cl]Uso: /investigar <query>  -- ejemplo: /investigar machine learning Python[/warn_cl]")
-        elif raw.startswith("/razonar ") and raw[len("/razonar "):].strip():
-            # Loop cientifico: hipotesis -> evaluar valor -> analogias -> validar.
-            texto = raw[len("/razonar "):].strip()
-            _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="respuesta")
-        elif raw.startswith("/razonar"):
-            _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
-        elif raw.strip().lower() in ("/pensar on", "/pensar off", "/pensar ver"):
-            # RAZONAMIENTO EN VIVO del renderer (COGNIA_PENSAR, 2026-08-10).
-            # on|ver -> 'ver' (prosa tenue verde con marca ∴ mientras piensa);
-            # off -> 'oculto' (solo el spinner 'pensando…', el default).
-            # El renderer lo lee a CALL-TIME (aplica sin reiniciar) y JAMAS
-            # streamea bajo COGNIA_REMOTO (contrato del movil, lo garantiza
-            # Renderer._pensar_en_vivo).
-            _sub = raw.strip().lower().split()[1]
-            _val = "ver" if _sub in ("on", "ver") else "oculto"
-            os.environ["COGNIA_PENSAR"] = _val
-            _persist_setting("COGNIA_PENSAR", _val)
-            if _val == "ver":
-                _print_line("[ok_cl]razonamiento en vivo: ON "
-                            "(prosa ∴ tenue verde mientras piensa)[/ok_cl]")
-            else:
-                _print_line("[ok_cl]razonamiento en vivo: OFF "
-                            "(solo el spinner 'pensando…')[/ok_cl]")
-        elif raw.startswith("/pensar ") and raw[len("/pensar "):].strip():
-            # Razonamiento PROFUNDO. Dos caminos, decididos por el pedido:
-            #   PREGUNTA  -> razonador directo (thinking + generacion infinita).
-            #   CONSTRUIR -> pipeline de TRES ACTOS (pensamiento_profundo.py):
-            #                sonar la idea, bajarla a plan, ejecutarla con el
-            #                agente. Pedido del dueno 2026-07-23.
-            # El pensamiento va en [detail] (gris en CLI, bloque plegable en el
-            # control remoto); la respuesta, normal.
-            _pregunta = raw[len("/pensar "):].strip()
-            _solo_idea = _pregunta.startswith("--idea ")
-            if _solo_idea:
-                _pregunta = _pregunta[len("--idea "):].strip()
-            def _pensar():
-                from cognia.pensamiento_profundo import (
-                    es_pregunta, pensar_profundo, resumen as _resumen)
-                if es_pregunta(_pregunta) and not _solo_idea:
-                    from cognia.razonador import razonar
-                    _out = razonar(_pregunta, print_fn=_print_line)
-                    if _out is None:
-                        return "El razonador no respondio (backend caido?)."
-                    return _out["respuesta"] + (
-                        f"\n\n[{_out['tokens']} tokens de razonamiento, "
-                        f"{_out['rounds']} ronda(s)]")
-                # el runner del acto 3 es el agente real de este mismo CLI
-                _runner = (lambda tarea, guia: _run_agent_task(
-                    ai, tarea, _print_line, guidance=guia))
-                return _resumen(pensar_profundo(
-                    _pregunta, runner=_runner, print_fn=_print_line,
-                    ejecutar_plan=not _solo_idea))
-            _run(raw, _pensar, color="respuesta")
-        elif raw.startswith("/pensar"):
-            # /pensar sin pedido: elegir como mostrar el pensamiento. El
-            # razonamiento sale en lineas [detail] (razonador.py:145-157) que
-            # el modo sencillo suprime: 'oculto' = sencillo, 'ver' = avanzado
-            # (no existe un knob mas fino; este es el mecanismo real).
-            from cognia.ux import selector as _selector
-            if _selector.hay_tty():
-                _modo_p = _selector.elegir(
-                    "Pensamiento de /pensar:",
-                    [("oculto", "oculto",
-                      "no muestra el razonamiento (modo sencillo, default)"),
-                     ("ver", "ver",
-                      "muestra el razonamiento en gris (modo avanzado)")],
-                    default=0)
-                if _modo_p is not None:
-                    from cognia.simple_mode import set_ui_mode
-                    _ui = set_ui_mode("sencillo" if _modo_p == "oculto"
-                                      else "avanzado")
-                    # sin [detail]: recien elegido 'oculto' lo suprimiria
-                    _print_line(f"pensamiento: {_modo_p} (modo UI {_ui}, guardado)")
-            _print_line("[warn_cl]Uso: /pensar <pedido>  -- pregunta: razona y contesta; "
-                        "pedido de crear: suena la idea, la baja a plan y la ejecuta "
-                        "(--idea para quedarte en la idea+plan)[/warn_cl]")
-        elif raw.startswith("/aprende-repo "):
-            _ar_target = raw[len("/aprende-repo "):].strip()
-            _print_line("[detail]Buscando y aprendiendo de GitHub...[/detail]")
-            _ar_result = _slash_aprende_repo(ai, _ar_target)
-            # respuesta_final: es el cierre del comando; enmarcado, el movil lo
-            # plegaba en "actividad" y el chat quedaba mudo (mismo patron 8315).
-            _show_response(_ar_result, "respuesta", respuesta_final=True)
-        elif raw == "/aprende-repo":
-            _print_line("[warn_cl]Uso: /aprende-repo <url_o_query>  -- ejemplo: /aprende-repo https://github.com/huggingface/transformers[/warn_cl]")
-        elif raw.startswith("/crear "):
-            _idea = raw[len("/crear "):].strip()
-            _run(raw, lambda: ai.create_program(_idea), color="respuesta")
-        elif raw == "/crear":
-            _print_line("[warn_cl]Uso: /crear <idea>  — ejemplo: /crear juego de Snake en terminal[/warn_cl]")
-        elif raw.startswith("/construir "):
-            # Lazo diseno-a-codigo: el cerebro imagina el producto y el arbitro
-            # VISUAL (VLM) mira el render y lo acerca a esa vision, ronda a ronda.
-            # --mockup opta por dibujar el mockup con el modelo de imagenes (SDXL);
-            # por defecto compara contra el brief de texto (menos VRAM).
-            _arg_c = raw[len("/construir "):].strip()
-            _use_mock = _use_spr = False
-            while True:
-                if _arg_c.startswith("--mockup "):
-                    _use_mock, _arg_c = True, _arg_c[len("--mockup "):].strip()
-                elif _arg_c.startswith("--sprites "):
-                    _use_spr, _arg_c = True, _arg_c[len("--sprites "):].strip()
-                else:
+            except KeyboardInterrupt:
+                # Ctrl-C ya NO mata el REPL a la primera (T4, 2026-08-18): con
+                # corridas en hilos, matar la sesion de un tecleo es destructivo.
+                # Cancelar la LINEA y salir se distinguen; y salir sigue siendo
+                # obvio porque se dice en la misma linea, cada vez.
+                if _ctrlc_seguidos_idle():
+                    print("\nHasta luego.")
                     break
-            if not _arg_c:
-                _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>[/warn_cl]")
-            else:
-                _run(raw, lambda: ai.construir_web(
-                        _arg_c, usar_mockup=_use_mock, usar_sprites=_use_spr),
-                     color="respuesta")
-        elif raw == "/construir":
-            _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>  — ejemplo: "
-                        "/construir landing de una cafeteria de especialidad[/warn_cl]")
-        elif raw == "/pulir" or raw.startswith("/pulir "):
-            # LOOP THINKING (2026-07-24): construir -> juzgar -> pensar ->
-            # ¿otro ciclo? Pulido sobre rapidez. Sin goal: el modelo SUEÑA uno.
-            # Gestiona los combos de la flota EL SOLO (cambia :8080/:8081).
-            _pl_goal = raw[len("/pulir "):].strip() if raw.startswith("/pulir ") else None
+                _print_line("[info_dim]linea cancelada. Ctrl-C otra vez para "
+                            "salir (o /salir, o Ctrl-D).[/info_dim]")
+                continue
+
+            # Una interrupcion remota que llego con el REPL ocioso (o la del
+            # turno anterior, ya cortado) no vale para ESTE turno: la bandera
+            # cooperativa arranca baja en cada turno.
+            _INTERRUPCION_PENDIENTE[0] = False
+
+            # Hot reload de estilo.json (E6): el toolbar solo marco; con el
+            # prompt ya devuelto y ANTES de despachar la linea se reconstruye.
+            _aplicar_recarga_estilo()
+            _captura_slash_remoto_inicio(raw)
+
+            # F5 (harness/notificaciones): si un turno anterior dejo el anillo
+            # 9;4 de Windows Terminal en ROJO (error), se apaga AL TECLEAR el
+            # siguiente prompt — no al mostrarlo, porque entonces el rojo viviria
+            # milisegundos y el dueno en otra ventana no lo veria jamas. Sin
+            # error pendiente es un no-op barato; el modulo NUNCA lanza.
             try:
-                from cognia.program_creator.pulidor import pulir
-                print("[Pulidor] Loop thinking en marcha (esto prioriza calidad, "
-                      "puede tardar; va cambiando la flota solo)...")
-                _pl_res = pulir(_pl_goal or None)
-                _show_response(
-                    _pl_res.resumen() + (
-                        f"\nGuardado en: {_pl_res.directorio}" if _pl_res.directorio else ""),
-                    "respuesta")
-            except Exception as _pe:
-                _print_line(f"[err_cl]Error en /pulir: {_escape(str(_pe))}[/err_cl]")
-        elif raw == "/sellar-biblioteca" or raw.startswith("/sellar-biblioteca "):
-            # Proceso batch que existia sin llamador (barrido 2026-07-24):
-            # sella con .verificacion.json los productos YA guardados.
-            _sb_arg = raw[len("/sellar-biblioteca"):].strip()
-            _sb_lim = int(_sb_arg) if _sb_arg.isdigit() else None
+                from cognia.harness import notificaciones as _notif_prog
+                _notif_prog.progreso_limpiar()
+            except Exception as _exc_np:
+                _aviso_degradado("notificaciones",
+                                 f"{type(_exc_np).__name__}: {_exc_np}")
+
+            if not raw:
+                continue
+
+            # Higiene del lazo (harness/repeticion): cada linea humana resetea el
+            # contador de llamadas repetidas de TODOS los agentes (el reset es por
+            # generacion: los ctx vivos lo ven en su proxima llamada). Nunca lanza.
             try:
-                from cognia.program_creator.verificacion import sellar_biblioteca
-                _sb_r = sellar_biblioteca(limite=_sb_lim)
-                _show_response(
-                    f"Sellados: {len(_sb_r.get('sellados', _sb_r)) if isinstance(_sb_r, dict) else _sb_r}",
-                    "respuesta")
-            except Exception as _se:
-                _print_line(f"[err_cl]Error sellando: {_escape(str(_se))}[/err_cl]")
-        elif raw == "/fatiga":
-            # El monitor de fatiga corre desde siempre DENTRO de cognia.py y
-            # su reporte legible no era alcanzable (barrido 2026-07-24).
-            try:
-                if getattr(ai, "fatigue", None):
-                    _show_response(ai.fatigue.format_status(), "listado")
-                else:
-                    _print_line("[detail]Monitor de fatiga no activo en esta sesion.[/detail]")
-            except Exception as _fe:
-                _print_line(f"[warn_cl]No pude leer la fatiga: {_escape(str(_fe))}[/warn_cl]")
-        elif raw == "/flota" or raw.startswith("/flota "):
-            # Cambia el COMBO de modelos servidos (flota por roles 2026-07-24).
-            # El REPL habla con :8080 via llm_local: cambiar el combo cambia el
-            # cerebro EN CALIENTE sin reiniciar el REPL. Sin args: estado.
-            _fl_args = (raw[len("/flota "):].strip().split()
-                        if raw.startswith("/flota ") else ["estado"])
-            _fl_modo = _fl_args[0]
-            _fl_scr = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "scripts", "servir_flota.py")
-            if os.path.isfile(_fl_scr):
-                import subprocess
-                # "solo <patron>" lleva el patron como argv extra
-                subprocess.run([sys.executable, _fl_scr] + _fl_args)
-                if _fl_modo not in ("estado", "parar"):
-                    # llm_local cachea el backend detectado: forzar re-sondeo
-                    # para que el REPL vea el cerebro nuevo YA.
+                from cognia.harness import repeticion as _rep_reset
+                _rep_reset.nuevo_prompt_humano()
+            except Exception as _exc_rep:
+                _aviso_degradado("repeticion",
+                                 f"{type(_exc_rep).__name__}: {_exc_rep}")
+
+            # Pastes colapsados (harness/pegados): la marca '[pegado #N: +X
+            # lineas]' que dejo el binding de BracketedPaste se sustituye por su
+            # contenido AL ENVIAR, antes de todo lo demas (mejora, menciones,
+            # dispatch) — rio abajo nadie sabe que existio el colapso. EXCEPTO
+            # para el propio /pegado: inspecciona las marcas, no su contenido.
+            # Un fallo expandiendo deja la linea intacta y se VE como degradado.
+            if "[pegado #" in raw and not raw.startswith("/pegado"):
+                try:
+                    from cognia.harness import pegados as _peg_exp
+                    raw = _peg_exp.expandir(raw)
+                except Exception as _exc_pex:
+                    _aviso_degradado("pegado",
+                                     f"{type(_exc_pex).__name__}: {_exc_pex}")
+
+            # Mejora del prompt con IA. Va ANTES de las @-menciones A PROPOSITO:
+            # se reformula lo que el usuario TECLEO, no los 256 KiB de ficheros
+            # que expandir() puede inyectar en la misma linea. Cualquier fallo
+            # deja `raw` intacto: mejorar es opcional, tragarse el turno no.
+            if _mejora_aplica(raw):
+                try:
+                    _raw_mejorado = _mejorar_linea_interactiva(raw)
+                except Exception as _exc_mej:
+                    _aviso_degradado("cli.mejorar",
+                                     f"{type(_exc_mej).__name__}: {_exc_mej}")
+                    _raw_mejorado = raw
+                if _raw_mejorado is None:
+                    continue          # el usuario se lo llevo al prompt a editar
+                raw = _raw_mejorado
+
+            # @-menciones: '@ruta' mete el CONTENIDO del fichero en el mensaje.
+            # Sin esto el modelo veia el texto '@cli.py' y no tenia forma de saber
+            # que hay dentro. En texto libre se expande la linea entera; en los
+            # comandos de _SLASH_CON_MENCIONES, SOLO el argumento (la cabecera
+            # '/hacer ' se vuelve a pegar intacta para no tocar el dispatch). El
+            # tope de bytes es el que ya trae expandir() por defecto: 64 KiB por
+            # fichero, 256 KiB en total.
+            _pref_men, _cuerpo_men = _partir_para_menciones(raw)
+            if _cuerpo_men:
+                try:
+                    from cognia.harness.menciones import expandir
+                    _exp, _adj, _avisos = expandir(_cuerpo_men, os.getcwd())
+                    for _aviso in _avisos:
+                        _print_line(f"[warn_cl]{_escape(str(_aviso))}[/warn_cl]")
+                    if _adj:
+                        _resumen = ", ".join(
+                            f"@{a.get('ruta')} ({a.get('bytes', 0)} B)" for a in _adj)
+                        _print_line(f"[detail]{_escape(_resumen)} adjuntado(s)[/detail]")
+                        raw = _pref_men + _exp
+                except Exception as _exc_men:
+                    # Antes: 'except Exception: pass'. Una mencion rota sigue sin
+                    # poder tragarse el mensaje (raw queda intacto), pero ahora se
+                    # VE: "no lo cablearon" y "se rompio" eran el mismo silencio.
+                    _aviso_degradado(
+                        "cli.menciones",
+                        f"{type(_exc_men).__name__}: {_exc_men}")
+
+            # -- UI slash -------------------------------------------------------
+            # Arnes (2026-08-12): van primero porque son la red de seguridad —
+            # tienen que responder aunque el resto del REPL este degradado.
+            if raw == "/deshacer" or raw.startswith("/deshacer "):
+                _slash_deshacer(raw[len("/deshacer"):])
+            elif raw == "/plan-modo" or raw.startswith("/plan-modo "):
+                _slash_plan(raw[len("/plan-modo"):])
+            elif raw == "/permisos" or raw.startswith("/permisos "):
+                _slash_permisos(raw[len("/permisos"):])
+            elif raw == "/hermes" or raw.startswith("/hermes "):
+                _slash_hermes(raw[len("/hermes"):])
+            elif raw == "/rutinas" or raw.startswith("/rutinas "):
+                _slash_rutinas(ai, raw[len("/rutinas"):])
+            elif raw == "/grabar" or raw.startswith("/grabar "):
+                _slash_grabar(raw[len("/grabar"):])
+            elif raw == "/receta" or raw.startswith("/receta "):
+                _slash_receta(ai, raw[len("/receta"):])
+            elif raw == "/centinela" or raw.startswith("/centinela "):
+                _slash_centinela(ai, raw[len("/centinela"):])
+            elif raw == "/multiverso" or raw.startswith("/multiverso "):
+                _slash_multiverso(ai, raw[len("/multiverso"):])
+            elif raw == "/autopsia" or raw.startswith("/autopsia "):
+                _slash_autopsia(ai, raw[len("/autopsia"):])
+            elif raw == "/workflow" or raw.startswith("/workflow "):
+                # Al carril de fondo. _slash_workflow queda INTACTA (sigue siendo
+                # sincrona y sus tests la llaman derecho): lo unico que cambia es
+                # QUIEN la corre. Sin carril (pipes, CI, COGNIA_SIN_FONDO=1),
+                # _lanzar_en_fondo devuelve False y se ejecuta inline, con la
+                # misma llamada byte-identica a la de hoy.
+                if not _lanzar_en_fondo("workflow", _slash_workflow,
+                                        raw[len("/workflow"):]):
+                    _slash_workflow(raw[len("/workflow"):])
+            elif raw == "/limpiar":
+                _slash_limpiar()
+            elif raw == "/compactar":
+                # A secas: la feature VIEJA (panel de ultimas interacciones).
+                # Con args ('/compactar estado', 'umbral 0.7'...) cae mas abajo
+                # a la puerta F4 de la compactacion del contexto del agente.
+                _slash_compactar_sesion()
+            elif raw == "/memoria":
+                _run(raw, ai.introspect, color="listado")
+            elif raw == "/modulos":
+                _slash_modulos()
+            elif raw == "/modelos" or raw.startswith("/modelos "):
+                # OJO: solo /modelos (expertos). /modelo (GGUF del backend) tiene
+                # su propia rama mas abajo; cuando esta condicion lo capturaba,
+                # el handler real _slash_modelo era codigo muerto y el usuario
+                # recibia el usage de expertos (huerfana cazada 2026-08-01).
+                _slash_modelos(ai, raw.split(" ", 1)[1] if " " in raw else "")
+            elif raw in ("/cpu", "/gpu") or raw.startswith("/cpu ") or raw.startswith("/gpu "):
+                _perf_name = raw.split()[0][1:]                 # cpu | gpu
+                _perf_rest = (raw.split(" ", 1)[1].strip().lower()
+                              if " " in raw else "")
+                _slash_perfil(_perf_name)
+                if _perf_rest in ("reiniciar", "restart", "kill"):
+                    # Tras aplicar el perfil, reiniciar el backend para que tome los
+                    # nuevos parametros: mata el llama-server (se relanza solo/con la
+                    # flota). kill_llama_server ya existia sin puerta en el REPL.
                     try:
-                        from cognia.llm_local import detectar_backend
-                        detectar_backend(forzar=True)
-                    except Exception:
-                        pass
-            else:
-                _print_line("[detail]/flota esta disponible desde el repo de "
-                            "Cognia (no en la instalacion pip).[/detail]")
-        elif raw.startswith("/encolar "):
-            if HAS_PROGRAM_CREATOR:
-                _idea_enc = raw[len("/encolar "):].strip()
-                try:
-                    from cognia.program_creator.generator import add_custom_idea, get_custom_ideas
-                    ok = add_custom_idea(_idea_enc)
-                    n  = len(get_custom_ideas())
-                    _show_response(
-                        f"Idea encolada para el proximo /dormir: '{_idea_enc}'\n"
-                        f"Ideas pendientes: {n}"
-                        if ok else
-                        f"La idea ya estaba en la cola.",
-                        "respuesta",
-                    )
-                except Exception as _e:
-                    _print_line(f"[warn_cl][ERROR] {_e}[/warn_cl]")
-            else:
-                _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
-        elif raw == "/encolar":
-            _print_line("[warn_cl]Uso: /encolar <idea>  — ejemplo: /encolar juego de tetris ASCII[/warn_cl]")
-        elif raw == "/ideas" or raw.startswith("/ideas "):
-            # Ver las ideas del hobby (propias encoladas + fallback por categoria)
-            # o vaciar la cola propia. get_all_ideas/clear_custom_ideas ya vivian
-            # en generator.py pero no tenian puerta en el REPL (huerfanas).
-            if not HAS_PROGRAM_CREATOR:
-                _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
-            else:
-                _ideas_arg = raw[len("/ideas "):].strip() if raw.startswith("/ideas ") else ""
-                try:
-                    from cognia.program_creator.generator import (
-                        clear_custom_ideas, get_all_ideas)
-                    if _ideas_arg == "limpiar":
-                        _n_borr = clear_custom_ideas()
-                        _show_response(
-                            f"Cola de ideas propias vaciada ({_n_borr} borrada(s)).",
-                            "respuesta")
-                    else:
-                        _todas = get_all_ideas()
-                        _lst = "\n".join(f"  {_i+1}. {_idea}"
-                                         for _i, _idea in enumerate(_todas[:40]))
-                        _show_response(
-                            f"Ideas disponibles ({len(_todas)}):\n{_lst}", "listado")
-                except Exception as _id_e:
-                    _print_line(f"[err_cl]ideas no disponible: {_id_e}[/err_cl]")
-        elif raw.startswith("/observar "):
-            texto = raw[len("/observar "):].strip()
-            _run(raw, lambda: ai.process(texto), color="listado")
-        elif raw == "/observar":
-            _print_line("[warn_cl]Uso: /observar <texto>[/warn_cl]")
-        elif raw.startswith("/aprender ") and "|" not in raw:
-            _print_line("[warn_cl]Uso: /aprender <frente> | <respuesta> [| <tema>][/warn_cl]")
-        elif raw == "/aprender":
-            _print_line("[warn_cl]Uso: /aprender <frente> | <respuesta> [| <tema>][/warn_cl]")
-        elif raw.startswith("/corregir ") and raw.count("|") >= 2:
-            partes = raw[len("/corregir "):].split("|")
-            _run(raw, lambda: ai.correct(
-                partes[0].strip(), partes[1].strip(), partes[2].strip()), color="respuesta")
-        elif raw.startswith("/corregir"):
-            _print_line("[warn_cl]Uso: /corregir <obs> | <incorrecto> | <correcto>[/warn_cl]")
-        elif raw.startswith("/hipotesis ") and "|" in raw:
-            partes = raw[len("/hipotesis "):].split("|", 1)
-            _run(raw, lambda: ai.generate_hypothesis(
-                partes[0].strip(), partes[1].strip()), color=_ACCENT)
-        elif raw.startswith("/hipotesis ") and raw[len("/hipotesis "):].strip():
-            texto = raw[len("/hipotesis "):].strip()
-            _run(raw, lambda: ai.generate_hypotheses_many(
-                texto, n=_active_effort()["alternativas"]), color=_ACCENT)
-        elif raw.startswith("/hipotesis"):
-            _print_line("[warn_cl]Uso: /hipotesis <A> | <B>  (pares)  o  /hipotesis <problema>  (N hipotesis)[/warn_cl]")
-        elif raw.startswith("/experimento ") and raw[len("/experimento "):].strip():
-            texto = raw[len("/experimento "):].strip()
-            _run(raw, lambda: ai.run_experiment(texto), color="listado")
-        elif raw.startswith("/experimento"):
-            _print_line("[warn_cl]Uso: /experimento <afirmacion>  -- ejemplo: /experimento bubble sort es O(n^2)[/warn_cl]")
-        elif raw.startswith("/evaluar-idea ") and raw[len("/evaluar-idea "):].strip():
-            texto = raw[len("/evaluar-idea "):].strip()
-            _run(raw, lambda: ai.evaluate_idea(texto), color=_ACCENT)
-        elif raw.startswith("/evaluar-idea"):
-            _print_line("[warn_cl]Uso: /evaluar-idea <idea>  -- ejemplo: /evaluar-idea un IDE que escribe sus propios tests[/warn_cl]")
-        elif raw.startswith("/analogia ") and raw[len("/analogia "):].strip():
-            texto = raw[len("/analogia "):].strip()
-            _run(raw, lambda: ai.find_analogies(texto), color="listado")
-        elif raw.startswith("/analogia"):
-            _print_line("[warn_cl]Uso: /analogia <problema>  -- ejemplo: /analogia el contexto del modelo se satura con conversaciones largas[/warn_cl]")
-        elif raw.startswith("/abstraer ") and raw[len("/abstraer "):].strip():
-            texto = raw[len("/abstraer "):].strip()
-            _run(raw, lambda: ai.solve_by_abstraction(texto), color="listado")
-        elif raw.startswith("/abstraer"):
-            _print_line("[warn_cl]Uso: /abstraer <problema>  -- ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia[/warn_cl]")
-        elif raw.startswith("/transferir ") and "|" in raw:
-            partes = raw[len("/transferir "):].split("|", 1)
-            _run(raw, lambda: ai.transfer_principle(
-                partes[0].strip(), partes[1].strip()), color="listado")
-        elif raw.startswith("/transferir"):
-            _print_line("[warn_cl]Uso: /transferir <fuente> | <objetivo>[/warn_cl]")
-        elif raw.startswith("/diversidad ") and "||" in raw:
-            ideas = [p.strip() for p in raw[len("/diversidad "):].split("||")]
-            ideas = [p for p in ideas if p]
-            _run(raw, lambda: ai.measure_diversity(ideas), color="listado")
-        elif raw.startswith("/diversidad"):
-            _print_line("[warn_cl]Uso: /diversidad <idea1> || <idea2> || ...  "
-                        "-- ejemplo: /diversidad recolectar agua de lluvia || juntar lluvia en azoteas[/warn_cl]")
-        elif raw.startswith("/explorar ") and raw[len("/explorar "):].strip():
-            texto = raw[len("/explorar "):].strip()
-            _run(raw, lambda: ai.explore_problem(texto), color="listado")
-        elif raw.startswith("/explorar"):
-            _print_line("[warn_cl]Uso: /explorar <problema>  "
-                        "-- ejemplo: /explorar como reducir el consumo de agua en una ciudad[/warn_cl]")
-        elif raw.startswith("/explicar "):
-            texto = raw[len("/explicar "):].strip()
-            _run(raw, lambda: ai.explain(texto), color=_ACCENT)
-        elif raw == "/explicar":
-            _print_line("[warn_cl]Uso: /explicar <texto>[/warn_cl]")
-        elif raw.startswith("/grafo "):
-            concepto = raw[len("/grafo "):].strip()
-            _run(raw, lambda: ai.show_graph(concepto), color="listado")
-        elif raw == "/grafo":
-            _print_line("[warn_cl]Uso: /grafo <concepto>[/warn_cl]")
-        elif raw == "/grafo-html" or raw.startswith("/grafo-html "):
-            # Exporta el KG a un HTML interactivo y lo abre. graph_view.export ya
-            # renderizaba/abria pero no se alcanzaba desde el REPL (huerfana).
-            _gh_proj = raw[len("/grafo-html "):].strip() if raw.startswith("/grafo-html ") else ""
-            try:
-                from cognia.knowledge.graph_view import export as _kg_export_html
-                _gh_ruta = _kg_export_html(kg=ai.kg, project=(_gh_proj or None),
-                                           open_browser=True)
-                _show_response(
-                    f"Grafo exportado y abierto en el navegador:\n  {_gh_ruta}",
-                    "listado")
-            except Exception as _gh_e:
-                _print_line(f"[err_cl]grafo-html no disponible: {_gh_e}[/err_cl]")
-        elif raw == "/indexar-codigo":
-            # Indexa el codigo del repo al KG (define/importa/llama_a/tiene_metodo).
-            # indexar_codigo ya existia en code_graph pero sin puerta en el REPL.
-            try:
-                from cognia.knowledge.code_graph import indexar_codigo
-                _ix_m = indexar_codigo(kg=ai.kg)
-                _show_response(
-                    "Codigo indexado al knowledge graph:\n"
-                    f"  modulos:          {_ix_m.get('modulos', 0)}\n"
-                    f"  triples:          {_ix_m.get('triples', 0)}\n"
-                    f"  borrados previos: {_ix_m.get('borrados_previos', 0)}\n"
-                    f"  tiempo:           {_ix_m.get('secs', 0)}s", "listado")
-            except Exception as _ix_e:
-                _print_line(f"[err_cl]indexar-codigo no disponible: {_ix_e}[/err_cl]")
-        elif raw == "/atencion" or raw == "/atención":
-            _print_line("[warn_cl]Uso: /atencion <id>  (id de un episodio de memoria)[/warn_cl]")
-        elif raw.startswith("/atencion ") or raw.startswith("/atención "):
-            # Explica como se DESCOMPONE la atencion de un episodio (semantica +
-            # emocion + recencia + frecuencia). Sin consulta se usa la propia
-            # similitud del episodio (=1.0): el desglose muestra los pesos y las
-            # otras senales reales. explain_attention vive en ai.attention.
-            _at_raw = raw.split(" ", 1)[1].strip()
-            try:
-                _at_id = int(_at_raw)
-            except ValueError:
-                _print_line("[warn_cl]Uso: /atencion <id>  -- el id debe ser un numero[/warn_cl]")
-            else:
-                try:
-                    from storage.db_pool import db_connect_pooled as _dcp
-                    _at_conn = _dcp(ai.db)
-                    _at_cur = _at_conn.cursor()
-                    _at_cur.execute(
-                        "SELECT id, observation, label, access_count, last_access, "
-                        "importance, emotion_score, emotion_label "
-                        "FROM episodic_memory WHERE id=?", (_at_id,))
-                    _at_row = _at_cur.fetchone()
-                    _at_conn.close()
-                    if not _at_row:
-                        _print_line(f"[warn_cl]No existe el episodio #{_at_id}.[/warn_cl]")
-                    else:
-                        _at_ep = {
-                            "id": _at_row[0], "observation": _at_row[1],
-                            "label": _at_row[2], "access_count": _at_row[3] or 0,
-                            "last_access": _at_row[4] or "",
-                            "importance": _at_row[5] if _at_row[5] is not None else 1.0,
-                            "emotion": {"score": _at_row[6] or 0.0,
-                                        "label": _at_row[7] or "neutral"},
-                            "similarity": 1.0,
-                        }
-                        _at_expl = ai.attention.explain_attention(_at_ep, query_vector=[])
-                        _at_obs = (_at_row[1] or "")[:80]
-                        _show_response(
-                            f"Episodio #{_at_id} ({_at_row[2] or 'sin etiqueta'}): "
-                            f"{_at_obs}\n{_at_expl}", "listado")
-                except Exception as _at_e:
-                    _print_line(f"[err_cl]atencion no disponible: {_at_e}[/err_cl]")
-        elif raw.startswith("/hecho ") and raw.count("|") >= 2:
-            partes = raw[len("/hecho "):].split("|")
-            _run(raw, lambda: ai.add_fact(
-                partes[0].strip(), partes[1].strip(), partes[2].strip()), color="respuesta")
-        elif raw.startswith("/hecho") and not raw.startswith("/hechos-"):
-            # `and not /hechos-`: sin la guarda este catch-all capturaba
-            # /hechos-solidos (empieza por "/hecho") y su rama real quedaba
-            # inalcanzable (mismo patron que /plan vs /plan-, /meta vs /meta-).
-            _print_line("[warn_cl]Uso: /hecho <sujeto> | <predicado> | <objeto>[/warn_cl]")
-        elif raw.startswith("/predecir "):
-            concepto = raw[len("/predecir "):].strip()
-            _run(raw, lambda: ai.predict_next(concepto), color="listado")
-        elif raw.startswith("/inferir "):
-            concepto = raw[len("/inferir "):].strip()
-            _run(raw, lambda: ai.infer_about(concepto), color=_ACCENT)
-        elif raw.startswith("/narrativa "):
-            concepto = raw[len("/narrativa "):].strip()
-            _run(raw, lambda: ai.get_narrative(concepto), color=_ACCENT)
+                        from cognia.perf_profiles import kill_llama_server
+                        if kill_llama_server():
+                            _print_line("[ok_cl]Backend llama-server terminado; "
+                                        "reinicia la flota para aplicar el perfil.[/ok_cl]")
+                        else:
+                            _print_line("[detail]No habia llama-server corriendo "
+                                        "(nada que reiniciar).[/detail]")
+                    except Exception as _pk_e:
+                        _print_line(f"[err_cl]No pude reiniciar el backend: {_pk_e}[/err_cl]")
+                elif _perf_rest:
+                    _print_line("[detail]Sugerencia: /"+_perf_name+" reiniciar  "
+                                "para matar el backend y que tome el perfil.[/detail]")
+            elif raw == "/shells" or raw.startswith("/shells "):
+                _slash_shells(raw[len("/shells"):])
+            elif raw.startswith("/shell-kill"):
+                _slash_shell_kill(raw[len("/shell-kill"):])
+            elif raw == "/monitores" or raw.startswith("/monitores "):
+                _slash_monitores(raw[len("/monitores"):])
+            elif raw == "/modo-permiso" or raw.startswith("/modo-permiso "):
+                _slash_modo_permiso(raw[len("/modo-permiso"):])
+            elif raw == "/velocidad" or raw.startswith("/velocidad "):
+                _slash_velocidad(raw[len("/velocidad"):])
+            elif raw == "/hibrido" or raw.startswith("/hibrido "):
+                _slash_hibrido(raw[len("/hibrido"):])
+            elif raw.startswith("/exportar-stats"):
+                _slash_exportar_stats()
+            elif raw.startswith("/exportar ") or raw == "/exportar":
+                _exp_args = raw[len("/exportar"):].strip()
+                if not _exp_args:
+                    print("Uso: /exportar <formato> [archivo]")
+                    print("Formatos: json, md, csv")
+                    print("Ejemplo: /exportar json historial.json")
+                else:
+                    _slash_exportar(_exp_args)
+            elif raw == "/costo":
+                _slash_costo()
+            elif raw in ("/stats", "/sesion-stats"):
+                _slash_stats()
+            elif raw == "/sugerir":
+                _slash_sugerir()
+            elif raw == "/logros" or raw.startswith("/logros "):
+                _lg_args = raw[len("/logros "):].strip() if raw.startswith("/logros ") else ""
+                _slash_logros(_lg_args)
+            elif raw == "/patrones":
+                _slash_patrones("")
+            elif raw == "/debug":
+                _slash_debug()
+            elif raw == "/modo rapido":
+                _slash_modo_rapido()
+            elif raw == "/vram" or raw.startswith("/vram "):
+                _slash_vram(raw[len("/vram "):] if raw.startswith("/vram ") else "")
+            elif raw == "/capacidades" or raw.startswith("/capacidades "):
+                _slash_capacidades(raw[len("/capacidades "):]
+                                   if raw.startswith("/capacidades ") else "")
+            elif raw == "/activar" or raw.startswith("/activar "):
+                _slash_activar(raw[len("/activar "):]
+                               if raw.startswith("/activar ") else "")
+            elif raw == "/tema" or raw.startswith("/tema "):
+                _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
+            elif raw == "/color" or raw.startswith("/color "):
+                _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
+            # -- /estilo: estilos por elemento (P4). Comparacion exacta o con
+            # espacio: /estilo_info (== exacto) no colisiona.
+            elif raw == "/estilo" or raw.startswith("/estilo "):
+                _slash_estilo(raw[len("/estilo "):] if raw.startswith("/estilo ") else "")
+            elif raw == "/expandir" or raw.startswith("/expandir "):
+                _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
+            elif raw == "/pegado" or raw.startswith("/pegado "):
+                _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
+            elif raw == "/enlaces" or raw.startswith("/enlaces "):
+                _slash_enlaces(raw[len("/enlaces "):] if raw.startswith("/enlaces ") else "")
+            elif raw == "/spinner" or raw.startswith("/spinner "):
+                _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
+            elif raw == "/offload" or raw.startswith("/offload "):
+                _slash_offload(raw[len("/offload "):] if raw.startswith("/offload ") else "")
+            elif raw.startswith("/compactar "):
+                # Solo CON args: '/compactar' a secas ya lo atendio arriba la
+                # rama vieja (_slash_compactar_sesion); el estado de F4 es
+                # '/compactar estado'.
+                _slash_compactar(raw[len("/compactar "):])
+            elif raw == "/notificar" or raw.startswith("/notificar "):
+                _slash_notificar(raw[len("/notificar "):] if raw.startswith("/notificar ") else "")
+            elif raw == "/markdown" or raw.startswith("/markdown "):
+                _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
+            elif raw == "/bucle" or raw.startswith("/bucle "):
+                _slash_bucle(raw[len("/bucle "):] if raw.startswith("/bucle ") else "")
+            elif raw == "/confianza" or raw.startswith("/confianza "):
+                _slash_confianza(
+                    raw[len("/confianza "):] if raw.startswith("/confianza ") else "")
+            elif raw == "/horizonte" or raw.startswith("/horizonte "):
+                _slash_horizonte(
+                    raw[len("/horizonte "):] if raw.startswith("/horizonte ") else "")
+            elif raw == "/prompt" or raw.startswith("/prompt "):
+                _slash_prompt(raw[len("/prompt"):])
+            elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):
+                _slash_memoria_limite(
+                    raw[len("/memoria-limite "):] if raw.startswith("/memoria-limite ") else "", ai)
 
-        # -- Mesh -----------------------------------------------------------
-        elif raw.startswith("/mesh_iniciar"):
-            parts = raw.split()
-            port  = int(parts[1]) if len(parts) > 1 else 7474
-            _run(raw, lambda: ai.start_mesh(port), color="listado")
-        elif raw.startswith("/mesh_peer "):
-            peer = raw[len("/mesh_peer "):].strip()
-            _run(raw, lambda: ai.connect_mesh_peer(peer), color="listado")
-        elif raw.startswith("/mesh_publicar ") and raw.count("|") >= 2:
-            partes = raw[len("/mesh_publicar "):].split("|")
-            triple = [{"subject":   partes[0].strip(),
-                       "predicate": partes[1].strip(),
-                       "object":    partes[2].strip()}]
-            _run(raw, lambda: ai.publish_knowledge(triple), color="respuesta")
-        elif raw == "/mesh_estado":
-            _run(raw, ai.mesh_status, color="listado")
-
-        # -- Security -------------------------------------------------------
-        elif raw == "/seguridad":
-            _run(raw, ai.security_status, color="listado")
-        elif raw == "/bloquear":
-            _run(raw, ai.lock_security, color="warn_cl")
-        elif raw.startswith("/desbloquear "):
-            passphrase = raw[len("/desbloquear "):].strip()
-            if passphrase:
-                _run(raw, lambda: ai.unlock_security(passphrase), color="warn_cl")
-            else:
-                _print_line("[warn_cl]Uso: /desbloquear <passphrase>[/warn_cl]")
-
-        # -- Scale ----------------------------------------------------------
-        elif raw == "/escalar":
-            try:
-                from cognia.scale_manager import get_scale_manager
-                sm = get_scale_manager()
-                st = sm.status()
-                _show_response(
-                    f"Nivel        {st['level']}: {st['name']}\n"
-                    f"Modelo       {st['model']}\n"
-                    f"Timeout      {st['timeout_s']}s\n"
-                    f"RAM          {st['ram_gb']} GB\n"
-                    f"Memorias     {st['memories']}\n"
-                    f"Peers        {st['peers']}\n"
-                    f"Historial    {st['hit_counts']}",
-                    "listado",
+            # -- System ---------------------------------------------------------
+            elif raw == "/salir":
+                print("Hasta luego.")
+                break
+            elif raw == "/doctor":
+                # In-process so it works both from the repo and a pip-installed wheel
+                # (scripts/ is not shipped in the package).
+                try:
+                    from cognia.doctor import run_all as _doctor_run
+                    _doctor_run()
+                except Exception as _de:
+                    _print_line(f"[err_cl]Error en /doctor: {_escape(str(_de))}[/err_cl]")
+            elif raw == "/update":
+                _scr = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "scripts", "cognia_update.py",
                 )
-            except Exception as e:
-                _print_line(f"[warn_cl]ScaleManager no disponible: {e}[/warn_cl]")
+                if os.path.isfile(_scr):
+                    import subprocess
+                    subprocess.run([sys.executable, _scr])
+                else:
+                    _print_line("[detail]Instalado por pip -- actualiza con:  pip install -U cognia-ai[/detail]")
+            elif raw in ("/distill", "/distill run"):
+                _scr = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "scripts", "distill.py",
+                )
+                if os.path.isfile(_scr):
+                    import subprocess
+                    _dargs = [] if raw == "/distill run" else ["--dry-run"]
+                    subprocess.run([sys.executable, _scr] + _dargs)
+                else:
+                    _print_line("[detail]/distill esta disponible desde el repo de Cognia (no en la instalacion pip).[/detail]")
+            elif ((raw.startswith("/ayuda ") or raw.startswith("/help "))
+                  and _es_comando_conocido(raw.split(" ", 1)[1])):
+                # '/ayuda /hacer' sigue siendo la ficha del comando; lo que NO es un
+                # comando ('/ayuda memoria', '/ayuda buscar tokens') cae a la ayuda
+                # navegable de abajo en vez de responder "no existe".
+                _slash_ayuda_detallada(raw.split(" ", 1)[1])
+            elif raw in ("/ayuda", "/help") or raw.startswith(("/ayuda ", "/help ")):
+                # /help = alias de /ayuda (varios mensajes del propio CLI lo
+                # recomendaban y el comando no existia — cazado 2026-07-16).
+                # Navegable desde 2026-08-12: volcar los 240 comandos de una vez
+                # (13.438 px medidos) es inutilizable justo para quien mas ayuda
+                # necesita. Portada + categoria + busqueda, como cualquier CLI
+                # moderno. '/ayuda todo' conserva el volcado de siempre.
+                _arg_ayuda = raw.split(" ", 1)[1].strip() if " " in raw else ""
+                _texto_ayuda = None
+                try:
+                    from cognia.harness import ayuda as _ah
+                    # -2: el modulo sangra sus lineas, asi que el ancho UTIL es el
+                    # de la consola menos la sangria. Sin esto la cabecera
+                    # ('Ayuda de Cognia ... 240 comandos | 14 categorias') partia
+                    # de linea en una terminal de 100 columnas.
+                    _ancho = (getattr(_console, "width", 100) if _HAS_RICH else 100) - 2
+                    if not _arg_ayuda:
+                        _texto_ayuda = _ah.portada(_CMD_DESCRIPTIONS, _ancho)
+                    elif _arg_ayuda.startswith("buscar"):
+                        _hits = _ah.buscar(_CMD_DESCRIPTIONS,
+                                           _arg_ayuda[len("buscar"):].strip())
+                        _texto_ayuda = "\n".join(
+                            f"  {c:22} {d}" for c, d, _ in _hits) or "  (sin coincidencias)"
+                    elif _arg_ayuda in ("todo", "all"):
+                        # '/ayuda todo' salia del HELP_TEXT escrito A MANO, al que
+                        # le faltaban 49 comandos (/deshacer, /permisos, /workflow,
+                        # /rlm, /flota...): el catalogo vivia por duplicado y la
+                        # copia de mano se quedaba vieja sola. Ahora tambien sale de
+                        # _CMD_DESCRIPTIONS -> UNA sola fuente.
+                        _texto_ayuda = _ah.todo(_CMD_DESCRIPTIONS, _ancho)
+                    else:
+                        _texto_ayuda = _ah.seccion(_CMD_DESCRIPTIONS, _arg_ayuda, _ancho)
+                except Exception as _exc_ayuda:
+                    # Antes: 'except Exception: pass'. Con la ayuda navegable rota,
+                    # el HELP_TEXT de emergencia es indistinguible de la ayuda de
+                    # verdad y nadie se entera nunca de que el modulo revento.
+                    _aviso_degradado(
+                        "cli.ayuda",
+                        f"{type(_exc_ayuda).__name__}: {_exc_ayuda}")
+                    _texto_ayuda = None       # degrada al HELP_TEXT de emergencia
+                _salida_ayuda = _texto_ayuda if _texto_ayuda is not None else HELP_TEXT
+                if os.environ.get("COGNIA_REMOTO", "").strip() == "1":
+                    # Paridad remota (2026-08-24): la ayuda ES la respuesta al
+                    # comando; plana y con flush para que el movil la vea en el
+                    # chat (linea a linea el clasificador la tomaba por chrome).
+                    _show_response(_salida_ayuda, "respuesta", respuesta_final=True)
+                elif _HAS_RICH and _console:
+                    _console.print(_salida_ayuda, style="respuesta", markup=False)
+                else:
+                    print(_g() + _salida_ayuda + _R)
 
-        # -- User profiles --------------------------------------------------
-        elif raw == "/usuarios":
-            try:
-                from cognia.user_profile import get_profile_manager
-                mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
-                users = mgr.list_users()
-                if users:
-                    current = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+            # -- Reporte y perfil ----------------------------------------------
+            elif raw == "/reporte":
+                _slash_reporte()
+            elif raw == "/reporte-json":
+                _slash_reporte_json()
+            elif raw.startswith("/reporte-completo"):
+                _slash_reporte_completo(raw[len("/reporte-completo"):].strip())
+            elif raw == "/reporte-semanal":
+                _slash_reporte_semanal("")
+            elif raw.startswith("/cadena-causal"):
+                _slash_cadena_causal(ai, raw[len("/cadena-causal"):].strip())
+            elif raw == "/metas-pendientes":
+                _slash_metas_pendientes("")
+            elif raw == "/yo":
+                _slash_yo_perfil()
+            elif raw == "/yo-actualizar":
+                _slash_yo_actualizar()
+
+            # -- Cognitive: simple ---------------------------------------------
+            elif raw == "/yo-introspect":
+                _run(raw, ai.introspect, color="listado")
+            elif raw == "/conceptos":
+                _run(raw, ai.list_concepts, color="listado")
+            elif raw == "/olvido":
+                _run(raw, ai.forget_cycle, color="warn_cl")
+            elif raw == "/dormir":
+                _run(raw, ai._sleep_sync, color="respuesta")
+            elif raw == "/repasar":
+                _run(raw, ai.review_due, color="listado")
+            elif raw == "/contradicciones":
+                _run(raw, ai.show_contradictions, color="listado")
+            elif raw == "/objetivos":
+                _run(raw, ai.show_goals, color="listado")
+            elif raw in ("/research", "/investigaciones"):
+                if HAS_RESEARCH_ENGINE:
+                    from cognia.research_engine import show_research_history
+                    _run(raw, lambda: show_research_history(ai.db), color="listado")
+                else:
+                    _print_line("[warn_cl][WARN] Modulo de investigacion no disponible.[/warn_cl]")
+            elif (raw.startswith("/biblioteca ver ") or raw.startswith("/library ver ")
+                  or raw.startswith("/programs ver ")):
+                # Ver el CODIGO de un programa guardado por id. storage sabia cargarlo
+                # (load_program_code) pero no habia como pedirlo desde el REPL.
+                _bib_id = raw.split("ver ", 1)[1].strip()
+                if not HAS_PROGRAM_CREATOR:
+                    _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
+                elif not _bib_id:
+                    _print_line("[warn_cl]Uso: /biblioteca ver <id>[/warn_cl]")
+                else:
+                    try:
+                        from cognia.program_creator.storage import load_program_code
+                        _bib_code = load_program_code(_bib_id)
+                        if not _bib_code:
+                            _print_line(f"[warn_cl]sin codigo para {_escape(_bib_id)}[/warn_cl]")
+                        else:
+                            _show_response(_bib_code[:6000], "listado")
+                    except Exception as _bv_e:
+                        _print_line(f"[err_cl]biblioteca ver no disponible: {_bv_e}[/err_cl]")
+            elif raw in ("/programs", "/library", "/biblioteca"):
+                if HAS_PROGRAM_CREATOR:
+                    from cognia.program_creator import show_library
+                    _run(raw, show_library, color="listado")
+                else:
+                    _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
+            elif raw in ("/autoprueba", "/verificar-productos") or raw.startswith("/autoprueba "):
+                # Cognia corre y puntua sus propios productos generados (compila/
+                # importa/arranca/sin-stubs). El cuerpo ya estaba listo en
+                # cognia/autoprueba.py; aca solo se cablea. Arg: un numero = limite.
+                _ap_args = raw[len("/autoprueba "):].strip() if raw.startswith("/autoprueba ") else ""
+                try:
+                    # slash_autoprueba imprime el reporte en vivo (flush=True), asi
+                    # que se llama directo y NO por _run (que captura stdout y
+                    # tragaria el reporte linea por linea).
+                    from cognia.autoprueba import slash_autoprueba
+                    slash_autoprueba(_ap_args)
+                except Exception as _ap_e:
+                    _print_line(f"[err_cl]autoprueba no disponible: {_ap_e}[/err_cl]")
+            elif raw == "/ver" or raw.startswith("/ver "):
+                # OJOS: mira la pantalla AHORA y la describe; con pregunta, la
+                # contesta usando lo que ve. cognia/vision/ ya sabia percibir
+                # (captura + arbol UIA -> texto, ventanas sensibles redactadas) pero
+                # no habia forma de alcanzarlo desde el CLI: capacidad construida y
+                # desconectada. Sin VLM ni VRAM extra: lo consume el cerebro de texto.
+                _ver_q = raw[len("/ver "):].strip() if raw.startswith("/ver ") else ""
+                try:
+                    from cognia.vision.mirar import ver as _mirar
+                    _run(raw, lambda: _mirar(_ver_q, ai), color="listado")
+                except Exception as _v_e:
+                    _print_line(f"[err_cl]vision no disponible: {_v_e}[/err_cl]")
+            elif raw == "/vigilar" or raw.startswith("/vigilar "):
+                # OJOS PASIVOS: mira la pantalla durante N pasos SIN actuar
+                # (AgentePantalla en modo sombra, ejecutar=False). La politica no
+                # propone acciones -> cada paso solo percibe y describe. El agente
+                # de pantalla ya sabia mirar/actuar pero no habia puerta al modo
+                # sombra desde el REPL (huerfana). Sin VLM: describe el arbol UIA.
+                _vg_arg = raw[len("/vigilar "):].strip() if raw.startswith("/vigilar ") else ""
+                try:
+                    _vg_n = max(1, int(_vg_arg)) if _vg_arg else 5
+                except ValueError:
+                    _vg_n = 5
+                try:
+                    from cognia.vision.agente_pantalla import AgentePantalla
+                    _ag_vg = AgentePantalla(ejecutar=False)   # DRY-RUN (sombra)
+                    _vg_out = []
+                    for _vg_i, _vg_reg in enumerate(
+                            _ag_vg.bucle(lambda p: None, max_pasos=_vg_n), 1):
+                        _vg_txt = (getattr(_vg_reg, "percepcion_txt", "") or "").strip()
+                        _vg_line = f"[{_vg_i}] {getattr(_vg_reg, 'ventana', '?')}: {_vg_txt[:200]}"
+                        _vg_motivo = getattr(_vg_reg, "motivo", "") or ""
+                        if _vg_motivo and "no propuso" not in _vg_motivo:
+                            _vg_line += f"  ({_vg_motivo})"
+                        _vg_out.append(_vg_line)
+                    _show_response("\n".join(_vg_out) if _vg_out
+                                   else "Sin percepciones.", "listado")
+                except Exception as _vg_e:
+                    _print_line(f"[err_cl]vigilar no disponible: {_vg_e}[/err_cl]")
+            elif raw.startswith("/arbitro ") or raw.startswith("/árbitro "):
+                # Consulta de DUENO: /arbitro <ruta> dice que generador es dueno de
+                # esa ruta segun el registro de propiedad (o si no tiene dueno).
+                _ar_ruta = raw.split(" ", 1)[1].strip()
+                try:
+                    from cognia.arbitro import dueno_de
+                    _ar_dueno = dueno_de(_ar_ruta)
+                    if _ar_dueno:
+                        _show_response(f"{_ar_ruta}\n  dueno: {_ar_dueno}", "listado")
+                    else:
+                        _show_response(f"{_ar_ruta}\n  sin dueno registrado "
+                                       f"(ningun generador la reclamo)", "listado")
+                except Exception as _ar_e:
+                    _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
+            elif raw == "/arbitro" or raw == "/árbitro":
+                # Estado del arbitro de colisiones (solo lectura). Util para calibrar
+                # los umbrales viendo que incidentes acumulo en modo sombra antes de
+                # activarlo (COGNIA_ARBITRO_SOMBRA=0).
+                try:
+                    from cognia.arbitro import resumen_estado
+                    _show_response(resumen_estado(), "listado")
+                except Exception as _ar_e:
+                    _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
+            elif raw == "/mcp":
+                _show_response(_slash_mcp(""), "listado")
+            elif raw.startswith("/mcp "):
+                _show_response(_slash_mcp(raw[len("/mcp "):].strip()), "listado")
+            elif raw == "/mapa-codigo":
+                _show_response(_slash_mapa_codigo(""), "listado")
+            elif raw.startswith("/mapa-codigo "):
+                _show_response(_slash_mapa_codigo(raw[len("/mapa-codigo "):].strip()), "listado")
+            elif raw == "/imagenes" or raw == "/imágenes":
+                if HAS_PROGRAM_CREATOR:
+                    from cognia.program_creator.vista_navegador import formatear_imagenes
+                    _run(raw, formatear_imagenes, color="listado")
+                else:
+                    _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
+            elif raw.startswith("/imagenes ") or raw.startswith("/imágenes "):
+                if not HAS_PROGRAM_CREATOR:
+                    _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
+                else:
+                    _show_response(_slash_imagenes(raw.split(" ", 1)[1].strip()),
+                                   "respuesta")
+            elif raw == "/program_stats":
+                if HAS_PROGRAM_CREATOR:
+                    from cognia.program_creator import get_session_stats
+                    stats = get_session_stats()
                     _show_response(
-                        "\n".join(
-                            f"- {uid}" + ("  (actual)" if uid == current else "")
-                            for uid in users
-                        ),
+                        f"Sesiones:    {stats['sessions_run']}\n"
+                        f"Intentos:    {stats['programs_attempted']}\n"
+                        f"Guardados:   {stats['programs_stored']}\n"
+                        f"Ultima vez:  {stats['last_run']}",
                         "listado",
                     )
                 else:
-                    _print_line("[detail]No hay usuarios registrados.[/detail]")
-            except Exception as e:
-                _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
-        elif raw.startswith("/usuario "):
-            uid = raw[len("/usuario "):].strip()
-            try:
-                from cognia.user_profile import get_profile_manager
-                mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
-                profile = mgr.load(uid)
-                mgr.save(profile)  # persist so el usuario aparece en /usuarios
-                ai.cognitive_profile = profile
-                _show_response(
-                    f"Usuario activo: {uid}\n"
-                    f"  Estilo        : {getattr(profile, 'response_style', '?')}\n"
-                    f"  Idioma        : {getattr(profile, 'preferred_language', '?')}\n"
-                    f"  Interacciones : {getattr(profile, 'total_interactions', 0)}",
-                    "listado",
-                )
-            except Exception as e:
-                _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
-        elif raw == "/estilo_info":
-            try:
-                # StyleEngine no tiene __init__(db) ni get_style_info(): la API
-                # real es load(user_id, db_path) + stats() (bug cazado
-                # 2026-08-01, antes esta rama siempre caia al except).
-                from cognia.learning.style_engine import StyleEngine
-                uid  = getattr(ai.cognitive_profile, "user_id", "default") \
-                    if getattr(ai, "cognitive_profile", None) else "default"
-                se   = StyleEngine.load(uid, ai.db)
-                info = se.stats()
-                _show_response("\n".join(f"{k}: {v}" for k, v in info.items()), "listado")
-            except Exception as e:
-                _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
-        elif raw == "/indice_personal":
-            try:
-                from cognia.memory.personal_index import PersonalIndex
-                uid       = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
-                pi        = PersonalIndex.load(uid, ai.db)
-                conceptos = pi.list_concepts()
-                if conceptos:
-                    _show_response("\n".join(f"- {c}" for c in conceptos), "listado")
-                else:
-                    _print_line("[detail]Indice vacio. Usa: /indice_add <concepto>[/detail]")
-            except Exception as e:
-                _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
-        elif raw.startswith("/indice_add "):
-            concepto = raw[len("/indice_add "):].strip()
-            if concepto:
+                    _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
+
+            # -- Cognitive: with arguments --------------------------------------
+            elif raw.startswith("/repasar "):
+                parts = raw[len("/repasar "):].split()
                 try:
-                    from cognia.memory.personal_index import PersonalIndex
-                    uid = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
-                    pi  = PersonalIndex.load(uid, ai.db)
-                    pi.add(concepto)
-                    pi.save(ai.db)
-                    _print_line(f"[ok_cl]Concepto agregado al indice: {concepto}[/ok_cl]")
-                except Exception as e:
-                    _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
-            else:
-                _print_line("[warn_cl]Uso: /indice_add <concepto>[/warn_cl]")
-
-        # -- Ingestion ------------------------------------------------------
-        elif raw.startswith("/leer "):
-            ruta = raw[len("/leer "):].strip()
-            if ruta:
-                _lr_path = Path(ruta).expanduser().resolve()
-                if _lr_path.suffix.lower() == ".pdf":
-                    try:
-                        import pdfplumber
-                        with pdfplumber.open(_lr_path) as _pdf:
-                            _pages = _pdf.pages[:10]  # max 10 pages
-                            _pdf_text = "\n\n".join(
-                                f"[Pagina {i+1}]\n{page.extract_text() or '(sin texto)'}"
-                                for i, page in enumerate(_pages)
-                            )
-                        content = _pdf_text[:4000]
-                        _show_response(content, "respuesta")
-                        _session_log.append({"input": raw, "output": content, "elapsed": 0})
-                    except ImportError:
-                        _print_line("[err_cl]pdfplumber no instalado -- pip install pdfplumber[/err_cl]")
-                    except Exception as _pdf_e:
-                        _print_line(f"[err_cl]Error leyendo PDF: {_escape(str(_pdf_e))}[/err_cl]")
+                    ep_id    = int(parts[0])
+                    correcto = len(parts) < 2 or parts[1].lower() in ("correcto", "si", "sí", "yes")
+                    _run(raw, lambda: ai.mark_review(ep_id, correcto), color="respuesta")
+                except Exception:
+                    _print_line("[warn_cl]Uso: /repasar <id> correcto|incorrecto[/warn_cl]")
+            elif raw.startswith("/aprender ") and "|" in raw:
+                _slash_aprender_card(raw[len("/aprender "):].strip())
+            elif raw.startswith("/investigar "):
+                _query = raw[len("/investigar "):].strip()
+                _run(raw, lambda: ai.github_research(_query), color="respuesta")
+            elif raw == "/investigar":
+                _print_line("[warn_cl]Uso: /investigar <query>  -- ejemplo: /investigar machine learning Python[/warn_cl]")
+            elif raw.startswith("/razonar ") and raw[len("/razonar "):].strip():
+                # Loop cientifico: hipotesis -> evaluar valor -> analogias -> validar.
+                texto = raw[len("/razonar "):].strip()
+                _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="respuesta")
+            elif raw.startswith("/razonar"):
+                _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
+            elif raw.strip().lower() in ("/pensar on", "/pensar off", "/pensar ver"):
+                # RAZONAMIENTO EN VIVO del renderer (COGNIA_PENSAR, 2026-08-10).
+                # on|ver -> 'ver' (prosa tenue verde con marca ∴ mientras piensa);
+                # off -> 'oculto' (solo el spinner 'pensando…', el default).
+                # El renderer lo lee a CALL-TIME (aplica sin reiniciar) y JAMAS
+                # streamea bajo COGNIA_REMOTO (contrato del movil, lo garantiza
+                # Renderer._pensar_en_vivo).
+                _sub = raw.strip().lower().split()[1]
+                _val = "ver" if _sub in ("on", "ver") else "oculto"
+                os.environ["COGNIA_PENSAR"] = _val
+                _persist_setting("COGNIA_PENSAR", _val)
+                if _val == "ver":
+                    _print_line("[ok_cl]razonamiento en vivo: ON "
+                                "(prosa ∴ tenue verde mientras piensa)[/ok_cl]")
                 else:
-                    from cognia.ingest import ingest_file
-                    _run(raw, lambda: ingest_file(ai, ruta), color="respuesta")
-            else:
-                _print_line("[warn_cl]Uso: /leer <ruta_al_archivo>[/warn_cl]")
-        elif raw.startswith("/proyecto "):
-            ruta = raw[len("/proyecto "):].strip()
-            if ruta:
-                from cognia.ingest import ingest_directory
-                _run(raw, lambda: ingest_directory(ai, ruta), color="respuesta")
-            else:
-                _print_line("[warn_cl]Uso: /proyecto <ruta_al_directorio>[/warn_cl]")
-
-        # -- Herramientas de sistema de archivos ----------------------------
-        elif raw.startswith("/listar"):
-            _ruta = raw[len("/listar"):].strip() or "."
-            _p = Path(_ruta)
-            if not _p.exists():
-                _print_line(f"[err_cl]No existe: {_ruta}[/err_cl]")
-            elif not _p.is_dir():
-                _print_line(f"[err_cl]No es un directorio: {_ruta}[/err_cl]")
-            else:
-                _entries = sorted(_p.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
-                _shown = _entries[:50]
-                for _e in _shown:
-                    if _e.is_dir():
-                        _print_line(f"[detail]  [dir]  {_e.name}/[/detail]")
+                    _print_line("[ok_cl]razonamiento en vivo: OFF "
+                                "(solo el spinner 'pensando…')[/ok_cl]")
+            elif raw.startswith("/pensar ") and raw[len("/pensar "):].strip():
+                # Razonamiento PROFUNDO. Dos caminos, decididos por el pedido:
+                #   PREGUNTA  -> razonador directo (thinking + generacion infinita).
+                #   CONSTRUIR -> pipeline de TRES ACTOS (pensamiento_profundo.py):
+                #                sonar la idea, bajarla a plan, ejecutarla con el
+                #                agente. Pedido del dueno 2026-07-23.
+                # El pensamiento va en [detail] (gris en CLI, bloque plegable en el
+                # control remoto); la respuesta, normal.
+                _pregunta = raw[len("/pensar "):].strip()
+                _solo_idea = _pregunta.startswith("--idea ")
+                if _solo_idea:
+                    _pregunta = _pregunta[len("--idea "):].strip()
+                def _pensar():
+                    from cognia.pensamiento_profundo import (
+                        es_pregunta, pensar_profundo, resumen as _resumen)
+                    if es_pregunta(_pregunta) and not _solo_idea:
+                        from cognia.razonador import razonar
+                        _out = razonar(_pregunta, print_fn=_print_line)
+                        if _out is None:
+                            return "El razonador no respondio (backend caido?)."
+                        return _out["respuesta"] + (
+                            f"\n\n[{_out['tokens']} tokens de razonamiento, "
+                            f"{_out['rounds']} ronda(s)]")
+                    # el runner del acto 3 es el agente real de este mismo CLI
+                    _runner = (lambda tarea, guia: _run_agent_task(
+                        ai, tarea, _print_line, guidance=guia))
+                    return _resumen(pensar_profundo(
+                        _pregunta, runner=_runner, print_fn=_print_line,
+                        ejecutar_plan=not _solo_idea))
+                _run(raw, _pensar, color="respuesta")
+            elif raw.startswith("/pensar"):
+                # /pensar sin pedido: elegir como mostrar el pensamiento. El
+                # razonamiento sale en lineas [detail] (razonador.py:145-157) que
+                # el modo sencillo suprime: 'oculto' = sencillo, 'ver' = avanzado
+                # (no existe un knob mas fino; este es el mecanismo real).
+                from cognia.ux import selector as _selector
+                if _selector.hay_tty():
+                    _modo_p = _selector.elegir(
+                        "Pensamiento de /pensar:",
+                        [("oculto", "oculto",
+                          "no muestra el razonamiento (modo sencillo, default)"),
+                         ("ver", "ver",
+                          "muestra el razonamiento en gris (modo avanzado)")],
+                        default=0)
+                    if _modo_p is not None:
+                        from cognia.simple_mode import set_ui_mode
+                        _ui = set_ui_mode("sencillo" if _modo_p == "oculto"
+                                          else "avanzado")
+                        # sin [detail]: recien elegido 'oculto' lo suprimiria
+                        _print_line(f"pensamiento: {_modo_p} (modo UI {_ui}, guardado)")
+                _print_line("[warn_cl]Uso: /pensar <pedido>  -- pregunta: razona y contesta; "
+                            "pedido de crear: suena la idea, la baja a plan y la ejecuta "
+                            "(--idea para quedarte en la idea+plan)[/warn_cl]")
+            elif raw.startswith("/aprende-repo "):
+                _ar_target = raw[len("/aprende-repo "):].strip()
+                _print_line("[detail]Buscando y aprendiendo de GitHub...[/detail]")
+                _ar_result = _slash_aprende_repo(ai, _ar_target)
+                # respuesta_final: es el cierre del comando; enmarcado, el movil lo
+                # plegaba en "actividad" y el chat quedaba mudo (mismo patron 8315).
+                _show_response(_ar_result, "respuesta", respuesta_final=True)
+            elif raw == "/aprende-repo":
+                _print_line("[warn_cl]Uso: /aprende-repo <url_o_query>  -- ejemplo: /aprende-repo https://github.com/huggingface/transformers[/warn_cl]")
+            elif raw.startswith("/crear "):
+                _idea = raw[len("/crear "):].strip()
+                _run(raw, lambda: ai.create_program(_idea), color="respuesta")
+            elif raw == "/crear":
+                _print_line("[warn_cl]Uso: /crear <idea>  — ejemplo: /crear juego de Snake en terminal[/warn_cl]")
+            elif raw.startswith("/construir "):
+                # Lazo diseno-a-codigo: el cerebro imagina el producto y el arbitro
+                # VISUAL (VLM) mira el render y lo acerca a esa vision, ronda a ronda.
+                # --mockup opta por dibujar el mockup con el modelo de imagenes (SDXL);
+                # por defecto compara contra el brief de texto (menos VRAM).
+                _arg_c = raw[len("/construir "):].strip()
+                _use_mock = _use_spr = False
+                while True:
+                    if _arg_c.startswith("--mockup "):
+                        _use_mock, _arg_c = True, _arg_c[len("--mockup "):].strip()
+                    elif _arg_c.startswith("--sprites "):
+                        _use_spr, _arg_c = True, _arg_c[len("--sprites "):].strip()
                     else:
-                        _sz = _e.stat().st_size
-                        if _sz >= 1_048_576:
-                            _szstr = f"{_sz/1_048_576:.1f} MB"
-                        elif _sz >= 1024:
-                            _szstr = f"{_sz/1024:.1f} KB"
-                        else:
-                            _szstr = f"{_sz} B"
-                        _print_line(f"  [ok_cl]{_e.name}[/ok_cl]  [detail]({_szstr})[/detail]")
-                if len(_entries) > 50:
-                    _print_line(f"[warn_cl]... {len(_entries)-50} entradas omitidas (max 50)[/warn_cl]")
-                _print_line(f"[detail]{min(len(_entries),50)}/{len(_entries)} entradas en {_ruta}[/detail]")
-
-        elif raw.startswith("/buscar "):
-            _rest = raw[len("/buscar "):].strip()
-            if not _rest:
-                _print_line("[warn_cl]Uso: /buscar <patron> [directorio][/warn_cl]")
-            else:
-                _parts = _rest.split(" ", 1)
-                _pat = _parts[0]
-                if len(_parts) > 1 and Path(_parts[1]).is_dir():
-                    _sdir = Path(_parts[1])
+                        break
+                if not _arg_c:
+                    _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>[/warn_cl]")
                 else:
-                    _sdir = Path(".")
-                    if len(_parts) > 1:
-                        _pat = _rest  # entire rest is pattern
-                _SKIP = {".git", "venv", "__pycache__", ".mypy_cache", "node_modules", ".tox"}
-                _matches = []
+                    _run(raw, lambda: ai.construir_web(
+                            _arg_c, usar_mockup=_use_mock, usar_sprites=_use_spr),
+                         color="respuesta")
+            elif raw == "/construir":
+                _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>  — ejemplo: "
+                            "/construir landing de una cafeteria de especialidad[/warn_cl]")
+            elif raw == "/pulir" or raw.startswith("/pulir "):
+                # LOOP THINKING (2026-07-24): construir -> juzgar -> pensar ->
+                # ¿otro ciclo? Pulido sobre rapidez. Sin goal: el modelo SUEÑA uno.
+                # Gestiona los combos de la flota EL SOLO (cambia :8080/:8081).
+                _pl_goal = raw[len("/pulir "):].strip() if raw.startswith("/pulir ") else None
                 try:
-                    _compiled = re.compile(_pat)
-                except re.error as _re_err:
-                    _print_line(f"[err_cl]Patron invalido: {_re_err}[/err_cl]")
-                    _compiled = None
-                if _compiled:
-                    for _fp in _sdir.rglob("*"):
-                        if any(s in _fp.parts for s in _SKIP):
-                            continue
-                        if not _fp.is_file():
-                            continue
+                    from cognia.program_creator.pulidor import pulir
+                    print("[Pulidor] Loop thinking en marcha (esto prioriza calidad, "
+                          "puede tardar; va cambiando la flota solo)...")
+                    _pl_res = pulir(_pl_goal or None)
+                    _show_response(
+                        _pl_res.resumen() + (
+                            f"\nGuardado en: {_pl_res.directorio}" if _pl_res.directorio else ""),
+                        "respuesta")
+                except Exception as _pe:
+                    _print_line(f"[err_cl]Error en /pulir: {_escape(str(_pe))}[/err_cl]")
+            elif raw == "/sellar-biblioteca" or raw.startswith("/sellar-biblioteca "):
+                # Proceso batch que existia sin llamador (barrido 2026-07-24):
+                # sella con .verificacion.json los productos YA guardados.
+                _sb_arg = raw[len("/sellar-biblioteca"):].strip()
+                _sb_lim = int(_sb_arg) if _sb_arg.isdigit() else None
+                try:
+                    from cognia.program_creator.verificacion import sellar_biblioteca
+                    _sb_r = sellar_biblioteca(limite=_sb_lim)
+                    _show_response(
+                        f"Sellados: {len(_sb_r.get('sellados', _sb_r)) if isinstance(_sb_r, dict) else _sb_r}",
+                        "respuesta")
+                except Exception as _se:
+                    _print_line(f"[err_cl]Error sellando: {_escape(str(_se))}[/err_cl]")
+            elif raw == "/fatiga":
+                # El monitor de fatiga corre desde siempre DENTRO de cognia.py y
+                # su reporte legible no era alcanzable (barrido 2026-07-24).
+                try:
+                    if getattr(ai, "fatigue", None):
+                        _show_response(ai.fatigue.format_status(), "listado")
+                    else:
+                        _print_line("[detail]Monitor de fatiga no activo en esta sesion.[/detail]")
+                except Exception as _fe:
+                    _print_line(f"[warn_cl]No pude leer la fatiga: {_escape(str(_fe))}[/warn_cl]")
+            elif raw == "/flota" or raw.startswith("/flota "):
+                # Cambia el COMBO de modelos servidos (flota por roles 2026-07-24).
+                # El REPL habla con :8080 via llm_local: cambiar el combo cambia el
+                # cerebro EN CALIENTE sin reiniciar el REPL. Sin args: estado.
+                _fl_args = (raw[len("/flota "):].strip().split()
+                            if raw.startswith("/flota ") else ["estado"])
+                _fl_modo = _fl_args[0]
+                _fl_scr = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "scripts", "servir_flota.py")
+                if os.path.isfile(_fl_scr):
+                    import subprocess
+                    # "solo <patron>" lleva el patron como argv extra
+                    subprocess.run([sys.executable, _fl_scr] + _fl_args)
+                    if _fl_modo not in ("estado", "parar"):
+                        # llm_local cachea el backend detectado: forzar re-sondeo
+                        # para que el REPL vea el cerebro nuevo YA.
                         try:
-                            _raw_bytes = _fp.read_bytes()
-                            if b"\x00" in _raw_bytes[:8192]:
-                                continue  # skip binary
-                            _lines = _raw_bytes.decode("utf-8", errors="replace").splitlines()
-                            for _lno, _ln in enumerate(_lines, 1):
-                                if _compiled.search(_ln):
-                                    _matches.append((_fp, _lno, _ln.strip()))
-                                    if len(_matches) >= 20:
-                                        break
-                        except (OSError, PermissionError):
-                            continue
-                        if len(_matches) >= 20:
-                            break
-                    if not _matches:
-                        _print_line(f"[detail]Sin coincidencias para '{_pat}'[/detail]")
-                    else:
-                        for _mf, _ml, _mc in _matches:
-                            _print_line(f"  [ok_cl]{_mf}[/ok_cl][detail]:{_ml}:[/detail] {_escape(_mc)}")
-                        if len(_matches) == 20:
-                            _print_line("[warn_cl]... limite de 20 coincidencias alcanzado[/warn_cl]")
-
-        elif raw.startswith("/escribir "):
-            _rest = raw[len("/escribir "):].strip()
-            if not _rest or " " not in _rest:
-                _print_line("[warn_cl]Uso: /escribir <ruta> <contenido>[/warn_cl]")
-            else:
-                _wpath_str, _wcontent = _rest.split(" ", 1)
-                _wpath = Path(_wpath_str).resolve()
-                _cwd_resolved = Path.cwd().resolve()
-                if not str(_wpath).startswith(str(_cwd_resolved)):
-                    _print_line(f"[err_cl]Ruta fuera del directorio de trabajo: {_escape(_wpath_str)}[/err_cl]")
-                    _wpath = None
-                if _wpath is not None and _wpath.exists() and not _fast_mode:
-                    _print_line(f"[warn_cl]El archivo ya existe: {_wpath}. Sobreescribir? (s/n)[/warn_cl]")
-                    try:
-                        _confirm = input("> ").strip().lower()
-                    except (EOFError, KeyboardInterrupt):
-                        _confirm = "n"
-                    if _confirm not in ("s", "si", "y", "yes"):
-                        _print_line("[detail]Operacion cancelada.[/detail]")
-                        _wpath = None
-                if _wpath is not None:
-                    try:
-                        _wpath.parent.mkdir(parents=True, exist_ok=True)
-                        _wcontent = _strip_code_fences(_wcontent)
-                        _wold = _wpath.read_text(encoding="utf-8") if _wpath.exists() else ""
-                        _wpath.write_text(_wcontent, encoding="utf-8")
-                        _wsz = _wpath.stat().st_size
-                        _show_file_diff(_wold, _wcontent, str(_wpath))
-                        _print_line(f"[ok]Escrito: {_wpath} ({_wsz} bytes)[/ok]")
-                    except (OSError, PermissionError) as _we:
-                        _print_line(f"[err_cl]Error al escribir: {_we}[/err_cl]")
-
-        elif raw.startswith("/editar "):
-            _rest = raw[len("/editar "):].strip()
-            if not _rest or " " not in _rest:
-                _print_line("[warn_cl]Uso: /editar <ruta> <buscar> | <reemplazo>[/warn_cl]")
-            else:
-                _epath_str, _erest = _rest.split(" ", 1)
-                if " | " not in _erest:
-                    _print_line("[warn_cl]Separador ' | ' requerido entre buscar y reemplazo[/warn_cl]")
-                else:
-                    _esearch, _ereplace = _erest.split(" | ", 1)
-                    _epath = Path(_epath_str).resolve()
-                    if not str(_epath).startswith(str(Path.cwd().resolve())):
-                        _print_line(f"[err_cl]Ruta fuera del directorio de trabajo: {_escape(_epath_str)}[/err_cl]")
-                    elif not _epath.is_file():
-                        _print_line(f"[err_cl]Archivo no encontrado: {_epath}[/err_cl]")
-                    else:
-                        try:
-                            _eoriginal = _epath.read_text(encoding="utf-8")
-                            if _esearch not in _eoriginal:
-                                _print_line(f"[warn_cl]Patron no encontrado en {_epath}[/warn_cl]")
-                            else:
-                                _enew = _eoriginal.replace(_esearch, _ereplace, 1)
-                                _print_line(f"[detail]Diff en {_epath}:[/detail]")
-                                _show_file_diff(_eoriginal, _enew, str(_epath))
-                                if not _fast_mode:
-                                    _print_line("[warn_cl]Confirmar escritura? (s/n)[/warn_cl]")
-                                    try:
-                                        _econfirm = input("> ").strip().lower()
-                                    except (EOFError, KeyboardInterrupt):
-                                        _econfirm = "n"
-                                else:
-                                    _econfirm = "s"
-                                if _econfirm in ("s", "si", "y", "yes"):
-                                    _epath.write_text(_enew, encoding="utf-8")
-                                    _print_line(f"[ok_cl]Guardado: {_epath}[/ok_cl]")
-                                else:
-                                    _print_line("[detail]Operacion cancelada.[/detail]")
-                        except (OSError, PermissionError) as _ee:
-                            _print_line(f"[err_cl]Error al editar: {_ee}[/err_cl]")
-
-        elif raw.startswith("/ejecutar "):
-            _cmd = raw[len("/ejecutar "):].strip()
-            _BLOCKED = [
-                "rm -rf", "format", "del /s", "del /q", "del /f",
-                ":(){:|:&};:", "python -c", "python3 -c", "powershell",
-                "mkfs", "dd if=", "> /dev/", "shutdown", "reboot",
-            ]
-            _cmd_lower = _cmd.lower()
-            # collapse repeated spaces so "rm  -rf" doesn't bypass "rm -rf"
-            import re as _re_sec
-            _cmd_normalized = _re_sec.sub(r"\s+", " ", _cmd_lower)
-            if any(_b in _cmd_normalized for _b in _BLOCKED):
-                _print_line(f"[err_cl]Comando bloqueado por seguridad: {_escape(_cmd)}[/err_cl]")
-            elif not _confirmar_accion("shell_exec", _cmd):
-                _print_line("[warn_cl]Cancelado.[/warn_cl]")
-            else:
-                _print_line(f"[detail][ejecutar] $ {_escape(_cmd)}[/detail]")
-                try:
-                    _proc = subprocess.run(
-                        _cmd,
-                        shell=True,
-                        capture_output=True,
-                        text=True,
-                        timeout=30,
-                    )
-                    _out = (_proc.stdout + _proc.stderr).strip()
-                    _out_lines = _out.splitlines()
-                    for _ol in _out_lines[:50]:
-                        _print_line(f"  {_escape(_ol)}")
-                    if len(_out_lines) > 50:
-                        _print_line(f"[warn_cl]... {len(_out_lines)-50} lineas omitidas (max 50)[/warn_cl]")
-                    if _proc.returncode != 0:
-                        _print_line(f"[warn_cl]Codigo de salida: {_proc.returncode}[/warn_cl]")
-                except subprocess.TimeoutExpired:
-                    _print_line("[err_cl]Timeout: el comando excedio 30 segundos[/err_cl]")
-                except Exception as _xe:
-                    _print_line(f"[err_cl]Error al ejecutar: {_escape(str(_xe))}[/err_cl]")
-
-        # -- Git diff ------------------------------------------------------
-        elif raw.startswith("/diff "):
-            _diff_target = raw[len("/diff "):].strip()
-            try:
-                import subprocess as _sp_diff
-                _diff_out = _sp_diff.run(
-                    ["git", "diff", "HEAD", "--", _diff_target],
-                    capture_output=True, text=True, timeout=10
-                ).stdout
-                if not _diff_out.strip():
-                    _diff_out = _sp_diff.run(
-                        ["git", "diff", "--cached", "--", _diff_target],
-                        capture_output=True, text=True, timeout=10
-                    ).stdout
-                if not _diff_out.strip():
-                    _print_line(f"[detail]Sin cambios git para: {_diff_target}[/detail]")
-                else:
-                    _diff_prompt = (
-                        f"Analiza este git diff y explica los cambios en 3-5 puntos clave. "
-                        f"Se conciso y enfocado en el impacto:\n\n{_diff_out[:3000]}"
-                    )
-                    from shattering.orchestrator import ShatteringOrchestrator as _O
-                    _orch_d = getattr(ai, '_orchestrator', None) or _O(mode='local')
-                    _diff_result = _orch_d.infer(_diff_prompt)
-                    _show_response(_diff_result.text, "listado")
-            except FileNotFoundError:
-                _print_line("[err_cl]git no disponible en PATH[/err_cl]")
-            except Exception as _de:
-                _print_line(f"[err_cl]Error en diff: {_de}[/err_cl]")
-        elif raw == "/diff":
-            _print_line("[warn_cl]Uso: /diff <archivo>  -- ejemplo: /diff cognia/cli.py[/warn_cl]")
-
-        # -- Preview bat-style (cognia/console/preview.py) -----------------
-        # /cat y no /ver: /ver ya es la vision de pantalla (VLM). El render
-        # rico es SOLO de la capa terminal: el string que ve el modelo y el
-        # remoto no pasa por aca (contrato intacto). Sin rich o archivo
-        # ilegible, preview_archivo devuelve None y se declara el motivo.
-        elif raw.startswith("/cat ") or raw == "/cat":
-            _cat_rest = raw[len("/cat"):].strip()
-            if not _cat_rest:
-                _print_line("[warn_cl]Uso: /cat <ruta> [desde[:hasta]]  -- ejemplo: /cat cognia/cli.py 100:140[/warn_cl]")
-            else:
-                from cognia.console.preview import (contar_lineas as _cat_total,
-                                                    preview_archivo as _cat_prev)
-                _cat_partes = _cat_rest.rsplit(maxsplit=1)
-                _cat_ruta, _cat_desde, _cat_max = _cat_rest, 1, 24
-                if len(_cat_partes) == 2:
-                    import re as _re_cat
-                    _m_cat = _re_cat.fullmatch(r"(\d+)(?::(\d+)?)?", _cat_partes[1])
-                    if _m_cat:
-                        _cat_ruta = _cat_partes[0]
-                        _cat_desde = max(1, int(_m_cat.group(1)))
-                        if _m_cat.group(2):
-                            _cat_max = max(1, int(_m_cat.group(2)) - _cat_desde + 1)
-                _cat_rend = _cat_prev(_cat_ruta, max_lineas=_cat_max, desde=_cat_desde)
-                if _cat_rend is None:
-                    _print_line(f"[warn_cl]Sin preview: {_escape(_cat_ruta)} "
-                                "(no existe, es binario o falta rich)[/warn_cl]")
-                else:
-                    _cat_n = _cat_total(_cat_ruta) or 0
-                    # clamp de la cabecera: preview_archivo ya clampa el rango
-                    # internamente (desde > total muestra la cola); la cabecera
-                    # decia el rango PEDIDO ('lineas 5000-...' de un archivo de
-                    # 200) y mentia (revision 2026-08-10)
-                    if _cat_n and _cat_desde > _cat_n:
-                        _cat_desde = max(1, _cat_n - _cat_max + 1)
-                    _cat_hasta = min(_cat_n, _cat_desde + _cat_max - 1)
-                    # cabecera estilo ToolFin: marca + verbo + objeto + detalle
-                    _print_line(f"[ok_cl]⏺[/ok_cl] cat [mod]{_escape(_cat_ruta)}[/mod] "
-                                f"[detail]— lineas {_cat_desde}-{_cat_hasta} de {_cat_n}[/detail]")
-                    _console.print(_cat_rend)
-                    if _cat_hasta < _cat_n:
-                        # paginado simple por max_lineas: el siguiente tramo a pedido
-                        _print_line(f"[detail]  … /cat {_escape(_cat_ruta)} "
-                                    f"{_cat_hasta + 1}:{min(_cat_n, _cat_hasta + _cat_max)} para seguir[/detail]")
-
-        # -- Skills --------------------------------------------------------
-        elif raw == "/skills":
-            _slash_skills()
-        elif raw.startswith("/skill-nuevo"):
-            _nombre = raw[len("/skill-nuevo"):].strip()
-            if _nombre:
-                _slash_skill_nuevo(_nombre)
-            else:
-                _print_line("[warn_cl]Uso: /skill-nuevo <nombre>[/warn_cl]")
-        elif raw.startswith("/skill-cargar"):
-            _rest = raw[len("/skill-cargar"):].strip()
-            if not _rest:
-                _print_line("[warn_cl]Uso: /skill-cargar <nombre> [args][/warn_cl]")
-            else:
-                _parts2 = _rest.split(" ", 1)
-                _sname = _parts2[0]
-                _sargs = _parts2[1] if len(_parts2) > 1 else ""
-                _slash_skill_cargar(ai, _sname, _sargs)
-        elif raw == "/skill" or raw.startswith("/skill "):
-            _slash_skill(raw[len("/skill "):] if raw.startswith("/skill ") else "", ai)
-
-        # -- Agent mode -----------------------------------------------------
-        elif raw.startswith("/hacer "):
-            _tarea = raw[len("/hacer "):].strip()
-            # Horizonte (P5): '/hacer retomar' relanza la ultima tarea
-            # retomable (incompleta, o en_curso huerfana tras un crash) con el
-            # delta (hitos verificados / lo que falta) como guidance. Gateado
-            # por el MISMO flag que el modo: sin COGNIA_HORIZONTE=1 el
-            # subcomando no existe y '/hacer retomar' se comporta como
-            # siempre (tarea literal) — cero regresion flag-off.
-            if _tarea == "retomar" and os.environ.get("COGNIA_HORIZONTE") == "1":
-                try:
-                    from cognia.agent.estado_tarea import (
-                        cerrar as _cerrar_rt, resumen_para_prompt,
-                        ultima_incompleta)
-                    _est_rt = ultima_incompleta()
-                except Exception as _e_rt:
-                    _est_rt = None
-                    _print_line(f"[warn_cl]retomar no disponible: "
-                                f"{_escape(str(_e_rt))}[/warn_cl]")
-                if _est_rt:
-                    _tarea = _est_rt["tarea"]
-                    _print_line(f"[detail]Retomando tarea "
-                                f"{_est_rt['task_id']}: {_tarea[:120]}[/detail]")
-                    # El estado viejo se sella 'retomada' ANTES de relanzar:
-                    # la corrida nueva abre su propio estado y pasa a ser la
-                    # duena de la tarea. Sin esto, el viejo quedaba
-                    # 'incompleta' para siempre y cada retomar re-ejecutaba
-                    # una tarea ya terminada (revision 2026-08-09).
-                    try:
-                        _cerrar_rt(_est_rt, "retomada")
-                    except Exception:
-                        pass
-                    # El turno ENTERO (correr + mostrar + registrar) va al
-                    # hilo: si el _show_response quedara en el principal, el
-                    # resultado se imprimiria DESPUES del prompt siguiente y
-                    # el orden de la pantalla cambiaria respecto de hoy.
-                    def _turno_retomar(_t=_tarea, _raw=raw, _est=_est_rt):
-                        _r = _run_agent_task(
-                            ai, _t, _print_line,
-                            guidance=resumen_para_prompt(
-                                _est, _est.get("faltan", [])))
-                        if _r:
-                            _show_response(_r, _ACCENT, respuesta_final=True)
-                        _session_log.append({"input": _raw, "output": _r,
-                                             "elapsed": 0})
-                    if not _lanzar_en_fondo("hacer", _turno_retomar):
-                        _turno_retomar()
-                    continue
-                _print_line("[warn_cl]No hay ninguna tarea incompleta que "
-                            "retomar.[/warn_cl]")
-                continue
-            if _tarea:
-                _print_line("[detail]Iniciando agente...[/detail]")
-                # Mismo criterio que en 'retomar': el turno ENTERO al hilo,
-                # para que el orden de lo impreso sea el de hoy.
-                def _turno_hacer(_t=_tarea, _raw=raw):
-                    _resp = _run_agent_task(ai, _t, _print_line)
-                    if _resp:
-                        _show_response(_resp, _ACCENT, respuesta_final=True)
-                    else:
-                        _print_line("[warn_cl]El agente no produjo "
-                                    "respuesta.[/warn_cl]")
-                    _session_log.append({"input": _raw, "output": _resp,
-                                         "elapsed": 0})
-                if not _lanzar_en_fondo("hacer", _turno_hacer):
-                    _turno_hacer()
-            else:
-                _print_line("[warn_cl]Uso: /hacer <descripcion de la tarea>[/warn_cl]")
-
-        # -- Modo RLM (contexto largo por tools) ------------------------------
-        elif raw == "/rlm" or raw.startswith("/rlm "):
-            _rlm_args = raw[len("/rlm "):].strip() if raw.startswith("/rlm ") else ""
-            _rlm_ruta, _rlm_preg = _rlm_parsear(_rlm_args)
-            if not _rlm_preg:
-                _print_line("[warn_cl]Uso: /rlm <pregunta>            "
-                            "(sobre la SESION: conversacion + ficheros "
-                            "tocados)[/warn_cl]")
-                _print_line("[warn_cl]     /rlm <ruta> <pregunta>     "
-                            "(sobre un fichero o directorio; comillas si la "
-                            "ruta tiene espacios)[/warn_cl]")
-            else:
-                # Import perezoso: el modulo RLM solo carga cuando se usa el
-                # modo; un fallo de import avisa sin tumbar el REPL.
-                _correr_rlm = None
-                try:
-                    from cognia.agent.rlm import correr_rlm as _correr_rlm
-                except Exception as _e_rlm:
-                    _print_line(f"[warn_cl]El modo RLM no esta disponible: "
-                                f"{_escape(str(_e_rlm))}[/warn_cl]")
-                if _correr_rlm is not None:
-                    _print_line("[detail]Iniciando modo RLM...[/detail]")
-                    # Corpus VIVO cuando no hay ruta: crecer es incremental y
-                    # el coste se DICE (si tarda, que se vea por que).
-                    _ctx_vivo = None
-                    if not _rlm_ruta:
-                        _ctx_vivo, _delta_v = _rlm_corpus_vivo(ai)
-                        _print_line(
-                            f"[detail]corpus vivo: +{_delta_v['turnos']} "
-                            f"turnos (+{_delta_v['previos']} de historial) "
-                            f"+{_delta_v['comandos']} comandos "
-                            f"+{_delta_v['archivos']} archivos "
-                            f"(+{_delta_v['chars']:,} chars) en "
-                            f"{_delta_v['ms']:.1f} ms | total "
-                            f"{_ctx_vivo.chars:,} chars[/detail]")
-                        if _delta_v["podados"]:
-                            _print_line(
-                                f"[warn_cl]corpus vivo PODADO: "
-                                f"{_delta_v['podados']} bloques tirados por "
-                                f"techo[/warn_cl]")
-                    _res_rlm = _correr_rlm(_rlm_preg, _rlm_ruta,
-                                           print_fn=_print_line,
-                                           contexto=_ctx_vivo)
-                    _texto_rlm = _res_rlm.get("texto") or ""
-                    if _texto_rlm:
-                        _show_response(_texto_rlm, _ACCENT, respuesta_final=True)
-                    else:
-                        _print_line("[warn_cl]El modo RLM no produjo "
-                                    "respuesta.[/warn_cl]")
-                    # El informe del contexto efectivo es parte del contrato
-                    # del modo: va SIN tag [detail] porque en modo sencillo
-                    # [detail] se suprime y el informe debe verse SIEMPRE.
-                    for _lin_rlm in (_res_rlm.get("informe") or "").splitlines():
-                        _print_line(_escape(_lin_rlm))
-                    _session_log.append({"input": raw, "output": _texto_rlm,
-                                         "elapsed": 0})
-
-        # -- Long-form generation --------------------------------------------
-        elif raw == "/largo" or raw.startswith("/largo "):
-            _pedido = raw[len("/largo "):].strip() if raw.startswith("/largo ") else ""
-            if _pedido:
-                _slash_largo(ai, _pedido)
-            else:
-                _print_line("[warn_cl]Uso: /largo <pedido>[/warn_cl]")
-
-        # -- Modo sencillo/avanzado (UI: logs + paleta de tools) --------------
-        elif raw == "/modo" or raw.startswith("/modo "):
-            _arg = raw[len("/modo "):].strip().lower() if raw.startswith("/modo ") else ""
-            from cognia.simple_mode import set_ui_mode, get_ui_mode
-            if _arg in ("sencillo", "avanzado"):
-                _m = set_ui_mode(_arg)
-                _print_line(f"[ok_cl]Modo {_m}. " + (
-                    "Cognia solo funciona, sin logs de proceso." if _m == "sencillo"
-                    else "Se muestran los logs de proceso y todas las herramientas."
-                    ) + "[/ok_cl]")
-            else:
-                _print_line(f"[warn_cl]Modo actual: {get_ui_mode()}. "
-                            f"Uso: /modo sencillo | /modo avanzado[/warn_cl]")
-
-        # -- Chimera: loop cognitivo end-to-end sobre una consulta -----------
-        elif raw == "/chimera" or raw.startswith("/chimera "):
-            _q = raw[len("/chimera "):].strip() if raw.startswith("/chimera ") else ""
-            if not _q:
-                _print_line("[warn_cl]Uso: /chimera <consulta>[/warn_cl]")
-            else:
-                try:
-                    from cognia.chimera import ChimeraSystem
-                    _sys = ChimeraSystem(db_path=ai.db)
-                    _res = _sys.run(_q)
-                    _show_response(_sys.format_report(_res), _ACCENT, respuesta_final=True)
-                except Exception as _ce:
-                    _print_line(f"[warn_cl]Chimera no disponible: {_escape(str(_ce))}[/warn_cl]")
-
-        # -- Tutor: servidor web que ensena cualquier tema (localhost:8899) ---
-        elif raw == "/tutor" or raw.startswith("/tutor "):
-            _tut_arg = raw[len("/tutor "):].strip() if raw.startswith("/tutor ") else ""
-            _tut_scr = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "cognia", "tutor", "__main__.py")
-            try:
-                import subprocess
-                _cmd = [sys.executable, "-m", "cognia.tutor"]
-                if _tut_arg:
-                    _cmd += _tut_arg.split()
-                _print_line("[detail]Abriendo el tutor en http://localhost:8899 "
-                            "(Ctrl-C para volver al REPL)...[/detail]")
-                subprocess.run(_cmd)
-            except Exception as _te:
-                _print_line(f"[warn_cl]No se pudo abrir el tutor: {_escape(str(_te))}[/warn_cl]")
-
-        # -- Estado del subsistema agente (daemon, tools generadas, wishlist) --
-        elif raw == "/agente" or raw == "/agente estado" or raw.startswith("/agente "):
-            try:
-                from cognia.agent.agent_status import (
-                    agent_status_snapshot, format_agent_status,
-                )
-                _show_response(format_agent_status(agent_status_snapshot()), "listado")
-            except Exception as _e:
-                _print_line(f"[warn_cl]No se pudo leer el estado del agente: {_e}[/warn_cl]")
-
-        # -- Model switching ---------------------------------------------------
-        elif raw == "/modelo" or raw.startswith("/modelo "):
-            _slash_modelo(ai, raw[len("/modelo "):] if raw.startswith("/modelo ") else "")
-
-        # -- Plan system ---------------------------------------------------
-        elif raw.startswith("/plan ") and not raw.startswith("/plan-"):
-            _plan_goal = raw[len("/plan "):].strip()
-            if _plan_goal:
-                _print_line("[detail]Descomponiendo objetivo...[/detail]")
-                _plan_result = _slash_plan_crear(ai, _plan_goal)
-                _show_response(_plan_result, "listado")
-            else:
-                _print_line("[warn_cl]Uso: /plan <objetivo>[/warn_cl]")
-        elif raw == "/plan-ver" or raw == "/plan":
-            _show_response(_slash_plan_ver(), "listado")
-        elif raw.startswith("/plan-ok "):
-            _plan_parts = raw[len("/plan-ok "):].strip().split()
-            if len(_plan_parts) >= 2:
-                try:
-                    _show_response(_slash_plan_ok(_plan_parts[0], int(_plan_parts[1])), "respuesta")
-                except ValueError:
-                    _print_line("[warn_cl]Uso: /plan-ok <id> <n>  -- n debe ser un numero[/warn_cl]")
-            else:
-                _print_line("[warn_cl]Uso: /plan-ok <id> <n>  -- ejemplo: /plan-ok p1 2[/warn_cl]")
-        elif raw == "/plan-ok":
-            _print_line("[warn_cl]Uso: /plan-ok <id> <n>  -- ejemplo: /plan-ok p1 2[/warn_cl]")
-        elif raw.startswith("/plan-borrar "):
-            _pb_id = raw[len("/plan-borrar "):].strip()
-            if _pb_id:
-                _show_response(_slash_plan_borrar(_pb_id), "warn_cl")
-            else:
-                _print_line("[warn_cl]Uso: /plan-borrar <id>  -- ejemplo: /plan-borrar p1[/warn_cl]")
-        elif raw == "/plan-borrar":
-            _print_line("[warn_cl]Uso: /plan-borrar <id>[/warn_cl]")
-
-        # -- Templates -------------------------------------------------------
-        elif raw == "/templates":
-            _slash_templates("")
-        elif raw.startswith("/template-guia ") or raw == "/template-guia":
-            _tg_id = raw[len("/template-guia "):].strip() if raw.startswith("/template-guia ") else ""
-            _slash_template_guia(_tg_id)
-        elif raw.startswith("/template ") or raw == "/template":
-            _tpl_id = raw[len("/template "):].strip() if raw.startswith("/template ") else ""
-            _slash_template(_tpl_id)
-
-        # -- Metas ---------------------------------------------------------
-        elif raw.startswith("/meta ") and not raw.startswith("/meta-"):
-            _meta_titulo = raw[len("/meta "):].strip()
-            if _meta_titulo:
-                _slash_meta(_meta_titulo)
-            else:
-                _print_line("[warn_cl]Uso: /meta <titulo>[/warn_cl]")
-        elif raw == "/meta":
-            _print_line("[warn_cl]Uso: /meta <titulo>[/warn_cl]")
-        elif raw == "/metas":
-            _slash_metas()
-        elif raw.startswith("/meta-ok ") or raw == "/meta-ok":
-            _mok_id = raw[len("/meta-ok "):].strip() if raw.startswith("/meta-ok ") else ""
-            if _mok_id:
-                _slash_meta_ok(_mok_id)
-            else:
-                _print_line("[warn_cl]Uso: /meta-ok <id>[/warn_cl]")
-        elif raw.startswith("/meta-prog ") or raw == "/meta-prog":
-            _mprog_args = raw[len("/meta-prog "):].strip() if raw.startswith("/meta-prog ") else ""
-            if _mprog_args:
-                _slash_meta_prog(_mprog_args)
-            else:
-                _print_line("[warn_cl]Uso: /meta-prog <id> <porcentaje>[/warn_cl]")
-        elif raw.startswith("/meta-borrar ") or raw == "/meta-borrar":
-            _mborrar_id = raw[len("/meta-borrar "):].strip() if raw.startswith("/meta-borrar ") else ""
-            if _mborrar_id:
-                _slash_meta_borrar(_mborrar_id)
-            else:
-                _print_line("[warn_cl]Uso: /meta-borrar <id>[/warn_cl]")
-        elif raw.startswith("/meta-prioridad-ver"):
-            _slash_meta_prioridad_ver("")
-        elif raw.startswith("/meta-prioridad ") or raw == "/meta-prioridad":
-            _mprior_args = raw[len("/meta-prioridad "):].strip() if raw.startswith("/meta-prioridad ") else ""
-            _slash_meta_prioridad(_mprior_args)
-        elif raw == "/metas-alta":
-            _slash_metas_alta("")
-        elif raw == "/metas-ordenar":
-            _slash_metas_ordenar("")
-
-        # -- Deep reasoning: /pensar vive arriba (modelo thinking dedicado +
-        # generacion infinita, cognia/razonador.py). El handler viejo (CoT
-        # "Paso N:" con el modelo base) fue reemplazado 2026-07-21: mismo
-        # proposito, motor muy superior y medido (E2E 12/12 GPU, 5/5 CPU).
-
-        # -- Deliberacion (CognitiveLoop DELIBERATE, offline/determinista) --
-        elif raw.startswith("/deliberar ") or raw == "/deliberar":
-            _obj = raw[len("/deliberar"):].strip()
-            if not _obj:
-                _print_line("[warn_cl]Uso: /deliberar <objetivo>  (plan->critica->verify->revise, offline/determinista)[/warn_cl]")
-            else:
-                _print_line("[detail]Deliberando (offline: planner + self-critic + verifier + world-model)...[/detail]")
-                try:
-                    loop = getattr(ai, "_cognitive_loop", None)
-                    if loop is None:
-                        from cognia.reasoning.cognitive_loop import CognitiveLoop
-                        loop = CognitiveLoop(db_path=getattr(ai, "db", None))
-                        try:
-                            ai._cognitive_loop = loop
+                            from cognia.llm_local import detectar_backend
+                            detectar_backend(forzar=True)
                         except Exception:
                             pass
-                    # FASE 3c: el nivel /esfuerzo fija el tope de pasadas deliberativas.
-                    _max_iters = _active_effort()["verificaciones"] + 1
-                    _plan, _crit, _verify, _out, _risk = loop._run_deliberate(
-                        _obj, None, max_iters=_max_iters)
-                    _print_line(f"[titulo]PLAN ({len(_plan or [])} pasos):[/titulo]")
-                    for _i, _st in enumerate(_plan or [], 1):
-                        _print_line(f"  {_i}. {getattr(_st, 'description', _st)} (tool={getattr(_st, 'tool_required', '?')})")
-                    _sc = (_crit or {}).get("scores", {})
-                    _print_line(f"[titulo]CRITICA[/titulo] overall={float(_sc.get('overall', 0.0)):.2f}: {(_crit or {}).get('critique', '')}")
-                    if _verify is not None:
-                        _ok = getattr(_verify, "passed", False)
-                        _extra = "" if _ok else f" reason={getattr(_verify, 'fail_reason', '')}"
-                        _print_line(f"VERIFY: {'PASS' if _ok else 'FAIL'} (score={float(getattr(_verify, 'score', 0.0)):.2f}){_extra}")
-                    if _risk:
-                        _print_line(f"PLAN RISK: {_risk.get('recommendation', '?')} (max_risk={float(_risk.get('max_risk', 0.0)):.2f})")
-                    _print_line(f"[detail]{_out}[/detail]")
+                else:
+                    _print_line("[detail]/flota esta disponible desde el repo de "
+                                "Cognia (no en la instalacion pip).[/detail]")
+            elif raw.startswith("/encolar "):
+                if HAS_PROGRAM_CREATOR:
+                    _idea_enc = raw[len("/encolar "):].strip()
                     try:
-                        _vv = "PASS" if (_verify is not None and getattr(_verify, "passed", False)) else "FAIL/NA"
-                        ai.observe(f"Deliberacion sobre: {_obj[:80]} | {len(_plan or [])} pasos, verify={_vv}",
-                                   provided_label="deliberacion")
-                    except Exception:
-                        pass
-                except Exception as _de:
-                    _print_line(f"[err_cl]Error en deliberacion: {_de}[/err_cl]")
-
-        # -- Flujo orquestado (analisis->plan->ejecucion->informe->verificacion) --
-        elif raw.startswith("/flujo ") or raw == "/flujo":
-            _goal = raw[len("/flujo"):].strip()
-            if not _goal:
-                _print_line("[warn_cl]Uso: /flujo <objetivo>[/warn_cl]")
-            else:
-                _print_line("[detail]Flujo estructurado (etapas dinamicas por "
-                            "complejidad/esfuerzo)...[/detail]")
-                try:
-                    from cognia.agents.flow import run_flow
-                    _report = run_flow(ai, _goal, _active_effort(), _print_line)
-                    _show_response(_report, _ACCENT)
-                    _session_log.append({"input": raw, "output": _report, "elapsed": 0})
-                    _persist_turn(ai, raw, _report)
-                except Exception as _fe:
-                    _print_line(f"[err_cl]Error en flujo: {_fe}[/err_cl]")
-
-        # -- Proyectos: estado persistente de flujos /flujo (FASE 6, nivel O2) ----
-        elif raw == "/proyectos" or raw.startswith("/proyectos "):
-            _proy_arg = raw[len("/proyectos "):].strip() if raw.startswith("/proyectos ") else ""
-            try:
-                from cognia.memory.project_memory import get_project_memory
-                _pm = get_project_memory(getattr(ai, "db", None) or "cognia_memory.db")
-                if _proy_arg:
-                    # DETALLE de un flujo por id (get_flow ya existia sin puerta REPL).
+                        from cognia.program_creator.generator import add_custom_idea, get_custom_ideas
+                        ok = add_custom_idea(_idea_enc)
+                        n  = len(get_custom_ideas())
+                        _show_response(
+                            f"Idea encolada para el proximo /dormir: '{_idea_enc}'\n"
+                            f"Ideas pendientes: {n}"
+                            if ok else
+                            f"La idea ya estaba en la cola.",
+                            "respuesta",
+                        )
+                    except Exception as _e:
+                        _print_line(f"[warn_cl][ERROR] {_e}[/warn_cl]")
+                else:
+                    _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
+            elif raw == "/encolar":
+                _print_line("[warn_cl]Uso: /encolar <idea>  — ejemplo: /encolar juego de tetris ASCII[/warn_cl]")
+            elif raw == "/ideas" or raw.startswith("/ideas "):
+                # Ver las ideas del hobby (propias encoladas + fallback por categoria)
+                # o vaciar la cola propia. get_all_ideas/clear_custom_ideas ya vivian
+                # en generator.py pero no tenian puerta en el REPL (huerfanas).
+                if not HAS_PROGRAM_CREATOR:
+                    _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
+                else:
+                    _ideas_arg = raw[len("/ideas "):].strip() if raw.startswith("/ideas ") else ""
                     try:
-                        _fid = int(_proy_arg)
-                    except ValueError:
-                        _print_line("[warn_cl]Uso: /proyectos [id]  -- el id debe ser un numero[/warn_cl]")
-                    else:
-                        _flow = _pm.get_flow(_fid)
-                        if not _flow:
-                            _print_line(f"[warn_cl]No existe el flujo #{_fid}.[/warn_cl]")
+                        from cognia.program_creator.generator import (
+                            clear_custom_ideas, get_all_ideas)
+                        if _ideas_arg == "limpiar":
+                            _n_borr = clear_custom_ideas()
+                            _show_response(
+                                f"Cola de ideas propias vaciada ({_n_borr} borrada(s)).",
+                                "respuesta")
                         else:
-                            _fd, _ft = len(_flow["stages_done"]), len(_flow["route"])
-                            _print_line(f"[titulo]Flujo #{_flow['id']}[/titulo] [{_flow['status']}]")
-                            _print_line(f"  objetivo: {_flow['goal']}")
-                            _print_line(f"  ruta: {' -> '.join(_flow['route']) or '(sin ruta)'}")
-                            _print_line(f"  etapas hechas: {_fd}/{_ft} "
-                                        f"({', '.join(_flow['stages_done']) or 'ninguna'})")
-                            if _flow.get("score") is not None:
-                                _print_line(f"  score: {_flow['score']}")
+                            _todas = get_all_ideas()
+                            _lst = "\n".join(f"  {_i+1}. {_idea}"
+                                             for _i, _idea in enumerate(_todas[:40]))
+                            _show_response(
+                                f"Ideas disponibles ({len(_todas)}):\n{_lst}", "listado")
+                    except Exception as _id_e:
+                        _print_line(f"[err_cl]ideas no disponible: {_id_e}[/err_cl]")
+            elif raw.startswith("/observar "):
+                texto = raw[len("/observar "):].strip()
+                _run(raw, lambda: ai.process(texto), color="listado")
+            elif raw == "/observar":
+                _print_line("[warn_cl]Uso: /observar <texto>[/warn_cl]")
+            elif raw.startswith("/aprender ") and "|" not in raw:
+                _print_line("[warn_cl]Uso: /aprender <frente> | <respuesta> [| <tema>][/warn_cl]")
+            elif raw == "/aprender":
+                _print_line("[warn_cl]Uso: /aprender <frente> | <respuesta> [| <tema>][/warn_cl]")
+            elif raw.startswith("/corregir ") and raw.count("|") >= 2:
+                partes = raw[len("/corregir "):].split("|")
+                _run(raw, lambda: ai.correct(
+                    partes[0].strip(), partes[1].strip(), partes[2].strip()), color="respuesta")
+            elif raw.startswith("/corregir"):
+                _print_line("[warn_cl]Uso: /corregir <obs> | <incorrecto> | <correcto>[/warn_cl]")
+            elif raw.startswith("/hipotesis ") and "|" in raw:
+                partes = raw[len("/hipotesis "):].split("|", 1)
+                _run(raw, lambda: ai.generate_hypothesis(
+                    partes[0].strip(), partes[1].strip()), color=_ACCENT)
+            elif raw.startswith("/hipotesis ") and raw[len("/hipotesis "):].strip():
+                texto = raw[len("/hipotesis "):].strip()
+                _run(raw, lambda: ai.generate_hypotheses_many(
+                    texto, n=_active_effort()["alternativas"]), color=_ACCENT)
+            elif raw.startswith("/hipotesis"):
+                _print_line("[warn_cl]Uso: /hipotesis <A> | <B>  (pares)  o  /hipotesis <problema>  (N hipotesis)[/warn_cl]")
+            elif raw.startswith("/experimento ") and raw[len("/experimento "):].strip():
+                texto = raw[len("/experimento "):].strip()
+                _run(raw, lambda: ai.run_experiment(texto), color="listado")
+            elif raw.startswith("/experimento"):
+                _print_line("[warn_cl]Uso: /experimento <afirmacion>  -- ejemplo: /experimento bubble sort es O(n^2)[/warn_cl]")
+            elif raw.startswith("/evaluar-idea ") and raw[len("/evaluar-idea "):].strip():
+                texto = raw[len("/evaluar-idea "):].strip()
+                _run(raw, lambda: ai.evaluate_idea(texto), color=_ACCENT)
+            elif raw.startswith("/evaluar-idea"):
+                _print_line("[warn_cl]Uso: /evaluar-idea <idea>  -- ejemplo: /evaluar-idea un IDE que escribe sus propios tests[/warn_cl]")
+            elif raw.startswith("/analogia ") and raw[len("/analogia "):].strip():
+                texto = raw[len("/analogia "):].strip()
+                _run(raw, lambda: ai.find_analogies(texto), color="listado")
+            elif raw.startswith("/analogia"):
+                _print_line("[warn_cl]Uso: /analogia <problema>  -- ejemplo: /analogia el contexto del modelo se satura con conversaciones largas[/warn_cl]")
+            elif raw.startswith("/abstraer ") and raw[len("/abstraer "):].strip():
+                texto = raw[len("/abstraer "):].strip()
+                _run(raw, lambda: ai.solve_by_abstraction(texto), color="listado")
+            elif raw.startswith("/abstraer"):
+                _print_line("[warn_cl]Uso: /abstraer <problema>  -- ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia[/warn_cl]")
+            elif raw.startswith("/transferir ") and "|" in raw:
+                partes = raw[len("/transferir "):].split("|", 1)
+                _run(raw, lambda: ai.transfer_principle(
+                    partes[0].strip(), partes[1].strip()), color="listado")
+            elif raw.startswith("/transferir"):
+                _print_line("[warn_cl]Uso: /transferir <fuente> | <objetivo>[/warn_cl]")
+            elif raw.startswith("/diversidad ") and "||" in raw:
+                ideas = [p.strip() for p in raw[len("/diversidad "):].split("||")]
+                ideas = [p for p in ideas if p]
+                _run(raw, lambda: ai.measure_diversity(ideas), color="listado")
+            elif raw.startswith("/diversidad"):
+                _print_line("[warn_cl]Uso: /diversidad <idea1> || <idea2> || ...  "
+                            "-- ejemplo: /diversidad recolectar agua de lluvia || juntar lluvia en azoteas[/warn_cl]")
+            elif raw.startswith("/explorar ") and raw[len("/explorar "):].strip():
+                texto = raw[len("/explorar "):].strip()
+                _run(raw, lambda: ai.explore_problem(texto), color="listado")
+            elif raw.startswith("/explorar"):
+                _print_line("[warn_cl]Uso: /explorar <problema>  "
+                            "-- ejemplo: /explorar como reducir el consumo de agua en una ciudad[/warn_cl]")
+            elif raw.startswith("/explicar "):
+                texto = raw[len("/explicar "):].strip()
+                _run(raw, lambda: ai.explain(texto), color=_ACCENT)
+            elif raw == "/explicar":
+                _print_line("[warn_cl]Uso: /explicar <texto>[/warn_cl]")
+            elif raw.startswith("/grafo "):
+                concepto = raw[len("/grafo "):].strip()
+                _run(raw, lambda: ai.show_graph(concepto), color="listado")
+            elif raw == "/grafo":
+                _print_line("[warn_cl]Uso: /grafo <concepto>[/warn_cl]")
+            elif raw == "/grafo-html" or raw.startswith("/grafo-html "):
+                # Exporta el KG a un HTML interactivo y lo abre. graph_view.export ya
+                # renderizaba/abria pero no se alcanzaba desde el REPL (huerfana).
+                _gh_proj = raw[len("/grafo-html "):].strip() if raw.startswith("/grafo-html ") else ""
+                try:
+                    from cognia.knowledge.graph_view import export as _kg_export_html
+                    _gh_ruta = _kg_export_html(kg=ai.kg, project=(_gh_proj or None),
+                                               open_browser=True)
+                    _show_response(
+                        f"Grafo exportado y abierto en el navegador:\n  {_gh_ruta}",
+                        "listado")
+                except Exception as _gh_e:
+                    _print_line(f"[err_cl]grafo-html no disponible: {_gh_e}[/err_cl]")
+            elif raw == "/indexar-codigo":
+                # Indexa el codigo del repo al KG (define/importa/llama_a/tiene_metodo).
+                # indexar_codigo ya existia en code_graph pero sin puerta en el REPL.
+                try:
+                    from cognia.knowledge.code_graph import indexar_codigo
+                    _ix_m = indexar_codigo(kg=ai.kg)
+                    _show_response(
+                        "Codigo indexado al knowledge graph:\n"
+                        f"  modulos:          {_ix_m.get('modulos', 0)}\n"
+                        f"  triples:          {_ix_m.get('triples', 0)}\n"
+                        f"  borrados previos: {_ix_m.get('borrados_previos', 0)}\n"
+                        f"  tiempo:           {_ix_m.get('secs', 0)}s", "listado")
+                except Exception as _ix_e:
+                    _print_line(f"[err_cl]indexar-codigo no disponible: {_ix_e}[/err_cl]")
+            elif raw == "/atencion" or raw == "/atención":
+                _print_line("[warn_cl]Uso: /atencion <id>  (id de un episodio de memoria)[/warn_cl]")
+            elif raw.startswith("/atencion ") or raw.startswith("/atención "):
+                # Explica como se DESCOMPONE la atencion de un episodio (semantica +
+                # emocion + recencia + frecuencia). Sin consulta se usa la propia
+                # similitud del episodio (=1.0): el desglose muestra los pesos y las
+                # otras senales reales. explain_attention vive en ai.attention.
+                _at_raw = raw.split(" ", 1)[1].strip()
+                try:
+                    _at_id = int(_at_raw)
+                except ValueError:
+                    _print_line("[warn_cl]Uso: /atencion <id>  -- el id debe ser un numero[/warn_cl]")
                 else:
-                    _flows = _pm.recent(8)
-                    if not _flows:
-                        _print_line("[detail]Sin flujos registrados todavia (usa /flujo <objetivo>).[/detail]")
-                    else:
-                        _print_line("[titulo]Proyectos / flujos recientes:[/titulo]")
-                        for _f in _flows:
-                            _done, _tot = len(_f["stages_done"]), len(_f["route"])
-                            _sc = f" score={_f['score']}" if _f.get("score") is not None else ""
-                            _print_line(f"  #{_f['id']} [{_f['status']}] {_f['goal'][:60]} "
-                                        f"({_done}/{_tot} etapas{_sc})")
-                        _pend = _pm.latest_unfinished()
-                        if _pend:
-                            _print_line(f"[detail]Sin terminar: #{_pend['id']} -- retomar con "
-                                        f"/flujo {_pend['goal'][:60]}[/detail]")
-                        _print_line("[detail]Detalle de un flujo: /proyectos <id>[/detail]")
-            except Exception as _pe:
-                _print_line(f"[err_cl]Error leyendo proyectos: {_pe}[/err_cl]")
-
-        # -- Agent history --------------------------------------------------
-        elif raw == "/historial":
-            _AGENT_STATE_PATH = Path.home() / ".cognia_agent_state.json"
-            try:
-                import json as _json_h
-                _st = _json_h.loads(_AGENT_STATE_PATH.read_text(encoding="utf-8"))
-                if _st.get("tasks"):
-                    _print_line("[titulo]Tareas recientes del agente:[/titulo]")
-                    for _t in reversed(_st["tasks"]):
-                        _print_line(f"  [{_t.get('ts','?')}] {_t['task'][:60]} ({_t.get('steps',0)} pasos)")
-                        _print_line(f"    -> {_t['result'][:100]}")
-                else:
-                    _print_line("Sin historial de tareas.")
-                if _st.get("files_touched"):
-                    _print_line(f"[titulo]Archivos tocados:[/titulo] {', '.join(_st['files_touched'][-5:])}")
-            except FileNotFoundError:
-                _print_line("Sin historial. Usa /hacer <tarea> primero.")
-            except Exception as _e:
-                _print_line(f"[err_cl]Error leyendo historial: {_e}[/err_cl]")
-
-        # -- Chat history commands ------------------------------------------
-        elif raw == "/sesiones":
-            _slash_sesiones("")
-        elif raw == "/resume" or raw.startswith("/resume "):
-            _rs_arg = raw[len("/resume "):].strip() if raw.startswith("/resume ") else ""
-            _slash_resume(_rs_arg, ai)
-        elif raw.startswith("/buscar-historial ") or raw == "/buscar-historial":
-            _bh_kw = raw[len("/buscar-historial "):].strip() if raw.startswith("/buscar-historial ") else ""
-            _slash_buscar_historial(_bh_kw)
-        elif raw.startswith("/sesion-ver ") or raw == "/sesion-ver":
-            _sv_id = raw[len("/sesion-ver "):].strip() if raw.startswith("/sesion-ver ") else ""
-            _slash_sesion_ver(_sv_id)
-        elif raw.startswith("/historial-limpiar ") or raw == "/historial-limpiar":
-            _hl_arg = raw[len("/historial-limpiar "):].strip() if raw.startswith("/historial-limpiar ") else ""
-            _slash_historial_limpiar(_hl_arg)
-
-        # -- Conversation summary -------------------------------------------
-        elif raw == "/resumir":
-            try:
-                from shattering.orchestrator import ShatteringOrchestrator as _O
-                _orch_r = getattr(ai, '_orchestrator', None) or _O(mode='local')
-                _hist_snippet = []
-                for _entry in _session_log[-6:]:
-                    _hist_snippet.append(f"Usuario: {_entry['input'][:80]}")
-                    _hist_snippet.append(f"Cognia: {_entry['output'][:80]}")
-                if not _hist_snippet:
-                    _print_line("No hay historial de conversacion para resumir.")
-                else:
-                    _summary_prompt = (
-                        "Resume esta conversacion en 2-3 oraciones, destacando los temas clave:\n\n"
-                        + "\n".join(_hist_snippet)
-                        + "\n\nResumen:"
-                    )
-                    # max_tokens=256: el resumen es explícitamente 2-3 oraciones;
-                    # sin cota, un infer degenerado del 3B llenaba hasta el default.
-                    _sum_result = _orch_r.infer(_summary_prompt, max_tokens=256)
-                    _summary_text = _sum_result.text.strip()
                     try:
-                        ai.observe(_summary_text, provided_label="resumen_sesion")
-                    except Exception:
-                        pass
-                    _print_line("[ok_cl]Resumen guardado en memoria:[/ok_cl]")
-                    _print_line(_summary_text)
-            except Exception as _re:
-                _print_line(f"[err_cl]Error al resumir: {_re}[/err_cl]")
+                        from storage.db_pool import db_connect_pooled as _dcp
+                        _at_conn = _dcp(ai.db)
+                        _at_cur = _at_conn.cursor()
+                        _at_cur.execute(
+                            "SELECT id, observation, label, access_count, last_access, "
+                            "importance, emotion_score, emotion_label "
+                            "FROM episodic_memory WHERE id=?", (_at_id,))
+                        _at_row = _at_cur.fetchone()
+                        _at_conn.close()
+                        if not _at_row:
+                            _print_line(f"[warn_cl]No existe el episodio #{_at_id}.[/warn_cl]")
+                        else:
+                            _at_ep = {
+                                "id": _at_row[0], "observation": _at_row[1],
+                                "label": _at_row[2], "access_count": _at_row[3] or 0,
+                                "last_access": _at_row[4] or "",
+                                "importance": _at_row[5] if _at_row[5] is not None else 1.0,
+                                "emotion": {"score": _at_row[6] or 0.0,
+                                            "label": _at_row[7] or "neutral"},
+                                "similarity": 1.0,
+                            }
+                            _at_expl = ai.attention.explain_attention(_at_ep, query_vector=[])
+                            _at_obs = (_at_row[1] or "")[:80]
+                            _show_response(
+                                f"Episodio #{_at_id} ({_at_row[2] or 'sin etiqueta'}): "
+                                f"{_at_obs}\n{_at_expl}", "listado")
+                    except Exception as _at_e:
+                        _print_line(f"[err_cl]atencion no disponible: {_at_e}[/err_cl]")
+            elif raw.startswith("/hecho ") and raw.count("|") >= 2:
+                partes = raw[len("/hecho "):].split("|")
+                _run(raw, lambda: ai.add_fact(
+                    partes[0].strip(), partes[1].strip(), partes[2].strip()), color="respuesta")
+            elif raw.startswith("/hecho") and not raw.startswith("/hechos-"):
+                # `and not /hechos-`: sin la guarda este catch-all capturaba
+                # /hechos-solidos (empieza por "/hecho") y su rama real quedaba
+                # inalcanzable (mismo patron que /plan vs /plan-, /meta vs /meta-).
+                _print_line("[warn_cl]Uso: /hecho <sujeto> | <predicado> | <objeto>[/warn_cl]")
+            elif raw.startswith("/predecir "):
+                concepto = raw[len("/predecir "):].strip()
+                _run(raw, lambda: ai.predict_next(concepto), color="listado")
+            elif raw.startswith("/inferir "):
+                concepto = raw[len("/inferir "):].strip()
+                _run(raw, lambda: ai.infer_about(concepto), color=_ACCENT)
+            elif raw.startswith("/narrativa "):
+                concepto = raw[len("/narrativa "):].strip()
+                _run(raw, lambda: ai.get_narrative(concepto), color=_ACCENT)
 
-        # -- Spaced repetition review (bare /revisar) -----------------------
-        elif raw == "/revisar":
-            _slash_revisar_sm2()
+            # -- Mesh -----------------------------------------------------------
+            elif raw.startswith("/mesh_iniciar"):
+                parts = raw.split()
+                port  = int(parts[1]) if len(parts) > 1 else 7474
+                _run(raw, lambda: ai.start_mesh(port), color="listado")
+            elif raw.startswith("/mesh_peer "):
+                peer = raw[len("/mesh_peer "):].strip()
+                _run(raw, lambda: ai.connect_mesh_peer(peer), color="listado")
+            elif raw.startswith("/mesh_publicar ") and raw.count("|") >= 2:
+                partes = raw[len("/mesh_publicar "):].split("|")
+                triple = [{"subject":   partes[0].strip(),
+                           "predicate": partes[1].strip(),
+                           "object":    partes[2].strip()}]
+                _run(raw, lambda: ai.publish_knowledge(triple), color="respuesta")
+            elif raw == "/mesh_estado":
+                _run(raw, ai.mesh_status, color="listado")
 
-        # -- Code review ----------------------------------------------------
-        elif raw.startswith("/revisar "):
-            _ruta_rev = raw[len("/revisar "):].strip()
-            _p_rev = Path(_ruta_rev)
-            if not _p_rev.exists():
-                _print_line(f"[err_cl]No existe: {_ruta_rev}[/err_cl]")
-            elif not _p_rev.is_file():
-                _print_line(f"[err_cl]No es un archivo: {_ruta_rev}[/err_cl]")
-            else:
+            # -- Security -------------------------------------------------------
+            elif raw == "/seguridad":
+                _run(raw, ai.security_status, color="listado")
+            elif raw == "/bloquear":
+                _run(raw, ai.lock_security, color="warn_cl")
+            elif raw.startswith("/desbloquear "):
+                passphrase = raw[len("/desbloquear "):].strip()
+                if passphrase:
+                    _run(raw, lambda: ai.unlock_security(passphrase), color="warn_cl")
+                else:
+                    _print_line("[warn_cl]Uso: /desbloquear <passphrase>[/warn_cl]")
+
+            # -- Scale ----------------------------------------------------------
+            elif raw == "/escalar":
                 try:
-                    _code = _p_rev.read_text(encoding="utf-8", errors="replace")
-                    if len(_code) > 8000:
-                        _code = _code[:8000] + "\n... (truncado)"
-                    _ext = _p_rev.suffix.lower()
-                    _lang = {
-                        "py": "Python", "js": "JavaScript", "ts": "TypeScript",
-                        "c": "C", "cpp": "C++", "rs": "Rust", "go": "Go",
-                    }.get(_ext.lstrip("."), "codigo")
-                    _review_prompt = (
-                        f"Eres un revisor de codigo experto. Analiza este archivo {_lang} "
-                        f"y proporciona una revision estructurada con:\n"
-                        f"1. Resumen (1 oracion)\n"
-                        f"2. Problemas criticos (si los hay)\n"
-                        f"3. Mejoras sugeridas (max 3)\n"
-                        f"4. Puntos positivos (max 2)\n\n"
-                        f"Archivo: {_p_rev.name}\n\n```{_ext.lstrip('.')}\n{_code}\n```\n\n"
-                        f"Revision:"
+                    from cognia.scale_manager import get_scale_manager
+                    sm = get_scale_manager()
+                    st = sm.status()
+                    _show_response(
+                        f"Nivel        {st['level']}: {st['name']}\n"
+                        f"Modelo       {st['model']}\n"
+                        f"Timeout      {st['timeout_s']}s\n"
+                        f"RAM          {st['ram_gb']} GB\n"
+                        f"Memorias     {st['memories']}\n"
+                        f"Peers        {st['peers']}\n"
+                        f"Historial    {st['hit_counts']}",
+                        "listado",
                     )
-                    from shattering.orchestrator import ShatteringOrchestrator as _O
-                    _orch_rev = getattr(ai, '_orchestrator', None) or _O(mode='local')
-                    _print_line(f"[detail]Revisando {_p_rev.name}...[/detail]")
-                    _rev_result = _orch_rev.infer(_review_prompt)
-                    _show_response(_rev_result.text, "listado")
-                    try:
-                        ai.observe(
-                            f"Revision de {_p_rev.name}: {_rev_result.text[:200]}",
-                            provided_label="revision_codigo",
-                        )
-                    except Exception:
-                        pass
-                except Exception as _re:
-                    _print_line(f"[err_cl]Error al revisar: {_re}[/err_cl]")
+                except Exception as e:
+                    _print_line(f"[warn_cl]ScaleManager no disponible: {e}[/warn_cl]")
 
-        # -- Memory stats dashboard -----------------------------------------
-        elif raw == "/memoria-stats":
-            try:
-                _ms_lines = []
+            # -- User profiles --------------------------------------------------
+            elif raw == "/usuarios":
                 try:
-                    ep_count = ai.episodic.count()
-                    _ms_lines.append(f"Episodios guardados: {ep_count}")
-                except Exception:
-                    pass
-                try:
-                    _ms_lines.append(f"Observaciones en esta sesion: {ai._session_observations}")
-                except Exception:
-                    pass
-                try:
-                    _ms_lines.append(f"Total interacciones: {ai.interaction_count}")
-                except Exception:
-                    pass
-                try:
-                    cryst = ai.semantic.get_crystallized()
-                    if cryst:
-                        _ms_lines.append(
-                            f"Conceptos cristalizados ({len(cryst)}): "
-                            + ", ".join(c["concept"] for c in cryst[:8])
+                    from cognia.user_profile import get_profile_manager
+                    mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
+                    users = mgr.list_users()
+                    if users:
+                        current = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+                        _show_response(
+                            "\n".join(
+                                f"- {uid}" + ("  (actual)" if uid == current else "")
+                                for uid in users
+                            ),
+                            "listado",
                         )
                     else:
-                        _ms_lines.append("Conceptos cristalizados: ninguno aun (necesitan support>=5)")
-                except Exception:
-                    pass
+                        _print_line("[detail]No hay usuarios registrados.[/detail]")
+                except Exception as e:
+                    _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
+            elif raw.startswith("/usuario "):
+                uid = raw[len("/usuario "):].strip()
                 try:
-                    all_concepts = ai.semantic.list_all()
-                    if all_concepts:
-                        _top = sorted(all_concepts, key=lambda x: x.get("confidence", 0), reverse=True)[:5]
-                        _ms_lines.append(
-                            "Top conceptos semanticos: "
-                            + ", ".join(
-                                f"{c['concept']} ({c.get('confidence', 0):.2f})"
-                                for c in _top
-                            )
-                        )
-                except Exception:
-                    pass
+                    from cognia.user_profile import get_profile_manager
+                    mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
+                    profile = mgr.load(uid)
+                    mgr.save(profile)  # persist so el usuario aparece en /usuarios
+                    ai.cognitive_profile = profile
+                    _show_response(
+                        f"Usuario activo: {uid}\n"
+                        f"  Estilo        : {getattr(profile, 'response_style', '?')}\n"
+                        f"  Idioma        : {getattr(profile, 'preferred_language', '?')}\n"
+                        f"  Interacciones : {getattr(profile, 'total_interactions', 0)}",
+                        "listado",
+                    )
+                except Exception as e:
+                    _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
+            elif raw == "/estilo_info":
                 try:
-                    from storage.db_pool import db_connect_pooled as _dcp
-                    _conn = _dcp(ai.db)
-                    _cur = _conn.cursor()
-                    _cur.execute("SELECT COUNT(*) FROM contradictions")
-                    _cont_count = _cur.fetchone()[0]
-                    _conn.close()
-                    _ms_lines.append(f"Contradicciones detectadas: {_cont_count}")
-                except Exception:
-                    pass
-                if _ms_lines:
-                    _show_response("\n".join(_ms_lines), "listado")
+                    # StyleEngine no tiene __init__(db) ni get_style_info(): la API
+                    # real es load(user_id, db_path) + stats() (bug cazado
+                    # 2026-08-01, antes esta rama siempre caia al except).
+                    from cognia.learning.style_engine import StyleEngine
+                    uid  = getattr(ai.cognitive_profile, "user_id", "default") \
+                        if getattr(ai, "cognitive_profile", None) else "default"
+                    se   = StyleEngine.load(uid, ai.db)
+                    info = se.stats()
+                    _show_response("\n".join(f"{k}: {v}" for k, v in info.items()), "listado")
+                except Exception as e:
+                    _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
+            elif raw == "/indice_personal":
+                try:
+                    from cognia.memory.personal_index import PersonalIndex
+                    uid       = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+                    pi        = PersonalIndex.load(uid, ai.db)
+                    conceptos = pi.list_concepts()
+                    if conceptos:
+                        _show_response("\n".join(f"- {c}" for c in conceptos), "listado")
+                    else:
+                        _print_line("[detail]Indice vacio. Usa: /indice_add <concepto>[/detail]")
+                except Exception as e:
+                    _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
+            elif raw.startswith("/indice_add "):
+                concepto = raw[len("/indice_add "):].strip()
+                if concepto:
+                    try:
+                        from cognia.memory.personal_index import PersonalIndex
+                        uid = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+                        pi  = PersonalIndex.load(uid, ai.db)
+                        pi.add(concepto)
+                        pi.save(ai.db)
+                        _print_line(f"[ok_cl]Concepto agregado al indice: {concepto}[/ok_cl]")
+                    except Exception as e:
+                        _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
                 else:
-                    _print_line("[detail]No hay estadisticas disponibles.[/detail]")
-            except Exception as _e:
-                _print_line(f"[err_cl]Error: {_e}[/err_cl]")
+                    _print_line("[warn_cl]Uso: /indice_add <concepto>[/warn_cl]")
 
-        # ── /monitor <cmd> ────────────────────────────────────────────
-        elif raw.startswith("/monitor "):
-            # Desde tanda-1: corre en BACKGROUND via proc_registry (antes era
-            # foreground bloqueante). Sintaxis extra: /monitor <cmd> :: <regex>
-            # arma ademas un monitor que avisa cuando el output matchee.
-            _mon_arg = raw[len("/monitor "):].strip()
-            if not _mon_arg:
-                _print_line("[warn_cl]Uso: /monitor <comando> [:: <regex>][/warn_cl]")
-            else:
-                _mon_cmd, _mon_rx = (_mon_arg.split("::", 1) + [""])[:2]
-                _mon_cmd, _mon_rx = _mon_cmd.strip(), _mon_rx.strip()
-                if not _confirmar_accion("shell_exec", _mon_cmd):
+            # -- Ingestion ------------------------------------------------------
+            elif raw.startswith("/leer "):
+                ruta = raw[len("/leer "):].strip()
+                if ruta:
+                    _lr_path = Path(ruta).expanduser().resolve()
+                    if _lr_path.suffix.lower() == ".pdf":
+                        try:
+                            import pdfplumber
+                            with pdfplumber.open(_lr_path) as _pdf:
+                                _pages = _pdf.pages[:10]  # max 10 pages
+                                _pdf_text = "\n\n".join(
+                                    f"[Pagina {i+1}]\n{page.extract_text() or '(sin texto)'}"
+                                    for i, page in enumerate(_pages)
+                                )
+                            content = _pdf_text[:4000]
+                            _show_response(content, "respuesta")
+                            _session_log.append({"input": raw, "output": content, "elapsed": 0})
+                        except ImportError:
+                            _print_line("[err_cl]pdfplumber no instalado -- pip install pdfplumber[/err_cl]")
+                        except Exception as _pdf_e:
+                            _print_line(f"[err_cl]Error leyendo PDF: {_escape(str(_pdf_e))}[/err_cl]")
+                    else:
+                        from cognia.ingest import ingest_file
+                        _run(raw, lambda: ingest_file(ai, ruta), color="respuesta")
+                else:
+                    _print_line("[warn_cl]Uso: /leer <ruta_al_archivo>[/warn_cl]")
+            elif raw.startswith("/proyecto "):
+                ruta = raw[len("/proyecto "):].strip()
+                if ruta:
+                    from cognia.ingest import ingest_directory
+                    _run(raw, lambda: ingest_directory(ai, ruta), color="respuesta")
+                else:
+                    _print_line("[warn_cl]Uso: /proyecto <ruta_al_directorio>[/warn_cl]")
+
+            # -- Herramientas de sistema de archivos ----------------------------
+            elif raw.startswith("/listar"):
+                _ruta = raw[len("/listar"):].strip() or "."
+                _p = Path(_ruta)
+                if not _p.exists():
+                    _print_line(f"[err_cl]No existe: {_ruta}[/err_cl]")
+                elif not _p.is_dir():
+                    _print_line(f"[err_cl]No es un directorio: {_ruta}[/err_cl]")
+                else:
+                    _entries = sorted(_p.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
+                    _shown = _entries[:50]
+                    for _e in _shown:
+                        if _e.is_dir():
+                            _print_line(f"[detail]  [dir]  {_e.name}/[/detail]")
+                        else:
+                            _sz = _e.stat().st_size
+                            if _sz >= 1_048_576:
+                                _szstr = f"{_sz/1_048_576:.1f} MB"
+                            elif _sz >= 1024:
+                                _szstr = f"{_sz/1024:.1f} KB"
+                            else:
+                                _szstr = f"{_sz} B"
+                            _print_line(f"  [ok_cl]{_e.name}[/ok_cl]  [detail]({_szstr})[/detail]")
+                    if len(_entries) > 50:
+                        _print_line(f"[warn_cl]... {len(_entries)-50} entradas omitidas (max 50)[/warn_cl]")
+                    _print_line(f"[detail]{min(len(_entries),50)}/{len(_entries)} entradas en {_ruta}[/detail]")
+
+            elif raw.startswith("/buscar "):
+                _rest = raw[len("/buscar "):].strip()
+                if not _rest:
+                    _print_line("[warn_cl]Uso: /buscar <patron> [directorio][/warn_cl]")
+                else:
+                    _parts = _rest.split(" ", 1)
+                    _pat = _parts[0]
+                    if len(_parts) > 1 and Path(_parts[1]).is_dir():
+                        _sdir = Path(_parts[1])
+                    else:
+                        _sdir = Path(".")
+                        if len(_parts) > 1:
+                            _pat = _rest  # entire rest is pattern
+                    _SKIP = {".git", "venv", "__pycache__", ".mypy_cache", "node_modules", ".tox"}
+                    _matches = []
+                    try:
+                        _compiled = re.compile(_pat)
+                    except re.error as _re_err:
+                        _print_line(f"[err_cl]Patron invalido: {_re_err}[/err_cl]")
+                        _compiled = None
+                    if _compiled:
+                        for _fp in _sdir.rglob("*"):
+                            if any(s in _fp.parts for s in _SKIP):
+                                continue
+                            if not _fp.is_file():
+                                continue
+                            try:
+                                _raw_bytes = _fp.read_bytes()
+                                if b"\x00" in _raw_bytes[:8192]:
+                                    continue  # skip binary
+                                _lines = _raw_bytes.decode("utf-8", errors="replace").splitlines()
+                                for _lno, _ln in enumerate(_lines, 1):
+                                    if _compiled.search(_ln):
+                                        _matches.append((_fp, _lno, _ln.strip()))
+                                        if len(_matches) >= 20:
+                                            break
+                            except (OSError, PermissionError):
+                                continue
+                            if len(_matches) >= 20:
+                                break
+                        if not _matches:
+                            _print_line(f"[detail]Sin coincidencias para '{_pat}'[/detail]")
+                        else:
+                            for _mf, _ml, _mc in _matches:
+                                _print_line(f"  [ok_cl]{_mf}[/ok_cl][detail]:{_ml}:[/detail] {_escape(_mc)}")
+                            if len(_matches) == 20:
+                                _print_line("[warn_cl]... limite de 20 coincidencias alcanzado[/warn_cl]")
+
+            elif raw.startswith("/escribir "):
+                _rest = raw[len("/escribir "):].strip()
+                if not _rest or " " not in _rest:
+                    _print_line("[warn_cl]Uso: /escribir <ruta> <contenido>[/warn_cl]")
+                else:
+                    _wpath_str, _wcontent = _rest.split(" ", 1)
+                    _wpath = Path(_wpath_str).resolve()
+                    _cwd_resolved = Path.cwd().resolve()
+                    if not str(_wpath).startswith(str(_cwd_resolved)):
+                        _print_line(f"[err_cl]Ruta fuera del directorio de trabajo: {_escape(_wpath_str)}[/err_cl]")
+                        _wpath = None
+                    if _wpath is not None and _wpath.exists() and not _fast_mode:
+                        _print_line(f"[warn_cl]El archivo ya existe: {_wpath}. Sobreescribir? (s/n)[/warn_cl]")
+                        try:
+                            _confirm = input("> ").strip().lower()
+                        except (EOFError, KeyboardInterrupt):
+                            _confirm = "n"
+                        if _confirm not in ("s", "si", "y", "yes"):
+                            _print_line("[detail]Operacion cancelada.[/detail]")
+                            _wpath = None
+                    if _wpath is not None:
+                        try:
+                            _wpath.parent.mkdir(parents=True, exist_ok=True)
+                            _wcontent = _strip_code_fences(_wcontent)
+                            _wold = _wpath.read_text(encoding="utf-8") if _wpath.exists() else ""
+                            _wpath.write_text(_wcontent, encoding="utf-8")
+                            _wsz = _wpath.stat().st_size
+                            _show_file_diff(_wold, _wcontent, str(_wpath))
+                            _print_line(f"[ok]Escrito: {_wpath} ({_wsz} bytes)[/ok]")
+                        except (OSError, PermissionError) as _we:
+                            _print_line(f"[err_cl]Error al escribir: {_we}[/err_cl]")
+
+            elif raw.startswith("/editar "):
+                _rest = raw[len("/editar "):].strip()
+                if not _rest or " " not in _rest:
+                    _print_line("[warn_cl]Uso: /editar <ruta> <buscar> | <reemplazo>[/warn_cl]")
+                else:
+                    _epath_str, _erest = _rest.split(" ", 1)
+                    if " | " not in _erest:
+                        _print_line("[warn_cl]Separador ' | ' requerido entre buscar y reemplazo[/warn_cl]")
+                    else:
+                        _esearch, _ereplace = _erest.split(" | ", 1)
+                        _epath = Path(_epath_str).resolve()
+                        if not str(_epath).startswith(str(Path.cwd().resolve())):
+                            _print_line(f"[err_cl]Ruta fuera del directorio de trabajo: {_escape(_epath_str)}[/err_cl]")
+                        elif not _epath.is_file():
+                            _print_line(f"[err_cl]Archivo no encontrado: {_epath}[/err_cl]")
+                        else:
+                            try:
+                                _eoriginal = _epath.read_text(encoding="utf-8")
+                                if _esearch not in _eoriginal:
+                                    _print_line(f"[warn_cl]Patron no encontrado en {_epath}[/warn_cl]")
+                                else:
+                                    _enew = _eoriginal.replace(_esearch, _ereplace, 1)
+                                    _print_line(f"[detail]Diff en {_epath}:[/detail]")
+                                    _show_file_diff(_eoriginal, _enew, str(_epath))
+                                    if not _fast_mode:
+                                        _print_line("[warn_cl]Confirmar escritura? (s/n)[/warn_cl]")
+                                        try:
+                                            _econfirm = input("> ").strip().lower()
+                                        except (EOFError, KeyboardInterrupt):
+                                            _econfirm = "n"
+                                    else:
+                                        _econfirm = "s"
+                                    if _econfirm in ("s", "si", "y", "yes"):
+                                        _epath.write_text(_enew, encoding="utf-8")
+                                        _print_line(f"[ok_cl]Guardado: {_epath}[/ok_cl]")
+                                    else:
+                                        _print_line("[detail]Operacion cancelada.[/detail]")
+                            except (OSError, PermissionError) as _ee:
+                                _print_line(f"[err_cl]Error al editar: {_ee}[/err_cl]")
+
+            elif raw.startswith("/ejecutar "):
+                _cmd = raw[len("/ejecutar "):].strip()
+                _BLOCKED = [
+                    "rm -rf", "format", "del /s", "del /q", "del /f",
+                    ":(){:|:&};:", "python -c", "python3 -c", "powershell",
+                    "mkfs", "dd if=", "> /dev/", "shutdown", "reboot",
+                ]
+                _cmd_lower = _cmd.lower()
+                # collapse repeated spaces so "rm  -rf" doesn't bypass "rm -rf"
+                import re as _re_sec
+                _cmd_normalized = _re_sec.sub(r"\s+", " ", _cmd_lower)
+                if any(_b in _cmd_normalized for _b in _BLOCKED):
+                    _print_line(f"[err_cl]Comando bloqueado por seguridad: {_escape(_cmd)}[/err_cl]")
+                elif not _confirmar_accion("shell_exec", _cmd):
                     _print_line("[warn_cl]Cancelado.[/warn_cl]")
                 else:
+                    _print_line(f"[detail][ejecutar] $ {_escape(_cmd)}[/detail]")
                     try:
-                        from cognia.console.proc_registry import spawn_shell
-                        _sid = spawn_shell(_mon_cmd)
-                        _print_line(f"[detail]Shell #{_sid} en background. "
-                                    f"/shells {_sid} para ver output.[/detail]")
-                        if _mon_rx:
-                            from cognia.console.monitors import monitor_output_regex
-                            _mid = monitor_output_regex(_sid, _mon_rx,
-                                                        f"'{_mon_rx}' en shell #{_sid}")
-                            _print_line(f"[detail]Monitor #{_mid} armado "
-                                        f"(aviso al matchear).[/detail]")
-                    except Exception as _e:
-                        _print_line(f"[err_cl]Error en monitor: {_e}[/err_cl]")
+                        _proc = subprocess.run(
+                            _cmd,
+                            shell=True,
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                        )
+                        _out = (_proc.stdout + _proc.stderr).strip()
+                        _out_lines = _out.splitlines()
+                        for _ol in _out_lines[:50]:
+                            _print_line(f"  {_escape(_ol)}")
+                        if len(_out_lines) > 50:
+                            _print_line(f"[warn_cl]... {len(_out_lines)-50} lineas omitidas (max 50)[/warn_cl]")
+                        if _proc.returncode != 0:
+                            _print_line(f"[warn_cl]Codigo de salida: {_proc.returncode}[/warn_cl]")
+                    except subprocess.TimeoutExpired:
+                        _print_line("[err_cl]Timeout: el comando excedio 30 segundos[/err_cl]")
+                    except Exception as _xe:
+                        _print_line(f"[err_cl]Error al ejecutar: {_escape(str(_xe))}[/err_cl]")
 
-        # ── /powershell <cmd> ──────────────────────────────────────────
-        elif raw.startswith("/powershell "):
-            _ps_cmd = raw[len("/powershell "):].strip()
-            if not _ps_cmd:
-                _print_line("[warn_cl]Uso: /powershell <comando>[/warn_cl]")
-            elif not _confirmar_accion("shell_exec", _ps_cmd):
-                _print_line("[warn_cl]Cancelado.[/warn_cl]")
-            else:
-                import subprocess as _sp, sys as _sys
-                _ps_exe = "powershell.exe" if _sys.platform == "win32" else "pwsh"
+            # -- Git diff ------------------------------------------------------
+            elif raw.startswith("/diff "):
+                _diff_target = raw[len("/diff "):].strip()
                 try:
-                    _ps_res = _sp.run(
-                        [_ps_exe, "-NonInteractive", "-Command", _ps_cmd],
-                        capture_output=True, text=True, timeout=120,
-                        encoding="utf-8", errors="replace",
-                    )
-                    _out = (_ps_res.stdout + _ps_res.stderr).strip()
-                    _show_response(_out or f"(exit {_ps_res.returncode})", "respuesta")
-                except Exception as _e:
-                    _print_line(f"[err_cl]PowerShell error: {_e}[/err_cl]")
-
-        # ── /tarea-crear /tarea-lista(/tareas) /tarea-ok /tarea-borrar ──
-        # Desde 2026-07-18 el store es cognia/tasks_board.py: persistente
-        # (~/.cognia/data/tasks_board.json), checkboxes ☐/☑ y hooks para que
-        # el agente llene sus propios cuadrados (agent_plan_tasks/mark_done).
-        elif raw.startswith("/tarea-crear ") or raw == "/tarea-crear":
-            _tdesc = raw[len("/tarea-crear "):].strip() if raw.startswith("/tarea-crear ") else ""
-            if not _tdesc:
-                _print_line("[warn_cl]Uso: /tarea-crear <descripcion>[/warn_cl]")
-            else:
-                from cognia.tasks_board import add_task
-                _tid = add_task(_tdesc)
-                _print_line(f"[ok_cl]Tarea #{_tid} creada: {_escape(_tdesc)}[/ok_cl]")
-
-        elif raw in ("/tarea-lista", "/tareas"):
-            from cognia.tasks_board import render_board
-            _show_response(render_board(), "listado")
-
-        elif raw.startswith("/tarea-ok ") or raw == "/tarea-ok":
-            _tok_id = raw[len("/tarea-ok "):].strip() if raw.startswith("/tarea-ok ") else ""
-            if not _tok_id:
-                _print_line("[warn_cl]Uso: /tarea-ok <id>[/warn_cl]")
-            else:
-                try:
-                    _tok_n = int(_tok_id)
-                    from cognia.tasks_board import complete_task
-                    if complete_task(_tok_n):
-                        _print_line(f"[ok_cl]Tarea #{_tok_n} completada.[/ok_cl]")
+                    import subprocess as _sp_diff
+                    _diff_out = _sp_diff.run(
+                        ["git", "diff", "HEAD", "--", _diff_target],
+                        capture_output=True, text=True, timeout=10
+                    ).stdout
+                    if not _diff_out.strip():
+                        _diff_out = _sp_diff.run(
+                            ["git", "diff", "--cached", "--", _diff_target],
+                            capture_output=True, text=True, timeout=10
+                        ).stdout
+                    if not _diff_out.strip():
+                        _print_line(f"[detail]Sin cambios git para: {_diff_target}[/detail]")
                     else:
-                        _print_line(f"[warn_cl]Tarea #{_tok_n} no encontrada.[/warn_cl]")
-                except ValueError:
-                    _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+                        _diff_prompt = (
+                            f"Analiza este git diff y explica los cambios en 3-5 puntos clave. "
+                            f"Se conciso y enfocado en el impacto:\n\n{_diff_out[:3000]}"
+                        )
+                        from shattering.orchestrator import ShatteringOrchestrator as _O
+                        _orch_d = getattr(ai, '_orchestrator', None) or _O(mode='local')
+                        _diff_result = _orch_d.infer(_diff_prompt)
+                        _show_response(_diff_result.text, "listado")
+                except FileNotFoundError:
+                    _print_line("[err_cl]git no disponible en PATH[/err_cl]")
+                except Exception as _de:
+                    _print_line(f"[err_cl]Error en diff: {_de}[/err_cl]")
+            elif raw == "/diff":
+                _print_line("[warn_cl]Uso: /diff <archivo>  -- ejemplo: /diff cognia/cli.py[/warn_cl]")
 
-        elif raw.startswith("/tarea-borrar ") or raw == "/tarea-borrar":
-            _tbid = raw[len("/tarea-borrar "):].strip() if raw.startswith("/tarea-borrar ") else ""
-            if not _tbid:
-                _print_line("[warn_cl]Uso: /tarea-borrar <id>[/warn_cl]")
-            else:
-                try:
-                    _tbn = int(_tbid)
-                    from cognia.tasks_board import remove_task
-                    if remove_task(_tbn):
-                        _print_line(f"[ok_cl]Tarea #{_tbn} eliminada.[/ok_cl]")
-                    else:
-                        _print_line(f"[warn_cl]Tarea #{_tbn} no encontrada.[/warn_cl]")
-                except ValueError:
-                    _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
-
-        # ── /web-fetch <url> ───────────────────────────────────────────
-        elif raw.startswith("/web-fetch ") or raw == "/web-fetch":
-            _wf_url = raw[len("/web-fetch "):].strip() if raw.startswith("/web-fetch ") else ""
-            if not _wf_url or not _wf_url.startswith("http"):
-                _print_line("[warn_cl]Uso: /web-fetch <url>  (debe empezar con http)[/warn_cl]")
-            else:
-                try:
-                    import urllib.request as _ur, html as _html_mod
-                    _req = _ur.Request(
-                        _wf_url,
-                        headers={"User-Agent": "CogniaBot/1.0 (+cognia-ai)"},
-                    )
-                    with _ur.urlopen(_req, timeout=15) as _resp:
-                        _raw_bytes = _resp.read(1_000_000)
-                    _ct = _resp.headers.get("content-type", "")
-                    _text = _raw_bytes.decode("utf-8", errors="replace")
-                    # Strip HTML tags to plain text
-                    import re as _re2
-                    _text = _re2.sub(r"<style[^>]*>.*?</style>", " ", _text, flags=_re2.DOTALL | _re2.IGNORECASE)
-                    _text = _re2.sub(r"<script[^>]*>.*?</script>", " ", _text, flags=_re2.DOTALL | _re2.IGNORECASE)
-                    _text = _re2.sub(r"<[^>]+>", " ", _text)
-                    _text = _re2.sub(r"\s{3,}", "\n\n", _text).strip()
-                    _text = _html_mod.unescape(_text)
-                    _preview = _text[:3000]
-                    _show_response(f"[{_wf_url}]\n\n{_preview}", "listado")
-                    # Inject into session context
-                    try:
-                        ai.observe(f"Contenido de {_wf_url}:\n{_text[:500]}", provided_label="web_fetch")
-                    except Exception:
-                        pass
-                except Exception as _e:
-                    _print_line(f"[err_cl]web-fetch error: {_e}[/err_cl]")
-
-        # ── /web-buscar <query> ────────────────────────────────────────
-        elif raw.startswith("/web-buscar ") or raw == "/web-buscar":
-            _wb_q = raw[len("/web-buscar "):].strip() if raw.startswith("/web-buscar ") else ""
-            if not _wb_q:
-                _print_line("[warn_cl]Uso: /web-buscar <query>[/warn_cl]")
-            else:
-                try:
-                    import urllib.request as _ur2, urllib.parse as _up2, json as _json2
-                    _enc_q = _up2.quote_plus(_wb_q)
-                    # DDG Instant Answer API — free, no auth, no scraping
-                    _ddg_api = f"https://api.duckduckgo.com/?q={_enc_q}&format=json&no_redirect=1&no_html=1&skip_disambig=1"
-                    _req2 = _ur2.Request(_ddg_api, headers={"User-Agent": "CogniaBot/1.0"})
-                    with _ur2.urlopen(_req2, timeout=15) as _r2:
-                        _data2 = _json2.loads(_r2.read())
-                    _lines2 = [f"Resultados para: {_wb_q}\n"]
-                    _abstract = _data2.get("Abstract", "").strip()
-                    if _abstract:
-                        _src = _data2.get("AbstractURL", "")
-                        _lines2.append(f"Resumen: {_abstract[:300]}")
-                        if _src:
-                            _lines2.append(f"Fuente: {_src}\n")
-                    _direct_results = _data2.get("Results", [])
-                    for _i, _r in enumerate(_direct_results[:5], 1):
-                        _lines2.append(f"{_i}. {_r.get('Text','')[:80]}")
-                        _lines2.append(f"   {_r.get('FirstURL','')}")
-                    _related = [t for t in _data2.get("RelatedTopics", [])
-                                if isinstance(t, dict) and t.get("Text")]
-                    if _related and not _direct_results:
-                        _lines2.append("Temas relacionados:")
-                        for _rr in _related[:6]:
-                            _lines2.append(f"  - {_rr['Text'][:90]}")
-                    if len(_lines2) <= 1:
-                        _lines2.append("(Sin resultados directos — prueba otra busqueda)")
-                    _show_response("\n".join(_lines2), "listado")
-                except Exception as _e:
-                    _print_line(f"[err_cl]web-buscar error: {_e}[/err_cl]")
-
-        # ── /buscar-web <query> ────────────────────────────────────────
-        elif raw.startswith("/buscar-web ") or raw == "/buscar-web":
-            _bw_q = raw[len("/buscar-web "):].strip() if raw.startswith("/buscar-web ") else ""
-            _slash_buscar_web(_bw_q)
-
-        # ── /buscar-kg <concepto> ──────────────────────────────────────
-        elif raw.startswith("/buscar-kg ") or raw == "/buscar-kg":
-            _bkg_c = raw[len("/buscar-kg "):].strip() if raw.startswith("/buscar-kg ") else ""
-            _slash_buscar_kg(_bkg_c)
-
-        # ── /kg-agregar /kg-stats /kg-predicados /kg-exportar ──────────
-        elif raw.startswith("/kg-agregar ") or raw == "/kg-agregar":
-            _kga_args = raw[len("/kg-agregar "):].strip() if raw.startswith("/kg-agregar ") else ""
-            _slash_kg_agregar(_kga_args)
-        elif raw == "/kg-stats":
-            _slash_kg_stats("")
-        elif raw == "/kg-predicados":
-            _slash_kg_predicados("")
-        elif raw.startswith("/kg-exportar ") or raw == "/kg-exportar":
-            _kge_args = raw[len("/kg-exportar "):].strip() if raw.startswith("/kg-exportar ") else ""
-            _slash_kg_exportar(_kge_args)
-
-        # ── /kg-inferir /kg-relacionar /kg-responder /kg-camino ────────
-        elif raw.startswith("/kg-inferir ") or raw == "/kg-inferir":
-            _kgi_args = raw[len("/kg-inferir "):].strip() if raw.startswith("/kg-inferir ") else ""
-            _slash_kg_inferir(_kgi_args)
-        elif raw.startswith("/kg-relacionar ") or raw == "/kg-relacionar":
-            _kgr_args = raw[len("/kg-relacionar "):].strip() if raw.startswith("/kg-relacionar ") else ""
-            _slash_kg_relacionar(_kgr_args)
-        elif raw.startswith("/kg-responder ") or raw == "/kg-responder":
-            _kgq_args = raw[len("/kg-responder "):].strip() if raw.startswith("/kg-responder ") else ""
-            _slash_kg_responder(_kgq_args)
-        elif raw.startswith("/kg-camino ") or raw == "/kg-camino":
-            _kgc_args = raw[len("/kg-camino "):].strip() if raw.startswith("/kg-camino ") else ""
-            _slash_kg_camino(_kgc_args)
-
-        # ── /worktree <rama> ───────────────────────────────────────────
-        elif raw.startswith("/worktree ") or raw == "/worktree":
-            _wt_rama = raw[len("/worktree "):].strip() if raw.startswith("/worktree ") else ""
-            if not _wt_rama:
-                _print_line("[warn_cl]Uso: /worktree <nombre-rama>[/warn_cl]")
-            else:
-                import subprocess as _sp2
-                _wt_path = f"../{_wt_rama}-worktree"
-                try:
-                    _r1 = _sp2.run(
-                        ["git", "worktree", "add", "-b", _wt_rama, _wt_path],
-                        capture_output=True, text=True, cwd=".",
-                    )
-                    if _r1.returncode == 0:
-                        _print_line(f"[ok_cl]Worktree creado en {_wt_path} (rama: {_wt_rama})[/ok_cl]")
-                        _print_line(f"[detail]Usa: cd {_wt_path}  para trabajar ahi[/detail]")
-                    else:
-                        _print_line(f"[err_cl]{_r1.stderr.strip()}[/err_cl]")
-                except Exception as _e:
-                    _print_line(f"[err_cl]worktree error: {_e}[/err_cl]")
-
-        # /notificar (config F5 + '<mensaje>' viejo) se atiende mas arriba:
-        # este segundo elif era INALCANZABLE y tapaba/duplicaba el handler
-        # (cazado por la revision adversarial 2026-08-23).
-
-        # ── /oficina [puerto] ──────────────────────────────────────────
-        elif raw.startswith("/oficina ") or raw == "/oficina":
-            _of_arg = raw[len("/oficina "):].strip() if raw.startswith("/oficina ") else ""
-            _slash_oficina(_of_arg)
-
-        # ── /analiticas ────────────────────────────────────────────────
-        elif raw == "/analiticas" or raw == "/analitica":
-            _slash_analiticas("")
-
-        # ── /notif* ────────────────────────────────────────────────────
-        elif raw == "/notif":
-            _slash_notif("")
-        elif raw == "/notif-todas":
-            _slash_notif_todas("")
-        elif raw.startswith("/notif-leer ") or raw == "/notif-leer":
-            _notif_leer_arg = raw[len("/notif-leer "):].strip() if raw.startswith("/notif-leer ") else ""
-            _slash_notif_leer(_notif_leer_arg)
-        elif raw == "/notif-limpiar":
-            _slash_notif_limpiar("")
-
-        # ── /recordar* ─────────────────────────────────────────────────
-        elif raw.startswith("/recordar ") or raw == "/recordar":
-            _rec_arg = raw[len("/recordar "):].strip() if raw.startswith("/recordar ") else ""
-            _slash_recordar(_rec_arg)
-        elif raw == "/recordatorios":
-            _slash_recordatorios("")
-        elif raw.startswith("/recordar-cancelar ") or raw == "/recordar-cancelar":
-            _rec_cancel_arg = raw[len("/recordar-cancelar "):].strip() if raw.startswith("/recordar-cancelar ") else ""
-            _slash_recordar_cancelar(_rec_cancel_arg)
-
-        # -- Session summary ------------------------------------------------
-        elif raw == "/resumen-sesion":
-            _slash_resumen_sesion_full("")
-
-        # -- /config -------------------------------------------------------
-        elif raw == "/config" or raw.startswith("/config "):
-            _cfg_arg = raw[len("/config "):].strip() if raw.startswith("/config ") else ""
-            _slash_config(_cfg_arg)
-
-        # -- /config-resuelta (F6: config efectiva con origen por clave) ----
-        elif raw == "/config-resuelta" or raw.startswith("/config-resuelta "):
-            _slash_config_resuelta(
-                raw[len("/config-resuelta "):].strip()
-                if raw.startswith("/config-resuelta ") else "")
-
-        # -- /mejorar (mejora del prompt con IA) ---------------------------
-        elif raw == "/mejorar" or raw.startswith("/mejorar "):
-            _slash_mejorar(raw[len("/mejorar "):] if raw.startswith("/mejorar ")
-                           else "")
-
-        # -- /tx (subsistema de horizonte largo; puerta de diagnostico) -----
-        elif raw == "/tx" or raw.startswith("/tx "):
-            _slash_tx(raw[len("/tx "):] if raw.startswith("/tx ") else "")
-
-        # -- /libro (la memoria append-only de la tarea TX) -----------------
-        elif raw == "/libro" or raw.startswith("/libro "):
-            _slash_libro(raw[len("/libro "):] if raw.startswith("/libro ") else "")
-
-        # -- /esfuerzo -----------------------------------------------------
-        elif raw == "/esfuerzo" or raw.startswith("/esfuerzo "):
-            _esf_arg = raw[len("/esfuerzo "):].strip() if raw.startswith("/esfuerzo ") else ""
-            _slash_esfuerzo(_esf_arg)
-
-        # -- /lazo (loop thinking de chat: verificacion post-respuesta) ----
-        elif raw == "/lazo" or raw.startswith("/lazo "):
-            _lz_arg = raw[len("/lazo "):].strip().lower() if raw.startswith("/lazo ") else ""
-            if _lz_arg in ("on", "off"):
-                _LAZO["on"] = (_lz_arg == "on")
-            elif _lz_arg:
-                _print_line("[warn_cl]Uso: /lazo [on|off]  (sin argumento alterna)[/warn_cl]")
-            else:
-                _LAZO["on"] = not _LAZO["on"]
-            if not _lz_arg or _lz_arg in ("on", "off"):
-                _lz_estado = "ACTIVO" if _LAZO["on"] else "apagado"
-                _print_line(
-                    f"[ok_cl]Lazo de verificacion: {_lz_estado}[/ok_cl] "
-                    "[detail]— claims verificables (aritmetica, codigo) se chequean "
-                    "con tools reales tras cada respuesta; max 1 revision, keep-best.[/detail]")
-
-        # -- /recap --------------------------------------------------------
-        elif raw == "/recap":
-            _slash_recap()
-
-        # -- /feedback* ----------------------------------------------------
-        elif raw.startswith("/feedback-sesion"):
-            _slash_feedback_sesion()
-        elif raw.startswith("/feedback ") or raw == "/feedback":
-            _fb_arg = raw[len("/feedback "):].strip() if raw.startswith("/feedback ") else ""
-            if not _fb_arg:
-                _print_line("[warn_cl]Uso: /feedback [positivo|negativo|neutral][/warn_cl]")
-            else:
-                _slash_feedback(_fb_arg)
-
-            # ── /notas* ────────────────────────────────────────────────────
-        elif raw.startswith("/notas-buscar ") or raw == "/notas-buscar":
-            _nb_args = raw[len("/notas-buscar "):].strip() if raw.startswith("/notas-buscar ") else ""
-            _slash_notas_buscar(_nb_args)
-        elif raw == "/notas-stats":
-            _slash_notas_stats()
-        elif raw.startswith("/notas ") or raw == "/notas":
-            _nb2_args = raw[len("/notas "):].strip() if raw.startswith("/notas ") else ""
-            _slash_notas(_nb2_args)
-        elif raw.startswith("/nota-agregar ") or raw == "/nota-agregar":
-            _na_args = raw[len("/nota-agregar "):].strip() if raw.startswith("/nota-agregar ") else ""
-            _slash_nota_agregar(_na_args)
-        elif raw.startswith("/nota-fijar ") or raw == "/nota-fijar":
-            _nf_args = raw[len("/nota-fijar "):].strip() if raw.startswith("/nota-fijar ") else ""
-            _slash_nota_fijar(_nf_args)
-
-        # -- Spaced repetition stats / search ------------------------------
-        elif raw == "/aprendiendo":
-            _slash_aprendiendo()
-        elif raw.startswith("/aprendiendo-buscar ") or raw == "/aprendiendo-buscar":
-            _ab_args = raw[len("/aprendiendo-buscar "):].strip() if raw.startswith("/aprendiendo-buscar ") else ""
-            _slash_aprendiendo_buscar(_ab_args)
-
-        # ── /backup ────────────────────────────────────────────────────
-        elif raw == "/backup" or raw.startswith("/backup "):
-            _bk_args = raw[len("/backup "):].strip() if raw.startswith("/backup ") else ""
-            _slash_backup(_bk_args)
-
-        # ── /mi-uso ────────────────────────────────────────────────────
-        elif raw == "/mi-uso":
-            _slash_mi_uso("")
-
-        # ── /mi-uso-detalle ────────────────────────────────────────────
-        elif raw == "/mi-uso-detalle":
-            _slash_mi_uso_detalle("")
-
-        # ── /buscar-memoria ────────────────────────────────────────────
-        elif raw == "/buscar-memoria" or raw.startswith("/buscar-memoria "):
-            _bm_args = raw[len("/buscar-memoria "):].strip() if raw.startswith("/buscar-memoria ") else ""
-            _slash_buscar_memoria(ai, _bm_args)
-
-        # ── /debate ────────────────────────────────────────────────────
-        elif raw == "/debate" or raw.startswith("/debate "):
-            _db_args = raw[len("/debate "):].strip() if raw.startswith("/debate ") else ""
-            _slash_debate(ai, _db_args)
-
-        # ── /contexto-semantico ────────────────────────────────────────
-        elif raw == "/contexto-semantico" or raw.startswith("/contexto-semantico "):
-            _cs_args = raw[len("/contexto-semantico "):].strip() if raw.startswith("/contexto-semantico ") else ""
-            _slash_contexto_semantico(ai, _cs_args)
-
-        # ── /sintetizar ────────────────────────────────────────────────
-        elif raw == "/sintetizar" or raw.startswith("/sintetizar "):
-            _sint_args = raw[len("/sintetizar "):].strip() if raw.startswith("/sintetizar ") else ""
-            _slash_sintetizar(ai, _sint_args)
-
-        # ── /y-si ──────────────────────────────────────────────────────
-        elif raw == "/y-si" or raw.startswith("/y-si "):
-            _ysi_args = raw[len("/y-si "):].strip() if raw.startswith("/y-si ") else ""
-            _slash_y_si(ai, _ysi_args)
-
-        # ── /temas ─────────────────────────────────────────────────────
-        elif raw == "/temas":
-            _slash_temas("")
-
-        # ── /mi-cognia ─────────────────────────────────────────────────
-        elif raw == "/mi-cognia" or raw.startswith("/mi-cognia "):
-            _mc_args = raw[len("/mi-cognia "):].strip() if raw.startswith("/mi-cognia ") else ""
-            _slash_mi_cognia(_mc_args)
-
-        # ── /perfil-completo ───────────────────────────────────────────
-        elif raw == "/perfil-completo" or raw.startswith("/perfil-completo "):
-            _pc_args = raw[len("/perfil-completo "):].strip() if raw.startswith("/perfil-completo ") else ""
-            _slash_perfil_completo(_pc_args)
-
-        # ── /estado ────────────────────────────────────────────────────
-        elif raw == "/estado" or raw.startswith("/estado "):
-            _est_args = raw[len("/estado "):].strip() if raw.startswith("/estado ") else ""
-            _slash_estado(_est_args)
-
-        # ── /ver-criticas ──────────────────────────────────────────────
-        elif raw == "/ver-criticas" or raw.startswith("/ver-criticas "):
-            _vc_args = raw[len("/ver-criticas "):].strip() if raw.startswith("/ver-criticas ") else ""
-            _slash_ver_criticas(_vc_args)
-
-        # ── /reflexion-profunda ────────────────────────────────────────
-        elif raw == "/reflexion-profunda" or raw.startswith("/reflexion-profunda "):
-            _rp_args = raw[len("/reflexion-profunda "):].strip() if raw.startswith("/reflexion-profunda ") else ""
-            _slash_reflexion_profunda(ai, _rp_args)
-
-        # ── /calidad-respuestas ────────────────────────────────────────
-        elif raw == "/calidad-respuestas" or raw.startswith("/calidad-respuestas "):
-            _cr_args = raw[len("/calidad-respuestas "):].strip() if raw.startswith("/calidad-respuestas ") else ""
-            _slash_calidad_respuestas(_cr_args)
-
-        # ── /recomendar ────────────────────────────────────────────────
-        elif raw == "/recomendar":
-            _slash_recomendar("")
-
-        # ── /proximos-pasos ────────────────────────────────────────────
-        elif raw == "/proximos-pasos":
-            _slash_proximos_pasos("")
-
-        # ── /mapa ──────────────────────────────────────────────────────
-        elif raw == "/mapa" or raw.startswith("/mapa "):
-            _mapa_args = raw[len("/mapa "):].strip() if raw.startswith("/mapa ") else ""
-            _slash_mapa(_mapa_args)
-
-        # ── /features ──────────────────────────────────────────────────
-        elif raw == "/features" or raw.startswith("/features "):
-            _slash_features(raw[len("/features "):].strip() if raw.startswith("/features ") else "")
-
-        # ── /vocabulario-guardar ───────────────────────────────────────
-        elif raw == "/vocabulario-guardar" or raw.startswith("/vocabulario-guardar "):
-            _slash_vocabulario_guardar(raw[len("/vocabulario-guardar "):].strip() if raw.startswith("/vocabulario-guardar ") else "")
-
-        # ── /vocabulario ───────────────────────────────────────────────
-        elif raw == "/vocabulario" or raw.startswith("/vocabulario "):
-            _slash_vocabulario(raw[len("/vocabulario "):].strip() if raw.startswith("/vocabulario ") else "")
-
-        # ── /hechos-solidos ─────────────────────────────────────────────
-        elif raw == "/hechos-solidos" or raw.startswith("/hechos-solidos "):
-            _slash_hechos_solidos(raw[len("/hechos-solidos "):].strip() if raw.startswith("/hechos-solidos ") else "")
-
-        # ── /cristalizar ────────────────────────────────────────────────
-        elif raw == "/cristalizar" or raw.startswith("/cristalizar "):
-            _slash_cristalizar(raw[len("/cristalizar "):].strip() if raw.startswith("/cristalizar ") else "")
-
-        # ── /conocimiento-ver ───────────────────────────────────────────
-        elif raw == "/conocimiento-ver" or raw.startswith("/conocimiento-ver "):
-            _slash_conocimiento_ver(raw[len("/conocimiento-ver "):].strip() if raw.startswith("/conocimiento-ver ") else "")
-
-        # ── /quiz* ──────────────────────────────────────────────────────
-        elif raw == "/quiz-stats":
-            _slash_quiz_stats("")
-        elif raw == "/quiz" or raw.startswith("/quiz "):
-            _slash_quiz(raw[len("/quiz "):].strip() if raw.startswith("/quiz ") else "")
-
-        # ── /exportar-todo ──────────────────────────────────────────────
-        elif raw == "/exportar-todo" or raw.startswith("/exportar-todo "):
-            _slash_exportar_todo(raw[len("/exportar-todo "):].strip() if raw.startswith("/exportar-todo ") else "")
-
-        # ── /caminos de aprendizaje ──────────────────────────────────────
-        elif raw == "/camino-nuevo" or raw.startswith("/camino-nuevo "):
-            _slash_camino_nuevo(raw[len("/camino-nuevo "):].strip() if raw.startswith("/camino-nuevo ") else "")
-        elif raw == "/caminos":
-            _slash_caminos("")
-        elif raw == "/camino-avanzar" or raw.startswith("/camino-avanzar "):
-            _slash_camino_avanzar(raw[len("/camino-avanzar "):].strip() if raw.startswith("/camino-avanzar ") else "")
-        elif raw == "/etiquetar" or raw.startswith("/etiquetar "):
-            _slash_etiquetar(raw[len("/etiquetar "):].strip() if raw.startswith("/etiquetar ") else "")
-
-        # ── /cognia-sabe / cognia-aprende / cognia-olvida / argumento ─────
-        elif raw == "/cognia-sabe":
-            _slash_cognia_sabe("")
-        elif raw == "/cognia-aprende" or raw.startswith("/cognia-aprende "):
-            _slash_cognia_aprende(raw[len("/cognia-aprende "):].strip() if raw.startswith("/cognia-aprende ") else "")
-        elif raw == "/cognia-olvida" or raw.startswith("/cognia-olvida "):
-            _slash_cognia_olvida(raw[len("/cognia-olvida "):].strip() if raw.startswith("/cognia-olvida ") else "")
-        elif raw == "/argumento" or raw.startswith("/argumento "):
-            _slash_argumento(ai, raw[len("/argumento "):].strip() if raw.startswith("/argumento ") else "")
-        elif raw == "/conflictos-kg":
-            _slash_conflictos_kg("")
-        elif raw == "/verificar-kg":
-            _slash_verificar_kg("")
-        elif raw == "/resolver-conflicto" or raw.startswith("/resolver-conflicto "):
-            _slash_resolver_conflicto(raw[len("/resolver-conflicto "):].strip() if raw.startswith("/resolver-conflicto ") else "")
-        elif raw == "/comandos":
-            _slash_comandos("")
-        elif raw == "/digest":
-            _slash_digest("")
-        elif raw == "/cognia-info":
-            _slash_cognia_info("")
-        elif raw == "/inicio-dia":
-            _slash_inicio_dia("")
-
-        # ── /contexto / /contexto-mapa / /contexto-stats / /contexto-auto ──────
-        elif raw == "/contexto" or raw.startswith("/contexto "):
-            _slash_contexto(ai, raw[len("/contexto "):] if raw.startswith("/contexto ") else "")
-        elif raw == "/contexto-mapa":
-            _slash_contexto_mapa(ai, "")
-        elif raw == "/contexto-stats":
-            _slash_contexto_stats(ai, "")
-        elif raw == "/contexto-auto" or raw.startswith("/contexto-auto "):
-            _slash_contexto_auto(ai, raw[len("/contexto-auto "):] if raw.startswith("/contexto-auto ") else "")
-
-        # ── /ver-contexto / /limpiar-sesion ──────────────────────────────────
-        elif raw == "/ver-contexto" or raw.startswith("/ver-contexto "):
-            _slash_ver_contexto(ai, raw[len("/ver-contexto "):].strip() if raw.startswith("/ver-contexto ") else "")
-        elif raw == "/limpiar-sesion":
-            _slash_limpiar_sesion("")
-
-        # -- Unknown slash --------------------------------------------------
-        elif raw.startswith("/"):
-            # "Comando desconocido" a secas mandaba a leer un catalogo de 244
-            # comandos para encontrar el que te comiste una letra. El modulo de
-            # ayuda ya sabe proponer lo parecido ('/ayudda' -> /ayuda) y lo
-            # hacia SIN UN SOLO LLAMADOR desde 2026-08-12: cablearlo aca.
-            # Las DOS lineas del fallback siguen siendo a proposito: el modo
-            # sencillo suprime toda linea que contenga '[detail]', asi que un
-            # aviso pegado al tip desaparecia ENTERO y el comando desconocido
-            # moria en silencio (auditoria F2).
-            _msg_desc = None
-            try:
-                from cognia.harness import ayuda as _ah
-                _ancho_desc = (getattr(_console, "width", 100)
-                               if _HAS_RICH and _console else 100) - 2
-                _msg_desc = _ah.mensaje_desconocido(_CMD_DESCRIPTIONS, raw,
-                                                    ancho=_ancho_desc)
-            except Exception as _exc_desc:
-                _aviso_degradado(
-                    "cli.desconocido",
-                    f"{type(_exc_desc).__name__}: {_exc_desc}")
-                _msg_desc = None
-            if _msg_desc:
-                # markup=False: el mensaje trae el comando TAL CUAL lo tecleo el
-                # usuario, y un '[' suelto ahi reventaria el parser de rich.
-                _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
-                if _HAS_RICH and _console:
-                    _console.print(_msg_desc, style="detail", markup=False)
+            # -- Preview bat-style (cognia/console/preview.py) -----------------
+            # /cat y no /ver: /ver ya es la vision de pantalla (VLM). El render
+            # rico es SOLO de la capa terminal: el string que ve el modelo y el
+            # remoto no pasa por aca (contrato intacto). Sin rich o archivo
+            # ilegible, preview_archivo devuelve None y se declara el motivo.
+            elif raw.startswith("/cat ") or raw == "/cat":
+                _cat_rest = raw[len("/cat"):].strip()
+                if not _cat_rest:
+                    _print_line("[warn_cl]Uso: /cat <ruta> [desde[:hasta]]  -- ejemplo: /cat cognia/cli.py 100:140[/warn_cl]")
                 else:
-                    print(_msg_desc)
-            else:
-                _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
-                _print_line("[detail](escribe /ayuda)[/detail]")
+                    from cognia.console.preview import (contar_lineas as _cat_total,
+                                                        preview_archivo as _cat_prev)
+                    _cat_partes = _cat_rest.rsplit(maxsplit=1)
+                    _cat_ruta, _cat_desde, _cat_max = _cat_rest, 1, 24
+                    if len(_cat_partes) == 2:
+                        import re as _re_cat
+                        _m_cat = _re_cat.fullmatch(r"(\d+)(?::(\d+)?)?", _cat_partes[1])
+                        if _m_cat:
+                            _cat_ruta = _cat_partes[0]
+                            _cat_desde = max(1, int(_m_cat.group(1)))
+                            if _m_cat.group(2):
+                                _cat_max = max(1, int(_m_cat.group(2)) - _cat_desde + 1)
+                    _cat_rend = _cat_prev(_cat_ruta, max_lineas=_cat_max, desde=_cat_desde)
+                    if _cat_rend is None:
+                        _print_line(f"[warn_cl]Sin preview: {_escape(_cat_ruta)} "
+                                    "(no existe, es binario o falta rich)[/warn_cl]")
+                    else:
+                        _cat_n = _cat_total(_cat_ruta) or 0
+                        # clamp de la cabecera: preview_archivo ya clampa el rango
+                        # internamente (desde > total muestra la cola); la cabecera
+                        # decia el rango PEDIDO ('lineas 5000-...' de un archivo de
+                        # 200) y mentia (revision 2026-08-10)
+                        if _cat_n and _cat_desde > _cat_n:
+                            _cat_desde = max(1, _cat_n - _cat_max + 1)
+                        _cat_hasta = min(_cat_n, _cat_desde + _cat_max - 1)
+                        # cabecera estilo ToolFin: marca + verbo + objeto + detalle
+                        _print_line(f"[ok_cl]⏺[/ok_cl] cat [mod]{_escape(_cat_ruta)}[/mod] "
+                                    f"[detail]— lineas {_cat_desde}-{_cat_hasta} de {_cat_n}[/detail]")
+                        _console.print(_cat_rend)
+                        if _cat_hasta < _cat_n:
+                            # paginado simple por max_lineas: el siguiente tramo a pedido
+                            _print_line(f"[detail]  … /cat {_escape(_cat_ruta)} "
+                                        f"{_cat_hasta + 1}:{min(_cat_n, _cat_hasta + _cat_max)} para seguir[/detail]")
 
-        # -- Free text → articulated cognitive response --------------------
-        else:
-            # Self-tuning: learn traits about this user (name, language, verbosity)
-            # from every message, persisted across sessions.
-            try:
-                from cognia.agent.adaptive_prompt import learn_user_traits
-                learn_user_traits(ai, raw)
-            except Exception:
-                pass
-            # ── Auto-routing: is this an ACTION (run the agent) or chat? ──
-            # No command needed: a natural-language request to do something is
-            # detected and routed to the agent automatically, with a tool hint.
-            try:
-                from cognia.agent.intent import detect as _detect_intent
-                _intent = _detect_intent(raw)
-            except Exception:
-                _intent = None
-            _needs_tool = bool(_intent and _intent.needs_agent)
-            # ── CONFIANZA, gancho PREVIA (/confianza, 2026-08-24): si la
-            # pregunta pide un dato volatil (cifras, "hoy", metricas de una
-            # plataforma) se investiga en la web ANTES de gastar el turno
-            # del modelo; las evidencias se anteponen a _raw_llm mas abajo.
-            # Va ANTES del enrutador por inferencia y lo SALTA cuando la
-            # pregunta es volatil: el agente no tiene web y mandarle "cuantos
-            # suscriptores tiene X" solo produce una tarea que no puede
-            # cumplir; el turno sigue por chat con las fuentes. Guards: no
-            # en remoto (marcos limpios del movil), no con el agente. Fallo
-            # -> ambar 'confianza' y el turno sigue como si no existiera.
-            _conf_inv, _conf_cfg, _conf_portero = None, None, False
-            if not _needs_tool and not _confianza_remoto():
-                try:
-                    _conf_cfg = _confianza_config()
-                    _conf_inv = _confianza_previa(raw, _conf_cfg)
-                except Exception as _exc_cp:
-                    _aviso_degradado(
-                        "confianza",
-                        f"gancho previo fallo ({type(_exc_cp).__name__}: "
-                        f"{_exc_cp}); el turno sigue sin investigar")
-                    _conf_inv = None
-            # ── Enrutado por INFERENCIA sobre TODO el catalogo (goal
-            # 2026-07-21): si las reglas rapidas no vieron una accion, el
-            # PROPIO MODELO lee el mensaje + el catalogo de comandos "/" y
-            # elige CHAT / AGENTE / un comando concreto. La eleccion se
-            # valida (solo comandos existentes, destructivos vetados) y el
-            # comando se inyecta al REPL como si el usuario lo tecleara.
-            if (not _needs_tool and _conf_inv is None
-                    and (_intent is None or _intent.reason != "conversacional")
-                    and len(raw.split()) >= 3):
-                try:
-                    from cognia.enrutador import (activo as _enr_activo,
-                                                  catalogo_compacto, decidir)
-                    if _enr_activo():
-                        _cat_r = catalogo_compacto(_CMD_DESCRIPTIONS)
-                        _orch_r = getattr(ai, '_orchestrator', None)
-                        if _orch_r is not None:
-                            _ruta, _extra = decidir(
-                                raw,
-                                lambda p: _inferir_para_agente(_orch_r, p),
-                                _cat_r)
-                            if _ruta == "comando":
-                                _print_line(f"[detail]Infiero que esto pide "
-                                            f"{_extra.split()[0]} -- lo uso.[/detail]")
-                                _inyectadas.append(_extra)
-                                continue
-                            if _ruta == "agente":
-                                _needs_tool = True
-                except Exception:
-                    pass
-            if _needs_tool:
-                _hint = (_intent.suggested_tool if _intent
-                         and _intent.needs_agent else "")
-                _hmsg = f" (sugiero {_hint})" if _hint else ""
-                _print_line(f"[detail]Detectada accion{_hmsg} -- activando agente...[/detail]")
-                _resp = _run_agent_task(ai, raw, _print_line, hint=_hint)
-                _show_response(_resp, _ACCENT, respuesta_final=True)
-                _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
-                _persist_turn(ai, raw, _resp)
-            if not _needs_tool:
-                # Fast-path: stream tokens from llama.cpp if available
-                _streamed = False
-                _nuevo_turno_degradado()
-                try:
-                    from shattering.orchestrator import ShatteringOrchestrator as _SO
-                    _orch_cli = getattr(ai, '_orchestrator', None)
-                    if _orch_cli is None:
+            # -- Skills --------------------------------------------------------
+            elif raw == "/skills":
+                _slash_skills()
+            elif raw.startswith("/skill-nuevo"):
+                _nombre = raw[len("/skill-nuevo"):].strip()
+                if _nombre:
+                    _slash_skill_nuevo(_nombre)
+                else:
+                    _print_line("[warn_cl]Uso: /skill-nuevo <nombre>[/warn_cl]")
+            elif raw.startswith("/skill-cargar"):
+                _rest = raw[len("/skill-cargar"):].strip()
+                if not _rest:
+                    _print_line("[warn_cl]Uso: /skill-cargar <nombre> [args][/warn_cl]")
+                else:
+                    _parts2 = _rest.split(" ", 1)
+                    _sname = _parts2[0]
+                    _sargs = _parts2[1] if len(_parts2) > 1 else ""
+                    _slash_skill_cargar(ai, _sname, _sargs)
+            elif raw == "/skill" or raw.startswith("/skill "):
+                _slash_skill(raw[len("/skill "):] if raw.startswith("/skill ") else "", ai)
+
+            # -- Agent mode -----------------------------------------------------
+            elif raw.startswith("/hacer "):
+                _tarea = raw[len("/hacer "):].strip()
+                # Horizonte (P5): '/hacer retomar' relanza la ultima tarea
+                # retomable (incompleta, o en_curso huerfana tras un crash) con el
+                # delta (hitos verificados / lo que falta) como guidance. Gateado
+                # por el MISMO flag que el modo: sin COGNIA_HORIZONTE=1 el
+                # subcomando no existe y '/hacer retomar' se comporta como
+                # siempre (tarea literal) — cero regresion flag-off.
+                if _tarea == "retomar" and os.environ.get("COGNIA_HORIZONTE") == "1":
+                    try:
+                        from cognia.agent.estado_tarea import (
+                            cerrar as _cerrar_rt, resumen_para_prompt,
+                            ultima_incompleta)
+                        _est_rt = ultima_incompleta()
+                    except Exception as _e_rt:
+                        _est_rt = None
+                        _print_line(f"[warn_cl]retomar no disponible: "
+                                    f"{_escape(str(_e_rt))}[/warn_cl]")
+                    if _est_rt:
+                        _tarea = _est_rt["tarea"]
+                        _print_line(f"[detail]Retomando tarea "
+                                    f"{_est_rt['task_id']}: {_tarea[:120]}[/detail]")
+                        # El estado viejo se sella 'retomada' ANTES de relanzar:
+                        # la corrida nueva abre su propio estado y pasa a ser la
+                        # duena de la tarea. Sin esto, el viejo quedaba
+                        # 'incompleta' para siempre y cada retomar re-ejecutaba
+                        # una tarea ya terminada (revision 2026-08-09).
                         try:
-                            _orch_cli = _SO(mode='local')
-                        except Exception as _e_orch:
-                            _aviso_degradado(
-                                "cli.fast_path.orquestador",
-                                f"no pude construir ShatteringOrchestrator "
-                                f"({type(_e_orch).__name__}: {_e_orch}); sin "
-                                f"streaming, el turno va al camino articulado")
-                            _orch_cli = None
-                    if _orch_cli is not None:
-                        _llama = getattr(_orch_cli, '_llama', None)
-                        if _llama is None:
+                            _cerrar_rt(_est_rt, "retomada")
+                        except Exception:
+                            pass
+                        # El turno ENTERO (correr + mostrar + registrar) va al
+                        # hilo: si el _show_response quedara en el principal, el
+                        # resultado se imprimiria DESPUES del prompt siguiente y
+                        # el orden de la pantalla cambiaria respecto de hoy.
+                        def _turno_retomar(_t=_tarea, _raw=raw, _est=_est_rt):
+                            _r = _run_agent_task(
+                                ai, _t, _print_line,
+                                guidance=resumen_para_prompt(
+                                    _est, _est.get("faltan", [])))
+                            if _r:
+                                _show_response(_r, _ACCENT, respuesta_final=True)
+                            _session_log.append({"input": _raw, "output": _r,
+                                                 "elapsed": 0})
+                        if not _lanzar_en_fondo("hacer", _turno_retomar):
+                            _turno_retomar()
+                        continue
+                    _print_line("[warn_cl]No hay ninguna tarea incompleta que "
+                                "retomar.[/warn_cl]")
+                    continue
+                if _tarea:
+                    _print_line("[detail]Iniciando agente...[/detail]")
+                    # Mismo criterio que en 'retomar': el turno ENTERO al hilo,
+                    # para que el orden de lo impreso sea el de hoy.
+                    def _turno_hacer(_t=_tarea, _raw=raw):
+                        _resp = _run_agent_task(ai, _t, _print_line)
+                        if _resp:
+                            _show_response(_resp, _ACCENT, respuesta_final=True)
+                        else:
+                            _print_line("[warn_cl]El agente no produjo "
+                                        "respuesta.[/warn_cl]")
+                        _session_log.append({"input": _raw, "output": _resp,
+                                             "elapsed": 0})
+                    if not _lanzar_en_fondo("hacer", _turno_hacer):
+                        try:
+                            _turno_hacer()
+                        except KeyboardInterrupt:
+                            # Mismo caso que la accion inferida: inline (pipes,
+                            # remoto) la senal mataba el REPL. Cortar el turno.
+                            print()
+                            _print_line("[warn_cl]Tarea cortada. El REPL sigue "
+                                        "vivo; /salir para salir.[/warn_cl]")
+                else:
+                    _print_line("[warn_cl]Uso: /hacer <descripcion de la tarea>[/warn_cl]")
+
+            # -- Modo RLM (contexto largo por tools) ------------------------------
+            elif raw == "/rlm" or raw.startswith("/rlm "):
+                _rlm_args = raw[len("/rlm "):].strip() if raw.startswith("/rlm ") else ""
+                _rlm_ruta, _rlm_preg = _rlm_parsear(_rlm_args)
+                if not _rlm_preg:
+                    _print_line("[warn_cl]Uso: /rlm <pregunta>            "
+                                "(sobre la SESION: conversacion + ficheros "
+                                "tocados)[/warn_cl]")
+                    _print_line("[warn_cl]     /rlm <ruta> <pregunta>     "
+                                "(sobre un fichero o directorio; comillas si la "
+                                "ruta tiene espacios)[/warn_cl]")
+                else:
+                    # Import perezoso: el modulo RLM solo carga cuando se usa el
+                    # modo; un fallo de import avisa sin tumbar el REPL.
+                    _correr_rlm = None
+                    try:
+                        from cognia.agent.rlm import correr_rlm as _correr_rlm
+                    except Exception as _e_rlm:
+                        _print_line(f"[warn_cl]El modo RLM no esta disponible: "
+                                    f"{_escape(str(_e_rlm))}[/warn_cl]")
+                    if _correr_rlm is not None:
+                        _print_line("[detail]Iniciando modo RLM...[/detail]")
+                        # Corpus VIVO cuando no hay ruta: crecer es incremental y
+                        # el coste se DICE (si tarda, que se vea por que).
+                        _ctx_vivo = None
+                        if not _rlm_ruta:
+                            _ctx_vivo, _delta_v = _rlm_corpus_vivo(ai)
+                            _print_line(
+                                f"[detail]corpus vivo: +{_delta_v['turnos']} "
+                                f"turnos (+{_delta_v['previos']} de historial) "
+                                f"+{_delta_v['comandos']} comandos "
+                                f"+{_delta_v['archivos']} archivos "
+                                f"(+{_delta_v['chars']:,} chars) en "
+                                f"{_delta_v['ms']:.1f} ms | total "
+                                f"{_ctx_vivo.chars:,} chars[/detail]")
+                            if _delta_v["podados"]:
+                                _print_line(
+                                    f"[warn_cl]corpus vivo PODADO: "
+                                    f"{_delta_v['podados']} bloques tirados por "
+                                    f"techo[/warn_cl]")
+                        _res_rlm = _correr_rlm(_rlm_preg, _rlm_ruta,
+                                               print_fn=_print_line,
+                                               contexto=_ctx_vivo)
+                        _texto_rlm = _res_rlm.get("texto") or ""
+                        if _texto_rlm:
+                            _show_response(_texto_rlm, _ACCENT, respuesta_final=True)
+                        else:
+                            _print_line("[warn_cl]El modo RLM no produjo "
+                                        "respuesta.[/warn_cl]")
+                        # El informe del contexto efectivo es parte del contrato
+                        # del modo: va SIN tag [detail] porque en modo sencillo
+                        # [detail] se suprime y el informe debe verse SIEMPRE.
+                        for _lin_rlm in (_res_rlm.get("informe") or "").splitlines():
+                            _print_line(_escape(_lin_rlm))
+                        _session_log.append({"input": raw, "output": _texto_rlm,
+                                             "elapsed": 0})
+
+            # -- Long-form generation --------------------------------------------
+            elif raw == "/largo" or raw.startswith("/largo "):
+                _pedido = raw[len("/largo "):].strip() if raw.startswith("/largo ") else ""
+                if _pedido:
+                    _slash_largo(ai, _pedido)
+                else:
+                    _print_line("[warn_cl]Uso: /largo <pedido>[/warn_cl]")
+
+            # -- Modo sencillo/avanzado (UI: logs + paleta de tools) --------------
+            elif raw == "/modo" or raw.startswith("/modo "):
+                _arg = raw[len("/modo "):].strip().lower() if raw.startswith("/modo ") else ""
+                from cognia.simple_mode import set_ui_mode, get_ui_mode
+                if _arg in ("sencillo", "avanzado"):
+                    _m = set_ui_mode(_arg)
+                    _print_line(f"[ok_cl]Modo {_m}. " + (
+                        "Cognia solo funciona, sin logs de proceso." if _m == "sencillo"
+                        else "Se muestran los logs de proceso y todas las herramientas."
+                        ) + "[/ok_cl]")
+                else:
+                    _print_line(f"[warn_cl]Modo actual: {get_ui_mode()}. "
+                                f"Uso: /modo sencillo | /modo avanzado[/warn_cl]")
+
+            # -- Chimera: loop cognitivo end-to-end sobre una consulta -----------
+            elif raw == "/chimera" or raw.startswith("/chimera "):
+                _q = raw[len("/chimera "):].strip() if raw.startswith("/chimera ") else ""
+                if not _q:
+                    _print_line("[warn_cl]Uso: /chimera <consulta>[/warn_cl]")
+                else:
+                    try:
+                        from cognia.chimera import ChimeraSystem
+                        _sys = ChimeraSystem(db_path=ai.db)
+                        _res = _sys.run(_q)
+                        _show_response(_sys.format_report(_res), _ACCENT, respuesta_final=True)
+                    except Exception as _ce:
+                        _print_line(f"[warn_cl]Chimera no disponible: {_escape(str(_ce))}[/warn_cl]")
+
+            # -- Tutor: servidor web que ensena cualquier tema (localhost:8899) ---
+            elif raw == "/tutor" or raw.startswith("/tutor "):
+                _tut_arg = raw[len("/tutor "):].strip() if raw.startswith("/tutor ") else ""
+                _tut_scr = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "cognia", "tutor", "__main__.py")
+                try:
+                    import subprocess
+                    _cmd = [sys.executable, "-m", "cognia.tutor"]
+                    if _tut_arg:
+                        _cmd += _tut_arg.split()
+                    _print_line("[detail]Abriendo el tutor en http://localhost:8899 "
+                                "(Ctrl-C para volver al REPL)...[/detail]")
+                    subprocess.run(_cmd)
+                except Exception as _te:
+                    _print_line(f"[warn_cl]No se pudo abrir el tutor: {_escape(str(_te))}[/warn_cl]")
+
+            # -- Estado del subsistema agente (daemon, tools generadas, wishlist) --
+            elif raw == "/agente" or raw == "/agente estado" or raw.startswith("/agente "):
+                try:
+                    from cognia.agent.agent_status import (
+                        agent_status_snapshot, format_agent_status,
+                    )
+                    _show_response(format_agent_status(agent_status_snapshot()), "listado")
+                except Exception as _e:
+                    _print_line(f"[warn_cl]No se pudo leer el estado del agente: {_e}[/warn_cl]")
+
+            # -- Model switching ---------------------------------------------------
+            elif raw == "/modelo" or raw.startswith("/modelo "):
+                _slash_modelo(ai, raw[len("/modelo "):] if raw.startswith("/modelo ") else "")
+
+            # -- Plan system ---------------------------------------------------
+            elif raw.startswith("/plan ") and not raw.startswith("/plan-"):
+                _plan_goal = raw[len("/plan "):].strip()
+                if _plan_goal:
+                    _print_line("[detail]Descomponiendo objetivo...[/detail]")
+                    _plan_result = _slash_plan_crear(ai, _plan_goal)
+                    _show_response(_plan_result, "listado")
+                else:
+                    _print_line("[warn_cl]Uso: /plan <objetivo>[/warn_cl]")
+            elif raw == "/plan-ver" or raw == "/plan":
+                _show_response(_slash_plan_ver(), "listado")
+            elif raw.startswith("/plan-ok "):
+                _plan_parts = raw[len("/plan-ok "):].strip().split()
+                if len(_plan_parts) >= 2:
+                    try:
+                        _show_response(_slash_plan_ok(_plan_parts[0], int(_plan_parts[1])), "respuesta")
+                    except ValueError:
+                        _print_line("[warn_cl]Uso: /plan-ok <id> <n>  -- n debe ser un numero[/warn_cl]")
+                else:
+                    _print_line("[warn_cl]Uso: /plan-ok <id> <n>  -- ejemplo: /plan-ok p1 2[/warn_cl]")
+            elif raw == "/plan-ok":
+                _print_line("[warn_cl]Uso: /plan-ok <id> <n>  -- ejemplo: /plan-ok p1 2[/warn_cl]")
+            elif raw.startswith("/plan-borrar "):
+                _pb_id = raw[len("/plan-borrar "):].strip()
+                if _pb_id:
+                    _show_response(_slash_plan_borrar(_pb_id), "warn_cl")
+                else:
+                    _print_line("[warn_cl]Uso: /plan-borrar <id>  -- ejemplo: /plan-borrar p1[/warn_cl]")
+            elif raw == "/plan-borrar":
+                _print_line("[warn_cl]Uso: /plan-borrar <id>[/warn_cl]")
+
+            # -- Templates -------------------------------------------------------
+            elif raw == "/templates":
+                _slash_templates("")
+            elif raw.startswith("/template-guia ") or raw == "/template-guia":
+                _tg_id = raw[len("/template-guia "):].strip() if raw.startswith("/template-guia ") else ""
+                _slash_template_guia(_tg_id)
+            elif raw.startswith("/template ") or raw == "/template":
+                _tpl_id = raw[len("/template "):].strip() if raw.startswith("/template ") else ""
+                _slash_template(_tpl_id)
+
+            # -- Metas ---------------------------------------------------------
+            elif raw.startswith("/meta ") and not raw.startswith("/meta-"):
+                _meta_titulo = raw[len("/meta "):].strip()
+                if _meta_titulo:
+                    _slash_meta(_meta_titulo)
+                else:
+                    _print_line("[warn_cl]Uso: /meta <titulo>[/warn_cl]")
+            elif raw == "/meta":
+                _print_line("[warn_cl]Uso: /meta <titulo>[/warn_cl]")
+            elif raw == "/metas":
+                _slash_metas()
+            elif raw.startswith("/meta-ok ") or raw == "/meta-ok":
+                _mok_id = raw[len("/meta-ok "):].strip() if raw.startswith("/meta-ok ") else ""
+                if _mok_id:
+                    _slash_meta_ok(_mok_id)
+                else:
+                    _print_line("[warn_cl]Uso: /meta-ok <id>[/warn_cl]")
+            elif raw.startswith("/meta-prog ") or raw == "/meta-prog":
+                _mprog_args = raw[len("/meta-prog "):].strip() if raw.startswith("/meta-prog ") else ""
+                if _mprog_args:
+                    _slash_meta_prog(_mprog_args)
+                else:
+                    _print_line("[warn_cl]Uso: /meta-prog <id> <porcentaje>[/warn_cl]")
+            elif raw.startswith("/meta-borrar ") or raw == "/meta-borrar":
+                _mborrar_id = raw[len("/meta-borrar "):].strip() if raw.startswith("/meta-borrar ") else ""
+                if _mborrar_id:
+                    _slash_meta_borrar(_mborrar_id)
+                else:
+                    _print_line("[warn_cl]Uso: /meta-borrar <id>[/warn_cl]")
+            elif raw.startswith("/meta-prioridad-ver"):
+                _slash_meta_prioridad_ver("")
+            elif raw.startswith("/meta-prioridad ") or raw == "/meta-prioridad":
+                _mprior_args = raw[len("/meta-prioridad "):].strip() if raw.startswith("/meta-prioridad ") else ""
+                _slash_meta_prioridad(_mprior_args)
+            elif raw == "/metas-alta":
+                _slash_metas_alta("")
+            elif raw == "/metas-ordenar":
+                _slash_metas_ordenar("")
+
+            # -- Deep reasoning: /pensar vive arriba (modelo thinking dedicado +
+            # generacion infinita, cognia/razonador.py). El handler viejo (CoT
+            # "Paso N:" con el modelo base) fue reemplazado 2026-07-21: mismo
+            # proposito, motor muy superior y medido (E2E 12/12 GPU, 5/5 CPU).
+
+            # -- Deliberacion (CognitiveLoop DELIBERATE, offline/determinista) --
+            elif raw.startswith("/deliberar ") or raw == "/deliberar":
+                _obj = raw[len("/deliberar"):].strip()
+                if not _obj:
+                    _print_line("[warn_cl]Uso: /deliberar <objetivo>  (plan->critica->verify->revise, offline/determinista)[/warn_cl]")
+                else:
+                    _print_line("[detail]Deliberando (offline: planner + self-critic + verifier + world-model)...[/detail]")
+                    try:
+                        loop = getattr(ai, "_cognitive_loop", None)
+                        if loop is None:
+                            from cognia.reasoning.cognitive_loop import CognitiveLoop
+                            loop = CognitiveLoop(db_path=getattr(ai, "db", None))
                             try:
-                                _orch_cli._try_load_llama()
-                                _llama = getattr(_orch_cli, '_llama', None)
-                            except Exception as _e_load:
-                                _aviso_degradado(
-                                    "cli.fast_path._try_load_llama",
-                                    f"{type(_e_load).__name__}: {_e_load}")
-                        if _llama is None:
-                            _aviso_degradado(
-                                "cli.fast_path.sin_llama",
-                                "no hay backend llama.cpp; el turno cae al "
-                                "camino articulado (Ollama/canned)")
-                        if _llama is not None:
-                            # Guard barato por NOMBRE del GGUF servido (obra
-                            # 2026-08-09, WP4): con un razonador grande servido
-                            # (gpt-oss-20b, 9B...) los desvios al 0.5B/4B y el
-                            # CoT dirigido de 3B degradan el turno SIN decirlo
-                            # (evidencia baseline). WP1 traera perfiles formales;
-                            # esto no depende de ellos. Sin senal positiva
-                            # (nombre chico o /props caido) todo queda como
-                            # siempre. COGNIA_CASCADA_FORZAR=1 restaura los
-                            # desvios para medir el contrafactual.
-                            _modelo_srv, _srv_grande, _srv_chico = "", False, True
-                            try:
-                                from cognia.llm_local import (
-                                    es_modelo_chico, es_razonador_grande,
-                                    nombre_modelo_servido, presupuesto_chat)
-                                _modelo_srv = nombre_modelo_servido(_llama)
-                                _srv_grande = (
-                                    es_razonador_grande(_modelo_srv)
-                                    and os.environ.get(
-                                        "COGNIA_CASCADA_FORZAR") != "1")
-                                _srv_chico = (not _modelo_srv
-                                              or es_modelo_chico(_modelo_srv))
+                                ai._cognitive_loop = loop
                             except Exception:
                                 pass
-                            # Fast-path de habla: PORTERO 0.5B+LoRA por presencia
-                            # (PREREG_PORTERO_FASE2: saludo/cortesia E identidad,
-                            # ~4x el 3B en CPU) o cascada legado opt-in
-                            # (COGNIA_SPEECH_CASCADE, 0.5B pelado, solo social).
-                            # Ante duda/falla -> 3B (fallback total). exp021/cycle39.
-                            # Con razonador grande servido: NO se desvia (arriba).
-                            _llama_turn = _llama
-                            if not _srv_grande:
-                                try:
-                                    from node.speech_cascade import (
-                                        classify_turn, fast_speech_backend, portero_activo)
-                                    if classify_turn(raw, identidad=portero_activo()) == "fast":
-                                        _fb = fast_speech_backend()
-                                        if _fb is not None:
-                                            _llama_turn = _fb
-                                except Exception as _e_port:
-                                    _aviso_degradado(
-                                        "cli.fast_path.portero",
-                                        f"speech_cascade fallo ({type(_e_port).__name__}: "
-                                        f"{_e_port}); el turno se queda en el 3B")
-                                    _llama_turn = _llama
-                            # Ruteo por eje de la COLONIA (AUDIT 2026-07-12):
-                            # turnos de razonamiento -> miembro qwen3_4b crudo
-                            # (G2R 92.5 vs 82 del 3B+stepwise). Lazy via
-                            # fleet_registry; cualquier falla -> 3B intacto.
-                            _member_turn = False
-                            _mkey = ""
-                            try:
-                                if _llama_turn is _llama and not _srv_grande:
-                                    from cognia.agent.fleet_router import (
-                                        member_for_chat_turn)
-                                    # perfil hibrido: a /esfuerzo bajo no se
-                                    # despierta el 4B (colonia negada), el
-                                    # turno queda en el 3B+stepwise
-                                    _mkey = member_for_chat_turn(
-                                        raw,
-                                        razonador_ok=_active_effort().get(
-                                            "colonia", True))
-                                    if _mkey:
-                                        from node.fleet_registry import (
-                                            fleet_backend)
-                                        _mb = fleet_backend(_mkey)
-                                        if _mb is not None:
-                                            _llama_turn = _mb
-                                            _member_turn = True
-                            except Exception as _e_fleet:
-                                _aviso_degradado(
-                                    "cli.fast_path.fleet_router",
-                                    f"member_for_chat_turn/fleet_backend fallo "
-                                    f"({type(_e_fleet).__name__}: {_e_fleet}); "
-                                    f"el turno se queda en el 3B, sin colonia")
-                                _llama_turn = _llama
-                            # Fleet: el chat general corre con la BASE pura (el
-                            # experto regresiona G1 -8pp); EXCEPTO identidad,
-                            # que va al experto (G3 20/20 vs 0/20 de la base).
-                            # Router lexico determinista (fleet_router). SOLO si
-                            # el turno se queda en el 3B: un hot-swap inutil
-                            # invalida el KV cache del server grande.
-                            try:
-                                if _llama_turn is _llama and getattr(_llama, "fleet_experts", []):
-                                    from cognia.agent.fleet_router import expert_for_chat_turn
-                                    _llama.activate_expert(expert_for_chat_turn(raw))
-                            except Exception as _e_exp:
-                                # El experto de identidad da 20/20 vs 0/20 de la
-                                # base: perderlo en silencio cambia la respuesta.
-                                _aviso_degradado(
-                                    "cli.fast_path.experto",
-                                    f"activate_expert fallo ({type(_e_exp).__name__}: "
-                                    f"{_e_exp}); corre la base sin experto")
-                            # El desvio ya NO es silencioso (A8): una linea
-                            # visible + evento tipado al bus. Se imprime ademas
-                            # de emitir porque esta zona TODAVIA renderiza
-                            # directo (WP3 cablea el renderer del bus).
-                            if _llama_turn is not _llama:
-                                _nombre_desvio = ""
-                                try:
-                                    _nombre_desvio = nombre_modelo_servido(_llama_turn)
-                                except Exception:
-                                    pass
-                                if not _nombre_desvio:
-                                    _nombre_desvio = (f"miembro {_mkey}" if _member_turn
-                                                      else "0.5B portero")
-                                try:
-                                    from cognia.ux.events import Aviso as _EvAviso, emitir as _ev_emitir
-                                    _ev_emitir(_EvAviso(
-                                        texto=f"respondio {_nombre_desvio}",
-                                        origen="cli.fast_path"))
-                                except Exception:
-                                    pass
-                                _print_line(f"[detail](respondio {_escape(_nombre_desvio)})[/detail]")
-                            from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
-                            from cognia.user_prefs import personalize_prompt
-                            _system = personalize_prompt(build_adaptive_system_prompt(ai))
-                            # Multi-turn: feed the last few turns so the model can
-                            # follow the conversation thread. _history holds prior
-                            # turns only (the current one is appended AFTER generation),
-                            # so it never contains 'raw' yet. Cap to the last 8 turns
-                            # (16 messages) to bound the prompt size.
-                            _hist_ctx = [
-                                h for h in _history[-16:]
-                                if h.get("role") in ("user", "assistant") and h.get("content")
-                            ]
-                            # Prefer the canonical multi-turn API (/v1/chat/completions):
-                            # llama-server applies the official Qwen chat template, with
-                            # real role separation -- more robust than a hand-built ChatML
-                            # string (which malforms on empty/odd turns). Fall back to the
-                            # manual ChatML template if the backend lacks stream_chat.
-                            # Temperatura explicita (no el default implicito del
-                            # backend): visible y auditable en model_constants.
-                            from shattering.model_constants import GEN_CHAT_TEMPERATURE
-                            _use_chat = hasattr(_llama_turn, "stream_chat")
-                            # Memoria real en el fast-path: el bloque HYDRA del
-                            # band router va DENTRO del ultimo mensaje user
-                            # (ver _build_stream_messages: posicion obligada
-                            # para no invalidar el prefijo KV cacheado).
-                            # CoT dirigido (bench_reasoning 2026-07-01: direct 0.3125 ->
-                            # CoT por turno 0.8125; en system prompt no hace nada; y NO se
-                            # aplica si piden formato exacto porque rompe compliance).
-                            # Solo cambia el texto que VE el LLM; _history guarda `raw`.
-                            try:
-                                from cognia.agent.stepwise import augment_stepwise
-                                # El miembro 4B va CRUDO: el audit lo midio sin
-                                # stepwise (92.5) y sobre-instruir degrada. Y el
-                                # CoT dirigido esta medido PARA EL 3B: a un
-                                # modelo mas grande (o razonador, que ya piensa
-                                # en su canal nativo) solo le mete ruido — guard
-                                # <=4B por nombre (A8; perfil formal en WP1).
-                                _raw_llm = (raw if (_member_turn or not _srv_chico)
-                                            else augment_stepwise(raw))
-                            except Exception as _e_step:
-                                # CoT por turno: 0.3125 -> 0.8125 en bench_reasoning.
-                                # Perderlo baja la calidad del turno entero.
-                                _aviso_degradado(
-                                    "cli.fast_path.stepwise",
-                                    f"augment_stepwise fallo ({type(_e_step).__name__}: "
-                                    f"{_e_step}); turno SIN CoT dirigido")
-                                _raw_llm = raw
-                            # Evidencias del gancho PREVIA de /confianza: van
-                            # DENTRO del ultimo mensaje user, delante del texto
-                            # (misma regla que HYDRA/stepwise: _history guarda
-                            # `raw`; el modelo ve DATOS citados + la pregunta).
-                            # _confianza_prefijo devuelve '' sin evidencias.
-                            if _conf_inv is not None and _conf_inv.evidencias:
-                                _raw_llm = _confianza_prefijo(_conf_inv) + _raw_llm
-                            _messages = _build_stream_messages(
-                                ai, _raw_llm, _system, _hist_ctx)
-                            # Fast-path 0.5B: prompt minimo (sin historia/HYDRA, sin
-                            # stepwise, system neutro por idioma = el MISMO formato del
-                            # instrumento G3 del kernel, 95% medido) para que el prefill
-                            # no coma la ventaja de velocidad en turnos triviales.
-                            # El portero se lleva el turno SIN evidencias ni
-                            # veredicto de confianza (_conf_portero): solo
-                            # atiende saludos/identidad, que el clasificador
-                            # nunca marca volatiles.
-                            _conf_portero = (_llama_turn is not _llama
-                                             and not _member_turn)
-                            if _conf_portero:
-                                from node.speech_cascade import portero_system
-                                _messages = [{"role": "system", "content": portero_system(raw)},
-                                             {"role": "user", "content": raw}]
-                            # max_tokens del nivel /esfuerzo activo (no un literal fijo):
-                            # asi /esfuerzo maximo realmente alarga la respuesta del chat
-                            # (medio=1024 preserva el comportamiento historico por default).
-                            _effort_max_tokens = _active_effort()["max_tokens"]
-                            if _srv_grande:
-                                # Razonador: el presupuesto cubre PENSAMIENTO +
-                                # respuesta (los "9 bugs identicos" de la
-                                # memoria: medio=1024 muere en finish=length con
-                                # el 20B pensando y contenido 0).
-                                _effort_max_tokens = presupuesto_chat(
-                                    _effort_max_tokens, True)
-                            # Las lambdas toman max_tokens como parametro: el
-                            # reintento por truncado (abajo) rellama con el doble.
-                            if _use_chat:
-                                _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_chat(
-                                    _messages, max_tokens=_mt,
-                                    temperature=GEN_CHAT_TEMPERATURE)
+                        # FASE 3c: el nivel /esfuerzo fija el tope de pasadas deliberativas.
+                        _max_iters = _active_effort()["verificaciones"] + 1
+                        _plan, _crit, _verify, _out, _risk = loop._run_deliberate(
+                            _obj, None, max_iters=_max_iters)
+                        _print_line(f"[titulo]PLAN ({len(_plan or [])} pasos):[/titulo]")
+                        for _i, _st in enumerate(_plan or [], 1):
+                            _print_line(f"  {_i}. {getattr(_st, 'description', _st)} (tool={getattr(_st, 'tool_required', '?')})")
+                        _sc = (_crit or {}).get("scores", {})
+                        _print_line(f"[titulo]CRITICA[/titulo] overall={float(_sc.get('overall', 0.0)):.2f}: {(_crit or {}).get('critique', '')}")
+                        if _verify is not None:
+                            _ok = getattr(_verify, "passed", False)
+                            _extra = "" if _ok else f" reason={getattr(_verify, 'fail_reason', '')}"
+                            _print_line(f"VERIFY: {'PASS' if _ok else 'FAIL'} (score={float(getattr(_verify, 'score', 0.0)):.2f}){_extra}")
+                        if _risk:
+                            _print_line(f"PLAN RISK: {_risk.get('recommendation', '?')} (max_risk={float(_risk.get('max_risk', 0.0)):.2f})")
+                        _print_line(f"[detail]{_out}[/detail]")
+                        try:
+                            _vv = "PASS" if (_verify is not None and getattr(_verify, "passed", False)) else "FAIL/NA"
+                            ai.observe(f"Deliberacion sobre: {_obj[:80]} | {len(_plan or [])} pasos, verify={_vv}",
+                                       provided_label="deliberacion")
+                        except Exception:
+                            pass
+                    except Exception as _de:
+                        _print_line(f"[err_cl]Error en deliberacion: {_de}[/err_cl]")
+
+            # -- Flujo orquestado (analisis->plan->ejecucion->informe->verificacion) --
+            elif raw.startswith("/flujo ") or raw == "/flujo":
+                _goal = raw[len("/flujo"):].strip()
+                if not _goal:
+                    _print_line("[warn_cl]Uso: /flujo <objetivo>[/warn_cl]")
+                else:
+                    _print_line("[detail]Flujo estructurado (etapas dinamicas por "
+                                "complejidad/esfuerzo)...[/detail]")
+                    try:
+                        from cognia.agents.flow import run_flow
+                        _report = run_flow(ai, _goal, _active_effort(), _print_line)
+                        _show_response(_report, _ACCENT)
+                        _session_log.append({"input": raw, "output": _report, "elapsed": 0})
+                        _persist_turn(ai, raw, _report)
+                    except Exception as _fe:
+                        _print_line(f"[err_cl]Error en flujo: {_fe}[/err_cl]")
+
+            # -- Proyectos: estado persistente de flujos /flujo (FASE 6, nivel O2) ----
+            elif raw == "/proyectos" or raw.startswith("/proyectos "):
+                _proy_arg = raw[len("/proyectos "):].strip() if raw.startswith("/proyectos ") else ""
+                try:
+                    from cognia.memory.project_memory import get_project_memory
+                    _pm = get_project_memory(getattr(ai, "db", None) or "cognia_memory.db")
+                    if _proy_arg:
+                        # DETALLE de un flujo por id (get_flow ya existia sin puerta REPL).
+                        try:
+                            _fid = int(_proy_arg)
+                        except ValueError:
+                            _print_line("[warn_cl]Uso: /proyectos [id]  -- el id debe ser un numero[/warn_cl]")
+                        else:
+                            _flow = _pm.get_flow(_fid)
+                            if not _flow:
+                                _print_line(f"[warn_cl]No existe el flujo #{_fid}.[/warn_cl]")
                             else:
-                                from node.inference_pipeline import _apply_qwen_template
-                                _formatted = _apply_qwen_template(
-                                    _messages[-1]["content"], _system,
-                                    history=_hist_ctx or None)
-                                _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_generate(
-                                    _formatted, max_tokens=_mt,
-                                    temperature=GEN_CHAT_TEMPERATURE)
-                            _tokens_buf = []
-                            # Streaming SUAVE (estilo conversacional 2026-08-02):
-                            # los tokens se agrupan en trozos de palabra en vez de
-                            # imprimirse gota a gota — se siente escrito, no
-                            # teletipeado. Best-effort: sin estilo, gota a gota.
-                            _flujo = None
-                            # Markdown en STREAMING (ux/markdown_vivo, patron
-                            # Aider + CodeWhale): misma maquina que usa el
-                            # renderer para la respuesta del agente. crear()
-                            # decide solo por config/tty/remoto y NUNCA lanza;
-                            # None = el FlujoSuave plano de siempre. Sus
-                            # escribir()/cerrar() tampoco lanzan (degradan
-                            # visibles via 'markdown' y caen a plano EN ESE
-                            # TURNO), asi este bloque no cambia de forma.
+                                _fd, _ft = len(_flow["stages_done"]), len(_flow["route"])
+                                _print_line(f"[titulo]Flujo #{_flow['id']}[/titulo] [{_flow['status']}]")
+                                _print_line(f"  objetivo: {_flow['goal']}")
+                                _print_line(f"  ruta: {' -> '.join(_flow['route']) or '(sin ruta)'}")
+                                _print_line(f"  etapas hechas: {_fd}/{_ft} "
+                                            f"({', '.join(_flow['stages_done']) or 'ninguna'})")
+                                if _flow.get("score") is not None:
+                                    _print_line(f"  score: {_flow['score']}")
+                    else:
+                        _flows = _pm.recent(8)
+                        if not _flows:
+                            _print_line("[detail]Sin flujos registrados todavia (usa /flujo <objetivo>).[/detail]")
+                        else:
+                            _print_line("[titulo]Proyectos / flujos recientes:[/titulo]")
+                            for _f in _flows:
+                                _done, _tot = len(_f["stages_done"]), len(_f["route"])
+                                _sc = f" score={_f['score']}" if _f.get("score") is not None else ""
+                                _print_line(f"  #{_f['id']} [{_f['status']}] {_f['goal'][:60]} "
+                                            f"({_done}/{_tot} etapas{_sc})")
+                            _pend = _pm.latest_unfinished()
+                            if _pend:
+                                _print_line(f"[detail]Sin terminar: #{_pend['id']} -- retomar con "
+                                            f"/flujo {_pend['goal'][:60]}[/detail]")
+                            _print_line("[detail]Detalle de un flujo: /proyectos <id>[/detail]")
+                except Exception as _pe:
+                    _print_line(f"[err_cl]Error leyendo proyectos: {_pe}[/err_cl]")
+
+            # -- Agent history --------------------------------------------------
+            elif raw == "/historial":
+                _AGENT_STATE_PATH = Path.home() / ".cognia_agent_state.json"
+                try:
+                    import json as _json_h
+                    _st = _json_h.loads(_AGENT_STATE_PATH.read_text(encoding="utf-8"))
+                    if _st.get("tasks"):
+                        _print_line("[titulo]Tareas recientes del agente:[/titulo]")
+                        for _t in reversed(_st["tasks"]):
+                            _print_line(f"  [{_t.get('ts','?')}] {_t['task'][:60]} ({_t.get('steps',0)} pasos)")
+                            _print_line(f"    -> {_t['result'][:100]}")
+                    else:
+                        _print_line("Sin historial de tareas.")
+                    if _st.get("files_touched"):
+                        _print_line(f"[titulo]Archivos tocados:[/titulo] {', '.join(_st['files_touched'][-5:])}")
+                except FileNotFoundError:
+                    _print_line("Sin historial. Usa /hacer <tarea> primero.")
+                except Exception as _e:
+                    _print_line(f"[err_cl]Error leyendo historial: {_e}[/err_cl]")
+
+            # -- Chat history commands ------------------------------------------
+            elif raw == "/sesiones":
+                _slash_sesiones("")
+            elif raw == "/resume" or raw.startswith("/resume "):
+                _rs_arg = raw[len("/resume "):].strip() if raw.startswith("/resume ") else ""
+                _slash_resume(_rs_arg, ai)
+            elif raw.startswith("/buscar-historial ") or raw == "/buscar-historial":
+                _bh_kw = raw[len("/buscar-historial "):].strip() if raw.startswith("/buscar-historial ") else ""
+                _slash_buscar_historial(_bh_kw)
+            elif raw.startswith("/sesion-ver ") or raw == "/sesion-ver":
+                _sv_id = raw[len("/sesion-ver "):].strip() if raw.startswith("/sesion-ver ") else ""
+                _slash_sesion_ver(_sv_id)
+            elif raw.startswith("/historial-limpiar ") or raw == "/historial-limpiar":
+                _hl_arg = raw[len("/historial-limpiar "):].strip() if raw.startswith("/historial-limpiar ") else ""
+                _slash_historial_limpiar(_hl_arg)
+
+            # -- Conversation summary -------------------------------------------
+            elif raw == "/resumir":
+                try:
+                    from shattering.orchestrator import ShatteringOrchestrator as _O
+                    _orch_r = getattr(ai, '_orchestrator', None) or _O(mode='local')
+                    _hist_snippet = []
+                    for _entry in _session_log[-6:]:
+                        _hist_snippet.append(f"Usuario: {_entry['input'][:80]}")
+                        _hist_snippet.append(f"Cognia: {_entry['output'][:80]}")
+                    if not _hist_snippet:
+                        _print_line("No hay historial de conversacion para resumir.")
+                    else:
+                        _summary_prompt = (
+                            "Resume esta conversacion en 2-3 oraciones, destacando los temas clave:\n\n"
+                            + "\n".join(_hist_snippet)
+                            + "\n\nResumen:"
+                        )
+                        # max_tokens=256: el resumen es explícitamente 2-3 oraciones;
+                        # sin cota, un infer degenerado del 3B llenaba hasta el default.
+                        _sum_result = _orch_r.infer(_summary_prompt, max_tokens=256)
+                        _summary_text = _sum_result.text.strip()
+                        try:
+                            ai.observe(_summary_text, provided_label="resumen_sesion")
+                        except Exception:
+                            pass
+                        _print_line("[ok_cl]Resumen guardado en memoria:[/ok_cl]")
+                        _print_line(_summary_text)
+                except Exception as _re:
+                    _print_line(f"[err_cl]Error al resumir: {_re}[/err_cl]")
+
+            # -- Spaced repetition review (bare /revisar) -----------------------
+            elif raw == "/revisar":
+                _slash_revisar_sm2()
+
+            # -- Code review ----------------------------------------------------
+            elif raw.startswith("/revisar "):
+                _ruta_rev = raw[len("/revisar "):].strip()
+                _p_rev = Path(_ruta_rev)
+                if not _p_rev.exists():
+                    _print_line(f"[err_cl]No existe: {_ruta_rev}[/err_cl]")
+                elif not _p_rev.is_file():
+                    _print_line(f"[err_cl]No es un archivo: {_ruta_rev}[/err_cl]")
+                else:
+                    try:
+                        _code = _p_rev.read_text(encoding="utf-8", errors="replace")
+                        if len(_code) > 8000:
+                            _code = _code[:8000] + "\n... (truncado)"
+                        _ext = _p_rev.suffix.lower()
+                        _lang = {
+                            "py": "Python", "js": "JavaScript", "ts": "TypeScript",
+                            "c": "C", "cpp": "C++", "rs": "Rust", "go": "Go",
+                        }.get(_ext.lstrip("."), "codigo")
+                        _review_prompt = (
+                            f"Eres un revisor de codigo experto. Analiza este archivo {_lang} "
+                            f"y proporciona una revision estructurada con:\n"
+                            f"1. Resumen (1 oracion)\n"
+                            f"2. Problemas criticos (si los hay)\n"
+                            f"3. Mejoras sugeridas (max 3)\n"
+                            f"4. Puntos positivos (max 2)\n\n"
+                            f"Archivo: {_p_rev.name}\n\n```{_ext.lstrip('.')}\n{_code}\n```\n\n"
+                            f"Revision:"
+                        )
+                        from shattering.orchestrator import ShatteringOrchestrator as _O
+                        _orch_rev = getattr(ai, '_orchestrator', None) or _O(mode='local')
+                        _print_line(f"[detail]Revisando {_p_rev.name}...[/detail]")
+                        _rev_result = _orch_rev.infer(_review_prompt)
+                        _show_response(_rev_result.text, "listado")
+                        try:
+                            ai.observe(
+                                f"Revision de {_p_rev.name}: {_rev_result.text[:200]}",
+                                provided_label="revision_codigo",
+                            )
+                        except Exception:
+                            pass
+                    except Exception as _re:
+                        _print_line(f"[err_cl]Error al revisar: {_re}[/err_cl]")
+
+            # -- Memory stats dashboard -----------------------------------------
+            elif raw == "/memoria-stats":
+                try:
+                    _ms_lines = []
+                    try:
+                        ep_count = ai.episodic.count()
+                        _ms_lines.append(f"Episodios guardados: {ep_count}")
+                    except Exception:
+                        pass
+                    try:
+                        _ms_lines.append(f"Observaciones en esta sesion: {ai._session_observations}")
+                    except Exception:
+                        pass
+                    try:
+                        _ms_lines.append(f"Total interacciones: {ai.interaction_count}")
+                    except Exception:
+                        pass
+                    try:
+                        cryst = ai.semantic.get_crystallized()
+                        if cryst:
+                            _ms_lines.append(
+                                f"Conceptos cristalizados ({len(cryst)}): "
+                                + ", ".join(c["concept"] for c in cryst[:8])
+                            )
+                        else:
+                            _ms_lines.append("Conceptos cristalizados: ninguno aun (necesitan support>=5)")
+                    except Exception:
+                        pass
+                    try:
+                        all_concepts = ai.semantic.list_all()
+                        if all_concepts:
+                            _top = sorted(all_concepts, key=lambda x: x.get("confidence", 0), reverse=True)[:5]
+                            _ms_lines.append(
+                                "Top conceptos semanticos: "
+                                + ", ".join(
+                                    f"{c['concept']} ({c.get('confidence', 0):.2f})"
+                                    for c in _top
+                                )
+                            )
+                    except Exception:
+                        pass
+                    try:
+                        from storage.db_pool import db_connect_pooled as _dcp
+                        _conn = _dcp(ai.db)
+                        _cur = _conn.cursor()
+                        _cur.execute("SELECT COUNT(*) FROM contradictions")
+                        _cont_count = _cur.fetchone()[0]
+                        _conn.close()
+                        _ms_lines.append(f"Contradicciones detectadas: {_cont_count}")
+                    except Exception:
+                        pass
+                    if _ms_lines:
+                        _show_response("\n".join(_ms_lines), "listado")
+                    else:
+                        _print_line("[detail]No hay estadisticas disponibles.[/detail]")
+                except Exception as _e:
+                    _print_line(f"[err_cl]Error: {_e}[/err_cl]")
+
+            # ── /monitor <cmd> ────────────────────────────────────────────
+            elif raw.startswith("/monitor "):
+                # Desde tanda-1: corre en BACKGROUND via proc_registry (antes era
+                # foreground bloqueante). Sintaxis extra: /monitor <cmd> :: <regex>
+                # arma ademas un monitor que avisa cuando el output matchee.
+                _mon_arg = raw[len("/monitor "):].strip()
+                if not _mon_arg:
+                    _print_line("[warn_cl]Uso: /monitor <comando> [:: <regex>][/warn_cl]")
+                else:
+                    _mon_cmd, _mon_rx = (_mon_arg.split("::", 1) + [""])[:2]
+                    _mon_cmd, _mon_rx = _mon_cmd.strip(), _mon_rx.strip()
+                    if not _confirmar_accion("shell_exec", _mon_cmd):
+                        _print_line("[warn_cl]Cancelado.[/warn_cl]")
+                    else:
+                        try:
+                            from cognia.console.proc_registry import spawn_shell
+                            _sid = spawn_shell(_mon_cmd)
+                            _print_line(f"[detail]Shell #{_sid} en background. "
+                                        f"/shells {_sid} para ver output.[/detail]")
+                            if _mon_rx:
+                                from cognia.console.monitors import monitor_output_regex
+                                _mid = monitor_output_regex(_sid, _mon_rx,
+                                                            f"'{_mon_rx}' en shell #{_sid}")
+                                _print_line(f"[detail]Monitor #{_mid} armado "
+                                            f"(aviso al matchear).[/detail]")
+                        except Exception as _e:
+                            _print_line(f"[err_cl]Error en monitor: {_e}[/err_cl]")
+
+            # ── /powershell <cmd> ──────────────────────────────────────────
+            elif raw.startswith("/powershell "):
+                _ps_cmd = raw[len("/powershell "):].strip()
+                if not _ps_cmd:
+                    _print_line("[warn_cl]Uso: /powershell <comando>[/warn_cl]")
+                elif not _confirmar_accion("shell_exec", _ps_cmd):
+                    _print_line("[warn_cl]Cancelado.[/warn_cl]")
+                else:
+                    import subprocess as _sp, sys as _sys
+                    _ps_exe = "powershell.exe" if _sys.platform == "win32" else "pwsh"
+                    try:
+                        _ps_res = _sp.run(
+                            [_ps_exe, "-NonInteractive", "-Command", _ps_cmd],
+                            capture_output=True, text=True, timeout=120,
+                            encoding="utf-8", errors="replace",
+                        )
+                        _out = (_ps_res.stdout + _ps_res.stderr).strip()
+                        _show_response(_out or f"(exit {_ps_res.returncode})", "respuesta")
+                    except Exception as _e:
+                        _print_line(f"[err_cl]PowerShell error: {_e}[/err_cl]")
+
+            # ── /tarea-crear /tarea-lista(/tareas) /tarea-ok /tarea-borrar ──
+            # Desde 2026-07-18 el store es cognia/tasks_board.py: persistente
+            # (~/.cognia/data/tasks_board.json), checkboxes ☐/☑ y hooks para que
+            # el agente llene sus propios cuadrados (agent_plan_tasks/mark_done).
+            elif raw.startswith("/tarea-crear ") or raw == "/tarea-crear":
+                _tdesc = raw[len("/tarea-crear "):].strip() if raw.startswith("/tarea-crear ") else ""
+                if not _tdesc:
+                    _print_line("[warn_cl]Uso: /tarea-crear <descripcion>[/warn_cl]")
+                else:
+                    from cognia.tasks_board import add_task
+                    _tid = add_task(_tdesc)
+                    _print_line(f"[ok_cl]Tarea #{_tid} creada: {_escape(_tdesc)}[/ok_cl]")
+
+            elif raw in ("/tarea-lista", "/tareas"):
+                from cognia.tasks_board import render_board
+                _show_response(render_board(), "listado")
+
+            elif raw.startswith("/tarea-ok ") or raw == "/tarea-ok":
+                _tok_id = raw[len("/tarea-ok "):].strip() if raw.startswith("/tarea-ok ") else ""
+                if not _tok_id:
+                    _print_line("[warn_cl]Uso: /tarea-ok <id>[/warn_cl]")
+                else:
+                    try:
+                        _tok_n = int(_tok_id)
+                        from cognia.tasks_board import complete_task
+                        if complete_task(_tok_n):
+                            _print_line(f"[ok_cl]Tarea #{_tok_n} completada.[/ok_cl]")
+                        else:
+                            _print_line(f"[warn_cl]Tarea #{_tok_n} no encontrada.[/warn_cl]")
+                    except ValueError:
+                        _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+
+            elif raw.startswith("/tarea-borrar ") or raw == "/tarea-borrar":
+                _tbid = raw[len("/tarea-borrar "):].strip() if raw.startswith("/tarea-borrar ") else ""
+                if not _tbid:
+                    _print_line("[warn_cl]Uso: /tarea-borrar <id>[/warn_cl]")
+                else:
+                    try:
+                        _tbn = int(_tbid)
+                        from cognia.tasks_board import remove_task
+                        if remove_task(_tbn):
+                            _print_line(f"[ok_cl]Tarea #{_tbn} eliminada.[/ok_cl]")
+                        else:
+                            _print_line(f"[warn_cl]Tarea #{_tbn} no encontrada.[/warn_cl]")
+                    except ValueError:
+                        _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+
+            # ── /web-fetch <url> ───────────────────────────────────────────
+            elif raw.startswith("/web-fetch ") or raw == "/web-fetch":
+                _wf_url = raw[len("/web-fetch "):].strip() if raw.startswith("/web-fetch ") else ""
+                if not _wf_url or not _wf_url.startswith("http"):
+                    _print_line("[warn_cl]Uso: /web-fetch <url>  (debe empezar con http)[/warn_cl]")
+                else:
+                    try:
+                        import urllib.request as _ur, html as _html_mod
+                        _req = _ur.Request(
+                            _wf_url,
+                            headers={"User-Agent": "CogniaBot/1.0 (+cognia-ai)"},
+                        )
+                        with _ur.urlopen(_req, timeout=15) as _resp:
+                            _raw_bytes = _resp.read(1_000_000)
+                        _ct = _resp.headers.get("content-type", "")
+                        _text = _raw_bytes.decode("utf-8", errors="replace")
+                        # Strip HTML tags to plain text
+                        import re as _re2
+                        _text = _re2.sub(r"<style[^>]*>.*?</style>", " ", _text, flags=_re2.DOTALL | _re2.IGNORECASE)
+                        _text = _re2.sub(r"<script[^>]*>.*?</script>", " ", _text, flags=_re2.DOTALL | _re2.IGNORECASE)
+                        _text = _re2.sub(r"<[^>]+>", " ", _text)
+                        _text = _re2.sub(r"\s{3,}", "\n\n", _text).strip()
+                        _text = _html_mod.unescape(_text)
+                        _preview = _text[:3000]
+                        _show_response(f"[{_wf_url}]\n\n{_preview}", "listado")
+                        # Inject into session context
+                        try:
+                            ai.observe(f"Contenido de {_wf_url}:\n{_text[:500]}", provided_label="web_fetch")
+                        except Exception:
+                            pass
+                    except Exception as _e:
+                        _print_line(f"[err_cl]web-fetch error: {_e}[/err_cl]")
+
+            # ── /web-buscar <query> ────────────────────────────────────────
+            elif raw.startswith("/web-buscar ") or raw == "/web-buscar":
+                _wb_q = raw[len("/web-buscar "):].strip() if raw.startswith("/web-buscar ") else ""
+                if not _wb_q:
+                    _print_line("[warn_cl]Uso: /web-buscar <query>[/warn_cl]")
+                else:
+                    try:
+                        import urllib.request as _ur2, urllib.parse as _up2, json as _json2
+                        _enc_q = _up2.quote_plus(_wb_q)
+                        # DDG Instant Answer API — free, no auth, no scraping
+                        _ddg_api = f"https://api.duckduckgo.com/?q={_enc_q}&format=json&no_redirect=1&no_html=1&skip_disambig=1"
+                        _req2 = _ur2.Request(_ddg_api, headers={"User-Agent": "CogniaBot/1.0"})
+                        with _ur2.urlopen(_req2, timeout=15) as _r2:
+                            _data2 = _json2.loads(_r2.read())
+                        _lines2 = [f"Resultados para: {_wb_q}\n"]
+                        _abstract = _data2.get("Abstract", "").strip()
+                        if _abstract:
+                            _src = _data2.get("AbstractURL", "")
+                            _lines2.append(f"Resumen: {_abstract[:300]}")
+                            if _src:
+                                _lines2.append(f"Fuente: {_src}\n")
+                        _direct_results = _data2.get("Results", [])
+                        for _i, _r in enumerate(_direct_results[:5], 1):
+                            _lines2.append(f"{_i}. {_r.get('Text','')[:80]}")
+                            _lines2.append(f"   {_r.get('FirstURL','')}")
+                        _related = [t for t in _data2.get("RelatedTopics", [])
+                                    if isinstance(t, dict) and t.get("Text")]
+                        if _related and not _direct_results:
+                            _lines2.append("Temas relacionados:")
+                            for _rr in _related[:6]:
+                                _lines2.append(f"  - {_rr['Text'][:90]}")
+                        if len(_lines2) <= 1:
+                            _lines2.append("(Sin resultados directos — prueba otra busqueda)")
+                        _show_response("\n".join(_lines2), "listado")
+                    except Exception as _e:
+                        _print_line(f"[err_cl]web-buscar error: {_e}[/err_cl]")
+
+            # ── /buscar-web <query> ────────────────────────────────────────
+            elif raw.startswith("/buscar-web ") or raw == "/buscar-web":
+                _bw_q = raw[len("/buscar-web "):].strip() if raw.startswith("/buscar-web ") else ""
+                _slash_buscar_web(_bw_q)
+
+            # ── /buscar-kg <concepto> ──────────────────────────────────────
+            elif raw.startswith("/buscar-kg ") or raw == "/buscar-kg":
+                _bkg_c = raw[len("/buscar-kg "):].strip() if raw.startswith("/buscar-kg ") else ""
+                _slash_buscar_kg(_bkg_c)
+
+            # ── /kg-agregar /kg-stats /kg-predicados /kg-exportar ──────────
+            elif raw.startswith("/kg-agregar ") or raw == "/kg-agregar":
+                _kga_args = raw[len("/kg-agregar "):].strip() if raw.startswith("/kg-agregar ") else ""
+                _slash_kg_agregar(_kga_args)
+            elif raw == "/kg-stats":
+                _slash_kg_stats("")
+            elif raw == "/kg-predicados":
+                _slash_kg_predicados("")
+            elif raw.startswith("/kg-exportar ") or raw == "/kg-exportar":
+                _kge_args = raw[len("/kg-exportar "):].strip() if raw.startswith("/kg-exportar ") else ""
+                _slash_kg_exportar(_kge_args)
+
+            # ── /kg-inferir /kg-relacionar /kg-responder /kg-camino ────────
+            elif raw.startswith("/kg-inferir ") or raw == "/kg-inferir":
+                _kgi_args = raw[len("/kg-inferir "):].strip() if raw.startswith("/kg-inferir ") else ""
+                _slash_kg_inferir(_kgi_args)
+            elif raw.startswith("/kg-relacionar ") or raw == "/kg-relacionar":
+                _kgr_args = raw[len("/kg-relacionar "):].strip() if raw.startswith("/kg-relacionar ") else ""
+                _slash_kg_relacionar(_kgr_args)
+            elif raw.startswith("/kg-responder ") or raw == "/kg-responder":
+                _kgq_args = raw[len("/kg-responder "):].strip() if raw.startswith("/kg-responder ") else ""
+                _slash_kg_responder(_kgq_args)
+            elif raw.startswith("/kg-camino ") or raw == "/kg-camino":
+                _kgc_args = raw[len("/kg-camino "):].strip() if raw.startswith("/kg-camino ") else ""
+                _slash_kg_camino(_kgc_args)
+
+            # ── /worktree <rama> ───────────────────────────────────────────
+            elif raw.startswith("/worktree ") or raw == "/worktree":
+                _wt_rama = raw[len("/worktree "):].strip() if raw.startswith("/worktree ") else ""
+                if not _wt_rama:
+                    _print_line("[warn_cl]Uso: /worktree <nombre-rama>[/warn_cl]")
+                else:
+                    import subprocess as _sp2
+                    _wt_path = f"../{_wt_rama}-worktree"
+                    try:
+                        _r1 = _sp2.run(
+                            ["git", "worktree", "add", "-b", _wt_rama, _wt_path],
+                            capture_output=True, text=True, cwd=".",
+                        )
+                        if _r1.returncode == 0:
+                            _print_line(f"[ok_cl]Worktree creado en {_wt_path} (rama: {_wt_rama})[/ok_cl]")
+                            _print_line(f"[detail]Usa: cd {_wt_path}  para trabajar ahi[/detail]")
+                        else:
+                            _print_line(f"[err_cl]{_r1.stderr.strip()}[/err_cl]")
+                    except Exception as _e:
+                        _print_line(f"[err_cl]worktree error: {_e}[/err_cl]")
+
+            # /notificar (config F5 + '<mensaje>' viejo) se atiende mas arriba:
+            # este segundo elif era INALCANZABLE y tapaba/duplicaba el handler
+            # (cazado por la revision adversarial 2026-08-23).
+
+            # ── /oficina [puerto] ──────────────────────────────────────────
+            elif raw.startswith("/oficina ") or raw == "/oficina":
+                _of_arg = raw[len("/oficina "):].strip() if raw.startswith("/oficina ") else ""
+                _slash_oficina(_of_arg)
+
+            # ── /analiticas ────────────────────────────────────────────────
+            elif raw == "/analiticas" or raw == "/analitica":
+                _slash_analiticas("")
+
+            # ── /notif* ────────────────────────────────────────────────────
+            elif raw == "/notif":
+                _slash_notif("")
+            elif raw == "/notif-todas":
+                _slash_notif_todas("")
+            elif raw.startswith("/notif-leer ") or raw == "/notif-leer":
+                _notif_leer_arg = raw[len("/notif-leer "):].strip() if raw.startswith("/notif-leer ") else ""
+                _slash_notif_leer(_notif_leer_arg)
+            elif raw == "/notif-limpiar":
+                _slash_notif_limpiar("")
+
+            # ── /recordar* ─────────────────────────────────────────────────
+            elif raw.startswith("/recordar ") or raw == "/recordar":
+                _rec_arg = raw[len("/recordar "):].strip() if raw.startswith("/recordar ") else ""
+                _slash_recordar(_rec_arg)
+            elif raw == "/recordatorios":
+                _slash_recordatorios("")
+            elif raw.startswith("/recordar-cancelar ") or raw == "/recordar-cancelar":
+                _rec_cancel_arg = raw[len("/recordar-cancelar "):].strip() if raw.startswith("/recordar-cancelar ") else ""
+                _slash_recordar_cancelar(_rec_cancel_arg)
+
+            # -- Session summary ------------------------------------------------
+            elif raw == "/resumen-sesion":
+                _slash_resumen_sesion_full("")
+
+            # -- /config -------------------------------------------------------
+            elif raw == "/config" or raw.startswith("/config "):
+                _cfg_arg = raw[len("/config "):].strip() if raw.startswith("/config ") else ""
+                _slash_config(_cfg_arg)
+
+            # -- /config-resuelta (F6: config efectiva con origen por clave) ----
+            elif raw == "/config-resuelta" or raw.startswith("/config-resuelta "):
+                _slash_config_resuelta(
+                    raw[len("/config-resuelta "):].strip()
+                    if raw.startswith("/config-resuelta ") else "")
+
+            # -- /mejorar (mejora del prompt con IA) ---------------------------
+            elif raw == "/mejorar" or raw.startswith("/mejorar "):
+                _slash_mejorar(raw[len("/mejorar "):] if raw.startswith("/mejorar ")
+                               else "")
+
+            # -- /tx (subsistema de horizonte largo; puerta de diagnostico) -----
+            elif raw == "/tx" or raw.startswith("/tx "):
+                _slash_tx(raw[len("/tx "):] if raw.startswith("/tx ") else "")
+
+            # -- /libro (la memoria append-only de la tarea TX) -----------------
+            elif raw == "/libro" or raw.startswith("/libro "):
+                _slash_libro(raw[len("/libro "):] if raw.startswith("/libro ") else "")
+
+            # -- /esfuerzo -----------------------------------------------------
+            elif raw == "/esfuerzo" or raw.startswith("/esfuerzo "):
+                _esf_arg = raw[len("/esfuerzo "):].strip() if raw.startswith("/esfuerzo ") else ""
+                _slash_esfuerzo(_esf_arg)
+
+            # -- /lazo (loop thinking de chat: verificacion post-respuesta) ----
+            elif raw == "/lazo" or raw.startswith("/lazo "):
+                _lz_arg = raw[len("/lazo "):].strip().lower() if raw.startswith("/lazo ") else ""
+                if _lz_arg in ("on", "off"):
+                    _LAZO["on"] = (_lz_arg == "on")
+                elif _lz_arg:
+                    _print_line("[warn_cl]Uso: /lazo [on|off]  (sin argumento alterna)[/warn_cl]")
+                else:
+                    _LAZO["on"] = not _LAZO["on"]
+                if not _lz_arg or _lz_arg in ("on", "off"):
+                    _lz_estado = "ACTIVO" if _LAZO["on"] else "apagado"
+                    _print_line(
+                        f"[ok_cl]Lazo de verificacion: {_lz_estado}[/ok_cl] "
+                        "[detail]— claims verificables (aritmetica, codigo) se chequean "
+                        "con tools reales tras cada respuesta; max 1 revision, keep-best.[/detail]")
+
+            # -- /remoto, /decirle, /cancelar (paridad remota 2026-08-24) ------
+            elif raw == "/remoto" or raw.startswith("/remoto "):
+                _slash_remoto(raw[len("/remoto"):].strip())
+            elif raw == "/decirle" or raw.startswith("/decirle "):
+                _slash_decirle(raw[len("/decirle"):].strip())
+            elif raw == "/cancelar" or raw.startswith("/cancelar "):
+                _slash_cancelar(raw[len("/cancelar"):].strip())
+
+            # -- /recap --------------------------------------------------------
+            elif raw == "/recap":
+                _slash_recap()
+
+            # -- /feedback* ----------------------------------------------------
+            elif raw.startswith("/feedback-sesion"):
+                _slash_feedback_sesion()
+            elif raw.startswith("/feedback ") or raw == "/feedback":
+                _fb_arg = raw[len("/feedback "):].strip() if raw.startswith("/feedback ") else ""
+                if not _fb_arg:
+                    _print_line("[warn_cl]Uso: /feedback [positivo|negativo|neutral][/warn_cl]")
+                else:
+                    _slash_feedback(_fb_arg)
+
+                # ── /notas* ────────────────────────────────────────────────────
+            elif raw.startswith("/notas-buscar ") or raw == "/notas-buscar":
+                _nb_args = raw[len("/notas-buscar "):].strip() if raw.startswith("/notas-buscar ") else ""
+                _slash_notas_buscar(_nb_args)
+            elif raw == "/notas-stats":
+                _slash_notas_stats()
+            elif raw.startswith("/notas ") or raw == "/notas":
+                _nb2_args = raw[len("/notas "):].strip() if raw.startswith("/notas ") else ""
+                _slash_notas(_nb2_args)
+            elif raw.startswith("/nota-agregar ") or raw == "/nota-agregar":
+                _na_args = raw[len("/nota-agregar "):].strip() if raw.startswith("/nota-agregar ") else ""
+                _slash_nota_agregar(_na_args)
+            elif raw.startswith("/nota-fijar ") or raw == "/nota-fijar":
+                _nf_args = raw[len("/nota-fijar "):].strip() if raw.startswith("/nota-fijar ") else ""
+                _slash_nota_fijar(_nf_args)
+
+            # -- Spaced repetition stats / search ------------------------------
+            elif raw == "/aprendiendo":
+                _slash_aprendiendo()
+            elif raw.startswith("/aprendiendo-buscar ") or raw == "/aprendiendo-buscar":
+                _ab_args = raw[len("/aprendiendo-buscar "):].strip() if raw.startswith("/aprendiendo-buscar ") else ""
+                _slash_aprendiendo_buscar(_ab_args)
+
+            # ── /backup ────────────────────────────────────────────────────
+            elif raw == "/backup" or raw.startswith("/backup "):
+                _bk_args = raw[len("/backup "):].strip() if raw.startswith("/backup ") else ""
+                _slash_backup(_bk_args)
+
+            # ── /mi-uso ────────────────────────────────────────────────────
+            elif raw == "/mi-uso":
+                _slash_mi_uso("")
+
+            # ── /mi-uso-detalle ────────────────────────────────────────────
+            elif raw == "/mi-uso-detalle":
+                _slash_mi_uso_detalle("")
+
+            # ── /buscar-memoria ────────────────────────────────────────────
+            elif raw == "/buscar-memoria" or raw.startswith("/buscar-memoria "):
+                _bm_args = raw[len("/buscar-memoria "):].strip() if raw.startswith("/buscar-memoria ") else ""
+                _slash_buscar_memoria(ai, _bm_args)
+
+            # ── /debate ────────────────────────────────────────────────────
+            elif raw == "/debate" or raw.startswith("/debate "):
+                _db_args = raw[len("/debate "):].strip() if raw.startswith("/debate ") else ""
+                _slash_debate(ai, _db_args)
+
+            # ── /contexto-semantico ────────────────────────────────────────
+            elif raw == "/contexto-semantico" or raw.startswith("/contexto-semantico "):
+                _cs_args = raw[len("/contexto-semantico "):].strip() if raw.startswith("/contexto-semantico ") else ""
+                _slash_contexto_semantico(ai, _cs_args)
+
+            # ── /sintetizar ────────────────────────────────────────────────
+            elif raw == "/sintetizar" or raw.startswith("/sintetizar "):
+                _sint_args = raw[len("/sintetizar "):].strip() if raw.startswith("/sintetizar ") else ""
+                _slash_sintetizar(ai, _sint_args)
+
+            # ── /y-si ──────────────────────────────────────────────────────
+            elif raw == "/y-si" or raw.startswith("/y-si "):
+                _ysi_args = raw[len("/y-si "):].strip() if raw.startswith("/y-si ") else ""
+                _slash_y_si(ai, _ysi_args)
+
+            # ── /temas ─────────────────────────────────────────────────────
+            elif raw == "/temas":
+                _slash_temas("")
+
+            # ── /mi-cognia ─────────────────────────────────────────────────
+            elif raw == "/mi-cognia" or raw.startswith("/mi-cognia "):
+                _mc_args = raw[len("/mi-cognia "):].strip() if raw.startswith("/mi-cognia ") else ""
+                _slash_mi_cognia(_mc_args)
+
+            # ── /perfil-completo ───────────────────────────────────────────
+            elif raw == "/perfil-completo" or raw.startswith("/perfil-completo "):
+                _pc_args = raw[len("/perfil-completo "):].strip() if raw.startswith("/perfil-completo ") else ""
+                _slash_perfil_completo(_pc_args)
+
+            # ── /estado ────────────────────────────────────────────────────
+            elif raw == "/estado" or raw.startswith("/estado "):
+                _est_args = raw[len("/estado "):].strip() if raw.startswith("/estado ") else ""
+                _slash_estado(_est_args)
+
+            # ── /ver-criticas ──────────────────────────────────────────────
+            elif raw == "/ver-criticas" or raw.startswith("/ver-criticas "):
+                _vc_args = raw[len("/ver-criticas "):].strip() if raw.startswith("/ver-criticas ") else ""
+                _slash_ver_criticas(_vc_args)
+
+            # ── /reflexion-profunda ────────────────────────────────────────
+            elif raw == "/reflexion-profunda" or raw.startswith("/reflexion-profunda "):
+                _rp_args = raw[len("/reflexion-profunda "):].strip() if raw.startswith("/reflexion-profunda ") else ""
+                _slash_reflexion_profunda(ai, _rp_args)
+
+            # ── /calidad-respuestas ────────────────────────────────────────
+            elif raw == "/calidad-respuestas" or raw.startswith("/calidad-respuestas "):
+                _cr_args = raw[len("/calidad-respuestas "):].strip() if raw.startswith("/calidad-respuestas ") else ""
+                _slash_calidad_respuestas(_cr_args)
+
+            # ── /recomendar ────────────────────────────────────────────────
+            elif raw == "/recomendar":
+                _slash_recomendar("")
+
+            # ── /proximos-pasos ────────────────────────────────────────────
+            elif raw == "/proximos-pasos":
+                _slash_proximos_pasos("")
+
+            # ── /mapa ──────────────────────────────────────────────────────
+            elif raw == "/mapa" or raw.startswith("/mapa "):
+                _mapa_args = raw[len("/mapa "):].strip() if raw.startswith("/mapa ") else ""
+                _slash_mapa(_mapa_args)
+
+            # ── /features ──────────────────────────────────────────────────
+            elif raw == "/features" or raw.startswith("/features "):
+                _slash_features(raw[len("/features "):].strip() if raw.startswith("/features ") else "")
+
+            # ── /vocabulario-guardar ───────────────────────────────────────
+            elif raw == "/vocabulario-guardar" or raw.startswith("/vocabulario-guardar "):
+                _slash_vocabulario_guardar(raw[len("/vocabulario-guardar "):].strip() if raw.startswith("/vocabulario-guardar ") else "")
+
+            # ── /vocabulario ───────────────────────────────────────────────
+            elif raw == "/vocabulario" or raw.startswith("/vocabulario "):
+                _slash_vocabulario(raw[len("/vocabulario "):].strip() if raw.startswith("/vocabulario ") else "")
+
+            # ── /hechos-solidos ─────────────────────────────────────────────
+            elif raw == "/hechos-solidos" or raw.startswith("/hechos-solidos "):
+                _slash_hechos_solidos(raw[len("/hechos-solidos "):].strip() if raw.startswith("/hechos-solidos ") else "")
+
+            # ── /cristalizar ────────────────────────────────────────────────
+            elif raw == "/cristalizar" or raw.startswith("/cristalizar "):
+                _slash_cristalizar(raw[len("/cristalizar "):].strip() if raw.startswith("/cristalizar ") else "")
+
+            # ── /conocimiento-ver ───────────────────────────────────────────
+            elif raw == "/conocimiento-ver" or raw.startswith("/conocimiento-ver "):
+                _slash_conocimiento_ver(raw[len("/conocimiento-ver "):].strip() if raw.startswith("/conocimiento-ver ") else "")
+
+            # ── /quiz* ──────────────────────────────────────────────────────
+            elif raw == "/quiz-stats":
+                _slash_quiz_stats("")
+            elif raw == "/quiz" or raw.startswith("/quiz "):
+                _slash_quiz(raw[len("/quiz "):].strip() if raw.startswith("/quiz ") else "")
+
+            # ── /exportar-todo ──────────────────────────────────────────────
+            elif raw == "/exportar-todo" or raw.startswith("/exportar-todo "):
+                _slash_exportar_todo(raw[len("/exportar-todo "):].strip() if raw.startswith("/exportar-todo ") else "")
+
+            # ── /caminos de aprendizaje ──────────────────────────────────────
+            elif raw == "/camino-nuevo" or raw.startswith("/camino-nuevo "):
+                _slash_camino_nuevo(raw[len("/camino-nuevo "):].strip() if raw.startswith("/camino-nuevo ") else "")
+            elif raw == "/caminos":
+                _slash_caminos("")
+            elif raw == "/camino-avanzar" or raw.startswith("/camino-avanzar "):
+                _slash_camino_avanzar(raw[len("/camino-avanzar "):].strip() if raw.startswith("/camino-avanzar ") else "")
+            elif raw == "/etiquetar" or raw.startswith("/etiquetar "):
+                _slash_etiquetar(raw[len("/etiquetar "):].strip() if raw.startswith("/etiquetar ") else "")
+
+            # ── /cognia-sabe / cognia-aprende / cognia-olvida / argumento ─────
+            elif raw == "/cognia-sabe":
+                _slash_cognia_sabe("")
+            elif raw == "/cognia-aprende" or raw.startswith("/cognia-aprende "):
+                _slash_cognia_aprende(raw[len("/cognia-aprende "):].strip() if raw.startswith("/cognia-aprende ") else "")
+            elif raw == "/cognia-olvida" or raw.startswith("/cognia-olvida "):
+                _slash_cognia_olvida(raw[len("/cognia-olvida "):].strip() if raw.startswith("/cognia-olvida ") else "")
+            elif raw == "/argumento" or raw.startswith("/argumento "):
+                _slash_argumento(ai, raw[len("/argumento "):].strip() if raw.startswith("/argumento ") else "")
+            elif raw == "/conflictos-kg":
+                _slash_conflictos_kg("")
+            elif raw == "/verificar-kg":
+                _slash_verificar_kg("")
+            elif raw == "/resolver-conflicto" or raw.startswith("/resolver-conflicto "):
+                _slash_resolver_conflicto(raw[len("/resolver-conflicto "):].strip() if raw.startswith("/resolver-conflicto ") else "")
+            elif raw == "/comandos":
+                _slash_comandos("")
+            elif raw == "/digest":
+                _slash_digest("")
+            elif raw == "/cognia-info":
+                _slash_cognia_info("")
+            elif raw == "/inicio-dia":
+                _slash_inicio_dia("")
+
+            # ── /contexto / /contexto-mapa / /contexto-stats / /contexto-auto ──────
+            elif raw == "/contexto" or raw.startswith("/contexto "):
+                _slash_contexto(ai, raw[len("/contexto "):] if raw.startswith("/contexto ") else "")
+            elif raw == "/contexto-mapa":
+                _slash_contexto_mapa(ai, "")
+            elif raw == "/contexto-stats":
+                _slash_contexto_stats(ai, "")
+            elif raw == "/contexto-auto" or raw.startswith("/contexto-auto "):
+                _slash_contexto_auto(ai, raw[len("/contexto-auto "):] if raw.startswith("/contexto-auto ") else "")
+
+            # ── /ver-contexto / /limpiar-sesion ──────────────────────────────────
+            elif raw == "/ver-contexto" or raw.startswith("/ver-contexto "):
+                _slash_ver_contexto(ai, raw[len("/ver-contexto "):].strip() if raw.startswith("/ver-contexto ") else "")
+            elif raw == "/limpiar-sesion":
+                _slash_limpiar_sesion("")
+
+            # -- Unknown slash --------------------------------------------------
+            elif raw.startswith("/"):
+                # "Comando desconocido" a secas mandaba a leer un catalogo de 244
+                # comandos para encontrar el que te comiste una letra. El modulo de
+                # ayuda ya sabe proponer lo parecido ('/ayudda' -> /ayuda) y lo
+                # hacia SIN UN SOLO LLAMADOR desde 2026-08-12: cablearlo aca.
+                # Las DOS lineas del fallback siguen siendo a proposito: el modo
+                # sencillo suprime toda linea que contenga '[detail]', asi que un
+                # aviso pegado al tip desaparecia ENTERO y el comando desconocido
+                # moria en silencio (auditoria F2).
+                _msg_desc = None
+                try:
+                    from cognia.harness import ayuda as _ah
+                    _ancho_desc = (getattr(_console, "width", 100)
+                                   if _HAS_RICH and _console else 100) - 2
+                    _msg_desc = _ah.mensaje_desconocido(_CMD_DESCRIPTIONS, raw,
+                                                        ancho=_ancho_desc)
+                except Exception as _exc_desc:
+                    _aviso_degradado(
+                        "cli.desconocido",
+                        f"{type(_exc_desc).__name__}: {_exc_desc}")
+                    _msg_desc = None
+                if _msg_desc:
+                    # markup=False: el mensaje trae el comando TAL CUAL lo tecleo el
+                    # usuario, y un '[' suelto ahi reventaria el parser de rich.
+                    _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
+                    if _HAS_RICH and _console:
+                        _console.print(_msg_desc, style="detail", markup=False)
+                    else:
+                        print(_msg_desc)
+                else:
+                    _print_line(f"[warn_cl]Comando desconocido: {_escape(raw)}[/warn_cl]")
+                    _print_line("[detail](escribe /ayuda)[/detail]")
+
+            # -- Free text → articulated cognitive response --------------------
+            else:
+                # Self-tuning: learn traits about this user (name, language, verbosity)
+                # from every message, persisted across sessions.
+                try:
+                    from cognia.agent.adaptive_prompt import learn_user_traits
+                    learn_user_traits(ai, raw)
+                except Exception:
+                    pass
+                # ── Auto-routing: is this an ACTION (run the agent) or chat? ──
+                # No command needed: a natural-language request to do something is
+                # detected and routed to the agent automatically, with a tool hint.
+                try:
+                    from cognia.agent.intent import detect as _detect_intent
+                    _intent = _detect_intent(raw)
+                except Exception:
+                    _intent = None
+                _needs_tool = bool(_intent and _intent.needs_agent)
+                # ── CONFIANZA, gancho PREVIA (/confianza, 2026-08-24): si la
+                # pregunta pide un dato volatil (cifras, "hoy", metricas de una
+                # plataforma) se investiga en la web ANTES de gastar el turno
+                # del modelo; las evidencias se anteponen a _raw_llm mas abajo.
+                # Va ANTES del enrutador por inferencia y lo SALTA cuando la
+                # pregunta es volatil: el agente no tiene web y mandarle "cuantos
+                # suscriptores tiene X" solo produce una tarea que no puede
+                # cumplir; el turno sigue por chat con las fuentes. Guard: no
+                # con el agente. El remoto YA NO lo apaga (paridad 2026-08-24):
+                # su prosa va por el bus (_linea_o_aviso) y el veredicto como
+                # evento Confianza. Fallo -> ambar 'confianza' y el turno sigue
+                # como si no existiera.
+                _conf_inv, _conf_cfg, _conf_portero = None, None, False
+                if not _needs_tool:
+                    try:
+                        _conf_cfg = _confianza_config()
+                        _conf_inv = _confianza_previa(raw, _conf_cfg)
+                    except Exception as _exc_cp:
+                        _aviso_degradado(
+                            "confianza",
+                            f"gancho previo fallo ({type(_exc_cp).__name__}: "
+                            f"{_exc_cp}); el turno sigue sin investigar")
+                        _conf_inv = None
+                # ── Enrutado por INFERENCIA sobre TODO el catalogo (goal
+                # 2026-07-21): si las reglas rapidas no vieron una accion, el
+                # PROPIO MODELO lee el mensaje + el catalogo de comandos "/" y
+                # elige CHAT / AGENTE / un comando concreto. La eleccion se
+                # valida (solo comandos existentes, destructivos vetados) y el
+                # comando se inyecta al REPL como si el usuario lo tecleara.
+                if (not _needs_tool and _conf_inv is None
+                        and (_intent is None or _intent.reason != "conversacional")
+                        and len(raw.split()) >= 3):
+                    try:
+                        from cognia.enrutador import (activo as _enr_activo,
+                                                      catalogo_compacto, decidir)
+                        if _enr_activo():
+                            _cat_r = catalogo_compacto(_CMD_DESCRIPTIONS)
+                            _orch_r = getattr(ai, '_orchestrator', None)
+                            if _orch_r is not None:
+                                _ruta, _extra = decidir(
+                                    raw,
+                                    lambda p: _inferir_para_agente(_orch_r, p),
+                                    _cat_r)
+                                if _ruta == "comando":
+                                    _print_line(f"[detail]Infiero que esto pide "
+                                                f"{_extra.split()[0]} -- lo uso.[/detail]")
+                                    _inyectadas.append(_extra)
+                                    continue
+                                if _ruta == "agente":
+                                    _needs_tool = True
+                    except Exception:
+                        pass
+                if _needs_tool:
+                    _hint = (_intent.suggested_tool if _intent
+                             and _intent.needs_agent else "")
+                    _hmsg = f" (sugiero {_hint})" if _hint else ""
+                    _print_line(f"[detail]Detectada accion{_hmsg} -- activando agente...[/detail]")
+                    try:
+                        _resp = _run_agent_task(ai, raw, _print_line, hint=_hint)
+                    except KeyboardInterrupt:
+                        # Ctrl-C o interrupcion remota con el agente INLINE (sin
+                        # carril de fondo: pipes, remoto): sin este except la
+                        # excepcion subia al bucle, que solo protege _get_input, y
+                        # el REPL moria con la sesion entera (paridad 2026-08-24).
+                        print()
+                        _print_line("[warn_cl]Turno del agente cortado. "
+                                    "El REPL sigue vivo; /salir para salir.[/warn_cl]")
+                        continue
+                    _show_response(_resp, _ACCENT, respuesta_final=True)
+                    _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
+                    _persist_turn(ai, raw, _resp)
+                if not _needs_tool:
+                    # Fast-path: stream tokens from llama.cpp if available
+                    _streamed = False
+                    _nuevo_turno_degradado()
+                    try:
+                        from shattering.orchestrator import ShatteringOrchestrator as _SO
+                        _orch_cli = getattr(ai, '_orchestrator', None)
+                        if _orch_cli is None:
                             try:
-                                from cognia.ux import markdown_vivo as _mdv
-                                _flujo = _mdv.crear(
-                                    _console if _HAS_RICH else None)
-                            except Exception as _e_md:
+                                _orch_cli = _SO(mode='local')
+                            except Exception as _e_orch:
                                 _aviso_degradado(
-                                    "markdown",
-                                    f"{type(_e_md).__name__}: {_e_md}")
-                                _flujo = None
-                            if _flujo is None:
+                                    "cli.fast_path.orquestador",
+                                    f"no pude construir ShatteringOrchestrator "
+                                    f"({type(_e_orch).__name__}: {_e_orch}); sin "
+                                    f"streaming, el turno va al camino articulado")
+                                _orch_cli = None
+                        if _orch_cli is not None:
+                            _llama = getattr(_orch_cli, '_llama', None)
+                            if _llama is None:
                                 try:
-                                    from cognia.ux.estilo import FlujoSuave as _FS
-                                    _flujo = _FS(console=_console if _HAS_RICH else None,
-                                                 style=_ACCENT)
-                                except Exception:
-                                    _flujo = None
-                            t0 = time.time()
-                            try:
-                                # el fast-path pinta su propio stream: que el
-                                # renderer no duplique TokenTexto (cazado en
-                                # la captura real 06_pensar_ver 2026-08-10)
-                                try:
-                                    from cognia.ux.renderer import (
-                                        suprimir_stream as _supr_stream)
-                                    _supr_stream(True)
-                                except Exception:
-                                    _supr_stream = None
-                                print("", flush=True)
-                                _mt_turno = _effort_max_tokens
-                                for _intento in (1, 2):
-                                    for _tok in _stream_src(_mt_turno):
-                                        _tokens_buf.append(_tok)
-                                        if _flujo is not None:
-                                            _flujo.escribir(_tok)
-                                        elif _HAS_RICH and _console:
-                                            # markup=False: el texto del MODELO
-                                            # no es markup. Sin esto rich se
-                                            # come cualquier [1], [TODO] o
-                                            # array en prosa, y un [/x] mal
-                                            # balanceado levanta MarkupError a
-                                            # mitad de respuesta. La leccion ya
-                                            # estaba escrita 130 lineas mas
-                                            # abajo y este camino se la salto.
-                                            _console.print(_tok, end="", style=_ACCENT,
-                                                           highlight=False, markup=False)
-                                        else:
-                                            print(_tok, end="", flush=True)
-                                    # finish_reason REAL del backend ('limit' =
-                                    # length): el server corto por max_tokens,
-                                    # la respuesta NO termino — con razonadores
-                                    # el pensamiento se come el presupuesto. UN
-                                    # reintento con el doble, avisando; a un
-                                    # segundo limit se entrega lo que haya
-                                    # (mejor truncado visible que bucle).
-                                    if (_intento == 1 and getattr(
-                                            _llama_turn, "last_stop_reason",
-                                            None) == "limit"):
-                                        if _flujo is not None:
-                                            _flujo.cerrar()
-                                        print()
-                                        _txt_trunc = (
-                                            f"respuesta truncada por presupuesto "
-                                            f"({_mt_turno} tok); reintento con "
-                                            f"{_mt_turno * 2}")
-                                        try:
-                                            from cognia.ux.events import (
-                                                Aviso as _EvAv, emitir as _ev_em)
-                                            _ev_em(_EvAv(texto=_txt_trunc,
-                                                         origen="cli.fast_path"))
-                                        except Exception:
-                                            pass
-                                        _print_line(f"[detail][{_txt_trunc}][/detail]")
-                                        _tokens_buf = []   # el truncado no cuenta
-                                        _mt_turno *= 2
-                                        continue
-                                    break
-                                if _flujo is not None:
-                                    _flujo.cerrar()
-                                print()
-                                _full_response = "".join(_tokens_buf).strip()
-                                # An empty stream (backend hiccup) is NOT a real answer:
-                                # leave _streamed False so we fall through to the
-                                # articulated path instead of printing a blank reply.
-                                _streamed = bool(_full_response)
-                                if not _streamed:
+                                    _orch_cli._try_load_llama()
+                                    _llama = getattr(_orch_cli, '_llama', None)
+                                except Exception as _e_load:
                                     _aviso_degradado(
-                                        "cli.fast_path.stream_vacio",
-                                        "el backend no emitio un solo token; "
-                                        "el turno cae al camino articulado")
-                                else:
-                                    # FOOTER de contexto (barra_estado): el
-                                    # camino de chat no recibe usage del server
-                                    # (stream_chat solo expone predicted_n), asi
-                                    # que se registra una ESTIMACION marcada
-                                    # como tal y la barra la pinta con '~'.
-                                    # Sin esto la barra decia '0/65.5k (100%
-                                    # libre)' toda la sesion (cazado TECLEANDO
-                                    # 2026-08-24: contexto_vivo no tenia ningun
-                                    # llamador que lo alimentara).
+                                        "cli.fast_path._try_load_llama",
+                                        f"{type(_e_load).__name__}: {_e_load}")
+                            if _llama is None:
+                                _aviso_degradado(
+                                    "cli.fast_path.sin_llama",
+                                    "no hay backend llama.cpp; el turno cae al "
+                                    "camino articulado (Ollama/canned)")
+                            if _llama is not None:
+                                # Guard barato por NOMBRE del GGUF servido (obra
+                                # 2026-08-09, WP4): con un razonador grande servido
+                                # (gpt-oss-20b, 9B...) los desvios al 0.5B/4B y el
+                                # CoT dirigido de 3B degradan el turno SIN decirlo
+                                # (evidencia baseline). WP1 traera perfiles formales;
+                                # esto no depende de ellos. Sin senal positiva
+                                # (nombre chico o /props caido) todo queda como
+                                # siempre. COGNIA_CASCADA_FORZAR=1 restaura los
+                                # desvios para medir el contrafactual.
+                                _modelo_srv, _srv_grande, _srv_chico = "", False, True
+                                try:
+                                    from cognia.llm_local import (
+                                        es_modelo_chico, es_razonador_grande,
+                                        nombre_modelo_servido, presupuesto_chat)
+                                    _modelo_srv = nombre_modelo_servido(_llama)
+                                    _srv_grande = (
+                                        es_razonador_grande(_modelo_srv)
+                                        and os.environ.get(
+                                            "COGNIA_CASCADA_FORZAR") != "1")
+                                    _srv_chico = (not _modelo_srv
+                                                  or es_modelo_chico(_modelo_srv))
+                                except Exception:
+                                    pass
+                                # Fast-path de habla: PORTERO 0.5B+LoRA por presencia
+                                # (PREREG_PORTERO_FASE2: saludo/cortesia E identidad,
+                                # ~4x el 3B en CPU) o cascada legado opt-in
+                                # (COGNIA_SPEECH_CASCADE, 0.5B pelado, solo social).
+                                # Ante duda/falla -> 3B (fallback total). exp021/cycle39.
+                                # Con razonador grande servido: NO se desvia (arriba).
+                                _llama_turn = _llama
+                                if not _srv_grande:
                                     try:
-                                        from cognia.harness import (
-                                            contexto_vivo as _cv_chat)
-                                        _cv_chat.registrar_uso_estimado(
-                                            "\n".join(str(_m.get("content") or "")
-                                                      for _m in _messages),
-                                            _full_response)
-                                    except Exception as _exc_cv:
+                                        from node.speech_cascade import (
+                                            classify_turn, fast_speech_backend, portero_activo)
+                                        if classify_turn(raw, identidad=portero_activo()) == "fast":
+                                            _fb = fast_speech_backend()
+                                            if _fb is not None:
+                                                _llama_turn = _fb
+                                    except Exception as _e_port:
                                         _aviso_degradado(
-                                            "cli.barra_estado",
-                                            "ocupacion del chat no registrada: "
-                                            f"{type(_exc_cv).__name__}: {_exc_cv}")
-                                # LAZO (/lazo, opt-in): verificacion post-respuesta con
-                                # tools reales (P8: el critico ejecuta, no opina). Solo
-                                # camino terminal local: el remoto exige marcos limpios
-                                # (memoria estilo-conversacional), alla no se emite nada.
-                                if _streamed and _LAZO["on"] and os.environ.get("COGNIA_REMOTO", "").strip() != "1":
+                                            "cli.fast_path.portero",
+                                            f"speech_cascade fallo ({type(_e_port).__name__}: "
+                                            f"{_e_port}); el turno se queda en el 3B")
+                                        _llama_turn = _llama
+                                # Ruteo por eje de la COLONIA (AUDIT 2026-07-12):
+                                # turnos de razonamiento -> miembro qwen3_4b crudo
+                                # (G2R 92.5 vs 82 del 3B+stepwise). Lazy via
+                                # fleet_registry; cualquier falla -> 3B intacto.
+                                _member_turn = False
+                                _mkey = ""
+                                try:
+                                    if _llama_turn is _llama and not _srv_grande:
+                                        from cognia.agent.fleet_router import (
+                                            member_for_chat_turn)
+                                        # perfil hibrido: a /esfuerzo bajo no se
+                                        # despierta el 4B (colonia negada), el
+                                        # turno queda en el 3B+stepwise
+                                        _mkey = member_for_chat_turn(
+                                            raw,
+                                            razonador_ok=_active_effort().get(
+                                                "colonia", True))
+                                        if _mkey:
+                                            from node.fleet_registry import (
+                                                fleet_backend)
+                                            _mb = fleet_backend(_mkey)
+                                            if _mb is not None:
+                                                _llama_turn = _mb
+                                                _member_turn = True
+                                except Exception as _e_fleet:
+                                    _aviso_degradado(
+                                        "cli.fast_path.fleet_router",
+                                        f"member_for_chat_turn/fleet_backend fallo "
+                                        f"({type(_e_fleet).__name__}: {_e_fleet}); "
+                                        f"el turno se queda en el 3B, sin colonia")
+                                    _llama_turn = _llama
+                                # Fleet: el chat general corre con la BASE pura (el
+                                # experto regresiona G1 -8pp); EXCEPTO identidad,
+                                # que va al experto (G3 20/20 vs 0/20 de la base).
+                                # Router lexico determinista (fleet_router). SOLO si
+                                # el turno se queda en el 3B: un hot-swap inutil
+                                # invalida el KV cache del server grande.
+                                try:
+                                    if _llama_turn is _llama and getattr(_llama, "fleet_experts", []):
+                                        from cognia.agent.fleet_router import expert_for_chat_turn
+                                        _llama.activate_expert(expert_for_chat_turn(raw))
+                                except Exception as _e_exp:
+                                    # El experto de identidad da 20/20 vs 0/20 de la
+                                    # base: perderlo en silencio cambia la respuesta.
+                                    _aviso_degradado(
+                                        "cli.fast_path.experto",
+                                        f"activate_expert fallo ({type(_e_exp).__name__}: "
+                                        f"{_e_exp}); corre la base sin experto")
+                                # El desvio ya NO es silencioso (A8): una linea
+                                # visible + evento tipado al bus. Se imprime ademas
+                                # de emitir porque esta zona TODAVIA renderiza
+                                # directo (WP3 cablea el renderer del bus).
+                                if _llama_turn is not _llama:
+                                    _nombre_desvio = ""
                                     try:
-                                        from cognia.agent.lazo_chat import (
-                                            lazo_respuesta as _lz_run)
-
-                                        def _lz_chat(_p, _mt=_effort_max_tokens):
-                                            # la UNICA revision va por el cliente
-                                            # nativo del agente; error -> '' (el
-                                            # lazo lo trata como negativa/keep-best)
-                                            from cognia.agent.chat_client import (
-                                                completar as _lz_comp)
-                                            _r = _lz_comp(
-                                                [{"role": "user", "content": _p}],
-                                                max_tokens=_mt)
-                                            return _r.texto if _r.ok else ""
-
-                                        def _lz_ev(_v):
-                                            # una linea por claim, estilo gate
-                                            _lz_t = _escape(_v.claim.texto[:70])
-                                            if _v.ok is True:
-                                                _print_line(f"[ok_cl]  ✓ {_lz_t}  ({_v.tool})[/ok_cl]")
-                                            elif _v.ok is False:
-                                                _lz_e = _escape(_v.evidencia[:90])
-                                                _print_line(f"[err_cl]  ✗ {_lz_t}  ({_v.tool} -> {_lz_e})[/err_cl]")
-                                            else:
-                                                _print_line(f"[detail]  ? {_lz_t}  (incierto)[/detail]")
-
-                                        _lz_res = _lz_run(raw, _full_response,
-                                                          _lz_chat, {"ai": ai},
-                                                          on_evento=_lz_ev)
-                                        # motivo SIEMPRE visible (patron _grito: un
-                                        # lazo que se salta en silencio repite el
-                                        # fallo tipico de Cognia)
-                                        _print_line(
-                                            f"[detail][lazo] {_lz_res.motivo} "
-                                            f"({len(_lz_res.veredictos)} claims) · "
-                                            f"{_lz_res.rondas} ronda(s)[/detail]")
-                                        if _lz_res.final != _full_response:
-                                            _show_response(_lz_res.final, _ACCENT,
-                                                           respuesta_final=True)
-                                            _full_response = _lz_res.final
-                                    except Exception as _lz_exc:
-                                        _aviso_degradado(
-                                            "cli.lazo",
-                                            f"lazo de verificacion fallo "
-                                            f"({type(_lz_exc).__name__}: {_lz_exc}); "
-                                            "respuesta intacta")
-                                # CONFIANZA, cierre del turno (/confianza):
-                                # (a) hubo gancho PREVIA -> veredicto de la
-                                # respuesta contra la evidencia + linea de
-                                # nivel; (b) no lo hubo y la respuesta
-                                # CONFIESA no saber -> gancho POSTERIOR:
-                                # investigar y re-preguntar con las fuentes.
-                                # Va DESPUES del lazo (evalua el texto final)
-                                # y con los mismos guards: remoto no, portero
-                                # no. La segunda llamada reusa _llama_turn.
-                                # stream_chat SIN pintar (mismo backend,
-                                # misma plantilla y mismo prefijo KV que
-                                # acaba de responder: cero riesgo de hablarle
-                                # a otro server); solo si el backend no tiene
-                                # stream_chat cae a chat_client.completar, la
-                                # via del /lazo, que apunta al server del
-                                # agente (podria ser OTRO backend: memoria
-                                # dos-backends-cognia). Un 'limit' del server
-                                # se reintenta UNA vez con el doble, como el
-                                # stream principal.
-                                if (_streamed and _conf_cfg is not None
-                                        and _conf_cfg.on and not _conf_portero
-                                        and not _confianza_remoto()):
-                                    try:
-                                        if _conf_inv is not None:
-                                            _confianza_veredicto(_full_response,
-                                                                 _conf_inv)
-                                        elif _conf_cfg.posterior:
-                                            def _conf_pedir(_texto,
-                                                            _mt=_effort_max_tokens):
-                                                _msgs2 = _build_stream_messages(
-                                                    ai, _texto, _system, _hist_ctx)
-                                                if not _use_chat:
-                                                    from cognia.agent.chat_client import (
-                                                        completar as _cf_comp)
-                                                    _r2 = _cf_comp(_msgs2, max_tokens=_mt)
-                                                    if not _r2.ok:
-                                                        _aviso_degradado(
-                                                            "confianza",
-                                                            f"completar fallo: {_r2.error}")
-                                                    return _r2.texto if _r2.ok else ""
-                                                for _int2 in (1, 2):
-                                                    _txt2 = "".join(_llama_turn.stream_chat(
-                                                        _msgs2, max_tokens=_mt,
-                                                        temperature=GEN_CHAT_TEMPERATURE))
-                                                    if (_int2 == 1 and getattr(
-                                                            _llama_turn, "last_stop_reason",
-                                                            None) == "limit"):
-                                                        _print_line(
-                                                            f"[detail]  · respuesta con fuentes "
-                                                            f"truncada ({_mt} tok); reintento "
-                                                            f"con {_mt * 2}[/detail]")
-                                                        _mt *= 2
-                                                        continue
-                                                    return _txt2
-                                                return _txt2
-                                            _conf_res = _confianza_posterior(
-                                                raw, _full_response, _conf_pedir,
-                                                _conf_cfg,
-                                                mostrar=lambda _t: _show_response(
-                                                    _t, _ACCENT, respuesta_final=True))
-                                            if _conf_res is not None:
-                                                _full_response = _conf_res[0]
-                                    except Exception as _exc_cf:
-                                        _aviso_degradado(
-                                            "confianza",
-                                            f"cierre de confianza fallo "
-                                            f"({type(_exc_cf).__name__}: {_exc_cf}); "
-                                            "respuesta intacta")
-                                if _streamed:
-                                    elapsed = time.time() - t0
-                                    _show_footer(elapsed, _full_response)
-                                    _session_log.append({
-                                        "input":   raw,
-                                        "output":  _full_response,
-                                        "elapsed": elapsed,
-                                    })
-                                    _persist_turn(ai, raw, _full_response)
-                                    try:
-                                        ai.observe(_full_response[:300], provided_label="respuesta_streaming")
+                                        _nombre_desvio = nombre_modelo_servido(_llama_turn)
                                     except Exception:
                                         pass
-                            except KeyboardInterrupt:
-                                # Ctrl-C durante el streaming MATABA el proceso:
-                                # KeyboardInterrupt hereda de BaseException, asi
-                                # que el 'except Exception' de abajo no lo ve, y
-                                # el unico 'except (EOFError, KeyboardInterrupt)'
-                                # del REPL solo rodea a _get_input(). Resultado:
-                                # cortar una respuesta larga = perder la sesion
-                                # entera (historial, contexto, /deshacer).
-                                # Ahora corta el turno y vuelve al prompt.
-                                # Limite honesto: el generador de tokens no se
-                                # cierra a mano (el for es su unico dueno), lo
-                                # cierra el GC al soltar la referencia; lo que SI
-                                # se cierra explicito es _flujo, que tiene un
-                                # trozo a medio pintar.
+                                    if not _nombre_desvio:
+                                        _nombre_desvio = (f"miembro {_mkey}" if _member_turn
+                                                          else "0.5B portero")
+                                    try:
+                                        from cognia.ux.events import Aviso as _EvAviso, emitir as _ev_emitir
+                                        _ev_emitir(_EvAviso(
+                                            texto=f"respondio {_nombre_desvio}",
+                                            origen="cli.fast_path"))
+                                    except Exception:
+                                        pass
+                                    _print_line(f"[detail](respondio {_escape(_nombre_desvio)})[/detail]")
+                                from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
+                                from cognia.user_prefs import personalize_prompt
+                                _system = personalize_prompt(build_adaptive_system_prompt(ai))
+                                # Multi-turn: feed the last few turns so the model can
+                                # follow the conversation thread. _history holds prior
+                                # turns only (the current one is appended AFTER generation),
+                                # so it never contains 'raw' yet. Cap to the last 8 turns
+                                # (16 messages) to bound the prompt size.
+                                _hist_ctx = [
+                                    h for h in _history[-16:]
+                                    if h.get("role") in ("user", "assistant") and h.get("content")
+                                ]
+                                # Prefer the canonical multi-turn API (/v1/chat/completions):
+                                # llama-server applies the official Qwen chat template, with
+                                # real role separation -- more robust than a hand-built ChatML
+                                # string (which malforms on empty/odd turns). Fall back to the
+                                # manual ChatML template if the backend lacks stream_chat.
+                                # Temperatura explicita (no el default implicito del
+                                # backend): visible y auditable en model_constants.
+                                from shattering.model_constants import GEN_CHAT_TEMPERATURE
+                                _use_chat = hasattr(_llama_turn, "stream_chat")
+                                # Memoria real en el fast-path: el bloque HYDRA del
+                                # band router va DENTRO del ultimo mensaje user
+                                # (ver _build_stream_messages: posicion obligada
+                                # para no invalidar el prefijo KV cacheado).
+                                # CoT dirigido (bench_reasoning 2026-07-01: direct 0.3125 ->
+                                # CoT por turno 0.8125; en system prompt no hace nada; y NO se
+                                # aplica si piden formato exacto porque rompe compliance).
+                                # Solo cambia el texto que VE el LLM; _history guarda `raw`.
                                 try:
+                                    from cognia.agent.stepwise import augment_stepwise
+                                    # El miembro 4B va CRUDO: el audit lo midio sin
+                                    # stepwise (92.5) y sobre-instruir degrada. Y el
+                                    # CoT dirigido esta medido PARA EL 3B: a un
+                                    # modelo mas grande (o razonador, que ya piensa
+                                    # en su canal nativo) solo le mete ruido — guard
+                                    # <=4B por nombre (A8; perfil formal en WP1).
+                                    _raw_llm = (raw if (_member_turn or not _srv_chico)
+                                                else augment_stepwise(raw))
+                                except Exception as _e_step:
+                                    # CoT por turno: 0.3125 -> 0.8125 en bench_reasoning.
+                                    # Perderlo baja la calidad del turno entero.
+                                    _aviso_degradado(
+                                        "cli.fast_path.stepwise",
+                                        f"augment_stepwise fallo ({type(_e_step).__name__}: "
+                                        f"{_e_step}); turno SIN CoT dirigido")
+                                    _raw_llm = raw
+                                # Evidencias del gancho PREVIA de /confianza: van
+                                # DENTRO del ultimo mensaje user, delante del texto
+                                # (misma regla que HYDRA/stepwise: _history guarda
+                                # `raw`; el modelo ve DATOS citados + la pregunta).
+                                # _confianza_prefijo devuelve '' sin evidencias.
+                                if _conf_inv is not None and _conf_inv.evidencias:
+                                    _raw_llm = _confianza_prefijo(_conf_inv) + _raw_llm
+                                _messages = _build_stream_messages(
+                                    ai, _raw_llm, _system, _hist_ctx)
+                                # Fast-path 0.5B: prompt minimo (sin historia/HYDRA, sin
+                                # stepwise, system neutro por idioma = el MISMO formato del
+                                # instrumento G3 del kernel, 95% medido) para que el prefill
+                                # no coma la ventaja de velocidad en turnos triviales.
+                                # El portero se lleva el turno SIN evidencias ni
+                                # veredicto de confianza (_conf_portero): solo
+                                # atiende saludos/identidad, que el clasificador
+                                # nunca marca volatiles.
+                                _conf_portero = (_llama_turn is not _llama
+                                                 and not _member_turn)
+                                if _conf_portero:
+                                    from node.speech_cascade import portero_system
+                                    _messages = [{"role": "system", "content": portero_system(raw)},
+                                                 {"role": "user", "content": raw}]
+                                # max_tokens del nivel /esfuerzo activo (no un literal fijo):
+                                # asi /esfuerzo maximo realmente alarga la respuesta del chat
+                                # (medio=1024 preserva el comportamiento historico por default).
+                                _effort_max_tokens = _active_effort()["max_tokens"]
+                                if _srv_grande:
+                                    # Razonador: el presupuesto cubre PENSAMIENTO +
+                                    # respuesta (los "9 bugs identicos" de la
+                                    # memoria: medio=1024 muere en finish=length con
+                                    # el 20B pensando y contenido 0).
+                                    _effort_max_tokens = presupuesto_chat(
+                                        _effort_max_tokens, True)
+                                # Las lambdas toman max_tokens como parametro: el
+                                # reintento por truncado (abajo) rellama con el doble.
+                                if _use_chat:
+                                    _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_chat(
+                                        _messages, max_tokens=_mt,
+                                        temperature=GEN_CHAT_TEMPERATURE)
+                                else:
+                                    from node.inference_pipeline import _apply_qwen_template
+                                    _formatted = _apply_qwen_template(
+                                        _messages[-1]["content"], _system,
+                                        history=_hist_ctx or None)
+                                    _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_generate(
+                                        _formatted, max_tokens=_mt,
+                                        temperature=GEN_CHAT_TEMPERATURE)
+                                _tokens_buf = []
+                                # Streaming SUAVE (estilo conversacional 2026-08-02):
+                                # los tokens se agrupan en trozos de palabra en vez de
+                                # imprimirse gota a gota — se siente escrito, no
+                                # teletipeado. Best-effort: sin estilo, gota a gota.
+                                _flujo = None
+                                # Remoto con deltas (paridad 2026-08-24): NO se
+                                # pinta nada durante el stream — ver
+                                # _remoto_stream_vivo(): pintar aqui entrelazaba la
+                                # prosa con las lineas "@EV {TokenTexto}" del mismo
+                                # stdout (medido en la corrida real). La respuesta
+                                # sale entera al final, plana.
+                                _pintar_stream = not _remoto_stream_vivo()
+                                # Markdown en STREAMING (ux/markdown_vivo, patron
+                                # Aider + CodeWhale): misma maquina que usa el
+                                # renderer para la respuesta del agente. crear()
+                                # decide solo por config/tty/remoto y NUNCA lanza;
+                                # None = el FlujoSuave plano de siempre. Sus
+                                # escribir()/cerrar() tampoco lanzan (degradan
+                                # visibles via 'markdown' y caen a plano EN ESE
+                                # TURNO), asi este bloque no cambia de forma.
+                                if _pintar_stream:
+                                    try:
+                                        from cognia.ux import markdown_vivo as _mdv
+                                        _flujo = _mdv.crear(
+                                            _console if _HAS_RICH else None)
+                                    except Exception as _e_md:
+                                        _aviso_degradado(
+                                            "markdown",
+                                            f"{type(_e_md).__name__}: {_e_md}")
+                                        _flujo = None
+                                if _flujo is None and _pintar_stream:
+                                    try:
+                                        from cognia.ux.estilo import FlujoSuave as _FS
+                                        _flujo = _FS(console=_console if _HAS_RICH else None,
+                                                     style=_ACCENT)
+                                    except Exception:
+                                        _flujo = None
+                                t0 = time.time()
+                                try:
+                                    # el fast-path pinta su propio stream: que el
+                                    # renderer no duplique TokenTexto (cazado en
+                                    # la captura real 06_pensar_ver 2026-08-10)
+                                    try:
+                                        from cognia.ux.renderer import (
+                                            suprimir_stream as _supr_stream)
+                                        _supr_stream(True)
+                                    except Exception:
+                                        _supr_stream = None
+                                    print("", flush=True)
+                                    _mt_turno = _effort_max_tokens
+                                    for _intento in (1, 2):
+                                        for _tok in _stream_src(_mt_turno):
+                                            _tokens_buf.append(_tok)
+                                            if not _pintar_stream:
+                                                pass    # remoto: solo acumula (deltas por el bus)
+                                            elif _flujo is not None:
+                                                _flujo.escribir(_tok)
+                                            elif _HAS_RICH and _console:
+                                                # markup=False: el texto del MODELO
+                                                # no es markup. Sin esto rich se
+                                                # come cualquier [1], [TODO] o
+                                                # array en prosa, y un [/x] mal
+                                                # balanceado levanta MarkupError a
+                                                # mitad de respuesta. La leccion ya
+                                                # estaba escrita 130 lineas mas
+                                                # abajo y este camino se la salto.
+                                                _console.print(_tok, end="", style=_ACCENT,
+                                                               highlight=False, markup=False)
+                                            else:
+                                                print(_tok, end="", flush=True)
+                                        # finish_reason REAL del backend ('limit' =
+                                        # length): el server corto por max_tokens,
+                                        # la respuesta NO termino — con razonadores
+                                        # el pensamiento se come el presupuesto. UN
+                                        # reintento con el doble, avisando; a un
+                                        # segundo limit se entrega lo que haya
+                                        # (mejor truncado visible que bucle).
+                                        if (_intento == 1 and getattr(
+                                                _llama_turn, "last_stop_reason",
+                                                None) == "limit"):
+                                            if _flujo is not None:
+                                                _flujo.cerrar()
+                                            print()
+                                            _txt_trunc = (
+                                                f"respuesta truncada por presupuesto "
+                                                f"({_mt_turno} tok); reintento con "
+                                                f"{_mt_turno * 2}")
+                                            try:
+                                                from cognia.ux.events import (
+                                                    Aviso as _EvAv, emitir as _ev_em)
+                                                _ev_em(_EvAv(texto=_txt_trunc,
+                                                             origen="cli.fast_path"))
+                                            except Exception:
+                                                pass
+                                            _print_line(f"[detail][{_txt_trunc}][/detail]")
+                                            _tokens_buf = []   # el truncado no cuenta
+                                            _mt_turno *= 2
+                                            continue
+                                        break
                                     if _flujo is not None:
                                         _flujo.cerrar()
-                                except Exception:
-                                    pass
-                                print()
-                                # SIN corchetes en el texto: rich se come
-                                # '[interrumpido]' como si fuera una etiqueta de
-                                # markup y el aviso salia decapitado (medido en
-                                # la corrida real de verificacion).
-                                _n_int = len("".join(_tokens_buf))
-                                _print_line(
-                                    f"[warn_cl]Ctrl-C: turno cortado "
-                                    f"({_n_int} caracteres descartados). "
-                                    f"El REPL sigue vivo; /salir para salir."
-                                    f"[/warn_cl]")
-                                continue          # -> vuelve al prompt del REPL
-                            except Exception as _se:
-                                _aviso_degradado(
-                                    "cli.fast_path.stream",
-                                    f"el stream se corto ({type(_se).__name__}: {_se}); "
-                                    + ("respuesta PARCIAL, no se reintenta"
-                                       if _tokens_buf else
-                                       "sin tokens, cae al camino articulado"))
-                                if _tokens_buf:
-                                    _streamed = True  # partial stream — don't retry
-                                try:
-                                    if _flujo is not None:
-                                        _flujo.cerrar()   # vaciar el trozo pendiente
-                                except Exception:
-                                    pass
-                                print()
-                            finally:
-                                # Restaurar el streaming del renderer SIEMPRE:
-                                # este finally pertenece al MISMO try donde se
-                                # activo suprimir_stream(True). La revision
-                                # adversarial cazo que el restore anterior
-                                # vivia en el finally del camino ARTICULADO
-                                # (solo corria si el stream fallaba) y el
-                                # primer turno exitoso dejaba mudo el
-                                # streaming del agente para toda la sesion.
-                                try:
-                                    if _supr_stream is not None:
-                                        _supr_stream(False)
-                                except Exception:
-                                    pass
-                except Exception as _e_fast:
-                    # ESTE es el except caro: envuelve TODO el fast-path. Cuando
-                    # salta, el turno se va al camino articulado -> Ollama (que
-                    # en esta maquina NO esta instalado) -> respuesta canned, y
-                    # hasta hoy no dejaba ni una linea. No cambiamos el flujo:
-                    # el fallback sigue salvando la corrida, pero gritando.
-                    _aviso_degradado(
-                        "cli.fast_path",
-                        f"fast-path de streaming ABORTADO ({type(_e_fast).__name__}: "
-                        f"{_e_fast}); el turno cae al camino articulado")
-                    if os.environ.get("COGNIA_DEBUG") == "1":
-                        import traceback as _tb
-                        _tb.print_exc()
+                                    print()
+                                    _full_response = "".join(_tokens_buf).strip()
+                                    # An empty stream (backend hiccup) is NOT a real answer:
+                                    # leave _streamed False so we fall through to the
+                                    # articulated path instead of printing a blank reply.
+                                    _streamed = bool(_full_response)
+                                    if not _streamed:
+                                        _aviso_degradado(
+                                            "cli.fast_path.stream_vacio",
+                                            "el backend no emitio un solo token; "
+                                            "el turno cae al camino articulado")
+                                    else:
+                                        if not _pintar_stream:
+                                            # Remoto con deltas: la respuesta
+                                            # ENTERA, plana y con flush, UNA vez
+                                            # (el movil reemplaza la burbuja viva
+                                            # por esta; el jsonl persiste esta).
+                                            _show_response(_full_response, _ACCENT,
+                                                           respuesta_final=True)
+                                        # FOOTER de contexto (barra_estado): el
+                                        # camino de chat no recibe usage del server
+                                        # (stream_chat solo expone predicted_n), asi
+                                        # que se registra una ESTIMACION marcada
+                                        # como tal y la barra la pinta con '~'.
+                                        # Sin esto la barra decia '0/65.5k (100%
+                                        # libre)' toda la sesion (cazado TECLEANDO
+                                        # 2026-08-24: contexto_vivo no tenia ningun
+                                        # llamador que lo alimentara).
+                                        try:
+                                            from cognia.harness import (
+                                                contexto_vivo as _cv_chat)
+                                            _cv_chat.registrar_uso_estimado(
+                                                "\n".join(str(_m.get("content") or "")
+                                                          for _m in _messages),
+                                                _full_response)
+                                        except Exception as _exc_cv:
+                                            _aviso_degradado(
+                                                "cli.barra_estado",
+                                                "ocupacion del chat no registrada: "
+                                                f"{type(_exc_cv).__name__}: {_exc_cv}")
+                                    # LAZO (/lazo, opt-in): verificacion post-respuesta con
+                                    # tools reales (P8: el critico ejecuta, no opina). Corre
+                                    # tambien bajo COGNIA_REMOTO desde la paridad 2026-08-24:
+                                    # sus lineas ('[lazo] …', '✓ claim') van como Aviso por
+                                    # el bus (_linea_o_aviso), no como prosa al chat.
+                                    if _streamed and _LAZO["on"]:
+                                        try:
+                                            from cognia.agent.lazo_chat import (
+                                                lazo_respuesta as _lz_run)
 
-                if not _streamed:
-                    try:
-                        from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
-                        if _HAS_RICH and _console:
-                            flt      = _VerboseFilter()
-                            logging.root.addFilter(flt)
-                            captured = io.StringIO()
-                            try:
-                                # P8: spinner.comando del registro de estilos
-                                from cognia.ux import spinner_vivo as _sv
-                                _markup_sp, _nombre_sp = _sv.comando("procesando")
-                                with _console.status(_markup_sp, spinner=_nombre_sp):
-                                    t0 = time.time()
-                                    with contextlib.redirect_stdout(captured):
-                                        result = responder_articulado(ai, raw)
-                            finally:
-                                logging.root.removeFilter(flt)
-                            elapsed = time.time() - t0
-                            if _debug_mode:
-                                txt = captured.getvalue().strip()
-                                if txt:
-                                    _console.print(txt, style="info_dim", markup=False)
-                        else:
-                            t0      = time.time()
-                            result  = responder_articulado(ai, raw)
-                            elapsed = time.time() - t0
+                                            def _lz_chat(_p, _mt=_effort_max_tokens):
+                                                # la UNICA revision va por el cliente
+                                                # nativo del agente; error -> '' (el
+                                                # lazo lo trata como negativa/keep-best)
+                                                from cognia.agent.chat_client import (
+                                                    completar as _lz_comp)
+                                                _r = _lz_comp(
+                                                    [{"role": "user", "content": _p}],
+                                                    max_tokens=_mt)
+                                                return _r.texto if _r.ok else ""
 
-                        # CIERRE DEL TURNO NUNCA MUDO (auditoria F2 2026-08-01):
-                        # el camino articulado podia terminar con EXIT=0 y CERO
-                        # respuesta visible (ultimo output: el banner degradado)
-                        # cuando responder_articulado devolvia texto vacio o un
-                        # error. Si tras todos los fallbacks no hay texto, se
-                        # imprime SIEMPRE una respuesta minima explicita (con
-                        # respuesta_final=True para que el movil la vea como
-                        # chat, no como actividad) y queda en el audit.
-                        _texto_turno = ""
-                        if "error" in result:
-                            _print_line(f"[err_cl]Error: {_escape(str(result['error']))}[/err_cl]")
-                            _aviso_degradado(
-                                "cli.articulado.error",
-                                str(result.get("error"))[:200])
-                        else:
-                            _texto_turno = _to_str(result.get("response", "")).strip()
-                            if not _texto_turno:
-                                _aviso_degradado(
-                                    "cli.articulado.respuesta_vacia",
-                                    "responder_articulado devolvio texto vacio")
-                        if not _texto_turno:
-                            _texto_turno = (
-                                f"{_DEGRADADO} No pude generar una respuesta en "
-                                "este turno (el backend de inferencia no "
-                                "respondio). Proba de nuevo, o revisa el backend "
-                                "con: cognia doctor")
-                        # respuesta_final: bajo COGNIA_REMOTO el clasificador
-                        # manda lo enmarcado a "actividad"; el cierre del turno
-                        # de chat ES la respuesta (mismo patron que 3581/8060).
-                        _show_response(_texto_turno, _ACCENT, respuesta_final=True)
-                        _show_footer(elapsed, _texto_turno)
-                        stage = result.get("language_engine", {}).get("stage", "")
-                        if stage:
-                            _print_line(f"[detail][stage: {stage}][/detail]")
-                        _session_log.append({
-                            "input":   raw,
-                            "output":  _texto_turno,
-                            "elapsed": elapsed,
-                        })
-                        _history.append({"role": "user", "content": raw})
-                        _history.append({"role": "assistant", "content": _texto_turno})
-                    except KeyboardInterrupt:
-                        # El otro sitio donde el turno se va largos segundos sin
-                        # devolver el prompt (el spinner "Procesando..."). Mismo
-                        # trato que el fast-path: cortar el turno, NO el REPL.
-                        print()
-                        _print_line(
-                            "[warn_cl]Ctrl-C: turno cortado. "
-                            "El REPL sigue vivo; /salir para salir.[/warn_cl]")
-                        continue          # -> vuelve al prompt del REPL
-                    except Exception as e:
-                        _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
-                        # Mismo contrato: ni una excepcion deja el turno mudo.
+                                            def _lz_ev(_v):
+                                                # una linea por claim, estilo gate
+                                                if _confianza_remoto():
+                                                    _lz_m = ("✓" if _v.ok is True else
+                                                             "✗" if _v.ok is False else "?")
+                                                    _linea_o_aviso(
+                                                        "", f"[lazo] {_lz_m} "
+                                                        f"{_v.claim.texto[:70]} ({_v.tool})",
+                                                        "lazo")
+                                                    return
+                                                _lz_t = _escape(_v.claim.texto[:70])
+                                                if _v.ok is True:
+                                                    _print_line(f"[ok_cl]  ✓ {_lz_t}  ({_v.tool})[/ok_cl]")
+                                                elif _v.ok is False:
+                                                    _lz_e = _escape(_v.evidencia[:90])
+                                                    _print_line(f"[err_cl]  ✗ {_lz_t}  ({_v.tool} -> {_lz_e})[/err_cl]")
+                                                else:
+                                                    _print_line(f"[detail]  ? {_lz_t}  (incierto)[/detail]")
+
+                                            _lz_res = _lz_run(raw, _full_response,
+                                                              _lz_chat, {"ai": ai},
+                                                              on_evento=_lz_ev)
+                                            # motivo SIEMPRE visible (patron _grito: un
+                                            # lazo que se salta en silencio repite el
+                                            # fallo tipico de Cognia)
+                                            _linea_o_aviso(
+                                                f"[detail][lazo] {_lz_res.motivo} "
+                                                f"({len(_lz_res.veredictos)} claims) · "
+                                                f"{_lz_res.rondas} ronda(s)[/detail]",
+                                                f"[lazo] {_lz_res.motivo} "
+                                                f"({len(_lz_res.veredictos)} claims) · "
+                                                f"{_lz_res.rondas} ronda(s)", "lazo")
+                                            if _lz_res.final != _full_response:
+                                                _show_response(_lz_res.final, _ACCENT,
+                                                               respuesta_final=True)
+                                                _full_response = _lz_res.final
+                                        except Exception as _lz_exc:
+                                            _aviso_degradado(
+                                                "cli.lazo",
+                                                f"lazo de verificacion fallo "
+                                                f"({type(_lz_exc).__name__}: {_lz_exc}); "
+                                                "respuesta intacta")
+                                    # CONFIANZA, cierre del turno (/confianza):
+                                    # (a) hubo gancho PREVIA -> veredicto de la
+                                    # respuesta contra la evidencia + linea de
+                                    # nivel; (b) no lo hubo y la respuesta
+                                    # CONFIESA no saber -> gancho POSTERIOR:
+                                    # investigar y re-preguntar con las fuentes.
+                                    # Va DESPUES del lazo (evalua el texto final)
+                                    # y con el mismo guard: portero no. El remoto
+                                    # ya no lo apaga (paridad 2026-08-24). La
+                                    # segunda llamada reusa _llama_turn.
+                                    # stream_chat SIN pintar (mismo backend,
+                                    # misma plantilla y mismo prefijo KV que
+                                    # acaba de responder: cero riesgo de hablarle
+                                    # a otro server); solo si el backend no tiene
+                                    # stream_chat cae a chat_client.completar, la
+                                    # via del /lazo, que apunta al server del
+                                    # agente (podria ser OTRO backend: memoria
+                                    # dos-backends-cognia). Un 'limit' del server
+                                    # se reintenta UNA vez con el doble, como el
+                                    # stream principal.
+                                    if (_streamed and _conf_cfg is not None
+                                            and _conf_cfg.on and not _conf_portero):
+                                        try:
+                                            if _conf_inv is not None:
+                                                _confianza_veredicto(_full_response,
+                                                                     _conf_inv)
+                                            elif _conf_cfg.posterior:
+                                                def _conf_pedir(_texto,
+                                                                _mt=_effort_max_tokens):
+                                                    _msgs2 = _build_stream_messages(
+                                                        ai, _texto, _system, _hist_ctx)
+                                                    if not _use_chat:
+                                                        from cognia.agent.chat_client import (
+                                                            completar as _cf_comp)
+                                                        _r2 = _cf_comp(_msgs2, max_tokens=_mt)
+                                                        if not _r2.ok:
+                                                            _aviso_degradado(
+                                                                "confianza",
+                                                                f"completar fallo: {_r2.error}")
+                                                        return _r2.texto if _r2.ok else ""
+                                                    for _int2 in (1, 2):
+                                                        _txt2 = "".join(_llama_turn.stream_chat(
+                                                            _msgs2, max_tokens=_mt,
+                                                            temperature=GEN_CHAT_TEMPERATURE))
+                                                        if (_int2 == 1 and getattr(
+                                                                _llama_turn, "last_stop_reason",
+                                                                None) == "limit"):
+                                                            _print_line(
+                                                                f"[detail]  · respuesta con fuentes "
+                                                                f"truncada ({_mt} tok); reintento "
+                                                                f"con {_mt * 2}[/detail]")
+                                                            _mt *= 2
+                                                            continue
+                                                        return _txt2
+                                                    return _txt2
+                                                _conf_res = _confianza_posterior(
+                                                    raw, _full_response, _conf_pedir,
+                                                    _conf_cfg,
+                                                    mostrar=lambda _t: _show_response(
+                                                        _t, _ACCENT, respuesta_final=True))
+                                                if _conf_res is not None:
+                                                    _full_response = _conf_res[0]
+                                        except Exception as _exc_cf:
+                                            _aviso_degradado(
+                                                "confianza",
+                                                f"cierre de confianza fallo "
+                                                f"({type(_exc_cf).__name__}: {_exc_cf}); "
+                                                "respuesta intacta")
+                                    if _streamed:
+                                        elapsed = time.time() - t0
+                                        _show_footer(elapsed, _full_response)
+                                        _session_log.append({
+                                            "input":   raw,
+                                            "output":  _full_response,
+                                            "elapsed": elapsed,
+                                        })
+                                        _persist_turn(ai, raw, _full_response)
+                                        try:
+                                            ai.observe(_full_response[:300], provided_label="respuesta_streaming")
+                                        except Exception:
+                                            pass
+                                except KeyboardInterrupt:
+                                    # Ctrl-C durante el streaming MATABA el proceso:
+                                    # KeyboardInterrupt hereda de BaseException, asi
+                                    # que el 'except Exception' de abajo no lo ve, y
+                                    # el unico 'except (EOFError, KeyboardInterrupt)'
+                                    # del REPL solo rodea a _get_input(). Resultado:
+                                    # cortar una respuesta larga = perder la sesion
+                                    # entera (historial, contexto, /deshacer).
+                                    # Ahora corta el turno y vuelve al prompt.
+                                    # Limite honesto: el generador de tokens no se
+                                    # cierra a mano (el for es su unico dueno), lo
+                                    # cierra el GC al soltar la referencia; lo que SI
+                                    # se cierra explicito es _flujo, que tiene un
+                                    # trozo a medio pintar.
+                                    try:
+                                        if _flujo is not None:
+                                            _flujo.cerrar()
+                                    except Exception:
+                                        pass
+                                    print()
+                                    # SIN corchetes en el texto: rich se come
+                                    # '[interrumpido]' como si fuera una etiqueta de
+                                    # markup y el aviso salia decapitado (medido en
+                                    # la corrida real de verificacion).
+                                    _n_int = len("".join(_tokens_buf))
+                                    if not _pintar_stream and _tokens_buf:
+                                        # Remoto con deltas: nada se pinto durante
+                                        # el stream, asi que lo parcial se entrega
+                                        # plano para que quede en la transcripcion
+                                        # (el movil ya lo vio en la burbuja viva).
+                                        _show_response(
+                                            "".join(_tokens_buf).strip()
+                                            + "\n\n(interrumpido)",
+                                            _ACCENT, respuesta_final=True)
+                                    _print_line(
+                                        f"[warn_cl]Ctrl-C: turno cortado "
+                                        f"({_n_int} caracteres descartados). "
+                                        f"El REPL sigue vivo; /salir para salir."
+                                        f"[/warn_cl]")
+                                    continue          # -> vuelve al prompt del REPL
+                                except Exception as _se:
+                                    _aviso_degradado(
+                                        "cli.fast_path.stream",
+                                        f"el stream se corto ({type(_se).__name__}: {_se}); "
+                                        + ("respuesta PARCIAL, no se reintenta"
+                                           if _tokens_buf else
+                                           "sin tokens, cae al camino articulado"))
+                                    if _tokens_buf:
+                                        _streamed = True  # partial stream — don't retry
+                                    try:
+                                        if _flujo is not None:
+                                            _flujo.cerrar()   # vaciar el trozo pendiente
+                                    except Exception:
+                                        pass
+                                    print()
+                                finally:
+                                    # Restaurar el streaming del renderer SIEMPRE:
+                                    # este finally pertenece al MISMO try donde se
+                                    # activo suprimir_stream(True). La revision
+                                    # adversarial cazo que el restore anterior
+                                    # vivia en el finally del camino ARTICULADO
+                                    # (solo corria si el stream fallaba) y el
+                                    # primer turno exitoso dejaba mudo el
+                                    # streaming del agente para toda la sesion.
+                                    try:
+                                        if _supr_stream is not None:
+                                            _supr_stream(False)
+                                    except Exception:
+                                        pass
+                    except Exception as _e_fast:
+                        # ESTE es el except caro: envuelve TODO el fast-path. Cuando
+                        # salta, el turno se va al camino articulado -> Ollama (que
+                        # en esta maquina NO esta instalado) -> respuesta canned, y
+                        # hasta hoy no dejaba ni una linea. No cambiamos el flujo:
+                        # el fallback sigue salvando la corrida, pero gritando.
                         _aviso_degradado(
-                            "cli.articulado.excepcion",
-                            f"{type(e).__name__}: {e}")
-                        _show_response(
-                            f"{_DEGRADADO} No pude generar una respuesta en este "
-                            "turno (fallo interno del camino articulado). Proba "
-                            "de nuevo, o revisa el backend con: cognia doctor",
-                            _ACCENT, respuesta_final=True)
+                            "cli.fast_path",
+                            f"fast-path de streaming ABORTADO ({type(_e_fast).__name__}: "
+                            f"{_e_fast}); el turno cae al camino articulado")
+                        if os.environ.get("COGNIA_DEBUG") == "1":
+                            import traceback as _tb
+                            _tb.print_exc()
+
+                    if not _streamed:
+                        try:
+                            from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
+                            if _HAS_RICH and _console:
+                                flt      = _VerboseFilter()
+                                logging.root.addFilter(flt)
+                                captured = io.StringIO()
+                                try:
+                                    # P8: spinner.comando del registro de estilos
+                                    from cognia.ux import spinner_vivo as _sv
+                                    _markup_sp, _nombre_sp = _sv.comando("procesando")
+                                    with _console.status(_markup_sp, spinner=_nombre_sp):
+                                        t0 = time.time()
+                                        with contextlib.redirect_stdout(captured):
+                                            result = responder_articulado(ai, raw)
+                                finally:
+                                    logging.root.removeFilter(flt)
+                                elapsed = time.time() - t0
+                                if _debug_mode:
+                                    txt = captured.getvalue().strip()
+                                    if txt:
+                                        _console.print(txt, style="info_dim", markup=False)
+                            else:
+                                t0      = time.time()
+                                result  = responder_articulado(ai, raw)
+                                elapsed = time.time() - t0
+
+                            # CIERRE DEL TURNO NUNCA MUDO (auditoria F2 2026-08-01):
+                            # el camino articulado podia terminar con EXIT=0 y CERO
+                            # respuesta visible (ultimo output: el banner degradado)
+                            # cuando responder_articulado devolvia texto vacio o un
+                            # error. Si tras todos los fallbacks no hay texto, se
+                            # imprime SIEMPRE una respuesta minima explicita (con
+                            # respuesta_final=True para que el movil la vea como
+                            # chat, no como actividad) y queda en el audit.
+                            _texto_turno = ""
+                            if "error" in result:
+                                _print_line(f"[err_cl]Error: {_escape(str(result['error']))}[/err_cl]")
+                                _aviso_degradado(
+                                    "cli.articulado.error",
+                                    str(result.get("error"))[:200])
+                            else:
+                                _texto_turno = _to_str(result.get("response", "")).strip()
+                                if not _texto_turno:
+                                    _aviso_degradado(
+                                        "cli.articulado.respuesta_vacia",
+                                        "responder_articulado devolvio texto vacio")
+                            if not _texto_turno:
+                                _texto_turno = (
+                                    f"{_DEGRADADO} No pude generar una respuesta en "
+                                    "este turno (el backend de inferencia no "
+                                    "respondio). Proba de nuevo, o revisa el backend "
+                                    "con: cognia doctor")
+                            # respuesta_final: bajo COGNIA_REMOTO el clasificador
+                            # manda lo enmarcado a "actividad"; el cierre del turno
+                            # de chat ES la respuesta (mismo patron que 3581/8060).
+                            _show_response(_texto_turno, _ACCENT, respuesta_final=True)
+                            _show_footer(elapsed, _texto_turno)
+                            stage = result.get("language_engine", {}).get("stage", "")
+                            if stage:
+                                _print_line(f"[detail][stage: {stage}][/detail]")
+                            _session_log.append({
+                                "input":   raw,
+                                "output":  _texto_turno,
+                                "elapsed": elapsed,
+                            })
+                            _history.append({"role": "user", "content": raw})
+                            _history.append({"role": "assistant", "content": _texto_turno})
+                        except KeyboardInterrupt:
+                            # El otro sitio donde el turno se va largos segundos sin
+                            # devolver el prompt (el spinner "Procesando..."). Mismo
+                            # trato que el fast-path: cortar el turno, NO el REPL.
+                            print()
+                            _print_line(
+                                "[warn_cl]Ctrl-C: turno cortado. "
+                                "El REPL sigue vivo; /salir para salir.[/warn_cl]")
+                            continue          # -> vuelve al prompt del REPL
+                        except Exception as e:
+                            _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
+                            # Mismo contrato: ni una excepcion deja el turno mudo.
+                            _aviso_degradado(
+                                "cli.articulado.excepcion",
+                                f"{type(e).__name__}: {e}")
+                            _show_response(
+                                f"{_DEGRADADO} No pude generar una respuesta en este "
+                                "turno (fallo interno del camino articulado). Proba "
+                                "de nuevo, o revisa el backend con: cognia doctor",
+                                _ACCENT, respuesta_final=True)
+        except KeyboardInterrupt:
+            if _repl_iteracion_interrumpida():
+                continue
+            print("\nHasta luego.")
+            break
+    # Fuera del bucle (/salir, EOF, Ctrl-C doble): lo capturado del ultimo
+    # slash no se pierde en el StringIO.
+    _captura_slash_remoto_fin()
 
 
 # Marcas de que el orquestador no tiene con que inferir. NO lanza excepcion:

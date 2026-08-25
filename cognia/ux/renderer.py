@@ -1207,6 +1207,13 @@ class Renderer:
             return
         self._print(f"{_SANGRIA}{resto}", style="footer")
 
+    # Confianza y FooterTurno (paridad remota 2026-08-24) NO tienen handler a
+    # proposito: en el terminal los pinta cli.py en el mismo sitio donde los
+    # emite (_confianza_veredicto, _show_footer) y un handler aqui los
+    # duplicaria. Existen para el sink stdout del remoto (el movil los pinta
+    # como chip y linea gris) y para la telemetria en archivo. Un tipo sin
+    # handler se ignora en __call__ (handler None -> return), sin aviso: es la
+    # via prevista, no un evento perdido.
     _HANDLERS = {
         "TareaInicio":      _on_tarea_inicio,
         "PasoIntencion":    _on_paso_intencion,

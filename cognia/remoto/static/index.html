@@ -355,6 +355,61 @@
     white-space: nowrap; }
   .chip-exp.activo { color: #fff; }
   .chip-exp i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  /* ── Paridad con el CLI (2026-08-24) ──
+     estado del WS: verde = conectado, ambar = reconectando (backoff),
+     rojo = caido sin reintento (sesion cerrada o token invalido) */
+  .punto.ambar { background: #e0a32e; animation: latir 1.1s ease-in-out infinite; }
+  .punto.rojo { background: var(--peligro); }
+  /* burbuja VIVA: los trozos del stream (quien="delta") se acumulan aqui con
+     un cursor parpadeante; la respuesta final la REEMPLAZA (mismo nodo) */
+  .msg.cognia.viva .md::after { content: "▍"; color: var(--acento);
+    animation: latir .9s ease-in-out infinite; margin-left: 1px; }
+  /* chip de confianza (evento Confianza del CLI): nivel + fuentes clicables */
+  .confianza { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; align-items: center;
+    margin: 6px 0 0; padding: 3px 9px; border-radius: 999px; font-size: 11.5px;
+    border: 1px solid var(--borde); color: var(--texto-2); background: var(--panel); }
+  .confianza .glifo { font-weight: 700; color: var(--acento); }
+  .confianza[data-nivel="alta"] .glifo { color: var(--acento); }
+  .confianza[data-nivel="media"] .glifo { color: #e0a32e; }
+  .confianza[data-nivel="baja"] .glifo { color: var(--peligro); }
+  .confianza a { color: var(--acento); text-decoration: underline; max-width: 46vw;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;
+    vertical-align: bottom; }
+  /* footer del turno (evento FooterTurno): "✓ 14.6s · 312 tokens · ctx 95% libre" */
+  .footer-turno { align-self: flex-start; font-size: 11px; color: var(--texto-2);
+    font-family: ui-monospace, monospace; padding: 0 12px; margin-top: -2px; }
+  .footer-turno.fallo { color: var(--peligro); }
+  /* ■ Detener: pastilla flotante sobre el compositor mientras hay generacion */
+  #btn-detener { position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: calc(110px + env(safe-area-inset-bottom)); z-index: 26;
+    display: none; align-items: center; gap: 6px; padding: 8px 16px;
+    border-radius: 999px; background: var(--peligro); color: #fff; font-weight: 650;
+    font-size: 13px; box-shadow: var(--sombra); }
+  #btn-detener.visible { display: inline-flex; }
+  #btn-detener i { display: inline-block; width: 10px; height: 10px; background: #fff;
+    border-radius: 2px; }
+  #btn-adjuntar { width: 44px; height: 44px; border-radius: 50%; flex: 0 0 auto;
+    background: var(--panel-2); color: var(--texto); border: 1px solid var(--borde);
+    display: grid; place-items: center; }
+  #btn-adjuntar.subiendo { opacity: .5; pointer-events: none; }
+  /* sugerencias: la fila resaltada por teclado (flechas / Tab) */
+  .sug.activa { background: var(--panel-2); }
+  .sug .c.fichero { color: var(--texto); }
+  /* dialogo de nueva sesion: titulo + acceso (restringido por defecto) */
+  dialog#dlg-sesion { border: 1px solid var(--borde); border-radius: 14px;
+    background: var(--panel); color: var(--texto); padding: 16px;
+    width: min(92vw, 380px); box-shadow: var(--sombra); }
+  dialog#dlg-sesion::backdrop { background: rgba(0,0,0,.5); }
+  dialog#dlg-sesion h3 { font-size: 15px; margin-bottom: 10px; }
+  dialog#dlg-sesion label.radio { display: flex; gap: 8px; align-items: flex-start;
+    padding: 8px 0; font-size: 13.5px; cursor: pointer; }
+  dialog#dlg-sesion label.radio small { display: block; color: var(--texto-2);
+    font-size: 12px; margin-top: 2px; }
+  dialog#dlg-sesion .acciones { display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 10px; }
+  dialog#dlg-sesion .acciones .chip { padding: 8px 14px; }
+  dialog#dlg-sesion .acciones .boton-panel { padding: 8px 16px; }
 </style>
 </head>
 <body>
@@ -387,6 +442,7 @@
   <symbol id="i-cerebro" viewBox="0 0 24 24"><path d="M9 3a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8V15a3 3 0 0 0 4 2.8A2.5 2.5 0 0 0 12 19V5a2 2 0 0 0-2-2zM15 3a3 3 0 0 1 3 3 3 3 0 0 1 1 5.8V15a3 3 0 0 1-4 2.8A2.5 2.5 0 0 1 12 19V5a2 2 0 0 1 2-2z"/></symbol>
   <symbol id="i-voz" viewBox="0 0 24 24"><path d="M12 3v18M8 7v10M4 10v4M16 7v10M20 10v4"/></symbol>
   <symbol id="i-microfono" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11.5-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.5 3.5 0 0 1 5 5l-9.2 9.2a1.5 1.5 0 0 1-2.1-2.1L16 6.7"/></symbol>
 </svg>
 
 <header>
@@ -548,18 +604,65 @@
   <button class="chip" data-cmd="/doctor"><svg class="ic" width="13" height="13"><use href="#i-salud"/></svg>doctor</button>
 </div>
 
+<!-- ■ Detener: solo se ve con generacion en curso Y si el servidor anuncia
+     "interrumpir" en /api/version (un servidor viejo no lo tiene) -->
+<button id="btn-detener" aria-label="Detener la generacion"><i></i>Detener</button>
+
 <div id="compositor">
-  <textarea id="entrada" rows="1" placeholder="Mensaje o /comando…"></textarea>
+  <button id="btn-adjuntar" aria-label="Adjuntar archivo"><svg class="ic" width="20" height="20"><use href="#i-clip"/></svg></button>
+  <input type="file" id="adjunto" accept=".png,.jpg,.jpeg,.gif,.webp,.txt,.md,.pdf,.csv,.json" style="display:none">
+  <textarea id="entrada" rows="1" placeholder="Mensaje, /comando o @fichero…"></textarea>
   <button id="btn-mic" aria-label="Hablar"><svg class="ic" width="20" height="20"><use href="#i-microfono"/></svg></button>
   <button id="enviar" aria-label="Enviar"><svg class="ic" width="20" height="20"><use href="#i-enviar"/></svg></button>
 </div>
 
+<!-- Nueva sesion: titulo + ACCESO. Restringido por defecto en el front: el
+     back conserva "total" por compatibilidad de la API, pero desde un movil
+     lo seguro es pedir el total a proposito. -->
+<dialog id="dlg-sesion">
+  <form method="dialog" id="form-sesion">
+    <h3>Nueva sesión</h3>
+    <input class="mini-input" id="sesion-titulo" placeholder="Título (opcional)" autocomplete="off">
+    <label class="radio"><input type="radio" name="acceso" value="restringido" checked>
+      <span>Acceso restringido<small>Solo conversa y edita dentro del proyecto; pide confirmación para todo lo demás.</small></span></label>
+    <label class="radio"><input type="radio" name="acceso" value="total">
+      <span>Acceso total<small>Permite computer-use (pantalla, teclado, ratón) y comandos del sistema SIN confirmación.</small></span></label>
+    <div class="acciones">
+      <button type="button" class="chip" id="sesion-cancelar">Cancelar</button>
+      <button type="submit" class="boton-panel" id="sesion-crear">Crear</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
 "use strict";
 const S = { proyectos: [], proyecto: null, sesion: null, ws: null,
-            comandos: [], vistaIzq: "proyectos", flujos: [] };
+            comandos: [], vistaIzq: "proyectos", flujos: [],
+            // paridad con el CLI (2026-08-24):
+            caps: null,        // lo que anuncia GET /api/version (null = no consultado)
+            generando: false,  // hay un turno en curso (delta/progreso -> final)
+            ultimas: [],       // huellas de las 3 ultimas lineas PERSISTIDAS vistas (reanudar el WS)
+            reintento: 0,      // reconexiones seguidas del WS (backoff 1,2,4..30 s)
+            wsTimer: 0,        // el setTimeout del proximo reintento
+            historial: [], hIdx: -1, hBorrador: "" };
 const $ = id => document.getElementById(id);
 const chat = $("chat");
+
+/* ── Capacidades del servidor (K): un servidor VIEJO no tiene /api/version
+   ni /interrumpir ni manda "delta". El front pregunta una vez y OCULTA los
+   controles que no puede honrar en vez de fallar al pulsarlos. Se busca la
+   palabra en todo el JSON: el contrato dice "anuncia", no fija la forma
+   (lista `caps`, objeto de booleanos...). ── */
+function tieneCap(nombre) {
+  if (!S.caps) return false;
+  try { return JSON.stringify(S.caps).includes('"' + nombre + '"'); }
+  catch (e) { return false; }
+}
+function aplicarCaps(caps) {
+  S.caps = caps || {};
+  // sin "interrumpir": el boton no existe para el usuario (no se vera nunca)
+  $("btn-detener").hidden = !tieneCap("interrumpir");
+}
 
 /* ── Tema ── */
 function aplicarTema(t) {
@@ -602,13 +705,18 @@ async function api(ruta, opciones) {
     _aviso401 = true;
     alert("Acceso denegado: abre la URL con ?token=<token> (el servidor lo imprime al arrancar; tambien esta en ~/.cognia/remoto/token.txt).");
   }
-  return r.json();
+  // un 413/429/502 puede venir sin JSON: se devuelve un error LEGIBLE en vez
+  // de reventar en el llamador (que lo pinta como linea "sistema")
+  try { return await r.json(); }
+  catch (e) { return {error: "respuesta no JSON (" + r.status + " " + r.statusText + ")", status: r.status}; }
 }
 
 /* ── Clasificacion de lineas: logs FUERA del chat ── */
 const ES_LOG = t => /^\d{4}-\d{2}-\d{2} .*\|\s*(INFO|WARNING|DEBUG|ERROR)\s*\|/.test(t);
+// "· pensando…" es el spinner del renderer: llego como "cognia" con hora en la
+// verificacion real del 2026-08-25 y quedaba como una respuesta mas
 const ES_PENSANDO = t =>
-  /^\s*(\[detail\]|paso \d|\[research\]|\[planner\]|\[generator\]|\[evaluator\]|\[storage\]|\[vista\]|\[contra\]|\[github\]|\[arxiv\]|\[hf\])/.test(t);
+  /^\s*(\[detail\]|paso \d|\[research\]|\[planner\]|\[generator\]|\[evaluator\]|\[storage\]|\[vista\]|\[contra\]|\[github\]|\[arxiv\]|\[hf\]|·\s*pensando)/.test(t);
 const ES_ACCION = t => /^(RESULTADO |ACCION|\$ |Archivos escritos|Correccion|Defectos)/.test(t);
 /* Rutas de imagen dentro del texto de un mensaje. Antes solo .png y solo la
    PRIMERA de la linea; el agente genera png pero una captura o un asset bajado
@@ -905,6 +1013,18 @@ function agregarImagen(cont, texto) {
 // linea) y se re-renderiza como markdown cada vez que llega otra linea.
 function burbujaCognia(texto, hora) {
   if (!grupoCognia || !chat.contains(grupoCognia)) { grupoCognia = null; cogniaRaw = ""; }
+  // La burbuja VIVA del stream se convierte en la final: mismo nodo, texto
+  // reemplazado. Antes (sin stream) no existia; con stream, crear otra
+  // burbuja dejaba la respuesta DOS veces (la parcial y la final).
+  if (!grupoCognia && burbujaViva && chat.contains(burbujaViva)) {
+    grupoCognia = burbujaViva; cogniaRaw = "";
+    cerrarViva();
+    chat.appendChild(grupoCognia);     // al final: por si hubo actividad en medio
+    if (hora && !grupoCognia.querySelector(".hora")) {
+      const h = document.createElement("span");
+      h.className = "hora"; h.textContent = hora; grupoCognia.appendChild(h);
+    }
+  }
   if (!grupoCognia) {
     grupoCognia = document.createElement("div");
     grupoCognia.className = "msg cognia bloque";
@@ -921,19 +1041,143 @@ function burbujaCognia(texto, hora) {
   chat.scrollTop = chat.scrollHeight;
 }
 
+/* ── Burbuja VIVA (C): los trozos {"quien":"delta"} del stream se acumulan en
+   una burbuja "cognia" marcada .viva (cursor parpadeante). NO se persisten:
+   solo llegan por el WS. La respuesta final (quien="cognia") la reemplaza en
+   burbujaCognia(); si llega una linea de actividad en medio, la burbuja se
+   queda (el agente la retomara o la final la reemplazara al cierre). ── */
+let burbujaViva = null, deltaRaw = "";
+function cerrarViva() {
+  if (burbujaViva) burbujaViva.classList.remove("viva");
+  burbujaViva = null; deltaRaw = "";
+}
+function burbujaDelta(texto) {
+  if (burbujaViva && !chat.contains(burbujaViva)) cerrarViva();
+  // un delta que llega cuando la viva ya no es lo ultimo del chat (hubo
+  // actividad/tool en medio) es OTRA generacion: se reusa el nodo vaciado y
+  // se baja al final, para que el texto nuevo no aparezca arriba de la accion
+  if (burbujaViva && chat.lastElementChild !== burbujaViva) {
+    deltaRaw = ""; chat.appendChild(burbujaViva);
+  }
+  if (!burbujaViva) {
+    grupoCognia = null; cogniaRaw = "";
+    burbujaViva = document.createElement("div");
+    burbujaViva.className = "msg cognia bloque viva";
+    burbujaViva.innerHTML = '<div class="md"></div>';
+    chat.appendChild(burbujaViva);
+  }
+  deltaRaw += texto;
+  // markdown tambien en vivo: un ``` a medias se ve como bloque abierto y se
+  // cierra solo al llegar el cierre; mdHTML es lineal y cada trozo son ~80
+  // chars cada ~120 ms, asi que re-renderizar entero no pesa
+  burbujaViva.querySelector(".md").innerHTML = mdHTML(deltaRaw);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* ── Chip de confianza (D): bajo la ultima burbuja de Cognia. `fuentes` son
+   URLs (clicables) o textos; `nivel` colorea el glifo. ── */
+function ultimaBurbujaCognia() {
+  if (grupoCognia && chat.contains(grupoCognia)) return grupoCognia;
+  const todas = chat.querySelectorAll(".msg.cognia");
+  return todas.length ? todas[todas.length - 1] : null;
+}
+function chipConfianza(e) {
+  const b = ultimaBurbujaCognia();
+  const chip = document.createElement("div");
+  chip.className = "confianza";
+  chip.dataset.nivel = String(e.nivel || "").toLowerCase();
+  const glifo = document.createElement("span");
+  glifo.className = "glifo"; glifo.textContent = e.glifo || "";
+  chip.appendChild(glifo);
+  const txt = document.createElement("span");
+  txt.textContent = e.texto || ("confianza " + (e.nivel || "?"));
+  chip.appendChild(txt);
+  for (const f of (Array.isArray(e.fuentes) ? e.fuentes : [])) {
+    const url = typeof f === "string" ? f : (f && (f.url || f.href)) || "";
+    const nombre = typeof f === "string" ? f : (f && (f.titulo || f.nombre || url)) || "";
+    if (/^https?:\/\//.test(url)) {
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = nombre.replace(/^https?:\/\/(www\.)?/, "");
+      chip.appendChild(a);
+    } else if (nombre) {
+      const s = document.createElement("span"); s.textContent = nombre; chip.appendChild(s);
+    }
+  }
+  if (b) b.appendChild(chip); else { chip.style.alignSelf = "flex-start"; chat.appendChild(chip); }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* ── Footer del turno (D): linea gris pequena tras la respuesta; CIERRA el
+   turno (apaga ■ Detener y el bloque de respuesta). ── */
+function footerTurno(e) {
+  const f = document.createElement("div");
+  f.className = "footer-turno" + (e.ok === false ? " fallo" : "");
+  f.textContent = e.texto || "";
+  chat.appendChild(f);
+  grupoCognia = null; cogniaRaw = "";
+  cerrarViva();
+  marcarGenerando(false);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* ── ■ Detener (A): visible desde el primer delta/progreso hasta la final.
+   Solo si el servidor anuncia "interrumpir" (aplicarCaps). ── */
+function marcarGenerando(si) {
+  S.generando = !!si;
+  $("btn-detener").classList.toggle("visible", S.generando && tieneCap("interrumpir"));
+}
+async function interrumpir() {
+  if (!S.sesion) return;
+  const b = $("btn-detener");
+  b.disabled = true;
+  try {
+    const r = await api(`/api/proyectos/${S.proyecto.id}/sesiones/${S.sesion}/interrumpir`,
+                        {method: "POST"});
+    // el REPL confirma con un Aviso ("generacion interrumpida desde el
+    // remoto") que llega por el WS como "sistema"; aqui se avisa si NO se
+    // pudo (ok=false con motivo, o servidor sin la ruta) y, con ok=true, se
+    // pinta el motivo del servidor cuando trae texto: dice el LIMITE de la
+    // senal ("se aplica al terminar la llamada en curso") — medido
+    // 2026-08-25, el KeyboardInterrupt llego 10-128 s despues de la senal
+    // porque el REPL estaba bloqueado esperando al modelo; sin este texto
+    // el boton parecia muerto.
+    if (!r || r.ok !== true)
+      burbuja("sistema", "no se pudo interrumpir: " + ((r && (r.motivo || r.error || r.detail)) || "?"));
+    else if (r.motivo)
+      burbuja("sistema", "interrupción: " + r.motivo);
+  } catch (err) {
+    burbuja("sistema", "no se pudo interrumpir: " + err);
+  } finally { b.disabled = false; }
+}
+$("btn-detener").onclick = interrumpir;
+
 /* `ag` = agrupacion por agente que manda el servidor (puede faltar: eventos
    que no son de un agente, transcripciones viejas). `envivo` distingue el WS
    de la relectura de la transcripcion — solo en vivo se cronometra. */
-function burbuja(quien, texto, hora, ag, envivo) {
-  texto = texto.replace(/\[\/?[a-z_]+\]/g, "");
+function burbuja(quien, texto, hora, ag, envivo, extra) {
+  texto = (texto || "").replace(/\[\/?[a-z_]+\]/g, "");
   // el servidor ya clasifica: quien=="log" va directo al Registro
   if (quien === "log" || (quien === "cognia" && ES_LOG(texto))) {
     registrarLog(texto); return;
   }
+  // ── paridad con el CLI: stream, confianza y footer (solo en vivo salvo
+  // confianza/footer, que tambien viajan en el jsonl) ──
+  if (quien === "delta") {
+    if (envivo) { marcarGenerando(true); burbujaDelta(texto); }
+    return;
+  }
+  if (quien === "confianza") { chipConfianza(Object.assign({texto}, extra || {})); return; }
+  if (quien === "footer") { footerTurno(Object.assign({texto}, extra || {})); return; }
   // ACTIVIDAD: agrupada en bloque plegable +/- dentro del chat
   if (quien === "actividad" ||
       (quien === "cognia" && (ES_PENSANDO(texto) || ES_ACCION(texto)))) {
     grupoCognia = null;      // la actividad cierra el bloque de respuesta
+    // AgenteProgreso (ag.chars) = hay generacion en curso: enciende ■ Detener
+    if (envivo && ag && typeof ag.chars === "number") marcarGenerando(true);
+    // el Aviso del REPL "generacion interrumpida" llega como actividad
+    // (medido 2026-08-25): cierra la viva y apaga ■ Detener igual que la final
+    if (/generacion interrumpida/i.test(texto)) { cerrarViva(); marcarGenerando(false); }
     if (typeof dispararPorActividad === "function") dispararPorActividad(texto);
     if (filtroTapa("actividad", texto, ag)) return;  // filtro de expertos
     const claveAg = agenteDeLinea(quien, texto, ag);
@@ -950,10 +1194,14 @@ function burbuja(quien, texto, hora, ag, envivo) {
   if (quien === "cognia") {
     if (filtroTapa("cerebro", texto)) return;
     if (typeof hablarCognia === "function") hablarCognia(texto);
-    burbujaCognia(texto, hora); return;
+    burbujaCognia(texto, hora);
+    if (envivo) marcarGenerando(false);   // la final cierra el turno
+    return;
   }
   // usuario / sistema: burbuja simple
   grupoCognia = null;
+  // el REPL confirma la interrupcion con un Aviso: el turno termino
+  if (quien === "sistema" && /interrumpid/i.test(texto)) { cerrarViva(); marcarGenerando(false); }
   const div = document.createElement("div");
   const clase = quien === "usuario" ? "yo" : "sistema";
   div.className = "msg " + clase;
@@ -975,6 +1223,9 @@ api("/api/saludo").then(s => {
   $("saludo").innerHTML = "<b>Cognia</b> · " + s.texto +
     "<br><small>Abre el menú para elegir proyecto y sesión.</small>";
 });
+// capacidades: un 404 de un servidor viejo llega como {"detail":"Not Found"}
+// (sin "interrumpir" -> boton oculto); una red caida cae al catch (idem).
+api("/api/version").then(aplicarCaps).catch(() => aplicarCaps({}));
 
 /* ── Cajones ── */
 function abrir(cajon, si) {
@@ -1069,13 +1320,42 @@ $("btn-nuevo-izq").onclick = async () => {
       headers: {"Content-Type": "application/json"}, body: JSON.stringify({ruta})});
     if (r.error) alert(r.error); else pintarIzq();
   } else {
-    const titulo = prompt("Título de la sesión:", "") || "";
+    const datos = await pedirNuevaSesion();
+    if (!datos) return;
     const r = await api(`/api/proyectos/${S.proyecto.id}/sesiones`,
       {method: "POST", headers: {"Content-Type": "application/json"},
-       body: JSON.stringify({titulo})});
+       body: JSON.stringify(datos)});
+    if (r.error) { alert(r.error); return; }
     abrirSesion(S.proyecto, r.id, r.titulo);
   }
 };
+
+/* ── Nueva sesion (G): dialogo con titulo y ACCESO. Default del front:
+   restringido. Devuelve {titulo, acceso} o null si se cancela. Sin <dialog>
+   (navegador viejo) cae a prompt/confirm con el mismo default. ── */
+function pedirNuevaSesion() {
+  const dlg = $("dlg-sesion");
+  if (!dlg || typeof dlg.showModal !== "function") {
+    const titulo = prompt("Título de la sesión:", "");
+    if (titulo === null) return Promise.resolve(null);
+    const total = confirm("¿Acceso TOTAL? (permite computer-use y comandos del sistema sin confirmación)\nCancelar = restringido");
+    return Promise.resolve({titulo, acceso: total ? "total" : "restringido"});
+  }
+  return new Promise(resolve => {
+    $("sesion-titulo").value = "";
+    dlg.querySelector('input[value="restringido"]').checked = true;
+    const cerrar = valor => { dlg.close(); resolve(valor); };
+    $("form-sesion").onsubmit = e => {
+      e.preventDefault();
+      const acceso = (dlg.querySelector('input[name="acceso"]:checked') || {}).value || "restringido";
+      cerrar({titulo: $("sesion-titulo").value.trim(), acceso});
+    };
+    $("sesion-cancelar").onclick = () => cerrar(null);
+    dlg.oncancel = e => { e.preventDefault(); cerrar(null); };
+    dlg.showModal();
+    $("sesion-titulo").focus();
+  });
+}
 
 async function abrirSesion(proyecto, sid, titulo) {
   S.proyecto = proyecto; S.sesion = sid;
@@ -1086,37 +1366,220 @@ async function abrirSesion(proyecto, sid, titulo) {
   chat.innerHTML = ""; logsBuffer = []; grupoCognia = null; grupoActividad = null; cogniaRaw = "";
   bloquesAgente.clear();   // los <details> se fueron con el innerHTML
   $("filtro-expertos").classList.remove("oculto"); pintarFiltroExpertos();
+  cerrarViva(); marcarGenerando(false);
   const trans = await api(`/api/proyectos/${proyecto.id}/sesiones/${sid}/transcripcion`);
   // relectura: `ag` viaja en el jsonl, asi que un workflow YA TERMINADO se
   // reabre con un bloque por agente igual que en vivo (envivo=false: sin
   // cronometro inventado)
-  for (const e of trans)
-    if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t, e.ag, false);
-  if (S.ws) { S.ws.close(); S.ws = null; }
+  S.ultimas = [];
+  pintarTranscripcion(trans);
+  clearTimeout(S.wsTimer); S.reintento = 0;
+  if (S.ws) { S.ws.onclose = null; S.ws.close(); S.ws = null; }
+  conectarWS(proyecto, sid);
+}
+
+function pintarTranscripcion(trans) {
+  for (const e of trans) {
+    recordarVista(e);
+    if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t, e.ag, false, e);
+  }
+}
+
+/* ── Estado de la conexion: verde/ambar/rojo en la cabecera (I) ── */
+function estadoConexion(cual, detalle) {
+  const p = $("estado-punto");
+  p.classList.remove("vivo", "ambar", "rojo");
+  if (cual) p.classList.add(cual);
+  p.title = detalle || "";
+}
+
+/* ── WS con reconexion (I): backoff exponencial 1,2,4,8...30 s. Al volver se
+   pide la transcripcion y se pintan SOLO las lineas posteriores a la ultima
+   persistida que ya se vio (S.vistas): asi no se pierde lo que salio mientras
+   el movil estaba sin red, ni se duplica lo que ya esta en pantalla. ── */
+function conectarWS(proyecto, sid) {
   const ws = new WebSocket(conToken(
     (location.protocol === "https:" ? "wss://" : "ws://") + location.host +
     `/ws/${proyecto.id}/${sid}`));
+  const reconexion = S.reintento > 0;
+  ws.onopen = async () => {
+    estadoConexion("vivo", "conectado");
+    S.reintento = 0;
+    if (reconexion) await reanudarDesdeUltima(proyecto, sid);
+  };
   ws.onmessage = ev => {
     const e = JSON.parse(ev.data);
+    // recuerda lo PERSISTIDO (lo que reaparece en la transcripcion): los
+    // delta no van al jsonl y el aviso de "perdidas" lo sintetiza el WS
+    if (e.quien !== "delta" && !e.perdidas) recordarVista(e);
     if (e.quien !== "usuario" && e.quien !== "meta")
-      burbuja(e.quien, e.texto, e.t, e.ag, true);
+      burbuja(e.quien, e.texto, e.t, e.ag, true, e);
   };
-  ws.onclose = () => $("estado-punto").classList.remove("vivo");
+  ws.onclose = ev => {
+    if (S.ws !== ws) return;                 // ya se abrio otra sesion
+    S.ws = null;
+    if (ev && ev.code === 4401) {            // token invalido: reintentar no arregla nada
+      estadoConexion("rojo", "token invalido");
+      burbuja("sistema", "conexión rechazada: token inválido");
+      return;
+    }
+    if (ev && ev.code === 4429) {
+      // demasiados intentos FALLIDOS desde esta IP (el servidor no bloquea al
+      // token bueno, asi que llegar aqui = el token de este movil es malo Y
+      // la IP esta bloqueada). El reason del servidor dice cuanto esperar;
+      // reintentar antes solo alarga el bloqueo.
+      const seg = parseInt(((ev.reason || "").match(/(\d+)\s*s/) || [])[1] || "60", 10);
+      estadoConexion("rojo", "demasiados intentos");
+      burbuja("sistema", "conexión rechazada: " + (ev.reason || "demasiados intentos, espera " + seg + " s"));
+      clearTimeout(S.wsTimer);
+      S.wsTimer = setTimeout(() => {
+        if (S.sesion === sid && S.proyecto && S.proyecto.id === proyecto.id)
+          conectarWS(proyecto, sid);
+      }, seg * 1000);
+      return;
+    }
+    const espera = Math.min(30, Math.pow(2, S.reintento)) * 1000;
+    S.reintento++;
+    estadoConexion("ambar", "reconectando en " + (espera / 1000) + " s");
+    clearTimeout(S.wsTimer);
+    S.wsTimer = setTimeout(() => {
+      if (S.sesion === sid && S.proyecto && S.proyecto.id === proyecto.id)
+        conectarWS(proyecto, sid);
+    }, espera);
+  };
+  ws.onerror = () => { /* el onclose que sigue programa el reintento */ };
   S.ws = ws;
+  return ws;
+}
+// huella de un evento persistido (para localizar "la ultima linea vista"
+// dentro de la transcripcion releida: el servidor devuelve las ULTIMAS 400,
+// asi que un indice absoluto no sirve en sesiones largas)
+const huella = e => (e.t || "") + "\u0001" + (e.quien || "") + "\u0001" + (e.texto || "");
+function recordarVista(e) {
+  S.ultimas.push(huella(e));
+  if (S.ultimas.length > 3) S.ultimas.shift();
+}
+// posicion, en `trans`, justo DESPUES de la ultima linea ya vista; -1 si no
+// se encuentra. Busca desde el final la secuencia de las 3 ultimas huellas
+// (dos lineas iguales seguidas en el mismo segundo no confunden) y cae a la
+// ultima sola si la sesion apenas tenia una.
+function posicionTrasVistas(trans) {
+  const hs = trans.map(huella);
+  for (let n = S.ultimas.length; n >= 1; n--) {
+    const patron = S.ultimas.slice(-n);
+    for (let i = hs.length - n; i >= 0; i--) {
+      let ok = true;
+      for (let k = 0; k < n && ok; k++) ok = hs[i + k] === patron[k];
+      if (ok) return i + n;
+    }
+  }
+  return -1;
+}
+async function reanudarDesdeUltima(proyecto, sid) {
+  let trans;
+  try {
+    trans = await api(`/api/proyectos/${proyecto.id}/sesiones/${sid}/transcripcion`);
+  } catch (e) { burbuja("sistema", "reconectado; no se pudo releer la transcripción: " + e); return; }
+  if (!Array.isArray(trans)) return;
+  const desde = S.ultimas.length ? posicionTrasVistas(trans) : 0;
+  if (desde < 0) {
+    // mas de 400 lineas nuevas (o el jsonl cambio): no hay donde engancharse
+    burbuja("sistema", "reconectado; pasaron demasiadas líneas para reanudar, reabre la sesión para verla entera");
+    return;
+  }
+  const nuevas = trans.slice(desde);
+  if (nuevas.length) {
+    burbuja("sistema", "reconectado · " + nuevas.length + " línea(s) recuperada(s)");
+    pintarTranscripcion(nuevas);
+  } else estadoConexion("vivo", "reconectado");
 }
 
-/* ── Enviar ── */
+/* ── Enviar (B): el texto viaja con sus "\n" TAL CUAL; el servidor lo
+   convierte en UNA entrada del REPL (continuacion " \"). Aqui no se toca. ── */
 async function enviar(texto) {
   if (!texto.trim()) return;
   if (!S.sesion) { alert("Abre una sesión primero."); return; }
+  recordarEnviado(texto);
   burbuja("usuario", texto, new Date().toTimeString().slice(0, 8));
-  await api(`/api/proyectos/${S.proyecto.id}/sesiones/${S.sesion}/mensaje`,
+  // ■ Detener se arma YA al enviar (no solo con el primer delta/progreso):
+  // medido 2026-08-25 con el 27B, "hola" paso 188 s en "pensando…" sin un
+  // solo delta; sin esto el movil no tenia como cortar justo cuando mas lo
+  // necesita. Si no habia nada que cortar, el servidor contesta ok=false.
+  marcarGenerando(true);
+  const r = await api(`/api/proyectos/${S.proyecto.id}/sesiones/${S.sesion}/mensaje`,
     {method: "POST", headers: {"Content-Type": "application/json"},
      body: JSON.stringify({texto})});
+  // 413 (body > 1 MB) / 400 (vacio) / 429: el fallo se VE, no se pierde
+  if (r && r.error) burbuja("sistema", "no se envió: " + r.error);
+  else if (r && r.detail && !r.ok) burbuja("sistema", "no se envió: " + r.detail);
 }
-$("enviar").onclick = () => { enviar($("entrada").value); $("entrada").value = ""; ocultarSug(); };
+$("enviar").onclick = () => {
+  enviar($("entrada").value); $("entrada").value = "";
+  $("entrada").style.height = "auto"; ocultarSug();
+};
+
+/* ── Historial de enviados (J): flechas arriba/abajo cuando el textarea esta
+   vacio o el cursor esta en la primera/ultima linea. Persistido en
+   localStorage (ultimos 50) para que sobreviva a recargar la PWA. ── */
+try { S.historial = JSON.parse(localStorage.getItem("historial") || "[]"); }
+catch (e) { S.historial = []; }
+function recordarEnviado(texto) {
+  if (S.historial[S.historial.length - 1] !== texto) S.historial.push(texto);
+  if (S.historial.length > 50) S.historial = S.historial.slice(-50);
+  S.hIdx = -1; S.hBorrador = "";
+  try { localStorage.setItem("historial", JSON.stringify(S.historial)); } catch (e) {}
+}
+// ¿el cursor esta en la primera (arriba) / ultima (abajo) linea del textarea?
+function cursorEnBorde(ta, arriba) {
+  const v = ta.value, pos = ta.selectionStart;
+  if (!v) return true;
+  return arriba ? !v.slice(0, pos).includes("\n") : !v.slice(pos).includes("\n");
+}
+function navegarHistorial(ta, arriba) {
+  if (!S.historial.length) return false;
+  if (S.hIdx === -1) {
+    if (!arriba) return false;
+    S.hBorrador = ta.value; S.hIdx = S.historial.length - 1;
+  } else if (arriba) {
+    if (S.hIdx === 0) return true;
+    S.hIdx--;
+  } else {
+    S.hIdx++;
+    if (S.hIdx >= S.historial.length) { S.hIdx = -1; ta.value = S.hBorrador; return true; }
+  }
+  ta.value = S.historial[S.hIdx];
+  // NO se dispara "input": ese handler resetea hIdx (teclear sale del
+  // historial) y la segunda flecha volvia a empezar por el ultimo
+  ajustarAltura(ta);
+  ta.selectionStart = ta.selectionEnd = ta.value.length;
+  return true;
+}
+function ajustarAltura(ta) {
+  ta.style.height = "auto";
+  ta.style.height = Math.min(ta.scrollHeight, 110) + "px";
+}
+
 $("entrada").addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("enviar").click(); }
+  const ta = e.target;
+  // sugerencias visibles: las flechas/Tab/Enter las manejan ELLAS
+  if (sug.classList.contains("visible")) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault(); moverSug(e.key === "ArrowDown" ? 1 : -1); return;
+    }
+    if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+      // Enter con una sugerencia de FICHERO completa; con un comando ya
+      // escrito entero (p.ej. "/ayuda") Enter debe ENVIAR, no re-completar
+      const act = sug.querySelector(".sug.activa");
+      if (act && (e.key === "Tab" || act.dataset.tipo === "fichero" ||
+                  act.dataset.valor !== ta.value.trim())) {
+        e.preventDefault(); act.click(); return;
+      }
+    }
+    if (e.key === "Escape") { ocultarSug(); return; }
+  }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("enviar").click(); return; }
+  if (e.key === "ArrowUp" && cursorEnBorde(ta, true) && navegarHistorial(ta, true)) e.preventDefault();
+  else if (e.key === "ArrowDown" && cursorEnBorde(ta, false) && navegarHistorial(ta, false)) e.preventDefault();
 });
 
 /* ── Dictado por voz (STT): hablarle a Cognia desde el móvil ── */
@@ -1163,26 +1626,140 @@ $("jarvis-mic").onclick = alternarMic;
 document.querySelectorAll(".chip[data-cmd]").forEach(ch =>
   ch.onclick = () => enviar(ch.dataset.cmd));
 
-/* ── Sugerencias ── */
+/* ── Sugerencias: comandos (fuzzy, J) y ficheros con @ (F) ── */
 api("/api/comandos").then(c => S.comandos = c);
 const sug = $("sugerencias");
-function ocultarSug() { sug.classList.remove("visible"); }
-$("entrada").addEventListener("input", () => {
-  const v = $("entrada").value;
-  if (!v.startsWith("/")) { ocultarSug(); return; }
-  const q = v.toLowerCase();
-  const hits = S.comandos.filter(c => c.cmd.toLowerCase().startsWith(q)).slice(0, 30);
-  if (!hits.length) { ocultarSug(); return; }
+function ocultarSug() { sug.classList.remove("visible"); sug.innerHTML = ""; }
+// resalta otra fila (flechas); la activa es la que completa Tab/Enter
+function moverSug(delta) {
+  const filas = [...sug.querySelectorAll(".sug")];
+  if (!filas.length) return;
+  let i = filas.findIndex(f => f.classList.contains("activa"));
+  i = (i + delta + filas.length) % filas.length;
+  filas.forEach((f, k) => f.classList.toggle("activa", k === i));
+  filas[i].scrollIntoView({block: "nearest"});
+}
+// puntuacion fuzzy por SUBSECUENCIA: 3 = prefijo, 2 = substring, 1 = las
+// letras de q aparecen en orden en cmd ("/vlc" casa "/velocidad"), 0 = no.
+// Con /ayuda, /ver, /estado... el prefijo solo se quedaba corto en el movil
+// (se teclea peor y se recuerda la mitad del nombre).
+function puntuarFuzzy(q, cmd) {
+  q = q.toLowerCase(); cmd = cmd.toLowerCase();
+  if (!q) return 3;
+  if (cmd.startsWith(q)) return 3;
+  if (cmd.includes(q)) return 2;
+  let i = 0;
+  for (const ch of cmd) if (ch === q[i]) i++;
+  return i === q.length ? 1 : 0;
+}
+function pintarSug(filas) {
   sug.innerHTML = "";
-  for (const h of hits) {
+  filas.forEach((f, k) => {
     const d = document.createElement("div");
-    d.className = "sug";
-    d.innerHTML = `<div class="c">${h.cmd}</div><div class="d">${h.desc}</div>`;
-    d.onclick = () => { $("entrada").value = h.cmd + " "; $("entrada").focus(); ocultarSug(); };
+    d.className = "sug" + (k === 0 ? " activa" : "");
+    d.dataset.tipo = f.tipo; d.dataset.valor = f.valor;
+    const c = document.createElement("div");
+    c.className = "c" + (f.tipo === "fichero" ? " fichero" : "");
+    c.textContent = f.titulo;
+    d.appendChild(c);
+    if (f.desc) { const dd = document.createElement("div"); dd.className = "d"; dd.textContent = f.desc; d.appendChild(dd); }
+    d.onclick = f.alElegir;
     sug.appendChild(d);
+  });
+  sug.classList.toggle("visible", filas.length > 0);
+}
+// el token "@..." que se esta tecleando justo antes del cursor (o null)
+function mencionEnCurso(ta) {
+  const antes = ta.value.slice(0, ta.selectionStart);
+  const m = /(^|\s)@([^\s@]*)$/.exec(antes);
+  return m ? {inicio: antes.length - m[2].length - 1, q: m[2]} : null;
+}
+let _timerFicheros = 0, _ultimaQ = null;
+async function sugerirFicheros(ta, men) {
+  if (!S.proyecto) { ocultarSug(); return; }
+  let items;
+  try {
+    const r = await api(`/api/proyectos/${S.proyecto.id}/ficheros?q=${encodeURIComponent(men.q)}`);
+    items = (r && Array.isArray(r.items)) ? r.items : [];
+  } catch (e) { items = []; }
+  // la consulta pudo quedar vieja mientras llegaba (se siguio tecleando)
+  const ahora = mencionEnCurso(ta);
+  if (!ahora || ahora.q !== men.q) return;
+  pintarSug(items.slice(0, 30).map(ruta => ({
+    tipo: "fichero", valor: "@" + ruta, titulo: "@" + ruta, desc: "",
+    alElegir: () => {
+      const m = mencionEnCurso(ta) || men;
+      const fin = ta.selectionStart;
+      ta.value = ta.value.slice(0, m.inicio) + "@" + ruta + " " + ta.value.slice(fin);
+      ta.selectionStart = ta.selectionEnd = m.inicio + ruta.length + 2;
+      ta.focus(); ocultarSug();
+    },
+  })));
+}
+$("entrada").addEventListener("input", () => {
+  const ta = $("entrada");
+  const v = ta.value;
+  S.hIdx = -1;                       // teclear sale del historial
+  const men = mencionEnCurso(ta);
+  if (men) {
+    clearTimeout(_timerFicheros);
+    _timerFicheros = setTimeout(() => sugerirFicheros(ta, men), 120);
+    return;
   }
-  sug.classList.add("visible");
+  if (!v.startsWith("/") || v.includes("\n")) { ocultarSug(); return; }
+  const q = v.split(/\s/)[0];
+  if (v.trim().includes(" ")) { ocultarSug(); return; }   // ya hay argumentos
+  const hits = S.comandos
+    .map(c => ({c, p: puntuarFuzzy(q, c.cmd)}))
+    .filter(x => x.p > 0)
+    .sort((a, b) => b.p - a.p || a.c.cmd.localeCompare(b.c.cmd))
+    .slice(0, 30);
+  pintarSug(hits.map(({c}) => ({
+    tipo: "comando", valor: c.cmd, titulo: c.cmd, desc: c.desc || "",
+    alElegir: () => { ta.value = c.cmd + " "; ta.focus(); ocultarSug(); },
+  })));
 });
+
+/* ── Adjuntar (F): sube a POST /api/proyectos/{pid}/subir (multipart, campo
+   "archivo") y mete la mencion devuelta en el textarea. El tope (20 MB) y las
+   extensiones los impone el servidor; aqui el fallo se muestra, no se traga. ── */
+$("btn-adjuntar").onclick = () => {
+  if (!S.proyecto) { alert("Abre un proyecto y una sesión primero."); return; }
+  $("adjunto").click();
+};
+$("adjunto").addEventListener("change", async function () {
+  const f = this.files && this.files[0];
+  this.value = "";
+  if (!f) return;
+  await subirAdjunto(f);
+});
+async function subirAdjunto(f) {
+  const b = $("btn-adjuntar");
+  b.classList.add("subiendo");
+  try {
+    const fd = new FormData();
+    fd.append("archivo", f, f.name);
+    const r = await fetch(`/api/proyectos/${S.proyecto.id}/subir`,
+      {method: "POST", headers: {"X-Cognia-Token": TOKEN}, body: fd});
+    let j = {};
+    try { j = await r.json(); } catch (e) { j = {error: "respuesta no JSON"}; }
+    if (!r.ok || !j.mencion) {
+      burbuja("sistema", "no se pudo subir " + f.name + ": " + (j.error || j.detail || r.status));
+      return null;
+    }
+    const ta = $("entrada");
+    const pos = ta.selectionStart || ta.value.length;
+    const sep = pos && !/\s$/.test(ta.value.slice(0, pos)) ? " " : "";
+    ta.value = ta.value.slice(0, pos) + sep + j.mencion + " " + ta.value.slice(pos);
+    ta.selectionStart = ta.selectionEnd = pos + sep.length + j.mencion.length + 1;
+    ta.dispatchEvent(new Event("input"));
+    ta.focus();
+    return j;
+  } catch (e) {
+    burbuja("sistema", "no se pudo subir " + f.name + ": " + e);
+    return null;
+  } finally { b.classList.remove("subiendo"); }
+}
 
 /* ── Paneles ── */
 async function refrescarPaneles() {
@@ -1993,10 +2570,7 @@ function abrirPanel(cual) {
   if (cual === "grafo") pintarGrafoVisual();
 }
 
-$("entrada").addEventListener("input", function () {
-  this.style.height = "auto";
-  this.style.height = Math.min(this.scrollHeight, 110) + "px";
-});
+$("entrada").addEventListener("input", function () { ajustarAltura(this); });
 </script>
 </body>
 </html>
