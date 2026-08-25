@@ -14214,3 +14214,34 @@ cognia> /confianza  -> via web lite · ultimo turno [previa] via youtube+web · 
 Fusionado en main: rama deepagents-ideas (port de deepagents + pulido del CLI, 406 tests dirigidos, 26/26 goldens).
 Pendientes de fusion: remoto-paridad y modo-bots (arreglos de los revisores en curso; los agentes de arreglos de
 la noche murieron por el limite de sesion a las 02:10).
+
+## 2026-08-25 11:50 — 4.12.0 publicada e instalada (Modo Bots + remoto con paridad + deepagents + pulido)
+
+Fusiones en main: 4011b9c3 (deepagents-ideas: port de deepagents + pulido), 428c3654 (remoto-paridad), ca8a35ea
+(modo-bots). La de remoto reindentaba el cuerpo entero del bucle del REPL (2 conflictos de 626 y 521 lineas): se
+resolvio con un merge a TRES BANDAS sobre versiones reindentadas (script reindent.py + git merge-file) -> 0
+conflictos reales, verificado por construccion (diff(remoto, resultado) == diff(base', main')). Un fallo de
+integracion que no existia en ninguna rama sola lo cazaron los tests: /decirle y /cancelar desbordaban la
+categoria "Agente y tareas" de /ayuda (27 > 25); recolocados en harness/ayuda.py.
+Verificacion tras las fusiones: 885 tests dirigidos, 26/26 goldens, tecleado real, remoto real (hola, volatil,
+interrumpir con el mismo pid, /api/bots), gate e2e 5/5 (2,0 min).
+Release: build + twine check PASSED; venv LIMPIO (cognia.bots, cognia.remoto.bots_api, via web lite,
+`python -m cognia.bots estado`, `python -m cognia.remoto --help`); https://pypi.org/project/cognia-ai/4.12.0/ ;
+tag v4.12.0; instalada en ~/.cognia/venv al primer intento, pip check limpio, 0 residuos `~`.
+Tecleado con el CLI INSTALADO (Qwythos-9B, 37 s de pared para 8 comandos):
+```
+cognia> cuantos suscriptores tiene The Acua Boy en YouTube?
+◐ confianza a priori BAJA: ... → investigando en la web…
+  The Acua Boy, @theacuaboy170, sits at 4,630 YouTube subscribers [1].
+◐ confianza MEDIA (0,80) · 1 fuente: youtube.com     ✓ 9.5s · ctx ~95% libre
+cognia> /bots crear ayudante --titulo "Ayudante de pruebas"   -> creado ❖ ayudante (Ayudante de pruebas)
+cognia> /bots  -> ❖ ayudante  Ayudante de prue  hereda  idle  ult:nunca rut:-  inbox:0 / daemon: no corre
+cognia> /bots enviar ayudante cual es la capital de Italia? responde en una palabra   -> Roma
+cognia> /remoto  -> control remoto off · puerto 8777 (nadie escucha) · URL · token · PID servidor
+cognia> /contexto prompt  -> system agente nativo 2287 chars ~572 tok · indice de skills 2310 · schemas (15 tools) 5533 ...
+cognia> /ayuda todo  -> lista /bots /remoto /contexto /confianza /decirle /cancelar /skills /memoria /bucle
+```
+Limites declarados en esta release: `mensaje_bot` no cuenta como avance verificado en loop.py (paliativo
+`resultado_util`); el freno por ventana de mensaje_bot (4/10 min) corta antes que max_hops; un turno headless de
+bot puede preguntar `[permiso] (s/n)` sin tty; una senal de interrupcion durante una llamada bloqueada en el
+backend se aplica al volver (7-155 s medidos); el titulo del bot se recorta a 16 chars en el roster.
