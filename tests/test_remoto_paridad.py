@@ -832,7 +832,8 @@ def _hijo_cognia_falso(tmp_path):
     pk.mkdir(parents=True, exist_ok=True)
     (pk / "__init__.py").write_text("")
     (pk / "__main__.py").write_text("import time; time.sleep(60)")
-    env = dict(os.environ, PYTHONPATH=str(tmp_path / "pkgfalso"))
+    env = dict(os.environ, PYTHONPATH=str(tmp_path / "pkgfalso"),
+               COGNIA_EFIMERO="1")  # sin rastro en la memoria del dueno
     return subprocess.Popen([sys.executable, "-m", "cognia"], cwd=str(tmp_path),
                             env=env, **_ses._flags_grupo_propio())
 

@@ -631,10 +631,23 @@ def _falso_run_que_observa(capt):
 
 
 def _filas_episodicas(db) -> int:
+    """Episodios DE CONVERSACION: excluye el curriculo estatico.
+
+    Cognia.__init__ lanza un HILO (KnowledgeSeeder.seed_static) que siembra
+    ~39 filas 'conocimiento_*'. Contarlas hacia que este test dependiera de
+    cuando aterrizara ese hilo: aislado pasaba (el hilo aun no habia escrito
+    al medir 'antes') y despues de tests/test_cli_confianza.py fallaba con
+    'assert 4 == 0' o 'assert 39 == 0' (medido 2026-08-25; las 39 filas
+    resultaron ser GIL/HTTP/algebra..., ninguna del turno del bot). Lo que
+    este test afirma es que el turno del BOT no escribe en la memoria del
+    dueno, asi que se cuenta solo eso."""
     if not Path(db).is_file():
         return 0
     with sqlite3.connect(str(db)) as c:
-        return c.execute("select count(*) from episodic_memory").fetchone()[0]
+        return c.execute(
+            "select count(*) from episodic_memory "
+            "where label is null or label not like 'conocimiento_%'"
+        ).fetchone()[0]
 
 
 def test_turno_de_bot_no_toca_la_memoria_ni_el_historial_del_dueno(entorno, monkeypatch, tmp_path):

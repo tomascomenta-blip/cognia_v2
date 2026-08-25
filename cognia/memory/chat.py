@@ -4,9 +4,29 @@ cognia/memory/chat.py
 Historial de conversación y perfil de usuario.
 """
 
+import os
+
 from datetime import datetime
 from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
+
+
+def sesion_efimera() -> bool:
+    """True si esta corrida NO debe dejar rastro en la memoria del dueno.
+
+    POR QUE (incidente 2026-08-25): las pruebas e2e de la manana (REPL por
+    stdin desde worktrees/Temp preguntando por MrBeast, Acua Boy, ...) se
+    guardaron en el chat_history REAL, y a las 11:52 la continuidad le
+    restauro esos 20 mensajes al dueno ("Hace rato que no te veo, MrBeast").
+    El anticuerpo es un modo efimero OPT-IN por env: COGNIA_EFIMERO=1 apaga
+    la escritura en chat_history y user_profile (los gates viven en las
+    clases de este modulo, asi cubren TODAS las vias: streaming, agente y
+    articulada, que loguea por su cuenta en respuestas_articuladas.py).
+    Se lee en CADA llamada, no en el import: los tests lo activan con
+    monkeypatch.setenv despues de importar, y un valor congelado al import
+    los dejaria escribiendo igual.
+    """
+    return os.environ.get("COGNIA_EFIMERO", "").strip() == "1"
 
 
 class ChatHistory:
@@ -36,7 +56,16 @@ class ChatHistory:
         Devolver el id permite que el caller cree punteros 'msg' en el context
         map (context_engine.record_conversation con user_msg_id/assistant_msg_id)
         sin duplicar el texto. Retrocompatible: los callers que ignoran el
-        retorno siguen funcionando igual."""
+        retorno siguen funcionando igual.
+
+        En sesion EFIMERA (COGNIA_EFIMERO=1) devuelve None SIN insertar: es el
+        gate central contra la contaminacion del historial del dueno por
+        pruebas e2e/agentes (ver sesion_efimera()). Devolver None es seguro:
+        el unico consumidor del rowid (record_conversation del context map)
+        va detras de /contexto-auto, que en una sesion efimera no tiene
+        sentido encender."""
+        if sesion_efimera():
+            return None
         conn = db_connect(self.db)
         try:
             c = conn.cursor()
@@ -77,7 +106,7 @@ class ChatHistory:
             conn.close()
         return list(reversed(rows))
 
-    def get_recent_turns(self, n: int = 20) -> list:
+    def get_recent_turns(self, n: int = 20, cwd: str = None) -> list:
         """
         Full-content user/assistant turns for restoring conversation continuity
         across restarts (seeds the REPL's in-memory _history buffer).
@@ -86,14 +115,33 @@ class ChatHistory:
         roles are returned, in chronological (oldest-first) order. Ordered by id
         (monotonic autoincrement) rather than the textual timestamp so ties and
         clock quirks can't scramble turn order.
+
+        cwd: si viene, SOLO turnos de sesiones que corrieron en ese directorio
+        (COLLATE NOCASE: en Windows C:\\proy y c:\\proy son el mismo). POR QUE
+        (incidente 2026-08-25): la continuidad restauraba los ultimos 20
+        mensajes de CUALQUIER directorio, y al dueno en Desktop le aparecieron
+        los turnos de unas pruebas e2e corridas en worktrees/Temp ("Hace rato
+        que no te veo, MrBeast"). Las filas viejas sin cwd (NULL, anteriores a
+        la era session_id/cwd) quedan FUERA cuando se filtra: no hay forma de
+        saber de donde eran, y restaurarlas repetiria el bug con otro disfraz.
+        Sin cwd, el comportamiento historico (todo) se conserva para los
+        callers que quieren el corpus entero.
         """
         conn = db_connect(self.db)
         c = conn.cursor()
-        c.execute("""
-            SELECT role, content FROM chat_history
-            WHERE role IN ('user', 'assistant')
-            ORDER BY id DESC LIMIT ?
-        """, (n,))
+        if cwd:
+            c.execute("""
+                SELECT role, content FROM chat_history
+                WHERE role IN ('user', 'assistant')
+                  AND cwd = ? COLLATE NOCASE
+                ORDER BY id DESC LIMIT ?
+            """, (cwd, n))
+        else:
+            c.execute("""
+                SELECT role, content FROM chat_history
+                WHERE role IN ('user', 'assistant')
+                ORDER BY id DESC LIMIT ?
+            """, (n,))
         rows = [{"role": r[0], "content": r[1]} for r in c.fetchall()]
         conn.close()
         return list(reversed(rows))
@@ -196,6 +244,14 @@ class UserProfile:
         self.db = db_path
 
     def set(self, key: str, value: str):
+        """Upsert de un rasgo del perfil.
+
+        En sesion EFIMERA (COGNIA_EFIMERO=1) NO escribe: los rasgos adapt_*
+        (nombre, idioma, verbosidad) los aprende learn_user_traits de CADA
+        mensaje libre, asi que una prueba e2e que teclea "soy MrBeast"
+        pisaria el adapt_nombre REAL del dueno (paso el 2026-08-25)."""
+        if sesion_efimera():
+            return
         conn = db_connect(self.db)
         try:
             c = conn.cursor()

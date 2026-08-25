@@ -114,7 +114,11 @@ _SYSTEM_V1 = (
     "tocar que empeorar.\n"
     "6. Tu salida es SOLO el prompt reformulado: sin preambulo, sin comillas, "
     "sin markdown de envoltorio, sin explicar lo que cambiaste.\n"
-    "7. Los tokens que empiezan por '@' (por ejemplo @cognia/cli.py) son "
+    "7. Conserva la intencion y el SUJETO de la accion: si el usuario pide "
+    "que el asistente HAGA algo, la version mejorada sigue pidiendo que el "
+    "asistente lo haga. Nunca conviertas una orden en preguntas al usuario "
+    "ni en un plan para que lo ejecute el usuario.\n"
+    "8. Los tokens que empiezan por '@' (por ejemplo @cognia/cli.py) son "
     "MARCADORES de la herramienta, no prosa: copialos LITERALES, con su '@', "
     "sin convertirlos en 'el fichero X'. Si los borras, el usuario pierde el "
     "fichero adjunto."
@@ -144,6 +148,12 @@ _SYSTEM_V2 = (
     "- Cambiar la intencion, el idioma, el tono o el sujeto. Lo que el usuario "
     "marca como suyo sigue siendo suyo: 'organizame el escritorio' habla del "
     "escritorio DEL USUARIO, no de un escritorio cualquiera.\n"
+    "- Cambiar QUIEN ejecuta la accion. Si el usuario pide que el asistente "
+    "HAGA algo ('limpia mis descargas', 'quiero que borres los duplicados'), "
+    "la version mejorada sigue pidiendo que el asistente lo HAGA: nunca la "
+    "conviertas en un plan 'para que yo lo haga', en instrucciones que el "
+    "usuario deba ejecutar ni en una lista de preguntas que reemplace a la "
+    "accion.\n"
     "- Hablar del usuario en tercera persona. El prompt lo va a enviar el "
     "propio usuario, asi que se escribe con 'mi', 'me' y 'preguntame'; nunca "
     "'el usuario', 'su escritorio' ni 'preguntale'.\n"
@@ -266,6 +276,16 @@ _SYSTEM_V3 = _SYSTEM_V2.replace(_ANCLA_CIERRE, _EJEMPLOS_V3 + _ANCLA_CIERRE, 1)
 # n=2: 29 chars; v2 n=24: 382), porque v1 casi nunca produjo salida.
 # COGNIA_MEJORA_PROMPT=v1 devuelve el comportamiento anterior; =v3 prueba el
 # estilo con mas formas de ejemplo (sin medir todavia).
+#
+# ENMIENDA 2026-08-25 (transcript real del dueno, 11:52): "bueno quiero que
+# limpies todas las capturas de pantalla en mi computador porfavor" salio
+# reformulado como "Arma un plan de limpieza para que YO elimine... preguntame
+# en que directorio..." -- la orden al asistente se convirtio en un plan con
+# preguntas PARA EL USUARIO. Los tres system llevan desde entonces la regla
+# "conserva quien ejecuta la accion". La clausula NO esta medida en A/B (v2 ya
+# no es byte-identico al brazo del 2026-08-19); lo que la respalda no es el
+# prompt sino el post-check DETERMINISTA `cambio_de_intencion` (abajo), que
+# descarta la salida aunque el modelo ignore la regla.
 VERSIONES_SYSTEM = {"v1": _SYSTEM_V1, "v2": _SYSTEM_V2, "v3": _SYSTEM_V3}
 VERSION_DEFECTO = "v2"
 ENV_VERSION = "COGNIA_MEJORA_PROMPT"
@@ -452,16 +472,193 @@ def _parece_respuesta(texto: str) -> bool:
     return bool(_MARCAS_CODIGO.search(texto))
 
 
+# ------------------------------------------------- ordenes de accion (2026-08-25)
+# POR QUE existe esta seccion: transcript real del dueno (2026-08-25, 11:52).
+# Teclea "bueno quiero que limpies todas las capturas de pantalla en mi
+# computador porfavor" con mejorar_prompt=preguntar y la "mejora" se la
+# devuelve como "Arma un plan de limpieza para que yo elimine... Antes de
+# ejecutar nada, preguntame en que directorio... que formato de respuesta
+# prefieres": una ORDEN (que Cognia lo haga) convertida en un plan con
+# preguntas para que lo haga el usuario. El dueno la ignoro y la retecleo.
+# Dos defensas, en capas:
+#   1) es_candidato devuelve False para ordenes cortas de accion: la mejora
+#      existe para peticiones AMBIGUAS o largas (/hacer, /crear), no para
+#      ordenes que ya dicen que hacer -- reformularlas solo mete un menu entre
+#      el dueno y la accion.
+#   2) `cambio_de_intencion` (post-check determinista en sanear_salida) tira
+#      la salida cuando el original ordenaba al asistente y la mejora le
+#      devuelve la accion al usuario -- vale para F3 y '/mejorar <texto>',
+#      que aceptan ordenes a proposito.
+
+# Tope de palabras para los MARCADORES de orden en es_candidato ("quiero que",
+# "puedes", verbo imperativo). Una peticion larga (> 25 palabras) ya trae
+# contexto y matices: ahi reformular si puede aportar, y el dueno la revisa en
+# el menu. El transcript entero cabe holgado (12 palabras la linea mas larga).
+_MAX_PALABRAS_ORDEN = 25
+
+# Muletillas de apertura que no cambian la clase de la linea ("bueno quiero
+# que..." es la misma orden que "quiero que..."). intent._PREFIJOS_DESEO no
+# pela "bueno", y justo asi empezo la linea del transcript.
+_RE_MULETILLAS = re.compile(
+    r"^(?:bueno|ok|okay|vale|dale|che|oye|hey|hola|mira|pues|entonces|"
+    r"a ver|por ?favor|porfa|porfavor)[\s,.:;!]+")
+
+# "quiero/necesito que <verbo>": el usuario le esta ORDENANDO al asistente.
+# Admite cliticos en medio ("quiero que ME limpies").
+_RE_PIDE_QUE = re.compile(
+    r"^(?:yo\s+)?(?:quiero|quisiera|necesito|deseo|me gustaria|espero|"
+    r"te pido)\s+que\b")
+# Cortesia que envuelve una orden ("puedes limpiar...", "podrias borrar...").
+_RE_CORTESIA_ORDEN = re.compile(
+    r"^(?:puedes|podes|podrias|podria|puede|hazme el favor|haceme el favor)\b")
+# "hazlo (tu)": la unidad de accion es el ASISTENTE, dicho con todas las letras.
+_RE_HAZLO = re.compile(r"\b(?:hazlo|hacelo|encargate|hazte cargo|ocupate)\b")
+# Reclamo por una accion no ejecutada ("no los ejecutaste", "no lo hiciste"):
+# es la continuacion de una orden, no una peticion nueva que reformular.
+_RE_RECLAMO = re.compile(
+    r"^no\s+(?:lo|los|la|las|me|te|nos)\s+\S+"
+    r"|^no\s+\S+(?:aste|iste|aron|ieron)\b")
+# "que (tu|cognia) lo hagas": orden con el ejecutor nombrado.
+_RE_QUE_TU = re.compile(
+    r"\bque\s+(?:tu|vos|usted|cognia)\s+(?:lo|la|los|las|me)?\s*\w+")
+
+# Copia LOCAL minima de los imperativos que abren una orden. La lista completa
+# vive en cognia.agent.intent (_ACTION_VERBS / _ACTION_VERBS_EXTRA) y se suma
+# en runtime; esta copia es el paracaidas para que un intent roto no deje las
+# ordenes del transcript pasando otra vez (cubre sus 4 lineas + "borra ...").
+_VERBOS_ORDEN_LOCAL = frozenset((
+    "haz", "hazme", "hace", "haceme", "crea", "borra", "elimina", "limpia",
+    "mueve", "copia", "renombra", "instala", "descarga", "ejecuta", "corre",
+    "abre", "cierra", "apaga", "arranca", "captura",
+))
+
+_VERBOS_ACCION_CACHE = [None]
+
+
+def _verbos_accion() -> frozenset:
+    """Imperativos/subjuntivos de accion: los de intent + la copia local."""
+    if _VERBOS_ACCION_CACHE[0] is None:
+        verbos = set(_VERBOS_ORDEN_LOCAL)
+        try:
+            from cognia.agent import intent as _intent
+            verbos |= set(_intent._ACTION_VERBS)
+            verbos |= set(_intent._ACTION_VERBS_EXTRA)
+        except Exception:
+            # Degradacion DOCUMENTADA, no silencio: sin intent queda la copia
+            # local de arriba, que cubre los casos del transcript. El fallo de
+            # import de intent se grita donde importa (el enrutador del CLI lo
+            # importa en su propio camino), no aca.
+            pass
+        _VERBOS_ACCION_CACHE[0] = frozenset(verbos)
+    return _VERBOS_ACCION_CACHE[0]
+
+
+def orden_al_asistente(texto: str,
+                       tope_palabras: Optional[int] = None) -> str:
+    """Motivo ('' si no) por el que `texto` es una ORDEN de accion dirigida al
+    asistente. Con `tope_palabras`, los MARCADORES ("quiero que", cortesia,
+    verbo imperativo) solo cuentan hasta ese largo; la via de intent.detect
+    (needs_agent) no tiene tope: si el enrutador la mandaria al agente, la
+    linea es una orden mida lo que mida."""
+    plano = _colapsar(_norm(texto if isinstance(texto, str) else ""))
+    if not plano:
+        return ""
+    # (a) el clasificador del agente ya la reconoce como accion: es la misma
+    # senal que decide needs_agent en el enrutador, sin duplicar sus reglas.
+    try:
+        from cognia.agent.intent import detect as _detect
+        it = _detect(plano)
+        if it.needs_agent:
+            return "el clasificador del agente la marca accion ({})".format(
+                it.reason)
+    except Exception:
+        # Mismo criterio que _verbos_accion: sin intent siguen los marcadores
+        # de abajo, que cazan las 4 lineas del transcript por si solos.
+        pass
+    if tope_palabras is not None and len(plano.split()) > tope_palabras:
+        return ""
+    pelado = _RE_MULETILLAS.sub("", plano).strip() or plano
+    if _RE_PIDE_QUE.match(pelado):
+        return "empieza por 'quiero/necesito que <verbo>'"
+    if _RE_CORTESIA_ORDEN.match(pelado):
+        return "cortesia que envuelve una orden ('puedes/podrias...')"
+    if _RE_HAZLO.search(pelado):
+        return "contiene 'hazlo/encargate'"
+    if _RE_RECLAMO.match(pelado):
+        return "reclama por una accion no ejecutada"
+    if _RE_QUE_TU.search(pelado):
+        return "nombra al asistente como ejecutor ('que tu/cognia ...')"
+    primera = pelado.split()[0] if pelado.split() else ""
+    if primera in _verbos_accion():
+        return "empieza por el imperativo '{}'".format(primera)
+    return ""
+
+
+# Marcas de que la reformulacion le DEVOLVIO la accion al usuario. Todas
+# salieron literales del transcript ("para que yo elimine", "que formato de
+# respuesta prefieres", "Antes de ejecutar nada"). Solo se miran cuando el
+# ORIGINAL era una orden al asistente: en una peticion ambigua son fraseo
+# normal de v2.
+_MARCAS_DEVOLUCION = (
+    ("para que yo", re.compile(r"\bpara que yo\b")),
+    ("que formato prefieres", re.compile(
+        r"\bque formato(?:\s+de\s+\w+)?\s+(?:prefieres|preferis|quieres)\b")),
+    ("antes de ejecutar/hacer nada", re.compile(
+        r"\bantes de (?:ejecutar|hacer) nada\b")),
+    ("instrucciones para el usuario", re.compile(
+        r"\bpara que (?:el usuario|tu) lo (?:haga|hagas|ejecute|ejecutes)\b")),
+)
+
+# 'preguntame' a secas NO delata nada: una reformulacion legitima de una orden
+# puede pedir datos y seguir ejecutando el asistente ("Organiza mi escritorio.
+# Antes de mover nada, preguntame que hay encima" -- el EJEMPLO 3 de v3, y el
+# caso 'organizame' medido del A/B). Lo que delata es la COMBINACION: preguntas
+# + el entregable convertido en un PLAN que el original no pidio ("Arma un plan
+# de limpieza... preguntame en que directorio", transcript 2026-08-25).
+_RE_PREGUNTAME = re.compile(r"\bpreguntame\b")
+_RE_PLAN_NUEVO = re.compile(
+    r"\b(?:arma|armar|prepara|preparar|redacta|redactar|escribe|escribir"
+    r"|elabora|elaborar|disena|disenar|crea|crear)\b[^.]{0,40}\bplan\b")
+
+
+def cambio_de_intencion(original: str, mejora: str) -> str:
+    """Motivo ('' si no) por el que `mejora` cambia la INTENCION de `original`:
+    el original le ordenaba una accion al asistente y la mejora se la devuelve
+    al usuario (plan "para que yo", preguntas en vez de accion). Determinista a
+    proposito: es la red que aguanta aunque el modelo ignore la regla del
+    system prompt. Sin tope de palabras: una orden larga devuelta al usuario
+    cambia la intencion igual que una corta."""
+    motivo_orden = orden_al_asistente(original)
+    if not motivo_orden:
+        return ""
+    plano = _norm(mejora if isinstance(mejora, str) else "")
+    for nombre, patron in _MARCAS_DEVOLUCION:
+        if patron.search(plano):
+            return ("el original ordenaba al asistente ({}) y la mejora se la "
+                    "devuelve al usuario ('{}')".format(motivo_orden, nombre))
+    if (_RE_PREGUNTAME.search(plano) and _RE_PLAN_NUEVO.search(plano)
+            and "plan" not in _norm(original)):
+        return ("el original ordenaba al asistente ({}) y la mejora lo "
+                "convierte en un plan con preguntas ('arma un plan' + "
+                "'preguntame')".format(motivo_orden))
+    return ""
+
+
 # ---------------------------------------------------------------- API publica
 
-def es_candidato(texto: str, *, minimo_chars: int = 12) -> bool:
+def es_candidato(texto: str, *, minimo_chars: int = 12,
+                 rechazar_ordenes: bool = True) -> bool:
     """True si vale la pena reformular esta linea.
 
     Se descartan los casos donde reformular no aporta o rompe algo: comandos
     slash y '!' (los interpreta el CLI, no el modelo), lineas cortisimas (no
     hay nada que precisar), documentos pegados (> MAX_CHARS: caro, y quien
-    pega 4000 chars ya escribio su prompt) y las lineas de la cola de
-    inyeccion del REPL, que llevan un centinela NUL y NO son texto tecleado.
+    pega 4000 chars ya escribio su prompt), las lineas de la cola de
+    inyeccion del REPL, que llevan un centinela NUL y NO son texto tecleado,
+    y -- con `rechazar_ordenes`, el default -- las ORDENES cortas de accion
+    (ver orden_al_asistente). `rechazar_ordenes=False` es para los caminos
+    donde reformular fue un pedido EXPLICITO del usuario (F3): ahi la orden
+    se acepta y quien protege la intencion es el post-check de sanear_salida.
     """
     if not isinstance(texto, str):
         return False
@@ -477,6 +674,14 @@ def es_candidato(texto: str, *, minimo_chars: int = 12) -> bool:
     if len(limpio) < minimo_chars:
         return False
     if len(limpio) > MAX_CHARS:
+        return False
+    if rechazar_ordenes and orden_al_asistente(
+            limpio, tope_palabras=_MAX_PALABRAS_ORDEN):
+        # Una ORDEN corta de accion ("quiero que limpies...", "borra...",
+        # "hazlo") no se reformula: ya dice que hacer y quien (el asistente).
+        # La mejora es para peticiones ambiguas o largas; meterse aqui solo
+        # pone un menu -- o peor, una reescritura que cambia la intencion --
+        # entre el dueno y la accion (transcript 2026-08-25).
         return False
     return True
 
@@ -549,6 +754,16 @@ def sanear_salida(bruto: str, original: str) -> tuple:
         # Contesto la peticion en lugar de reformularla. Enviar esto haria que
         # el cerebro respondiera a una respuesta: el turno se pierde entero.
         return texto, "el modelo respondio en vez de reformular"
+
+    motivo_intencion = cambio_de_intencion(base, texto)
+    if motivo_intencion:
+        # La orden al asistente volvio como plan/preguntas PARA EL USUARIO
+        # (transcript 2026-08-25). Enviar esto invierte quien ejecuta: el
+        # dueno pidio que Cognia lo haga y recibe tarea para el. Se descarta
+        # entero; el motivo arranca con "mejora descartada" para que el CLI
+        # lo grite via _aviso_degradado.
+        return texto, "mejora descartada: cambiaba la intencion ({})".format(
+            motivo_intencion)
 
     if base:
         # Encoger mucho = perdio datos del usuario. Crecer por encima del tope

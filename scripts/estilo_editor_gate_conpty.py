@@ -12,7 +12,8 @@ OUT = os.path.join(AQUI, "gate_repl_editor_raw.txt")
 casa = os.path.join(os.path.expanduser("~"), ".cognia")
 est = os.path.join(casa, "estilo.json"); bak = est + ".bak"
 copia = {p: (open(p, "rb").read() if os.path.exists(p) else None) for p in (est, bak)}
-env = dict(os.environ); env.update({"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8", "COLORTERM": "truecolor", "COGNIA_SPINNER": "0"})
+env = dict(os.environ); env.update({"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8", "COLORTERM": "truecolor", "COGNIA_SPINNER": "0",
+                                              "COGNIA_EFIMERO": "1"})  # gate sin rastro en la memoria del dueno (2026-08-25)
 for k in ("NO_COLOR", "COGNIA_REMOTO", "COGNIA_ANIMACION"): env.pop(k, None)
 proc = PtyProcess.spawn([PY, "-m", "cognia"], cwd=ROOT, env=env, dimensions=(30, 100))
 buf = []; ultimo = [time.time()]

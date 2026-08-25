@@ -42,6 +42,9 @@ def _repl(linea, timeout=180):
     """Una linea por stdin al REPL real y su salida completa."""
     env = dict(os.environ)
     env["PYTHONUTF8"] = "1"
+    # Efimero: el REPL real de estos tests no escribe en la memoria del
+    # dueno (incidente MrBeast 2026-08-25: turnos e2e restaurados en su chat).
+    env["COGNIA_EFIMERO"] = "1"
     p = subprocess.run([sys.executable, "-m", "cognia"],
                        input=(linea + "\n").encode("utf-8"),
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

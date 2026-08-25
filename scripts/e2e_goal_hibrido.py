@@ -329,7 +329,10 @@ def _parte_repl():
             "/inicio-dia", "/reporte-completo", "/debate"}
     cmds = [c for c in sorted(COMMANDS) if c not in SKIP]
     stdin_txt = "\n".join(cmds) + "\n/salir\n"
-    env = dict(os.environ, PYTHONUTF8="1", COGNIA_DISABLE_SWARM="1")
+    # COGNIA_EFIMERO: el REPL bajo prueba no escribe en la memoria del dueno
+    # (incidente MrBeast 2026-08-25: los turnos e2e aparecieron en su chat).
+    env = dict(os.environ, PYTHONUTF8="1", COGNIA_DISABLE_SWARM="1",
+               COGNIA_EFIMERO="1")
     t1 = time.time()
     proc = subprocess.run(
         [sys.executable, "-m", "cognia"],

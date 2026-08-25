@@ -221,7 +221,9 @@ def test_agente_inline_y_hacer_atrapan_keyboardinterrupt():
     """Los dos caminos inline del agente (accion inferida y /hacer sin carril
     de fondo) mataban el REPL con la senal: ahora tienen su except."""
     fuente = (RAIZ / "cognia" / "cli.py").read_text(encoding="utf-8")
-    i = fuente.index("_resp = _run_agent_task(ai, raw, _print_line, hint=_hint)")
+    # La tarea puede venir REENCAMINADA (reclamo "no lo ejecutaste" / "hazlo tu"
+    # -> la peticion original), asi que el ancla es la llamada, no su argumento.
+    i = fuente.index("_resp = _run_agent_task(ai, _tarea_agente, _print_line,")
     assert "except KeyboardInterrupt:" in fuente[i:i + 400]
     j = fuente.index('if not _lanzar_en_fondo("hacer", _turno_hacer):')
     assert "except KeyboardInterrupt:" in fuente[j:j + 400]
@@ -946,6 +948,9 @@ def _repl_remoto_real(tmp_path):
     env = dict(os.environ, PYTHONUTF8="1", COGNIA_SPINNER="0", COGNIA_ANIMACION="0",
                NO_COLOR="1", COGNIA_REMOTO="1", COGNIA_EVENTS_JSONL="1",
                COGNIA_HOME=str(home),
+               # Efimero: el REPL real de paridad no escribe en la memoria
+               # del dueno (incidente MrBeast 2026-08-25).
+               COGNIA_EFIMERO="1",
                PYTHONPATH=str(RAIZ) + os.pathsep + os.environ.get("PYTHONPATH", ""))
     return subprocess.Popen([str(PY), "-m", "cognia"], cwd=str(RAIZ), env=env,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,

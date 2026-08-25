@@ -310,6 +310,12 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     "Consola y arnes": (
         "/markdown", "/spinner", "/expandir", "/offload", "/pegado",
         "/enlaces", "/bucle", "/config-resuelta", "/deshacer", "/remoto",
+        # /deshacer-borrado (papelera del agente, 2026-08-25) va JUNTO a
+        # /deshacer, que es su hermano: uno revierte lo que el agente
+        # ESCRIBIO y el otro saca de la papelera lo que BORRO. Sin esta
+        # linea caia en "Agente y tareas" y la dejaba en 26 con el tope en
+        # 25 (lo caza test_cli_bots::test_puerta_visible_en_el_catalogo).
+        "/deshacer-borrado",
     ),
     "Sistema y diagnostico": (
         # /hermes y /rutinas viven aca (y no en una categoria propia) porque la

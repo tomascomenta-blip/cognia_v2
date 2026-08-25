@@ -800,7 +800,21 @@ _session_recap: str = ""   # FASE 6 (O3): recap extractiva auto-mantenida; /reca
 # into _history at REPL startup. Bounded so old sessions don't bloat the prompt
 # (the streaming path only feeds _history[-16:] to the model anyway), while still
 # giving the synthesis slash commands (/temas, /resumen) recent material.
+# Desde 2026-08-25 la restauracion es POR DIRECTORIO (ver el bloque de
+# continuidad en _repl_sesion): solo sesiones del MISMO cwd.
 _HISTORY_SEED_N = 20
+
+
+def _es_efimero() -> bool:
+    """True bajo COGNIA_EFIMERO=1: esta sesion no deja rastro en la memoria.
+
+    Es el interruptor del REPL para el modo efimero (el POR QUE, con el
+    incidente MrBeast 2026-08-25, esta en cognia/memory/chat.sesion_efimera,
+    que es quien gatea las escrituras de chat_history/user_profile; aca se
+    usa para saltarse la restauracion de continuidad, anular ai.observe y
+    avisarlo en el arranque). Se lee por llamada, no al import, por los tests.
+    """
+    return os.environ.get("COGNIA_EFIMERO", "").strip() == "1"
 
 # Current session identity (set in repl() at startup). Used to tag persisted
 # turns and to power /resume.
@@ -956,7 +970,13 @@ def _rlm_corpus_vivo(ai=None):
         # exactamente lo que haya en memoria, y eso se ve en el aviso.
         try:
             ch = getattr(ai, "chat_history", None)
-            _prev = (ch.get_recent_turns(_RLM_VIVO_SEED_N) or []) if ch else []
+            # cwd=_SESSION_CWD: el corpus profundo respeta la misma frontera
+            # por directorio que la continuidad (2026-08-25) — si sembrara de
+            # TODOS los cwd, _solape_turnos no encontraria a _history (que ya
+            # es solo del propio cwd) y los 20 restaurados entrarian dobles.
+            _prev = (ch.get_recent_turns(_RLM_VIVO_SEED_N,
+                                         cwd=_SESSION_CWD or None)
+                     or []) if ch else []
             _k = _solape_turnos(_prev, list(_history))
             for _m in (_prev[:len(_prev) - _k] if _k else _prev):
                 # El rol lleva ', previo': el modelo tiene que poder
@@ -2715,6 +2735,7 @@ _CMD_DESCRIPTIONS = {
     # no sale en /ayuda, no lo ofrece el autocompletado y el enrutador por
     # inferencia no lo conoce (catalogo_compacto se arma de este mismo dict).
     "/deshacer":        "Revertir lo que escribio el agente  [n | lista | diff | hasta <n>]",
+    "/deshacer-borrado": "Sacar de la papelera lo que BORRO el agente  [lista | <lote>]",
     "/plan-modo":       "Modo PLAN: el agente investiga sin escribir  [plan|ejecutar|ok]",
     "/permisos":        "Reglas de permiso del proyecto  [olvidar <patron>]",
     "/workflow":        "Repartir subtareas de razonamiento en paralelo  <t1; t2; ...>",
@@ -2839,7 +2860,7 @@ _CMD_DESCRIPTIONS = {
     "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
     "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args), nudge por ediciones al mismo fichero y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | fichero <n> | timeout <s>]",
-    "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo)",
+    "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | acciones on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo; COGNIA_CHAT_AFIRMACIONES=0 apaga el detector de acciones inventadas)",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
@@ -2935,6 +2956,25 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/deshacer-borrado": (
+        "PAPELERA DEL AGENTE (cognia/harness/papelera.py, 2026-08-25). La tool "
+        "borrar_archivo ya no destruye: mueve a ~/.cognia/papelera/<dia>/<lote>/ "
+        "conservando la ruta original, y escribe ANTES la lista de lo que va a "
+        "quitar (ruta + bytes + mtime + sha256) en indice.jsonl. '/deshacer-borrado' "
+        "devuelve el ultimo lote a su sitio byte a byte (nunca pisa un fichero que "
+        "exista ahora: lo deja al lado como <nombre>.restaurado-1); 'lista' muestra "
+        "los lotes; con un id de lote restaura ese. Hermano de /deshacer, que cubre "
+        "lo que el agente ESCRIBE (checkpoints) y no versiona borrados.\n"
+        "TOPE: mas de 10 ficheros en una operacion los confirma el dueno SIEMPRE, "
+        "aunque COGNIA_ACCESO_TOTAL=1 y aunque el modo de permiso sea 'bypass'. "
+        "Se cambia con borrado_max_ficheros en ~/.cognia/config.env (o la env var "
+        "COGNIA_BORRADO_MAX_FICHEROS); borrado_papelera=sistema usa la papelera de "
+        "Windows (y entonces se restaura desde ahi, no desde aqui); "
+        "borrado_papelera_dias (default 30) es lo que se guarda antes de podar.\n"
+        "LIMITE DECLARADO: un borrado que ejecuta el SHELL (del, rm, Remove-Item) "
+        "no pasa por Python y NO se puede mandar a la papelera. Al centinela solo "
+        "le queda frenarlo y decir que existe esta via reversible."
+    ),
     "/remoto": (
         "CONTROL REMOTO (cognia/remoto: FastAPI+uvicorn en https://0.0.0.0:8777, cert autofirmado y "
         "token en ~/.cognia/remoto/). Cada sesion del movil es un REPL REAL hijo (python -m cognia "
@@ -3029,7 +3069,10 @@ _CMD_DETAILS = {
         "se declara (ambar 'confianza.web'), nunca calla. "
         "USO: /confianza (estado: mandos, via web disponible, ultimo aviso y ultimo veredicto) | "
         "on|off (clave 'confianza') | previa on|off ('confianza_previa') | posterior on|off "
-        "('confianza_posterior') | segundos <n> ('confianza_segundos', presupuesto de PARED: cada "
+        "('confianza_posterior') | acciones on|off ('chat_afirmaciones': si la respuesta del chat "
+        "AFIRMA haber ejecutado algo -- el fast-path no corre tools jamas -- se avisa, no se "
+        "persiste y la peticion se reencamina al agente; env COGNIA_CHAT_AFIRMACIONES=0 apaga) "
+        "| segundos <n> ('confianza_segundos', presupuesto de PARED: cada "
         "llamada de red se abandona y se declara si se pasa) | paginas <n> ('confianza_paginas') | "
         "probar <pregunta> (diagnostico: clasifica e investiga SIN llamar al modelo, muestra "
         "evidencias, fuentes y aviso). Env: COGNIA_CONFIANZA=0 apaga todo ganando a la config. "
@@ -3308,7 +3351,12 @@ _CMD_DETAILS = {
         "una instruccion mas precisa ANTES de enviarla, preservando tu intencion y sin inventar "
         "requisitos. Estados, persistidos en ~/.cognia_config.json (clave 'mejorar_prompt'): "
         "preguntar (default: al dar Enter abre un menu y NO gasta modelo si eliges enviar tal "
-        "cual), auto (reformula y envia, mostrando el prompt final), off. "
+        "cual; y tras reformular, Enter conserva TU original), auto (reformula y envia, "
+        "mostrando el prompt final), off. "
+        "Las ORDENES cortas de accion ('quiero que limpies...', 'borra...', 'hazlo') NO se "
+        "interceptan: van directas, la mejora es para peticiones ambiguas o largas. Y si una "
+        "reformulacion convierte tu orden en un plan/preguntas para que lo hagas TU, se "
+        "descarta sola con aviso ('mejora descartada: cambiaba la intencion'). "
         "'/mejorar <texto>' reformula ESE texto y lo imprime sin enviarlo. "
         "ATAJO: F3 en el prompt reformula la linea a medio escribir y te la devuelve al buffer "
         "para retocarla (funciona incluso con el estado en off). "
@@ -7691,6 +7739,15 @@ _CONFIG_DEFAULTS: dict = {
     "confianza_posterior":     "on",
     "confianza_segundos":      "25",
     "confianza_paginas":       "3",
+    # DETECTOR DE AFIRMACIONES DE ACCION del chat (transcript 2026-08-25:
+    # "hazlo tu" -> el fast-path INVENTO "Ejecute los dos comandos...
+    # veintinueve archivos eliminados" sin correr tool alguna). on = si la
+    # respuesta del chat AFIRMA en primera persona pasado haber tocado el
+    # sistema, se avisa (ambar chat.afirma_accion), NO se persiste esa
+    # respuesta y la peticion original se reencamina al agente (que pide
+    # permiso antes de borrar). Env COGNIA_CHAT_AFIRMACIONES=0 apaga ganando
+    # a la config. Puerta: /confianza acciones on|off.
+    "chat_afirmaciones":       "on",
     # BOTS (/bots, cognia/bots): bots_on apaga la puerta entera (la env
     # COGNIA_BOTS=0 gana); bots_protocolo = seccion "Mensajeria entre bots"
     # que el SISTEMA inyecta en el chat canonico (COGNIA_BOTS_PROTOCOLO);
@@ -8002,7 +8059,12 @@ def _mejora_generar(texto: str, via: str):
         _aviso_degradado(via, aviso)
     if not mejora.ok and mejora.motivo.startswith(
             ("sin backend", "no hay backend", "backend ", "timeout", "error",
-             "el backend", "salida no")):
+             "el backend", "salida no",
+             # El post-check de intencion (transcript 2026-08-25): la orden al
+             # asistente volvio como plan/preguntas para el usuario y se tiro.
+             # Se GRITA porque el usuario tiene que saber que hubo una mejora
+             # y por que no la vio, no deducirlo de un "se envia tal cual".
+             "mejora descartada")):
         _aviso_degradado(via, mejora.motivo)
     return mejora
 
@@ -8032,6 +8094,10 @@ def _mejora_aplica(raw: str) -> bool:
     if _estado_mejorar() == "off":
         return False
     mod = _mod_mejorar()
+    # es_candidato tambien descarta las ORDENES cortas de accion ("quiero que
+    # limpies...", "borra...", "hazlo"): esas lineas van directas al enrutador
+    # sin menu de mejora (transcript 2026-08-25: la mejora reescribio una
+    # orden como plan con preguntas y el dueno tuvo que reteclearla).
     return bool(mod is not None and mod.es_candidato(raw))
 
 
@@ -8103,10 +8169,16 @@ def _mejorar_linea_interactiva(raw: str):
     _print_line(f"[info_dim]original: {_escape(mejora.original)}[/info_dim]")
     _print_line(f"[ok_cl]mejorado:[/ok_cl] {_escape(mejora.texto)}")
     _parar_status_mejora()
+    # El ORIGINAL va primero y es el default (Enter). POR QUE: en el modo
+    # "preguntar" el contrato es que Enter nunca envie algo distinto de lo que
+    # el usuario tecleo; con "mejorado" como default, una reescritura mala
+    # (transcript 2026-08-25: la orden convertida en plan) se enviaba con el
+    # mismo Enter reflejo con el que se abrio el menu. Conservar lo tecleado
+    # es la opcion segura; la mejora se elige a proposito, no por inercia.
     eleccion = _selector.elegir(
         "Que envio?",
-        [("mejorado", "Enviar mejorado", f"{mejora.ms} ms"),
-         ("original", "Enviar original", "descarta la mejora"),
+        [("original", "Enviar original", "lo que escribiste (Enter)"),
+         ("mejorado", "Enviar mejorado", f"{mejora.ms} ms"),
          ("editar",   "Editar el mejorado", "vuelve al prompt para retocarlo")],
         default=0)
     if eleccion == "editar":
@@ -8146,7 +8218,10 @@ def _mejora_en_el_sitio(texto: str) -> str:
                              f"{type(exc).__name__}: {exc}")
             return texto
     mod = _mod_mejorar()
-    if mod is not None and not mod.es_candidato(base):
+    # F3 es un pedido EXPLICITO de reformular: las ordenes de accion se aceptan
+    # aqui (rechazar_ordenes=False), a diferencia del enganche automatico del
+    # Enter. La intencion la protege el post-check de sanear_salida.
+    if mod is not None and not mod.es_candidato(base, rechazar_ordenes=False):
         _print_line("[info_dim]F3: esta linea no se mejora (es un comando, o "
                     "es demasiado corta/larga).[/info_dim]")
         return texto
@@ -12086,6 +12161,120 @@ def _confianza_posterior(raw: str, respuesta: str, pedir, cfg=None,
     return final, inv, _confianza_veredicto(final, inv)
 
 
+# ---------------------------------------------------------------------------
+# EL CHAT NO EJECUTA NADA (transcript del dueno 2026-08-25, 11:52-11:57):
+# "Quiero que limpies todas las capturas de pantalla" fue al chat, que
+# respondio con comandos de LINUX en Windows; "hazlo tu" siguio en chat y el
+# modelo INVENTO "Ejecute los dos comandos... veintinueve archivos
+# eliminados" (cero tools corridas); "no los ejecutaste" repitio el invento.
+# Dos piezas: (1) _tarea_reencaminada arma la tarea REAL para el agente
+# cuando el turno es un reclamo/"hazlo tu"; (2) _chat_afirmaciones_cierre
+# revisa la respuesta del fast-path y, si AFIRMA acciones, avisa, no la
+# persiste y reencamina al agente. Puerta: /confianza acciones on|off
+# (config 'chat_afirmaciones'); la env COGNIA_CHAT_AFIRMACIONES=0 apaga
+# ganando a la config.
+# ---------------------------------------------------------------------------
+_CHAT_AFIRMACIONES_ENV = "COGNIA_CHAT_AFIRMACIONES"
+
+
+def _chat_afirmaciones_activo() -> bool:
+    """on por defecto; la env =0 gana a la config (patron COGNIA_CONFIANZA)."""
+    if (os.environ.get(_CHAT_AFIRMACIONES_ENV) or "").strip() == "0":
+        return False
+    try:
+        cfg = _load_config()
+    except Exception as exc:
+        _aviso_degradado("chat.afirma_accion",
+                         f"config ilegible ({type(exc).__name__}: {exc}); "
+                         "asumo on")
+        return True
+    return str(cfg.get("chat_afirmaciones", "on")).strip().lower() != "off"
+
+
+def _tarea_reencaminada(raw: str, previa: str = None) -> str:
+    """La tarea REAL detras de un "hazlo tu"/"no los ejecutaste": el ultimo
+    mensaje del usuario que PEDIA la accion, con la respuesta previa del chat
+    como contexto. Si no hay peticion sustantiva en el historial, cae al
+    ultimo mensaje del usuario y, en ultima instancia, a `raw` tal cual."""
+    from cognia.agent.intent import detect as _d
+
+    def _es_sustantiva(msg: str) -> bool:
+        # Un reclamo o un "hazlo" NO es la peticion: es el dedo que la senala.
+        try:
+            d = _d(msg)
+        except Exception:
+            return False
+        return (d.needs_agent and d.reason != "accion:hazlo"
+                and not d.reason.startswith(("reclamo:", "continuacion:")))
+
+    peticion, ultima_user = "", ""
+    if _es_sustantiva(raw):
+        peticion = raw
+    else:
+        # Los 12 mensajes mas recientes bastan: el reclamo llega 1-2 turnos
+        # despues de la peticion (transcript: peticion -> chat -> "hazlo tu").
+        for h in reversed(_history[-12:]):
+            if h.get("role") != "user":
+                continue
+            c = (h.get("content") or "").strip()
+            if not c or c.lower() == raw.strip().lower():
+                continue
+            if not ultima_user:
+                ultima_user = c
+            if _es_sustantiva(c):
+                peticion = c
+                break
+    if previa is None:
+        previa = (_history[-1].get("content") or ""
+                  if _history and _history[-1].get("role") == "assistant"
+                  else "")
+    previa = (previa or "").strip()[:600]
+    if not peticion:
+        peticion = ultima_user or raw
+    if peticion == raw and not previa:
+        return raw
+    tarea = peticion
+    if previa:
+        # El contexto declara que NADA se ejecuto: sin esto el agente podia
+        # creer que la mitad ya estaba hecha. Y los comandos citados pueden
+        # ser de OTRO sistema operativo (el chat propuso `find -delete` y
+        # `gnome-screenshot` en Windows): se le exige verificar.
+        tarea += ("\n\n[Contexto: el chat ya respondio a esto SIN ejecutar "
+                  "nada (no tiene herramientas). Su respuesta fue:\n«"
+                  + previa + "»\nAhora ejecuta la peticion DE VERDAD con las "
+                  "herramientas; verifica que cada comando corresponda al "
+                  "sistema operativo real antes de correrlo.]")
+    return tarea
+
+
+def _chat_afirmaciones_cierre(ai, raw: str, respuesta: str):
+    """Cierre del fast-path: devuelve (respuesta_final, disparado).
+
+    Si la respuesta del CHAT afirma acciones ejecutadas (el fast-path no
+    corre tools JAMAS, asi que toda afirmacion es inventada): (i) aviso
+    visible + ambar; (ii) la respuesta inventada NO se devuelve (el llamador
+    persiste lo que devolvemos: la del agente); (iii) la peticion original se
+    reencamina al agente, cuyo gate de modo-permiso pide confirmacion antes
+    de acciones destructivas."""
+    if not _chat_afirmaciones_activo():
+        return respuesta, False
+    from cognia.agent.intent import afirma_accion_ejecutada
+    frag = afirma_accion_ejecutada(respuesta)
+    if not frag:
+        return respuesta, False
+    _print_line("[warn_cl]⚠ el chat no ejecuta nada: esa respuesta AFIRMA "
+                "acciones que no ocurrieron[/warn_cl]")
+    _aviso_degradado("chat.afirma_accion",
+                     f"afirmacion sin tools: «{frag[:120]}» — reencamino la "
+                     "peticion al agente (apagable: /confianza acciones off)")
+    tarea = _tarea_reencaminada(raw, previa=respuesta)
+    _print_line("[detail]Reencamino la peticion al agente para ejecutarla "
+                "de verdad...[/detail]")
+    resp2 = _run_agent_task(ai, tarea, _print_line)
+    _show_response(resp2, _ACCENT, respuesta_final=True)
+    return resp2, True
+
+
 def _slash_confianza(arg: str = "") -> None:
     """`/confianza`: puerta de los niveles de confianza del chat.
 
@@ -12107,7 +12296,7 @@ def _slash_confianza(arg: str = "") -> None:
     sub = partes[0].lower() if partes else ""
     resto = partes[1].strip() if len(partes) > 1 else ""
     uso = ("[warn_cl]Uso: /confianza [estado | on | off | previa on|off | "
-           "posterior on|off | segundos <n> | paginas <n> | "
+           "posterior on|off | acciones on|off | segundos <n> | paginas <n> | "
            "probar <pregunta>][/warn_cl]")
 
     def _guardar(clave, valor, texto):
@@ -12124,6 +12313,16 @@ def _slash_confianza(arg: str = "") -> None:
             _print_line(f"[warn_cl]Uso: /confianza {sub} on|off[/warn_cl]")
             return
         _guardar(f"confianza_{sub}", resto.lower(), f"{sub} {resto.lower()}")
+        return
+    if sub == "acciones":
+        # detector de afirmaciones del chat (cierre del fast-path): la clave
+        # vive en la config general porque la lee _chat_afirmaciones_activo
+        # en cada turno; la env COGNIA_CHAT_AFIRMACIONES=0 le gana.
+        if resto.lower() not in ("on", "off"):
+            _print_line("[warn_cl]Uso: /confianza acciones on|off[/warn_cl]")
+            return
+        _guardar("chat_afirmaciones", resto.lower(),
+                 f"acciones (chat que afirma ejecutar) {resto.lower()}")
         return
     if sub in ("segundos", "paginas"):
         try:
@@ -12191,6 +12390,10 @@ def _slash_confianza(arg: str = "") -> None:
         ("posterior", "on" if cfg.posterior else "off"),
         ("segundos", f"{cfg.segundos:g}"),
         ("paginas", str(cfg.max_paginas)),
+        ("acciones (chat que afirma ejecutar)",
+         ("OFF (env COGNIA_CHAT_AFIRMACIONES=0 gana a la config)"
+          if (os.environ.get(_CHAT_AFIRMACIONES_ENV) or "").strip() == "0"
+          else ("on" if _chat_afirmaciones_activo() else "off"))),
         ("via web", via_web),
         ("ultimo turno", (f"[{u['modo']}] «{u['pregunta'][:60]}» · via "
                           f"{u['via'] or '-'} · {u['segundos']:.1f} s · fuentes: "
@@ -14682,6 +14885,58 @@ def _slash_deshacer(arg: str = ""):
         _print_line(f"[err_cl]no se pudo deshacer: {_escape(str(exc))}[/err_cl]")
 
 
+def _slash_deshacer_borrado(arg: str = ""):
+    """/deshacer-borrado \u2014 saca de la papelera lo ultimo que borro el agente.
+
+    Hermano de /deshacer y a proposito SEPARADO: checkpoints cubre lo que el
+    agente ESCRIBE (y su docstring declara que no versiona borrados), y la
+    papelera cubre lo que QUITA. Mezclarlos haria que un /deshacer normal
+    reviviera ficheros que el dueno mando borrar hace media hora.
+    """
+    try:
+        from cognia.harness import papelera as _pap
+    except Exception as exc:
+        _aviso_degradado("papelera", f"no importa: {type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]papelera no disponible: {_escape(str(exc))}[/err_cl]")
+        return
+    arg = (arg or "").strip()
+    try:
+        if arg in ("lista", "listar", "ls"):
+            lotes = _pap.lotes(limite=20)
+            if not lotes:
+                _print_line("[info_dim]la papelera esta vacia[/info_dim]")
+                return
+            for l in lotes:
+                pend = len(l.get("restaurables") or [])
+                estado = (f"{pend} restaurable(s)" if pend
+                          else "ya restaurado" if l.get("restaurados")
+                          else "no restaurable desde aqui")
+                _print_line(
+                    f"  [mod]{_escape(l['dia'])}/{_escape(l['lote'])}[/mod] "
+                    f"{l.get('n', 0)} fichero(s) "
+                    f"[info_dim]({_escape(str(l.get('motivo', '')))[:40]} \u00b7 "
+                    f"{estado})[/info_dim]")
+            return
+        res = _pap.restaurar(arg or None)
+        if not res.get("ok"):
+            _print_line(f"[warn_cl]{_escape(str(res.get('error', 'nada que restaurar')))}[/warn_cl]")
+            return
+        _print_line(f"[ok_cl]restaurados {len(res['restaurados'])} fichero(s) "
+                    f"del lote {_escape(res['lote'])}[/ok_cl]")
+        for r in res["restaurados"][:20]:
+            _print_line(f"  [info_dim]{_escape(str(r))}[/info_dim]")
+        for c in res.get("conflictos", []):
+            _print_line(f"  [warn_cl]\u26a0 ya habia un fichero en "
+                        f"{_escape(str(c['ruta']))}: restaurado como "
+                        f"{_escape(str(c['destino']))}[/warn_cl]")
+        for f in res.get("fallos", []):
+            _print_line(f"  [err_cl]{_escape(str(f['ruta']))}: "
+                        f"{_escape(str(f['error']))}[/err_cl]")
+    except Exception as exc:
+        _aviso_degradado("papelera", f"restaurar: {type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]no se pudo restaurar: {_escape(str(exc))}[/err_cl]")
+
+
 def _slash_plan(arg: str = ""):
     """/plan-modo \u2014 alterna entre planear (solo lectura) y ejecutar."""
     try:
@@ -16700,16 +16955,60 @@ def _repl_sesion():
     except Exception:
         pass
 
+    # MODO EFIMERO (COGNIA_EFIMERO=1, 2026-08-25): la sesion no deja rastro.
+    # chat_history y user_profile ya se gatean solos (cognia/memory/chat.py,
+    # que cubre tambien la via articulada); aca se anula ademas ai.observe,
+    # que es la UNICA puerta del REPL a la memoria episodica (streaming,
+    # /resumen, web_fetch, cierre del agente). El POR QUE es el incidente
+    # MrBeast: pruebas e2e por stdin escribieron 20 turnos en la memoria REAL
+    # del dueno y la continuidad se los restauro a la manana siguiente.
+    if _es_efimero():
+        def _observe_efimero(observation, provided_label=None, **_kw):
+            # Mismo contrato minimo que Cognia.observe (dict) para que ningun
+            # caller reviente; "efimero" visible si alguien lo inspecciona.
+            return {"status": "efimero", "label": provided_label or "efimero"}
+        ai.observe = _observe_efimero
+        _init_lines.append(
+            "[OK] Sesion efimera: no se guarda nada (COGNIA_EFIMERO=1)")
+
     # Restore conversation continuity across restarts: seed the in-memory
     # _history (multi-turn prompt context) from persisted chat_history so the
     # model can follow a thread that started in a previous session.
+    #
+    # POR DIRECTORIO desde 2026-08-25: solo turnos de sesiones con el MISMO
+    # cwd (chat.get_recent_turns(cwd=...)). Antes traia los ultimos 20 de
+    # CUALQUIER directorio y el dueno, en Desktop, heredo los turnos de unas
+    # pruebas e2e corridas en worktrees/Temp ("Hace rato que no te veo,
+    # MrBeast"). Decision documentada: si en este cwd no hay sesiones previas
+    # NO se restaura nada de otros directorios (ni siquiera del mismo dia):
+    # /resume <dir|id> ya existe para traer una conversacion de otro lado a
+    # proposito; heredarla en silencio es exactamente el bug. En sesion
+    # efimera tampoco se restaura: una prueba no debe ver la conversacion
+    # del dueno ni depender de ella.
     try:
-        _restored = ai.chat_history.get_recent_turns(_HISTORY_SEED_N)
-        if _restored:
-            _history[:] = _restored
-            _init_lines.append(
-                f"[OK] Continuidad: {len(_restored)} mensajes de sesiones previas restaurados"
-            )
+        if not _es_efimero():
+            _cwd_cont = _SESSION_CWD or os.path.normpath(
+                os.path.abspath(os.getcwd()))
+            _restored = ai.chat_history.get_recent_turns(
+                _HISTORY_SEED_N, cwd=_cwd_cont)
+            if _restored:
+                _history[:] = _restored
+                # El directorio va EN el mensaje (acortado como la linea de
+                # Sesion) para que se vea de donde viene lo restaurado. El
+                # prefijo "Continuidad: N mensajes" no se toca: el remoto lo
+                # clasifica como estado con ese literal (remoto/sesiones.py).
+                try:
+                    from cognia.harness.banner_adaptativo import \
+                        acortar_ruta as _acr_cont
+                    _dir_cont = _acr_cont(_cwd_cont, 40)
+                except Exception as _exc_cont:
+                    _aviso_degradado("banner_adaptativo",
+                                     f"ruta sin acortar: {_exc_cont}")
+                    _dir_cont = _cwd_cont
+                _init_lines.append(
+                    f"[OK] Continuidad: {len(_restored)} mensajes de sesiones "
+                    f"previas en {_dir_cont} restaurados"
+                )
     except Exception:
         pass
 
@@ -17177,7 +17476,11 @@ def _repl_sesion():
             # -- UI slash -------------------------------------------------------
             # Arnes (2026-08-12): van primero porque son la red de seguridad —
             # tienen que responder aunque el resto del REPL este degradado.
-            if raw == "/deshacer" or raw.startswith("/deshacer "):
+            if raw == "/deshacer-borrado" or raw.startswith("/deshacer-borrado "):
+                # ANTES de /deshacer: el prefijo comun se lo comeria si algun
+                # dia se relaja el startswith("/deshacer ") con espacio.
+                _slash_deshacer_borrado(raw[len("/deshacer-borrado"):])
+            elif raw == "/deshacer" or raw.startswith("/deshacer "):
                 _slash_deshacer(raw[len("/deshacer"):])
             elif raw == "/plan-modo" or raw.startswith("/plan-modo "):
                 _slash_plan(raw[len("/plan-modo"):])
@@ -19563,7 +19866,16 @@ def _repl_sesion():
                 # detected and routed to the agent automatically, with a tool hint.
                 try:
                     from cognia.agent.intent import detect as _detect_intent
-                    _intent = _detect_intent(raw)
+                    # La ultima respuesta del CHAT alimenta la regla de
+                    # continuacion ("hazlo tu" tras una respuesta con
+                    # comandos/plan). Transcript 2026-08-25: "hazlo tu" caia
+                    # al chat, que INVENTO "Ejecute los dos comandos...
+                    # veintinueve archivos eliminados" sin tener tools.
+                    _prev_chat = (_history[-1].get("content", "")
+                                  if _history
+                                  and _history[-1].get("role") == "assistant"
+                                  else "")
+                    _intent = _detect_intent(raw, respuesta_previa=_prev_chat)
                 except Exception:
                     _intent = None
                 _needs_tool = bool(_intent and _intent.needs_agent)
@@ -19623,9 +19935,34 @@ def _repl_sesion():
                     _hint = (_intent.suggested_tool if _intent
                              and _intent.needs_agent else "")
                     _hmsg = f" (sugiero {_hint})" if _hint else ""
-                    _print_line(f"[detail]Detectada accion{_hmsg} -- activando agente...[/detail]")
+                    # RECLAMO/CONTINUACION (transcript 2026-08-25): "hazlo tu"
+                    # o "no los ejecutaste" no son la tarea — la tarea es la
+                    # PETICION ORIGINAL del usuario, reencaminada con la
+                    # respuesta previa del chat como contexto.
+                    _tarea_agente = raw
+                    if (_intent is not None and _intent.needs_agent
+                            and _intent.reason in ("reclamo:no_ejecutado",
+                                                   "continuacion:accion",
+                                                   "accion:hazlo")):
+                        try:
+                            _tarea_agente = _tarea_reencaminada(raw)
+                            if _tarea_agente != raw:
+                                _hmsg = " (reencamino la peticion original)"
+                        except Exception as _exc_re:
+                            _aviso_degradado(
+                                "cli.intent.reencaminar",
+                                f"{type(_exc_re).__name__}: {_exc_re}; "
+                                "el agente recibe el texto tal cual")
+                            _tarea_agente = raw
+                    # VISIBLE aunque el modo sea sencillo (que suprime [detail]):
+                    # el dueno tiene que ver que su linea dejo de ser chat y paso
+                    # al agente, que SI ejecuta y pedira permiso. Con [detail] la
+                    # transicion era invisible en la sesion piped del transcript
+                    # del 2026-08-25 (misma leccion que la linea de confianza).
+                    _print_line(f"[info_dim]→ accion detectada{_hmsg}: activando el agente (el chat no ejecuta nada)[/info_dim]")
                     try:
-                        _resp = _run_agent_task(ai, raw, _print_line, hint=_hint)
+                        _resp = _run_agent_task(ai, _tarea_agente, _print_line,
+                                                hint=_hint)
                     except KeyboardInterrupt:
                         # Ctrl-C o interrupcion remota con el agente INLINE (sin
                         # carril de fondo: pipes, remoto): sin este except la
@@ -20152,6 +20489,30 @@ def _repl_sesion():
                                                 f"cierre de confianza fallo "
                                                 f"({type(_exc_cf).__name__}: {_exc_cf}); "
                                                 "respuesta intacta")
+                                    # ── DETECTOR DE AFIRMACIONES DE ACCION ──
+                                    # El fast-path NUNCA corre tools; si la
+                                    # respuesta AFIRMA haber ejecutado algo
+                                    # ("Ejecute los dos comandos... veintinueve
+                                    # archivos eliminados", transcript
+                                    # 2026-08-25), es inventada: se avisa, NO
+                                    # se persiste y se reencamina la peticion
+                                    # original al agente (que pide permiso
+                                    # antes de borrar). KeyboardInterrupt sube
+                                    # al except del stream: turno cortado, no
+                                    # REPL muerto.
+                                    if _streamed and _full_response:
+                                        try:
+                                            _full_response, _ = \
+                                                _chat_afirmaciones_cierre(
+                                                    ai, raw, _full_response)
+                                        except KeyboardInterrupt:
+                                            raise
+                                        except Exception as _exc_af:
+                                            _aviso_degradado(
+                                                "chat.afirma_accion",
+                                                f"detector fallo "
+                                                f"({type(_exc_af).__name__}: "
+                                                f"{_exc_af}); respuesta intacta")
                                     if _streamed:
                                         elapsed = time.time() - t0
                                         _show_footer(elapsed, _full_response)
@@ -21616,7 +21977,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # Save summary to episodic memory
     summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"
     try:
-        ai.observe(summary, provided_label="agente_tarea_completada")
+        # En sesion efimera NO se guarda el episodio: _run_agent_task tambien
+        # entra desde scripts (`cognia hacer`, e2e) con un Cognia REAL que no
+        # paso por el stub de ai.observe del REPL — sin este gate, cada tarea
+        # de un banco escribia "agente_tarea_completada" en la memoria del
+        # dueno (asi se contamino el 2026-08-25).
+        if not _es_efimero():
+            ai.observe(summary, provided_label="agente_tarea_completada")
     except Exception:
         pass
 

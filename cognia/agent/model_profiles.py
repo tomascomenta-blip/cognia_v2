@@ -637,7 +637,16 @@ def system_agente_nativo(perfil: dict = None) -> str:
 
     `perfil` (opcional, 2026-08-24): si trae harness.sufijo_prompt se cuelga
     al final (HarnessProfile.system_prompt_suffix de deepagents). Sin perfil,
-    o sin sufijo, el texto es byte-identico al de siempre."""
+    o sin sufijo, el texto es byte-identico al de siempre.
+
+    ENTORNO (2026-08-25): antes del sufijo va UNA linea con el SO, el shell
+    real de la tool 'ejecutar' y el cwd (system_prompt.entorno_agente). En la
+    corrida del 2026-08-25 este mismo agente ejecuto `uname -s`, `find` y
+    `ls -R` en Windows porque su system no decia donde estaba, gasto 6 pasos y
+    cerro "sin progreso verificado". Es UN DATO de <=120 chars, no prosa: el
+    A/B del 2026-07-23 que prohibe engordar este prompt midio parrafos (10/10
+    -> 1/4), y el tope esta fijado por test. Con COGNIA_ENTORNO_PROMPT=0 la
+    linea desaparece y el texto vuelve a ser byte-identico al de siempre."""
     partes = []
     try:
         from cognia.system_prompt import _CONDUCTA_COMPLETA, _IDENTIDAD
@@ -645,6 +654,18 @@ def system_agente_nativo(perfil: dict = None) -> str:
     except Exception:
         partes = []
     partes.append(_ROL_AGENTE_NATIVO.strip())
+    try:
+        from cognia.system_prompt import entorno_agente
+        _ent = entorno_agente()
+    except Exception:
+        # Igual que el bloque de arriba: sin system_prompt.py importable el
+        # agente se queda con su rol pelado, no revienta.
+        _ent = ""
+    if _ent:
+        # ANTES del sufijo del harness a proposito: el sufijo es lo ultimo por
+        # contrato (test_p8: endswith("\n\nSUFIJO")), y el entorno es estable
+        # dentro de una sesion, asi que el prefix-cache lo paga una sola vez.
+        partes.append(_ent)
     sufijo = ((perfil or {}).get("harness") or {}).get("sufijo_prompt") \
         if isinstance(perfil, dict) else ""
     if sufijo:

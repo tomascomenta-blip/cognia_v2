@@ -110,17 +110,26 @@ def test_head_cola_conserva_el_final():
 
 def test_shell_conserva_la_cola(monkeypatch):
     # output largo con el "traceback" al final: antes out[:1500] perdia el
-    # final; ahora _shell conserva cabeza+cola (subprocess mockeado para no
-    # depender del shell de la maquina; el sentinel real corre igual)
+    # final; ahora _shell conserva cabeza+cola (el subprocess se mockea para no
+    # depender del shell de la maquina; el sentinel real corre igual).
+    #
+    # EL MOCK ERA EL DE ANTES Y ESTABA MUERTO (arreglado 2026-08-25): pisaba
+    # T.subprocess.run, pero _shell dejo de usar run() el 2026-08-24 y llama a
+    # _correr_proceso (Popen + matar_arbol). O sea que este test corria `echo x`
+    # DE VERDAD y comparaba su "x" contra "Traceback final real" — fallaba, y
+    # con el mock puesto habria fallado igual porque no interceptaba nada. Es
+    # el caso "el test que pasa (o falla) por el motivo equivocado".
     class _R:
         returncode = 0
-        stdout = "INICIO " + ("relleno " * 500) + "Traceback final real"
-        stderr = ""
+        stdout = ("INICIO " + ("relleno " * 500) + "Traceback final real").encode()
+        stderr = b""
 
-    monkeypatch.setattr(T.subprocess, "run", lambda *a, **k: _R())
+    monkeypatch.setattr(T, "_correr_proceso", lambda *a, **k: _R())
     out = T._shell("echo x", _ctx())
     assert out.endswith("Traceback final real")
     assert "chars omitidos" in out
+    # exit 0: ni una palabra de la pista de shell equivocado (2026-08-25).
+    assert "NOTA:" not in out
 
 
 def test_ejecutar_timeout_parametrizable(monkeypatch):

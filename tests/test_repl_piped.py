@@ -22,7 +22,9 @@ def test_repl_piped_sin_consola_no_crashea():
     # /salir inmediato: solo arranque + dispatch + salida limpia (sin turnos LLM).
     # PYTHONUTF8=1 + decode utf-8: el panel de arranque trae box-drawing chars
     # que revientan el reader de cp1252 (lección del programa: PYTHONUTF8).
-    env = dict(os.environ, PYTHONUTF8="1")
+    # Efimero: este REPL real no debe escribir en la memoria del dueno
+    # (incidente MrBeast 2026-08-25).
+    env = dict(os.environ, PYTHONUTF8="1", COGNIA_EFIMERO="1")
     r = subprocess.run(
         [sys.executable, "-m", "cognia"],
         input="/salir\n", capture_output=True, text=True,

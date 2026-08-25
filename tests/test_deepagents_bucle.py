@@ -508,7 +508,14 @@ def test_p8_el_bucle_aplica_el_shim_antes_de_args_legacy():
     assert recibidos == [{"file_path": "a.py"}]          # sin harness: intactos
 
 
-def test_p8_system_con_sufijo_y_sin_perfil_byte_identico():
+def test_p8_system_con_sufijo_y_sin_perfil_byte_identico(monkeypatch):
+    # COGNIA_ENTORNO_PROMPT=0 desde el 2026-08-25: el system del agente lleva
+    # UNA linea con SO/shell/cwd (system_prompt.entorno_agente) y este test
+    # mide OTRA cosa — que el sufijo del harness sea lo unico que cambia el
+    # texto. Apagar el entorno deja la comparacion byte a byte intacta; que la
+    # linea entre en el tope y quede ANTES del sufijo lo fija
+    # tests/test_agente_sabe_el_so.py.
+    monkeypatch.setenv("COGNIA_ENTORNO_PROMPT", "0")
     from cognia.system_prompt import _CONDUCTA_COMPLETA, _IDENTIDAD
     hoy = "\n\n".join([_IDENTIDAD.strip(), _CONDUCTA_COMPLETA.strip(),
                        mp._ROL_AGENTE_NATIVO.strip()])

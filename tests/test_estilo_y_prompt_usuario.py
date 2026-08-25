@@ -141,8 +141,16 @@ def test_default_se_crea_y_es_idempotente(prompt_en_tmp):
     assert ruta.read_text(encoding="utf-8") == sp.PROMPT_USUARIO_DEFAULT
 
 
-def test_prompt_usuario_manda_para_el_cerebro(prompt_en_tmp):
+def test_prompt_usuario_manda_para_el_cerebro(prompt_en_tmp, monkeypatch):
     prompt_en_tmp.write_text("SOY EL PROMPT PERSONALIZADO", encoding="utf-8")
+    # El prompt personal SIGUE mandando (va primero y reemplaza la identidad);
+    # desde 2026-08-25 lo acompana el bloque operativo de ENTORNO (SO/shell/
+    # cwd + "el chat no ejecuta"), igual que ya lo acompanaba el arbitro.
+    cerebro = sp.build_system_prompt(rol="cerebro")
+    assert cerebro.startswith("SOY EL PROMPT PERSONALIZADO")
+    assert "ENTORNO DEL USUARIO" in cerebro
+    # Con el kill-switch, la igualdad byte a byte de siempre.
+    monkeypatch.setenv("COGNIA_ENTORNO_PROMPT", "0")
     assert sp.build_system_prompt(rol="cerebro") == "SOY EL PROMPT PERSONALIZADO"
 
 

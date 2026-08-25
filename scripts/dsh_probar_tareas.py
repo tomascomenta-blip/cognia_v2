@@ -217,7 +217,11 @@ def corre_tarea(nombre: str, dst: Path, timeout: int, capturas: bool) -> dict:
     # se queda esperando input, el timeout lo caza y ESO es un hallazgo.
     cmd = [str(PY) if PY.is_file() else sys.executable, "-u", "-m", "cognia",
            "hacer", spec["pide"]]
-    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8",
+    # COGNIA_EFIMERO: `cognia hacer` con Cognia real guardaba el episodio
+    # "agente_tarea_completada" en la memoria del dueno por cada tarea del
+    # banco (2026-08-25). Efimero: la corrida no deja rastro.
+    env = dict(os.environ, COGNIA_EFIMERO="1",
+               PYTHONUTF8="1", PYTHONIOENCODING="utf-8",
                FORCE_COLOR="1", TERM="xterm-256color", COLUMNS="100",
                COGNIA_SPINNER=os.environ.get("COGNIA_SPINNER", "1"))
     env.pop("NO_COLOR", None)

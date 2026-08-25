@@ -64,7 +64,8 @@ def _env() -> dict:
         if k.startswith("COGNIA_"):
             env.pop(k)
     env.update({"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8", "TERM": "xterm-256color",
-                "COLORTERM": "truecolor", "PYTHONPATH": RAIZ, "COGNIA_SPINNER": "0"})
+                "COLORTERM": "truecolor", "PYTHONPATH": RAIZ, "COGNIA_SPINNER": "0",
+                "COGNIA_EFIMERO": "1"})  # gate sin rastro en la memoria del dueno (2026-08-25)
     env.pop("NO_COLOR", None)
     return env
 

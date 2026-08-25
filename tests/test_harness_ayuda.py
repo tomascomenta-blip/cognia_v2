@@ -376,9 +376,12 @@ def test_los_mandos_del_arnes_tienen_categoria_propia(catalogo):
     # Fusion 2026-08-25: /deshacer (revertir lo que escribio el agente) y
     # /remoto (la consola manejada desde el movil) tambien son mandos del
     # arnes; salieron de "Agente y tareas" (27 > tope 25) y de "Web".
+    # 2026-08-25 (salvaguarda de borrado): /deshacer-borrado saca de la
+    # papelera lo que el agente BORRO, hermano de /deshacer, y por la misma
+    # razon: sin ponerlo aqui caia en "Agente y tareas" y la dejaba en 26.
     esperados = ("/markdown", "/spinner", "/expandir", "/offload", "/pegado",
                  "/enlaces", "/bucle", "/config-resuelta", "/deshacer",
-                 "/remoto")
+                 "/remoto", "/deshacer-borrado")
     for cmd in esperados:
         assert cmd in catalogo, cmd
         assert ayuda.clasificar(cmd, catalogo[cmd]) == "Consola y arnes", cmd

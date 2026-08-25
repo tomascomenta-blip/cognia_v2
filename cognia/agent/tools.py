@@ -1428,28 +1428,158 @@ def _crear_directorio(args, ctx):
 # BORRAR un archivo que el mismo creo (el fallback era 'ejecutar del/rm', que
 # el sentinel frena con razon). Confinado al workspace via _resolve_write_path:
 # borrar es una escritura. Solo archivos, nunca directorios (blast-radius).
+#
+# SALVAGUARDAS (2026-08-25, tras la perdida real de 3 capturas del dueno):
+# el borrado ya no es duro y ya no depende SOLO del clasificador de comandos.
+#   1) PAPELERA: lo que quita esta tool se MUEVE a ~/.cognia/papelera/<dia>/
+#      conservando su ruta original; /deshacer-borrado lo devuelve byte a
+#      byte. Si la papelera falla, el fichero se queda donde esta: esta tool
+#      nunca degrada a borrado duro.
+#   2) INVENTARIO ANTES: la lista (ruta + bytes + mtime + sha256) se escribe
+#      en el indice jsonl ANTES de tocar nada, asi que un borrado autorizado
+#      es auditable aunque el proceso muera a mitad.
+#   3) TOPE DE VOLUMEN: mas de N ficheros (config 'borrado_max_ficheros',
+#      default 10) exige confirmacion HUMANA aunque COGNIA_ACCESO_TOTAL=1
+#      este puesto. El acceso total auto-aprueba los CONFIRM del centinela;
+#      este freno vive fuera de ese camino a proposito.
+def _expandir_borrado(args: str) -> tuple:
+    """(rutas, patrones_vacios, errores) a partir del argumento de la tool.
+
+    Acepta UNA ruta, varias separadas por '|' y comodines (`*.png`,
+    `tmp/**/*.log`). Cada resultado pasa igual por _resolve_write_path: el
+    comodin no abre el confinamiento al workspace ni los nombres bloqueados."""
+    crudos = [x.strip().strip("\"'") for x in re.split(r"\s*\|\s*", args or "")]
+    crudos = [x for x in crudos if x]
+    try:
+        from cognia.agents.workers.dev_tools import _workspace
+        base = str(_workspace())
+    except Exception:
+        base = os.getcwd()
+    rutas, vacios, errores = [], [], []
+    for pat in crudos:
+        # Un fichero que EXISTE con ese nombre gana al comodin: hay nombres
+        # reales con '[' dentro y tratarlos como patron los volveria
+        # inborrables ("ningun fichero coincide") sin decir por que.
+        literal = pat if os.path.isabs(pat) else os.path.join(base, pat)
+        if any(c in pat for c in "*?[") and not os.path.isfile(literal):
+            try:
+                if os.path.isabs(pat):
+                    hits = _glob.glob(pat, recursive=True)
+                else:
+                    hits = [str(Path(base) / h) for h in
+                            _glob.glob(pat, root_dir=base, recursive=True)]
+            except (OSError, ValueError) as exc:
+                errores.append(f"{pat}: {type(exc).__name__}: {exc}")
+                continue
+            hits = sorted(h for h in hits if os.path.isfile(h))
+            if not hits:
+                vacios.append(pat)
+            rutas.extend(hits)
+        else:
+            rutas.append(pat)
+    # dedup conservando el orden
+    vistas, unicas = set(), []
+    for r in rutas:
+        k = os.path.normcase(os.path.abspath(r))
+        if k not in vistas:
+            vistas.add(k)
+            unicas.append(r)
+    return unicas, vacios, errores
+
+
 @tool("borrar_archivo",
-      "borrar_archivo <path>                 -- borra UN archivo (en el workspace)",
+      "borrar_archivo <path>                 -- borra a la PAPELERA (admite "
+      "comodines y 'a | b')",
       danger=True,
-      desc="Borra un archivo del workspace del agente. Solo archivos "
-           "individuales (no directorios). Para vaciar un archivo sin "
-           "borrarlo usa escribir_archivo con contenido vacio.",
+      desc="Borra archivos del workspace del agente mandandolos a la papelera "
+           "de Cognia (~/.cognia/papelera), no destruyendolos: /deshacer-borrado "
+           "los devuelve. Acepta una ruta, varias separadas por '|' o un "
+           "comodin. Solo archivos, nunca directorios. Mas de 10 ficheros "
+           "(config borrado_max_ficheros) exige confirmacion del dueno aunque "
+           "haya acceso total. Para vaciar un archivo sin borrarlo usa "
+           "escribir_archivo con contenido vacio.",
       params=[
           {"nombre": "path", "tipo": "string", "requerido": True,
-           "descripcion": "ruta del archivo a borrar (dentro del workspace)"},
+           "descripcion": "ruta del archivo a borrar (dentro del workspace); "
+                          "admite comodines y varias separadas por '|'"},
       ])
 def _borrar_archivo(args, ctx):
+    from cognia.harness import papelera as _pap
+    crudas, vacios, errores = _expandir_borrado(args)
+    # Un patron que ni se pudo expandir NO se calla: "no habia nada" y "no se
+    # pudo mirar" piden decisiones opuestas (leccion 'fallo-silencioso-en-fanout').
+    if errores:
+        return (f"RESULTADO borrar_archivo ERROR: no se pudo expandir "
+                f"{'; '.join(errores[:3])}")
+    if not crudas:
+        if vacios:
+            return (f"RESULTADO borrar_archivo ERROR: ningun fichero coincide "
+                    f"con {', '.join(vacios)}")
+        return "RESULTADO borrar_archivo ERROR: falta la ruta"
+    rutas = []
+    for cruda in crudas:
+        try:
+            wpath = _resolve_write_path(cruda)
+        except ValueError as e:
+            return f"RESULTADO borrar_archivo ERROR: {e}"
+        if not wpath.exists():
+            return f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} no existe"
+        if wpath.is_dir():
+            return (f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} es un "
+                    f"directorio; esta tool solo borra archivos")
+        rutas.append(wpath)
+
+    # -- TOPE DE VOLUMEN: por encima del tope decide un HUMANO, siempre ------
+    # No se consulta _acceso_total ni el modo de permiso a proposito: el
+    # acceso total existe para que el dueno no confirme cada comando raro, no
+    # para que se le borren 60 ficheros sin enterarse. Sin canal de
+    # confirmacion (desatendido) se DENIEGA y se dice como partirlo.
+    if _pap.necesita_confirmacion(len(rutas)):
+        carpetas = sorted({str(p.parent) for p in rutas})
+        donde = carpetas[0] if len(carpetas) == 1 else f"{len(carpetas)} carpetas"
+        detalle = (f"borrar {len(rutas)} ficheros en {donde} "
+                   f"({sum(_bytes_de(p) for p in rutas) / 1024.0:.1f} KB)")
+        confirm = ctx.get("confirm") if isinstance(ctx, dict) else None
+        ok = False
+        if callable(confirm):
+            try:
+                ok = bool(confirm("borrado_masivo", detalle))
+            except Exception:
+                ok = False
+        if not ok:
+            return (f"RESULTADO borrar_archivo BLOQUEADO: son {len(rutas)} "
+                    f"ficheros en {donde} y el tope sin confirmacion es "
+                    f"{_pap.tope_ficheros()} (config borrado_max_ficheros). "
+                    f"Hace falta que el dueno lo confirme"
+                    + ("" if callable(confirm) else
+                       " y no hay canal de confirmacion en esta sesion")
+                    + ". Borralos en tandas mas pequenas o pideselo al dueno; "
+                      "los primeros ficheros de la lista son: "
+                    + ", ".join(_disp(p) for p in rutas[:5]) + ".")
+
+    parte = _pap.enviar([str(p) for p in rutas],
+                        motivo=(args or "").strip()[:200], tool="borrar_archivo")
+    movidos = len(parte.get("movidos") or [])
+    fallos = parte.get("fallos") or []
+    if not movidos:
+        detalle = "; ".join(f"{f['ruta']}: {f['error']}" for f in fallos[:3])
+        return (f"RESULTADO borrar_archivo ERROR: no se pudo mover nada a la "
+                f"papelera (los ficheros siguen en su sitio). {detalle}")
+    cola = ""
+    if fallos:
+        cola = (f"; {len(fallos)} NO se pudo mover y sigue(n) en su sitio: "
+                + ", ".join(f["ruta"] for f in fallos[:3]))
+    if movidos == 1 and not fallos:
+        return (f"RESULTADO borrar_archivo {_disp(rutas[0])}: OK "
+                f"({_pap.resumen(parte)})")
+    return (f"RESULTADO borrar_archivo: OK {_pap.resumen(parte)}{cola}")
+
+
+def _bytes_de(p) -> int:
     try:
-        wpath = _resolve_write_path(args.strip().strip("\"'"))
-    except ValueError as e:
-        return f"RESULTADO borrar_archivo ERROR: {e}"
-    if not wpath.exists():
-        return f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} no existe"
-    if wpath.is_dir():
-        return (f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} es un "
-                f"directorio; esta tool solo borra archivos")
-    wpath.unlink()
-    return f"RESULTADO borrar_archivo {_disp(wpath)}: OK (borrado)"
+        return Path(p).stat().st_size
+    except OSError:
+        return 0
 
 
 @tool("listar", "listar <directorio>                   -- lista archivos/carpetas",
@@ -1934,19 +2064,35 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
     # unificada — allowlist de dev + bloqueo duro + confirmación para lo
     # desconocido (default-deny). Con COGNIA_SENTINEL=0 replica la denylist
     # previa (0 cambios). Reemplaza el chequeo inline de substrings.
-    from cognia.agent.sentinel import evaluar_shell
-    permitido, msg = evaluar_shell(cmd, ctx)
-    if not permitido:
-        # BLOQUEADO != exit 0: el ctx["_exit"] se queda en None a proposito.
-        return msg
     # cwd (2026-08-18): sin el, correr algo en otra carpeta obligaba al modelo
     # a escribir 'cd X && ...' — y ese encadenado el sentinel lo reclasifica a
     # CONFIRM (dos comandos), asi que el atajo natural del modelo era ademas el
     # que mas friccion tenia. Se valida ANTES de lanzar: subprocess con un cwd
     # inexistente tira NotADirectoryError/FileNotFoundError, que el modelo lee
     # como "el comando fallo" en vez de "la ruta no existe".
+    #
+    # 2026-08-25: ese atajo era tambien un ESCAPE del gate. `ejecutar
+    # "del *.png" cwd=C:\Users\usuario\Pictures\Screenshots` clasificaba
+    # `del *.png` SIN ninguna ruta -> CONFIRM -> con COGNIA_ACCESO_TOTAL=1,
+    # ejecutado. Es el mismo agujero que `cd <protegida> && del *.png` pero
+    # por la puerta oficial y ademas sin friccion. Verificado contra un
+    # temporal: borraba los 3 ficheros y devolvia "(sin output)". Por eso el
+    # cwd se expande y se le pasa AL GATE antes de decidir nada.
     if cwd:
-        _cw = Path(cwd).expanduser()
+        # ABSOLUTO antes del gate: con `cwd=..\..\Pictures` el centinela no
+        # podria resolver contra que se cuelga esa relativa y volveria a
+        # devolver CONFIRM. os.path.expanduser NO lanza si el `~usuario` no
+        # se puede resolver (devuelve el literal), asi que aqui no hace
+        # falta tapar ninguna excepcion: si la ruta no existe, lo dice el
+        # is_dir() de abajo con un mensaje accionable.
+        cwd = os.path.abspath(os.path.expanduser(cwd))
+    from cognia.agent.sentinel import evaluar_shell
+    permitido, msg = evaluar_shell(cmd, ctx, cwd=cwd)
+    if not permitido:
+        # BLOQUEADO != exit 0: el ctx["_exit"] se queda en None a proposito.
+        return msg
+    if cwd:
+        _cw = Path(cwd)
         if not _cw.is_dir():
             return (f"RESULTADO ejecutar ERROR: cwd='{cwd}' no es un directorio "
                     f"existente")
@@ -1974,7 +2120,96 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
     _marcar_exit(ctx, r.returncode)      # el UNICO sitio que escribe un exit real
     out = (_decodificar_bytes(r.stdout) + _decodificar_bytes(r.stderr)).strip()
     code = "" if r.returncode == 0 else f" (exit {r.returncode})"
-    return f"RESULTADO ejecutar{code}: {_head_cola(out) or '(sin output)'}"
+    return (f"RESULTADO ejecutar{code}: {_head_cola(out) or '(sin output)'}"
+            + _pista_shell(out, r.returncode))
+
+
+# -- Pista de SHELL EQUIVOCADO (2026-08-25) --------------------------------
+# En la corrida real del 2026-08-25 el agente lanzo `uname -s`, `find` y
+# `ls -R` en una maquina Windows y leyo errores opacos; el system prompt ya le
+# dice ahora donde esta (system_prompt.entorno_agente) y esto es el SEGUNDO y
+# ultimo punto: cuando el comando falla PORQUE EL SHELL DICE QUE NO EXISTE, el
+# resultado nombra el shell real y el equivalente en vez de dejar el error seco.
+#
+# EL DISPARADOR ES LA MEDICION, NO LA PINTA DEL COMANDO. No hay lista de
+# "comandos de Linux" que se marque por parecerlo: en ESTA maquina `uname -s`,
+# `ls -la`, `find` y `grep` FUNCIONAN dentro de cmd.exe porque Git for Windows
+# pone C:\Program Files\Git\usr\bin en el PATH (medido 2026-08-25: `where find`
+# devuelve el find.exe de Git ANTES que el de System32, y `uname -s` responde
+# MINGW64_NT-10.0-26200). Lo que falla aca son los cmdlets de PowerShell:
+#   Get-ChildItem -> exit 1, "Get-ChildItem" no se reconoce como un comando
+#   interno o externo, programa o archivo por lotes ejecutable.
+# Adivinar habria puesto la pista exactamente al reves. Por eso la pista sale
+# del texto que imprimio el propio interprete: si el shell no se quejo de que
+# el comando no existe, no hay pista.
+# Dos familias de mensaje, medidas contra salidas reales (test_agente_sabe_el_so):
+#   cmd.exe   ->  "Get-ChildItem" no se reconoce como un comando interno o externo
+#                 'ls' is not recognized as an internal or external command
+#   sh/bash   ->  bash: uname: command not found
+# La segunda NO se puede escribir con el mismo anclaje que la primera (el nombre
+# que falta va en MEDIO de la linea, detras del nombre del shell), y con una sola
+# alternativa se perdia siempre: por eso son dos grupos.
+_RE_NO_EXISTE = re.compile(
+    r"^\W{0,2}([\w.\-]{1,40})\W{0,3}\s*(?:no se reconoce como|"
+    r"is not recognized as)"
+    r"|(?:^|[:\s])([\w.\-]{1,40}):?\s(?:command not found|"
+    r"orden no encontrada|no se encontr[oó] la orden)",
+    re.I | re.M)
+
+# Equivalentes en cmd.exe. Solo entran los que aparecieron en corridas reales
+# (la del 2026-08-25 uso ls/uname/find/cat/grep); el resto cae al consejo
+# generico de lanzar PowerShell, que esta medido que funciona por esta tool.
+_EQUIV_CMD = {
+    "ls": 'dir /b   (recursivo: dir /b /s)',
+    "uname": "ver",
+    "cat": "type",
+    "grep": "findstr",
+    "which": "where",
+    "rm": "del   (carpetas: rmdir /s /q)",
+    "cp": "copy",
+    "mv": "move",
+    "pwd": "cd",
+    "touch": "type nul > FICHERO",
+    "wc": 'find /c /v ""',
+}
+
+
+def _pista_shell(out: str, returncode: int) -> str:
+    """Una linea extra cuando el SHELL dijo que el comando no existe, o "".
+
+    Barato y best-effort: solo mira el texto si el exit ya vino != 0, asi que
+    el camino feliz no paga nada. Devuelve "" ante cualquier duda — una pista
+    de mas desorienta al modelo tanto como un error opaco.
+    """
+    if returncode == 0 or not out:
+        return ""
+    m = _RE_NO_EXISTE.search(out)
+    if not m:
+        return ""
+    falta = (m.group(1) or m.group(2) or "").strip()
+    if not falta:
+        return ""
+    try:
+        from cognia.system_prompt import shell_de_ejecutar
+        shell = shell_de_ejecutar()
+    except Exception:
+        shell = "cmd.exe" if os.name == "nt" else "/bin/sh"
+    if os.name != "nt":
+        return (f"\nNOTA: el shell de esta tool es {shell} y '{falta}' no esta "
+                f"instalado o no esta en el PATH.")
+    equiv = _EQUIV_CMD.get(falta.lower())
+    if equiv:
+        arreglo = f"Equivalente aca: {equiv}"
+    else:
+        # Sin equivalente conocido, la via SEGURA para un cmdlet: cmd.exe no
+        # tiene cmdlets pero puede lanzar PowerShell (medido 2026-08-25 por
+        # esta misma tool: powershell -NoProfile -c "(Get-ChildItem -Filter
+        # *.cfg).Count" devolvio el numero).
+        arreglo = (f'Si es un cmdlet de PowerShell, lanzalo asi: '
+                   f'powershell -NoProfile -c "{falta} ..."')
+    return (f"\nNOTA: esta maquina es Windows y el shell de esta tool es "
+            f"{shell} (no PowerShell, no bash): '{falta}' no existe ahi. "
+            f"{arreglo}.")
 
 
 # Cabeza+COLA del output de shell: el head-only de antes (out[:1500]) perdia el
@@ -2003,14 +2238,29 @@ def _head_cola(out: str) -> str:
 _RE_EJEC_KV = re.compile(r"\s*\|\s*(timeout|cwd)\s*=\s*([^|]+?)\s*$", re.I)
 
 
+# El shell REAL de esta tool, MEDIDO y no supuesto: `ejecutar` termina en
+# subprocess(shell=True), que en Windows lanza %COMSPEC% (cmd.exe, medido:
+# `echo %COMSPEC%` -> C:\WINDOWS\system32\cmd.exe) y en POSIX /bin/sh. NO es
+# el shell del dueno: el escribe en PowerShell y sus cmdlets aca dan exit 1.
+# Se calcula UNA vez al importar porque no cambia dentro del proceso, y entra
+# en la doc y en la desc porque hasta hoy el modelo tenia que adivinarlo (la
+# corrida del 2026-08-25 pidio comandos POSIX y cmdlets a ciegas).
+try:
+    from cognia.system_prompt import shell_de_ejecutar as _shell_de_ejecutar
+    _SHELL_REAL = _shell_de_ejecutar()
+except Exception:
+    _SHELL_REAL = "cmd.exe" if os.name == "nt" else "/bin/sh"
+
+
 @tool("ejecutar",
       "ejecutar <comando shell> [| timeout=N] [| cwd=RUTA]  -- corre un comando "
-      "(bloqueos de seguridad; timeout default 30s, max 600)",
+      f"en {_SHELL_REAL} (bloqueos de seguridad; timeout default 30s, max 600)",
       desc="Ejecuta un comando de shell y devuelve stdout+stderr (si el output "
            "es largo conserva la cabeza y la COLA, donde vive el traceback). "
-           "Para correr tests usa la tool 'tests'; para algo que no termina "
-           "(servidor, build largo, watcher) usa 'ejecutar_fondo'. Comandos "
-           "peligrosos se bloquean o piden confirmacion.",
+           f"El shell es {_SHELL_REAL}: escribi comandos que ESE interprete "
+           "entienda. Para correr tests usa la tool 'tests'; para algo que no "
+           "termina (servidor, build largo, watcher) usa 'ejecutar_fondo'. "
+           "Comandos peligrosos se bloquean o piden confirmacion.",
       params=[
           {"nombre": "comando", "tipo": "string", "requerido": True,
            "descripcion": "el comando de shell a ejecutar"},
@@ -2103,13 +2353,20 @@ def _ejecutar_fondo(args, ctx):
     if not cmd:
         return "RESULTADO ejecutar_fondo ERROR: falta el comando a lanzar"
     # MISMO gate que `ejecutar`: si el sentinel frena el comando en primer
-    # plano, mandarlo al background no puede saltarselo.
+    # plano, mandarlo al background no puede saltarselo. Y con el MISMO cwd
+    # (2026-08-25): el escape por `cwd=<carpeta protegida>` valdria igual
+    # lanzando en segundo plano, que ademas no deja ni la salida a la vista.
+    if cwd:
+        try:
+            cwd = str(Path(cwd).expanduser())
+        except (RuntimeError, OSError):
+            pass
     from cognia.agent.sentinel import evaluar_shell
-    permitido, msg = evaluar_shell(cmd, ctx)
+    permitido, msg = evaluar_shell(cmd, ctx, cwd=cwd)
     if not permitido:
         return (msg or "").replace("RESULTADO ejecutar", "RESULTADO ejecutar_fondo", 1)
     if cwd:
-        _cw = Path(cwd).expanduser()
+        _cw = Path(cwd)
         if not _cw.is_dir():
             return (f"RESULTADO ejecutar_fondo ERROR: cwd='{cwd}' no es un "
                     f"directorio existente")

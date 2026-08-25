@@ -23,6 +23,7 @@ Tabla de decision del clasificador (modo automatico):
                      | y del directorio temporal, o matchea patron peligroso
     file_delete      | SIEMPRE (borrar es irreversible; regla del repo:
                      | detenerse ante borrar datos del usuario)
+    borrado_masivo   | SIEMPRE, y tambien en modo 'bypass' (ver _KINDS_SIEMPRE)
     network          | solo si detail matchea patron peligroso; las URLs no se
                      | analizan como rutas (evita falsos positivos con http://)
     config_change    | solo si detail matchea patron peligroso
@@ -54,6 +55,19 @@ KNOWN_KINDS = (
     "shell_exec", "file_write", "file_delete",
     "network", "config_change", "model_download",
 )
+
+# Tipos que preguntan SIEMPRE, tambien en modo 'bypass' (2026-08-25).
+# 'borrado_masivo' lo emite agent/tools.borrar_archivo cuando la operacion
+# pasa del tope de ficheros (config 'borrado_max_ficheros', default 10). El
+# dia que se perdieron 3 capturas del dueno, TODOS los frenos configurables
+# estaban en la posicion permisiva (COGNIA_ACCESO_TOTAL=1 auto-aprueba los
+# CONFIRM del centinela), asi que un freno que el modo de permiso puede
+# apagar no es un freno. Este no se apaga: por encima del tope decide un
+# humano o no se borra. NO entra en KNOWN_KINDS a proposito — esa tupla es
+# la que ofrece reglas de bot, y una regla 'permitir borrado_masivo' seria
+# el mismo agujero con otro nombre (si el dueno la escribe a mano, es una
+# decision suya explicita).
+_KINDS_SIEMPRE = ("borrado_masivo",)
 
 # Los tipos donde ademas del patron se inspeccionan rutas absolutas en detail.
 _KINDS_CON_RUTAS = ("shell_exec", "file_write", "model_download")
@@ -116,6 +130,9 @@ def needs_confirmation(action_kind: str, detail: str) -> bool:
 
     Ver la tabla de decision en el docstring del modulo.
     """
+    kind_norm = (action_kind or "").strip().lower()
+    if kind_norm in _KINDS_SIEMPRE:
+        return True          # ni bypass ni acceso total lo saltan
     mode = get_mode()
     if mode == "bypass":
         return False

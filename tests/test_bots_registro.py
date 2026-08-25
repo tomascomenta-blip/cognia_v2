@@ -506,7 +506,13 @@ def test_build_system_prompt_sin_override_es_byte_identico(tmp_path, monkeypatch
     # con override: reemplaza el slot 1 y el prompt de usuario, conserva el resto
     (tmp_path / "pu.md").write_text("PERSONAL", encoding="utf-8")
     monkeypatch.setenv("COGNIA_PROMPT_USUARIO_PATH", str(tmp_path / "pu.md"))
+    # El prompt personal manda; el bloque de ENTORNO (2026-08-25) lo acompana
+    # como texto operativo. Con el kill-switch queda byte-identico.
+    assert SP.build_system_prompt(rol="cerebro",
+                                  perfil="completo").startswith("PERSONAL")
+    monkeypatch.setenv("COGNIA_ENTORNO_PROMPT", "0")
     assert SP.build_system_prompt(rol="cerebro", perfil="completo") == "PERSONAL"
+    monkeypatch.delenv("COGNIA_ENTORNO_PROMPT")
     con = SP.build_system_prompt(rol="cerebro", perfil="completo",
                                  prompt_usuario_override="YO SOY EL ALMA")
     assert con.startswith("YO SOY EL ALMA\n\n") and "PERSONAL" not in con

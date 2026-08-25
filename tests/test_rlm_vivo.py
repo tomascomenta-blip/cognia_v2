@@ -396,7 +396,9 @@ def test_semilla_profunda_de_chat_history_sin_duplicar():
     from cognia import cli
 
     class _CH:
-        def get_recent_turns(self, n=20):
+        # cwd= existe desde la continuidad por directorio (2026-08-25): el
+        # fake tiene que aceptarla o la semilla real cae al except y da 0.
+        def get_recent_turns(self, n=20, cwd=None):
             return [{"role": "user" if i % 2 == 0 else "assistant",
                      "content": f"viejo {i}"} for i in range(10)]
 

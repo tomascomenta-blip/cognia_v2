@@ -26,6 +26,12 @@ import time
 from pathlib import Path
 
 os.environ.setdefault("PYTHONUTF8", "1")
+# MODO EFIMERO (2026-08-25): el gate corre el agente REAL en proceso; sin esto,
+# cualquier via que toque chat_history/user_profile/episodica (p.ej. el
+# ai.observe de _run_agent_task con un Cognia real) escribia en la memoria del
+# dueno. setdefault, no asignacion: quien quiera medir persistencia puede
+# exportar COGNIA_EFIMERO=0 antes de correrlo. Va ANTES de importar cognia.
+os.environ.setdefault("COGNIA_EFIMERO", "1")
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except Exception:

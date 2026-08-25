@@ -380,6 +380,7 @@ def test_repl_pipeado_responde_mejorar():
     enganche NO aparece por ningun lado."""
     env = dict(os.environ)
     env["PYTHONUTF8"] = "1"
+    env["COGNIA_EFIMERO"] = "1"   # sin rastro en la memoria del dueno (2026-08-25)
     p = subprocess.run([sys.executable, "-m", "cognia"],
                        input="/mejorar\n/salir\n".encode("utf-8"),
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

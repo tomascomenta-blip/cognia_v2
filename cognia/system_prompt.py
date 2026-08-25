@@ -35,6 +35,7 @@ Uso:
 from __future__ import annotations
 
 import os
+import platform
 import re
 from pathlib import Path
 
@@ -311,6 +312,152 @@ def _perfil_auto() -> str:
     return "compacto"
 
 
+def _medir_entorno() -> tuple:
+    """(sistema, shell_del_usuario, cwd) MEDIDOS en esta maquina. Puede lanzar.
+
+    Existe para que el bloque del CHAT (entorno_usuario) y la linea del AGENTE
+    (entorno_agente) lean la MISMA medicion en vez de tener dos copias que se
+    desincronizan. El `shell` que devuelve es el shell INTERACTIVO del dueno
+    (donde el escribe), que NO es el shell donde corre la tool 'ejecutar' del
+    agente: para ese esta shell_de_ejecutar(), medido aparte y distinto.
+    """
+    so = platform.system() or "desconocido"
+    if so == "Windows":
+        so = f"Windows {platform.release()}"
+        # PSModulePath viene puesto por PowerShell (y Windows moderno lo
+        # exporta global): es la senal barata de que el shell del dueno es
+        # PowerShell; sin ella, el interprete de comandos de COMSPEC.
+        if os.environ.get("PSModulePath"):
+            shell = "PowerShell"
+        else:
+            shell = Path(os.environ.get("COMSPEC", "cmd.exe")).stem or "cmd"
+    else:
+        so = f"{so} {platform.release()}".strip()
+        shell = Path(os.environ.get("SHELL", "sh")).name or "sh"
+    return so, shell, os.getcwd()
+
+
+def shell_de_ejecutar() -> str:
+    r"""El nombre del shell que corre DE VERDAD la tool 'ejecutar' del agente.
+
+    NO es el shell del dueno. `ejecutar` termina en subprocess con shell=True,
+    y eso en Windows es %COMSPEC% (cmd.exe) — nunca PowerShell, aunque el dueno
+    viva en PowerShell; en POSIX es /bin/sh, no su $SHELL.
+
+    MEDIDO por la propia tool el 2026-08-25 en esta maquina (Windows 11):
+        echo %COMSPEC%  -> C:\WINDOWS\system32\cmd.exe
+        ver             -> Microsoft Windows [Version 10.0.26200.8653]
+        echo $PSVersionTable -> imprime el literal '$PSVersionTable' (no expande)
+        Get-ChildItem   -> exit 1, "no se reconoce como un comando interno..."
+        powershell -NoProfile -c "..."  -> OK (la via para un cmdlet)
+        uname -s        -> MINGW64_NT-10.0-26200   (Git for Windows en el PATH)
+        ls -la / find / grep / head     -> OK, por C:\Program Files\Git\usr\bin
+    O sea: en ESTA maquina fallan los cmdlets de PowerShell, no los POSIX (el
+    `where find` da primero el find.exe de Git, no el de System32). Por eso la
+    pista de la tool se dispara con el ERROR REAL del shell (tools.py::
+    _pista_shell) y no adivinando que un comando "es de Linux".
+    """
+    if platform.system() == "Windows":
+        return Path(os.environ.get("COMSPEC", "cmd.exe")).name or "cmd.exe"
+    return "/bin/sh"
+
+
+# Tope, en chars, de lo que entorno_agente() puede anadir al system del AGENTE
+# contando el "\n\n" que lo pega. POR QUE un tope y no "lo que salga": el A/B
+# del 2026-07-23 midio que prosa extra en el prompt del agente hunde el gate
+# del camino feliz de 10/10 a 1/4 corridas perfectas. Lo que entra aqui es UN
+# DATO (SO, shell, cwd), no un parrafo, y el tope lo vuelve una regla que un
+# test hace cumplir en vez de una buena intencion.
+# Medido 2026-08-25 en esta maquina: 104 chars con cwd=...\Desktop\cognia_v2.
+TOPE_ENTORNO_AGENTE = 120
+
+
+def entorno_agente() -> str:
+    """UNA linea con SO + shell REAL + cwd para el system del AGENTE, o "".
+
+    POR QUE (corrida real 2026-08-25): el agente, en Windows, ejecuto `uname
+    -s`, `find` y `ls -R` porque su system prompt no decia ni el sistema ni el
+    shell; gasto 6 de sus pasos y cerro "sin progreso verificado". El prompt
+    del CHAT ya trae el bloque de entorno (entorno_usuario); el del agente no
+    tenia absolutamente nada.
+
+    NO es el bloque del chat: es una sola linea de DATOS, sin instrucciones de
+    conducta, por el A/B del 2026-07-23 (prosa extra en el agente: 10/10 ->
+    1/4). El shell que nombra es el de la tool 'ejecutar' (cmd.exe en Windows),
+    no el interactivo del dueno: decirle "PowerShell" al agente seria mentirle
+    sobre donde corren sus comandos (medido: Get-ChildItem sale exit 1 ahi).
+
+    Kill-switch COGNIA_ENTORNO_PROMPT=0 (el mismo del chat): devuelve "" y el
+    prompt del agente queda BYTE-IDENTICO al de antes de este cambio (test en
+    tests/test_agente_sabe_el_so.py).
+    Best-effort: si la medicion falla, "" — nunca lanza.
+    """
+    if os.environ.get("COGNIA_ENTORNO_PROMPT", "").strip() == "0":
+        return ""
+    try:
+        so, _shell_del_dueno, cwd = _medir_entorno()
+        shell = shell_de_ejecutar()
+        cabeza = f"Entorno: {so}, shell {shell}, cwd "
+        cola = "; usa comandos de ESE shell."
+        # El cwd es lo unico de largo imprevisible (un proyecto anidado da 200
+        # chars facil): se recorta por la IZQUIERDA, que es la parte que menos
+        # informa, para que la linea entre SIEMPRE en el tope medido.
+        sitio = TOPE_ENTORNO_AGENTE - 2 - len(cabeza) - len(cola)
+        if sitio < 8:
+            # Ni con recorte entra: se cae al dato minimo (SO + shell).
+            return f"Entorno: {so}, shell {shell}."[:TOPE_ENTORNO_AGENTE - 2]
+        if len(cwd) > sitio:
+            cwd = "..." + cwd[-(sitio - 3):]
+        return cabeza + cwd + cola
+    except Exception:
+        # Mismo criterio que entorno_usuario: un entorno ilegible no degrada
+        # nada del producto, el prompt de siempre queda intacto.
+        return ""
+
+
+def entorno_usuario() -> str:
+    """Bloque de ENTORNO para el prompt del CEREBRO (chat), o "" si no aplica.
+
+    POR QUE (transcript real 2026-08-25, 11:52): el chat, en un Windows 11 con
+    PowerShell, recomendo `ls ~/Pictures/Screenshots/*.jpg` y `find -delete`
+    (comandos Linux) y despues AFIRMO haberlos ejecutado con cifras inventadas
+    ("veintinueve archivos eliminados") — el chat no tiene herramientas y su
+    prompt no decia ni el sistema operativo ni que no puede ejecutar nada.
+    Dos verdades cortas lo arreglan: (1) SO/shell/cwd reales, medidos aca y no
+    declarados; (2) la regla de que el chat no ejecuta y deriva al agente.
+
+    Solo para el rol cerebro y nunca para un bot con ALMA (build_system_prompt
+    decide); el rol agente esta MEDIDO (A/B 2026-07-23): texto extra lo degrada
+    de 10/10 a 3/5, asi que jamas lo recibe. El bloque es estable dentro de una
+    sesion (SO, shell y cwd no cambian entre turnos), asi que el prefix-cache
+    del prompt sigue pagandose una sola vez.
+
+    Kill-switch: COGNIA_ENTORNO_PROMPT=0 lo apaga (tests que comparan prompts
+    entre maquinas, o un dueno que no quiera el cwd en el prompt).
+    Best-effort: si algo del sistema falla, devuelve "" y el prompt de siempre
+    queda intacto — nunca lanza.
+    """
+    if os.environ.get("COGNIA_ENTORNO_PROMPT", "").strip() == "0":
+        return ""
+    try:
+        so, shell, cwd = _medir_entorno()
+        return (
+            "ENTORNO DEL USUARIO\n"
+            f"Sistema operativo: {so}. Shell: {shell}. Directorio actual: {cwd}.\n"
+            "Si sugeris comandos, que sean de ESE sistema y ese shell.\n"
+            "Vos, el chat, NO ejecutas nada en la maquina: no tenes "
+            "herramientas. Si el usuario pide una accion sobre su sistema "
+            "(borrar, mover, instalar, ejecutar algo), decile que el agente "
+            "puede hacerla con /hacer <tarea>, y JAMAS afirmes haber ejecutado "
+            "un comando ni inventes su salida."
+        )
+    except Exception:
+        # Sin _aviso_degradado a proposito: esto corre en cada armado de
+        # prompt (tambien fuera del REPL) y un entorno ilegible no degrada
+        # nada del producto — el prompt integrado sigue completo.
+        return ""
+
+
 def build_system_prompt(rol: str = "cerebro", perfil: str | None = None,
                         con_arbitro: bool = False,
                         prompt_usuario_override: str | None = None) -> str:
@@ -337,9 +484,18 @@ def build_system_prompt(rol: str = "cerebro", perfil: str | None = None,
     if rol != "agente" and not override:
         _pu = prompt_usuario()
         if _pu:
+            # El ENTORNO (SO/shell/cwd + "el chat no ejecuta") acompana
+            # TAMBIEN al prompt personalizado: es informacion operativa de la
+            # maquina, como el aviso de arbitro, no identidad — un prompt
+            # propio no deberia costarle al dueno que el chat vuelva a
+            # recomendar comandos Linux en Windows (2026-08-25).
+            _partes_pu = [_pu]
             if con_arbitro:
-                return _pu + "\n\n" + _ARBITRO_AVISO.strip()
-            return _pu
+                _partes_pu.append(_ARBITRO_AVISO.strip())
+            _ent = entorno_usuario()
+            if _ent:
+                _partes_pu.append(_ent)
+            return "\n\n".join(_partes_pu)
 
     explicito = perfil is not None
     perfil = (perfil or _perfil_auto()).lower()
@@ -357,6 +513,22 @@ def build_system_prompt(rol: str = "cerebro", perfil: str | None = None,
 
     identidad = override or _IDENTIDAD
     if perfil == "minimo":
+        # El cerebro sin override recibe el ENTORNO aun en minimo: la regla
+        # "no afirmes haber ejecutado" protege igual con modelo chico (el
+        # incidente 2026-08-25 fue justo el chat inventando ejecuciones).
+        # Con override (ALMA de bot) el contrato "YO" == "YO" se conserva
+        # byte-identico (test_bots_registro).
+        if rol != "agente" and not override:
+            _ent = entorno_usuario()
+            if _ent:
+                return identidad + "\n\n" + _ent
+        if rol == "agente":
+            # Tambien en 'minimo': un agente que no sabe su SO pierde pasos
+            # ejecutando comandos de otro sistema (corrida 2026-08-25), y el
+            # dato cuesta <=120 chars (TOPE_ENTORNO_AGENTE), no prosa.
+            _ent_ag = entorno_agente()
+            if _ent_ag:
+                return identidad + "\n\n" + _ent_ag
         return identidad
 
     partes = [identidad]
@@ -375,6 +547,20 @@ def build_system_prompt(rol: str = "cerebro", perfil: str | None = None,
         partes.append(_CEREBRO)
     if con_arbitro:
         partes.append(_ARBITRO_AVISO)
+    # ENTORNO al final y SOLO para el cerebro sin ALMA: el agente esta medido
+    # (A/B 2026-07-23, texto extra = 10/10 -> 3/5) y no lo ve; un bot con
+    # override conserva su prompt byte-identico. Va ultimo para no mover el
+    # prefijo estable (identidad+conducta) que ya comparte el prefix-cache.
+    if rol != "agente" and not override:
+        _ent = entorno_usuario()
+        if _ent:
+            partes.append(_ent)
+    elif rol == "agente":
+        # El agente NO recibe el bloque del chat (prosa: 10/10 -> 1/4) pero SI
+        # la linea de datos: sin ella ejecuta comandos del sistema equivocado.
+        _ent_ag = entorno_agente()
+        if _ent_ag:
+            partes.append(_ent_ag)
     return "\n\n".join(p.strip() for p in partes if p and p.strip())
 
 

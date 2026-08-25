@@ -127,6 +127,16 @@ def _telemetria_sellos_aislada(tmp_path, monkeypatch):
         pass
 
 
+# ── La PAPELERA del agente nunca se escribe en el HOME real ────────────
+# borrar_archivo manda a ~/.cognia/papelera (harness/papelera, 2026-08-25) en
+# vez de destruir. Los tests que borran ficheros de tmp meterian esos ficheros
+# en la papelera REAL del dueno y ademas dispararian su poda: se redirige
+# SIEMPRE a tmp. Los tests de la papelera la re-apuntan ellos mismos encima.
+@_pytest.fixture(autouse=True)
+def _papelera_aislada(tmp_path, monkeypatch):
+    monkeypatch.setenv("COGNIA_PAPELERA_DIR", str(tmp_path / "papelera_test"))
+
+
 # ── Los JSONL del disyuntor NUNCA se escriben desde tests ──────────────
 # Mismo motivo que la telemetria: los lazos de program_creator persisten sus
 # intentos y disparos en .disciplina/pc_*.jsonl (2026-08-01, para que la

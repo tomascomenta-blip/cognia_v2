@@ -65,7 +65,12 @@ def test_p01_comando_bloqueado_no_produce_exit_cero(monkeypatch):
     """
     monkeypatch.setattr(tools, "_marcar_exit", tools._marcar_exit)
 
-    def _bloqueado(cmd, ctx=None):
+    def _bloqueado(cmd, ctx=None, cwd=""):
+        # `cwd` entro en la firma de evaluar_shell el 2026-08-25: `ejecutar
+        # <cmd> | cwd=<carpeta protegida>` clasificaba el comando SIN ninguna
+        # ruta y salia CONFIRM, o sea que el gate se saltaba por la puerta
+        # oficial. Este doble tiene que aceptarlo o el TypeError se come el
+        # test (medido: paso de verde a rojo con el arreglo).
         return False, "RESULTADO ejecutar: BLOQUEADO por Sentinel (destructivo)."
 
     monkeypatch.setattr("cognia.agent.sentinel.evaluar_shell", _bloqueado)
