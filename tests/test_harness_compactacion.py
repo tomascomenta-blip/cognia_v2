@@ -30,11 +30,14 @@ from cognia.harness import compactacion as comp
 
 
 @pytest.fixture(autouse=True)
-def knobs_limpios(monkeypatch):
-    """Ningun test hereda knobs del entorno ni telemetria de otro test."""
+def knobs_limpios(monkeypatch, tmp_path):
+    """Ningun test hereda knobs del entorno ni telemetria de otro test. El
+    almacen del offload va a tmp: compactar() vuelca el historial crudo a
+    disco (2026-08-24) y sin esto los tests escribirian en el ~/.cognia real."""
     for var in ("COGNIA_COMPACT", "COGNIA_COMPACT_UMBRAL",
                 "COGNIA_COMPACT_RETENCION", "COGNIA_COMPACT_CAP"):
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("COGNIA_OFFLOAD_DIR", str(tmp_path / "offload"))
     comp._ULTIMA.clear()
     comp._ULTIMO_ERROR.clear()
 
@@ -302,8 +305,14 @@ def test_bucle_compacta_aunque_el_stream_no_traiga_prompt_tokens():
 
     schemas = [{"type": "function",
                 "function": {"name": "leer_archivo", "parameters": {}}}]
+    # n_ctx 8000, no 4000: con 4000 el primer turno no tenia zona vieja (la
+    # unica lectura era el ultimo mensaje, siempre retenido), el fallback
+    # truncado la mordia a 248 chars y la zona vieja del segundo turno eran
+    # 385 chars — menos que el resumen con secciones + ruta del volcado
+    # (2026-08-24), que por diseno NO se aplica si no libera. Con 8000 la
+    # compactacion dispara al tercer turno sobre ~23 KB de zona vieja real.
     perfil = {"nombre": "razonador_nativo", "modelo": "m.gguf",
-              "url": "http://127.0.0.1:9", "tools": "nativo", "n_ctx": 4000,
+              "url": "http://127.0.0.1:9", "tools": "nativo", "n_ctx": 8000,
               "temperature": 1.0, "top_p": 1.0, "max_tokens": 4096}
     out = loop_mod.bucle_nativo(
         "resume los ficheros", "sos el agente", _completar, schemas,

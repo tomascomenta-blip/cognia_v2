@@ -10,6 +10,7 @@ import re
 import time
 import urllib.request as _req
 import json as _json
+import logging
 from collections import Counter
 from datetime import datetime
 from typing import Optional
@@ -18,14 +19,70 @@ from ..vectors import cosine_similarity
 from ..config import DB_PATH
 from .creative_llm import creative_generate
 
-try:
-    from prometheus_client import Counter as _PCounter
-    _OLLAMA_ERRORS = _PCounter(
-        "cognia_ollama_errors_total",
-        "Ollama API call failures tracked by the circuit breaker",
-    )
-except ImportError:
-    _OLLAMA_ERRORS = None
+# Contador Prometheus PEREZOSO (2026-08-25): importar prometheus_client cuesta
+# 39 ms en el arranque y este Counter solo se toca cuando Ollama FALLA. Se crea
+# al primer fallo; sin prometheus_client queda en None (como antes).
+_OLLAMA_ERRORS = None
+_PROM_INTENTADO = False
+logger = logging.getLogger(__name__)
+
+
+def contador_prometheus_o_existente(nombre: str, doc: str):
+    """Crea el Counter `nombre` en el REGISTRY por defecto; si YA esta
+    registrado devuelve el existente; si prometheus_client no esta o el
+    registro falla por otro motivo, None (y un warning, nunca silencio).
+
+    POR QUE (2026-08-25): con el import perezoso, el ValueError 'Duplicated
+    timeseries in CollectorRegistry' de un segundo registro (reload del
+    modulo, dos copias de cognia.cognia en sys.path -- doctor.py:277 lo
+    vigila) ya no salta al importar sino dentro de observe() (DESPUES de que
+    episodic.store() guardo el episodio, sin try alrededor) y de _sleep_sync().
+    Y como el flag 'intentado' quedaba en True antes de la excepcion, la
+    SEGUNDA llamada devolvia None en silencio: un fallo ruidoso una vez y el
+    contador desaparecia sin aviso. Reproducido: reload(cognia.cognia) tras
+    el primer inc() -> ValueError; la llamada siguiente -> (None, None).
+    Ahora el Counter ya registrado se RECUPERA del REGISTRY (mismo objeto,
+    sigue contando), y solo si eso tampoco esta se degrada a None avisando.
+    Vive aqui (capa reasoning) porque cognia.cognia ya importa de este modulo
+    y al reves seria circular. Test: tests/test_pulido_arranque.py.
+    """
+    try:
+        from prometheus_client import Counter as _PCounter
+    except ImportError:
+        return None
+    try:
+        return _PCounter(nombre, doc)
+    except ValueError as exc:
+        # Ya registrado: el REGISTRY indexa el Counter por su nombre pelado
+        # (sin _total) y tambien por los nombres de sus series (_total,
+        # _created). _names_to_collectors es privado: si desaparece en una
+        # version futura, se degrada a None AVISANDO, no reventando.
+        try:
+            from prometheus_client import REGISTRY
+            existente = getattr(REGISTRY, "_names_to_collectors", {}).get(nombre)
+        except Exception as exc2:  # noqa: BLE001 - se avisa abajo con el motivo
+            existente = None
+            exc = exc2
+        if existente is not None:
+            logger.warning("prometheus: %s ya estaba registrado, se reutiliza "
+                           "(modulo recargado o cargado dos veces)", nombre)
+            return existente
+        logger.warning("prometheus: no se pudo registrar %s (%s: %s); "
+                       "el contador queda apagado", nombre, type(exc).__name__, exc)
+        return None
+
+
+def _contador_errores_ollama():
+    """El Counter cognia_ollama_errors_total, creado al primer uso; None si
+    prometheus_client no esta instalado o no se pudo registrar (avisado)."""
+    global _OLLAMA_ERRORS, _PROM_INTENTADO
+    if not _PROM_INTENTADO:
+        _PROM_INTENTADO = True
+        _OLLAMA_ERRORS = contador_prometheus_o_existente(
+            "cognia_ollama_errors_total",
+            "Ollama API call failures tracked by the circuit breaker",
+        )
+    return _OLLAMA_ERRORS
 
 
 class _OllamaCircuitBreaker:
@@ -54,8 +111,9 @@ class _OllamaCircuitBreaker:
             return text or None
         except Exception:
             self.fail_count += 1
-            if _OLLAMA_ERRORS is not None:
-                _OLLAMA_ERRORS.inc()
+            _errores = _contador_errores_ollama()
+            if _errores is not None:
+                _errores.inc()
             if self.fail_count >= self.max_fails:
                 self.open_until = time.time() + self.open_secs
             return None

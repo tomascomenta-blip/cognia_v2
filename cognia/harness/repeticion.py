@@ -52,6 +52,19 @@ CONFIG (patron dsh: se VALIDA al cargar y falla RUIDOSO con config invalida)
 
 CONTRATO: `anexar(...)` NUNCA lanza y NUNCA veta: ante cualquier fallo devuelve
 el texto que recibio. El unico efecto posible es texto ANADIDO al final.
+
+BUCLE POR FICHERO (2026-08-24, deepagents 0.7.8: LoopDetectionMiddleware
+del blog de harness engineering, y el system_prompt.md de dcode: "DO NOT
+loop more than 3 times fixing the same error with the same approach"). Los
+CUATRO detectores del repo (register_action, GuardiaBucle, `Contador` de
+arriba y el Disyuntor de disciplina) cuentan por tool+args: tres
+editar_archivo sobre a.py con bloques SEARCH distintos son, para todos
+ellos, tres llamadas distintas. `ContadorFichero` cuenta EDICIONES AL MISMO
+FICHERO normalizado dentro de una tarea, con args distintos o no, y al
+llegar al umbral (default 3, config 'repeticion_umbral_fichero' /
+COGNIA_REPETICION_UMBRAL_FICHERO) devuelve un nudge de RECONSIDERACION que
+el bucle nativo inyecta como turno user (loop.py, junto al aviso del
+guardia). Advisory como todo lo de este modulo: no corta, no veta.
 """
 
 from __future__ import annotations
@@ -66,6 +79,13 @@ CAP_ARGS = 500
 MARCA = "[RECORDATORIO DE REPETICION]"
 ENV_ACTIVO = "COGNIA_REPETICION"
 ENV_UMBRALES = "COGNIA_REPETICION_UMBRALES"
+# Bucle por fichero: N ediciones al MISMO fichero dentro de una tarea.
+UMBRAL_FICHERO_DEFECTO = 3
+ENV_UMBRAL_FICHERO = "COGNIA_REPETICION_UMBRAL_FICHERO"
+# Las tools que EDITAN (no borrar/mover: esas no se reintentan en bucle).
+# Nombres reales de agent/tools.py (@tool "escribir_archivo" etc.).
+TOOLS_EDICION = frozenset({"escribir_archivo", "editar_archivo",
+                           "apendar_archivo"})
 
 # Tools cuyo trabajo ES repetirse (polling de un proceso de fondo, correr la
 # misma suite tras cada arreglo). Mismo criterio que EXENTAS_COGNIA del
@@ -85,6 +105,8 @@ _ULTIMO: dict = {}
 _ULTIMO_ERROR: dict = {}
 _TOTAL = [0]            # recordatorios emitidos en este proceso
 _AVISADO = [False]      # la config invalida se grita UNA vez por proceso
+_ULTIMO_FICHERO: dict = {}   # ultimo nudge por fichero (para /bucle estado)
+_TOTAL_FICHERO = [0]         # nudges por fichero emitidos en este proceso
 
 # Punto de extension: el CLI registra su _aviso_degradado.
 _AVISADOR = None
@@ -150,6 +172,29 @@ def umbrales() -> tuple:
     return parsear_umbrales(os.environ.get(ENV_UMBRALES, ""))
 
 
+def parsear_umbral_fichero(texto) -> int:
+    """'3' -> 3. Entero >= 2 (una edicion no es un bucle); vacio = default.
+    Basura -> ConfigInvalida con el motivo exacto (mismo patron que
+    parsear_umbrales: se valida al cargar y falla RUIDOSO)."""
+    crudo = str(texto if texto is not None else "").strip()
+    if not crudo:
+        return UMBRAL_FICHERO_DEFECTO
+    try:
+        v = int(crudo)
+    except ValueError:
+        raise ConfigInvalida(f"umbral por fichero no entero: {crudo!r}")
+    if v < 2:
+        raise ConfigInvalida(f"umbral por fichero {v} < 2: una edicion no es "
+                             f"un bucle")
+    return v
+
+
+def umbral_fichero() -> int:
+    """El umbral efectivo de ediciones al mismo fichero (env
+    COGNIA_REPETICION_UMBRAL_FICHERO o el default 3)."""
+    return parsear_umbral_fichero(os.environ.get(ENV_UMBRAL_FICHERO, ""))
+
+
 def activo() -> bool:
     """Encendido salvo COGNIA_REPETICION=0/off/false/no. Vacio = encendido:
     es advisory y cuesta un dict lookup, asi que embebido tambien va."""
@@ -165,8 +210,9 @@ def activo() -> bool:
 
 def validar_config() -> dict:
     """Valida TODA la config de una (para el arranque del CLI): devuelve
-    {'activo', 'umbrales'} o lanza ConfigInvalida."""
-    return {"activo": activo(), "umbrales": umbrales()}
+    {'activo', 'umbrales', 'umbral_fichero'} o lanza ConfigInvalida."""
+    return {"activo": activo(), "umbrales": umbrales(),
+            "umbral_fichero": umbral_fichero()}
 
 
 # ── Clave canonica ───────────────────────────────────────────────────────────
@@ -235,6 +281,15 @@ def texto_detallado(tool: str, n: int, args) -> str:
             f"respuesta final con lo que hay).")
 
 
+def texto_fichero(ruta: str, n: int) -> str:
+    """El nudge de RECONSIDERACION por fichero (misma voz que los dos de
+    arriba: concreto, cita el hecho, pide un cambio de enfoque)."""
+    return (f"{MARCA} Llevas {n} ediciones sobre {ruta} sin cerrar el "
+            f"problema. Antes de la siguiente: relee el fichero entero, "
+            f"enuncia la causa por escrito y cambia de enfoque; si no puedes, "
+            f"para y explica.")
+
+
 # ── El contador por agente ───────────────────────────────────────────────────
 
 class Contador:
@@ -287,6 +342,60 @@ class Contador:
     def estado(self) -> dict:
         return {"tool": self.tool, "n": self.n,
                 "recordatorios": self.recordatorios}
+
+
+def normalizar_ruta(ruta) -> str:
+    """Clave de fichero: sin comillas, separadores '/', sin './', y en
+    minusculas (Windows no distingue mayusculas; 'A.py' y 'a.py' son el
+    mismo fichero y el modelo alterna entre ambas cuando se atasca)."""
+    texto = str(ruta or "").strip().strip('"').strip("'")
+    if not texto:
+        return ""
+    return os.path.normpath(texto).replace("\\", "/").lower()
+
+
+class ContadorFichero:
+    """Ediciones por fichero normalizado dentro de UNA tarea (el bucle
+    nativo crea uno por bucle_nativo). Hermano de Contador: mismo reset por
+    prompt humano, misma telemetria de proceso, mismo 'nunca veta'.
+
+    `registrar(ruta, tool)` devuelve el nudge cuando el fichero ALCANZA el
+    umbral (n == umbral) y de nuevo en cada multiplo (2N, 3N...): una vez por
+    cruce, nunca en cada edicion (un nudge en cada paso es ruido que el
+    modelo aprende a ignorar). Tools fuera de TOOLS_EDICION y rutas vacias
+    son transparentes."""
+
+    def __init__(self):
+        self.por_fichero: dict = {}
+        self.generacion = _GENERACION[0]
+        self.nudges = 0
+
+    def reset(self) -> None:
+        self.por_fichero = {}
+        self.generacion = _GENERACION[0]
+
+    def registrar(self, ruta, tool: str) -> str:
+        if self.generacion != _GENERACION[0]:
+            self.reset()
+        if tool not in TOOLS_EDICION:
+            return ""
+        clave = normalizar_ruta(ruta)
+        if not clave:
+            return ""
+        umbral = umbral_fichero()
+        n = self.por_fichero.get(clave, 0) + 1
+        self.por_fichero[clave] = n
+        if n < umbral or n % umbral != 0:
+            return ""
+        self.nudges += 1
+        _TOTAL_FICHERO[0] += 1
+        _ULTIMO_FICHERO.clear()
+        _ULTIMO_FICHERO.update({"ruta": clave, "n": n, "tool": tool,
+                                "ts": time.strftime("%Y-%m-%d %H:%M:%S")})
+        return texto_fichero(clave, n)
+
+    def estado(self) -> dict:
+        return {"ficheros": dict(self.por_fichero), "nudges": self.nudges}
 
 
 _GLOBAL = Contador()     # fallback cuando run_tool no recibe un ctx dict
@@ -345,13 +454,22 @@ def estado() -> dict:
         err_umb = ""
     except ConfigInvalida as exc:
         umb, err_umb = UMBRALES_DEFECTO, str(exc)
+    try:
+        umb_f = umbral_fichero()
+        err_f = ""
+    except ConfigInvalida as exc:
+        umb_f, err_f = UMBRAL_FICHERO_DEFECTO, str(exc)
     return {
         "activo": act,
         "umbrales": umb,
-        "config_error": err_act or err_umb,
+        "config_error": err_act or err_umb or err_f,
         "exentas": sorted(EXENTAS),
         "total": _TOTAL[0],
         "ultimo": dict(_ULTIMO),
         "ultimo_error": dict(_ULTIMO_ERROR),
         "generacion": _GENERACION[0],
+        # bucle por fichero (ContadorFichero)
+        "umbral_fichero": umb_f,
+        "total_fichero": _TOTAL_FICHERO[0],
+        "ultimo_fichero": dict(_ULTIMO_FICHERO),
     }

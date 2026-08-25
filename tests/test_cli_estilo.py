@@ -115,11 +115,11 @@ def test_lista_completa_y_por_grupo(entorno):
     t = entorno.texto()
     for id in A.REGISTRO:
         assert id in t
-    # banner.* (P7) y spinner.* (P8) ya estan enganchados: no anuncian paso;
-    # los de P6 (agentes.*, diff.*...) si
-    assert "(P6)" in t, "los no enganchados dicen su paso"
-    assert "(P7)" not in t and "(P8)" not in t, "banner y spinner ya se aplican"
-    assert "(P5)" not in t, "P5 ya engancho prompt/barra/menu"
+    # banner.*, spinner.*, prompt/barra/menu ya estan enganchados: nada que
+    # anunciar; los no enganchados (agentes.*, diff.*...) llevan 'sin efecto'
+    # en castellano, sin el nombre del paso del plan (pulido 2026-08-24)
+    assert "sin efecto" in t, "los no enganchados lo dicen"
+    assert not re.search(r"\(P\d", t), "sin jerga de pasos (P6, P7...) en la lista"
     entorno.salida.clear()
     cli._slash_estilo("lista sistema")
     t = entorno.texto()
@@ -170,7 +170,8 @@ def test_set_en_elemento_no_enganchado_guarda_y_avisa_E8(entorno):
     cli._slash_estilo("agentes.texto color #ff00ff")
     t = entorno.texto()
     assert "(guardado)" in t
-    assert "se aplica cuando su elemento este enganchado (paso P6)" in t
+    assert "1 propiedad aun sin efecto en esta version (agentes.texto.color)" in t
+    assert not re.search(r"\(P\d", t)
     assert A.estilo_de("agentes.texto").color == "#ff00ff"
     assert json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))["elementos"]["agentes.texto"]["color"] == "#ff00ff"
 
@@ -187,11 +188,14 @@ def test_set_en_el_prompt_ya_no_avisa_ni_por_la_animacion(entorno):
     assert list(cli._mensaje_prompt())[1][1] == " jarvis"
     entorno.salida.clear()
     cli._slash_estilo("prompt.etiqueta animacion.activa on")
-    assert "(guardado)" in entorno.texto() and "paso P9" not in entorno.texto()
+    assert "(guardado)" in entorno.texto() and "sin efecto" not in entorno.texto()
     assert A.paso_pendiente("prompt.etiqueta", "animacion.activa") == ""
     entorno.salida.clear()
     cli._slash_estilo("barra.estado animacion.activa on")
-    assert "paso P9" in entorno.texto(), "la barra no va con el pulso todavia"
+    t = entorno.texto()
+    assert "1 propiedad aun sin efecto en esta version (barra.estado.animacion.activa)" in t, \
+        "la barra no va con el pulso todavia"
+    assert not re.search(r"\(P\d", t)
 
 
 def test_set_de_glifo_en_enganchado_por_token_avisa_pero_el_color_no(entorno):
@@ -330,11 +334,12 @@ def test_cargar_preset_del_paquete_y_avisa_lo_pendiente(entorno):
     cli._slash_estilo("cargar neon")
     t = entorno.texto()
     assert "'neon' cargado" in t
-    # P5: prompt.* ya se ve; del neon solo queda pendiente la animacion del
-    # prompt (P9) y el banner/spinner de sus pasos
-    assert "prompt.* (P5)" not in t
-    assert "prompt.etiqueta.animacion" not in t, "P9: la animacion del prompt ya se ve"
-    assert "(P7)" not in t and "(P8)" not in t, "banner y spinner ya se aplican"
+    # prompt.*, banner.* y spinner.* ya se ven; del neon solo queda sin
+    # efecto el glow de barra.modo, dicho sin jerga de pasos
+    assert "prompt.*" not in t
+    assert "prompt.etiqueta.animacion" not in t, "la animacion del prompt ya se ve"
+    assert "1 propiedad aun sin efecto en esta version (barra.modo.glow)" in t
+    assert not re.search(r"\(P\d", t)
     assert A.tiene_override("prompt.etiqueta")
     assert json.loads(A.RUTA_ESTILO.read_text(encoding="utf-8"))["nombre"] == "neon"
     assert entorno.avisos == []

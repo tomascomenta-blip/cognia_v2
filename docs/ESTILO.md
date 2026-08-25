@@ -532,7 +532,7 @@ degradacion con nombre y motivo.
 /estilo presets                      lista los del dueno y los del paquete
 /estilo exportar <ruta>              fichero autocontenido
 /estilo deshacer                     restaura estilo.json.bak
-/estilo banner                       PENDIENTE: hoy solo avisa; cli._reimprimir_banner existe y no esta cableado a este subcomando
+/estilo banner                       repinta la cabecera con el aspecto vigente (cli._reimprimir_banner -> _print_startup_panel: variante por altura, caja, textos, alineacion, animacion)
 /estilo ayuda                        = /ayuda /estilo
 ```
 
@@ -771,7 +771,7 @@ aviso: banner.arte: identidad: el banner va por defecto (se guarda, pero es la m
 
 ---
 
-## 11. Estado de la entrega (2026-08-24, 16:20)
+## 11. Estado de la entrega (2026-08-24, 16:25; revisado contra el codigo el 2026-08-25)
 
 **En `main`** (verificado con grep en este repo):
 
@@ -790,6 +790,8 @@ aviso: banner.arte: identidad: el banner va por defecto (se guarda, pero es la m
 | P10 | modelo puro del editor (navegacion, filtro, edicion por tipo, undo/redo, presets en memoria, preview determinista) + transacciones en memoria del registro | `cognia/ux/editor_aspecto.py`, `cognia/ux/aspecto.py` (seccion 12) |
 | P11 | Application full-screen del editor con las guardas, la preview animada solo cuando toca, `abrir_editor()` y el gancho `/estilo` a secas (`cli._estilo_editor`) | `cognia/ux/editor_app.py`, `cognia/cli.py` |
 | P6b | caja de `panel.borde` (`glifo`: rounded/square/heavy/double/none) y textos de `panel.titulo` en los paneles de `/compactar`, `/modulos`, `/costo`, `/stats` (`cli._panel_chrome`; default byte-identico) | `cognia/cli.py`, `cognia/ux/aspecto.py` (seccion 17) |
+| E11 | migracion de los literales de `cli.py` fuera de los tokens del tema: `[success_dim]` x4 -> `[ok_cl]` (hallazgo: ese token no existia en la paleta y esas 4 lineas salian sin color) y `[bold]` x6 -> `[titulo]`; cambio de bytes intencional fuera del golden (2026-08-24 16:25; hoy `grep '\[success_dim\]' cognia/cli.py` = 0) | `cognia/cli.py` (listados de `/agente`) |
+| `/estilo banner` | repinta la cabecera con el aspecto vigente: `cli._slash_estilo` -> `cli._reimprimir_banner` -> `_print_startup_panel` (mismo camino que el arranque; smoke por stdin: `/estilo banner.marco texto.titulo JARVIS` + `/estilo banner` pinta `JARVIS v...`) | `cognia/cli.py` |
 | acento | `/color X` escribe `respuesta.texto.color` en el registro (`cli._acento_a_registro`) y `/estilo respuesta.texto color X` (o style string, o reset) mueve el acento en caliente y persiste `COGNIA_ACCENT` (`cli._acento_desde_registro`); un `COGNIA_ACCENT` heredado sin override no se pisa | `cognia/cli.py`, `cognia/ux/aspecto.py` (seccion 18) |
 
 Tests: `tests/test_ux_aspecto.py`, `test_ux_glow`, `test_ux_spinner_vivo`,
@@ -803,10 +805,8 @@ Tests: `tests/test_ux_aspecto.py`, `test_ux_glow`, `test_ux_spinner_vivo`,
 | que | estado hoy |
 |---|---|
 | `agentes.acento/panel/borde/texto` (vista F2) | se validan, guardan y previsualizan; la vista F2 no lee el registro (`enganchado=False`) |
-| migracion E11 en `cli.py` | quedan `[success_dim]` x4 y `[bold]` x6 literales fuera de los tokens del tema |
 | `barra.*` animada, glow de `barra.estado`/`barra.modo`, animacion de `prompt.texto/continuacion/busqueda/seleccion` y `menu.*` | solo el pulso de P9 anima (etiqueta/marco/flecha/espera) |
 | `sistema.*`, `aviso.info/error`, `tool.verbo/objeto`, `panel.cuerpo`: texto/glifo/glow/visible | solo color/negrita/italica por token |
-| `/estilo banner` | avisa "llega con P7"; `cli._reimprimir_banner` existe y no esta cableado |
 | `global.fps` / `global.respuesta_sangria` / `global.glifos` | se validan; el motor corre a `glow.FPS = 12` |
 | P12 | no empezado |
 | P13 (puerta final: sesion e2e con `/estilo`, presets, `/tema` x3, remoto y pipe; contraste de los 5 presets con `scripts/contraste_tema.py`) | las puertas ConPTY de banner/spinner/prompt/editor existen por separado |

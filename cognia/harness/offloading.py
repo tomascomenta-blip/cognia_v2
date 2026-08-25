@@ -167,7 +167,15 @@ _FACTOR_MAX_BYTES = 4
 # recuperacion — el contrato "compresion RESTAURABLE" quedaba irrestaurable
 # (cazado por la revision adversarial 2026-08-23). Punto de extension: una
 # tool futura que se cape sola con criterio propio se anade aqui.
-EXENTAS_OFFLOAD = frozenset({"recuperar"})
+# `delegar_subtarea` se capa sola (4000 chars inline + preview con handle,
+# agent/tools.py): re-offloadearla con el umbral generico de 2000 hacia
+# preview del preview (lineas doblemente numeradas, la receta apuntando al
+# fichero del preview y no al informe) y el tope inline efectivo era 2000,
+# no los 4000 que su desc anuncia (revision adversarial 2026-08-24).
+# `skill_leer` promete el cuerpo COMPLETO de una skill (material de
+# referencia que el modelo pidio por nombre): cabeza+cola le quitaba los
+# pasos del medio.
+EXENTAS_OFFLOAD = frozenset({"recuperar", "delegar_subtarea", "skill_leer"})
 
 # Marcadores de FALLO en la PRIMERA linea de un resultado de tool: el contrato
 # del registry (agent/tools.py) pone "ERROR" en la linea 1, y ejecutar/tests
@@ -585,19 +593,37 @@ def _cortar_linea(linea: str) -> str:
     return cabe + f" ... [+{len(linea) - len(cabe)} chars en esta linea]"
 
 
-def _tomar(lineas: list, cuota: int, desde_el_final: bool = False) -> list:
+def _tomar(lineas: list, cuota: int, desde_el_final: bool = False,
+           sobrecoste: int = 0) -> list:
     """Toma lineas (ya cortadas) mientras quepan en `cuota` bytes. Se corta por
-    LINEA ENTERA para que el conteo de omitidas siga siendo verdad."""
+    LINEA ENTERA para que el conteo de omitidas siga siendo verdad.
+    `sobrecoste`: bytes fijos que cada linea suma al salir (el prefijo de
+    numero de _numerar), para que el presupuesto siga siendo el real."""
     elegidas = []
     gasto = 0
     orden = reversed(lineas) if desde_el_final else iter(lineas)
     for linea in orden:
-        coste = len(linea.encode("utf-8")) + 1
+        coste = len(linea.encode("utf-8")) + 1 + sobrecoste
         if elegidas and gasto + coste > cuota:
             break
         elegidas.append(linea)
         gasto += coste
     return list(reversed(elegidas)) if desde_el_final else elegidas
+
+
+def _ancho_numero(total_lineas: int) -> int:
+    """Bytes del prefijo 'NNNN| ' con el que _numerar antepone cada linea."""
+    return len(str(max(1, total_lineas))) + 2
+
+
+def _numerar(lineas: list, desde: int, total_lineas: int) -> list:
+    """Cada linea del preview con su numero REAL en la salida completa:
+    '   12| texto'. Sin el numero, la cola era un tramo anonimo y el modelo
+    tenia que adivinar el rango para `recuperar`; con el numero, el rango
+    que pide es el que ve (deepagents 0.7.8, _message_eviction.py numera
+    cabeza y cola y marca '... [N lines truncated] ...' entre ambas)."""
+    ancho = len(str(max(1, total_lineas)))
+    return [f"{desde + i:>{ancho}}| {linea}" for i, linea in enumerate(lineas)]
 
 
 def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
@@ -633,10 +659,12 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
     crudas_cola = lineas[total_lineas - n_cola:] if n_cola else []
 
     cuota_cabeza = int(umb * _CUOTA_CABEZA)
-    bloque_cabeza = _tomar([_cortar_linea(l) for l in crudas_cabeza], cuota_cabeza)
-    cuota_cola = umb - sum(len(l.encode("utf-8")) + 1 for l in bloque_cabeza)
+    ancho = _ancho_numero(total_lineas)
+    bloque_cabeza = _tomar([_cortar_linea(l) for l in crudas_cabeza], cuota_cabeza,
+                           sobrecoste=ancho)
+    cuota_cola = umb - sum(len(l.encode("utf-8")) + 1 + ancho for l in bloque_cabeza)
     bloque_cola = _tomar([_cortar_linea(l) for l in crudas_cola],
-                         max(0, cuota_cola), desde_el_final=True)
+                         max(0, cuota_cola), desde_el_final=True, sobrecoste=ancho)
 
     # Cuentas HONESTAS: sobre las lineas que de verdad quedaron.
     vistas = len(bloque_cabeza) + len(bloque_cola)
@@ -659,8 +687,14 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
         guardado = (f"Guardado SOLO el tramo {a}-{b}: el fichero tiene {t} "
                     f"lineas (leer_archivo <ruta> offset={int(b) + 1} para "
                     f"seguir, o limit mayor).")
-    else:
+    elif handle:
         guardado = "NO se perdio nada: esta guardada."
+    else:
+        # Sin handle (offload apagado, o el disco fallo) lo omitido NO esta
+        # en ningun lado: decir 'esta guardada' en la cabecera y 'no se
+        # guardo handle' en el pie era una contradiccion en la misma
+        # observacion (revision adversarial 2026-08-24).
+        guardado = "Lo omitido NO se guardo: no hay handle ni fichero."
     # El marcador de FALLO viaja EN LA CABECERA: los clasificadores de rio
     # abajo (cli legacy `result[:120]`, la especulacion de loop.py, _linea_tool
     # de compactacion) leen \bERROR\b en la primera linea, y sin esto un
@@ -672,17 +706,20 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
         f"NO esta entera aca: faltan {omitidas} lineas "
         f"({_fmt_bytes(bytes_omitidos)}). {guardado}]"
     ]
+    # Cabeza y cola NUMERADAS con su numero real (ver _numerar) y el hueco
+    # marcado entre ambas: 'primeras 15' + 'ultimas 5' sin numeros dejaba al
+    # modelo pidiendo `recuperar` a ciegas en el medio.
     if bloque_cabeza:
         partes.append(f"--- primeras {len(bloque_cabeza)} lineas "
                       f"(1-{len(bloque_cabeza)} de {total_lineas}) ---")
-        partes.extend(bloque_cabeza)
+        partes.extend(_numerar(bloque_cabeza, 1, total_lineas))
     if bloque_cola:
         ini = total_lineas - len(bloque_cola) + 1
-        partes.append(f"--- ... {omitidas} lineas omitidas ... ---"
-                      if omitidas else "--- ... ---")
+        if omitidas:
+            partes.append(f"... [{omitidas} lineas omitidas] ...")
         partes.append(f"--- ultimas {len(bloque_cola)} lineas "
                       f"({ini}-{total_lineas}, el FINAL) ---")
-        partes.extend(bloque_cola)
+        partes.extend(_numerar(bloque_cola, ini, total_lineas))
 
     if handle:
         # REFERENCIA (contrato dsh): handle + ruta real + bytes EXACTOS + la

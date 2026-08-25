@@ -1,7 +1,7 @@
 {
   "version": 1,
   "nombre": "neon",
-  "nota": "Glow 2 y barrido: el gato hace UN barrido al arrancar y queda con halo; la etiqueta del prompt barre al aparecer y cada 6 s; el spinner barre mientras piensa. Los colores son los de la variante activa (/tema sigue mandando).",
+  "nota": "Glow 2 y barrido: el gato hace UN barrido al arrancar y queda con halo; la etiqueta del prompt barre al aparecer y 3 veces mas cada 6 s; el spinner barre 3 veces por espera y se queda con el halo. Ninguna animacion es infinita (repetir 3): un barrido eterno pesa en la vista y en la CPU. Los colores son los de la variante activa (/tema sigue mandando).",
   "paleta": {
     "lima_alta": "#c8ff7a"
   },
@@ -11,18 +11,18 @@
   "elementos": {
     "banner.arte": {
       "glow": { "color": "@mi.lima_alta", "intensidad": 2 },
-      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 3, "ancho": 8, "solo_al_llegar": true }
+      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 3, "ancho": 8, "repetir": 3, "solo_al_llegar": true }
     },
     "banner.marco": {
       "negrita": true
     },
     "prompt.marco": {
       "glow": { "intensidad": 1 },
-      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 3, "ancho": 12, "solo_al_llegar": true }
+      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 3, "ancho": 12, "repetir": 3, "solo_al_llegar": true }
     },
     "prompt.etiqueta": {
       "glow": { "color": "@mi.lima_alta", "intensidad": 2 },
-      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 2, "ancho": 3, "cada_s": 6 }
+      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 2, "ancho": 3, "repetir": 3, "cada_s": 6 }
     },
     "prompt.flecha": {
       "glow": { "color": "@mi.lima_alta", "intensidad": 1 }
@@ -32,11 +32,11 @@
     },
     "spinner.pensar": {
       "glow": { "intensidad": 1 },
-      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 2, "ancho": 5 }
+      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 2, "ancho": 5, "repetir": 3 }
     },
     "spinner.tool": {
       "glow": { "intensidad": 1 },
-      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 2, "ancho": 5 }
+      "animacion": { "activa": true, "tipo": "barrido", "direccion": "derecha", "velocidad": 2, "ancho": 5, "repetir": 3 }
     }
   }
 }
