@@ -2547,7 +2547,8 @@ _CMD_DESCRIPTIONS = {
     "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
     "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args) y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | timeout <s>]",
-    "/horizonte":       "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
+    "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo)",
+    "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
@@ -2642,6 +2643,34 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/confianza": (
+        "NIVELES DE CONFIANZA DEL CHAT (cognia/agent/confianza_chat.py, 2026-08-24). Medido: a "
+        "'cuantos suscriptores tiene The Acua Boy en YouTube?' el modelo confesaba 'no tengo acceso "
+        "a datos en tiempo real' y el REPL lo imprimia con la misma cara que una respuesta buena; el "
+        "dato estaba en la web (4,63 mil). Ahora cada respuesta de chat que toca un dato volatil "
+        "lleva su nivel, compuesto SOLO de senales verificables (pedirle al modelo 'que tan seguro "
+        "estas' da 0,9 siempre; la aritmetica es cognia.search.confianza.evaluar): "
+        "● ALTA (>= 0,85: la cifra o el termino de la respuesta esta literal en 2+ dominios) · "
+        "◐ MEDIA (>= 0,60: las paginas que HABLAN de la entidad lo sostienen; las ajenas que trae "
+        "la busqueda no cuentan) · ○ BAJA (>= 0,25: sin verificar, confesion, memoria del modelo o "
+        "la web no respondio) · ✕ NULA (< 0,25: la evidencia dice OTRA cifra -> CONTRADICHA). "
+        "Los cortes son UMBRAL_INVESTIGAR/ABSTENERSE de search/confianza y NO se configuran "
+        "(el mando 'umbral' que hubo no decidia nada y se quito). "
+        "DOS GANCHOS por turno: PREVIA = clasificador determinista de la pregunta (cifras, 'hoy', "
+        "'actual', metricas de YouTube/Twitch/GitHub...) -> investiga ANTES del modelo (canal de "
+        "YouTube directo por ytInitialData + busqueda web ddgs->lite) y antepone las evidencias "
+        "como DATOS citados; POSTERIOR = la respuesta CONFIESA no saber -> investiga y re-pregunta "
+        "al mismo backend con las fuentes, sin streaming. Ninguno corre bajo COGNIA_REMOTO=1 ni "
+        "cuando contesto el portero 0.5B; el agente (/hacer) no participa. Todo fallo de red/libreria "
+        "se declara (ambar 'confianza.web'), nunca calla. "
+        "USO: /confianza (estado: mandos, via web disponible, ultimo aviso y ultimo veredicto) | "
+        "on|off (clave 'confianza') | previa on|off ('confianza_previa') | posterior on|off "
+        "('confianza_posterior') | segundos <n> ('confianza_segundos', presupuesto de PARED: cada "
+        "llamada de red se abandona y se declara si se pasa) | paginas <n> ('confianza_paginas') | "
+        "probar <pregunta> (diagnostico: clasifica e investiga SIN llamar al modelo, muestra "
+        "evidencias, fuentes y aviso). Env: COGNIA_CONFIANZA=0 apaga todo ganando a la config. "
+        "Punto de extension: extractores.registrar(patron, fn) para sitios nuevos y las listas "
+        "_MARCAS_*/_PLATAFORMAS del clasificador."),
     "/bucle": (
         "HIGIENE DEL LAZO (harness/repeticion + harness/timeout_tool, patron deepseek-harness). "
         "(1) RECORDATORIO DE REPETICION, advisory: por agente se cuenta la llamada CONSECUTIVA "
@@ -6974,6 +7003,22 @@ _CONFIG_DEFAULTS: dict = {
     # (ux/glow.capacidades) la lee a call-time: no se siembra ninguna env.
     # Se cambia con /estilo animacion on|off.
     "estilo_animacion":        "on",
+    # Niveles de confianza del chat (/confianza, 2026-08-24; logica en
+    # cognia/agent/confianza_chat.py). 'confianza' on|off = interruptor
+    # global; 'confianza_previa' = clasificar la pregunta ANTES del modelo e
+    # investigar si pide un dato volatil; 'confianza_posterior' = si la
+    # respuesta CONFIESA no saber ("no tengo acceso..."), investigar y
+    # re-preguntar con las fuentes; 'confianza_segundos' = presupuesto de
+    # PARED de la investigacion (cada llamada de red corre bajo el hilo de
+    # confianza_chat._con_presupuesto); 'confianza_paginas' = tope
+    # de paginas leidas. La env COGNIA_CONFIANZA=0 apaga TODO ganando a la
+    # config. Valores espejo de confianza_chat.CLAVES_CONFIG (test de
+    # igualdad en tests/test_cli_confianza.py: si se mueven alla, gritan aca).
+    "confianza":               "on",
+    "confianza_previa":        "on",
+    "confianza_posterior":     "on",
+    "confianza_segundos":      "25",
+    "confianza_paginas":       "3",
 }
 
 
@@ -11072,6 +11117,281 @@ def _aplicar_config_bucle() -> None:
         _aviso_degradado("timeout_tool", f"env invalida, sin deadline: {exc}")
 
 
+# ── /confianza: niveles de confianza del chat (2026-08-24) ─────────────────
+# Medido hoy: a "cuantos suscriptores tiene The Acua Boy en YouTube?" el
+# modelo confiesa "no tengo acceso a datos en tiempo real" y el REPL lo
+# imprimia con la misma cara que una respuesta buena; el dato estaba en la
+# web (4,63 mil, @theacuaboy170). La logica (clasificar / investigar /
+# evaluar) vive en cognia.agent.confianza_chat; aca SOLO la puerta
+# (/confianza), la config persistida y los dos ganchos del turno de chat
+# (previa y posterior), que el REPL llama desde el fast-path. Contrato: el
+# subsistema no puede tumbar un turno (todo en try) ni callarse (todo fallo
+# via _aviso_degradado 'confianza*'); _CONFIANZA_ULTIMO guarda la foto del
+# ultimo turno investigado para que /confianza estado la muestre.
+_CONFIANZA_ENV = "COGNIA_CONFIANZA"
+_CONFIANZA_ULTIMO: dict = {
+    "pregunta": "", "modo": "", "via": "", "aviso": "", "fuentes": [],
+    "segundos": 0.0, "veredicto": None, "linea": "",
+}
+# Estilo de la linea final por nivel. alta/media = verde; baja va en
+# info_dim (VISIBLE en modo sencillo: un '[detail]' se suprime ahi y la
+# senal "sin verificar" es justo la que no puede desaparecer); nula = rojo.
+_CONFIANZA_ESTILO = {"alta": "ok_cl", "media": "ok_cl", "baja": "info_dim",
+                     "nula": "err_cl"}
+
+
+def _confianza_config():
+    """ConfigConfianza resuelta: config persistida + la env COGNIA_CONFIANZA=0
+    apaga TODO ganando a la config (mismo patron que COGNIA_REPETICION y
+    COGNIA_ANIMACION). Se lee a call-time: /confianza on|off vale en el
+    turno siguiente sin reiniciar."""
+    from cognia.agent.confianza_chat import config_desde
+    cfg = config_desde(_load_config())
+    if (os.environ.get(_CONFIANZA_ENV) or "").strip() == "0":
+        cfg.on = False
+    return cfg
+
+
+def _confianza_remoto() -> bool:
+    """El remoto exige marcos limpios (clasificador del movil, memoria
+    estilo-conversacional): alla no se investiga ni se imprime nada extra.
+    Mismo guard que el /lazo."""
+    return os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+
+
+def _confianza_evento(msg: str) -> None:
+    _print_line(f"[detail]  · {_escape(str(msg))}[/detail]")
+
+
+def _confianza_registrar(inv, modo: str) -> None:
+    _CONFIANZA_ULTIMO.update({
+        "pregunta": inv.pregunta, "modo": modo, "via": inv.via,
+        "aviso": inv.aviso, "fuentes": list(inv.fuentes),
+        "segundos": inv.segundos, "veredicto": None, "linea": "",
+    })
+
+
+def _confianza_sin_evidencias(inv) -> None:
+    """Los DOS estados vacios se muestran distintos (Investigacion.aviso):
+    aviso = se rompio algo -> ambar degradado; sin aviso = se busco y no
+    habia nada -> una linea de detalle, no es un fallo."""
+    if inv.aviso:
+        _aviso_degradado("confianza.web", inv.aviso)
+    else:
+        _print_line(f"[detail]  · la web no devolvió evidencias para "
+                    f"«{_escape(inv.consulta)}»[/detail]")
+
+
+def _confianza_previa(raw: str, cfg=None):
+    """Gancho PREVIA: si la pregunta pide un dato volatil, investiga ANTES de
+    gastar el turno del modelo. Devuelve la Investigacion (con o sin
+    evidencias) si la pregunta se clasifico volatil; None si no hay nada que
+    hacer (y entonces no imprime nada: una pregunta normal no ve el
+    subsistema). La cabecera va en info_dim para que se vea tambien en modo
+    sencillo: son hasta `cfg.segundos` de espera y un REPL mudo parece
+    colgado (memoria: spinner huerfano)."""
+    from cognia.agent import confianza_chat as _cc
+    cfg = cfg or _confianza_config()
+    if not (cfg.on and cfg.previa):
+        return None
+    clasif = _cc.clasificar_pregunta(raw)
+    if not clasif.volatil:
+        return None
+    _print_line(f"[info_dim]◐ confianza a priori BAJA: {_escape(clasif.motivo)} "
+                f"→ investigando en la web…[/info_dim]")
+    inv = _cc.investigar(raw, clasif, presupuesto_s=cfg.segundos,
+                         max_paginas=cfg.max_paginas,
+                         on_evento=_confianza_evento)
+    _confianza_registrar(inv, "previa")
+    if not inv.evidencias:
+        _confianza_sin_evidencias(inv)
+    return inv
+
+
+def _confianza_prefijo(inv) -> str:
+    """Bloque de evidencias que se antepone al texto que VE el modelo (no al
+    que guarda _history: ahi va `raw`, como con stepwise). '' sin
+    evidencias."""
+    from cognia.agent.confianza_chat import bloque_evidencia
+    return bloque_evidencia(inv) if (inv is not None and inv.evidencias) else ""
+
+
+def _confianza_veredicto(respuesta: str, inv, investigado: bool = True):
+    """Evalua la respuesta contra la evidencia, imprime la linea de nivel
+    (estilo por nivel) y la deja en _CONFIANZA_ULTIMO. Devuelve el
+    Veredicto."""
+    from cognia.agent import confianza_chat as _cc
+    ver = _cc.evaluar_respuesta(respuesta, inv)
+    linea = _cc.linea_confianza(ver, inv, investigado=investigado)
+    estilo = _CONFIANZA_ESTILO.get(_cc.nivel_de(ver.confianza), "info_dim")
+    _print_line(f"[{estilo}]{_escape(linea)}[/{estilo}]")
+    _CONFIANZA_ULTIMO.update({"veredicto": ver, "linea": linea})
+    return ver
+
+
+def _confianza_posterior(raw: str, respuesta: str, pedir, cfg=None,
+                         mostrar=None):
+    """Gancho POSTERIOR: la respuesta CONFIESA no saber -> investigar y
+    re-preguntar con las fuentes. `pedir(texto_usuario) -> str` es la
+    segunda llamada al backend (la arma el REPL con el mismo system,
+    historial y presupuesto del turno; aca no se conoce nada de eso);
+    `mostrar(final)` pinta la respuesta nueva ANTES de la linea de nivel
+    (el orden que ve el usuario: respuesta, luego su confianza).
+
+    Devuelve (final, inv, veredicto): `final` es la respuesta nueva si hubo
+    evidencias y el backend contesto, o la original intacta. None si la
+    respuesta no confiesa nada (no se imprime nada). Sin evidencias: aviso
+    degradado (o linea de detalle) + linea '○ confianza BAJA · sin
+    verificar'. Un backend que devuelve vacio en la segunda llamada se
+    declara y deja la respuesta original."""
+    from cognia.agent import confianza_chat as _cc
+    cfg = cfg or _confianza_config()
+    if not (cfg.on and cfg.posterior):
+        return None
+    confiesa, motivo = _cc.detectar_incertidumbre(respuesta)
+    if not confiesa:
+        return None
+    _print_line(f"[info_dim]◐ la respuesta declara incertidumbre "
+                f"({_escape(motivo)}) → investigando en la web…[/info_dim]")
+    inv = _cc.investigar(raw, _cc.clasificar_pregunta(raw),
+                         presupuesto_s=cfg.segundos,
+                         max_paginas=cfg.max_paginas,
+                         on_evento=_confianza_evento)
+    _confianza_registrar(inv, "posterior")
+    if not inv.evidencias:
+        _confianza_sin_evidencias(inv)
+        return respuesta, inv, _confianza_veredicto(respuesta, inv)
+    _print_line("[detail]  · respondiendo con las fuentes…[/detail]")
+    final = (pedir(_confianza_prefijo(inv) + raw) or "").strip()
+    if not final:
+        _aviso_degradado("confianza",
+                         "la segunda llamada con las fuentes volvio vacia; "
+                         "se conserva la respuesta original")
+        final = respuesta
+    elif final != respuesta and mostrar is not None:
+        mostrar(final)
+    return final, inv, _confianza_veredicto(final, inv)
+
+
+def _slash_confianza(arg: str = "") -> None:
+    """`/confianza`: puerta de los niveles de confianza del chat.
+
+    Sin args (o 'estado') muestra los mandos, la via web disponible y el
+    ultimo turno investigado. Subcomandos (persisten via _save_config):
+      on|off               -> 'confianza'
+      previa on|off        -> 'confianza_previa'
+      posterior on|off     -> 'confianza_posterior'
+      segundos <n>         -> 'confianza_segundos'
+      paginas <n>          -> 'confianza_paginas'
+      probar <pregunta>    -> clasifica e investiga SIN llamar al modelo"""
+    try:
+        from cognia.agent import confianza_chat as _cc
+    except Exception as exc:
+        _aviso_degradado("confianza", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    partes = arg.split(None, 1)
+    sub = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    uso = ("[warn_cl]Uso: /confianza [estado | on | off | previa on|off | "
+           "posterior on|off | segundos <n> | paginas <n> | "
+           "probar <pregunta>][/warn_cl]")
+
+    def _guardar(clave, valor, texto):
+        cfg = _load_config()
+        cfg[clave] = valor
+        _save_config(cfg)
+        _print_line(f"[info_dim]confianza: {texto} (guardado)[/info_dim]")
+
+    if sub in ("on", "off") and not resto:
+        _guardar("confianza", sub, f"{sub}")
+        return
+    if sub in ("previa", "posterior"):
+        if resto.lower() not in ("on", "off"):
+            _print_line(f"[warn_cl]Uso: /confianza {sub} on|off[/warn_cl]")
+            return
+        _guardar(f"confianza_{sub}", resto.lower(), f"{sub} {resto.lower()}")
+        return
+    if sub in ("segundos", "paginas"):
+        try:
+            n = int(float(resto.replace(",", ".")))
+            if n < 1:
+                raise ValueError(n)
+        except ValueError:
+            _print_line(f"[warn_cl]Uso: /confianza {sub} <entero >= 1>[/warn_cl]")
+            return
+        _guardar(f"confianza_{sub}", str(n), f"{sub} {n}")
+        return
+    if sub == "probar":
+        if not resto:
+            _print_line("[warn_cl]Uso: /confianza probar <pregunta>[/warn_cl]")
+            return
+        cfg = _confianza_config()
+        clasif = _cc.clasificar_pregunta(resto)
+        _print_line(f"[info_dim]clasificacion: {'VOLATIL' if clasif.volatil else 'no volatil'}"
+                    f" · motivo: {_escape(clasif.motivo or '-')}"
+                    f" · entidad: {_escape(clasif.entidad or '-')}"
+                    f" · plataforma: {_escape(clasif.plataforma or '-')}"
+                    f" · consulta: {_escape(clasif.consulta or '-')}[/info_dim]")
+        if not clasif.volatil:
+            _print_line("[info_dim]  (en un turno real NO se investigaria; "
+                        "investigo igual para el diagnostico)[/info_dim]")
+        inv = _cc.investigar(resto, clasif, presupuesto_s=cfg.segundos,
+                             max_paginas=cfg.max_paginas,
+                             on_evento=lambda m: _print_line(
+                                 f"[info_dim]  · {_escape(str(m))}[/info_dim]"))
+        _confianza_registrar(inv, "probar")
+        _print_line(f"[info_dim]via: {_escape(inv.via or '-')} · "
+                    f"{inv.segundos:.1f} s · {len(inv.evidencias)} evidencia(s)"
+                    f"[/info_dim]")
+        for i, e in enumerate(inv.evidencias, 1):
+            _print_line(f"[ok_cl]  [{i}] {_escape(e.titulo)} — {_escape(e.url)}"
+                        f"[/ok_cl]")
+            if e.dato:
+                _print_line(f"[info_dim]      {_escape(e.dato[:300])}[/info_dim]")
+        if inv.fuentes:
+            _print_line(f"[info_dim]fuentes: {_escape(', '.join(inv.fuentes))}"
+                        f"[/info_dim]")
+        if inv.aviso:
+            _print_line(f"[warn_cl]aviso: {_escape(inv.aviso)}[/warn_cl]")
+        elif not inv.evidencias:
+            _print_line("[warn_cl]la web no devolvio evidencias (sin fallo "
+                        "declarado)[/warn_cl]")
+        return
+    if sub and sub != "estado":
+        _print_line(uso)
+        return
+    # Estado (default).
+    cfg = _confianza_config()
+    env = (os.environ.get(_CONFIANZA_ENV) or "").strip()
+    try:
+        from cognia.knowledge.navegador import via_busqueda_disponible
+        via_web = via_busqueda_disponible()
+    except Exception as exc:
+        via_web = f"ninguna: navegador no importable ({type(exc).__name__}: {exc})"
+    estado_on = ("OFF (env COGNIA_CONFIANZA=0 gana a la config)" if env == "0"
+                 else ("on" if cfg.on else "off"))
+    u = _CONFIANZA_ULTIMO
+    filas = [
+        ("confianza", estado_on),
+        ("previa", "on" if cfg.previa else "off"),
+        ("posterior", "on" if cfg.posterior else "off"),
+        ("segundos", f"{cfg.segundos:g}"),
+        ("paginas", str(cfg.max_paginas)),
+        ("via web", via_web),
+        ("ultimo turno", (f"[{u['modo']}] «{u['pregunta'][:60]}» · via "
+                          f"{u['via'] or '-'} · {u['segundos']:.1f} s · fuentes: "
+                          f"{', '.join(u['fuentes']) or '-'}")
+                         if u["pregunta"] else "ninguno todavia"),
+        ("ultimo aviso", u["aviso"] or "-"),
+        ("ultimo veredicto", u["linea"] or "-"),
+    ]
+    _print_line("[info_dim]/confianza — niveles: ● alta ◐ media ○ baja ✕ nula"
+                "[/info_dim]")
+    for k, v in filas:
+        _print_line(f"[info_dim]  {k:<17}[/info_dim]{_escape(str(v))}")
+
+
 def _slash_bucle(arg: str = "") -> None:
     """`/bucle`: puerta de la higiene del lazo (repeticion + timeout).
 
@@ -14281,6 +14601,9 @@ def repl():
             _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
         elif raw == "/bucle" or raw.startswith("/bucle "):
             _slash_bucle(raw[len("/bucle "):] if raw.startswith("/bucle ") else "")
+        elif raw == "/confianza" or raw.startswith("/confianza "):
+            _slash_confianza(
+                raw[len("/confianza "):] if raw.startswith("/confianza ") else "")
         elif raw == "/horizonte" or raw.startswith("/horizonte "):
             _slash_horizonte(
                 raw[len("/horizonte "):] if raw.startswith("/horizonte ") else "")
@@ -16502,13 +16825,34 @@ def repl():
             except Exception:
                 _intent = None
             _needs_tool = bool(_intent and _intent.needs_agent)
+            # ── CONFIANZA, gancho PREVIA (/confianza, 2026-08-24): si la
+            # pregunta pide un dato volatil (cifras, "hoy", metricas de una
+            # plataforma) se investiga en la web ANTES de gastar el turno
+            # del modelo; las evidencias se anteponen a _raw_llm mas abajo.
+            # Va ANTES del enrutador por inferencia y lo SALTA cuando la
+            # pregunta es volatil: el agente no tiene web y mandarle "cuantos
+            # suscriptores tiene X" solo produce una tarea que no puede
+            # cumplir; el turno sigue por chat con las fuentes. Guards: no
+            # en remoto (marcos limpios del movil), no con el agente. Fallo
+            # -> ambar 'confianza' y el turno sigue como si no existiera.
+            _conf_inv, _conf_cfg, _conf_portero = None, None, False
+            if not _needs_tool and not _confianza_remoto():
+                try:
+                    _conf_cfg = _confianza_config()
+                    _conf_inv = _confianza_previa(raw, _conf_cfg)
+                except Exception as _exc_cp:
+                    _aviso_degradado(
+                        "confianza",
+                        f"gancho previo fallo ({type(_exc_cp).__name__}: "
+                        f"{_exc_cp}); el turno sigue sin investigar")
+                    _conf_inv = None
             # ── Enrutado por INFERENCIA sobre TODO el catalogo (goal
             # 2026-07-21): si las reglas rapidas no vieron una accion, el
             # PROPIO MODELO lee el mensaje + el catalogo de comandos "/" y
             # elige CHAT / AGENTE / un comando concreto. La eleccion se
             # valida (solo comandos existentes, destructivos vetados) y el
             # comando se inyecta al REPL como si el usuario lo tecleara.
-            if (not _needs_tool
+            if (not _needs_tool and _conf_inv is None
                     and (_intent is None or _intent.reason != "conversacional")
                     and len(raw.split()) >= 3):
                 try:
@@ -16733,13 +17077,26 @@ def repl():
                                     f"augment_stepwise fallo ({type(_e_step).__name__}: "
                                     f"{_e_step}); turno SIN CoT dirigido")
                                 _raw_llm = raw
+                            # Evidencias del gancho PREVIA de /confianza: van
+                            # DENTRO del ultimo mensaje user, delante del texto
+                            # (misma regla que HYDRA/stepwise: _history guarda
+                            # `raw`; el modelo ve DATOS citados + la pregunta).
+                            # _confianza_prefijo devuelve '' sin evidencias.
+                            if _conf_inv is not None and _conf_inv.evidencias:
+                                _raw_llm = _confianza_prefijo(_conf_inv) + _raw_llm
                             _messages = _build_stream_messages(
                                 ai, _raw_llm, _system, _hist_ctx)
                             # Fast-path 0.5B: prompt minimo (sin historia/HYDRA, sin
                             # stepwise, system neutro por idioma = el MISMO formato del
                             # instrumento G3 del kernel, 95% medido) para que el prefill
                             # no coma la ventaja de velocidad en turnos triviales.
-                            if _llama_turn is not _llama and not _member_turn:
+                            # El portero se lleva el turno SIN evidencias ni
+                            # veredicto de confianza (_conf_portero): solo
+                            # atiende saludos/identidad, que el clasificador
+                            # nunca marca volatiles.
+                            _conf_portero = (_llama_turn is not _llama
+                                             and not _member_turn)
+                            if _conf_portero:
                                 from node.speech_cascade import portero_system
                                 _messages = [{"role": "system", "content": portero_system(raw)},
                                              {"role": "user", "content": raw}]
@@ -16943,6 +17300,74 @@ def repl():
                                             "cli.lazo",
                                             f"lazo de verificacion fallo "
                                             f"({type(_lz_exc).__name__}: {_lz_exc}); "
+                                            "respuesta intacta")
+                                # CONFIANZA, cierre del turno (/confianza):
+                                # (a) hubo gancho PREVIA -> veredicto de la
+                                # respuesta contra la evidencia + linea de
+                                # nivel; (b) no lo hubo y la respuesta
+                                # CONFIESA no saber -> gancho POSTERIOR:
+                                # investigar y re-preguntar con las fuentes.
+                                # Va DESPUES del lazo (evalua el texto final)
+                                # y con los mismos guards: remoto no, portero
+                                # no. La segunda llamada reusa _llama_turn.
+                                # stream_chat SIN pintar (mismo backend,
+                                # misma plantilla y mismo prefijo KV que
+                                # acaba de responder: cero riesgo de hablarle
+                                # a otro server); solo si el backend no tiene
+                                # stream_chat cae a chat_client.completar, la
+                                # via del /lazo, que apunta al server del
+                                # agente (podria ser OTRO backend: memoria
+                                # dos-backends-cognia). Un 'limit' del server
+                                # se reintenta UNA vez con el doble, como el
+                                # stream principal.
+                                if (_streamed and _conf_cfg is not None
+                                        and _conf_cfg.on and not _conf_portero
+                                        and not _confianza_remoto()):
+                                    try:
+                                        if _conf_inv is not None:
+                                            _confianza_veredicto(_full_response,
+                                                                 _conf_inv)
+                                        elif _conf_cfg.posterior:
+                                            def _conf_pedir(_texto,
+                                                            _mt=_effort_max_tokens):
+                                                _msgs2 = _build_stream_messages(
+                                                    ai, _texto, _system, _hist_ctx)
+                                                if not _use_chat:
+                                                    from cognia.agent.chat_client import (
+                                                        completar as _cf_comp)
+                                                    _r2 = _cf_comp(_msgs2, max_tokens=_mt)
+                                                    if not _r2.ok:
+                                                        _aviso_degradado(
+                                                            "confianza",
+                                                            f"completar fallo: {_r2.error}")
+                                                    return _r2.texto if _r2.ok else ""
+                                                for _int2 in (1, 2):
+                                                    _txt2 = "".join(_llama_turn.stream_chat(
+                                                        _msgs2, max_tokens=_mt,
+                                                        temperature=GEN_CHAT_TEMPERATURE))
+                                                    if (_int2 == 1 and getattr(
+                                                            _llama_turn, "last_stop_reason",
+                                                            None) == "limit"):
+                                                        _print_line(
+                                                            f"[detail]  · respuesta con fuentes "
+                                                            f"truncada ({_mt} tok); reintento "
+                                                            f"con {_mt * 2}[/detail]")
+                                                        _mt *= 2
+                                                        continue
+                                                    return _txt2
+                                                return _txt2
+                                            _conf_res = _confianza_posterior(
+                                                raw, _full_response, _conf_pedir,
+                                                _conf_cfg,
+                                                mostrar=lambda _t: _show_response(
+                                                    _t, _ACCENT, respuesta_final=True))
+                                            if _conf_res is not None:
+                                                _full_response = _conf_res[0]
+                                    except Exception as _exc_cf:
+                                        _aviso_degradado(
+                                            "confianza",
+                                            f"cierre de confianza fallo "
+                                            f"({type(_exc_cf).__name__}: {_exc_cf}); "
                                             "respuesta intacta")
                                 if _streamed:
                                     elapsed = time.time() - t0

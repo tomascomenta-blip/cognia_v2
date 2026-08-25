@@ -17,6 +17,17 @@ inyección, ni siquiera entra al pipeline) y el parser de resultados lo
 mantiene la librería ddgs. Fallback sin Chromium: httpx + BeautifulSoup,
 con aviso de vía. Cada fallo es un error legible, jamás un vacío.
 
+SIN DEPENDENCIAS OPCIONALES (medido 2026-08-24): el venv instalado del
+producto (~/.cognia/venv) NO trae ddgs, ni playwright, ni lxml — solo httpx,
+bs4 y requests. Con el código de antes la búsqueda moría en
+RuntimeError("falta la librería 'ddgs'") y la extracción en FeatureNotFound
+por el "lxml" hardcodeado. Por eso: (1) `_buscar_ddg` cae a `_buscar_lite`
+(POST a lite.duckduckgo.com con urllib + html.parser; 3/3 resultados en
+1,54 s y encontró el canal que ddgs no encontraba), (2) el parser de bs4 es
+lxml si está y html.parser si no, (3) `_extraer_con_http` pasa el HTML
+crudo por `extractores.extraer_datos` para que un cascarón JS (YouTube deja
+~220 chars a bs4) igual entregue el dato que trae embebido en su JSON.
+
     from cognia.knowledge.navegador import buscar_en_web
     r = buscar_en_web("que es el model context protocol", max_resultados=2)
     for v in r["resultados"]:
@@ -24,8 +35,11 @@ con aviso de vía. Cada fallo es un error legible, jamás un vacío.
 """
 from __future__ import annotations
 
+import importlib.util
 import re
 import time
+import urllib.parse
+import urllib.request
 
 # Presupuestos: sin límites, una página infinita (scroll) o un PDF gigante
 # harían al agente tragarse medio contexto. Truncamiento SIEMPRE declarado.
@@ -34,6 +48,20 @@ _MAX_TEXTO_RESULTADO = 3500   # chars por resultado en la salida del tool
 _TIMEOUT_PAGINA_S = 25
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36 Cognia-Agente")
+# UA de navegador PURO para HTTP sin Chromium: el sufijo "Cognia-Agente" y
+# el "Python-urllib" de fábrica reciben 403 en Wikipedia (medido 2026-08-24);
+# el UA identificable de busqueda_web.py SÍ pasa allí, y es el reintento.
+_UA_CHROME = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+_UA_RESEARCH = "Cognia/1.0 (+local research)"
+_DDG_LITE_URL = "https://lite.duckduckgo.com/lite/"
+
+
+def _parser_bs4() -> str:
+    """"lxml" si está instalado, si no el "html.parser" de la stdlib. El
+    "lxml" a pelo era una dependencia fantasma: FeatureNotFound en toda
+    instalación limpia del producto."""
+    return "lxml" if importlib.util.find_spec("lxml") else "html.parser"
 
 
 def _extraer_con_chromium(url: str, timeout_s: int = _TIMEOUT_PAGINA_S) -> dict:
@@ -64,19 +92,50 @@ def _extraer_con_chromium(url: str, timeout_s: int = _TIMEOUT_PAGINA_S) -> dict:
 
 
 def _extraer_con_http(url: str, timeout_s: int = 15) -> dict:
-    """Fallback sin Chromium: httpx + BeautifulSoup. No ejecuta JS (páginas
-    100% cliente saldrán vacías y el centinela las descartará con razón)."""
+    """Fallback sin Chromium: httpx + BeautifulSoup. No ejecuta JS, pero el
+    HTML crudo pasa por `extractores.extraer_datos`: si el sitio embebe el
+    dato en su JSON (YouTube: suscriptores, handle, título) se antepone al
+    texto un bloque "DATOS EXTRAIDOS (sitio): ..." y viaja en "datos". Así
+    un cascarón de 220 chars igual entrega el hecho, y el que no trae nada
+    sale corto y buscar_en_web lo marca como "texto insuficiente".
+
+    UA Chrome primero; ante un 403 se reintenta con el UA identificable
+    (Wikipedia rechaza al primero y acepta al segundo) y se declara."""
     import httpx
     from bs4 import BeautifulSoup
+    from cognia.knowledge import extractores
+
+    aviso = ""
     r = httpx.get(url, timeout=timeout_s, follow_redirects=True,
-                  headers={"User-Agent": _UA})
+                  headers=extractores.cabeceras_para(url, _UA_CHROME))
+    if r.status_code == 403:
+        r = httpx.get(url, timeout=timeout_s, follow_redirects=True,
+                      headers=extractores.cabeceras_para(url, _UA_RESEARCH))
+        aviso = "403 con UA de navegador; reintentado con UA Cognia/1.0"
     r.raise_for_status()
-    sopa = BeautifulSoup(r.text, "lxml")
+    html_crudo = r.text
+    parser = _parser_bs4()
+    sopa = BeautifulSoup(html_crudo, parser)
     for tag in sopa(["script", "style", "noscript", "template"]):
         tag.decompose()
-    titulo = sopa.title.get_text(strip=True) if sopa.title else url
-    return {"titulo": titulo, "texto": sopa.get_text("\n"),
-            "url_final": str(r.url), "via": "http"}
+    titulo = sopa.title.get_text(strip=True) if sopa.title else ""
+    texto = sopa.get_text("\n")
+    url_final = str(r.url)
+
+    out = {"titulo": titulo or url, "texto": texto, "url_final": url_final,
+           "via": "http", "parser": parser}
+    datos = extractores.extraer_datos(url_final, html_crudo)
+    if datos:
+        if datos.get("aviso"):
+            aviso = (aviso + "; " if aviso else "") + datos["aviso"]
+        if datos.get("campos"):
+            out["datos"] = datos
+            out["texto"] = extractores.bloque_datos(datos) + "\n\n" + texto
+            if not titulo and datos.get("titulo"):
+                out["titulo"] = datos["titulo"]
+    if aviso:
+        out["aviso"] = aviso
+    return out
 
 
 def extraer_pagina(url: str, timeout_s: int = _TIMEOUT_PAGINA_S) -> dict:
@@ -98,21 +157,131 @@ def extraer_pagina(url: str, timeout_s: int = _TIMEOUT_PAGINA_S) -> dict:
                 f"http=({exc_http})") from exc_http
 
 
+def _abrir_lite(consulta: str, timeout_s: int = 20) -> str:
+    """El POST a lite.duckduckgo.com con urllib (stdlib): devuelve el HTML.
+    Es lo que `_buscar_lite` recibe inyectado en los tests."""
+    datos = urllib.parse.urlencode({"q": consulta}).encode()
+    req = urllib.request.Request(
+        _DDG_LITE_URL, data=datos,
+        headers={"User-Agent": _UA_CHROME,
+                 "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"})
+    with urllib.request.urlopen(req, timeout=timeout_s) as r:
+        return r.read().decode("utf-8", errors="replace")
+
+
+def _resumen_cercano(enlace) -> str:
+    """El texto descriptivo que el endpoint lite pone en la fila <tr>
+    siguiente al enlace. Best-effort: si la maqueta cambia, cadena vacía en
+    vez de romper la búsqueda entera (port de cognia_v3)."""
+    try:
+        fila = enlace.find_parent("tr")
+        siguiente = fila.find_next_sibling("tr") if fila is not None else None
+        return siguiente.get_text(" ", strip=True)[:400] if siguiente else ""
+    except Exception as exc:
+        return f"(resumen ilegible: {type(exc).__name__})"
+
+
+def _url_de_lite(href: str) -> str:
+    """Los enlaces del lite son directos casi siempre; cuando vienen como
+    redirección propia (//duckduckgo.com/l/?uddg=<url>) se desenvuelven."""
+    if "duckduckgo.com/l/" in href and "uddg=" in href:
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)
+        return (q.get("uddg") or [""])[0]
+    return href
+
+
+def _buscar_lite(consulta: str, max_candidatos: int = 8, abrir=None,
+                 intentos: int = 3) -> list:
+    """Candidatos [{titulo, url, resumen, via:"lite"}] raspando el endpoint
+    lite de DuckDuckGo SIN ddgs: urllib + BeautifulSoup(html, "html.parser").
+    Port fiel de cognia_v3/core/investigador.py::buscar_web_resultados, el
+    único backend sin API key que devolvía resultados RELEVANTES en las
+    mediciones del 2026-07-19 (bing rss mentía: repetía la consulta en el
+    título y traía items de otro tema).
+
+    El endpoint limita por frecuencia respondiendo una página SIN resultados
+    (no un error): por eso se reintenta con espera creciente (2 s, 4 s).
+    Si tras `intentos` no hay nada, RuntimeError con el motivo — nunca una
+    lista vacía muda, porque "no hay resultados" y "me limitaron" piden
+    decisiones distintas. `abrir(consulta) -> html` inyectable para tests.
+    """
+    from bs4 import BeautifulSoup
+    abrir = abrir or _abrir_lite
+    ultimo = "sin resultados en la página"
+    for intento in range(max(1, intentos)):
+        try:
+            html = abrir(consulta)
+        except Exception as exc:
+            html, ultimo = "", f"{type(exc).__name__}: {exc}"
+        salida = []
+        if html:
+            sopa = BeautifulSoup(html, "html.parser")
+            for a in sopa.find_all("a", href=True):
+                url = _url_de_lite(a["href"])
+                titulo = a.get_text(strip=True)
+                # Los resultados son enlaces externos con texto; el resto son
+                # controles del propio buscador (Next, Settings...).
+                if not url.startswith("http") or "duckduckgo.com" in url:
+                    continue
+                if not titulo or len(titulo) < 3:
+                    continue
+                salida.append({"titulo": titulo, "url": url,
+                               "resumen": _resumen_cercano(a), "via": "lite"})
+                if len(salida) >= max_candidatos:
+                    break
+            if not salida:
+                ultimo = (f"página sin resultados ({len(html)} chars; "
+                          f"¿limitado por frecuencia?)")
+        if salida:
+            return salida
+        if intento < intentos - 1:
+            time.sleep(2.0 * (intento + 1))     # limitado por frecuencia
+    raise RuntimeError(f"DDG lite sin resultados para '{consulta}' tras "
+                       f"{intentos} intento(s): {ultimo}")
+
+
 def _buscar_ddg(consulta: str, max_candidatos: int) -> list:
-    """Candidatos [{titulo, url, resumen}] vía ddgs (DuckDuckGo, sin clave)."""
+    """Candidatos [{titulo, url, resumen, via}] : ddgs si está instalada y
+    responde; si falta, revienta o devuelve vacío, `_buscar_lite`. Si las
+    dos fallan, RuntimeError con AMBOS motivos ("ddgs: ...; lite: ...") —
+    el llamador (fanout/responder/browser_tool) ve QUÉ falló, no un vacío.
+    Firma fija: la usan cognia.search.fanout y cognia.search.responder."""
+    motivo_ddgs = ""
     try:
         from ddgs import DDGS
     except ImportError as exc:
+        motivo_ddgs = f"no instalada ({exc})"
+    else:
+        try:
+            filas = DDGS().text(consulta, max_results=max_candidatos)
+            out = []
+            for f in filas or []:
+                url = f.get("href") or f.get("url") or ""
+                if url:
+                    out.append({"titulo": f.get("title") or url, "url": url,
+                                "resumen": f.get("body") or "", "via": "ddgs"})
+            if out:
+                return out
+            motivo_ddgs = "0 resultados"
+        except Exception as exc:
+            motivo_ddgs = f"{type(exc).__name__}: {exc}"
+    try:
+        return _buscar_lite(consulta, max_candidatos)
+    except Exception as exc_lite:
         raise RuntimeError(
-            "falta la librería 'ddgs' (pip install ddgs)") from exc
-    filas = DDGS().text(consulta, max_results=max_candidatos)
-    out = []
-    for f in filas or []:
-        url = f.get("href") or f.get("url") or ""
-        if url:
-            out.append({"titulo": f.get("title") or url, "url": url,
-                        "resumen": f.get("body") or ""})
-    return out
+            f"búsqueda web sin resultados para '{consulta}' — "
+            f"ddgs: {motivo_ddgs}; lite: {exc_lite}") from exc_lite
+
+
+def via_busqueda_disponible() -> str:
+    """"ddgs" | "lite" | "ninguna: <motivo>", SIN red (solo comprueba qué se
+    puede importar). Para que el CLI muestre con qué va a buscar."""
+    if importlib.util.find_spec("ddgs"):
+        return "ddgs"
+    if importlib.util.find_spec("bs4"):
+        return "lite"
+    return ("ninguna: faltan ddgs y bs4 (pip install beautifulsoup4 para la "
+            "vía lite, pip install ddgs para la principal)")
 
 
 def buscar_en_web(consulta: str, max_resultados: int = 3,
@@ -159,7 +328,7 @@ def buscar_en_web(consulta: str, max_resultados: int = 3,
     except Exception:
         pass          # sin prefiltro se sigue igual que siempre
 
-    validos, descartados = [], list(prefiltrados)
+    validos, descartados, insuficientes = [], list(prefiltrados), []
     for c in candidatos:
         if len(validos) >= max_resultados:
             break
@@ -178,12 +347,26 @@ def buscar_en_web(consulta: str, max_resultados: int = 3,
         if len(texto) > _MAX_TEXTO_RESULTADO:
             recorte = (f"\n[... recortado a {_MAX_TEXTO_RESULTADO} de "
                        f"{len(texto)} chars ...]")
-        validos.append({
+        item = {
             "titulo": pag.get("titulo") or c.get("titulo") or url,
             "url": pag.get("url_final") or url,
             "via": pag.get("via", "?"),
             "texto": texto[:_MAX_TEXTO_RESULTADO] + recorte,
-        })
+        }
+        datos = pag.get("datos") or {}
+        if datos.get("campos"):
+            item["datos"] = datos
+        elif len(texto) < _MIN_TEXTO_UTIL:
+            # Un cascarón JS (YouTube: 226 chars) pasaba como resultado
+            # "válido" con aviso vacío y el modelo contestaba de memoria. No
+            # se descarta (el título y la URL siguen valiendo) pero se marca
+            # en el item y en el aviso global.
+            item["aviso"] = "texto insuficiente (página JS)"
+            insuficientes.append(item["url"])
+        if pag.get("aviso"):
+            item["aviso"] = (item["aviso"] + "; " if item.get("aviso") else
+                             "") + pag["aviso"]
+        validos.append(item)
 
     aviso = ""
     if not validos:
@@ -192,6 +375,10 @@ def buscar_en_web(consulta: str, max_resultados: int = 3,
                  f"({len(descartados)} descartados: {razones})")
     elif descartados:
         aviso = f"{len(descartados)} candidato(s) descartados por el centinela o por extracción"
+    if insuficientes:
+        aviso = (aviso + "; " if aviso else "") + (
+            f"{len(insuficientes)} resultado(s) con texto insuficiente "
+            f"(página JS sin datos extraídos): {', '.join(insuficientes[:3])}")
     return {"resultados": validos, "descartados": descartados, "aviso": aviso}
 
 
@@ -233,9 +420,13 @@ def extraer_muchas(urls: list, cap: int = 5, timeout_s: int = 15,
                        timeout_s=timeout_s * 3)
 
     # Quién merece navegador: las que fallaron y las que volvieron vacías.
+    # Las que volvieron cortas PERO con datos extraídos del JSON embebido
+    # ya entregaron el hecho: Chromium solo las reemplazaría por el texto
+    # visible (largo) sin la cifra.
     pendientes = [s for s in lote.sobres
                   if not s.ok
-                  or len((s.valor or {}).get("texto") or "") < _MIN_TEXTO_UTIL]
+                  or (len((s.valor or {}).get("texto") or "") < _MIN_TEXTO_UTIL
+                      and not (s.valor or {}).get("datos"))]
     if not pendientes:
         return lote
 
