@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cognia Bots</title>
+<!--
+  Modo BOTS del control remoto (Hermes Bot Mode): roster + chat canonico por
+  bot. Pagina ESTATICA aparte de index.html (otro equipo la edita), sin CDN:
+  todo inline. Movil-first: una columna, el roster arriba como fichas
+  deslizables y el chat debajo. El token viaja como en index.html (?token=
+  una vez -> localStorage; header X-Cognia-Token en cada fetch).
+-->
+<style>
+  :root { --fondo:#0f1115; --panel:#171a21; --borde:#262b36; --texto:#e6e8ee;
+          --tenue:#8a93a6; --acento:#7c9cff; --ok:#3ddc84; --usuario:#243049;
+          --cognia:#1e2430; --meta:#3a3f4b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--texto);
+         font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         display:flex; flex-direction:column; height:100dvh; }
+  header { padding:10px 14px; border-bottom:1px solid var(--borde);
+           display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:16px; margin:0; flex:1; }
+  header a { color:var(--tenue); text-decoration:none; font-size:13px; }
+  #roster { display:flex; gap:8px; overflow-x:auto; padding:10px 12px;
+            border-bottom:1px solid var(--borde); scrollbar-width:thin; }
+  .ficha { flex:0 0 auto; min-width:150px; background:var(--panel);
+           border:1px solid var(--borde); border-radius:12px; padding:8px 10px;
+           cursor:pointer; }
+  .ficha.sel { border-color:var(--acento); }
+  .ficha .n { font-weight:600; display:flex; align-items:center; gap:6px; }
+  .ficha .t { color:var(--tenue); font-size:12px; white-space:nowrap;
+              overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+  .ficha .m { font-size:11px; color:var(--tenue); margin-top:4px; }
+  .punto { width:8px; height:8px; border-radius:50%; background:var(--tenue); }
+  .punto.on { background:var(--ok); }
+  .pill { background:var(--meta); border-radius:8px; padding:0 6px; font-size:11px; }
+  #vacio { padding:24px 16px; color:var(--tenue); }
+  #chat { flex:1; overflow-y:auto; padding:12px; display:flex;
+          flex-direction:column; gap:8px; }
+  .msg { max-width:92%; padding:8px 11px; border-radius:12px; white-space:pre-wrap;
+         word-break:break-word; }
+  .msg.usuario { align-self:flex-end; background:var(--usuario); }
+  .msg.cognia { align-self:flex-start; background:var(--cognia); }
+  .msg.bot, .msg.rutina { align-self:flex-start; background:var(--cognia);
+                          border-left:3px solid var(--acento); }
+  .msg.meta { align-self:center; background:transparent; color:var(--tenue);
+              font-size:12px; }
+  .msg .q { font-size:11px; color:var(--tenue); margin-bottom:2px; }
+  form { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--borde);
+         padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+  textarea { flex:1; background:var(--panel); color:var(--texto);
+             border:1px solid var(--borde); border-radius:10px; padding:9px 11px;
+             font:inherit; resize:none; min-height:42px; max-height:140px; }
+  button { background:var(--acento); color:#0b1020; border:0; border-radius:10px;
+           padding:0 16px; font-weight:600; font:inherit; }
+  button:disabled { opacity:.5; }
+  #estado { font-size:12px; color:var(--tenue); padding:0 14px 6px; min-height:16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cognia · Bots</h1>
+  <a href="/">← chat</a>
+</header>
+<div id="roster"></div>
+<div id="estado"></div>
+<div id="vacio">Cargando bots…</div>
+<div id="chat" hidden></div>
+<form id="f" hidden>
+  <textarea id="texto" rows="1" placeholder="Escribe al bot…" autocomplete="off"></textarea>
+  <button id="enviar" type="submit">Enviar</button>
+</form>
+
+<script>
+/* Token: igual que index.html (llega UNA vez por ?token= y queda en
+   localStorage; la URL se limpia para no filtrarlo). */
+const TOKEN = (() => {
+  try {
+    const u = new URL(location.href);
+    const t = u.searchParams.get("token");
+    if (t) {
+      localStorage.setItem("token", t);
+      u.searchParams.delete("token");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    }
+  } catch (e) { /* URL rara: se usa lo guardado */ }
+  return localStorage.getItem("token") || "";
+})();
+let _aviso401 = false;
+async function api(ruta, opciones) {
+  const o = opciones || {};
+  o.headers = Object.assign({"X-Cognia-Token": TOKEN, "Content-Type": "application/json"}, o.headers || {});
+  const r = await fetch(ruta, o);
+  if (r.status === 401 && !_aviso401) {
+    _aviso401 = true;
+    alert("Acceso denegado: abre la URL con ?token=<token> (el servidor lo imprime al arrancar; tambien esta en ~/.cognia/remoto/token.txt).");
+  }
+  return r.json();
+}
+
+const $ = (id) => document.getElementById(id);
+let bots = [], sel = null, ultimoN = -1, enviando = false;
+
+function pintarRoster() {
+  const r = $("roster");
+  r.innerHTML = "";
+  if (!bots.length) {
+    $("vacio").hidden = false;
+    $("vacio").textContent = "No hay bots. Crea uno en el REPL: /bots crear <nombre> --titulo \"...\"";
+    return;
+  }
+  for (const b of bots) {
+    // DOM + textContent, nunca innerHTML: el titulo es texto libre de
+    // bot.json (/bots crear x --titulo "<img onerror=...>") y el token vive
+    // en localStorage; el canon ya se pinta igual (createTextNode).
+    const d = document.createElement("div");
+    d.className = "ficha" + (sel === b.nombre ? " sel" : "");
+    const n = document.createElement("div"); n.className = "n";
+    const punto = document.createElement("span");
+    punto.className = "punto" + (b.activo ? " on" : "");
+    n.appendChild(punto);
+    n.appendChild(document.createTextNode((b.glifo || "") + " " + b.nombre));
+    const t = document.createElement("div"); t.className = "t";
+    t.textContent = b.titulo || "sin titulo";
+    const m = document.createElement("div"); m.className = "m";
+    const pill = (txt) => {
+      const s = document.createElement("span"); s.className = "pill"; s.textContent = txt;
+      m.appendChild(s); m.appendChild(document.createTextNode(" "));
+    };
+    if (b.inbox_pendientes) pill("inbox " + b.inbox_pendientes);
+    if (b.rutinas) pill("rutinas " + b.rutinas);
+    if (b.en_curso) pill("respondiendo…");
+    d.appendChild(n); d.appendChild(t); d.appendChild(m);
+    d.onclick = () => seleccionar(b.nombre);
+    r.appendChild(d);
+  }
+}
+
+async function cargarBots() {
+  try {
+    const r = await api("/api/bots");
+    if (Array.isArray(r)) bots = r;
+    pintarRoster();
+    if (!sel && bots.length) seleccionar(bots[0].nombre);
+  } catch (e) {
+    $("estado").textContent = "No pude leer /api/bots: " + e;
+  }
+}
+
+function seleccionar(nombre) {
+  sel = nombre; ultimoN = -1;
+  pintarRoster();
+  $("vacio").hidden = true;
+  $("chat").hidden = false;
+  $("f").hidden = false;
+  cargarCanon();
+}
+
+async function cargarCanon() {
+  if (!sel) return;
+  const ev = await api("/api/bots/" + encodeURIComponent(sel) + "/canon?limite=200");
+  if (!Array.isArray(ev)) { $("estado").textContent = ev.error || "canon ilegible"; return; }
+  if (ev.length === ultimoN) return;         // nada nuevo: no repintar
+  ultimoN = ev.length;
+  const c = $("chat");
+  c.innerHTML = "";
+  if (!ev.length) {
+    const d = document.createElement("div");
+    d.className = "msg meta"; d.textContent = "Chat canonico vacio. Escribe algo.";
+    c.appendChild(d);
+  }
+  for (const e of ev) {
+    const d = document.createElement("div");
+    const quien = (e.quien || "cognia").split(":")[0];
+    d.className = "msg " + quien;
+    const q = document.createElement("div"); q.className = "q";
+    q.textContent = (e.t || "") + " · " + (e.quien || "");
+    d.appendChild(q);
+    d.appendChild(document.createTextNode(e.texto || ""));
+    c.appendChild(d);
+  }
+  c.scrollTop = c.scrollHeight;
+  const b = bots.find(x => x.nombre === sel);
+  $("estado").textContent = b ? (b.activo ? "activo ahora" : "inactivo") +
+    (b.proxima_rutina ? " · proxima rutina " + b.proxima_rutina : "") : "";
+}
+
+$("f").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const texto = $("texto").value.trim();
+  if (!texto || !sel || enviando) return;
+  enviando = true; $("enviar").disabled = true;
+  try {
+    const r = await api("/api/bots/" + encodeURIComponent(sel) + "/mensaje",
+                        {method: "POST", body: JSON.stringify({texto})});
+    if (r.error) { $("estado").textContent = r.error; }
+    else { $("texto").value = ""; $("estado").textContent = sel + " esta pensando…"; }
+  } catch (e) {
+    $("estado").textContent = "No pude enviar: " + e;
+  } finally {
+    enviando = false; $("enviar").disabled = false;
+    setTimeout(cargarCanon, 800);
+  }
+};
+$("texto").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("f").requestSubmit(); }
+});
+
+cargarBots();
+setInterval(cargarBots, 15000);   // roster: activo/inbox cambian despacio
+setInterval(cargarCanon, 4000);   // canon: aqui cae la respuesta del turno
+</script>
+</body>
+</html>

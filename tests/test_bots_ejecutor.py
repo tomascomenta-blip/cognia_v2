@@ -192,7 +192,9 @@ def test_procesar_inbox_responde_al_emisor_y_marca():
     n = E.procesar_inbox("beto", agente=fn)
     assert n == 1
     assert M.pendientes("beto") == []                       # marcado entregado
-    assert fn.vistos[0]["texto"].startswith("Mensaje de 🤖 ana (@ana):")
+    # el modelo ve la instruccion (nota_entrante) y DESPUES el mensaje
+    assert "Mensaje de 🤖 ana (@ana):" in fn.vistos[0]["texto"]
+    assert fn.vistos[0]["texto"].startswith("Respondele a @ana")
     respuestas = M.pendientes("ana")
     assert len(respuestas) == 1
     assert respuestas[0]["de"] == "beto" and respuestas[0]["hops"] == 1
@@ -477,3 +479,118 @@ def test_procesar_inbox_no_reenvia_un_turno_fallido():
     assert M.pendientes("ana") == []                      # '[error del turno...' tampoco viaja
     assert E.es_fallo_de_turno("[error del turno de beto: RuntimeError: boom]")
     assert not E.es_fallo_de_turno("todo bien, cerrada la tarea")
+
+
+# ---------------------------------------------------------------------------
+# remate e2e 2026-08-25: el turno entrante lleva instruccion; mensaje_bot es
+# resultado util; sin proactividad headless
+# ---------------------------------------------------------------------------
+
+def _capturar_agente(monkeypatch, respuesta="ok"):
+    """Reemplaza cli._run_agent_task y evita construir Cognia(): devuelve el
+    dict donde queda lo que recibio el agente (task, kwargs)."""
+    import cognia.cli as cli
+    visto = {}
+
+    def _falso(ai, task, print_fn, **kw):
+        visto["task"] = task
+        visto["kw"] = kw
+        return respuesta
+    monkeypatch.setattr(cli, "_run_agent_task", _falso)
+    monkeypatch.setattr(E, "asegurar_config", lambda: None)
+    monkeypatch.setattr(E, "instancia", lambda bot, ai=None: object())
+    return visto
+
+
+def test_turno_entrante_de_bot_lleva_la_nota_con_mensaje_bot_y_silent(monkeypatch):
+    """Antes el agente recibia SOLO 'Mensaje de 🤖 beta (@beta): ...' con
+    guidance 'Eres alfa, Bot A.': las reglas del protocolo con tool vivian en
+    ctx.system_cerebro, que el carril agente no usa. Medido con el 27B: 3/3
+    turnos entrantes vagaron (leer/listar/buscar) y cerraron sin_arranque."""
+    R.crear("alfa", titulo="Bot A"); R.crear("beta", titulo="Bot B")
+    M.enviar(de="beta", para="alfa", texto="Un espejo con sed de olas")
+    visto = _capturar_agente(monkeypatch)
+    assert E.procesar_inbox("alfa") == 1
+    task, kw = visto["task"], visto["kw"]
+    nota = E.nota_entrante(R.obtener("beta"))
+    # la instruccion PRIMERO (el modelo leia 'TAREA: Mensaje de...' como un
+    # encargo sobre el repo), el mensaje despues, y la PISTA del bucle
+    assert task.startswith(nota)
+    assert task.endswith("\nMensaje de 🤖 beta (@beta): Un espejo con sed de olas")
+    assert "mensaje_bot" in nota and "`beta | " in nota and "[SILENT]" in nota
+    assert "cierra el turno con responder" in nota and "No explores" in nota
+    assert kw["hint"] == "mensaje_bot"
+    assert kw["skills"] == {}          # sin auto-skill (commit-git matcheaba un poema)
+    # el A/B sigue: guidance es el sufijo corto, sin el protocolo entero
+    assert kw["guidance"] == R.sufijo_agente(R.obtener("alfa")) and len(kw["guidance"]) <= 300
+    assert "mensaje_bot" in kw["allowed_tools"] and "responder" in kw["allowed_tools"]
+    # headless: sin proactividad (nadie lee sugerencias en daemon.log)
+    assert kw["proactividad"] is False
+    # el canon guarda el texto LIMPIO (la nota es para el modelo)
+    entrante = [t for q, t in _canon("alfa") if q == "bot"]
+    assert entrante == ["Mensaje de 🤖 beta (@beta): Un espejo con sed de olas"]
+    # un envelope que no viene de un bot (usuario por la API): nota sin mensaje_bot
+    M.enviar(de="usuario", para="alfa", texto="hola alfa")
+    E.procesar_inbox("alfa")
+    assert "no es un bot" in visto["task"] and "mensaje_bot" not in visto["task"]
+    assert visto["kw"]["hint"] == ""
+    assert "no es un bot" in E.nota_entrante("usuario") and "mensaje_bot" not in E.nota_entrante(None)
+
+
+def test_turno_no_headless_conserva_la_proactividad(monkeypatch):
+    R.crear("alfa")
+    visto = _capturar_agente(monkeypatch)
+    E.correr_turno("alfa", "lista los ficheros del directorio actual", headless=False)
+    assert visto["kw"]["proactividad"] is True
+    assert visto["kw"]["skills"] is None and visto["kw"]["hint"] == ""   # turno normal: como antes
+
+
+def test_mensaje_bot_enviado_es_el_resultado_util_aunque_el_bucle_cierre_sin_arranque():
+    """mensaje_bot no es 'avance verificado' para el presupuesto por progreso:
+    el 27B mandaba el mensaje en el paso 1, seguia 6 pasos y cerraba con
+    '(cerrada sin progreso verificado: sin_arranque)'; el canon y el roster
+    decian que el turno fallo cuando SI escribio (e2e 2026-08-25)."""
+    R.crear("ana"); R.crear("beto")
+    M.enviar(de="ana", para="beto", texto="ping")
+
+    def _escribe_y_vaga(bot, texto, ctx):
+        M.enviar(de="beto", para="ana", texto="pong por la tool", hops=1)
+        return "(cerrada sin progreso verificado: sin_arranque)"
+    E.procesar_inbox("beto", agente=_escribe_y_vaga)
+    canon = _canon("beto")
+    assert ("cognia", "(le escribio a @ana con mensaje_bot)") in canon
+    assert any(q == "meta" and t.startswith("(el bucle cerro con: (cerrada sin progreso")
+               for q, t in canon)
+    assert any(q == "meta" and "ya le escribio a @ana" in t for q, t in canon)
+    assert not any("turno fallido" in t for _, t in canon)
+    assert [m["texto"] for m in M.pendientes("ana")] == ["pong por la tool"]   # no duplica
+    # sin mensaje enviado, el fallo sigue siendo fallo (no se maquilla)
+    M.enviar(de="ana", para="beto", texto="ping 2")
+    E.procesar_inbox("beto", agente=lambda b, t, c: "(cerrada sin progreso verificado: sin_arranque)")
+    assert any(q == "meta" and "turno fallido" in t for q, t in _canon("beto"))
+    assert [m["texto"] for m in M.pendientes("ana")] == ["pong por la tool"]
+    # resultado_util directo: respuesta buena + mensaje enviado -> se respeta la respuesta
+    antes = {e["id"] for e in M.pendientes("ana")}
+    M.enviar(de="beto", para="ana", texto="otro")
+    assert E.resultado_util("beto", R.obtener("ana"), antes, "todo listo") == ("todo listo", None)
+    assert E.resultado_util("beto", R.obtener("ana"), antes, "") == (
+        "(le escribio a @ana con mensaje_bot)", None)
+
+
+def test_daemon_siembra_proactividad_apagada(monkeypatch, capsys):
+    """El daemon imprimia '[backend] DEGRADADO: proactividad sin backend LLM'
+    tras cada turno con el backend vivo: nadie lee sugerencias en daemon.log."""
+    from cognia.bots import __main__ as D
+    monkeypatch.delenv("COGNIA_PROACTIVIDAD", raising=False)
+    R.crear("ana")
+    monkeypatch.setattr(E, "AGENTE_FALSO", _eco())
+    assert D.main(["daemon", "--once"]) == 0
+    assert os.environ.get("COGNIA_PROACTIVIDAD") == "0"
+    import cognia.cli as cli
+    assert cli._proactividad_encendida() is False
+    monkeypatch.setenv("COGNIA_PROACTIVIDAD", "1")
+    assert cli._proactividad_encendida() is True
+    # el dueno manda: si ya la fijo, el daemon no la pisa
+    monkeypatch.setenv("COGNIA_PROACTIVIDAD", "on")
+    D.main(["daemon", "--once"])
+    assert os.environ["COGNIA_PROACTIVIDAD"] == "on"

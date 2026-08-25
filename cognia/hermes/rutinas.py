@@ -172,6 +172,14 @@ _MAX_LINEAS_LEDGER = 4000
 
 _CLASES_HORARIO = ("una_vez", "intervalo", "cron")
 
+# Canales de ENTREGA conocidos (etiqueta que viaja en el informe; este modulo
+# no entrega). "consola" es el del REPL; "inbox" existe desde el modo BOTS
+# (Hermes Bot Mode, docs/user-guide/bot-mode: las rutinas de un bot caen en
+# su chat canonico y el dueno las ve en su bandeja, no en una consola que
+# puede no estar abierta). No se rechazan otros valores: un integrador puede
+# tener su canal (telegram, fichero) y la etiqueta es suya.
+CANALES_ENTREGA = ("consola", "inbox")
+
 _RE_NOMBRE = re.compile(r"^[A-Za-z0-9_. -]{1,64}$")
 
 _RE_DURACION = re.compile(
@@ -625,13 +633,19 @@ def _normaliza_workdir(workdir):
 
 def crear(nombre: str, horario: str, prompt: str, *, script=None,
           entregar: str = "consola", despertar_agente: bool = True,
-          workdir=None) -> dict:
+          workdir=None, bot=None) -> dict:
     """Crea una rutina y la deja armada. Devuelve el registro.
 
     Lanza ValueError con el motivo cuando la configuracion no puede correr
     (nombre repetido, horario ilegible, one-shot ya pasado, sin agente y sin
     script). Es camino de CONFIGURACION, no camino caliente: aqui fallar
     ruidosamente es lo correcto; el que se calla es `tick`.
+
+    `bot`: nombre del bot dueno de la rutina (modo BOTS: cada bot tiene su
+    propio almacen via COGNIA_RUTINAS_DIR, asi que el campo es informativo y
+    sale en listar() para que el roster y el remoto sepan de quien es; es el
+    "[bot:<name>] <titulo>" con que Hermes etiqueta sus cron jobs). None =
+    rutina del REPL global.
     """
     nombre = (nombre or "").strip()
     if not _RE_NOMBRE.match(nombre):
@@ -669,6 +683,7 @@ def crear(nombre: str, horario: str, prompt: str, *, script=None,
         "entregar": entregar,
         "despertar_agente": despertar_agente,
         "workdir": _normaliza_workdir(workdir),
+        "bot": (str(bot).strip() or None) if bot else None,
         "activa": True,
         "estado": "programada",
         "creada_en": ahora_dt.isoformat(),
@@ -687,6 +702,25 @@ def crear(nombre: str, horario: str, prompt: str, *, script=None,
             raise ValueError(
                 "No se pudo escribir %s (permisos o disco)." % _fichero_rutinas())
     return dict(registro)
+
+
+def nombre_libre(base: str = "rutina") -> str:
+    """'<base>-<N>' con N = mayor indice ya usado + 1 (1 si no hay ninguno).
+
+    NO es len()+1: con rutina-1..3 y un rm de rutina-2, len()+1 daba
+    'rutina-3', que existe, y crear() rechazaba TODAS las altas siguientes
+    hasta borrar a mano (revision adversarial 2026-08-25, /bots rutina add).
+    Solo cuentan los nombres con la forma exacta '<base>-<digitos>'; un
+    nombre libre ('vigia') no mueve el contador.
+    """
+    base = (base or "rutina").strip() or "rutina"
+    patron = re.compile(r"^%s-(\d+)$" % re.escape(base))
+    mayor = 0
+    for r in listar():
+        m = patron.match(str(r.get("nombre", "")))
+        if m:
+            mayor = max(mayor, int(m.group(1)))
+    return "%s-%d" % (base, mayor + 1)
 
 
 def listar() -> list:
@@ -1363,7 +1397,13 @@ def llamar_agente(correr_agente_fn, prompt: str, rutina: dict, limite=None):
             caja["ok"] = False
             caja["error"] = "%s: %s" % (type(exc).__name__, exc)
 
-    hilo = threading.Thread(target=_correr, name="cognia-rutina-agente",
+    # copy_context(): el hilo hijo hereda las ContextVars del tick (la
+    # identidad del bot de cognia.bots.registro y los hops del envelope).
+    # Sin esto el hijo no sabia de que bot era el turno salvo por os.environ,
+    # que es del proceso entero (revision adversarial 2026-08-25).
+    import contextvars
+    hilo = threading.Thread(target=contextvars.copy_context().run,
+                            args=(_correr,), name="cognia-rutina-agente",
                             daemon=True)
     hilo.start()
     while hilo.is_alive():

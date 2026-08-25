@@ -192,6 +192,14 @@ def una_vuelta(forzar: bool = False, imprimir=print) -> dict:
 
 
 def daemon(intervalo: float = 60.0, once: bool = False, forzar: bool = False) -> int:
+    # Nadie lee sugerencias en daemon.log: la proactividad del agente
+    # (proponer_extras al final de cada turno) no aporta aqui y gritaba
+    # '[backend] DEGRADADO: proactividad sin backend LLM' tras CADA turno con
+    # el backend vivo (e2e 2026-08-25). Los turnos headless ya la apagan por
+    # parametro (ejecutor._turno_agente); la env es el cinturon para
+    # cualquier otro camino del proceso del daemon. setdefault: si el dueno
+    # la fijo a mano, manda el.
+    os.environ.setdefault("COGNIA_PROACTIVIDAD", "0")
     motivo = _puedo_arrancar()
     if motivo:
         print("[bots] " + motivo, flush=True)

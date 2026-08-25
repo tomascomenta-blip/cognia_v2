@@ -579,7 +579,7 @@ def _cabecera_prompt(linea: list) -> list:
     ancho = _ancho_marco()
     et = _estilo_de_prompt("prompt.etiqueta")
     arriba = (et.posicion == "arriba") and et.visible is not False
-    texto_et = _texto_prompt("prompt.etiqueta", "cognia") if arriba else ""
+    texto_et = _etiqueta_prompt() if arriba else ""
     if _posicion_marco() in ("ambos", "arriba"):
         if arriba and texto_et:
             # '── cognia ─────': la etiqueta dentro de la regla superior
@@ -603,7 +603,7 @@ def _linea_entrada() -> list:
     et = _estilo_de_prompt("prompt.etiqueta")
     if et.visible is not False and (et.posicion or "linea") == "linea":
         partes.extend(_frag_prompt("prompt.etiqueta", "cognia",
-                                   " " + _texto_prompt("prompt.etiqueta", "cognia")))
+                                   " " + _etiqueta_prompt()))
     if _estilo_de_prompt("prompt.flecha").visible is not False:
         partes.extend(_frag_prompt("prompt.flecha", "flecha",
                                    _glifo_prompt("prompt.flecha", _FLECHA)))
@@ -770,6 +770,11 @@ def _pie_prompt(barra=None):
 # ---------------------------------------------------------------------------
 _session_log      = []
 _session_start    = 0.0
+# Bots (2026-08-25): el bot cuyo chat CANONICO esta abierto en el REPL
+# (/bots chat <bot>), o None. Lista de un elemento para mutarla desde
+# cualquier funcion sin `global`. El prompt lo lee (_etiqueta_prompt) y
+# el bucle del REPL desvia cada linea libre a _turno_en_canon.
+_BOT_ACTIVO: list = [None]
 # La PromptSession viva del REPL. La necesita _reestilar_prompt(): el marco no
 # pasa por rich, asi que /tema tiene que repintarlo a mano.
 _sesion_prompt    = None
@@ -2198,7 +2203,15 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
     funcion es el ctx['confirm'] del agente y el agente ahora puede correr en
     un hilo: sin este enrutado, la primera accion sensible de un /hacer en
     segundo plano cuelga la corrida sin decir una palabra.
+
+    Bots (2026-08-25): si el turno corre en contexto de un bot y su
+    permisos.json tiene una regla que casa, esa regla decide ANTES del
+    clasificador ("regla primero, clasificador despues", el orden que pide
+    harness/permisos_reglas). Denegar gana tambien sobre bypass.
     """
+    _por_regla = _permiso_por_regla_de_bot(kind, detalle)
+    if _por_regla is not None:
+        return _por_regla
     try:
         from cognia.console.permissions import needs_confirmation
         if not needs_confirmation(kind, detalle):
@@ -2450,6 +2463,7 @@ _CMD_DESCRIPTIONS = {
     "/lazo":            "Lazo de verificacion post-respuesta con tools reales  [on|off]",
     "/hermes":          "Estado del arnes Hermes: presupuesto, guardia de bucle, parada verificada",
     "/rutinas":         "Tareas programadas que corren solas.  Uso: /rutinas [crear|borrar|ahora]",
+    "/bots":            "Bots: perfiles aislados con identidad (ALMA), chat canonico, rutinas y mensajeria entre bots.  Uso: /bots [crear|alma|chat|enviar|rutina|daemon|...]",
     "/grabar":          "Graba lo que hace el agente para convertirlo en flujo.  Uso: /grabar inicio|fin|lista",
     "/receta":          "Recetas aprendidas: aprender de una grabacion, examinar y correr.  Uso: /receta lista",
     "/multiverso":      "Corre la tarea en K ramas aisladas y fusiona SOLO la ganadora.  Uso: /multiverso 3 <tarea>",
@@ -2643,6 +2657,43 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/bots": (
+        "BOTS (cognia/bots, 2026-08-25; fuente: Hermes Bot Mode de Nous Research y Grok Bot de "
+        "xAI). Un bot es un PERFIL AISLADO en disco (~/.cognia/bots/<nombre>/ o COGNIA_BOTS_DIR): "
+        "bot.json (titulo, descripcion, modelo pinneado o heredado, skills, tools, modo de permiso), "
+        "ALMA.md (identidad libre en markdown: reemplaza al prompt de usuario en el chat, se escanea "
+        "contra inyeccion y solo avisa), skills/, permisos.json, memoria/, rutinas/ y sesiones/"
+        "canon.jsonl = su CHAT CANONICO persistente, donde caen sus rutinas y los mensajes de otros "
+        "bots. El roster (nombre + titulo + descripcion) va al prompt de todos los bots; el protocolo "
+        "de mensajeria lo inyecta el sistema, no el ALMA. DOS CARRILES (A/B 2026-07-23): el chat ve el "
+        "ALMA entera; el agente con tools solo un sufijo de <= 300 chars. "
+        "USO: /bots (roster: activo = escribio en los ultimos 90 s, ultimo mensaje, proxima rutina, "
+        "inbox pendientes; todo leido de los ficheros; los ocultos solo con /bots --todos) | crear "
+        "<nombre> [--titulo \"..\"] [--desc \"..\"] [--modelo x] [--clonar bot] | alma <bot> [ver | set "
+        "\"texto\" | editar] | modelo <bot> <x|heredar> (x se valida contra los GGUF de la flota como "
+        "/modelo; el turno corre con el modelo GLOBAL si el pinneado no es el servido, y se dice) | "
+        "workdir <bot> <ruta|heredar> (directorio de trabajo del bot: COGNIA_BOT_WORKDIR) | "
+        "chat <bot> (abre el canon: el prompt pasa a '<glifo> <nombre>> ' y cada linea es un turno del "
+        "bot con su contexto, memoria y sesion propias (nada va a la memoria ni al historial del "
+        "dueno); /bots salir vuelve; /nueva dentro compacta, no forkea; /hacer y /rutinas dentro "
+        "operan como el bot, los demas comandos avisan una vez que corren fuera) | enviar <bot> "
+        "<texto> (un turno del bot con tu mensaje) | inbox <bot> | rutina <bot> add \"<horario>\" "
+        "\"<instruccion>\" | list | rm <n> | ahora <n> (cron de hermes/rutinas dentro del bot: '30m', "
+        "'cada 2h', '0 2 * * *'; nombres rutina-<max+1>, unicos tras un rm) | skills <bot> [list | "
+        "permitir <n> (debe existir) | quitar <n>] | permisos <bot> [list | add [permitir|denegar] "
+        "\"shell_exec(git status*)\" | rm <n> | modo automatico|manual|bypass|global] (kinds del gate: "
+        "shell_exec, file_write, file_delete, network, config_change, model_download; shell_exec se "
+        "casa contra la linea entera, tuberias incluidas; denegar gana siempre; las reglas se cargan "
+        "al arrancar cada turno del bot) | borrar <bot> "
+        "(pide el nombre; --si para scripts) | ocultar <bot> | daemon [estado | arrancar | parar | "
+        "instalar | desinstalar] (python -m cognia.bots: tick de 60 s por bot para rutinas e inbox; "
+        "instalar = Windows Scheduled Task). @MENCION: en texto libre '@editor revisa esto' o 'dile a "
+        "editor que ...' -> con un canon abierto es un HANDOFF (el bot activo recibe una nota y compone "
+        "su propio mensaje con la tool mensaje_bot; nunca reenvia tu texto); sin canon abierto equivale "
+        "a /bots enviar. Un @x que no es bot sigue siendo @-mencion de fichero. "
+        "CONFIG: bots_on (on), bots_protocolo (on: seccion de mensajeria en el chat canonico), "
+        "bots_max_hops (3: tope de saltos entre bots). La env COGNIA_BOTS=0 apaga todo ganando a la "
+        "config; COGNIA_BOTS_DIR mueve el almacen. Remoto: GET /bots y /api/bots."),
     "/confianza": (
         "NIVELES DE CONFIANZA DEL CHAT (cognia/agent/confianza_chat.py, 2026-08-24). Medido: a "
         "'cuantos suscriptores tiene The Acua Boy en YouTube?' el modelo confesaba 'no tengo acceso "
@@ -3199,6 +3250,19 @@ if _HAS_PT:
             corte = text.rfind("@")
             if corte >= 0 and " " not in text[corte + 1:]:
                 prefijo = text[corte + 1:]
+                # Bots primero (2026-08-25): '@edi' -> '@editor' con su titulo.
+                # Un fallo del registro se ve y no tapa las rutas de abajo.
+                # Cacheado (_bots_para_completar): esto corre en CADA tecla.
+                try:
+                    for _nb, _tb in _bots_para_completar():
+                        if _nb.startswith(prefijo.lower()):
+                            yield Completion(
+                                _nb, start_position=-len(prefijo),
+                                display=f"@{_nb}",
+                                display_meta=f"bot · {_tb or 'sin titulo'}")
+                except Exception as _exc_b:
+                    _aviso_degradado("bots.autocompletado",
+                                     f"{type(_exc_b).__name__}: {_exc_b}")
                 try:
                     from cognia.harness.menciones import completar_rutas
                     for ruta in completar_rutas(prefijo, os.getcwd(), limite=20):
@@ -3208,6 +3272,28 @@ if _HAS_PT:
                     pass
                 return
             if not text.startswith("/"):
+                return
+            if text.lower().startswith("/bots "):
+                # '/bots cr' -> subcomandos; '/bots chat inv' -> nombres de bot.
+                _trozos = text.split(" ")
+                _ultimo = _trozos[-1]
+                if len(_trozos) == 2:
+                    for _sub in _BOTS_SUBCOMANDOS:
+                        if _sub.startswith(_ultimo.lower()):
+                            yield Completion(_sub, start_position=-len(_ultimo),
+                                             display=_sub, display_meta="/bots")
+                elif len(_trozos) == 3:
+                    # Misma cache que '@' (no relee bot.json por tecla); los
+                    # ocultos no se completan pero se pueden teclear.
+                    try:
+                        for _nb, _tb in _bots_para_completar():
+                            if _nb.startswith(_ultimo.lower()):
+                                yield Completion(_nb, start_position=-len(_ultimo),
+                                                 display=_nb,
+                                                 display_meta=_tb or "bot")
+                    except Exception as _exc_b:
+                        _aviso_degradado("bots.autocompletado",
+                                         f"{type(_exc_b).__name__}: {_exc_b}")
                 return
             if " " in text:
                 return
@@ -7019,6 +7105,15 @@ _CONFIG_DEFAULTS: dict = {
     "confianza_posterior":     "on",
     "confianza_segundos":      "25",
     "confianza_paginas":       "3",
+    # BOTS (/bots, cognia/bots): bots_on apaga la puerta entera (la env
+    # COGNIA_BOTS=0 gana); bots_protocolo = seccion "Mensajeria entre bots"
+    # que el SISTEMA inyecta en el chat canonico (COGNIA_BOTS_PROTOCOLO);
+    # bots_max_hops = tope de saltos de un mensaje entre bots
+    # (COGNIA_BOTS_MAX_HOPS; Hermes: 3 rondas). _bots_sembrar_env los
+    # traduce a env al arrancar el REPL porque cognia/bots lee la env.
+    "bots_on":                 "on",
+    "bots_protocolo":          "on",
+    "bots_max_hops":           "3",
 }
 
 
@@ -13930,23 +14025,1224 @@ def _arrancar_carril_rutinas(ai):
     except Exception:
         return
 
-    def _bucle():
+    def _tick():
+        """Un tick del almacen GLOBAL. Bots (2026-08-25): rutinas lee
+        COGNIA_RUTINAS_DIR en cada llamada y un turno de bot (minutos con el
+        27B) lo apunta al almacen del BOT; sin esto el carril tickeaba las
+        rutinas del bot con el agente global y las marcaba corridas en su
+        ledger. Se toma registro.CANDADO_TURNO SIN esperar: si hay un turno
+        en curso, este minuto no se tickea (el siguiente lo recupera)."""
         from cognia.hermes import rutinas as _r
-        fn = _agente_de_rutina(ai)
+        candado = None
+        try:
+            from cognia.bots import registro as _Rb
+            candado = _Rb.CANDADO_TURNO
+        except Exception as _exc_r:
+            _aviso_degradado("rutinas.carril",
+                             f"registro de bots no disponible ({type(_exc_r).__name__}: "
+                             f"{_exc_r}); tickeo sin candado")
+        if candado is not None and not candado.acquire(blocking=False):
+            return
+        try:
+            if os.environ.get("COGNIA_BOT", "").strip():
+                return              # un bot en turno en este hilo: no es mi almacen
+            inf = _r.tick(None, fn)
+            for c in inf.get("entregables", []):
+                _COLA_RUTINAS.append(c)
+        finally:
+            if candado is not None:
+                candado.release()
+
+    def _bucle():
         while True:
             try:
-                inf = _r.tick(None, fn)
-                for c in inf.get("entregables", []):
-                    _COLA_RUTINAS.append(c)
-            except Exception:
-                pass                    # el hilo del reloj NUNCA muere
+                _tick()
+            except Exception as _exc_t:
+                # el hilo del reloj NUNCA muere, pero el fallo se VE
+                _aviso_degradado("rutinas.carril",
+                                 f"tick fallo: {type(_exc_t).__name__}: {_exc_t}")
             time.sleep(60)
+
+    fn = _agente_de_rutina(ai)
 
     _CARRIL_RUTINAS["vivo"] = True
     threading.Thread(target=_bucle, name="cognia-rutinas", daemon=True).start()
 
 
 _COLA_RUTINAS = []
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Bots: perfiles aislados con chat canonico, rutinas y mensajeria (2026-08-25)
+# Fuente del diseno: Hermes Bot Mode (Nous Research 2026-08-14, leido en
+# codigo, docs/user-guide/bot-mode) y Grok Bot (xAI: job titles, rutinas,
+# Require Approval > Always Allow). Un bot ES un perfil en disco
+# (cognia/bots/registro.py): bot.json, ALMA.md, skills/, permisos.json,
+# memoria/, rutinas/, sesiones/canon.jsonl, inbox.jsonl. Aqui vive SOLO la
+# puerta del REPL: /bots, el modo "chat canonico" (el prompt pasa a
+# '<glifo> <nombre>> ' y cada turno corre con registro.contexto(bot)), la
+# @mencion como HANDOFF, las reglas de permiso del bot y el arranque del
+# daemon (python -m cognia.bots). La tool mensaje_bot vive en
+# cognia/agent/tools.py y se registra SOLO con bot activo.
+#
+# DOS CARRILES (regla MEDIDA de system_prompt.py, A/B 2026-07-23: un system
+# largo baja al agente de 10/10 a 1/4): el ALMA entera solo la ve el CEREBRO
+# (chat: ejecutor._turno_cerebro con ctx.system_cerebro); el AGENTE recibe
+# SOLO ctx.sufijo_agente (<= 300 chars) como guidance. Nunca al reves.
+# ══════════════════════════════════════════════════════════════════════════
+
+# Subcomandos de /bots (fuente unica: dispatch + autocompletado + ayuda).
+_BOTS_SUBCOMANDOS = ("crear", "alma", "modelo", "workdir", "chat", "salir", "enviar",
+                     "inbox", "rutina", "skills", "permisos", "borrar",
+                     "ocultar", "daemon")
+
+# Handoff pendiente para el turno en curso del canon: el bot destino que el
+# usuario menciono con '@x' o 'dile a x que ...'. Se consume en
+# _turno_en_canon (una lista de un elemento para mutarla desde el bucle).
+_HANDOFF_PENDIENTE: list = [None]
+
+# registro.COLORES_ANSI (nombre -> SGR) traducido a colores de rich.
+_BOTS_COLOR_RICH = {"rojo": "red", "verde": "green", "amarillo": "yellow",
+                    "azul": "blue", "magenta": "magenta", "cian": "cyan",
+                    "blanco": "white", "gris": "bright_black"}
+
+# '@nombre' de bot: mismo alfabeto que registro.RE_NOMBRE. NO casa dentro de
+# rutas ni emails ('a@b.com', 'src/@x') para no pisar a las @-menciones de
+# fichero de harness/menciones (que se resuelven DESPUES de esto).
+_RE_MENCION_BOT = re.compile(
+    r"(?<![\w/\\.])@([A-Za-z0-9][A-Za-z0-9_-]{1,31})(?![\w/\\.@])")
+# 'dile a <bot> que <texto>' y variantes rioplatenses; el bot puede ir con @.
+_RE_DILE_A = re.compile(
+    r"^\s*(?:dile|decile|pedile|pidele|p[ií]dele|escribile|escr[ií]bele|"
+    r"avisale|av[ií]sale|preguntale|preg[uú]ntale|contale|cu[eé]ntale)"
+    r"\s+a\s+@?([A-Za-z0-9][A-Za-z0-9_-]{1,31})\s*[:,]?\s*(?:que\s+)?(.+)$",
+    re.I | re.S)
+
+
+def _bots_encendidos() -> bool:
+    """COGNIA_BOTS=0 apaga GANANDO a la config (apagado de emergencia, como
+    COGNIA_OFFLOAD); si no, manda `bots_on` de ~/.cognia_config.json."""
+    env = os.environ.get("COGNIA_BOTS", "").strip().lower()
+    if env in ("0", "off", "false", "no"):
+        return False
+    try:
+        return str(_load_config().get("bots_on", "on")).strip().lower() not in (
+            "0", "off", "false", "no")
+    except Exception as exc:
+        _aviso_degradado("bots.config",
+                         f"{type(exc).__name__}: {exc}; bots encendidos por defecto")
+        return True
+
+
+_BOTS_COMPLETAR_CACHE: dict = {"clave": None, "t": 0.0, "bots": []}
+# Red de seguridad para lo que NO cambia el mtime del directorio raiz (un
+# titulo editado a mano en <bot>/bot.json): se relee como mucho cada 30 s.
+_BOTS_COMPLETAR_TTL_S = 30.0
+
+
+def _bots_clave_completar() -> tuple:
+    """(mtime de dir_bots, mtime de la config). Cambia si se crea/borra/
+    renombra un bot (entrada del directorio raiz) o si se toca
+    ~/.cognia_config.json (bots_on). Un stat que falla se dice y cuenta
+    como None (= se relee)."""
+    from cognia.bots import registro as _Rb
+    clave = []
+    for ruta in (_Rb.dir_bots(), Path(_CONFIG_PATH)):
+        try:
+            clave.append(ruta.stat().st_mtime if ruta.exists() else None)
+        except OSError as exc:
+            _aviso_degradado("bots.autocompletado", f"stat de {ruta}: {exc}")
+            clave.append(None)
+    return tuple(clave)
+
+
+def _bots_para_completar() -> list:
+    """[(nombre, titulo)] de los bots visibles para el completer de '@',
+    cacheado por (mtime de dir_bots, mtime de la config). El completer corre
+    en CADA pulsacion tras '@' y antes leia ~/.cognia_config.json (para
+    _bots_encendidos) y todos los bot.json por tecla (revision adversarial
+    2026-08-25). Mientras ninguno de los dos mtimes cambie no se lee nada
+    (test que cuenta lecturas en tests/test_cli_bots.py); el TTL solo cubre
+    ediciones a mano dentro de un bot."""
+    clave = _bots_clave_completar()
+    ahora = time.time()
+    c = _BOTS_COMPLETAR_CACHE
+    if c["clave"] == clave and (ahora - c["t"]) < _BOTS_COMPLETAR_TTL_S:
+        return c["bots"]
+    from cognia.bots import registro as _Rb
+    bots = ([(b.nombre, b.titulo) for b in _Rb.listar(incluir_ocultos=False)]
+            if _bots_encendidos() else [])
+    c.update(clave=clave, t=ahora, bots=bots)
+    return bots
+
+
+def _bots_sembrar_env(cfg=None) -> None:
+    """Siembra COGNIA_BOTS_PROTOCOLO y COGNIA_BOTS_MAX_HOPS desde la config
+    (bots_protocolo, bots_max_hops). Los modulos de cognia/bots leen la env
+    en cada llamada y no conocen ~/.cognia_config.json: sin esto la config
+    seria una clave que no decide nada. Un valor invalido se DICE y se deja
+    el default del modulo (mensajeria.MAX_HOPS), jamas se traga."""
+    cfg = cfg if cfg is not None else _load_config()
+    proto = str(cfg.get("bots_protocolo", "on")).strip().lower()
+    os.environ["COGNIA_BOTS_PROTOCOLO"] = "0" if proto in ("0", "off", "false", "no") else "1"
+    hops = str(cfg.get("bots_max_hops", "3")).strip()
+    if hops.isdigit():
+        os.environ["COGNIA_BOTS_MAX_HOPS"] = hops
+    else:
+        os.environ.pop("COGNIA_BOTS_MAX_HOPS", None)
+        _aviso_degradado("bots.config",
+                         f"bots_max_hops={hops!r} no es un entero; uso el default del modulo")
+
+
+def _bot_en_contexto():
+    """El bot dentro de cuyo contexto() corre ESTE turno (COGNIA_BOT), o None.
+    Distinto de _BOT_ACTIVO (el canon abierto en el REPL): un turno del
+    daemon o de /bots enviar tiene bot en contexto sin canon abierto."""
+    try:
+        from cognia.bots import registro as _R
+        return _R.bot_activo()
+    except Exception as exc:
+        _aviso_degradado("bots", f"registro no disponible: {type(exc).__name__}: {exc}")
+        return None
+
+
+def _etiqueta_prompt() -> str:
+    """Texto de la etiqueta del prompt: '<glifo> <nombre>' con un canon
+    abierto (/bots chat), si no lo que diga /estilo prompt.etiqueta."""
+    bot = _BOT_ACTIVO[0]
+    if bot is not None:
+        return f"{bot.glifo} {bot.nombre}"
+    return _texto_prompt("prompt.etiqueta", "cognia")
+
+
+def _sincronizar_tools_de_bot():
+    """Registra/quita mensaje_bot segun haya bot en contexto y devuelve ese
+    bot (o None). Se llama al arrancar cada corrida del agente: en el REPL el
+    bot entra y sale del contexto dentro del mismo proceso."""
+    try:
+        from cognia.agent.tools import sincronizar_mensaje_bot as _sync
+        _sync()
+    except Exception as exc:
+        _aviso_degradado("bots.tools",
+                         f"mensaje_bot no sincronizada: {type(exc).__name__}: {exc}")
+    return _bot_en_contexto()
+
+
+def _skills_de_bot(bot) -> dict:
+    """Skills que ve el agente de ESTE bot: todas (+ las de <bot>/skills/) si
+    el perfil no restringe; solo las declaradas si `bot.skills` no esta
+    vacia. Misma regla que registro.contexto -> Contexto.skills, recalculada
+    aqui porque _run_agent_task no recibe el Contexto (el ejecutor headless
+    lo abre por dentro y solo pasa guidance/allowed_tools)."""
+    from cognia.agent.skills import load_skills
+    from cognia.bots import registro as _R
+    todas = load_skills(extra_dirs=[str(_R.ruta(bot, "skills"))])
+    if not bot.skills:
+        return todas
+    elegidas = {k: v for k, v in todas.items() if k in set(bot.skills)}
+    faltan = sorted(set(bot.skills) - set(elegidas))
+    if faltan:
+        _print_line(f"[warn_cl]@{bot.nombre}: skills declaradas y no encontradas: "
+                    f"{_escape(', '.join(faltan))}[/warn_cl]")
+    return elegidas
+
+
+# -- Reglas de permiso POR BOT (permisos.json del perfil) ------------------
+# Formato = el de harness/permisos_reglas ({"efecto","patron"}), con la
+# HERRAMIENTA siendo el action_kind del gate (shell_exec, file_write,
+# file_delete, network, config_change, model_download): 'shell_exec(git
+# status*)', 'file_write(src/**)', 'file_delete'. Se guardan en
+# <bot>/permisos.json (no en .cognia/ del cwd: el permiso es del bot, no del
+# proyecto) y las CONSUME _confirmar_accion cuando hay bot en contexto.
+# Hermes tuvo el bug "allowlist definida y nunca cargada" (bot-mode); por eso
+# tests/test_cli_bots.py tiene un TEST DE ARRANQUE: regla en disco -> cache
+# vaciada ("reinicio") -> el gate la aplica sin preguntar.
+_REGLAS_BOT_CACHE: dict = {}     # nombre -> (mtime, reglas)
+# Los action_kind que emite _confirmar_accion (fuente: console/permissions).
+# shell_exec esta en permisos_reglas.HERRAMIENTAS_DE_COMANDO: el patron se
+# casa contra la linea entera, segmento a segmento ('git status | rm -rf x'
+# NO lo permite 'shell_exec(git status*)'; test en tests/test_cli_bots.py).
+def _bots_kinds_permiso() -> tuple:
+    """console.permissions.KNOWN_KINDS (fuente unica); si no carga, la lista
+    conocida a 2026-08-25, avisando."""
+    try:
+        from cognia.console.permissions import KNOWN_KINDS
+        return tuple(KNOWN_KINDS)
+    except Exception as exc:
+        _aviso_degradado("bots.permisos", f"KNOWN_KINDS no disponible: {type(exc).__name__}: {exc}")
+        return ("shell_exec", "file_write", "file_delete", "network",
+                "config_change", "model_download")
+
+
+def _ruta_permisos_bot(bot):
+    from cognia.bots import registro as _R
+    return _R.ruta(bot, "permisos.json")
+
+
+def _reglas_de_bot(bot) -> list:
+    """Reglas validas de <bot>/permisos.json ([] si no hay). Un fichero roto
+    o una regla invalida se AVISAN (degradado 'bots.permisos') y se ignoran:
+    sin reglas todo vuelve a 'preguntar', el lado seguro."""
+    from cognia.harness import permisos_reglas as _pr
+    ruta = _ruta_permisos_bot(bot)
+    if not ruta.is_file():
+        return []
+    try:
+        crudo = json.loads(ruta.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError) as exc:
+        _aviso_degradado("bots.permisos", f"{ruta}: {type(exc).__name__}: {exc}")
+        return []
+    if isinstance(crudo, dict):
+        crudo = crudo.get("reglas", [])
+    if not isinstance(crudo, list):
+        _aviso_degradado("bots.permisos", f"{ruta}: no es una lista de reglas")
+        return []
+    reglas = []
+    for x in crudo:
+        r = _pr._como_regla(x)
+        if r is None:
+            _aviso_degradado("bots.permisos", f"{ruta}: regla invalida ignorada: {x!r}")
+        else:
+            reglas.append(r)
+    return reglas
+
+
+def _guardar_reglas_bot(bot, reglas: list):
+    """Escritura atomica (registro._escribir_atomico: tmp+fsync+replace)."""
+    from cognia.bots import registro as _R
+    ruta = _ruta_permisos_bot(bot)
+    _R._escribir_atomico(ruta, json.dumps({"reglas": list(reglas)}, indent=2,
+                                          ensure_ascii=False) + "\n")
+    _REGLAS_BOT_CACHE.pop(bot.nombre if hasattr(bot, "nombre") else str(bot), None)
+    return ruta
+
+
+def _reglas_bot_cargadas(bot) -> list:
+    """Reglas del bot con cache por mtime: se releen si el fichero cambio
+    (otro proceso, el daemon, el dueno a mano)."""
+    ruta = _ruta_permisos_bot(bot)
+    try:
+        mtime = ruta.stat().st_mtime if ruta.is_file() else None
+    except OSError as exc:
+        _aviso_degradado("bots.permisos", f"stat de {ruta}: {exc}")
+        mtime = None
+    hit = _REGLAS_BOT_CACHE.get(bot.nombre)
+    if hit is not None and hit[0] == mtime:
+        return hit[1]
+    reglas = _reglas_de_bot(bot) if mtime is not None else []
+    _REGLAS_BOT_CACHE[bot.nombre] = (mtime, reglas)
+    return reglas
+
+
+def _permiso_por_regla_de_bot(kind: str, detalle: str):
+    """True/False si una regla del bot en contexto decide; None si no hay bot,
+    no hay reglas o la regla dice 'preguntar' (sigue el gate de siempre).
+    'denegar' gana SIEMPRE, tambien sobre el modo bypass (Grok Bot: Require
+    Approval > Always Allow)."""
+    bot = _bot_en_contexto()
+    if bot is None:
+        return None
+    reglas = _reglas_bot_cargadas(bot)
+    if not reglas:
+        return None
+    try:
+        from cognia.harness import permisos_reglas as _pr
+        efecto, regla = _pr.decidir(kind, detalle, reglas)
+    except Exception as exc:
+        _aviso_degradado("bots.permisos",
+                         f"decidir fallo ({type(exc).__name__}: {exc}); se pregunta")
+        return None
+    patron = regla.get("patron") if isinstance(regla, dict) else regla
+    if efecto == "permitir":
+        _print_line(f"[detail]permitido por regla de @{bot.nombre}: "
+                    f"{_escape(str(patron))}[/detail]")
+        return True
+    if efecto == "denegar":
+        _print_line(f"[warn_cl]denegado por regla de @{bot.nombre}: "
+                    f"{_escape(str(patron))}[/warn_cl]")
+        return False
+    return None
+
+
+# -- @mencion = HANDOFF ------------------------------------------------------
+
+def _mencion_bot(raw: str):
+    """(bot, texto_para_el_bot, raw_sin_arroba) si la linea menciona a un bot
+    del roster ('@x ...' o 'dile a x que ...'); None si no. Solo texto libre:
+    un '/comando' nunca es handoff (para eso esta /bots enviar). Un '@x' que
+    NO es bot queda intacto para menciones.expandir (ficheros)."""
+    if not raw or raw.startswith("/"):
+        return None
+    try:
+        from cognia.bots import registro as _R
+    except Exception as exc:
+        _aviso_degradado("bots", f"registro no disponible: {type(exc).__name__}: {exc}")
+        return None
+    m = _RE_DILE_A.match(raw)
+    if m:
+        bot = _R.resolver(m.group(1))
+        if bot is not None:
+            return bot, m.group(2).strip(), raw
+    for m in _RE_MENCION_BOT.finditer(raw):
+        bot = _R.resolver(m.group(1))
+        if bot is None:
+            continue
+        resto = (raw[:m.start()] + raw[m.end():]).strip()
+        sin_arroba = raw[:m.start()] + bot.nombre + raw[m.end():]
+        return bot, resto, sin_arroba
+    return None
+
+
+def _despachar_mencion_bot(ai, raw: str):
+    """El hook de @mencion del bucle del REPL, como funcion para poder
+    probarlo sin REPL. Devuelve (raw, nota_handoff, consumida):
+    - canon abierto y bot DISTINTO: HANDOFF. raw pierde la arroba, la nota
+      se devuelve aparte para pegarla DESPUES de las @-menciones de fichero
+      (lleva '@editor' y expandir() lo tomaria por una ruta inexistente;
+      cazado tecleando: "no existe: @editor") y _HANDOFF_PENDIENTE queda
+      armado para _turno_en_canon.
+    - canon abierto y el MISMO bot ('@tester hola' en el canon de tester):
+      se quita la mencion y es un turno normal. Antes no habia rama y la
+      linea llegaba al bot con la arroba (revision adversarial 2026-08-25).
+    - sin canon: equivale a /bots enviar <bot> <texto>; consumida=True.
+    - no es bot, bots apagados o /comando: raw intacto.
+    Un fallo del registro se ve (degradado) y la linea sigue su camino."""
+    if (not raw or raw.startswith("/")
+            or not ("@" in raw or _RE_DILE_A.match(raw)) or not _bots_encendidos()):
+        return raw, "", False
+    try:
+        men = _mencion_bot(raw)
+    except Exception as exc:
+        _aviso_degradado("bots.mencion", f"{type(exc).__name__}: {exc}")
+        return raw, "", False
+    if men is None:
+        return raw, "", False
+    bot_dest, texto_dest, raw_sin_arroba = men
+    activo = _BOT_ACTIVO[0]
+    if activo is not None and activo.nombre == bot_dest.nombre:
+        _print_line(f"[detail]@{bot_dest.nombre} es el bot del canon abierto: "
+                    f"turno normal[/detail]")
+        return (texto_dest or raw_sin_arroba).strip(), "", False
+    if activo is not None:
+        _HANDOFF_PENDIENTE[0] = bot_dest
+        _print_line(f"[ok_cl]handoff a @{bot_dest.nombre}[/ok_cl]: "
+                    f"@{activo.nombre} compone el mensaje con mensaje_bot")
+        return raw_sin_arroba.strip(), _nota_handoff(bot_dest), False
+    if texto_dest:
+        _slash_bots(ai, f"enviar {bot_dest.nombre} {texto_dest}")
+    else:
+        _print_line(f"[warn_cl]@{bot_dest.nombre} sin mensaje; "
+                    f"uso: @{bot_dest.nombre} <texto>[/warn_cl]")
+    return raw, "", True
+
+
+def _nota_handoff(bot) -> str:
+    """La nota que ve el bot activo: NO se reenvia el texto del usuario tal
+    cual (Hermes: la @mencion es handoff, el bot compone su propio mensaje)."""
+    # "y cierra el turno": medido tecleando (2026-08-25), sin esa cola el 27B
+    # mandaba el mensaje y seguia explorando el repo 5 pasos mas (100 s, "sin
+    # progreso verificado"). Hermes: el emisor termina su turno al enviar.
+    return (f"[handoff: @{bot.nombre} = bot '{bot.nombre}' ({bot.titulo or 'sin titulo'}); "
+            f"compone tu propio mensaje y envialo con mensaje_bot; luego cierra el "
+            f"turno con responder, sin hacer nada mas]")
+
+
+# -- Turnos en el canon ------------------------------------------------------
+
+def _turno_bot(ai, bot, texto: str, handoff=None, agente: bool = False) -> str:
+    """UN turno del bot desde el REPL (canon abierto, /bots enviar o /hacer
+    dentro del canon).
+
+    `ai` (el del REPL) se IGNORA a proposito: cli._run_agent_task termina en
+    ai.observe(..., "agente_tarea_completada") y con el ai del REPL eso caia
+    en ~/.cognia/cognia_memory.db; tras /bots salir el chat normal recordaba
+    el turno del bot (e2e 2026-08-25: "que te pregunte antes?" -> el pareado
+    que se le pidio a @beta). El turno corre con ejecutor.instancia(bot) =
+    Cognia(db_path=<bot>/memoria), cacheada por bot en el proceso (0,2 s la
+    primera vez). Tampoco entra en _session_log: el RLM vivo y /resumir son
+    del dueno, no del bot; el canon es la memoria conversacional del bot.
+
+    Sin handoff ni `agente` delega en ejecutor.correr_turno (decide cerebro/
+    agente como el REPL y anota el canon). Con handoff o agente=True FUERZA
+    el carril agente: mensaje_bot solo existe ahi, y 'revisa esta frase' es
+    chat para intent.detect."""
+    from cognia.bots import ejecutor as _E, registro as _R, mensajeria as _M
+    _nuevo_turno_degradado()
+    if handoff is None and not agente:
+        resp = _E.correr_turno(bot, texto, ai=None, headless=False)
+    else:
+        _M.anotar_canon(bot, "usuario", texto)
+        try:
+            _E.asegurar_config()
+            with _R.contexto(bot, canon=True) as ctx:
+                for aviso in ctx.avisos:
+                    _M.anotar_canon(bot, "meta", f"aviso: {aviso}")
+                    _print_line(f"[warn_cl]@{bot.nombre}: {_escape(aviso)}[/warn_cl]")
+                permitidas = ctx.allowed_tools
+                if permitidas is not None:
+                    permitidas = set(permitidas) | {"mensaje_bot", "responder"}
+                ai_bot = _E.instancia(bot)          # dentro del contexto: ver ejecutor
+                antes = _E._ids_pendientes(handoff) if handoff is not None else set()
+                resp = _run_agent_task(ai_bot, texto, _print_line, max_steps=8,
+                                       guidance=ctx.sufijo_agente,
+                                       allowed_tools=permitidas,
+                                       skills=ctx.skills) or ""
+                # Si el mensaje salio y el bucle cerro por sin_arranque
+                # (mensaje_bot no es avance verificado), el hecho util manda.
+                resp, meta = _E.resultado_util(bot, handoff, antes, resp)
+                if meta:
+                    _M.anotar_canon(bot, "meta", meta)
+                if handoff is not None and not _E.escribio_a(bot, handoff, antes):
+                    # A temperatura 0,7 el 27B a veces "responde" el mensaje
+                    # como texto sin llamar a mensaje_bot (1 paso, 187 tokens;
+                    # tecleado 2026-08-25): el usuario creia que @beta lo
+                    # habia recibido. Se dice, en pantalla y en el canon.
+                    meta = (f"(handoff sin entregar: @{bot.nombre} no llamo a mensaje_bot; "
+                            f"@{handoff.nombre} NO recibio nada. Repeti la @mencion o usa "
+                            f"/bots enviar {handoff.nombre} <texto>)")
+                    _M.anotar_canon(bot, "meta", meta)
+                    _print_line(f"[warn_cl]{_escape(meta)}[/warn_cl]")
+        except Exception as exc:
+            logging.getLogger(__name__).exception("bots: el turno de %s rompio", bot.nombre)
+            resp = f"[error del turno de {bot.nombre}: {type(exc).__name__}: {exc}]"
+        resp = (resp or "").strip()
+        _M.anotar_canon(bot, "cognia", resp or "(sin respuesta)")
+    _show_response(resp, respuesta_final=True)
+    return resp
+
+
+def _compactar_canon(bot) -> None:
+    """'/nueva' dentro del canon = COMPACTAR, no forkear: el canon sigue
+    siendo UNO (Hermes: chat canonico persistente). Lo anterior se archiva
+    junto (canon.<ts>.jsonl) y el canon nuevo arranca con un resumen
+    extractivo (sin modelo) de los ultimos eventos, que es lo unico que el
+    cerebro ve como historial (ejecutor.HISTORIAL_CHAT)."""
+    from cognia.bots import mensajeria as _M, registro as _R
+    canon = _R.ruta(bot, *_R.FICHERO_CANON)
+    eventos = _M.transcripcion(bot, limite=1_000_000)
+    if not eventos:
+        _print_line(f"[info_dim]el canon de @{bot.nombre} ya esta vacio[/info_dim]")
+        return
+    archivo = canon.with_name(f"canon.{time.strftime('%Y%m%d_%H%M%S')}.jsonl")
+    os.replace(canon, archivo)
+    utiles = [e for e in eventos if e.get("quien") in ("usuario", "cognia", "bot", "rutina")]
+    lineas = [f"{e.get('quien')}: {' '.join(str(e.get('texto', '')).split())[:160]}"
+              for e in utiles[-6:]]
+    _M.anotar_canon(bot, "cognia",
+                    f"[compactado: {len(eventos)} eventos archivados en {archivo.name}] "
+                    "Resumen de lo ultimo:\n" + "\n".join(lineas))
+    _print_line(f"[ok]canon de @{bot.nombre} compactado[/ok] ({len(eventos)} eventos -> "
+                f"[info_dim]{_escape(archivo.name)}[/info_dim])")
+
+
+# Comandos que dentro del canon siguen su camino SIN aviso: no dependen del
+# contexto del bot, o son la puerta del propio modo.
+_CANON_COMANDOS_NEUTROS = frozenset({
+    "/bots", "/salir", "/ayuda", "/help", "/estilo", "/config", "/modelo",
+    "/modelos", "/notif", "/recap", "/estado", "/clear", "/cls", "/tema"})
+
+
+# Comandos ya avisados como "corren fuera del bot" en esta sesion: el aviso
+# sale UNA vez por comando, no en cada linea (ruido medido en la revision).
+_CANON_AVISADOS: set = set()
+
+
+def _rutinas_en_canon(ai, bot, arg: str) -> None:
+    """'/rutinas ...' con el canon abierto = las rutinas DEL BOT (su almacen
+    via entorno_rutinas, su agente via ejecutor.instancia, su canon), con la
+    sintaxis de /rutinas traducida a la de /bots rutina <bot>: listar ->
+    list, crear "<horario>" <tarea> -> add, borrar <n> -> rm, ahora <n> ->
+    ahora. Antes seguia al dispatch global con el prompt '◈ bot>' delante y
+    creaba la rutina en el almacen del dueno (revision adversarial
+    2026-08-25). Un ValueError de rutinas.crear (horario ilegible) se ve."""
+    partes = _bots_partir(arg)          # shlex: el horario va entre comillas
+    cmd = partes[0].lower() if partes else "listar"
+    _print_line(f"[detail]/rutinas en el canon: rutinas de @{bot.nombre} "
+                f"(= /bots rutina {bot.nombre} ...)[/detail]")
+    try:
+        if cmd in ("", "listar", "list"):
+            _bots_rutina(ai, bot, ["list"])
+        elif cmd == "crear" and len(partes) >= 3:
+            _bots_rutina(ai, bot, ["add", partes[1], " ".join(partes[2:])])
+        elif cmd in ("borrar", "rm") and len(partes) >= 2:
+            _bots_rutina(ai, bot, ["rm", partes[1]])
+        elif cmd == "ahora" and len(partes) >= 2:
+            _bots_rutina(ai, bot, ["ahora", partes[1]])
+        else:
+            _print_line(f'[warn_cl]Uso en el canon: /rutinas [listar | crear "<horario>" '
+                        f"<tarea> | borrar <n> | ahora <n>][/warn_cl]")
+    except ValueError as exc:
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+
+
+def _turno_en_canon(ai, raw: str) -> bool:
+    """Si hay un canon abierto y la linea es texto libre (o /nueva, /hacer,
+    /rutinas), la consume como turno o accion del bot y devuelve True.
+
+    Dentro del canon el contrato dice "cada turno corre con contexto(bot)":
+    - '/hacer <tarea>' corre como AGENTE del bot (contexto, permisos.json,
+      tools y skills del perfil, memoria del bot, anotado en el canon).
+      Antes seguia al dispatch normal: el agente GLOBAL con el prompt
+      '◈ alfa>' delante (revision adversarial 2026-08-25).
+    - '/rutinas ...' opera el almacen del BOT (ver _rutinas_en_canon).
+    - Cualquier otro /comando sigue su camino normal, pero se DICE (una vez
+      por comando y sesion) que corre fuera del bot, salvo los neutros
+      (/bots, /ayuda, ...) que no dependen del contexto.
+    """
+    bot = _BOT_ACTIVO[0]
+    if bot is None:
+        return False
+    if raw == "/nueva":
+        _compactar_canon(bot)
+        return True
+    if raw == "/hacer" or raw.startswith("/hacer "):
+        tarea = raw[len("/hacer"):].strip()
+        if not tarea:
+            _print_line(f"[warn_cl]Uso en el canon: /hacer <tarea> (corre como agente de "
+                        f"@{bot.nombre})[/warn_cl]")
+            return True
+        _print_line(f"[detail]/hacer en el canon: agente de @{bot.nombre} (memoria, permisos "
+                    f"y tools del bot)[/detail]")
+        _turno_bot(ai, bot, tarea, agente=True)
+        return True
+    if raw == "/rutinas" or raw.startswith("/rutinas "):
+        _rutinas_en_canon(ai, bot, raw[len("/rutinas"):])
+        return True
+    if raw.startswith("/"):
+        cmd = raw.split(" ", 1)[0].lower()
+        if cmd not in _CANON_COMANDOS_NEUTROS and cmd not in _CANON_AVISADOS:
+            _CANON_AVISADOS.add(cmd)
+            _print_line(f"[warn_cl]{_escape(cmd)} corre fuera del bot @{bot.nombre} "
+                        f"(memoria, permisos, tools y rutinas globales); se avisa una vez "
+                        f"por sesion[/warn_cl]")
+        return False
+    handoff, _HANDOFF_PENDIENTE[0] = _HANDOFF_PENDIENTE[0], None
+    _turno_bot(ai, bot, raw, handoff=handoff)
+    return True
+
+
+# -- /bots -------------------------------------------------------------------
+
+def _bots_partir(arg: str) -> list:
+    """shlex (comillas para titulos y horarios); si no cierra una comilla se
+    dice y se parte por espacios."""
+    import shlex
+    try:
+        return shlex.split(arg or "", posix=True)
+    except ValueError as exc:
+        _print_line(f"[warn_cl]comillas sin cerrar ({_escape(str(exc))}); parto por espacios[/warn_cl]")
+        return (arg or "").split()
+
+
+def _bots_resolver(texto: str):
+    """Bot o None (con aviso visible y el roster para elegir)."""
+    from cognia.bots import registro as _R
+    bot = _R.resolver(texto or "")
+    if bot is None:
+        nombres = ", ".join(b.nombre for b in _R.listar()) or "ninguno"
+        _print_line(f"[warn_cl]bot desconocido: {_escape(str(texto))} (bots: {_escape(nombres)})[/warn_cl]")
+    return bot
+
+
+def _inbox_todo(bot) -> list:
+    """Todos los envelopes del inbox (entregados o no). Lectura directa del
+    jsonl: mensajeria.pendientes solo da los no entregados."""
+    from cognia.bots import registro as _R
+    ruta = _R.ruta(bot, "inbox.jsonl")
+    if not ruta.is_file():
+        return []
+    filas = []
+    try:
+        for linea in ruta.read_text(encoding="utf-8").splitlines():
+            if linea.strip():
+                try:
+                    filas.append(json.loads(linea))
+                except ValueError:
+                    _print_line(f"[warn_cl]linea ilegible en {_escape(str(ruta))}[/warn_cl]")
+    except OSError as exc:
+        _print_line(f"[err_cl]no pude leer {_escape(str(ruta))}: {_escape(str(exc))}[/err_cl]")
+    return filas
+
+
+# Anchos de la fila del roster (sin markup): 2 + 14 + 1 + 16 + 1 + 8 + 1 + 6
+# + 1 + 9 + 1 + 9 + 1 + 7 = 77 <= 80. La fila de antes (nombre 16, titulo 18,
+# modelo 10 y el ultimo mensaje pegado al final) daba 83 + 40 columnas y rich
+# la partia en dos lineas que parecian una linea suelta ('...inbox:0' /
+# '7 por 8 es 56'; e2e tecleado 2026-08-25). El ultimo mensaje va ahora en su
+# propia linea sangrada, debajo.
+_ROSTER_ANCHO_MAX = 80
+_ROSTER_NOMBRE, _ROSTER_TITULO, _ROSTER_MODELO = 14, 16, 8
+_ROSTER_MSG_MAX = 70
+
+
+def _bots_ultimo_mensaje(b, tope: int = _ROSTER_MSG_MAX) -> str:
+    """El ultimo evento del canon que NO es 'meta': los meta son anotaciones
+    del sistema ('(ya le escribio a @alfa en el turno)', avisos del contexto)
+    y salian como si fueran lo ultimo que dijo el bot (e2e 2026-08-25)."""
+    from cognia.bots import mensajeria as _M
+    for e in reversed(_M.transcripcion(b, limite=12)):
+        if e.get("quien") == "meta":
+            continue
+        texto = " ".join(str(e.get("texto", "")).split())
+        if not texto:
+            continue
+        return texto if len(texto) <= tope else texto[:tope - 3].rstrip() + "..."
+    return ""
+
+
+def _bots_fila_roster(b) -> str:
+    """Todo se calcula de los FICHEROS (canon mtime, rutinas/, inbox.jsonl),
+    nunca de flags en memoria: el daemon y el remoto escriben ahi. Devuelve
+    UNA o DOS lineas (la segunda, sangrada, es el ultimo mensaje): la
+    primera cabe en 80 columnas salvo que el nombre o el workdir la
+    desborden (ver _ROSTER_*)."""
+    from cognia.bots import registro as _R, mensajeria as _M, ejecutor as _E
+    from cognia.hermes import rutinas as _rut
+    act = _R.ultima_actividad(b)
+    ultimo_t = time.strftime("%H:%M", time.localtime(act)) if act else "nunca"
+    ultimo_msg = _bots_ultimo_mensaje(b)
+    with _E.entorno_rutinas(b, lectura=True):
+        filas = _rut.listar()
+    proxima = next((r.get("proxima_en") for r in filas if r.get("proxima_en")), None)
+    proxima_txt = str(proxima)[11:16] if proxima and len(str(proxima)) >= 16 else (proxima or "-")
+    inbox = len(_M.pendientes(b))
+    # El color del bot (nombre de COLORES_ANSI) va como markup de rich, no
+    # como escape crudo: rich no interpreta ESC en .print() y NO_COLOR /
+    # sin rich lo quitan solos con el resto del markup.
+    color = _BOTS_COLOR_RICH.get(b.color, "mod")
+    nombre = (f"[{color}]{b.glifo} {b.nombre}[/{color}]"
+              + " " * max(0, _ROSTER_NOMBRE - len(b.nombre) - 2))
+    titulo = (b.titulo or "sin titulo")[:_ROSTER_TITULO]
+    modelo = (b.modelo or "hereda")[:_ROSTER_MODELO]
+    fila = (f"  {nombre} {_escape(titulo):<{_ROSTER_TITULO}} "
+            f"{_escape(modelo):<{_ROSTER_MODELO}} "
+            f"{'[ok_cl]activo[/ok_cl]' if _R.activo(b) else '[info_dim]idle[/info_dim]  '} "
+            f"ult:{ultimo_t:<5} rut:{proxima_txt:<5} inbox:{inbox}"
+            + (f" wd:{_escape(Path(b.workdir).name or b.workdir)}" if b.workdir else "")
+            + ("  [info_dim](oculto)[/info_dim]" if b.oculto else ""))
+    if ultimo_msg:
+        fila += f"\n      [info_dim]{_escape(ultimo_msg)}[/info_dim]"
+    return fila
+
+
+def _bots_roster(todos: bool = False) -> None:
+    """El roster de /bots. Los ocultos (Bot.oculto: 'fuera del roster y de
+    /bots') NO salen salvo '/bots --todos'; se dice cuantos hay para que no
+    parezcan borrados (revision adversarial 2026-08-25)."""
+    from cognia.bots import registro as _R
+    todos_los_bots = _R.listar()
+    bots = [b for b in todos_los_bots if todos or not b.oculto]
+    ocultos = len(todos_los_bots) - len(bots)
+    if not todos_los_bots:
+        _print_line(f"[info_dim]sin bots en {_escape(str(_R.dir_bots()))}. Ejemplo:[/info_dim]")
+        _print_line('  /bots crear investigador --titulo "Investigador web" --desc "busca y resume fuentes"')
+        return
+    _print_line(f"[mod]{len(bots)} bot(s)[/mod] en [info_dim]{_escape(str(_R.dir_bots()))}[/info_dim]"
+                + (f"  canon abierto: @{_BOT_ACTIVO[0].nombre}" if _BOT_ACTIVO[0] else "")
+                + (f"  [info_dim](+{ocultos} oculto(s): /bots --todos)[/info_dim]" if ocultos else ""))
+    for b in bots:
+        for linea in _bots_fila_roster(b).split("\n"):
+            _print_line(linea)
+    try:
+        from cognia.bots import __main__ as _BM
+        pid, vivo = _BM.daemon_vivo()
+        edad = _BM.edad_latido()
+        if pid is None:
+            _print_line("  [info_dim]daemon: no corre (/bots daemon arrancar)[/info_dim]")
+        else:
+            estado = {True: "vivo", False: "MUERTO (pid rancio)", None: "no comprobable"}[vivo]
+            _print_line(f"  [info_dim]daemon: pid {pid} {estado}; latido "
+                        f"{('hace %d s' % edad) if edad is not None else 'nunca'}[/info_dim]")
+    except Exception as exc:
+        _print_line(f"[warn_cl]estado del daemon no disponible: {_escape(str(exc))}[/warn_cl]")
+
+
+def _bots_crear(partes: list) -> None:
+    from cognia.bots import registro as _R
+    if not partes:
+        _print_line('[warn_cl]Uso: /bots crear <nombre> [--titulo "..."] [--desc "..."] '
+                    '[--modelo <x>] [--clonar <bot>][/warn_cl]')
+        return
+    nombre, opts = partes[0], {"titulo": "", "desc": "", "modelo": "", "clonar": ""}
+    i = 1
+    while i < len(partes):
+        tok = partes[i]
+        clave = tok[2:] if tok.startswith("--") else ""
+        if clave in opts and i + 1 < len(partes):
+            opts[clave] = partes[i + 1]
+            i += 2
+            continue
+        _print_line(f"[warn_cl]opcion desconocida o sin valor: {_escape(tok)} "
+                    f"(validas: --titulo --desc --modelo --clonar)[/warn_cl]")
+        return
+    bot = _R.crear(nombre, titulo=opts["titulo"], descripcion=opts["desc"],
+                   modelo=opts["modelo"], clonar=opts["clonar"] or None)
+    _print_line(f"[ok]creado[/ok] {bot.glifo} {bot.nombre} ({_escape(bot.titulo or 'sin titulo')}) "
+                f"en [info_dim]{_escape(str(_R.ruta(bot)))}[/info_dim]")
+    _print_line(f'  [info_dim]siguiente: /bots alma {bot.nombre} set "..."  ·  /bots chat {bot.nombre}[/info_dim]')
+
+
+@contextlib.contextmanager
+def _logger_callado(nombre: str):
+    """Sube el nivel de un logger a ERROR mientras dura el bloque. registro.
+    escribir_alma ya hace logger.warning por cada aviso de inyeccion (es su
+    via cuando lo llama el daemon o la API, sin consola); en el REPL el
+    handler de logging lo pintaba Y el CLI lo repetia: 4 lineas por 2
+    patrones (revision adversarial 2026-08-25). Aqui manda el CLI."""
+    lg = logging.getLogger(nombre)
+    nivel = lg.level
+    lg.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        lg.setLevel(nivel)
+
+
+def _bots_alma(bot, sub: str, resto: str) -> None:
+    from cognia.bots import registro as _R
+    if sub in ("", "ver"):
+        texto = _R.alma_de(bot)
+        _print_line(f"[mod]ALMA de @{bot.nombre}[/mod] [info_dim]{_escape(str(_R.ruta(bot, 'ALMA.md')))}[/info_dim]")
+        _print_line(_escape(texto) if texto else "[info_dim](vacia: usa la identidad integrada + sufijo)[/info_dim]")
+    elif sub == "set":
+        texto = resto.strip()
+        if len(texto) >= 2 and texto[0] == texto[-1] and texto[0] in "\"'":
+            texto = texto[1:-1]
+        if not texto:
+            _print_line('[warn_cl]Uso: /bots alma <bot> set "<texto>"[/warn_cl]')
+            return
+        with _logger_callado(_R.logger.name):
+            avisos = _R.escribir_alma(bot, texto)
+        _print_line(f"[ok]ALMA de @{bot.nombre} escrita[/ok] ({len(texto)} chars)")
+        for a in avisos:
+            _print_line(f"[warn_cl]  ⚠ {_escape(a)}[/warn_cl]")
+    elif sub == "editar":
+        ruta = _R.ruta(bot, "ALMA.md")
+        editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or (
+            "notepad" if sys.platform == "win32" else "nano")
+        _print_line(f"[detail]abriendo {_escape(editor)} {_escape(str(ruta))}[/detail]")
+        try:
+            subprocess.run([editor, str(ruta)])
+        except OSError as exc:
+            _print_line(f"[err_cl]no pude abrir el editor: {_escape(str(exc))}[/err_cl]")
+            return
+        avisos = _R.escanear_alma(_R.alma_de(bot))
+        for a in avisos:
+            _print_line(f"[warn_cl]  ⚠ {_escape(a)}[/warn_cl]")
+    else:
+        _print_line('[warn_cl]Uso: /bots alma <bot> [ver | set "<texto>" | editar][/warn_cl]')
+
+
+_RE_NOMBRE_RUTINA_AUTO = re.compile(r"rutina-(\d+)")
+
+
+def _nombre_rutina_libre(filas: list) -> str:
+    """'rutina-<max indice + 1>': unico aunque se haya borrado una del medio.
+    'rutina-{len+1}' colisionaba tras un rm (rutina-1..3, rm rutina-2, add
+    -> 'rutina-3' ya existe -> ValueError y no se podia crear mas; revision
+    adversarial 2026-08-25). rutinas.crear sigue siendo el guardian final
+    del nombre repetido."""
+    mayor = 0
+    for r in filas:
+        m = _RE_NOMBRE_RUTINA_AUTO.fullmatch(str(r.get("nombre", "")))
+        if m:
+            mayor = max(mayor, int(m.group(1)))
+    return f"rutina-{mayor + 1}"
+
+
+def _bots_rutina(ai, bot, partes: list) -> None:
+    from cognia.bots import ejecutor as _E
+    from cognia.hermes import rutinas as _rut
+    sub = partes[0].lower() if partes else "list"
+    if sub == "add":
+        if len(partes) < 3:
+            _print_line('[warn_cl]Uso: /bots rutina <bot> add "<horario>" "<instruccion>"[/warn_cl]')
+            return
+        with _E.entorno_rutinas(bot, lectura=True):
+            nombre = _nombre_rutina_libre(_rut.listar())
+            r = _rut.crear(nombre, partes[1], " ".join(partes[2:]), bot=bot.nombre)
+        _print_line(f"[ok]creada[/ok] {r['nombre']} de @{bot.nombre} -> proxima {r.get('proxima_en') or '-'}")
+        try:
+            from cognia.bots import __main__ as _BM
+            if _BM.daemon_vivo()[0] is None:
+                _print_line("  [info_dim]el daemon no corre: /bots daemon arrancar (o instalar)[/info_dim]")
+        except Exception as exc:
+            _print_line(f"[warn_cl]estado del daemon no disponible: {_escape(str(exc))}[/warn_cl]")
+    elif sub in ("list", "listar", ""):
+        with _E.entorno_rutinas(bot, lectura=True):
+            filas = _rut.listar()
+        if not filas:
+            _print_line(f"[info_dim]@{bot.nombre} no tiene rutinas[/info_dim]")
+            return
+        for r in filas:
+            _print_line(f"  [mod]{r['nombre']:<14}[/mod] {r.get('horario_txt', ''):<14} "
+                        f"proxima: {r.get('proxima_en') or '-'}  "
+                        f"[info_dim]{r.get('ultimo_estado') or 'sin correr'}[/info_dim]  "
+                        f"{_escape(str(r.get('prompt', ''))[:60])}")
+    elif sub == "rm" and len(partes) >= 2:
+        with _E.entorno_rutinas(bot, lectura=True):
+            ok = _rut.borrar(partes[1])
+        _print_line("[ok]borrada[/ok]" if ok else "[warn_cl]no existe[/warn_cl]")
+    elif sub == "ahora" and len(partes) >= 2:
+        _print_line(f"[detail]corriendo {partes[1]} de @{bot.nombre} ahora...[/detail]")
+        # ai=None: la instancia del BOT (ejecutor.instancia), no la del REPL,
+        # que observaria la corrida en ~/.cognia (ver _turno_bot).
+        inf = _E.correr_rutina_ahora(bot, partes[1], ai=None)
+        for linea in inf.get("lineas", []):
+            _show_response(linea)
+        _print_line(f"  estado: [mod]{inf.get('estado')}[/mod]"
+                    + (f"  {_escape(str(inf.get('detalle')))}" if inf.get("detalle") else ""))
+    else:
+        _print_line('[warn_cl]Uso: /bots rutina <bot> add "<horario>" "<instruccion>" | list | rm <n> | ahora <n>[/warn_cl]')
+
+
+def _bots_skills(bot, partes: list) -> None:
+    from cognia.bots import registro as _R
+    from cognia.agent.skills import load_skills
+    sub = partes[0].lower() if partes else "list"
+    if sub in ("list", "listar", ""):
+        todas = load_skills(extra_dirs=[str(_R.ruta(bot, "skills"))])
+        _print_line(f"[mod]skills de @{bot.nombre}[/mod]: "
+                    + ("todas" if not bot.skills else f"{len(bot.skills)} permitidas")
+                    + f"  [info_dim]propias en {_escape(str(_R.ruta(bot, 'skills')))}[/info_dim]")
+        for nombre in sorted(todas):
+            marca = "*" if (not bot.skills or nombre in bot.skills) else " "
+            _print_line(f"  {marca} {_escape(nombre)}")
+        for faltante in sorted(set(bot.skills) - set(todas)):
+            _print_line(f"  [warn_cl]! {_escape(faltante)} (declarada y no encontrada)[/warn_cl]")
+    elif sub == "permitir" and len(partes) >= 2:
+        # Se valida contra load_skills (las globales + <bot>/skills/): una
+        # skill inexistente dejaba al bot con CERO skills utiles y un aviso
+        # en cada turno + una linea meta en el canon (revision 2026-08-25).
+        todas = load_skills(extra_dirs=[str(_R.ruta(bot, "skills"))])
+        if partes[1] not in todas:
+            _print_line(f"[warn_cl]skill desconocida: {_escape(partes[1])} (no se guarda). "
+                        f"Disponibles: {_escape(', '.join(sorted(todas)) or 'ninguna')}[/warn_cl]")
+            return
+        if partes[1] not in bot.skills:
+            bot.skills.append(partes[1])
+            _R.guardar(bot)
+        _print_line(f"[ok]@{bot.nombre} solo usa[/ok]: {_escape(', '.join(bot.skills))}")
+    elif sub == "quitar" and len(partes) >= 2:
+        if partes[1] not in bot.skills:
+            _print_line(f"[warn_cl]{_escape(partes[1])} no estaba en la lista[/warn_cl]")
+            return
+        bot.skills.remove(partes[1])
+        _R.guardar(bot)
+        _print_line(f"[ok]quitada[/ok]; ahora: {_escape(', '.join(bot.skills)) or 'todas'}")
+    else:
+        _print_line("[warn_cl]Uso: /bots skills <bot> [list | permitir <nombre> | quitar <nombre>][/warn_cl]")
+
+
+def _bots_permisos(bot, partes: list) -> None:
+    from cognia.bots import registro as _R
+    from cognia.harness import permisos_reglas as _pr
+    sub = partes[0].lower() if partes else "list"
+    if sub in ("list", "listar", ""):
+        reglas = _reglas_de_bot(bot)
+        _print_line(f"[mod]permisos de @{bot.nombre}[/mod]  modo: "
+                    f"{bot.modo_permiso or 'global'}  acceso_total: {'si' if bot.acceso_total else 'no'}"
+                    f"  [info_dim]{_escape(str(_ruta_permisos_bot(bot)))}[/info_dim]")
+        if not reglas:
+            _print_line("  [info_dim]sin reglas: cada accion sensible se pregunta[/info_dim]")
+        for i, r in enumerate(reglas, 1):
+            _print_line(f"  {i:>2}. [mod]{r['efecto']:9}[/mod] {_escape(r['patron'])}")
+    elif sub == "add" and len(partes) >= 2:
+        efecto = "permitir"
+        patron = partes[1]
+        if partes[1].lower() in _pr.EFECTOS and len(partes) >= 3:
+            efecto, patron = partes[1].lower(), partes[2]
+        regla = _pr._como_regla({"efecto": efecto, "patron": patron})
+        if regla is None:
+            _print_line(f"[warn_cl]regla invalida: {_escape(patron)} (forma: "
+                        f"<kind>(<glob>) o <kind>; kinds: {', '.join(_bots_kinds_permiso())})[/warn_cl]")
+            return
+        kind_regla = _pr.partir_patron(regla["patron"])[0]
+        if kind_regla not in _bots_kinds_permiso():
+            # No se rechaza (el gate puede crecer), pero se dice: una regla
+            # con un kind que el gate nunca emite no decide nada.
+            _print_line(f"[warn_cl]{_escape(str(kind_regla))} no es un kind del gate "
+                        f"({', '.join(_bots_kinds_permiso())}): la regla no decidira nada[/warn_cl]")
+        reglas = [r for r in _reglas_de_bot(bot) if r["patron"] != regla["patron"]]
+        reglas.append(regla)
+        _guardar_reglas_bot(bot, reglas)
+        _print_line(f"[ok]regla de @{bot.nombre}[/ok]: {regla['efecto']} {_escape(regla['patron'])}")
+    elif sub == "rm" and len(partes) >= 2:
+        reglas = _reglas_de_bot(bot)
+        try:
+            n = int(partes[1])
+            quitada = reglas.pop(n - 1) if n >= 1 else None
+        except (ValueError, IndexError):
+            quitada = None
+        if quitada is None:
+            _print_line(f"[warn_cl]no hay regla numero {_escape(partes[1])} (ver /bots permisos {bot.nombre})[/warn_cl]")
+            return
+        _guardar_reglas_bot(bot, reglas)
+        _print_line(f"[ok]quitada[/ok] {_escape(quitada['patron'])}")
+    elif sub == "modo" and len(partes) >= 2:
+        modo = partes[1].lower()
+        bot.modo_permiso = "" if modo in ("global", "heredar") else modo
+        _R.guardar(bot)               # ValueError ruidoso si el modo no existe
+        _print_line(f"[ok]modo de permisos de @{bot.nombre}[/ok]: {bot.modo_permiso or 'global'}")
+    else:
+        _print_line('[warn_cl]Uso: /bots permisos <bot> [list | add [permitir|denegar|preguntar] '
+                    '"<kind>(<glob>)" | rm <n> | modo <automatico|manual|bypass|global>][/warn_cl]')
+        _print_line(f"[info_dim]kinds: {', '.join(_bots_kinds_permiso())}; shell_exec se casa contra "
+                    f"la linea ENTERA (tuberias y ';' incluidos), el resto contra la ruta[/info_dim]")
+
+
+# Segundos que 'arrancar' espera antes de comprobar que el hijo sigue vivo
+# (un import roto muere en < 1 s; medido: 'No module named cognia.bots' en
+# 0,3 s; los tests lo bajan a 0).
+_DAEMON_ESPERA_ARRANQUE_S = 2.0
+
+
+def _bots_daemon(partes: list) -> None:
+    from cognia.bots import registro as _R
+    from cognia.bots import __main__ as _BM
+    sub = partes[0].lower() if partes else "estado"
+    if sub == "estado":
+        _print_line(_escape(_BM.estado_texto()))
+    elif sub == "arrancar":
+        pid, vivo = _BM.daemon_vivo()
+        if pid is not None and vivo:
+            _print_line(f"[info_dim]el daemon ya corre (pid {pid})[/info_dim]")
+            return
+        env = dict(os.environ)
+        env["COGNIA_BOTS_DIR"] = str(_R.dir_bots())
+        env["PYTHONUTF8"] = "1"
+        # cwd y PYTHONPATH = la raiz del `cognia` que corre AQUI: desde otro
+        # cwd, `-m cognia.bots` resolvia al paquete instalado en el venv (sin
+        # cognia/bots) y el hijo moria al instante con un "lanzado" en
+        # pantalla (revision adversarial 2026-08-25).
+        raiz = str(_BM.raiz_repo())
+        env["PYTHONPATH"] = raiz + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+        log = _BM.fichero_log()
+        creationflags = 0
+        if sys.platform == "win32":
+            # DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP (mismo patron que
+            # la oficina): sobrevive a /salir y a Ctrl+C del REPL.
+            creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        try:
+            log.parent.mkdir(parents=True, exist_ok=True)
+            with open(log, "ab") as salida:
+                proc = subprocess.Popen([sys.executable, "-m", "cognia.bots", "daemon"],
+                                        stdout=salida, stderr=subprocess.STDOUT,
+                                        stdin=subprocess.DEVNULL, env=env, cwd=raiz,
+                                        creationflags=creationflags)
+        except Exception as exc:
+            _print_line(f"[err_cl]no pude lanzar el daemon: {_escape(str(exc))}[/err_cl]")
+            return
+        # Un hijo que muere en el acto (import roto, otro daemon vivo) no
+        # puede quedar como "lanzado": se espera un poco y se mira.
+        time.sleep(_DAEMON_ESPERA_ARRANQUE_S)
+        rc = proc.poll()
+        pid_d, vivo_d = _BM.daemon_vivo()
+        if rc is not None or (pid_d == proc.pid and vivo_d is False):
+            _print_line(f"[err_cl]el daemon murio al arrancar (exit {rc})[/err_cl]; "
+                        f"cola de [info_dim]{_escape(str(log))}[/info_dim]:")
+            cola = _BM.cola_log(6)
+            for linea in cola:
+                _print_line(f"  {_escape(linea)}")
+            if not cola:
+                _print_line("  [info_dim](daemon.log vacio)[/info_dim]")
+            return
+        _print_line(f"[ok]daemon de bots lanzado[/ok] (pid {proc.pid}; log: "
+                    f"[info_dim]{_escape(str(log))}[/info_dim]; tick cada 60 s; "
+                    f"estado con /bots daemon estado)"
+                    + ("" if pid_d == proc.pid else
+                       "  [info_dim]daemon.pid aun no escrito: mira /bots daemon estado[/info_dim]"))
+    elif sub == "parar":
+        pid, vivo = _BM.daemon_vivo()
+        if pid is None or vivo is False:
+            _print_line("[info_dim]no hay daemon vivo que parar[/info_dim]")
+            return
+        try:
+            if sys.platform == "win32":
+                r = subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                                   capture_output=True, text=True)
+                if r.returncode != 0:
+                    _print_line(f"[err_cl]taskkill fallo: {_escape((r.stderr or r.stdout).strip())}[/err_cl]")
+                    return
+            else:
+                import signal
+                os.kill(pid, signal.SIGTERM)
+        except OSError as exc:
+            _print_line(f"[err_cl]no pude parar el pid {pid}: {_escape(str(exc))}[/err_cl]")
+            return
+        try:
+            _BM.fichero_pid().unlink()
+        except OSError as exc:
+            _print_line(f"[warn_cl]pid parado pero no pude borrar {_escape(str(_BM.fichero_pid()))}: {_escape(str(exc))}[/warn_cl]")
+        _print_line(f"[ok]daemon parado[/ok] (pid {pid})")
+    elif sub == "instalar":
+        rc = _BM.instalar()
+        _print_line("[ok]tarea programada instalada[/ok]" if rc == 0
+                    else f"[err_cl]instalar devolvio {rc}[/err_cl]")
+    elif sub == "desinstalar":
+        rc = _BM.desinstalar()
+        _print_line("[ok]tarea programada quitada[/ok]" if rc == 0
+                    else f"[err_cl]desinstalar devolvio {rc}[/err_cl]")
+    else:
+        _print_line("[warn_cl]Uso: /bots daemon [estado | arrancar | parar | instalar | desinstalar][/warn_cl]")
+
+
+def _bots_verdad_modelo(bot) -> str:
+    """La frase honesta sobre el modelo pinneado, con los datos del nucleo
+    (registro.aviso_modelo / leer_modelo_servido): el carril no cambia de
+    modelo por turno, asi que si el pinneado no es el servido el turno corre
+    con el GLOBAL y se dice (nunca se finge que configura)."""
+    from cognia.bots import registro as _R
+    aviso = _R.aviso_modelo(bot)
+    if aviso:
+        return f"{aviso} (/modelo {bot.modelo} para servirlo)"
+    return f"el modelo pinneado {bot.modelo} es el servido ahora"
+
+
+def _slash_bots(ai, arg: str = "") -> None:
+    """/bots — roster y puerta de todo lo demas (ver _CMD_DETAILS['/bots'])."""
+    if not _bots_encendidos():
+        _print_line("[warn_cl]bots apagados[/warn_cl] (COGNIA_BOTS=0 o config bots_on=off; "
+                    "enciende con /config set bots_on on)")
+        return
+    try:
+        from cognia.bots import registro as _R
+    except Exception as exc:
+        _print_line(f"[err_cl]bots no disponibles: {_escape(str(exc))}[/err_cl]")
+        return
+    arg = (arg or "").strip()
+    if not arg:
+        _bots_roster()
+        return
+    if arg.lower() in ("--todos", "todos", "-a", "--all"):
+        _bots_roster(todos=True)
+        return
+    cabeza, _, resto = arg.partition(" ")
+    cmd = cabeza.lower()
+    resto = resto.strip()
+    try:
+        if cmd == "crear":
+            _bots_crear(_bots_partir(resto))
+        elif cmd == "salir":
+            if _BOT_ACTIVO[0] is None:
+                _print_line("[info_dim]no hay canon abierto[/info_dim]")
+            else:
+                _print_line(f"[ok]saliste del canon de @{_BOT_ACTIVO[0].nombre}[/ok]")
+                _BOT_ACTIVO[0] = None
+        elif cmd == "daemon":
+            _bots_daemon(_bots_partir(resto))
+        elif cmd in _BOTS_SUBCOMANDOS:
+            nombre_bot, _, cola = resto.partition(" ")
+            if not nombre_bot:
+                _print_line(f"[warn_cl]Uso: /bots {cmd} <bot> ...[/warn_cl]")
+                return
+            bot = _bots_resolver(nombre_bot)
+            if bot is None:
+                return
+            cola = cola.strip()
+            if cmd == "alma":
+                sub, _, texto = cola.partition(" ")
+                _bots_alma(bot, sub.lower(), texto)
+            elif cmd == "modelo":
+                if not cola:
+                    _print_line(f"modelo de @{bot.nombre}: {_escape(bot.modelo or 'hereda (global)')}")
+                    return
+                if cola.lower() in ("heredar", "hereda", "-", "global"):
+                    bot.modelo = ""
+                else:
+                    # registro.validar_modelo: servido ahora o cerebro de la
+                    # flota; si no, ValueError con el detalle (se imprime
+                    # tal cual abajo) y NO se guarda nada.
+                    bot.modelo = _R.validar_modelo(cola)
+                _R.guardar(bot)
+                _print_line(f"[ok]modelo de @{bot.nombre}[/ok]: {_escape(bot.modelo or 'hereda')}")
+                if bot.modelo:
+                    # Se persiste (contrato: modelo pinneado con herencia) pero
+                    # el carril no cambia de modelo por turno: se dice la
+                    # verdad aqui y en cada turno (contexto.avisos).
+                    _print_line(f"[warn_cl]aviso: {_escape(_bots_verdad_modelo(bot))}[/warn_cl]")
+            elif cmd == "workdir":
+                if not cola:
+                    _print_line(f"workdir de @{bot.nombre}: "
+                                f"{_escape(bot.workdir or 'hereda (el cwd del REPL)')}")
+                    return
+                if cola.lower() in ("heredar", "hereda", "-", "global"):
+                    bot.workdir = ""
+                else:
+                    ruta_wd = Path(cola.strip("\"'")).expanduser()
+                    if not ruta_wd.is_absolute():
+                        ruta_wd = Path(os.getcwd()) / ruta_wd
+                    if not ruta_wd.is_dir():
+                        raise ValueError(f"workdir de @{bot.nombre}: {ruta_wd} no es un "
+                                         f"directorio existente")
+                    bot.workdir = str(ruta_wd.resolve())
+                _R.guardar(bot)
+                _print_line(f"[ok]workdir de @{bot.nombre}[/ok]: "
+                            f"{_escape(bot.workdir or 'hereda (el cwd del REPL)')}")
+            elif cmd == "chat":
+                _BOT_ACTIVO[0] = bot
+                _print_line(f"[mod]canon de {bot.glifo} @{bot.nombre}[/mod] ({_escape(bot.titulo or 'sin titulo')})"
+                            f"  modelo: {_escape(bot.modelo or 'hereda')}"
+                            + (f"  workdir: {_escape(bot.workdir)}" if bot.workdir else "")
+                            + "  [info_dim]/bots salir para volver · /nueva compacta[/info_dim]")
+                from cognia.bots import mensajeria as _M
+                for e in _M.transcripcion(bot, limite=5):
+                    _print_line(f"  [info_dim]{e.get('t', '')} {e.get('quien', '')}:[/info_dim] "
+                                f"{_escape(' '.join(str(e.get('texto', '')).split())[:100])}")
+                n_inbox = len(_M.pendientes(bot))
+                if n_inbox:
+                    _print_line(f"  [warn_cl]{n_inbox} mensaje(s) en el inbox (el daemon los entrega; "
+                                f"/bots inbox {bot.nombre})[/warn_cl]")
+            elif cmd == "enviar":
+                if not cola:
+                    _print_line("[warn_cl]Uso: /bots enviar <bot> <texto>[/warn_cl]")
+                    return
+                _print_line(f"[detail]turno de @{bot.nombre}...[/detail]")
+                _turno_bot(ai, bot, cola)
+            elif cmd == "inbox":
+                todos = _inbox_todo(bot)
+                pend = [m for m in todos if not m.get("entregado")]
+                _print_line(f"[mod]inbox de @{bot.nombre}[/mod]: {len(pend)} pendiente(s), "
+                            f"{len(todos) - len(pend)} entregado(s)")
+                for m in todos[-20:]:
+                    marca = "[warn_cl]·[/warn_cl]" if not m.get("entregado") else "[ok_cl]✓[/ok_cl]"
+                    _print_line(f"  {marca} {m.get('t', '')} de @{_escape(str(m.get('de')))} "
+                                f"(hops {m.get('hops', 0)}, id {m.get('id')}): "
+                                f"{_escape(' '.join(str(m.get('texto', '')).split())[:120])}")
+            elif cmd == "rutina":
+                _bots_rutina(ai, bot, _bots_partir(cola))
+            elif cmd == "skills":
+                _bots_skills(bot, _bots_partir(cola))
+            elif cmd == "permisos":
+                _bots_permisos(bot, _bots_partir(cola))
+            elif cmd == "borrar":
+                if cola.strip().lower() not in ("--si", "-y", "si"):
+                    try:
+                        conf = input(f"borrar @{bot.nombre} y TODO su directorio? escribe el nombre para confirmar> ").strip()
+                    except EOFError:
+                        conf = ""
+                    if conf != bot.nombre:
+                        _print_line("[info_dim]cancelado[/info_dim]")
+                        return
+                if _BOT_ACTIVO[0] is not None and _BOT_ACTIVO[0].nombre == bot.nombre:
+                    _BOT_ACTIVO[0] = None
+                _R.borrar(bot.nombre)
+                _REGLAS_BOT_CACHE.pop(bot.nombre, None)
+                _print_line(f"[ok]borrado[/ok] @{bot.nombre}")
+            elif cmd == "ocultar":
+                bot.oculto = not bot.oculto
+                _R.guardar(bot)
+                _print_line(f"[ok]@{bot.nombre} {'oculto' if bot.oculto else 'visible'}[/ok] "
+                            "(un oculto no sale en el roster de los demas)")
+        else:
+            _print_line(f"[warn_cl]subcomando desconocido: {_escape(cabeza)}[/warn_cl] "
+                        f"(validos: {', '.join(_BOTS_SUBCOMANDOS)})")
+    except ValueError as exc:
+        # Los ValueError de registro/rutinas/permisos son el mensaje al usuario.
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+    except Exception as exc:
+        _print_line(f"[err_cl]/bots {_escape(cmd)}: {type(exc).__name__}: {_escape(str(exc))}[/err_cl]")
+
 
 
 def repl():
@@ -14067,6 +15363,13 @@ def repl():
             )
     except Exception:
         pass
+
+    # Bots: la config (bots_protocolo, bots_max_hops) viaja a la env que
+    # leen cognia/bots y el daemon; nunca lanza (avisa por degradado).
+    try:
+        _bots_sembrar_env()
+    except Exception as _exc_bots:
+        _aviso_degradado("bots.config", f"{type(_exc_bots).__name__}: {_exc_bots}")
 
     # Startup panel + animated modules
     _print_startup_panel()
@@ -14298,7 +15601,8 @@ def repl():
                             "Enter envia el texto de abajo, o escribi otro:"
                             "[/info_dim]")
                 _print_line(f"[ok_cl]{_escape(_pre)}[/ok_cl]")
-            return input(_g() + "cognia> " + _R).strip() or _pre
+            # Con un canon abierto el prompt es "<glifo> <nombre>> " (bots).
+            return input(_g() + _etiqueta_prompt() + "> " + _R).strip() or _pre
 
     # Warm-up del 0.5B del fast-path en background (portero instalado o cascada
     # opt-in): el 1er turno trivial arranca warm (~30 tok/s) en vez de cold (~18).
@@ -14429,6 +15733,17 @@ def repl():
                 continue          # el usuario se lo llevo al prompt a editar
             raw = _raw_mejorado
 
+        # @BOT / "dile a <bot> que ..." (2026-08-25, Hermes: la @mencion es
+        # HANDOFF). Va ANTES de las menciones de fichero: '@editor' no es una
+        # ruta. Con un canon abierto, el bot activo recibe la linea (sin la
+        # arroba) mas una nota de handoff y COMPONE su propio mensaje con la
+        # tool mensaje_bot; sin canon abierto es el usuario quien escribe:
+        # equivale a /bots enviar <bot> <texto>. Un fallo se ve y la linea
+        # sigue su camino normal.
+        raw, _nota_handoff_pendiente, _consumida_mencion = _despachar_mencion_bot(ai, raw)
+        if _consumida_mencion:
+            continue
+
         # @-menciones: '@ruta' mete el CONTENIDO del fichero en el mensaje.
         # Sin esto el modelo veia el texto '@cli.py' y no tenia forma de saber
         # que hay dentro. En texto libre se expande la linea entera; en los
@@ -14455,6 +15770,19 @@ def repl():
                 _aviso_degradado(
                     "cli.menciones",
                     f"{type(_exc_men).__name__}: {_exc_men}")
+        if _nota_handoff_pendiente:
+            raw = raw + "\n" + _nota_handoff_pendiente
+
+        # -- Chat canonico de un bot (/bots chat): texto libre y /nueva van al
+        # bot; los demas comandos siguen abajo (incluido /bots salir).
+        if _BOT_ACTIVO[0] is not None:
+            try:
+                _consumida = _turno_en_canon(ai, raw)
+            except Exception as _exc_canon:
+                _aviso_degradado("bots.canon", f"{type(_exc_canon).__name__}: {_exc_canon}")
+                _consumida = False
+            if _consumida:
+                continue
 
         # -- UI slash -------------------------------------------------------
         # Arnes (2026-08-12): van primero porque son la red de seguridad —
@@ -14469,6 +15797,8 @@ def repl():
             _slash_hermes(raw[len("/hermes"):])
         elif raw == "/rutinas" or raw.startswith("/rutinas "):
             _slash_rutinas(ai, raw[len("/rutinas"):])
+        elif raw == "/bots" or raw.startswith("/bots "):
+            _slash_bots(ai, raw[len("/bots"):])
         elif raw == "/grabar" or raw.startswith("/grabar "):
             _slash_grabar(raw[len("/grabar"):])
         elif raw == "/receta" or raw.startswith("/receta "):
@@ -17661,10 +18991,17 @@ def _sin_pensamiento(texto: str) -> str:
     return t
 
 
+def _proactividad_encendida() -> bool:
+    """COGNIA_PROACTIVIDAD=0|off|no apaga proponer_extras al final del agente
+    (el daemon de bots la siembra: nadie lee sugerencias en daemon.log)."""
+    return os.environ.get("COGNIA_PROACTIVIDAD", "").strip().lower() not in ("0", "off", "no")
+
+
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     hint: str = "", guidance: str = "",
                     allowed_tools: set = None, delegation_depth: int = 0,
-                    applied_skill: str = "") -> str:
+                    applied_skill: str = "", skills: dict = None,
+                    proactividad: bool = True) -> str:
     """
     ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
     and DYNAMIC step budgeting (cognia/agent/loop.py).
@@ -17683,11 +19020,26 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     /skill explicito, que pasa su guidance armada). Sin esto, el uso explicito
     de una skill jamas se registraba en .skill_usage.json (auditoria F2) y el
     decay de find_skill solo aprendia de los auto-matches.
+
+    ``skills``: catalogo {nombre: SkillSpec} al que se restringe el auto-match
+    (bots: Contexto.skills). None = todas; con bot en contexto y None, se
+    calcula del perfil del bot (_skills_de_bot).
+
+    ``proactividad``: False = no se llama a proactividad.proponer_extras al
+    final. Lo apagan los turnos HEADLESS de los bots (ejecutor._turno_agente,
+    daemon y API): sin usuario delante no hay a quien proponer nada, y el
+    gancho gritaba '[backend] DEGRADADO: proactividad sin backend LLM' tras
+    cada turno del daemon con el backend vivo (e2e 2026-08-25). La env
+    COGNIA_PROACTIVIDAD=0 la apaga en cualquier caso (el daemon la siembra).
     """
     # Turno nuevo para el de-dup de avisos: un degradado que ya se aviso en el
     # turno de chat anterior tiene que volver a verse en esta corrida del agente.
     # Los sub-agentes tambien cuentan como turno propio (delegation_depth>0).
     _nuevo_turno_degradado()
+    # Bots (2026-08-25): la tool mensaje_bot entra/sale del registry segun
+    # haya bot en contexto (COGNIA_BOT, puesto por registro.contexto). Aca y
+    # no al importar tools.py: en el REPL el bot cambia dentro del proceso.
+    _bot_ctx = _sincronizar_tools_de_bot()
     # El tope de acciones de pantalla (screen_tools) es un contador de PROCESO
     # que se acumulaba entre tareas: una corrida gastaba el presupuesto de la
     # siguiente. Se resetea al arrancar cada tarea de nivel superior (no en los
@@ -17777,6 +19129,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _tool_filter = set(_tool_filter) - _hz_ocultas
     except Exception:
         pass
+    # Bots: mensaje_bot no es CORE ni tiene flag de opt-in (simple_mode la
+    # recortaria), pero con bot en contexto es LA tool del protocolo de
+    # mensajeria: se anuncia siempre que este registrada.
+    if _bot_ctx is not None and _tool_filter is not None:
+        try:
+            from cognia.agent.tools import TOOLS as _TOOLS_BOT
+            if "mensaje_bot" in _TOOLS_BOT:
+                _tool_filter = set(_tool_filter) | {"mensaje_bot"}
+        except Exception as _exc_tb:
+            _aviso_degradado("bots.tools", f"{type(_exc_tb).__name__}: {_exc_tb}")
 
     # SYSTEM PROMPT grande (cognia/system_prompt.py, 2026-07-23): identidad +
     # conducta + manejo de herramientas con las reglas que salieron de fallos
@@ -17908,14 +19270,27 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # skill whose description matches this task, so Claude/Cognia skills shape the
     # agent without an explicit command.
     _applied_skill = applied_skill  # skill aplicada -> record_skill_use al cierre
-    if not guidance:
+    # Bots: el ejecutor pasa el SUFIJO de identidad (<= 300 chars) como
+    # guidance; eso no es una skill explicita, asi que el auto-match sigue
+    # corriendo, restringido a las skills del perfil, y su guidance se SUMA.
+    _guidance_es_identidad = False
+    if _bot_ctx is not None:
+        try:
+            from cognia.bots import registro as _Rg
+            _guidance_es_identidad = (guidance or "").strip() == _Rg.sufijo_agente(_bot_ctx)
+            if skills is None:
+                skills = _skills_de_bot(_bot_ctx)
+        except Exception as _exc_sk:
+            _aviso_degradado("bots.skills", f"{type(_exc_sk).__name__}: {_exc_sk}")
+    if not guidance or _guidance_es_identidad:
         try:
             from cognia.agent.skills import find_skill, skill_guidance
             # Solo match lexico fuerte: el fallback semantico auto-aplicaba
             # skills irrelevantes cuya guidance estancaba al 3B (ver skills.py).
-            _matched = find_skill(task, semantic_fallback=False)
+            _matched = find_skill(task, skills=skills, semantic_fallback=False)
             if _matched:
-                guidance = skill_guidance(_matched)
+                _g_skill = skill_guidance(_matched)
+                guidance = (guidance + "\n\n" + _g_skill) if guidance else _g_skill
                 _applied_skill = _matched.name
                 _print_fn(f"[detail]Aplicando skill '{_matched.name}'[/detail]")
         except Exception:
@@ -18920,7 +20295,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # Proactividad (main): proponer lo que el usuario no pidio pero le
     # serviria. SOLO sugerencia — la regla de oro es proponer, nunca ejecutar
     # sin permiso; no se mezcla con result_text: el entregable es lo pedido.
-    if result_text:
+    # Se salta en los turnos headless de bots (parametro) y con
+    # COGNIA_PROACTIVIDAD=0 (ver docstring).
+    if result_text and proactividad and _proactividad_encendida():
         try:
             from cognia.proactividad import proponer_extras
             _extras = proponer_extras(task, result_text)

@@ -257,7 +257,7 @@ def _via(texto: str, quien: str) -> str:
 
 
 def _turno_agente(bot, ctx, texto: str, ai, headless: bool, max_steps: int,
-                  latir=None) -> str:
+                  latir=None, hint: str = "", skills: dict | None = None) -> str:
     from cognia import cli as _cli
     ai = instancia(bot, ai)
 
@@ -276,7 +276,18 @@ def _turno_agente(bot, ctx, texto: str, ai, headless: bool, max_steps: int,
     return _cli._run_agent_task(
         ai, texto, print_fn, max_steps=max_steps,
         guidance=ctx.sufijo_agente,          # <= 300 chars: respeta el A/B
-        allowed_tools=permitidas) or ""
+        allowed_tools=permitidas,
+        hint=hint,                           # 'mensaje_bot' en un turno entrante
+        # None = _run_agent_task auto-aplica una skill del perfil por
+        # solapamiento lexico con la tarea; {} = ninguna. Un turno ENTRANTE
+        # va con {}: medido 2026-08-25, el texto 'Respondele a @beta ... Luna,
+        # en tu manto de plata' matcheaba la skill commit-git y alfa le
+        # contesto a beta sobre git_estado y git_diff.
+        skills=skills,
+        # Sin usuario delante no hay a quien proponer extras; y el gancho de
+        # proactividad gritaba '[backend] DEGRADADO: proactividad sin backend'
+        # tras CADA turno del daemon con el backend vivo (e2e 2026-08-25).
+        proactividad=not headless) or ""
 
 
 def _historial_chat(bot, saltar_ultimo: bool = True) -> str:
@@ -336,6 +347,74 @@ def _turno_cerebro(bot, ctx, texto: str, ai, headless: bool, latir=None) -> str:
     return respuesta
 
 
+def nota_entrante(emisor) -> str:
+    """La instruccion que ANTECEDE a un mensaje ENTRANTE en el carril agente
+    (la pareja de cli._nota_handoff para el otro sentido).
+
+    Sin ella el turno bot->bot no llevaba orden alguna: el agente recibia
+    'TAREA: Mensaje de 🤖 beta (@beta): ...' con guidance 'Eres alfa, Bot A.'
+    y las reglas del protocolo con tool vivian SOLO en ctx.system_cerebro,
+    que el carril agente no usa. MEDIDO con el 27B (daemon --once,
+    2026-08-25): 3/3 turnos entrantes cerraron '(cerrada sin progreso
+    verificado: sin_arranque)'; trazado, el bot hizo leer_archivo/listar/
+    buscar 6 pasos y nunca llamo a mensaje_bot. Una primera version PEGADA
+    DETRAS del mensaje tampoco basto (beta probo `git estado` y `listar
+    cognia/bots/agents` y cerro igual): el modelo lee 'TAREA: Mensaje de...'
+    como un encargo sobre el repo. Por eso la instruccion va PRIMERO, en
+    imperativo, dice que NO explore, y correr_turno suma hint='mensaje_bot'
+    (la PISTA del bucle que sesga el primer paso).
+    `emisor`: Bot (companero) o un nombre que no es bot (el usuario por la
+    API): entonces no se pide mensaje_bot, la respuesta queda en el canon."""
+    from cognia.bots import registro as R
+    if isinstance(emisor, R.Bot):
+        return (f"Respondele a @{emisor.nombre} ({emisor.titulo or 'sin titulo'}), un "
+                f"companero bot (NO es el usuario), a su mensaje de abajo. Como: UNA sola "
+                f"llamada a la tool mensaje_bot con args `{emisor.nombre} | <tu respuesta, "
+                f"compuesta por ti>`; si no tenes nada que aportar, responde exactamente "
+                f"{R.MARCA_SILENCIO}. Despues cierra el turno con responder. No explores "
+                f"ficheros ni uses otras herramientas: todo lo que necesitas esta en el "
+                f"mensaje.")
+    quien = str(emisor or "?").strip() or "?"
+    return (f"Responde al mensaje de abajo (lo manda '{quien}', que no es un bot) con "
+            f"responder; tu respuesta queda en tu chat canonico. No explores ficheros ni "
+            f"uses otras herramientas.")
+
+
+def _ids_pendientes(destino) -> set:
+    from cognia.bots import mensajeria as M
+    return {e.get("id") for e in M.pendientes(destino)}
+
+
+def escribio_a(bot, destino, antes: set) -> bool:
+    """True si `bot` dejo un envelope NUEVO (no estaba en `antes`) en el inbox
+    de `destino` (o sea, uso la tool mensaje_bot durante el turno)."""
+    from cognia.bots import mensajeria as M
+    bot = _bot(bot)
+    return any(e.get("de") == bot.nombre and e.get("id") not in antes
+               for e in M.pendientes(destino))
+
+
+def resultado_util(bot, destino, antes: set, respuesta):
+    """(respuesta, meta): si el bot SI le escribio a `destino` con mensaje_bot
+    pero el bucle cerro como fallo (o vacio), la respuesta pasa a ser el
+    hecho util y el cierre del bucle va aparte como meta.
+
+    Por que: mensaje_bot no es un 'avance verificado' para el presupuesto por
+    progreso (solo ficheros y verificaciones lo son), asi que un turno que
+    manda el mensaje y sigue vagando cierra con '(cerrada sin progreso
+    verificado: sin_arranque)' y el canon lo anotaba como si no hubiera hecho
+    nada; procesar_inbox ya lo trataba bien (ya_escrito va primero) pero el
+    canon y el roster mentian (e2e 2026-08-25)."""
+    respuesta = (respuesta or "").strip() if isinstance(respuesta, str) else str(respuesta or "")
+    if destino is None or not escribio_a(bot, destino, antes):
+        return respuesta, None
+    if respuesta and not es_fallo_de_turno(respuesta):
+        return respuesta, None
+    nombre = destino.nombre if hasattr(destino, "nombre") else str(destino)
+    meta = ("(el bucle cerro con: %s)" % respuesta[:160].replace("\n", " ")) if respuesta else None
+    return "(le escribio a @%s con mensaje_bot)" % nombre, meta
+
+
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
@@ -343,12 +422,18 @@ def _turno_cerebro(bot, ctx, texto: str, ai, headless: bool, latir=None) -> str:
 def correr_turno(bot, texto: str, ai=None, headless: bool = True,
                  max_steps: int = 8, quien: str | None = None,
                  etiqueta: str = "", texto_canon: str | None = None,
-                 latir=None, agente=None, hops_entrante: int | None = None) -> str:
+                 latir=None, agente=None, hops_entrante: int | None = None,
+                 emisor=None) -> str:
     """UN turno del bot en su contexto. Anota entrada y salida en el canon.
 
     hops_entrante: hops del envelope que se responde (solo procesar_inbox);
            durante el turno lo expone hops_en_curso() y la tool mensaje_bot
            manda con hops+1. None = turno que no viene del inbox.
+    emisor: con quien='bot', el Bot que mando el envelope (o el nombre de
+           quien lo mando si no es un bot). Decide la nota_entrante() que el
+           modelo ve pegada al texto (el canon anota el texto sin la nota) y,
+           si es un Bot, que un mensaje_bot exitoso cuente como resultado
+           util del turno aunque el bucle cerrara por sin_arranque.
 
     quien: 'usuario' (default: usuario, REPL o API, AUNQUE el texto empiece
            por 'Mensaje de 🤖'), 'bot' (SOLO lo pone procesar_inbox, que
@@ -375,6 +460,16 @@ def correr_turno(bot, texto: str, ai=None, headless: bool = True,
     falso = agente or _agente_inyectado()
     if falso is None:
         asegurar_config()                 # fuera del contexto: ver docstring
+    # El texto que ve el MODELO: en un turno entrante lleva la instruccion
+    # (ver nota_entrante); el canon ya tiene el texto limpio.
+    texto_modelo, hint, skills = texto, "", None
+    emisor_bot = emisor if isinstance(emisor, R.Bot) else None
+    if quien == "bot":
+        texto_modelo = nota_entrante(emisor if emisor is not None else "?") + "\n" + texto
+        skills = {}                       # responder no es un procedimiento (ver _turno_agente)
+        if emisor_bot is not None:
+            hint = "mensaje_bot"
+    antes = _ids_pendientes(emisor_bot) if emisor_bot is not None else set()
     with R.contexto(bot, canon=True) as ctx:
         for aviso in ctx.avisos:
             M.anotar_canon(bot, "meta", "aviso: %s" % aviso)
@@ -392,12 +487,13 @@ def correr_turno(bot, texto: str, ai=None, headless: bool = True,
             if falso is not None:
                 logger.warning("bots: turno de %s con AGENTE FALSO (%s)",
                                bot.nombre, getattr(falso, "__name__", falso))
-                respuesta = falso(bot, texto, ctx)
+                respuesta = falso(bot, texto_modelo, ctx)
             elif _via(texto, quien) == "agente":
-                respuesta = _turno_agente(bot, ctx, texto, ai, headless,
-                                          max_steps, latir=latir)
+                respuesta = _turno_agente(bot, ctx, texto_modelo, ai, headless,
+                                          max_steps, latir=latir, hint=hint,
+                                          skills=skills)
             else:
-                respuesta = _turno_cerebro(bot, ctx, texto, ai, headless,
+                respuesta = _turno_cerebro(bot, ctx, texto_modelo, ai, headless,
                                            latir=latir)
         except Exception as exc:               # visible en el canon, no propaga
             logger.exception("bots: el turno de %s rompio", bot.nombre)
@@ -406,8 +502,10 @@ def correr_turno(bot, texto: str, ai=None, headless: bool = True,
         finally:
             _HOPS_TURNO[0] = None
             _HOPS_EN_CURSO.reset(token_hops)
-    respuesta = (respuesta or "").strip() if isinstance(respuesta, str) else str(respuesta or "")
+    respuesta, meta = resultado_util(bot, emisor_bot, antes, respuesta)
     M.anotar_canon(bot, "cognia", respuesta or "(sin respuesta)")
+    if meta:
+        M.anotar_canon(bot, "meta", meta)
     logger.info("bots: turno de %s (%s) en %.1fs", bot.nombre, quien, time.time() - t0)
     return respuesta
 
@@ -526,9 +624,12 @@ def es_silencio_bot(respuesta) -> bool:
 
 
 # Prefijos con que un turno FALLIDO vuelve como texto: el propio correr_turno
-# ('[error del turno de x: ...]') y el cierre por presupuesto del bucle del
-# agente (cli/agent: '(cerrada sin progreso verificado: ...)').
-_PREFIJOS_FALLO = ("[error del turno de ", "(cerrada sin progreso verificado")
+# ('[error del turno de x: ...]') y los cierres del bucle del agente
+# (cli/agent: '(cerrada sin progreso verificado: ...)', '(interrumpida: 3
+# herramientas seguidas fallaron...)', '(interrumpida por estancamiento...)';
+# los tres vistos en los e2e del 2026-08-25 con el 9B).
+_PREFIJOS_FALLO = ("[error del turno de ", "(cerrada sin progreso verificado",
+                   "(interrumpida")
 
 
 def es_fallo_de_turno(respuesta) -> bool:
@@ -554,21 +655,21 @@ def procesar_inbox(bot, ai=None, max_hops=None, agente=None) -> int:
     for m in M.pendientes(bot):
         emisor = (m.get("de") or "").strip()
         emisor_bot = R.resolver(emisor) if emisor else None
-        antes = set()
-        if emisor_bot is not None:
-            antes = {e.get("id") for e in M.pendientes(emisor_bot)}
+        antes = _ids_pendientes(emisor_bot) if emisor_bot is not None else set()
         # Los hops del envelope entran al turno (hops_en_curso): la tool
-        # mensaje_bot responde con hops+1, igual que el reenvio de abajo.
+        # mensaje_bot responde con hops+1, igual que el reenvio de abajo. El
+        # emisor entra tambien: correr_turno le pega la nota_entrante al
+        # texto del modelo (sin ella el agente vagaba y cerraba por
+        # sin_arranque, e2e 2026-08-25).
         hops_m = int(m.get("hops", 0) or 0)
         respuesta = correr_turno(bot, M.formatear_entrante(m), ai=ai, quien="bot",
-                                 agente=agente, hops_entrante=hops_m)
+                                 agente=agente, hops_entrante=hops_m,
+                                 emisor=emisor_bot if emisor_bot is not None else emisor)
         M.marcar_entregado(bot, m["id"])
         n += 1
         if emisor_bot is None:
             continue                      # el usuario lee el canon; nada que reenviar
-        ya_escrito = any(e.get("de") == bot.nombre and e.get("id") not in antes
-                         for e in M.pendientes(emisor_bot))
-        if ya_escrito:
+        if escribio_a(bot, emisor_bot, antes):
             M.anotar_canon(bot, "meta", "(ya le escribio a @%s en el turno)" % emisor_bot.nombre)
             continue
         if not respuesta or es_silencio_bot(respuesta):

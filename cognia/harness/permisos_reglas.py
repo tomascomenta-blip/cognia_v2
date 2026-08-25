@@ -172,7 +172,13 @@ _VERSION = 1
 
 # Herramientas cuyos args son una LINEA DE COMANDO (se generalizan por el primer
 # token). El resto se trata como ruta de fichero.
-HERRAMIENTAS_DE_COMANDO = ("ejecutar", "shell", "bash", "cmd", "powershell")
+# 'shell_exec' es el action_kind del gate cli._confirmar_accion (las reglas por
+# bot de /bots permisos se escriben con el: 'shell_exec(git status*)'). Sin el
+# aqui, 'git status | rm -rf x' se trataba como RUTA y solo se casaba lo que
+# habia antes del ' | ': la tuberia entera pasaba sin preguntar (revision
+# adversarial 2026-08-25, reproducido).
+HERRAMIENTAS_DE_COMANDO = ("ejecutar", "shell", "bash", "cmd", "powershell",
+                           "shell_exec")
 
 # Herramientas irreversibles por si mismas: nunca se generalizan (ver docstring).
 HERRAMIENTAS_DESTRUCTIVAS = ("borrar_archivo",)

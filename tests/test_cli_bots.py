@@ -620,9 +620,11 @@ def _falso_run_que_observa(capt):
     'agente_tarea_completada'): escribe en la memoria episodica del `ai` que
     recibe. Sin embeddings (store directo) para que el test tarde ms."""
     def _fn(ai, task, print_fn, max_steps=None, hint="", guidance="",
-            allowed_tools=None, delegation_depth=0, applied_skill="", skills=None):
+            allowed_tools=None, delegation_depth=0, applied_skill="", skills=None,
+            proactividad=True):
         capt.append(dict(ai=ai, task=task, bot=os.environ.get("COGNIA_BOT"),
-                         allowed=allowed_tools, skills=skills, guidance=guidance))
+                         allowed=allowed_tools, skills=skills, guidance=guidance,
+                         proactividad=proactividad))
         ai.episodic.store(f"Tarea: {task[:100]}", "agente_tarea_completada", [0.0] * 4)
         return "hecho por el bot"
     return _fn
@@ -885,7 +887,8 @@ def test_turno_con_handoff_fuerza_agente_con_sufijo_corto(entorno, monkeypatch):
     capt = {}
 
     def falso_run(ai, task, print_fn, max_steps=None, hint="", guidance="",
-                  allowed_tools=None, delegation_depth=0, applied_skill="", skills=None):
+                  allowed_tools=None, delegation_depth=0, applied_skill="", skills=None,
+                  proactividad=True):
         capt.update(task=task, guidance=guidance, allowed=allowed_tools, skills=skills,
                     bot=os.environ.get("COGNIA_BOT"), max_steps=max_steps)
         return "le escribi a editor"
@@ -985,3 +988,76 @@ def test_daemon_estado_y_usos_malos(entorno):
     lineas.clear()
     cli._slash_bots(None, "")
     assert "daemon: no corre" in _texto(lineas)
+
+
+# -- remate e2e 2026-08-25: roster y handoff -------------------------------------------
+
+def test_roster_ignora_los_meta_y_la_fila_cabe_en_80_columnas(entorno):
+    """Tecleado: la fila de beta mostraba '(ya le escribio a @alfa en el turno)'
+    (un meta) como ultimo mensaje, y la fila (83 + 40 columnas) la partia rich
+    en dos lineas que parecian una linea suelta."""
+    cli, lineas = entorno
+    from cognia.bots import registro as R, mensajeria as M
+    _crear_par(cli)
+    inv = R.obtener("investigador")
+    M.anotar_canon(inv, "usuario", "cuanto es 7 por 8?")
+    M.anotar_canon(inv, "cognia", "7 por 8 es 56")
+    M.anotar_canon(inv, "meta", "(ya le escribio a @editor en el turno)")
+    M.anotar_canon(inv, "meta", "aviso: skills declaradas y no encontradas: x")
+    fila = cli._bots_fila_roster(inv)
+    primera, segunda = fila.split("\n")
+    plano = cli._strip_markup(primera)
+    assert len(plano) <= 80, plano
+    assert "investigador" in plano and "Investigador web" in plano and "inbox:0" in plano
+    assert "ya le escribio" not in fila and "aviso:" not in fila
+    assert "7 por 8 es 56" in cli._strip_markup(segunda)
+    assert cli._bots_ultimo_mensaje(inv) == "7 por 8 es 56"
+    # sin mensajes utiles: una sola linea; un mensaje largo se recorta con '...'
+    assert "\n" not in cli._bots_fila_roster(R.obtener("editor"))
+    M.anotar_canon(inv, "cognia", "x" * 200)
+    assert cli._bots_ultimo_mensaje(inv).endswith("...") and len(cli._bots_ultimo_mensaje(inv)) <= 70
+    # /bots imprime cada linea por separado (no una linea con salto dentro)
+    lineas.clear()
+    cli._slash_bots(None, "")
+    assert all("\n" not in l for l in lineas)
+    assert any(cli._strip_markup(l).strip().startswith("xxxx") for l in lineas)
+
+
+def test_handoff_con_mensaje_bot_enviado_no_queda_como_fallo(entorno, monkeypatch):
+    """Si el bot mando el mensaje y el bucle cerro por sin_arranque (mensaje_bot
+    no es avance verificado), el canon dice el hecho util, no el fallo."""
+    cli, lineas = entorno
+    from cognia.bots import registro as R, mensajeria as M
+    _crear_par(cli)
+    inv, ed = R.obtener("investigador"), R.obtener("editor")
+
+    def falso_run(ai, task, print_fn, **kw):
+        M.enviar(de="investigador", para="editor", texto="revisa esta frase")
+        return "(cerrada sin progreso verificado: sin_arranque)"
+    monkeypatch.setattr(cli, "_run_agent_task", falso_run)
+    resp = cli._turno_bot(None, inv, "editor revisa\n" + cli._nota_handoff(ed), handoff=ed)
+    assert resp == "(le escribio a @editor con mensaje_bot)"
+    canon = [(e["quien"], e["texto"]) for e in M.transcripcion(inv)]
+    assert ("cognia", resp) in canon
+    assert any(q == "meta" and "el bucle cerro con" in t for q, t in canon)
+    assert [m["texto"] for m in M.pendientes(ed)] == ["revisa esta frase"]
+
+
+def test_handoff_sin_mensaje_bot_se_avisa(entorno, monkeypatch):
+    """El 27B a veces contesta el handoff como texto sin llamar a mensaje_bot
+    (tecleado 2026-08-25): el destino no recibe nada y hay que decirlo."""
+    cli, lineas = entorno
+    from cognia.bots import registro as R, mensajeria as M
+    _crear_par(cli)
+    inv, ed = R.obtener("investigador"), R.obtener("editor")
+    monkeypatch.setattr(cli, "_run_agent_task",
+                        lambda ai, task, print_fn, **kw: "Destino: @editor. Mensaje: revisa")
+    resp = cli._turno_bot(None, inv, "editor revisa\n" + cli._nota_handoff(ed), handoff=ed)
+    assert resp.startswith("Destino: @editor")
+    assert M.pendientes(ed) == []
+    assert "handoff sin entregar" in _texto(lineas)
+    assert any(e["quien"] == "meta" and "NO recibio nada" in e["texto"] for e in M.transcripcion(inv))
+    # sin handoff no hay aviso
+    lineas.clear()
+    cli._turno_bot(None, inv, "haz algo", agente=True)
+    assert "handoff sin entregar" not in _texto(lineas)
