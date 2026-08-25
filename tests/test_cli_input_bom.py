@@ -70,7 +70,7 @@ class TestReplUsaSanitizador(unittest.TestCase):
 
     def test_loop_lee_via_strip_input_bom(self):
         from cognia import cli
-        src = inspect.getsource(cli.repl)
+        src = inspect.getsource(cli._repl_sesion)   # el cuerpo; cli.repl es la puerta
         self.assertIn("_strip_input_bom(_get_input())", src)
 
 

@@ -15,6 +15,8 @@ import json
 import os
 import queue
 import re
+import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -36,7 +38,13 @@ _RUIDO = ("[OK]", "[WARN]", "[cognia_embedding]", "[>>]",
 # "cognia>" que en el movil es redundante. Las dos flechas: el REPL con consola
 # usa 'cognia➤' (marco verde) y el fallback sin consola 'cognia>'.
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
-_PROMPT = re.compile(r"^(cognia[>➤]\s*)+")
+# Solo UN espacio tras el prompt (el que input("cognia> ") imprime), no \s*:
+# el REPL escribe el prompt sin salto y lo primero que el renderer pinta en
+# el turno cae en la MISMA linea ("cognia>   · pensando…"). Con \s* la
+# sangria de dos espacios de las marcas del renderer desaparecia y la linea
+# ya no se distinguia de una vineta "· " de la respuesta (hallazgo 2026-08-25:
+# la clasificacion por marca exige la sangria EXACTA, ver _RE_MARCA_RENDERER).
+_PROMPT = re.compile(r"^(cognia[>➤] ?)+")
 
 
 def _limpiar(linea: str) -> str:
@@ -58,9 +66,13 @@ _RE_LOG_TS = re.compile(
     r"^\d{4}-\d{2}-\d{2} .*\|\s*(INFO|WARNING|ERROR|DEBUG)\s*\|")
 _ABRE_TRAZA = ("Traceback (most recent call last)", "--- Logging error ---",
                "Call stack:")
+# La ultima linea de un traceback es "Tipo: mensaje". Medido en el e2e de
+# la paridad (2026-08-25): "KeyboardInterrupt: interrumpido desde el remoto"
+# no casaba con Error|Exception|Warning y entraba al CHAT como respuesta de
+# Cognia. Interrupt/Exit cierran la familia (KeyboardInterrupt, SystemExit).
 _SIGUE_TRAZA = re.compile(
     r"^(\s|File |Message:|Arguments:|Traceback|Call stack)"
-    r"|^[A-Za-z_][A-Za-z0-9_.]*(Error|Exception|Warning)\b")
+    r"|^[A-Za-z_][A-Za-z0-9_.]*(Error|Exception|Warning|Interrupt|Exit)\b")
 # arte del banner: braille, bloques, cajas — mas de un tercio de la linea
 _ARTE = re.compile(r"[⠀-⣿─-╿█╗╝╔╚]")
 _FRAGMENTOS_BANNER = (
@@ -102,9 +114,33 @@ _RE_ACTIVIDAD = re.compile(
     r"|\+ "      # lineas de diff al escribir (solo +: '- ' es vineta de respuesta)
     r")")
 
+# Lineas con la MARCA del renderer (· pensando…, ⏺ tool, ✗ fallo, ⚠ aviso,
+# → degradado, ∴ razonamiento) que llegan ANTES del primer evento tipado del
+# turno: el de-dup de ecos solo actua con _con_eventos, y "  · pensando…" del
+# fast-path entraba al chat como respuesta (e2e 2026-08-25). Son actividad.
+# SOLO con la sangria EXACTA del renderer (cognia/ux/renderer.py: _SANGRIA =
+# "  " para todas las marcas, tambien el "∴" del razonamiento — medido en el
+# e2e 2026-08-25: "  ∴ Empty workspace…" y su continuacion a 4 espacios; y
+# _SANGRIA_PENSAR = "    ∴ " para la prosa del pensar), anclada al inicio y
+# sin \s*: la primera version aceptaba "[·⏺✗⚠→∴]\s" tras cualquier sangria y
+# se tragaba lineas de la RESPUESTA FINAL ("→ primero calcula la media", "·
+# un punto"), que bajo remoto _show_response imprime plana (sin sangria) —
+# hallazgo rev2 2026-08-25. La respuesta final no tiene marcadores de
+# inicio/fin: la sangria exacta es la unica frontera local entre marca y
+# prosa.
+# Los glifos de confianza (◐ ○ ● ✕, cli._confianza_previa) tambien: el aviso
+# a priori se pinta como "  ◐ confianza a priori BAJA: …" sin otra marca; su
+# de-dup real es el eco del evento Aviso (_casar_eco), esto es la red de
+# abajo para que, si el eco no casa, vaya a actividad y no al chat.
+_RE_MARCA_RENDERER = re.compile(r"^  [·⏺✗⚠→∴◐○●✕] \S|^    ∴ \S")
+# El subconjunto que el de-dup por ECO descarta (sin "∴": el razonamiento no
+# duplica ningun evento anotado, va a actividad con su bloque sangrado, ver
+# _seguir_bloque_actividad).
+_RE_ECO_RENDERER = re.compile(r"^  [·⏺✗⚠→] \S")
+
 
 def _es_actividad(linea: str) -> bool:
-    return bool(_RE_ACTIVIDAD.match(linea))
+    return bool(_RE_ACTIVIDAD.match(linea) or _RE_MARCA_RENDERER.match(linea))
 
 
 def _es_log(linea: str) -> bool:
@@ -191,7 +227,191 @@ _TIPOS_EVENTO = {"TareaInicio", "PasoIntencion", "ToolInicio", "ToolFin",
                  "WorkflowInicio", "AgenteInicio", "AgenteFin", "WorkflowFin",
                  # control por agente 2026-08-17: sin estos dos el movil
                  # recibia el JSON crudo volcado como linea de actividad.
-                 "MensajeAlAgente", "AgenteProgreso"}
+                 "MensajeAlAgente", "AgenteProgreso",
+                 # paridad remoto 2026-08-24: el chip de confianza y el footer
+                 # del turno viajan tipados (antes el remoto solo tenia el
+                 # footer plano "Ns · N tokens" del renderer, que se descarta
+                 # como eco, y la confianza no llegaba: _confianza_remoto).
+                 "Confianza", "FooterTurno"}
+
+
+# ── MULTILINEA: una entrada del REPL a partir de N lineas del textarea ──────
+# MEDIDO 2026-08-24 leyendo cli.py: la continuacion oficial ("linea \" y la
+# siguiente sigue) vivia SOLO en la rama con PromptSession (cli.py:
+# `while line.endswith("\\"): ... line = line[:-1].rstrip() + " " + continuation`).
+# Bajo el remoto stdin es un pipe, la PromptSession muere y el REPL cae a la
+# rama input() pelado, que NO tenia ese bucle: cada "\n" del textarea era UNA
+# entrada mas para el REPL (un mensaje de 3 lineas = 3 turnos, y una linea
+# que empiece por "/" se despachaba como comando).
+# Desde la paridad (cli._leer_con_continuacion, 2026-08-24) esa rama SI la
+# soporta, y bajo COGNIA_REMOTO une con "\n" (los saltos son contenido: un
+# bloque de codigo pegado en el movil no se aplasta). El servidor detecta el
+# soporte leyendo la FUENTE de cli.py (sin importarlo: pesa) y elige:
+#   "continuacion" (default si hay soporte): manda el protocolo crudo, una
+#       linea por linea, las intermedias terminadas en " \"; el REPL las
+#       lee como UNA entrada con sus saltos.
+#   "unir" (fallback para un REPL sin soporte, y COGNIA_REMOTO_MULTILINEA=unir):
+#       manda la MISMA cadena que la continuacion clasica del prompt rico
+#       habria construido (unir_continuacion_oficial la replica y un test la
+#       compara con la funcion real del REPL). Se pierden los saltos.
+# Dos limites del protocolo, y como se cierran aqui (hallazgo 2026-08-25):
+#   - LINEAS VACIAS: la primera version las descartaba ("el REPL las trataria
+#     como entradas vacias") y un bloque de codigo pegado perdia sus lineas
+#     en blanco (en Python o Markdown cambia el significado). Ahora viajan
+#     como " \" (una linea de continuacion vacia). Que SOBREVIVAN depende de
+#     cli._unir_continuacion: con `acumulado[:-1].rstrip()` el "\n" que las
+#     precede se recorta junto con el espacio y la vacia se aplasta igual;
+#     hace falta rstrip(" \t") en cli.py (test_B_las_lineas_vacias... lo mide
+#     contra la funcion real y se marca xfail mientras cli.py no lo tenga).
+#   - BARRA FINAL: una ultima linea que termina en "\" (una ruta Windows)
+#     dejaba al REPL esperando continuacion y el siguiente mensaje se pegaba
+#     a este. cerrar_barra_final() la manda como "<linea> \" seguida de una
+#     linea vacia: el REPL consume la "\" anadida, conserva la del usuario
+#     (el rstrip no toca una barra) y cierra la entrada con "" (input() la
+#     devuelve; el strip posterior del REPL quita el "\n" sobrante).
+
+def lineas_continuacion(texto: str) -> list[str]:
+    """El texto multilinea en el protocolo de continuacion del REPL: cada
+    linea salvo la ultima termina en ' \\'. Las vacias INTERIORES se
+    conservan (" \\"); las del principio y el final no dicen nada y se
+    quitan. Una ultima linea que termine en "\\" queda tal cual: la cierra
+    cerrar_barra_final (entradas_para_repl), no esta funcion."""
+    lineas = [l.rstrip() for l in texto.split("\n")]
+    while lineas and not lineas[0].strip():
+        lineas.pop(0)
+    while lineas and not lineas[-1].strip():
+        lineas.pop()
+    if not lineas:
+        return []
+    return [l + " \\" for l in lineas[:-1]] + [lineas[-1]]
+
+
+def cerrar_barra_final(entradas: list[str]) -> list[str]:
+    """Si la ULTIMA linea que se va a escribir al REPL termina en "\\", el
+    REPL esperaria continuacion: se le anade " \\" (la barra que el protocolo
+    consume) y una linea vacia que cierra la entrada. La barra del usuario
+    se conserva. Se mira con rstrip(): el REPL hace input().strip() y una
+    barra seguida de espacios (lo que deja la union en modo "unir") tambien
+    lo dejaria esperando. Idempotente sobre una lista ya cerrada."""
+    if entradas and entradas[-1].rstrip().endswith("\\"):
+        return entradas[:-1] + [entradas[-1].rstrip() + " \\", ""]
+    return list(entradas)
+
+
+def unir_continuacion_oficial(lineas: list[str]) -> str:
+    """Lo que el bucle de continuacion de cli.py construye a partir de esas
+    lineas: replica EXACTA de `line[:-1].rstrip() + " " + continuation` con
+    los .strip() que el prompt aplica a cada entrada. Si cli.py cambia esa
+    expresion, tests/test_remoto_paridad.py lo detecta."""
+    if not lineas:
+        return ""
+    line = lineas[0].strip()
+    resto = list(lineas[1:])
+    while line.endswith("\\"):
+        continuation = resto.pop(0).strip() if resto else ""
+        line = line[:-1].rstrip() + " " + continuation
+    return line
+
+
+def a_entrada_repl(texto: str) -> str:
+    """N lineas del textarea -> la UNICA entrada que el REPL debe leer (modo
+    "unir"). La barra final se cierra ANTES de unir: la replica del bucle
+    oficial se la comeria como marca de continuacion (igual que haria el
+    prompt rico), y una ruta Windows perderia su ultima barra."""
+    return unir_continuacion_oficial(
+        cerrar_barra_final(lineas_continuacion(texto)))
+
+
+# ── STREAMING al movil: agrupador de TokenTexto -> "delta" ─────────────────
+# Bajo COGNIA_REMOTO el bus deja pasar TokenTexto (COGNIA_REMOTO_STREAM != "0")
+# y el renderer no escribe prosa durante el stream (_sin_stream): aqui se
+# agrupan los tokens en trozos y se emiten SOLO a los suscriptores del WS,
+# nunca al jsonl — la transcripcion persistida sigue siendo la respuesta
+# final (quien="cognia"), que el front usa para reemplazar la burbuja viva.
+# Sin hilo de reloj: el trozo se cierra al llegar el token que cumple el
+# umbral (chars o ms) o al llegar CUALQUIER otra cosa (evento, prosa, fin del
+# proceso), asi que el orden con la respuesta final es el de stdout. El
+# residuo se retrasa como mucho un intervalo entre tokens.
+
+DELTA_MAX_CHARS = 80
+DELTA_MAX_MS = 120
+
+
+class AgrupadorDelta:
+    """Junta TokenTexto en trozos. `emitir(texto)` recibe cada trozo;
+    `reloj` es inyectable (tests sin dormir)."""
+
+    def __init__(self, emitir, reloj=time.monotonic,
+                 max_chars: int = DELTA_MAX_CHARS, max_ms: int = DELTA_MAX_MS):
+        self._emitir = emitir
+        self._reloj = reloj
+        self.max_chars = max(1, int(max_chars))
+        self.max_s = max(0.0, float(max_ms) / 1000.0)
+        self._buf: list[str] = []
+        self._chars = 0
+        self._t0: float | None = None
+
+    def token(self, texto: str) -> None:
+        if not texto:
+            return
+        if self._t0 is None:
+            self._t0 = self._reloj()
+        self._buf.append(texto)
+        self._chars += len(texto)
+        if (self._chars >= self.max_chars
+                or self._reloj() - self._t0 >= self.max_s):
+            self.vaciar()
+
+    def vaciar(self) -> None:
+        if not self._buf:
+            return
+        trozo = "".join(self._buf)
+        self._buf, self._chars, self._t0 = [], 0, None
+        self._emitir(trozo)
+
+    def pendiente(self) -> int:
+        return self._chars
+
+
+def extra_de_evento(d: dict) -> dict:
+    """Campos que viajan en la anotacion ADEMAS de quien/texto (el movil
+    pinta el chip de confianza con nivel y fuentes, y el footer con sus
+    numeros). Vacio para el resto de tipos."""
+    tipo = d.get("tipo", "")
+    if tipo == "Confianza":
+        fuentes = d.get("fuentes") or []
+        return {"nivel": str(d.get("nivel") or ""),
+                "glifo": str(d.get("glifo") or ""),
+                "valor": d.get("valor"),
+                "fuentes": [str(f) for f in fuentes][:20]}
+    if tipo == "FooterTurno":
+        return {"ok": bool(d.get("ok", True)),
+                "segundos": float(d.get("segundos") or 0.0),
+                "tokens": int(d.get("tokens") or 0),
+                "ctx_libre_pct": d.get("ctx_libre_pct")}
+    return {}
+
+
+def _linea_footer(d: dict) -> str:
+    """'✓ 14.6s · 312 tokens · ctx 95% libre' (o ✗ + motivo)."""
+    partes = [f"{float(d.get('segundos') or 0.0):.1f}s"]
+    tokens = int(d.get("tokens") or 0)
+    if tokens:
+        partes.append(f"{tokens} tokens")
+    ctx = d.get("ctx_libre_pct")
+    if ctx is not None:
+        try:
+            partes.append(f"ctx {float(ctx):.0f}% libre")
+        except (TypeError, ValueError):
+            # un ctx no numerico no es degradacion del remoto: se muestra tal
+            # cual para que se vea que el emisor mando algo raro
+            partes.append(f"ctx {ctx!r}")
+    ok = bool(d.get("ok", True))
+    linea = ("✓ " if ok else "✗ ") + " · ".join(partes)
+    motivo = _cabeza(d.get("motivo", ""))
+    if motivo and not ok:
+        linea += f" — {motivo}"
+    return linea
 
 
 def parsear_evento(linea: str) -> dict | None:
@@ -422,6 +642,19 @@ def interpretar_evento(d: dict) -> tuple[str | None, str, list[str]]:
             partes.append(f"{d['duracion_s']:.1f}s")
         return "actividad", (f"⏺ {nombre}" +
                              (" — " + " · ".join(partes) if partes else "")), []
+    # ── paridad remoto 2026-08-24: confianza y footer del turno ──
+    if tipo == "Confianza":
+        glifo = str(d.get("glifo") or "").strip()
+        nivel = str(d.get("nivel") or "").strip()
+        texto = _cabeza(d.get("texto", "")) or (
+            f"{glifo} confianza {nivel}".strip())
+        # eco: si el renderer local pinta la misma linea (hoy no la pinta bajo
+        # remoto: _confianza_remoto), no debe entrar al chat dos veces
+        return "confianza", texto, [texto]
+    if tipo == "FooterTurno":
+        # el footer plano del renderer ("14.6s · 312 tokens") ya se descarta
+        # por _RE_FOOTER_RENDERER; este es el tipado, con ctx y motivo
+        return "footer", _linea_footer(d), []
     # tipo desconocido (el contrato crecio): se anota crudo en actividad para
     # no perderlo en silencio — perderlo era el bug historico del remoto
     return "actividad", f"{tipo}: {json.dumps(d, ensure_ascii=False)[:300]}", []
@@ -446,15 +679,20 @@ _RE_FIN_BANNER = re.compile(r"[└╰][─═]{3,}.*sistema cognitivo local")
 # El renderer del CLI pinta los MISMOS eventos como lineas con marca
 # (⏺ · ✗ ⚠ →) y un footer "3.2s · 500 tokens · 2 pasos". Cuando el stream de
 # eventos esta activo, esas lineas son duplicados y se saltan.
+# La marca cuenta SOLO con la sangria exacta del renderer ("  ⏺ "): antes se
+# juzgaba sobre linea.strip() y una linea de la respuesta final que empezara
+# por "→ " o "· " (una enumeracion del modelo) se DESCARTABA como eco — ni al
+# chat ni a actividad (misma raiz que _RE_MARCA_RENDERER, 2026-08-25). Los
+# tests con el Renderer real (test_remoto_eventos/agrupado) vigilan que lo
+# que el renderer imprime siga cayendo aqui.
 _RE_FOOTER_RENDERER = re.compile(
     r"^\d+(\.\d+)?s( · \d+ (tokens|pasos?))*$")
 
 
 def es_eco_renderer(linea: str) -> bool:
-    t = linea.strip()
-    if t[:1] in ("⏺", "·", "✗", "⚠", "→"):
+    if _RE_ECO_RENDERER.match(linea):
         return True
-    return bool(_RE_FOOTER_RENDERER.match(t))
+    return bool(_RE_FOOTER_RENDERER.match(linea.strip()))
 
 
 # ── La COLA de un eco ENVUELTO ─────────────────────────────────────────────
@@ -467,12 +705,70 @@ def es_eco_renderer(linea: str) -> bool:
 #     "Could you please provide more context or clarify what you…"   (75)
 #     "(1.3s · 77 tok)"                                              (15)
 # Regla: tras un eco LARGO (rich solo parte lineas que llenan el ancho) las
-# siguientes son cola hasta que una salga corta. Con dos frenos, porque comerse
-# prosa de verdad es peor que duplicar una linea: tope de lineas, y nada que
-# empiece como OTRA cosa (panel rich, marco, linea de logger, evento).
-_ANCHO_ECO = 60          # conservador: rich parte a los 80
+# siguientes son cola hasta que una salga corta. Con TRES frenos, porque
+# comerse prosa de verdad es peor que duplicar una linea: tope de lineas,
+# nada que empiece como OTRA cosa (panel rich, marco, linea de logger,
+# evento), y NINGUNA cola sobrevive a una linea-evento (ver _procesar_linea).
+#
+# ── El ANCHO del renderer bajo el remoto ──────────────────────────────────
+# El REPL escribe a un pipe: rich no tiene terminal y cae a 80 columnas, y
+# cada linea logica del renderer (un Aviso, un "⏺ tool — resumen") salia en
+# 2-3 lineas FISICAS que este clasificador tenia que volver a juntar por
+# heuristica. Medido en el e2e 2026-08-25 (verificador tras los arreglos):
+#   - el aviso a priori de confianza (127 chars, sin marca) entraba al chat
+#     como DOS burbujas cognia y se persistia en el jsonl;
+#   - "  · filtrando https://kirainet.com/tokio-…-paris/…" (85) salia en
+#     tres lineas ("  · filtrando" / la URL plegada a 80 / "/…") y las dos
+#     ultimas iban al chat;
+#   - y con _ANCHO_ECO = 60 un eco de 60-79 chars (URL de 46-65) se daba por
+#     ENVUELTO sin estarlo y la RESPUESTA FINAL que venia detras se tragaba
+#     entera como su cola: ni chat ni jsonl (sesion 20260825-100400).
+# rich y shutil honran COLUMNS tambien sobre un pipe (verificado con el venv:
+# 240 chars sin partir con COLUMNS=100000), asi que _entorno() fija el ancho
+# y aqui se SABE cuanto mide: solo una linea que llega a ese ancho puede venir
+# envuelta. No es infinito a proposito: los paneles rich se estiran al ancho
+# entero y a 100000 el banner de arranque son 60 lineas de 100 KB (medido).
+# 300 deja intactas las lineas logicas reales (_cabeza recorta a 200) y el
+# banner en 60 x 300 bytes.
+ANCHO_COLUMNAS_REMOTO = 300
+# Margen para "llena el ancho": rich parte en el ULTIMO espacio que cabe, asi
+# que la primera linea fisica de una logica envuelta mide al menos ancho -
+# (palabra mas larga + 1); 40 cubre cualquier palabra de prosa. Las palabras
+# mas largas que el ancho (URLs) se PLIEGAN exactamente al ancho.
+_ANCHO_ECO = ANCHO_COLUMNAS_REMOTO - 40
 _MAX_COLA_ECO = 4
 _RE_NO_ES_COLA = re.compile(r"^\s*[│┌└├┤╭╰@]|^\d{4}-\d{2}-\d{2} ")
+# Ancho MINIMO con el que un plegado de palabra (URL) es creible: ninguna
+# terminal util baja de 40 columnas; por debajo, un prefijo a mitad de
+# palabra es coincidencia, no envoltorio (ver _corte_de_envoltorio).
+_ANCHO_MIN_PLEGADO = 40
+
+
+def _corte_de_envoltorio(logica: str, fisica: str) -> bool:
+    """¿`fisica` (linea fisica ya sin espacios a los lados) es el primer
+    TROZO de la linea logica `logica`, cortada como corta rich? rich parte en
+    un espacio (lo que sigue empieza por espacio) o pliega una palabra mas
+    larga que el ancho justo al ancho (la fisica es larga). Un prefijo a
+    mitad de palabra y corto no es un envoltorio: es otra linea."""
+    if not fisica or not logica.startswith(fisica):
+        return False
+    if len(fisica) == len(logica):
+        return True
+    return logica[len(fisica)] == " " or len(fisica) >= _ANCHO_MIN_PLEGADO
+
+# ── BLOQUES de actividad envueltos (e2e real 2026-08-25) ──────────────────
+# Dos salidas del renderer llegan en VARIAS lineas y solo la primera lleva la
+# marca que el regex de actividad reconoce:
+#   diff de escribir_archivo: "+ El Imperio Romano no nacio como un imperio."
+#       y despues, envueltas a 80 columnas SIN el "+", las 3-12 lineas del
+#       parrafo; y un "+" solo para las lineas vacias del fichero. Medido:
+#       un ensayo de 3000 palabras entro al chat como 150 "respuestas".
+#   razonamiento "∴ ...": la continuacion va sangrada con 4 espacios.
+# El bloque diff dura hasta la siguiente linea-evento o linea con marca (el
+# ToolFin "⏺ escribir_archivo … RESULTADO" cierra siempre); el de sangria
+# dura mientras las lineas vengan sangradas.
+_RE_ABRE_DIFF = re.compile(r"^\+( |$)")
+_RE_SANGRADA = re.compile(r"^ {4,}\S")
 
 
 # ── Cola por WebSocket, CON TECHO ──────────────────────────────────────────
@@ -492,13 +788,19 @@ class ColaSuscriptor:
     """Cola FIFO con tope. Misma API que usa Sesion.anotar (put_nowait) y el
     WS (get), mas tomar_descartadas() para que el cliente vea el agujero."""
 
-    def __init__(self, tope: int | None = None):
+    def __init__(self, tope: int | None = None, al_poner=None):
         # el default se lee EN LA CONSTRUCCION, no al definir la clase: asi
         # TOPE_COLA_WS es ajustable (y verificable) sin tocar los llamadores
         self.tope = max(1, int(TOPE_COLA_WS if tope is None else tope))
         self._q: queue.Queue = queue.Queue()
         self._descartadas = 0
         self._lock = threading.Lock()
+        # al_poner(): se llama DESPUES de encolar (fuera del lock). Es como el
+        # WS del servidor se entera sin clavar un hilo del pool en get(): el
+        # endpoint le pasa un call_soon_threadsafe sobre un asyncio.Event.
+        # Si revienta (loop ya cerrado al apagar), la excepcion sube al
+        # productor, que descarta la cola y lo deja en stderr — no es mudo.
+        self._al_poner = al_poner
 
     def put_nowait(self, evento: dict) -> None:
         with self._lock:
@@ -509,9 +811,14 @@ class ColaSuscriptor:
                     break
                 self._descartadas += 1
             self._q.put_nowait(evento)
+        if self._al_poner is not None:
+            self._al_poner()
 
     def get(self, timeout: float | None = None):
         return self._q.get(timeout=timeout)
+
+    def get_nowait(self):
+        return self._q.get_nowait()
 
     def tomar_descartadas(self) -> int:
         """Cuantas se tiraron desde la ultima vez (y resetea). El WS lo llama
@@ -528,6 +835,379 @@ class ColaSuscriptor:
 def _python_cognia() -> list[str]:
     """El interprete que corre el REPL: el mismo venv del servidor."""
     return [sys.executable, "-m", "cognia"]
+
+
+def _flags_grupo_propio() -> dict:
+    """kwargs de Popen para que el hijo tenga grupo de proceso propio.
+    Windows: CREATE_NEW_PROCESS_GROUP (unico modo de dirigirle un
+    CTRL_BREAK_EVENT a EL y no a toda la consola); POSIX: sesion nueva."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+# La senal de interrupcion que entiende el hijo. En Windows CTRL_C_EVENT no
+# se puede dirigir a un grupo distinto del propio (y CREATE_NEW_PROCESS_GROUP
+# deshabilita Ctrl-C en el hijo): queda CTRL_BREAK, que Python entrega como
+# SIGBREAK. En POSIX, SIGINT = el Ctrl-C de toda la vida.
+_SENAL_INTERRUPCION = (signal.CTRL_BREAK_EVENT if os.name == "nt"
+                       else signal.SIGINT)
+
+# Lo que devuelve /interrumpir cuando la senal salio: el front lo pinta tal
+# cual (test_remoto_front lo busca), por eso es una constante compartida.
+MOTIVO_INTERRUPCION_ENVIADA = ("senal enviada; se aplica al terminar la "
+                               "llamada en curso (una llamada bloqueada "
+                               "esperando al modelo no se despierta antes)")
+
+
+_SOPORTE_CONTINUACION: list = []      # cache: [bool]
+
+
+def repl_soporta_continuacion() -> bool:
+    """True si el cli.py que va a correr (el de este mismo paquete: el REPL
+    hijo se lanza con PYTHONPATH al repo) tiene _leer_con_continuacion. Se
+    mira la fuente, no se importa cognia.cli (17k lineas y medio Cognia)."""
+    if not _SOPORTE_CONTINUACION:
+        try:
+            fuente = (Path(__file__).resolve().parent.parent / "cli.py"
+                      ).read_text(encoding="utf-8", errors="replace")
+            _SOPORTE_CONTINUACION.append("def _leer_con_continuacion(" in fuente)
+        except OSError:
+            _SOPORTE_CONTINUACION.append(False)
+    return _SOPORTE_CONTINUACION[0]
+
+
+def modo_multilinea() -> str:
+    """'continuacion' | 'unir' (ver el bloque MULTILINEA). El env manda; sin
+    env, continuacion si el REPL la soporta."""
+    pedido = os.environ.get("COGNIA_REMOTO_MULTILINEA", "").strip().lower()
+    if pedido in ("continuacion", "unir"):
+        return pedido
+    return "continuacion" if repl_soporta_continuacion() else "unir"
+
+
+def entradas_para_repl(texto: str) -> list[str]:
+    """Las lineas que se escriben al stdin del REPL por UN mensaje del movil.
+    Un mensaje sin saltos es una linea. Con saltos, segun modo_multilinea():
+    el protocolo de continuacion (N lineas = UNA entrada con "\n") o una
+    sola linea unida con espacios."""
+    if "\n" not in texto:
+        return cerrar_barra_final([texto])
+    if modo_multilinea() == "continuacion":
+        return cerrar_barra_final(lineas_continuacion(texto))
+    unida = a_entrada_repl(texto)
+    return cerrar_barra_final([unida]) if unida else []
+
+
+def ruta_pid(proyecto_id: str, sid: str) -> Path:
+    d = RAIZ_DATOS / proyecto_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{sid}.pid"
+
+
+def _proceso_vivo(pid: int):
+    """El psutil.Process si el PID existe y es un python; None si no hay
+    nadie o el PID lo tiene otro programa. Que ademas sea NUESTRO (un
+    `python -m cognia` nacido antes del .pid) lo decide es_repl_cognia: un
+    python cualquiera no basta, ver el hallazgo en reconciliar_huerfanos."""
+    try:
+        import psutil
+    except ImportError as e:
+        # sin psutil no hay reconciliacion segura (no se puede distinguir un
+        # PID reciclado): se dice en stderr y NO se mata a ciegas
+        print(f"[remoto] sin psutil ({e}): no reconcilio huerfanos",
+              file=sys.stderr, flush=True)
+        return None
+    try:
+        pr = psutil.Process(pid)
+        if not pr.is_running() or pr.status() == psutil.STATUS_ZOMBIE:
+            return None
+        if not pr.name().lower().startswith("python"):
+            return None            # PID reciclado: no es nuestro REPL
+        return pr
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        return None
+
+
+# Holgura entre el create_time del proceso y el mtime del .pid: el .pid se
+# escribe justo DESPUES del Popen (create_time < mtime por milisegundos), pero
+# los dos relojes no son el mismo (kernel vs sistema de ficheros) y en
+# Windows el create_time se redondea. Un PID reciclado nace segundos, minutos
+# o dias despues del .pid: 5 s los separa de sobra.
+HOLGURA_CREATE_TIME_S = 5.0
+
+
+def cmdline_es_cognia(cmdline: list[str] | None, modulo: str = "cognia") -> bool:
+    """True si la linea de comandos es `python -m cognia[.algo] ...`: el
+    token que sigue a "-m" es exactamente `modulo` o empieza por `modulo.`.
+    Por TOKEN y no por subcadena: "-m cognia_prueba" no es Cognia, y una
+    ruta de script que contenga "cognia" tampoco (el REPL siempre nace como
+    `-m cognia`, ver _python_cognia)."""
+    if not cmdline:
+        return False
+    for i, tok in enumerate(cmdline[:-1]):
+        if tok == "-m":
+            sig = cmdline[i + 1]
+            if sig == modulo or sig.startswith(modulo + "."):
+                return True
+    return False
+
+
+def es_repl_cognia(pr, mtime_pid: float | None) -> tuple[bool, str]:
+    """(es_nuestro, motivo): el proceso `pr` (psutil.Process vivo) es el REPL
+    que este .pid describe. Dos pruebas, las dos obligatorias:
+      1. la cmdline contiene `-m cognia` (el REPL nace asi; un jupyter, un
+         script o un `python -c` que hereden el PID reciclado no);
+      2. nacio ANTES de que se escribiera el .pid (mas HOLGURA): un PID
+         reciclado nace despues.
+    Sin cmdline legible (AccessDenied) no se mata: la duda no es evidencia."""
+    try:
+        cmd = pr.cmdline()
+    except Exception as e:                    # AccessDenied, NoSuchProcess
+        return False, f"cmdline ilegible ({type(e).__name__})"
+    if not cmdline_es_cognia(cmd):
+        return False, "no es un `python -m cognia` (" + " ".join(cmd)[:80] + ")"
+    if mtime_pid is not None:
+        try:
+            nacido = float(pr.create_time())
+        except Exception as e:
+            return False, f"create_time ilegible ({type(e).__name__})"
+        if nacido > mtime_pid + HOLGURA_CREATE_TIME_S:
+            return False, (f"nacio {nacido - mtime_pid:.0f} s DESPUES del .pid: "
+                           "PID reciclado")
+    return True, "ok"
+
+
+def reconciliar_huerfanos(raiz: Path | None = None,
+                          es_nuestro=es_repl_cognia) -> list[dict]:
+    """Al ARRANCAR el servidor: los .pid que quedaron de un servidor anterior
+    son REPLs huerfanos (el gestor vive en memoria; el stdout de un proceso
+    ajeno no se puede readoptar). Se MATAN y se anota en su jsonl. Devuelve
+    [{"proyecto", "sesion", "pid", "accion"}] para imprimirlo en el arranque.
+    Se llama desde main(), NUNCA desde crear_app(): los tests crean apps con
+    la RAIZ_DATOS real y no deben tocar los REPLs de un servidor vivo.
+
+    QUE se mata (hallazgos rev1/rev2 2026-08-25, los dos reproducidos):
+      - solo un proceso que `es_nuestro(pr, mtime_del_pid)` acepte: por
+        defecto es_repl_cognia (cmdline `-m cognia` + nacido antes del
+        .pid). La primera version mataba CUALQUIER python cuyo PID
+        coincidiera (Windows recicla PIDs con ganas: un jupyter o un REPL
+        local del dueno moria con todos sus hijos y el jsonl decia
+        "terminado"). Un .pid que no pasa la prueba se BORRA (esta rancio)
+        y se dice, sin matar.
+      - y nada de esto si hay OTRO servidor vivo: eso lo decide main() con
+        leer_pid_servidor ANTES de llamar aqui (los .pid de un servidor vivo
+        son indistinguibles de los de uno muerto; arrancar un segundo
+        servidor mataba las sesiones del primero, medido con dos reales).
+    `es_nuestro` es parametro para probar el predicado y el bucle por
+    separado (un hijo real `-m cognia` de mentira vs un `python -c`)."""
+    raiz = raiz or RAIZ_DATOS
+    salida = []
+    for f in sorted(raiz.glob("*/*.pid")):
+        try:
+            pid = int(f.read_text(encoding="utf-8").strip())
+            mtime = f.stat().st_mtime
+        except (OSError, ValueError) as e:
+            salida.append({"proyecto": f.parent.name, "sesion": f.stem,
+                           "pid": None, "accion": f"pid ilegible ({e}); borrado"})
+            f.unlink(missing_ok=True)
+            continue
+        pr = _proceso_vivo(pid)
+        nuestro, motivo = (False, "") if pr is None else es_nuestro(pr, mtime)
+        if pr is None:
+            accion = "ya no corria"
+        elif not nuestro:
+            # vivo pero NO es el REPL de este .pid: el PID se reciclo. Se
+            # deja en paz y el .pid rancio se retira (anotando el motivo).
+            accion = f"vivo pero no es nuestro REPL ({motivo}): no lo toco"
+        else:
+            # psutil ya importo bien (pr viene de _proceso_vivo); el nombre
+            # hace falta AQUI: sin este import, un hijo que no se dejaba
+            # matar daba NameError en el except (tapado por el Exception de
+            # abajo como "no pude terminarlo: NameError") — cazado 2026-08-25
+            import psutil
+            try:
+                # los nietos (tools lanzadas por el REPL) tambien: sin esto
+                # quedaban vivos colgando de nadie. Uno que ya murio no es
+                # error; uno que no se deja se CUENTA en la accion.
+                hijos_vivos = 0
+                for hijo in pr.children(recursive=True):
+                    try:
+                        hijo.kill()
+                    except psutil.NoSuchProcess:
+                        continue
+                    except psutil.Error:
+                        hijos_vivos += 1
+                pr.kill()
+                pr.wait(timeout=5)
+                accion = "terminado" + (f" ({hijos_vivos} hijos no se dejaron)"
+                                        if hijos_vivos else "")
+            except Exception as e:
+                accion = f"no pude terminarlo: {type(e).__name__}: {e}"
+        jsonl = f.with_suffix(".jsonl")
+        try:
+            with jsonl.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(
+                    {"t": time.strftime("%H:%M:%S"), "quien": "sistema",
+                     "texto": "sesion anterior terminada al reiniciar el "
+                              f"servidor (pid {pid}: {accion})"},
+                    ensure_ascii=False) + "\n")
+        except OSError as e:
+            accion += f"; sin anotar en el jsonl ({e})"
+        f.unlink(missing_ok=True)
+        salida.append({"proyecto": f.parent.name, "sesion": f.stem,
+                       "pid": pid, "accion": accion})
+    return salida
+
+
+# ── servidor.pid: UN formato (JSON) y una sola lectura para todos ──────────
+# Escrito por servidor.main() como {"pid", "host", "port"}. Lo leen el propio
+# servidor al arrancar (¿hay otro vivo? -> no reconciliar ni pisar) y el CLI
+# (/remoto estado|parar, via leer_pid_servidor). Hasta 2026-08-25 el CLI
+# escribia str(pid), el servidor lo pisaba con JSON y el CLI leia int(): el
+# servidor arrancado desde /remoto arrancar era invisible para /remoto parar.
+# Ademas el fichero solo se borraba en salida limpia: tras un kill
+# (TerminateProcess, lo que hace /remoto parar) quedaba rancio. Un fichero
+# rancio no se puede evitar del todo (TerminateProcess no da ocasion de
+# borrar nada): por eso la LECTURA comprueba que el PID este vivo y sea un
+# servidor de Cognia, y trata el resto como rancio diciendolo.
+
+FICHERO_PID_SERVIDOR = "servidor.pid"
+
+
+def ruta_pid_servidor(raiz: Path | None = None) -> Path:
+    return (raiz or RAIZ_DATOS) / FICHERO_PID_SERVIDOR
+
+
+def _escucha_en(pr, port) -> bool | None:
+    """True si el proceso tiene un socket LISTEN en `port` (cualquier IP);
+    False si no; None si no se pudo mirar (AccessDenied: el proceso es de
+    otro usuario o el sistema no deja) — la duda se devuelve como duda, el
+    llamador decide (para no matar sesiones no se resuelve como False)."""
+    try:
+        port = int(port)
+    except (TypeError, ValueError):
+        return False
+    try:
+        try:
+            conexiones = pr.net_connections(kind="inet")
+        except AttributeError:                # psutil < 6
+            conexiones = pr.connections(kind="inet")
+    except Exception as e:
+        import logging
+        logging.getLogger("cognia.remoto").warning(
+            "no pude leer las conexiones del pid %s: %s", pr.pid, e)
+        return None
+    return any(c.status == "LISTEN" and c.laddr and c.laddr.port == port
+               for c in conexiones)
+
+
+def es_servidor_cognia(pr, info: dict) -> tuple[bool, str]:
+    """(es_servidor, motivo): `pr` (psutil.Process vivo) es un servidor del
+    remoto. Vale UNA de dos pruebas: la cmdline es `-m cognia.remoto` (o
+    `-m cognia` a secas: el CLI lo lanza asi) O el proceso ESCUCHA en el
+    puerto que el propio fichero declara. La segunda cubre a un servidor
+    arrancado en proceso con crear_app() (tests, e2e: cmdline `python
+    script.py`), que un PID reciclado no puede imitar: tendria que estar
+    escuchando justo en ese puerto."""
+    try:
+        cmd = pr.cmdline()
+    except Exception:
+        cmd = None
+    if cmdline_es_cognia(cmd):
+        return True, "cmdline -m cognia"
+    escucha = _escucha_en(pr, info.get("port"))
+    if escucha:
+        return True, f"escucha en :{info.get('port')}"
+    if escucha is None:
+        # inconcluso: un python vivo cuyo puerto no se puede mirar. Se da
+        # por servidor POR PRUDENCIA (el coste de equivocarse al reves es
+        # reconciliar y matar los REPLs de un servidor vivo) y se dice.
+        return True, (f"python vivo; no pude comprobar si escucha en "
+                      f":{info.get('port')} — lo doy por servidor por prudencia")
+    return False, ("no es `-m cognia` ni escucha en :" + str(info.get("port"))
+                   + " (" + " ".join(cmd or ["?"])[:80] + ")")
+
+
+def estado_pid_servidor(raiz: Path | None = None) -> tuple[dict | None, str]:
+    """(info, motivo). info = {"pid", "host", "port", "vivo": True} solo si el
+    fichero existe, es JSON con "pid" y ese PID es un servidor de Cognia
+    vivo; si no, None y el motivo legible ("no hay servidor.pid", "formato
+    viejo (int) ...", "pid N muerto", "pid N no es un servidor ...")."""
+    f = ruta_pid_servidor(raiz)
+    try:
+        crudo = f.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None, "no hay servidor.pid"
+    except OSError as e:
+        return None, f"servidor.pid ilegible: {e}"
+    try:
+        info = json.loads(crudo)
+        if not isinstance(info, dict) or "pid" not in info:
+            raise ValueError("sin clave pid")
+        pid = int(info["pid"])
+    except (ValueError, TypeError) as e:
+        forma = "formato viejo (int)" if crudo.isdigit() else "no es JSON"
+        return None, f"servidor.pid rancio: {forma} ({e}): {crudo[:60]!r}"
+    pr = _proceso_vivo(pid)
+    if pr is None:
+        return None, f"servidor.pid rancio: pid {pid} muerto (o no es python)"
+    ok, motivo = es_servidor_cognia(pr, info)
+    if not ok:
+        return None, f"servidor.pid rancio: pid {pid} vivo pero {motivo}"
+    return ({"pid": pid, "host": info.get("host"), "port": info.get("port"),
+             "vivo": True}, motivo)
+
+
+def leer_pid_servidor(raiz: Path | None = None,
+                      borrar_rancio: bool = True) -> dict | None:
+    """El servidor del remoto VIVO segun servidor.pid, o None. Es la unica
+    lectura del fichero (la usa el CLI: /remoto estado y /remoto parar).
+    Un fichero rancio (pid muerto, reciclado, formato viejo) se anuncia por
+    el logger y, con borrar_rancio, se retira para que no vuelva a confundir
+    (un servidor que arranca lo reescribe)."""
+    info, motivo = estado_pid_servidor(raiz)
+    if info is None and motivo != "no hay servidor.pid":
+        import logging
+        logging.getLogger("cognia.remoto").warning("%s", motivo)
+        if borrar_rancio:
+            try:
+                ruta_pid_servidor(raiz).unlink(missing_ok=True)
+            except OSError as e:
+                logging.getLogger("cognia.remoto").warning(
+                    "no pude borrar el servidor.pid rancio: %s", e)
+    return info
+
+
+def carpetas_huerfanas(raiz: Path | None = None) -> list[Path]:
+    """Carpetas de RAIZ_DATOS que no corresponden a ningun proyecto de
+    proyectos.json (hoy 1154 medidas en ~/.cognia/remoto: tests que no
+    parchearon RAIZ_DATOS). La papelera se respeta."""
+    raiz = raiz or RAIZ_DATOS
+    try:
+        ids = {pr["id"] for pr in json.loads(
+            (raiz / "proyectos.json").read_text(encoding="utf-8"))}
+    except (OSError, ValueError, TypeError, KeyError):
+        ids = set()
+    return [d for d in sorted(raiz.iterdir())
+            if d.is_dir() and d.name != "papelera" and d.name not in ids]
+
+
+def limpiar_huerfanas(raiz: Path | None = None,
+                      dry_run: bool = False) -> list[str]:
+    """Borra (o lista, con dry_run) las carpetas huerfanas. Devuelve las
+    rutas afectadas; un borrado fallido se devuelve con el motivo."""
+    salida = []
+    for d in carpetas_huerfanas(raiz):
+        if dry_run:
+            salida.append(str(d))
+            continue
+        try:
+            shutil.rmtree(d)
+            salida.append(str(d))
+        except OSError as e:
+            salida.append(f"{d} (NO borrada: {e})")
+    return salida
 
 
 # ── Proyectos: carpetas donde se abre el CLI ───────────────────────────────
@@ -597,10 +1277,20 @@ class Sesion:
     # _ANCHO_ECO): un AgenteFin con resumen largo sale en 2-3 lineas y solo la
     # primera lleva la marca ⏺
     _cola_eco: int = 0
+    # lo que FALTA de un eco pendiente casado por su primer trozo (un Aviso
+    # envuelto por rich): las siguientes lineas fisicas se casan contra esto,
+    # exacto, sin heuristica de longitud (ver _casar_eco)
+    _eco_resto: str = ""
     # hilo lector: se guarda para poder join() en parar() — sin eso, su
     # anotar("sesion terminada") final corria DESPUES de mover/borrar el
     # jsonl y recreaba la carpeta de la sesion recien dada de baja
     _bomba: threading.Thread | None = None
+    # "" | "diff" | "sangria": dentro de un bloque de actividad envuelto (ver
+    # _RE_ABRE_DIFF); sus lineas sin marca son actividad, no chat
+    _bloque_actividad: str = ""
+    # agrupador de TokenTexto -> "delta" (ver AgrupadorDelta): se crea en el
+    # primer uso para que los tests construyan Sesion() sin mas ceremonia
+    _delta: AgrupadorDelta | None = None
 
     # ── persistencia ──
     @property
@@ -609,23 +1299,59 @@ class Sesion:
         d.mkdir(exist_ok=True)
         return d / f"{self.id}.jsonl"
 
-    def anotar(self, quien: str, texto: str, ag: dict | None = None) -> dict:
+    @property
+    def fichero_pid(self) -> Path:
+        """<RAIZ_DATOS>/<proyecto>/<sid>.pid: el PID del REPL hijo, para que un
+        servidor que reinicia pueda RECONCILIAR (matar) al huerfano. Se borra
+        cuando el hijo termina por las buenas."""
+        return ruta_pid(self.proyecto_id, self.id)
+
+    def anotar(self, quien: str, texto: str, ag: dict | None = None,
+               extra: dict | None = None) -> dict:
         """`ag` = agrupacion por agente (ver agente_de_evento). Va al jsonl,
         no solo al WS: un workflow terminado se REABRE desde la transcripcion
-        y el bloque por agente tiene que rearmarse igual que en vivo."""
+        y el bloque por agente tiene que rearmarse igual que en vivo.
+        `extra` = campos tipados del evento (nivel/fuentes de la confianza,
+        numeros del footer) que el movil pinta ademas del texto."""
         evento = {"t": time.strftime("%H:%M:%S"), "quien": quien,
                   "texto": texto}
         if ag:
             evento["ag"] = ag
+        if extra:
+            for k, v in extra.items():
+                evento.setdefault(k, v)
         with self.fichero.open("a", encoding="utf-8") as f:
             f.write(json.dumps(evento, ensure_ascii=False) + "\n")
+        self._emitir_suscriptores(evento)
+        return evento
+
+    def _emitir_suscriptores(self, evento: dict) -> None:
+        """Solo a las colas de los WS, SIN tocar el jsonl. Es el canal de los
+        "delta" del streaming: efimeros por diseno (la transcripcion guarda la
+        respuesta final, no sus trozos)."""
         with self.lock:
             for q in list(self.suscriptores):
                 try:
                     q.put_nowait(evento)
-                except Exception:
-                    pass
-        return evento
+                except Exception as e:
+                    # una cola rota no puede tumbar el bombeo de las demas;
+                    # pero tampoco se pierde en silencio: se saca del registro
+                    # y se deja constancia en stderr del servidor
+                    print(f"[remoto] suscriptor descartado ({type(e).__name__}: "
+                          f"{e})", file=sys.stderr, flush=True)
+                    try:
+                        self.suscriptores.remove(q)
+                    except ValueError:
+                        continue      # ya la quito el WS al desconectar
+
+    def _emitir_delta(self, trozo: str) -> None:
+        self._emitir_suscriptores({"t": time.strftime("%H:%M:%S"),
+                                   "quien": "delta", "texto": trozo})
+
+    def _agrupador(self) -> AgrupadorDelta:
+        if self._delta is None:
+            self._delta = AgrupadorDelta(self._emitir_delta)
+        return self._delta
 
     def transcripcion(self, limite: int = 400) -> list[dict]:
         try:
@@ -662,6 +1388,12 @@ class Sesion:
                    # llene el buffer: el chat parece congelado
                    PYTHONUNBUFFERED="1",
                    NO_COLOR="1", TERM="dumb",
+                   # ANCHO conocido: sin COLUMNS, rich sobre un pipe envuelve
+                   # a 80 y cada linea logica del renderer llega partida en
+                   # 2-3 fisicas que el clasificador no sabe volver a juntar
+                   # (avisos al chat, respuesta final tragada como "cola" —
+                   # e2e 2026-08-25). Ver ANCHO_COLUMNAS_REMOTO.
+                   COLUMNS=str(ANCHO_COLUMNAS_REMOTO),
                    # "corres dentro del control remoto": el CLI deja de
                    # enmarcar la RESPUESTA FINAL del agente en un panel rich.
                    # El marco la mandaba a Actividad (plegada) y parecia que
@@ -706,16 +1438,70 @@ class Sesion:
         self._con_eventos = False
         self._en_traza = False
         self._cola_eco = 0
+        self._eco_resto = ""
+        self._ecos_pendientes.clear()
+        self._bloque_actividad = ""
         env = self._entorno()
         self.proc = subprocess.Popen(
             _python_cognia(), cwd=self.ruta_proyecto,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-            errors="replace", bufsize=1, env=env)
+            errors="replace", bufsize=1, env=env,
+            # grupo de proceso PROPIO: es lo que permite interrumpir una
+            # generacion desde el movil (interrumpir()) sin tocar al servidor
+            # ni a las otras sesiones — ver _flags_grupo_propio
+            **_flags_grupo_propio())
+        try:
+            self.fichero_pid.write_text(str(self.proc.pid), encoding="utf-8")
+        except OSError as e:
+            # sin .pid la sesion funciona igual; solo pierde la reconciliacion
+            # al reiniciar el servidor. Se dice, no se calla.
+            self.anotar("sistema", f"no pude persistir el PID del REPL: {e}")
         self._bomba = threading.Thread(target=self._bombear, daemon=True,
                                        name=f"remoto-{self.id}")
         self._bomba.start()
         self.anotar("sistema", f"sesion arrancada en {self.ruta_proyecto}")
+
+    def interrumpir(self) -> dict:
+        """Cortar la generacion en curso SIN matar el REPL: {"ok", "motivo"}.
+
+        Mecanismo (contrato A, 2026-08-24): el hijo nacio en su propio grupo
+        y recibe CTRL_BREAK_EVENT (Windows) / SIGINT (POSIX). El REPL, bajo
+        COGNIA_REMOTO, instala un handler de SIGBREAK que lanza
+        KeyboardInterrupt en el hilo principal y cae en los `except
+        KeyboardInterrupt` del fast-path y del agente. MEDIDO 2026-08-24 con
+        un hijo python real: la senal llega en <10 ms; el KeyboardInterrupt
+        se dispara en el siguiente limite de bytecode, asi que corta un
+        stream (un token cada pocos ms) pero NO despierta un sleep() ni un
+        socket bloqueado sin datos — ahi espera al primer byte.
+        SIN handler en el hijo, CTRL_BREAK lo MATA (default de Windows): por
+        eso el REPL de Cognia lo instala y un `python -c` cualquiera no
+        sobreviviria."""
+        if not self.viva():
+            return {"ok": False, "motivo": "la sesion no esta viva"}
+        if self._arrancando:
+            # antes de que cli.py instale el handler, CTRL_BREAK lo MATA
+            # (medido en el test del endpoint: el REPL moria y enviar() lo
+            # re-arrancaba en silencio). El handler se instala antes del
+            # banner; el gate cierra con el banner: "arrancando" = sin handler.
+            return {"ok": False, "motivo": "el REPL todavia esta arrancando; "
+                                           "no hay nada que interrumpir"}
+        try:
+            self.proc.send_signal(_SENAL_INTERRUPCION)   # type: ignore[union-attr]
+        except Exception as e:
+            motivo = f"no pude enviar la senal: {type(e).__name__}: {e}"
+            self.anotar("sistema", f"interrupcion fallida — {motivo}")
+            return {"ok": False, "motivo": motivo}
+        # El motivo dice el LIMITE, no solo el hecho: el handler del REPL
+        # corre en el siguiente bytecode, asi que una llamada C bloqueada
+        # (socket sin datos en el prefill del 27B, join) la retrasa hasta que
+        # vuelve — medido 2026-08-25: senal a +0,5 s, KeyboardInterrupt a
+        # +10 s (join) y a +128 s (urlopen del router). El movil muestra este
+        # texto para que "Detener" no parezca muerto. La cancelacion
+        # cooperativa (que el cliente HTTP consulte una bandera) es del REPL,
+        # no de aqui.
+        self.anotar("sistema", "interrupcion enviada al REPL desde el remoto")
+        return {"ok": True, "motivo": MOTIVO_INTERRUPCION_ENVIADA}
 
     def _procesar_linea(self, linea: str) -> None:
         """Clasifica UNA linea ya limpia y la anota. Primero los eventos
@@ -739,14 +1525,43 @@ class Sesion:
                     d, resto_prosa = d2, linea[:idx].rstrip()
         if d is not None:
             self._con_eventos = True
+            self._bloque_actividad = ""     # un evento cierra todo bloque
+            # ...y toda COLA de eco. El renderer imprime una linea logica
+            # envuelta de una vez (un console.print bajo su lock), asi que
+            # una linea-evento entre medias significa que la cola termino.
+            # Sin esto, un "  · filtrando <url>" de 64 chars dejaba
+            # _cola_eco=4 armada por encima de los TokenTexto y la RESPUESTA
+            # FINAL ("89.8 mil suscriptores [4].") se tragaba como cola: ni
+            # chat ni jsonl (e2e 2026-08-25, sesion 20260825-100400).
+            self._cola_eco = 0
+            self._eco_resto = ""
+            if d.get("tipo") == "FooterTurno":
+                # fin del turno: un eco que el renderer no pinto (bajo remoto
+                # la linea de Confianza no se pinta; los Avisos repetidos los
+                # de-duplica el renderer) ya no va a llegar. Se vacia para
+                # que no case por prefijo prosa de otro turno.
+                self._ecos_pendientes.clear()
+            if d.get("tipo") == "TokenTexto":
+                # streaming al movil: se agrupa y va SOLO a los suscriptores
+                # (contrato C). No se anota: la respuesta final llega entera.
+                if resto_prosa.strip():
+                    self._procesar_linea(resto_prosa)
+                self._agrupador().token(str(d.get("texto") or ""))
+                return
+            # cualquier otro evento cierra el trozo pendiente: el orden que
+            # ve el movil es el de stdout
+            self._agrupador().vaciar()
             quien, texto, ecos = interpretar_evento(d)
             for eco in ecos:
                 self._ecos_pendientes.append(eco)
             if quien is not None and texto:
-                self.anotar(quien, texto, agente_de_evento(d))
+                self.anotar(quien, texto, agente_de_evento(d),
+                            extra_de_evento(d))
             if resto_prosa.strip():
                 self._procesar_linea(resto_prosa)
             return
+        # prosa: lo que hubiera en el agrupador va ANTES que ella
+        self._agrupador().vaciar()
         # 2) banner/panel de arranque: se descarta de la transcripcion pero se
         # GUARDA — si el REPL muere aqui, el buffer es el traceback perdido.
         # Fin del arranque: ver _FIN_ARRANQUE / _RE_FIN_BANNER, o el tope.
@@ -761,27 +1576,96 @@ class Sesion:
         # 3) con eventos activos, los adornos del renderer (⏺/·/✗/⚠, footer)
         # y los ecos ya anotados via evento son duplicados: se saltan
         if self._con_eventos:
+            # 3a) ecos de eventos ya anotados: la linea entera o, si rich la
+            # envolvio, trozo a trozo (exacto, ver _casar_eco). Va ANTES de
+            # la marca del renderer: el texto del evento es mas fiable que
+            # la forma de la linea, y un Aviso ("  ◐ confianza a priori…")
+            # no lleva marca ninguna.
+            if self._casar_eco(linea.strip()):
+                self._cola_eco = 0
+                self._bloque_actividad = ""
+                return
             if es_eco_renderer(linea):
                 # un eco que llena el ancho viene ENVUELTO: lo que sigue es su
                 # cola sin marca (ver _ANCHO_ECO)
                 self._cola_eco = (_MAX_COLA_ECO
                                   if len(linea.rstrip()) >= _ANCHO_ECO else 0)
+                self._bloque_actividad = ""
                 return
             if self._cola_eco and not _RE_NO_ES_COLA.match(linea):
                 self._cola_eco = (self._cola_eco - 1
                                   if len(linea.rstrip()) >= _ANCHO_ECO else 0)
                 return
             self._cola_eco = 0
-            t = linea.strip()
-            if t and t in self._ecos_pendientes:
-                self._ecos_pendientes.remove(t)
-                return
         # 4) fallback: la prosa del CLI (respuesta final incluida), por regex
         quien, self._en_traza = reclasificar("cognia", linea, self._en_traza)
+        quien = self._seguir_bloque_actividad(quien, linea)
         self.anotar(quien, linea)
+
+    def _casar_eco(self, t: str) -> bool:
+        """¿Es `t` (linea fisica sin espacios a los lados) un eco pendiente
+        entero, o un TROZO de uno que rich envolvio? Consume lo casado.
+
+        Antes solo casaba la linea entera (`t in _ecos_pendientes`): el
+        renderer pinta el Aviso como "  {texto}" y con el pipe a 80 columnas
+        el aviso a priori de confianza salia en dos lineas fisicas que no
+        casaban con nada y entraban al chat como burbujas cognia (e2e
+        2026-08-25). Aqui la primera linea fisica casa por PREFIJO cortado
+        como corta rich (_corte_de_envoltorio) y el resto queda en
+        _eco_resto, contra el que se casan las siguientes — exacto, sin
+        adivinar por longitud. Si una linea no sigue el resto, el resto se
+        suelta: lo que venga es otra cosa y se clasifica normal."""
+        if self._eco_resto:
+            resto = self._eco_resto
+            if _corte_de_envoltorio(resto, t):
+                self._eco_resto = resto[len(t):].lstrip()
+                return True
+            self._eco_resto = ""
+        if not t:
+            return False
+        for eco in self._ecos_pendientes:
+            if eco == t:
+                self._ecos_pendientes.remove(eco)
+                return True
+            if _corte_de_envoltorio(eco, t):
+                self._ecos_pendientes.remove(eco)
+                self._eco_resto = eco[len(t):].lstrip()
+                return True
+        return False
+
+    def _seguir_bloque_actividad(self, quien: str, linea: str) -> str:
+        """Estado de los bloques envueltos (ver _RE_ABRE_DIFF): devuelve el
+        quien definitivo de esta linea y deja el bloque abierto o cerrado."""
+        t = linea.rstrip()
+        if quien == "actividad":
+            if _RE_ABRE_DIFF.match(t):
+                self._bloque_actividad = "diff"
+            elif t.lstrip()[:1] == "∴":
+                self._bloque_actividad = "sangria"
+            else:
+                self._bloque_actividad = ""
+            return quien
+        if quien != "cognia" or not t.strip():
+            self._bloque_actividad = ""       # log, sistema, traza: cortan
+            return quien
+        if self._bloque_actividad == "diff":
+            return "actividad"
+        if self._bloque_actividad == "sangria" and _RE_SANGRADA.match(t):
+            return "actividad"
+        self._bloque_actividad = ""
+        return quien
 
     def _bombear(self) -> None:
         """Hilo lector: stdout del REPL -> transcripcion + suscriptores."""
+        # El lector NO puede morir mientras el REPL viva: si deja de leer,
+        # el REPL se bloquea en cuanto llena el pipe (unos 64 KB) y el movil
+        # ve "pensando…" para siempre. Antes un `except Exception: pass`
+        # envolvia el bucle entero: un reventon del clasificador en UNA linea
+        # mataba el hilo en silencio (hallazgo 2026-08-25, regla del repo:
+        # prohibido el except mudo). Ahora el fallo es POR LINEA: se deja
+        # constancia (stderr con traceback; las 3 primeras tambien al chat
+        # como "sistema"), la linea va cruda al Registro y se sigue leyendo.
+        fallos = 0
         try:
             for linea in self.proc.stdout:      # type: ignore[union-attr]
                 linea = _limpiar(linea.rstrip("\n"))
@@ -789,10 +1673,38 @@ class Sesion:
                     continue
                 if any(linea.startswith(r) for r in _RUIDO):
                     continue
-                self._procesar_linea(linea)
-        except Exception:
-            pass
+                try:
+                    self._procesar_linea(linea)
+                except Exception as e:
+                    fallos += 1
+                    import traceback
+                    print(f"[remoto] {self.proyecto_id}/{self.id}: el "
+                          f"clasificador fallo en la linea {linea[:120]!r}",
+                          file=sys.stderr, flush=True)
+                    traceback.print_exc()
+                    try:
+                        if fallos <= 3:
+                            self.anotar("sistema",
+                                        f"el clasificador del remoto fallo "
+                                        f"({type(e).__name__}: {e}); la linea "
+                                        f"va cruda al Registro")
+                        self.anotar("log", linea)
+                    except Exception as e2:
+                        # ni anotar funciona (disco lleno, jsonl bloqueado):
+                        # se sigue LEYENDO igual, que es lo que mantiene vivo
+                        # al REPL; el motivo queda en stderr del servidor
+                        print(f"[remoto] {self.proyecto_id}/{self.id}: "
+                              f"tampoco pude anotar el fallo: "
+                              f"{type(e2).__name__}: {e2}",
+                              file=sys.stderr, flush=True)
+        except Exception as e:
+            # el propio pipe fallo (cerrado bajo los pies, decode roto):
+            # ya no hay nada que leer, pero no en silencio
+            print(f"[remoto] {self.proyecto_id}/{self.id}: lector del REPL "
+                  f"interrumpido: {type(e).__name__}: {e}",
+                  file=sys.stderr, flush=True)
         finally:
+            self._agrupador().vaciar()
             # exit code REAL del REPL: distingue "/salir" (0) de un reventon
             rc = None
             try:
@@ -800,6 +1712,13 @@ class Sesion:
                     rc = self.proc.wait(timeout=5)
             except Exception:
                 pass
+            # el hijo termino: su .pid ya no describe a nadie (y un PID
+            # reciclado por Windows no debe matarse en la reconciliacion)
+            try:
+                self.fichero_pid.unlink(missing_ok=True)
+            except OSError as e:
+                print(f"[remoto] no pude borrar {self.fichero_pid}: {e}",
+                      file=sys.stderr, flush=True)
             if rc not in (0, None) and self._arrancando and self._buffer_arranque:
                 # murio ANTES de terminar el arranque: el traceback esta en el
                 # buffer descartado. Antes se perdia entero y el movil veia
@@ -822,9 +1741,15 @@ class Sesion:
             self.arrancar()
             # darle un momento al arranque antes del primer mensaje
             time.sleep(1.0)
+        # la transcripcion guarda el texto TAL CUAL lo escribio (con sus
+        # saltos); lo que va al REPL es UNA entrada (ver lineas_continuacion)
         self.anotar("usuario", texto)
+        # una barra final la cierra cerrar_barra_final (antes solo se
+        # avisaba y el siguiente mensaje se pegaba a este)
+        entradas = entradas_para_repl(texto)
         try:
-            self.proc.stdin.write(texto + "\n")   # type: ignore[union-attr]
+            for linea in entradas:
+                self.proc.stdin.write(linea + "\n")   # type: ignore[union-attr]
             self.proc.stdin.flush()               # type: ignore[union-attr]
         except Exception as e:
             self.anotar("sistema", f"no pude enviar: {e}")
@@ -876,9 +1801,25 @@ class GestorSesiones:
                 })
         return salida
 
+    def _sid_libre(self, proyecto_id: str, base: str) -> str:
+        """`base`, o `base-2`, `base-3`... si ya existe (en memoria o como
+        jsonl en disco). Dos POST en el mismo segundo compartian sid y la
+        segunda sesion ESCRIBIA en la transcripcion de la primera."""
+        d = RAIZ_DATOS / proyecto_id
+        sid, n = base, 1
+        while sid in self._sesiones or (d / f"{sid}.jsonl").exists():
+            n += 1
+            sid = f"{base}-{n}"
+        return sid
+
     def crear(self, proyecto: dict, titulo: str = "",
               acceso: str = "total") -> Sesion:
-        sid = time.strftime("%Y%m%d-%H%M%S")
+        with self._lock:
+            sid = self._sid_libre(proyecto["id"],
+                                  time.strftime("%Y%m%d-%H%M%S"))
+            # reservar el nombre antes de soltar el lock (la Sesion se
+            # sustituye abajo por la definitiva)
+            self._sesiones[sid] = None   # type: ignore[assignment]
         # solo dos niveles hoy; cualquier valor raro cae al historico ("total")
         # — el movil existente no manda el campo y no debe cambiar de conducta
         if acceso not in ("total", "restringido"):
@@ -921,6 +1862,22 @@ class GestorSesiones:
         except Exception:
             return "total"
 
+    def despertar_suscriptores(self, evento: dict) -> int:
+        """Encola `evento` en TODAS las colas de WS de todas las sesiones,
+        sin tocar ningun jsonl. Lo usa el apagado del servidor: un WS
+        esperando eventos no se entera de que el servidor se va hasta que le
+        llega algo, y un movil conectado retenia la salida 29 s (medido
+        2026-08-25: uvicorn cancela a los 5 s, pero el hilo del pool seguia
+        en q.get hasta su timeout de 30). Devuelve cuantas colas desperto."""
+        with self._lock:
+            sesiones = list(self._sesiones.values())
+        n = 0
+        for s in sesiones:
+            with s.lock:
+                n += len(s.suscriptores)
+            s._emitir_suscriptores(evento)
+        return n
+
     def parar_sesion(self, sid: str) -> bool:
         """Parar el REPL SIN tocar su transcripcion. True si estaba vivo."""
         with self._lock:
@@ -934,7 +1891,7 @@ class GestorSesiones:
         """Parar todos los REPLs vivos de un proyecto (baja sin huerfanos)."""
         with self._lock:
             propias = [s for s in self._sesiones.values()
-                       if s.proyecto_id == proyecto_id]
+                       if s is not None and s.proyecto_id == proyecto_id]
         n = 0
         for s in propias:
             if s.viva():
@@ -959,4 +1916,12 @@ class GestorSesiones:
         with self._lock:
             return [{"sesion": s.id, "proyecto": s.proyecto_id,
                      "ruta": s.ruta_proyecto, "pid": s.proc.pid}
-                    for s in self._sesiones.values() if s.viva()]
+                    for s in self._sesiones.values()
+                    if s is not None and s.viva()]
+
+    def interrumpir(self, sid: str) -> dict:
+        with self._lock:
+            s = self._sesiones.get(sid)
+        if s is None:
+            return {"ok": False, "motivo": "sesion desconocida o no arrancada"}
+        return s.interrumpir()

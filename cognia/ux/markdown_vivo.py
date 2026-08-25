@@ -150,6 +150,15 @@ def config() -> tuple:
     env_tema = (os.environ.get("COGNIA_CODE_THEME") or "").strip()
     if env_tema:
         tema = env_tema
+    # Bajo COGNIA_REMOTO el markdown vivo queda APAGADO aunque la config o
+    # COGNIA_MARKDOWN=1 lo pidan, y se conserva en la paridad remota
+    # (2026-08-24) a proposito: el REPL hijo escribe a un pipe que lee
+    # remoto/sesiones.py linea a linea y la PWA del movil renderiza el
+    # markdown por su cuenta (marked/estilos propios) a partir del texto
+    # crudo. Pintarlo aqui con rich metería reglas, sangrias y colores de
+    # terminal en el stdout: el clasificador del movil los tomaria por chrome
+    # y el texto llegaria doblemente formateado. El tema si se devuelve: lo
+    # usa el resaltado de codigo del renderer local y no depende del canal.
     if (os.environ.get("COGNIA_REMOTO") or "").strip() == "1":
         return False, tema
     v = (os.environ.get("COGNIA_MARKDOWN") or "").strip().lower()

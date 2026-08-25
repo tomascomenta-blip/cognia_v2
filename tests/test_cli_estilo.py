@@ -568,7 +568,7 @@ def test_hot_reload_el_bucle_del_repl_aplica_tras_get_input_y_antes_de_despachar
     assert "recargar_si_cambio()" in pie
     assert "_aplicar_tema_en_caliente" not in pie and "aplicar_recarga" not in pie.replace(
         "_aplicar_recarga_estilo) con el prompt devuelto", "")
-    repl = inspect.getsource(cli.repl)
+    repl = inspect.getsource(cli._repl_sesion)   # el cuerpo; cli.repl es la puerta
     i = repl.index("raw = _strip_input_bom(_get_input())")
     j = repl.index("_aplicar_recarga_estilo()")
     assert i < j
