@@ -14190,3 +14190,13 @@ Limites declarados: la verificacion es LEXICA (cifras normalizadas + tokens dist
 respuesta que solo parafrasea la evidencia sin confesar puede verificarse por solape; el
 presupuesto abandona (no mata) el hilo de red; la calibracion ECE de los niveles en el chat no se
 ha medido todavia contra un banco (b6 existe para `cognia responder`).
+
+### 2026-08-25 00:20 — 4.11.0 publicada e instalada
+- Compuertas: 308 tests dirigidos, gate e2e 5/5 (3,8 min), venv LIMPIO sin ddgs/lxml/playwright (via web = lite,
+  4,63 mil en 3,6 s). Suite completa: la corrida en main con `-v` murio por INTERNALERROR al 58 % (un test
+  parchea `shutil.get_terminal_size` sin `fallback`, preexistente) con 7 fallos; la suite completa en el
+  commit BASE 2f113bc1 (sin mis cambios) da 36 failed / 10798 passed y contiene esos 7 -> preexistentes.
+- `twine upload` OK -> https://pypi.org/project/cognia-ai/4.11.0/ ; tag v4.11.0 pusheado; `pip install
+  --upgrade cognia-ai==4.11.0` en ~/.cognia/venv al primer intento; `pip check` limpio; `cognia --version` 4.11.0.
+- La prueba tecleada con el CLI instalado se quedo 5 min en "investigando…": el llama-server tiene UN slot y
+  estaba ocupado por tres workflows en paralelo (`GET /slots` -> is_processing). Se repite con el backend libre.
