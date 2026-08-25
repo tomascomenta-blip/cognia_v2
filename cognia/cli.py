@@ -19,7 +19,13 @@ import threading
 import time
 from pathlib import Path
 
-from .cognia import Cognia
+# La clase Cognia NO se importa aqui (2026-08-25): solo la instancia repl() y
+# su import cuesta 215 ms de los 331 de `import cognia.cli` (medido con
+# -X importtime). `cognia --help` y los subcomandos que importan cli.py sin
+# abrir el REPL (oficina, e2e, doctor) la pagaban sin usarla. Se importa dentro
+# de repl(); `from cognia.cli import Cognia` (oficina/__main__.py,
+# oficina/e2e_oficina.py, scripts/e2e_oficina_programada.py) sigue valiendo por
+# el __getattr__ de modulo del final del fichero (PEP 562).
 from .config import HAS_RESEARCH_ENGINE, HAS_PROGRAM_CREATOR
 from .ux import paleta   # unica fuente de verdad del color (datos planos)
 # UNA reja para los '/x estado' (2026-08-24): ver ux/estilo.estado_subsistema.
@@ -226,9 +232,14 @@ _BANNER_RAW = """
 ╚██████╗   ╚██████╔╝   ╚██████╔╝   ██║ ╚████║   ██║   ██║  ██║
  ╚═════╝    ╚═════╝     ╚═════╝    ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝
 
-  Sistema cognitivo local · memoria + grafo + agente
   /ayuda para todos los comandos
 """
+# 2026-08-25: el arte ya NO lleva la linea "Sistema cognitivo local · memoria +
+# grafo + agente": el lema sale UNA vez, en el borde inferior del marco
+# (banner.marco.texto.subtitulo, editable con /estilo), y salia dos veces en
+# cada arranque (linea 38 del cuerpo y linea 55 del borde, medido en la salida
+# real de `printf '/salir' | python -m cognia`: 59 lineas / 8.844 B). El gate
+# del remoto (remoto/sesiones._RE_FIN_BANNER) lee el borde, no el cuerpo.
 
 # ---------------------------------------------------------------------------
 # Themes
@@ -2853,9 +2864,9 @@ _CMD_DETAILS = {
         "Colores: #rrggbb, @rampa.<escalon>, @semantico.<k>, @token.<token>, @mi.<paleta local>, "
         "terminal, o {oscuro:..,claro:..,alto_contraste:..}. Fichero: ~/.cognia/estilo.json "
         "(override parcial, se recarga solo al editarlo; presets en ~/.cognia/estilos/). "
-        "Cada cambio se valida (ruidoso), se guarda con .bak y se aplica en caliente; los "
-        "elementos que su paso aun no engancha (glifos/textos de tools, markdown y diff: P6; "
-        "barrido del prompt: P9) se guardan y avisan. Banner (glow, barrido al arrancar, "
+        "Cada cambio se valida (ruidoso), se guarda con .bak y se aplica en caliente; las "
+        "propiedades que esta version aun no pinta (glifos/textos de tools, markdown y diff; "
+        "barrido de la barra de estado) se guardan y se avisan como 'sin efecto'. Banner (glow, barrido al arrancar, "
         "textos, alineacion), spinner (barrido en la linea de espera), prompt, barra y menus ya cambian en el prompt "
         "siguiente (prompt.etiqueta texto, prompt.marco posicion ambos|arriba|abajo|ninguno, "
         "prompt.etiqueta posicion linea|arriba, barra.estado posicion abajo|arriba, "
@@ -3873,8 +3884,14 @@ def _print_banner_completo(_b: dict | None = None):
         su ancho EXACTO y sin envolver: con ratio, rich la achicaba y partia
         el logo."""
         if cuerpo_arte is not None:
-            # el Text de siempre terminaba en '\n' (una linea por elemento de
-            # _BANNER_RAW.split); el join de BannerVivo no: se repone
+            # UN solo salto final (2026-08-25). Antes el Text clasico terminaba
+            # en '\n\n' (una linea por elemento de _BANNER_RAW.split, incluido
+            # el '' final) y al join de BannerVivo se le anadia otro '\n':
+            # rich pintaba DOS lineas vacias entre '/ayuda ...' y 'Para
+            # empezar' en el layout apilado (lineas 40-41 del arranque a 80
+            # columnas) y dos antes del borde inferior a 120. Se normaliza a
+            # exactamente un '\n' venga de donde venga: una linea de aire.
+            cuerpo_arte.rstrip()
             cuerpo_arte.append("\n")
         if _dos_columnas:
             cuerpo_arte.no_wrap = True
@@ -9991,29 +10008,32 @@ def _estilo_guardar_y_aplicar() -> bool:
     return True
 
 
-def _estilo_paso(id: str) -> str:
-    e = _aspecto.elemento(id)
-    return _aspecto.PASO_ENGANCHE.get(e.grupo, "P6")
+def _estilo_sin_efecto(props) -> str:
+    """'1 propiedad aun sin efecto en esta version (barra.modo.glow)' /
+    '3 propiedades aun sin efecto en esta version (a, b, c)'. Es el UNICO
+    texto que ve el dueno por lo que se guarda y todavia no se pinta: los
+    nombres de paso del plan (P6, P9...) son jerga del desarrollo y salian
+    en 'lista', 'ver', 'cargar' y en cada set (cazado 2026-08-24 tecleando
+    '/estilo cargar neon': "barra.modo.glow (P9)" no le dice nada a nadie)."""
+    props = sorted(set(props))
+    n = len(props)
+    return (f"{n} propiedad{'es' if n != 1 else ''} aun sin efecto en esta version "
+            f"({', '.join(props)})")
 
 
 def _estilo_aviso_enganche(id: str, props) -> str:
-    """E8: '' si el cambio ya se ve; si no, el aviso con el paso que lo
-    aplicara. Los ENGANCHADOS_P4 cambian color/negrita/italica por el Theme
-    de rich; texto, glifo, glow, animacion... esperan a su paso."""
+    """E8: '' si el cambio ya se ve; si no, el aviso de que se guardo y aun
+    no se pinta. Los ENGANCHADOS_P4 cambian color/negrita/italica por el
+    Theme de rich; texto, glifo, glow, animacion... esperan a su enganche."""
     e = _aspecto.elemento(id)
-    paso = _estilo_paso(id)
     if not e.enganchado:
-        return f"guardado; se aplica cuando su elemento este enganchado (paso {paso})"
-    # P5: aspecto.paso_pendiente sabe que le falta a cada elemento enganchado
-    # (animacion del prompt/barra -> P9; glifos y textos por token -> P6)
-    pendientes = [(p, _aspecto.paso_pendiente(id, p)) for p in props]
-    pendientes = [(p, s) for p, s in pendientes if s]
+        return (f"guardado; {_estilo_sin_efecto(f'{id}.{p}' for p in props)}: "
+                f"el elemento {id} aun no se pinta desde el estilo")
+    # aspecto.paso_pendiente sabe que le falta a cada elemento enganchado
+    # (la animacion de la barra, los glifos y textos por token)
+    pendientes = [p for p in props if _aspecto.paso_pendiente(id, p)]
     if pendientes:
-        if all(s == "P9" for _, s in pendientes):
-            return (f"guardado; {', '.join(p for p, _ in pendientes)} se aplica con la "
-                    f"animacion del prompt (paso P9); el resto ya cambia")
-        return (f"guardado; {', '.join(p for p, _ in pendientes)} se aplica cuando su "
-                f"elemento este enganchado (paso {pendientes[0][1]}); "
+        return (f"guardado; {_estilo_sin_efecto(f'{id}.{p}' for p in pendientes)}; "
                 f"color/negrita/italica ya cambian")
     return ""
 
@@ -10077,8 +10097,26 @@ def _estilo_lista(grupo: str = "") -> None:
         _print_line(f"[warn_cl]grupo desconocido '{_escape(grupo)}'; hay: "
                     f"{', '.join(g for g, _ in _aspecto.GRUPOS)}[/warn_cl]")
         return
-    _print_line("[mod]Elementos del aspecto[/mod] [info_dim](* animacion activa · "
-                "mod difiere del default · (Px) se aplica en ese paso)[/info_dim]")
+    # cabecera en dos lineas de menos de 80 celdas: la leyenda entera en una
+    # sola rebasaba las 80 columnas (99 celdas)
+    _print_line("[mod]Elementos del aspecto[/mod] [info_dim](/estilo ver <id> da las "
+                "propiedades)[/info_dim]")
+    _print_line("[info_dim]  * animacion activa · mod difiere del default · sin efecto: "
+                "aun no se pinta[/info_dim]")
+    # Cada fila cabe en la consola: antes llevaba TODAS las caps del elemento
+    # ("texto, color, fondo, negrita, italica, subrayado, glow, animacion,
+    # glifo, ...") y a 120 columnas rich partia la fila en dos, con la marca
+    # 'mod' huerfana en la segunda. El ancho es el MENOR entre el del marco
+    # (columns-1) y el que rich cree tener (en Windows resta 1 por su cuenta),
+    # menos 1: tecleado a 120 columnas, una fila de 119 celdas justas rich la
+    # partia en "posicion, " / "visib…" aunque en aislado no lo hiciera.
+    ancho = _ancho_marco()
+    if _HAS_RICH and _console:
+        try:
+            ancho = min(ancho, int(_console.width))
+        except Exception as exc:
+            _aviso_degradado("estilo", f"ancho de consola no legible ({exc}); uso {ancho}")
+    ancho -= 1
     for g, ids in grupos:
         _print_line(f"[mod]{g}[/mod]")
         for id in ids:
@@ -10091,10 +10129,28 @@ def _estilo_lista(grupo: str = "") -> None:
             if _aspecto.tiene_override(id):
                 marcas.append("mod")
             if not e.enganchado:
-                marcas.append(f"({_estilo_paso(id)})")
+                marcas.append("sin efecto")
+            m_txt = f" {' '.join(marcas)}" if marcas else ""
+            # el nombre largo (spinner.pensar trae un ejemplo entre parentesis
+            # de 56 celdas) se corta antes que dejar la fila fuera de la consola
+            nombre = e.nombre
+            cupo_nombre = ancho - 27 - len(m_txt)
+            if len(nombre) > cupo_nombre:
+                nombre = nombre[:max(0, cupo_nombre - 1)].rstrip() + "\u2026"
+            cabeza = f"  {id:<24} {nombre}"
+            cupo = ancho - len(cabeza) - len(m_txt) - 2
+            if cupo >= 8 and len(caps) > cupo:
+                # Se corta en el ULTIMO ', ' que cabe, no a mitad de palabra:
+                # a 80 columnas 'agentes.acento' salia 'color, f… sin efecto'
+                # (medido tecleando /estilo lista). Si ni la primera cap cabe,
+                # se corta por celdas como antes.
+                _sep = caps.rfind(", ", 0, cupo)
+                caps = (caps[:_sep] if _sep > 0 else caps[:cupo - 1].rstrip(", ")) + "…"
+            elif cupo < 8:
+                caps = ""
             m = f" [warn_cl]{' '.join(marcas)}[/warn_cl]" if marcas else ""
-            _print_line(f"  [ok_cl]{_escape(id):<24}[/ok_cl] {_escape(e.nombre)}"
-                        f"  [info_dim]{caps}[/info_dim]{m}")
+            _print_line(f"  [ok_cl]{_escape(id):<24}[/ok_cl] {_escape(nombre)}"
+                        f"{'  [info_dim]' + _escape(caps) + '[/info_dim]' if caps else ''}{m}")
 
 
 _ESTILO_CAMPO_DE_CAP = (("texto", "texto"), ("color", "color"), ("fondo", "fondo"),
@@ -10133,7 +10189,7 @@ def _estilo_ver(id: str = "") -> None:
         _aviso_degradado("estilo", f"{id}: no resuelve: {type(exc).__name__}: {exc}")
         return
     est = _aspecto.estilo_de(id)
-    enganche = "si" if e.enganchado else f"no (paso {_estilo_paso(id)})"
+    enganche = "si" if e.enganchado else "no (aun sin efecto en esta version)"
     _print_line(f"[mod]{_escape(id)}[/mod] {_escape(e.nombre)} [info_dim](grupo {e.grupo} · "
                 f"vivo {'si' if e.vivo else 'no'} · enganchado {enganche} · variante "
                 f"{r.variante})[/info_dim]")
@@ -10278,25 +10334,25 @@ def _estilo_cargar(arg: str) -> None:
     _estilo_avisos(_aspecto.ultimos_avisos())
     _aplicar_tema_en_caliente()
     cambiados = [i for i in _aspecto.REGISTRO if _aspecto.tiene_override(i)]
-    _print_line(f"[ok_cl]estilo: '{_escape(arg)}' cargado en "
-                f"{_escape(str(_aspecto.RUTA_ESTILO))} ({len(cambiados)} elementos "
+    # dos lineas: con la ruta de ~/.cognia/estilo.json en la misma, la de
+    # confirmacion pasaba de 120 celdas y rich la partia en "/estilo deshacer" / "vuelve)"
+    _print_line(f"[ok_cl]estilo: '{_escape(arg)}' cargado ({len(cambiados)} elementos "
                 f"difieren del default; /estilo deshacer vuelve)[/ok_cl]")
-    # Lo que el preset trae y todavia no se ve: por grupo si el elemento no
-    # esta enganchado; por propiedad (P5: la animacion del prompt -> P9) si
-    # el elemento ya lo esta y solo le falta esa.
+    _print_line(f"  [info_dim]guardado en {_escape(str(_aspecto.RUTA_ESTILO))}[/info_dim]")
+    # Lo que el preset trae y todavia no se ve: por elemento entero si no
+    # esta enganchado; por propiedad si el elemento ya lo esta y solo le
+    # falta esa. En castellano llano, sin los nombres de paso del plan.
     pendientes = set()
     for i in set(cambiados) | antes:
         e = _aspecto.elemento(i)
         if not e.enganchado:
-            pendientes.add(f"{e.grupo}.* ({_estilo_paso(i)})")
+            pendientes.add(f"{i}.*")
             continue
         for prop in _aspecto.cambios(i):
-            paso = _aspecto.paso_pendiente(i, prop)
-            if paso:
-                pendientes.add(f"{i}.{prop} ({paso})")
+            if _aspecto.paso_pendiente(i, prop):
+                pendientes.add(f"{i}.{prop}")
     if pendientes:
-        _print_line(f"[warn_cl]guardado; se aplica cuando su elemento este enganchado: "
-                    f"{', '.join(sorted(pendientes))}[/warn_cl]")
+        _print_line(f"[warn_cl]{_estilo_sin_efecto(pendientes)}[/warn_cl]")
 
 
 def _estilo_deshacer() -> None:
@@ -14283,7 +14339,10 @@ def repl():
     except Exception:
         pass
 
-    # Capture Cognia() init output for animated replay
+    # Capture Cognia() init output for animated replay.
+    # Import perezoso (2026-08-25): la clase se paga AQUI, cuando de verdad se
+    # va a instanciar, no al importar cli.py (ver la cabecera del modulo).
+    from .cognia import Cognia
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         ai = Cognia()
@@ -19275,3 +19334,19 @@ if __name__ == "__main__":
     except Exception:
         pass
     repl()
+
+
+# ---------------------------------------------------------------------------
+# Atributos perezosos del modulo (PEP 562, 2026-08-25)
+# ---------------------------------------------------------------------------
+# `from cognia.cli import Cognia` era un import de conveniencia que usaban
+# oficina/__main__.py, oficina/e2e_oficina.py y scripts/e2e_oficina_programada.py.
+# Al sacar `from .cognia import Cognia` de la cabecera (215 ms de los 331 del
+# import de cli.py) esos usos seguirian rompiendo con ImportError; este
+# __getattr__ los conserva y solo paga el import cuando alguien pide la clase.
+def __getattr__(nombre: str):
+    if nombre == "Cognia":
+        from .cognia import Cognia
+        globals()["Cognia"] = Cognia
+        return Cognia
+    raise AttributeError(f"module {__name__!r} has no attribute {nombre!r}")

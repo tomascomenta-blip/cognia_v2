@@ -24,6 +24,22 @@ MEDIDO 2026-08-24 (worktree estilos/spinner, Qwen3.8-27B en :8080, ConPTY
     off: 18 repintados, 0 cuadros de barrido, 1 color por cuadro
          (38;2;126;230;42 = el token pensar de la paleta), 11 cursor-up
 
+REVISION 2026-08-25: la puerta daba NO PASA (ventana de 81 bytes, 0 repintados)
+en el worktree Y en main. Dos causas, una por capa:
+  1. ~/.cognia_config.json del dueno con mejorar_prompt='preguntar': el Enter
+     de la pregunta abria el menu 'Enviar el prompt, o mejorarlo con IA?' y el
+     segundo <Enter> del gate lo cerraba con 'enviar'. Por eso la ventana
+     medida arrancaba en el segundo <Enter>. Ahora la puerta pone
+     mejorar_prompt='off' SOLO durante la corrida (guarda y restaura el
+     fichero) y la ventana arranca en la PREGUNTA: el spinner sale justo
+     despues de ella, haya o no menu.
+  2. El backend :8080 ocupado por OTRO proceso (slot is_processing=true con
+     12k tokens de prompt): el REPL se queda en enrutador.decidir ->
+     _inferir_para_agente -> urlopen SIN spinner (faulthandler a los 25 s),
+     asi que no hay nada que medir. Eso es del instrumento: la puerta ahora
+     lo comprueba antes y se declara NO CONCLUYENTE (exit 2) en vez de
+     NO PASA, porque un backend ocupado no dice nada del spinner.
+
 Mientras cli.py no cargue el fichero al arrancar (gancho de P4), el REPL se
 lanza por _lanzador(), que hace A.cargar() + A.conectar_glow() y luego
 runpy.run_module('cognia'). Con el gancho en cli.py el lanzador sobra (es
@@ -46,6 +62,13 @@ import time
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
 ESTILO = os.path.join(os.path.expanduser("~"), ".cognia", "estilo.json")
+# ~/.cognia_config.json del dueno: si tiene mejorar_prompt = 'preguntar' (el
+# default), al dar Enter sobre la pregunta sale el menu 'Enviar el prompt, o
+# mejorarlo con IA?' y se come el <Enter> del gate: la pregunta nunca llega al
+# modelo y no hay spinner que medir (medido 2026-08-25: ventana de 81 bytes,
+# 0 repintados, en el worktree Y en main). La puerta lo pone en 'off' SOLO
+# durante la corrida, guardando y restaurando el fichero igual que estilo.json.
+CONFIG = os.path.join(os.path.expanduser("~"), ".cognia_config.json")
 BAK = ESTILO + ".bak"
 GUARDA = os.path.join(RAIZ, ".spinner_gate_estilo_dueno")
 PREGUNTA = "en una frase: que es la fotosintesis? responde sin usar herramientas"
@@ -69,20 +92,35 @@ runpy.run_module("cognia", run_name="__main__", alter_sys=True)
 
 def guardar_dueno() -> None:
     os.makedirs(GUARDA, exist_ok=True)
-    for f in (ESTILO, BAK):
+    for f in (ESTILO, BAK, CONFIG):
         if os.path.exists(f):
             shutil.copy2(f, os.path.join(GUARDA, os.path.basename(f)))
 
 
 def restaurar_dueno() -> None:
-    for nombre in ("estilo.json", "estilo.json.bak"):
-        destino = os.path.join(os.path.dirname(ESTILO), nombre)
-        origen = os.path.join(GUARDA, nombre)
+    for destino in (ESTILO, BAK, CONFIG):
+        origen = os.path.join(GUARDA, os.path.basename(destino))
         if os.path.exists(origen):
             shutil.copy2(origen, destino)
         elif os.path.exists(destino):
             os.remove(destino)
     shutil.rmtree(GUARDA, ignore_errors=True)
+
+
+def apagar_mejorar_temporal() -> str:
+    """Escribe mejorar_prompt='off' en ~/.cognia_config.json (copia ya
+    guardada por guardar_dueno). Devuelve el estado que tenia el dueno, para
+    imprimirlo: si era 'preguntar', esa es la razon de que la puerta fallara
+    antes de este cambio."""
+    cfg = {}
+    if os.path.exists(CONFIG):
+        with open(CONFIG, encoding="utf-8") as f:
+            cfg = json.load(f)
+    antes = str(cfg.get("mejorar_prompt", "preguntar"))
+    cfg["mejorar_prompt"] = "off"
+    with open(CONFIG, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+    return antes
 
 
 def escribir_temporal() -> None:
@@ -135,7 +173,9 @@ def correr(brazo: str, salida_dir: str) -> dict:
         return False
 
     esperar_quieto(quieto=12.0, maximo=180.0)
-    for l in (PREGUNTA, ENTER, "/salir"):
+    # Sin el menu de /mejorar ya no hace falta un segundo <Enter>: la pregunta
+    # se envia con el suyo y el spinner aparece a continuacion.
+    for l in (PREGUNTA, "/salir"):
         et = "<Enter>" if l == ENTER else l
         print(f"[{brazo} {time.strftime('%H:%M:%S')}] tecleo: {et}", flush=True)
         buf.append(f"\n<<<TECLEADO {et}>>>\n")
@@ -157,9 +197,9 @@ def correr(brazo: str, salida_dir: str) -> dict:
 
 
 def medir(raw: str, brazo: str, ruta: str) -> dict:
-    i0 = raw.find("<<<TECLEADO <Enter>>>>")
-    if i0 < 0:
-        i0 = raw.find("<<<TECLEADO " + PREGUNTA)
+    # La ventana arranca en la PREGUNTA (antes: en un segundo <Enter> que solo
+    # existia para cerrar el menu de /mejorar; ver REVISION 2026-08-25 arriba).
+    i0 = raw.find("<<<TECLEADO " + PREGUNTA)
     i1 = raw.find("<<<TECLEADO /salir>>>")
     ventana = raw[max(i0, 0):i1 if i1 > 0 else None]
     trozos = re.split(r"\r|\x1b\[\d*A|\x1b\[2K|\x1b\[K", ventana)
@@ -181,19 +221,44 @@ def medir(raw: str, brazo: str, ruta: str) -> dict:
             "cursor_up": len(re.findall(r"\x1b\[\d*A", ventana)), "captura": ruta}
 
 
+def backend_ocupado() -> str:
+    """'' si :8080 responde y ningun slot esta procesando; si no, el motivo.
+    Un slot ajeno ocupado deja al REPL esperando en el enrutador sin spinner
+    (medido 2026-08-25): la puerta no puede medir nada y lo dice."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8080/slots", timeout=3) as r:
+            slots = json.loads(r.read().decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001 - el motivo va al veredicto
+        return f"/slots no responde ({type(exc).__name__}: {exc})"
+    ocupados = [s.get("id") for s in slots if s.get("is_processing")]
+    if ocupados:
+        return f"slot(s) {ocupados} is_processing=true (otro proceso usa el backend)"
+    return ""
+
+
 def main() -> int:
     brazos = [a for a in sys.argv[1:] if a in ("on", "off")] or ["on", "off"]
+    motivo = backend_ocupado()
+    if motivo:
+        print("PUERTA: NO CONCLUYENTE --", motivo)
+        print("        (apaga o libera el backend :8080 y vuelve a correr; un slot "
+              "ocupado bloquea al REPL en el enrutador SIN spinner)")
+        return 2
     salida_dir = os.environ.get("SPINNER_GATE_DIR") or os.path.join(RAIZ, "logs")
     os.makedirs(salida_dir, exist_ok=True)
     guardar_dueno()
     resultados = []
     try:
         escribir_temporal()
+        print("[gate] mejorar_prompt del dueno:", apagar_mejorar_temporal(),
+              "-> 'off' durante la corrida", flush=True)
         for b in brazos:
             resultados.append(correr(b, salida_dir))
     finally:
         restaurar_dueno()
-        print("[gate] estilo.json del dueno restaurado:", os.path.exists(ESTILO))
+        print("[gate] estilo.json y .cognia_config.json del dueno restaurados:",
+              os.path.exists(ESTILO), os.path.exists(CONFIG))
     ok = True
     for r in resultados:
         print(json.dumps(r, ensure_ascii=False))

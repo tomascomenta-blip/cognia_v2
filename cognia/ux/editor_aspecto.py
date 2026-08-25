@@ -82,6 +82,67 @@ GLIFOS_COGNIA = ("➤ ", "─", "═", "●", "⏺", "✗", "⚠", "→", "⎿",
 PESTANAS_COLOR = ("refs", "mi", "hex")
 _RE_HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 _VARIANTE_CORTA = {"oscuro": "oscuro", "claro": "claro", "alto_contraste": "ac"}
+
+# Atajos del modo normal en su orden de PINTADO y, en cada uno, el orden de
+# DESCARTE (mayor = se cae antes). Medido 2026-08-24: la barra entera son
+# 192 celdas; a 120 columnas se cortaba en "^L previ" y "? ayuda / Esc salir"
+# (las dos salidas del editor) no se veian. Mismo criterio que
+# harness/barra_estado.barra_atajos_partes: recortar por atajos enteros, de
+# menos a mas importante; "?" y "Esc" (prioridad 0) NUNCA se caen, porque
+# sin ellos el dueno no sabe ni como pedir ayuda ni como salir.
+_ATAJOS_NORMAL = (
+    ("Tab panel", 2), ("Enter editar", 1), ("Space alternar", 3), ("+/- ajustar", 6),
+    ("/ filtrar", 8), ("^Z/^Y deshacer/rehacer", 5), ("^S guardar", 1), ("^P preset", 7),
+    ("^L previsualizar", 9), ("^E exportar", 11), ("a anim", 10), ("v variante", 4),
+    ("r/R reset", 12), ("? ayuda", 0), ("Esc salir", 0),
+)
+_SEP_ATAJOS = "  "
+
+
+def _ancho_visual(texto: str) -> int:
+    """Celdas de una cadena: CJK 2, combinantes 0 (los glifos de esta barra
+    son ASCII y flechas de 1 celda; la funcion existe para no mentir si un
+    dia un texto del pie trae un glifo ancho)."""
+    import unicodedata
+    return sum(0 if unicodedata.combining(ch) else
+               (2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1) for ch in texto)
+
+
+def barra_atajos_normal(ancho: int = 0) -> str:
+    """La barra de atajos del modo normal que CABE en `ancho` celdas
+    (0 = entera). Se quitan atajos completos por prioridad hasta que entra;
+    '? ayuda' y 'Esc salir' se quedan siempre, aunque el ancho sea ridiculo."""
+    vivos = list(_ATAJOS_NORMAL)
+
+    def texto(lista):
+        return _SEP_ATAJOS.join(t for t, _ in lista)
+    if ancho <= 0:
+        return texto(vivos)
+    while _ancho_visual(texto(vivos)) > ancho:
+        candidatos = [i for i, (_, pr) in enumerate(vivos) if pr > 0]
+        if not candidatos:
+            break                      # solo quedan los fijos: se pintan enteros
+        peor = max(candidatos, key=lambda i: vivos[i][1])
+        del vivos[peor]
+    return texto(vivos)
+
+
+def _cortar(texto: str, ancho: int, elip: str = "\u2026") -> str:
+    """Recorta `texto` a `ancho` celdas marcando con la elipsis que FALTA
+    algo; si cabe, vuelve intacto (la elipsis solo cuando se corto)."""
+    if ancho <= 0 or _ancho_visual(texto) <= ancho:
+        return texto
+    if _ancho_visual(elip) >= ancho:
+        elip = ""
+    cupo = max(0, ancho - _ancho_visual(elip))
+    out, usado = [], 0
+    for ch in texto:
+        w = _ancho_visual(ch)
+        if usado + w > cupo:
+            break
+        out.append(ch)
+        usado += w
+    return "".join(out).rstrip() + elip
 # Datos de muestra FIJOS para que el frame de la vista previa sea determinista.
 MUESTRA_BARRA = ("qwythos-27b", "~/proy", "main", "ctx 12.4k/65.5k (80% libre)", "3.2k tok")
 MUESTRA_GATO = (
@@ -200,12 +261,20 @@ class EditorModelo:
     `poner_config(clave, valor)` escribe la config global (tecla 'a')."""
 
     def __init__(self, *, guardar=None, aplicar=None, poner_config=None, variante=None,
-                 ancho: int = 80, t_preview: float = 0.75, elemento_inicial: str | None = None):
+                 ancho: int = 80, t_preview: float = 0.75, elemento_inicial: str | None = None,
+                 ancho_flotante: int | None = None):
         A.conectar_glow()
         self._guardar_cb = guardar or A.guardar
         self._aplicar_cb = aplicar
         self._poner_config = poner_config
         self.ancho = int(ancho)
+        # Ancho INTERIOR del panel flotante (selector de color, glifos,
+        # presets). editor_app lo pone en Float(left=2, right=2) dentro de un
+        # Frame de 2 bordes sobre la terminal entera (= ancho + 2): quedan
+        # ancho - 4 celdas. Antes las filas del selector de color se componian
+        # a ciegas (nombre 24 + hex 8 + tres ratios ~ 60 celdas) y a 80
+        # columnas la cola con el veredicto de contraste se salia del panel.
+        self.ancho_flotante = int(ancho_flotante) if ancho_flotante else max(20, self.ancho - 4)
         self.t_preview = float(t_preview)
         self.variante_preview = variante or A.variante_activa()
         if self.variante_preview not in A.ORDEN_VARIANTES:
@@ -345,11 +414,22 @@ class EditorModelo:
             pass
         return paleta.FONDO_VARIANTE[variante]
 
-    def _ratios(self, valor) -> str:
-        """'7,9:1 oscuro  4,9:1 claro  9,1:1 ac  ok' para un color crudo."""
+    def _ratios(self, valor, ancho_max: int = 0) -> str:
+        """'7,9:1 oscuro  4,9:1 claro  9,1:1 ac  ok' para un color crudo.
+
+        Veredicto: '!' si alguna variante queda bajo el piso del elemento;
+        en un elemento GRAFICO (reglas, marco, arte del banner) que pasa el
+        piso 3,0 pero no el 4,5 de texto, 'decorativo (3,0)' en vez de 'ok':
+        el 'ok' a 3,0:1 hacia creer que el color valia para leer, y el gato
+        a 3,0:1 solo vale como adorno (WCAG 1.4.11 vs 1.4.3).
+
+        `ancho_max` > 0: se caen variantes hasta que cabe, y la que se queda
+        es la que EXPLICA el veredicto: la peor si hay '!' (ver "16,0:1  !"
+        sin la variante que suspende desconcierta), la previsualizada si no;
+        el veredicto no se cae nunca."""
         e = self.elemento
         piso = A.PISO_GRAFICO if e.grafico else A.PISO_TEXTO
-        partes, flojo = [], False
+        partes, flojo, peor, ratios = [], False, None, {}
         for v in A.ORDEN_VARIANTES:
             try:
                 hexa = A.hex_medible(valor, v)
@@ -359,10 +439,41 @@ class EditorModelo:
                 continue
             r = A.contraste(hexa, self._fondo_del_elemento(v))
             flojo = flojo or r < piso
-            partes.append(f"{_fmt_ratio(r)} {_VARIANTE_CORTA[v]}")
+            peor = r if peor is None else min(peor, r)
+            ratios[v] = r
+            partes.append((v, f"{_fmt_ratio(r)} {_VARIANTE_CORTA[v]}"))
         if not partes:
             return ""
-        return "  ".join(partes) + ("  !" if flojo else "  ok")
+        if flojo:
+            veredicto = "!"
+        elif e.grafico and peor < A.PISO_TEXTO:
+            veredicto = f"decorativo ({str(A.PISO_GRAFICO).replace('.', ',')})"
+        else:
+            veredicto = "ok"
+
+        def compuesto(lista):
+            return "  ".join(t for _, t in lista) + "  " + veredicto
+        # orden de descarte: primero las que no explican nada
+        clave = {v: r for v, r in ratios.items()}
+        if flojo:
+            def importancia(v):
+                return (clave[v] < piso, -clave[v])       # las flojas primero, la peor la ultima
+        else:
+            def importancia(v):
+                return (v == self.variante_preview, 0)
+        while ancho_max > 0 and len(partes) > 1 and _ancho_visual(compuesto(partes)) > ancho_max:
+            idx = min(range(len(partes)), key=lambda i: importancia(partes[i][0]))
+            del partes[idx]
+        if ancho_max > 0 and _ancho_visual(compuesto(partes)) > ancho_max:
+            # panel estrecho: el ratio de la variante que se ve, sin etiqueta;
+            # y si ni eso, el veredicto solo (con 'decorativo' sin su piso)
+            corto = veredicto.split(" ")[0]
+            for cand in (partes[0][1].split(" ")[0] + "  " + veredicto,
+                         partes[0][1].split(" ")[0] + "  " + corto, veredicto, corto):
+                if _ancho_visual(cand) <= ancho_max:
+                    return cand
+            return corto
+        return compuesto(partes)
 
     def _texto_valor(self, prop: Prop) -> str:
         e = self.elemento
@@ -545,21 +656,32 @@ class EditorModelo:
     def _filas_color(self) -> list:
         p = self.color.get("pestana")
         out = []
+        ancho = self.ancho_flotante
         if p == "hex":
             b = self.color.get("buffer", "")
             ok = bool(_RE_HEX.match(b))
-            out.append((f"{b}▏   {self._ratios(b) if ok else '(#rrggbb)'}", "class:flotante.buffer", True))
+            cabeza = f"{b}▏   "
+            cola = self._ratios(b, ancho - _ancho_visual(cabeza)) if ok else "(#rrggbb)"
+            out.append((_cortar(cabeza + cola, ancho), "class:flotante.buffer", True))
             return out
         cands = self._candidatos_color()
         if p == "mi" and len(cands) == 1:
-            out.append(("  (sin paleta local: clave 'paleta' en estilo.json)", "class:flotante", False))
+            out.append((_cortar("  (sin paleta local: clave 'paleta' en estilo.json)", ancho),
+                        "class:flotante", False))
+        # columna del nombre: la del candidato mas largo (tope 24); en un
+        # panel de 40 celdas las 3 de relleno decidian si entraba el veredicto
+        col = min(24, max((len(c) for c in cands), default=8))
         for i, c in enumerate(cands):
             sel = i == self.cursor_flotante
             try:
                 hexa = A.hex_medible(c, self.variante_preview) or ""
             except Exception:
                 hexa = "?"
-            out.append((f"{'> ' if sel else '  '}{c:<24} {hexa:<8} {self._ratios(c) if c != 'terminal' else ''}".rstrip(),
+            cabeza = f"{'> ' if sel else '  '}{c:<{col}} {hexa:<7} "
+            cola = self._ratios(c, ancho - _ancho_visual(cabeza)) if c != "terminal" else ""
+            # _cortar es la red por si el nombre de una @ref ya se come el
+            # panel entero: la fila jamas rebasa el borde del flotante
+            out.append((_cortar((cabeza + cola).rstrip(), ancho),
                         "class:flotante" + (".activo" if sel else ""), sel))
         return out
 
@@ -567,8 +689,8 @@ class EditorModelo:
         """Las teclas disponibles en el contexto actual + estado de guardado."""
         m = self.modo
         if m == "normal":
-            base = ("Tab panel  Enter editar  Space alternar  +/- ajustar  / filtrar  ^Z/^Y deshacer/rehacer  "
-                    "^S guardar  ^P preset  ^L previsualizar  ^E exportar  a anim  v variante  r/R reset  ? ayuda  Esc salir")
+            # recortada al ancho del editor: ver _ATAJOS_NORMAL
+            base = barra_atajos_normal(self.ancho)
         else:
             base = {
                 "color": "↑↓ mover  Tab pestana  t terminal  Enter fijar  Esc volver",

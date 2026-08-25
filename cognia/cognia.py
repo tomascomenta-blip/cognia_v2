@@ -87,12 +87,31 @@ try:
 except ImportError:
     HAS_NARRATIVE = False
 
-# ── Fase 3: CogniaMeshNode ────────────────────────────────────────────
-try:
-    from network.mesh_node import get_mesh_node, CogniaMeshNode
-    HAS_MESH = True
-except ImportError:
-    HAS_MESH = False
+# ── Fase 3: CogniaMeshNode (import PEREZOSO, 2026-08-25) ─────────────
+# network.mesh_node costaba 33,8 ms de cada `import cognia.cognia` (medido con
+# -X importtime) y solo lo usan __init__ (get_mesh_node) y los cuatro metodos
+# *_mesh*/mesh_status. Se importa al primer uso y el resultado (modulo o
+# ImportError) se recuerda: el comportamiento es el de antes -- si el paquete
+# no esta, los metodos devuelven el mismo "[WARN] ... no disponible." -- solo
+# cambia CUANDO se paga el import. `HAS_MESH`, `get_mesh_node` y
+# `CogniaMeshNode` siguen existiendo como atributos del modulo via
+# __getattr__ (al final del fichero) para quien los importaba de aqui.
+_MESH_MOD = None
+_MESH_ERROR: Optional[ImportError] = None
+
+
+def _mesh_node_modulo():
+    """network.mesh_node importado al primer uso; None si no esta instalado
+    (el ImportError queda en _MESH_ERROR para que el aviso sea visible)."""
+    global _MESH_MOD, _MESH_ERROR
+    if _MESH_MOD is None and _MESH_ERROR is None:
+        try:
+            import importlib
+            _MESH_MOD = importlib.import_module("network.mesh_node")
+        except ImportError as exc:
+            _MESH_ERROR = exc
+            logger.info("network.mesh_node no disponible: %s", exc)
+    return _MESH_MOD
 
 # ── Fase 4: Seguridad y cifrado ───────────────────────────────────────
 try:
@@ -103,12 +122,32 @@ except ImportError:
     HAS_SECURITY = False
     SecurityError = Exception
 
-try:
-    from prometheus_client import Counter as _PCounter
-    _SLEEP_CYCLES    = _PCounter("cognia_sleep_cycles_total",    "Sleep consolidation cycles completed")
-    _EPISODES_STORED = _PCounter("cognia_episodes_stored_total", "Episodic memory store() calls")
-except ImportError:
-    _SLEEP_CYCLES = _EPISODES_STORED = None
+# Contadores Prometheus PEREZOSOS (2026-08-25): `import prometheus_client`
+# cuesta 39 ms (28,5 de platform_collector) en cada arranque y aqui solo se
+# usan dos Counters, incrementados en store() y en el ciclo de sueno. Se crean
+# al primer inc(); si prometheus_client no esta, quedan en None (como antes) y
+# el inc() se salta. Unica diferencia observable: el Counter aparece en el
+# REGISTRY al primer uso y no al importar (no hay endpoint /metrics en el
+# repo, grep generate_latest/start_http_server = 0).
+_SLEEP_CYCLES = _EPISODES_STORED = None
+_PROM_INTENTADO = False
+
+
+def _contadores_prometheus():
+    """(sleep_cycles, episodes_stored): los Counters de prometheus_client
+    creados al primer uso, o None cada uno si no esta instalado o no se pudo
+    registrar. Un segundo registro (reload / doble copia del modulo) NO
+    revienta observe() ni _sleep_sync(): reutiliza el Counter ya registrado
+    (ver contador_prometheus_o_existente en reasoning/hypothesis.py)."""
+    global _SLEEP_CYCLES, _EPISODES_STORED, _PROM_INTENTADO
+    if not _PROM_INTENTADO:
+        _PROM_INTENTADO = True
+        from .reasoning.hypothesis import contador_prometheus_o_existente
+        _SLEEP_CYCLES    = contador_prometheus_o_existente(
+            "cognia_sleep_cycles_total",    "Sleep consolidation cycles completed")
+        _EPISODES_STORED = contador_prometheus_o_existente(
+            "cognia_episodes_stored_total", "Episodic memory store() calls")
+    return _SLEEP_CYCLES, _EPISODES_STORED
 
 _FEEDBACK_RATE_LIMIT = 10  # Phase 9 C6: max feedback calls per 60-second rolling window
 
@@ -360,16 +399,14 @@ class Cognia:
             self._consolidation_engine = None
 
         # ── Fase 3: MeshNode (red distribuida de conocimiento) ─────────
-        self._mesh_node: Optional[CogniaMeshNode] = None
-        if HAS_MESH:
-            try:
-                self._mesh_node = get_mesh_node()
-                logger.info("CogniaMeshNode Fase 3 activo (modo LOCAL_ONLY hasta start_mesh())")
-            except Exception as _mesh_exc:
-                logger.warning(
-                    "MeshNode no pudo inicializarse",
-                    extra={"op": "cognia.__init__", "context": f"err={_mesh_exc}"},
-                )
+        # El nodo se crea al PRIMER uso (propiedad _mesh_node, abajo), no
+        # aqui: importar network.mesh_node cuesta 33,8 ms (-X importtime) y
+        # hacerlo perezoso a nivel de modulo no ahorraba nada en el REPL
+        # porque este __init__ lo pedia igual en cada arranque (medido
+        # 2026-08-25: REPL 497-519 ms con el import aqui). Solo lo usan
+        # start_mesh / connect_mesh_peer / publish_knowledge / mesh_status.
+        self._mesh_node_creado = None   # CogniaMeshNode o None
+        self._mesh_intentado = False
 
         # ── Paso 4: SelfArchitect ──────────────────────────────────────
         if HAS_SELF_ARCHITECT:
@@ -821,8 +858,9 @@ class Cognia:
                 confidence=_store_confidence, importance=_store_importance, emotion=emotion, surprise=surprise,
                 context_tags=self.working_mem.get_context_labels()[-3:]
             )
-            if _EPISODES_STORED is not None:
-                _EPISODES_STORED.inc()
+            _episodes_stored = _contadores_prometheus()[1]
+            if _episodes_stored is not None:
+                _episodes_stored.inc()
 
             self._session_observations += 1
             # Auto-consolidate every 20 new observations to prevent episodic drift
@@ -1467,8 +1505,9 @@ class Cognia:
 
     def _sleep_sync(self) -> str:
         """Ciclo de sueño v3: consolidación + compresión + actualización del grafo."""
-        if _SLEEP_CYCLES is not None:
-            _SLEEP_CYCLES.inc()
+        _sleep_cycles = _contadores_prometheus()[0]
+        if _sleep_cycles is not None:
+            _sleep_cycles.inc()
         start = time.time()
 
         consolidation = self.consolidation.sleep_consolidation()
@@ -2409,21 +2448,43 @@ class Cognia:
             cognia.start_mesh()
             cognia.start_mesh(port=7475)
         """
-        if not HAS_MESH:
+        _mesh_mod = _mesh_node_modulo()
+        if _mesh_mod is None:
             return "[WARN] network/mesh_node.py no disponible."
         if self._mesh_node is None:
             return "[WARN] MeshNode no inicializado."
         try:
             self._mesh_node.port = port
             self._mesh_node.start()
-            from network.mesh_node import HAS_WEBSOCKETS
-            mode = "red activa" if HAS_WEBSOCKETS else "LOCAL_ONLY"
+            mode = "red activa" if _mesh_mod.HAS_WEBSOCKETS else "LOCAL_ONLY"
             return (
                 f"[OK] MeshNode iniciado (id={self._mesh_node.node_id} "
                 f"port={port} modo={mode})"
             )
         except Exception as exc:
             return f"[WARN] Error al iniciar MeshNode: {exc}"
+
+    @property
+    def _mesh_node(self):
+        """CogniaMeshNode (singleton de network.mesh_node) creado al primer
+        acceso; None si el modulo no esta o el nodo no pudo crearse (ambos
+        casos quedan en el log, como antes cuando se creaba en __init__).
+        Es propiedad y no atributo para que los cuatro metodos mesh sigan
+        leyendo `self._mesh_node` sin cambios (y el test que les pasa un
+        SimpleNamespace(_mesh_node=None) siga valiendo)."""
+        if not self._mesh_intentado:
+            self._mesh_intentado = True
+            _mesh_mod = _mesh_node_modulo()
+            if _mesh_mod is not None:
+                try:
+                    self._mesh_node_creado = _mesh_mod.get_mesh_node()
+                    logger.info("CogniaMeshNode Fase 3 activo (modo LOCAL_ONLY hasta start_mesh())")
+                except Exception as _mesh_exc:
+                    logger.warning(
+                        "MeshNode no pudo inicializarse",
+                        extra={"op": "cognia._mesh_node", "context": f"err={_mesh_exc}"},
+                    )
+        return self._mesh_node_creado
 
     def connect_mesh_peer(self, uri: str) -> str:
         """
@@ -2432,7 +2493,7 @@ class Cognia:
         Ejemplo:
             cognia.connect_mesh_peer("ws://192.168.1.10:7474")
         """
-        if not HAS_MESH or self._mesh_node is None:
+        if _mesh_node_modulo() is None or self._mesh_node is None:
             return "[WARN] MeshNode no disponible."
         self._mesh_node.connect_peer(uri)
         return f"[OK] Conectando a peer: {uri}"
@@ -2452,7 +2513,7 @@ class Cognia:
                 {"subject": "Python", "predicate": "es_un", "object": "lenguaje"}
             ])
         """
-        if not HAS_MESH or self._mesh_node is None:
+        if _mesh_node_modulo() is None or self._mesh_node is None:
             return "[WARN] MeshNode no disponible."
         if not triples:
             return "[WARN] Lista de triples vacia."
@@ -2461,12 +2522,12 @@ class Cognia:
 
     def mesh_status(self) -> str:
         """Muestra el estado del nodo MESH y estadísticas CRDT."""
-        if not HAS_MESH or self._mesh_node is None:
+        if _mesh_node_modulo() is None or self._mesh_node is None:
             return "[WARN] MeshNode no disponible."
         node  = self._mesh_node
         stats = node.crdt_stats()
         peers = node.get_peers()
-        from network.mesh_node import HAS_WEBSOCKETS
+        HAS_WEBSOCKETS = _mesh_node_modulo().HAS_WEBSOCKETS
         lines = [
             f"[NET] COGNIA MESH - nodo: {node.node_id}",
             f"   Estado:  {'activo' if node._running else 'detenido'}",
@@ -2605,3 +2666,21 @@ class Cognia:
             "   - Capa 3 (publico):      triples KG anonimizados (privacidad e=1.0)",
         ]
         return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Atributos perezosos del modulo (PEP 562, 2026-08-25)
+# ---------------------------------------------------------------------------
+# HAS_MESH / get_mesh_node / CogniaMeshNode eran nombres de modulo desde la
+# Fase 3; con network.mesh_node importado al primer uso se resuelven aqui, con
+# el mismo valor que antes (HAS_MESH True/False segun el import), y solo
+# pagando el import cuando alguien los pide.
+def __getattr__(nombre: str):
+    if nombre == "HAS_MESH":
+        return _mesh_node_modulo() is not None
+    if nombre in ("get_mesh_node", "CogniaMeshNode"):
+        mod = _mesh_node_modulo()
+        if mod is None:
+            raise AttributeError(f"{nombre}: network.mesh_node no disponible ({_MESH_ERROR})")
+        return getattr(mod, nombre)
+    raise AttributeError(f"module {__name__!r} has no attribute {nombre!r}")

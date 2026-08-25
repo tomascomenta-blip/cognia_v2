@@ -47,8 +47,10 @@ import unicodedata
 # Umbrales (justificados con la MEDIDA del banner real de cli.py)
 # ---------------------------------------------------------------------------
 # El banner real ocupa: gato Braille 25 filas + separador punteado 1 + logo en
-# bloques 6 + 2 lineas de texto = 34; mas el marco del Panel (2) y la linea de
-# modelo/modo/tema (1) = 37. Para que ademas se vean la guia "Para empezar"
+# bloques 6 + 1 linea de texto ('/ayuda ...'; el lema va UNA vez, en el borde
+# inferior del marco, desde 2026-08-25) = 33; mas el marco del Panel (2) y la
+# linea de modelo/modo/tema (1) = 36 (37 hasta 2026-08-25: los umbrales de
+# abajo se dejan como estaban, una fila de margen de mas no cambia la variante). Para que ademas se vean la guia "Para empezar"
 # (~10 filas en la columna derecha) y quede aire + prompt (3) hacen falta ~48
 # filas: por debajo de eso el prompt nace fuera de pantalla, que es
 # exactamente el fallo medido.
