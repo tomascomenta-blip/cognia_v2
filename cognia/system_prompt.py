@@ -312,17 +312,29 @@ def _perfil_auto() -> str:
 
 
 def build_system_prompt(rol: str = "cerebro", perfil: str | None = None,
-                        con_arbitro: bool = False) -> str:
+                        con_arbitro: bool = False,
+                        prompt_usuario_override: str | None = None) -> str:
     """El system prompt para este rol y perfil.
 
     rol:    "cerebro" (chat/decision) | "agente" (ejecucion con herramientas)
     perfil: "completo" | "compacto" | "minimo" (None = auto por modelo)
     con_arbitro: agrega el aviso de convivencia (cuando hay varios generadores)
+    prompt_usuario_override: identidad que SUSTITUYE al slot 1 (_IDENTIDAD)
+        y al prompt de usuario del dueno, conservando conducta y papel. Es el
+        ALMA de un bot (cognia/bots/registro.contexto): Hermes reemplaza con
+        SOUL.md solo el slot de identidad, no el system entero, y la revision
+        adversarial 2026-08-25 midio que con `system = alma` un bot con ALMA
+        perdia toda la base de conducta (690 chars contra 1458 sin ALMA). None
+        o "" = comportamiento de siempre, BYTE-IDENTICO (hay test).
     """
+    override = (prompt_usuario_override or "").strip()
     # Prompt de USUARIO (configurable): si existe, manda para el CEREBRO.
     # El AGENTE nunca lo ve (A/B 2026-07-23: texto extra en su prompt lo
     # degrada de 10/10 a 3/5); con_arbitro se respeta porque es operativo.
-    if rol != "agente":
+    # Con override NO se consulta: el ALMA del bot no puede mezclarse con
+    # el prompt personal del dueno (registro.entorno ademas pone
+    # COGNIA_PROMPT_USUARIO=0 durante el turno; esto lo garantiza sin env).
+    if rol != "agente" and not override:
         _pu = prompt_usuario()
         if _pu:
             if con_arbitro:
@@ -343,10 +355,11 @@ def build_system_prompt(rol: str = "cerebro", perfil: str | None = None,
             and not os.environ.get("COGNIA_SYSTEM_PROMPT_PERFIL"):
         perfil = "compacto"
 
+    identidad = override or _IDENTIDAD
     if perfil == "minimo":
-        return _IDENTIDAD
+        return identidad
 
-    partes = [_IDENTIDAD]
+    partes = [identidad]
     completo = perfil == "completo"
     partes.append(_CONDUCTA_COMPLETA if completo else _CONDUCTA_COMPACTA)
     if rol == "agente":

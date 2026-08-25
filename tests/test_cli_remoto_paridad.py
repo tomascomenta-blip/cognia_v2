@@ -276,7 +276,9 @@ def test_separador_fuera_del_remoto_es_espacio():
 
 def test_modo_input_pelado_usa_la_continuacion():
     fuente = (RAIZ / "cognia" / "cli.py").read_text(encoding="utf-8")
-    i = fuente.index('linea = input(_g() + "cognia> " + _R).strip() or _pre')
+    # Con modo-bots (fusion 2026-08-25) el rotulo lo pone _etiqueta_prompt():
+    # "cognia" o "<glifo> <bot>" con un canon abierto.
+    i = fuente.index('linea = input(_g() + _etiqueta_prompt() + "> " + _R).strip() or _pre')
     assert "_leer_con_continuacion(" in fuente[i:i + 900]
     assert "_EN_PROMPT[0] = True" in fuente[i - 400:i]
 

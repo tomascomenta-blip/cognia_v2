@@ -3907,3 +3907,137 @@ if _tx_encendido():
 def _skill_leer(args, ctx):
     from cognia.agent.skills import cuerpo_skill
     return cuerpo_skill((args or "").strip())
+
+
+# ── Mensajeria entre bots: mensaje_bot (Hermes Bot Mode, message_agent) ───
+# OPT-IN POR BOT ACTIVO, no por flag de entorno: la tool existe SOLO mientras
+# el proceso corre dentro del turno de un bot (COGNIA_BOT puesto por
+# cognia.bots.registro.contexto). Fuera de un bot no hay "yo" que firme el
+# mensaje ni roster contra el que validar el destino, asi que anunciarla
+# seria ofrecerle al modelo una accion que solo puede fallar (y el A/B del
+# repo ya midio que cada tool de mas en el catalogo cuesta camino feliz).
+# Hermes: message_agent(target, message) valida contra el roster, prefija
+# "Message from 🤖 x (@x):" y es fire-and-forget: el emisor termina su turno y
+# la respuesta llega despues por el inbox. Aqui todo eso lo hace
+# cognia.bots.mensajeria.enviar; esta tool solo traduce los args del modelo.
+# HOPS: son los saltos de la CONVERSACION (Hermes: 3 rondas). Si este turno
+# esta respondiendo a un envelope (procesar_inbox exporta sus hops por
+# ContextVar: cognia.bots.ejecutor.hops_en_curso), el mensaje sale con
+# hops+1, exactamente como el reenvio automatico de procesar_inbox; si el
+# turno lo pidio el usuario/una rutina, hops=0 (conversacion nueva).
+# FRENO POR VENTANA (adicional, no es hops): la tool cuenta cuantos mensajes
+# le mando YA este bot al mismo destino en los ultimos 10 min y se niega al
+# llegar al tope. Sin esto, dos bots que se contestan con la tool desde
+# turnos de usuario (hops 0 cada vez) no terminaban nunca. Antes la cuenta
+# se pasaba COMO hops y una tarea nueva del usuario chocaba con el tope
+# (revision adversarial 2026-08-25); ahora el motivo dice 'ventana'.
+_MENSAJE_BOT_VENTANA_S = 600
+
+
+def _mensajes_recientes_a(de: str, para: str, ventana_s: float) -> int:
+    """Cuantos envelopes de `de` hay en el inbox de `para` (entregados o no)
+    con menos de `ventana_s` segundos. Lectura directa del jsonl: es la misma
+    fuente que lee mensajeria.pendientes, sin la API de "pendientes" porque
+    aqui cuentan tambien los ya entregados."""
+    import json as _json
+    import time as _time
+    from cognia.bots import registro as _R
+    ruta = _R.ruta(para, "inbox.jsonl")
+    if not ruta.is_file():
+        return 0
+    n, ahora = 0, _time.time()
+    try:
+        for linea in ruta.read_text(encoding="utf-8").splitlines():
+            linea = linea.strip()
+            if not linea:
+                continue
+            try:
+                m = _json.loads(linea)
+            except ValueError:
+                continue            # una linea rota no invalida la cuenta
+            if m.get("de") != de:
+                continue
+            # "t" es ISO local sin zona ("%Y-%m-%dT%H:%M:%S", mensajeria.enviar);
+            # un envelope sin fecha legible cuenta como reciente: el freno
+            # prefiere frenar de mas a dejar pasar un ping-pong.
+            try:
+                t = _time.mktime(_time.strptime(str(m.get("t", "")), "%Y-%m-%dT%H:%M:%S"))
+            except ValueError:
+                t = ahora
+            if (ahora - t) <= ventana_s:
+                n += 1
+    except OSError as exc:
+        print(f"[cognia] mensaje_bot: no pude leer {ruta}: {exc}", file=sys.stderr)
+    return n
+
+
+def _mensaje_bot(args, ctx):
+    from cognia.bots import registro as _R, mensajeria as _M
+    yo = _R.bot_activo()
+    if yo is None:
+        return ("RESULTADO mensaje_bot ERROR: no hay bot activo (COGNIA_BOT); "
+                "esta tool solo existe dentro del turno de un bot")
+    parts = re.split(r"\s*\|\s*", args or "", maxsplit=1)
+    if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+        return ("RESULTADO mensaje_bot ERROR: formato 'destino | mensaje' "
+                "(ej: mensaje_bot editor | revisa esta frase: ...)")
+    destino_txt, mensaje = parts[0].strip().lstrip("@"), parts[1].strip()
+    destino = _R.resolver(destino_txt)
+    if destino is None:
+        return (f"RESULTADO mensaje_bot ERROR: destino desconocido '{destino_txt}'. "
+                f"Bots disponibles:\n{_R.roster_texto(excluir=yo.nombre)}")
+    tope = _M.MAX_HOPS
+    crudo = os.environ.get("COGNIA_BOTS_MAX_HOPS", "").strip()
+    if crudo.isdigit():
+        tope = int(crudo)
+    recientes = _mensajes_recientes_a(yo.nombre, destino.nombre, _MENSAJE_BOT_VENTANA_S)
+    if recientes >= tope:
+        return (f"RESULTADO mensaje_bot ERROR: freno por ventana: ya le mandaste "
+                f"{recientes} mensaje(s) a @{destino.nombre} en los ultimos "
+                f"{_MENSAJE_BOT_VENTANA_S // 60} min; cierra tu turno sin escribirle mas")
+    from cognia.bots import ejecutor as _E
+    en_curso = _E.hops_en_curso()
+    hops = (int(en_curso) + 1) if en_curso is not None else 0
+    r = _M.enviar(de=yo.nombre, para=destino.nombre, texto=mensaje, hops=hops,
+                  max_hops=tope)
+    if r.get("ok"):
+        extra = f" (aviso: {r['aviso']})" if r.get("aviso") else ""
+        return (f"RESULTADO mensaje_bot: enviado a @{destino.nombre} (id {r.get('id')}); "
+                f"seguira su curso, no esperes respuesta en este turno{extra}")
+    return f"RESULTADO mensaje_bot ERROR: {r.get('motivo')}"
+
+
+def sincronizar_mensaje_bot() -> bool:
+    """Registra `mensaje_bot` si hay bot activo (COGNIA_BOT) y la QUITA si no.
+    Idempotente y barata (un bot.json): cli._run_agent_task la llama al
+    arrancar cada corrida, porque el bot entra y sale del contexto en el
+    mismo proceso (REPL con /bots chat) y el registry tiene que seguirlo.
+    Devuelve si la tool quedo registrada. Si el paquete de bots no carga, lo
+    dice por stderr y deja el registry como estaba: capacidad desconectada
+    visible, no silenciosa."""
+    try:
+        from cognia.bots import registro as _R
+        activo = _R.bot_activo() is not None
+    except Exception as exc:
+        print(f"[cognia] bots: no pude resolver el bot activo ({exc}); "
+              f"mensaje_bot no se registra", file=sys.stderr)
+        return "mensaje_bot" in TOOLS
+    if activo and "mensaje_bot" not in TOOLS:
+        tool("mensaje_bot",
+             "mensaje_bot <bot> | <mensaje>            -- escribe a otro bot del roster (no esperes respuesta en este turno)",
+             desc=("Manda un mensaje a otro bot del roster. Es fire-and-forget: el "
+                   "destino lo lee en su propio turno y su respuesta llega despues, en "
+                   "un turno nuevo tuyo. Compone tu propio texto; nunca reenvies "
+                   "literal lo que dijo el usuario."),
+             params=[{"nombre": "destino", "tipo": "string", "requerido": True,
+                      "descripcion": "nombre del bot destino (con o sin @)"},
+                     {"nombre": "mensaje", "tipo": "string", "requerido": True,
+                      "descripcion": "el mensaje, compuesto por ti"}])(_mensaje_bot)
+    elif not activo and "mensaje_bot" in TOOLS:
+        TOOLS.pop("mensaje_bot", None)
+    return "mensaje_bot" in TOOLS
+
+
+# Al importar: un subprocess/daemon arrancado con COGNIA_BOT ya puesto tiene
+# la tool desde el primer turno; en el REPL la sincroniza _run_agent_task.
+sincronizar_mensaje_bot()

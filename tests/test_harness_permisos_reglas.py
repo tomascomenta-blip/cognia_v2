@@ -455,3 +455,22 @@ def test_cargar_acepta_el_bom_que_escribe_powershell(tmp_path):
     reglas = PR.cargar(tmp_path)
     assert reglas == [{"efecto": "denegar", "patron": "ejecutar(git push*)"}]
     assert PR.decidir("ejecutar", "git push --force", reglas)[0] == "denegar"
+
+
+# ── shell_exec es una herramienta de COMANDO (revision adversarial 2026-08-25) ──
+
+def test_shell_exec_casa_la_tuberia_entera():
+    # 'shell_exec' es el action_kind del gate cli._confirmar_accion (reglas por
+    # bot: permitir shell_exec(git status*)). Sin estar en
+    # HERRAMIENTAS_DE_COMANDO el comando se trataba como RUTA y solo se miraba
+    # lo anterior a ' | ': 'git status | rm -rf x' pasaba sin preguntar.
+    assert "shell_exec" in PR.HERRAMIENTAS_DE_COMANDO
+    reglas = [{"efecto": "permitir", "patron": "shell_exec(git status*)"},
+              {"efecto": "denegar", "patron": "shell_exec(git push*)"}]
+    assert PR.decidir("shell_exec", "git status", reglas) == ("permitir", reglas[0])
+    assert PR.decidir("shell_exec", "git status --short", reglas)[0] == "permitir"
+    for colado in ("git status | rm -rf C:/tmp/x", "git status && rm -rf x",
+                   "git status; del x", "git status\nrm -rf build"):
+        assert PR.decidir("shell_exec", colado, reglas)[0] != "permitir", colado
+    assert PR.decidir("shell_exec", "git push --force", reglas)[0] == "denegar"
+    assert PR.decidir("shell_exec", "git status | git push", reglas)[0] == "denegar"

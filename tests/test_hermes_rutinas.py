@@ -620,3 +620,30 @@ def test_un_json_corrupto_no_mata_el_motor():
     assert R.pendientes() == []
     R._fichero_ledger().write_text("basura\n", encoding="utf-8")
     assert R.ejecuciones() == []
+
+
+# ── revision adversarial 2026-08-25 ──────────────────────────────────────────
+
+def test_nombre_libre_es_max_mas_uno_no_len_mas_uno():
+    assert R.nombre_libre() == "rutina-1"
+    for i in (1, 2, 3):
+        R.crear("rutina-%d" % i, "cada 2h", "p%d" % i)
+    R.crear("vigia", "cada 2h", "libre")            # no mueve el contador
+    assert R.borrar("rutina-2")
+    assert len(R.listar()) == 3                     # len+1 daria 'rutina-3': existe
+    assert R.nombre_libre() == "rutina-4"
+    R.crear(R.nombre_libre(), "cada 2h", "cuatro")  # no lanza 'Ya existe'
+    assert R.nombre_libre("vigia") == "vigia-1"
+    assert R.nombre_libre() == "rutina-5"
+
+
+def test_llamar_agente_hereda_las_contextvars_del_tick():
+    import contextvars
+    quien = contextvars.ContextVar("quien_de_prueba", default=None)
+    token = quien.set("ana")
+    try:
+        ok, resp, err = R.llamar_agente(lambda p, r: "vi:%s" % quien.get(), "p",
+                                        {"nombre": "x"}, limite=30)
+    finally:
+        quien.reset(token)
+    assert (ok, resp, err) == (True, "vi:ana", None)

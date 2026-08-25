@@ -183,11 +183,19 @@ def _clave(nombre: str) -> str:
 # Orden = orden de aparicion en la portada y en /ayuda todo.
 # ---------------------------------------------------------------------------
 CATEGORIAS: dict[str, tuple[str, ...]] = {
+    # Fusion 2026-08-25 (remoto-paridad + modo-bots): /decirle y /cancelar
+    # (hablarle a / cortar un agente EN CURSO) y /bots (agentes con identidad
+    # propia) son de aca. Para que la categoria siguiera en 25 (llego a 27)
+    # salieron tres que no eran "tareas": /esfuerzo es el mando del
+    # RAZONAMIENTO (va con /pensar), /deshacer y /plan-modo son mandos del
+    # ARNES (deshacer lo escrito, modo de permiso "solo investigar": van con
+    # /modo-permiso). No se abrio categoria nueva: la portada cabe en 25
+    # lineas y una mas se comia la fila de esenciales (el guardian lo mide).
     "Agente y tareas": (
         "/hacer", "/agente*", "/rlm", "/largo", "/deliberar", "/flujo",
-        "/proyectos", "/lazo", "/esfuerzo", "/tareas",
+        "/proyectos", "/lazo", "/tareas",
         "/tarea-*", "/plan*", "/skill*", "/delegar",
-        "/deshacer", "/workflow",
+        "/workflow", "/decirle", "/cancelar", "/bots",
     ),
     # Los permisos salieron de "Agente y tareas" cuando el arnes sumo sus
     # comandos y esa categoria llego a 27 (tope 25). No es un apano por el
@@ -197,7 +205,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     # en "Sistema y diagnostico" y un patron en dos categorias las descuadra
     # (hay un guardian que lo comprueba).
     "Permisos del agente": (
-        "/permisos", "/modo-permiso",
+        "/permisos", "/modo-permiso", "/plan-modo",
     ),
     # Categoria propia (2026-08-18) y no un hueco en "Agente y tareas": los
     # tres contestan la MISMA pregunta -- que sabe hacer esta instalacion y que
@@ -230,7 +238,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         "/ver", "/vigilar", "/chimera", "/grabar", "/receta",
     ),
     "Pensar y razonar": (
-        "/pensar", "/razonar", "/hipotesis", "/experimento", "/evaluar-idea",
+        "/pensar", "/esfuerzo", "/razonar", "/hipotesis", "/experimento", "/evaluar-idea",
         "/analogia", "/abstraer", "/transferir", "/diversidad", "/explorar",
         "/explicar", "/debate", "/argumento", "/y-si", "/reflexion-profunda",
         "/cadena-causal", "/sintetizar", "/corregir", "/etiquetar",
@@ -297,9 +305,11 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     # "Perfil" (/expandir) o "Codigo y ficheros" (/markdown, /enlaces,
     # /config-resuelta), y /bucle dejaba "Agente y tareas" en 26 con el tope
     # en 25 (revision adversarial 2026-08-24).
+    # /deshacer (revertir lo que escribio el agente) y /remoto (la misma
+    # consola manejada desde el movil) entraron en la fusion 2026-08-25.
     "Consola y arnes": (
         "/markdown", "/spinner", "/expandir", "/offload", "/pegado",
-        "/enlaces", "/bucle", "/config-resuelta",
+        "/enlaces", "/bucle", "/config-resuelta", "/deshacer", "/remoto",
     ),
     "Sistema y diagnostico": (
         # /hermes y /rutinas viven aca (y no en una categoria propia) porque la

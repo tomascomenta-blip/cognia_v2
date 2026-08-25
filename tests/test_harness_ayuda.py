@@ -373,8 +373,12 @@ def test_los_mandos_del_arnes_tienen_categoria_propia(catalogo):
     en 'Modelos y flota', /expandir en 'Perfil' y /markdown, /enlaces y
     /config-resuelta en 'Codigo y ficheros'. Los ocho son mandos del ARNES de
     la consola y van juntos; y ninguno queda en el cajon de 'Otros'."""
+    # Fusion 2026-08-25: /deshacer (revertir lo que escribio el agente) y
+    # /remoto (la consola manejada desde el movil) tambien son mandos del
+    # arnes; salieron de "Agente y tareas" (27 > tope 25) y de "Web".
     esperados = ("/markdown", "/spinner", "/expandir", "/offload", "/pegado",
-                 "/enlaces", "/bucle", "/config-resuelta")
+                 "/enlaces", "/bucle", "/config-resuelta", "/deshacer",
+                 "/remoto")
     for cmd in esperados:
         assert cmd in catalogo, cmd
         assert ayuda.clasificar(cmd, catalogo[cmd]) == "Consola y arnes", cmd

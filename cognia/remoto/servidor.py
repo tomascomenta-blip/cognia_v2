@@ -1050,6 +1050,9 @@ def crear_app(host: str = HOST_DEFAULT, port: int = PUERTO_DEFAULT) -> FastAPI:
             stderr=open(log_ofi, "w", encoding="utf-8"))
         return {"ok": True, "puerto": _oficina3d["puerto"]}
 
+    # Modo BOTS (Hermes Bot Mode): /bots (pagina) + /api/bots/* (bajo el
+    # mismo middleware de token). Vive en bots_api.py para no tocar aqui.
+    from .bots_api import router as _router_bots; app.include_router(_router_bots)  # noqa: E702
     app.mount("/static", StaticFiles(directory=str(ESTATICOS)), name="static")
     return app
 
