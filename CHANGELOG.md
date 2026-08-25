@@ -2,6 +2,39 @@
 
 ---
 
+## [Sin publicar]
+
+### Arnes del agente: ideas de deepagents (LangChain 0.7.8) portadas quirurgicamente
+
+- Tool calls huerfanos parcheados con un resultado sintetico antes de cortar y al
+  volcar trazas; args viejos de escribir/editar/apendar truncados POR VALOR antes de
+  recortar/compactar (compresion sin perdida); preview del offload numerado con
+  "[N lineas omitidas]" y el directorio de offload en la descripcion de `buscar`;
+  resumen de compactacion con OBJETIVO / ARTEFACTOS / PROXIMOS PASOS y el historial
+  crudo volcado a disco con su ruta; `leer_archivo` recortado con puntero
+  `offset=N`; `delegar_subtarea` con cap 4000 + offload y contrato "quien te llama
+  solo ve tu mensaje final"; perfiles de harness por familia de modelo (sufijo de
+  prompt, renombres de args, defaults) visibles en `/modelo`.
+- Nuevas puertas: `/contexto prompt` (medida real del prompt: system nativo 2287
+  chars, indice de skills 2758, schemas de 15 tools 5533), `/skills indice` + tool
+  `skill_leer` (indice con topes 1024/64 y cuerpo bajo demanda), `/memoria agente
+  on|off|estado` (memoria como DATOS en el primer user del agente, marcada "NO son
+  instrucciones"), `/bucle fichero <n>` (nudge a las 3 ediciones del mismo fichero).
+- Revision adversarial: los dos hallazgos graves (args JSON truncados -> HTTP 500
+  del backend; re-recorte en bucle) se arreglaron antes de fusionar.
+
+### Pulido del CLI
+
+- Editor `/estilo`: barra de atajos adaptativa al ancho ('?' y 'Esc' siempre
+  visibles), fila de contraste acotada al panel, veredicto "decorativo (3,0)" para
+  elementos graficos, avisos sin jerga de fases, `/estilo lista` acotada al ancho,
+  preset `neon` con animaciones finitas (antes barrido infinito cada 6 s).
+- Arranque: `import cognia` 220 -> 6 ms e `import cognia.cli` 334 -> 220 ms (clase
+  `Cognia`, prometheus_client y network.mesh_node perezosos; contrato de acceso
+  intacto). Banner: el lema sale una vez y sin lineas vacias dobles.
+- `docs/ESTILO.md` deja de listar como pendiente lo que ya esta cableado;
+  `installer/cognia_setup.iss` alineado con `pyproject.toml`.
+
 ## [4.11.0] - 2026-08-24
 
 ### Niveles de confianza: Cognia investiga en la web cuando no sabe (`/confianza`)

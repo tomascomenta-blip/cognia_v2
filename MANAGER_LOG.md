@@ -14200,3 +14200,17 @@ ha medido todavia contra un banco (b6 existe para `cognia responder`).
   --upgrade cognia-ai==4.11.0` en ~/.cognia/venv al primer intento; `pip check` limpio; `cognia --version` 4.11.0.
 - La prueba tecleada con el CLI instalado se quedo 5 min en "investigando…": el llama-server tiene UN slot y
   estaba ocupado por tres workflows en paralelo (`GET /slots` -> is_processing). Se repite con el backend libre.
+
+### 2026-08-25 09:30 — prueba del CLI INSTALADO (4.11.0) con el backend libre
+La PC se apago a las 04:30 (programado) y el dueno extendio la jornada sin limite. Backend relevantado con
+`python -m cognia flota arrancar pensar-qwythos` (Qwythos-9B, :8080). Con `~/.cognia/venv` (sin ddgs/lxml/playwright):
+```
+cognia> cuantos suscriptores tiene The Acua Boy en YouTube?
+◐ confianza a priori BAJA: métrica de plataforma ('suscriptores'); plataforma (youtube); pide una cifra ('cuantos') → investigando en la web…
+  Si te referís al canal con el handle @theacuaboy170, The Acua Boy tiene 4.63 mil suscriptores en YouTube [1] ...
+◐ confianza MEDIA (0,80) · 1 fuente: youtube.com     ✓ 12.7s · ctx ~94% libre   (30 s de pared)
+cognia> /confianza  -> via web lite · ultimo turno [previa] via youtube+web · 4.5 s
+```
+Fusionado en main: rama deepagents-ideas (port de deepagents + pulido del CLI, 406 tests dirigidos, 26/26 goldens).
+Pendientes de fusion: remoto-paridad y modo-bots (arreglos de los revisores en curso; los agentes de arreglos de
+la noche murieron por el limite de sesion a las 02:10).
