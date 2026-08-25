@@ -76,6 +76,73 @@ def _archivos_de(task_id: str) -> list:
     return out
 
 
+# Lo que lee el modelo en el turno tool de un call que NUNCA se ejecuto.
+CONTENIDO_HUERFANO = "(cancelada: el bucle se corto antes de ejecutarla)"
+
+
+def parchear_huerfanos(mensajes: list) -> int:
+    """Inserta un turno tool sintetico por cada tool_call de un assistant
+    que no tiene su turno tool a continuacion (deepagents 0.7.8,
+    middleware/patch_tool_calls.py::PatchToolCallsMiddleware: "cancelled -
+    another message came in..."). Muta la lista EN SITIO y devuelve cuantos
+    inserto.
+
+    POR QUE: los dos `mensajes = None; break` de bucle_nativo (guardia de
+    bucle y estancamiento) cortan el for a mitad de las tool_calls del turno:
+    el assistant queda con N calls y k<N resultados. Esa lista es la que
+    volcar() escribe (mensajes_dump apunta a la misma) y la que un reintento
+    podria mandar al server: una traza con huerfanos entrena un formato que
+    el template del server rechaza ("tool_call sin tool result"). El parche
+    va aqui y no en chat_client porque el dato de que ES huerfano solo
+    existe mirando la lista entera.
+
+    Los resultados de un assistant NO son siempre contiguos: bucle_nativo
+    apende un `user` de nudge DENTRO del for de tool_calls, justo tras el
+    turno tool que lo disparo (loop.py: _aviso_guardia, _aviso_fichero de
+    P12, el AVISO de verdict=='warn'), asi que con N calls paralelas y un
+    nudge tras la primera, las N-1 restantes tienen su resultado real DESPUES
+    del user. Mirar solo el bloque contiguo insertaba un '(cancelada...)'
+    por cada una: tool_call_id duplicado y un resultado falso antes del
+    real, en TODA traza volcada (revision adversarial 2026-08-24). Por eso
+    se cuentan los tool hasta el siguiente assistant y los sinteticos van
+    tras el ULTIMO tool real de ese tramo (los ids son unicos por
+    corrida: un tool de otro tramo no puede casar)."""
+    insertados = 0
+    i = 0
+    while i < len(mensajes):
+        m = mensajes[i]
+        if not isinstance(m, dict) or m.get("role") != "assistant":
+            i += 1
+            continue
+        calls = [tc for tc in (m.get("tool_calls") or []) if isinstance(tc, dict)]
+        if not calls:
+            i += 1
+            continue
+        # Los turnos tool del tramo hasta el siguiente assistant (user de
+        # nudge intercalados incluidos); j = tras el ultimo tool real.
+        j = i + 1
+        vistos = set()
+        k = i + 1
+        while k < len(mensajes) and isinstance(mensajes[k], dict) \
+                and mensajes[k].get("role") != "assistant":
+            if mensajes[k].get("role") == "tool":
+                vistos.add(mensajes[k].get("tool_call_id"))
+                j = k + 1
+            k += 1
+        for tc in calls:
+            tid = tc.get("id")
+            if tid in vistos:
+                continue
+            nombre = str((tc.get("function") or {}).get("name") or "")
+            mensajes.insert(j, {"role": "tool", "tool_call_id": tid,
+                                "name": nombre,
+                                "content": CONTENIDO_HUERFANO})
+            j += 1
+            insertados += 1
+        i = j
+    return insertados
+
+
 def volcar(task_id: str, mensajes: list, schemas: list, sampling: dict,
            perfil: dict, resultado: dict) -> str:
     """Vuelca la conversacion a ``<dir_trazas>/<task_id>[-cNN].json``.
@@ -100,6 +167,10 @@ def volcar(task_id: str, mensajes: list, schemas: list, sampling: dict,
         return ""
     try:
         mensajes = list(mensajes or [])
+        # La traza no lleva tool_calls sin resultado (ver parchear_huerfanos):
+        # el bucle ya parchea antes de sus dos cortes, esto cubre a cualquier
+        # otro llamador (bancos, horizonte) que traiga una lista cortada.
+        parchear_huerfanos(mensajes)
         if not task_id:
             try:
                 from cognia.agent import bitacora as _bit

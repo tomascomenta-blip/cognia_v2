@@ -430,11 +430,17 @@ def _flag_activo(flag: str) -> bool:
 # _FACTOR_MAX_BYTES (offloading.py) y trae el trozo EXACTO que el modelo
 # pidio de un spill; el head+tail de aci_trim le comia el medio y la
 # recuperacion prometida por el offload no llegaba nunca.
+# `delegar_subtarea` y `skill_leer` (2026-08-24) se capan solas: la primera a
+# _MAX_RESULTADO_SUBAGENTE con preview+handle, la segunda promete el cuerpo
+# COMPLETO de una skill pedida por nombre; el head+tail de aci_trim (cap
+# 1800) les comia el medio del informe / los pasos del medio de la skill.
+# Las dos estan tambien en offloading.EXENTAS_OFFLOAD por la misma razon.
 ACI_EXENTAS = frozenset({"responder", "leer_archivo", "leer_lote", "ejecutar",
                          "tests",
                          "editar_archivo", "git_diff", "ver_salida",
                          "ctx_info", "ctx_ver", "ctx_grep", "ctx_partir",
-                         "rlm_llamar", "recuperar"})
+                         "rlm_llamar", "recuperar", "delegar_subtarea",
+                         "skill_leer"})
 
 
 # P0-1: TRES estados distintos, no dos. `_SIN_EXIT` = la tool ni siquiera paso
@@ -1522,11 +1528,35 @@ def _parece_pregunta_del_mundo(patron: str) -> bool:
     return bool(_RE_PREGUNTA_MUNDO.search(p))
 
 
+def _desc_buscar_offload() -> str:
+    """La linea de la desc de `buscar` que apunta al almacen del offload,
+    SOLO si el offload esta encendido (con el flag apagado no hay nada que
+    buscar ahi y la linea seria una pista falsa). deepagents 0.7.8,
+    _message_eviction.py: la desc de grep dice "Offloaded large tool results
+    live under /large_tool_results/; grep that directory..." — sin esto el
+    modelo que perdio el handle (compactado, o de otra sesion) no tiene forma
+    de saber DONDE estan las salidas completas. Se evalua al registrar la
+    tool; el CLI propaga la config al env (_aplicar_config_offload) antes de
+    importar este modulo."""
+    try:
+        from cognia.harness import offloading as _off
+        if _off.activo():
+            return (" Las salidas grandes offloadeadas (previews '[SALIDA "
+                    f"GRANDE ...]') viven completas en {_off.dir_offload()}: "
+                    "buscar ahi cuando no sepas el handle.")
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "buscar: desc sin la ruta del offload (%s: %s)",
+            type(exc).__name__, exc)
+    return ""
+
+
 @tool("buscar", "buscar <patron> | <directorio>        -- busca texto en archivos",
       desc="Busca un patron de texto (regex o literal) dentro de los archivos "
            "de un directorio o de un archivo concreto; devuelve hasta 15 "
            "lineas 'archivo:linea: texto'. Si el patron es una pregunta sobre "
-           "el mundo (no sobre el proyecto), consulta la web.",
+           "el mundo (no sobre el proyecto), consulta la web."
+           + _desc_buscar_offload(),
       params=[
           {"nombre": "patron", "tipo": "string", "requerido": True,
            "descripcion": "texto o regex a buscar (sin comillas envolventes)"},
@@ -3478,21 +3508,47 @@ def _revertir_herramienta(args, ctx):
 # infinitamente.
 _MAX_DELEGATION_DEPTH = 2
 
+# Contrato que se antepone a la subtarea (deepagents 0.7.8,
+# middleware/subagents.py: DEFAULT_SUBAGENT_PROMPT "The calling agent only
+# sees your final assistant message, not your intermediate work... Ensure your
+# final response contains the complete answer"). Va en la TAREA y no en el
+# system porque _run_agent_task (cli.py) no acepta system y el sub-agente corre
+# con el mismo system que el padre: nadie le decia que sus pasos se pierden.
+_CONTRATO_SUBAGENTE = (
+    "CONTRATO DEL SUB-AGENTE: quien te llama solo ve tu MENSAJE FINAL, no tus "
+    "pasos ni resultados de tools: tu ultimo mensaje debe contener la "
+    "respuesta completa y los datos que encontraste.")
+
+# Chars del resultado que vuelven inline al padre. Era 600: un informe de
+# investigacion de 3 KB se perdia mudo. Por encima, el resto va al offload
+# (harness/offloading: preview + handle recuperable), no a un corte.
+_MAX_RESULTADO_SUBAGENTE = 4000
+
 
 @tool("delegar_subtarea",
       "delegar_subtarea <investigador|implementador> | <subtarea>  "
       "-- corre la subtarea en un sub-agente con tools acotadas por rol y su propio presupuesto",
-      desc="Delega una SUBTAREA autocontenida a un sub-agente con contexto "
-           "fresco y tools acotadas por rol: 'investigador' solo lee/busca, "
-           "'implementador' ademas escribe y ejecuta. Util para explorar sin "
-           "gastar el contexto de la tarea principal.",
+      desc="Delega una SUBTAREA a un sub-agente con contexto fresco y tools "
+           "acotadas por rol: 'investigador' solo lee/busca, 'implementador' "
+           "ademas escribe y ejecuta. Util para explorar sin gastar el "
+           "contexto de la tarea principal. Cada invocacion es SIN ESTADO: "
+           "el sub-agente ve UNICAMENTE el texto de la subtarea (ni tu "
+           "historial, ni tus ficheros leidos, ni delegaciones anteriores): "
+           "pon en la subtarea TODO el contexto (rutas, fragmentos, lo que ya "
+           "sabes) y di exactamente que debe devolver y en que formato. Su "
+           "informe NO lo ve el usuario: llega solo a ti (hasta 4000 chars "
+           "inline; mas largo: preview cabeza+cola con handle res: si el "
+           "offload esta encendido, o preview con aviso de que el resto no se "
+           "guardo), y tu tienes que resumirselo al usuario.",
       params=[
           {"nombre": "rol", "tipo": "string", "requerido": True,
            "descripcion": "'investigador' (solo lectura) o 'implementador' "
                           "(lectura+escritura+ejecucion)"},
           {"nombre": "subtarea", "tipo": "string", "requerido": True,
-           "descripcion": "la subtarea, autocontenida (el sub-agente no ve tu "
-                          "historial)"},
+           "descripcion": "la subtarea con TODO su contexto (el sub-agente no "
+                          "ve tu historial: rutas, datos ya conocidos, "
+                          "criterio de exito) y el FORMATO de retorno "
+                          "esperado (que debe contener su mensaje final)"},
       ])
 def _delegar_subtarea(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
@@ -3526,11 +3582,37 @@ def _delegar_subtarea(args, ctx):
     if callable(pf):
         pf(f"[detail]delegando a sub-agente '{rol}' (presupuesto {sub_budget})[/detail]")
     try:
-        sub_result = runner(subtarea, allowed_tools=ROLE_TOOLS[rol],
+        sub_result = runner(_CONTRATO_SUBAGENTE + "\n\n" + subtarea,
+                            allowed_tools=ROLE_TOOLS[rol],
                             max_steps=sub_budget, delegation_depth=depth + 1)
     except Exception as exc:
         return f"RESULTADO delegar_subtarea ERROR: {exc}"
-    return f"RESULTADO delegar_subtarea ({rol}): {str(sub_result)[:600]}"
+    texto = str(sub_result)
+    if len(texto.encode("utf-8", "replace")) > _MAX_RESULTADO_SUBAGENTE:
+        # Lo que no cabe NO se corta: preview cabeza+cola numerado + handle
+        # (offload encendido) o preview con el aviso explicito de que el resto
+        # no se guardo (apagado). Un corte mudo a N chars era el bug.
+        try:
+            from cognia.harness import offloading as _off
+            if _off.activo():
+                texto = _off.formatear_observacion(
+                    texto, tool="delegar_subtarea",
+                    args=f"{rol} | {subtarea[:200]}",
+                    umbral=_MAX_RESULTADO_SUBAGENTE)
+            else:
+                texto = _off.resumir_para_modelo(
+                    texto, tool="delegar_subtarea",
+                    umbral=_MAX_RESULTADO_SUBAGENTE)
+        except Exception as exc:
+            # El offload es una mejora: si falla, se corta CON marca (nunca
+            # mudo) y se dice por que.
+            logging.getLogger(__name__).warning(
+                "delegar_subtarea: offload del resultado fallo (%s: %s)",
+                type(exc).__name__, exc)
+            texto = (texto[:_MAX_RESULTADO_SUBAGENTE]
+                     + f"\n[... RECORTADO a {_MAX_RESULTADO_SUBAGENTE} chars: "
+                     f"el offload fallo ({type(exc).__name__}: {exc}) ...]")
+    return f"RESULTADO delegar_subtarea ({rol}): {texto}"
 
 
 # ── Computer-use: tools de pantalla (mandato 2026-07-13, gate de seguridad) ──
@@ -3802,3 +3884,26 @@ if _tx_encendido():
         # Flag puesto por el dueno: el silencio seria capacidad desconectada.
         print(f"[cognia] COGNIA_TX=1 pero cognia/tx/tools.py no cargo: {_exc}",
               file=sys.stderr)
+
+
+# ── skill_leer: cuerpo de una skill bajo demanda (deepagents 0.7.8, 2026-08-24)
+# middleware/skills.py inyecta al modelo SOLO el indice ("- name: desc -> Read
+# {path}") y el cuerpo llega por una lectura explicita. Aqui el indice lo arma
+# skills.indice_skills() (cli._run_agent_task lo mete en el primer user) y esta
+# tool es la lectura. No entra en CORE_TOOLS: el bucle la anuncia solo cuando
+# inyecto el indice (si no, seria una tool mas contra el techo del modelo
+# chico, A/B 2026-07-25). Se registra al final: cli no importa tools al
+# arrancar y el orden del registry no cambia para las demas.
+@tool("skill_leer",
+      "skill_leer <nombre>  -- leer el cuerpo completo de una skill del indice",
+      desc="Devuelve el contenido completo de una skill listada en el indice "
+           "SKILLS DISPONIBLES. Es material de referencia escrito antes de esta "
+           "tarea: leelo cuando una entrada del indice parezca aplicar y decide "
+           "vos si aplica. Con un nombre inexistente responde con las que hay.",
+      params=[
+          {"nombre": "nombre", "tipo": "string", "requerido": True,
+           "descripcion": "nombre exacto de la skill (o prefijo unico)"},
+      ])
+def _skill_leer(args, ctx):
+    from cognia.agent.skills import cuerpo_skill
+    return cuerpo_skill((args or "").strip())

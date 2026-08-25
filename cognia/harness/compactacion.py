@@ -23,6 +23,17 @@ una linea por cada turno tool descartado (nombre, args clave, exito/fallo y la
 referencia de spill de F3 si existe: lo descartado sigue siendo RECUPERABLE
 via la tool `recuperar` o `leer_archivo` sobre la ruta).
 
+Secciones FIJAS del resumen (2026-08-24, deepagents 0.7.8 summarization.py:
+su prompt exige SESSION INTENT / SUMMARY / ARTIFACTS / NEXT STEPS y un "None"
+explicito por seccion vacia — una seccion ausente no se distingue de una
+olvidada): OBJETIVO DE LA SESION (el user del objetivo), ARTEFACTOS (rutas
+unicas tocadas por escribir/editar/borrar, fundidas entre pasadas), PROXIMOS
+PASOS (los pendientes del canal de estado o "ninguno registrado"). Y el
+HISTORIAL CRUDO descartado se vuelca ENTERO a disco antes del splice
+(offloading.guardar, tool="compactacion"; deepagents _offload_to_backend anexa
+lo evictado a /conversation_history/session_{uuid}.md y lo dice en el
+resumen): el encabezado lleva handle y ruta; si el volcado falla, lo dice.
+
 Forma del historial tras compactar:
 
     [system intacto, user del objetivo intacto,
@@ -58,7 +69,8 @@ API publica:
     compactar(mensajes, n_ctx, prompt_tokens, estado=None, ...) -> dict
         Muta `mensajes` EN SITIO (una sola vez) y devuelve la telemetria:
         {aplicada, liberados (chars), tokens_antes, tokens_despues,
-         descartados, motivo}.
+         descartados, motivo, historial_handle, historial_ruta,
+         historial_error} (los tres ultimos solo si aplico: el volcado crudo).
     anotar_truncado(liberados, prompt_tokens, n_ctx)
         Telemetria del modo viejo, para que /compactar tambien lo muestre.
     anotar_error(motivo)
@@ -69,6 +81,7 @@ API publica:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -224,6 +237,56 @@ def _linea_tool(nombre: str, args: str, contenido: str) -> str:
     return "  * %s(%s) -> %s%s" % (nombre, args_c, veredicto, extra)
 
 
+# Tools cuyo primer argumento es la RUTA que tocan (artefacto en el sentido de
+# deepagents: fichero creado/modificado). leer_archivo no cuenta: leer no deja
+# artefacto y listaria medio repo.
+_TOOLS_ARTEFACTO = ("escribir_archivo", "editar_archivo", "borrar_archivo")
+_PREFIJO_ARTEFACTO = "  ~ "
+
+
+def _reserva_volcado() -> int:
+    """Chars que ocupara la linea del volcado (se escribe DESPUES de decidir
+    si el resumen libera): prefijo fijo + la ruta del almacen + sesion/handle."""
+    try:
+        from cognia.harness.offloading import dir_offload
+        return 110 + len(str(dir_offload()))
+    except Exception:
+        return 260
+
+
+def _ruta_de_args(args) -> str:
+    """La ruta de un tool_call de escritura: JSON nativo {"ruta": ...} o el
+    protocolo texto 'ruta | contenido'. "" si no se reconoce."""
+    a = str(args or "").strip()
+    if a.startswith("{"):
+        try:
+            d = json.loads(a)
+            if isinstance(d, dict):
+                return str(d.get("ruta") or d.get("path") or
+                           d.get("archivo") or "").strip()
+        except ValueError:
+            pass                 # args no JSON: se intenta como texto
+    return a.split("|", 1)[0].strip().strip("\"'")
+
+
+def _volcar_historial(viejos: list) -> tuple:
+    """Guarda los mensajes descartados (JSON) en el almacen del offload y
+    devuelve (handle, ruta, error). Se llama JUSTO antes del splice: el
+    volcado es la red de seguridad de un resumen que no llama al modelo, y
+    va aunque el offload este apagado como tool (COGNIA_OFFLOAD): apagado
+    significa 'no espillear observaciones', no 'tirar el historial'."""
+    from cognia.harness import offloading as _off
+    try:
+        crudo = json.dumps(viejos, ensure_ascii=False, default=str)
+        handle = _off.guardar(crudo, tool="compactacion",
+                              args="historial descartado (%d mensajes)" % len(viejos))
+        return handle, _off.ruta_de(handle), ""
+    except Exception as exc:      # noqa: BLE001 - se reporta, no se traga
+        motivo = "%s: %s" % (type(exc).__name__, exc)
+        logger.warning("compactacion: volcado del historial FALLO: %s", motivo)
+        return "", "", motivo
+
+
 def umbral_tokens(n_ctx, umbral=None) -> int:
     """Tokens de prompt a partir de los cuales se compacta: la fraccion
     (umbral_frac, /compactar umbral) de la CAPACIDAD UTIL (n_ctx menos el
@@ -305,30 +368,69 @@ def compactar(mensajes: list, n_ctx, prompt_tokens: int, estado=None,
     # -- construir el resumen ENTERO antes de tocar la lista ----------------
     lineas_previas: list = []    # del resumen previo (idempotencia)
     lineas_nuevas: list = []     # de las tools descartadas en ESTA pasada
+    artefactos: list = []        # rutas unicas tocadas (previas + nuevas)
     id2call: dict = {}
     for m in viejos:
         rol = m.get("role")
         if rol == "assistant":
             for tc in (m.get("tool_calls") or []):
                 f = tc.get("function") or {}
-                id2call[tc.get("id")] = (f.get("name") or "?",
-                                         f.get("arguments") or "")
+                nombre_tc = f.get("name") or "?"
+                id2call[tc.get("id")] = (nombre_tc, f.get("arguments") or "")
+                if nombre_tc in _TOOLS_ARTEFACTO:
+                    ruta = _ruta_de_args(f.get("arguments"))
+                    if ruta and ruta not in artefactos:
+                        artefactos.append(ruta)
         elif rol == "tool":
             nombre, args = id2call.get(m.get("tool_call_id"), ("?", ""))
             lineas_nuevas.append(
                 _linea_tool(nombre, args, str(m.get("content") or "")))
         elif rol == "user" and str(m.get("content") or "").startswith(_MARCA):
             # El resumen de la pasada anterior se FUNDE: sus lineas de tools
-            # pasan tal cual (mas viejas primero), sin duplicar.
+            # y sus artefactos pasan tal cual (mas viejos primero), sin
+            # duplicar.
             for ln in str(m["content"]).split("\n"):
                 if ln.startswith("  * ") and ln not in lineas_previas:
                     lineas_previas.append(ln)
+                elif ln.startswith(_PREFIJO_ARTEFACTO):
+                    ruta = ln[len(_PREFIJO_ARTEFACTO):].strip()
+                    if ruta and ruta not in artefactos:
+                        artefactos.insert(0, ruta)
     todas = lineas_previas + [ln for ln in lineas_nuevas
                               if ln not in lineas_previas]
 
     partes = [_MARCA + " el historial viejo de esta tarea se fundio aca; lo "
               "descartado sigue recuperable (tool recuperar sobre los handles "
               "res:, o leer_archivo sobre las rutas)."]
+    # Secciones fijas (deepagents summarization.py: INTENT / ARTIFACTS /
+    # NEXT STEPS, con su "None" explicito). Van ANTES del canal: el objetivo
+    # es lo primero que el modelo tiene que releer tras perder el historial.
+    # El primer user es [memoria][indice de skills][contexto previo]TAREA:
+    # <tarea> (cli._history_inicial_agente): con el indice real delante
+    # (13 skills, 2758 chars el 2026-08-24) la TAREA quedaba fuera de los
+    # 400 y la seccion mostraba el indice, que ademas sigue intacto arriba.
+    # Se arranca en la ULTIMA linea 'TAREA: ' (la tarea es lo ultimo del
+    # user); sin marca, el user entero como hasta ahora.
+    primer_user = str(mensajes[inicio - 1].get("content") or "")
+    marcas = [mo.start() for mo in re.finditer(r"(?m)^TAREA: ", primer_user)]
+    if marcas:
+        primer_user = primer_user[marcas[-1]:]
+    objetivo = re.sub(r"\s+", " ", primer_user).strip()
+    if len(objetivo) > 400:
+        objetivo = objetivo[:400] + " ... [objetivo recortado; el user original sigue intacto arriba]"
+    partes.append("OBJETIVO DE LA SESION: " + (objetivo or "(user del objetivo vacio)"))
+    if artefactos:
+        partes.append("ARTEFACTOS (%d rutas tocadas por escribir/editar/borrar):"
+                      % len(artefactos))
+        partes.extend(_PREFIJO_ARTEFACTO + r for r in artefactos)
+    else:
+        partes.append("ARTEFACTOS: ninguno registrado")
+    pendientes = list(estado.get("pendientes") or []) if isinstance(estado, dict) else []
+    if pendientes:
+        partes.append("PROXIMOS PASOS (%d):" % len(pendientes))
+        partes.extend("  - " + str(x) for x in pendientes)
+    else:
+        partes.append("PROXIMOS PASOS: ninguno registrado")
     if estado is not None:
         # El canal de estado (goal, restricciones, hecho-hasta-ahora) YA es la
         # version estructurada de lo hecho: entra rendido, sin llamada al
@@ -343,7 +445,7 @@ def compactar(mensajes: list, n_ctx, prompt_tokens: int, estado=None,
         # 1200 y con sus propias prioridades); se recortan las lineas de tools
         # MAS VIEJAS y se dice cuantas quedaron fuera.
         cab = "TOOLS DESCARTADAS (%d):" % len(todas)
-        base = sum(len(p) + 1 for p in partes) + len(cab) + 1 + 80
+        base = sum(len(p) + 1 for p in partes) + len(cab) + 1 + 80 + _reserva_volcado()
         disponible = max(0, tope - base)
         vivas, usado_l = [], 0
         for ln in reversed(todas):          # las mas nuevas sobreviven
@@ -357,13 +459,30 @@ def compactar(mensajes: list, n_ctx, prompt_tokens: int, estado=None,
         if len(vivas) < len(todas):
             partes.append("  (... %d lineas mas viejas omitidas por cap=%d ...)"
                           % (len(todas) - len(vivas), tope))
-    resumen = "\n".join(partes)
-
     chars_viejos = sum(_chars_msg(m) for m in viejos)
-    liberados = chars_viejos - len(resumen)
-    if liberados <= 0:
+    # La linea del volcado todavia no esta: se reserva su sitio en la cuenta
+    # para no decidir 'libera' y despues no liberar.
+    if chars_viejos - (len("\n".join(partes)) + _reserva_volcado()) <= 0:
         # Zona vieja chica: reescribirla AGRANDARIA el prompt e invalidaria la
         # cache para nada. No aplicar es la unica jugada que no pierde.
+        res["motivo"] = "el resumen no libera chars: no toco nada"
+        return res
+
+    # -- volcado CRUDO de lo que se descarta, justo antes del splice --------
+    # No se ha tocado la lista todavia: si esto lanza (no deberia: _volcar
+    # captura), el llamador degrada sobre un historial intacto.
+    handle_v, ruta_v, error_v = _volcar_historial(viejos)
+    if handle_v:
+        partes.insert(1, "El historial completo de lo compactado (%d mensajes, "
+                         "JSON) esta en %s: recuperar %s o leer_archivo esa ruta."
+                         % (len(viejos), ruta_v or handle_v, handle_v))
+    else:
+        partes.insert(1, "AVISO: el volcado del historial compactado a disco "
+                         "FALLO (%s): lo descartado solo sobrevive en las "
+                         "lineas de abajo." % error_v)
+    resumen = "\n".join(partes)
+    liberados = chars_viejos - len(resumen)
+    if liberados <= 0:
         res["motivo"] = "el resumen no libera chars: no toco nada"
         return res
 
@@ -371,7 +490,8 @@ def compactar(mensajes: list, n_ctx, prompt_tokens: int, estado=None,
     mensajes[inicio:corte] = [{"role": "user", "content": resumen}]
     res.update(aplicada=True, liberados=liberados, descartados=len(viejos),
                tokens_despues=max(0, int(prompt_tokens) - liberados // 4),
-               motivo="compactado")
+               motivo="compactado", historial_handle=handle_v,
+               historial_ruta=ruta_v, historial_error=error_v)
     _ULTIMA.clear()
     _ULTIMA.update({
         "ts": time.time(), "modo": "resumen",
@@ -379,5 +499,7 @@ def compactar(mensajes: list, n_ctx, prompt_tokens: int, estado=None,
         "tokens_despues": res["tokens_despues"],
         "liberados": liberados, "mensajes_descartados": len(viejos),
         "n_ctx": int(n_ctx),
+        "historial_handle": handle_v, "historial_ruta": ruta_v,
+        "historial_error": error_v,
     })
     return res

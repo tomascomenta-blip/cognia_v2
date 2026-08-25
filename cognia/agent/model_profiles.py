@@ -45,6 +45,7 @@ Contrato:
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -56,12 +57,30 @@ from pathlib import Path
 #
 #   usa_effort: si el reasoning_effort viaja por chat_template_kwargs (solo
 #     harmony lo consume; Qwythos lo ACEPTA pero es no-op, asi que no se pasa).
+#   harness: SHIM DE TOOL-CALLS POR FAMILIA (2026-08-24, deepagents 0.7.8:
+#     profiles/harness/_nvidia_nemotron_3_ultra.py::NemotronToolCallShim
+#     renombra args que el modelo emite con otro nombre, rellena defaults, y
+#     HarnessProfile.system_prompt_suffix cuelga un sufijo del system).
+#     Vacio en todas las familias de la casa: ninguna lo necesita HOY, y
+#     un shim sin medicion seria declarar. Se extiende desde
+#     ~/.cognia/perfiles_modelo.json igual que el sampling. Forma:
+#       "harness": {
+#           "sufijo_prompt": "Cuando edites, pasa siempre la ruta relativa.",
+#           "renombres": {"file_path": "path"},        # alias -> nombre real
+#           "defaults": {"leer_archivo": {"limit": 400}},  # tool -> {arg: v}
+#       }
+#     aplicar_shim() lo usa en loop.py ANTES de args_legacy; con "harness"
+#     vacio o ausente los args salen byte-identicos (no hay copia siquiera).
+_HARNESS_VACIO: dict = {}
 _FAMILIAS_NATIVAS = {
     # gpt-oss / harmony: temp=1.0, top_p=1.0, SIN repetition penalty, esfuerzo
     # por chat_template_kwargs.reasoning_effort (2026-08-09, :8080, b10066).
-    "gpt-oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
-    "gpt_oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
-    "gptoss":  {"temperature": 1.0, "top_p": 1.0, "usa_effort": True},
+    "gpt-oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True,
+                "harness": _HARNESS_VACIO},
+    "gpt_oss": {"temperature": 1.0, "top_p": 1.0, "usa_effort": True,
+                "harness": _HARNESS_VACIO},
+    "gptoss":  {"temperature": 1.0, "top_p": 1.0, "usa_effort": True,
+                "harness": _HARNESS_VACIO},
     # Qwythos-9B: sampling Qwen (0.7/0.8) medido 2026-08-09. Es RAZONADOR:
     # piensa fuerte hasta en prompts triviales (854 chars de reasoning para
     # "LISTO"; max_tokens=32 -> content vacio, medido) -> el presupuesto de
@@ -80,7 +99,8 @@ _FAMILIAS_NATIVAS = {
     #
     # `piensa` NO se declara aca A PROPOSITO: lo MIDE _conducta_medida() de la
     # plantilla que el server sirve. Declararlo seria repetir el error.
-    "qwythos": {"temperature": 0.7, "top_p": 0.8, "usa_effort": False},
+    "qwythos": {"temperature": 0.7, "top_p": 0.8, "usa_effort": False,
+                "harness": _HARNESS_VACIO},
     # Nemotron 3.5 Lightning 30B-A3B (2026-08-14): MoE hibrido Mamba2 con
     # ventana NATIVA de 1.048.576 (medida entera en esta maquina: prompt real
     # de 1.046.706 tokens, aguja recuperada, 14.622 MiB de VRAM). El sampling
@@ -98,7 +118,7 @@ _FAMILIAS_NATIVAS = {
     # Cuarta tabla del repo que casa por substring; el match va de patron mas
     # largo a mas corto para que el orden de escritura deje de importar.
     "nemotron-3.5": {"temperature": 1.0, "top_p": 0.95, "usa_effort": False,
-                     "piensa": True},
+                     "piensa": True, "harness": _HARNESS_VACIO},
     # Qwen3.8-27B (2026-08-18, cuantizacion Ridge de empero-ai). El sampling
     # 1.0/0.95 lo DECLARA el propio gguf en general.sampling.temp/top_p
     # (leido del fichero, no de la nota de prensa; top_k=20 tambien esta ahi
@@ -121,7 +141,7 @@ _FAMILIAS_NATIVAS = {
     # Es RAZONADOR (356 chars de razonamiento para "responde en una frase",
     # medido 2026-08-18): MIN_TOKENS_RAZONADOR aplica -- con max_tokens=120 el
     # `content` sale VACIO porque el pensamiento se come el presupuesto.
-    "qwen3.8": {"temperature": 1.0, "top_p": 0.95},
+    "qwen3.8": {"temperature": 1.0, "top_p": 0.95, "harness": _HARNESS_VACIO},
 }
 
 # EL BACKSTOP DE METADATOS (2026-08-17). La tabla de arriba casa por SUBSTRING
@@ -242,10 +262,13 @@ def path_perfiles_usuario() -> Path:
 
 def familias_usuario() -> dict:
     """La tabla de sampling del USUARIO: {familia: {temperature, top_p,
-    usa_effort}}. Cualquier otra clave (repeat_penalty, top_k, min_p...) se
-    IGNORA en silencio a proposito: no hay consumidor para ellas en el camino
-    del agente (loop.py:409-415) y aceptarlas seria prometer un control que no
-    existe. EXTIENDE y PISA a _FAMILIAS_NATIVAS, para
+    usa_effort, harness}}. Cualquier otra clave (repeat_penalty, top_k,
+    min_p...) se IGNORA en silencio a proposito: no hay consumidor para ellas
+    en el camino del agente (loop.py:409-415) y aceptarlas seria prometer un
+    control que no existe. "harness" SI se respeta (2026-08-24): tiene
+    consumidor (aplicar_shim en loop.py y el sufijo en system_agente_nativo)
+    y es la via para probar un shim sin tocar codigo. EXTIENDE y PISA a
+    _FAMILIAS_NATIVAS, para
     que estrenar un modelo nuevo sea editar un JSON y no editar codigo (que es
     lo que hacia falta hasta hoy, y por eso la tabla llevaba meses con cinco
     entradas). Fichero ausente/corrupto -> {} y se sigue: es configuracion,
@@ -349,6 +372,67 @@ def _cfg_familia(modelo: str, ruta: str = "") -> tuple:
             if fam in bajo:
                 return dict(_FAMILIAS_NATIVAS[fam]), fam
     return familia_por_arch(ruta)
+
+
+def harness_de(cfg: dict) -> dict:
+    """El bloque "harness" de una familia, VALIDADO en forma: {sufijo_prompt:
+    str, renombres: {str: str}, defaults: {tool: {arg: valor}}}. Solo salen
+    las claves con forma correcta; lo demas se descarta CON aviso en el log
+    (un JSON del usuario con "renombres": "path" no puede apagar el shim en
+    silencio). {} si la familia no declara nada."""
+    crudo = (cfg or {}).get("harness")
+    if not isinstance(crudo, dict) or not crudo:
+        return {}
+    out: dict = {}
+    log = logging.getLogger(__name__)
+    suf = crudo.get("sufijo_prompt")
+    if isinstance(suf, str) and suf.strip():
+        out["sufijo_prompt"] = suf.strip()
+    elif suf is not None:
+        log.warning("harness.sufijo_prompt ignorado: esperaba str, vino %s",
+                    type(suf).__name__)
+    ren = crudo.get("renombres")
+    if isinstance(ren, dict):
+        limpio = {str(a): str(r) for a, r in ren.items()
+                  if isinstance(a, str) and isinstance(r, str) and a and r}
+        if limpio:
+            out["renombres"] = limpio
+    elif ren is not None:
+        log.warning("harness.renombres ignorado: esperaba {alias: real}, "
+                    "vino %s", type(ren).__name__)
+    dfl = crudo.get("defaults")
+    if isinstance(dfl, dict):
+        limpio = {str(t): dict(a) for t, a in dfl.items()
+                  if isinstance(t, str) and isinstance(a, dict) and a}
+        if limpio:
+            out["defaults"] = limpio
+    elif dfl is not None:
+        log.warning("harness.defaults ignorado: esperaba {tool: {arg: v}}, "
+                    "vino %s", type(dfl).__name__)
+    return out
+
+
+def aplicar_shim(perfil: dict, nombre_tool: str, argumentos: dict) -> dict:
+    """NemotronToolCallShim de deepagents, en general: renombra los alias
+    (alias -> nombre real, solo si el real no viene ya) y rellena los
+    defaults de esa tool que falten. Sin "harness" en el perfil, o con args
+    que no son dict, devuelve EL MISMO objeto: el camino de hoy no paga ni
+    una copia. Nunca lanza por forma: el perfil ya paso por harness_de."""
+    h = (perfil or {}).get("harness") if isinstance(perfil, dict) else None
+    if not h or not isinstance(argumentos, dict):
+        return argumentos
+    ren = h.get("renombres") or {}
+    dfl = (h.get("defaults") or {}).get(nombre_tool) or {}
+    if not ren and not dfl:
+        return argumentos
+    out = dict(argumentos)
+    for alias, real in ren.items():
+        if alias in out and real not in out:
+            out[real] = out.pop(alias)
+    for arg, valor in dfl.items():
+        if arg not in out:
+            out[arg] = valor
+    return out
 
 
 def _sampling_base(props_sampling: dict, cfg: dict) -> tuple:
@@ -537,14 +621,23 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
     kwargs_plantilla = _kwargs_plantilla(cfg or {})
     if kwargs_plantilla:
         perfil["kwargs_plantilla"] = kwargs_plantilla
+    # Shim de tool-calls de la familia (solo si declara algo: el perfil de
+    # una familia sin harness sale byte-identico al de siempre).
+    harness = harness_de(cfg or {})
+    if harness:
+        perfil["harness"] = harness
     perfil.update(sampling)
     return perfil
 
 
-def system_agente_nativo() -> str:
+def system_agente_nativo(perfil: dict = None) -> str:
     """System prompt del agente en regimen nativo: identidad + conducta +
     rol nativo. Sin manual de tools (van como schemas) y sin el marco ACCION.
-    Best-effort: sin system_prompt.py disponible, el rol solo alcanza."""
+    Best-effort: sin system_prompt.py disponible, el rol solo alcanza.
+
+    `perfil` (opcional, 2026-08-24): si trae harness.sufijo_prompt se cuelga
+    al final (HarnessProfile.system_prompt_suffix de deepagents). Sin perfil,
+    o sin sufijo, el texto es byte-identico al de siempre."""
     partes = []
     try:
         from cognia.system_prompt import _CONDUCTA_COMPLETA, _IDENTIDAD
@@ -552,6 +645,10 @@ def system_agente_nativo() -> str:
     except Exception:
         partes = []
     partes.append(_ROL_AGENTE_NATIVO.strip())
+    sufijo = ((perfil or {}).get("harness") or {}).get("sufijo_prompt") \
+        if isinstance(perfil, dict) else ""
+    if sufijo:
+        partes.append(str(sufijo).strip())
     return "\n\n".join(partes)
 
 

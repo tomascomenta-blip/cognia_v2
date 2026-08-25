@@ -12,6 +12,7 @@ Concrete, not abstract: two plain functions and a couple of constants.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -442,6 +443,114 @@ def _intencion_de(resp) -> str:
 # assistant.
 _RECORTE_MIN = 400
 
+# P2 (2026-08-24, deepagents 0.7.8, middleware/summarization.py::
+# _truncate_tool_call): los ARGUMENTOS de las tools de escritura viejas son
+# compresion SIN PERDIDA — el contenido ya esta en el fichero del disco — y
+# eran lo unico que ni el recorte ni la compactacion tocaban: _recortar_
+# mensajes solo miraba content/reasoning, compactacion._chars_msg los CUENTA
+# y la cola retenida se quedaba con args de 40 KB. Umbral 2000 y cabeza de 20
+# chars: los mismos de deepagents. Nombres reales de agent/tools.py.
+_ARGS_TRUNCAR_MIN = 2000
+_TOOLS_ESCRITURA = frozenset({"escribir_archivo", "editar_archivo",
+                              "apendar_archivo"})
+_MARCA_ARG_TRUNCADO = "… (argumento truncado: el contenido ya esta en el fichero)"
+# Cabeza que se conserva de cada VALOR largo (deepagents: value[:20]).
+_ARGS_CABEZA = 20
+
+# P5b (deepagents 0.7.8, middleware/_overflow_clip.py: los read_file finales
+# se recortan a 4000 chars con puntero al path). El generico de 200 chars le
+# quitaba al modelo el fichero Y la forma de recuperarlo; este conserva 4000
+# y le dice donde sigue (leer_archivo <ruta> offset=N).
+_RECORTE_LEER = 4000
+_RE_CABECERA_LEER = re.compile(r"^RESULTADO leer_archivo (.+?): ")
+
+
+def _truncar_valores_args(args: str) -> str:
+    """Trunca POR VALOR, como deepagents 0.7.8 (summarization.py::
+    _truncate_tool_call recorre args.items() y corta cada str largo a
+    value[:20]): el JSON sigue siendo JSON y la ruta sobrevive. La version
+    anterior cortaba el STRING entero a 20 chars y dejaba
+    '{"path": "src/app.py… (argumento truncado...' sin cierre: ese assistant
+    se reenvia en cada turno y llama-server (Qwen3.8-27B en :8080) responde
+    HTTP 500 "Failed to parse tool call arguments as JSON" a TODA la
+    peticion: el agente moria tras la primera compactacion (revision
+    adversarial 2026-08-24, reproducido con curl). Ademas compactacion.
+    _ruta_de_args ya no puede sacar la ruta de un JSON roto y ARTEFACTOS
+    mostraba el blob. Args no JSON (protocolo texto 'ruta | contenido'): se
+    conserva la ruta (lo que va antes del primer '|') y se marca el resto."""
+    try:
+        d = json.loads(args)
+    except ValueError:
+        d = None
+    if isinstance(d, dict):
+        for k, v in d.items():
+            if isinstance(v, str) and len(v) > _ARGS_TRUNCAR_MIN:
+                d[k] = v[:_ARGS_CABEZA] + _MARCA_ARG_TRUNCADO
+        return json.dumps(d, ensure_ascii=False)
+    ruta = args.split("|", 1)[0].strip()[:200]
+    return ruta + " | " + _MARCA_ARG_TRUNCADO
+
+
+def _truncar_args_escritura(mensajes: list, ultimo_assistant: int) -> int:
+    """Trunca los arguments > _ARGS_TRUNCAR_MIN de escribir/editar/apendar en
+    los assistant ANTERIORES al ultimo (el ultimo es el turno en curso: sus
+    tools acaban de correr y el server puede reintentarlo). Devuelve chars
+    liberados. Idempotente: un arg ya truncado mide < 2000 (solo se
+    reemplaza si de verdad achica: un JSON de valores cortos pero > 2000 en
+    total se deja como esta)."""
+    liberados = 0
+    for i, m in enumerate(mensajes):
+        if m.get("role") != "assistant" or i == ultimo_assistant:
+            continue
+        for tc in (m.get("tool_calls") or []):
+            f = tc.get("function") if isinstance(tc, dict) else None
+            if not isinstance(f, dict) or f.get("name") not in _TOOLS_ESCRITURA:
+                continue
+            args = f.get("arguments")
+            if isinstance(args, str) and len(args) > _ARGS_TRUNCAR_MIN:
+                nuevo = _truncar_valores_args(args)
+                if len(nuevo) < len(args):
+                    f["arguments"] = nuevo
+                    liberados += len(args) - len(nuevo)
+    return liberados
+
+
+def _offset_de_call(mensajes: list, tool_call_id) -> int:
+    """El offset= con el que se pidio ese leer_archivo (1 si no lo dijo):
+    el RESULTADO no lo repite, solo los arguments del assistant lo saben."""
+    for m in mensajes:
+        if m.get("role") != "assistant":
+            continue
+        for tc in (m.get("tool_calls") or []):
+            if isinstance(tc, dict) and tc.get("id") == tool_call_id:
+                args = str((tc.get("function") or {}).get("arguments") or "")
+                mo = re.search(r"offset\W{0,3}(\d+)", args)
+                return max(1, int(mo.group(1))) if mo else 1
+    return 1
+
+
+def _recortar_leer_archivo(content: str, offset: int) -> str:
+    """Recorte DIRIGIDO de un RESULTADO leer_archivo: conserva hasta
+    _RECORTE_LEER chars (en linea completa: el modelo copia lo que ve en
+    bloques SEARCH) y anexa el puntero de continuacion con la ruta y la
+    linea siguiente a la ultima conservada. Si el resultado no supera los
+    4000 con margen, la cabeza es la generica de 200 pero el puntero se
+    conserva igual: la ruta es lo que permite recuperar el fichero."""
+    mo = _RE_CABECERA_LEER.match(content)
+    ruta = mo.group(1)
+    cabecera = content[:mo.end()]
+    cuerpo = content[mo.end():]
+    cap = (_RECORTE_LEER if len(content) > _RECORTE_LEER + _RECORTE_MIN
+           else 200)
+    cabeza = cuerpo[:cap]
+    corte = cabeza.rfind("\n")
+    if corte > 0:
+        cabeza = cabeza[:corte]
+    siguiente = offset + cabeza.count("\n") + 1
+    return (cabecera + cabeza
+            + f"\n[... recortado; el fichero completo esta en {ruta}: "
+              f"leer_archivo {ruta} offset={siguiente} ...]")
+
 
 def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
     """Presupuesto de contexto en TOKENS REALES (A4.3): si el ultimo prompt
@@ -484,14 +593,33 @@ def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
         if m.get("role") == "assistant":
             ultimo_assistant = i
 
-    recortados, liberados = 0, 0
+    # P2 primero y ENTERO (no de a 3): es sin perdida, asi que no hay motivo
+    # para racionarlo, y cada arg truncado es contenido que el recorte con
+    # perdida de abajo ya no tiene que pagar.
+    recortados, liberados = 0, _truncar_args_escritura(mensajes, ultimo_assistant)
     for i, m in enumerate(mensajes):
         rol = m.get("role")
         if rol == "tool" and len(m.get("content") or "") > _RECORTE_MIN:
             antes = len(m["content"])
-            m["content"] = (m["content"][:200]
-                            + "\n[... recortado por presupuesto de contexto ...]")
-            liberados += antes - len(m["content"])
+            if _RE_CABECERA_LEER.match(m["content"]):
+                # P5b: leer_archivo conserva mas y dice donde sigue.
+                nuevo = _recortar_leer_archivo(
+                    m["content"], _offset_de_call(mensajes, m.get("tool_call_id")))
+            else:
+                nuevo = (m["content"][:200]
+                         + "\n[... recortado por presupuesto de contexto ...]")
+            if len(nuevo) >= antes:
+                # Ya recortado y no achica mas (un leer_archivo recortado a
+                # 200 + puntero mide 430-540 chars con una ruta larga, por
+                # encima de _RECORTE_MIN): contarlo como recortado gastaba
+                # las 3 plazas de la pasada en 0 chars y el llamador cortaba
+                # su while con el ejecutar de 9 KB y el reasoning intactos:
+                # overflow SILENCIOSO, la clase A3 que esta funcion documenta
+                # haber curado (revision adversarial 2026-08-24). Se salta
+                # sin gastar plaza.
+                continue
+            m["content"] = nuevo
+            liberados += antes - len(nuevo)
             recortados += 1
         elif (rol == "assistant" and i != ultimo_assistant
                 and len(m.get("reasoning_content") or "") > _RECORTE_MIN):
@@ -504,6 +632,20 @@ def _recortar_mensajes(mensajes: list, n_ctx, prompt_tokens: int) -> int:
         if recortados >= 3:   # de a poco: 3 turnos por pasada alcanzan
             break
     return liberados
+
+
+def _parchear_huerfanos(mensajes) -> int:
+    """P1 (deepagents PatchToolCallsMiddleware): antes de un corte a mitad
+    del for de tool_calls, cada call sin su turno tool recibe uno sintetico
+    (traza_chatml.parchear_huerfanos). Sin el modulo se sigue y se deja
+    rastro: el bucle no puede depender de la captura de trazas."""
+    try:
+        from cognia.agent.traza_chatml import parchear_huerfanos
+        return parchear_huerfanos(mensajes) if isinstance(mensajes, list) else 0
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "tool_calls huerfanos sin parchear: %s: %s", type(exc).__name__, exc)
+        return 0
 
 
 def _degradado_compactacion(print_fn, motivo: str) -> None:
@@ -538,7 +680,16 @@ def _compactar_por_resumen(mensajes, n_ctx, prompt_tokens, estado, print_fn):
     try:
         if comp.modo() != "resumen":
             return None
-        info = comp.compactar(mensajes, n_ctx, prompt_tokens, estado=estado)
+        # P2 tambien aqui: la cola que compactar() retiene intacta conservaba
+        # los args de 40 KB de escribir_archivo (los cuenta _chars_msg). Solo
+        # por encima del umbral, como el resto de la funcion.
+        liberados_args = 0
+        if n_ctx and int(prompt_tokens or 0) >= comp.umbral_tokens(n_ctx):
+            ultimo = max((i for i, m in enumerate(mensajes)
+                          if m.get("role") == "assistant"), default=-1)
+            liberados_args = _truncar_args_escritura(mensajes, ultimo)
+        info = comp.compactar(mensajes, n_ctx, prompt_tokens - liberados_args // 4,
+                              estado=estado)
     except Exception as exc:
         motivo = f"{type(exc).__name__}: {exc}"
         try:
@@ -551,7 +702,7 @@ def _compactar_por_resumen(mensajes, n_ctx, prompt_tokens, estado, print_fn):
         print_fn(f"[detail]compactado por resumen: ~{info['tokens_antes']} -> "
                  f"~{info['tokens_despues']} tokens ({info['descartados']} "
                  f"mensajes viejos fundidos en un resumen)[/detail]")
-    return int(info.get("liberados") or 0)
+    return int(info.get("liberados") or 0) + liberados_args
 
 
 def _catalogo_para_ofertas() -> list:
@@ -744,6 +895,21 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _especular = False
     _pendiente_verif = ""      # respuesta ya compuesta, en rescate tras un nudge
     _aviso_guardia = ""        # mensaje del guardia de bucle para el modelo
+    # P12: BUCLE POR FICHERO (harness/repeticion.ContadorFichero). Los cuatro
+    # detectores de arriba cuentan por tool+args; N ediciones al MISMO fichero
+    # con args distintos no las ve ninguno. Uno por tarea; COGNIA_REPETICION=0
+    # lo apaga con el resto del subsistema.
+    _cont_fich = None
+    _rep_mod = None
+    try:
+        from cognia.harness import repeticion as _rep_mod
+        from cognia.hermes.mutaciones import ruta_de_args as _ruta_fich
+        if _rep_mod.activo():
+            _cont_fich = _rep_mod.ContadorFichero()
+    except Exception as _e_rf:
+        print_fn(f"[warn_cl]deteccion de bucle por fichero no disponible "
+                 f"({type(_e_rf).__name__}: {_e_rf}); sigo sin ella[/warn_cl]")
+    _aviso_fichero = ""        # nudge de reconsideracion por fichero
 
     t0 = __import__("time").time()
     if _ev is not None:
@@ -1117,7 +1283,19 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                               "ok": False, "result_head": resultado[:160]})
                 mensajes.append(mensaje_tool(tc.id, resultado))
                 continue
-            args_str = args_legacy(tc.nombre, tc.argumentos)
+            _args_tc = tc.argumentos
+            if perfil.get("harness"):
+                # P8 (deepagents NemotronToolCallShim): la familia renombra
+                # alias y rellena defaults ANTES de traducir al protocolo
+                # texto. Sin "harness" en el perfil no se importa ni se copia.
+                try:
+                    from cognia.agent.model_profiles import aplicar_shim
+                    _args_tc = aplicar_shim(perfil, tc.nombre, tc.argumentos)
+                except Exception as _exc_shim:
+                    print_fn(f"[warn_cl]shim de tool-calls de la familia no "
+                             f"aplicado ({type(_exc_shim).__name__}: "
+                             f"{_exc_shim}); args intactos[/warn_cl]")
+            args_str = args_legacy(tc.nombre, _args_tc)
             if _ev is not None:
                 _emitir(_ev.ToolInicio(tool=tc.nombre, args=args_str[:120],
                                        paso=pasos))
@@ -1133,6 +1311,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     _salida.sellar(RAZON_BUCLE_DETECTADO, _vg.get("patron", ""))
                     result_text = ("(interrumpida: el agente entro en bucle -- "
                                    f"{_vg.get('patron', 'repeticion')})")
+                    _parchear_huerfanos(mensajes)   # P1: la traza sin calls colgando
                     mensajes = None
                     break
                 if _vg.get("estado") == "aviso":
@@ -1147,6 +1326,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     _salida.sellar(RAZON_BUCLE_DETECTADO, f"repite {tc.nombre}")
                 result_text = ("(interrumpida por estancamiento: repitio "
                                f"'{tc.nombre}' con los mismos argumentos)")
+                _parchear_huerfanos(mensajes)   # P1: la traza sin calls colgando
                 mensajes = None
                 break
             _servido = None
@@ -1192,6 +1372,22 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _muta.resultado(_idm, tool_ok, resultado)
                 if tool_ok and _ts_1a_edicion is None:
                     _ts_1a_edicion = __import__("time").time()
+            if _cont_fich is not None and tc.nombre in _rep_mod.TOOLS_EDICION:
+                # P12: cuenta la edicion por fichero normalizado; al umbral,
+                # el nudge va como turno user tras el resultado (abajo, junto
+                # al aviso del guardia). Config invalida -> aviso UNA vez y
+                # el contador se apaga (patron del propio modulo).
+                try:
+                    _aviso_fichero = _cont_fich.registrar(
+                        _ruta_fich(args_str), tc.nombre) or ""
+                except _rep_mod.ConfigInvalida as _exc_cf:
+                    _rep_mod._avisar(f"config invalida, bucle por fichero "
+                                     f"apagado: {_exc_cf}")
+                    _cont_fich = None
+                if _aviso_fichero:
+                    print_fn(f"[warn_cl]bucle por fichero: "
+                             f"{_aviso_fichero[len(_rep_mod.MARCA):].strip()[:120]}"
+                             f"[/warn_cl]")
             if _estado_on and _canal is not None:
                 # Hechos MEDIDOS: anotar_fichero le lee el sha256 y los bytes al
                 # disco, no le cree al resultado de la tool.
@@ -1281,6 +1477,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             if _aviso_guardia:
                 mensajes.append({"role": "user", "content": _aviso_guardia})
                 _aviso_guardia = ""
+            if _aviso_fichero:
+                mensajes.append({"role": "user", "content": _aviso_fichero})
+                _aviso_fichero = ""
             if verdict == "warn":
                 mensajes.append({
                     "role": "user",
