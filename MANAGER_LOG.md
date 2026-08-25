@@ -14148,3 +14148,45 @@ Documentacion de usuario escrita en `docs/ESTILO.md` (CRLF como el resto de `doc
 ## Juez visual final del sistema de estilos (2026-08-24, 16:30)
 
 Tres capturas ConPTY 120x40 (arranque por defecto + /estilo lista; preset neon con banner animado + pregunta al 27B; editor con selector de color y ayuda), sin tracebacks, estilo.json restaurado. Veredicto: funciona de punta a punta (editor en alt-screen, preview contextual, neon aplica 8 elementos, el barrido del banner hace 16 cuadros y SE QUEDA QUIETO, la etiqueta barre cada ~6 s). ARREGLADO EN ESTE COMMIT (alta): Enter en el dialogo 'Hay cambios sin guardar' guardaba a disco sin anunciarlo (editor_aspecto._tecla_confirmar_salir); ahora Enter y Esc vuelven, solo 'g' guarda (test de regresion; /estilo reset ya usaba Enter = No). PENDIENTE para manana (media): barra de atajos del editor no cabe en 120 columnas ('^L pre' + 'v' partido) y el '?' no aparece en ella; la fila de contraste del selector de color desborda el panel derecho; /estilo lista rompe 4 filas a 120 col (caps como columna truncada o solo en 'ver'); aviso con jerga tras 'cargar neon' ('barra.modo.glow (P9)') -> decir '1 propiedad aun sin efecto en esta version'; el editor marca 'ok' un banner.arte a 3,0:1 (etiquetar decorativo). Baja: dos lineas vacias antes del borde inferior del banner y el subtitulo repetido en el pie; peso del barrido neon (192 KB el banner + repintado cada 6 s indefinido: repintar solo la fila que cambia y tope de repeticiones por defecto en presets). BIEN, no tocar: la vista previa contextual por elemento, la linea de estado del editor con eco de cada cambio, y que el barrido del banner termina y deja el halo.
+
+## 2026-08-24 (noche) — Niveles de confianza + web sin dependencias (4.11.0)
+
+Pedido del dueno: "sistema de niveles de confianza y cuando Cognia no sepa o no tenga la
+suficiente confianza investigue en la web sin miedo" (ej.: suscriptores de un canal de YouTube).
+Entregado en el CLI como `/confianza` (commit 096c482f) tras un workflow ultracode: 2 implementadores
+en paralelo (web sin deps + extractores | modulo confianza_chat), integrador del CLI, 3 revisores
+adversariales (correctitud / degradacion silenciosa / seguridad+calidad del dato) y un agente de
+arreglos. Los revisores cazaron 12 hallazgos reales; los 3 graves: una cifra INVENTADA salia
+● ALTA por solape de tokens, el primer canal de YouTube se tomaba aunque no casara con la
+entidad, y 25 de 30 preguntas cotidianas de codigo disparaban 25 s de web. Todos cerrados con
+test de regresion. El tecleado posterior (mio) cazo uno mas: una confesion sin cifras salia
+● ALTA (1,00) porque los NOMBRES de las fuentes contaban como verificacion y el detector no
+reconocia "no te puedo dar ... sin inventar"; ademas la consulta era "Python" a secas y el
+recorte tomaba el menu de navegacion (ventana por relevancia). Tests dirigidos: 308 passed.
+
+Salida real tecleada (Qwen3.8-27B en :8080, web real):
+```
+cognia> cuantos suscriptores tiene The Acua Boy en YouTube?
+◐ confianza a priori BAJA: métrica de plataforma ('suscriptores'); plataforma (youtube); pide una cifra ('cuantos') → investigando en la web…
+  Según la página del canal en YouTube hoy, The Acua Boy (@theacuaboy170) tiene 4.63 mil suscriptores [1].
+  Ojo no confundirlo con "CHICO ACUÁTICO" / Aqua Boy (@Aquaboy666), que es otro canal distinto (89.8 k) [3].
+◐ confianza MEDIA (0,80) · 2 fuentes: youtube.com, socialblade.com     ✓ 14.6s
+cognia> como centro un div horizontal y verticalmente en css?
+  (respuesta normal con flexbox/grid/transform; SIN investigacion ni linea de confianza) ✓ 14.1s
+cognia> cual es la ultima version de Python disponible hoy?
+◐ confianza a priori BAJA: marcador de actualidad ('hoy') → investigando en la web…
+  La última versión estable disponible para descarga hoy es **Python 3.14.7**, lanzada el 5 de agosto de 2026 [3].
+● confianza ALTA (1,00) · 3 fuentes: en.wikipedia.org, devguide.python.org, python.org   ✓ 20.4s
+cognia> quien es el presidente de Argentina ahora?
+  Según los datos citados, el presidente de Argentina es **Javier Milei** [2][3] (fuentes de 2024; sin fuente de 2026 que lo confirme)
+● confianza ALTA (1,00) · 3 fuentes: pagina12.com.ar, vidadelanus.com, larepublica.co   ✓ 19.5s
+cognia> /confianza
+  confianza on · previa on · posterior on · segundos 25 · paginas 3 · via web ddgs · ultimo veredicto ● ALTA (1,00) ...
+```
+Antes del cambio la primera pregunta respondia: "No tengo acceso a datos en tiempo real, así que no
+puedo darte el número exacto de suscriptores" (baseline medido 15,1 s). Verdad de terreno: 4,63 mil.
+
+Limites declarados: la verificacion es LEXICA (cifras normalizadas + tokens distintivos) y una
+respuesta que solo parafrasea la evidencia sin confesar puede verificarse por solape; el
+presupuesto abandona (no mata) el hilo de red; la calibracion ECE de los niveles en el chat no se
+ha medido todavia contra un banco (b6 existe para `cognia responder`).

@@ -2,6 +2,37 @@
 
 ---
 
+## [4.11.0] - 2026-08-24
+
+### Niveles de confianza: Cognia investiga en la web cuando no sabe (`/confianza`)
+
+- Cuatro niveles (● alta ◐ media ○ baja ✕ nula) compuestos con senales
+  VERIFICABLES (citas literales, dominios independientes, contradicciones),
+  nunca preguntandole al modelo "que tan seguro estas". Dos ganchos en el
+  chat: PREVIA (la pregunta pide un dato volatil o especifico -- cifras de
+  plataformas, actualidad, precios, cargos, versiones "hoy" -- e investiga
+  ANTES de responder, anteponiendo la evidencia como DATOS citados) y
+  POSTERIOR (la respuesta confiesa no saber, investiga y responde de nuevo
+  con fuentes). Ejemplo real: "cuantos suscriptores tiene The Acua Boy en
+  YouTube?" pasa de "No tengo acceso a datos en tiempo real" a "4.63 mil
+  suscriptores [1] ◐ confianza MEDIA (0,80) · youtube.com, socialblade.com".
+- `/confianza [estado | on|off | previa on|off | posterior on|off |
+  segundos <n> | paginas <n> | probar <pregunta>]`; config persistida;
+  `COGNIA_CONFIANZA=0` lo apaga. `probar` investiga sin llamar al modelo
+  (diagnostico). Toda degradacion es visible (`confianza.web`).
+- Busqueda web SIN dependencias opcionales: en una instalacion limpia
+  `buscar_en_web` moria por falta de `ddgs` y el fallback http exigia `lxml`
+  sin declararlo. Ahora DDG-lite con la stdlib (1,5 s), `html.parser` si no
+  hay lxml, reintento con UA identificable ante 403, y "texto insuficiente
+  (pagina JS)" declarado en vez de cascarones como resultados validos.
+- Extractores de datos vivos (`cognia/knowledge/extractores.py`, registry
+  extensible): YouTube expone suscriptores/videos en el HTML crudo aunque el
+  texto visible sea un cascaron JS; `youtube_canal()` lee la pagina de
+  resultados con filtro de canales.
+- Clasificador de preguntas con freno de "tarea local": preguntas de
+  codigo, matematica o definicion no disparan la web (medido: 25 de 30
+  preguntas cotidianas disparaban en la primera version; ahora 0).
+
 ## [4.10.1] - 2026-08-24
 
 ### Arreglos (reportados por el dueno sobre 4.10.0 en Windows Terminal)
