@@ -2,7 +2,56 @@
 
 ---
 
-## [Sin publicar]
+## [4.12.0] - 2026-08-25
+
+### Modo Bots (`/bots`): bots con nombre, como Hermes Bot Mode / Grok Bot
+
+- Un bot ES un perfil aislado en `~/.cognia/bots/<nombre>/` (bot.json, ALMA.md,
+  skills/, permisos.json, memoria/, rutinas/, sesiones/canon.jsonl, inbox.jsonl).
+  `/bots crear <nombre> [--titulo] [--desc] [--modelo] [--clonar]`, `/bots alma`,
+  `/bots modelo` (validado contra el modelo servido o la flota; aviso en voz alta
+  si el pinneado no esta servido), `/bots chat <bot>` (chat canonico persistente
+  con el prompt `<glifo> <nombre>> `; `/nueva` compacta en vez de forkear; `/hacer`
+  y `/rutinas` corren en el contexto del bot), `/bots enviar`, `/bots inbox`,
+  `/bots rutina add|list|rm|ahora` (sobre el cron de `hermes/rutinas`),
+  `/bots skills`, `/bots permisos` (allowlist persistente por bot con test de
+  arranque; `shell_exec` casa tuberias enteras), `/bots workdir`, `/bots borrar`,
+  `/bots ocultar`, `/bots daemon estado|arrancar|parar|instalar`.
+- `@bot texto` y "dile a <bot> que ..." son un HANDOFF: el bot activo compone su
+  propio mensaje y lo envia con la tool `mensaje_bot` (fire-and-forget, solo
+  existe con un bot activo, nunca pasa texto por shell, tope de saltos). El
+  ALMA ocupa el slot de identidad del cerebro; al agente solo llega un sufijo
+  corto (respeta el A/B 2026-07-23). El protocolo de mensajeria lo inyecta el
+  sistema, no el ALMA. Los mensajes entrantes se responden en el carril agente
+  con la instruccion "mensaje_bot o [SILENT]" antepuesta (0/3 -> 5/5 medido).
+- `python -m cognia.bots daemon|estado|instalar|desinstalar`: rutinas + inbox de
+  cada bot sin REPL abierto (tarea programada por ruta absoluta, proactividad
+  apagada en headless). Remoto: `/api/bots` y `static/bots.html`.
+- Aislamiento: `contexto()` serializa los turnos con un candado, identidad por
+  ContextVar, restauracion del entorno por delta; la memoria del bot no toca la
+  del dueno (verificado: "que te pregunte antes?" tras `/bots salir` no lo sabe).
+
+### Control remoto con paridad con el REPL (`/remoto`)
+
+- Interrumpir una generacion desde el movil (`POST .../interrumpir` -> CTRL_BREAK
+  al REPL hijo; el REPL bajo remoto protege la iteracion entera del bucle);
+  streaming de la respuesta (`delta` por WebSocket, la final reemplaza la
+  burbuja); mensajes multilinea (una sola entrada, conservando lineas vacias);
+  eventos tipados `Confianza` y `FooterTurno` (chip de confianza y footer con
+  contexto en el movil); confianza previa/posterior y `/lazo` corren en remoto;
+  el resultado de todo comando slash llega al chat (antes iba plegado).
+- PWA: boton Detener, burbuja viva con markdown, `@ruta` con sugerencias,
+  adjuntar ficheros (`POST /subir`), acceso restringido|total al crear sesion
+  (default restringido), reconexion con backoff y relectura, historial con
+  flechas, fuzzy de comandos, capacidades por `GET /api/version`.
+- Servidor: `--host`/`--port` (o `COGNIA_REMOTO_HOST/PORT`), CORS sin `*`, 413
+  para bodies grandes, rate limit solo a peticiones sin token valido, sid unico,
+  `.pid` por REPL reconciliado solo si no hay otro servidor vivo y solo sobre
+  procesos `-m cognia` anteriores al fichero, `servidor.pid` JSON, apagado con
+  WebSocket abierto en 0,2 s, `--limpiar [--dry-run]` para carpetas huerfanas.
+- Puerta local `/remoto [estado|arrancar|parar|url|limpiar]` y comandos
+  `/decirle <id> <texto>` y `/cancelar <id>` (antes solo por F2).
+
 
 ### Arnes del agente: ideas de deepagents (LangChain 0.7.8) portadas quirurgicamente
 
