@@ -17,6 +17,7 @@ Runnable as:  python -m cognia.agents.goal_contract
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import sys
@@ -416,13 +417,20 @@ _TASK_TEST_RX = _re.compile(r"\b(test|tests|pytest|prueba|pruebas)\b",
 _MAX_DERIVED = 3
 
 
-def derive_criteria_from_task(task: str, py_exe: Optional[str] = None) -> list:
+def derive_criteria_from_task(task: str, py_exe: Optional[str] = None,
+                              raiz: Optional[str] = None) -> list:
     """Specs (para GoalContract.from_spec) derivadas de la letra de la tarea.
 
     - ruta con pinta de test (test_*.py o bajo tests/) + mención de tests
       -> command_succeeds: pytest sobre esa ruta (oráculo ejecutable real);
-    - cualquier otra ruta mencionada -> file_exists (necesario, no suficiente);
+    - cualquier otra ruta mencionada -> file_exists (necesario, no suficiente),
+      y SOLO si esa ruta no existe ya: un criterio que se cumple antes de
+      empezar no verifica nada (ver el comentario de abajo);
     - tope _MAX_DERIVED criterios, dedupe por ruta.
+
+    `raiz` es el workspace contra el que se comprueba la existencia; por
+    defecto, el directorio de trabajo. Se deriva al ARRANCAR la tarea, así que
+    lo que hay en disco en ese momento es el estado "antes".
     """
     # Saneo harmony (A6, causa raiz medida 2026-08-09): cuando la letra llega
     # contaminada con tokens de canal de un razonador (<|channel|>analysis...,
@@ -460,6 +468,30 @@ def derive_criteria_from_task(task: str, py_exe: Optional[str] = None) -> list:
                 "description": "los tests mencionados pasan: " + path,
             })
         else:
+            # UN CRITERIO QUE YA SE CUMPLE ANTES DE EMPEZAR NO ES UN CRITERIO
+            # (2026-08-26). `file_exists` sobre una ruta que YA esta en disco
+            # no discrimina nada: pase lo que pase en la tarea, sale [OK].
+            #
+            # MEDIDO: se le pidio al agente completar `game/ai.py` (que existia
+            # con 80 bytes de basura) mencionando ademas `config.py` y
+            # `game/core.py` como contexto. El turno gasto 27,8 minutos, no
+            # escribio NI UN BYTE... y el contrato cerro con
+            # "SATISFIED: 3/3 / COMPLETE: yes / ✓ Objetivo verificado".
+            # Los tres ficheros existian antes de arrancar. El sistema afirmo
+            # haber verificado un trabajo que no se hizo, que es peor que no
+            # verificar nada.
+            #
+            # Se descarta en vez de convertirlo en "debe haber cambiado":
+            # derivar eso de la letra es frigil ("lee X y explicalo" no pide
+            # cambiar X), y callar es honesto donde inventar no lo es. Si con
+            # esto no queda ningun criterio, el contrato sale vacio y el turno
+            # no puede decir "objetivo verificado" -- que es exactamente lo
+            # que debe pasar cuando no hay nada que se pueda comprobar.
+            if os.path.exists(os.path.join(raiz, path) if raiz else path):
+                logging.getLogger(__name__).debug(
+                    "criterio file_exists descartado: %s ya existia antes de "
+                    "la tarea, no discrimina", path)
+                continue
             specs.append({
                 "kind": "file_exists", "path": path,
                 "description": "la tarea menciona " + path + " -> debe existir",

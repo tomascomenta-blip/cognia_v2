@@ -76,6 +76,27 @@ copio igual. Ahora hay una guarda determinista en el camino de escritura: si el
 contenido lleva la marca, no se escribe, y se le dice al modelo que el fichero
 sigue entero en disco y que lo relea en vez de copiar el marcador.
 
+### Dos cosas mas que aparecieron al pedirle que terminara el juego
+
+- **Un criterio que ya se cumple antes de empezar no es un criterio.** El
+  contrato de objetivo deriva "el fichero X debe existir" de cada ruta que la
+  tarea menciona. Si X ya existia -- porque la tarea era completarlo, o porque
+  se nombro como contexto -- ese criterio no puede fallar. MEDIDO: se le pidio
+  completar `game/ai.py` (que existia, con 80 bytes de basura) citando
+  `config.py` y `game/core.py`; el turno no escribio NI UN BYTE y el contrato
+  cerro con `SATISFIED: 3/3` y `✓ Objetivo verificado`. Ahora esos criterios
+  se descartan al derivarlos, y si no queda ninguno el contrato sale VACIO:
+  callar es honesto donde inventar no lo es.
+- **El presupuesto de salida no daba para pensar Y escribir.** El perfil del
+  agente nativo pedia `max_tokens: 4096` con `enable_thinking: true`: el
+  pensamiento solo se los comia y el turno moria sin emitir el tool call
+  (27,8 min y cero bytes, contra el 27B real). Y el 4096 tapaba la rampa,
+  porque su techo es `max(16384, max_tokens * 4)` = 16384 justos. Sube a
+  8192, con lo que el techo pasa a 32768. Es el bug numero 12 de la familia
+  "presupuesto de tokens con razonadores". No cuesta tokens -- max_tokens es
+  un tope, no una reserva -- y el gate del camino feliz pasa 5/5 en 2,3 min
+  contra los 4,7 de antes, porque deja de pagar reintentos por corte.
+
 ### Medido de punta a punta con la tarea que murio
 
 La misma especificacion de 14.220 caracteres, contra el Qwen3.8-27B real:

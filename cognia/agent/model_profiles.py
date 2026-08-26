@@ -593,7 +593,25 @@ def perfil_del_agente(url: str = "", forzar: bool = False) -> dict:
         # Cubre pensamiento + respuesta; chat_client ademas CLAMPEA cualquier
         # pedido por debajo de MIN_TOKENS_RAZONADOR (chequeo que corre, no
         # leccion en prosa).
-        "max_tokens": 4096,
+        #
+        # 8192 y no 4096 (2026-08-26). "Cubre pensamiento + respuesta" era el
+        # problema: con `enable_thinking: true` -- que es lo que este mismo
+        # perfil pone para la familia Qwen3.x -- el pensamiento SOLO se come
+        # los 4096, y el turno muere sin emitir el tool call. Es el bug numero
+        # 12 de la familia 'presupuesto de tokens con razonadores' que este
+        # repo lleva documentada once veces.
+        # MEDIDO contra el Qwen3.8-27B real: se le pidio escribir UN modulo
+        # (game/ai.py, ~200 lineas). Salio "el turno se corto por max_tokens
+        # antes de emitir el tool call" dos veces, la rampa llego a su techo y
+        # el turno cerro con "respuesta vacia (solo razonamiento)": 27,8
+        # minutos y CERO bytes escritos.
+        # El 4096 ademas tapaba la rampa: _TECHO_REINTENTO es
+        # max(16384, max_tokens * 4), o sea 16384 justos, y con eso no habia
+        # recorrido. Con 8192 el techo sube a 32768.
+        # No cuesta tokens: max_tokens es un TOPE, no una reserva -- si el
+        # modelo termina antes, se paga lo que emitio. Y 8192 es el 12,5% de
+        # los 65.536 de ventana del cerebro actual.
+        "max_tokens": 8192,
         "system_perfil": "completo",
         # Trazabilidad del adaptador: de donde salio CADA decision. Sin esto,
         # un perfil raro en produccion no se puede diagnosticar sin reproducir.

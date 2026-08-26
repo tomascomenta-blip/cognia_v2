@@ -258,3 +258,48 @@ def test_derivadas_arman_un_contrato_que_corre():
         open(p, "w").write("hola")
         st1 = c.check()
         assert st1.complete                     # evidencia real, no self-report
+
+
+# ── Un criterio que ya se cumple antes de empezar no es un criterio ─────────
+
+def test_no_se_deriva_file_exists_de_un_fichero_que_YA_existe(tmp_path):
+    """MEDIDO 2026-08-26, y es la peor clase de fallo: afirmar que se
+    verifico algo que no se hizo.
+
+    Se le pidio al agente completar `game/ai.py` (que existia, con 80 bytes de
+    basura) mencionando ademas `config.py` y `game/core.py` como contexto. El
+    turno gasto 27,8 minutos, no escribio NI UN BYTE, y el contrato cerro con
+    'SATISFIED: 3/3 / COMPLETE: yes / Objetivo verificado'. Los tres ficheros
+    existian antes de arrancar: ningun criterio podia fallar.
+    """
+    (tmp_path / "game").mkdir()
+    (tmp_path / "game" / "ai.py").write_text("# vacio", encoding="utf-8")
+    (tmp_path / "config.py").write_text("X = 1", encoding="utf-8")
+    tarea = ("Completa la IA en game/ai.py usando config.py; crea tambien "
+             "game/nuevo.py")
+
+    specs = derive_criteria_from_task(tarea, raiz=str(tmp_path))
+    rutas = {s.get("path") for s in specs if s.get("kind") == "file_exists"}
+    assert "game/ai.py" not in rutas, "criterio que ya se cumplia antes"
+    assert "config.py" not in rutas, "criterio que ya se cumplia antes"
+    # El que NO existe si es un criterio de verdad: puede fallar.
+    assert "game/nuevo.py" in rutas, rutas
+
+
+def test_si_no_queda_ningun_criterio_el_contrato_sale_VACIO(tmp_path):
+    """Y eso es lo correcto: callar es honesto donde inventar no lo es. Un
+    contrato vacio no puede decir 'objetivo verificado'."""
+    (tmp_path / "a.py").write_text("x", encoding="utf-8")
+    (tmp_path / "b.py").write_text("y", encoding="utf-8")
+    specs = derive_criteria_from_task("mejora a.py y b.py", raiz=str(tmp_path))
+    assert specs == [], specs
+
+
+def test_sin_raiz_se_mira_el_directorio_de_trabajo(tmp_path, monkeypatch):
+    """El derivador corre al ARRANCAR la tarea, con el cwd del workspace: lo
+    que hay en disco en ese momento es el estado 'antes'."""
+    (tmp_path / "ya_esta.py").write_text("x", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    specs = derive_criteria_from_task("arregla ya_esta.py y crea otro.py")
+    rutas = {s.get("path") for s in specs if s.get("kind") == "file_exists"}
+    assert rutas == {"otro.py"}, rutas
