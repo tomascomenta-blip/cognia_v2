@@ -415,3 +415,93 @@ def test_los_reintentos_de_backend_son_una_RACHA_no_un_cupo(monkeypatch):
     out = _correr(_completar, max_turns=10)
     assert out["ok"], out["texto"]
     assert "Listo" in out["texto"], out["texto"]
+
+
+# ── La compactacion no puede comerse un fichero ─────────────────────────────
+
+def test_no_se_escribe_el_marcador_de_truncado_como_contenido(monkeypatch):
+    """PASO DE VERDAD, y se reprodujo byte a byte (2026-08-26).
+
+    `_truncar_valores_args` sustituye los valores largos de los assistant
+    viejos por `v[:20] + _MARCA_ARG_TRUNCADO` para que el historial no
+    arrastre 40 KB de codigo. Ese texto vuelve al modelo dentro de su propio
+    tool call, y el modelo lo lee como si fuera el contenido del fichero: lo
+    copia y lo reescribe al disco.
+
+    En la corrida del videojuego, `voleibol/game/ai.py` quedo con
+    EXACTAMENTE el output de _truncar_valores_args y nada mas -- un modulo
+    entero perdido, y en silencio, porque la escritura "salio bien".
+    """
+    from cognia.agent.chat_client import ToolCall
+    from cognia.agent.loop import _truncar_valores_args, _MARCA_ARG_TRUNCADO
+
+    # El veneno se FABRICA con la funcion real, no se escribe a mano: si
+    # alguien cambia el marcador, este test sigue midiendo lo que dice.
+    envenenado = json.loads(_truncar_valores_args(json.dumps({
+        "ruta": "game/ai.py",
+        "contenido": "# -*- coding: utf-8 -*-\nclass IA:\n    pass\n" + "x" * 3000,
+    })))["contenido"]
+    assert _MARCA_ARG_TRUNCADO in envenenado
+
+    monkeypatch.setenv("COGNIA_STREAM", "0")
+    crudo = json.dumps({"ruta": "game/ai.py", "contenido": envenenado})
+    tc = ToolCall(id="t1", nombre="escribir_archivo",
+                  argumentos={"ruta": "game/ai.py", "contenido": envenenado},
+                  argumentos_crudos=crudo)
+    guion = [
+        RespuestaChat(texto="", finish_reason="tool_calls", usage={},
+                      tool_calls=[tc]),
+        RespuestaChat(texto="Listo.", finish_reason="stop", usage={}),
+    ]
+    n = []
+
+    def _completar(mensajes, tools=None, **kw):
+        n.append(1)
+        return guion[min(len(n) - 1, len(guion) - 1)]
+    escrituras = []
+
+    def _run_tool(nombre, args, ctx):
+        escrituras.append((nombre, args))
+        return f"RESULTADO {nombre}: OK"
+
+    avisos = []
+    out = _correr(_completar, avisos=avisos, max_turns=6,
+                  run_tool=_run_tool)
+
+    assert not escrituras, f"se escribio el marcador al disco: {escrituras}"
+    assert any("marcador de truncado" in a for a in avisos), avisos
+    # El turno CONTINUA (no lo mata la guarda) y llega a su cierre normal.
+    # `ok` queda en False porque una tool fallo de verdad -- eso es correcto y
+    # es otra cosa; asertarlo haria pasar el test por el motivo equivocado.
+    assert "Listo" in out["texto"], out["texto"]
+
+
+def test_una_escritura_normal_sigue_pasando(monkeypatch):
+    """El contrafactual: la guarda mira el MARCADOR, no el tamano ni la
+    tool. Un contenido legitimo se escribe igual que siempre."""
+    from cognia.agent.chat_client import ToolCall
+
+    monkeypatch.setenv("COGNIA_STREAM", "0")
+    bueno = "# -*- coding: utf-8 -*-\nclass IA:\n    def decidir(self):\n        return 'attack'\n"
+    crudo = json.dumps({"ruta": "game/ai.py", "contenido": bueno})
+    tc = ToolCall(id="t1", nombre="escribir_archivo",
+                  argumentos={"ruta": "game/ai.py", "contenido": bueno},
+                  argumentos_crudos=crudo)
+    guion = [
+        RespuestaChat(texto="", finish_reason="tool_calls", usage={},
+                      tool_calls=[tc]),
+        RespuestaChat(texto="Listo.", finish_reason="stop", usage={}),
+    ]
+    n = []
+
+    def _completar(mensajes, tools=None, **kw):
+        n.append(1)
+        return guion[min(len(n) - 1, len(guion) - 1)]
+    escrituras = []
+
+    def _run_tool(nombre, args, ctx):
+        escrituras.append((nombre, args))
+        return f"RESULTADO {nombre}: OK"
+
+    _correr(_completar, max_turns=6, run_tool=_run_tool)
+    assert len(escrituras) == 1, escrituras

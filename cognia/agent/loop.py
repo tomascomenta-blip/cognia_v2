@@ -542,6 +542,23 @@ def _truncar_valores_args(args: str) -> str:
     return ruta + " | " + _MARCA_ARG_TRUNCADO
 
 
+def _lleva_marca_truncado(tc) -> bool:
+    """True si algun argumento del tool call ES el marcador de truncado.
+
+    Mira los VALORES ya parseados y no el JSON crudo: `json.dumps` escapa el
+    '…' del marcador como '\\u2026', asi que buscar la marca en el serializado
+    no acierta nunca. El crudo se mira ademas por si los argumentos no vinieron
+    como JSON (protocolo texto 'ruta | contenido'), donde no hay escapes."""
+    args = getattr(tc, "argumentos", None)
+    if isinstance(args, dict):
+        for v in args.values():
+            if isinstance(v, str) and _MARCA_ARG_TRUNCADO in v:
+                return True
+    elif isinstance(args, str) and _MARCA_ARG_TRUNCADO in args:
+        return True
+    return _MARCA_ARG_TRUNCADO in str(getattr(tc, "argumentos_crudos", "") or "")
+
+
 def _truncar_args_escritura(mensajes: list, ultimo_assistant: int) -> int:
     """Trunca los arguments > _ARGS_TRUNCAR_MIN de escribir/editar/apendar en
     los assistant ANTERIORES al ultimo (el ultimo es el turno en curso: sus
@@ -1507,6 +1524,50 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                          f"por partes[/warn_cl]")
                 history.append(resultado)
                 trace.append({"action": tc.nombre, "args": crudo[:200],
+                              "ok": False, "result_head": resultado[:160]})
+                mensajes.append(mensaje_tool(tc.id, resultado))
+                continue
+            # LA COMPACTACION NO PUEDE COMERSE UN FICHERO (2026-08-26).
+            # `_truncar_valores_args` sustituye los valores largos de los
+            # assistant viejos por `v[:20] + _MARCA_ARG_TRUNCADO`, para que la
+            # cola del historial no arrastre 40 KB de codigo. El problema es
+            # que ese texto VUELVE al modelo dentro de su propio tool call, y
+            # el modelo lo lee como si fuera el contenido del fichero: lo
+            # copia y lo reescribe al disco, machacando lo que ya habia.
+            #
+            # PASO DE VERDAD, y se reprodujo byte a byte: en la corrida del
+            # videojuego, `voleibol/game/ai.py` quedo con exactamente esto y
+            # nada mas:
+            #     # -*- coding: utf-8 … (argumento truncado: el contenido ya
+            #     esta en el fichero)
+            # que es el output literal de _truncar_valores_args sobre un
+            # fichero que empezaba por la linea de encoding. Un modulo entero
+            # perdido, y en silencio: la escritura "salio bien".
+            #
+            # Un aviso en el marcador no basta -- el modelo ya tenia uno
+            # delante y lo copio igual. Esto es una guarda DETERMINISTA en el
+            # camino de escritura: si el contenido lleva la marca, no se
+            # escribe y se le dice al modelo que relea el fichero.
+            # Se mira el dict YA PARSEADO y no `argumentos_crudos`: json.dumps
+            # escapa el '…' del marcador como '\\u2026', asi que buscarlo en el
+            # JSON serializado no acierta nunca (lo cazo el test al primer
+            # intento). El crudo se mira ademas, por si los argumentos no
+            # vinieron como JSON (protocolo texto 'ruta | contenido').
+            if tc.nombre in _TOOLS_ESCRITURA and _lleva_marca_truncado(tc):
+                resultado = (
+                    f"RESULTADO {tc.nombre} ERROR: el contenido que mandaste "
+                    f"es el MARCADOR DE TRUNCADO del historial, no codigo. "
+                    f"Ese texto aparece porque el contenido viejo se recorto "
+                    f"para ahorrar contexto: el fichero de verdad sigue "
+                    f"entero en el disco. NO lo copies. Si necesitas su "
+                    f"contenido, leelo con leer_archivo; si querias cambiar "
+                    f"una parte, usa editar_archivo con el bloque exacto.")
+                print_fn(f"[warn_cl]{tc.nombre}: bloqueada una escritura que "
+                         f"habria machacado el fichero con el marcador de "
+                         f"truncado del historial[/warn_cl]")
+                history.append(resultado)
+                trace.append({"action": tc.nombre,
+                              "args": str(tc.argumentos_crudos or "")[:200],
                               "ok": False, "result_head": resultado[:160]})
                 mensajes.append(mensaje_tool(tc.id, resultado))
                 continue

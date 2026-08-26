@@ -59,6 +59,23 @@ calibrado para tareas de un parrafo.
   pasos nada cambia. La MESETA (6 pasos sin avance NUEVO, ya habiendo
   arrancado) se deja igual: ahi la senal si es buena.
 
+### La compactacion ya no puede comerse un fichero
+
+Cuando el historial se recorta, los argumentos largos de un `escribir_archivo`
+viejo se sustituyen por `<primeros 20 chars>… (argumento truncado: el
+contenido ya esta en el fichero)`. Ese texto vuelve al modelo dentro de su
+propio tool call, y el modelo lo lee como si fuera el contenido: lo copia y lo
+reescribe al disco, machacando lo que ya habia.
+
+Paso de verdad y se reprodujo byte a byte: en la corrida del videojuego,
+`game/ai.py` quedo con exactamente ese marcador y nada mas. Un modulo entero
+perdido, y en silencio, porque la escritura "salio bien".
+
+Un aviso dentro del marcador no bastaba -- el modelo ya tenia uno delante y lo
+copio igual. Ahora hay una guarda determinista en el camino de escritura: si el
+contenido lleva la marca, no se escribe, y se le dice al modelo que el fichero
+sigue entero en disco y que lo relea en vez de copiar el marcador.
+
 ### Medido de punta a punta con la tarea que murio
 
 La misma especificacion de 14.220 caracteres, contra el Qwen3.8-27B real:
