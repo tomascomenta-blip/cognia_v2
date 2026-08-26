@@ -2,6 +2,23 @@
 
 ---
 
+## [4.12.2] - 2026-08-25
+
+### Segura Y util: se puede limpiar, con permiso y con vuelta atras
+
+- La tool `borrar_archivo` (que NO destruye: manda a la papelera de Cognia con
+  inventario y `/deshacer-borrado`) ahora acepta rutas de FUERA del proyecto si
+  el dueno lo confirma en el turno. Sin canal de confirmacion -- control remoto
+  desatendido, e2e, daemon -- se niega. Los flags de autonomia no cuentan como
+  permiso humano.
+- El borrado por shell (`del`, `rm`, `Remove-Item`) sigue BLOQUEADO sobre las
+  carpetas personales: no tiene vuelta atras y no hay confirmacion que lo
+  arregle. La negativa nombra la via reversible.
+- Arreglado un fallo que hacia fracasar un borrado YA APROBADO: la papelera
+  replicaba la ruta original completa bajo el lote y en Windows el destino se
+  pasaba de MAX_PATH (`WinError 206`). Ahora usa un nombre corto cuando no
+  cabe; la ruta original vive en el indice y `/deshacer-borrado` restaura igual.
+
 ## [4.12.1] - 2026-08-25
 
 ### Cognia ya no dice haber hecho lo que no hizo
