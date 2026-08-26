@@ -923,7 +923,23 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             # umbral_arranque 6 y no 4: la calibracion de 4 salio de tareas de
             # reparacion, que verifican temprano. Aqui hay tareas que leen
             # mucho antes de producir el primer avance verificable.
-            _prog = _Progreso(nombre="bucle_nativo", umbral_arranque=6,
+            #
+            # Y ESCALA CON EL PRESUPUESTO (2026-08-26). Un 6 fijo significa
+            # cosas distintas segun el tamano de la tarea: con 8 pasos es el
+            # 75% del presupuesto (razonable), pero con 28 es el 21% -- se le
+            # concede a la tarea grande el presupuesto que merece y se la mata
+            # antes de gastar un cuarto. MEDIDO en la corrida real del
+            # videojuego: 28 pasos concedidos, cerrada por 'sin_arranque' a
+            # los 9, con CERO ficheros escritos, tras gastar los primeros
+            # pasos en cortes de max_tokens y en comprobar que pygame estaba
+            # instalado -- trabajo legitimo de arranque que no deja "avance
+            # verificado" ninguno.
+            # max(6, ...) para que ninguna tarea pierda margen: con 8 o menos
+            # pasos el umbral sigue siendo exactamente el de hoy.
+            # umbral_estancado (la MESETA, ya habiendo avanzado) no se toca:
+            # ahi si hubo arranque y 6 pasos sin un avance nuevo es senal.
+            _prog = _Progreso(nombre="bucle_nativo",
+                              umbral_arranque=max(6, max_turns // 2),
                               umbral_estancado=6)
         except Exception:
             _estado_on = False
@@ -1078,6 +1094,13 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # stream romperia a quien sirva el modelo por otra via.
     _RE_SIN_SSE = re.compile(r"(?i)sin SSE|no lo respeta|ni un frame")
 
+    # Piso de max_tokens APRENDIDO en este turno: arranca en el del perfil y
+    # solo sube cuando un paso demuestra que hacia falta (ver el reset del
+    # presupuesto, mas abajo). Vive FUERA del while a proposito: es lo unico
+    # que el turno averigua sobre lo que esta tarea le cuesta a este modelo, y
+    # tirarlo en cada paso era pagar la misma rampa una y otra vez.
+    _piso_tokens = int(sampling["max_tokens"])
+
     sig_counts: dict = {}
     # Herramientas ya ofrecidas en ESTA tarea: ofrecer dos veces la misma es
     # ruido, y si no la uso la primera vez es que no la queria.
@@ -1187,7 +1210,6 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # paso que gastara los dos reintentos dejaba a todos los siguientes sin
         # rampa: el segundo fichero largo moria sin un solo reintento.
         _reintentos_corte = 0
-        _presupuesto_base = sampling["max_tokens"]
 
         # ¿Se corto el turno mientras emitia un tool call? Entonces el problema
         # es el PRESUPUESTO, no el modelo: se sube y se repite el mismo turno.
@@ -1236,9 +1258,29 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                              **_kwargs_stream())
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
 
-        # El presupuesto vuelve al del perfil: la subida era para ESTE paso. Si
-        # se queda alta, el resto de la tarea paga un techo que no pidio nadie.
-        sampling["max_tokens"] = _presupuesto_base
+        # EL PISO APRENDIDO NO SE OLVIDA (2026-08-26). Antes el presupuesto
+        # volvia SIEMPRE al del perfil ("la subida era para ESTE paso"), y eso
+        # tiraba lo unico que el turno habia averiguado: que a este modelo,
+        # con esta tarea, 4096 no le alcanzan. Cada paso volvia a empezar en
+        # 4096, se volvia a cortar y se volvia a pagar la rampa.
+        #
+        # MEDIDO en la corrida real del videojuego (2026-08-26, 28,2 min):
+        # "el turno se corto por max_tokens antes de emitir el tool call:
+        # repito el paso con max_tokens 4096 -> 8192" sale CUATRO veces en el
+        # mismo turno. Cada una son dos llamadas al modelo tiradas, y ninguna
+        # deja un avance verificado: la tarea acabo cerrando por
+        # 'sin_arranque' sin haber escrito un solo fichero.
+        #
+        # Solo se conserva el nivel que FUNCIONO: si tras la rampa el turno
+        # sigue cortado, no se aprende nada (subirlo mas no era la solucion,
+        # por eso existe el aviso de "escribelo por partes"). Y max_tokens es
+        # un TOPE, no una reserva: un piso alto no cuesta tokens si el modelo
+        # termina antes, solo alarga el peor caso.
+        if _reintentos_corte and not _corte_en_tool_call(resp, schemas):
+            _piso_tokens = max(_piso_tokens, int(sampling["max_tokens"]))
+            print_fn(f"[detail]presupuesto de salida aprendido para el resto "
+                     f"del turno: {_piso_tokens} tokens[/detail]")
+        sampling["max_tokens"] = _piso_tokens
         # FOOTER de contexto (barra_estado): tokens reales del turno y
         # ocupacion de la ventana (la refina el hook post-compactacion).
         _anotar_uso_vivo(resp, perfil.get("n_ctx"), mensajes, print_fn)

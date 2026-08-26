@@ -14335,3 +14335,20 @@ el server vivo: 24,7 tok/s de punta a punta (el codigo asumia 45).
 siguen por el camino no-stream: es un flag deliberado y el dueno reporto el CLI, no los
 workflows. Queda anotado en el codigo con el coste que tiene, para que el que llegue no lo
 descubra otra vez desde cero.
+
+**Y quedaban DOS topes mas, que solo aparecieron al correr la tarea de verdad.** La primera corrida
+con el reloj arreglado aguanto 28,2 min sin morir por timeout (contra los ~5 min de produccion),
+pero cerro por `sin_arranque` con CERO ficheros. La causa, en su propio log: el aviso "se corto por
+max_tokens ... repito el paso con 4096 -> 8192" cuatro veces en el mismo turno. La rampa de
+`max_tokens` volvia al valor del perfil al acabar cada paso, asi que el turno re-descubria en cada
+paso lo que ya sabia. Se conserva el piso que YA funciono (y no se hereda a la tarea siguiente:
+hay test). Y el umbral de arranque del gobernador pasa de 6 FIJO a `max(6, pasos // 2)`: un 6 con
+28 pasos concedidos mata la tarea grande antes de gastar un cuarto de su presupuesto.
+
+**Segunda corrida, misma tarea, mismo modelo: 41,3 min, 14 ficheros escritos (8 de codigo real:
+config/physics/rules/actions/tactics/ai/core) y cierre por presupuesto agotado TRABAJANDO**, no por
+un tope espurio. Es la diferencia entre "no responde" y "responde y pide mas presupuesto".
+
+Leccion del dia, y es de metodo: los cinco primeros topes salieron de LEER (codigo, log e historial);
+los dos ultimos solo aparecieron al CORRER la tarea real de punta a punta. Un diagnostico de lectura
+encuentra las causas que dejaron huella; las que quedan solo se ven ejecutando.

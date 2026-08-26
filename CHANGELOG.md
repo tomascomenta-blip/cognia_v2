@@ -43,6 +43,38 @@ calibrado para tareas de un parrafo.
   que la infraestructura no se coma el presupuesto de la tarea, y no lo
   conseguia: el corte lo daba un contador que nunca baja. En el turno que
   murio se habian quemado 5 de 8 vueltas para hacer 2 pasos de trabajo real.
+- **El presupuesto de salida se re-descubria en cada paso.** La rampa que sube
+  `max_tokens` cuando el modelo se corta a mitad de un tool call volvia SIEMPRE
+  al valor del perfil al acabar el paso, asi que el paso siguiente se estrellaba
+  contra el mismo techo. En la corrida real del videojuego el aviso
+  "se corto por max_tokens ... repito el paso con 4096 -> 8192" sale CUATRO
+  veces en el mismo turno: ocho llamadas al modelo tiradas y ni un fichero
+  escrito. Ahora el turno conserva el piso que YA demostro necesitar (solo el
+  nivel que funciono, y sin heredarlo la tarea siguiente).
+- **El umbral de arranque escala con la tarea.** El gobernador por progreso
+  cerraba a los 6 pasos sin un avance verificado, fuera cual fuera el
+  presupuesto: con 8 pasos es el 75% (razonable), con 28 es el 21% -- se le
+  concede a la tarea grande el presupuesto que merece y se la mata antes de
+  gastar un cuarto. Ahora es `max(6, pasos // 2)`, asi que por debajo de 12
+  pasos nada cambia. La MESETA (6 pasos sin avance NUEVO, ya habiendo
+  arrancado) se deja igual: ahi la senal si es buena.
+
+### Medido de punta a punta con la tarea que murio
+
+La misma especificacion de 14.220 caracteres, contra el Qwen3.8-27B real:
+
+| | Produccion (12:01) | Con el reloj arreglado | Con los siete topes |
+|---|---|---|---|
+| Murio por timeout | **si** | no | no |
+| Ficheros escritos | 0 | 0 | **14** (8 de codigo) |
+| Cerro por | `TimeoutError` | `sin_arranque` | presupuesto agotado **trabajando** |
+| Duracion | ~5 min | 28,2 min | 41,3 min |
+
+La tercera columna escribe `config.py`, `physics.py`, `rules.py`,
+`actions.py`, `tactics.py`, `ai.py` y `core.py`, y agota sus 28 pasos
+HACIENDO el juego. No lo termina -- eso es otra conversacion, y ahora es una
+que se puede tener con un "continua" -- pero la diferencia con "no responde"
+es la que se pedia.
 
 ### El backend se sirve con la receta de SU modelo
 

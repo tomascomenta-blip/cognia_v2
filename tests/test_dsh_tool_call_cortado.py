@@ -300,9 +300,23 @@ class TestLaRampaDePresupuesto:
         vistos = self._correr([cortada], {"max_tokens": 32768})
         assert max(vistos) > 32768, f"la rampa no subio: {vistos}"
 
-    def test_el_presupuesto_vuelve_a_su_sitio_en_el_paso_siguiente(self):
-        """La subida es para ESE paso. Si persiste, el resto de la tarea corre
-        con un techo que nadie pidio (lo midio la revision adversarial)."""
+    def test_el_presupuesto_aprendido_persiste_en_el_turno(self):
+        """El piso que YA se demostro necesario no se olvida (2026-08-26).
+
+        Este test decia lo contrario ("la subida es para ESE paso; si
+        persiste, el resto de la tarea corre con un techo que nadie pidio").
+        La preocupacion era razonable pero el coste real es el opuesto, y esta
+        MEDIDO: en la corrida del videojuego (28,2 min contra el 27B real) el
+        aviso "el turno se corto por max_tokens antes de emitir el tool call:
+        repito el paso con max_tokens 4096 -> 8192" salio CUATRO veces en el
+        mismo turno. Cada una son dos llamadas al modelo tiradas, y la tarea
+        acabo cerrando por 'sin_arranque' sin escribir un solo fichero.
+
+        max_tokens es un TOPE, no una reserva: un piso alto no cuesta tokens
+        si el modelo termina antes. Lo que costaba era re-descubrirlo en cada
+        paso. Lo que SIGUE garantizado (y lo fija el test de abajo): solo se
+        aprende el nivel que FUNCIONO.
+        """
         class _TCSano:
             id, nombre = "c1", "leer_archivo"
             argumentos, argumentos_crudos = {}, "{}"
@@ -332,7 +346,54 @@ class TestLaRampaDePresupuesto:
             print_fn=lambda *a, **k: None, max_turns=4)
         assert vistos[0] == 4096
         assert vistos[1] > 4096, f"no subio en el paso 1: {vistos}"
-        assert vistos[-1] == 4096, f"quedo el presupuesto subido: {vistos}"
+        # El paso 2 arranca en el nivel que FUNCIONO, no en el del perfil.
+        assert vistos[-1] == vistos[2], (
+            f"el turno se olvido del piso que ya habia aprendido: {vistos}")
+        assert vistos[-1] > 4096, vistos
+
+    def test_el_piso_aprendido_NO_se_lleva_a_la_tarea_siguiente(self):
+        """El contrapeso, y la preocupacion legitima del test viejo: el piso
+        vive en el TURNO, no en el proceso. Una tarea que necesito 16384 no
+        puede dejarle ese techo puesto a la siguiente, que empieza limpia.
+
+        (El otro caso que la implementacion cubre -- si tras agotar la rampa
+        el turno SIGUE cortado no se aprende nada -- no es observable desde
+        fuera: cuando la rampa no arregla el corte, el bucle cierra el turno
+        ahi mismo, asi que no queda un paso siguiente donde el piso pudiera
+        notarse. La guarda esta puesta igual, por si ese camino aparece.)
+        """
+        class _TCSano:
+            id, nombre = "c1", "leer_archivo"
+            argumentos, argumentos_crudos = {}, "{}"
+            argumentos_rotos = False
+
+        def _corre():
+            guion = [
+                _Resp(finish_reason="length", tool_calls=[], texto=""),
+                _Resp(finish_reason="tool_calls", tool_calls=[_TCSano()]),
+                _Resp(finish_reason="stop", texto="listo"),
+            ]
+            vistos = []
+
+            def _completar(mensajes, tools=None, **sampling):
+                vistos.append(sampling.get("max_tokens"))
+                return guion[min(len(vistos) - 1, len(guion) - 1)]
+
+            L.bucle_nativo(
+                task="t", system="", completar=_completar, schemas=SCHEMAS,
+                args_legacy=lambda *a, **k: "",
+                mensaje_assistant=lambda r: {"role": "assistant", "content": ""},
+                mensaje_tool=lambda tid, txt: {"role": "tool", "content": txt},
+                run_tool=lambda *a, **k: "RESULTADO ok",
+                ctx={}, perfil={"max_tokens": 4096}, history=[], trace=[],
+                print_fn=lambda *a, **k: None, max_turns=4)
+            return vistos
+
+        primera = _corre()
+        assert primera[-1] > 4096, f"no aprendio nada: {primera}"
+        segunda = _corre()
+        assert segunda[0] == 4096, (
+            f"la tarea nueva heredo el techo de la anterior: {segunda}")
 
 
 class TestCortadoNoEsLoMismoQueMalformado:
