@@ -2,6 +2,50 @@
 
 ---
 
+## [4.12.1] - 2026-08-25
+
+### Cognia ya no dice haber hecho lo que no hizo
+
+- Si una respuesta del chat AFIRMA haber ejecutado, borrado o creado algo, se
+  avisa en pantalla, no se guarda como buena y el turno se encamina al agente
+  (que si ejecuta y pide permiso). `/confianza acciones on|off`.
+- Las peticiones de accion se reconocen en cualquier posicion ("quiero que
+  limpies...", "puedes borrar...", "hazlo tu", "no los ejecutaste") y activan el
+  agente con una linea VISIBLE, no en gris.
+- El prompt del chat dice el entorno real (Windows, shell, directorio) y que el
+  chat no ejecuta nada; el del agente lleva la misma linea corta, porque
+  ejecutaba comandos de Linux en Windows.
+- `/mejorar` deja de reescribir ordenes cortas y descarta la mejora que cambia
+  la intencion (una orden convertida en "arma un plan y preguntame...").
+
+### La memoria del dueno no se contamina con pruebas
+
+- La continuidad al arrancar solo restaura sesiones del MISMO directorio (un
+  saludo llego a dirigirse al dueno por el nombre de un canal de las pruebas).
+- Modo `COGNIA_EFIMERO=1`: ni historial, ni memoria episodica, ni perfil.
+  Cableado en los e2e y en los tests que arrancan el REPL.
+
+### El gate de permisos, invertido
+
+- Antes decidia por el PREFIJO del comando: `find <ruta> -delete` y
+  `find . -exec rm` pasaban como "conocido-seguro" y `cat x 2>/dev/null` se
+  bloqueaba como destructivo. Un equipo rojo colo 44 de 113 comandos
+  destructivos incluso tras dos tandas de parches.
+- Ahora la carga de la prueba la lleva el comando: se ejecuta sin preguntar solo
+  lo demostrablemente inocuo (validacion por argumentos: sin codigo en linea en
+  ninguna forma, sin flags de escritura, sin redirecciones a fichero, sin
+  lanzadores, sin ejecutar ficheros locales); se bloquea lo destructivo sobre
+  carpetas personales, con el directorio EFECTIVO (`cd carpeta && del *` se juzga
+  igual que la forma directa); y todo lo demas pregunta. Los flags de autonomia
+  auto-aprueban solo lo probado o lo de contencion demostrada, y nunca levantan
+  un bloqueo. La razon del bloqueo ya no sugiere como rodearlo.
+- Ronda final del equipo rojo: 60 ataques, 0 permitidos, 0 auto-aprobados; y 33
+  de 40 comandos de trabajo real siguen sin molestar.
+- "Aprobar una vez y recordar" estaba MUERTO (las reglas del proyecto se
+  escribian y nadie las leia): arreglado, con test de arranque.
+- Papelera propia con inventario y `/deshacer-borrado`; mas de 10 ficheros exige
+  confirmacion humana aunque haya bypass.
+
 ## [4.12.0] - 2026-08-25
 
 ### Modo Bots (`/bots`): bots con nombre, como Hermes Bot Mode / Grok Bot
