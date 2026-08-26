@@ -1930,11 +1930,16 @@ def _permiso_en_vista(app, kind: str, detalle: str):
     caja = {}
 
     def _cb(valor):
-        caja["v"] = bool(valor)
+        # "una" / "siempre" / "no" desde 2026-08-25 (antes un bool). El bool
+        # se sigue aceptando: la pantalla lo normaliza y hay tests que llaman
+        # a action_responder(True) para simular la tecla.
+        caja["v"] = valor
         listo.set()
 
     def _empujar():
-        app.push_screen(PantallaPermiso(kind, detalle), _cb)
+        app.push_screen(
+            PantallaPermiso(kind, detalle, _lo_que_se_aprueba(kind, detalle)),
+            _cb)
 
     try:
         app.call_from_thread(_empujar)
@@ -1948,12 +1953,25 @@ def _permiso_en_vista(app, kind: str, detalle: str):
     limite = time.time() + _ESPERA_PERMISO_S
     while time.time() < limite:
         if listo.wait(0.25):
-            return caja.get("v", False)
+            return _resolver_eleccion(caja.get("v", False), kind, detalle)
         if not getattr(app, "is_running", False):
             return None
     _aviso_degradado("cli.permiso.timeout_vista",
                      f"{_ESPERA_PERMISO_S:.0f}s sin respuesta: se deniega")
     return False
+
+
+def _resolver_eleccion(valor, kind: str, detalle: str) -> bool:
+    """"una"/"siempre"/"no" (o un bool) -> True/False, grabando si toca.
+
+    Quien graba es el llamador y no la pantalla: el modal de Textual corre en
+    el hilo de la App y escribir disco ahi bloquearia el dibujo. Cualquier otra
+    cosa es NO — deny by default, igual que el resto del gate."""
+    if isinstance(valor, bool):
+        return valor
+    if valor == "siempre":
+        return _recordar_siempre(kind, detalle)
+    return valor == "una"
 
 
 def _preguntar_desde_hilo(kind: str, detalle: str):
@@ -2503,10 +2521,21 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
     permisos.json tiene una regla que casa, esa regla decide ANTES del
     clasificador ("regla primero, clasificador despues", el orden que pide
     harness/permisos_reglas). Denegar gana tambien sobre bypass.
+
+    Proyecto (2026-08-25, la VALVULA): despues del bot y antes del
+    clasificador entran las reglas de .cognia/permisos.json de la RAIZ del
+    repo — las que graba "siempre en este proyecto". Hasta hoy nadie las
+    leia fuera del contexto de un bot: /permisos listaba reglas muertas y el
+    "permitir siempre" no sobrevivia al cierre del proceso (el bug de
+    arranque de Hermes #4739). Ninguna regla puede aprobar un BLOCK del
+    centinela ni un borrado masivo: ver _permiso_por_regla_de_proyecto.
     """
     _por_regla = _permiso_por_regla_de_bot(kind, detalle)
     if _por_regla is not None:
         return _por_regla
+    _por_proyecto = _permiso_por_regla_de_proyecto(kind, detalle)
+    if _por_proyecto is not None:
+        return _por_proyecto
     try:
         from cognia.console.permissions import needs_confirmation
         if not needs_confirmation(kind, detalle):
@@ -2555,10 +2584,159 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
                     "cli.permiso.hilo_sin_carril",
                     f"{kind}: un hilo pidio permiso sin carril de fondo al que "
                     f"delegar; se deniega (preguntar aca colgaria el hilo)")
-                return False
+                return _denegar_sin_humano(
+                    kind, detalle,
+                    "un hilo pidio permiso y no habia carril al que delegar")
         except Exception:
             pass
     return _preguntar_en_consola(kind, detalle)
+
+
+# ── la VALVULA: reglas del PROYECTO y las TRES opciones (2026-08-25) ─────────
+# Invertir el gate de shell (allowlist por prefijo -> politica por contencion)
+# solo es sostenible si el dueno tiene valvula. Si "aprobar una vez y recordar"
+# no funciona, la salida barata vuelve a ser apagar el gate entero — que es
+# como se perdieron 3 capturas el mismo dia. Aca viven las tres piezas:
+# consultar las reglas guardadas, ofrecer de verdad las tres opciones, y ser
+# honesto cuando no hay nadie al otro lado.
+
+# Los action_kind que hablan de una LINEA DE COMANDO. 'ejecutar comando' es el
+# que pasa sentinel.evaluar_shell al invocar ctx['confirm'] (no es el nombre de
+# ninguna tool): permisos_reglas.herramienta_canonica lo traduce a 'shell_exec'.
+_KINDS_DE_SHELL = ("shell_exec", "ejecutar comando", "ejecutar_comando",
+                   "comando", "shell", "bash")
+
+
+def _nivel_centinela(kind: str, detalle: str) -> str:
+    """Veredicto del centinela para esta accion ('' si no es de shell).
+
+    Se consulta ANTES que las reglas: una regla guardada es una preferencia del
+    dueno sobre lo DUDOSO, jamas un indulto para lo que el centinela declara
+    irreversible. Solo se usa la API publica (clasificar_shell). Si el
+    centinela no contesta, se devuelve 'block': sin veredicto ninguna regla
+    aprueba nada y la pregunta sube al dueno.
+    """
+    if str(kind or "").strip().lower() not in _KINDS_DE_SHELL:
+        return ""
+    try:
+        from cognia.agent.sentinel import clasificar_shell
+        return str(clasificar_shell(detalle or "")[0] or "")
+    except Exception as exc:
+        _aviso_degradado(
+            "cli.permiso.centinela",
+            f"clasificar_shell fallo ({type(exc).__name__}: {exc}); "
+            f"ninguna regla decide y se pregunta")
+        return "block"
+
+
+def _permiso_por_regla_de_proyecto(kind: str, detalle: str):
+    """True/False si una regla de .cognia/permisos.json decide; None si no.
+
+    Lee de DISCO (cache por mtime dentro de permisos_reglas): no hay copia en
+    memoria que haya que cargar al arrancar y que se pueda olvidar, asi que una
+    regla escrita ayer —o por otro proceso hace un segundo— decide YA.
+    """
+    try:
+        from cognia.harness import permisos_reglas as _pr
+        efecto, regla, raiz = _pr.decidir_en_proyecto(
+            kind, detalle, nivel_centinela=_nivel_centinela(kind, detalle))
+    except Exception as exc:
+        _aviso_degradado("permisos.proyecto",
+                         f"decidir fallo ({type(exc).__name__}: {exc}); se pregunta")
+        return None
+    patron = regla.get("patron") if isinstance(regla, dict) else regla
+    if efecto == "permitir":
+        _print_line(f"[detail]permitido por regla del proyecto: "
+                    f"{_escape(str(patron))}[/detail]")
+        _pr.contar("permitidas_por_regla", raiz=raiz)
+        return True
+    if efecto == "denegar":
+        _print_line(f"[warn_cl]denegado por regla del proyecto: "
+                    f"{_escape(str(patron))}[/warn_cl]")
+        _pr.contar("denegadas_por_regla", raiz=raiz)
+        return False
+    return None
+
+
+def _lo_que_se_aprueba(kind: str, detalle: str) -> str:
+    """El patron NORMALIZADO que quedaria guardado, para ensenarlo ANTES.
+
+    Nunca el literal con el payload: 'escribir_archivo(a.py | <2 KB de codigo>)'
+    no es lo que se aprueba — se aprueba la carpeta. Y sobre un destructivo el
+    texto avisa de que solo se guarda ese comando exacto y como 'preguntar'.
+    """
+    try:
+        from cognia.harness import permisos_reglas as _pr
+        return _pr.descripcion_de_lo_aprobado(kind, detalle)
+    except Exception as exc:
+        _aviso_degradado("permisos.proyecto",
+                         f"no se pudo describir el patron "
+                         f"({type(exc).__name__}: {exc})")
+        return f"{kind}(...)"
+
+
+def _recordar_siempre(kind: str, detalle: str) -> bool:
+    """Graba "siempre en este proyecto" y devuelve True (el si de ESTA vez).
+
+    Si el guardado falla, la accion procede igual —el dueno ya dijo que si— y
+    se le dice que la regla NO quedo: creer que quedo grabada y que manana
+    vuelva a preguntar es peor que el fallo.
+    """
+    try:
+        from cognia.harness import permisos_reglas as _pr
+        patron, raiz, efecto = _pr.recordar_en_proyecto("permitir", kind, detalle)
+    except Exception as exc:
+        _aviso_degradado("permisos.proyecto",
+                         f"recordar fallo ({type(exc).__name__}: {exc})")
+        _print_line(f"[err_cl]la accion procede, pero la regla NO se guardo: "
+                    f"{_escape(str(exc))}[/err_cl]")
+        return True
+    if efecto == "permitir":
+        _print_line(f"[ok]recordado[/ok] {_escape(patron)} "
+                    f"[info_dim]({_escape(str(_ruta_reglas_str(raiz)))})[/info_dim]")
+    else:
+        _print_line(f"[warn_cl]guardado como '{_escape(efecto)}'[/warn_cl] "
+                    f"{_escape(patron)} [info_dim]— es un comando destructivo: "
+                    f"un si de hoy no firma los borrados de manana, asi que "
+                    f"seguira preguntando[/info_dim]")
+    _print_line("[info_dim]/permisos para verla · /permisos olvidar "
+                "<patron> para quitarla[/info_dim]")
+    return True
+
+
+def _ruta_reglas_str(raiz) -> str:
+    try:
+        from cognia.harness import permisos_reglas as _pr
+        return str(_pr.ruta_reglas(raiz))
+    except Exception:
+        return str(raiz)
+
+
+def _denegar_sin_humano(kind: str, detalle: str, razon: str = "") -> bool:
+    """Deniega un CONFIRM que nadie puede contestar, con motivo ACCIONABLE.
+
+    Modo autonomo honesto: en e2e, daemon o control remoto no hay tty, y hasta
+    hoy el input() se comia un EOFError y devolvia False en silencio — el
+    agente veia "no confirmado por el usuario" sin saber que no habia usuario.
+    Ahora se nombra la salida (la tool reversible, o el permiso que el dueno
+    puede grabar) y se CUENTA, para que /permisos estado diga cuanto trabajo se
+    esta perdiendo por falta de canal.
+    """
+    try:
+        from cognia.harness import permisos_reglas as _pr
+        motivo = _pr.motivo_sin_humano(kind, detalle, razon)
+        _pr.contar("denegadas_sin_humano",
+                   motivo=f"{kind}: {str(detalle)[:120]}")
+    except Exception as exc:
+        _aviso_degradado("permisos.proyecto",
+                         f"telemetria del deny sin humano fallo "
+                         f"({type(exc).__name__}: {exc})")
+        motivo = (f"necesita confirmacion humana y no hay canal ({razon})"
+                  if razon else "necesita confirmacion humana y no hay canal")
+    _aviso_degradado("cli.permiso.sin_humano", motivo)
+    _print_line(f"[warn_cl]denegado sin preguntar[/warn_cl] "
+                f"[info_dim]{_escape(motivo)}[/info_dim]")
+    return False
 
 
 def _pausa_deadline_tool():
@@ -2590,9 +2768,24 @@ def _pedir_al_llamador_tool(fn):
 def _preguntar_en_consola(kind: str, detalle: str) -> bool:
     """La pregunta EN la consola. Solo la llama quien es dueno de ella.
 
-    Es el cuerpo de _confirmar_accion de siempre, intacto: el texto
-    '[permiso] ... (s/n) >' es contrato con los pipes y el e2e, el default es
-    False y el spinner se para antes de abrir el selector."""
+    Es el cuerpo de _confirmar_accion de siempre: el texto
+    '[permiso] ... (s/n) >' sigue siendo contrato con los pipes y el e2e, el
+    default es False y el spinner se para antes de abrir el selector.
+
+    TRES opciones desde 2026-08-25 (una vez / siempre en este proyecto / no).
+    Con dos, la unica forma de dejar de contestar lo mismo cuarenta veces era
+    poner el modo bypass — o sea que la fatiga de confirmaciones terminaba
+    APAGANDO el gate. Y lo que se ensena al ofrecer "siempre" es el patron
+    NORMALIZADO que quedaria guardado, no el comando literal: puede ser mas
+    ancho que lo que el dueno esta viendo, y eso hay que decirlo ANTES."""
+    lo_aprobado = _lo_que_se_aprueba(kind, detalle)
+    try:
+        from cognia.harness import permisos_reglas as _pr
+        _pr.contar("preguntadas")
+    except Exception as exc:
+        _aviso_degradado("permisos.proyecto",
+                         f"telemetria de la pregunta fallo "
+                         f"({type(exc).__name__}: {exc})")
     # Con tty real: confirmacion con flechas ([Si]/[No] + atajos s/n).
     # default=False conserva la paridad con hoy (Enter vacio = NO ejecutar).
     # El input() de abajo queda INTACTO como fallback textual: el texto
@@ -2614,14 +2807,32 @@ def _preguntar_en_consola(kind: str, detalle: str) -> bool:
                     _rmod._renderer._parar_status()
             except Exception:
                 pass
-            return _selector.confirmar(
-                f"[permiso] {detalle[:80]} — ejecutar?", default=False)
+            eleccion = _selector.elegir(
+                f"[permiso] {detalle[:80]} — ejecutar?",
+                [("una", "Si, una vez", "solo esta llamada"),
+                 ("siempre", "Si, siempre en este proyecto",
+                  f"guarda {lo_aprobado}"),
+                 ("no", "No", "cancelar la accion")],
+                default=0)
+            if eleccion == "siempre":
+                return _recordar_siempre(kind, detalle)
+            return eleccion == "una"
     except Exception:
         pass  # cualquier fallo del selector degrada al input() de siempre
+    # Fallback textual (pipes, e2e, consola sin tty). El prompt conserva la
+    # forma '[permiso] ... (s/n) > ' y ANADE la tercera opcion: quitarla aqui
+    # dejaria la valvula solo para quien tenga terminal interactiva, que es
+    # justo quien menos la necesita.
+    _print_line(f"[info_dim]  s = una vez · a = siempre en este proyecto "
+                f"({_escape(lo_aprobado)}) · n = no[/info_dim]")
     try:
-        resp = input(f"[permiso] {detalle[:80]} — ejecutar? (s/n) > ").strip().lower()
+        resp = input(f"[permiso] {detalle[:80]} — ejecutar? "
+                     f"(s/n, a=siempre) > ").strip().lower()
     except (EOFError, KeyboardInterrupt):
-        return False
+        return _denegar_sin_humano(kind, detalle,
+                                   "no hay consola que pueda contestar")
+    if resp in ("a", "always", "siempre"):
+        return _recordar_siempre(kind, detalle)
     return resp in ("s", "si", "y", "yes")
 
 
@@ -2737,7 +2948,7 @@ _CMD_DESCRIPTIONS = {
     "/deshacer":        "Revertir lo que escribio el agente  [n | lista | diff | hasta <n>]",
     "/deshacer-borrado": "Sacar de la papelera lo que BORRO el agente  [lista | <lote>]",
     "/plan-modo":       "Modo PLAN: el agente investiga sin escribir  [plan|ejecutar|ok]",
-    "/permisos":        "Reglas de permiso del proyecto  [olvidar <patron>]",
+    "/permisos":        "Reglas de permiso del proyecto  [estado | permitir|denegar|preguntar <patron> | olvidar <patron>]",
     "/workflow":        "Repartir subtareas de razonamiento en paralelo  <t1; t2; ...>",
     "/rlm":             "Contexto largo por tools: LOCALIZA, no sintetiza  [<ruta>] <pregunta>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
@@ -15008,29 +15219,70 @@ def _slash_workflow(arg: str = ""):
 
 
 def _slash_permisos(arg: str = ""):
-    """/permisos \u2014 reglas de permiso persistentes del proyecto."""
+    """/permisos \u2014 reglas de permiso persistentes del proyecto.
+
+    La RAIZ ya no es os.getcwd() sino permisos_reglas.raiz_proyecto(): abrir el
+    REPL en cognia_v2/tests dejaba la regla en tests/.cognia y al dia siguiente,
+    desde la raiz, no existia \u2014 la valvula parecia rota y no lo estaba. Y nunca
+    sube hasta el home: ~/.cognia es la config GLOBAL, y una regla ahi valdria
+    para todos los proyectos a la vez.
+    """
     try:
         from cognia.harness import permisos_reglas as _pr
     except Exception as exc:
+        _aviso_degradado("permisos.proyecto", f"no importa: {type(exc).__name__}: {exc}")
         _print_line(f"[err_cl]permisos no disponibles: {_escape(str(exc))}[/err_cl]")
         return
-    raiz = os.getcwd()
+    raiz = _pr.raiz_proyecto()
     arg = (arg or "").strip()
     try:
+        if arg in ("estado", "telemetria"):
+            _permisos_estado(_pr, raiz)
+            return
         if arg.startswith("olvidar"):
             patron = arg[len("olvidar"):].strip()
             if not patron:
                 _print_line("[warn_cl]Uso: /permisos olvidar <patron>[/warn_cl]")
                 return
-            quedan = [r for r in _pr.cargar(raiz)
+            antes = _pr.cargar(raiz)
+            quedan = [r for r in antes
                       if (r.get("patron") if isinstance(r, dict) else r) != patron]
+            if len(quedan) == len(antes):
+                _print_line(f"[warn_cl]no habia ninguna regla "
+                            f"{_escape(patron)}[/warn_cl] (ver /permisos)")
+                return
             _pr.guardar(raiz, quedan)
+            _pr.olvidar_cache()
             _print_line(f"[ok]olvidada[/ok] {_escape(patron)}")
             return
+        for verbo in ("permitir", "denegar", "preguntar"):
+            if arg == verbo or arg.startswith(verbo + " "):
+                patron = arg[len(verbo):].strip()
+                if not patron:
+                    _print_line(f"[warn_cl]Uso: /permisos {verbo} "
+                                f"<herramienta(glob)>  p.ej. "
+                                f"shell_exec(git status*)[/warn_cl]")
+                    return
+                if _pr.partir_patron(patron)[0] is None:
+                    _print_line(f"[warn_cl]patron mal formado: {_escape(patron)}"
+                                f"[/warn_cl] (forma: herramienta(glob))")
+                    return
+                reglas = [r for r in _pr.cargar(raiz)
+                          if (r.get("patron") if isinstance(r, dict) else r) != patron]
+                reglas.append({"efecto": verbo, "patron": patron})
+                _pr.guardar(raiz, reglas)
+                _pr.olvidar_cache()
+                _print_line(f"[ok]{verbo}[/ok] {_escape(patron)} "
+                            f"[info_dim]({_escape(str(_pr.ruta_reglas(raiz)))})"
+                            f"[/info_dim]")
+                return
         reglas = _pr.cargar(raiz)
         if not reglas:
-            _print_line("[info_dim]sin reglas: cada accion sensible se pregunta. "
-                        "Responde 'siempre' en una confirmacion para recordarla.[/info_dim]")
+            _print_line(f"[info_dim]sin reglas en {_escape(str(_pr.ruta_reglas(raiz)))}"
+                        f": cada accion sensible se pregunta. Responde 'siempre en "
+                        f"este proyecto' en una confirmacion para recordarla.[/info_dim]")
+            _print_line("[info_dim]/permisos estado muestra cuantas se aprobaron "
+                        "por regla y cuantas se perdieron sin humano[/info_dim]")
             return
         _print_line(f"[mod]{len(reglas)} regla(s)[/mod] en "
                     f"[info_dim]{_escape(str(_pr.ruta_reglas(raiz)))}[/info_dim]")
@@ -15039,7 +15291,50 @@ def _slash_permisos(arg: str = ""):
             patron = r.get("patron") if isinstance(r, dict) else ""
             _print_line(f"  [mod]{efecto:9}[/mod] {_escape(str(patron))}")
     except Exception as exc:
+        _aviso_degradado("permisos.proyecto", f"{arg or 'listar'}: {type(exc).__name__}: {exc}")
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+
+
+def _permisos_estado(_pr, raiz) -> None:
+    """/permisos estado \u2014 la puerta de diagnostico de la valvula.
+
+    Contesta las dos preguntas que deciden si el gate es sostenible: cuantas
+    acciones aprobo una regla guardada (o sea, cuanta friccion se ahorro) y
+    cuantas se DENEGARON sin preguntar por no haber humano al otro lado (o sea,
+    cuanto trabajo autonomo se esta perdiendo y por que).
+    """
+    tel = _pr.telemetria(raiz)
+    reglas = _pr.cargar(raiz)
+    filas = [
+        ("raiz del proyecto", str(raiz)),
+        ("fichero de reglas", str(_pr.ruta_reglas(raiz))),
+        ("reglas", f"{len(reglas)}"),
+        ("aprobadas por regla", str(tel.get("permitidas_por_regla", 0))),
+        ("denegadas por regla", str(tel.get("denegadas_por_regla", 0))),
+        ("preguntadas al dueno", str(tel.get("preguntadas", 0))),
+        ("guardadas con 'siempre'", str(tel.get("recordadas", 0))),
+        ("denegadas SIN humano", str(tel.get("denegadas_sin_humano", 0))),
+    ]
+    avisos = []
+    if tel.get("denegadas_sin_humano"):
+        avisos.append(
+            f"{tel['denegadas_sin_humano']} accion(es) denegadas por no haber "
+            f"canal de confirmacion; ultima: {tel.get('ultimo_motivo', '?')} "
+            f"({tel.get('ultimo_ts', 's/f')})")
+    if os.environ.get("COGNIA_EFIMERO", "").strip() == "1":
+        avisos.append("COGNIA_EFIMERO=1: los contadores son solo de este proceso")
+    try:
+        from cognia.ux import estilo as _estilo
+        for linea in _estilo.estado_subsistema(
+                "permisos del proyecto", f"{len(reglas)} regla(s)" if reglas else "sin reglas",
+                filas, fuente="permisos_reglas", avisos=avisos):
+            _print_line(linea)
+    except Exception as exc:
+        _aviso_degradado("permisos.proyecto", f"estilo no disponible: {exc}")
+        for clave, valor in filas:
+            _print_line(f"  [info_dim]{_escape(clave)}[/info_dim]  {_escape(valor)}")
+        for a in avisos:
+            _print_line(f"  [warn_cl]\u26a0 {_escape(a)}[/warn_cl]")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -15924,6 +16219,17 @@ def _permiso_por_regla_de_bot(kind: str, detalle: str):
         return None
     patron = regla.get("patron") if isinstance(regla, dict) else regla
     if efecto == "permitir":
+        # Misma inmunidad que para las reglas del proyecto (2026-08-25): una
+        # regla ancha del bot ("shell_exec" a secas casa cualquier argumento)
+        # no puede indultar un BLOCK del centinela ni un borrado masivo. Sin
+        # esto, la valvula que se acaba de arreglar tenia la puerta de al lado
+        # abierta.
+        if not _pr.puede_aprobar_regla(kind, detalle,
+                                       _nivel_centinela(kind, detalle)):
+            _print_line(f"[warn_cl]la regla de @{bot.nombre} "
+                        f"({_escape(str(patron))}) no puede aprobar esto: "
+                        f"decide el centinela[/warn_cl]")
+            return None
         _print_line(f"[detail]permitido por regla de @{bot.nombre}: "
                     f"{_escape(str(patron))}[/detail]")
         return True
@@ -18622,8 +18928,17 @@ def _repl_sesion():
                     _print_line("[warn_cl]Cancelado.[/warn_cl]")
                 else:
                     _print_line(f"[detail][ejecutar] $ {_escape(_cmd)}[/detail]")
+                    # Alias LOCAL a proposito: otras ramas de este mismo
+                    # _repl_sesion hacen `import subprocess` a secas, lo que
+                    # convierte el nombre en LOCAL de la funcion ENTERA — asi
+                    # que este `subprocess.run` reventaba con UnboundLocalError
+                    # salvo que antes se hubiera tecleado una de esas otras
+                    # ramas. Es decir: /ejecutar estaba MUERTO (reproducido
+                    # tecleandolo, 2026-08-25; el bug ya estaba en 70b8bed1).
+                    # Va FUERA del try porque el except lo referencia.
+                    import subprocess as _sp_ej
                     try:
-                        _proc = subprocess.run(
+                        _proc = _sp_ej.run(
                             _cmd,
                             shell=True,
                             capture_output=True,
@@ -18638,7 +18953,7 @@ def _repl_sesion():
                             _print_line(f"[warn_cl]... {len(_out_lines)-50} lineas omitidas (max 50)[/warn_cl]")
                         if _proc.returncode != 0:
                             _print_line(f"[warn_cl]Codigo de salida: {_proc.returncode}[/warn_cl]")
-                    except subprocess.TimeoutExpired:
+                    except _sp_ej.TimeoutExpired:
                         _print_line("[err_cl]Timeout: el comando excedio 30 segundos[/err_cl]")
                     except Exception as _xe:
                         _print_line(f"[err_cl]Error al ejecutar: {_escape(str(_xe))}[/err_cl]")

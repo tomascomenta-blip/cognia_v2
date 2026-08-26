@@ -88,6 +88,7 @@ salir ALLOW) y de solo lectura (ninguno puede salir BLOCK), POSIX y
 PowerShell, porque la maquina del dueno es Windows 11 y la allowlist era
 POSIX-centrica (`Get-ChildItem` salia "riesgo desconocido").
 """
+import os
 import sys
 from pathlib import Path
 
@@ -98,10 +99,37 @@ sys.path.insert(0, str(REPO))
 
 from cognia.agent.sentinel import (ALLOW, BLOCK, CONFIRM, clasificar_shell,
                                    evaluar_shell)
+import cognia.agent.sentinel as _SENT
+
+
+def _fluye(cmd, cwd=""):
+    """True si el comando pasa SIN preguntarle nada a un humano.
+
+    Desde la INVERSION DE LA CARGA DE LA PRUEBA (2026-08-25) el ALLOW hay
+    que DEMOSTRARLO: cabeza en la tabla de lectura, argumentos validados y
+    ningun constructo que impida ver el alcance. El trabajo normal del
+    agente (pytest, ruff, npm install, git add, `echo x > salida.txt`,
+    abrir una app) dejo de ser ALLOW y pasa por el CONFIRM auto-aprobado
+    por CONTENCION: todo lo que toca resuelve dentro del workspace. Lo que
+    estos tests defienden -- que el agente SIGUE TRABAJANDO -- ya no se
+    mide con el nivel, se mide con la compuerta entera.
+
+    Ver tests/test_gate_invertido.py para las 44 evasiones del equipo rojo
+    que la inversion cierra."""
+    previo = os.environ.get("COGNIA_ACCESO_TOTAL")
+    os.environ["COGNIA_ACCESO_TOTAL"] = "1"
+    try:
+        ok, _ = evaluar_shell(cmd, {}, cwd=cwd)
+    finally:
+        if previo is None:
+            os.environ.pop("COGNIA_ACCESO_TOTAL", None)
+        else:
+            os.environ["COGNIA_ACCESO_TOTAL"] = previo
+    return ok
 
 
 @pytest.fixture(autouse=True)
-def _entorno_limpio(monkeypatch):
+def _entorno_limpio(monkeypatch, tmp_path):
     """El veredicto no puede depender del entorno de quien corre el test.
 
     El cwd tambien entra: desde que un destructivo SIN ruta escala cuando el
@@ -113,6 +141,8 @@ def _entorno_limpio(monkeypatch):
     monkeypatch.delenv("COGNIA_AUTONOMOUS", raising=False)
     monkeypatch.delenv("COGNIA_ACCESO_TOTAL", raising=False)
     monkeypatch.chdir(REPO)
+    # El audit al tmp: la suite no tiene por que escribir en ~/.cognia.
+    monkeypatch.setattr(_SENT, "_AUDIT", tmp_path / "sentinel_audit.jsonl")
     yield
 
 
@@ -668,8 +698,14 @@ def test_interprete_inofensivo_sigue_en_allow(cmd):
     """El precio del arreglo tiene que ser cero para el uso normal: el
     agente lanza `python -c` y `python -m pytest` todo el rato. Y NOMBRAR
     la API (un grep) no es usarla: por eso el payload solo se inspecciona
-    cuando la cabeza es un interprete con flag de codigo en linea."""
-    assert clasificar_shell(cmd)[0] == ALLOW, cmd
+    cuando la cabeza es un interprete con flag de codigo en linea.
+
+    Con la carga de la prueba INVERTIDA (2026-08-25) esto dejo de ser
+    ALLOW -- un interprete ejecuta codigo, y eso no se puede demostrar
+    inocuo -- pero lo que el test defiende sigue en pie: ninguno se
+    bloquea, y los que no llevan codigo en linea (`-m pytest`, `-m pip`)
+    ni siquiera preguntan porque su alcance esta contenido en el repo."""
+    assert clasificar_shell(cmd)[0] != BLOCK, cmd
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -761,7 +797,7 @@ def test_un_proyecto_bajo_la_carpeta_personal_sigue_siendo_workspace(
     assert clasificar_shell("del *.png")[0] == CONFIRM
     assert clasificar_shell("rm build.log")[0] == CONFIRM
     assert clasificar_shell("cd build && rm salida.log")[0] == CONFIRM
-    assert clasificar_shell("pytest -q")[0] == ALLOW
+    assert _fluye("pytest -q")
 
 
 @pytest.mark.parametrize("cmd", [
@@ -902,24 +938,30 @@ def test_evasion_no_la_levanta_el_acceso_total(cmd, monkeypatch):
 # Un gate que para todo es igual de inutil que uno que no para nada: el
 # mismo dia, en la corrida que perdio las capturas, el agente gasto 6 pasos
 # y cerro "sin progreso verificado" por falsos positivos.
+# La segunda columna es el nivel MINIMO que el comando puede tener sin
+# romper el trabajo del agente. Con la carga de la prueba invertida
+# (2026-08-25) casi todos bajaron de ALLOW a CONFIRM: lo que garantiza que
+# siguen fluyendo ya no es el nivel sino la CONTENCION (ver _fluye). Los
+# que se quedan en ALLOW son los demostrablemente inocuos: lectura pura,
+# con la cabeza en la tabla y los argumentos validados.
 LEGITIMOS = [
     (r"rm build.log", CONFIRM),
     (r"rm sub/dir/x.log", CONFIRM),
     (r"cd build && rm salida.log", CONFIRM),
     (r"Remove-Item temp.txt", CONFIRM),
-    ('python -c "print(1+1)"', ALLOW),
-    ('python -c "import os; print(os.getcwd())"', ALLOW),
-    ('node -e "console.log(process.version)"', ALLOW),
-    (r"npm install rimraf", ALLOW),
-    (r"npm run build", ALLOW),
-    (r"echo x > build/salida.txt", ALLOW),
+    ('python -c "print(1+1)"', CONFIRM),
+    ('python -c "import os; print(os.getcwd())"', CONFIRM),
+    ('node -e "console.log(process.version)"', CONFIRM),
+    (r"npm install rimraf", CONFIRM),
+    (r"npm run build", CONFIRM),
+    (r"echo x > build/salida.txt", CONFIRM),
     (r"cd C:\Users\usuario\Pictures && ls", ALLOW),
-    (r"pushd tests && pytest -q", ALLOW),
-    (r"start chrome https://youtube.com", ALLOW),
-    (r"start notepad", ALLOW),
-    (r"code .", ALLOW),
-    (r"python -m http.server 8000", ALLOW),
-    (r"explorer.exe /select,C:\Users\usuario\Pictures", ALLOW),
+    (r"pushd tests && pytest -q", CONFIRM),
+    (r"start chrome https://youtube.com", CONFIRM),
+    (r"start notepad", CONFIRM),
+    (r"code .", CONFIRM),
+    (r"python -m http.server 8000", CONFIRM),
+    (r"explorer.exe /select,C:\Users\usuario\Pictures", CONFIRM),
     ('grep -rn "shutil.rmtree" .', ALLOW),
     (r"git status && git log --oneline -3", ALLOW),
     (r"ls -R . | grep -iE 'captur|screenshot' | head -80", ALLOW),
@@ -1140,7 +1182,7 @@ def test_un_proyecto_dentro_de_documents_sigue_trabajando(tmp_path,
     monkeypatch.chdir(proyecto)
     assert clasificar_shell("rm build.log")[0] == CONFIRM
     assert clasificar_shell(r"del sub\*.log")[0] == CONFIRM
-    assert clasificar_shell("pytest -q")[0] == ALLOW
+    assert _fluye("pytest -q")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1174,12 +1216,18 @@ def test_lo_no_verificable_no_lo_lanza_el_acceso_total(cmd, monkeypatch):
 
 def test_el_python_normal_no_paga_por_esto():
     """El precio tiene que ser cero para el uso diario: `eval`/`exec` a
-    secas se quedaron FUERA del patron a proposito."""
+    secas se quedaron FUERA del patron a proposito, asi que el python
+    normal no cae en la red de "no verificable" ni sube de nivel.
+
+    Con la inversion, un `python -c` pide confirmacion SIEMPRE (lo que se
+    frena es el CANAL, no el payload), pero un `python -m` o un `pip` que
+    solo tocan el repo siguen fluyendo sin preguntar."""
     for cmd in ('python -c "print(eval(\'1+1\'))"',
-                'python -c "print(1)"',
-                "python -m pytest tests/ -q",
-                "pip install -e ."):
-        assert clasificar_shell(cmd)[0] == ALLOW, cmd
+                'python -c "print(1)"'):
+        assert clasificar_shell(cmd)[0] == CONFIRM, cmd
+        assert evaluar_shell(cmd, {"confirm": lambda a, d: True})[0] is True
+    for cmd in ("python -m pytest tests/ -q", "pip install -e ."):
+        assert _fluye(cmd), cmd
 
 
 @pytest.mark.parametrize("cmd", [
@@ -1432,10 +1480,12 @@ def test_flag_pegado_inocuo_no_se_auto_aprueba(monkeypatch):
     'python -m http.server 8000',
 ])
 def test_el_interprete_normal_sigue_en_allow(cmd):
-    """El contrapeso de (A): mirar TODO el argumento no puede cobrar un
-    CONFIRM por cada `python -c` legitimo. Con el espacio de siempre no
-    pasa nada de esto."""
-    assert clasificar_shell(cmd)[0] == ALLOW, cmd
+    """El contrapeso de (A): mirar TODO el argumento no puede convertir un
+    `python -c` legitimo en un BLOCK. Lo que si cambio con la inversion es
+    que el codigo en linea ya no se auto-aprueba: se pregunta una vez, y
+    con una persona detras pasa."""
+    assert clasificar_shell(cmd)[0] != BLOCK, cmd
+    assert evaluar_shell(cmd, {"confirm": lambda a, d: True})[0] is True, cmd
 
 
 # ── (B) el programa vive en OTRO fichero ─────────────────────────────
@@ -1451,23 +1501,33 @@ def test_script_escrito_antes_y_ejecutado(tmp_path, monkeypatch):
     assert clasificar_shell("python < borra_todo.py")[0] == BLOCK
 
 
-def test_un_script_normal_del_repo_sigue_en_allow(tmp_path, monkeypatch):
-    """El contrapeso, y es el uso mas comun del agente: leer el fichero no
-    puede convertir `python scripts/x.py` en un CONFIRM diario."""
+def test_un_script_normal_del_repo_no_se_bloquea(tmp_path, monkeypatch):
+    """El contrapeso: leer el fichero no puede convertir `python
+    scripts/x.py` en un BLOCK.
+
+    Con la carga de la prueba invertida SI pide confirmacion, y es el
+    cambio con mas precio de toda la inversion: el programa vive en un
+    fichero, leerlo no demuestra lo que hara al correr (puede calcular la
+    ruta o importar otro modulo) y seis de las 44 evasiones del equipo
+    rojo eran exactamente esta jugada en dos pasos."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "mide.py").write_text(
         "import json, subprocess\nprint(json.dumps({'ok': 1}))\n",
         encoding="utf-8")
-    assert clasificar_shell("python mide.py --dry-run")[0] == ALLOW
+    assert clasificar_shell("python mide.py --dry-run")[0] == CONFIRM
+    assert evaluar_shell("python mide.py --dry-run",
+                         {"confirm": lambda a, d: True})[0] is True
 
 
-def test_script_que_no_existe_no_escala(tmp_path, monkeypatch):
-    """Un script que NO esta no puede destruir nada: el comando falla
-    solo. "No hay programa" y "no se puede verificar el programa" piden
-    decisiones distintas, y confundirlas cobraria friccion por cada
-    error de tecleo."""
+def test_script_que_no_existe_no_se_auto_aprueba(tmp_path, monkeypatch):
+    """Antes: "un script que NO esta no puede destruir nada, el comando
+    falla solo" -> ALLOW. La inversion lo cambio, y por una razon medida:
+    el ataque real ESCRIBE el fichero y lo lanza despues, y entre "todavia
+    no esta" y "ya esta" no hay nada que el gate pueda demostrar. El
+    precio es cero (ese comando iba a fallar de todos modos)."""
     monkeypatch.chdir(tmp_path)
-    assert clasificar_shell("python no_existe.py")[0] == ALLOW
+    assert clasificar_shell("python no_existe.py")[0] == CONFIRM
+    assert _fluye("python no_existe.py") is False
 
 
 @pytest.mark.parametrize("nombre,cuerpo", [
@@ -1485,11 +1545,77 @@ def test_un_guion_de_shell_pasa_por_el_gate_entero(nombre, cuerpo, tmp_path,
     assert clasificar_shell(".\\" + nombre)[0] == BLOCK, nombre
 
 
-def test_un_guion_de_shell_inofensivo_no_escala(tmp_path, monkeypatch):
+def test_un_guion_de_shell_inofensivo_no_se_bloquea(tmp_path, monkeypatch):
+    """Leerlo y encontrarlo limpio evita el BLOCK y NO da el ALLOW: el
+    contenido de hoy no dice lo que hara el fichero cuando corra, y
+    `.\\borra.bat` fue una de las 44. Se queda en CONFIRM.
+
+    Lo que SI cambia (2026-08-25, 5a tanda) es quien puede aprobar ese
+    CONFIRM. Marcar el canal como no verificable SIEMPRE dejaba
+    `python scripts/e2e_happy_path.py` -- el gate de pre-release de este
+    mismo repo -- denegado sin tty: medido en la corrida real del e2e, la
+    tarea murio con "3 herramientas seguidas fallaron sin avanzar". Y era
+    incoherente: `pytest -q` se auto-aprueba y ejecuta el conftest.py del
+    repo SIN leerlo. Un guion LEIDO ENTERO, LIMPIO, DENTRO del workspace y
+    que no nombra ninguna carpeta del dueno cumple mas condiciones que
+    eso, asi que fluye. Las tres condiciones de al lado las fijan los
+    tests siguientes."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "build.bat").write_text("@echo off\r\necho construyendo\r\n",
                                         encoding="utf-8")
-    assert clasificar_shell(".\\build.bat")[0] == ALLOW
+    assert clasificar_shell(".\\build.bat")[0] == CONFIRM
+    assert _fluye(".\\build.bat") is True
+
+
+def test_un_guion_limpio_que_NOMBRA_una_carpeta_del_dueno_no_fluye(
+        tmp_path, monkeypatch):
+    """La condicion que sostiene los casos que los patrones de contenido no
+    ven. `lee.py` no casa con NINGUN patron de borrado -- solo abre un
+    fichero -- pero la RUTA del dueno esta escrita ahi, y eso basta para
+    que el CONFIRM lo apruebe una persona y no el acceso total. Es la
+    misma jugada que `cscript //nologo borra.vbs`, cuyo
+    `DeleteFile("<Pictures>\\a.png")` se le escapa a los patrones porque
+    el nombre del metodo va al reves."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "lee.py").write_text(
+        'print(open(r"C:\\Users\\usuario\\Pictures\\lista.txt").read())\n',
+        encoding="utf-8")
+    assert clasificar_shell("python lee.py")[0] == CONFIRM
+    assert _fluye("python lee.py") is False
+
+
+def test_un_guion_que_no_se_puede_leer_no_fluye(tmp_path, monkeypatch):
+    """La primera de las cuatro condiciones, y la que cierra el ataque
+    escrito-y-ejecutado: si el fichero no esta (todavia), no hay nada que
+    demostrar y no se auto-aprueba."""
+    monkeypatch.chdir(tmp_path)
+    assert _fluye("python todavia_no_existe.py") is False
+
+
+@pytest.mark.parametrize("payload,fluye", [
+    ("print(100 + 250)", True),
+    ("import cognia; print(cognia.__version__)", True),
+    ("import shutil; print(1)", False),           # constructo opaco
+    ("__import__('os')", False),                  # importacion indirecta
+    ("import base64; print(1)", False),           # des-ofuscacion
+    ("import subprocess; print(1)", False),       # lanza otro proceso
+    (r"print(open(r'C:\Users\usuario\Pictures\a.txt').read())", False),
+])
+def test_el_codigo_en_linea_se_auto_aprueba_solo_si_se_entiende(
+        payload, fluye, tmp_path, monkeypatch):
+    """El codigo en linea NUNCA sale ALLOW: el canal no se puede demostrar
+    inocuo. Lo que se decide es QUIEN aprueba ese CONFIRM.
+
+    Marcarlo siempre como no verificable dejaba `python -c "print(100 +
+    250)"` DENEGADO sin tty -- medido en la corrida real del e2e, la tarea
+    murio con "3 herramientas seguidas fallaron sin avanzar". Se le pide
+    al PAYLOAD lo mismo que el modulo le pide a todo lo demas: corto, sin
+    constructos que escondan lo que hace, sin rutas del dueno. Cualquier
+    duda vuelve a exigir humano."""
+    monkeypatch.chdir(tmp_path)
+    cmd = 'python -c "%s"' % payload
+    assert clasificar_shell(cmd)[0] != ALLOW, cmd
+    assert _fluye(cmd) is fluye, cmd
 
 
 def test_npm_run_lee_el_cuerpo_del_script(tmp_path, monkeypatch):
@@ -1501,15 +1627,16 @@ def test_npm_run_lee_el_cuerpo_del_script(tmp_path, monkeypatch):
         '{"scripts": {"limpiar": "rimraf C:/Users/usuario/Pictures",'
         ' "build": "tsc -p ."}}', encoding="utf-8")
     assert clasificar_shell("npm run limpiar")[0] == BLOCK
-    assert clasificar_shell("npm run build")[0] == ALLOW
+    assert clasificar_shell("npm run build")[0] == CONFIRM
 
 
 def test_npm_normal_no_se_toca(tmp_path, monkeypatch):
     """El contrapeso: instalar no es borrar, y sin package.json el `npm
     run` falla solo."""
     monkeypatch.chdir(tmp_path)
-    assert clasificar_shell("npm install rimraf")[0] == ALLOW
-    assert clasificar_shell("npm run build")[0] == ALLOW
+    assert clasificar_shell("npm install rimraf")[0] != BLOCK
+    assert _fluye("npm install rimraf")
+    assert clasificar_shell("npm run build")[0] != BLOCK
 
 
 def test_rimraf_es_cabeza_de_borrado_pero_no_argumento():
@@ -1517,7 +1644,8 @@ def test_rimraf_es_cabeza_de_borrado_pero_no_argumento():
     ARGUMENTO de un install es el nombre de un paquete y no borra nada --
     mirar la linea entera habria roto `npm install rimraf`."""
     assert clasificar_shell(r"rimraf C:\Users\usuario\Pictures")[0] == BLOCK
-    assert clasificar_shell("npm install rimraf")[0] == ALLOW
+    assert clasificar_shell("npm install rimraf")[0] != BLOCK
+    assert _fluye("npm install rimraf")
 
 
 # ── (C) escritores: LEER con un flag que ESCRIBE ─────────────────────
@@ -1544,8 +1672,15 @@ def test_la_redireccion_numerada_tambien_pisa(cmd):
 ])
 def test_redirigir_en_el_workspace_sigue_siendo_el_trabajo_normal(cmd):
     """El contrapeso de (C): escribir donde el agente trabaja es su
-    trabajo, y '2>&1' / '2>/dev/null' no escriben ningun fichero."""
-    assert clasificar_shell(cmd)[0] == ALLOW, cmd
+    trabajo, y '2>&1' / '2>/dev/null' no escriben ningun fichero.
+
+    Con la inversion, redirigir a un fichero deja de ser demostrablemente
+    inocuo (dos de las 44 truncaron .png del dueno con `2>` y `1>`), asi
+    que baja a CONFIRM; que el destino caiga DENTRO del workspace es lo
+    que lo auto-aprueba. Las que van a /dev/null siguen en ALLOW: no
+    escriben nada."""
+    assert clasificar_shell(cmd)[0] != BLOCK, cmd
+    assert _fluye(cmd), cmd
 
 
 @pytest.mark.parametrize("cmd", [
@@ -1579,8 +1714,14 @@ def test_el_que_escribe_donde_le_apuntes_escala_por_ruta(cmd):
 def test_leer_y_descargar_a_lo_suyo_sigue_en_allow(cmd):
     """El contrapeso: solo escala la forma que ESCRIBE, y solo cuando el
     destino esta fuera de su sitio. `certutil -hashfile` y un `curl` a una
-    URL no escriben ningun fichero del dueno."""
-    assert clasificar_shell(cmd)[0] == ALLOW, cmd
+    URL no escriben ningun fichero del dueno.
+
+    Con la inversion, `curl` SIN flags de escritura sigue en ALLOW (su
+    salida va a stdout: eso es leer) y las formas que depositan un fichero
+    -- `curl -o`, `wget` a secas, que descarga al cwd -- bajan a CONFIRM y
+    las auto-aprueba la contencion cuando el destino es el workspace."""
+    assert clasificar_shell(cmd)[0] != BLOCK, cmd
+    assert _fluye(cmd), cmd
 
 
 # ── (E) git: el subcomando era seguro, los argumentos no ─────────────
@@ -1612,16 +1753,36 @@ def test_el_git_que_destruye_trabajo_sin_commitear(cmd):
     "git branch -a",
     "git stash list",
     "git stash pop",
-    "git stash push -u",
-    "git stash",
     "git restore --staged archivo.py",
     "git diff --stat",
     "git log --oneline -5",
 ])
 def test_el_git_de_trabajar_todos_los_dias_no_se_toca(cmd):
     """El contrapeso, y es grande: el agente vive en git. Crear una rama,
-    commitear, mirar el stash o desestagear un fichero no destruye nada."""
-    assert clasificar_shell(cmd)[0] == ALLOW, cmd
+    commitear, mirar el stash, devolver lo guardado o desestagear un
+    fichero no destruye nada, asi que sigue fluyendo sin preguntar.
+
+    Con la inversion solo los de LECTURA (status/diff/log/branch --list)
+    se quedan en ALLOW; el resto pasa por la contencion."""
+    assert clasificar_shell(cmd)[0] != BLOCK, cmd
+    assert _fluye(cmd), cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "git stash",
+    "git stash push -u",
+    "git stash push",
+])
+def test_retirar_trabajo_del_arbol_pide_confirmacion(cmd):
+    """`git stash push` NO es BLOCK -- la 4a tanda ya lo midio: `stash
+    pop` devuelve el cambio Y el untracked, asi que no es una perdida, y
+    bloquearlo romperia una capacidad probada. Lo que cambia con la
+    inversion es que tampoco se auto-aprueba: retira trabajo del arbol y
+    lo que se lleva por delante no se puede enumerar desde la linea. Salio
+    del listado de las 44 del equipo rojo."""
+    assert clasificar_shell(cmd)[0] == CONFIRM, cmd
+    assert _fluye(cmd) is False, cmd
+    assert evaluar_shell(cmd, {"confirm": lambda a, d: True})[0] is True
 
 
 # ── (F) agrupacion con espacios y rutas POSIX-en-Windows ─────────────

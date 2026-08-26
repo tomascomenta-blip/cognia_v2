@@ -12,6 +12,28 @@ from cognia.agent.sentinel import (ALLOW, BLOCK, CONFIRM, clasificar_shell,
                                    evaluar_shell, sentinel_enabled)
 
 
+def _fluye(cmd, cwd=""):
+    """True si el comando pasa SIN preguntarle nada a un humano.
+
+    Desde la inversion de la carga de la prueba (2026-08-25) el ALLOW hay
+    que DEMOSTRARLO, asi que el trabajo normal del agente (pytest, ruff,
+    npm install, git add, abrir una app) dejo de ser ALLOW y pasa por el
+    CONFIRM auto-aprobado por CONTENCION: todo lo que toca resuelve dentro
+    del workspace. Lo que estos tests defienden es que SIGUE FLUYENDO, y
+    eso ya no se mide con el nivel sino con la compuerta entera."""
+    import os
+    previo = os.environ.get("COGNIA_ACCESO_TOTAL")
+    os.environ["COGNIA_ACCESO_TOTAL"] = "1"
+    try:
+        ok, _ = evaluar_shell(cmd, {}, cwd=cwd)
+    finally:
+        if previo is None:
+            os.environ.pop("COGNIA_ACCESO_TOTAL", None)
+        else:
+            os.environ["COGNIA_ACCESO_TOTAL"] = previo
+    return ok
+
+
 @pytest.fixture(autouse=True)
 def _sentinel_on(monkeypatch):
     monkeypatch.delenv("COGNIA_SENTINEL", raising=False)
@@ -26,8 +48,13 @@ def _sentinel_on(monkeypatch):
     "xdg-open https://x.com",
 ])
 def test_lanzadores_permitidos(cmd):
-    """Abrir apps/URLs/archivos pasa (para 'abre Chrome/YouTube/una app')."""
-    assert clasificar_shell(cmd)[0] == ALLOW
+    """Abrir apps/URLs/archivos sigue pasando (para 'abre Chrome/YouTube/
+    una app'), pero ya no por ALLOW: un lanzador arranca un programa que no
+    esta en la linea, asi que no se puede DEMOSTRAR inocuo. Pasa por
+    contencion, y `start cmd /c del <ruta>` -- que es lo que hacia
+    peligrosa a esta familia -- se desenvuelve y sale BLOCK."""
+    assert clasificar_shell(cmd)[0] != BLOCK
+    assert _fluye(cmd), cmd
 
 
 def test_acceso_total_procede_lo_desconocido(monkeypatch):
@@ -54,11 +81,16 @@ def test_acceso_total_NO_desbloquea_lo_catastrofico(cmd, monkeypatch):
 # ── clasificación ────────────────────────────────────────────────────────
 @pytest.mark.parametrize("cmd", [
     "git status", "git commit -m x", "pytest tests/foo.py", "ls -la",
-    "python script.py", "ruff format .", "grep -rn foo cognia/",
+    "ruff format .", "grep -rn foo cognia/",
     "git log --pretty=format:%H",
 ])
 def test_allow_dev_conocido(cmd):
-    assert clasificar_shell(cmd)[0] == ALLOW
+    """El trabajo de dev de todos los dias no se para. Los que son LECTURA
+    verificada (git status, ls, grep, git log) siguen en ALLOW; los que
+    EJECUTAN algo (pytest, python script.py, ruff, git commit) pasan por el
+    CONFIRM contenido -- ver el docstring de _fluye."""
+    assert clasificar_shell(cmd)[0] != BLOCK
+    assert _fluye(cmd), cmd
 
 
 @pytest.mark.parametrize("cmd", [
@@ -85,8 +117,27 @@ def test_encadenamiento_oculto_es_block_si_un_segmento_destruye():
     assert clasificar_shell("ls; dd if=/dev/zero of=/dev/sda")[0] == BLOCK
 
 
+def test_ejecutar_un_fichero_local_pide_confirmacion():
+    """`python script.py` salio de la lista de arriba con la inversion, y
+    es el cambio con mas precio de toda ella. El programa NO esta en la
+    linea: el gate abre el fichero y lo clasifica (si borra lo ajeno es
+    BLOCK), pero leerlo no demuestra lo que hara al correr, asi que no se
+    auto-aprueba. Seis de las 44 evasiones del equipo rojo eran esta jugada
+    en dos pasos -- escribir el fichero con la tool de escribir, que no
+    pasa por este gate, y lanzarlo con una cabeza inocente."""
+    assert clasificar_shell("python script.py")[0] == CONFIRM
+    assert _fluye("python script.py") is False
+    # con una persona detras si pasa
+    assert evaluar_shell("python script.py",
+                         {"confirm": lambda a, d: True})[0] is True
+
+
 def test_encadenamiento_todo_allow_pasa():
-    assert clasificar_shell("git add . && git commit -m x")[0] == ALLOW
+    """`git add`/`git commit` no son lectura (escriben en .git), asi que el
+    encadenado es CONFIRM; contenido en el repo, sigue fluyendo. Un
+    encadenado de LECTURA pura si conserva el ALLOW."""
+    assert _fluye("git add . && git commit -m x")
+    assert clasificar_shell("git status && git log --oneline -3")[0] == ALLOW
 
 
 def test_encadenamiento_con_desconocido_pide_confirm():
@@ -97,9 +148,11 @@ def test_encadenamiento_con_desconocido_pide_confirm():
 
 
 def test_ruta_citada_a_python_se_reconoce():
-    # la tool `tests` arma esto; debe pasar como ALLOW
+    # la tool `tests` arma esto; el head se reduce al basename y el comando
+    # tiene que seguir fluyendo (ya no por ALLOW: python EJECUTA codigo).
     cmd = r'"C:\Users\x\venv312\Scripts\python.exe" -m pytest tests/foo.py -q'
-    assert clasificar_shell(cmd)[0] == ALLOW
+    assert clasificar_shell(cmd)[0] == CONFIRM
+    assert _fluye(cmd)
 
 
 def test_inyeccion_en_args_de_tests_se_bloquea():

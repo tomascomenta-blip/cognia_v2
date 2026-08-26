@@ -30,8 +30,17 @@ from textual.screen import ModalScreen
 from textual.widgets import Static
 
 
-class PantallaPermiso(ModalScreen[bool]):
-    """Si/No sobre la vista. El default es NO, igual que el gate de consola."""
+class PantallaPermiso(ModalScreen[str]):
+    """TRES opciones sobre la vista. El default es NO, igual que en consola.
+
+    Devuelve "una" / "siempre" / "no" (antes: un bool). El tercero es la
+    VALVULA (2026-08-25): con solo Si/No, la unica forma que tenia el dueno de
+    dejar de contestar lo mismo cuarenta veces era el modo bypass — o sea que la
+    fatiga de confirmaciones terminaba APAGANDO el gate, que es como se
+    perdieron 3 capturas. Quien graba la regla es el llamador
+    (cli._permiso_en_vista): esta pantalla no toca disco.
+    `lo_aprobado` es el patron NORMALIZADO que quedaria guardado, y se ENSENA:
+    puede ser mas ancho que el comando que se esta viendo."""
 
     DEFAULT_CSS = """
     PantallaPermiso {
@@ -50,17 +59,19 @@ class PantallaPermiso(ModalScreen[bool]):
     """
 
     BINDINGS = [
-        ("s", "responder(True)", "Si"),
-        ("y", "responder(True)", "Si"),
-        ("n", "responder(False)", "No"),
-        ("escape", "responder(False)", "No"),
-        ("enter", "responder(False)", "No (default)"),
+        ("s", "responder('una')", "Si, una vez"),
+        ("y", "responder('una')", "Si, una vez"),
+        ("a", "responder('siempre')", "Siempre en este proyecto"),
+        ("n", "responder('no')", "No"),
+        ("escape", "responder('no')", "No"),
+        ("enter", "responder('no')", "No (default)"),
     ]
 
-    def __init__(self, kind: str, detalle: str) -> None:
+    def __init__(self, kind: str, detalle: str, lo_aprobado: str = "") -> None:
         super().__init__()
         self._kind = kind or "accion"
         self._detalle = detalle or ""
+        self._lo_aprobado = lo_aprobado or ""
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -69,8 +80,19 @@ class PantallaPermiso(ModalScreen[bool]):
             # markup=False: el detalle es un comando del usuario y puede traer
             # corchetes; con markup, rich se lo come o revienta el parser.
             yield Static(self._detalle[:400], markup=False)
-            yield Static("s = ejecutar · n / esc / enter = NO", classes="pista",
-                         markup=False)
+            if self._lo_aprobado:
+                yield Static(f"siempre = {self._lo_aprobado}", classes="pista",
+                             markup=False)
+            yield Static("s = una vez · a = siempre en este proyecto · "
+                         "n / esc / enter = NO", classes="pista", markup=False)
 
-    def action_responder(self, valor: bool) -> None:
-        self.dismiss(bool(valor))
+    def action_responder(self, valor) -> None:
+        """Acepta "una"/"siempre"/"no" y tambien el bool de antes.
+
+        El bool sigue valiendo porque hay quien llama a `action_responder(True)`
+        para simular la tecla (tests/test_cli_permiso_desde_hilo): romper esa
+        firma cambiaria el contrato por un detalle de tipos, no por politica."""
+        if isinstance(valor, bool):
+            valor = "una" if valor else "no"
+        valor = str(valor or "no")
+        self.dismiss(valor if valor in ("una", "siempre", "no") else "no")

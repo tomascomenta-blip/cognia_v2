@@ -708,3 +708,323 @@ def _avisar(donde: str, motivo: str) -> None:
             accion_sugerida="revisar .cognia/permisos.json (se siguio sin reglas)"))
     except Exception:
         pass
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LA VALVULA (2026-08-25) — "aprobar una vez y recordar" tiene que funcionar
+# ══════════════════════════════════════════════════════════════════════════════
+# El gate de shell se invirtio el mismo dia (allowlist por prefijo -> politica
+# por contencion). Invertir la carga de la prueba solo es sostenible si el
+# dueno tiene una valvula: un "siempre en este proyecto" que de verdad sobreviva
+# al cierre del proceso. Si no la tiene, la salida barata vuelve a ser apagar el
+# gate entero (COGNIA_ACCESO_TOTAL=1 / modo bypass), que es exactamente como se
+# perdieron 3 capturas.
+#
+# Lo que faltaba y esta abajo:
+#   1. la RAIZ. `cargar(os.getcwd())` guardaba las reglas en el cwd del momento:
+#      abrir el REPL en cognia_v2/tests dejaba la regla en tests/.cognia y al dia
+#      siguiente, desde la raiz, no existia. `raiz_proyecto` sube hasta el
+#      marcador del repo — y NUNCA hasta el home, porque ~/.cognia es la config
+#      GLOBAL y una regla ahi valdria para todos los proyectos a la vez.
+#   2. el ARRANQUE (el bug real de Hermes #4739). `decidir_en_proyecto` lee el
+#      fichero de DISCO en cada consulta (con cache por mtime): una regla escrita
+#      por otro proceso —o por la sesion de ayer— decide YA. No hay ningun estado
+#      en memoria que haya que "cargar al arrancar" y que se pueda olvidar.
+#   3. la INMUNIDAD del BLOCK: `puede_decidir_regla` deja fuera lo que el
+#      centinela declara irreversible y los kinds que preguntan siempre. Una
+#      regla es una preferencia del dueno sobre lo DUDOSO; jamas un indulto.
+#   4. el modo AUTONOMO HONESTO: sin humano al otro lado, un CONFIRM que no se
+#      puede auto-aprobar se deniega con un motivo accionable (`motivo_sin_humano`)
+#      y se CUENTA (`contar` / `telemetria`), para que "/permisos estado" muestre
+#      cuanto trabajo se esta perdiendo por falta de canal en vez de que el
+#      agente se quede dando vueltas sin saber por que.
+
+# Marcadores de raiz de proyecto (los mismos que hermes/parada_verificada, mas
+# .cognia: un proyecto que ya tiene reglas ES una raiz aunque no sea un repo).
+MARCADORES_RAIZ = (".git", "pyproject.toml", "pytest.ini", "setup.cfg",
+                   "package.json", "Cargo.toml", "go.mod", "Makefile",
+                   DIR_REGLAS)
+
+# El action_kind que usa el centinela al pedir confirmacion no es el nombre de
+# ninguna herramienta ("ejecutar comando"): se canoniza a 'shell_exec', que SI
+# esta en HERRAMIENTAS_DE_COMANDO. Sin esto el patron guardado era
+# "ejecutar comando(...)" y ademas se casaba como RUTA (primer campo hasta el
+# ' | '), o sea que "git status | rm -rf x" quedaba cubierto por la regla de git.
+ALIAS_HERRAMIENTA = {
+    "ejecutar comando": "shell_exec",
+    "ejecutar_comando": "shell_exec",
+    "comando": "shell_exec",
+    "bash": "shell_exec",
+    "shell": "shell_exec",
+}
+
+# Kinds que NUNCA puede decidir una regla guardada, ni siquiera 'permitir'.
+# 'borrado_masivo' lo emite tools.borrar_archivo por encima del tope de ficheros
+# y console/permissions lo deja fuera de KNOWN_KINDS por el mismo motivo: un
+# freno que una regla puede apagar no es un freno.
+KINDS_SIN_REGLA = ("borrado_masivo",)
+
+
+def herramienta_canonica(herramienta: str) -> str:
+    """Nombre de herramienta con el que se escriben y casan los patrones."""
+    h = str(herramienta or "").strip()
+    return ALIAS_HERRAMIENTA.get(h.lower(), h)
+
+
+def raiz_proyecto(inicio=None, tope: int = 8) -> Path:
+    """Raiz del REPO desde `inicio` (cwd por defecto). Nunca el home.
+
+    Sube buscando MARCADORES_RAIZ. Si llega al home del usuario sin encontrar
+    ninguno, para y devuelve el punto de partida: las reglas de un directorio
+    suelto se quedan en ese directorio, y ~/.cognia (la config global) jamas se
+    convierte en "el proyecto".
+    """
+    try:
+        p = Path(inicio or Path.cwd()).expanduser().resolve()
+    except Exception:
+        return Path.cwd()
+    try:
+        if p.is_file():
+            p = p.parent
+    except OSError:
+        pass
+    partida, actual = p, p
+    try:
+        home = Path.home().expanduser().resolve()
+    except Exception:
+        home = None
+    for _ in range(max(1, tope)):
+        if home is not None and actual == home:
+            break
+        try:
+            if any((actual / m).exists() for m in MARCADORES_RAIZ):
+                return actual
+        except OSError:
+            pass
+        if actual.parent == actual:
+            break
+        actual = actual.parent
+    return partida
+
+
+def puede_aprobar_regla(herramienta: str, args, nivel_centinela: str = "") -> bool:
+    """False si ninguna regla guardada puede APROBAR esta accion.
+
+    Dos casos: los KINDS_SIN_REGLA (borrado masivo) y todo lo que el centinela
+    haya clasificado como BLOCK. `nivel_centinela` es el veredicto ya calculado
+    por quien llama; vacio = "no aplica" (una accion que no es de shell).
+
+    Solo mira el lado PERMISIVO a proposito: una regla "denegar" sobre algo que
+    ya es BLOCK es redundante, no peligrosa, y frenar de mas nunca es el fallo
+    que se esta evitando aqui.
+    """
+    if str(herramienta or "").strip().lower() in KINDS_SIN_REGLA:
+        return False
+    return str(nivel_centinela or "").strip().lower() != "block"
+
+
+_CACHE_REGLAS = {}          # str(ruta) -> (firma, reglas)
+
+
+def _firma(ruta: Path):
+    """(mtime_ns, size) del fichero, o None si no existe / no se puede mirar."""
+    try:
+        st = ruta.stat()
+    except OSError:
+        return None
+    return (st.st_mtime_ns, st.st_size)
+
+
+def cargar_vigentes(raiz=None):
+    """Reglas del proyecto leidas de DISCO, con cache por (mtime, tamano).
+
+    Es el corazon del arranque: no hay copia en memoria que sobreviva al
+    proceso, asi que no hay nada que "cargar al inicio" y que se pueda olvidar.
+    Una regla que otro proceso acaba de escribir vale en la consulta siguiente.
+    """
+    raiz_ef = Path(raiz) if raiz is not None else raiz_proyecto()
+    ruta = ruta_reglas(raiz_ef)
+    clave = str(ruta)
+    firma = _firma(ruta)
+    hit = _CACHE_REGLAS.get(clave)
+    if hit is not None and hit[0] == firma:
+        return hit[1]
+    reglas = cargar(raiz_ef) if firma is not None else []
+    _CACHE_REGLAS[clave] = (firma, reglas)
+    return reglas
+
+
+def olvidar_cache() -> None:
+    """Tira la cache de `cargar_vigentes` (los tests y `recordar_en_proyecto`)."""
+    _CACHE_REGLAS.clear()
+
+
+def decidir_en_proyecto(herramienta: str, args, raiz=None,
+                        nivel_centinela: str = ""):
+    """(efecto, regla, raiz) segun .cognia/permisos.json de la RAIZ del repo.
+
+    `efecto` es "preguntar" cuando no hay regla que case — la ausencia de regla
+    nunca es permiso — y tambien cuando la regla que caso decia "permitir" pero
+    la accion no admite aprobacion por regla (BLOCK del centinela, borrado
+    masivo): ahi la regla devuelta es None y manda el gate. Un "denegar" si vale
+    siempre: frenar de mas no es el fallo que se esta evitando.
+    """
+    r = Path(raiz) if raiz is not None else raiz_proyecto()
+    herr = herramienta_canonica(herramienta)
+    try:
+        reglas = cargar_vigentes(r)
+    except Exception as exc:                     # nunca tumbar el turno
+        _avisar("decidir_en_proyecto", f"{r}: {type(exc).__name__}: {exc}")
+        return "preguntar", None, r
+    efecto, regla = decidir(herr, args, reglas)
+    if efecto == "permitir" and not puede_aprobar_regla(
+            herramienta, args, nivel_centinela):
+        return "preguntar", None, r
+    return efecto, regla, r
+
+
+def recordar_en_proyecto(efecto: str, herramienta: str, args, raiz=None) -> tuple:
+    """`recordar` sobre la raiz del repo. Devuelve (patron, raiz, efecto_real).
+
+    `efecto_real` puede ser mas restrictivo que el pedido: `recordar` degrada
+    "permitir" a "preguntar" sobre lo destructivo o envuelto. Hay que ensenarle
+    los tres al usuario — lo que se guardo, donde, y con que fuerza.
+    """
+    r = Path(raiz) if raiz is not None else raiz_proyecto()
+    herr = herramienta_canonica(herramienta)
+    pedido = str(efecto or "").strip().lower()
+    patron = recordar(r, pedido, herr, args)
+    efecto_real = ("preguntar"
+                   if pedido == "permitir" and _no_generalizable(herr, args)
+                   else pedido)
+    olvidar_cache()
+    contar("recordadas", raiz=r)
+    return patron, r, efecto_real
+
+
+def descripcion_de_lo_aprobado(herramienta: str, args) -> str:
+    """Que se aprueba si el usuario dice "siempre": el patron NORMALIZADO.
+
+    Nunca el literal con el payload. `escribir_archivo("a.py | <2 KB de codigo>")`
+    se resume como el patron de la carpeta, no con el fichero pegado dentro; y un
+    comando destructivo se dice EXACTO y con su degradacion a "preguntar", para
+    que nadie crea que acaba de firmar los borrados de manana.
+    """
+    herr = herramienta_canonica(herramienta)
+    patron = generalizar(herr, args)
+    if _no_generalizable(herr, args):
+        return (f"{patron} — solo este comando EXACTO, y como 'preguntar': "
+                f"un si de hoy no firma los borrados de manana")
+    return patron
+
+
+# ── Modo autonomo honesto + telemetria ────────────────────────────────────────
+
+_MOTIVO_BASE = (
+    "necesita confirmacion humana y aqui no hay nadie al otro lado "
+    "(sesion sin terminal: e2e, daemon o control remoto)")
+
+
+def motivo_sin_humano(herramienta: str, args, razon: str = "") -> str:
+    """El texto que se le da al agente cuando se deniega por falta de canal.
+
+    Accionable a proposito: dice QUE haria falta y por donde, en vez de un "no"
+    seco. Un "no" sin salida es lo que empuja al modelo a buscar el rodeo (asi
+    se perdieron las 3 capturas del dueno el 2026-08-25).
+    """
+    patron = descripcion_de_lo_aprobado(herramienta, args)
+    detalle = f" ({razon})" if razon else ""
+    return (f"{_MOTIVO_BASE}{detalle}. Opciones: usa la tool 'borrar_archivo' "
+            f"si lo que hacia falta era quitar ficheros (va a la papelera y es "
+            f"reversible); o pidele al dueno que apruebe una vez y lo recuerde "
+            f"con: /permisos permitir {patron}")
+
+
+CONTADORES = ("permitidas_por_regla", "denegadas_por_regla", "preguntadas",
+              "denegadas_sin_humano", "recordadas")
+
+_TELEMETRIA_FICHERO = "permisos_estado.json"
+_TELEMETRIA_MEM = {}        # str(raiz) -> dict
+
+
+def _ruta_telemetria(raiz) -> Path:
+    return Path(raiz) / DIR_REGLAS / _TELEMETRIA_FICHERO
+
+
+def _vacia() -> dict:
+    return {k: 0 for k in CONTADORES}
+
+
+def contar(evento: str, raiz=None, motivo: str = "") -> None:
+    """Suma 1 al contador `evento` de esta raiz. Nunca lanza.
+
+    Se guarda en <raiz>/.cognia/permisos_estado.json ademas de en memoria: el
+    agente que se queda sin canal suele correr en OTRO proceso que el REPL donde
+    luego se teclea "/permisos estado", y una telemetria que no cruza el proceso
+    no contesta la unica pregunta que importa ("cuanto se esta perdiendo aqui").
+    Bajo COGNIA_EFIMERO=1 la cuenta se lleva SOLO en memoria: ese modo promete
+    que la sesion no deja rastro, y la suite corre entera con el puesto.
+    """
+    if evento not in CONTADORES:
+        return
+    r = str(Path(raiz) if raiz is not None else raiz_proyecto())
+    mem = _TELEMETRIA_MEM.setdefault(r, _vacia())
+    mem[evento] = mem.get(evento, 0) + 1
+    if motivo:
+        mem["ultimo_motivo"] = motivo[:400]
+        mem["ultimo_ts"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    if os.environ.get("COGNIA_EFIMERO", "").strip() == "1":
+        return
+    try:
+        ruta = _ruta_telemetria(r)
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            disco = json.loads(ruta.read_text(encoding="utf-8-sig"))
+            if not isinstance(disco, dict):
+                disco = _vacia()
+        except (OSError, ValueError):
+            disco = _vacia()
+        disco[evento] = int(disco.get(evento, 0) or 0) + 1
+        if motivo:
+            disco["ultimo_motivo"] = motivo[:400]
+            disco["ultimo_ts"] = mem.get("ultimo_ts", "")
+        tmp = ruta.with_name(f"{ruta.name}.{os.getpid()}-{uuid.uuid4().hex[:6]}.tmp")
+        with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(json.dumps(disco, ensure_ascii=False, indent=2) + "\n")
+        _reemplazar(tmp, ruta)
+    except Exception:
+        pass        # la telemetria jamas puede costar un turno
+
+
+def telemetria(raiz=None) -> dict:
+    """Contadores de esta raiz (disco si lo hay, con lo de este proceso encima)."""
+    r = str(Path(raiz) if raiz is not None else raiz_proyecto())
+    datos = _vacia()
+    try:
+        disco = json.loads(_ruta_telemetria(r).read_text(encoding="utf-8-sig"))
+        if isinstance(disco, dict):
+            for k, v in disco.items():
+                if k in CONTADORES:
+                    datos[k] = int(v or 0)
+                else:
+                    datos[k] = v
+    except (OSError, ValueError):
+        pass
+    mem = _TELEMETRIA_MEM.get(r)
+    if mem:
+        for k in CONTADORES:
+            datos[k] = max(int(datos.get(k, 0) or 0), int(mem.get(k, 0) or 0))
+        if mem.get("ultimo_motivo"):
+            datos["ultimo_motivo"] = mem["ultimo_motivo"]
+            datos["ultimo_ts"] = mem.get("ultimo_ts", "")
+    return datos
+
+
+def reset_telemetria(raiz=None) -> None:
+    """Pone a cero los contadores de esta raiz (memoria y disco)."""
+    r = str(Path(raiz) if raiz is not None else raiz_proyecto())
+    _TELEMETRIA_MEM.pop(r, None)
+    try:
+        _ruta_telemetria(r).unlink()
+    except OSError:
+        pass
