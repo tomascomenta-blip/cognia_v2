@@ -1487,6 +1487,24 @@ def _expandir_borrado(args: str) -> tuple:
     return unicas, vacios, errores
 
 
+def _fuera_del_workspace(cruda: str):
+    """Path absoluto de una ruta que existe pero cae FUERA del workspace, o
+    None si no es el caso (ruta rara, inexistente, directorio).
+
+    Se resuelve aparte de _resolve_write_path a proposito: aquella funcion es
+    el confinamiento de la ESCRITURA y no debe aflojarse. Aqui solo se
+    reconoce el fichero para poder PREGUNTAR por el; quien decide es el
+    humano, y lo que se hace con el es reversible (papelera)."""
+    try:
+        p = Path(cruda).expanduser()
+        if not p.is_absolute():
+            return None
+        p = p.resolve()
+        return p if p.is_file() else None
+    except Exception:
+        return None
+
+
 @tool("borrar_archivo",
       "borrar_archivo <path>                 -- borra a la PAPELERA (admite "
       "comodines y 'a | b')",
@@ -1516,18 +1534,58 @@ def _borrar_archivo(args, ctx):
             return (f"RESULTADO borrar_archivo ERROR: ningun fichero coincide "
                     f"con {', '.join(vacios)}")
         return "RESULTADO borrar_archivo ERROR: falta la ruta"
-    rutas = []
+    rutas, fuera = [], []
     for cruda in crudas:
         try:
             wpath = _resolve_write_path(cruda)
         except ValueError as e:
-            return f"RESULTADO borrar_archivo ERROR: {e}"
+            # FUERA DEL WORKSPACE: la unica via REVERSIBLE que le queda al
+            # dueno (2026-08-25). Ese dia, tras cerrar el gate del shell,
+            # "limpia las capturas de pantalla" acabo en tres bloqueos y
+            # "no logro la tarea": el borrado por shell es BLOCK (irreversible
+            # y nadie puede aprobarlo) y esta tool se negaba por confinamiento.
+            # Cognia quedaba segura e INUTIL para lo que le habian pedido.
+            # Ahora esta tool -- que NO destruye: mueve a la papelera con
+            # inventario y /deshacer-borrado -- acepta rutas de fuera si un
+            # HUMANO lo confirma en este turno. Sin canal de confirmacion
+            # (remoto desatendido, e2e, daemon) se niega igual que antes: es
+            # exactamente el escenario del incidente.
+            ruta_fuera = _fuera_del_workspace(cruda)
+            if ruta_fuera is None:
+                return f"RESULTADO borrar_archivo ERROR: {e}"
+            wpath = ruta_fuera
+            fuera.append(wpath)
         if not wpath.exists():
             return f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} no existe"
         if wpath.is_dir():
             return (f"RESULTADO borrar_archivo ERROR: {_disp(wpath)} es un "
                     f"directorio; esta tool solo borra archivos")
         rutas.append(wpath)
+
+    # -- FUERA DEL WORKSPACE: lo confirma un HUMANO, siempre ----------------
+    # Mismo criterio que el tope de volumen: no se mira _acceso_total ni el
+    # modo de permiso. Un flag de autonomia no puede autorizar que se toquen
+    # ficheros de fuera del proyecto; una persona delante, si.
+    if fuera:
+        carpetas = sorted({str(p.parent) for p in fuera})
+        donde = carpetas[0] if len(carpetas) == 1 else f"{len(carpetas)} carpetas"
+        detalle = (f"mandar a la papelera {len(fuera)} fichero(s) de FUERA del "
+                   f"proyecto, en {donde} (reversible con /deshacer-borrado)")
+        confirm = ctx.get("confirm") if isinstance(ctx, dict) else None
+        ok = False
+        if callable(confirm):
+            try:
+                ok = bool(confirm("borrado_fuera_del_workspace", detalle))
+            except Exception:
+                ok = False
+        if not ok:
+            return (f"RESULTADO borrar_archivo BLOQUEADO: {len(fuera)} "
+                    f"fichero(s) estan fuera del proyecto ({donde}) y eso lo "
+                    f"confirma el dueno"
+                    + ("" if callable(confirm) else
+                       ", y no hay canal de confirmacion en esta sesion")
+                    + ". Los primeros son: "
+                    + ", ".join(str(p) for p in fuera[:5]) + ".")
 
     # -- TOPE DE VOLUMEN: por encima del tope decide un HUMANO, siempre ------
     # No se consulta _acceso_total ni el modo de permiso a proposito: el

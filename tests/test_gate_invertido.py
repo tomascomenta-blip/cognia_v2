@@ -609,3 +609,97 @@ def test_la_api_publica_no_cambio(sandbox):
     assert ok is True and msg is None
     ok, msg = evaluar_shell("rm -rf /", {})
     assert ok is False and isinstance(msg, str)
+
+
+# ===========================================================================
+# QUIEN puede borrar los ficheros del dueno (2026-08-25, tras el incidente)
+#
+# Invertir el gate dejo a Cognia segura pero INUTIL para lo que le habian
+# pedido: "limpia las capturas de pantalla" acababa en tres bloqueos y "no
+# logro la tarea" (medido tecleando con el CLI instalado). La respuesta NO es
+# aflojar el gate del shell -- un `del` es irreversible y no hay confirmacion
+# que lo arregle -- sino separar las dos vias:
+#   - shell (irreversible)  -> BLOCK sobre carpetas del dueno. No lo aprueba
+#                              nadie, ni el dueno: si dice que si, sigue sin
+#                              haber vuelta atras.
+#   - borrar_archivo (papelera con inventario y /deshacer-borrado) -> puede
+#                              salir del workspace SI un humano lo confirma en
+#                              el turno. Sin canal humano (control remoto
+#                              desatendido, e2e, daemon: el escenario exacto
+#                              del incidente) se niega.
+# ===========================================================================
+
+_PICT = r"C:\Users\usuario\Pictures\Screenshots"
+
+
+def _con_flags(cmd, flags="1", humano=None):
+    """evaluar_shell con los flags de autonomia a `flags` y, si se pide, un
+    canal humano que contesta `humano`."""
+    import os
+    from cognia.agent import sentinel as S
+    previo = (os.environ.get("COGNIA_ACCESO_TOTAL"),
+              os.environ.get("COGNIA_AUTONOMOUS"))
+    os.environ["COGNIA_ACCESO_TOTAL"] = flags
+    os.environ["COGNIA_AUTONOMOUS"] = flags
+    ctx = {} if humano is None else {"confirm": lambda *a: humano}
+    try:
+        return S.evaluar_shell(cmd, ctx)[0]
+    finally:
+        for clave, valor in zip(("COGNIA_ACCESO_TOTAL", "COGNIA_AUTONOMOUS"),
+                                previo):
+            if valor is None:
+                os.environ.pop(clave, None)
+            else:
+                os.environ[clave] = valor
+
+
+@pytest.mark.parametrize("cmd", [
+    'del "%s\\*.png"' % _PICT,
+    'cd /d "%s" && del *.png' % _PICT,          # el comando del incidente
+    'rm -rf "%s"' % _PICT,
+])
+def test_el_borrado_irreversible_del_shell_no_lo_aprueba_nadie(cmd):
+    """Ni los flags de autonomia (asi ocurrio el incidente) ni el dueno
+    diciendo que si: un `del` no tiene vuelta atras, y para eso esta la
+    papelera. La negativa nombra esa alternativa."""
+    from cognia.agent.sentinel import clasificar_shell, BLOCK
+    assert clasificar_shell(cmd)[0] == BLOCK
+    assert _con_flags(cmd, flags="0") is False
+    assert _con_flags(cmd, flags="1") is False
+    assert _con_flags(cmd, flags="1", humano=True) is False
+
+
+def test_la_via_reversible_sale_del_workspace_solo_con_permiso(tmp_path,
+                                                               monkeypatch):
+    """borrar_archivo (papelera + /deshacer-borrado) acepta rutas de fuera si
+    hay un humano que lo confirme; sin canal humano se niega. Es lo que
+    devuelve la capacidad de limpiar SIN devolver el agujero."""
+    monkeypatch.setenv("COGNIA_PAPELERA_DIR", str(tmp_path / "pap"))
+    from cognia.agent.tools import run_tool
+    from cognia.harness import papelera as P
+    fuera = tmp_path / "fuera"
+    fuera.mkdir()
+    for i in (1, 2, 3):
+        (fuera / ("captura%d.png" % i)).write_text("png %d" % i,
+                                                   encoding="utf-8")
+    arg = str(fuera / "*.png")
+
+    assert "BLOQUEADO" in run_tool("borrar_archivo", arg, {})
+    assert len(list(fuera.glob("*.png"))) == 3
+    assert "BLOQUEADO" in run_tool("borrar_archivo", arg,
+                                   {"confirm": lambda *a: False})
+    assert len(list(fuera.glob("*.png"))) == 3
+
+    salida = run_tool("borrar_archivo", arg, {"confirm": lambda *a: True})
+    assert "OK" in salida and "papelera" in salida
+    assert list(fuera.glob("*.png")) == []
+
+    P.restaurar()
+    assert sorted(p.read_text(encoding="utf-8")
+                  for p in fuera.glob("*.png")) == ["png 1", "png 2", "png 3"]
+
+
+def test_dentro_del_repo_el_trabajo_sigue_fluyendo():
+    """Contrafactual: un borrado contenido en el workspace no exige humano en
+    modo autonomo (si lo exigiera, el agente no podria limpiar sus temporales)."""
+    assert _con_flags("del build.log", flags="1") is True

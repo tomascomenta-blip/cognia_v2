@@ -202,20 +202,40 @@ def _append(dia: str, fila: dict) -> None:
     escribir_linea_jsonl(_indice(dia), linea, _ROTAR_BYTES)
 
 
-def _clave_ruta(p: Path) -> Path:
-    r"""Ruta RELATIVA que conserva la original bajo el directorio del lote.
+# Windows corta en 260 caracteres (MAX_PATH) y la papelera vive dentro de
+# ~/.cognia: replicar la ruta ORIGINAL completa debajo del lote sumaba las dos
+# y reventaba. Medido el 2026-08-25 con un fichero de 166 chars: el destino
+# salia de ~290 y `shutil.move` fallaba con "[WinError 206] El nombre del
+# archivo o la extension es demasiado largo" -- con el dueno ya habiendo dicho
+# que si al permiso. Un borrado APROBADO que falla es peor que uno denegado:
+# el agente lo reintenta por otras vias.
+_TOPE_RUTA_DESTINO = 250
 
-    C:\Users\u\Pictures\a.png  ->  C/Users/u/Pictures/a.png
-    /home/u/a.png              ->  _raiz_/home/u/a.png
 
-    Asi el dueno ve de un vistazo de donde salio cada fichero, y restaurar es
-    volver a pegar el prefijo."""
+def _clave_ruta(p: Path, base: Path = None) -> Path:
+    """Ruta RELATIVA bajo el directorio del lote.
+
+    Conservar el arbol original es lo comodo (el dueno ve de donde salio cada
+    fichero con un `dir`), pero NO puede costar el borrado: si el destino se
+    pasa de _TOPE_RUTA_DESTINO se cae a un nombre plano y corto
+    `<raiz>__<8 hex del sha1 de la ruta>__<nombre recortado>`. La ruta original
+    NUNCA se pierde: vive en el indice.jsonl, que es lo que lee restaurar()."""
+    import hashlib
     p = Path(os.path.abspath(str(p)))
     drive = p.drive                      # 'C:' en Windows, '' en POSIX
-    partes = [x for x in p.parts if x not in ("\\", "/", drive, drive + "\\")]
+    partes = [x for x in p.parts
+              if x not in ("\\", "/", drive, drive + "\\")]
     raiz = re.sub(r"[^A-Za-z0-9]", "", drive) or "_raiz_"
-    return Path(raiz, *partes)
-
+    completa = Path(raiz, *partes)
+    # El tope se mide sobre el destino COMPLETO -- base del lote incluida --,
+    # no sobre el trozo relativo: con la base de ~/.cognia/papelera/<dia>/<lote>
+    # una clave de 163 chars daba 302 y volvia a fallar (medido 2026-08-25).
+    largo = len(str(Path(base) / completa)) if base else len(str(completa))
+    if largo <= _TOPE_RUTA_DESTINO:
+        return completa
+    huella = hashlib.sha1(str(p).encode("utf-8", "replace")).hexdigest()[:8]
+    nombre = p.name[-60:] or "fichero"
+    return Path("%s__%s__%s" % (raiz, huella, nombre))
 
 def _leer_indice(dia: str) -> list:
     ruta = _indice(dia)
@@ -334,7 +354,7 @@ def enviar(rutas, motivo: str = "", tool: str = "", forzar_modo: str = "") -> di
                               "restaurable": False, "modo": "sistema",
                               "bytes": f["bytes"], "sha256": f["sha256"]})
             continue
-        destino = base / _clave_ruta(origen)
+        destino = base / _clave_ruta(origen, base)
         try:
             destino.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(origen), str(destino))

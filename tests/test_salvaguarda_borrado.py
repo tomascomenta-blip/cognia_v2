@@ -116,9 +116,20 @@ def test_la_papelera_conserva_la_ruta_original(sandbox, tmp_path):
     f = sub / "a.png"
     f.write_bytes(b"png")
     T.run_tool("borrar_archivo", str(f), _ctx())
-    destino = [l for l in _lineas(tmp_path) if l.get("evento") == "movido"][0]["destino"]
-    # la ruta ORIGINAL viaja debajo del lote (sin los dos puntos de la unidad)
-    assert destino.replace("\\", "/").endswith("fotos/2026/a.png")
+    movido = [l for l in _lineas(tmp_path) if l.get("evento") == "movido"][0]
+    destino = movido["destino"].replace("\\", "/")
+    # La ruta ORIGINAL viaja debajo del lote (sin los dos puntos de la unidad)
+    # MIENTRAS quepa: desde el 2026-08-25, si el destino se pasa de MAX_PATH la
+    # clave se aplana (ver _clave_ruta) porque un borrado ya aprobado no puede
+    # fallar por la longitud. En los dos casos la verdad esta en el indice, que
+    # es lo que lee restaurar(): eso es lo que se afirma aqui.
+    assert movido["ruta"] == str(f)
+    if len(str(f)) + len(str(P.dir_papelera())) < 200:
+        assert destino.endswith("fotos/2026/a.png")
+    else:
+        assert destino.endswith("a.png")            # nombre plano y corto
+    assert P.restaurar()["restaurados"]
+    assert f.read_bytes() == b"png"
 
 
 # ── 2. INVENTARIO ANTES de mover ───────────────────────────────────────────
@@ -277,11 +288,27 @@ def test_lotes_lista_lo_que_hay_en_la_papelera(sandbox):
 
 # ── 5. lo de siempre sigue igual ───────────────────────────────────────────
 
-def test_fuera_del_workspace_sigue_rechazado(sandbox, tmp_path):
+def test_fuera_del_workspace_lo_decide_un_humano(sandbox, tmp_path):
+    """Cambio del 2026-08-25 (tarde): una ruta de fuera ya no es un ERROR
+    seco -- eso dejaba a Cognia sin poder limpiar NADA del dueno, ni
+    preguntando (medido tecleando: tres bloqueos y "no logro la tarea").
+    Ahora la via REVERSIBLE puede salir del workspace si un humano lo
+    confirma en el turno; sin canal humano se niega, que es el escenario
+    exacto del incidente (remoto desatendido). El borrado por shell, que no
+    tiene vuelta atras, sigue siendo BLOCK para todos."""
     fuera = tmp_path / "fuera.txt"
     fuera.write_text("del dueno", encoding="utf-8")
-    out = T.run_tool("borrar_archivo", str(fuera), _ctx())
-    assert "ERROR" in out and fuera.exists()
+    # sin canal humano
+    out = T.run_tool("borrar_archivo", str(fuera), {})
+    assert "BLOQUEADO" in out and fuera.exists()
+    # el dueno dice que no
+    out = T.run_tool("borrar_archivo", str(fuera), {"confirm": lambda *a: False})
+    assert "BLOQUEADO" in out and fuera.exists()
+    # el dueno dice que si: a la papelera, recuperable
+    out = T.run_tool("borrar_archivo", str(fuera), {"confirm": lambda *a: True})
+    assert "OK" in out and not fuera.exists()
+    P.restaurar()
+    assert fuera.read_text(encoding="utf-8") == "del dueno"
 
 
 def test_directorio_e_inexistente_siguen_siendo_error(sandbox):
@@ -349,3 +376,30 @@ def test_el_modo_sistema_dice_donde_esta_lo_borrado(sandbox, monkeypatch):
     P.enviar([str(f)], motivo="prueba", forzar_modo="sistema")
     res = P.restaurar()
     assert res["ok"] is False and "papelera de Windows" in res["error"]
+
+
+def test_una_ruta_larga_no_rompe_la_papelera(tmp_path, monkeypatch):
+    """MAX_PATH: el destino sumaba la ruta original ENTERA bajo el lote y en
+    Windows reventaba con "[WinError 206] ... demasiado largo" -- con el dueno
+    ya habiendo confirmado el borrado. Un borrado APROBADO que falla es peor
+    que uno denegado: el agente lo reintenta por otras vias (medido el
+    2026-08-25 tecleando: tras el fallo probo `del` y `move`).
+
+    Ahora, cuando el destino se pasa, la clave es un nombre plano y corto; la
+    ruta original vive en el indice y restaurar() la usa igual."""
+    monkeypatch.setenv("COGNIA_PAPELERA_DIR", str(tmp_path / "papelera"))
+    # Dos tramos largos y un nombre largo: pasa de 200 chars sin llegar al
+    # limite que impide CREARLO (Windows no deja ni mkdir por encima de 260).
+    hondo = tmp_path / ("d" * 60)
+    hondo.mkdir(parents=True)
+    f = hondo / ("Captura de pantalla 2026-08-21 120000 " + "x" * 20 + ".png")
+    f.write_text("captura", encoding="utf-8")
+    assert len(str(f)) > 200, len(str(f))
+
+    parte = P.enviar([str(f)], motivo="ruta larga", tool="test")
+    assert not parte["fallos"], parte["fallos"]
+    assert len(parte["movidos"]) == 1
+    assert not f.exists()
+
+    assert P.restaurar()["restaurados"]
+    assert f.read_text(encoding="utf-8") == "captura"
