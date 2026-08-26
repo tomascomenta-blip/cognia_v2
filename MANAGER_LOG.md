@@ -14281,3 +14281,57 @@ Verificado tecleando con el CLI instalado 4.12.2: peticion -> permiso (s/a/n) ->
 /deshacer-borrado los restaura byte a byte; y las capturas del dueno intactas en todas las corridas.
 Sonda independiente del orquestador: 0 fugas de 34 destructivos, 0 frenados de 20 legitimos. 1505 tests del
 area. https://pypi.org/project/cognia-ai/4.12.2/
+
+
+## 2026-08-26 — "No responde a tareas largas": cinco topes calibrados para un parrafo
+
+**El reporte.** El dueno: "cognia cli no responde a tareas largas, revisa el historial".
+La huella estaba en `chat_history` id 1018/1019: una especificacion de videojuego de 14.220
+caracteres y, por respuesta, `(el agente no pudo hablar con el modelo: TimeoutError: timed out)`.
+El log firma el turno: `razon=error_backend detalle=timeout pasos=2 vueltas=5 refunds=3` (12:01:34).
+Ese mismo dia hay dos muertes mas del mismo bucle: `bucle_detectado detalle=repite ejecutar`
+(11:00:59 pasos=6 y 12:45:49 pasos=7) y `detalle=3 tools seguidas fallaron` (11:04:43).
+
+**La causa NO era una.** Eran cinco, todas del mismo signo -- cada tope del bucle calibrado
+para una tarea de un parrafo -- y por eso el sintoma parecia inconsistente (las cortas si
+contestaban):
+
+1. *El reloj medi lo que no debia.* `chat_client` tenia rama SSE desde el 2026-08-17 con 55
+   tests verdes y `grep -rn "on_token=" cognia/` devolvia UN solo resultado: la propia firma
+   de `completar()`. NADIE la usaba. En el camino no-stream el timeout de socket es un limite
+   de PARED sobre la generacion entera, aunque tres docstrings afirmaban lo contrario ("de
+   inactividad, en los DOS caminos"). REPRODUCIDO antes de tocar nada: server falso que tarda
+   6 s, presupuesto 3 s, mismo `completar()`, lo unico que cambia es `on_token` ->
+   `ok=False TimeoutError a los 3,02 s` contra `ok=True respuesta entera a los 9,03 s`.
+2. *8 pasos para construir un juego.* La escalera de `estimate_step_budget` topaba en 8 = nivel
+   3 de 5; los escalones 16 y 28 de `_RATING_TO_BUDGET` eran inalcanzables sin el clasificador
+   LLM, apagado desde el 2026-08-09. MEDIDO: la tarea del dueno da dificultad 0,900 y recibia 8.
+3. *El corte por repeticion contaba sin ventana y sin exentas.* `register_action` cuenta el par
+   (tool,args) en TODA la tarea; correr `tests` tres veces -- una tras cada arreglo -- cerraba
+   el turno. `guardia_bucle.py:20` ya lo tenia diagnosticado y GuardiaBucle se escribio para
+   reemplazarlo... y se cableo ADEMAS del roto, no en su lugar.
+4. *Depurar contaba como estar atascado.* 3 `ejecutar` con exit!=0 seguidos = corte, cuando el
+   error ES la informacion que el agente fue a buscar.
+5. *El refund no devolvia la vuelta.* Habia dos contadores y mandaba el que nunca baja, asi que
+   `_pres.consume()` no podia devolver False jamas y `presupuesto_turno` movia un numero en el
+   log. El turno del voleibol: 5 vueltas quemadas para 2 pasos de trabajo real.
+
+**Y el backend servido con la receta de otro modelo.** Ese dia `config.env` paso de Qwythos-9B
+a Qwen3.8-27B y nadie toco `LLAMA_CTX_SIZE=200192`, que `perf_profiles.py` calibro para el 9B
+(el propio comentario avisa: "200k vale para un 9B con atencion de ventana" -- una leccion en
+prosa que nada comprobaba). El auto-arranque de `node/llama_backend.py` no podia leer los
+perfiles medidos porque viven en `scripts/`, que no se distribuye; ademas nunca puso `--jinja`,
+y sin el llama-server no parsea `tool_calls`: `chat_history` id 1021 es un turno entero perdido
+con `<tool_call><function=Read>` impreso como prosa.
+
+**Verificacion.** Gate e2e del camino feliz 5/5 en 4,7 min con el 27B real. 14 tests nuevos en
+`tests/test_agente_streaming.py`, y el contrafactual corrido: **7 de 13 fallan con el fix
+revertido** (los otros cubren caminos que ya funcionaban). Los cortes de los tests reproducen
+las firmas EXACTAS del log de produccion: `detalle=3 tools seguidas fallaron pasos=3`,
+`detalle=repite tests pasos=3`, `pasos=1 vueltas=3 refunds=2`. Velocidad del 27B medida contra
+el server vivo: 24,7 tok/s de punta a punta (el codigo asumia 45).
+
+**Lo que NO se toco, dicho a proposito.** Las corridas de workflow en batch (`interactivo=False`)
+siguen por el camino no-stream: es un flag deliberado y el dueno reporto el CLI, no los
+workflows. Queda anotado en el codigo con el coste que tiene, para que el que llegue no lo
+descubra otra vez desde cero.

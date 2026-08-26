@@ -419,6 +419,17 @@ class Corrida:
     # Quien lo enciende es la VISTA, no el modelo (no se publica en
     # PARAMS_WORKFLOW): encenderlo por defecto cambiaria el transporte de
     # todas las corridas batch sin que nadie lo pidiera.
+    #
+    # LO QUE CUESTA (medido 2026-08-26, no cambiado a proposito): ese camino
+    # "byte-identico" es el NO-STREAM, y ahi el timeout de chat_client es un
+    # deadline de PARED sobre la generacion entera, no de inactividad. O sea
+    # que cada paso de una corrida batch sigue teniendo el tope de 300 s que
+    # se llevo la tarea larga del dueno ese dia (ver el docstring corregido
+    # de chat_client.completar y loop.py::_kwargs_stream, donde el bucle del
+    # CLI si pasa a SSE). Si una corrida de workflow muere con
+    # 'TimeoutError: timed out' teniendo el server sano, la causa es esta y
+    # el arreglo es encender interactivo (o cablear aca los callbacks con la
+    # misma red de degradacion que loop.py:_RE_SIN_SSE).
     interactivo: bool = False
     tokens_en_vivo: bool = None                 # None = sigue a interactivo
     max_repreguntas: int = _MAX_REPREGUNTAS

@@ -36,9 +36,23 @@ Tres cosas que costaron sangre y estan fijadas por tests (2026-08-17, T3):
     calls de un turno cortado se arman bajo otra clave (`_crudo_desde_stream`)
     en vez de vaciarse despues. Cortar y devolver tool calls ejecutables ya no
     es algo que se pueda escribir.
-  * El timeout es de INACTIVIDAD, no de pared — en los dos caminos, igual que
-    el timeout de socket de urlopen. El stream agrega ADEMAS un tope de pared
-    porque en no bloqueante el de urlopen deja de regir.
+  * Con STREAM el timeout es de INACTIVIDAD: es el timeout de socket de
+    urlopen y se rearma con cada frame, asi que lo dispara un SILENCIO y no
+    una respuesta lenta. El stream agrega ADEMAS un tope de pared porque en
+    no bloqueante el de urlopen deja de regir.
+  * SIN STREAM ese mismo numero es un deadline de PARED, no de inactividad.
+    Este renglon decia "en los dos caminos" y era FALSO (corregido
+    2026-08-26): llama-server no escribe ni la linea de estado HTTP hasta
+    terminar la generacion entera, asi que el unico recv del camino
+    no-stream abarca connect + prefill + pensamiento + generacion y el
+    timeout de socket los cubre a todos de una vez.
+    MEDIDO con un server que tarda 6 s y un presupuesto de 3 s (mismo
+    completar(), lo unico que cambia es pasar on_token):
+        no-stream : ok=False  tardo=3,02 s  error='TimeoutError: timed out'
+        stream SSE: ok=True   tardo=9,03 s  respuesta entregada entera
+    Por eso el bucle del agente pasa siempre por la rama SSE desde el
+    2026-08-26 (loop.py::_kwargs_stream); quien llame sin callbacks tiene que
+    dimensionar `timeout` como PARED de la generacion completa.
 """
 from __future__ import annotations
 
@@ -83,7 +97,15 @@ _TIMEOUT_TECHO_S = 1800.0
 # una constante que documenta una averia propia.
 # Nota: a profundidad extrema (1M de contexto) la generacion SI cae a ~14
 # tok/s, pero eso es una tarea excepcional, no el caso comun del bucle.
-_TOK_S_POR_FAMILIA = {"nemotron": 39.0}
+# qwen3.8-27b (MEDIDO 2026-08-26, RTX 5060 Ti, ctx 65.536, KV q8_0, MTP n=2,
+# 400 tokens generados contra el :8080 vivo): 24,7 tok/s de PUNTA A PUNTA
+# vistos por el cliente -- el server reporta 35,8 tok/s de decode puro, pero
+# lo que hay que presupuestar es lo que tarda la llamada, no lo que tarda el
+# kernel. Con el default de 45 el presupuesto salia 1,8x optimista: para el
+# techo de reintento (16.384 tokens) la cuenta daba 546 s y la generacion
+# real cuesta 663 s. La entrada va por familia y no por gguf porque el nombre
+# del fichero cambia con la cuantizacion.
+_TOK_S_POR_FAMILIA = {"nemotron": 39.0, "qwen3.8-27b": 25.0}
 _TOK_S_DEFECTO = 45.0
 
 
@@ -139,12 +161,27 @@ def timeout_para(modelo: str = "", max_tokens: int = 4096) -> float:
     no es una proteccion: es una tarea perdida y un diagnostico falso
     ("se colgo") sobre algo que solo iba lento.
 
-    QUE MIDE ESTE NUMERO: **inactividad**, no pared. Es el timeout que se le
-    pasa a urlopen, o sea el del socket: se arma de nuevo en cada lectura. Una
-    respuesta que tarda 10 minutos en salir entera no lo dispara mientras el
-    server siga hablando; lo dispara un silencio mas largo que el presupuesto
-    (tipicamente un prefill descomunal o un backend colgado). La rama SSE lo
-    respeta y agrega ADEMAS un tope de pared (ver `_pared_del_stream`).
+    QUE MIDE ESTE NUMERO, y depende del CAMINO (corregido 2026-08-26; antes
+    esta seccion decia "inactividad, no pared" a secas y era falso para la
+    mitad de los llamadores):
+
+      * CON stream (on_token/on_reasoning/cancelado) mide **inactividad**. Es
+        el timeout de socket de urlopen y se rearma en cada lectura: una
+        respuesta que tarda 10 minutos en salir entera no lo dispara mientras
+        el server siga hablando. Lo dispara un silencio mas largo que el
+        presupuesto (un prefill descomunal, un backend colgado). La rama SSE
+        agrega ADEMAS un tope de pared (ver `_pared_del_stream`).
+      * SIN stream mide **pared**. No porque el timeout sea distinto —es el
+        mismo settimeout— sino porque en ese camino solo hay UN recv largo:
+        llama-server no manda ni la linea de estado hasta haber generado
+        todo, asi que ese unico silencio incluye la generacion completa. Un
+        turno que tarde mas que el presupuesto muere aunque el server este
+        perfectamente sano. Es lo que se llevo la tarea larga del 2026-08-26
+        a las 12:01 con 'TimeoutError: timed out'.
+
+    O sea: el numero de abajo esta calculado como presupuesto de GENERACION
+    (max_tokens / tok_s * 1,5). Eso es lo correcto para el camino no-stream y
+    holgado para el de stream.
     """
     if os.environ.get("COGNIA_CHAT_TIMEOUT"):
         return float(os.environ["COGNIA_CHAT_TIMEOUT"])
@@ -851,12 +888,23 @@ def completar(mensajes: list, tools: list = None, url: str = "",
     response_format: salida estructurada — el server la fuerza por gramatica
     desde b9391 (probado en vivo en :8080); None = body identico al de antes.
 
-    EL TIMEOUT ES DE INACTIVIDAD, NO DE PARED — en los DOS caminos. `timeout`
-    (o lo que devuelva `timeout_para()`) es el timeout del SOCKET: se rearma
-    en cada lectura, asi que lo dispara un SILENCIO mas largo que el
-    presupuesto (un prefill descomunal, un backend colgado) y NO una respuesta
-    lenta que sigue saliendo. Una generacion de 10 minutos con un presupuesto
-    de 300 s no muere mientras el server hable.
+    EL TIMEOUT ES DE INACTIVIDAD **SOLO CON STREAM**. `timeout` (o lo que
+    devuelva `timeout_para()`) es el timeout del SOCKET y se rearma en cada
+    lectura, asi que con la rama SSE lo dispara un SILENCIO mas largo que el
+    presupuesto (un prefill descomunal, un backend colgado) y NO una
+    respuesta lenta que sigue saliendo: una generacion de 10 minutos con un
+    presupuesto de 300 s no muere mientras el server hable.
+
+    SIN stream ese mismo numero es un deadline de PARED sobre la generacion
+    entera, y este parrafo decia lo contrario hasta el 2026-08-26 ("en los
+    DOS caminos"). El motivo no es el timeout sino el camino: en no-stream
+    hay UN solo recv largo —llama-server no escribe nada hasta terminar— asi
+    que ese silencio unico cubre connect + prefill + pensamiento +
+    generacion. Medido: server que tarda 6 s, presupuesto 3 s, mismo
+    completar(); sin on_token da 'TimeoutError: timed out' a los 3,02 s y con
+    on_token entrega la respuesta entera a los 9,03 s. Quien llame sin
+    callbacks debe dimensionar `timeout` como pared de la generacion completa
+    (o pasar on_token, que es lo que hace el bucle del agente).
     Con stream hay ADEMAS un tope de pared, porque en no bloqueante el timeout
     de urlopen deja de regir y un proxy que pinguea cada 50 ms tiene
     inactividad cero para siempre: `max(timeout, min(timeout*4, 3600 s))`. Un

@@ -161,6 +161,44 @@ def estimate_step_budget(task: str, orch, hard_cap: int = AGENT_HARD_CAP) -> int
     else:
         heuristic = 4
 
+    # ESCALERA POR DIFICULTAD (2026-08-26). La escalera de arriba topa en 8 =
+    # rating 3 de 5: los dos escalones altos de _RATING_TO_BUDGET (16 y 28)
+    # eran INALCANZABLES sin el clasificador LLM, que esta apagado por
+    # defecto desde el 2026-08-09. O sea que CUALQUIER tarea grande recibia
+    # el mismo presupuesto que un "resume este parrafo": 8 pasos.
+    #
+    # MEDIDO con estimate_task_difficulty (cero LLM, ya calibrada, ya se
+    # calcula en el camino -- cli.py:21654 la deja en ctx['hybrid']):
+    #     tarea                                chars  dific  pasos
+    #     hola                                     4  0,003      2
+    #     abreme una pestana de chrome en yt      39  0,029      4
+    #     crea una carpeta llamada pruebas        32  0,186      4
+    #     arregla el bug del login y corre tests  52  0,226      4
+    #     "desarrolla un videojuego de VOLEIBOL"  14.220  0,900   8  <--
+    # La ultima es la tarea real del dueno del 2026-08-26 (chat_history id
+    # 1018): 14.220 caracteres de especificacion, dificultad 0,900, y ocho
+    # llamadas al modelo para construir un juego entero. No hay timeout que
+    # arregle eso: la tarea se queda sin presupuesto antes de empezar.
+    #
+    # MONOTONO A PROPOSITO: se toma el MAXIMO con la escalera vieja, nunca el
+    # nuevo valor a secas. Asi ninguna tarea que hoy funciona pierde pasos
+    # (el 'abreme chrome' de 0,029 seguiria valiendo 4 y no 2), y el cambio
+    # solo puede ABRIR presupuesto donde hoy falta. El techo sigue siendo
+    # AGENT_HARD_CAP y las guardas de estancamiento siguen cortando antes si
+    # el agente no avanza: esto da margen, no barra libre.
+    try:
+        from cognia.agent.hybrid_router import estimate_task_difficulty
+        d = estimate_task_difficulty(task)
+        rating = 1 if d < 0.15 else 2 if d < 0.35 else (
+            3 if d < 0.55 else 4 if d < 0.75 else 5)
+        heuristic = max(heuristic, _RATING_TO_BUDGET[rating])
+    except Exception as e:
+        # Degradacion VISIBLE (regla del repo: "no lo cablearon" y "se rompio"
+        # no pueden verse igual). Sin la senal queda la escalera vieja.
+        logging.getLogger(__name__).warning(
+            "estimate_step_budget sin senal de dificultad (%s: %s); uso la "
+            "escalera de longitud", type(e).__name__, e)
+
     # A6 (obra 2026-08-09): el clasificador-racionador LLM esta APAGADO por
     # defecto — la heuristica barata ya es mas fiable que sacar un digito de
     # un razonador con max_tokens=16 (que ademas truncaba el pensamiento:
@@ -253,6 +291,19 @@ def salida_de_ejecucion(history) -> str:
 
 
 from cognia.harness.veredicto_tool import es_fallo as _es_fallo_tool
+
+# Tools cuyo trabajo ES repetirse: correr la suite tras cada arreglo, mirar la
+# salida de un proceso de fondo, listar procesos. La lista vive en
+# guardia_bucle.py (que ya las salta); se importa aca para que el corte de
+# register_action tampoco las cuente. Fallback vacio: sin el modulo hermes el
+# comportamiento es el historico, no un crash.
+try:
+    from cognia.hermes.guardia_bucle import EXENTAS_COGNIA as EXENTAS_TOOLS
+except Exception as _e_exentas:      # pragma: no cover - wheel sin hermes
+    logging.getLogger(__name__).warning(
+        "guardia_bucle no disponible (%s): el corte por repeticion contara "
+        "tambien las tools exentas", type(_e_exentas).__name__)
+    EXENTAS_TOOLS = frozenset()
 
 # Como se lee que la respuesta YA reporta un fallo: exit, excepcion,
 # traceback, 'fallo', 'no se pudo'... Sirve para NO anexar el cierre E8 de
@@ -967,6 +1018,66 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     if perfil.get("kwargs_plantilla"):
         sampling["kwargs_plantilla"] = perfil["kwargs_plantilla"]
 
+    # -- STREAMING (2026-08-26) --------------------------------------------
+    # POR QUE. chat_client tiene rama SSE desde el 2026-08-17, con 55 tests
+    # verdes... y NADIE la usaba: `grep -rn "on_token=" cognia/` devolvia UN
+    # solo resultado, la propia firma de completar(). Todo el agente iba por
+    # el camino NO-stream, y ahi el docstring de completar() ("el timeout es
+    # de INACTIVIDAD, no de pared -- en los DOS caminos") es FALSO: sin
+    # stream, llama-server no manda un solo byte hasta terminar la generacion
+    # entera, asi que la PRIMERA lectura del socket ya espera la respuesta
+    # completa y el timeout de urlopen se comporta como un deadline de PARED.
+    #
+    # MEDIDO 2026-08-26 con un server falso que tarda 6 s en responder y un
+    # presupuesto de 3 s (mismo binario, mismo completar(), lo unico que
+    # cambia es on_token):
+    #     no-stream : ok=False  tardo=3,02 s  error='TimeoutError: timed out'
+    #     stream SSE: ok=True   tardo=9,03 s  texto entregado entero
+    # Ese error literal es el que se llevo la tarea del dueno el 2026-08-26 a
+    # las 12:01 ("(el agente no pudo hablar con el modelo: TimeoutError:
+    # timed out)", chat_history id 1019): una tarea LARGA y sana muerta por
+    # un reloj que medi lo que no debia. Es exactamente el sintoma "Cognia no
+    # responde a tareas largas": las cortas caben en el presupuesto de pared
+    # y las largas no.
+    #
+    # QUE CAMBIA. Con on_token/on_reasoning el socket se lee por frames, asi
+    # que el timeout vuelve a medir SILENCIO (que es lo que dice medir) y una
+    # generacion de 20 minutos que va entregando tokens no muere. Ademas
+    # `cancelado` pasa a consultarse DURANTE la generacion y no solo entre
+    # pasos: el Ctrl-C del carril de fondo deja de ser una promesa.
+    #
+    # Los callbacks son de CONTABILIDAD, no de render: no imprimen nada, asi
+    # que la pantalla del CLI es la de antes. Lo que aportan es que el socket
+    # se mantenga leyendo y que un corte deje de ser mudo (el aviso dice
+    # cuantos tokens habian llegado ya). COGNIA_STREAM=0 vuelve al camino
+    # historico.
+    _stream_on = os.environ.get("COGNIA_STREAM", "1").strip().lower() not in (
+        "0", "off", "false", "no")
+    _vivo = {"tokens": 0, "razonamiento": 0}
+
+    def _suma_token(_frag):
+        _vivo["tokens"] += 1
+
+    def _suma_razonamiento(_frag):
+        _vivo["razonamiento"] += 1
+
+    def _kwargs_stream() -> dict:
+        """Los kwargs que encienden la rama SSE, o {} si esta apagada."""
+        if not _stream_on:
+            return {}
+        k = {"on_token": _suma_token, "on_reasoning": _suma_razonamiento}
+        _cc = ctx.get("_cancelado") if isinstance(ctx, dict) else None
+        if callable(_cc):
+            k["cancelado"] = _cc
+        return k
+
+    # Un transporte que NO respeta stream:true (un proxy delante, un backend
+    # que no es llama-server) contesta 200 sin un solo frame SSE. chat_client
+    # lo devuelve como error CON causa; aca se degrada UNA vez al camino
+    # historico en vez de dar la tarea por perdida. Sin esta red, encender el
+    # stream romperia a quien sirva el modelo por otra via.
+    _RE_SIN_SSE = re.compile(r"(?i)sin SSE|no lo respeta|ni un frame")
+
     sig_counts: dict = {}
     # Herramientas ya ofrecidas en ESTA tarea: ofrecer dos veces la misma es
     # ruido, y si no la uso la primera vez es que no la queria.
@@ -975,7 +1086,25 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     pasos = 0
     fail_streak = 3
     result_text, finish, ok = "", "", False
-    while pasos < max_turns:
+    # EL REFUND TIENE QUE DEVOLVER LA VUELTA DE VERDAD (2026-08-26).
+    # Habia DOS contadores: esta guarda (`pasos`, que sube en cada vuelta y
+    # NUNCA baja) y el auditado `_pres` (que si baja con cada refund). Como
+    # `_pres.max_total == max_turns` y el gastado neto nunca supera a `pasos`,
+    # `_pres.consume()` no podia devolver False jamas: el corte lo daba
+    # SIEMPRE `pasos < max_turns`. O sea que presupuesto_turno —el modulo que
+    # existe justo para que "la infraestructura no se coma el presupuesto de
+    # la tarea"— movia un numero en el log y nada mas. El turno del voleibol
+    # lo enseña: vueltas=5, refunds=3, pasos=2 -> habia quemado 5 de sus 8
+    # vueltas para hacer 2 pasos de trabajo real.
+    #
+    # Ahora el corte real lo da `_pres.consume()` (ya estaba escrito unas
+    # lineas mas abajo, y era codigo muerto) y esta guarda queda de FUSIBLE.
+    # El fusible no sobra: los refunds no estan acotados globalmente (los de
+    # formato se resetean por paso), asi que sin un techo bruto una patologia
+    # que devolviera una vuelta por vuelta dejaria el bucle girando para
+    # siempre. x3 es holgado para lo administrativo y sigue siendo finito.
+    _techo_bruto = max_turns if _pres is None else max_turns * 3
+    while pasos < _techo_bruto:
         # CORTE COOPERATIVO (T4, 2026-08-18). ctx['_cancelado'] es un callable
         # que inyecta cli.py cuando la tarea corre en el carril de fondo: el
         # usuario apreto Ctrl-C en el prompt de espera o en la vista de
@@ -1014,12 +1143,21 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _prog = None          # una sola vez por tarea
                 break
         if _pres is not None and not _pres.consume():
-            # El contador de Hermes corre EN PARALELO al while: la guarda de
-            # arriba es el corte blando; esto es el techo auditado, con los
-            # refunds descontados (que es toda la diferencia).
+            # ESTE es el corte por presupuesto desde el 2026-08-26: el techo
+            # auditado, con los refunds descontados (que es toda la
+            # diferencia). Antes era codigo muerto —`pasos < max_turns`
+            # cortaba siempre primero— y por eso el refund no devolvia nada.
+            #
+            # Cierra con la EVIDENCIA del history, igual que el while/else de
+            # abajo. Sin esto, mover el corte a esta rama se llevaba por
+            # delante el ultimo RESULTADO y la tarea acababa en un parentesis
+            # vacio: el volcado sin evidencia que ese else arreglo en su dia.
             _salida.sellar(RAZON_PRESUPUESTO_AGOTADO, f"techo {max_turns}")
+            _ultimo = next((h for h in reversed(history)
+                            if h.startswith("RESULTADO ")), "")
             result_text = result_text or (
-                f"(presupuesto de {max_turns} pasos agotado sin cierre)")
+                f"(presupuesto de {max_turns} pasos agotado sin cierre) "
+                + _ultimo[:300])
             break
         pasos += 1
         if _especular and _espec is not None:
@@ -1032,7 +1170,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             except Exception:
                 _cache_espec = None
         _t_paso = __import__("time").time()
-        resp = completar(mensajes, tools=schemas, **sampling)
+        resp = completar(mensajes, tools=schemas, **sampling,
+                         **_kwargs_stream())
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
         if _prog is not None:
             try:
@@ -1066,7 +1205,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             print_fn(f"[warn_cl]{_motivo_corte}: repito el paso con "
                      f"max_tokens {_antes} -> {sampling['max_tokens']}"
                      f"[/warn_cl]")
-            resp = completar(mensajes, tools=schemas, **sampling)
+            resp = completar(mensajes, tools=schemas, **sampling,
+                             **_kwargs_stream())
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
             _motivo_corte = _corte_en_tool_call(resp, schemas)
         if _motivo_corte:
@@ -1092,7 +1232,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                             "la primera mitad y luego apendar_archivo con el "
                             "resto. No repitas la llamada entera."),
             })
-            resp = completar(mensajes, tools=schemas, **sampling)
+            resp = completar(mensajes, tools=schemas, **sampling,
+                             **_kwargs_stream())
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
 
         # El presupuesto vuelve al del perfil: la subida era para ESTE paso. Si
@@ -1103,6 +1244,20 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         _anotar_uso_vivo(resp, perfil.get("n_ctx"), mensajes, print_fn)
 
         if not resp.ok:
+            # RED DEL STREAM (2026-08-26). Un transporte que no respeta
+            # stream:true contesta 200 sin un solo frame SSE. Eso NO es un
+            # backend caido y no se arregla reintentando igual: se apaga el
+            # stream para el RESTO del turno y se repite el paso por el
+            # camino historico. Una sola vez, y con refund para no cobrarle
+            # a la tarea una vuelta administrativa.
+            if _stream_on and _RE_SIN_SSE.search(resp.error or ""):
+                _stream_on = False
+                print_fn("[warn_cl]el server no respeta stream:true: sigo "
+                         "por el camino no-stream (COGNIA_STREAM=0 lo "
+                         "fija)[/warn_cl]")
+                if _pres is not None:
+                    _pres.refund(MOTIVO_REINTENTO_RED)
+                continue
             # Server caido / respuesta rota: degradar con causa VISIBLE (la
             # degradacion silenciosa es el modo de fallo historico). Con el
             # arnes, ademas, se CLASIFICA: un timeout o un 503 "Loading model"
@@ -1157,8 +1312,38 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _emitir(_ev.Degradado(
                     donde="agente.bucle_nativo", motivo=resp.error,
                     accion_sugerida=_accion))
-            result_text = f"(el agente no pudo hablar con el modelo: {resp.error})"
+            # NO TIRAR LO YA GENERADO (2026-08-26). Con la rama SSE, un
+            # socket que muere a mitad vuelve con `error` Y con lo acumulado
+            # hasta ahi (contrato de completar()). Perderlo era el peor caso
+            # de una tarea larga: veinte minutos de generacion tirados porque
+            # el ultimo tramo no llego. Se entrega marcado y con ok=False --
+            # no es una respuesta terminada y nadie debe tomarla por tal.
+            _parcial = (resp.texto or "").strip()
+            _ya = ""
+            if _vivo["tokens"] or _vivo["razonamiento"]:
+                _ya = (f" [habian llegado {_vivo['tokens']} fragmentos de "
+                       f"respuesta y {_vivo['razonamiento']} de razonamiento]")
+            _cabecera = f"(el agente no pudo hablar con el modelo: {resp.error}{_ya})"
+            if _parcial:
+                print_fn(f"[warn_cl]el corte llego a mitad de la respuesta: "
+                         f"entrego los {len(_parcial)} caracteres que si "
+                         f"salieron[/warn_cl]")
+                result_text = (_cabecera + "\n\nLo que alcanzo a generar "
+                               "antes del corte:\n\n" + _parcial)
+            else:
+                result_text = _cabecera
             break
+
+        # RACHA, NO CUPO DE POR VIDA (2026-08-26). Llegar aca es `resp.ok`, o
+        # sea que el backend contesto bien: la racha de fallos transitorios se
+        # termino y el contador vuelve a cero. Antes se inicializaba UNA vez
+        # fuera del while y nunca bajaba, asi que los 2 reintentos eran POR
+        # TAREA: en una tarea de media hora, tres timeouts sueltos separados
+        # por trabajo exitoso la mataban igual que tres seguidos. Dos fallos
+        # SEGUIDOS si son senal de que el backend esta mal; dos baches en
+        # veinte minutos no lo son. (El otro contador de reintentos del bucle,
+        # _MAX_REINTENTOS_CORTE, ya era por paso por este mismo motivo.)
+        _reint_backend = 0
 
         if not resp.tool_calls:
             # FIN NATURAL: respuesta sin tool calls = respuesta final. Este es
@@ -1316,7 +1501,33 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     break
                 if _vg.get("estado") == "aviso":
                     _aviso_guardia = _vg.get("mensaje") or ""
-            verdict = register_action(sig_counts, tc.nombre, args_str)
+            # EL CORTE TONTO, ACOTADO (2026-08-26). register_action cuenta el
+            # par (tool, args) en TODA la tarea: sin ventana, sin caducidad y
+            # sin mirar las EXENTAS. A la 3ra vez mata el turno. En una tarea
+            # larga y legitima eso es un falso positivo garantizado: correr
+            # `tests` despues de cada arreglo, o `ver_salida <pid>` para
+            # seguir un proceso, es LITERALMENTE el bucle de desarrollo, y a
+            # la tercera se cerraba la tarea. El propio repo ya lo tenia
+            # diagnosticado en guardia_bucle.py:20 ("no tiene ventana: dos
+            # usos legitimos separados por 20 pasos suman igual") y escribio
+            # GuardiaBucle para reemplazarlo... pero lo cableo ADEMAS del
+            # roto, no EN SU LUGAR, asi que el corte peor seguia mandando.
+            #
+            # HUELLA EN PRODUCCION (2026-08-26): dos turnos muertos con
+            # 'razon=bucle_detectado detalle=repite ejecutar' (11:00:59
+            # pasos=6 y 12:45:49 pasos=7), y el mensaje que le llego al dueno
+            # —chat_history id 1033— es palabra por palabra el literal de
+            # abajo: "(interrumpida por estancamiento: repitio 'ejecutar' con
+            # los mismos argumentos)".
+            #
+            # Con el arnes activo (default) manda GuardiaBucle, que cubre lo
+            # mismo Y MAS (A-A-A con ventana 10, ping-pong A-B-A-B, ciclos
+            # A-B-C) respetando las exentas. Sin arnes queda este, pero al
+            # menos ya no cuenta las tools cuyo trabajo ES repetirse.
+            if _guardia is not None or tc.nombre in EXENTAS_TOOLS:
+                verdict = "ok"
+            else:
+                verdict = register_action(sig_counts, tc.nombre, args_str)
             if verdict == "stop":
                 # Estancamiento (3ra vez el MISMO par tool+args): cierre
                 # honesto con lo que hay, sin quemar mas presupuesto.
@@ -1491,16 +1702,39 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
 
         # Corte por NO-PROGRESO: N tools seguidas fallando = el modelo no
         # avanza (misma cota dura que el camino legacy).
-        recientes = trace[-fail_streak:]
-        if len(recientes) >= fail_streak and not any(a["ok"] for a in recientes):
+        #
+        # ...SALVO QUE TODA LA RACHA SEA DE EJECUCION (2026-08-26). El `ok`
+        # sale del EXIT REAL del proceso, asi que un `ejecutar python
+        # juego.py` que termina en traceback cuenta como fallo. Pero eso NO
+        # es el agente sin saber operar: es el ciclo escribir/ejecutar/
+        # corregir haciendo su trabajo, y el error es justamente la
+        # informacion que el agente fue a buscar. Con el umbral de 3, tres
+        # intentos de correr algo que todavia no compila mataban la tarea --
+        # es la tercera muerte del log del 2026-08-26 ('razon=bucle_detectado
+        # detalle=3 tools seguidas fallaron pasos=5', 11:04:43).
+        # No se quita el corte: se le da el DOBLE de margen a la racha que
+        # es solo de ejecucion. Y no queda a la intemperie, porque las otras
+        # guardas siguen mirando: GuardiaBucle si repite lo mismo, el
+        # gobernador por progreso si no hay un solo avance verificado, y el
+        # presupuesto de pasos como techo.
+        # (El camino legacy tiene su propia constante en cli.py:_FAIL_STREAK;
+        # ese bucle solo corre con el perfil 3B o COGNIA_AGENT_LEGACY=1.)
+        _racha = fail_streak
+        _ultimas = trace[-fail_streak:]
+        if (len(_ultimas) >= fail_streak
+                and all(a.get("action") in EXENTAS_TOOLS or
+                        a.get("action") == "ejecutar" for a in _ultimas)):
+            _racha = fail_streak * 2
+        recientes = trace[-_racha:]
+        if len(recientes) >= _racha and not any(a["ok"] for a in recientes):
             # Sin aviso aparte: el hecho va UNA vez, en el footer del turno
             # ('✗ 37.7s · 5 pasos · parado: 3 tools seguidas fallaron') via
             # el motivo del envelope (juez 2026-08-24: tres mensajes, tres
             # estilos, un hecho).
             if _salida is not None:
                 _salida.sellar(RAZON_BUCLE_DETECTADO,
-                               f"{fail_streak} tools seguidas fallaron")
-            result_text = (f"(interrumpida: {fail_streak} herramientas seguidas "
+                               f"{_racha} tools seguidas fallaron")
+            result_text = (f"(interrumpida: {_racha} herramientas seguidas "
                            "fallaron sin avanzar; el modelo no logro la tarea)")
             break
 

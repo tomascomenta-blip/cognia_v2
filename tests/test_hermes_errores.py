@@ -301,3 +301,62 @@ def test_timeout_con_backend_muerto_es_servidor_caido():
         assert d["razon"] == "servidor_caido", ctx
         assert d["reintentable"] is True
         assert "flota arrancar" in accion_sugerida(d)
+
+
+# ── Las palancas que el consejo NOMBRA tienen que existir (2026-08-26) ──────
+
+def test_toda_env_var_citada_en_un_consejo_es_una_palanca_viva():
+    """Un consejo que nombra una env var muerta es PEOR que no dar consejo.
+
+    Regresion MEDIDA: el consejo de 'timeout' decia
+    `set LLAMA_SERVER_TIMEOUT=480`. Esa variable solo la lee
+    node/llama_backend.py como espera de ARRANQUE del server, no como
+    timeout de peticion, y el camino que produce ese error (chat_client) no
+    la mira jamas. El dueno la probaba, no cambiaba nada, y descartaba la
+    hipotesis correcta -- que era justamente el presupuesto de la llamada.
+
+    Este test es la leccion convertida en chequeo: para CADA razon, cada
+    `set XXX=` del texto tiene que nombrar una variable que ALGUIEN lea, o
+    sea que aparezca en el codigo fuera del propio modulo de consejos.
+
+    LO QUE ESTE TEST **NO** PUEDE COMPROBAR, dicho para que nadie se confie:
+    que la palanca sea la del camino CORRECTO. LLAMA_SERVER_TIMEOUT existia
+    de verdad (node/llama_backend.py la lee), solo que en otro cliente y con
+    otro significado. Ese matiz lo fija el test especifico de abajo; este
+    caza el caso mas tonto, que es citar un nombre que no existe en ningun
+    lado. La deteccion es por NOMBRE y no por `environ.get(...)` porque hay
+    palancas leidas indirecto (harness/limites.py::_env_num).
+    """
+    import re
+    from pathlib import Path
+    from cognia.hermes.errores_backend import RAZONES, accion_sugerida
+
+    raiz = Path(__file__).resolve().parent.parent
+    codigo = []
+    for sub in ("cognia", "node"):
+        for p in (raiz / sub).rglob("*.py"):
+            if p.name == "errores_backend.py":
+                continue          # el modulo de los consejos no se cuenta
+            try:
+                codigo.append(p.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                pass
+    codigo = "\n".join(codigo)
+
+    citadas = set()
+    for razon in RAZONES:
+        texto = accion_sugerida({"razon": razon})
+        citadas |= set(re.findall(r"\bset ([A-Z][A-Z0-9_]{3,})=", texto))
+    assert citadas, "ningun consejo cita una env var: el test no mide nada"
+
+    muertas = [v for v in sorted(citadas)
+               if f'"{v}"' not in codigo and f"'{v}'" not in codigo]
+    assert not muertas, f"env vars citadas que nadie lee: {muertas}"
+
+
+def test_el_consejo_de_timeout_nombra_la_palanca_del_camino_del_agente():
+    """La especifica: quien ve este error viene de chat_client."""
+    from cognia.hermes.errores_backend import accion_sugerida
+    consejo = accion_sugerida({"razon": "timeout"})
+    assert "COGNIA_CHAT_TIMEOUT" in consejo, consejo
+    assert "LLAMA_SERVER_TIMEOUT" not in consejo, consejo

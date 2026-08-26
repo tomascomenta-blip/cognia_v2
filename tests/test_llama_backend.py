@@ -1214,6 +1214,95 @@ class TestEnvTunables:
         assert cmd[cmd.index("--threads") + 1] == "6"
         assert cmd[cmd.index("--threads-batch") + 1] == "6"
 
+    def test_el_server_se_arranca_con_jinja(self, tmp_path, monkeypatch):
+        """Sin --jinja llama-server no parsea tool_calls: el modelo emite la
+        llamada como TEXTO y el bucle del agente la toma por respuesta final.
+
+        Regresion MEDIDA: chat_history id 1021 del 2026-08-26 es un turno
+        entero perdido con '<tool_call><function=Read>' impreso como prosa.
+        scripts/servir_modelo.py:143 lo ponia siempre; este lanzador —el que
+        usa Cognia cuando arranca el backend sola— no.
+        """
+        fake_gguf = tmp_path / "model.gguf"
+        fake_gguf.touch()
+        fake_bin = tmp_path / "llama-server.exe"
+        fake_bin.touch()
+        monkeypatch.setenv("LLAMA_SERVER_PATH", str(fake_bin))
+
+        from node.llama_backend import _LlamaServerBackend
+        captured = {}
+
+        def fake_popen(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return MagicMock(pid=1234)
+
+        with (
+            patch.object(_LlamaServerBackend, "_ping",
+                         MagicMock(side_effect=[False, True])),
+            patch("node.llama_backend.subprocess.Popen", side_effect=fake_popen),
+        ):
+            _LlamaServerBackend(fake_gguf, port=18089)
+
+        assert "--jinja" in captured["cmd"], captured["cmd"]
+
+    def _cmd_de_arranque(self, tmp_path, monkeypatch, nombre_gguf, **kw):
+        """Arma el cmd de llama-server para ese gguf, sin lanzar nada."""
+        fake_gguf = tmp_path / nombre_gguf
+        fake_gguf.touch()
+        fake_bin = tmp_path / "llama-server.exe"
+        fake_bin.touch()
+        monkeypatch.setenv("LLAMA_SERVER_PATH", str(fake_bin))
+
+        from node.llama_backend import _LlamaServerBackend
+        captured = {}
+
+        def fake_popen(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return MagicMock(pid=1234)
+
+        with (
+            patch.object(_LlamaServerBackend, "_ping",
+                         MagicMock(side_effect=[False, True])),
+            patch("node.llama_backend.subprocess.Popen", side_effect=fake_popen),
+        ):
+            _LlamaServerBackend(fake_gguf, port=18090, **kw)
+        return captured["cmd"]
+
+    def test_la_receta_del_modelo_pisa_la_perilla_global_de_ctx(
+            self, tmp_path, monkeypatch):
+        """LLAMA_CTX_SIZE es GLOBAL: no sabe que modelo se sirve.
+
+        Regresion MEDIDA del 2026-08-26: config.env paso de Qwythos-9B a
+        Qwen3.8-27B y nadie toco LLAMA_CTX_SIZE=200192, calibrado para el 9B.
+        Sobre el 27B ese contexto arranca y responde, pero a un TERCIO de la
+        velocidad (el KV que no cabe lo sirve la RAM del sistema). La receta
+        por GGUF sabe lo que la perilla no puede saber, asi que gana.
+        """
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "200192")
+        cmd = self._cmd_de_arranque(tmp_path, monkeypatch,
+                                    "Qwen3.8-27B-Ridge-3.7bpw.gguf")
+        assert cmd[cmd.index("--ctx-size") + 1] == "65536", cmd
+        assert cmd[cmd.index("--cache-type-k") + 1] == "q8_0"
+        assert cmd[cmd.index("--cache-type-v") + 1] == "q8_0"
+
+    def test_un_modelo_sin_receta_sale_byte_identico_al_historico(
+            self, tmp_path, monkeypatch):
+        """El contrafactual: sin receta, ni ctx pisado ni flags nuevos."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "200192")
+        cmd = self._cmd_de_arranque(tmp_path, monkeypatch, "un-modelo-raro.gguf")
+        assert cmd[cmd.index("--ctx-size") + 1] == "200192", cmd
+        assert "--cache-type-k" not in cmd and "--cache-type-v" not in cmd
+
+    def test_el_ctx_por_instancia_manda_sobre_la_receta(
+            self, tmp_path, monkeypatch):
+        """El portero pide 4096 a proposito: quien pasa ctx_size explicito
+        sabe lo que hace y ni la receta ni la perilla lo pisan."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "200192")
+        cmd = self._cmd_de_arranque(tmp_path, monkeypatch,
+                                    "Qwen3.8-27B-Ridge-3.7bpw.gguf",
+                                    ctx_size=4096)
+        assert cmd[cmd.index("--ctx-size") + 1] == "4096", cmd
+
 
 # _lora_args() — adapter LoRA opcional via LLAMA_LORA_PATH
 # ---------------------------------------------------------------------------

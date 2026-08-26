@@ -2,6 +2,71 @@
 
 ---
 
+## [4.12.3] - 2026-08-26
+
+### Cognia responde a las tareas LARGAS
+
+El sintoma del dueno: "no responde a tareas largas". Las cortas contestaban
+y una especificacion de videojuego de 14.220 caracteres moria con
+`(el agente no pudo hablar con el modelo: TimeoutError: timed out)`. No era
+una causa sino cinco, todas del mismo signo: cada tope del bucle estaba
+calibrado para tareas de un parrafo.
+
+- **El reloj media lo que no debia.** `chat_client` tiene rama de streaming
+  desde el 2026-08-17 con 55 tests verdes, y no la usaba NADIE: todo el
+  agente iba por el camino sin stream, donde llama-server no manda un byte
+  hasta terminar de generar y el timeout de socket acaba siendo un limite de
+  PARED sobre la generacion entera. Medido con un server que tarda 6 s y un
+  presupuesto de 3 s, cambiando solo `on_token`: sin stream `TimeoutError` a
+  los 3,02 s; con stream la respuesta entera a los 9,03 s. El bucle ahora
+  pasa por SSE (`COGNIA_STREAM=0` vuelve atras), degrada solo si el
+  transporte no respeta `stream:true`, y de paso el Ctrl-C corta DURANTE la
+  generacion y no solo entre pasos.
+- **Lo ya generado no se tira.** Si el socket muere a mitad, el texto que si
+  salio se entrega marcado en vez de perderse.
+- **El presupuesto de pasos miraba la longitud, no la dificultad.** La
+  escalera topaba en 8 pasos = nivel 3 de 5: los escalones de 16 y 28 eran
+  inalcanzables. Cualquier tarea grande recibia lo mismo que un "resume este
+  parrafo". Ahora escala con `estimate_task_difficulty` (cero LLM, ya
+  calibrada) y toma el MAXIMO con la escalera vieja, asi que ninguna tarea
+  que hoy funciona pierde pasos: `hola` sigue en 2 y `abreme chrome` en 4;
+  la del videojuego pasa de 8 a 28.
+- **El corte por repeticion mataba el ciclo de desarrollo.** Contaba el par
+  (tool, argumentos) en TODA la tarea, sin ventana y sin respetar las tools
+  cuyo trabajo ES repetirse: correr `tests` tres veces —una tras cada
+  arreglo— cerraba el turno. Manda GuardiaBucle, que detecta lo mismo y mas
+  (ping-pong, ciclos) y le avisa al modelo antes de cortar. Ademas, tres
+  `ejecutar` fallidos seguidos ya no cierran la tarea: depurar produce
+  fallos por diseno, y el error es la informacion que el agente fue a
+  buscar (el corte sigue, con el doble de margen).
+- **El refund devuelve la vuelta de verdad.** `presupuesto_turno` existe para
+  que la infraestructura no se coma el presupuesto de la tarea, y no lo
+  conseguia: el corte lo daba un contador que nunca baja. En el turno que
+  murio se habian quemado 5 de 8 vueltas para hacer 2 pasos de trabajo real.
+
+### El backend se sirve con la receta de SU modelo
+
+- El auto-arranque (el que dispara el CLI cuando el :8080 esta muerto) no
+  podia leer los perfiles medidos, que vivian en un script no distribuido, y
+  servia cualquier modelo con las perillas GLOBALES de `config.env` -- que
+  son las del modelo ANTERIOR. Al pasar de Qwythos-9B a Qwen3.8-27B nadie
+  toco `LLAMA_CTX_SIZE=200192`, calibrado para el 9B: sobre el 27B ese
+  contexto arranca, responde y va a un TERCIO de velocidad, porque lo que no
+  cabe lo sirve la RAM del sistema. La receta por GGUF ahora vive en
+  `cognia/agent/perfiles_arranque.py`, la leen los dos caminos, y se DICE en
+  pantalla cuando pisa a la perilla global.
+- **`--jinja` en el auto-arranque.** Sin el, llama-server no parsea
+  `tool_calls` y el modelo emite la llamada como texto plano; un turno entero
+  se perdio asi ese dia. `scripts/servir_modelo.py` lo ponia desde hace
+  meses; este lanzador no.
+- **El consejo de timeout nombraba una palanca muerta.** Decia
+  `set LLAMA_SERVER_TIMEOUT=480`, que solo controla cuanto se espera a que el
+  server ARRANQUE y que el camino del agente no lee jamas. Ahora dice
+  `COGNIA_CHAT_TIMEOUT`, y un test comprueba que toda env var citada en un
+  consejo existe de verdad.
+- **Velocidad del 27B medida** (24,7 tok/s de punta a punta, no los 45 del
+  default): el presupuesto de una generacion larga ya no sale 1,8x optimista.
+
 ## [4.12.2] - 2026-08-25
 
 ### Segura Y util: se puede limpiar, con permiso y con vuelta atras

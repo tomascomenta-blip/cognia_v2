@@ -292,15 +292,52 @@ def test_bucle_nativo_error_no_reintentable_no_gasta_reintentos():
 
 
 def test_bucle_nativo_estancamiento_corta_honesto():
+    """El agente atascado se corta -- pero AVISANDO antes (2026-08-26).
+
+    Antes cortaba register_action a la 3ra repeticion, en seco. Ese corte
+    contaba el par (tool,args) en TODA la tarea, sin ventana y sin respetar
+    las EXENTAS, y en tareas largas era un falso positivo garantizado: dos
+    turnos reales murieron asi el 2026-08-26 ('repite ejecutar', pasos=6 y
+    pasos=7). Ahora manda GuardiaBucle, que detecta lo mismo Y MAS
+    (ping-pong, ciclos) pero le habla al modelo max_avisos=2 veces antes de
+    matar la tarea. Lo que se fija aca: sigue cortando, y ejecuta mas antes
+    de rendirse."""
     tc = ToolCall(id="t", nombre="listar", argumentos={"directorio": "."},
                   argumentos_crudos="{}")
     paso = RespuestaChat(texto="", finish_reason="tool_calls",
                          usage={}, tool_calls=[tc])
-    out, _, trace = _correr([paso, paso, paso, paso],
+    out, _, trace = _correr([paso] * 8,
                             lambda n, a, c: "RESULTADO listar: x")
     assert not out["ok"]
-    assert "estancamiento" in out["texto"]
-    assert len(trace) == 2               # la 3ra repeticion NO se ejecuta
+    assert "bucle" in out["texto"].lower(), out["texto"]
+    # Corta de verdad: no se comio las 8 vueltas que se le ofrecieron.
+    assert 2 <= len(trace) <= 6, len(trace)
+
+
+def test_las_tools_que_se_repiten_por_diseno_no_cortan_la_tarea():
+    """`tests`, `ver_salida` y `procesos` son EXENTAS: su trabajo ES
+    repetirse (correr la suite tras cada arreglo, seguir un proceso de
+    fondo). register_action las contaba igual y mataba la tarea a la 3ra.
+
+    Es el bucle de desarrollo de cualquier cosa larga -- y por eso estaba en
+    la lista de exentas de guardia_bucle.py desde el principio, sin que el
+    corte del bucle nativo la mirara."""
+    for tool in ("tests", "ver_salida", "procesos"):
+        tc = ToolCall(id="t", nombre=tool, argumentos={"x": "1"},
+                      argumentos_crudos="{}")
+        repite = RespuestaChat(texto="", finish_reason="tool_calls",
+                               usage={}, tool_calls=[tc])
+        fin = RespuestaChat(texto="Listo.", finish_reason="stop", usage={})
+        # 4 repeticiones y no 6: con 6 corta el gobernador por progreso
+        # (umbral_arranque=6 vueltas sin un avance verificado), que es otra
+        # guarda y es correcta -- correr la suite seis veces sin tocar nada
+        # SI es estar atascado. Lo que se mide aca es que el corte por
+        # repeticion ya no dispara a la 3ra.
+        out, _, trace = _correr([repite] * 4 + [fin],
+                                lambda n, a, c: f"RESULTADO {n}: ok",
+                                max_turns=8)
+        assert out["ok"], f"{tool}: {out['texto']}"
+        assert len(trace) == 4, f"{tool}: se ejecutaron {len(trace)} de 4"
 
 
 def test_bucle_nativo_presupuesto_agotado_cierra_con_evidencia():
@@ -411,10 +448,12 @@ def test_llegar_al_paso_2_exige_haber_ejecutado_una_tool():
     # Y el corte por estancamiento (la otra salida) no pasa del paso 1.
     tc = ToolCall(id="t", nombre="listar", argumentos={"directorio": "."},
                   argumentos_crudos="{}")
+    # Seis calls repetidas en el MISMO paso y no tres: desde el 2026-08-26
+    # el corte lo da GuardiaBucle, que avisa dos veces antes de bloquear.
     rep = RespuestaChat(texto="", finish_reason="tool_calls", usage={},
-                        tool_calls=[tc, tc, tc])
+                        tool_calls=[tc] * 6)
     out2, _, _ = _correr([rep], lambda n, a, c: "RESULTADO listar: x")
-    assert out2["pasos"] == 1 and "estancamiento" in out2["texto"]
+    assert out2["pasos"] == 1 and "bucle" in out2["texto"].lower(), out2["texto"]
 
 
 def _chars_totales(mensajes):

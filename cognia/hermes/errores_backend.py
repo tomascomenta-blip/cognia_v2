@@ -695,7 +695,7 @@ def _orden_arrancar() -> str:
             return orden
     except Exception:
         pass
-    return "python -m cognia flota arrancar pensar-qwythos"
+    return "python -m cognia flota arrancar pensar-qwen38"
 
 
 def accion_sugerida(diag: Dict[str, Any]) -> str:
@@ -725,9 +725,18 @@ def accion_sugerida(diag: Dict[str, Any]) -> str:
         return ("Comprimir NO arregla esto: baja el tope de salida con  "
                 "set COGNIA_MAX_TOKENS=2048  y reintenta")
     if razon == "timeout":
-        return ("El server esta ocupado (--parallel 1 sirve un pedido a la "
-                "vez): espera y reintenta, o dale mas margen con  "
-                "set LLAMA_SERVER_TIMEOUT=480")
+        # COGNIA_CHAT_TIMEOUT y no LLAMA_SERVER_TIMEOUT (corregido
+        # 2026-08-26): la segunda solo la lee node/llama_backend.py:106, y
+        # alli NO es el timeout de una peticion sino cuanto se espera a que
+        # el server TERMINE DE ARRANCAR. Quien llega a este mensaje viene del
+        # camino del agente (chat_client), que lee COGNIA_CHAT_TIMEOUT y
+        # ninguna otra. Un consejo que nombra una palanca muerta es PEOR que
+        # no dar consejo: el usuario lo prueba, no cambia nada, y descarta la
+        # hipotesis correcta.
+        return ("El server esta ocupado o la generacion no entra en el "
+                "presupuesto (--parallel 1 sirve un pedido a la vez): espera "
+                "y reintenta, o dale mas margen con  "
+                "set COGNIA_CHAT_TIMEOUT=900")
     if razon == "rate_limit":
         espera = 0.0
         try:

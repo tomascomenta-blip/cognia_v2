@@ -679,6 +679,40 @@ class _LlamaServerBackend:
         n_threads_decode = _env_int(
             "LLAMA_N_THREADS", hilos_cpu_optimos(max(1, (os.cpu_count() or 4) - 1)))
         n_threads_batch  = n_threads_decode
+
+        # RECETA MEDIDA DEL MODELO (2026-08-26). Las perillas de abajo
+        # (LLAMA_CTX_SIZE, LLAMA_N_GPU_LAYERS) son GLOBALES: no saben QUE
+        # modelo se esta sirviendo. Cuando el dueno cambia LLAMA_GGUF_PATH,
+        # siguen valiendo las del modelo anterior -- y eso fue exactamente lo
+        # que paso ese dia: config.env paso de Qwythos-9B a Qwen3.8-27B con
+        # LLAMA_CTX_SIZE=200192 intacto, que perf_profiles.py habia calibrado
+        # para un 9B con atencion de ventana. Sobre el 27B, 200k cae en la
+        # zona donde el server ARRANCA, /props confirma el contexto, responde
+        # ... y va a un TERCIO de velocidad porque lo que no cabe lo sirve la
+        # RAM del sistema (barrido en cognia/agent/perfiles_arranque.py).
+        #
+        # La receta POR GGUF gana sobre la perilla GLOBAL, porque sabe algo
+        # que la perilla no puede saber. Se DICE en voz alta al pisarla: un
+        # arreglo silencioso aca seria otra averia invisible.
+        # Un ctx_size por INSTANCIA (el portero pide 4096) sigue mandando
+        # sobre las dos: ese lo pidio un llamador que sabe lo que hace.
+        receta = {}
+        try:
+            from cognia.agent.perfiles_arranque import perfil_arranque
+            receta = perfil_arranque(gguf_path) or {}
+        except Exception as e:
+            logger.warning("[llama_backend] sin receta de arranque para %s "
+                           "(%s: %s): uso las perillas globales",
+                           Path(gguf_path).name, type(e).__name__, e)
+        ctx_final = self._ctx_size if self._ctx_size is not None else _ctx_size()
+        if receta.get("ctx") and self._ctx_size is None:
+            if int(receta["ctx"]) != int(ctx_final):
+                logger.warning(
+                    "[llama_backend] %s tiene receta medida: ctx %s (la "
+                    "perilla global pedia %s, que es de otro modelo)",
+                    Path(gguf_path).name, receta["ctx"], ctx_final)
+            ctx_final = int(receta["ctx"])
+
         cmd = [
             binary,
             "--model",    str(gguf_path),
@@ -689,7 +723,7 @@ class _LlamaServerBackend:
             # modelo local a la LAN, en contra del core "IA local, privada".
             "--host",     "127.0.0.1",
             "--port",     str(port),
-            "--ctx-size", str(self._ctx_size if self._ctx_size is not None else _ctx_size()),
+            "--ctx-size", str(ctx_final),
             # --parallel 1 EXPLICITO: las builds recientes de llama-server usan
             # 4 slots por defecto y PARTEN --ctx-size entre ellos. scripts/
             # servir_modelo.py ya lo arreglo el 2026-07-28, pero ESTE lanzador
@@ -708,8 +742,29 @@ class _LlamaServerBackend:
             "--cache-ram", os.environ.get("LLAMA_CACHE_RAM_MIB", "1024"),
             "--prio",     "2",
             "--flash-attn", "on",
+            # --jinja OBLIGATORIO (2026-08-26). Sin el, llama-server no aplica
+            # la plantilla del GGUF y NO parsea tool_calls: el modelo emite la
+            # llamada como TEXTO ("<tool_call><function=Read>...") y el bucle
+            # la toma por respuesta final. scripts/servir_modelo.py:143 lo
+            # pone SIEMPRE desde hace meses; ESTE lanzador —el que usa Cognia
+            # cuando arranca el backend sola (cli.py:21604 _try_load_llama)—
+            # se habia quedado sin el, igual que se habia quedado sin el
+            # --parallel 1 de aca arriba. La huella quedo en produccion:
+            # chat_history id 1021 del 2026-08-26 es un turno entero perdido
+            # con el <tool_call> impreso como prosa, y loop.py:1196 ya tenia
+            # el guard de sospecha describiendo exactamente este sintoma.
+            "--jinja",
             "--log-disable",
         ]
+        # KV cuantizado de la receta. Es la otra mitad del problema del ctx:
+        # el KV en f16 ocupa el DOBLE, asi que el mismo contexto que cabe con
+        # q8_0 se va a la RAM del sistema sin el. Solo se agregan si la
+        # receta los trae -> para un modelo sin receta el cmd sale
+        # byte-identico al historico.
+        if receta.get("ctk"):
+            cmd += ["--cache-type-k", str(receta["ctk"])]
+        if receta.get("ctv"):
+            cmd += ["--cache-type-v", str(receta["ctv"])]
         # Especulacion, fusion del merge 4.0: si hay draft GGUF configurado
         # (modo 'dspark' de velocity.py — medido 2026-07-18: codigo 142.9
         # tok/s, 1.63x), draft clasico; si no, _spec_args() pone ngram-mod
