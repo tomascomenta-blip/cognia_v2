@@ -113,6 +113,19 @@ class ClienteMCP:
         self.url    = url
         self.nombre = nombre_cliente
         self.sesion: Optional[str] = None
+
+        # "Ya hice el handshake" es UNA COSA y "el servidor me dio un id de
+        # sesion" es OTRA (2026-08-26). Aqui se usaba `self.sesion` para las
+        # dos, y no es lo mismo: Mcp-Session-Id es OPCIONAL en Streamable
+        # HTTP, asi que contra un servidor sin estado la cabecera no llega,
+        # `self.sesion` se queda en None para siempre y listar_herramientas()
+        # y llamar() rehacen `initialize` en CADA llamada -- reenviandoselo a
+        # un servidor que ya estaba inicializado.
+        # Lo destapo escribir el cliente stdio: ahi NO hay id de sesion (el
+        # proceso ES la sesion) y hubo que inventar esta misma bandera.
+        # `self.sesion` se conserva tal cual: es dato del transporte HTTP y
+        # hay tests que la leen y la escriben.
+        self.conectado = False
         self.servidor: Dict[str, Any] = {}
         self._id = 0
 
@@ -178,6 +191,7 @@ class ClienteMCP:
             "clientInfo":      {"name": self.nombre, "version": "1.0"},
         })
         self.servidor = resultado.get("serverInfo", {})
+        self.conectado = True
 
         # El servidor espera esta notificacion antes de aceptar peticiones.
         try:
@@ -190,7 +204,7 @@ class ClienteMCP:
         return resultado
 
     def listar_herramientas(self) -> List[Herramienta]:
-        if not self.sesion:
+        if not self.conectado:
             self.conectar()
         crudas = self._llamar_rpc("tools/list").get("tools", [])
         return [Herramienta(nombre=h.get("name", "?"),
@@ -200,7 +214,7 @@ class ClienteMCP:
 
     def llamar(self, herramienta: str, argumentos: dict = None) -> str:
         """Ejecuta una herramienta y devuelve su salida como texto."""
-        if not self.sesion:
+        if not self.conectado:
             self.conectar()
 
         resultado = self._llamar_rpc(

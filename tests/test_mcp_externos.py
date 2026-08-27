@@ -304,3 +304,37 @@ def test_un_servidor_desconocido_dice_cuales_hay():
         "from cognia.agent.tools import run_tool;"
         "print(run_tool('mcp', 'no_existe_xyz | x | {}', {}))", "1")
     assert "no configurado" in out and "Hay:" in out
+
+
+# ── "conectado" no es lo mismo que "tengo id de sesion" ────────────────────
+
+def test_el_cliente_HTTP_no_rehace_el_handshake_sin_id_de_sesion(monkeypatch):
+    """MCP dice que `Mcp-Session-Id` es OPCIONAL. El cliente HTTP usaba
+    `self.sesion` como bandera de "ya conecte", asi que contra un servidor sin
+    estado -- que nunca manda esa cabecera -- se quedaba en None para siempre y
+    reenviaba `initialize` en CADA llamada, a un servidor ya inicializado.
+
+    Lo destapo escribir el cliente stdio: ahi no hay id de sesion (el proceso
+    ES la sesion) y hubo que inventar la misma bandera aparte.
+    """
+    from cognia.mcp_libre import ClienteMCP
+
+    llamadas = []
+
+    def _post_falso(self, cuerpo, esperar_respuesta=True):
+        llamadas.append(cuerpo.get("method"))
+        if not esperar_respuesta:
+            return None
+        met = cuerpo.get("method")
+        res = {"serverInfo": {"name": "sin_estado"}} if met == "initialize" else {"tools": []}
+        return {"jsonrpc": "2.0", "id": cuerpo.get("id"), "result": res}
+
+    monkeypatch.setattr(ClienteMCP, "_post", _post_falso)
+    c = ClienteMCP("http://ejemplo/mcp")
+    c.listar_herramientas()
+    c.listar_herramientas()
+    c.listar_herramientas()
+
+    assert c.sesion is None, "el servidor falso no manda cabecera de sesion"
+    assert llamadas.count("initialize") == 1, llamadas
+    assert llamadas.count("tools/list") == 3, llamadas
