@@ -2883,7 +2883,7 @@ _CMD_DESCRIPTIONS = {
     "/biblioteca":      "Ver la biblioteca de programas del hobby; /biblioteca ver <id> muestra el codigo",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
     "/mapa-codigo":     "Mapa del codigo         [ruta|buscar <t>|depende|usan <mod>]",
-    "/mcp":             "Servidores MCP libres   [herramientas|probar <servidor>]",
+    "/mcp":             "Servidores MCP (los tuyos de otras IA + libres)   [on|off|herramientas|probar <servidor>]",
     "/encolar":         "Encolar idea para sleep <idea>",
     "/ideas":           "Listar las ideas disponibles del hobby; /ideas limpiar vacia la cola propia",
     "/corregir":        "Corregir error          <obs> | <mal> | <bien>",
@@ -5667,43 +5667,130 @@ def _slash_debug():
     _print_line(f"[detail]debug {'activado' if _debug_mode else 'desactivado'}[/detail]")
 
 
+def _mcp_activo() -> bool:
+    """¿Tiene el agente acceso a los MCP? UN solo lector, como el de TX.
+
+    El env manda y la config persistida es el respaldo: es el mismo contrato
+    que `cognia/tx/flag.py`, escrito alli tras medir que dos lectores del mismo
+    flag que no coinciden dejan el REPL diciendo ACTIVO con el registry vacio.
+    `cognia.agent.tools._mcp_encendido` lee exactamente lo mismo.
+    """
+    crudo = os.environ.get("COGNIA_MCP", "").strip().lower()
+    if crudo:
+        return crudo in ("1", "on", "true", "yes", "si")
+    try:
+        return bool(_load_config().get("mcp_activo", False))
+    except Exception:
+        return False
+
+
+def _mcp_cliente_de(nombre: str):
+    """El cliente del servidor `nombre`, venga de donde venga.
+
+    Se mira PRIMERO lo que el dueno ya tiene configurado en sus otros clientes
+    de IA y despues la lista de servidores libres. Ese orden importa: `context7`
+    esta en las dos, y el que el dueno configuro a mano es el que quiere usar.
+    """
+    from cognia.mcp_externos import cliente_de, descubrir
+    for s in descubrir():
+        if s.nombre == nombre:
+            return cliente_de(s), s.origen
+    from cognia.mcp_libre import SERVIDORES_LIBRES, cliente
+    if nombre in SERVIDORES_LIBRES:
+        return cliente(nombre), "libres"
+    return None, ""
+
+
 def _slash_mcp(arg: str) -> str:
     """
-    /mcp                          — servidores MCP libres conocidos
+    /mcp                          — servidores MCP disponibles
     /mcp herramientas <servidor>  — que sabe hacer
-    /mcp probar <servidor>        — comprobar que responde ahora mismo
+    /mcp probar <servidor>        — conectarse ahora mismo
+    /mcp on | off                 — dar (o quitar) al agente acceso a los MCP
 
-    Solo servidores sin registro ni clave: esa es la condicion.
+    Dos fuentes, y se ven las dos:
+      * los que YA tienes configurados en otros clientes de IA (Claude Code,
+        Claude Desktop, Cursor, Windsurf, VS Code) — incluido el de Roblox
+        Studio. No hay que copiar nada: se leen de sus propios ficheros.
+      * los servidores libres sin registro ni clave de cognia/mcp_libre.py.
+
+    `/mcp on` enciende COGNIA_MCP: el agente gana DOS herramientas
+    (`mcp_herramientas` y `mcp`) con las que alcanza las de todos los
+    servidores. Dos y no doscientas a proposito: el A/B de este repo midio que
+    un catalogo de 46 herramientas baja el camino feliz de 4,25/5 a 2,5/5, y
+    solo estos cinco servidores suman 186.
     """
-    from cognia.mcp_libre import ErrorMCP, cliente, formatear_servidores
+    from cognia.mcp_libre import ErrorMCP, formatear_servidores
 
     partes = arg.split()
     if not partes:
-        return formatear_servidores()
+        try:
+            from cognia.mcp_externos import descubrir, formatear_descubiertos
+            externos = formatear_descubiertos(descubrir())
+        except Exception as exc:
+            _aviso_degradado("cli.mcp.descubrir", f"{type(exc).__name__}: {exc}")
+            externos = f"(no se pudieron leer las configs de otros clientes: {exc})"
+        estado = "ACTIVO" if _mcp_activo() else "apagado"
+        return (externos + "\n\n" + formatear_servidores()
+                + f"\n\n  Acceso del agente: {estado}   (/mcp on | /mcp off)")
 
-    accion = partes[0]
+    accion = partes[0].lower()
     nombre = partes[1] if len(partes) > 1 else ""
+
+    if accion in ("on", "off"):
+        encender = accion == "on"
+        cfg = _load_config()
+        cfg["mcp_activo"] = encender
+        _save_config(cfg)
+        os.environ["COGNIA_MCP"] = "1" if encender else "0"
+        if encender:
+            return ("MCP ACTIVO: el agente ya puede usar `mcp_herramientas` y "
+                    "`mcp`.\n  Prueba: /hacer con mcp_herramientas Roblox_Studio"
+                    "\n  (las tools se registran al arrancar: si el agente aun "
+                    "no las ve, reabre el REPL)")
+        return "MCP apagado: el agente vuelve a su catalogo de siempre."
 
     if accion not in ("herramientas", "probar"):
         return ("Uso: /mcp [herramientas|probar] <servidor>\n"
-                "     /mcp   — ver los servidores libres")
+                "     /mcp on | off   — acceso del agente\n"
+                "     /mcp            — ver los servidores")
     if not nombre:
         return f"Uso: /mcp {accion} <servidor>"
 
+    c, origen = _mcp_cliente_de(nombre)
+    if c is None:
+        try:
+            from cognia.mcp_externos import descubrir
+            hay = sorted(s.nombre for s in descubrir())
+        except Exception:
+            hay = []
+        from cognia.mcp_libre import SERVIDORES_LIBRES
+        hay += sorted(SERVIDORES_LIBRES)
+        return (f"[MCP] no conozco '{nombre}'. Hay: {', '.join(hay) or '(ninguno)'}")
+
     try:
-        c = cliente(nombre)
         if accion == "probar":
             c.conectar()
-            return (f"{nombre} responde.\n"
+            hs = c.listar_herramientas()
+            return (f"{nombre} responde.  [{origen}]\n"
                     f"  servidor: {c.servidor.get('name','?')} "
                     f"{c.servidor.get('version','')}\n"
-                    f"  herramientas: {len(c.listar_herramientas())}")
-
+                    f"  herramientas: {len(hs)}")
         hs = c.listar_herramientas()
-        return (f"{nombre} — {len(hs)} herramienta(s):\n"
+        return (f"{nombre} — {len(hs)} herramienta(s):  [{origen}]\n"
                 + "\n".join(f"  {h.resumen()}" for h in hs))
     except ErrorMCP as exc:
         return f"[MCP] {exc}"
+    except Exception as exc:
+        _aviso_degradado("cli.mcp." + accion, f"{type(exc).__name__}: {exc}")
+        return f"[MCP] {nombre}: {type(exc).__name__}: {exc}"
+    finally:
+        # Un servidor stdio es un SUBPROCESO: sin esto, cada /mcp probar
+        # dejaria uno vivo hasta cerrar el REPL.
+        try:
+            c.cerrar()
+        except Exception:
+            pass
 
 
 def _slash_mapa_codigo(arg: str) -> str:

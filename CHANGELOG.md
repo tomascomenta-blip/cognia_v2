@@ -2,6 +2,49 @@
 
 ---
 
+## [4.12.4] - 2026-08-26
+
+### Los MCP que ya tienes en otras IA, usables desde Cognia
+
+Cognia hablaba MCP, pero solo por HTTP contra tres servidores remotos fijos.
+Los MCP de verdad -- Roblox Studio, filesystem, playwright, word, context7 --
+son todos de transporte **stdio**: el cliente lanza un subproceso y habla
+JSON-RPC por su entrada y salida. Ninguno se podia usar.
+
+- **`/mcp` ahora ve los tuyos.** Lee las configuraciones de los clientes de IA
+  instalados (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code) y lista
+  lo que ya tienes puesto, sin copiar nada a mano. Si manana anades un
+  servidor a Claude Code, Cognia lo ve. Claude Code declara servidores
+  globales Y por proyecto: el de Roblox del dueno vive justo en esa segunda
+  rama, asi que ignorarla habria dejado fuera el caso que motivo todo esto.
+- **`/mcp probar <servidor>`** se conecta de verdad y dice cuantas
+  herramientas ofrece. **`/mcp herramientas <servidor>`** las lista con su
+  firma. Medido contra los cinco del dueno: **5 de 5 conectan**, 186
+  herramientas en total (Roblox 26, filesystem 14, context7 2, word 120,
+  playwright 24).
+- **`/mcp on` le da acceso al agente... con DOS herramientas, no 186.** El A/B
+  de este repo (2026-07-25) midio que un catalogo de 46 herramientas baja el
+  camino feliz de 4,25/5 a 2,5/5. Registrar las 186 no seria mas capacidad:
+  seria enterrar las 12 que el modelo usa siempre. Asi que el agente recibe
+  `mcp_herramientas <servidor>` para descubrir y `mcp <servidor> | <tool> |
+  <args JSON>` para ejecutar, y alcanza todo lo demas bajo demanda.
+- **Opt-in duro y marcadas peligrosas.** Con `COGNIA_MCP` apagado el registry
+  no cambia ni un byte. Un servidor MCP es codigo de terceros que puede borrar
+  ficheros o ejecutar Luau, y su peligro vive dentro de un JSON, no en un
+  comando que el sentinel pueda clasificar: `danger=True` es lo unico honesto.
+
+Dos detalles que costaron su medicion:
+
+- **En Windows `npx` es `npx.cmd`**, y `Popen` sin shell no aplica PATHEXT.
+  Tres de los cinco servidores morian con `[WinError 2]`. Se resuelve con
+  `shutil.which`, que si lo mira -- y no con `shell=True`, que meteria por el
+  interprete de ordenes algo que sale de un fichero de configuracion.
+- **stderr no es parte del canal.** Los servidores escriben ahi sus avisos, y
+  mezclarlo con stdout rompe el parseo; peor, sin drenarlo un servidor
+  hablador llena el buffer del pipe y se cuelga -- un fallo que parece "el
+  servidor no responde" y es culpa del cliente. Se lee en su propio hilo y
+  sus ultimas lineas son el diagnostico cuando algo no arranca.
+
 ## [4.12.3] - 2026-08-26
 
 ### Cognia responde a las tareas LARGAS

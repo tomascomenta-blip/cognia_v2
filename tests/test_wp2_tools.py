@@ -204,9 +204,14 @@ def test_borrar_archivo_inexistente_y_directorio(workspace):
 
 def test_visible_tools_default_es_el_core(monkeypatch):
     from cognia.simple_mode import visible_tools
-    for flag in ("COGNIA_LCD", "COGNIA_SCREEN", "COGNIA_BROWSER",
-                 "COGNIA_IMG_TOOLS", "COGNIA_REPO_REVERSE"):
-        monkeypatch.delenv(flag, raising=False)
+    # Se apagan TODAS las familias opt-in, no una lista a mano: la lista se
+    # quedaba corta cada vez que nacia una familia nueva (COGNIA_MCP, 2026-08-26)
+    # y el test fallaba por la familia, no por la regresion que vigila. Y se
+    # ponen a "0" en vez de borrarlas porque algunos flags (MCP, TX) caen a la
+    # CONFIG persistida cuando el env no dice nada: con delenv a secas, un
+    # `/mcp on` guardado dejaba el flag activo igual.
+    for flag in set(T._OPTIN_NOMBRES.values()) | {f for _, f in T._OPTIN_PREFIJOS}:
+        monkeypatch.setenv(flag, "0")
     vis = visible_tools(set(T.TOOLS), override="sencillo")
     assert vis <= T.CORE_TOOLS               # nada fuera del core sin flag
     assert "leer_archivo" in vis and "editar_archivo" in vis

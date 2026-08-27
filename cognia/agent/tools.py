@@ -369,6 +369,13 @@ _OPTIN_PREFIJOS = (
 )
 _OPTIN_NOMBRES = {
     "repo_a_prompt": "COGNIA_REPO_REVERSE",
+    # MCP externos (2026-08-26): la puerta a los servidores MCP que el
+    # dueno ya tiene configurados en otros clientes de IA. Opt-in duro
+    # porque es codigo de TERCEROS, y fuera de CORE_TOOLS porque el A/B
+    # del repo dice que inflar el catalogo degrada: son DOS entradas que
+    # dan acceso a las 186 herramientas de los cinco servidores, no 186.
+    "mcp": "COGNIA_MCP",
+    "mcp_herramientas": "COGNIA_MCP",
     # LCD sin prefijo escena_: viajan con el mismo paquete y el mismo flag
     "render_aprox": "COGNIA_LCD",
     "atribuir_fallo": "COGNIA_LCD",
@@ -4170,6 +4177,53 @@ try:
     from cognia.harness import tools_harness as _tools_harness  # noqa: F401
 except Exception as _exc:
     print(f"[cognia] tools del arnes no cargaron: {_exc}", file=sys.stderr)
+
+
+# ── Tools MCP EXTERNOS (2026-08-26) ───────────────────────────────────────
+# Los servidores MCP que el dueno ya tiene puestos para otros clientes de IA
+# (Roblox Studio, filesystem, playwright, word, context7). Se registran
+# SIEMPRE para que run_tool pueda decir "DESHABILITADA - activala con
+# COGNIA_MCP=1" en vez de "no existe", pero su flag las deja fuera del
+# catalogo por defecto. El import va al final por el mismo motivo que el de
+# arriba: tools_mcp importa este modulo para usar @tool.
+# OPT-IN DURO, como TX: el registro va DENTRO del if. Registrarlas siempre y
+# dejar que el flag solo las quite del CATALOGO no seria opt-in: run_tool
+# ejecuta cualquier nombre que este en TOOLS, asi que la tool correria igual
+# con el flag apagado. Para codigo de TERCEROS eso no vale. Fuera del if, el
+# nombre sigue en _OPTIN_NOMBRES, que es lo que hace que run_tool conteste
+# "DESHABILITADA - activala con COGNIA_MCP=1" en vez de "no existe".
+def _mcp_encendido() -> bool:
+    """El env manda; si no esta puesto, la config persistida de `/mcp on`.
+
+    Mismo contrato que cognia/tx/flag.py, y por el mismo motivo medido alli:
+    con dos lectores del mismo flag que no coinciden, el REPL dice ACTIVO y
+    el registry esta vacio."""
+    crudo = os.environ.get("COGNIA_MCP", "").strip().lower()
+    if crudo:
+        return crudo in ("1", "on", "true", "yes", "si")
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        ruta = _Path.home() / ".cognia_config.json"
+        if ruta.exists():
+            with ruta.open(encoding="utf-8") as fh:
+                if bool(_json.load(fh).get("mcp_activo", False)):
+                    # Propaga al entorno para que un subproceso herede el
+                    # mismo estado que su padre (leccion de tx/flag.py).
+                    os.environ["COGNIA_MCP"] = "1"
+                    return True
+    except Exception:
+        pass          # config ilegible = sin opt-in guardado, que es el defecto
+    return False
+
+
+if _mcp_encendido():
+    try:
+        from cognia.agent import tools_mcp as _tools_mcp  # noqa: F401
+    except Exception as _exc:
+        # Flag puesto por el dueno: el silencio seria capacidad desconectada.
+        print(f"[cognia] COGNIA_MCP=1 pero tools_mcp no cargo: {_exc}",
+              file=sys.stderr)
 
 
 # ── Tools TX/LIBRO (agente de horizonte largo, 2026-08-19) ────────────────
