@@ -417,14 +417,33 @@ def _fuente_cli() -> str:
 
 def test_los_tres_status_de_cli_usan_comando():
     """Regresion del gancho P8: ningun status de 'Procesando...' /
-    'Mejorando el prompt...' queda con el literal; los tres pasan por
+    'Mejorando el prompt...' queda con el literal; todos pasan por
     spinner_vivo.comando() (que sin override devuelve EXACTAMENTE el literal
-    de antes, ver test_comando_default_byte_identico_y_override)."""
+    de antes, ver test_comando_default_byte_identico_y_override).
+
+    Los conteos son MINIMOS y no igualdades exactas (2026-08-28). Lo que este
+    test defiende es que no queden literales sueltos; el numero de sitios que
+    usan el helper es una consecuencia, no la propiedad. Con `== 2`, cada
+    comando nuevo que hiciera lo correcto —pasar por el helper— rompia el
+    test, que es el incentivo exactamente al reves: castigaba justo la
+    conducta que el test existe para fomentar. Paso al anadir /flujoteca
+    editar y /session-to-workflow, que suman dos 'procesando' legitimos.
+    """
     src = _fuente_cli()
     assert 'status("[spinner]Procesando...[/spinner]"' not in src
     assert 'status("[spinner]Mejorando el prompt...[/spinner]"' not in src
-    assert src.count('_sv.comando("procesando")') == 2, "los dos 'Procesando...' (_run y el camino articulado del repl)"
-    assert src.count('_sv.comando("mejorando")') == 1, "el 'Mejorando el prompt...' de _mejora_generar"
+    assert src.count('_sv.comando("procesando")') >= 2, "al menos _run y el camino articulado del repl"
+    assert src.count('_sv.comando("mejorando")') >= 1, "al menos el 'Mejorando el prompt...' de _mejora_generar"
+    # Y la propiedad de verdad: toda clave que se le pase al helper tiene que
+    # ser una que el helper conozca. 'pensando' NO lo es, y usarla hacia que
+    # el CLI gritara una degradacion en cada turno (cazado tecleandolo).
+    import re
+    from cognia.ux import spinner_vivo
+    claves = set(re.findall(r'_sv\.comando\("([a-z_]+)"\)', src))
+    conocidas = {"procesando", "mejorando"}
+    assert claves <= conocidas, (
+        f"claves de spinner.comando que el helper no conoce: "
+        f"{sorted(claves - conocidas)} (cada una grita una degradacion)")
 
 
 def test_run_y_mejora_generar_pasan_el_texto_del_registro(monkeypatch):

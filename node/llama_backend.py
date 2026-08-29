@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import shutil
 import subprocess
 import time
@@ -402,6 +403,77 @@ def experto_del_guard(regimen_nativo: bool,
     return experto_nativo or None
 
 
+def _ram_libre_mib() -> int:
+    """RAM fisica libre en MiB, o 0 si no se puede saber.
+
+    Windows via GlobalMemoryStatusEx; en el resto, /proc/meminfo. Devolver 0
+    y no un numero inventado importa: quien llama tiene que poder distinguir
+    "hay poca RAM" de "no se cuanta RAM hay", y tratar el segundo caso como
+    el conservador."""
+    try:
+        if sys.platform == "win32":
+            import ctypes
+
+            class _MS(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong),
+                            ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong),
+                            ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong),
+                            ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong),
+                            ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+
+            ms = _MS()
+            ms.dwLength = ctypes.sizeof(_MS)
+            if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(ms)):
+                return 0
+            return int(ms.ullAvailPhys // (1024 * 1024))
+        with open("/proc/meminfo", encoding="utf-8") as fh:
+            for linea in fh:
+                if linea.startswith("MemAvailable:"):
+                    return int(linea.split()[1]) // 1024
+    except Exception:
+        return 0
+    return 0
+
+
+# Cotas del prompt cache en RAM. El piso es el valor historico (nunca se
+# empeora una maquina cargada respecto a lo que ya funcionaba); el techo es el
+# default del propio binario, que no hay motivo para superar.
+CACHE_RAM_MIN_MIB = 1024
+CACHE_RAM_MAX_MIB = 8192
+CACHE_RAM_FRACCION = 0.25
+
+
+def _cache_ram_mib() -> int:
+    """MiB para --cache-ram. LLAMA_CACHE_RAM_MIB manda; si no, 25% de la RAM
+    libre acotado a [1024, 8192].
+
+    Por que una FRACCION y no un fijo: el mismo numero que es prudente con
+    12 GB de RAM desperdicia el 96% de una maquina de 31 GB, y el mismo que
+    aprovecha 31 GB provoca swap en 12. Y por que 25% y no mas: esta RAM se
+    la queda el server mientras vive, y el dueno tiene navegador, editor y a
+    veces un segundo modelo. La mitad de la RAM libre para cache de prompts
+    seria ganar contexto frio a costa de que se arrastre todo lo demas.
+    """
+    crudo = os.environ.get("LLAMA_CACHE_RAM_MIB", "").strip()
+    if crudo:
+        try:
+            return max(0, int(crudo))
+        except ValueError:
+            logger.warning("[llama_backend] LLAMA_CACHE_RAM_MIB=%r no es un "
+                           "entero: uso el calculo automatico", crudo)
+    libre = _ram_libre_mib()
+    if libre <= 0:
+        # No se pudo medir: se cae al valor historico, no a una suposicion
+        # optimista. Equivocarse por arriba aqui cuesta swap.
+        return CACHE_RAM_MIN_MIB
+    return int(min(CACHE_RAM_MAX_MIB,
+                   max(CACHE_RAM_MIN_MIB, libre * CACHE_RAM_FRACCION)))
+
+
 def _lora_args(gguf_path: Optional[Path] = None) -> tuple:
     """(args extra de LoRA para el cmd de llama-server, nombres del fleet).
 
@@ -737,9 +809,28 @@ class _LlamaServerBackend:
             "--threads",  str(n_threads_decode),
             "--threads-batch", str(n_threads_batch),
             "--cache-reuse", "256",
-            # b9391 defaultea --cache-ram 8192 MiB por server: con 3-4
-            # servers coexistiendo en 12GB es swap/OOM latente. Acotado.
-            "--cache-ram", os.environ.get("LLAMA_CACHE_RAM_MIB", "1024"),
+            # RAM como EXTENSION del contexto (2026-08-28). Este flag es el
+            # unico mecanismo real de "KV caliente en VRAM, KV frio en RAM"
+            # que ofrece llama.cpp: cuando un slot queda inactivo, su KV se
+            # serializa a RAM del sistema y se restaura a VRAM si vuelve un
+            # prompt con el mismo prefijo (--cache-idle-slots, activo por
+            # defecto). NO es paginacion por token dentro de un contexto
+            # activo -- eso llama.cpp no lo hace, y suponerlo era el error de
+            # partida. Lo que si da es que una conversacion vieja no ocupe
+            # placa mientras no se use.
+            #
+            # El 1024 fijo de antes venia de cuando coexistian 3-4 servers en
+            # 12 GB. Con un solo cerebro y 31 GB de RAM, ese tope dejaba el
+            # 96% de la RAM sin usar para lo unico que la puede aprovechar.
+            # Ahora se calcula de la RAM LIBRE REAL en el momento de
+            # arrancar (25%, acotado a [1024, 8192] MiB), asi que en una
+            # maquina cargada sigue siendo conservador y en una libre no
+            # desperdicia. LLAMA_CACHE_RAM_MIB sigue mandando sobre todo.
+            "--cache-ram", str(_cache_ram_mib()),
+            # --metrics: sin el, /metrics devuelve HTTP 501 y Cognia no puede
+            # decirle al dueno cuanto KV hay en uso -- que es justo lo que
+            # /contexto-vivo tiene que mostrar. Cuesta un contador en memoria.
+            "--metrics",
             "--prio",     "2",
             "--flash-attn", "on",
             # --jinja OBLIGATORIO (2026-08-26). Sin el, llama-server no aplica

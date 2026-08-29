@@ -15,6 +15,16 @@ API congelada (los callers de cli.py los cablea el orquestador aparte):
     hay_tty()                        -> bool
     elegir(titulo, opciones, ...)    -> valor elegido | None (Esc/Ctrl-C)
     confirmar(pregunta, ...)         -> bool
+    elegir_varias(titulo, opc, ...)  -> [valores] | None (Esc/Ctrl-C)
+    texto_libre(pregunta, ...)       -> str | None (Esc/Ctrl-C)
+
+Las dos ultimas (2026-08-28) existen para las ENCUESTAS del mejorador de
+prompts: hasta ahora el CLI solo sabia preguntar "una de estas" y "si o no",
+y una encuesta que detecta que le falta informacion necesita ademas "varias
+de estas" y "escribilo vos". Comparten el contrato de arriba entero — misma
+degradacion sin tty, misma inyeccion de input_fn para tests, mismo aviso
+visible al degradar. En las dos, None significa CANCELO y "" / [] significan
+CONTESTO QUE NADA: quien las consume decide distinto en cada caso.
 
 REGLA CRITICA (no negociable): JAMAS abrir el selector con un rich
 Live/status activo. rich.Live y la Application de prompt_toolkit toman
@@ -355,3 +365,245 @@ def _confirmar_flechas(pregunta, default) -> bool:
         mouse_support=False,
     )
     return bool(app.run())
+
+
+# ---------------------------------------------------------------------------
+# elegir_varias(): menu de seleccion MULTIPLE
+# ---------------------------------------------------------------------------
+
+def elegir_varias(titulo: str, opciones: list, marcadas=None,
+                  input_fn=None, permitir_vacio: bool = True):
+    """Menu de seleccion MULTIPLE. Devuelve la lista de valores marcados,
+    o None si el usuario cancelo (Esc/Ctrl-C).
+
+    OJO con la diferencia entre [] y None, que aca NO es cosmetica: [] es
+    "el usuario miro las opciones y no quiere ninguna" (una respuesta) y
+    None es "el usuario se fue sin contestar" (no hay respuesta). La
+    encuesta que consume esto las trata distinto: la primera se incorpora
+    al prompt como restriccion explicita, la segunda se omite. Confundirlas
+    seria inventarle al usuario una decision que no tomo, que es justo el
+    fallo que el mejorador de prompts tiene prohibido cometer.
+
+    opciones: lista de tuplas (valor, etiqueta, descripcion_corta), igual
+    que elegir(). `marcadas` es una lista de valores premarcados.
+
+    Con tty real y sin input_fn: Application de prompt_toolkit — flechas
+    para moverse, ESPACIO para marcar/desmarcar, Enter para confirmar,
+    'a' marca todas, 'n' ninguna, Esc/Ctrl-C cancela. Sin tty o con
+    input_fn: lista numerada + input() aceptando numeros separados por coma
+    o espacio ("1,3" / "1 3"), nombres de opcion, "todas" o "ninguna".
+
+    REGLA CRITICA: no llamar con un rich Live/status activo (ver docstring
+    del modulo).
+    """
+    opciones = list(opciones or [])
+    if not opciones:
+        return None
+    premarcadas = {v for v in (marcadas or [])}
+    estado = [v in premarcadas for v, _e, _d in opciones]
+    if input_fn is not None or not hay_tty():
+        return _varias_texto(titulo, opciones, estado, input_fn or input,
+                             permitir_vacio)
+    try:
+        return _varias_flechas(titulo, opciones, estado, permitir_vacio)
+    except Exception as exc:
+        _avisar(f"seleccion multiple interactiva fallo "
+                f"({type(exc).__name__}: {exc}): caigo a texto")
+        return _varias_texto(titulo, opciones, estado, input, permitir_vacio)
+
+
+def _varias_texto(titulo, opciones, estado, input_fn, permitir_vacio):
+    """Fallback sin tty: lista numerada + input() con numeros multiples."""
+    print(titulo)
+    print("  (varias: numeros separados por coma; 'todas'; 'ninguna'; "
+          "Enter deja lo marcado)")
+    for i, (_valor, etiqueta, desc) in enumerate(opciones, start=1):
+        marca = "x" if estado[i - 1] else " "
+        linea = f"  [{marca}] {i}) {etiqueta}"
+        if desc:
+            linea += f"  - {desc}"
+        print(linea)
+    for _ in range(_MAX_REINTENTOS):
+        try:
+            raw = input_fn(f"Eleccion (1-{len(opciones)}, varias): ")
+        except (EOFError, KeyboardInterrupt, StopIteration):
+            return None
+        raw = (raw or "").strip()
+        if not raw:
+            elegidas = [v for (v, _e, _d), on in zip(opciones, estado) if on]
+            if elegidas or permitir_vacio:
+                return elegidas
+            print("Hay que marcar al menos una.")
+            continue
+        bajo = raw.lower()
+        if bajo in ("todas", "todo", "all"):
+            return [v for v, _e, _d in opciones]
+        if bajo in ("ninguna", "nada", "none"):
+            if permitir_vacio:
+                return []
+            # "ninguna" cuando hace falta al menos una NO es cancelar: es una
+            # respuesta que no vale. Devolver None aca mezclaba las dos cosas
+            # que este modulo existe para separar, y quien consume la encuesta
+            # habria anotado "el usuario se fue" sobre alguien que sigue ahi.
+            print("Hay que marcar al menos una.")
+            continue
+        elegidas, malo = [], False
+        for trozo in raw.replace(",", " ").split():
+            t = trozo.strip()
+            if t.isdigit() and 1 <= int(t) <= len(opciones):
+                valor = opciones[int(t) - 1][0]
+                if valor not in elegidas:
+                    elegidas.append(valor)
+                continue
+            hallado = False
+            for valor, etiqueta, _desc in opciones:
+                if t.lower() in (str(valor).lower(), str(etiqueta).lower()):
+                    if valor not in elegidas:
+                        elegidas.append(valor)
+                    hallado = True
+                    break
+            if not hallado:
+                malo = True
+                break
+        if malo:
+            print(f"Entrada invalida. Numeros 1-{len(opciones)} separados "
+                  f"por coma, o los nombres de las opciones.")
+            continue
+        if elegidas or permitir_vacio:
+            return elegidas
+        print("Hay que marcar al menos una.")
+    return None
+
+
+def _varias_flechas(titulo, opciones, estado, permitir_vacio):
+    """Camino interactivo (LAZY, solo con tty): espacio marca, Enter cierra."""
+    from prompt_toolkit.application import Application
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.layout import HSplit, Layout, Window
+    from prompt_toolkit.layout.controls import FormattedTextControl
+
+    idx = [0]
+    puntero = _puntero()
+    clases = _clases()
+    # Las cajas se prueban contra el encoding de stdout igual que el puntero:
+    # cp1252 no tiene U+2611 y un menu que sale como '?' no se puede leer.
+    enc = getattr(sys.stdout, "encoding", "") or "utf-8"
+    try:
+        "☑☐".encode(enc)
+        caja_on, caja_off = "☑", "☐"
+    except Exception:
+        caja_on, caja_off = "[x]", "[ ]"
+
+    def _fragmentos():
+        frags = [(clases["titulo"], titulo + "\n"),
+                 (clases["descripcion"],
+                  "  espacio marca - a todas - n ninguna - Enter confirma\n")]
+        for i, (_valor, etiqueta, desc) in enumerate(opciones):
+            caja = caja_on if estado[i] else caja_off
+            if i == idx[0]:
+                frags.append((clases["activo"], f" {puntero} {caja} {etiqueta} "))
+            else:
+                frags.append(("", f"   {caja} {etiqueta} "))
+            if desc:
+                frags.append((clases["descripcion"], f"  {desc}"))
+            frags.append(("", "\n"))
+        return frags
+
+    kb = KeyBindings()
+
+    @kb.add("up")
+    def _arriba(event):
+        idx[0] = (idx[0] - 1) % len(opciones)
+
+    @kb.add("down")
+    def _abajo(event):
+        idx[0] = (idx[0] + 1) % len(opciones)
+
+    @kb.add("space")
+    def _marcar(event):
+        estado[idx[0]] = not estado[idx[0]]
+
+    @kb.add("a")
+    def _todas(event):
+        for i in range(len(estado)):
+            estado[i] = True
+
+    @kb.add("n")
+    def _ninguna(event):
+        for i in range(len(estado)):
+            estado[i] = False
+
+    @kb.add("enter")
+    def _aceptar(event):
+        elegidas = [v for (v, _e, _d), on in zip(opciones, estado) if on]
+        if not elegidas and not permitir_vacio:
+            return          # Enter no cierra si hace falta al menos una
+        event.app.exit(result=elegidas)
+
+    @kb.add("escape", eager=True)
+    @kb.add("c-c")
+    def _cancelar(event):
+        event.app.exit(result=None)
+
+    ventana = Window(
+        content=FormattedTextControl(_fragmentos, focusable=True),
+        height=len(opciones) + 2,      # titulo + ayuda + una fila por opcion
+        always_hide_cursor=True,
+    )
+    app = Application(
+        layout=Layout(HSplit([ventana])),
+        key_bindings=kb,
+        full_screen=False,
+        erase_when_done=True,
+        mouse_support=False,
+    )
+    return app.run()
+
+
+# ---------------------------------------------------------------------------
+# texto_libre(): respuesta abierta
+# ---------------------------------------------------------------------------
+
+def texto_libre(pregunta: str, default: str = "", pista: str = "",
+                input_fn=None, multilinea: bool = False):
+    """Pregunta de respuesta ABIERTA. Devuelve el texto, o None si cancelo.
+
+    Devuelve "" cuando el usuario da Enter sin escribir y no hay default:
+    igual que en elegir_varias(), "" (no quiso decir nada) y None (se fue)
+    son respuestas distintas para quien consume la encuesta.
+
+    Con tty y sin input_fn usa una PromptSession de prompt_toolkit, que es
+    lo que ya usa el REPL: da edicion de linea y default precargado y
+    EDITABLE (importa: una pregunta con sugerencia que no se puede corregir
+    empuja a aceptarla tal cual). Sin tty cae a input() plano.
+
+    multilinea=True cierra con Esc-Enter en vez de Enter, para las
+    respuestas largas (una descripcion de estilo visual, por ejemplo).
+    """
+    etiqueta = pregunta.rstrip()
+    if pista:
+        etiqueta += f"  ({pista})"
+    if input_fn is not None or not hay_tty():
+        return _texto_plano(etiqueta, default, input_fn or input)
+    try:
+        from prompt_toolkit import PromptSession
+        sesion = PromptSession()
+        raw = sesion.prompt(etiqueta + "\n> ", default=default or "",
+                            multiline=multilinea)
+        return (raw or "").strip()
+    except (EOFError, KeyboardInterrupt):
+        return None
+    except Exception as exc:
+        _avisar(f"prompt de texto libre fallo "
+                f"({type(exc).__name__}: {exc}): caigo a input()")
+        return _texto_plano(etiqueta, default, input)
+
+
+def _texto_plano(etiqueta, default, input_fn):
+    sufijo = f" [{default}]" if default else ""
+    try:
+        raw = input_fn(f"{etiqueta}{sufijo}: ")
+    except (EOFError, KeyboardInterrupt, StopIteration):
+        return None
+    raw = (raw or "").strip()
+    return raw if raw else (default or "")

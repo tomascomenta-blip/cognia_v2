@@ -2899,6 +2899,7 @@ _CMD_DESCRIPTIONS = {
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
     "/grafo-html":      "Exportar el knowledge graph a HTML y abrirlo en el navegador  [proyecto]",
+    "/memorias":        "Libreria de TODO lo que Cognia produjo: dashboard, busqueda y fichas  [lista|buscar <t>|estado]",
     "/indexar-codigo":  "Indexar el codigo del repo al knowledge graph (define/importa/llama_a)",
     "/atencion":        "Explicar como se descompone la atencion de un episodio  <id>",
     "/hecho":           "Agregar hecho al grafo  <subj> | <pred> | <obj>",
@@ -2961,6 +2962,10 @@ _CMD_DESCRIPTIONS = {
     # Corta a proposito: seccion() recorta por ancho y la version larga perdia
     # justo los estados y el atajo, que es lo que busca quien quiere apagarlo.
     "/mejorar":         "Mejorar el prompt con IA (preguntar|auto|off, F3)",
+    "/encuestas":       "Preguntas por lo que falta antes de mejorar un pedido  [on|off|estado|probar <pedido>]",
+    "/contexto-vivo":   "Cuanto contexto te queda, donde vive y a que velocidad va  [avanzado|json]",
+    "/flujoteca":       "Biblioteca de flujos con versiones: ver, editar hablando, comparar, restaurar",
+    "/session-to-workflow": "Convierte lo que hiciste en esta sesion en un flujo reutilizable  [nombre]",
     # La plantilla larga va DETRAS de dos espacios, como el resto del registro:
     # `ayuda.resumir_desc` corta por ese hueco, asi que a 80 columnas se lee la
     # frase entera en vez de "...: iniciar|estado|pr...". Los subcomandos
@@ -7888,6 +7893,25 @@ _CONFIG_DEFAULTS: dict = {
     # en el CLI decia que el estilo conservador estaba puesto: el sintoma se
     # diagnostica como "el mejorador no mejora" o como backend caido.
     "mejorar_prompt_estilo": "",
+    # Encuestas del mejorador (ver /encuestas). "auto" | "off". Solo se
+    # disparan en el camino 'preguntar' del mejorador, sobre pedidos cortos a
+    # los que les faltan decisiones, y el generador puede decidir que no
+    # falta nada. Con esos tres filtros, un default "off" seria la
+    # funcionalidad apagada para todo el que no lea la ayuda.
+    "encuestas": "auto",
+    # Que puede borrar la IA en la flujoteca: "nunca" | "preguntar" |
+    # "permitido". El sujeto es la IA, no el dueno: el dueno borra siempre
+    # desde el CLI. Default conservador porque una IA que borra versiones
+    # puede destruir trabajo interpretando mal una frase.
+    "flujoteca_borrado": "nunca",
+    # Dashboard/libreria de artefactos (ver /memorias). Familias a incluir,
+    # separadas por coma; vacio = todas las que el catalogo sepa leer. Una
+    # familia mal escrita NO se ignora en silencio: se avisa con la lista de
+    # las validas, porque si no el dueno ve menos artefactos sin saber por que.
+    "memorias_familias": "",
+    # false = escribir ~/.cognia/memorias.html sin abrir el navegador (util
+    # por SSH, en el remoto y en los e2e, donde abrir una ventana es ruido).
+    "memorias_abrir_navegador": True,
     # Render COLAPSADO de tool-calls (ux/renderer -> harness/render_tools):
     # vineta de estado + N lineas de cabeza + '⎿ … +N lineas (/expandir)'.
     # on/off y umbral se cambian con /expandir on|off|lineas <n>; la env
@@ -8316,7 +8340,7 @@ def _parar_status_mejora() -> None:
         _aviso_degradado("cli.mejorar.renderer", f"{type(exc).__name__}: {exc}")
 
 
-def _mejora_generar(texto: str, via: str):
+def _mejora_generar(texto: str, via: str, contexto: str = ""):
     """Llama al experto con un indicador breve. Devuelve una Mejora o None.
 
     Un fallo del BACKEND (no hay, timeout, error de red) es degradacion y se
@@ -8338,10 +8362,12 @@ def _mejora_generar(texto: str, via: str):
             from cognia.ux import spinner_vivo as _sv
             _markup_sp, _nombre_sp = _sv.comando("mejorando")
             with _console.status(_markup_sp, spinner=_nombre_sp):
-                mejora = mod.mejorar(texto, version=estilo or None)
+                mejora = mod.mejorar(texto, version=estilo or None,
+                                     contexto=contexto)
         else:
             _print_line("[detail]Mejorando el prompt...[/detail]")
-            mejora = mod.mejorar(texto, version=estilo or None)
+            mejora = mod.mejorar(texto, version=estilo or None,
+                                 contexto=contexto)
     except Exception as exc:
         # mejorar() promete no lanzar; si lanza es un bug del cableado y tiene
         # que verse, no convertirse en "no mejoro nada".
@@ -8365,6 +8391,723 @@ def _mejora_generar(texto: str, via: str):
              "mejora descartada")):
         _aviso_degradado(via, mejora.motivo)
     return mejora
+
+
+def _estado_encuestas() -> str:
+    """'auto' | 'off'. Clave de config 'encuestas'.
+
+    Default 'auto' y no 'off' porque la encuesta ya esta triplemente
+    acotada: solo corre cuando el usuario PIDIO mejorar la linea, solo si el
+    pedido es corto y vago (encuesta.vale_la_pena), y el generador puede
+    decidir que no falta nada y no preguntar. Con esos tres filtros, un
+    default 'off' significaria que la funcionalidad no existe para nadie que
+    no lea la ayuda."""
+    try:
+        valor = str(_load_config().get("encuestas", "auto")).strip().lower()
+    except Exception as exc:
+        _aviso_degradado("cli.encuesta.config", f"{type(exc).__name__}: {exc}")
+        return "auto"
+    from cognia.harness import encuesta as _enc
+    return valor if valor in _enc.ESTADOS else "auto"
+
+
+def _guardar_estado_encuestas(valor: str) -> bool:
+    try:
+        cfg = _load_config()
+        cfg["encuestas"] = valor
+        _save_config(cfg)
+    except Exception as exc:
+        _aviso_degradado("cli.encuesta.config", f"{type(exc).__name__}: {exc}")
+        return False
+    return True
+
+
+def _contexto_de_mejora(raw: str):
+    """El Contexto de la sesion para `raw`, o None si no se pudo reunir.
+
+    Aqui es donde se cierra el agujero de siempre: `mejorar()` aceptaba un
+    parametro `contexto` desde que se escribio y NINGUN caller de produccion
+    se lo pasaba, asi que el reformulador solo veia la linea tecleada."""
+    try:
+        from cognia.harness import contexto_mejora as _cm
+    except Exception as exc:
+        _aviso_degradado("cli.mejorar.contexto", f"{type(exc).__name__}: {exc}")
+        return None
+    try:
+        ctx = _cm.reunir(raw, historial=_history, cwd=os.getcwd())
+    except Exception as exc:
+        # reunir() promete no lanzar; si lanza es un bug del cableado y tiene
+        # que verse, no convertirse en "el contexto salio vacio".
+        _aviso_degradado("cli.mejorar.contexto", f"{type(exc).__name__}: {exc}")
+        return None
+    for aviso in (ctx.avisos or [])[:3]:
+        _aviso_degradado("cli.mejorar.contexto", aviso)
+    return ctx
+
+
+def _preguntar_una(pregunta):
+    """Muestra UNA pregunta y devuelve la respuesta.
+
+    None = el usuario cancelo (Esc). Es distinto de "" y de []: ver el
+    contrato de cognia/ux/selector.py y de encuesta.incorporar()."""
+    from cognia.ux import selector as _selector
+    titulo = pregunta.texto
+    if pregunta.porque:
+        titulo += f"   ({pregunta.porque})"
+    if pregunta.tipo == "unica":
+        opciones = [(o, o, "") for o in pregunta.opciones]
+        # "Otra cosa" SIEMPRE al final de una pregunta cerrada: unas opciones
+        # que el modelo creyo exhaustivas casi nunca lo son, y sin salida el
+        # usuario tiene que elegir algo que no queria o cancelar la encuesta
+        # entera.
+        opciones.append(("__otra__", "Otra cosa...", "lo escribo yo"))
+        elegido = _selector.elegir(titulo, opciones, default=0)
+        if elegido == "__otra__":
+            return _selector.texto_libre("Decime cual:")
+        return elegido
+    if pregunta.tipo == "multiple":
+        opciones = [(o, o, "") for o in pregunta.opciones]
+        return _selector.elegir_varias(titulo, opciones)
+    return _selector.texto_libre(titulo, pista="Enter para saltar")
+
+
+def _encuesta_interactiva(raw: str, ctx):
+    """Pregunta lo que falte y devuelve el pedido ENRIQUECIDO.
+
+    Devuelve el texto a reformular (que puede ser `raw` intacto) o None si
+    el usuario cancelo la encuesta entera y no quiere seguir.
+    """
+    from cognia.harness import encuesta as _enc
+    from cognia.ux import selector as _selector
+
+    if _estado_encuestas() == "off":
+        return raw
+    if not _selector.hay_tty():
+        # Sin tty no hay a quien preguntar. No es un fallo: es que este
+        # camino no aplica (pipes, CI, e2e).
+        return raw
+    faltantes = list(getattr(ctx, "faltantes", []) or []) if ctx else []
+    vale, motivo = _enc.vale_la_pena(raw, faltantes=faltantes)
+    if not vale:
+        return raw
+
+    _parar_status_mejora()
+    try:
+        if _HAS_RICH and _console:
+            from cognia.ux import spinner_vivo as _sv
+            _markup, _nombre = _sv.comando("mejorando")
+            with _console.status(_markup, spinner=_nombre):
+                enc = _enc.preparar(raw, contexto=getattr(ctx, "bloque", ""),
+                                    faltantes=faltantes)
+        else:
+            enc = _enc.preparar(raw, contexto=getattr(ctx, "bloque", ""),
+                                faltantes=faltantes)
+    except Exception as exc:
+        _aviso_degradado("cli.encuesta", f"{type(exc).__name__}: {exc}")
+        return raw
+    if enc.aviso:
+        _aviso_degradado("cli.encuesta", enc.aviso)
+    if not enc.ok:
+        # "no falta nada" es una respuesta CORRECTA y no se grita; los demas
+        # motivos son degradacion y si.
+        if enc.motivo not in ("el modelo dice que no falta nada",
+                              "no hay decisiones sin tomar detectables",
+                              "el pedido ya es largo y especifico",
+                              "es un comando, no un pedido", "texto vacio"):
+            _aviso_degradado("cli.encuesta", enc.motivo)
+        return raw
+
+    origen = ("preguntas del modelo" if enc.origen == "modelo"
+              else "preguntas tipicas (sin backend)")
+    _print_line(f"[info_dim]Faltan {len(enc.preguntas)} datos "
+                f"({origen}). Esc en cualquiera para saltarla.[/info_dim]")
+
+    respuestas, contestadas = [], 0
+    for i, pregunta in enumerate(enc.preguntas, start=1):
+        _parar_status_mejora()
+        try:
+            valor = _preguntar_una(pregunta)
+        except Exception as exc:
+            _aviso_degradado("cli.encuesta.preguntar",
+                             f"{type(exc).__name__}: {exc}")
+            valor = None
+        respuestas.append((pregunta, valor))
+        if valor is not None and valor != "":
+            contestadas += 1
+
+    if not contestadas:
+        _print_line("[info_dim]sin respuestas: sigo con lo que "
+                    "escribiste[/info_dim]")
+        return raw
+    enriquecido = _enc.incorporar(raw, respuestas)
+    _print_line(f"[ok_cl]{contestadas} de {len(enc.preguntas)} "
+                f"contestadas[/ok_cl]")
+    return enriquecido
+
+
+def _slash_encuestas(arg: str = "") -> None:
+    """Puerta de cognia/harness/encuesta.py: on/off y diagnostico."""
+    from cognia.harness import encuesta as _enc
+    valor = (arg or "").strip().lower()
+
+    if valor in ("on", "auto", "si"):
+        if _guardar_estado_encuestas("auto"):
+            _print_line("[ok_cl]encuestas: auto[/ok_cl] "
+                        "[info_dim](se preguntan datos que falten al mejorar "
+                        "un pedido corto)[/info_dim]")
+        return
+    if valor in ("off", "no"):
+        if _guardar_estado_encuestas("off"):
+            _print_line("[ok_cl]encuestas: off[/ok_cl] "
+                        "[info_dim](/encuestas on para volver)[/info_dim]")
+        return
+
+    if valor in ("estado", ""):
+        estado = _estado_encuestas()
+        from cognia.ux import selector as _sel
+        lineas = ["Encuestas del mejorador de prompts", "",
+                  f"  estado:        {estado}",
+                  f"  tope:          {_enc.MAX_PREGUNTAS} preguntas por pedido",
+                  f"  solo pedidos:  de menos de {_enc.MAX_CHARS_PARA_PREGUNTAR} caracteres",
+                  f"  hay tty:       {'si' if _sel.hay_tty() else 'no (sin tty no se pregunta)'}",
+                  "",
+                  "  Cuando se dispara: al elegir 'Mejorar con IA' sobre un",
+                  "  pedido corto al que le faltan decisiones. Si el modelo",
+                  "  cree que no falta nada, no pregunta.",
+                  "",
+                  "  /encuestas on | off"]
+        _show_response("\n".join(lineas), "listado")
+        return
+
+    if valor in ("probar", "prueba"):
+        # Puerta de diagnostico: ensena QUE preguntaria sin tocar el turno.
+        _print_line("[warn_cl]Uso: /encuestas probar <pedido>[/warn_cl]")
+        return
+
+    if valor.startswith("probar "):
+        pedido = arg.strip()[len("probar "):].strip()
+        ctx = _contexto_de_mejora(pedido)
+        enc = _enc.preparar(pedido, contexto=getattr(ctx, "bloque", ""),
+                            faltantes=list(getattr(ctx, "faltantes", []) or []))
+        lineas = [f"Encuesta para: {pedido}", "",
+                  f"  origen: {enc.origen or '(ninguna)'}   "
+                  f"motivo: {enc.motivo}   {enc.ms} ms"]
+        if getattr(ctx, "bloque", ""):
+            lineas += ["", f"  contexto reunido: {ctx.chars} chars, "
+                           f"secciones {', '.join(ctx.secciones)}"]
+        lineas.append("")
+        for p in enc.preguntas:
+            lineas.append(f"  [{p.tipo}] {p.texto}")
+            for o in p.opciones:
+                lineas.append(f"       - {o}")
+        if not enc.preguntas:
+            lineas.append("  (no preguntaria nada)")
+        _show_response("\n".join(lineas), "listado")
+        return
+
+    _print_line(f"[warn_cl]no entiendo '{_escape(valor)}'. "
+                f"Uso: /encuestas [on|off|estado|probar <pedido>][/warn_cl]")
+
+
+def _politica_borrado_flujos() -> str:
+    """Que puede borrar la IA en la flujoteca. Clave 'flujoteca_borrado'.
+
+    Default 'nunca' y no 'preguntar': el sujeto de la politica es la IA, y
+    una IA que puede borrar versiones puede destruir trabajo del dueno
+    interpretando mal una frase. El dueno siempre puede borrar lo suyo desde
+    el CLI (quien='usuario'), asi que el default conservador no le quita
+    nada a el."""
+    try:
+        from cognia.agent import flujoteca as _ft
+        valor = str(_load_config().get("flujoteca_borrado", "nunca")).strip().lower()
+        return valor if valor in _ft.POLITICAS_BORRADO else "nunca"
+    except Exception as exc:
+        _aviso_degradado("cli.flujoteca.config", f"{type(exc).__name__}: {exc}")
+        return "nunca"
+
+
+def _flujoteca_partir_nombre(resto: str) -> tuple:
+    """(nombre_del_flujo, resto_del_texto) preguntandole a la biblioteca.
+
+    Los nombres de flujo llevan espacios, asi que no se puede partir por el
+    primer hueco. Se busca el nombre REAL mas LARGO que sea prefijo de lo
+    tecleado: con "Informe semanal anade un paso" y un flujo llamado "Informe
+    semanal", devuelve ("Informe semanal", "anade un paso").
+
+    El mas largo y no el primero que case: si existieran "Informe" e "Informe
+    semanal", quedarse con el corto le comeria dos palabras a la instruccion
+    y editaria el flujo equivocado.
+    """
+    texto = (resto or "").strip()
+    if not texto:
+        return "", ""
+    try:
+        from cognia.agent import flujoteca as _ft
+        nombres = [f["nombre"] for f in _ft.listar()]
+    except Exception as exc:
+        _aviso_degradado("cli.flujoteca.nombres", f"{type(exc).__name__}: {exc}")
+        nombres = []
+    bajo = texto.lower()
+    candidatos = [n for n in nombres if bajo.startswith(n.lower() + " ")]
+    if candidatos:
+        mejor = max(candidatos, key=len)
+        return mejor, texto[len(mejor):].strip()
+    # Sin biblioteca (o sin coincidencia) se cae al comportamiento simple, que
+    # sigue siendo correcto para los nombres de una sola palabra.
+    trozos = texto.split(None, 1)
+    if len(trozos) == 2 and nombres and trozos[0] not in nombres:
+        return "", ""       # el nombre no existe: mejor decirlo que adivinar
+    return (trozos[0], trozos[1]) if len(trozos) == 2 else (texto, "")
+
+
+def _flujoteca_pintar_lista() -> None:
+    from cognia.agent import flujoteca as _ft
+    filas = _ft.listar()
+    if not filas:
+        _show_response(
+            "No hay flujos guardados todavia.\n\n"
+            "  /session-to-workflow          convierte esta sesion en un flujo\n"
+            "  /flujoteca nuevo <nombre>     crea uno vacio para editarlo hablando",
+            "listado")
+        return
+    lineas = [f"Flujoteca — {len(filas)} flujos", ""]
+    for f in filas:
+        fecha = (f.get("modificado") or "")[:16].replace("T", " ")
+        lineas.append(f"  {fecha:<16}  v{f['version_actual']:<3} "
+                      f"{f['n_nodos']:>2} nodos  {f['nombre']}")
+        if f.get("descripcion"):
+            lineas.append(f"                                     "
+                          f"{f['descripcion'][:60]}")
+    lineas += ["", "  /flujoteca ver <nombre>        el flujo en texto",
+               "  /flujoteca abrir <nombre>      el lienzo con su historial"]
+    _show_response("\n".join(lineas), "listado")
+
+
+def _flujoteca_guardar_desde_ia(nombre: str, resultado, nota: str) -> bool:
+    """Guarda el flujo que devolvio el modelo y avisa. True si guardo."""
+    from cognia.agent import flujoteca as _ft
+    if not resultado.ok:
+        if resultado.resumen:
+            _print_line(f"[warn_cl]{_escape(resultado.motivo)}[/warn_cl]")
+            _print_line(f"[info_dim]el modelo dijo: "
+                        f"{_escape(resultado.resumen)}[/info_dim]")
+        else:
+            _print_line(f"[err_cl]no se pudo: {_escape(resultado.motivo)}[/err_cl]")
+        return False
+    try:
+        meta = _ft.guardar(resultado.flujo, nombre=nombre, nota=nota)
+    except Exception as exc:
+        _aviso_degradado("cli.flujoteca.guardar", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]el flujo era valido pero no se pudo guardar: "
+                    f"{_escape(str(exc))}[/err_cl]")
+        return False
+    _print_line(f"[ok_cl]guardado como v{meta['version_actual']}[/ok_cl] "
+                f"[info_dim]({resultado.ms} ms)[/info_dim]")
+    if resultado.resumen:
+        _print_line(f"[info_dim]{_escape(resultado.resumen)}[/info_dim]")
+    _show_response(_ft.describir(resultado.flujo), "listado")
+    return True
+
+
+def _slash_flujoteca(arg: str = "") -> None:
+    """Biblioteca de flujos: crear, ver, editar hablando, versionar, restaurar."""
+    from cognia.agent import flujoteca as _ft
+
+    partes = (arg or "").strip().split(None, 1)
+    cmd = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+
+    if cmd in ("", "lista", "listar"):
+        return _flujoteca_pintar_lista()
+
+    if cmd in ("ayuda", "-h", "--help"):
+        _show_response(
+            "/flujoteca — la biblioteca de flujos de trabajo\n"
+            "\n"
+            "  /flujoteca                          lista los flujos\n"
+            "  /flujoteca ver <nombre> [vN]        el flujo en texto\n"
+            "  /flujoteca abrir <nombre>           lienzo + linea de tiempo (navegador)\n"
+            "  /flujoteca versiones <nombre>       el historial\n"
+            "  /flujoteca editar <nombre> <que cambiar>\n"
+            "                                      lo cambia hablando, y guarda una version\n"
+            "  /flujoteca comparar <nombre> <vA> <vB>\n"
+            "  /flujoteca restaurar <nombre> <vN>  vuelve a esa version (como version NUEVA)\n"
+            "  /flujoteca renombrar <nombre> | <nuevo>\n"
+            "  /flujoteca duplicar <nombre> | <nuevo>\n"
+            "  /flujoteca borrar <nombre> [vN]\n"
+            "  /flujoteca politica [nunca|preguntar|permitido]\n"
+            "                                      que puede borrar la IA\n"
+            "\n"
+            "Para crear uno: /session-to-workflow convierte lo que hiciste\n"
+            "en esta sesion en un flujo reutilizable.",
+            "listado")
+        return
+
+    if cmd == "politica":
+        if not resto:
+            _show_response(
+                f"Politica de borrado de la IA: {_politica_borrado_flujos()}\n\n"
+                f"  nunca       la IA no borra versiones (defecto)\n"
+                f"  preguntar   la IA pide confirmacion\n"
+                f"  permitido   la IA puede borrar\n\n"
+                f"  Vos siempre podes borrar desde el CLI, mande lo que mande\n"
+                f"  esta politica: gobierna a la IA, no a vos.", "listado")
+            return
+        valor = resto.strip().lower()
+        if valor not in _ft.POLITICAS_BORRADO:
+            _print_line(f"[warn_cl]politica desconocida. "
+                        f"Validas: {', '.join(_ft.POLITICAS_BORRADO)}[/warn_cl]")
+            return
+        try:
+            cfg = _load_config()
+            cfg["flujoteca_borrado"] = valor
+            _save_config(cfg)
+            _print_line(f"[ok_cl]politica de borrado: {valor}[/ok_cl]")
+        except Exception as exc:
+            _aviso_degradado("cli.flujoteca.config", f"{type(exc).__name__}: {exc}")
+        return
+
+    if not resto and cmd not in ("nuevo",):
+        _print_line(f"[warn_cl]falta el nombre del flujo. "
+                    f"Uso: /flujoteca {_escape(cmd)} <nombre>[/warn_cl]")
+        return
+
+    # ---- comandos que llevan nombre --------------------------------------
+    if cmd == "ver":
+        trozos = resto.rsplit(None, 1)
+        version = None
+        nombre = resto
+        if len(trozos) == 2 and re.fullmatch(r"v?\d+", trozos[1]):
+            nombre, version = trozos[0], int(trozos[1].lstrip("v"))
+        try:
+            flujo = _ft.cargar(nombre, version)
+        except Exception as exc:
+            _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+            return
+        _show_response(_ft.describir(flujo), "listado")
+        return
+
+    if cmd == "abrir":
+        try:
+            from cognia.agent import flujoteca_view as _fv
+            abrir = bool(_load_config().get("memorias_abrir_navegador", True))
+            ruta = _fv.export(resto, open_browser=abrir)
+        except Exception as exc:
+            _aviso_degradado("cli.flujoteca.abrir", f"{type(exc).__name__}: {exc}")
+            _print_line(f"[err_cl]no pude abrir el lienzo: {_escape(str(exc))}[/err_cl]")
+            return
+        _show_response(f"Lienzo del flujo '{resto}'\n  {ruta}", "listado")
+        return
+
+    if cmd == "versiones":
+        vs = _ft.versiones(resto)
+        if not vs:
+            _print_line(f"[warn_cl]no hay ningun flujo llamado "
+                        f"'{_escape(resto)}'[/warn_cl]")
+            return
+        lineas = [f"Historial de '{resto}' — {len(vs)} versiones", ""]
+        for v in vs:
+            marcas = []
+            if v.get("actual"):
+                marcas.append("ACTUAL")
+            if not v.get("existe"):
+                marcas.append("borrada")
+            lineas.append(
+                f"  v{v['v']:<3} {(v.get('ts') or '')[:16].replace('T', ' '):<17}"
+                f"{v.get('n_nodos', 0):>2} nodos  {v.get('nota', '')[:44]}"
+                + ("   [" + " ".join(marcas) + "]" if marcas else ""))
+        lineas += ["", f"  /flujoteca restaurar {resto} <vN>",
+                   f"  /flujoteca comparar {resto} <vA> <vB>"]
+        _show_response("\n".join(lineas), "listado")
+        return
+
+    if cmd == "comparar":
+        trozos = resto.split()
+        if len(trozos) < 3:
+            _print_line("[warn_cl]Uso: /flujoteca comparar <nombre> <vA> <vB>[/warn_cl]")
+            return
+        nombre = " ".join(trozos[:-2])
+        try:
+            d = _ft.comparar(nombre, int(trozos[-2].lstrip("v")),
+                             int(trozos[-1].lstrip("v")))
+        except Exception as exc:
+            _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+            return
+        lineas = [f"'{nombre}': v{d['v1']} vs v{d['v2']}", ""]
+        if d["sin_cambios"]:
+            lineas.append("  las dos versiones son iguales")
+        for n in d["anadidos"]:
+            lineas.append(f"  + {n['id']}  ({n.get('tool', '?')})")
+        for n in d["quitados"]:
+            lineas.append(f"  - {n['id']}  ({n.get('tool', '?')})")
+        for c in d["cambiados"]:
+            lineas.append(f"  ~ {c['id']}")
+            for campo in c["campos"]:
+                lineas.append(f"      {campo['campo']}: "
+                              f"{str(campo['antes'])[:34]} -> "
+                              f"{str(campo['despues'])[:34]}")
+        if d["iguales"]:
+            lineas += ["", f"  sin cambios: {', '.join(d['iguales'])}"]
+        _show_response("\n".join(lineas), "listado")
+        return
+
+    if cmd == "restaurar":
+        trozos = resto.rsplit(None, 1)
+        if len(trozos) != 2 or not re.fullmatch(r"v?\d+", trozos[1]):
+            _print_line("[warn_cl]Uso: /flujoteca restaurar <nombre> <vN>[/warn_cl]")
+            return
+        try:
+            meta = _ft.restaurar(trozos[0], int(trozos[1].lstrip("v")))
+        except Exception as exc:
+            _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+            return
+        _print_line(f"[ok_cl]restaurada como v{meta['version_actual']}[/ok_cl] "
+                    f"[info_dim](el historial no se toca: la version vieja "
+                    f"sigue ahi)[/info_dim]")
+        _show_response(_ft.describir(_ft.cargar(trozos[0])), "listado")
+        return
+
+    if cmd in ("renombrar", "duplicar"):
+        if "|" not in resto:
+            _print_line(f"[warn_cl]Uso: /flujoteca {cmd} <nombre> | <nuevo>"
+                        f"[/warn_cl]")
+            return
+        viejo, nuevo = [x.strip() for x in resto.split("|", 1)]
+        fn = _ft.renombrar if cmd == "renombrar" else _ft.duplicar
+        r = fn(viejo, nuevo)
+        if r.get("ok"):
+            _print_line(f"[ok_cl]{_escape(r['motivo'])}[/ok_cl]")
+        else:
+            _print_line(f"[err_cl]{_escape(r['motivo'])}[/err_cl]")
+        return
+
+    if cmd == "borrar":
+        trozos = resto.rsplit(None, 1)
+        politica = _politica_borrado_flujos()
+        if len(trozos) == 2 and re.fullmatch(r"v?\d+", trozos[1]):
+            r = _ft.borrar_version(trozos[0], int(trozos[1].lstrip("v")),
+                                   quien="usuario", politica=politica)
+        else:
+            from cognia.ux import selector as _sel
+            if _sel.hay_tty() and not _sel.confirmar(
+                    f"Borrar el flujo '{resto}' ENTERO, con todas sus "
+                    f"versiones?", default=False):
+                _print_line("[info_dim]no se borro nada[/info_dim]")
+                return
+            r = _ft.borrar(resto, quien="usuario", politica=politica)
+        if r.get("ok"):
+            _print_line(f"[ok_cl]{_escape(r['motivo'])}[/ok_cl]")
+        else:
+            _print_line(f"[err_cl]{_escape(r['motivo'])}[/err_cl]")
+        return
+
+    if cmd == "editar":
+        # El nombre del flujo PUEDE llevar espacios ("Informe semanal"), asi
+        # que partir por el primer espacio no vale: con eso, `/flujoteca
+        # editar Informe semanal anade X` buscaba un flujo llamado "Informe" y
+        # respondia "no hay ningun flujo llamado 'Informe'". Se cazo
+        # TECLEANDOLO, no en los tests.
+        #
+        # La forma correcta es preguntarle a la biblioteca: se busca el nombre
+        # REAL mas largo que sea prefijo de lo tecleado. Asi el usuario escribe
+        # como habla y no tiene que aprender un separador.
+        nombre, instruccion = _flujoteca_partir_nombre(resto)
+        if not nombre or not instruccion:
+            _print_line("[warn_cl]Uso: /flujoteca editar <nombre> "
+                        "<que queres cambiar>[/warn_cl]")
+            if not nombre and resto:
+                _print_line(f"[info_dim]no encuentro ningun flujo cuyo nombre "
+                            f"empiece lo que escribiste. /flujoteca para "
+                            f"ver la lista[/info_dim]")
+            return
+        try:
+            flujo = _ft.cargar(nombre)
+        except Exception as exc:
+            _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+            return
+        from cognia.agent import flujo_ia as _fia
+        _parar_status_mejora()
+        try:
+            if _HAS_RICH and _console:
+                from cognia.ux import spinner_vivo as _sv
+                _m, _n = _sv.comando("procesando")
+                with _console.status(_m, spinner=_n):
+                    r = _fia.editar(flujo, instruccion)
+            else:
+                r = _fia.editar(flujo, instruccion)
+        except Exception as exc:
+            _aviso_degradado("cli.flujoteca.editar",
+                             f"{type(exc).__name__}: {exc}")
+            return
+        _flujoteca_guardar_desde_ia(nombre, r, instruccion[:120])
+        return
+
+    if cmd == "nuevo":
+        nombre = resto.strip()
+        if not nombre:
+            _print_line("[warn_cl]Uso: /flujoteca nuevo <nombre>[/warn_cl]")
+            return
+        if _ft.existe(nombre):
+            _print_line(f"[warn_cl]ya hay un flujo llamado "
+                        f"'{_escape(nombre)}'[/warn_cl]")
+            return
+        # Un flujo de un solo nodo, valido y ejecutable, para tener de que
+        # partir al editarlo hablando. Un flujo VACIO no se puede editar
+        # (flujo_ia.editar lo rechaza a proposito) y seria un callejon.
+        semilla = {"nombre": nombre, "nodos": [
+            {"id": "inicio", "tool": "leer_archivo",
+             "args": "cambiame con /flujoteca editar", "wires": []}]}
+        try:
+            meta = _ft.guardar(semilla, nombre=nombre, nota="creacion")
+        except Exception as exc:
+            _print_line(f"[err_cl]no se pudo crear: {_escape(str(exc))}[/err_cl]")
+            return
+        _show_response(
+            f"Flujo '{nombre}' creado (v{meta['version_actual']})\n\n"
+            f"  /flujoteca editar {nombre} <que tiene que hacer>\n"
+            f"  /flujoteca abrir {nombre}", "listado")
+        return
+
+    _print_line(f"[warn_cl]no entiendo '{_escape(cmd)}'. "
+                f"Proba /flujoteca ayuda[/warn_cl]")
+
+
+def _slash_session_to_workflow(arg: str = "") -> None:
+    """Convierte lo hecho en esta sesion en un flujo reutilizable."""
+    from cognia.agent import flujo_ia as _fia
+    from cognia.agent import flujoteca as _ft
+
+    nombre = (arg or "").strip()
+    if not _history:
+        _print_line("[warn_cl]esta sesion todavia no tiene nada que "
+                    "convertir[/warn_cl]")
+        return
+
+    # Las tools que de VERDAD se ejecutaron pesan mas que la conversacion.
+    # Se sacan del grabador de flujos si esta grabando; si no, del historial
+    # del agente. Ninguna de las dos es obligatoria: sin ellas el modelo
+    # trabaja solo con la conversacion, peor pero util.
+    pasos = []
+    try:
+        from cognia.flujos import grabador as _gr
+        activa = getattr(_gr, "grabacion_activa", None)
+        if callable(activa):
+            gid = activa()
+            if gid:
+                pasos = [p for p in (_gr.pasos(gid) or [])]
+    except Exception as exc:
+        _aviso_degradado("cli.s2w.grabador", f"{type(exc).__name__}: {exc}")
+
+    _parar_status_mejora()
+    try:
+        if _HAS_RICH and _console:
+            from cognia.ux import spinner_vivo as _sv
+            _m, _n = _sv.comando("procesando")
+            with _console.status(_m, spinner=_n):
+                r = _fia.de_sesion(_history, nombre=nombre, pasos_reales=pasos)
+        else:
+            r = _fia.de_sesion(_history, nombre=nombre, pasos_reales=pasos)
+    except Exception as exc:
+        _aviso_degradado("cli.s2w", f"{type(exc).__name__}: {exc}")
+        return
+
+    if not r.ok:
+        _print_line(f"[warn_cl]no salio ningun flujo: "
+                    f"{_escape(r.motivo)}[/warn_cl]")
+        _print_line("[info_dim]pasa cuando la sesion fue conversacion sin "
+                    "trabajo reproducible[/info_dim]")
+        return
+
+    nombre_final = nombre or r.flujo.get("nombre") or "flujo de la sesion"
+    if _ft.existe(nombre_final):
+        # No se pisa en silencio: se guarda como version nueva Y se dice.
+        _print_line(f"[info_dim]ya existia '{_escape(nombre_final)}': se "
+                    f"guarda como version nueva[/info_dim]")
+    if _flujoteca_guardar_desde_ia(nombre_final, r, "de la sesion"):
+        _print_line(f"[info_dim]/flujoteca abrir {_escape(nombre_final)}   "
+                    f"para verlo   ·   /flujoteca editar "
+                    f"{_escape(nombre_final)} <cambio>   para retocarlo"
+                    f"[/info_dim]")
+
+
+# Timings del ULTIMO turno contra el backend. llama-server no los guarda:
+# vienen dentro de cada respuesta y se pierden si nadie los recoge. Este dict
+# es el unico sitio donde sobreviven, y es lo que le da a /contexto-vivo los
+# tok/s REALES en vez de una estimacion.
+_ULTIMOS_TIMINGS: dict = {}
+
+
+def registrar_timings(timings) -> None:
+    """Guarda el bloque `timings` de una respuesta de llama-server.
+
+    Publica (sin guion bajo) a proposito: lo llama quien reciba una respuesta
+    del backend, y eso puede pasar desde varios modulos."""
+    if isinstance(timings, dict) and timings:
+        _ULTIMOS_TIMINGS.clear()
+        _ULTIMOS_TIMINGS.update(timings)
+
+
+def _slash_contexto_vivo(arg: str = "") -> None:
+    """Cuanto contexto hay, donde vive y a que velocidad va.
+
+    Dos niveles a proposito (regla de UX de la mision): lo que ve cualquiera
+    no menciona la palabra KV, y 'avanzado' ensena todo con la procedencia de
+    cada numero al lado. Nadie deberia tener que saber que es un KV cache
+    para leer 'Contexto: 94K / 128K'."""
+    valor = (arg or "").strip().lower()
+
+    if valor in ("ayuda", "-h", "--help"):
+        _show_response(
+            "/contexto-vivo — cuanto contexto te queda y a que velocidad va\n"
+            "\n"
+            "  /contexto-vivo             lo esencial\n"
+            "  /contexto-vivo avanzado    todo, con la fuente de cada numero\n"
+            "  /contexto-vivo json        para scripts\n"
+            "\n"
+            "Cada dato dice si esta MEDIDO (lo dijo el servidor, el driver o\n"
+            "el sistema) o ESTIMADO (se calculo). Lo que no se puede saber se\n"
+            "lista como 'sin dato' en vez de rellenarse con un numero bonito.",
+            "listado")
+        return
+
+    try:
+        from cognia.harness import medidor_contexto as _mc
+    except Exception as exc:
+        _aviso_degradado("cli.contexto_vivo", f"{type(exc).__name__}: {exc}")
+        return
+    try:
+        inst = _mc.medir(timings=dict(_ULTIMOS_TIMINGS) or None)
+    except Exception as exc:
+        # medir() promete no lanzar; si lanza es un bug del cableado.
+        _aviso_degradado("cli.contexto_vivo", f"{type(exc).__name__}: {exc}")
+        _print_line("[err_cl]no pude medir el contexto[/err_cl]")
+        return
+
+    if valor == "json":
+        _show_response(json.dumps(inst.a_dict(), ensure_ascii=False, indent=2),
+                       "listado")
+        return
+
+    if valor in ("avanzado", "tecnico", "todo", "-v"):
+        _show_response(_mc.formato_tecnico(inst), "listado")
+        return
+
+    lineas = [_mc.formato_humano(inst)]
+    if not _ULTIMOS_TIMINGS:
+        lineas.append("")
+        lineas.append("  (la velocidad aparece despues del primer turno)")
+    # Los avisos importan: son la diferencia entre "el dato no existe" y "no
+    # lo pude leer", que es la confusion que mas cuesta en este repo.
+    if inst.avisos:
+        lineas.append("")
+        for a in inst.avisos[:2]:
+            lineas.append(f"  aviso: {a}")
+        if len(inst.avisos) > 2:
+            lineas.append(f"  ({len(inst.avisos) - 2} avisos mas en "
+                          f"/contexto-vivo avanzado)")
+    lineas.append("")
+    lineas.append("  /contexto-vivo avanzado   para el detalle tecnico")
+    _show_response("\n".join(lineas), "listado")
 
 
 def _mejora_aplica(raw: str) -> bool:
@@ -8421,7 +9164,13 @@ def _mejorar_linea_interactiva(raw: str):
     from cognia.ux import selector as _selector
 
     if _estado_mejorar() == "auto":
-        mejora = _mejora_generar(raw, "cli.mejorar.auto")
+        # Contexto SI, encuesta NO. En 'auto' el trato es que el usuario no
+        # toca nada: meter preguntas aqui convertiria el modo automatico en
+        # el modo manual, que es justo lo que el usuario apago. Las encuestas
+        # viven en el camino 'preguntar', donde el usuario YA eligio mejorar.
+        _ctx_auto = _contexto_de_mejora(raw)
+        mejora = _mejora_generar(raw, "cli.mejorar.auto",
+                                 contexto=getattr(_ctx_auto, "bloque", ""))
         if mejora is None or not mejora.ok:
             _linea_sin_mejorar(mejora)
             return raw
@@ -8459,8 +9208,23 @@ def _mejorar_linea_interactiva(raw: str):
     if eleccion != "mejorar":
         return raw                # "enviar": la linea intacta
 
-    mejora = _mejora_generar(raw, "cli.mejorar.preguntar")
+    # El contexto se reune ANTES de la encuesta porque la encuesta lo usa
+    # para no preguntar lo que ya esta dicho (regla 1 de harness/encuesta.py).
+    _ctx = _contexto_de_mejora(raw)
+    _texto = _encuesta_interactiva(raw, _ctx)
+    if _texto is None:
+        return _mejora_devolver_al_prompt(raw)
+
+    mejora = _mejora_generar(_texto, "cli.mejorar.preguntar",
+                             contexto=getattr(_ctx, "bloque", ""))
     if mejora is None or not mejora.ok:
+        if _texto != raw:
+            # La encuesta SI aporto aunque el reformulador fallara: se envia
+            # el pedido con las respuestas incorporadas en vez de tirarlas.
+            # Perder lo que el usuario acaba de contestar seria el peor de
+            # los desenlaces posibles de una encuesta.
+            _linea_sin_mejorar(mejora, "sin reformular (pero con tus respuestas)")
+            return _texto
         _linea_sin_mejorar(mejora)
         return raw
 
@@ -8661,7 +9425,9 @@ def _slash_mejorar(args: str) -> None:
 
     # Cualquier otra cosa es TEXTO a reformular: se imprime, no se envia. Es
     # la puerta testeable sin tty (y la forma de probar el experto a mano).
-    mejora = _mejora_generar(args, "cli.mejorar.comando")
+    _ctx_cmd = _contexto_de_mejora(args)
+    mejora = _mejora_generar(args, "cli.mejorar.comando",
+                             contexto=getattr(_ctx_cmd, "bloque", ""))
     if mejora is None:
         _print_line("[warn_cl]El mejorador no esta disponible (ver el aviso de "
                     "arriba).[/warn_cl]")
@@ -8952,6 +9718,188 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
             fm[k.strip()] = v.strip()
     body = "\n".join(lines[end + 1:]).lstrip("\n")
     return fm, body
+
+
+def _memorias_familias_config() -> tuple:
+    """(familias pedidas o None, aviso). Clave de config 'memorias_familias':
+    lista separada por comas; vacio = todas. Existe para que quien tenga una
+    base enorme pueda dejar fuera la familia que no le interesa sin tocar
+    codigo, y es el punto de extension de la puerta."""
+    try:
+        crudo = str(_load_config().get("memorias_familias", "")).strip()
+    except Exception as exc:
+        return None, f"no pude leer la config: {type(exc).__name__}: {exc}"
+    if not crudo:
+        return None, ""
+    from cognia.memory import catalogo as _cat
+    pedidas = [f.strip().lower() for f in crudo.split(",") if f.strip()]
+    validas = [f for f in pedidas if f in _cat.familias_disponibles()]
+    sobran = [f for f in pedidas if f not in _cat.familias_disponibles()]
+    aviso = ""
+    if sobran:
+        # No se ignora en silencio: una familia mal escrita en la config
+        # haria que el dueno viera menos artefactos sin saber por que.
+        aviso = ("familias desconocidas en 'memorias_familias': "
+                 + ", ".join(sobran) + " (validas: "
+                 + ", ".join(_cat.familias_disponibles()) + ")")
+    return (validas or None), aviso
+
+
+def _memorias_catalogo():
+    """El catalogo ya construido, o None si fallo (y entonces ya se aviso)."""
+    familias, aviso = _memorias_familias_config()
+    if aviso:
+        _aviso_degradado("cli.memorias.config", aviso)
+    try:
+        from cognia.memory import catalogo as _cat
+        return _cat.construir(familias=familias)
+    except Exception as exc:
+        _aviso_degradado("cli.memorias.catalogo",
+                         f"{type(exc).__name__}: {exc}")
+        return None
+
+
+def _memorias_pintar_filas(filas, titulo: str) -> None:
+    """Lista en el terminal. Se usa para /memorias lista y buscar."""
+    if not filas:
+        _print_line("[info_dim]nada que mostrar[/info_dim]")
+        return
+    from cognia.memory import memorias_view as _mv
+    # La FECHA primero y el titulo AL FINAL: las dos primeras columnas son de
+    # ancho fijo, asi que si la fila no cabe en el panel lo unico que se
+    # recorta es la cola del titulo. Con el titulo en medio (la version
+    # anterior) la fecha se iba a la linea siguiente y la lista quedaba a
+    # doble espacio, ilegible. Se vio al TECLEARLO; ningun test lo miraba.
+    try:
+        ancho = max(60, min(120, int(_console.width) if _console else 100))
+    except Exception:
+        ancho = 100
+    tope_titulo = max(24, ancho - 38)
+    lineas = [titulo, ""]
+    for f in filas:
+        etiqueta = (_mv._FAMILIAS_UI.get(f.familia) or (f.familia,))[0]
+        fecha = (f.modificado or f.creado or "")[:16].replace("T", " ") or "sin fecha"
+        lineas.append(f"  {fecha:<16}  {etiqueta:<12} {f.titulo[:tope_titulo]}")
+    _show_response("\n".join(lineas), "listado")
+
+
+def _slash_memorias(arg: str = "") -> None:
+    """Dashboard y libreria de artefactos. Puerta de cognia/memory/catalogo.py
+    y cognia/memory/memorias_view.py.
+
+    Sin argumento genera el HTML y lo abre. Los subcomandos existen para no
+    obligar a abrir un navegador cuando lo unico que hace falta es mirar:
+    'lista', 'buscar' y 'estado' resuelven dentro del terminal.
+    """
+    partes = (arg or "").strip().split(None, 1)
+    cmd = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+
+    if cmd in ("ayuda", "-h", "--help"):
+        _show_response(
+            "/memorias — la libreria de todo lo que Cognia produjo\n"
+            "\n"
+            "  /memorias                 genera el dashboard y lo abre\n"
+            "  /memorias lista [familia] lista en el terminal\n"
+            "  /memorias buscar <texto>  busca por nombre, resumen o etiqueta\n"
+            "  /memorias estado          que se leyo, cuanto tardo y que fallo\n"
+            "\n"
+            "Config (~/.cognia_config.json):\n"
+            "  memorias_familias          familias a incluir, separadas por coma\n"
+            "                             (vacio = todas)\n"
+            "  memorias_abrir_navegador   false para solo escribir el fichero\n",
+            "listado")
+        return
+
+    if cmd == "estado":
+        cat = _memorias_catalogo()
+        if cat is None:
+            _print_line("[err_cl]el catalogo no se pudo construir "
+                        "(mira el aviso de arriba)[/err_cl]")
+            return
+        familias, aviso_cfg = _memorias_familias_config()
+        lineas = ["Estado del catalogo de memorias", ""]
+        lineas.append(f"  artefactos:   {len(cat.filas)}")
+        lineas.append(f"  tardo:        {cat.ms} ms")
+        lineas.append(f"  familias ok:  {', '.join(cat.familias_ok) or '(ninguna)'}")
+        if cat.familias_fallidas:
+            lineas.append(f"  FALLARON:     {', '.join(cat.familias_fallidas)}")
+        lineas.append(f"  filtro config: {', '.join(familias) if familias else '(todas)'}")
+        lineas.append("")
+        for fam, n in sorted(cat.conteo().items(), key=lambda kv: -kv[1]):
+            lineas.append(f"    {fam:<12} {n:>5}")
+        if cat.avisos:
+            lineas.append("")
+            lineas.append(f"  avisos ({len(cat.avisos)}):")
+            for a in cat.avisos[:6]:
+                lineas.append(f"    - {a}")
+            if len(cat.avisos) > 6:
+                lineas.append(f"    ... y {len(cat.avisos) - 6} mas")
+        _show_response("\n".join(lineas), "listado")
+        return
+
+    if cmd == "lista":
+        cat = _memorias_catalogo()
+        if cat is None:
+            return
+        filas = cat.filas
+        if resto:
+            fam = resto.strip().lower()
+            filas = [f for f in filas if f.familia == fam]
+            if not filas:
+                _print_line(f"[warn_cl]no hay artefactos de la familia "
+                            f"'{_escape(fam)}' (familias: "
+                            f"{', '.join(sorted(cat.conteo()))})[/warn_cl]")
+                return
+        filas = sorted(filas, key=lambda f: (f.modificado or f.creado or ""),
+                       reverse=True)[:40]
+        _memorias_pintar_filas(filas, f"Memorias — {len(filas)} mas recientes")
+        return
+
+    if cmd == "buscar":
+        if not resto:
+            _print_line("[warn_cl]Uso: /memorias buscar <texto>[/warn_cl]")
+            return
+        cat = _memorias_catalogo()
+        if cat is None:
+            return
+        from cognia.memory import catalogo as _cat
+        filas = _cat.buscar(cat, resto, tope=20, minimo=1)
+        _memorias_pintar_filas(
+            filas, f"Memorias — {len(filas)} resultados para '{resto}'")
+        return
+
+    if cmd:
+        _print_line(f"[warn_cl]subcomando desconocido: '{_escape(cmd)}'. "
+                    f"Proba /memorias ayuda[/warn_cl]")
+        return
+
+    # Sin subcomando: el dashboard.
+    cat = _memorias_catalogo()
+    if cat is None:
+        return
+    try:
+        abrir = bool(_load_config().get("memorias_abrir_navegador", True))
+    except Exception as exc:
+        _aviso_degradado("cli.memorias.config", f"{type(exc).__name__}: {exc}")
+        abrir = True
+    try:
+        from cognia.memory.memorias_view import export as _mem_export
+        ruta = _mem_export(cat, open_browser=abrir)
+    except Exception as exc:
+        _aviso_degradado("cli.memorias.export", f"{type(exc).__name__}: {exc}")
+        _print_line("[err_cl]no pude generar el dashboard[/err_cl]")
+        return
+    cabecera = ("Dashboard de memorias generado y abierto en el navegador"
+                if abrir else "Dashboard de memorias generado")
+    detalle = [cabecera, f"  {ruta}", "",
+               f"  {len(cat.filas)} artefactos en {cat.ms} ms",
+               f"  {', '.join(f'{k}: {v}' for k, v in sorted(cat.conteo().items()))}"]
+    if cat.familias_fallidas:
+        detalle.append(f"  NO se pudieron leer: {', '.join(cat.familias_fallidas)}")
+    if cat.avisos:
+        detalle.append(f"  {len(cat.avisos)} avisos (mira /memorias estado)")
+    _show_response("\n".join(detalle), "listado")
 
 
 def _slash_skills(arg: str = ""):
@@ -18605,6 +19553,21 @@ def _repl_sesion():
                 _run(raw, lambda: ai.show_graph(concepto), color="listado")
             elif raw == "/grafo":
                 _print_line("[warn_cl]Uso: /grafo <concepto>[/warn_cl]")
+            elif raw == "/contexto-vivo" or raw.startswith("/contexto-vivo "):
+                _slash_contexto_vivo(raw[len("/contexto-vivo"):].strip())
+            elif raw == "/flujoteca" or raw.startswith("/flujoteca "):
+                _slash_flujoteca(raw[len("/flujoteca"):].strip())
+            elif (raw == "/session-to-workflow"
+                  or raw.startswith("/session-to-workflow ")):
+                _slash_session_to_workflow(
+                    raw[len("/session-to-workflow"):].strip())
+            elif raw == "/encuestas" or raw.startswith("/encuestas "):
+                _slash_encuestas(raw[len("/encuestas"):].strip())
+            elif raw == "/memorias" or raw.startswith("/memorias "):
+                # Puerta del catalogo unificado (cognia/memory/catalogo.py) y
+                # del dashboard (memorias_view.py). Sin subcomando genera el
+                # HTML y lo abre; con subcomando resuelve en el terminal.
+                _slash_memorias(raw[len("/memorias"):].strip())
             elif raw == "/grafo-html" or raw.startswith("/grafo-html "):
                 # Exporta el KG a un HTML interactivo y lo abre. graph_view.export ya
                 # renderizaba/abria pero no se alcanzaba desde el REPL (huerfana).

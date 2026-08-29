@@ -14352,3 +14352,114 @@ un tope espurio. Es la diferencia entre "no responde" y "responde y pide mas pre
 Leccion del dia, y es de metodo: los cinco primeros topes salieron de LEER (codigo, log e historial);
 los dos ultimos solo aparecieron al CORRER la tarea real de punta a punta. Un diagnostico de lectura
 encuentra las causas que dejaron huella; las que quedan solo se ven ejecutando.
+
+---
+
+## 2026-08-28 — Mejorador con contexto, encuestas, memorias, flujoteca y medición del KV
+
+Sesión con el dueño dormido (autorizó autonomía y pidió apagar al terminar).
+Mandato: mejorar Cognia de extremo a extremo **en el CLI**, con pruebas reales.
+
+### Qué se entregó (5 comandos nuevos, todos en `/ayuda` y tecleados)
+
+| Comando | Módulos nuevos detrás |
+|---|---|
+| `/memorias` | `memory/catalogo.py`, `memory/memorias_view.py` |
+| `/encuestas` | `harness/encuesta.py`, `ux/selector.py` (ampliado) |
+| `/flujoteca` | `agent/flujoteca.py`, `agent/flujoteca_view.py`, `agent/flujo_ia.py` |
+| `/session-to-workflow` | `agent/flujo_ia.py` |
+| `/contexto-vivo` | `harness/medidor_contexto.py` |
+
+Más `harness/contexto_mejora.py` (el contexto que se le pasa al mejorador),
+`scripts/banco_kv.py` y `scripts/e2e_mejoras_20260828.py`.
+
+### El hallazgo de partida
+
+`mejorar_prompt.mejorar()` aceptaba un parámetro `contexto` **desde que se
+escribió** y ningún caller de producción se lo pasaba: el único sitio que lo
+ejercitaba era un test. El reformulador veía únicamente la línea tecleada.
+Cerrar ese agujero era el 80% de la sección 1 del pedido.
+
+### Verificación
+
+- **237 tests nuevos**, todos en verde.
+- **E2E contra el modelo real: 12/12** (`scripts/e2e_mejoras_20260828.py`).
+  La reformulación real usó el contexto ("...en el proyecto cognia_v2") y la
+  edición conversacional eligió `json_validar`, una tool real del registro.
+- **Banco del KV: 10 celdas** con la máquina limpia (`docs/MEJORAS_20260828.md`).
+
+### Bugs REALES cazados por las pruebas (7)
+
+1. `_bytes_de("")` recorría el repo entero (`Path("")` == cwd). El catálogo
+   tardaba **46 s**; tras el fix, **0,17 s**. La causa raíz era leer
+   `spec.path` en skills, campo que `SkillSpec` no tiene.
+2. `_casa()` exigía límite de palabra por los dos lados y mataba las señales
+   que son extensión (`.csv`, `*.`): la encuesta preguntaba "¿dónde están los
+   datos?" a quien acababa de escribir `ventas.csv`.
+3. Las señales casaban por **substring**: `"para"` casaba dentro de
+   `com**para**` y de `"**para** pedir"`; dos frases salían clasificadas como
+   acción.
+4. `encuesta.preparar()` prometía "nunca lanza" y reventaba con
+   `AttributeError` si `generar_fn` devolvía algo que no fuera texto.
+5. `flujo_ia.sanear_flujo()` **descartaba en silencio** los nodos sin `tool`
+   o con id duplicado: el editor devolvía `ok=True` con un flujo al que le
+   faltaba justo el nodo que el usuario pidió añadir.
+6. `flujoteca.cargar()` ofrecía versiones ya borradas en su mensaje de error
+   ("no tiene versión 2 (hay: v1, v2, v3)").
+7. **El peor, y solo lo cazó el e2e contra el modelo real:** el ejemplo del
+   prompt de `flujo_ia` usaba `buscar_web`, que **no existe** en el registro.
+   El modelo copiaba el nombre y `flows.validar()` rechazaba todos los flujos
+   generados. Sesión-a-flujo y edición conversacional **no funcionaban nunca**
+   contra el modelo real, mientras los 60 tests con `generar_fn` inyectado
+   pasaban todos. Blindado con
+   `test_el_ejemplo_del_prompt_usa_tools_reales`.
+
+### El error de medida que me cacé a mí mismo
+
+La primera corrida del banco dio resultados imposibles (f16 a 32K = 66 tok/s
+de prefill, f16 a 65K = 750). Un contexto mayor no puede ir once veces más
+rápido. La causa: `vram_antes` era **4.220 MiB** en unas celdas (navegador y
+pruebas del REPL abiertos) y **435 MiB** en otras. Las celdas no eran
+comparables. Se añadió la guarda `linea_base_sucia` al banco y se rehízo la
+corrida con la máquina quieta. Los números del informe son los limpios.
+
+Antes de eso, la corrida **anterior** había dado 20/20 fallos: el patrón
+`qwen3.8-27b` casaba `mmproj-Qwen3.8-27B-BF16.gguf` antes que el modelo real,
+y yo mismo me había cegado pasando `--log-disable` al servidor. Cuarta vez en
+este repo que un match por substring se lleva un modelo que no era suyo.
+
+### Corrección al pedido del dueño
+
+Pidió "KV caliente en VRAM y frío en RAM con recuperación bajo demanda".
+**llama.cpp no hace paginación de KV por token.** Lo que sí hace, y Cognia ya
+usaba estrangulado a 1 GiB, es `--cache-ram`: el KV de las conversaciones
+**inactivas** se serializa a RAM y se restaura a VRAM si vuelve un prompt con
+el mismo prefijo. El reparto caliente/frío existe, pero a granularidad de
+conversación, no de token. Se subió de 1024 fijo a 25% de la RAM libre
+(acotado a [1024, 8192] MiB) y se añadió `--metrics`.
+
+Medido: `--no-kv-offload` (KV entero en RAM, lo que el dueño intuía que era
+mala idea) cuesta **entre el 60% y el 74%** de la velocidad de generación.
+La intuición era correcta y ahora está medida.
+
+### Estado de la suite
+
+Línea base ANTES de tocar nada: 52 failed / 12.589 passed. Ver el commit para
+el conteo posterior. El fallo de
+`test_cli_mejorar_prompt.py::test_el_bucle_del_repl_enruta_los_centinelas` es
+**preexistente** (busca una cadena literal que tampoco está en `HEAD`),
+verificado con `git show HEAD:cognia/cli.py`.
+
+### Pendiente
+
+- Generar una encuesta cuesta 3-4 s con el 27B. La vía es servirla con un
+  modelo pequeño de la flota en vez del cerebro.
+- `~/.cognia/config.env` sigue con `LLAMA_CTX_SIZE=200192`, calibrado para el
+  9B anterior. Hoy la receta por modelo lo pisa con aviso, pero la perilla
+  rancia sigue ahí.
+- `detectar_backend()` se deja engañar por `tailscaled` en `:8080` (20 s de
+  espera antes del timeout). `medidor_contexto` lo esquiva prefiriendo el bind
+  de `127.0.0.1`; el detector general del repo no.
+- Bug de datos preexistente: `semantic_memory.description` de
+  `agente_tarea_completada` y `respuesta_streaming` contiene un vector de
+  embeddings en vez de texto. El catálogo lo detecta y avisa; no lo arregla.
