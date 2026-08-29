@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-08-17 15:15:13
+> Generado: 2026-08-28 22:59:01
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -13,32 +13,36 @@
 
 ## Backend LLM
 - GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf
-- Modelos en C:\Users\usuario\.cognia\models: Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf, OpenReasoning-Nemotron-14B.Q4_K_M.gguf, Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf, Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf, Qwen3-1.7B-Q4_K_M.gguf, Qwen3-4B-Thinking-2507-Q4_K_M.gguf, UIGEN-X-8B.Q8_0.gguf, gpt-oss-20b-MXFP4.gguf, mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf, mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf, nemotron-3.5-lightning-30b-a3b-Q4_0.gguf, nemotron-mtp-Q4_0.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
+- Modelos en C:\Users\usuario\.cognia\models: Huihui-Qwythos-9B-Claude-Mythos-5-1M-abliterated-Q4_K.gguf, OpenReasoning-Nemotron-14B.Q4_K_M.gguf, Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf, Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf, Qwen3-1.7B-Q4_K_M.gguf, Qwen3-4B-Thinking-2507-Q4_K_M.gguf, Qwen3.8-27B-Ridge-3.7bpw.gguf, UIGEN-X-8B.Q8_0.gguf, gpt-oss-20b-MXFP4.gguf, mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf, mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf, mmproj-Qwen3.8-27B-BF16.gguf, nemotron-3.5-lightning-30b-a3b-Q4_0.gguf, nemotron-mtp-Q4_0.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
 - Shards NPZ en C:\Users\usuario\.cognia\shards\qwen-coder-3b-q4: shard_0.npz, shard_1.npz, shard_2.npz, shard_3.npz
 - Ollama: disponible en http://localhost:11434
 - Backend en uso (llm_local): ollama en http://localhost:11434
 
 ## Mapa del repo
 - Modulos .py top-level: 8
-- cognia/: 477 archivos .py
+- cognia/: 566 archivos .py
 - node/: 18 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 578 archivos .py
-- Archivos de test (tests/test_*.py): 575
+- tests/: 693 archivos .py
+- Archivos de test (tests/test_*.py): 688
 
 ## Radar de cobertura (anti-danos-colaterales)
-- Modulos con simbolos publicos: 451
-- SIN ninguna mencion en tests/: 27
+- Modulos con simbolos publicos: 531
+- SIN ninguna mencion en tests/: 32
 - Fuera del radar (revisar al tocar features vecinas):
+  * cognia/agent/tools_mcp.py (1 simbolos publicos)
+  * cognia/autopsia/motor.py (1 simbolos publicos)
   * cognia/experts/identity_dataset.py (2 simbolos publicos)
   * cognia/experts/meta_maker.py (1 simbolos publicos)
   * cognia/memory_response_engine.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/cognia_game/game.py (1 simbolos publicos)
   * cognia/program_creator/generated_programs/cosmic_census_self_aware_starfield_simulation/program.py (8 simbolos publicos)
+  * cognia/program_creator/generated_programs/di_hola_en_3_palabras/program.py (1 simbolos publicos)
   * cognia/program_creator/generated_programs/fractal_pattern_renderer/program.py (4 simbolos publicos)
+  * cognia/program_creator/generated_programs/hola_en_3_palabras/program.py (1 simbolos publicos)
   * cognia/program_creator/generated_programs/in_memory_task_manager_with_undo_stack_and_unit_te/program.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/juego_extremadamente_adictivo_llamado/program.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/juego_minecraft/program.py (2 simbolos publicos)
@@ -49,6 +53,7 @@
   * cognia/program_creator/generated_programs/task_manager_with_sqlite_in_memory_undo_stack_and_01/program.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/text_compressor_01/program.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/untitled_procedural_story_generator_with_built_in/program.py (2 simbolos publicos)
+  * cognia/program_creator/generated_programs/virtual_pet_health_monitor/program.py (3 simbolos publicos)
   * cognia/research_engine/research_orchestrator.py (4 simbolos publicos)
   * cognia/tui/widgets/header.py (1 simbolos publicos)
   * cognia/tui/widgets/statusbar.py (1 simbolos publicos)

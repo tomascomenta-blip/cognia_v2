@@ -347,8 +347,8 @@ def test_n_ctx_del_backend_sin_backend_devuelve_None(monkeypatch):
 def test_orden_arrancar_no_manda_al_combo_equivocado():
     """EL DEFECTO (revision adversarial 2026-08-13): los tres avisos de 'no hay
     backend' decian 'flota arrancar pensar', y ese combo levanta gpt-oss-20b —
-    NO el cerebro principal (flota.COMBO_DEFAULT='pensar-qwythos' desde el
-    2026-08-09). Al usuario que se quedo sin backend se le mandaba a levantar
+    NO el cerebro principal (flota.COMBO_DEFAULT='pensar-qwen38' desde el
+    2026-08-26). Al usuario que se quedo sin backend se le mandaba a levantar
     otro modelo del que espera el resto del sistema."""
     from cognia import flota
     orden = ba.orden_arrancar()
@@ -363,13 +363,13 @@ def test_sin_backend_sugiere_el_cerebro_principal(monkeypatch, tmp_path,
     monkeypatch.setattr(ba, "AUDIT", tmp_path / "audit.jsonl")
     ba.sin_backend("chat", "prueba del combo")
     err = capsys.readouterr().err
-    assert "flota arrancar pensar-qwythos" in err, err
+    assert "flota arrancar pensar-qwen38" in err, err
 
 
 def test_estado_sin_backend_sugiere_el_cerebro_principal(monkeypatch):
     monkeypatch.setattr(ba, "props", lambda url, forzar=False: {})
     avisos = ba.estado()["avisos"]
-    assert avisos and "flota arrancar pensar-qwythos" in avisos[0], avisos
+    assert avisos and "flota arrancar pensar-qwen38" in avisos[0], avisos
 
 
 def test_resetear_cache_tambien_olvida_la_sonda(monkeypatch, tmp_path):

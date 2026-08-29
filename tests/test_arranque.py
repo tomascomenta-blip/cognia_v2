@@ -218,7 +218,7 @@ class TestBackend:
         p = A.paso_backend(vivo=False)
         assert p["estado"] == "falta"
         # Orden que existe INSTALADA (no 'python scripts/servir_flota.py').
-        assert p["accion"] == "python -m cognia flota arrancar pensar-qwythos"
+        assert p["accion"] == "python -m cognia flota arrancar pensar-qwen38"
 
     def test_una_excepcion_de_la_flota_no_tumba_el_arranque(self, monkeypatch):
         def _revienta():

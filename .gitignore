@@ -147,3 +147,6 @@ sintesis_*.log
 
 # Evidencia de las pruebas humanas de DSH (PNG y workspaces): no va al repo
 dsh_pruebas/
+
+# Telemetria local del gate de permisos (por maquina; las REGLAS si son del proyecto)
+.cognia/permisos_estado.json

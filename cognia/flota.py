@@ -114,10 +114,13 @@ COMBOS = {
 }
 
 # El combo que arranca `cognia flota arrancar` sin argumento: el CEREBRO
-# PRINCIPAL. Desde 2026-08-09 es Qwythos-9B (pedido del dueño); gpt-oss-20b
-# sigue disponible como combo 'pensar' para quien lo quiera o para reproducir
-# los bancos b1_* que lo mapean por nombre.
-COMBO_DEFAULT = "pensar-qwythos"
+# PRINCIPAL. Desde 2026-08-26 es Qwen3.8-27B Ridge (pedido del dueño: "baja a
+# qwythos y pon al 27b"). Qwythos-9B sigue disponible como combo
+# 'pensar-qwythos' y gpt-oss-20b como 'pensar' (los bancos b1_* lo mapean por
+# nombre). El precio del cambio esta MEDIDO: el gate e2e del camino feliz sale
+# 5/5 con los dos, pero tarda 8,4 min con el 27B contra 1,1 min con el 9B
+# (~31 tok/s con MTP contra 125, y ademas piensa mas tokens).
+COMBO_DEFAULT = "pensar-qwen38"
 
 PUERTOS = ((8080, "cerebro/pensador"), (8081, "VLM/arbitro"))
 

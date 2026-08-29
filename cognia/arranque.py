@@ -418,7 +418,7 @@ def paso_backend(url: str = "", vivo: Optional[bool] = None) -> dict:
                      f"{url} (COGNIA_LLM_URL) no responde y no es de esta "
                      f"maquina",
                      "arranca ese server, o quita COGNIA_LLM_URL para usar el "
-                     "local: python -m cognia flota arrancar pensar-qwythos")
+                     "local: python -m cognia flota arrancar pensar-qwen38")
 
     from cognia import flota   # solo para nombrar el combo en el mensaje
     orden = f"python -m cognia flota arrancar {flota.COMBO_DEFAULT}"

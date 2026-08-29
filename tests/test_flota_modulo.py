@@ -61,10 +61,17 @@ class TestCombos:
         assert F.combo_de_modelo(
             "OpenReasoning-Nemotron-14B.Q4_K_M.gguf") == "pensar-en-lazo"
 
-    def test_cerebro_principal_es_qwythos(self):
-        # El dueño lo pidio 2026-08-09: `cognia flota arrancar` sin argumento
-        # levanta Qwythos, no gpt-oss.
-        assert F.COMBO_DEFAULT == "pensar-qwythos"
+    def test_cerebro_principal_es_qwen38(self):
+        # El dueño lo pidio 2026-08-26 ("baja a qwythos y pon al 27b"):
+        # `cognia flota arrancar` sin argumento levanta Qwen3.8-27B Ridge.
+        assert F.COMBO_DEFAULT == "pensar-qwen38"
+        (script, args), = F.COMBOS["pensar-qwen38"]
+        assert script == "servir_modelo.py"
+        assert "Ridge" in args
+
+    def test_qwythos_sigue_disponible_como_combo(self):
+        # Bajarlo de cerebro NO es retirarlo: el combo tiene que seguir ahi
+        # para volver con `flota arrancar pensar-qwythos`.
         (script, args), = F.COMBOS["pensar-qwythos"]
         assert script == "servir_modelo.py"
         assert "qwythos" in args
@@ -129,7 +136,7 @@ class TestCli:
         monkeypatch.setattr(F, "arrancar",
                             lambda modo, patron="": llamado.update(modo=modo) or 0)
         assert F.main(["arrancar"]) == 0
-        assert llamado["modo"] == F.COMBO_DEFAULT == "pensar-qwythos"
+        assert llamado["modo"] == F.COMBO_DEFAULT == "pensar-qwen38"
 
 
 class TestEstadoConProps:

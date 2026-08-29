@@ -224,7 +224,8 @@ def orden_arrancar() -> str:
 
     NO puede ser 'flota arrancar pensar': ese combo levanta gpt-oss-20b
     (flota.COMBOS['pensar']), mientras que el CEREBRO PRINCIPAL desde el
-    2026-08-09 es Qwythos-9B — flota.COMBO_DEFAULT='pensar-qwythos'. Sugerir
+    2026-08-26 es Qwen3.8-27B Ridge — flota.COMBO_DEFAULT='pensar-qwen38'.
+    Sugerir
     el combo equivocado manda al usuario que ya se quedo sin backend a
     levantar OTRO modelo, distinto del que espera el resto del sistema
     (arranque.py:421 ya decia el bueno; estos tres sitios no).
@@ -234,7 +235,7 @@ def orden_arrancar() -> str:
     guardado porque flota importa ESTE modulo (ciclo) y aqui nada puede
     lanzar; sin flota disponible (wheel raro) queda el literal de hoy.
     """
-    combo = "pensar-qwythos"
+    combo = "pensar-qwen38"
     try:
         from cognia.flota import COMBO_DEFAULT, COMBOS
         if COMBO_DEFAULT in COMBOS:
