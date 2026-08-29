@@ -3,6 +3,34 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## 2026-08-29 — Cognia 4.13.0 publicada en PyPI e instalada
+
+`https://pypi.org/project/cognia-ai/4.13.0/`, etiqueta `v4.13.0`, main en
+`294ffd3c`. Autorizacion explicita del dueno ("sube esa nueva version a pypi e
+instalala aqui").
+
+Que entra: lo que estaba hecho y sin publicar desde 4.12.2 — el mejorador de
+prompts que ve la sesion (/memorias, /encuestas, /flujoteca,
+/session-to-workflow, /contexto-vivo), los MCP stdio usables desde el CLI, el
+arreglo de tareas largas, el --cache-ram medido, el fix de "conectado" en el
+cliente MCP por HTTP, y el cerebro por defecto a Qwen3.8-27B Ridge.
+
+El CHANGELOG ya documentaba 4.12.3 y 4.12.4 pero `pyproject.toml` seguia en
+4.12.2 y ninguna llego a PyPI: se publicaron juntas como 4.13.0.
+
+Compuertas (todas ANTES de subir): gate e2e camino feliz **5/5 en 3,2 min**
+contra el 27B real en :8080 (ctx 65.536, 1 slot); suite 57 failed / 12.825
+passed contra la linea base conocida de 55, y los DOS de mas eran
+`test_version_unica` — el bump habia dejado `installer/cognia_setup.iss` en
+4.12.2 (arreglado en `294ffd3c`); `twine check` PASSED en wheel y sdist;
+venv LIMPIO con 9 modulos clave importados, `cognia --version` 4.13.0 y REPL
+arrancado por stdin.
+
+Instalada en `~/.cognia/venv` a la PRIMERA (sin la trampa de permisos de
+4.10.0): `cognia.bat --version` 4.13.0, `pip check` limpio, cero residuos
+`~ognia*`, y `/compactar estado` respondiendo en la instalada.
+
+
 ## [2026-06-16] CYCLE — EJECUCION prompt mejorado S5/Fase1: allowlist de imports (seguridad)
 - Primera fase del prompt mejorado (orden S5->S1->S3->S2->S4): seguridad como prerrequisito.
   commit c3df3c3. La validacion de codigo auto-generado era solo blocklist; regla 9 pide
