@@ -2,6 +2,72 @@
 
 ---
 
+## [4.13.0] - 2026-08-29
+
+### El cerebro por defecto ahora es Qwen3.8-27B Ridge
+
+`cognia flota arrancar` sin argumento levanta Qwen3.8-27B Ridge
+(`COMBO_DEFAULT='pensar-qwen38'`), pedido del dueno. Qwythos-9B sigue
+disponible como `pensar-qwythos` y gpt-oss-20b como `pensar` (los bancos
+b1_* lo mapean por nombre). El precio esta MEDIDO y se dice: el gate e2e del
+camino feliz sale 5/5 con los dos, pero tarda 8,4 min con el 27B contra 1,1
+min con el 9B (~31 tok/s con MTP contra 125, y ademas piensa mas tokens).
+
+El default vivia en CUATRO sitios (`flota.COMBO_DEFAULT`,
+`backend_activo.orden_arrancar`, el aviso de `arranque.paso_backend` y los
+tests): cambiarlo en uno solo habria mandado a quien se queda sin backend a
+levantar OTRO modelo, distinto del que espera el resto del sistema.
+
+### El mejorador de prompts ya VE la sesion
+
+`mejorar_prompt.mejorar()` aceptaba un parametro `contexto` desde que se
+escribio y NINGUN caller de produccion se lo pasaba: el reformulador veia
+solo la linea tecleada. Ahora ve conversacion, artefactos, recetas, skills,
+memorias, RAG y las preferencias declaradas, con presupuesto de tiempo y de
+caracteres.
+
+Cinco comandos nuevos, todos en `/ayuda` y probados tecleandolos:
+
+- **`/memorias`** — libreria de todo lo que Cognia produjo, con dashboard.
+- **`/encuestas`** — pregunta lo que falta antes de mejorar un pedido. Solo
+  corre donde no molesta: en el camino 'preguntar' (el usuario YA eligio
+  mejorar), sobre pedidos de menos de 320 chars, y el generador puede decidir
+  que no falta nada.
+- **`/flujoteca`** — biblioteca de flujos: ver, editar hablando, versionar.
+  Restaurar una version NO borra el historial: crea una version nueva con el
+  contenido viejo (la restauracion la pide el modelo conversando, y uno que
+  puede truncar el historial puede destruir trabajo con una frase ambigua).
+- **`/session-to-workflow`** — convierte la sesion en un flujo reutilizable.
+- **`/contexto-vivo`** — cuanto contexto queda, donde vive y a que velocidad.
+
+El modelo propone y `flows.validar()` dispone: un DAG con ciclo, un wire
+colgado o una tool inexistente se rechazan y el flujo anterior queda intacto.
+
+**KV en RAM, con la premisa corregida.** llama.cpp NO pagina KV por token. Lo
+que si hace, y Cognia usaba estrangulado a 1 GiB, es `--cache-ram`: el KV de
+conversaciones INACTIVAS va a RAM y vuelve a VRAM si repite el prefijo.
+Subido al 25% de la RAM libre, acotado a [1024, 8192] MiB, y anadido
+`--metrics` (sin el, `/metrics` da 501). Medido en 10 celdas con la maquina
+limpia (Qwen3.8-27B, 16 GB): q8_0 contra f16 a 65K ahorra 1.706 MiB de VRAM y
+cuesta 4,3% de velocidad; `--no-kv-offload` cuesta entre 60% y 74% de la
+generacion; techo practico 65.536 tokens (131.072 arranca y se cuelga a 600 s).
+
+Siete bugs reales cazados por las pruebas, el ultimo solo por el e2e: el
+ejemplo del prompt usaba `buscar_web`, que NO EXISTE — el modelo lo copiaba y
+`flows.validar()` rechazaba TODOS los flujos generados, mientras los 60 tests
+con `generar_fn` inyectado pasaban todos.
+
+### MCP: "conectado" no es lo mismo que "el servidor me dio un id de sesion"
+
+El cliente MCP por HTTP usaba `self.sesion` como bandera de "ya hice el
+handshake". No es lo mismo: `Mcp-Session-Id` es OPCIONAL en Streamable HTTP.
+Contra un servidor SIN ESTADO la cabecera no llega, la bandera se queda en
+None para siempre y `listar_herramientas()` y `llamar()` rehacen `initialize`
+en CADA llamada. El arreglo son cuatro lineas (`self.conectado` como bandera
+propia); `self.sesion` se conserva porque es dato legitimo del transporte.
+
+---
+
 ## [4.12.4] - 2026-08-26
 
 ### Los MCP que ya tienes en otras IA, usables desde Cognia
