@@ -356,13 +356,33 @@ def format_library_summary(storage_dir: Path = None) -> str:
         f"Eliminados históricamente: {len(deletion_log)}",
         "",
     ]
-    for prog in programs[:10]:
+    # El indice 1-based y el COMANDO COMPLETO (2026-08-29): hasta hoy esta
+    # lista no emitia el id por ningun sitio y el unico subcomando que
+    # existia, "/biblioteca ver <id>", lo exigia. Sin id, era inusable.
+    #
+    # POR QUE EL ID ENTERO Y NO UN id[:8]: en esta biblioteca el id ES el
+    # nombre de la carpeta, no un hash de 32 hex. Medido el 2026-08-29:
+    # 17 de los 97 ids comparten sus 8 primeros caracteres ("di_hola_"
+    # sale dos veces), asi que un id recortado se lee como un handle
+    # completo y no abre nada. Va entero, en su propia linea, y en forma de
+    # comando: asi se copia y se pega sin editar.
+    #
+    # OJO CON EL NUMERO: el de esta lista NO es el que acepta
+    # "/biblioteca abrir <n>". Aquel indexa sobre la pagina HTML, que lee EL
+    # DISCO entero; esta lista sale del index.json, va ordenada por created_at
+    # y esta cortada a 10. Por eso lo que se ofrece aqui es el id, que si
+    # significa lo mismo en los dos sitios.
+    for i, prog in enumerate(programs[:10], 1):
         tag = "🧠" if prog.self_proposed else "📋"
-        lines.append(f"  {tag} [{formatear_puntaje(prog)}] {prog.title}  "
+        lines.append(f"  {i:>3}. {tag} [{formatear_puntaje(prog)}] {prog.title}  "
                      f"({prog.category})")
+        lines.append(f"       /biblioteca abrir {prog.id}")
     if len(programs) > 10:
-        lines.append(f"  ... y {len(programs) - 10} más.")
+        lines.append(f"  ... y {len(programs) - 10} más — /biblioteca "
+                     f"los abre todos en el navegador.")
     lines.append("")
+    lines.append("  /biblioteca (sin nada) abre la pagina con TODOS; "
+                 "/biblioteca ver <id> muestra el codigo.")
     lines.append("  'sin verificar' = nadie ejecutó el producto; el número que "
                  "el sistema se puso a sí mismo no cuenta.")
     return "\n".join(lines)

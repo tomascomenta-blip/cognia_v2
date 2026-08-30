@@ -54,8 +54,10 @@ from datetime import datetime
 from pathlib import Path
 
 __all__ = ["dir_base", "slugificar", "guardar", "listar", "cargar",
+           "cargar_con_aviso",
            "versiones", "restaurar", "comparar", "borrar_version", "borrar",
-           "describir", "existe", "POLITICAS_BORRADO", "FlujotecaError"]
+           "describir", "existe", "guardar_ui", "leer_ui",
+           "POLITICAS_BORRADO", "FlujotecaError"]
 
 
 class FlujotecaError(ValueError):
@@ -139,24 +141,46 @@ def existe(nombre: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def guardar(flujo: dict, *, nombre: str = "", nota: str = "",
-            descripcion: str = "", validar: bool = True) -> dict:
+            descripcion: str = "", validar: bool = True,
+            tool_existe=None) -> dict:
     """Guarda `flujo` como una version NUEVA. Devuelve la meta actualizada.
 
     `nombre` manda sobre flujo['nombre']; si no hay ninguno, es un error (un
     flujo sin nombre no se puede volver a encontrar, que es el punto entero
     de tener biblioteca).
+
+    `tool_existe` es OPCIONAL a proposito. Cuando se pasa (el editor visual
+    pasa `lambda n: n in TOOLS`), un flujo con una tool inventada se rechaza
+    ANTES de escribir nada, que es donde el error se entiende. Cuando no se
+    pasa, el comportamiento es el de siempre: se valida la forma del grafo y
+    no el registro de tools. El default tiene que seguir siendo None porque
+    hay flujos legitimos que se guardan con tools que este proceso no tiene
+    cargadas (una familia opt-in apagada, un flujo tecleado a mano, los
+    tests) y convertir eso en un error dejaria al dueno sin poder guardar lo
+    que ya tenia.
     """
     if not isinstance(flujo, dict):
         raise FlujotecaError("el flujo tiene que ser un dict")
     nombre_final = (nombre or flujo.get("nombre") or "").strip()
     if not nombre_final:
         raise FlujotecaError("hace falta un nombre para guardar el flujo")
+    # EL NODO DE ENTRADA SE ASEGURA EN EL BORDE DE GUARDADO, y solo aqui.
+    # Cubre de un golpe /flujoteca nuevo, /flujoteca editar, /sesion-a-workflow,
+    # el editor visual, duplicar() y restaurar(); y deja la LECTURA permisiva,
+    # que es lo que hace que los flujos ya guardados sigan abriendose.
+    # (Medido: exigirlo en `flows.validar` rompe 126 de 293 tests y vuelve
+    # inabribles los flujos del dueno; aqui rompe 18, todos de n_nodos/diff.)
+    # Va ANTES de validar para que el nodo nuevo pase por la misma validacion
+    # que el resto: un asegurar_prompt que produjera un grafo invalido tiene
+    # que salir por el mismo error, no colarse por detras.
+    from cognia.agent import flows as _flows
+    flujo = _flows.asegurar_prompt(flujo)
     if validar:
         # Se valida ANTES de escribir. Guardar un flujo con un ciclo o un
         # wire colgado y descubrirlo al ejecutarlo convierte un error de
         # edicion en un error de ejecucion, que se diagnostica mucho peor.
-        from cognia.agent import flows as _flows
-        _flows.validar(flujo)      # levanta FlowError con el motivo exacto
+        # levanta FlowError con el motivo exacto
+        _flows.validar(flujo, tool_existe=tool_existe)
 
     flujo = dict(flujo)
     flujo["nombre"] = nombre_final
@@ -212,7 +236,33 @@ def listar() -> list:
 
 
 def cargar(nombre: str, version=None) -> dict:
-    """El flujo en esa version (o en la actual). Levanta si no existe."""
+    r"""El flujo en esa version (o en la actual). Levanta si no existe.
+
+    CONTRATO PENDIENTE (PLAN2, 5.1 "El separador de args") — F1/agente B:
+      `cargar` va a NORMALIZAR LOS ARGS al leer, llamando a
+      `flows.normalizar_args(flujo) -> (flujo, [ids_arreglados])`. Para los
+      nodos legacy cuya tool tiene >=2 params posicionales y cuyo `args` usa
+      "\n" en vez de " | ", el separador se arregla EN MEMORIA.
+      Explicitamente NO se reescribe la version en disco: las versiones del
+      dueno son historial, no cache; el arreglo se REPORTA al llamador
+      ("arregle el separador de N nodos; guardalo con /flujoteca editar para
+      dejarlo fijo").
+
+    `cargar` devuelve SOLO el flujo (firma intacta: la usan el editor, el CLI,
+    comparar(), restaurar() y duplicar()). Quien quiera el aviso llama a
+    `cargar_con_aviso`, que devuelve `(flujo, aviso)`.
+    """
+    return cargar_con_aviso(nombre, version)[0]
+
+
+def cargar_con_aviso(nombre: str, version=None) -> tuple:
+    r"""`(flujo, aviso)`. Igual que `cargar`, pero devuelve ademas el texto
+    que hay que ensenarle al dueno si al leer se arreglo el separador de
+    argumentos de algun nodo legacy ("" si no se toco nada).
+
+    La normalizacion es EN MEMORIA: la version en disco no se reescribe. Las
+    versiones del dueno son historial, no cache -- si se reescribieran, un
+    `comparar(v3, v4)` empezaria a mentir sobre lo que el cambio."""
     meta = _leer_json(_ruta_meta(nombre))
     if not meta:
         raise FlujotecaError(f"no hay ningun flujo llamado '{nombre}'")
@@ -230,7 +280,9 @@ def cargar(nombre: str, version=None) -> dict:
         raise FlujotecaError(
             f"'{nombre}' no tiene version {v} (hay: "
             f"{', '.join('v' + str(x) for x in disponibles) or 'ninguna'})")
-    return flujo
+    from cognia.agent import flows as _flows
+    flujo, arreglados = _flows.normalizar_args(flujo)
+    return flujo, _flows.aviso_normalizacion(arreglados)
 
 
 def versiones(nombre: str) -> list:
@@ -251,6 +303,87 @@ def versiones(nombre: str) -> list:
 def descripcion(nombre: str) -> str:
     meta = _leer_json(_ruta_meta(nombre)) or {}
     return str(meta.get("descripcion") or "")
+
+
+# ---------------------------------------------------------------------------
+# El estado del EDITOR (posiciones): en la meta, no en el flujo
+# ---------------------------------------------------------------------------
+# Donde viven las posiciones de los nodos es una decision, no un detalle:
+#
+#   1. `flujo_ia.sanear_flujo` reconstruye cada nodo con una whitelist cerrada
+#      ({id, tool, args, wires} + 4 opcionales). Una x/y metida en el nodo se
+#      perderia en la PRIMERA edicion conversacional, en silencio.
+#   2. `comparar()` compara una tupla fija de 7 campos. Si las posiciones
+#      fueran parte del flujo, cada arrastre del raton contaria como un
+#      cambio y el historial se llenaria de versiones que no cambian nada.
+#
+# Por eso el estado visual vive en meta["ui"] y NO crea version, NO toca
+# 'modificado' y NO entra en el diff. Mover un nodo no es editar el flujo.
+
+def _sanear_ui(ui: dict) -> dict:
+    """El ui que llega del navegador, con las posiciones ya en enteros.
+
+    Lo que entra por HTTP no es de fiar ni siquiera en localhost: una x de
+    tipo lista o un pos que no es un dict romperia la vista al leerla, mucho
+    despues de escribirla."""
+    if not isinstance(ui, dict):
+        raise FlujotecaError("el 'ui' tiene que ser un dict")
+    limpio = {}
+    for clave, valor in ui.items():
+        if clave != "pos":
+            limpio[str(clave)] = valor
+            continue
+        pos = {}
+        for nid, xy in (valor or {}).items():
+            if not isinstance(xy, dict):
+                continue
+            try:
+                pos[str(nid)] = {"x": int(round(float(xy.get("x")))),
+                                 "y": int(round(float(xy.get("y"))))}
+            except (TypeError, ValueError):
+                continue
+        limpio["pos"] = pos
+    try:
+        json.dumps(limpio)
+    except (TypeError, ValueError) as exc:
+        raise FlujotecaError(f"el 'ui' no es serializable a JSON: {exc}")
+    return limpio
+
+
+def guardar_ui(nombre: str, ui: dict) -> dict:
+    """Escribe el estado visual del flujo en meta['ui']. Devuelve el ui.
+
+    Fusiona por CLAVE DE PRIMER NIVEL: `guardar_ui(n, {"pos": {...}})` no
+    borra un `meta["ui"]["zoom"]` que hubiera guardado otra pantalla. Dentro
+    de "pos" no fusiona: el editor manda siempre el mapa entero, y fusionar
+    ahi dejaria para siempre las posiciones de nodos ya borrados.
+
+    Misma escritura atomica que el resto del modulo (tmp + os.replace): la
+    meta es el fichero que sabe cuantas versiones hay, y dejarla truncada
+    por un corte a mitad de un arrastre perderia el flujo entero.
+    """
+    ruta = _ruta_meta(nombre)
+    meta = _leer_json(ruta)
+    if not meta:
+        raise FlujotecaError(f"no hay ningun flujo llamado '{nombre}'")
+    nuevo = _sanear_ui(ui)
+    previo = meta.get("ui")
+    fusion = dict(previo) if isinstance(previo, dict) else {}
+    fusion.update(nuevo)
+    meta["ui"] = fusion
+    _escribir_atomico(ruta, meta)
+    return fusion
+
+
+def leer_ui(nombre: str) -> dict:
+    """El estado visual guardado, o {} si no hay. NUNCA lanza.
+
+    Un flujo sin posiciones es el caso normal (todos los de antes del editor)
+    y tiene respuesta buena: el layout topologico. Lanzar aqui obligaria a
+    cada llamador a envolverlo en un try para nada."""
+    meta = _leer_json(_ruta_meta(nombre)) or {}
+    ui = meta.get("ui")
+    return dict(ui) if isinstance(ui, dict) else {}
 
 
 # ---------------------------------------------------------------------------

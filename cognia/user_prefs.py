@@ -22,7 +22,29 @@ K_LANG      = "COGNIA_LANG"       # "espanol" | "ingles"
 K_STYLE     = "COGNIA_STYLE"      # "breve" | "detallada" | "tecnica" | "amigable"
 K_RUN_MODE  = "COGNIA_RUN_MODE"   # "local" | "compartido" | "memoria"
 
+# Claves que otros modulos DECLARAN y persisten por save_pref(). Se duplica el
+# literal a proposito (importar cognia.simple_mode / cognia.cli_visibilidad
+# desde aqui crea un ciclo: los dos importan user_prefs); lo que ata las dos
+# copias es un test, no la buena fe:
+# tests/test_user_prefs.py::test_las_constantes_duplicadas_coinciden.
+K_UI_MODE   = "COGNIA_UI_MODE"    # cognia/simple_mode.py    "sencillo" | "avanzado"
+K_CMD_NIVEL = "COGNIA_CMD_NIVEL"  # cognia/cli_visibilidad.py "nucleo" | "todo"
+
 _PERSONALIZATION_KEYS = (K_USER_NAME, K_LANG, K_STYLE)
+
+# EL FILTRO DE load_prefs(). Una clave que no este aqui se escribe bien en
+# ~/.cognia/config.env y NO SE RELEE: la preferencia funciona en la sesion y
+# se olvida al reiniciar, sin ninguna excepcion ni aviso. Le paso a
+# COGNIA_UI_MODE (`/modo avanzado`) y le habria pasado a COGNIA_CMD_NIVEL
+# (`/avanzado`): los dos vivian de que first_run.apply_config() rellenase
+# os.environ, o sea del fallback, no de la preferencia.
+#
+# Punto de extension: dar de alta una clave es anadirla a esta tupla. El
+# guardian que lo obliga es
+# tests/test_user_prefs.py::test_toda_clave_persistente_declarada_esta_dada_de_alta,
+# que recorre el paquete con AST buscando `K_* = "COGNIA_..."` y falla si
+# alguna no esta.
+PERSISTED_KEYS = _PERSONALIZATION_KEYS + (K_RUN_MODE, K_UI_MODE, K_CMD_NIVEL)
 
 LANG_CHOICES  = ("espanol", "ingles")
 STYLE_CHOICES = ("breve", "detallada", "tecnica", "amigable")
@@ -41,11 +63,16 @@ _STYLE_LINE = {
 
 
 def load_prefs() -> Dict[str, str]:
-    """Read the personalization + run-mode keys from ~/.cognia/config.env."""
+    """Read the persisted preference keys from ~/.cognia/config.env.
+
+    Filtra por PERSISTED_KEYS a proposito (config.env tambien lleva rutas de
+    modelos y flags de backend, que no son preferencias del dueno). El precio
+    de ese filtro es que una clave sin dar de alta desaparece EN SILENCIO: ver
+    el comentario de PERSISTED_KEYS.
+    """
     from cognia.first_run import _load_config
     cfg = _load_config()
-    keys = _PERSONALIZATION_KEYS + (K_RUN_MODE,)
-    return {k: cfg[k] for k in keys if cfg.get(k)}
+    return {k: cfg[k] for k in PERSISTED_KEYS if cfg.get(k)}
 
 
 def save_pref(key: str, value: str) -> None:

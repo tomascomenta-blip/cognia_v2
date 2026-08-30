@@ -10,11 +10,55 @@ Presupuesto de inferencia (hardware i3 ~8 tok/s): 1 LLM (el informe via synthesi
 simples; hasta 2 (informe + 1 correccion gated) en goals complejos. Si no hay backend, el
 informe degrada a un resumen determinista (0 LLM). NUNCA usa el ReAct loop (5-20 inferencias).
 
-Orden real: analisis -> [plan] -> ejecucion -> informe -> [verificacion] -> [correccion].
+Orden real: analisis -> [plan] -> redaccion -> informe -> [verificacion] -> [correccion].
 (informe va antes de verificacion/correccion: no se puede verificar un informe inexistente.)
+
+QUE NO HACE, Y POR QUE LO DICE EN VOZ ALTA (2026-08-29)
+-------------------------------------------------------
+/flujo **no ejecuta nada en el PC del dueno**: no escribe ficheros, no corre
+comandos, no toca el disco. Medido: 256 lineas sin un solo `open()`, `subprocess`
+ni `run_tool`; su registro (`agents/tool_registry`) sí tiene `write_file`, pero
+NINGUNA plantilla de `agents/planner.py` la emite jamas, y con complejidad <=2 la
+ruta rapida devolvia el ECO LITERAL del objetivo con `passed=True, score=0.6`.
+
+La decision fue DEGRADARLO CON HONESTIDAD, no rescatarlo: /hacer ya hace lo que
+este subsistema simulaba, con 16 tools reales y permisos. Tres cambios, todos de
+honestidad y ninguno de capacidad:
+  (a) la etapa se llama `redaccion`, no `ejecucion` — lo que hace es preparar
+      el material del informe, y a lo sumo consultar tools de LECTURA;
+  (b) el informe sale con la cabecera `CABECERA_INFORME`, que dice que esto es
+      un informe y a donde ir para actuar;
+  (c) si el informe no aporta nada que no estuviera ya en el objetivo, se dice
+      ("sin contenido propio") en vez de devolver el eco como si fuera trabajo.
 """
 
 from __future__ import annotations
+
+import re
+
+# Va SIEMPRE al principio del informe. No es decoracion ni un [detail] que el
+# modo sencillo se come: es la unica linea que impide que el dueno lea 20 lineas
+# de prosa y crea que Cognia hizo algo en su maquina.
+CABECERA_INFORME = (
+    "[/flujo NO ejecuta nada en tu PC: esto es un INFORME redactado, sin "
+    "escribir ficheros ni correr comandos. Para ACTUAR: /hacer <tarea> o "
+    "/flujoteca ejecutar <flujo>]")
+
+# Lo que se dice cuando el informe es el objetivo repetido. El caso medido:
+# goal='escribe el fichero X con el texto Y' -> informe='Results for: <goal>\n\n
+# [step] <goal>', 1,4 s, 0 ficheros. Devolver eso como resultado es cobrar por
+# el eco.
+SIN_CONTENIDO = (
+    "(sin contenido propio: el informe solo repite el objetivo. Este flujo no "
+    "consulto ninguna fuente ni ejecuto nada. Si querias que pasara algo en tu "
+    "PC, usa /hacer <tarea>)")
+
+# Andamiaje del resumen determinista de `synthesizer._deterministic_summary`
+# ("Results for: <goal>") y de las pseudo-tools que marcan el texto ("[step]",
+# "[memoria]", "[resultado buscar]"). Se quita ANTES de comparar: lo que
+# interesa es si queda algo que no fuera ya el objetivo.
+_ANDAMIO = re.compile(r"(?im)^\s*(?:No\s+)?results?\s+for\s*:.*$")
+_MARCAS = re.compile(r"\[[^\]\n]{0,40}\]")
 
 
 def _stage_analisis(ctx: dict) -> dict:
@@ -24,15 +68,15 @@ def _stage_analisis(ctx: dict) -> dict:
     ctx["complexity"] = res.score
     ctx["budget"] = res.budget
     if res.budget == "fast" or res.score <= 2:
-        route = ["ejecucion", "informe"]
+        route = ["redaccion", "informe"]
     elif res.score >= 4 or res.budget == "deep":
-        route = ["plan", "ejecucion", "informe", "verificacion", "correccion"]
+        route = ["plan", "redaccion", "informe", "verificacion", "correccion"]
     else:
-        route = ["plan", "ejecucion", "informe", "verificacion"]
+        route = ["plan", "redaccion", "informe", "verificacion"]
     # Override por esfuerzo explicito (alto/maximo): forzar verificacion + correccion
     # aunque el score sea bajo (mitiga clasificacion errada; el usuario pidio profundidad).
     if int(ctx["effort"].get("verificaciones", 0)) >= 2:
-        route = ["plan", "ejecucion", "informe", "verificacion", "correccion"]
+        route = ["plan", "redaccion", "informe", "verificacion", "correccion"]
     ctx["route"] = route
     ctx["print_fn"](f"[detail]analisis: complejidad={res.score} ({res.budget}) -> "
                     f"{' > '.join(['analisis'] + route)}[/detail]")
@@ -73,12 +117,19 @@ def _ejecutar_tool(registry, tool_name: str, kwargs: dict, timeout_s: int):
         ex.shutdown(wait=False)
 
 
-def _stage_ejecucion(ctx: dict) -> dict:
-    """Ejecuta las tools REALES de cada subtarea (0 LLM: research_llm excluido) y
-    guarda results[id]['output'] que synthesize consume. Antes esta etapa solo
-    copiaba la DESCRIPCION del paso como output — el flujo nunca buscaba ni
-    exploraba nada (auditoria 2026-08-01). Inyecta el bloque de memoria HYDRA
-    del REPL si esta disponible."""
+def _stage_redaccion(ctx: dict) -> dict:
+    """Reune el material del informe: corre las tools de LECTURA de cada subtarea
+    (0 LLM: research_llm excluido) y guarda results[id]['output'] que synthesize
+    consume. Antes esta etapa solo copiaba la DESCRIPCION del paso como output —
+    el flujo nunca buscaba ni exploraba nada (auditoria 2026-08-01). Inyecta el
+    bloque de memoria HYDRA del REPL si esta disponible.
+
+    SE LLAMABA 'ejecucion' (renombrada el 2026-08-29). Ese nombre prometia algo
+    que no pasa: aqui no se escribe ni un byte en el PC del dueno. Las tools que
+    puede correr salen de `agents/tool_registry` y las que el planner emite son
+    de lectura/calculo (search_wikipedia, file_explorer, validate_python,
+    execute_python en sandbox); `write_file` existe en ese registro y NINGUNA
+    plantilla la emite. Ver la cabecera del modulo."""
     from cognia.agents.planner import SubTask
     from cognia.agents.supervisor import build_tool_kwargs
     from cognia.agents.tool_registry import get_tool_registry
@@ -193,11 +244,32 @@ def _stage_correccion(ctx: dict) -> dict:
 STAGES = {
     "analisis":     _stage_analisis,
     "plan":         _stage_plan,
-    "ejecucion":    _stage_ejecucion,
+    "redaccion":    _stage_redaccion,
     "informe":      _stage_informe,
     "verificacion": _stage_verificacion,
     "correccion":   _stage_correccion,
 }
+# Alias del nombre viejo: un flujo persistido en `project_memory` antes del
+# 2026-08-29 trae "ejecucion" en su `route` y retomarlo no puede reventar con
+# KeyError. Apunta a la MISMA funcion; el nombre que se anuncia es el nuevo.
+STAGES["ejecucion"] = _stage_redaccion
+
+
+def _es_eco(informe: str, goal: str) -> bool:
+    """True si el informe no aporta NADA que no estuviera ya en el objetivo.
+
+    Se comparan las dos cadenas sin el andamiaje del resumen determinista
+    ("Results for: ...", "[step]", "[memoria]") y sin puntuacion. Un informe
+    que repite el objetivo N veces tambien cuenta: lo que se mide es si sobra
+    algo, no cuantas veces se repitio."""
+    txt = _MARCAS.sub(" ", _ANDAMIO.sub(" ", str(informe or "")))
+    norm = lambda s: re.sub(r"[\W_]+", " ", str(s or ""), flags=re.UNICODE).strip().lower()
+    resto, obj = norm(txt), norm(goal)
+    if not resto:
+        return True
+    if not obj:
+        return False
+    return not norm(resto.replace(obj, " "))
 
 
 def run_flow(ai, goal: str, effort_params: dict, print_fn=print) -> str:
@@ -243,14 +315,25 @@ def run_flow(ai, goal: str, effort_params: dict, print_fn=print) -> str:
                 pass
 
     report = (ctx.get("report") or "").strip() or "(el flujo no produjo informe)"
+    # (c) El ECO no se devuelve como resultado. Medido: con complejidad <=2 la
+    # ruta rapida fabrica UNA SubTask con tool_required='step' ("la descripcion
+    # ES el output") y el informe sale siendo el objetivo. Devolverlo tal cual
+    # es cobrarle al dueno su propia frase.
+    if _es_eco(report, ctx["goal"]):
+        report = SIN_CONTENIDO
     meta = f"[flujo: complejidad={ctx.get('complexity')} ({ctx.get('budget')}); " \
            f"etapas={'>'.join(['analisis'] + ctx['route'])}"
     if ctx.get("score") is not None:
-        meta += f"; score={ctx['score']}"
+        # El score puntua el TEXTO (ResponseGate + verifier), no un efecto: se
+        # dice para que un 0.6 no se lea como "el flujo cumplio".
+        meta += f"; score={ctx['score']} (del TEXTO del informe, no de ningun efecto)"
     meta += "]"
     if pm and flow_id:
         try:
             pm.finish_flow(flow_id, report, ctx.get("score"), status="done")
         except Exception:
             pass
-    return f"{report}\n\n{meta}"
+    # (b) La cabecera va DELANTE y siempre: al final de 4.000 tokens de informe
+    # nadie la lee (la misma razon por la que el veredicto de la critica de
+    # workflows_adapter va arriba).
+    return f"{CABECERA_INFORME}\n\n{report}\n\n{meta}"

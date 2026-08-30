@@ -15,7 +15,12 @@ llamadas independientes —analizar cinco ficheros, redactar cuatro secciones,
 evaluar tres enfoques— y juntar los resultados. NO sirve para tareas que tocan
 disco: para eso el agente ya tiene `delegar_subtarea`, que sí lleva herramientas.
 Esa frontera está escrita en la descripción de la tool porque es la forma de que
-el modelo no la use mal.
+el modelo no la use mal. Y desde el 2026-08-29 también viaja en el RESULTADO:
+`sin_efecto` (novena clave del envelope) marca la corrida que terminó bien y no
+tocó el PC habiéndosele pedido que lo tocara —el caso medido: escribir un
+fichero, `ok=True`, 732 tokens, cero ficheros—. Declarar una frontera en un
+docstring no evita que el usuario crea que se hizo lo que pidió; decirlo en la
+salida, sí.
 
 TOPES (un agente que se lanza workflows a sí mismo puede irse de las manos)
 Los tres numéricos se abren por entorno desde el 2026-08-17 —los defectos NO
@@ -148,8 +153,10 @@ def presupuesto_defecto() -> int:
 
 # Las claves del envelope de ejecutar(), EXPORTADAS: el contrato de forma fija
 # se puede verificar desde fuera en vez de re-escribirse en cada test.
+# `sin_efecto` (aditiva, 2026-08-29) es la NOVENA. No cambia `ok`: ver
+# `_sin_efecto()` para el porque de que sean dos claves y no una.
 CLAVES_ENVELOPE = frozenset({"ok", "texto", "run_id", "pasos", "tokens",
-                             "cancelados", "critica", "error"})
+                             "cancelados", "critica", "error", "sin_efecto"})
 
 # Marca de "ya estamos dentro de un workflow", por hilo: `paralelo` corre los
 # pasos en un pool, así que una bandera global marcaría también al hilo padre
@@ -246,6 +253,75 @@ def _consolidar(pasos: list, resultados: list) -> str:
     return "\n\n".join(lineas) + cierre
 
 
+# ── "produjo texto" NO es "produjo efecto" ──────────────────────────────────
+# MEDIDO el 2026-08-29 contra :8080: se le pidio a /workflow escribir un fichero
+# y devolvio ok=True, 732 tokens, 21,0 s y CERO ficheros — el propio texto
+# empezaba con "No tengo disponible una herramienta llamada escribir_archivo".
+# El motor NO PUEDE tocar el disco (agente() nunca pasa tools=; esa frontera es
+# de diseno y esta en el docstring del modulo): el defecto no es que no actue,
+# es que el veredicto no lo dice. `ok` no se toca —lo fija WorkflowFin y hay
+# tests que lo clavan (defecto #1)—; lo que se agrega es una clave que separa
+# "la corrida termino entera" de "esto no toco tu PC".
+_CONFESIONES = re.compile(
+    r"no\s+(?:tengo|dispongo\s+de)\s+(?:acceso|disponible|capacidad|una\s+herramienta"
+    r"|la\s+herramienta|herramienta|permisos?|forma\s+de)"
+    r"|no\s+tengo\s+\w+\s+(?:herramienta|acceso)"
+    r"|no\s+puedo\s+(?:acceder|escribir|crear|guardar|modificar|editar|borrar"
+    r"|eliminar|ejecutar|abrir|descargar|instalar|leer\s+ficheros)"
+    r"|no\s+es\s+posible\s+(?:acceder|escribir|crear|ejecutar)"
+    r"|(?:p[eé]game|pega|copia)\s+(?:aqui\s+)?el\s+(?:contenido|texto|fichero|archivo)"
+    r"|no\s+tengo\s+manera\s+de",
+    re.IGNORECASE)
+
+# Verbo que implica tocar la maquina...
+_VERBOS_ESCRITURA = re.compile(
+    r"\b(?:escrib\w*|cre[ae]\w*|crear|guard\w*|borr\w*|elimin\w*|modific\w*"
+    r"|edit\w*|renombr\w*|mueve|mover|copia\w*|descarg\w*|instal\w*|ejecut\w*"
+    r"|corr[ea]\w*|lanz\w*|compil\w*|abr[ae]\w*|abrir)\b", re.IGNORECASE)
+# ...Y objeto que lo ancla a un artefacto real. Los dos, no uno: "crea tres
+# ideas de titulo" es un encargo de PENSAR y marcarlo `sin_efecto` entrenaria al
+# dueno a ignorar el aviso (la leccion de la casa: un gate que no deja hacer
+# nada acaba apagado). Con las dos condiciones, "escribe el fichero notas.txt"
+# entra y "resume estos tres textos" no.
+_OBJETO_MAQUINA = re.compile(
+    r"(?:\bfichero\w*|\barchivo\w*|\bcarpeta\w*|\bdirectorio\w*|\bruta\b"
+    r"|\bdisco\b|\bescritorio\b|\bmi\s+pc\b|\bterminal\b|\bcomando\b"
+    r"|\.[A-Za-z0-9]{1,4}\b|[\\/])", re.IGNORECASE)
+
+
+def pide_efecto(tarea: str) -> bool:
+    """True si el encargo pedia tocar la maquina (verbo de escritura + objeto)."""
+    txt = str(tarea or "")
+    return bool(_VERBOS_ESCRITURA.search(txt) and _OBJETO_MAQUINA.search(txt))
+
+
+def _sin_efecto(texto: str, pasos, pasos_con_efecto: int = 0) -> bool:
+    """¿Esta corrida NO toco el PC del dueno, habiendosele pedido que lo tocara?
+
+    Dos disparadores, los dos observables:
+      1. el texto consolidado trae una CONFESION del modelo ("no tengo acceso",
+         "no dispongo de la herramienta", "pegame el contenido"): el propio
+         modelo esta diciendo que no hizo nada, y hoy eso viaja dentro de un
+         `ok=True`;
+      2. `pasos_con_efecto == 0` y el encargo pedia efecto (`pide_efecto`).
+         En ESTE motor el contador es estructuralmente 0 —no hay registro de
+         tools que pueda subirlo— y ese es justo el punto: se pasa como
+         parametro para que un motor futuro con tools pueda desmentirlo con un
+         numero, no con una promesa.
+    """
+    if pasos_con_efecto > 0:
+        return False
+    if _CONFESIONES.search(str(texto or "")):
+        return True
+    tarea = " ; ".join(str(p) for p in (pasos or []))
+    return pide_efecto(tarea)
+
+
+AVISO_SIN_EFECTO = ("esto no toco tu PC: /workflow reparte trabajo de PENSAR "
+                    "(consultas al modelo SIN herramientas). Para ACTUAR: "
+                    "/hacer <tarea> o /flujoteca ejecutar <flujo>")
+
+
 def ejecutar(pasos, modo: str = "paralelo", nombre: str = "agente",
              presupuesto: int = 0,
              system: str = "", print_fn=None,
@@ -253,7 +329,7 @@ def ejecutar(pasos, modo: str = "paralelo", nombre: str = "agente",
              interactivo: bool = False) -> dict:
     """Corre las subtareas en el motor de workflows. NUNCA lanza.
 
-    Devuelve CLAVES_ENVELOPE — SIEMPRE las ocho, en todos los caminos. Un
+    Devuelve CLAVES_ENVELOPE — SIEMPRE las nueve, en todos los caminos. Un
     envelope de forma variable (el camino OK traía "critica" y los de error no)
     es el mismo fallo silencioso de siempre con otro disfraz: el consumidor que
     lee la clave revienta con KeyError justo cuando el workflow falla. El
@@ -277,7 +353,18 @@ def ejecutar(pasos, modo: str = "paralelo", nombre: str = "agente",
     Dos consumidores del MISMO cierre no pueden contradecirse: por eso hay un
     solo veredicto y un solo punto donde se arma el envelope.
 
-    `cancelados` (clave aditiva, en los ocho caminos incluidos los cuatro de
+    QUÉ SIGNIFICA `sin_efecto` (clave aditiva, 2026-08-29). `ok` dice que la
+    corrida TERMINÓ; `sin_efecto` dice que NO TOCÓ EL PC habiéndosele pedido
+    que lo tocara. Son dos preguntas distintas y por eso son dos claves: el
+    caso medido —pedirle escribir un fichero y recibir 732 tokens explicando
+    que no tiene la herramienta— es `ok=True, sin_efecto=True`, y con una sola
+    clave había que elegir cuál de las dos verdades callar. Lo decide
+    `_sin_efecto()` sobre el texto consolidado y las subtareas pedidas; el CLI
+    imprime con ella la línea `AVISO_SIN_EFECTO`, que redirige a `/hacer` o
+    `/flujoteca ejecutar`. No cambia el flujo de control de nadie: quien la
+    ignore ve exactamente lo de siempre.
+
+    `cancelados` (clave aditiva, en los nueve caminos incluidos los cuatro de
     error) es cuántos agentes cortó el usuario. Existe para que una UI no tenga
     que buscar la palabra "cancelados" dentro de `error` para saber si el
     fallo lo causó el propio usuario: `error` es la línea humana (cli.py la
@@ -425,22 +512,31 @@ def ejecutar(pasos, modo: str = "paralelo", nombre: str = "agente",
                       f"resultado: estan en el texto del workflow)")
     return _envelope(ok=ok, texto=texto, run_id=c.run_id, pasos=len(pasos),
                      tokens=_gastado(c), cancelados=cancelados,
-                     critica=critica, error=error)
+                     critica=critica, error=error,
+                     # El texto que se mira es el CONSOLIDADO, ya con la
+                     # cabecera de critica si la hubo: es exactamente lo que el
+                     # dueno va a leer.
+                     sin_efecto=_sin_efecto(texto, pasos))
 
 
 def _envelope(ok: bool = False, texto: str = "", run_id: str = "",
               pasos: int = 0, tokens: int = 0, cancelados: int = 0,
-              critica=None, error: str = "") -> dict:
-    """CLAVES_ENVELOPE, siempre las ocho. UN solo sitio que las escriba.
+              critica=None, error: str = "", sin_efecto: bool = False) -> dict:
+    """CLAVES_ENVELOPE, siempre las nueve. UN solo sitio que las escriba.
 
     Cuatro caminos de error construían el dict a mano y por eso `critica`
     faltaba en unos y no en otros hasta 2026-08-13; la clave `cancelados` de
     hoy habría repetido la historia. Con un constructor, agregar una clave es
-    agregarla en un sitio y aparece en los ocho caminos por construcción."""
+    agregarla en un sitio y aparece en los nueve caminos por construcción.
+
+    `sin_efecto` vale False por defecto —y por lo tanto en los cuatro caminos
+    de error— a propósito: esos ya devuelven `ok=False` con un `error` que dice
+    por qué no pasó nada, y el CLI lo imprime y corta. La clave existe para el
+    camino que MIENTE: el que termina bien, cobra tokens y no tocó el PC."""
     return {"ok": bool(ok), "texto": texto, "run_id": run_id,
             "pasos": int(pasos), "tokens": int(tokens),
             "cancelados": int(cancelados), "critica": critica,
-            "error": error}
+            "error": error, "sin_efecto": bool(sin_efecto)}
 
 
 def _cabecera_critica(critica: dict) -> str:

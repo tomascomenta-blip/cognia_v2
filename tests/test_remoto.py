@@ -30,12 +30,52 @@ def test_saludo_por_franja_horaria():
     assert r["texto"] in _SALUDOS[r["franja"]]
 
 
-def test_comandos_del_repl_disponibles():
-    """Las sugerencias del '/': el catalogo REAL del CLI, no una copia."""
+def _nivel_nucleo(monkeypatch):
+    """Fija el nivel por defecto sin tocar la config del dueno.
+
+    `_comandos()` pregunta por `cli_visibilidad.es_avanzado()`, que depende de
+    un cache global y de ~/.cognia/config.env: sin fijarlo, este test aprueba
+    o falla segun QUE OTRO test corriera antes."""
+    from cognia import cli_visibilidad as vis
+    monkeypatch.setattr(vis, "es_avanzado", lambda override=None: False)
+
+
+def test_comandos_del_repl_disponibles(monkeypatch):
+    """Las sugerencias del '/': el catalogo REAL del CLI, no una copia.
+
+    ENMENDADO 2026-08-29 (visibilidad de comandos): el movil ya no recibe las
+    280 entradas por defecto, sino el NUCLEO -- el mismo recorte que ve el
+    escritorio, porque un desplegable de 280 lineas en un telefono es el muro
+    que `cognia/cli_visibilidad.py` existe para quitar. Lo que este test sigue
+    fijando es que las entradas SALEN DEL CLI REAL y no de una copia."""
+    from cognia.cli import _CMD_DESCRIPTIONS
+
+    _nivel_nucleo(monkeypatch)
     r = _cliente().get("/api/comandos").json()
     cmds = {c["cmd"] for c in r}
-    assert "/hacer" in cmds and "/crear" in cmds and "/investigar" in cmds
-    assert len(cmds) > 50, "el catalogo debe ser el del REPL completo"
+    assert "/hacer" in cmds and "/crear" in cmds
+    assert len(cmds) > 50, "el nucleo tiene ~80 comandos, no cuatro"
+    assert cmds <= set(_CMD_DESCRIPTIONS), "hay comandos que el REPL no tiene"
+    # y cada descripcion es la del CLI, no un texto propio del remoto
+    assert all(c["desc"] == _CMD_DESCRIPTIONS[c["cmd"]] for c in r)
+
+
+def test_comandos_avanzado_devuelve_el_catalogo_entero(monkeypatch):
+    """OCULTAR NO ES DESACTIVAR, tambien en el movil: `?avanzado=1` trae las
+    280 entradas, y los comandos de nicho siguen siendo tecleables aunque no
+    se sugieran."""
+    from cognia.cli import _CMD_DESCRIPTIONS
+
+    _nivel_nucleo(monkeypatch)
+    c = _cliente()
+    nucleo = {x["cmd"] for x in c.get("/api/comandos").json()}
+    todo = {x["cmd"] for x in c.get("/api/comandos?avanzado=1").json()}
+    assert todo == set(_CMD_DESCRIPTIONS)
+    assert "/investigar" in todo and "/investigar" not in nucleo
+    assert len(todo) > len(nucleo)
+    # sinonimos: quien teclea la URL a mano no merece un 422 de FastAPI
+    for valor in ("on", "true", "si", "todo"):
+        assert len(c.get(f"/api/comandos?avanzado={valor}").json()) == len(todo)
 
 
 def test_cert_autofirmado_para_https(tmp_path):

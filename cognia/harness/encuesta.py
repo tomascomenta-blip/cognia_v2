@@ -37,6 +37,25 @@ CONTRATO (el mismo que mejorar_prompt.py, por diseno)
   modelo devuelve basura o si tarda, se cae a la semilla deterministica y,
   si tampoco hay, a cero preguntas. Nunca se rompe el turno por una encuesta.
 - generar_fn inyectable para testear sin backend.
+
+QUE LLAMAR DESDE EL CLI (para no reconstruir las reglas en cuatro sitios)
+------------------------------------------------------------------------
+    enc = encuesta_para(texto, contexto=..., faltantes=...,
+                        estado=<config 'encuestas'>, hay_tty=<selector.hay_tty()>)
+        -> una Encuesta SIEMPRE (nunca None, nunca lanza). Aplica las cuatro
+           puertas en orden y no llama al backend si alguna cierra.
+    es_degradacion(enc.motivo)  -> si hay que gritarlo por _aviso_degradado
+                                   (los motivos que son una DECISION no).
+    como_preguntar(pregunta)    -> con que funcion de cognia/ux/selector.py se
+                                   muestra, con que opciones y con que titulo.
+    incorporar(texto, respuestas) -> el pedido enriquecido, listo para enviar.
+
+Y despues, para reformular ese texto ya enriquecido sin que el reformulador
+vuelva a meter preguntas dentro (que es el bug que esto vino a arreglar):
+    mejorar_prompt.mejorar(enriquecido, encuesta_previa=True,
+                           version=mejorar_prompt.version_para(estado,
+                                                               encuesta_previa=True,
+                                                               estilo=estilo))
 """
 from __future__ import annotations
 
@@ -46,6 +65,8 @@ import time
 from dataclasses import dataclass, field
 
 __all__ = ["Pregunta", "Encuesta", "preparar", "incorporar", "vale_la_pena",
+           "encuesta_para", "como_preguntar", "es_degradacion",
+           "OTRA_OPCION", "SELECTOR_POR_TIPO",
            "MAX_PREGUNTAS", "TIPOS", "ESTADOS"]
 
 # Estados del interruptor, con los mismos nombres que /mejorar para que el
@@ -145,6 +166,32 @@ class Encuesta:
                 "modelo": self.modelo, "ms": self.ms, "aviso": self.aviso}
 
 
+# Por debajo de esto un pedido SIN objeto concreto es demasiado vago para que
+# "la semilla no encontro huecos" signifique "no faltan datos": significa que
+# la tabla de decisiones tipicas no supo de que hablaba. 60 chars son ~10
+# palabras: "hazme una pagina web" (20), "organizame el escritorio" (24),
+# "quiero ponerme en forma" (23) caen dentro; un pedido de dos frases, no.
+LARGO_VAGO = 60
+
+# Que hace CONCRETO a un pedido: nombra una cosa que existe y se puede senalar
+# -- un fichero con extension, una ruta, una @-mencion del REPL, una URL, una
+# cifra o algo entrecomillado. Ninguna de esas aparece en "hazme una pagina
+# web". Es deliberadamente conservador: ante la duda, el pedido cuenta como
+# CONCRETO y la puerta 3 sigue cerrando como siempre.
+_RE_OBJETO_CONCRETO = re.compile(
+    r"[\w-]+\.[a-z0-9]{1,5}\b"          # ventas.csv, cli.py, index.html
+    r"|[/\\][\w.-]"                     # una ruta
+    r"|(?:^|\s)@\S"                     # @-mencion del REPL
+    r"|\d"                              # una cifra
+    r"|[" + chr(34) + chr(39) + chr(0x201c) + chr(0x2018) + r"]",  # entrecomillado
+    re.I)
+
+
+def _sin_objeto_concreto(texto: str) -> bool:
+    """True si el pedido no nombra ninguna cosa concreta (ver el regex)."""
+    return not _RE_OBJETO_CONCRETO.search(texto or "")
+
+
 def vale_la_pena(texto: str, *, faltantes=None) -> tuple:
     """(bool, motivo). Decide SIN llamar al modelo si merece encuestar.
 
@@ -158,8 +205,18 @@ def vale_la_pena(texto: str, *, faltantes=None) -> tuple:
     if t.startswith("/") or t.startswith("!"):
         return False, "es un comando, no un pedido"
     if faltantes is not None and not faltantes:
-        # La semilla deterministica no encontro ningun hueco: o el tipo de
-        # tarea no tiene decisiones tipicas, o el usuario ya las tomo todas.
+        # La semilla deterministica no encontro ningun hueco. Eso admite DOS
+        # lecturas opuestas y hasta 2026-08-29 se trataban igual:
+        #   (a) el usuario ya tomo todas las decisiones -> no preguntar (bien);
+        #   (b) la tabla no sabe de que va el pedido -> no preguntar (mal: es
+        #       justo el pedido que MAS necesita la encuesta).
+        # Se separan por el propio texto: si es corto Y no nombra ninguna cosa
+        # concreta, estamos en (b) y la puerta NO cierra -- se sigue hasta
+        # preparar(), donde el modelo (o cero preguntas) decide. Si el pedido
+        # nombra un fichero, una ruta o una cifra, estamos en (a) y cierra
+        # como siempre.
+        if len(t) < LARGO_VAGO and _sin_objeto_concreto(t):
+            return True, ""
         return False, "no hay decisiones sin tomar detectables"
     return True, ""
 
@@ -436,3 +493,129 @@ def incorporar(texto: str, respuestas) -> str:
     if not lineas:
         return base
     return base + "\n\nDetalles que el usuario aclaro:\n" + "\n".join(lineas)
+
+
+# ---------------------------------------------------------------------------
+# API para quien cablea (cognia/cli.py). Todo lo de abajo es AZUCAR sobre lo
+# de arriba: no anade estado, no lee config, no imprime y no llama al selector.
+# Existe para que el cableado no tenga que reconstruir las reglas -- que puertas
+# hay, en que orden, y con que funcion del selector se muestra cada pregunta --
+# ni tenga que repetirlas en las cuatro vias del CLI que llaman al mejorador
+# ('auto', 'preguntar', F3 y '/mejorar <texto>'), que es como se desincronizan.
+# ---------------------------------------------------------------------------
+
+# Valor centinela de la opcion "Otra cosa..." que se anade al final de toda
+# pregunta cerrada. Vive aqui y no en el CLI porque es parte del contrato: un
+# selector que devuelve este valor NO devolvio una respuesta del usuario, hay
+# que preguntarle en texto libre.
+OTRA_OPCION = "__otra__"
+
+# Que funcion de cognia/ux/selector.py muestra cada tipo de pregunta.
+SELECTOR_POR_TIPO = {
+    "unica": "elegir",
+    "multiple": "elegir_varias",
+    "abierta": "texto_libre",
+}
+
+# Motivos de `Encuesta.motivo` que NO son degradacion: son la respuesta
+# CORRECTA a un pedido que no necesita encuesta. Quien cablea no debe gritarlos
+# por _aviso_degradado (si lo hace, el dueno ve un "degradado" cada vez que
+# escribe algo claro y acaba apagando la funcionalidad). Todo lo demas SI es
+# degradacion y tiene que verse.
+MOTIVOS_NORMALES = (
+    "",
+    "ok",
+    "el modelo dice que no falta nada",
+    "no hay decisiones sin tomar detectables",
+    "el pedido ya es largo y especifico",
+    "es un comando, no un pedido",
+    "texto vacio",
+    "encuestas apagadas",
+    "sin terminal interactiva",
+)
+
+
+def es_degradacion(motivo: str) -> bool:
+    """True si `motivo` es un FALLO que hay que gritar, no una decision."""
+    return str(motivo or "").strip() not in MOTIVOS_NORMALES
+
+
+def como_preguntar(pregunta) -> dict:
+    """Como se muestra UNA pregunta con cognia/ux/selector.py.
+
+    Devuelve un dict listo para usar, sin adivinar:
+        {"funcion": "elegir" | "elegir_varias" | "texto_libre",
+         "titulo": str,                  # ya lleva el 'porque' entre parentesis
+         "opciones": [(valor, etiqueta, descripcion), ...],   # [] si abierta
+         "pista": str,                   # solo para texto_libre
+         "valor_otra": str}              # OTRA_OPCION, o "" si no aplica
+
+    "Otra cosa..." va SIEMPRE al final de una pregunta cerrada: unas opciones
+    que el modelo creyo exhaustivas casi nunca lo son, y sin salida el usuario
+    tiene que elegir algo que no queria o cancelar la encuesta entera. Si el
+    selector devuelve `valor_otra`, hay que preguntar en texto libre.
+    """
+    texto = getattr(pregunta, "texto", "") or ""
+    porque = getattr(pregunta, "porque", "") or ""
+    tipo = getattr(pregunta, "tipo", "abierta")
+    opciones = list(getattr(pregunta, "opciones", []) or [])
+    titulo = texto + ("   ({})".format(porque) if porque else "")
+    funcion = SELECTOR_POR_TIPO.get(tipo, "texto_libre")
+    if funcion == "texto_libre":
+        return {"funcion": funcion, "titulo": titulo, "opciones": [],
+                "pista": "Enter para saltar", "valor_otra": ""}
+    caja = [(o, o, "") for o in opciones]
+    valor_otra = ""
+    if funcion == "elegir":
+        valor_otra = OTRA_OPCION
+        caja.append((OTRA_OPCION, "Otra cosa...", "lo escribo yo"))
+    return {"funcion": funcion, "titulo": titulo, "opciones": caja,
+            "pista": "", "valor_otra": valor_otra}
+
+
+def encuesta_para(texto: str, *, contexto: str = "", faltantes=None,
+                  estado: str = "auto", hay_tty: bool = True,
+                  max_preguntas: int = MAX_PREGUNTAS,
+                  timeout_s: float = TIMEOUT_DEFECTO, url=None,
+                  generar_fn=None) -> Encuesta:
+    """LA funcion que debe llamar el CLI. Todas las puertas, en orden, NUNCA
+    lanza, y siempre devuelve una `Encuesta` (nunca None).
+
+    Puertas, de la mas barata a la mas cara:
+      1. `estado` != "auto"  -> motivo "encuestas apagadas"
+      2. `hay_tty` False     -> motivo "sin terminal interactiva"
+      3. `vale_la_pena`      -> su motivo
+      4. `preparar`          -> modelo, o semilla deterministica sin backend
+
+    El modulo sigue siendo PURO: `estado` y `hay_tty` se PASAN, no se leen
+    (la config vive en el CLI y el tty lo sabe cognia/ux/selector.hay_tty()).
+    Uso previsto en cli.py:
+
+        enc = encuesta.encuesta_para(
+            raw, contexto=ctx.bloque, faltantes=ctx.faltantes,
+            estado=_estado_encuestas(), hay_tty=_selector.hay_tty())
+        if not enc.ok:
+            if encuesta.es_degradacion(enc.motivo):
+                _aviso_degradado("cli.encuesta", enc.motivo)
+            return raw                      # se sigue con el texto crudo
+        ...  # mostrar con como_preguntar(p), recoger, y:
+        enriquecido = encuesta.incorporar(raw, respuestas)
+
+    Y despues, para reformular ese texto ya enriquecido:
+        mejorar_prompt.mejorar(enriquecido, version=mejorar_prompt.version_para(
+            estado, encuesta_previa=True, estilo=estilo), encuesta_previa=True)
+    """
+    if str(estado or "").strip().lower() != "auto":
+        return Encuesta(ok=False, motivo="encuestas apagadas")
+    if not hay_tty:
+        # No es un fallo: es que este camino no aplica (pipes, CI, e2e).
+        return Encuesta(ok=False, motivo="sin terminal interactiva")
+    try:
+        return preparar(texto, contexto=contexto, faltantes=faltantes,
+                        max_preguntas=max_preguntas, timeout_s=timeout_s,
+                        url=url, generar_fn=generar_fn)
+    except Exception as exc:
+        # preparar() promete no lanzar; si lanza es un bug y tiene que VERSE
+        # (el motivo es degradacion), pero jamas puede romper el turno.
+        return Encuesta(ok=False, motivo="error preparando la encuesta: "
+                                         "{}: {}".format(type(exc).__name__, exc))

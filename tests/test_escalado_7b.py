@@ -12,6 +12,24 @@ import pytest
 import cognia.agent.tools as tools
 
 
+@pytest.fixture(autouse=True)
+def _aisla_workspace():
+    """FUGA DE ESTADO GLOBAL, cazada 2026-08-29: `_ctx()` asignaba a pelo
+    `dev.AGENT_WORKSPACE_ROOT = str(tmp_path)` y NADIE la restauraba. Como
+    `dev_tools._root_actual()` da precedencia a esa variable de modulo sobre el
+    cwd, cualquier test POSTERIOR de la suite que escribiera con el registro
+    real de tools acababa escribiendo en el tmp_path RANCIO de este fichero
+    (`tests/test_workflow_sin_efecto.py` fallaba solo en la suite, nunca
+    aislado). El monkeypatch no servia: `_ctx` es una funcion normal, no un
+    test. Esta fixture devuelve la variable a su valor de entrada SIEMPRE."""
+    import cognia.agents.workers.dev_tools as dev
+    previo = dev.AGENT_WORKSPACE_ROOT
+    try:
+        yield
+    finally:
+        dev.AGENT_WORKSPACE_ROOT = previo
+
+
 def _ctx(tmp_path):
     class _Orch:
         def infer(self, prompt, max_tokens=0, temperature=0.0):

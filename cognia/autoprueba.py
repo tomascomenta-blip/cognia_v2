@@ -14,8 +14,51 @@ nota con criterios explicitos.
 QUE VERIFICA, en orden, parando en el primer fallo duro:
   1. compila   — ast.parse de TODOS sus .py (cuantos de cuantos)
   2. importa   — carga el entrypoint en un SUBPROCESO aislado, con __name__ != "__main__"
-  3. arranca   — ejecuta el entrypoint en SUBPROCESO, cwd en su carpeta, stdin cerrado
+  3. arranca   — ejecuta el entrypoint en SUBPROCESO, cwd en su carpeta, CON GUION
+                 de teclado, y otra vez con OTRO guion (BRAZO B)
   4. sin_stubs — heuristica de vacio (archivos de <5 lineas utiles, funciones pass/TODO)
+
+DE INICIO A FIN, Y NO SOLO "NO REVIENTA" (2026-08-29):
+  Hasta hoy el arranque se lanzaba con stdin=DEVNULL y el EOFError se PERDONABA,
+  asi que 9 de los 43 productos python de la biblioteca "arrancaban" muriendo de
+  teclado sin ejecutar UNA sola de sus funciones. Ahora:
+    - si el fuente lee teclado, se le fabrica un GUION de stdin a partir de los
+      prompts de sus input() (regex), o el generico ["1","1","2","0","q"] si no
+      se puede leer ninguno. Se cachea en <producto>/.autoprueba.json y se puede
+      editar a mano: el fichero MANDA sobre lo derivado.
+    - BRAZO B obligatorio (el patron de agf/agents/tester.py:jugar(control=True),
+      corregido): la MISMA corrida con OTRO guion, no sin guion. Si stdout no
+      cambia, la salida del producto no depende del valor tecleado
+      (no_reacciona=True). Es un DATO del sello, no un fallo: ver abajo.
+    - la excusa del EOFError se retira SOLO donde toca: con guion suministrado un
+      EOFError significa "el guion se quedo corto" -> INDETERMINADO (ok=None), que
+      no es culpa del producto pero tampoco es "arranco". Sin guion posible, la
+      regla vieja sigue viva.
+
+POR QUE EL SEGUNDO BRAZO LLEVA GUION Y NO STDIN CERRADO (medido 2026-08-30):
+  la primera version comparaba "con guion" contra "con stdin=DEVNULL". Eso NO
+  media si el producto usa el valor: media si SOBREVIVE al EOF. Todo producto
+  con un input() que no sea lo ultimo muere de EOFError en el brazo nulo antes
+  de imprimir el resto, asi que los dos stdout diferian SIEMPRE. Sobre 7 formas
+  con verdad conocida el detector acertaba 5/7 (aprobaba a dos que tiran el
+  valor) y — peor — CONDENABA A 3 SANOS, entre ellos el patron mas comun de un
+  script de consola: imprimir el informe entero y acabar en
+  `input("Pulsa Enter para salir...")`. Ese programa imprime su prompt ANTES de
+  leer y muere ahi en el brazo nulo, asi que los dos stdout salian identicos
+  byte a byte -> "no ejecuta su logica, solo imprime", que es falso.
+  Con los DOS brazos guionados el EOF cae en el mismo punto en ambos y la
+  diferencia mide el VALOR: 7/7 con verdad conocida (ver abajo).
+
+Y POR QUE `no_reacciona` NO REPRUEBA (la decision, con su dato):
+  `print("hola mundo"); input("pulsa enter para salir")` y el informe de ventas
+  de 40 lineas que acaba igual son INDISTINGUIBLES para cualquier medida de
+  stdout: los dos imprimen algo fijo y tiran lo tecleado. Uno se considera un
+  cascaron y el otro es sano, y la diferencia no esta en como responden al
+  teclado sino en cuanto cuerpo tienen — que es exactamente lo que ya mide la
+  fase sin_stubs. No existe corte en esta metrica que condene al primero y
+  perdone al segundo. Por eso `no_reacciona` se publica en el sello, se cuenta
+  en el reporte y NO fuerza `ok=False`: la memoria de esta casa dice que un
+  contrato que condena sanos acaba apagado, y con el se va lo que si servia.
 
 DOS TRAMPAS QUE YA NOS MORDIERON Y ESTAN CONTEMPLADAS:
   - Un juego interactivo se queda esperando input(): el TIMEOUT NO es fallo, es
@@ -27,8 +70,13 @@ DOS TRAMPAS QUE YA NOS MORDIERON Y ESTAN CONTEMPLADAS:
 NADA de codigo generado se importa en el proceso principal: es codigo no
 confiable. Todo va a subproceso con timeout.
 
-Las paginas HTML (21 de los 56 productos) no se ejecutan: se revisan con
-revisar_html() de sandbox_runner, que es el criterio que ya usa el repo.
+Las paginas HTML se revisan con revisar_html() de sandbox_runner, se abren en un
+navegador real, y desde 2026-08-29 pasan ademas un CONTRATO GENERICO ejecutable
+con Playwright (contar controles, clicar hasta 3, exigir que el DOM cambie o que
+la pagina se anime sola) y el GATE DE PIXELES de frames_gate.py (frame negro y
+lienzo uniforme se rechazan con motivo). El contrato es GENERICO a proposito: la
+memoria de esta casa dice que el contrato "por idea" esta al nivel del azar y
+reprueba el 88-94% de las paginas SANAS.
 """
 
 import ast
@@ -66,6 +114,108 @@ _PATRONES_ERROR = (
 )
 
 _RE_MAIN_GUARD = re.compile(r"""if\s+__name__\s*==\s*['"]__main__['"]""")
+
+# ── Guion de teclado (el "de inicio a fin" de un script de consola) ────────────
+
+# Cache del guion, JUNTO al producto. Es editable a mano y MANDA sobre lo que
+# derive el regex: si el dueno sabe que su juego se juega con "w/a/s/d", lo
+# escribe una vez y la autoprueba lo respeta para siempre.
+NOMBRE_CACHE_GUION = ".autoprueba.json"
+
+# Guion de respaldo cuando el fuente lee teclado pero no se puede extraer NI UN
+# prompt (input() con la pregunta en una variable, sys.stdin.read(), readline()).
+GUION_GENERICO = ["1", "1", "2", "0", "q"]
+
+# Tope de lineas que se teclean. Un menu en `while True:` tiene UN solo input()
+# en el fuente y necesita muchas respuestas para llegar a su salida.
+MAX_LINEAS_GUION = 14
+
+# Cola que se le pega a todo guion para llegar a la rama de salida: sin ella un
+# menu se come el timeout entero y nunca se ve su despedida.
+#
+# POR QUE HAY DOS COLAS (medido 2026-08-29 sobre la biblioteca real): con la cola
+# fija ["0","q"], stem_encryptor —que pide numeros— reventaba con
+# `ValueError: invalid literal for int() with base 10: 'q'`. Ese rojo lo
+# fabricaba la PRUEBA, no el producto. Si todo lo que el programa pide son
+# numeros, la cola tambien es numerica.
+_COLA_NUMERICA = ["0", "0"]
+_COLA_MIXTA    = ["0", "q"]
+
+# Un producto lee teclado si aparece cualquiera de estas. `input(` no alcanza:
+# hay productos que leen con sys.stdin directamente.
+_RE_LEE_TECLADO = re.compile(r"\binput\s*\(|sys\.stdin|\.readline\s*\(")
+
+# El literal de la pregunta de cada input(), en orden de aparicion. Solo casa
+# el prompt CONSTANTE (str o f-string): con la pregunta en una variable cae al
+# guion generico, que es exactamente lo que hay que hacer.
+_RE_INPUT_PROMPT = re.compile(
+    r"""\binput\s*\(\s*(?:[rRbBuUfF]{0,2})(?P<q>['"])(?P<txt>(?:\\.|(?!(?P=q))[^\\])*)(?P=q)""")
+
+# Que se teclea segun lo que PREGUNTA el prompt. Se recorre en orden: la primera
+# que casa gana. Es una tabla y no un if-chain justamente para que anadir un
+# caso nuevo sea una linea.
+_RESPUESTAS_POR_PROMPT = (
+    (re.compile(r"s\s*/\s*n|y\s*/\s*n|si\s*/\s*no|yes\s*/\s*no|\(s\)|\[s\]|\(y\)|\[y\]"), "s"),
+    (re.compile(r"nombre|name|jugador|player|usuario|user|apodo|nick"), "Cognia"),
+    (re.compile(r"opci|option|men[uú]|elige|elegi|escoge|choose|select|selecci"), "1"),
+    (re.compile(r"archivo|fichero|ruta|file|path|carpeta|directorio"), "datos.txt"),
+    (re.compile(r"texto|frase|palabra|mensaje|text\b|word|phrase|oraci|sentence"),
+     "hola mundo cognia hola"),
+    (re.compile(r"n[uú]mero|number|edad|age|cantidad|cu[aá]nt|entero|integer|valor|size|tama"), "7"),
+    (re.compile(r"salir|quit|exit|terminar"), "1"),
+)
+
+# ── Brazo B: el MISMO guion con OTROS valores ─────────────────────────────────
+
+# Tokens que no son un VALOR sino la SALIDA del programa. Cambiarlos en el brazo
+# B cambiaria el CAMINO (el menu no llegaria a su despedida, se comeria el
+# timeout) y la comparacion mediria otra cosa. Se dejan intactos a proposito.
+_SENTINELAS_GUION = frozenset({"0", "q", "quit", "exit", "salir", "fin"})
+
+# Pareja de cada respuesta que fabrica _RESPUESTAS_POR_PROMPT y GUION_GENERICO.
+# La regla es "mismo tipo, otro valor": a un int(input(...)) se le sigue dando
+# un numero, a un nombre otro nombre, a una ruta otra ruta.
+_PAREJA_VARIANTE = {
+    "1": "2", "2": "3", "3": "4", "4": "5", "5": "6",
+    "6": "7", "7": "3", "8": "9", "9": "1",
+    "s": "n", "y": "n", "si": "no", "yes": "no",
+    "Cognia": "Zenta",
+    "datos.txt": "otros.txt",
+    "hola mundo cognia hola": "gato luna piedra gato",
+}
+
+
+def _variar(token):
+    """El valor alterno de UNA linea del guion. Determinista y del mismo tipo."""
+    t = str(token)
+    if t.strip().lower() in _SENTINELAS_GUION:
+        return t
+    if t in _PAREJA_VARIANTE:
+        return _PAREJA_VARIANTE[t]
+    if t.isdigit():
+        # (n+3)%9+1 no tiene punto fijo en 1..9 y nunca devuelve 0 (que es
+        # sentinela de salida en casi todo menu).
+        return str((int(t) + 3) % 9 + 1)
+    if "." in t and " " not in t:            # parece un nombre de fichero
+        return "alt_" + t
+    return "z" + t[1:] if len(t) > 1 else "z"
+
+
+def guion_variante(guion):
+    """
+    El mismo guion con otros VALORES: mismas lineas, mismos tokens de salida.
+
+    Mismo numero de lineas a proposito: asi el EOF (si lo hay) cae en el mismo
+    punto en los dos brazos y la diferencia de stdout solo puede venir del
+    contenido tecleado. Esa es toda la razon de ser de esta funcion.
+    """
+    return [_variar(t) for t in (guion or [])]
+
+
+# Margen del brazo BASE vs ACTIVO, tomado literal de agf/agents/tester.py
+# (_MARGEN = 1.15): la actividad CON entrada tiene que superar a la actividad
+# SIN entrada por un 15% para poder decir que el producto responde al teclado.
+MARGEN_JUEGO = 1.15
 
 # Palabras que no aportan al cotejo descripcion<->codigo (es/en mezclados porque
 # el index tiene descripciones en los dos idiomas).
@@ -118,6 +268,25 @@ def _elegir_entrypoint(directorio, archivos_py):
     return Path(directorio) / nombres[0] if nombres else None
 
 
+# Carpetas que NO son un producto sino un CAJON de productos: /construir escribe
+# en construidos/<slug>/index.html y /pulir en pulidos/<slug>/index.html. Sin
+# descender un nivel, descubrir_productos veia UNA entrada 'construidos' de
+# lenguaje 'vacio' y los 7 productos de dentro eran invisibles para /autoprueba
+# (medido 2026-08-29: construidos/ tiene 1 y pulidos/ 6).
+CAJONES_ANIDADOS = ("construidos", "pulidos")
+
+# Salidas de bancos, no productos del dueno: 68 de las 138 carpetas de
+# generated_programs empiezan asi y solo ensucian el catalogo (todas salen
+# 'vacio' y arrastran la media hacia abajo). Es una tupla y no un `if` enterrado
+# para que anadir un banco nuevo sea una linea.
+PREFIJOS_BANCO = ("b1_", "b2_", "b3_")
+
+
+def _es_de_banco(nombre):
+    """True si la carpeta es salida de un banco (b1_/b2_/b3_), no un producto."""
+    return any(nombre.startswith(p) for p in PREFIJOS_BANCO)
+
+
 def descubrir_productos(base=None):
     """
     Lista los productos de generated_programs/ con su entrypoint real.
@@ -143,11 +312,11 @@ def descubrir_productos(base=None):
     except Exception:
         pass   # un index corrupto no puede impedir probar el codigo que SI esta
 
-    productos = []
-    for carpeta in sorted(p for p in base.iterdir() if p.is_dir()):
+    def _producto(carpeta, clave):
+        """El dict de UN producto. `clave` es como se lo nombra (id/index)."""
         archivos_py   = sorted(carpeta.glob("*.py"))
         archivos_html = sorted(carpeta.glob("*.html"))
-        info = meta.get(carpeta.name, {})
+        info = meta.get(clave, {})
 
         if archivos_py:
             lenguaje, entrypoint = "python", _elegir_entrypoint(carpeta, archivos_py)
@@ -158,17 +327,33 @@ def descubrir_productos(base=None):
 
         descripcion = (info.get("description")
                        or _leer(carpeta / "description.txt").strip())
-        productos.append({
-            "id":          info.get("id") or carpeta.name,
-            "title":       info.get("title") or carpeta.name.replace("_", " "),
+        return {
+            "id":          info.get("id") or clave,
+            "title":       info.get("title") or clave.replace("_", " "),
             "description": descripcion,
             "directorio":  str(carpeta),
             "lenguaje":    lenguaje,
             "entrypoint":  str(entrypoint) if entrypoint else None,
             "archivos_py": [str(p) for p in archivos_py],
-            "en_index":    carpeta.name in meta,
+            "en_index":    clave in meta,
             "score_index": info.get("total_score"),
-        })
+        }
+
+    productos = []
+    for carpeta in sorted(p for p in base.iterdir() if p.is_dir()):
+        if _es_de_banco(carpeta.name):
+            continue        # salida de banco, no producto del dueno
+        # Un CAJON (construidos/, pulidos/) no es un producto: sus hijos si.
+        # Solo se desciende si el cajon no tiene codigo propio, para no
+        # convertir en invisible un producto que se llamara asi.
+        if (carpeta.name in CAJONES_ANIDADOS
+                and not any(carpeta.glob("*.py")) and not any(carpeta.glob("*.html"))):
+            for hijo in sorted(p for p in carpeta.iterdir() if p.is_dir()):
+                if _es_de_banco(hijo.name):
+                    continue
+                productos.append(_producto(hijo, f"{carpeta.name}/{hijo.name}"))
+            continue
+        productos.append(_producto(carpeta, carpeta.name))
 
     # Los que tienen codigo primero: con --limite N queremos probar productos,
     # no carpetas de assets sueltas.
@@ -227,15 +412,24 @@ def _entorno_subproceso(tmp):
     }
 
 
-def _correr(argv, cwd, timeout):
-    """Corre argv en subproceso con stdin cerrado. Devuelve (rc, out, err, timeout?)."""
+def _correr(argv, cwd, timeout, guion=None):
+    """
+    Corre argv en subproceso. Devuelve (rc, out, err, timeout?).
+
+    `guion=None` -> stdin CERRADO (el brazo NULO, y el camino de siempre).
+    `guion=[...]` -> se teclean esas lineas y se cierra stdin: si el programa
+    pide una mas, muere con EOFError, y eso significa "el guion se quedo corto",
+    no "el producto esta roto" (lo distingue _veredicto_arranque).
+    """
+    texto_guion = ("\n".join(guion) + "\n") if guion else None
     with tempfile.TemporaryDirectory(prefix="autoprueba_") as tmp:
         try:
-            proc = subprocess.run(
-                argv, cwd=cwd, capture_output=True, text=True, timeout=timeout,
-                stdin=subprocess.DEVNULL, env=_entorno_subproceso(tmp),
-                errors="replace",
-            )
+            comun = dict(cwd=cwd, capture_output=True, text=True, timeout=timeout,
+                         env=_entorno_subproceso(tmp), errors="replace")
+            if texto_guion is None:
+                proc = subprocess.run(argv, stdin=subprocess.DEVNULL, **comun)
+            else:
+                proc = subprocess.run(argv, input=texto_guion, **comun)
             return (proc.returncode,
                     (proc.stdout or "")[:MAX_SALIDA_CHARS],
                     (proc.stderr or "")[:MAX_SALIDA_CHARS],
@@ -303,39 +497,193 @@ def _fase_importa(prod, timeout):
     return {"ok": True, "detalle": "import limpio", "stderr": err[:300]}
 
 
-def _fase_arranca(prod, timeout):
+def lee_teclado(codigo):
+    """True si el fuente lee de stdin (input(), sys.stdin, readline)."""
+    return bool(_RE_LEE_TECLADO.search(codigo or ""))
+
+
+def _respuesta_para(prompt):
+    """Que se teclea ante ESA pregunta. La primera regla que casa gana."""
+    p = (prompt or "").lower()
+    for patron, respuesta in _RESPUESTAS_POR_PROMPT:
+        if patron.search(p):
+            return respuesta
+    return "1"
+
+
+def derivar_guion(codigo):
     """
-    Ejecuta el entrypoint en su propia carpeta, stdin cerrado, timeout corto.
+    (guion, origen) a partir del fuente. origen in {'derivado','generico','sin_teclado'}.
+
+    'derivado' = se leyeron los prompts literales de sus input() y se contesto a
+    cada uno segun lo que pregunta. 'generico' = lee teclado pero no se pudo
+    extraer ni un prompt (pregunta en variable, sys.stdin.read()).
+
+    El guion se ALARGA con el ciclo de sus propias respuestas hasta
+    MAX_LINEAS_GUION y termina en 0/q: un menu en `while True:` tiene UN solo
+    input() en el fuente y necesita muchas respuestas para llegar a su salida.
+    """
+    if not lee_teclado(codigo):
+        return [], "sin_teclado"
+    prompts = [m.group("txt") for m in _RE_INPUT_PROMPT.finditer(codigo or "")]
+    if prompts:
+        base, origen = [_respuesta_para(p) for p in prompts], "derivado"
+    else:
+        base, origen = list(GUION_GENERICO), "generico"
+    # Si TODO lo que pide son numeros, la cola tambien: teclearle una "q" a un
+    # int(input(...)) fabrica un ValueError que no es del producto.
+    cola = _COLA_NUMERICA if all(r.isdigit() for r in base) else _COLA_MIXTA
+    guion = list(base)
+    i = 0
+    while len(guion) < MAX_LINEAS_GUION - len(cola):
+        guion.append(base[i % len(base)])
+        i += 1
+    return guion + cola, origen
+
+
+def guion_para(prod, usar_cache=True):
+    """
+    (guion, origen) del producto, con cache en <producto>/.autoprueba.json.
+
+    El fichero MANDA sobre lo derivado: si el dueno escribe ahi el guion real de
+    su juego, la autoprueba lo usa tal cual para siempre. Se escribe una sola vez
+    (best-effort: una carpeta de solo lectura no puede romper la prueba), y
+    COGNIA_AUTOPRUEBA_CACHE=0 lo desactiva para corridas que no deben tocar la
+    biblioteca del dueno.
+    """
+    carpeta = Path(prod["directorio"])
+    ruta = carpeta / NOMBRE_CACHE_GUION
+    if usar_cache:
+        try:
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+            guion = datos.get("guion")
+            if isinstance(guion, list) and all(isinstance(x, str) for x in guion):
+                return guion, datos.get("origen") or "cache"
+        except Exception:
+            pass    # sin cache o cache corrupta: se deriva de nuevo, no se rompe
+
+    guion, origen = derivar_guion(_leer(prod["entrypoint"]) if prod.get("entrypoint") else "")
+    if guion and usar_cache and os.environ.get("COGNIA_AUTOPRUEBA_CACHE", "1").strip() != "0":
+        try:
+            ruta.write_text(json.dumps(
+                {"guion": guion, "origen": origen,
+                 "nota": "guion de teclado de /autoprueba; editalo si tu programa "
+                         "se maneja de otra forma (manda sobre lo que deduce el regex)"},
+                ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass    # best-effort: no poder cachear no cambia el veredicto
+    return guion, origen
+
+
+def _veredicto_arranque(rc, out, err, expiro, timeout, con_guion):
+    """
+    (ok, detalle) de UNA corrida. ok=None es INDETERMINADO, no fallo.
 
     REGLA CLAVE: timeout == arranco bien (juego interactivo o bucle de render).
     Traceback / SyntaxError / IndentationError == fallo, aunque el rc sea 0.
-    Y un EOFError por stdin cerrado tampoco cuenta como fallo del producto: es
-    culpa de la prueba, que no le da teclado a un programa que pide input().
-    """
-    rc, out, err, expiro = _correr(
-        [sys.executable, "-s", prod["entrypoint"]],
-        cwd=prod["directorio"], timeout=timeout)
-    salida = {"rc": rc, "timeout": expiro,
-              "stdout": out[:800], "stderr": err[:800],
-              "chars_stdout": len(out.strip())}
 
+    LA EXCUSA DEL EOFError, y donde se retira: sin guion, morir de EOFError es
+    culpa de la PRUEBA (no le dio teclado) y cuenta como "arranco" — es la regla
+    de 2026-07-23 y sigue viva. CON guion, ya se le dio teclado: un EOFError
+    significa que el guion se quedo corto, y eso no es ni "arranco" ni "esta
+    roto": es INDETERMINADO.
+    """
     if expiro:
-        salida.update(ok=True, detalle=f"timeout {timeout}s sin reventar = arranco "
-                                       f"(interactivo/bucle), {len(out.strip())} chars de salida")
-        return salida
+        return True, (f"timeout {timeout}s sin reventar = arranco "
+                      f"(interactivo/bucle), {len(out.strip())} chars de salida")
     if _es_falta_de_teclado(err):
-        salida.update(ok=True, detalle="pidio input() y stdin esta cerrado (EOFError) = arranco")
-        return salida
+        if con_guion:
+            return None, ("INDETERMINADO: se le tecleo el guion entero y siguio "
+                          "pidiendo entrada (EOFError). El guion se quedo corto, "
+                          f"no el producto — editalo en {NOMBRE_CACHE_GUION}")
+        return True, "pidio input() y stdin esta cerrado (EOFError) = arranco"
     firma = _hay_error_python(err)
     if firma:
         ultima = next((l for l in reversed(err.splitlines()) if l.strip()), "")
-        salida.update(ok=False, detalle=f"{firma} -> {ultima.strip()[:160]}")
-        return salida
+        return False, f"{firma} -> {ultima.strip()[:160]}"
     if rc != 0:
-        salida.update(ok=False, detalle=f"exit {rc}")
-        return salida
-    salida.update(ok=True, detalle=f"exit 0, {len(out.strip())} chars de salida")
-    return salida
+        return False, f"exit {rc}"
+    return True, f"exit 0, {len(out.strip())} chars de salida"
+
+
+def _fase_arranca(prod, timeout, guion=None, origen_guion="sin_teclado"):
+    """
+    Ejecuta el entrypoint en su propia carpeta con DOS guiones distintos.
+
+    DOS BRAZOS, los dos con teclado:
+      A — con el guion derivado. Es el UNICO que da el veredicto `ok`.
+      B — la misma corrida con `guion_variante(guion)`: mismas lineas, otros
+          valores, mismos tokens de salida.
+    Si los dos stdout son identicos byte a byte, la salida del producto no
+    depende del valor tecleado: `no_reacciona=True`. Es un DATO que viaja en el
+    sello y se cuenta en el reporte, y NO reprueba — ver la cabecera del modulo:
+    no hay corte en esta metrica que separe un cascaron de un informe honesto
+    que acaba en "Pulsa Enter para salir", y un gate que condena sanos se apaga.
+
+    Que el brazo B lleve guion (y no stdin cerrado) es lo que hace que la
+    medida signifique algo: con stdin cerrado se media "sobrevive al EOF".
+
+    Sin guion posible (el fuente no lee teclado) se corre UNA vez, como siempre,
+    y no hay nada que comparar.
+    """
+    argv = [sys.executable, "-s", prod["entrypoint"]]
+    cwd  = prod["directorio"]
+
+    if not guion:
+        rc, out, err, expiro = _correr(argv, cwd=cwd, timeout=timeout)
+        ok, detalle = _veredicto_arranque(rc, out, err, expiro, timeout, con_guion=False)
+        return {"rc": rc, "timeout": expiro, "stdout": out[:800], "stderr": err[:800],
+                "chars_stdout": len(out.strip()), "ok": ok, "detalle": detalle,
+                "guion": [], "origen_guion": origen_guion,
+                "brazo_b": None, "no_reacciona": None,
+                "no_reacciona_decidible": None,
+                "indeterminado": ok is None}
+
+    # BRAZO B PRIMERO, y el A DESPUES. El orden no cambia la comparacion pero si
+    # lo que queda en disco: los dos brazos corren en la MISMA carpeta, asi que
+    # el ultimo pisa los ficheros que escriba el producto. El que manda es el
+    # brazo A (es el que da el veredicto y el que se cita en el sello), asi que
+    # es el que tiene que correr al final. Con el orden al reves, un producto que
+    # escribe "resultado.txt" dejaba en disco el resultado del guion VARIANTE.
+    variante = guion_variante(guion)
+    rcb, outb, errb, expirob = _correr(argv, cwd=cwd, timeout=timeout, guion=variante)
+    okb, _detb = _veredicto_arranque(rcb, outb, errb, expirob, timeout, con_guion=True)
+
+    rc, out, err, expiro = _correr(argv, cwd=cwd, timeout=timeout, guion=guion)
+    ok, detalle = _veredicto_arranque(rc, out, err, expiro, timeout, con_guion=True)
+    no_reacciona = (out == outb)
+
+    # Decidible solo si (a) se teclearon valores REALMENTE distintos — un guion
+    # que es todo sentinelas de salida da los dos brazos iguales por
+    # construccion — y (b) hubo algo que comparar por stdout. Sin las dos cosas
+    # la metrica no midio nada, y decirlo vale mas que inventarse un veredicto.
+    valores_distintos = (variante != list(guion))
+    hay_evidencia = bool(out.strip()) or bool(outb.strip())
+    decidible = valores_distintos and hay_evidencia
+
+    if not decidible:
+        nota = ("brazo B: no decidible ("
+                + ("los DOS brazos sin salida por stdout"
+                   if valores_distintos else "el guion es todo tokens de salida")
+                + ")")
+    elif no_reacciona:
+        nota = ("brazo B: MISMO stdout con otro guion — la salida no depende del "
+                "valor tecleado (dato del sello, no reprueba)")
+    else:
+        nota = "brazo B: stdout distinto con otro guion — usa el valor tecleado"
+
+    return {
+        "rc": rc, "timeout": expiro, "stdout": out[:800], "stderr": err[:800],
+        "chars_stdout": len(out.strip()),
+        "guion": list(guion), "origen_guion": origen_guion,
+        "brazo_b": {"guion": list(variante), "rc": rcb, "timeout": expirob,
+                    "stdout": outb[:800], "chars_stdout": len(outb.strip()), "ok": okb},
+        "no_reacciona": no_reacciona,
+        "no_reacciona_decidible": decidible,
+        # El veredicto es el del brazo A, y SOLO el suyo.
+        "ok": ok, "indeterminado": (ok is None),
+        "detalle": detalle + " | " + nota,
+    }
 
 
 def _lineas_utiles(texto):
@@ -434,6 +782,18 @@ def _mirar_en_navegador(codigo, dir_producto=None, idea=""):
     return True, "abre en el navegador sin errores de JS" + detalle_vlm, []
 
 
+# (funcion_que_lo_midio, motivo) del "el VLM no esta", cacheado para el proceso.
+# None = sin probar. `reiniciar_cache_vlm()` lo limpia para reintentar tras
+# arrancar servir_vlm.py.
+_VLM_AUSENTE = None
+
+
+def reiniciar_cache_vlm():
+    """Olvida el 'el VLM no esta' cacheado y vuelve a probarlo."""
+    global _VLM_AUSENTE
+    _VLM_AUSENTE = None
+
+
 def _mirar_con_vlm(informe, idea):
     """El arbitro VLM MIRA el screenshot real. Devuelve texto para el detalle.
 
@@ -446,11 +806,22 @@ def _mirar_con_vlm(informe, idea):
     Sin VLM servido no falla: lo DICE. Un arbitro ausente en silencio es
     justamente como se llego a sellar paginas rotas con 9.5.
     """
+    global _VLM_AUSENTE
     try:
         from .program_creator.arbitro_visual import (
             arbitrar_desde_informe, vlm_disponible)
+        # El cache esta KEYADO por la funcion que lo midio: si alguien la
+        # sustituye (un test que la parchea, o servir_vlm.py recargado), el
+        # cache no aplica. Sin esa clave, el estado global de un test se filtraba
+        # al siguiente y dos tests de test_verificacion_navegador se ponian rojos.
+        if _VLM_AUSENTE is not None and _VLM_AUSENTE[0] is vlm_disponible:
+            return f" | VLM: NO juzgo ({_VLM_AUSENTE[1]})"
         vivo, motivo = vlm_disponible()
         if not vivo:
+            # Se CACHEA el "no esta" (medido: 2,0 s de urlopen que expira, por
+            # producto — dos minutos enteros al sellar los 70 de la biblioteca).
+            # Solo el negativo: si el VLM esta vivo se le pregunta siempre.
+            _VLM_AUSENTE = (vlm_disponible, motivo)
             return f" | VLM: NO juzgo ({motivo})"
         fallo = arbitrar_desde_informe(idea or "pagina web", informe)
         if not fallo:
@@ -462,17 +833,240 @@ def _mirar_con_vlm(informe, idea):
         return f" | VLM: error al mirar ({exc.__class__.__name__})"
 
 
+# ── Contrato GENERICO de una pagina + gate de pixeles ──────────────────────────
+#
+# PROHIBIDO generar contratos "por idea". Lo dice lo medido en esta casa: el
+# contrato interno esta al nivel del azar y CONDENA SANOS (reprueba el 88-94% de
+# las paginas que funcionan). Lo que hay aqui es lo unico que se puede afirmar de
+# CUALQUIER pagina sin inventar una especificacion: cuantos controles clicables
+# tiene, si alguno cambia el DOM, si se anima sola, y si sus capturas son algo
+# mas que un rectangulo negro.
+
+# Fraccion de pixeles muestreados que tiene que moverse para llamarlo movimiento.
+# 0,005 = medio por ciento; por debajo es el cursor de un <input> parpadeando.
+UMBRAL_ACTIVIDAD = 0.005
+
+# Cuanto se deja correr la pagina en cada fase antes del segundo frame.
+ESPERA_FASE_MS = 700
+TIMEOUT_CONTRATO_SEG = 25
+
+# Controles que se pueden clicar SIN navegar fuera de la pagina. Un <a href> a
+# otra URL se cuenta pero no se clica: si el clic navega, el DOM cambia por
+# mudarse de pagina y el contrato daria un verde que no midio nada.
+_SEL_CLICABLES = ("button, [onclick], [role=button], summary, "
+                  "input[type=button], input[type=submit], input[type=checkbox], "
+                  "input[type=radio], a[href^='#'], a[href^='javascript']")
+_SEL_CONTROLES = _SEL_CLICABLES + ", a[href], input, select, textarea, [tabindex]"
+
+# Teclas del brazo ACTIVO. Cubren los dos esquemas de control que usa el 100% de
+# los juegos web que genera este repo (flechas y WASD) mas el disparo/saltar.
+_TECLAS_JUEGO = ("ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown",
+                 " ", "w", "a", "s", "d", "Enter")
+
+_RE_JUEGO_POR_NOMBRE = re.compile(
+    r"\bjuego|\bgame\b|arcade|pong|snake|tetris|platformer|shooter", re.IGNORECASE)
+_RE_JUEGO_POR_CODIGO = re.compile(
+    r"requestAnimationFrame|addEventListener\s*\(\s*['\"]key|<canvas|"
+    r"\bkeydown\b|\bgameLoop\b|\bplayer\b", re.IGNORECASE)
+# Formas de RECIBIR entrada. Si no hay ninguna, la pagina no es que "ignore" el
+# teclado: es que no tiene por donde oirlo.
+_RE_ESCUCHA_INPUT = re.compile(
+    r"addEventListener\s*\(\s*['\"](key|click|mouse|pointer|touch)|"
+    r"\bon(click|keydown|keyup|keypress|mousedown|pointerdown)\s*=", re.IGNORECASE)
+
+
+def juego_por_nombre(prod):
+    """True si el producto SE LLAMA juego (su id/title/description lo dice)."""
+    texto = " ".join(str((prod or {}).get(k) or "") for k in ("id", "title", "description"))
+    return bool(_RE_JUEGO_POR_NOMBRE.search(texto))
+
+
+def parece_juego(prod, codigo=""):
+    """True si el producto se comporta como un juego (por nombre o por codigo)."""
+    return juego_por_nombre(prod) or bool(_RE_JUEGO_POR_CODIGO.search(codigo or ""))
+
+
+def _aplica_gate_juego(prod, codigo, clicables):
+    """
+    (bool, motivo) — si a ESTA pagina se le puede exigir que responda al input.
+
+    MEDIDO 2026-08-29 sobre las 34 paginas reales de la biblioteca: con el gate
+    aplicado a todo lo que "parece juego por codigo", reprobaba
+    investment_dashboard_simulation_01 y _02 — dos dashboards que se animan
+    solos, no tienen NI UN control clicable NI un addEventListener, y perdian
+    por 0,0497 contra 0,0507 (un 2%, dentro del ruido de un diff de pixeles).
+    Un dashboard animado que no escucha el teclado no "ignora" la entrada: no
+    tiene por donde oirla, y reprobarlo es fabricar un rojo.
+
+    Asi que el gate se aplica cuando (a) el producto SE LLAMA juego — entonces
+    no poder jugarlo SI es un defecto — o (b) parece juego por su codigo Y
+    ademas tiene por donde recibir entrada.
+    """
+    if juego_por_nombre(prod):
+        return True, "el producto se llama juego"
+    if not _RE_JUEGO_POR_CODIGO.search(codigo or ""):
+        return False, "no parece un juego"
+    if clicables > 0 or _RE_ESCUCHA_INPUT.search(codigo or ""):
+        return True, "parece juego por codigo y tiene por donde recibir entrada"
+    return False, ("se anima sola pero no escucha teclado ni raton: es una "
+                   "animacion, no un juego que ignora la entrada")
+
+
+def _contrato_web(prod, codigo):
+    """
+    Corre el contrato generico con Playwright. Devuelve un dict SIEMPRE, nunca lanza.
+
+    Claves: {corrio, ok, detalle, controles, clicables, clics, cambio_dom,
+             actividad_base, actividad_activo, responde_input, anima_sola,
+             pixeles_ok, pixeles_detalle, errores_js}
+
+    corrio=False (con motivo en `detalle`) cuando no hay Playwright o la pagina
+    no se pudo abrir: eso NO reprueba a nadie — un chequeo que se salta en
+    silencio es peor que no tenerlo, pero condenar por no poder mirar es peor aun.
+    """
+    from .program_creator import frames_gate as FG
+
+    base = {"corrio": False, "ok": True, "detalle": "", "controles": 0, "clicables": 0,
+            "clics": 0, "cambio_dom": False, "actividad_base": None,
+            "actividad_activo": None, "responde_input": None, "anima_sola": False,
+            "pixeles_ok": None, "pixeles_detalle": "", "errores_js": []}
+
+    if os.environ.get("COGNIA_CONTRATO_WEB", "1").strip() == "0":
+        base["detalle"] = "contrato desactivado (COGNIA_CONTRATO_WEB=0)"
+        return base
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:
+        base["detalle"] = (f"sin Playwright ({exc.__class__.__name__}): el contrato "
+                           "generico NO se corrio (no reprueba)")
+        return base
+
+    url = Path(prod["entrypoint"]).resolve().as_uri()
+    errores_js = []
+
+    def _fase(page, con_input):
+        """(frame_a, frame_b, clics, cambio_dom) de una fase completa."""
+        page.goto(url, timeout=TIMEOUT_CONTRATO_SEG * 1000)
+        page.wait_for_timeout(400)
+        frame_a = page.screenshot(type="png")
+        clics, cambio = 0, False
+        if con_input:
+            antes = page.evaluate("document.body ? document.body.innerHTML : ''")
+            for el in page.query_selector_all(_SEL_CLICABLES)[:3]:
+                try:
+                    el.click(timeout=1500, force=True)
+                    clics += 1
+                    page.wait_for_timeout(150)
+                    if page.evaluate("document.body ? document.body.innerHTML : ''") != antes:
+                        cambio = True
+                except Exception:
+                    pass        # un control tapado no es un defecto de la pagina
+            for tecla in _TECLAS_JUEGO:
+                try:
+                    page.keyboard.press(tecla)
+                except Exception:
+                    break
+            page.wait_for_timeout(120)
+            if not cambio and page.evaluate("document.body ? document.body.innerHTML : ''") != antes:
+                cambio = True
+        page.wait_for_timeout(ESPERA_FASE_MS)
+        return frame_a, page.screenshot(type="png"), clics, cambio
+
+    try:
+        with sync_playwright() as pw:
+            navegador = pw.chromium.launch()
+            try:
+                page = navegador.new_page(viewport={"width": 1000, "height": 700})
+                page.on("pageerror", lambda e: errores_js.append(str(e)[:200]))
+                page.set_default_timeout(TIMEOUT_CONTRATO_SEG * 1000)
+
+                # Fase BASE: nadie toca nada. Es el BRAZO NULO de la pagina.
+                a_base, b_base, _, _ = _fase(page, con_input=False)
+                base["controles"] = int(page.evaluate(
+                    f"document.querySelectorAll({_SEL_CONTROLES!r}).length") or 0)
+                base["clicables"] = int(page.evaluate(
+                    f"document.querySelectorAll({_SEL_CLICABLES!r}).length") or 0)
+
+                # Fase ACTIVO: pagina recargada de cero y los mismos milisegundos,
+                # con clics y teclas por medio. Unica diferencia: la entrada.
+                a_act, b_act, clics, cambio = _fase(page, con_input=True)
+            finally:
+                navegador.close()
+    except Exception as exc:
+        base["detalle"] = (f"la pagina no se pudo pilotar ({exc.__class__.__name__}: "
+                           f"{str(exc)[:120]}): contrato NO corrido (no reprueba)")
+        return base
+
+    act_base   = FG.fraccion_pixeles_distintos(a_base, b_base)
+    act_activo = FG.fraccion_pixeles_distintos(a_act, b_act)
+    pix_ok, pix_det, _medidas = FG.gate_capturas([a_base, b_base, a_act, b_act])
+
+    anima_sola = act_base is not None and act_base > UMBRAL_ACTIVIDAD
+    responde = bool(cambio) or (
+        act_activo is not None and act_base is not None
+        and act_activo > max(act_base * MARGEN_JUEGO, UMBRAL_ACTIVIDAD))
+
+    base.update(corrio=True, clics=clics, cambio_dom=bool(cambio),
+                actividad_base=act_base, actividad_activo=act_activo,
+                responde_input=responde, anima_sola=anima_sola,
+                pixeles_ok=pix_ok, pixeles_detalle=pix_det, errores_js=errores_js[:5])
+
+    partes = [f"{base['clicables']} clicables de {base['controles']} controles",
+              f"{clics} clicados", "DOM cambia" if cambio else "DOM no cambia",
+              f"pixeles base {act_base if act_base is None else round(act_base, 4)} -> "
+              f"activo {act_activo if act_activo is None else round(act_activo, 4)}"]
+
+    # ── VEREDICTOS, los dos conservadores a proposito ──────────────────────────
+    if not pix_ok:
+        base.update(ok=False, detalle="GATE DE PIXELES: " + pix_det + " | " + "; ".join(partes))
+        return base
+
+    # (1) Contrato generico: reprueba solo cuando NADA de la pagina reacciona.
+    # Los tres tienen que fallar a la vez (no cambia el DOM, no se anima, no se
+    # mueve un pixel de mas con la entrada): con uno solo no se condena.
+    if base["clicables"] > 0 and not cambio and not anima_sola and not responde:
+        base.update(ok=False, detalle=(
+            f"{base['clicables']} controles clicables y NINGUNO hace nada: "
+            f"tras {clics} clics el innerHTML del body es identico, la pagina no "
+            f"se anima sola y los pixeles no se movieron | " + "; ".join(partes)))
+        return base
+
+    # (2) Gate de JUEGO (patron AGF base/activo con margen 1.15): un juego que se
+    # mueve IGUAL sin tocar nada no responde al input.
+    aplica_juego, motivo_juego = _aplica_gate_juego(prod, codigo, base["clicables"])
+    base["gate_juego"] = {"aplica": aplica_juego, "motivo": motivo_juego}
+    if aplica_juego and anima_sola and not responde:
+        base.update(ok=False, detalle=(
+            f"NO RESPONDE AL INPUT: se anima sola ({round(act_base, 4)} de pixeles) "
+            f"pero con clics y teclas se mueve igual "
+            f"({act_activo if act_activo is None else round(act_activo, 4)}, hace falta "
+            f"superar {round(act_base * MARGEN_JUEGO, 4)}) | " + "; ".join(partes)))
+        return base
+
+    base["detalle"] = "contrato generico OK | " + "; ".join(partes)
+    return base
+
+
 def _fases_html(prod):
     """
     Verificacion de una pagina. 'compila' es 'tiene estructura de documento' y
     'arranca' es lo que dice su nombre: la pagina se ABRE en un navegador de
-    verdad (ademas del criterio estatico revisar_html de sandbox_runner).
+    verdad (ademas del criterio estatico revisar_html de sandbox_runner) y PASA
+    EL CONTRATO GENERICO ejecutable (clics, DOM, pixeles).
     """
     codigo = _leer(prod["entrypoint"])
     informe = revisar_html(codigo)
     nav_ok, nav_detalle, nav_errores = _mirar_en_navegador(
         codigo, dir_producto=Path(prod["entrypoint"]).parent,
         idea=prod.get("title") or prod.get("description") or "")
+    # El contrato comparte interruptor con el navegador: apagar COGNIA_VERIFICAR_
+    # NAVEGADOR tiene que apagar TODO lo que abre un navegador, o sellar la
+    # biblioteca entera seguiria costando minutos por producto.
+    if os.environ.get("COGNIA_VERIFICAR_NAVEGADOR", "1").strip() == "0":
+        contrato = {"corrio": False, "ok": True,
+                    "detalle": "contrato desactivado (COGNIA_VERIFICAR_NAVEGADOR=0)"}
+    else:
+        contrato = _contrato_web(prod, codigo)
     estructura = all(t in codigo.lower() for t in ("<html", "<head", "<body"))
     utiles = _lineas_utiles(codigo)
     return {
@@ -480,17 +1074,21 @@ def _fases_html(prod):
                     "errores": [] if estructura else ["falta <html>/<head>/<body>"],
                     "detalle": "documento HTML completo" if estructura else "documento incompleto"},
         "importa": {"ok": None, "detalle": "n/a (no es Python)"},
-        # 'arranca' exige LAS DOS: el criterio estatico Y que la pagina abra sin
-        # reventar en un navegador real. Basta que una falle para no verificarla.
-        "arranca": {"ok": bool(informe.success) and nav_ok, "rc": informe.exit_code, "timeout": False,
+        # 'arranca' exige LAS TRES: el criterio estatico, que la pagina abra sin
+        # reventar en un navegador real, Y el contrato generico ejecutable (o que
+        # el contrato no se haya podido correr, que no es lo mismo que fallar).
+        "arranca": {"ok": bool(informe.success) and nav_ok and bool(contrato.get("ok", True)),
+                    "rc": informe.exit_code, "timeout": False,
                     "stdout": informe.execution_output[:800],
                     "stderr": ("\n".join(nav_errores) + "\n" + informe.execution_errors)[:800]
                               if nav_errores else informe.execution_errors[:800],
                     "chars_stdout": len(informe.execution_output.strip()),
                     "navegador": {"ok": nav_ok, "detalle": nav_detalle, "errores_js": nav_errores},
+                    "contrato": contrato,
                     "detalle": (("revisar_html OK" if informe.success
                                  else "revisar_html: " + (informe.execution_errors.splitlines() or [""])[0][:160])
-                                + " | navegador: " + nav_detalle)},
+                                + " | navegador: " + nav_detalle
+                                + " | contrato: " + (contrato.get("detalle") or "sin detalle"))},
         "sin_stubs": {"ok": len(utiles) >= 20, "vacios": [] if len(utiles) >= 20 else [prod["entrypoint"]],
                       "funciones_huecas": [], "funciones": 0, "ratio_huecas": 0.0, "marcadores": 0,
                       "detalle": f"{len(utiles)} lineas utiles de HTML"},
@@ -505,11 +1103,16 @@ def probar_producto(prod, timeout_arranque=TIMEOUT_ARRANQUE_SEG,
     Para en el primer fallo DURO (compila, importa, arranca): si no compila no
     tiene sentido importarlo, y el resultado seria ruido. Las fases no corridas
     quedan con ok=None y detalle "no evaluado".
+
+    `indeterminado` (clave nueva) NO es un fallo del producto: hoy solo lo pone
+    el arranque cuando se le tecleo el guion entero y siguio pidiendo entrada.
+    Se distingue de fallo_duro a proposito: un indeterminado no se manda a
+    reparar (no hay nada medido que corregir) pero tampoco se sella "verificado".
     """
     res = {
         "id": prod["id"], "title": prod["title"], "lenguaje": prod["lenguaje"],
         "directorio": prod["directorio"], "entrypoint": prod["entrypoint"],
-        "fases": {}, "fallo_duro": None,
+        "fases": {}, "fallo_duro": None, "indeterminado": None,
     }
     no_eval = {"ok": None, "detalle": "no evaluado (se corto antes)"}
 
@@ -543,9 +1146,13 @@ def probar_producto(prod, timeout_arranque=TIMEOUT_ARRANQUE_SEG,
         res["fases"]["sin_stubs"] = _fase_sin_stubs(prod)
         return res
 
-    res["fases"]["arranca"] = _fase_arranca(prod, timeout_arranque)
-    if not res["fases"]["arranca"]["ok"]:
+    guion, origen = guion_para(prod)
+    res["fases"]["arranca"] = _fase_arranca(prod, timeout_arranque,
+                                            guion=guion, origen_guion=origen)
+    if res["fases"]["arranca"]["ok"] is False:
         res["fallo_duro"] = "arranca"
+    elif res["fases"]["arranca"]["ok"] is None:
+        res["indeterminado"] = "arranca"
     res["fases"]["sin_stubs"] = _fase_sin_stubs(prod)
     return res
 
@@ -623,7 +1230,15 @@ def evaluar_producto(prod, resultado):
     motivos.append(f"compila: {comp.get('detalle', 'no evaluado')}")
 
     arr = fases.get("arranca", {})
-    desglose["arranca"] = 3.0 if arr.get("ok") else 0.0
+    if arr.get("ok"):
+        desglose["arranca"] = 3.0
+    elif arr.get("ok") is None and arr.get("indeterminado"):
+        # INDETERMINADO: se le dio teclado y siguio pidiendo. No se le pueden dar
+        # los 3 puntos de "arranca" (no lo sabemos) ni los 0 de "revienta" (no
+        # revento). La mitad, y el motivo lo dice.
+        desglose["arranca"] = 1.5
+    else:
+        desglose["arranca"] = 0.0
     motivos.append(f"arranca: {arr.get('detalle', 'no evaluado')}")
 
     stub = fases.get("sin_stubs", {})
@@ -651,6 +1266,7 @@ def evaluar_producto(prod, resultado):
         "directorio": prod["directorio"], "entrypoint": prod["entrypoint"],
         "puntaje": puntaje, "desglose": desglose, "motivos": motivos,
         "fallo_duro": resultado["fallo_duro"],
+        "indeterminado": resultado.get("indeterminado"),
         "score_index": prod.get("score_index"),
     }
 
@@ -702,11 +1318,23 @@ def probar_todos(limite=None, filtro=None, base=None, solo_codigo=False,
         return {"id": e["id"], "puntaje": e["puntaje"], "lenguaje": e["lenguaje"],
                 "motivo": e["motivos"][0] + " | " + motivo}
 
+    # Los dos contadores del brazo B: sin ellos "de inicio a fin" seria una
+    # afirmacion sin numero al lado. `no_reaccionan` NO baja la nota de nadie:
+    # es el dato que hace visible cuantos productos ignoran lo que se les teclea.
+    def _arr(e):
+        return (e.get("resultado") or {}).get("fases", {}).get("arranca", {})
+    no_reaccionan  = sum(1 for e in evaluaciones if _arr(e).get("no_reacciona") is True)
+    indeterminados = sum(1 for e in evaluaciones if e.get("indeterminado"))
+    con_guion      = sum(1 for e in evaluaciones if _arr(e).get("guion"))
+
     reporte = {
         "total": n,
         "compilan": compilan,
         "arrancan": arrancan,
         "sin_codigo": sin_codigo,
+        "con_guion": con_guion,
+        "no_reaccionan": no_reaccionan,
+        "indeterminados": indeterminados,
         "puntaje_medio": medio,
         "por_lenguaje": {l: sum(1 for e in evaluaciones if e["lenguaje"] == l)
                          for l in sorted({e["lenguaje"] for e in evaluaciones})},
@@ -736,14 +1364,24 @@ def slash_autoprueba(args="", base=None):
           + (f" (filtro '{filtro}')" if filtro else "") + "...", flush=True)
 
     def _linea(ev):
-        marca = "OK  " if ev["fallo_duro"] is None else "FALLA"
+        if ev["fallo_duro"]:
+            marca = "FALLA"
+        elif ev.get("indeterminado"):
+            marca = "?   "
+        else:
+            marca = "OK  "
         print(f"  {marca} {ev['id'][:44]:<44} {ev['puntaje']:>5.1f}/10 ({ev['lenguaje']})"
-              + (f" <- {ev['fallo_duro']}" if ev["fallo_duro"] else ""), flush=True)
+              + (f" <- {ev['fallo_duro']}" if ev["fallo_duro"] else "")
+              + (f" <- indeterminado en {ev['indeterminado']}"
+                 if ev.get("indeterminado") else ""), flush=True)
 
     rep = probar_todos(limite=limite, filtro=filtro, base=base, al_terminar_uno=_linea)
     print(f"  --- {rep['arrancan']}/{rep['total']} arrancan | "
           f"{rep['compilan']}/{rep['total']} compilan | "
           f"media {rep['puntaje_medio']}/10", flush=True)
+    print(f"  --- teclado: {rep['con_guion']} con guion | "
+          f"{rep['no_reaccionan']} no usan el valor tecleado | "
+          f"{rep['indeterminados']} indeterminados", flush=True)
     if rep["peor"]:
         print(f"  peor: {rep['peor']['id']} ({rep['peor']['puntaje']}/10) — "
               f"{rep['peor']['motivo'][:120]}", flush=True)

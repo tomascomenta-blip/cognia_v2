@@ -134,6 +134,26 @@ def test_build_memorias_data_resuelve_los_comandos():
     assert not any("{" in c for c in cmds), "quedo un placeholder sin resolver"
 
 
+def test_el_programa_ofrece_abrir_el_producto():
+    """REGRESION 2026-08-29. La ficha de un programa solo sabia ensenar el
+    CODIGO ('/programs ver'), que es lo que le interesa a quien programa y no
+    a quien quiere USAR lo que Cognia le construyo. '/biblioteca abrir <id>'
+    lanza el producto: la web en el navegador, el .py con la app del sistema,
+    la carpeta si no hay entrypoint.
+
+    El orden importaba y por eso esto es un test: la accion se anadio DESPUES
+    de que el dispatch existiera en cli.py -- al reves,
+    test_todas_las_acciones_existen_en_el_cli habria puesto la suite en rojo,
+    que es exactamente su trabajo."""
+    d = V.build_memorias_data(_cat_de_prueba())
+    prog = [f for f in d["filas"] if f["familia"] == "programa"][0]
+    cmds = [a["cmd"] for a in prog["acciones"]]
+    assert "/biblioteca abrir mi_programa" in cmds
+    # y sigue existiendo de verdad en el CLI (la via corta del guardian)
+    ok, motivo = _comando_existe("/biblioteca abrir")
+    assert ok, motivo
+
+
 def test_build_memorias_data_solo_lista_familias_con_contenido():
     d = V.build_memorias_data(_cat_de_prueba())
     claves = [f["clave"] for f in d["familias"]]

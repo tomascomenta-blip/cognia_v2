@@ -351,7 +351,12 @@ def test_el_bucle_del_repl_enruta_los_centinelas(monkeypatch):
     assert "_FONDO_MEJORA" in cont, "la continuacion se traga el centinela de F3"
     assert "_FONDO_F2" in cont, "la continuacion se traga el centinela de F2"
     # rama sin prompt_toolkit: consume la precarga en vez de perderla
-    plano = cuerpo[cuerpo.index('return input(_g() + "cognia> "') - 900:]
+    # El ancla vieja era 'return input(_g() + "cognia> "'. El prompt dejo de
+    # ser fijo cuando los bots trajeron su propia etiqueta ("<glifo> <bot>> "),
+    # asi que ese literal ya no existe y el test fallaba por el ANCLA, no por
+    # la conducta. Se ancla en la llamada a input() de esa rama, que es lo
+    # unico estable, y lo que se comprueba sigue siendo lo mismo.
+    plano = cuerpo[cuerpo.index("linea = input(_g() + _etiqueta_prompt()") - 900:]
     plano = plano[:plano.index("# Warm-up")]
     assert "_PRECARGA_PROMPT" in plano, \
         "sin PromptSession, 'Editar el mejorado' pierde el texto sin avisar"

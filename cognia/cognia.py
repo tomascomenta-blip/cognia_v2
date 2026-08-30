@@ -588,6 +588,18 @@ class Cognia:
                     f"Guardados: {result.stored} — {names}\n"
                     f"Usa /biblioteca para verlos."
                 )
+                # EL VEREDICTO MEDIDO, en el TEXTO (2026-08-29). Antes esto solo
+                # se imprimia por stdout dentro de run_program_hobby, asi que en
+                # remoto y en el movil el dueno leia "Guardados: 1" y no sabia si
+                # el programa corre. El pedido literal fue "que probara su
+                # producto de inicio a fin para ver si funciona".
+                try:
+                    from cognia.program_creator.program_creator import texto_veredicto
+                    for _v in (result.verificaciones or []):
+                        salida += (f"\n  {_v.get('title', '?')}: "
+                                   f"{texto_veredicto(_v)}")
+                except Exception:
+                    pass    # el veredicto nunca puede romper la creacion
                 # Adjuntar lo VISIBLE: el HTML y las capturas del render real.
                 # Cazado 2026-07-25 (sesion ...112753): el dueno pidio "creas un
                 # juego pixelart ... y me mandas una foto del gameplay real" y
@@ -688,10 +700,26 @@ class Cognia:
                 calidad = "FALLIDO segun el juez ejecutable"
             else:
                 calidad = "sin verificar (no hubo contrato ejecutable)"
+
+            # SELLO IGUAL QUE /crear (2026-08-29). Hasta hoy /construir NO
+            # llamaba a la verificacion NUNCA: la pagina se guardaba con la
+            # opinion del juez visual y nadie comprobaba que abriera. Ahora pasa
+            # la misma bateria (estructura + navegador + contrato generico) y
+            # deja su .verificacion.json al lado, respetando
+            # COGNIA_VERIFICAR_NAVEGADOR para no pagar el navegador dos veces.
+            linea_ver = ""
+            try:
+                from cognia.program_creator.program_creator import (
+                    _verificar_y_reparar, texto_veredicto)
+                _ver = _verificar_y_reparar(dest, None, verbose=False, reparar=False)
+                linea_ver = f"\nAutoprueba: {texto_veredicto(_ver)}"
+            except Exception as exc:
+                linea_ver = f"\nAutoprueba: NO se pudo correr ({type(exc).__name__})"
+
             return (
                 f"Construido en {res.rondas} ronda(s). Sello: {calidad}. "
                 f"Corte: {res.motivo_corte}.\n"
-                f"Pagina: {dest / 'index.html'}{linea_mock}\n"
+                f"Pagina: {dest / 'index.html'}{linea_mock}{linea_ver}\n"
                 f"Defectos pendientes: {len(res.defectos)}{aviso_vlm}")
         except Exception as exc:
             return f"[ERROR] {exc}"

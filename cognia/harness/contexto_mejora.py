@@ -35,12 +35,23 @@ CONTRATO
 - Cada proveedor que falla suma un aviso legible y devuelve vacio. Un
   proveedor caido NO puede verse igual que un proveedor sin resultados:
   `secciones` distingue "no hay" de "no se pudo".
+- NINGUNA SECCION DESAPARECE SIN RASTRO. Para cada nombre que se pide hay
+  siempre una respuesta a "que paso con esta seccion", y `estado_de()` la
+  devuelve en una palabra. Las cinco vias son excluyentes y estan todas
+  pobladas: `secciones` (llego texto), `vacias` (contesto y no habia nada),
+  `recortadas` (no se pidio, o se pidio y no cupo), `fallidas`+`avisos`
+  (exploto). Hasta 2026-08-29 esto era falso: un `if valor:` tiraba en
+  silencio a todo proveedor que devolviera "" -- medido, 5 de los 8
+  (conversacion, artefactos, recetas, skills, rag) se esfumaban sin entrar
+  en ninguna lista. El propio modulo lo tiene prohibido: "un contexto
+  incompleto en silencio es indistinguible de un contexto vacio".
 - Todo es inyectable (`proveedores=`) para poder testear sin disco ni DB.
 """
 from __future__ import annotations
 
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -81,12 +92,46 @@ class Contexto:
     ms: int = 0
     chars: int = 0
     recortadas: list = field(default_factory=list)
+    # Secciones que se pidieron, contestaron y no tenian nada que decir. Es
+    # "no hay", no "no se pudo": sin error y sin aviso. Existe porque sin
+    # ella esas secciones no aparecian en NINGUNA lista y quedaban
+    # indistinguibles de las que nunca se pidieron.
+    vacias: list = field(default_factory=list)
+    # Secciones cuyo proveedor lanzo. El texto del fallo va en `avisos`;
+    # aqui va el nombre pelado, para poder preguntarlo sin parsear prosa.
+    fallidas: list = field(default_factory=list)
 
     def a_dict(self) -> dict:
         return {"bloque": self.bloque, "secciones": dict(self.secciones),
                 "faltantes": list(self.faltantes), "tipo_tarea": self.tipo_tarea,
                 "avisos": list(self.avisos), "ms": self.ms, "chars": self.chars,
-                "recortadas": list(self.recortadas)}
+                "recortadas": list(self.recortadas), "vacias": list(self.vacias),
+                "fallidas": list(self.fallidas)}
+
+    def estado_de(self, nombre: str) -> str:
+        """Que paso con esta seccion, en una palabra. SIEMPRE contesta.
+
+        Este metodo es el contrato de "ninguna seccion desaparece": para
+        cualquiera de los 8 nombres devuelve uno de estos seis estados, y
+        solo el ultimo significa "ni se intento".
+
+          incluida   -> tiene texto y ese texto esta en el bloque
+          sin_sitio  -> tiene texto pero no cabia en el presupuesto de chars
+          sin_datos  -> se pidio, contesto, y no habia nada que decir
+          no_pedida  -> no se llego a pedir (presupuesto de tiempo, o cara
+                        en frio y todavia calentando)
+          fallo      -> el proveedor lanzo; el detalle esta en `avisos`
+          fuera_de_lista -> no estaba entre las secciones pedidas
+        """
+        if nombre in self.fallidas:
+            return "fallo"
+        if nombre in self.secciones:
+            return "sin_sitio" if nombre in self.recortadas else "incluida"
+        if nombre in self.vacias:
+            return "sin_datos"
+        if nombre in self.recortadas:
+            return "no_pedida"
+        return "fuera_de_lista"
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +293,34 @@ _FALTANTES = {
          ("carpeta", "directorio", "ruta", "todos los", "*.", "fichero",
           "archivo")),
     ],
-    "otro": [],
+    # 'otro' NO puede quedar vacio. Era [] hasta 2026-08-29 y ese vacio APAGABA
+    # la encuesta entera: tipo_de_tarea() devuelve 'otro' para todo lo que no
+    # case con su tabla de palabras, faltantes queda [] y la puerta 3 de
+    # encuesta.vale_la_pena cierra con "no hay decisiones sin tomar
+    # detectables". Medido sobre 21 pedidos cortos tipicos del dueno:
+    # 'ayudame con el proyecto', 'construime un bot', 'programame una
+    # calculadora', 'disename un logo' y 'quiero ponerme en forma' salian todos
+    # tipo='otro' -> 0 faltantes -> 0 preguntas. Y 'quiero ponerme en forma' es
+    # el EJEMPLO 1 del propio system del reformulador: el sistema lo resolvia
+    # metiendole preguntas al prompt entregado en vez de preguntarlas.
+    #
+    # Los tres huecos son GENERICOS a proposito: no saben de que trata el
+    # pedido (por eso cayo en 'otro'), asi que preguntan lo unico que aplica a
+    # cualquier tarea -- para que es, en que forma se quiere el resultado y
+    # hasta donde llega. Son la SEMILLA offline; con backend el modelo los usa
+    # como pista y suele hacer preguntas mejores.
+    "otro": [
+        ("proposito", "Para que va a servir?", "abierta", (),
+         ("para ", "porque", "necesito", "quiero que", "sirve", "me sirve")),
+        ("formato_salida", "Como queres el resultado?", "unica",
+         ("Un texto corrido", "Una lista de pasos", "Una tabla",
+          "Un fichero o codigo", "Me da igual, elegi vos"),
+         ("lista", "tabla", "pasos", "resumen", "correo", "informe",
+          "documento", "fichero", "archivo", "script", "codigo", "grafico")),
+        ("alcance", "Que tiene que incluir, como minimo?", "abierta", (),
+         ("tiene que", "debe ", "que haga", "incluya", "incluye", "minimo",
+          "requisito", "al menos")),
+    ],
 }
 
 
@@ -258,6 +330,13 @@ def faltantes_por_tipo(texto: str, tipo: str = "", *, contexto: str = "") -> lis
     Se mira tambien el contexto a proposito: si hace tres turnos el usuario
     dijo "en Python", preguntarle otra vez por el stack es exactamente la
     clase de encuesta invasiva que la mision prohibe.
+
+    QUE PONER EN `contexto`: solo lo que el USUARIO dijo -- sus ultimos turnos.
+    NO el bloque entero de reunir(). Una senal de cobertura ("python",
+    "fichero", "servidor") que aparece en el listado de ficheros del proyecto
+    no es una decision del usuario, y contarla como tal borra el hueco y apaga
+    la encuesta. reunir() ya pasa solo la seccion 'conversacion'; ver el
+    comentario en su cola.
     """
     tipo = tipo or tipo_de_tarea(texto)
     heno = _norm(texto + " " + (contexto or ""))
@@ -441,19 +520,53 @@ CAROS_EN_FRIO = frozenset({"rag"})
 
 # Coste medido POR PROCESO. Una vez que un proveedor caro demuestra ser
 # barato, deja de saltarse.
+#
+# ESTOS DOS GLOBALES LOS ESCRIBEN DOS HILOS: el del turno (que anota lo que
+# tardo cada proveedor) y el de calentamiento (que anota lo que tardo la
+# segunda llamada del arranque). Y `_COSTE_MS` no es un cache cualquiera: es
+# la UNICA puerta que decide si `rag` se pide o se recorta, asi que leerlo
+# suelto hace que el resultado del turno dependa de quien gane la carrera.
+#
+# Reproducido antes del arreglo (revision de ciclo de vida, 2026-08-29):
+#   1a llamada: recortadas=['rag'], arranca el hilo de calentamiento
+#   +50 ms:     el hilo escribe _COSTE_MS['rag'] = 0
+#   2a llamada: 'rag' no esta ni en secciones ni en recortadas -> DESAPARECIO
+# El segundo bug (el `if valor:` que tiraba los vacios) es el que convertia
+# la carrera en una desaparicion; el lock es lo que hace que la lectura sea
+# coherente. Con los dos arreglados el turno ya no depende de quien gane:
+# gane quien gane, `rag` consta -- 'no_pedida' si el hilo aun no termino,
+# 'sin_datos' o 'incluida' si ya esta caliente.
+_COSTE_LOCK = threading.Lock()
 _COSTE_MS = {}
 _CALENTANDO = set()
+
+
+def _anotar_coste(nombre: str, ms: int) -> None:
+    with _COSTE_LOCK:
+        _COSTE_MS[nombre] = ms
+
+
+def _costes_ahora() -> dict:
+    """Copia coherente de los costes, para decidir el turno ENTERO con la
+    misma foto. Sin esto, dos secciones de la MISMA llamada podian ver
+    estados distintos del mundo segun donde cayera la escritura del hilo."""
+    with _COSTE_LOCK:
+        return dict(_COSTE_MS)
 
 
 def _calentar_en_fondo(nombre: str, fn) -> None:
     """Dispara el arranque caro en un hilo suelto, una sola vez por proceso.
 
     daemon=True: si el usuario cierra el REPL mientras esto calienta, el
-    proceso muere igual. Un hilo de fondo no puede retrasar una salida."""
-    if nombre in _CALENTANDO:
-        return
-    _CALENTANDO.add(nombre)
-    import threading
+    proceso muere igual. Un hilo de fondo no puede retrasar una salida.
+
+    El alta en `_CALENTANDO` va DENTRO del lock y es un test-and-set: dos
+    turnos seguidos (o dos hilos) no pueden arrancar dos calentamientos del
+    mismo proveedor, que es pagar dos veces los 7,4 s del arranque."""
+    with _COSTE_LOCK:
+        if nombre in _CALENTANDO:
+            return
+        _CALENTANDO.add(nombre)
 
     def _tarea():
         try:
@@ -468,7 +581,7 @@ def _calentar_en_fondo(nombre: str, fn) -> None:
         # primera incluye el arranque (7,4 s medidos), y anotar ese numero
         # dejaba al proveedor descalificado para siempre: se calentaba y
         # despues nunca se usaba, que es el peor de los dos mundos.
-        _COSTE_MS[nombre] = int((time.monotonic() - inicio) * 1000)
+        _anotar_coste(nombre, int((time.monotonic() - inicio) * 1000))
 
     threading.Thread(target=_tarea, daemon=True,
                      name=f"cognia-calienta-{nombre}").start()
@@ -509,14 +622,30 @@ def reunir(texto: str, *, historial=None, cwd: str = "",
 
     `proveedores` permite inyectar {nombre: fn} en los tests. `secciones`
     limita cuales se piden (util para el modo rapido).
+
+    De cada seccion pedida queda constancia SIEMPRE, en una de cinco vias
+    excluyentes: `secciones`, `vacias`, `recortadas`, `fallidas`/`avisos`.
+    `ctx.estado_de(nombre)` las resume en una palabra.
     """
     inicio = time.monotonic()
     ctx = Contexto(tipo_tarea=tipo_de_tarea(texto))
     fuentes = dict(_PROVEEDORES)
     if proveedores:
         fuentes.update(proveedores)
-    pedidas = [s for s in (secciones or SECCIONES) if s in fuentes]
+    pedidas = list(secciones or SECCIONES)
+    # Un nombre pedido SIN proveedor tampoco puede evaporarse: antes se caia
+    # del filtro y no aparecia en ningun sitio, asi que un error de tecleo en
+    # `secciones=` se veia igual que una seccion sin datos.
+    for nombre in pedidas:
+        if nombre not in fuentes:
+            ctx.avisos.append("{}: sin proveedor registrado".format(nombre))
+            ctx.fallidas.append(nombre)
+    pedidas = [s for s in pedidas if s in fuentes]
     estado = {"historial": historial, "cwd": cwd}
+    # Foto UNICA de los costes para todo el turno: ver el comentario de
+    # `_COSTE_LOCK`. Decidir con una foto fija hace que dos secciones de la
+    # misma llamada no puedan ver mundos distintos.
+    costes = _costes_ahora()
 
     for nombre in pedidas:
         gastado = (time.monotonic() - inicio) * 1000
@@ -526,7 +655,7 @@ def reunir(texto: str, *, historial=None, cwd: str = "",
             ctx.recortadas.append(nombre)
             continue
         if (nombre in CAROS_EN_FRIO and not permitir_caros
-                and _COSTE_MS.get(nombre, 10 ** 9) > presupuesto_ms):
+                and costes.get(nombre, 10 ** 9) > presupuesto_ms):
             ctx.recortadas.append(nombre)
             _calentar_en_fondo(nombre, fuentes[nombre])
             continue
@@ -536,11 +665,22 @@ def reunir(texto: str, *, historial=None, cwd: str = "",
         except Exception as exc:
             # "no se pudo" != "no hay": el aviso lo separa.
             ctx.avisos.append("{}: {}: {}".format(nombre, type(exc).__name__, exc))
+            ctx.fallidas.append(nombre)
             continue
-        _COSTE_MS[nombre] = int((time.monotonic() - antes) * 1000)
+        _anotar_coste(nombre, int((time.monotonic() - antes) * 1000))
         valor = str(valor).strip()
         if valor:
             ctx.secciones[nombre] = valor
+        else:
+            # "No hay" es una RESPUESTA, no un no-evento. Hasta 2026-08-29
+            # este else no existia: el proveedor contestaba "" y la seccion
+            # se caia del mundo -- ni en `secciones`, ni en `recortadas`, ni
+            # en `avisos`. Medido en esta maquina, 5 de los 8 proveedores
+            # reales devuelven "" en una sesion limpia (conversacion,
+            # artefactos, recetas, skills, rag) y los 5 desaparecian, con lo
+            # que "el subsistema no esta cableado" y "no habia nada que
+            # contar" se veian EXACTAMENTE igual desde fuera.
+            ctx.vacias.append(nombre)
 
     # Montaje con presupuesto. Se recorta por SECCION ENTERA y en orden
     # inverso de prioridad: media seccion es peor que ninguna (una lista de
@@ -558,7 +698,22 @@ def reunir(texto: str, *, historial=None, cwd: str = "",
         usado += len(trozo) + 2
     ctx.bloque = "\n\n".join(partes)
     ctx.chars = len(ctx.bloque)
-    ctx.faltantes = faltantes_por_tipo(texto, ctx.tipo_tarea,
-                                       contexto=ctx.bloque)
+    # OJO: aqui va la CONVERSACION, no el bloque entero. Hasta 2026-08-29 se
+    # pasaba `ctx.bloque` (hasta PRESUPUESTO_CHARS = 1800 chars con entorno,
+    # artefactos, recetas, skills, memorias y rag dentro) y eso apagaba la
+    # encuesta sola: las senales de cobertura son palabras como "python",
+    # "fichero", "archivo", "carpeta", "ruta", "servidor" o "local", que en un
+    # repo Python aparecen en el blob de la maquina CASI SEGURO aunque el
+    # usuario no las haya dicho nunca. Medido: "hazme una pagina web" perdia
+    # 'proposito' y 'stack' -- se quedaba con 2 de 4 huecos -- solo por el
+    # contexto; con menos contexto util faltantes se vaciaba entera.
+    #
+    # La regla 1 de encuesta.py ("no preguntar lo que ya esta dicho") sigue en
+    # pie: lo que el usuario DIJO esta en su texto y en los ultimos turnos.
+    # 'entorno' y 'rag' son datos de la MAQUINA, no decisiones del usuario, y
+    # tomarlos por respuestas es atribuirle una eleccion que no hizo -- el
+    # mismo fallo que este subsistema tiene prohibido cometer.
+    ctx.faltantes = faltantes_por_tipo(
+        texto, ctx.tipo_tarea, contexto=ctx.secciones.get("conversacion", ""))
     ctx.ms = int((time.monotonic() - inicio) * 1000)
     return ctx

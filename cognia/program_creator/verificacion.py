@@ -34,9 +34,12 @@ El caso cognia_game cae por aca: arranca con exit 0 y aun asi NO se verifica,
 porque su main.py tiene 1 linea util.
 """
 
+import hashlib
 import json
 import os
+import re
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -48,6 +51,7 @@ from ..autoprueba import (
     evaluar_producto,
     probar_producto,
 )
+from ..disciplina import DIR_ESTADO, Disyuntor, huella_de_texto
 
 # El sello vive DENTRO de la carpeta del producto: si alguien copia o mueve el
 # producto, su veredicto viaja con el. El index es solo un reflejo.
@@ -282,6 +286,286 @@ def reintentar_si_falla(directorio_producto, verificacion=None,
     return base
 
 
+# ── 2b. EL LAZO probar -> reparar -> reprobar ──────────────────────────────────
+#
+# Esto es lo que faltaba: hasta el 2026-08-29 reintentar_si_falla() NO TENIA UN
+# SOLO LLAMADOR en todo el repo (el cableado estaba escrito como COMENTARIO al
+# final de este archivo y nunca se aplico), asi que la maquinaria entera existia
+# desconectada y quedaban 24 productos con verificado=false intactos en disco
+# desde julio. Aqui vive el lazo; program_creator le inyecta el reparador.
+
+# TOPE 2 y no 3: el tercer intento del creador ya esta MEDIDO como parcheo a
+# ciegas (por eso existe el Disyuntor y por eso el umbral de Aider es
+# max_reflections=3 contando el intento original). Dos reparaciones y se para.
+MAX_REPARACIONES_LAZO = 2
+
+# Presupuesto total del lazo, en segundos. /crear ya es lento; un lazo que llama
+# al modelo en el camino critico sin techo lo vuelve interminable.
+PRESUPUESTO_LAZO_SEG = 120.0
+
+# Un error es ACCIONABLE si nombra DONDE mirar. Sin esto, el pedido de
+# correccion es "el programa falla, arreglalo", que es exactamente el parcheo a
+# ciegas que la regla 11 del repo prohibe.
+_RE_FICHERO_LINEA = re.compile(r'File "[^"]+", line \d+|^\S+\.py:\d+', re.MULTILINE)
+_RE_ERROR_JS = re.compile(
+    r"ReferenceError|TypeError|SyntaxError|RangeError|Uncaught|"
+    r"is not defined|is not a function|Cannot read|Cannot set", re.IGNORECASE)
+
+
+def error_accionable(ver):
+    """
+    (bool, motivo) — si el fallo de `ver` se puede mandar a reparar.
+
+    Reglas, todas explicitas:
+      - solo fallos DUROS de compila/importa/arranca. `stubs` NO: un producto
+        hueco CORRE, y repararlo por eso significa llamar al modelo por
+        productos que funcionan. `sin_codigo`/`sin_producto` tampoco: no hay
+        archivo que corregir.
+      - el error tiene que NOMBRAR un sitio: traceback con fichero+linea (o
+        "archivo.py:12:" del ast.parse) para Python, un error de JS para web.
+      - un INDETERMINADO (el guion de teclado se quedo corto) no es reparable:
+        no hay nada medido que corregir.
+    """
+    # El indeterminado va PRIMERO: es el que dice "no sabemos", y saberlo cambia
+    # que se hace despues. Si lo tapara un 'stubs' se mandaria a reparar (o a
+    # regenerar) un producto del que ni siquiera se midio si arranca.
+    if (ver.get("resultado") or {}).get("indeterminado"):
+        return False, "indeterminado: no hay error medido que mandar a reparar"
+    fallo = ver.get("fallo_duro")
+    if fallo in (None, ""):
+        return False, "no hay fallo duro"
+    if fallo in ("stubs",):
+        return False, "esta hueco pero CORRE: reparar por stubs llamaria al modelo por productos que funcionan"
+    if fallo in ("sin_codigo", "sin_producto"):
+        return False, f"{fallo}: no hay archivo que corregir"
+
+    _archivo, error, _espera = _archivo_y_error(ver)
+    if not (error or "").strip():
+        return False, "el fallo no dejo ni una linea de error"
+    if ver.get("lenguaje") == "html":
+        if _RE_ERROR_JS.search(error):
+            return True, "error de JavaScript con nombre"
+        if fallo == "compila":
+            return True, "documento HTML incompleto (se sabe que falta)"
+        return False, "la pagina falla pero sin un error de JS que citar"
+    if _RE_FICHERO_LINEA.search(error):
+        return True, "traceback con fichero y linea"
+    return False, "el error no nombra fichero ni linea: pedir una correccion seria adivinar"
+
+
+def _ruta_del_archivo(directorio, nombre, ver):
+    """La ruta REAL del archivo a reparar (o None). Nunca sale de la carpeta."""
+    carpeta = Path(directorio).resolve()
+    candidatos = []
+    if nombre:
+        candidatos.append(carpeta / Path(str(nombre)).name)
+    if ver.get("entrypoint"):
+        candidatos.append(Path(ver["entrypoint"]))
+    for ruta in candidatos:
+        try:
+            ruta = Path(ruta).resolve()
+        except Exception:
+            continue
+        if ruta.is_file() and carpeta in ruta.parents:
+            return ruta
+    return None
+
+
+def lazo_reparacion(directorio_producto, reparar_fn, verificacion=None,
+                    max_reparaciones=MAX_REPARACIONES_LAZO,
+                    presupuesto_seg=PRESUPUESTO_LAZO_SEG,
+                    timeout_arranque=TIMEOUT_ARRANQUE_SEG,
+                    tocar_index=True, log=None):
+    """
+    verificar -> (si falla duro y es accionable) reparar -> reescribir -> RE-verificar.
+
+    `reparar_fn(pedido=..., codigo=..., archivo=..., lenguaje=...) -> str | None`
+    es el unico punto donde se habla con el modelo: se INYECTA para que este
+    modulo siga siendo puro y testeable sin backend (los tests le pasan una
+    funcion que devuelve codigo sano).
+
+    Topes, todos duros: `max_reparaciones` vueltas, `presupuesto_seg` de reloj, y
+    el Disyuntor del repo (si el sintoma no se mueve, corta antes).
+
+    SEGURIDAD: si al terminar el producto sigue sin verificarse Y su puntaje NO
+    SUBIO respecto al original (`<=`, no `<`), se restaura el archivo tal y como
+    estaba. Una reparacion que empeora — o que empata — no se queda en disco:
+    cambiar el fuente del dueno por una reescritura del modelo que no mejora
+    nada es perder el original a cambio de nada.
+
+    Devuelve {ok, intentos, error_inicial, error_final, motivo_corte,
+              reparaciones:[...], verificacion, sello, restaurado}.
+    Nunca lanza: un fallo del reparador se reporta en `motivo_corte`.
+    """
+    t0 = time.monotonic()
+    def _log(msg):
+        if log:
+            try:
+                log(msg)
+            except Exception:
+                pass
+
+    carpeta = Path(directorio_producto)
+    ver = verificacion or verificar_al_crear(carpeta, timeout_arranque=timeout_arranque)
+    puntaje_inicial = ver.get("puntaje", 0.0)
+    error_inicial = "" if ver.get("ok") else (_archivo_y_error(ver)[1] or "")[:600]
+
+    salida = {
+        "ok": bool(ver.get("ok")), "intentos": 0,
+        "error_inicial": error_inicial, "error_final": error_inicial,
+        "motivo_corte": "", "reparaciones": [], "verificacion": ver,
+        "sello": None, "restaurado": False, "directorio": str(carpeta),
+    }
+
+    if ver.get("ok"):
+        salida["motivo_corte"] = "verificado a la primera: no hizo falta reparar"
+        salida["sello"] = _sellar(carpeta, ver, salida, tocar_index)
+        return salida
+
+    accionable, motivo_acc = error_accionable(ver)
+    if not accionable or reparar_fn is None:
+        salida["motivo_corte"] = ("no se intento reparar: " + (
+            motivo_acc if not accionable
+            else "solo sello: esta via mide y sella, no repara (sin reparador inyectado)"))
+        salida["sello"] = _sellar(carpeta, ver, salida, tocar_index)
+        return salida
+
+    tarea = f"autoprueba {carpeta.name}"[:60]
+    ruta_log = DIR_ESTADO / f"lazo_{hashlib.sha1(tarea.encode('utf-8')).hexdigest()[:10]}.jsonl"
+    disyuntor = Disyuntor(tarea, ruta_log=ruta_log)
+    # El fallo ORIGINAL no es un parche: el modelo todavia no toco nada. Con
+    # hubo_cambio=True gastaba una de las dos huellas que dispara D6 y el
+    # disyuntor cortaba tras UNA sola reparacion (mismo bug que ya se corrigio
+    # en program_creator.py).
+    disyuntor.registrar(huella_de_texto(error_inicial), ok=False, hubo_cambio=False)
+
+    respaldo = None       # (ruta, texto_original) para poder deshacer
+    for intento in range(1, int(max_reparaciones) + 1):
+        transcurrido = time.monotonic() - t0
+        if transcurrido > presupuesto_seg:
+            salida["motivo_corte"] = (f"presupuesto agotado ({transcurrido:.0f}s de "
+                                      f"{presupuesto_seg:.0f}s) tras {intento - 1} reparaciones")
+            break
+        corte = disyuntor.motivo_corte()
+        if corte:
+            disyuntor.persistir_evento("disparo", motivo=corte, intento=len(disyuntor.intentos))
+            salida["motivo_corte"] = f"Disyuntor ({corte}): dejo de parchear a ciegas"
+            _log(f"   Disyuntor ({corte}): se corta el lazo de reparacion.")
+            break
+
+        pedido = reintentar_si_falla(carpeta, verificacion=ver, intento=intento,
+                                     max_intentos=int(max_reparaciones))
+        if not pedido.get("necesita_reintento"):
+            salida["motivo_corte"] = pedido.get("error") or "no hay nada que reparar"
+            break
+
+        ruta = _ruta_del_archivo(carpeta, pedido.get("archivo"), ver)
+        if ruta is None:
+            salida["motivo_corte"] = (f"no encontre el archivo a reparar "
+                                      f"({pedido.get('archivo')}) dentro de {carpeta.name}")
+            break
+
+        try:
+            codigo = ruta.read_text(encoding="utf-8", errors="replace")
+        except Exception as exc:
+            salida["motivo_corte"] = f"no pude leer {ruta.name}: {exc}"
+            break
+        _log(f"   Reparacion {intento}/{max_reparaciones} de '{carpeta.name}' "
+             f"({ver.get('fallo_duro')} en {ruta.name})...")
+        try:
+            nuevo = reparar_fn(pedido=pedido["pedido"], codigo=codigo,
+                               archivo=str(ruta), lenguaje=ver.get("lenguaje"))
+        except Exception as exc:
+            salida["motivo_corte"] = f"el reparador reviento: {type(exc).__name__}: {exc}"
+            break
+        if not nuevo or not str(nuevo).strip() or str(nuevo) == codigo:
+            salida["motivo_corte"] = "el reparador no devolvio codigo nuevo"
+            break
+
+        try:
+            ruta.write_text(str(nuevo), encoding="utf-8")
+        except Exception as exc:
+            salida["motivo_corte"] = f"no pude escribir {ruta.name}: {exc}"
+            break
+        # El respaldo se guarda DESPUES de escribir, no antes: si el reparador
+        # revienta o no devuelve nada, el fichero sigue intacto y no hay nada
+        # que restaurar. Guardarlo antes hacia que la restauracion de mas abajo
+        # se disparara sin haber tocado el disco (y con `reparaciones` vacia).
+        if respaldo is None:
+            respaldo = (ruta, codigo)
+
+        ver = verificar_al_crear(carpeta, timeout_arranque=timeout_arranque)
+        salida["intentos"] = intento
+        error_ahora = "" if ver.get("ok") else (_archivo_y_error(ver)[1] or "")[:600]
+        salida["reparaciones"].append({
+            "intento": intento, "archivo": ruta.name,
+            "fallo_antes": pedido.get("fallo_duro"),
+            "fallo_despues": ver.get("fallo_duro"),
+            "puntaje_despues": ver.get("puntaje"),
+            "ok": bool(ver.get("ok")),
+        })
+        disyuntor.registrar(huella_de_texto(error_ahora), ok=bool(ver.get("ok")))
+        if ver.get("ok"):
+            salida["motivo_corte"] = f"reparado al intento {intento}"
+            _log(f"   Reparado al intento {intento}.")
+            break
+    else:
+        salida["motivo_corte"] = f"agotadas las {max_reparaciones} reparaciones"
+
+    salida["ok"] = bool(ver.get("ok"))
+    salida["error_final"] = "" if ver.get("ok") else (_archivo_y_error(ver)[1] or "")[:600]
+
+    # Una reparacion que no MEJORA no se queda en disco. El corte es <=, no <:
+    # empatar no es empeorar, pero perder el fuente original a cambio de NADA
+    # tampoco es lo que promete el docstring. Medido el 2026-08-29: un reparador
+    # inutil dio 5.5 contra 5.5 inicial en sus dos intentos, no se restauraba, y
+    # el dueno se quedaba con la reescritura del modelo en vez de su fichero.
+    despues = (salida["reparaciones"][-1].get("puntaje_despues")
+               if salida["reparaciones"] else None)
+    if (not salida["ok"] and respaldo is not None
+            and ver.get("puntaje", 0.0) <= puntaje_inicial):
+        ruta, original = respaldo
+        try:
+            ruta.write_text(original, encoding="utf-8")
+            ver = verificar_al_crear(carpeta, timeout_arranque=timeout_arranque)
+            salida["restaurado"] = True
+            movimiento = ("bajaba" if (despues is not None and despues < puntaje_inicial)
+                          else "no subia")
+            salida["motivo_corte"] += (f"; RESTAURADO {ruta.name}: la reparacion "
+                                       f"{movimiento} el puntaje de {puntaje_inicial} "
+                                       f"a {despues}")
+            salida["error_final"] = (_archivo_y_error(ver)[1] or "")[:600]
+        except Exception:
+            pass
+
+    salida["verificacion"] = ver
+    salida["sello"] = _sellar(carpeta, ver, salida, tocar_index)
+    return salida
+
+
+def _sellar(carpeta, ver, salida, tocar_index):
+    """
+    Escribe el sello Y refleja en el index EN LA MISMA transaccion.
+
+    El sello lleva la historia del lazo (intentos, error_inicial, error_final):
+    un `verificado: false` sin decir cuantas veces se intento ni con que error
+    es justo el sello rancio que dejo 24 productos sin explicacion desde julio.
+    """
+    try:
+        sello = sello_de_calidad(ver)
+        sello["intentos"] = salida.get("intentos", 0)
+        sello["error_inicial"] = salida.get("error_inicial", "")
+        sello["error_final"] = salida.get("error_final", "")
+        sello["motivo_corte"] = salida.get("motivo_corte", "")
+        sello["restaurado"] = bool(salida.get("restaurado"))
+        sello["_archivo"] = escribir_sello(carpeta, sello)
+        if tocar_index:
+            sello["_index"] = bool(reflejar_en_index(sello, Path(carpeta).parent))
+        return sello
+    except Exception:
+        return None
+
+
 # ── 3. Sello de calidad ────────────────────────────────────────────────────────
 
 def sello_de_calidad(producto, resultado=None):
@@ -461,19 +745,17 @@ def sellar_biblioteca(limite=None, base=None, filtro=None, solo_codigo=False,
     }
 
 
-# ── Enganche (lo cablea el dueno en program_creator.py) ────────────────────────
+# ── Enganche: YA CABLEADO (2026-08-29) ─────────────────────────────────────────
 #
-# En run_program_hobby(), justo despues de `meta = save_program(...)`:
+# Durante un mes esta seccion fue un COMENTARIO que describia el cableado y
+# nadie lo aplico: reintentar_si_falla() no tenia un solo llamador y 24
+# productos con verificado=false llevaban en disco desde julio. Ahora el lazo
+# vive en lazo_reparacion() (arriba) y lo llama run_program_hobby() al final,
+# FUERA del `except Exception: pass` que se tragaba todo:
 #
-#     from .verificacion import verificar_al_crear, reintentar_si_falla, \
-#         sello_de_calidad, escribir_sello, reflejar_en_index
-#     dir_final = (storage_dir or DEFAULT_STORAGE_DIR) / meta.directory
-#     ver = verificar_al_crear(dir_final)
-#     escribir_sello(dir_final, sello_de_calidad(ver))
-#     reflejar_en_index(sello_de_calidad(ver))
-#     if not ver["ok"]:
-#         pedido = reintentar_si_falla(dir_final, verificacion=ver)["pedido"]
-#         # -> mandar `pedido` a reparar_python/reparar_web y reescribir el archivo
+#     from .verificacion import lazo_reparacion
+#     res = lazo_reparacion(dir_final, reparar_fn=_reparador_de(program, llm))
 #
-# Se deja fuera del flujo a proposito: meterlo aca significaria que este modulo
-# llame al LLM, y el que sabe reparar (con disyuntor incluido) es program_creator.
+# Este modulo sigue sin hablar con el LLM: el reparador se INYECTA. El que sabe
+# reparar (reparar_python/reparar_web) es generator.py, y quien lo compone es
+# program_creator, que es donde vive el presupuesto y el disyuntor del creador.

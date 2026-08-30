@@ -141,14 +141,38 @@ def _franja() -> str:
     return "noche"
 
 
-def _comandos() -> list[dict]:
-    """Todos los comandos del REPL con su descripcion, para las sugerencias."""
+def _comandos(avanzado: bool = False) -> list[dict]:
+    """Los comandos del REPL con su descripcion, para las sugerencias del "/".
+
+    Filtrado por el mismo eje que el escritorio (`cognia/cli_visibilidad.py`):
+    el movil ensena el NUCLEO por defecto, y el catalogo entero con
+    `?avanzado=1`. Una lista de 280 entradas en una pantalla de telefono es
+    justo el muro que ese modulo existe para quitar; y si el movil ensenara
+    todo mientras el escritorio ensena 80, el mismo dueno veria dos productos
+    distintos segun donde teclee.
+
+    OCULTAR NO ES DESACTIVAR: esto solo recorta las SUGERENCIAS. El comando
+    tecleado a mano viaja por el mismo `/api/enviar` de siempre y el
+    despachador del REPL no filtra nada.
+
+    Si `cli_visibilidad` no importa o falla, se devuelve el catalogo COMPLETO
+    (degradar hacia "se ve de mas" y no hacia "faltan comandos": un comando
+    que desaparece es indistinguible de una errata).
+    """
     try:
         from cognia.cli import _CMD_DESCRIPTIONS
-        return [{"cmd": c, "desc": d} for c, d in
-                sorted(_CMD_DESCRIPTIONS.items())]
     except Exception:
         return []
+    catalogo = _CMD_DESCRIPTIONS
+    try:
+        from cognia import cli_visibilidad as _vis
+        catalogo = _vis.visibles(
+            _CMD_DESCRIPTIONS, avanzado=bool(avanzado) or _vis.es_avanzado())
+    except Exception as exc:
+        print(f"[remoto] visibilidad no disponible, sirvo el catalogo "
+              f"completo: {type(exc).__name__}: {exc}",
+              file=sys.stderr, flush=True)
+    return [{"cmd": c, "desc": d} for c, d in sorted(catalogo.items())]
 
 
 # Formatos que el chat sabe insertar. El agente genera PNG (RGBA transparente),
@@ -731,8 +755,16 @@ def crear_app(host: str = HOST_DEFAULT, port: int = PUERTO_DEFAULT) -> FastAPI:
 
     # ── comandos y sugerencias ──
     @app.get("/api/comandos")
-    def comandos():
-        return _comandos()
+    def comandos(avanzado: str = ""):
+        """Sugerencias del "/". `?avanzado=1` pide el catalogo COMPLETO.
+
+        El parametro se lee como texto y no como bool para que `?avanzado=1`,
+        `=on`, `=true` y `=si` valgan lo mismo: quien teclea la URL a mano en
+        el movil no deberia recibir un 422 de FastAPI por escribir "si".
+        """
+        pedido = str(avanzado).strip().lower() in (
+            "1", "on", "true", "si", "yes", "todo", "todos")
+        return _comandos(pedido)
 
     # ── imagenes ──
     @app.get("/api/imagenes")

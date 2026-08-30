@@ -73,8 +73,12 @@ _FAMILIAS_UI = {
 # Punto de extension: anadir una familia es anadir su fila, y el test obliga
 # a que el comando exista antes de que llegue a la pantalla.
 _ACCIONES = {
-    # /programs ver <id>            (cli.py:18164)
-    "programa":  {"ver": "/programs ver {id}"},
+    # /programs ver <id>            el codigo, en el terminal
+    # /biblioteca abrir <id>        EL PRODUCTO (la web en el navegador, el
+    #                               .py con la app del sistema, la carpeta si
+    #                               no hay entrypoint) -- _slash_biblioteca
+    "programa":  {"ver": "/programs ver {id}",
+                  "abrir": "/biblioteca abrir {id}"},
     # /receta correr|examinar <n>   (subcomandos: lista aprender examinar correr cuarentena)
     "flujo":     {"correr": "/receta correr {id}",
                   "examinar": "/receta examinar {id}"},

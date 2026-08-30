@@ -232,10 +232,19 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         "/shell-kill", "/diff", "/cat", "/mapa-codigo", "/indexar-codigo",
         "/mcp", "/backup", "/worktree",   # worktree es git, no gestion de tareas
     ),
+    # 2026-08-29: /flujoteca y las dos puertas de "esta sesion -> un flujo"
+    # caian en "Otros" (/flujoteca) y en "Sesion e historial" por la palabra
+    # "sesion" de su descripcion (/session-to-workflow). Van AQUI, junto a
+    # /biblioteca, /grabar y /receta: son la biblioteca de lo que Cognia
+    # PRODUJO y como se produce. No van a "Agente y tareas" (que es donde
+    # viven /flujo y /workflow, los que EJECUTAN) porque esa categoria esta
+    # en 25, que es el tope duro, y un tope que se respeta a medias no es un
+    # tope (test_ninguna_categoria_desborda_el_tope).
     "Crear y construir": (
         "/crear", "/construir", "/pulir", "/autoprueba", "/biblioteca",
         "/ideas", "/encolar", "/arbitro", "/tutor", "/oficina", "/imagenes",
         "/ver", "/vigilar", "/chimera", "/grabar", "/receta",
+        "/flujoteca", "/session-to-workflow", "/sesion-a-workflow",
     ),
     "Pensar y razonar": (
         "/pensar", "/esfuerzo", "/razonar", "/hipotesis", "/experimento", "/evaluar-idea",
@@ -270,6 +279,10 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         "/compactar", "/resumir", "/resumen-sesion", "/limpiar-sesion",
         "/exportar", "/exportar-todo", "/exportar-stats", "/contexto",
         "/contexto-mapa", "/contexto-stats", "/contexto-auto",
+        # /contexto-vivo (cuanto contexto queda y a que velocidad va) es
+        # hermano de /contexto-mapa y /contexto-stats; los patrones son
+        # EXACTOS, asi que sin esta linea caia en "Otros".
+        "/contexto-vivo",
         "/ver-contexto", "/template*",
     ),
     "Web e investigacion": (
@@ -287,6 +300,12 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         # en "Otros", un cajon de UNO donde nadie lo busca y donde el recorte
         # de ancho se comia justo los estados y el atajo F3.
         "/mejorar",
+        # /avanzado (cuantos comandos se anuncian) y /encuestas (si el
+        # mejorador pregunta lo que falta antes de reformular) son dos
+        # interruptores de COMO se comporta la consola con lo que el dueno
+        # escribe, igual que /mejorar y /modo. /encuestas caia en "Otros";
+        # /avanzado es nuevo (2026-08-29) y sin darlo de alta caeria igual.
+        "/avanzado", "/encuestas",
         "/modo rapido", "/features", "/limpiar",
     ),
     "Reportes y metricas": (

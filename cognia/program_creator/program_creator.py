@@ -22,7 +22,7 @@ PRINCIPIO DE AISLAMIENTO:
 import hashlib
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -87,6 +87,12 @@ class HobbySessionResult:
     programs:    list          # Lista de StoredProgramMeta de los guardados
     duration_sec: float
     timestamp:   str
+    # El VEREDICTO MEDIDO de cada guardado (lo que devuelve
+    # verificacion.lazo_reparacion). Va en el resultado y no solo en stdout
+    # porque en remoto y en el movil el dueno solo leia "Guardados: 1" y no se
+    # enteraba de si el programa corria. Default vacio: hay llamadores que
+    # construyen esta dataclass con 6 argumentos posicionales.
+    verificaciones: list = field(default_factory=list)
 
 
 # ── Lectura de conocimiento (solo lectura) ─────────────────────────────────────
@@ -180,6 +186,107 @@ def _idea_pide_grafico(categoria: str) -> bool:
     return any(p in t for p in ("grafico", "gráfico", "chart", "graph",
                                 "grafica", "gráfica", "sparkline"))
 
+# ── El lazo probar -> reparar -> reprobar ──────────────────────────────────────
+
+def _grito(via: str, detalle: str) -> None:
+    """Deja constancia RUIDOSA de un degradado. La instrumentacion nunca tumba el lazo."""
+    try:
+        from .. import backend_activo
+        backend_activo.sin_backend(via, detalle)
+    except Exception:
+        pass
+
+
+def _reparador_de(program, llm=None, titulo="", descripcion="", categoria="general"):
+    """
+    Construye el `reparar_fn` que espera verificacion.lazo_reparacion().
+
+    Es el UNICO sitio donde el lazo habla con el modelo. Se pasa por inyeccion
+    para que verificacion.py siga siendo puro (sus tests corren sin backend).
+
+    El programa que se le manda al modelo lleva el codigo TAL Y COMO ESTA EN
+    DISCO, no el que se genero: entre medias pudo repararse ya una vez, y
+    mandarle la version vieja seria pedirle que arregle algo que no existe.
+    """
+    def _reparar(pedido, codigo, archivo, lenguaje=None):
+        lang = (lenguaje or getattr(program, "lenguaje", None) or "python")
+        base = GeneratedProgram(
+            title=(getattr(program, "title", None) or titulo or Path(archivo).stem),
+            description=(getattr(program, "description", None) or descripcion or ""),
+            code=codigo,
+            category=(getattr(program, "category", None) or categoria or "general"),
+            lenguaje=("html" if lang == "html" else "python"),
+        )
+        if lang == "html":
+            arreglado = reparar_web(base, [l for l in pedido.splitlines() if l.strip()],
+                                    llm=llm)
+        else:
+            arreglado = reparar_python(base, pedido, llm=llm)
+        return getattr(arreglado, "code", None)
+
+    return _reparar
+
+
+def texto_veredicto(res: dict) -> str:
+    """
+    El veredicto MEDIDO en una linea, para el chat y para stdout.
+
+    Hoy en remoto y en el movil el dueno solo leia "Guardados: 1" y no se
+    enteraba de si el programa corria. Esto es lo que hay que decirle.
+    """
+    if not res:
+        return "sin verificar"
+    ver = res.get("verificacion") or {}
+    punt = ver.get("puntaje", "?")
+    intentos = res.get("intentos") or 0
+    cola = f" tras {intentos} reparacion(es)" if intentos else ""
+    if res.get("ok"):
+        return f"verificado: corre {punt}/10{cola}"
+    if (ver.get("resultado") or {}).get("indeterminado"):
+        return (f"INDETERMINADO ({punt}/10): "
+                + (res.get("error_final") or "no se pudo decidir").splitlines()[0][:120])
+    fallo = ver.get("fallo_duro") or "sin fallo nombrado"
+    detalle = (res.get("error_final") or "").splitlines()
+    return (f"NO corre ({punt}/10): {fallo}{cola}"
+            + (f" — {detalle[0][:120]}" if detalle else "")
+            + (f" [{res.get('motivo_corte')}]" if res.get("motivo_corte") else ""))
+
+
+def _verificar_y_reparar(dir_producto: Path, program=None, llm=None,
+                         verbose: bool = True, reparar: bool = True, **kw) -> dict:
+    """
+    Verifica el producto y, si falla DURO y el error es accionable, lo repara.
+
+    `reparar=False` = SOLO SELLA (mide y escribe el .verificacion.json, sin
+    llamar al modelo). Es lo que usan /construir y /pulir: esas dos vias YA
+    tienen su propio lazo de reparacion con el critico visual, y encadenarles
+    otro seria pagar el modelo dos veces por el mismo defecto. Medido
+    2026-08-29: con reparar=True un solo test de pulidor pasaba de 1 s a 97 s,
+    porque `reparar_web` sale a buscar el backend con timeout 400 y reintento.
+
+    Devuelve siempre un dict (el de verificacion.lazo_reparacion) y NUNCA lanza,
+    pero al contrario que el `except Exception: pass` de antes, un fallo del
+    propio lazo se REPORTA por _grito y queda en el dict con motivo_corte.
+    """
+    try:
+        from .verificacion import lazo_reparacion
+        return lazo_reparacion(
+            dir_producto,
+            reparar_fn=_reparador_de(program, llm=llm) if reparar else None,
+            log=(lambda m: print(m)) if verbose else None,
+            **kw)
+    except Exception as exc:
+        _grito("program_creator.lazo_verificacion",
+               f"el lazo probar->reparar->reprobar reviento: {type(exc).__name__}: {exc}")
+        if verbose:
+            print(f"   ⚠️  la verificacion del producto no pudo correr: "
+                  f"{type(exc).__name__}: {exc}")
+        return {"ok": False, "intentos": 0, "error_inicial": "", "error_final": "",
+                "motivo_corte": f"el lazo reviento: {type(exc).__name__}: {exc}",
+                "reparaciones": [], "verificacion": {}, "sello": None,
+                "restaurado": False, "directorio": str(dir_producto)}
+
+
 def run_program_hobby(
     cognia_instance=None,
     max_attempts:   int  = MAX_ATTEMPTS_PER_SESSION,
@@ -226,6 +333,10 @@ def run_program_hobby(
     attempted   = 0
     successful  = 0
     stored_list = []
+    # directorio -> GeneratedProgram, para que el lazo de reparacion pueda
+    # rearmar el programa (titulo/descripcion/categoria) al pedirle al modelo
+    # la correccion. Sin esto, reparar_python no tiene con que construir el prompt.
+    programas_por_dir = {}
 
     for attempt in range(1, max_attempts + 1):
         if verbose:
@@ -444,6 +555,8 @@ def run_program_hobby(
             successful += 1
             meta: StoredProgramMeta = save_program(program, eval_result, storage_dir)
             stored_list.append(meta)
+            if getattr(meta, "directory", None):
+                programas_por_dir[meta.directory] = program
             _session_stats["programs_stored"] += 1
 
             if verbose:
@@ -495,29 +608,33 @@ def run_program_hobby(
         timestamp=     timestamp,
     )
 
-    # SELLO DE VERIFICACION REAL (2026-07-24): el score que guarda save_program
-    # viene del juez LLM; no dice si el programa CORRE. Aca, tras guardarlo, se
-    # corre de verdad (compila/importa/arranca/sin-stubs) y se deja su
-    # .verificacion.json al lado. Best-effort y fuera del camino critico: si la
-    # verificacion falla, el producto ya esta guardado igual. El dueno pidio
-    # "que cognia pruebe end to end sus propios productos y evalue cosas".
+    # EL LAZO probar -> reparar -> reprobar (2026-08-29). Antes esto era un
+    # SELLO PASIVO: se corria la bateria, se escribia el .verificacion.json y se
+    # seguia. Un producto que no arrancaba se quedaba en disco tal cual (24 asi
+    # desde julio) porque reintentar_si_falla() no tenia un solo llamador.
+    #
+    # Ahora, si el fallo es DURO y ACCIONABLE, el error medido vuelve al modelo
+    # (reparar_python/reparar_web), se reescribe el archivo y se RE-verifica.
+    # Topes: 2 reparaciones, 120 s de presupuesto y el Disyuntor.
+    #
+    # Y va FUERA del `except Exception: pass` que envolvia todo el bloque: el
+    # fallo del lazo se REPORTA (_aviso_degradado), no se traga. "No lo cablearon"
+    # y "se rompio" no pueden verse igual desde afuera.
     base_dir = storage_dir or DEFAULT_STORAGE_DIR
+    verificaciones = []
     for _meta in stored_list:
         _carpeta = getattr(_meta, "directory", None)
         if not _carpeta:
             continue
-        try:
-            from cognia.program_creator.verificacion import (
-                verificar_al_crear, sello_de_calidad, escribir_sello)
-            _dir = Path(base_dir) / _carpeta
-            _res = verificar_al_crear(_dir)
-            escribir_sello(_dir, sello_de_calidad(_res))   # acepta el veredicto directo
-            if verbose:
-                _ok = "corre" if _res.get("ok") else "NO corre"
-                print(f"   🔬 '{getattr(_meta, 'title', _carpeta)}' verificado: "
-                      f"{_ok} ({_res.get('puntaje', '?')}/10)")
-        except Exception:
-            pass
+        _dir = Path(base_dir) / _carpeta
+        _prog = programas_por_dir.get(_carpeta)
+        _res = _verificar_y_reparar(_dir, _prog, llm=llm, verbose=verbose)
+        _res["title"] = getattr(_meta, "title", _carpeta)
+        _res["directory"] = _carpeta
+        verificaciones.append(_res)
+        if verbose:
+            print(f"   🔬 '{_res['title']}' {texto_veredicto(_res)}")
+    result.verificaciones = verificaciones
 
     if verbose:
         total_stored = get_program_count(storage_dir)

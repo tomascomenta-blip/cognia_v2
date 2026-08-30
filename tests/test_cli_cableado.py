@@ -200,7 +200,14 @@ def test_el_handler_de_ctrlc_no_usa_corchetes_en_el_texto():
     literales = [n.value for n in ast.walk(ast.parse(FUENTE))
                  if isinstance(n, ast.Constant) and isinstance(n.value, str)]
     assert not [s for s in literales if "[interrumpido]" in s]
-    assert FUENTE.count("Ctrl-C: turno cortado") == 2   # fast-path + articulado
+    # Eran DOS y hoy son TRES, todos legitimos y verificados en el fuente:
+    # el fast-path de la interrupcion (`_interrupcion_de_turno`), el del
+    # streaming con tokens ya pintados (que ademas dice cuantos caracteres se
+    # descartaron) y el del spinner "Procesando...". Lo que este guardian
+    # protege es que NINGUNO use corchetes en el texto, y eso sigue fijado por
+    # el assert de arriba; la cuenta se actualiza cuando aparece un sitio
+    # nuevo, no se afloja a >=.
+    assert FUENTE.count("Ctrl-C: turno cortado") == 3
 
 
 # ---------------------------------------------------------------------------

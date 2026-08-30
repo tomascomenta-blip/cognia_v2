@@ -72,11 +72,44 @@ def test_vale_la_pena_pedido_largo_no_se_encuesta():
 
 
 def test_vale_la_pena_faltantes_vacios_no_se_encuesta():
-    # faltantes=[] es "la semilla miro y no hay huecos"; faltantes=None es
-    # "nadie miro". Solo la primera cierra la encuesta.
-    ok, motivo = en.vale_la_pena("hazme una pagina web", faltantes=[])
+    """ENMIENDA 2026-08-29 (PEDIDO 5.4). Antes este test usaba "hazme una
+    pagina web" y exigia que faltantes=[] cerrara la encuesta. Ese
+    comportamiento ERA la segunda causa del bug del dueno: tipo_de_tarea()
+    devuelve 'otro' para media lengua natural, la semilla queda vacia y la
+    puerta 3 apagaba la encuesta justo en los pedidos MAS vagos -- los unicos
+    que la necesitan. Medido: 5 de 21 pedidos cortos tipicos morian aqui.
+
+    Lo que la puerta sigue defendiendo, y este test sigue fijando: cuando el
+    pedido NOMBRA algo concreto (un fichero, una ruta, una cifra), faltantes=[]
+    significa de verdad "el usuario ya decidio" y no se le pregunta nada.
+    El caso vago vive ahora en test_vale_la_pena_pedido_vago_sin_huecos_si_se_encuesta."""
+    concreto = "arregla el login en cognia/cli.py"
+    ok, motivo = en.vale_la_pena(concreto, faltantes=[])
     assert ok is False and "sin tomar" in motivo
+    # faltantes=None es "nadie miro": nunca cierra.
+    assert en.vale_la_pena(concreto, faltantes=None)[0] is True
     assert en.vale_la_pena("hazme una pagina web", faltantes=None)[0] is True
+
+
+def test_vale_la_pena_pedido_vago_sin_huecos_si_se_encuesta():
+    """El caso del dueno: "hazme una pagina web" con la semilla vacia. Que la
+    tabla de decisiones tipicas no encuentre huecos en un pedido de 20 chars
+    sin objeto concreto NO es "el usuario ya decidio": es "la tabla no supo de
+    que hablaba". Antes las dos lecturas se trataban igual y ganaba la que
+    apaga la encuesta."""
+    for vago in ("hazme una pagina web", "organizame el escritorio",
+                 "quiero ponerme en forma", "ayudame con el proyecto"):
+        ok, motivo = en.vale_la_pena(vago, faltantes=[])
+        assert ok is True and motivo == "", vago
+
+
+def test_vale_la_pena_pedido_largo_con_huecos_vacios_sigue_cerrando():
+    """La excepcion es SOLO para lo corto y vago: un pedido de dos frases ya
+    trae sus decisiones tomadas y no se le abre un menu por si acaso."""
+    largo = ("hazme una pagina web para la panaderia de mi barrio con las "
+             "secciones de siempre y el horario de apertura bien visible")
+    assert len(largo) >= en.LARGO_VAGO
+    assert en.vale_la_pena(largo, faltantes=[])[0] is False
 
 
 def test_vale_la_pena_pedido_corto_y_vago():
@@ -447,6 +480,206 @@ def test_el_modulo_no_imprime():
         if isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name):
             assert nodo.func.id != "print"
 
+
+# =========================================================================
+# La trampa de medicion (PEDIDO 5, punto 9 del plan)
+# =========================================================================
+
+def test_el_pedido_del_test_llega_de_verdad_al_camino_real():
+    """ANTICUERPO de un test que pasaba POR EL MOTIVO EQUIVOCADO.
+
+    test_vale_la_pena_pedido_corto_y_vago usa "hazme una pagina web" y afirma
+    que vale la pena encuestarlo. Era cierto en la unidad y falso en el
+    producto: en el camino real ese pedido moria DOS puertas antes, y el test
+    verde tapaba que la encuesta estaba apagada en produccion.
+
+    Aqui se recorren las tres puertas SEGUIDAS, que es lo unico que mide lo que
+    el dueno ve. La puerta 1 (mejorar_prompt.es_candidato con
+    rechazar_ordenes=True) sigue diciendo que NO -- "hazme" es un imperativo y
+    reformular una orden esta prohibido por razones propias, medidas en el
+    transcript 2026-08-25 -- y por eso el gate de la encuesta en el CLI NO
+    puede colgar de es_candidato: son dos ejes distintos (PEDIDO 5.2). Lo que
+    este test fija es que las puertas 2 y 3, que SI son de este modulo, dejan
+    pasar el pedido."""
+    from cognia.harness import contexto_mejora as cm
+    from cognia.harness import mejorar_prompt as mp
+
+    pedido = "hazme una pagina web"
+
+    # Puerta 1: el REFORMULADOR lo rechaza, y esta bien que lo haga.
+    assert mp.es_candidato(pedido) is False
+    assert mp.orden_al_asistente(pedido) != ""
+    # ...pero la encuesta no depende de esa puerta: es otro eje.
+
+    # Puerta 2: la semilla deterministica encuentra huecos de verdad.
+    faltantes = cm.faltantes_por_tipo(pedido)
+    assert faltantes, "sin huecos no hay nada que preguntar"
+
+    # Puerta 3: y con esos huecos, vale la pena preguntar.
+    ok, motivo = en.vale_la_pena(pedido, faltantes=faltantes)
+    assert ok is True and motivo == ""
+
+    # Puerta 4: y salen preguntas aunque no haya backend (semilla).
+    enc = en.preparar(pedido, faltantes=faltantes,
+                      generar_fn=_explota(OSError("sin backend")))
+    assert enc.ok is True and enc.preguntas
+
+
+# =========================================================================
+# encuesta_para / como_preguntar / es_degradacion: la API para el CLI
+# =========================================================================
+
+def test_encuesta_para_apagada_no_llama_al_modelo():
+    def _prohibido(*_a, **_k):
+        raise AssertionError("con las encuestas en off no se llama al backend")
+
+    enc = en.encuesta_para("hazme una pagina web", estado="off",
+                           generar_fn=_prohibido)
+    assert enc.ok is False
+    assert enc.motivo == "encuestas apagadas"
+    assert enc.preguntas == []
+
+
+def test_encuesta_para_sin_tty_no_llama_al_modelo():
+    """Sin terminal no hay a quien preguntar. No es un fallo: es que este
+    camino no aplica (pipes, CI, e2e), y por eso no se grita."""
+    def _prohibido(*_a, **_k):
+        raise AssertionError("sin tty no se prepara nada")
+
+    enc = en.encuesta_para("hazme una pagina web", hay_tty=False,
+                           generar_fn=_prohibido)
+    assert enc.ok is False
+    assert enc.motivo == "sin terminal interactiva"
+    assert en.es_degradacion(enc.motivo) is False
+
+
+def test_encuesta_para_camino_feliz_devuelve_las_preguntas():
+    gen = _generador('{"preguntas": [{"id": "uso", "tipo": "unica", '
+                     '"texto": "Para que va a servir", '
+                     '"opciones": ["Uso propio", "Un cliente"]}]}')
+    enc = en.encuesta_para("hazme una pagina web", faltantes=FALTANTES,
+                           generar_fn=gen)
+    assert enc.ok is True
+    assert [p.id for p in enc.preguntas] == ["uso"]
+    assert en.es_degradacion(enc.motivo) is False
+
+
+def test_encuesta_para_un_generador_que_revienta_cae_a_la_semilla_y_lo_dice():
+    """Contrato duro: esto corre entre el Enter del dueno y el envio. Un
+    generador roto no puede llevarse el turno por delante -- pero tampoco
+    puede callarse: se degrada a la semilla Y el motivo dice que hubo un
+    fallo, para que el CLI lo grite."""
+    def _bug(*_a, **_k):
+        raise RuntimeError("bug del cableado")
+
+    enc = en.encuesta_para("hazme una pagina web", faltantes=FALTANTES,
+                           generar_fn=_bug)
+    assert enc is not None
+    assert enc.ok is True and enc.origen == "semilla"
+    assert en.es_degradacion(enc.motivo) is True
+    assert "bug del cableado" in enc.motivo
+
+
+def test_encuesta_para_nunca_lanza_ni_devuelve_none(monkeypatch):
+    """Y si el que revienta es `preparar` -- que promete no lanzar, o sea un
+    bug de verdad -- la puerta del CLI sigue devolviendo una Encuesta."""
+    def _bug(*_a, **_k):
+        raise RuntimeError("preparar exploto")
+
+    monkeypatch.setattr(en, "preparar", _bug)
+    enc = en.encuesta_para("hazme una pagina web", faltantes=FALTANTES)
+    assert enc is not None
+    assert enc.ok is False and enc.preguntas == []
+    assert en.es_degradacion(enc.motivo) is True
+    assert "preparar exploto" in enc.motivo
+
+
+def test_es_degradacion_separa_la_decision_del_fallo():
+    # decisiones correctas: no se gritan
+    for motivo in ("", "ok", "el modelo dice que no falta nada",
+                   "no hay decisiones sin tomar detectables",
+                   "el pedido ya es largo y especifico",
+                   "es un comando, no un pedido", "encuestas apagadas",
+                   "sin terminal interactiva"):
+        assert en.es_degradacion(motivo) is False, motivo
+    # fallos: se gritan
+    for motivo in ("timeout o red: TimeoutError: timed out",
+                   "sin backend", "el backend no devolvio texto",
+                   "cortado por presupuesto de tokens (max_tokens=320)"):
+        assert en.es_degradacion(motivo) is True, motivo
+
+
+def test_como_preguntar_cerrada_anade_otra_cosa_al_final():
+    p = en.Pregunta(id="stack", tipo="unica", texto="Con que tecnologia?",
+                    opciones=["React", "Python"], porque="cambia el codigo")
+    plan = en.como_preguntar(p)
+    assert plan["funcion"] == "elegir"
+    assert plan["titulo"].startswith("Con que tecnologia?")
+    assert "cambia el codigo" in plan["titulo"]
+    # la salida de emergencia va SIEMPRE al final y es la ultima
+    assert [v for v, _e, _d in plan["opciones"]] == ["React", "Python",
+                                                     en.OTRA_OPCION]
+    assert plan["valor_otra"] == en.OTRA_OPCION
+
+
+def test_como_preguntar_multiple_no_lleva_otra_cosa():
+    """En multiple el usuario ya puede no marcar ninguna: "otra cosa" ahi es
+    una opcion marcable que no significa nada."""
+    p = en.Pregunta(id="secciones", tipo="multiple", texto="Que secciones?",
+                    opciones=["Inicio", "Contacto"])
+    plan = en.como_preguntar(p)
+    assert plan["funcion"] == "elegir_varias"
+    assert plan["valor_otra"] == ""
+    assert [v for v, _e, _d in plan["opciones"]] == ["Inicio", "Contacto"]
+
+
+def test_como_preguntar_abierta_va_a_texto_libre_con_pista_de_salto():
+    p = en.Pregunta(id="uso", tipo="abierta", texto="Para que va a servir?")
+    plan = en.como_preguntar(p)
+    assert plan["funcion"] == "texto_libre"
+    assert plan["opciones"] == []
+    assert "saltar" in plan["pista"]
+
+
+def test_como_preguntar_tipo_raro_cae_a_texto_libre():
+    """Nada que venga del modelo se confia. sanear_preguntas ya normaliza el
+    tipo, pero si algo se colara, el peor caso es una pregunta abierta -- no
+    un KeyError entre el Enter y el envio."""
+    p = en.Pregunta(id="x", tipo="inventado", texto="Que?")
+    assert en.como_preguntar(p)["funcion"] == "texto_libre"
+
+
+def test_todos_los_tipos_tienen_selector():
+    """Si alguien anade un TIPO nuevo sin decirle al CLI con que se muestra, el
+    CLI lo mandaria a texto libre en silencio. Que falle aqui."""
+    for tipo in en.TIPOS:
+        assert tipo in en.SELECTOR_POR_TIPO
+
+
+def test_el_flujo_completo_de_la_encuesta_termina_en_texto_enriquecido():
+    """De punta a punta, como lo hara el CLI: preparar -> mostrar (simulado con
+    como_preguntar) -> incorporar. Sin esto, cada pieza pasa sola y el producto
+    no existe."""
+    gen = _generador('{"preguntas": ['
+                     '{"id": "uso", "tipo": "unica", "texto": "Para que?", '
+                     '"opciones": ["Vender", "Mostrar mi trabajo"]},'
+                     '{"id": "alcance", "tipo": "abierta", '
+                     '"texto": "Que tiene que tener?"}]}')
+    enc = en.encuesta_para("hazme una pagina web", generar_fn=gen)
+    assert enc.ok is True
+
+    respuestas = []
+    for pregunta in enc.preguntas:
+        plan = en.como_preguntar(pregunta)
+        if plan["funcion"] == "elegir":
+            respuestas.append((pregunta, plan["opciones"][0][0]))
+        else:
+            respuestas.append((pregunta, "un formulario de contacto"))
+
+    final = en.incorporar("hazme una pagina web", respuestas)
+    assert final.startswith("hazme una pagina web")
+    assert "Detalles que el usuario aclaro" in final
+    assert "Vender" in final and "formulario de contacto" in final
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

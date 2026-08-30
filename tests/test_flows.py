@@ -364,3 +364,41 @@ def test_cache_persistente_subflujo_no_se_pisa(tmp_path, monkeypatch):
     # la salida del nodo del HIJO (escrita primero) y la del PADRE conviven
     assert "RESULTADO t_fake: hijo_A" in vals       # antes: pisada
     assert "RESULTADO t_fake: padre_B" in vals
+
+
+# -- args tiene que ser TEXTO (bug e2e 2026-08-29) ---------------------------
+# Un flujo con args dict lo aceptaba validar(), lo escribia flujoteca.guardar()
+# y despues el lienzo reventaba al releerlo: quedaba guardado e INABRIBLE. El
+# sitio donde eso se rechaza es la VALIDACION, no la vista.
+
+def test_validar_rechaza_args_dict_diciendo_nodo_y_tipo():
+    flujo = {"nodos": [
+        {"id": "a", "tool": "listar", "args": {"ruta": "."}, "wires": ["b"]},
+        {"id": "b", "tool": "calcular", "args": "1+1", "wires": []}]}
+    with pytest.raises(FlowError) as exc:
+        validar(flujo)
+    msg = str(exc.value)
+    assert "'a'" in msg and "dict" in msg and "texto" in msg
+
+
+def test_validar_rechaza_args_lista_y_objeto():
+    for basura in ([{"ruta": "."}], object(), {"a", "b"}):
+        with pytest.raises(FlowError, match="args"):
+            validar({"nodos": [{"id": "a", "tool": "t", "args": basura}]})
+
+
+def test_validar_acepta_texto_ausencia_y_escalares():
+    """Lo que no puede pasar es que este chequeo estreche lo que ya se
+    guardaba: str, sin args, y los escalares convertibles siguen valiendo."""
+    for ok in ("x", "", None, 3, 1.5, True):
+        assert validar({"nodos": [{"id": "a", "tool": "t", "args": ok}]}) == ["a"]
+    assert validar({"nodos": [{"id": "a", "tool": "t"}]}) == ["a"]
+
+
+def test_ejecutar_con_args_escalar_no_revienta_al_interpolar():
+    """`validar` acepta args: 3, asi que `_interpolar` (re.sub) tiene que
+    poder con el: si no, el error aparece a mitad de la ejecucion."""
+    flujo = {"nodos": [{"id": "a", "tool": "eco", "args": 3, "wires": []}]}
+    r = ejecutar(flujo, {}, _fake_run({"eco": lambda a: f"RESULTADO eco: {a}"}))
+    assert r["salidas"]["a"] == "RESULTADO eco: 3"
+    assert r["errores"] == {}

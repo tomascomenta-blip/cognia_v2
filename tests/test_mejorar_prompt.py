@@ -625,8 +625,13 @@ def test_v2_ensena_la_frontera_legitimo_prohibido():
     assert "EJEMPLO 2 - invencion prohibida" in v2
     # v1 sigue existiendo intacto como marcha atras (COGNIA_MEJORA_PROMPT=v1)
     assert "PROHIBIDO inventar" in mp._SYSTEM_V1
+    # ENMIENDA 2026-08-29 (PEDIDO 5.1): se registra v4 -- el system que NO mete
+    # preguntas en el prompt, para cuando la encuesta ya pregunto aparte. La
+    # igualdad exhaustiva se mantiene a proposito: es el guardian de que nadie
+    # cuele una version nueva sin declararla, y las cuatro siguen derivando de
+    # los mismos literales. Que v2 no cambio lo fija test_v2_sigue_intacto.
     assert mp.VERSIONES_SYSTEM == {"v1": mp._SYSTEM_V1, "v2": mp._SYSTEM_V2,
-                                   "v3": mp._SYSTEM_V3}
+                                   "v3": mp._SYSTEM_V3, "v4": mp._SYSTEM_V4}
 
 
 def test_v3_anade_las_dos_formas_que_le_faltaban_a_v2():
@@ -752,6 +757,247 @@ def test_construir_generar_LEE_finish_reason():
     assert registro["finish_reason"] == "length"
     assert registro["modelo"] == "modelo.gguf"
 
+
+# =========================================================================
+# v4: el system que NO mete preguntas (PEDIDO 5.1)
+# =========================================================================
+
+def test_v2_sigue_intacto():
+    """ANTICUERPO del brazo medido. _SYSTEM_V2 es el brazo del A/B publicado
+    (v1 devolvia el texto intacto en 22/24; v2 aceptado 24/24, test de signos
+    p=1,95e-3). v3 y v4 se construyen por .replace() SOBRE el, asi que la
+    tentacion permanente es "arreglar" v2 in place -- y eso deja los numeros
+    publicados sin respaldo, en silencio y sin que ningun test de contenido lo
+    note (los asserts por palabra sobreviven a casi cualquier reescritura).
+    El hash no sobrevive a ninguna.
+
+    Si este test falla: NO actualices el hash. O revertis el cambio a v2, o lo
+    llevas a una version NUEVA de VERSIONES_SYSTEM, que es exactamente para lo
+    que existe el punto de extension."""
+    import hashlib
+    huella = hashlib.sha256(mp._SYSTEM_V2.encode("utf-8")).hexdigest()
+    assert huella == ("c1be01a887c36da636eeae16b4797dbd"
+                      "5ebfa119b99f715042a96878c3f0157c"), (
+        "_SYSTEM_V2 cambio: el brazo medido en A/B ya no es el que se midio")
+    assert len(mp._SYSTEM_V2) == 3205
+
+
+def test_v4_no_pide_preguntas():
+    """LA razon de ser de v4: el bug del dueno es "el mejorador mete las
+    preguntas en el prompt ya entregado". v2 lo hace porque se lo ORDENAN
+    (OBLIGATORIO 3) y se lo ENSENAN (EJEMPLO 1). En v4 no queda ni la orden ni
+    la plantilla."""
+    v4 = mp.VERSIONES_SYSTEM["v4"]
+    assert "preguntame" not in v4
+    assert "Antes de proponer nada" not in v4
+    assert "Con esas respuestas" not in v4
+    assert "convierte cada hueco en una PREGUNTA" not in v4
+    # y lo dice de frente en PROHIBIDO
+    assert "Terminar el prompt con una lista de preguntas" in v4
+
+
+def test_v4_conserva_lo_que_hacia_util_a_v2():
+    """Riesgo 16 del plan: quitar TODAS las preguntas puede reactivar el modo
+    de fallo de v1 -- devolver el texto casi intacto, que sanear_salida rechaza
+    por "identico al original" y el dueno lee como "el mejorador no mejora".
+    Lo que lo impide es que el hueco siga existiendo, como [placeholder]."""
+    v4 = mp.VERSIONES_SYSTEM["v4"]
+    assert "[placeholder]" in v4
+    assert "criterio de exito" in v4 and "FORMATO" in v4
+    assert "De 2 a 5 frases" in v4
+    # las prohibiciones de invencion siguen enteras: son el contrato duro
+    for palabra in ("fechas", "presupuestos", "cantidades", "tecnologias",
+                    "rutas"):
+        assert palabra in v4, palabra
+    assert "EJEMPLO 1 - expansion legitima" in v4
+    assert "EJEMPLO 2 - invencion prohibida" in v4
+    # el ejemplo 1 sigue EXPANDIENDO, solo que con corchetes en vez de preguntas
+    assert "[dias por semana disponibles]" in v4
+
+
+def test_v4_deriva_de_v2_por_las_cuatro_anclas():
+    """v4 se construye con .replace() sobre literales de v2. Si un ancla se
+    perdiera (por un retoque de v2, o por una copia mal hecha), el .replace()
+    no haria nada y v4 quedaria IGUAL a v2 -- o sea el bug entero de vuelta, en
+    silencio. Esto es lo que lo caza. Mismo patron que
+    test_v3_anade_las_dos_formas_que_le_faltaban_a_v2."""
+    for ancla in (mp._ANCLA_V4_OBLIGATORIO_3, mp._ANCLA_V4_EJEMPLO_1,
+                  mp._ANCLA_V4_PROHIBIDO, mp._ANCLA_V4_TERCERA_PERSONA):
+        assert ancla in mp._SYSTEM_V2, "ancla perdida: {!r}".format(ancla[:60])
+    # las tres que SUSTITUYEN desaparecen de v4...
+    for ancla in (mp._ANCLA_V4_OBLIGATORIO_3, mp._ANCLA_V4_EJEMPLO_1,
+                  mp._ANCLA_V4_TERCERA_PERSONA):
+        assert ancla not in mp._SYSTEM_V4
+    # ...y la de PROHIBIDO es una INSERCION: la linea ancla sigue viva, con la
+    # prohibicion nueva justo delante.
+    assert mp._SYSTEM_V4.index("Terminar el prompt con una lista de "
+                               "preguntas") < mp._SYSTEM_V4.index(
+        mp._ANCLA_V4_PROHIBIDO)
+    assert mp._SYSTEM_V4 != mp._SYSTEM_V2
+    # v4 y v3 son dos derivaciones INDEPENDIENTES de v2, no una cadena
+    assert mp._SYSTEM_V4 != mp._SYSTEM_V3
+    assert "EJEMPLO 3" not in mp._SYSTEM_V4
+
+
+def test_v4_NO_es_el_default():
+    """El default global sigue siendo el brazo MEDIDO. v4 solo es mejor que v2
+    cuando alguien MAS pregunta (la encuesta); sin encuesta, un prompt sin
+    preguntas y sin nadie que las haga pierde datos."""
+    assert mp.VERSION_DEFECTO == "v2"
+    assert mp.system_prompt() is mp._SYSTEM_V2
+    assert mp.system_prompt("v4") is mp._SYSTEM_V4
+
+
+# ------------------------------------------------------------- version_para
+
+def test_version_para_sin_encuestas_es_v2():
+    assert mp.version_para("off") == "v2"
+    assert mp.version_para("") == "v2"
+    assert mp.version_para(None) == "v2"
+
+
+def test_version_para_con_encuestas_activas_es_v4():
+    assert mp.version_para("auto") == "v4"
+
+
+def test_version_para_encuesta_previa_gana_al_estado():
+    """Aunque las encuestas esten 'off' como politica, si ESTE texto ya viene
+    enriquecido por una encuesta contestada, meterle preguntas dentro es
+    pedirle al dueno dos veces lo mismo."""
+    assert mp.version_para("off", encuesta_previa=True) == "v4"
+
+
+def test_version_para_el_estilo_del_dueno_siempre_gana():
+    """La clave de config 'mejorar_prompt_estilo' / COGNIA_MEJORA_PROMPT es una
+    eleccion EXPLICITA: si el dueno pidio v2, no se le sirve v4 por detras."""
+    assert mp.version_para("auto", estilo="v2") == "v2"
+    assert mp.version_para("auto", encuesta_previa=True, estilo="v1") == "v1"
+    assert mp.version_para("off", estilo="V3 ") == "v3"
+
+
+def test_version_para_estilo_desconocido_no_pisa_la_eleccion():
+    """Un COGNIA_MEJORA_PROMPT mal escrito no puede devolver el bug por la
+    puerta de atras: aqui se ignora (y lo grita _resolver_version por su
+    lado, que es quien tiene el aviso)."""
+    assert mp.version_para("auto", estilo="v9") == "v4"
+    assert mp.version_para("off", estilo="basura") == "v2"
+
+
+def test_version_para_devuelve_siempre_una_version_registrada():
+    for estado in ("off", "auto", "", None, "AUTO"):
+        for previa in (True, False):
+            elegida = mp.version_para(estado, encuesta_previa=previa)
+            assert elegida in mp.VERSIONES_SYSTEM
+
+
+# ------------------------------------------------- preguntas_al_usuario (5.5)
+
+def test_preguntas_al_usuario_cuenta_interrogaciones_y_pedidos():
+    salida = ("Crea una pagina web para mi. Antes de escribir nada, "
+              "preguntame para que va a servir. Que tecnologia uso? "
+              "Que secciones tiene?")
+    assert mp.preguntas_al_usuario(salida) == 3
+
+
+def test_preguntas_al_usuario_una_sola_marca_no_alcanza_el_umbral():
+    """EJEMPLO 3 de v3 y el caso 'organizame' medido en el A/B: una
+    reformulacion LEGITIMA que pide datos sin soltar la accion. Cuenta 1, y el
+    umbral de rechazo es 2 justamente para no tirarla."""
+    salida = ("Organiza mi escritorio. Antes de mover nada, preguntame si "
+              "hablo del escritorio fisico o del de la computadora y con que "
+              "criterio quiero agruparlo.")
+    assert mp.preguntas_al_usuario(salida) == 1
+    assert mp.preguntas_al_usuario(salida) < mp.MIN_PREGUNTAS_PARA_RECHAZAR
+
+
+def test_preguntas_al_usuario_ignora_lo_que_no_es_una_pregunta():
+    # 'pregunta' como sustantivo, y un '?' dentro de una URL con query.
+    assert mp.preguntas_al_usuario("Responde la pregunta de investigacion "
+                                   "usando http://x/y?a=1&b=2 como fuente") == 0
+    assert mp.preguntas_al_usuario("") == 0
+    assert mp.preguntas_al_usuario(None) == 0
+
+
+def test_preguntas_al_usuario_cuenta_dos_verbos_distintos():
+    assert mp.preguntas_al_usuario("Decime el plazo y aclarame el alcance") == 2
+
+
+# ------------------------------------ sanear_salida(encuesta_previa=...) (5.5)
+
+_CON_PREGUNTAS = ("Crea una pagina web para mi negocio. Antes de escribir "
+                  "nada, preguntame para que va a servir. Que tecnologia "
+                  "prefiero? Devuelve el codigo listo para abrir.")
+
+
+def test_sanear_por_defecto_acepta_las_preguntas_embebidas():
+    """El default NO cambia: sin encuesta, pedir datos dentro del prompt es el
+    comportamiento correcto y medido de v2. Este test es el anticuerpo de que
+    el arreglo no se cuela en el camino de siempre."""
+    texto, motivo = mp.sanear_salida(_CON_PREGUNTAS, "hazme una web")
+    assert motivo == "ok"
+    texto2, motivo2 = mp.sanear_salida(_CON_PREGUNTAS, "hazme una web",
+                                       encuesta_previa=False)
+    assert (texto2, motivo2) == (texto, motivo)
+
+
+def test_sanear_con_encuesta_previa_rechaza_las_preguntas():
+    """La red determinista: si la encuesta YA pregunto en el selector y el
+    modelo devuelve preguntas igual, el dueno tendria que contestar lo mismo
+    dos veces. Es EL bug reportado, y esta es la unica defensa que aguanta si
+    el modelo ignora el system v4."""
+    _texto, motivo = mp.sanear_salida(_CON_PREGUNTAS, "hazme una web",
+                                      encuesta_previa=True)
+    assert motivo.startswith("mejora descartada")
+    assert "la encuesta ya pregunto" in motivo
+    # el motivo trae la CIFRA: sin ella no se puede recalibrar el umbral
+    assert mp.preguntas_al_usuario(_CON_PREGUNTAS) == 2
+    assert "2 preguntas" in motivo
+
+
+def test_sanear_con_encuesta_previa_acepta_una_sola_pregunta():
+    """Umbral 2, no 1 (riesgo 17 del plan): una mejora con un solo 'preguntame'
+    sigue pasando, con encuesta previa o sin ella."""
+    salida = ("Organiza mi escritorio agrupando lo que hay encima. Antes de "
+              "mover nada, preguntame con que criterio quiero agruparlo, y "
+              "dejame despues una lista de lo que moviste.")
+    _texto, motivo = mp.sanear_salida(salida, "ordename el escritorio de casa",
+                                      encuesta_previa=True)
+    assert motivo == "ok"
+
+
+def test_mejorar_pasa_encuesta_previa_al_saneador():
+    """El parametro llega de punta a punta: si se quedara en la firma sin
+    cablearse, todo lo de arriba seria decoracion."""
+    enriquecido = ("hazme una pagina web\n\nDetalles que el usuario aclaro:\n"
+                   "- Para que va a servir: vender pan")
+
+    def _fake(_prompt, _system):
+        return _CON_PREGUNTAS
+
+    con = mp.mejorar(enriquecido, generar_fn=_fake, encuesta_previa=True)
+    assert con.ok is False
+    assert "la encuesta ya pregunto" in con.motivo
+    # y lo que se envia es el texto ENRIQUECIDO, no el crudo: las respuestas
+    # de la encuesta no se pierden porque la reformulacion se descarte.
+    assert con.texto == enriquecido
+
+    sin = mp.mejorar(enriquecido, generar_fn=_fake)
+    assert sin.ok is True and sin.texto == _CON_PREGUNTAS
+
+
+def test_mejorar_sirve_la_version_que_elige_version_para():
+    """El cableado previsto de punta a punta: version_para() decide y
+    mejorar() la sirve, sin que el CLI tenga que nombrar 'v4' a mano."""
+    visto = {}
+
+    def _fake(_prompt, system):
+        visto["system"] = system
+        return ("Arma la pagina de mi panaderia con [secciones] y [paleta de "
+                "colores], y avisame cuando este publicada.")
+
+    mp.mejorar("hazme una pagina web", generar_fn=_fake,
+               version=mp.version_para("auto", encuesta_previa=True))
+    assert visto["system"] is mp._SYSTEM_V4
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

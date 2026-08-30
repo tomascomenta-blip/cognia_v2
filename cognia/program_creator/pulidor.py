@@ -254,13 +254,18 @@ class ResultadoPulido:
     # sin mockup). Va al resumen y al reporte.md: una corrida degradada tiene que
     # poder distinguirse de una sana DESPUES, no solo en el stderr del momento.
     degradaciones: List[str] = field(default_factory=list)
+    # El veredicto MEDIDO de la autoprueba sobre el index.html entregado. Va en
+    # su propio campo y NO en degradaciones: un veredicto no es "algo hecho a
+    # ciegas", y meterlo ahi hacia que toda corrida sana pareciera degradada.
+    autoprueba: str = ""
 
     def resumen(self) -> str:
         n = f"{self.nota_final:.1f}/10" if self.nota_final is not None else "s/nota"
         aviso = (f" | DEGRADADO ({len(self.degradaciones)}): "
                  f"{self.degradaciones[0]}") if self.degradaciones else ""
+        prueba = f" | autoprueba: {self.autoprueba}" if self.autoprueba else ""
         return (f"'{self.goal[:60]}' -> {self.ciclos} ciclo(s), nota {n}, "
-                f"corte: {self.motivo}{aviso}")
+                f"corte: {self.motivo}{aviso}{prueba}")
 
 
 def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
@@ -487,6 +492,29 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
                             "respondieron"])
             (dir_final / "reporte.md").write_text("\n".join(reporte),
                                                   encoding="utf-8")
+            # SELLO IGUAL QUE /crear (2026-08-29): hasta hoy /pulir no llamaba a
+            # la verificacion nunca y sus 6 productos ademas eran INVISIBLES para
+            # /autoprueba (viven anidados en pulidos/<slug>/). Se sella aqui, con
+            # el mismo criterio medido, y el motivo del veredicto entra en el
+            # reporte.md para que quede junto a la historia del pulido.
+            try:
+                from .program_creator import _verificar_y_reparar, texto_veredicto
+                _ver = _verificar_y_reparar(dir_final, None, verbose=False, reparar=False)
+                res.autoprueba = texto_veredicto(_ver)
+                with open(dir_final / "reporte.md", "a", encoding="utf-8") as fh:
+                    fh.write(f"\n\n## Autoprueba (medida, no opinada)\n"
+                             f"- {texto_veredicto(_ver)}\n")
+                if verbose:
+                    print(f"🔬 Autoprueba: {texto_veredicto(_ver)}")
+            except Exception as exc:
+                # Que la autoprueba NO se pueda correr si es una degradacion:
+                # se entrega una pagina sin haberla medido.
+                res.autoprueba = f"NO se pudo medir ({type(exc).__name__})"
+                res.degradaciones.append(
+                    f"SIN AUTOPRUEBA: no se pudo sellar el pulido "
+                    f"({type(exc).__name__}: {exc})")
+                _grito("pulidor.autoprueba",
+                       f"no se pudo sellar el pulido: {type(exc).__name__}: {exc}")
         if not res.motivo:
             res.motivo = "fin"
         return res

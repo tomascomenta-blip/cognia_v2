@@ -18,25 +18,113 @@ import html
 import json
 
 
-def _color_modelo(key: str | None, override: str | None = None) -> tuple[str, str]:
+def _color_modelo(key=None, override=None) -> tuple[str, str]:
     """(color_borde, nombre_modelo) para un nodo. override gana; si no, el
-    color de identidad del modelo recomendado; default gris."""
+    color de identidad del modelo recomendado; default gris.
+
+    `key` y `override` salen del JSON del flujo, o sea que pueden llegar de
+    cualquier tipo: se pasan por str() antes de tocar nada (ver la nota de
+    _nodos_saneados: la vista NUNCA revienta por el tipo de un campo)."""
     if override:
-        return override, ""
+        return str(override), ""
     try:
         from cognia.oficina.identidad import identidad
-        ide = identidad(key or "")
-        return ide["color"], ide["nombre"]
+        ide = identidad(str(key or ""))
+        return str(ide["color"]), str(ide["nombre"])
     except Exception:
         return "#8A8F98", ""
 
 
-def build_layout(flujo: dict) -> dict:
-    """Posiciones {id:{x,y}}, cajas (con color de modelo) y cables."""
-    nodos = flujo.get("nodos", [])
+def _pos_manual(pos) -> dict:
+    """{id: {"x": int, "y": int}} con solo las entradas COMPLETAS y numericas.
+
+    Una entrada a medias (solo x, o una y de tipo texto) se descarta entera y
+    ese nodo cae al layout automatico. Colocar el nodo en x manual y en y
+    calculada lo pondria en un sitio que el dueno no eligio ni el algoritmo
+    tampoco."""
+    limpio: dict[str, dict] = {}
+    if not isinstance(pos, dict):
+        return limpio
+    for nid, xy in pos.items():
+        if not isinstance(xy, dict):
+            continue
+        try:
+            limpio[str(nid)] = {"x": int(round(float(xy["x"]))),
+                                "y": int(round(float(xy["y"])))}
+        except (KeyError, TypeError, ValueError):
+            continue
+    return limpio
+
+
+def _nodos_saneados(flujo) -> list:
+    """[(id_texto, nodo)] de un flujo que viene de DISCO, sin suponer tipos.
+
+    Por que existe (bug del 2026-08-29, encontrado por la prueba e2e): un
+    flujo con `args` dict lo ACEPTA `flows.validar`, lo ESCRIBE
+    `flujoteca.guardar` y despues reventaba aqui con
+    `KeyError: slice(None, 46, None)`, asi que /api/flujo devolvia 404 para
+    siempre y el flujo quedaba guardado e INABRIBLE en el editor.
+
+    La regla: quien decide si un flujo es LEGAL es `flows.validar` (y desde
+    ese mismo bug rechaza los args no-texto); la VISTA se lee despues de
+    guardar, o sea que le pueden llegar flujos escritos por versiones
+    viejas, por `/flujoteca importar` o tecleados a mano. Dibujar algo raro
+    es recuperable; no poder abrir el fichero, no. Se descartan solo los
+    nodos sin id utilizable (un id dict/lista ni siquiera es una clave).
+    """
+    if not isinstance(flujo, dict):
+        return []
+    nodos = flujo.get("nodos")
+    if not isinstance(nodos, list):
+        return []
+    salida = []
+    for n in nodos:
+        if not isinstance(n, dict):
+            continue
+        nid = n.get("id")
+        if nid is None or isinstance(nid, (dict, list, set)):
+            continue
+        salida.append((str(nid), n))
+    return salida
+
+
+def _wires_de(n: dict) -> list:
+    """Los ids destino de un nodo, en texto. Un `wires` que es un string se
+    trata como UN cable ("b"), no como tres letras: es la misma errata de
+    forma que ya arregla `flujo_ia.sanear_flujo` cuando la comete el modelo."""
+    w = n.get("wires")
+    if isinstance(w, str):
+        return [w]
+    if not isinstance(w, (list, tuple)):
+        return []
+    return [str(x) for x in w if not isinstance(x, (dict, list, set))]
+
+
+def build_layout(flujo: dict, pos: dict | None = None) -> dict:
+    """Posiciones {id:{x,y}}, cajas (con color de modelo) y cables.
+
+    `pos` son las posiciones que el dueno fijo a mano en el editor visual
+    (viven en meta['ui']['pos'], fuera del flujo: ver la cabecera de
+    flujoteca.guardar_ui). Un id con posicion manual se pinta donde dice
+    `pos`; los demas caen al calculo topologico de siempre.
+
+    El layout automatico se calcula ENTERO aunque haya posiciones manuales, y
+    solo despues se pisan las de los ids que las tienen. Asi arrastrar un
+    nodo no mueve a sus vecinos de columna, y quitarle la posicion manual lo
+    devuelve exactamente a donde estaba. Sin `pos`, el resultado es identico
+    al de antes de que existiera este parametro, salvo por la clave nueva
+    "pos_manual" de cada caja (siempre False).
+
+    NO LEVANTA por la forma del flujo: lo que llega de disco pasa antes por
+    `_nodos_saneados` / `_wires_de` y todo campo de texto sale por str().
+    Un flujo raro se dibuja raro; un flujo que no se puede abrir no se puede
+    ni arreglar (ver la nota de _nodos_saneados).
+    """
+    nodos = _nodos_saneados(flujo)
+    manual = _pos_manual(pos)
     # profundidad topológica -> columna
-    hijos = {n["id"]: list(n.get("wires") or []) for n in nodos}
-    padres: dict[str, list] = {n["id"]: [] for n in nodos}
+    hijos = {nid: _wires_de(n) for nid, n in nodos}
+    padres: dict[str, list] = {nid: [] for nid, _ in nodos}
     for i, ws in hijos.items():
         for w in ws:
             if w in padres:
@@ -53,33 +141,37 @@ def build_layout(flujo: dict) -> dict:
         p = padres.get(nid, [])
         nivel[nid] = 0 if not p else 1 + max(prof(x, visto) for x in p)
         return nivel[nid]
-    for n in nodos:
-        prof(n["id"])
+    for nid, _n in nodos:
+        prof(nid)
 
     W, H, GAPX, GAPY, X0, Y0 = 210, 66, 96, 34, 40, 56
     porcol: dict[int, int] = {}
-    pos = {}
-    for n in nodos:
-        c = nivel.get(n["id"], 0)
+    auto: dict[str, dict] = {}
+    for nid, _n in nodos:
+        c = nivel.get(nid, 0)
         fila = porcol.get(c, 0)
         porcol[c] = fila + 1
-        pos[n["id"]] = {"x": X0 + c * (W + GAPX), "y": Y0 + fila * (H + GAPY)}
+        auto[nid] = {"x": X0 + c * (W + GAPX), "y": Y0 + fila * (H + GAPY)}
+    # Las manuales pisan a las automaticas, nodo a nodo.
+    lugar = {nid: dict(manual[nid]) if nid in manual else p
+             for nid, p in auto.items()}
     cajas, modelos = [], {}
-    for i, n in enumerate(nodos):
-        p = pos[n["id"]]
+    for i, (nid, n) in enumerate(nodos):
+        p = lugar[nid]
         color, nombre = _color_modelo(n.get("modelo"), n.get("color"))
         if nombre:
             modelos[nombre] = color
-        cajas.append({"id": n["id"], "x": p["x"], "y": p["y"], "w": W, "h": H,
-                      "n": i + 1, "tool": n.get("tool", ""),
-                      "args": (n.get("args", "") or "")[:46],
-                      "color": color, "modelo": nombre})
+        cajas.append({"id": nid, "x": p["x"], "y": p["y"], "w": W, "h": H,
+                      "n": i + 1, "tool": str(n.get("tool") or ""),
+                      "args": str(n.get("args") or "")[:46],
+                      "color": color, "modelo": nombre,
+                      "pos_manual": nid in manual})
     cables = []
-    for n in nodos:
-        a = pos[n["id"]]
-        for w in (n.get("wires") or []):
-            if w in pos:
-                b = pos[w]
+    for nid, n in nodos:
+        a = lugar[nid]
+        for w in _wires_de(n):
+            if w in lugar:
+                b = lugar[w]
                 cables.append({"x1": a["x"] + W, "y1": a["y"] + H / 2,
                                "x2": b["x"], "y2": b["y"] + H / 2})
     ancho = max((c["x"] + W for c in cajas), default=400) + 40

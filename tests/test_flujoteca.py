@@ -59,11 +59,20 @@ class _Reloj:
 
 def flujo_lineal(nombre="Investigacion IA", n=2, args="paso"):
     """Flujo valido para flows.validar: ids unicos, tool en todos y wires
-    encadenados sin ciclo."""
+    encadenados sin ciclo.
+
+    EL PRIMER NODO ES EL DE ENTRADA (`tool: "prompt"`), 2026-08-29. No es
+    decorado: desde el PEDIDO 3, `flujoteca.guardar` llama a
+    `flows.asegurar_prompt` y TODO flujo guardado sale con su nodo de
+    entrada al inicio. Si este helper produjera flujos sin el, cada
+    `guardar()` le anadiria uno y los conteos de `n_nodos` de medio fichero
+    mirarian un flujo distinto del que se escribio. Dandoselo aqui, el
+    helper describe el formato REAL de lo que hay en la biblioteca y los
+    conteos siguen significando lo que decian."""
     return {
         "nombre": nombre,
         "nodos": [
-            {"id": "n%d" % i, "tool": "responder",
+            {"id": "n%d" % i, "tool": ("prompt" if i == 0 else "responder"),
              "args": "%s %d" % (args, i),
              "wires": (["n%d" % (i + 1)] if i < n - 1 else [])}
             for i in range(n)
@@ -333,11 +342,16 @@ def test_restaurar_version_inexistente_lanza(biblioteca):
 # ---------------------------------------------------------------------------
 
 def test_comparar_anadidos_quitados_y_cambiados(biblioteca):
+    # el nodo de entrada va EXPLICITO en los dos: `guardar` se lo pondria
+    # igual (asegurar_prompt), y ponerlo aqui deja ver que es identico en las
+    # dos versiones -- por eso sale en `iguales` y no en el diff
     v1 = {"nombre": "Diff", "nodos": [
+        {"id": "p", "tool": "prompt", "args": "", "wires": ["a"]},
         {"id": "a", "tool": "responder", "args": "hola", "wires": ["b"]},
         {"id": "b", "tool": "leer_archivo", "args": "x.txt", "wires": []},
     ]}
     v2 = {"nombre": "Diff", "nodos": [
+        {"id": "p", "tool": "prompt", "args": "", "wires": ["a"]},
         {"id": "a", "tool": "buscar_web", "args": "hola", "wires": ["c"],
          "reintentos": 2},
         {"id": "c", "tool": "responder", "args": "nuevo", "wires": []},
@@ -356,7 +370,7 @@ def test_comparar_anadidos_quitados_y_cambiados(biblioteca):
     assert campos["wires"] == (["b"], ["c"])
     assert campos["reintentos"] == (None, 2)
     assert "args" not in campos                         # 'hola' no cambio
-    assert d["iguales"] == []
+    assert d["iguales"] == ["p"]        # el nodo de entrada, intacto
     assert d["sin_cambios"] is False
 
 
@@ -619,3 +633,153 @@ def test_la_biblioteca_vive_donde_dice_la_env(biblioteca, monkeypatch, tmp_path)
     F.guardar(flujo_lineal(), nombre="Aqui")
     assert (otra / "aqui" / "v1.json").is_file()
     assert not biblioteca.exists()
+
+
+# ---------------------------------------------------------------------------
+# 12. tool_existe opcional en guardar()
+# ---------------------------------------------------------------------------
+
+def test_guardar_con_tool_existe_rechaza_tool_inventada(biblioteca):
+    """El editor visual pasa el registro real: una tool que no existe se caza
+    al GUARDAR, no al ejecutar tres dias despues."""
+    flujo = flujo_lineal(n=2)
+    flujo["nodos"][-1]["tool"] = "descargar_pdf"
+
+    with pytest.raises(FlowError) as exc:
+        F.guardar(flujo, nombre="Inventada",
+                  tool_existe=lambda n: n in {"responder", "buscar", "prompt"})
+
+    assert "descargar_pdf" in str(exc.value)
+    assert not F.existe("Inventada"), "no se escribio nada"
+    assert list(biblioteca.rglob("*.json")) == []
+
+
+def test_guardar_sin_tool_existe_acepta_cualquier_tool(biblioteca):
+    """El default TIENE que seguir siendo permisivo: hay flujos legitimos con
+    tools de una familia opt-in apagada en este proceso, y convertir eso en
+    un error dejaria al dueno sin poder guardar lo que ya tenia."""
+    flujo = flujo_lineal(n=2)
+    flujo["nodos"][-1]["tool"] = "tool_que_no_existe_en_ningun_registro"
+
+    meta = F.guardar(flujo, nombre="Permisiva")
+
+    assert meta["version_actual"] == 1
+    assert F.cargar("Permisiva")["nodos"][-1]["tool"] == \
+        "tool_que_no_existe_en_ningun_registro"
+
+
+def test_guardar_con_tool_existe_deja_pasar_las_que_si_existen(biblioteca):
+    meta = F.guardar(flujo_lineal(n=2), nombre="Buenas",
+                     tool_existe=lambda n: n in ("responder", "prompt"))
+    assert meta["version_actual"] == 1
+
+
+# ---------------------------------------------------------------------------
+# 13. El estado del editor: meta['ui']
+# ---------------------------------------------------------------------------
+
+def test_guardar_ui_no_crea_version(biblioteca):
+    """Arrastrar un nodo NO es editar el flujo. Si cada arrastre creara una
+    version, el historial (que existe para poder volver a un flujo anterior)
+    quedaria enterrado bajo cientos de entradas que no cambian nada."""
+    F.guardar(flujo_lineal(n=2), nombre="Con Posiciones", nota="inicial")
+    antes = F.versiones("Con Posiciones")
+
+    for i in range(20):
+        F.guardar_ui("Con Posiciones",
+                     {"pos": {"n0": {"x": 100 + i, "y": 40}}})
+
+    assert F.versiones("Con Posiciones") == antes
+    assert len(list((biblioteca / "con_posiciones").glob("v*.json"))) == 1
+    assert F.leer_ui("Con Posiciones")["pos"]["n0"] == {"x": 119, "y": 40}
+
+
+def test_guardar_ui_no_toca_la_fecha_de_modificacion(biblioteca):
+    """`listar()` ordena por 'modificado'. Si mover un nodo tocara esa fecha,
+    el flujo que solo se MIRO saltaria por encima del que se edito."""
+    F.guardar(flujo_lineal(n=1), nombre="Quieto")
+    modificado = json.loads(
+        (biblioteca / "quieto" / "meta.json").read_text(encoding="utf-8")
+    )["modificado"]
+
+    F.guardar_ui("Quieto", {"pos": {"n0": {"x": 9, "y": 9}}})
+
+    meta = json.loads(
+        (biblioteca / "quieto" / "meta.json").read_text(encoding="utf-8"))
+    assert meta["modificado"] == modificado
+    assert meta["version_actual"] == 1
+
+
+def test_las_posiciones_no_salen_en_comparar(biblioteca):
+    """comparar() mira el FLUJO; el ui no es el flujo."""
+    F.guardar(flujo_lineal(n=2), nombre="Comparada")
+    F.guardar_ui("Comparada", {"pos": {"n0": {"x": 500, "y": 500}}})
+    F.guardar(flujo_lineal(n=2), nombre="Comparada")
+
+    assert F.comparar("Comparada", 1, 2)["sin_cambios"] is True
+
+
+def test_leer_ui_flujo_sin_ui_devuelve_vacio(biblioteca):
+    """Todos los flujos de antes del editor no tienen 'ui', y ese es el caso
+    normal: tiene respuesta buena (el layout topologico), no es un error."""
+    F.guardar(flujo_lineal(), nombre="Sin Ui")
+
+    assert F.leer_ui("Sin Ui") == {}
+    assert F.leer_ui("este flujo no existe") == {}      # tampoco lanza
+
+
+def test_guardar_ui_en_flujo_inexistente_lanza(biblioteca):
+    """Aqui SI hay que lanzar: quien escribe quiere saber que no se guardo."""
+    with pytest.raises(F.FlujotecaError):
+        F.guardar_ui("fantasma", {"pos": {}})
+    assert F.listar() == []
+
+
+def test_guardar_ui_fusiona_las_claves_de_primer_nivel(biblioteca):
+    """Guardar solo las posiciones no puede borrar el zoom que guardo otra
+    pantalla; pero dentro de 'pos' se reemplaza entero, o las posiciones de
+    los nodos borrados se quedarian ahi para siempre."""
+    F.guardar(flujo_lineal(n=2), nombre="Fusion")
+    F.guardar_ui("Fusion", {"pos": {"n0": {"x": 1, "y": 2},
+                                    "viejo": {"x": 9, "y": 9}},
+                            "zoom": 1.5})
+
+    ui = F.guardar_ui("Fusion", {"pos": {"n0": {"x": 3, "y": 4}}})
+
+    assert ui["zoom"] == 1.5
+    assert ui["pos"] == {"n0": {"x": 3, "y": 4}}
+    assert F.leer_ui("Fusion") == ui
+
+
+def test_guardar_ui_sanea_lo_que_llega_del_navegador(biblioteca):
+    """Lo que entra por HTTP no es de fiar ni en localhost: una x de tipo
+    lista rompe la vista al LEERLA, mucho despues de escribirla."""
+    F.guardar(flujo_lineal(n=1), nombre="Sucia")
+
+    ui = F.guardar_ui("Sucia", {"pos": {
+        "n0": {"x": "120.7", "y": 40.2},        # texto y float -> enteros
+        "n1": {"x": [1], "y": 3},               # basura -> fuera
+        "n2": {"x": 5},                         # a medias -> fuera
+        "n3": "no soy un dict",                 # ni eso -> fuera
+    }})
+
+    assert ui["pos"] == {"n0": {"x": 121, "y": 40}}
+    assert F.leer_ui("Sucia")["pos"] == {"n0": {"x": 121, "y": 40}}
+
+
+def test_guardar_ui_rechaza_lo_que_no_es_dict_o_no_es_json(biblioteca):
+    F.guardar(flujo_lineal(n=1), nombre="Rara")
+    with pytest.raises(F.FlujotecaError):
+        F.guardar_ui("Rara", "no soy un dict")
+    with pytest.raises(F.FlujotecaError):
+        F.guardar_ui("Rara", {"raro": {1, 2, 3}})       # set: no es JSON
+    assert F.leer_ui("Rara") == {}
+
+
+def test_guardar_ui_es_atomico_y_no_deja_tmp(biblioteca):
+    F.guardar(flujo_lineal(n=1), nombre="Atomica Ui")
+    F.guardar_ui("Atomica Ui", {"pos": {"n0": {"x": 1, "y": 2}}})
+
+    assert list(biblioteca.rglob("*.tmp")) == []
+    for p in biblioteca.rglob("*.json"):
+        json.loads(p.read_text(encoding="utf-8"))

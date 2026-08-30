@@ -55,10 +55,155 @@ _SKILLS_DIR = Path(__file__).parent.parent / "cognia_skills"
 # que. Estas dos funciones no cambian el flujo: lo hacen visible.
 _DEGRADADO = "[DEGRADADO]"
 
+# ---------------------------------------------------------------------------
+# QUIEN se degrado: el BACKEND LLM o el INSTRUMENTO (2026-08-29)
+# ---------------------------------------------------------------------------
+# El canal era uno solo: todo _aviso_degradado acababa en
+# backend_activo.sin_backend(), que rotula "[backend] DEGRADADO: '<via>' sin
+# backend LLM -- ..." y adjunta "Arranca la flota: python -m cognia flota
+# arrancar pensar-qwen38". Con 307 llamadas en este fichero, la inmensa
+# mayoria NO habla del modelo. El caso que lo destapo (cierre del editor de
+# flujos, defecto 2) salio literalmente asi:
+#
+#   [backend] DEGRADADO: 'cli.s2w.grabador' sin backend LLM -- RuntimeError:
+#   grabador roto... Arranca la flota: python -m cognia flota arrancar pensar-qwen38
+#
+# ...o sea: un bug del GRABADOR de sesiones mandando al dueno a levantar un
+# modelo. Esta casa tiene una regla dura sobre no confundir un fallo del
+# INSTRUMENTO con un fallo del MODELO; una pista falsa cuesta una descarga de
+# 16 GB y media hora antes de descubrir que el modelo no tenia nada que ver.
+#
+# EL CRITERIO. No se toca llamada a llamada (son 307 y la siguiente adicion
+# volveria a olvidarse): se decide por la VIA, que ya viene jerarquizada
+# ('cli.fast_path.sin_llama', 'cli.s2w.grabador'). Dos reglas y una puerta:
+#
+#   1. `_VIAS_BACKEND`: las vias EXACTAS que si son del backend LLM. Exactas
+#      y no por prefijo a proposito: 'chat' es una peticion al modelo pero
+#      'chat.afirma_accion' es el centinela que caza al chat inventando una
+#      accion — un prefijo los mezclaria.
+#   2. `_SUFIJOS_BACKEND`: el ultimo segmento nombra al backend. Es el punto
+#      de extension barato: una via nueva que se llame '<lo que sea>.backend'
+#      ya sale rotulada bien sin tocar ninguna lista.
+#   3. `_aviso_degradado(via, detalle, backend=True/False)`: el override
+#      explicito para el caso que las dos reglas no adivinen. Es el TERCER
+#      parametro y opcional, asi que las 307 llamadas existentes (y los
+#      monkeypatch de los tests, que usan `lambda via, det="": ...`) siguen
+#      valiendo tal cual.
+#
+# La lista es de INCLUSION (solo lo que esta dentro lleva "[backend]") porque
+# el error caro es el falso positivo: culpar al modelo de lo que no es suyo.
+# Una via del backend que se nos escape sale como aviso normal — ruidosa pero
+# no enganosa.
+_VIAS_BACKEND = frozenset((
+    # vias canonicas de peticion a un LLM (las que usan los modulos que llaman
+    # a backend_activo.sin_backend directamente)
+    "chat",
+    "generate",
+    "proactividad",
+    # el agente se quedo sin backend de inferencia (cli.py ~23806)
+    "cli.agente.sin_backend",
+    # el fast-path de streaming: no hay llama.cpp, no carga, o no emitio un
+    # solo token. Los otros 'cli.fast_path.*' (portero, stepwise, experto,
+    # fleet_router) son fallos de CODIGO del envoltorio y NO entran.
+    "cli.fast_path.sin_llama",
+    "cli.fast_path._try_load_llama",
+    "cli.fast_path.orquestador",
+    "cli.fast_path.stream_vacio",
+    # /mejorar-prompt no encuentra a quien preguntarle
+    "cli.mejorar.backend",
+))
 
-def _gritar_degradado(via: str, detalle: str = "") -> None:
-    """sin_backend() que no puede romper nada (mismo patron que
-    node/llama_backend.try_load): es instrumentacion, no camino critico."""
+#: Ultimo segmento que declara "esto va del backend LLM".
+_SUFIJOS_BACKEND = ("backend", "sin_backend", "sin_llama", "sin_modelo", "llm")
+
+
+def _es_via_de_backend(via: str) -> bool:
+    """True si la via habla del BACKEND LLM (y por tanto la pista de arrancar
+    la flota ayuda en vez de despistar). Nunca lanza."""
+    try:
+        v = (via or "").strip()
+        if not v:
+            return False
+        if v in _VIAS_BACKEND:
+            return True
+        return v.rsplit(".", 1)[-1] in _SUFIJOS_BACKEND
+    except Exception:
+        return False
+
+
+def _etiqueta_degradado(via: str) -> str:
+    """La etiqueta entre corchetes de un aviso que NO es del backend.
+
+    Los dos primeros segmentos de la via, que es donde vive la identidad del
+    subsistema: 'cli.s2w.grabador' -> 'cli.s2w'; 'cli.encuesta' ->
+    'cli.encuesta'; 'estilo' -> 'estilo'. Un segmento solo ('cli') no dice
+    nada y tres ya es el detalle, que va igualmente en la linea."""
+    try:
+        partes = [p for p in (via or "").split(".") if p]
+        return ".".join(partes[:2]) if partes else "cli"
+    except Exception:
+        return "cli"
+
+
+def _gritar_degradado_instrumento(via: str, detalle: str = "") -> None:
+    """Aviso de una degradacion que NO es del backend LLM.
+
+    Hace lo mismo que sin_backend() salvo las dos cosas que mentian: el rotulo
+    "sin backend LLM" y el "Arranca la flota". Conserva:
+      - el evento Degradado al bus (el renderer lo pinta ambar) con
+        accion_sugerida VACIA, que es lo que apaga la pista enganosa;
+      - el grito a stderr cuando NADIE escucha (sin REPL: scripts, tests,
+        daemons) — pasar a "grita solo si hay oyentes" seria reabrir la
+        degradacion silenciosa, que es el modo de fallo historico de Cognia;
+      - la fila en el audit jsonl, marcada `"backend": false` para que se
+        distinga de una caida real del modelo.
+    Lo que NO hace es tocar `backend_activo._ultimo`: eso es "quien atendio la
+    ultima peticion de LLM" y program_creator/bon.py lo copia tal cual en sus
+    filas. Un grabador roto no atendio ninguna peticion."""
+    motivo = detalle or "fallo sin detalle"
+    try:
+        from cognia import backend_activo as _ba
+        # _append y no escribir_linea_jsonl a pelo: aplica la rotacion y el
+        # lock de la auditoria, y esta guardado por dentro (nunca lanza).
+        _ba._append({
+            "t": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "via": via,
+            "url": None,
+            "puerto": None,
+            "modelo": None,
+            "degradado": True,
+            "backend": False,
+            "detalle": detalle,
+        })
+    except Exception:
+        pass
+    visto = False
+    try:
+        from cognia.ux import events as _ev
+        visto = bool(_ev._suscriptores)
+        _ev.emitir(_ev.Degradado(donde=via, motivo=motivo, accion_sugerida=""))
+    except Exception:
+        visto = False
+    if not visto:
+        try:
+            print(f"[{_etiqueta_degradado(via)}] DEGRADADO: {via} -- {motivo}",
+                  file=sys.stderr, flush=True)
+        except Exception:
+            pass
+
+
+def _gritar_degradado(via: str, detalle: str = "",
+                      backend: "bool | None" = None) -> None:
+    """Grito visible que no puede romper nada (mismo patron que
+    node/llama_backend.try_load): es instrumentacion, no camino critico.
+
+    `backend`: None = se decide por la via (`_es_via_de_backend`); True/False
+    lo fuerza. Solo el camino del backend pasa por sin_backend() y por tanto
+    solo el lleva "[backend] ... sin backend LLM" + "Arranca la flota"."""
+    es_backend = _es_via_de_backend(via) if backend is None else bool(backend)
+    if not es_backend:
+        _gritar_degradado_instrumento(via, detalle)
+        return
     try:
         from cognia import backend_activo
         backend_activo.sin_backend(via, detalle)
@@ -83,18 +228,24 @@ def _nuevo_turno_degradado() -> None:
     _AVISOS_VISTOS.clear()
 
 
-def _aviso_degradado(via: str, detalle: str = "") -> None:
+def _aviso_degradado(via: str, detalle: str = "",
+                     backend: "bool | None" = None) -> None:
     """Aviso VISIBLE + registro en el audit, UNA vez por turno y por motivo.
 
     2026-08-09: el print crudo "[degradado] via: detalle" a stderr se fue.
-    sin_backend() (via _gritar_degradado) emite el evento Degradado al bus de
-    ux/events — el renderer lo pinta ambar una vez — y si nadie escucha (sin
-    REPL) el propio sin_backend conserva su grito a stderr. Un solo canal."""
+    El evento Degradado va al bus de ux/events — el renderer lo pinta ambar
+    una vez — y si nadie escucha (sin REPL) queda el grito a stderr. Un solo
+    canal.
+
+    2026-08-29: ese canal unico rotulaba TODO como "[backend] ... sin backend
+    LLM" y le pegaba "Arranca la flota". `backend` (opcional, tercero: las
+    llamadas y los monkeypatch existentes no cambian) elige el origen; con
+    None lo decide `_es_via_de_backend(via)`. Ver el bloque de arriba."""
     clave = (_TURNO_DEGRADADO[0], via, detalle)
     if clave in _AVISOS_VISTOS:
         return
     _AVISOS_VISTOS.add(clave)
-    _gritar_degradado(via, detalle)
+    _gritar_degradado(via, detalle, backend)
     # F5 (harness/notificaciones): toast OSC 9 OPT-IN cuando algo se degrada
     # (config 'notificar_degradado', default off para no spamear: el REPL ya
     # lo pinta ambar; el toast es para el que se fue a otra ventana). El
@@ -2850,6 +3001,10 @@ _CMD_DESCRIPTIONS = {
     "/monitores":       "Monitores en background  [salida <id> <regex> | archivo <ruta> | url <url> [caida] | stop <id>]",
     "/modo-permiso":    "Ver o cambiar modo de permisos  [automatico|manual|bypass]",
     "/modo":            "Modo de UI: sencillo (default) | avanzado (muestra logs y todas las tools)",
+    # Eje SEPARADO de /modo a proposito: /pensar reescribe COGNIA_UI_MODE como
+    # efecto lateral, asi que si /avanzado fuese un alias de /modo avanzado,
+    # pedir "ver el razonamiento" revelaria 198 comandos que nadie pidio.
+    "/avanzado":        "Revela TODOS los comandos (tambien los de nicho); off vuelve al nucleo  [on|off|estado]",
     "/velocidad":       "Mecanismo de decode  [clasico|dspark|gemma|difusion-dspark]; sin arg = estado",
     "/hibrido":         "Velocidad hibrida on|off (Cognia elige el modo por operacion; profundo=clasico)",
     "/chimera":         "Loop cognitivo end-to-end sobre una consulta  <consulta>",
@@ -2880,7 +3035,7 @@ _CMD_DESCRIPTIONS = {
     "/arbitro":         "Estado del arbitro de colisiones entre generadores (incidentes, modo)",
     "/ver":             "Cognia MIRA tu pantalla y la describe; con pregunta, te responde sobre lo que ve  [pregunta]",
     "/vigilar":         "Vigila la pantalla en DRY-RUN (sombra), describiendo N pasos sin actuar  [n]",
-    "/biblioteca":      "Ver la biblioteca de programas del hobby; /biblioteca ver <id> muestra el codigo",
+    "/biblioteca":      "Biblioteca de programas: la abre en el navegador  [abrir <id> | ver <id>]",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
     "/mapa-codigo":     "Mapa del codigo         [ruta|buscar <t>|depende|usan <mod>]",
     "/mcp":             "Servidores MCP (los tuyos de otras IA + libres)   [on|off|herramientas|probar <servidor>]",
@@ -2951,6 +3106,15 @@ _CMD_DESCRIPTIONS = {
     "/plan-modo":       "Modo PLAN: el agente investiga sin escribir  [plan|ejecutar|ok]",
     "/permisos":        "Reglas de permiso del proyecto  [estado | permitir|denegar|preguntar <patron> | olvidar <patron>]",
     "/workflow":        "Repartir subtareas de razonamiento en paralelo  <t1; t2; ...>",
+    # Sin este comando la telemetria del enrutado era invisible POR
+    # DEFINICION: "una accion que se fue a chat" no deja rastro. Se
+    # clasifica en cli_visibilidad.AVANZADO en el MISMO cambio o el test
+    # de particion se pone rojo.
+    # La descripcion evita a proposito las palabras "agente"/"tarea": la
+    # portada de /ayuda clasifica POR TEXTO (harness/ayuda._REGLAS_DESC) y
+    # cualquiera de las dos mandaba esto a "Agente y tareas", que esta a 25
+    # de 25 -- el guardian test_ninguna_categoria_desborda_el_tope lo mide.
+    "/enrutador":       "Enrutado del mensaje: charla, herramientas o un comando, con su telemetria  [estado|on|off]",
     "/rlm":             "Contexto largo por tools: LOCALIZA, no sintetiza  [<ruta>] <pregunta>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
@@ -2964,8 +3128,12 @@ _CMD_DESCRIPTIONS = {
     "/mejorar":         "Mejorar el prompt con IA (preguntar|auto|off, F3)",
     "/encuestas":       "Preguntas por lo que falta antes de mejorar un pedido  [on|off|estado|probar <pedido>]",
     "/contexto-vivo":   "Cuanto contexto te queda, donde vive y a que velocidad va  [avanzado|json]",
-    "/flujoteca":       "Biblioteca de flujos con versiones: ver, editar hablando, comparar, restaurar",
+    "/flujoteca":       "Biblioteca de flujos: el editor visual, ver, comparar, restaurar  [editor <nombre>]",
     "/session-to-workflow": "Convierte lo que hiciste en esta sesion en un flujo reutilizable  [nombre]",
+    # El mismo comando con el nombre con el que lo pide el dueno. Sin darlo de
+    # alta era invisible en /ayuda, sin autocompletado y desconocido para el
+    # enrutador, aunque el dispatch lo aceptara.
+    "/sesion-a-workflow":   "Alias en castellano de /session-to-workflow  [nombre] [--no-abrir]",
     # La plantilla larga va DETRAS de dos espacios, como el resto del registro:
     # `ayuda.resumir_desc` corta por ese hueco, asi que a 80 columnas se lee la
     # frase entera en vez de "...: iniciar|estado|pr...". Los subcomandos
@@ -3167,6 +3335,70 @@ _CMD_DESCRIPTIONS = {
 
 # Public alias used by external tooling / tests
 COMMANDS = _CMD_DESCRIPTIONS
+
+
+def _cmds_visibles() -> dict:
+    """El sub-catalogo que se ANUNCIA en el nivel actual (ver /avanzado).
+
+    OCULTAR NO ES DESACTIVAR: esto solo alimenta a los consumidores que
+    ENSENAN el catalogo (autocompletado, /ayuda portada/seccion/buscar,
+    /comandos y el catalogo del enrutador). El if/elif del despachador y
+    `mensaje_desconocido` siguen viendo `_CMD_DESCRIPTIONS` entero, asi que un
+    comando de nicho tecleado a mano sigue funcionando y '/gaf' sigue
+    sugiriendo '/grafo'.
+
+    Nunca lanza: si el modulo de visibilidad falla se ensena TODO (fallar
+    hacia el catalogo completo, nunca hacia un muro).
+    """
+    try:
+        from cognia import cli_visibilidad as _vis
+        return _vis.visibles(_CMD_DESCRIPTIONS, avanzado=_vis.es_avanzado())
+    except Exception as _exc_vis:
+        _aviso_degradado("cli.visibilidad",
+                         f"{type(_exc_vis).__name__}: {_exc_vis}")
+        return _CMD_DESCRIPTIONS
+
+
+def _contexto_para_enrutador() -> str:
+    """Los ultimos turnos de `_history` para el prompt del enrutador, o "".
+
+    Lo unico del PEDIDO 2 que hoy no existia: el enrutador decidia sin ver la
+    conversacion, asi que "y ahora borralo" no tenia a que referirse. El
+    acotado (2 turnos, 200 chars, tope 600) vive en `enrutador`, no aqui:
+    quien paga el prefill es quien pone el tope. Nunca lanza."""
+    try:
+        from cognia.enrutador import contexto_de_history
+        return contexto_de_history(_history)
+    except Exception as exc:
+        _aviso_degradado("cli.enrutador",
+                         f"contexto no armado ({type(exc).__name__}: {exc}); "
+                         f"el enrutador decide sin la conversacion")
+        return ""
+
+
+def _invalidar_caches_de_nivel() -> None:
+    """Tira los DOS caches que dependen del nivel de visibilidad.
+
+    Viven en modulos distintos: el de `cli_visibilidad` (existe para que
+    `get_completions` no lea disco por pulsacion) y el catalogo compacto del
+    enrutador (global y eterno: sin esto, cambiar de nivel en caliente no le
+    llega hasta reiniciar). `invalidar_catalogo` la anade F-REMOTO; el
+    getattr la hace opcional para no depender del orden de las fases.
+    """
+    try:
+        from cognia import cli_visibilidad as _vis
+        _vis.invalidar_cache()
+    except Exception as _exc_iv:
+        _aviso_degradado("cli.visibilidad",
+                         f"{type(_exc_iv).__name__}: {_exc_iv}")
+    try:
+        from cognia import enrutador as _enr
+        _fn_inv = getattr(_enr, "invalidar_catalogo", None)
+        if callable(_fn_inv):
+            _fn_inv()
+    except Exception as _exc_ic:
+        _aviso_degradado("cli.enrutador",
+                         f"{type(_exc_ic).__name__}: {_exc_ic}")
 
 # ---------------------------------------------------------------------------
 # Detailed per-command help
@@ -3837,6 +4069,35 @@ _CMD_DETAILS = {
         "Si el comando no tiene descripcion detallada muestra la descripcion corta. "
         "Ejemplo: /ayuda /hacer"
     ),
+    "/biblioteca": (
+        "La biblioteca de programas que Cognia se fue construyendo.\n"
+        "Sin argumentos GENERA la pagina (~/.cognia/biblioteca.html) leyendo el "
+        "DISCO -- no el index.json, que tiene entradas fantasma y carpetas "
+        "huerfanas -- y la abre en el navegador.\n"
+        "  /biblioteca              genera la pagina y la abre\n"
+        "  /biblioteca abrir <id>   abre EL PRODUCTO: la web en el navegador, "
+        "el .py con la app del sistema, y la carpeta si no hay entrypoint\n"
+        "  /biblioteca abrir 7      lo mismo por el numero de LA PAGINA (no el "
+        "del resumen de 10 lineas del terminal)\n"
+        "  /biblioteca ver <id>     el codigo, en el terminal\n"
+        "Config: comparte la clave 'memorias_abrir_navegador' con /memorias, "
+        "asi que apagarla ahi tambien apaga esta (se escribe el fichero y se "
+        "dice la ruta, no se abre ventana). Con COGNIA_REMOTO puesto nunca se "
+        "abre nada: la ruta viaja en el texto."
+    ),
+    "/avanzado": (
+        "Ensena TODOS los comandos del catalogo, no solo el nucleo.\n"
+        "  /avanzado         los revela (y dice cuantos aparecen)\n"
+        "  /avanzado off     vuelve al nucleo\n"
+        "  /avanzado estado  en que nivel estas\n"
+        "OCULTAR NO ES DESACTIVAR: un comando que no sale en /ayuda ni en el "
+        "autocompletado SIGUE funcionando si lo tecleas, y el CLI te lo sigue "
+        "sugiriendo cuando te equivocas al escribirlo. Esto filtra el ANUNCIO, "
+        "no el despachador.\n"
+        "El nivel se guarda (COGNIA_CMD_NIVEL) y sobrevive al reinicio. "
+        "'/modo avanzado' tambien los revela; '/modo sencillo' NO los vuelve a "
+        "esconder si los pediste a mano con '/avanzado on'."
+    ),
     "/imagenes": (
         "Gestiona las capturas que Cognia toma de las paginas web que genera. "
         "Sin argumentos lista que hay y cuanto ocupa.\n"
@@ -3909,10 +4170,38 @@ if _HAS_PT:
                         _aviso_degradado("bots.autocompletado",
                                          f"{type(_exc_b).__name__}: {_exc_b}")
                 return
+            if text.lower().startswith("/flujoteca "):
+                # '/flujoteca eje' -> subcomandos; '/flujoteca ejecutar Inf'
+                # -> nombres de flujo. Los nombres LLEVAN ESPACIOS ("Informe
+                # semanal"), asi que no se completa por token: se completa lo
+                # que va DESPUES del subcomando, entero.
+                _resto = text[len("/flujoteca "):]
+                _trozos = _resto.split(" ", 1)
+                if len(_trozos) == 1:
+                    for _sub in sorted(_FLUJOTECA_SUBCOMANDOS):
+                        if _sub.startswith(_trozos[0].lower()):
+                            yield Completion(_sub,
+                                             start_position=-len(_trozos[0]),
+                                             display=_sub,
+                                             display_meta="/flujoteca")
+                    return
+                _sub, _pref = _trozos[0].lower(), _trozos[1]
+                if _sub not in _FLUJOTECA_SUB_CON_NOMBRE:
+                    return
+                # Cacheado: `flujoteca.listar()` abre un JSON por flujo y esto
+                # corre con cada tecla.
+                for _nf in _flujoteca_para_completar():
+                    if _nf.lower().startswith(_pref.lower()):
+                        yield Completion(_nf, start_position=-len(_pref),
+                                         display=_nf, display_meta="flujo")
+                return
             if " " in text:
                 return
             lower = text.lower()
-            for cmd, desc in _CMD_DESCRIPTIONS.items():
+            # _cmds_visibles() y no _CMD_DESCRIPTIONS: el nivel de /avanzado
+            # filtra lo que se OFRECE. Corre en cada pulsacion, por eso
+            # cli_visibilidad cachea el nivel y no toca disco aqui.
+            for cmd, desc in _cmds_visibles().items():
                 if cmd.lower().startswith(lower):
                     yield Completion(
                         cmd,
@@ -3944,8 +4233,27 @@ HELP_TEXT = """
 # Display helpers
 # ---------------------------------------------------------------------------
 
+#: El corchete que NO es estilo. `[on|off]`, `[prompt]`, `[id]` empiezan por
+#: minuscula y rich los parsea como ETIQUETA y los descarta: "Uso: /flujoteca
+#: ejecutar <nombre> [prompt]" salia por pantalla como "Uso: /flujoteca
+#: ejecutar <nombre> " -- justo el argumento que el mensaje venia a ensenar
+#: (medido). La forma de escaparlos en rich es una barra invertida delante,
+#: `\[on|off]`; esta constante existe para que se lea en el fuente lo que se
+#: esta haciendo y para que el test lo pueda nombrar.
+_ESC_COR = "\\["
+
+
 def _strip_markup(text):
-    return re.sub(r"\[/?[^\]]+\]", "", text)
+    """El texto sin markup, para el camino SIN rich.
+
+    Tambien deshace el escape `\\[`: quitar las etiquetas con el regex a pelo
+    borraba el corchete escapado como si fuera estilo y dejaba la barra
+    suelta ("Uso: /lazo \\ (sin argumento alterna)", medido). El hueco
+    intermedio usa \\x00, que no aparece en ningun mensaje del CLI."""
+    hueco = "\x00cor\x00"
+    text = str(text).replace(_ESC_COR, hueco)
+    text = re.sub(r"\[/?[^\]]+\]", "", text)
+    return text.replace(hueco, "[")
 
 
 def _to_str(result):
@@ -4222,7 +4530,8 @@ def _run(raw, fn, color=None):
 _SLASH_AL_CHAT_REMOTO = (
     "/ayuda", "/help", "/estado", "/confianza", "/estilo", "/comandos",
     "/remoto", "/decirle", "/cancelar", "/lazo", "/cognia-info", "/costo",
-    "/hermes", "/config-resuelta", "/modo", "/pensar", "/esfuerzo",
+    "/hermes", "/config-resuelta", "/modo", "/avanzado", "/pensar",
+    "/esfuerzo",
     "/permisos", "/flota", "/monitores", "/rutinas", "/skills",
 )
 _CAPTURA_SLASH = {"activa": False, "raw": ""}
@@ -6547,7 +6856,7 @@ def _slash_oficina(args: str) -> None:
         try:
             puerto = int(puerto_txt)
         except ValueError:
-            _print_line("[warn_cl]Uso: /oficina [puerto][/warn_cl]")
+            _print_line("[warn_cl]Uso: /oficina \\[puerto][/warn_cl]")
             return
     else:
         # 8766: el 8765 es del cognia_desktop_api (colisión cazada 2026-07-15)
@@ -8340,7 +8649,8 @@ def _parar_status_mejora() -> None:
         _aviso_degradado("cli.mejorar.renderer", f"{type(exc).__name__}: {exc}")
 
 
-def _mejora_generar(texto: str, via: str, contexto: str = ""):
+def _mejora_generar(texto: str, via: str, contexto: str = "",
+                    encuesta_previa: bool = False):
     """Llama al experto con un indicador breve. Devuelve una Mejora o None.
 
     Un fallo del BACKEND (no hay, timeout, error de red) es degradacion y se
@@ -8353,21 +8663,37 @@ def _mejora_generar(texto: str, via: str, contexto: str = ""):
     # El ESTILO se resuelve aca (env > config > default) y viaja como argumento:
     # si la eleccion solo viviera dentro del modulo, la clave de config no
     # tendria efecto y la unica marcha atras seria una env var invisible.
-    estilo, aviso_estilo, _ = _estilo_mejorar()
+    estilo, aviso_estilo, origen_estilo = _estilo_mejorar()
     if aviso_estilo:
         _aviso_degradado(via, aviso_estilo)
+    # QUE VERSION DE SYSTEM. La regla vive en mejorar_prompt.version_para (pura
+    # y con sus tests) para no reinventarla distinto en las cuatro vias:
+    #   estilo explicito del dueno > encuesta ya corrida > estado de encuestas.
+    # `_estilo_mejorar()` YA resuelve al default cuando no hay nada puesto, asi
+    # que lo explicito se distingue por el ORIGEN, no por el nombre: si no, un
+    # "v2" que solo es el default pisaria al v4 que pide la encuesta.
+    explicito = estilo if origen_estilo != "default del modulo" else None
+    try:
+        version = mod.version_para(_estado_encuestas(),
+                                   encuesta_previa=encuesta_previa,
+                                   estilo=explicito)
+    except Exception as exc:
+        _aviso_degradado(via, f"version_para: {type(exc).__name__}: {exc}")
+        version = estilo or None
     try:
         if _HAS_RICH and _console:
             # P8: spinner.comando (clave 'mejorando') del registro de estilos
             from cognia.ux import spinner_vivo as _sv
             _markup_sp, _nombre_sp = _sv.comando("mejorando")
             with _console.status(_markup_sp, spinner=_nombre_sp):
-                mejora = mod.mejorar(texto, version=estilo or None,
-                                     contexto=contexto)
+                mejora = mod.mejorar(texto, version=version or None,
+                                     contexto=contexto,
+                                     encuesta_previa=encuesta_previa)
         else:
             _print_line("[detail]Mejorando el prompt...[/detail]")
-            mejora = mod.mejorar(texto, version=estilo or None,
-                                 contexto=contexto)
+            mejora = mod.mejorar(texto, version=version or None,
+                                 contexto=contexto,
+                                 encuesta_previa=encuesta_previa)
     except Exception as exc:
         # mejorar() promete no lanzar; si lanza es un bug del cableado y tiene
         # que verse, no convertirse en "no mejoro nada".
@@ -8471,6 +8797,47 @@ def _preguntar_una(pregunta):
     return _selector.texto_libre(titulo, pista="Enter para saltar")
 
 
+def _encuesta_aplica(raw: str, *, explicito: bool = False) -> bool:
+    """Si ESTA linea pasa por la encuesta. EJE INDEPENDIENTE del reformulador.
+
+    Hasta hoy la encuesta solo vivia dentro de la rama 'preguntar' y DETRAS de
+    `es_candidato(rechazar_ordenes=True)`, que rechaza justo las ordenes cortas
+    y vagas ("hazme una pagina web") a las que la encuesta apunta: de 21
+    pedidos tipicos medidos, solo 5 llegaban a preguntar. Con este gate pasan
+    los 21 aunque el reformulador las rechace -- y la encuesta no REESCRIBE
+    nada, solo incorpora lo que el dueno contesta.
+
+    `explicito=True` para F3 y '/mejorar <texto>': ahi el dueno pidio la
+    reformulacion a mano, asi que no se miran ni el estado de /mejorar ni la
+    marca de "linea ya decidida" (F3 funciona incluso con /mejorar off).
+
+    Con /mejorar off y sin `explicito`, NO se pregunta: la opcion del menu se
+    llama "No volver a preguntar" y seguir abriendo encuestas en cada Enter
+    seria romper exactamente esa promesa.
+    """
+    texto = (raw or "").strip()
+    if not explicito:
+        if _LINEA_INYECTADA[0] or _MEJORA_YA_DECIDIDA[0]:
+            # NO se consume la marca (eso lo hace _mejora_aplica): si se
+            # consumiera aqui, el enganche de abajo la veria ya limpia y
+            # reformularia una linea que el dueno acaba de aprobar.
+            return False
+        if _estado_mejorar() == "off":
+            return False
+    if _estado_encuestas() == "off":
+        return False
+    try:
+        from cognia.ux import selector as _selector
+        if not _selector.hay_tty():
+            return False           # sin tty no hay a quien preguntar
+    except Exception as exc:
+        _aviso_degradado("cli.encuesta.tty", f"{type(exc).__name__}: {exc}")
+        return False
+    if texto.startswith(("/", "!", "@")):
+        return False
+    return len(texto) >= 8
+
+
 def _encuesta_interactiva(raw: str, ctx):
     """Pregunta lo que falte y devuelve el pedido ENRIQUECIDO.
 
@@ -8571,9 +8938,24 @@ def _slash_encuestas(arg: str = "") -> None:
                   f"  solo pedidos:  de menos de {_enc.MAX_CHARS_PARA_PREGUNTAR} caracteres",
                   f"  hay tty:       {'si' if _sel.hay_tty() else 'no (sin tty no se pregunta)'}",
                   "",
-                  "  Cuando se dispara: al elegir 'Mejorar con IA' sobre un",
-                  "  pedido corto al que le faltan decisiones. Si el modelo",
-                  "  cree que no falta nada, no pregunta.",
+                  "  Cuando se dispara (desde 2026-08-29 son CUATRO vias, no",
+                  "  una): al dar Enter sobre un pedido corto -- aunque el",
+                  "  reformulador lo rechace por ser una orden --, en el modo",
+                  "  'auto' de /mejorar, con F3, y con '/mejorar <texto>'.",
+                  "",
+                  "  En 'auto' va acotada a proposito (ahi el trato es que no",
+                  "  toques nada): solo pedidos de menos de",
+                  f"  {_enc.MAX_CHARS_PARA_PREGUNTAR} chars y solo si de verdad hay algo que",
+                  "  preguntar. Si el modelo cree que no falta nada, no",
+                  "  pregunta y no se abre ningun menu.",
+                  "",
+                  "  Las respuestas se INCORPORAN al pedido; el prompt que se",
+                  "  entrega no lleva preguntas dentro (system v4), y si aun",
+                  "  asi volviera con preguntas se descarta y se envia el",
+                  "  original.",
+                  "",
+                  "  Con /mejorar off tampoco se pregunta al dar Enter (F3 y",
+                  "  '/mejorar <texto>' son ordenes explicitas y si).",
                   "",
                   "  /encuestas on | off"]
         _show_response("\n".join(lineas), "listado")
@@ -8606,7 +8988,7 @@ def _slash_encuestas(arg: str = "") -> None:
         return
 
     _print_line(f"[warn_cl]no entiendo '{_escape(valor)}'. "
-                f"Uso: /encuestas [on|off|estado|probar <pedido>][/warn_cl]")
+                f"Uso: /encuestas \\[on|off|estado|probar <pedido>][/warn_cl]")
 
 
 def _politica_borrado_flujos() -> str:
@@ -8626,6 +9008,73 @@ def _politica_borrado_flujos() -> str:
         return "nunca"
 
 
+# Los subcomandos de /flujoteca. Se comprueban ANTES de resolver un nombre de
+# flujo, porque `_flujoteca_partir_nombre` elige el nombre real MAS LARGO que
+# sea prefijo de lo tecleado: sin esta lista, un flujo llamado "editor de
+# textos" se comeria el subcomando `editor` (riesgo #18 del plan).
+#: Cache del autocompletado de `/flujoteca `. El completer corre en CADA
+#: PULSACION (complete_in_thread=True), asi que `flujoteca.listar()` por tecla
+#: -- que abre un JSON por flujo -- esta PROHIBIDO. Clave: el mtime del
+#: directorio raiz de la biblioteca, que cambia al crear/borrar/renombrar/
+#: duplicar un flujo. TTL corto de red de seguridad para lo que NO mueve ese
+#: mtime (una version guardada dentro de un flujo que ya existia).
+_FLUJOTECA_COMPLETAR_CACHE: dict = {"clave": None, "t": 0.0, "nombres": []}
+_FLUJOTECA_COMPLETAR_TTL_S = 3.0
+
+
+def _flujoteca_invalidar_completar() -> None:
+    """Tira la cache del completer. La llaman las ramas de `_slash_flujoteca`
+    que MUTAN la biblioteca: sin esto, un flujo recien creado tardaba hasta 3
+    segundos en aparecer en el autocompletado y parecia que no se guardo."""
+    _FLUJOTECA_COMPLETAR_CACHE.update(clave=None, t=0.0, nombres=[])
+
+
+def _flujoteca_para_completar() -> list:
+    """Los nombres de flujo para el autocompletado, CACHEADOS. Nunca lanza:
+    un fallo de la biblioteca no puede tumbar el prompt (se dice y se
+    completa con lo ultimo que se supo)."""
+    c = _FLUJOTECA_COMPLETAR_CACHE
+    ahora = time.time()
+    try:
+        from cognia.agent import flujoteca as _ft
+        base = _ft.dir_base()
+        clave = base.stat().st_mtime if base.exists() else None
+    except Exception as exc:
+        _aviso_degradado("cli.flujoteca.autocompletado",
+                         f"{type(exc).__name__}: {exc}")
+        return list(c["nombres"])
+    if c["clave"] == clave and (ahora - c["t"]) < _FLUJOTECA_COMPLETAR_TTL_S:
+        return c["nombres"]
+    try:
+        nombres = [f["nombre"] for f in _ft.listar()]
+    except Exception as exc:
+        _aviso_degradado("cli.flujoteca.autocompletado",
+                         f"{type(exc).__name__}: {exc}")
+        return list(c["nombres"])
+    c.update(clave=clave, t=ahora, nombres=nombres)
+    return nombres
+
+
+#: Los subcomandos de `/flujoteca` que llevan un NOMBRE DE FLUJO detras (los
+#: que el completer sabe seguir completando). `nuevo` no esta: el nombre que
+#: pide es uno que TODAVIA no existe.
+_FLUJOTECA_SUB_CON_NOMBRE = ("ejecutar", "correr", "ver", "abrir", "editar",
+                             "editor", "versiones", "comparar", "restaurar",
+                             "renombrar", "duplicar", "borrar")
+
+_FLUJOTECA_SUBCOMANDOS = frozenset({
+    "lista", "listar", "ayuda", "-h", "--help", "politica",
+    "ver", "abrir", "editor", "importar", "versiones", "comparar",
+    "restaurar", "renombrar", "duplicar", "borrar", "editar", "nuevo",
+    # PEDIDO 4 (ejecutar flujos desde el CLI). Van al frozenset ANTES de
+    # tocar el despachador y no despues: sin esto,
+    # `_flujoteca_partir_nombre("ejecutar pvz1 hola")` devuelve
+    # ("ejecutar", "pvz1 hola") -- se INVENTA un flujo llamado "ejecutar"
+    # y manda ahi la instruccion (medido).
+    "ejecutar", "correr",
+})
+
+
 def _flujoteca_partir_nombre(resto: str) -> tuple:
     """(nombre_del_flujo, resto_del_texto) preguntandole a la biblioteca.
 
@@ -8643,11 +9092,34 @@ def _flujoteca_partir_nombre(resto: str) -> tuple:
         return "", ""
     try:
         from cognia.agent import flujoteca as _ft
-        nombres = [f["nombre"] for f in _ft.listar()]
+        # EL SLUG CUENTA COMO NOMBRE. `flujoteca.cargar` YA resuelve por slug
+        # (el directorio es `slugificar(nombre)`, y slugificar un slug lo
+        # devuelve igual), pero aqui se comparaba solo contra `nombre`. Medido:
+        #   'informe_semanal'              -> corre
+        #   'informe_semanal hazlo corto'  -> "no encuentro ningun flujo"
+        # El mismo identificador que acaba de funcionar dejaba de existir por
+        # anadirle el prompt, que es justo el argumento que el PEDIDO 4 hace
+        # opcional -- y el slug es lo que el dueno VE en la carpeta y en la
+        # ruta del editor. El nombre va primero para que gane en el desempate.
+        nombres = []
+        for _f in _ft.listar():
+            for _clave in (_f.get("nombre"), _f.get("slug")):
+                if _clave and str(_clave) not in nombres:
+                    nombres.append(str(_clave))
     except Exception as exc:
         _aviso_degradado("cli.flujoteca.nombres", f"{type(exc).__name__}: {exc}")
         nombres = []
     bajo = texto.lower()
+    # EL TEXTO ENTERO ES EL NOMBRE (segundo agujero, medido). "/flujoteca
+    # ejecutar Informe semanal" -- nombre de DOS palabras y sin prompt --
+    # no casaba ningun prefijo (falta el espacio final), caia al reparto
+    # simple, veia len(trozos)==2 con trozos[0]="Informe" fuera de la
+    # biblioteca y devolvia ("", ""): el CLI contestaba "no encuentro
+    # ningun flujo" sobre un flujo que SI existe. Se comprueba el nombre
+    # completo ANTES de los prefijos, que es el caso mas especifico.
+    exacto = [n for n in nombres if n.lower() == bajo]
+    if exacto:
+        return exacto[0], ""
     candidatos = [n for n in nombres if bajo.startswith(n.lower() + " ")]
     if candidatos:
         mejor = max(candidatos, key=len)
@@ -8655,9 +9127,44 @@ def _flujoteca_partir_nombre(resto: str) -> tuple:
     # Sin biblioteca (o sin coincidencia) se cae al comportamiento simple, que
     # sigue siendo correcto para los nombres de una sola palabra.
     trozos = texto.split(None, 1)
+    if trozos and trozos[0].lower() in _FLUJOTECA_SUBCOMANDOS and trozos[0] not in nombres:
+        # Un subcomando NUNCA es el nombre por el camino de adivinar: si el
+        # dueno escribio "editar editor ..." y no hay ningun flujo llamado
+        # "editor", inventarlo mandaria la instruccion a un flujo fantasma.
+        return "", ""
     if len(trozos) == 2 and nombres and trozos[0] not in nombres:
         return "", ""       # el nombre no existe: mejor decirlo que adivinar
     return (trozos[0], trozos[1]) if len(trozos) == 2 else (texto, "")
+
+
+def _quitar_comillas_envolventes(texto: str) -> str:
+    """Quita UN par de comillas que envuelva el argumento ENTERO.
+
+    MEDIDO en la verificacion de cierre: `/flujoteca ejecutar pvz1 "un nivel
+    con zombis nuevos"` dejaba `nivel.txt` con `'"un nivel con zombis
+    nuevos"'` -- las comillas dentro del fichero. Sin comillas salia limpio.
+    Importa porque el dueno escribio ese comando CON comillas en su propio
+    pedido: es exactamente como lo va a teclear. Aqui no hay shell que las
+    quite (el REPL parte la linea el mismo), asi que las quita el CLI.
+
+    Solo UN par, y solo si abre y cierra el argumento entero:
+      - `"texto"` / `'texto'`  -> texto
+      - `texto`                -> texto        (nada que quitar)
+      - `"texto` / `texto"`    -> igual        (un lado suelto no es un par)
+      - `dile 'hola' al user`  -> igual        (comillas interiores)
+      - `"dile 'hola' al user"`-> dile 'hola' al user   (las interiores viven)
+      - `"a" y "b"`            -> igual        (abre y cierra, pero no es UN
+                                                par: la comilla reaparece en
+                                                medio, y recortar partiria la
+                                                frase por sitios distintos)
+    """
+    t = (texto or "").strip()
+    if len(t) < 2:
+        return t
+    comilla = t[0]
+    if comilla in ('"', "'") and t[-1] == comilla and comilla not in t[1:-1]:
+        return t[1:-1]
+    return t
 
 
 def _flujoteca_pintar_lista() -> None:
@@ -8680,6 +9187,109 @@ def _flujoteca_pintar_lista() -> None:
                           f"{f['descripcion'][:60]}")
     lineas += ["", "  /flujoteca ver <nombre>        el flujo en texto",
                "  /flujoteca abrir <nombre>      el lienzo con su historial"]
+    _show_response("\n".join(lineas), "listado")
+
+
+def _abrir_editor_flujo(nombre, *, forzar_visor=False) -> dict:
+    """Abre UN flujo: el EDITOR visual, o el visor de solo lectura.
+
+    UNA sola implementacion de la politica de apertura (`_abrir_en_navegador`:
+    config 'memorias_abrir_navegador' + guarda COGNIA_REMOTO) para los cuatro
+    llamadores -- `/flujoteca editor`, `/flujoteca abrir`, `/flujoteca nuevo` y
+    `/session-to-workflow` --, que si no la duplicarian por tercera vez.
+
+    DEVUELVE UN DICT y no la ruta suelta que dibujaba el plan:
+    {"ok","que","ruta","url","abierto","motivo"}. Hace falta el campo
+    `abierto` porque la URL del editor LLEVA EL TOKEN de la sesion dentro y la
+    decision de imprimirla entera depende de si el navegador se abrio (ver
+    `_flujoteca_pintar_apertura`). Por eso tambien se le pide al editor
+    `open_browser=False` y la ventana la abre ESTE modulo: `flujoteca_editor`
+    se traga el fallo de `webbrowser.open` y no lo cuenta.
+
+    NUNCA lanza: un fallo al abrir jamas puede confundirse con un fallo al
+    guardar.
+    """
+    nombre = str(nombre or "").strip()
+    abrir = _abrir_en_navegador()
+    if forzar_visor or not abrir:
+        try:
+            from cognia.agent import flujoteca_view as _fv
+            ruta = _fv.export(nombre, open_browser=abrir)
+        except Exception as exc:
+            _aviso_degradado("cli.editor.abrir", f"{type(exc).__name__}: {exc}")
+            return {"ok": False, "que": "visor", "ruta": "", "url": "",
+                    "abierto": False, "motivo": f"{type(exc).__name__}: {exc}"}
+        return {"ok": True, "que": "visor", "ruta": ruta, "url": "",
+                "abierto": bool(abrir),
+                "motivo": "" if abrir else ("no se abre ventana "
+                                            "(memorias_abrir_navegador / COGNIA_REMOTO)")}
+    try:
+        from cognia.agent import flujoteca_editor as _fe
+        res = _fe.abrir(nombre, open_browser=False)
+    except Exception as exc:
+        _aviso_degradado("cli.editor.abrir", f"{type(exc).__name__}: {exc}")
+        return {"ok": False, "que": "editor", "ruta": "", "url": "",
+                "abierto": False, "motivo": f"{type(exc).__name__}: {exc}"}
+    url = str(res.get("url") or "")
+    base = str(res.get("base") or "")
+    abierto = False
+    try:
+        import webbrowser
+        abierto = bool(webbrowser.open(url))
+    except Exception as exc:
+        _aviso_degradado("cli.editor.navegador",
+                         f"{type(exc).__name__}: {exc}")
+    return {"ok": True, "que": "editor", "ruta": base, "url": url,
+            "abierto": abierto,
+            "motivo": "" if abierto else "el navegador no se pudo abrir"}
+
+
+def _flujoteca_pintar_apertura(nombre: str, res: dict) -> None:
+    """Dice donde quedo el flujo, sin filtrar el token en la pantalla.
+
+    La URL del editor lleva `?t=<token>` y esa cadena acaba en el historial y
+    en los marcadores del navegador. En el REPL se imprime SIN el token cuando
+    la pestana ya se abrio (el dueno no la necesita) y ENTERA solo si no se
+    pudo abrir: en ese caso, ocultarla dejaria al dueno sin poder entrar.
+    """
+    res = res or {}
+    if not res.get("ok"):
+        _print_line(f"[err_cl]no pude abrir '{_escape(str(nombre))}': "
+                    f"{_escape(str(res.get('motivo') or 'motivo desconocido'))}"
+                    f"[/err_cl]")
+        return
+    if res.get("que") == "editor":
+        if res.get("abierto"):
+            _show_response(
+                f"Editor visual de '{nombre}' abierto en el navegador\n"
+                f"  {res.get('ruta')}\n"
+                f"  la pestana lleva la clave de ESTA sesion en la barra de\n"
+                f"  direcciones: no la compartas, y se apaga con /salir",
+                "listado")
+        else:
+            _show_response(
+                f"Editor visual de '{nombre}' escuchando (no pude abrir el "
+                f"navegador)\n"
+                f"  {res.get('url')}\n"
+                f"  esa direccion lleva la clave de esta sesion: pegala solo "
+                f"en TU navegador",
+                "listado")
+        return
+    lineas = [f"Lienzo del flujo '{nombre}' (solo lectura)",
+              f"  {res.get('ruta')}"]
+    if not res.get("abierto") and res.get("motivo"):
+        lineas.append(f"  {res.get('motivo')}")
+        # NO se degrada en silencio: el EDITOR visual necesita abrir una
+        # ventana, asi que con la apertura apagada lo que sale es el visor.
+        # Sin esta linea, '/flujoteca editor' daria el lienzo de siempre y
+        # nadie sabria por que.
+        if not os.environ.get("COGNIA_REMOTO"):
+            lineas.append("  el EDITOR visual necesita abrir una ventana: "
+                          "pon memorias_abrir_navegador=true en "
+                          "~/.cognia_config.json (esa clave la comparten "
+                          "/memorias, /biblioteca y esta)")
+    else:
+        lineas += ["", f"  /flujoteca editor {nombre}   para editarlo"]
     _show_response("\n".join(lineas), "listado")
 
 
@@ -8709,7 +9319,304 @@ def _flujoteca_guardar_desde_ia(nombre: str, resultado, nota: str) -> bool:
     return True
 
 
-def _slash_flujoteca(arg: str = "") -> None:
+#: Las tools de ENTRADA de un flujo (PEDIDO 3). El modo vive en el NOMBRE DE
+#: LA TOOL y no en un campo nuevo del nodo: `tool` esta en la whitelist de
+#: `flujo_ia.sanear_flujo` y en la tupla de 7 campos de `flujoteca.comparar`,
+#: asi que sobrevive a una edicion hablada y sale en el diff del historial.
+#: Un campo `prompt_modo` desapareceria en silencio en la primera edicion.
+_FLUJOTECA_TOOLS_ENTRADA = ("prompt", "prompt_fijo")
+
+
+def _flujoteca_nodo_entrada(flujo: dict):
+    """El primer nodo de ENTRADA del flujo, o None si es un flujo viejo.
+
+    Se busca por TOOL y no por id a proposito: `asegurar_prompt` renombra el
+    id a 'prompt_0' cuando 'prompt' ya esta ocupado por otra cosa, asi que el
+    id no identifica nada."""
+    for n in (flujo.get("nodos") or []):
+        if isinstance(n, dict) and n.get("tool") in _FLUJOTECA_TOOLS_ENTRADA:
+            return n
+    return None
+
+
+def _flujoteca_pedir_prompt(nombre: str) -> str:
+    """Pregunta UNA vez por consola cuando el nodo de entrada no trae default.
+
+    Nunca aborta y nunca bloquea: sin TTY (remoto, un pipe, CI) devuelve "" y
+    el flujo corre con la entrada vacia. El contrato del dueno es literal --
+    "que el prompt sea opcional" -- y un comando que se planta esperando una
+    respuesta que nadie puede dar seria la version cara de "no hace nada"."""
+    try:
+        from cognia.ux import selector as _sel
+        if not _sel.hay_tty():
+            return ""
+    except Exception as exc:
+        _aviso_degradado("cli.flujoteca.prompt",
+                         f"{type(exc).__name__}: {exc}; corro sin prompt")
+        return ""
+    _print_line(f"[info_dim]'{_escape(nombre)}' empieza con un nodo de entrada "
+                f"sin texto por defecto.[/info_dim]")
+    try:
+        return input("  con que prompt lo corro? (Enter = vacio) ").strip()
+    except (EOFError, KeyboardInterrupt):
+        _print_line("[info_dim]sin prompt: corre con la entrada vacia[/info_dim]")
+        return ""
+
+
+def _flujoteca_raiz_escritura() -> str:
+    """La raiz donde las tools de escritura dejan los ficheros. Se ENSENA con
+    las rutas: 'informe.md' sin decir donde es medio dato."""
+    try:
+        from cognia.agents.workers.dev_tools import _root_actual
+        return str(_root_actual())
+    except Exception as exc:
+        _aviso_degradado("cli.flujoteca.raiz", f"{type(exc).__name__}: {exc}")
+        return os.getcwd()
+
+
+#: AQUI VIVIA `_RE_FLUJO_DENEGADO`, un regex
+#: ("confirma|cancelad|denegad|bloquead|...") que buscaba la denegacion en el
+#: TEXTO de errores y salidas. Se retiro: adivinar por palabras el veredicto
+#: del gate acusa al nodo equivocado en cuanto una de esas salidas es prosa
+#: del dueno (el nodo de entrada devuelve su texto en bruto), y el motor ya
+#: publica la senal exacta -- `denegados` y `motivos_denegacion` en el
+#: retorno de `flows.ejecutar`, construidas envolviendo `ctx["confirm"]`.
+#: Regla que deja: un veredicto de permisos se LEE del gate, no se deduce de
+#: como suena una frase.
+
+
+def _flujoteca_ejecutar(resto: str, ai=None) -> None:
+    """`/flujoteca ejecutar <nombre> [prompt]` -- corre el flujo DE VERDAD.
+
+    "De verdad" quiere decir: con el registro REAL de tools (`tools.run_tool`)
+    y con el ctx COMPLETO (`_ctx_agente`), que es el que trae el canal de
+    confirmacion y el runner de sub-agente. Es la respuesta directa a "los
+    workflows no entregan nada al final ni hacen nada en mi PC": al terminar
+    se imprime el ENTREGABLE entero, la lista de FICHEROS escritos y la raiz
+    donde estan.
+
+    SEMANTICA DEL PROMPT (literal del dueno: "que el prompt sea opcional"):
+      - nodo `prompt` sin argumento -> corre con el `args` del nodo como
+        default; si ese default esta vacio, se pregunta UNA vez por consola;
+      - nodo `prompt` con argumento -> el argumento gana EN MEMORIA
+        (`ctx['prompt_flujo']`), sin crear una version en la flujoteca:
+        ejecutar no es editar;
+      - nodo `prompt_fijo` con argumento -> corre con la CONSTANTE y lo avisa
+        en amarillo (ni lo ignora en silencio ni aborta);
+      - flujo viejo SIN nodo de entrada -> corre tal cual, y si venia un
+        argumento se siembra igual como variable `{{prompt}}`.
+    """
+    from cognia.agent import flujoteca as _ft
+    from cognia.agent import flows as _flows
+
+    nombre, prompt_cli = _flujoteca_partir_nombre(resto)
+    # Las comillas que el dueno teclea NO son sintaxis: sin esto acaban dentro
+    # del fichero (medido). Va aqui, sobre el prompt ya separado del nombre, y
+    # no en `_flujoteca_partir_nombre`: partir el nombre es otra cosa y los
+    # demas subcomandos (editar, renombrar...) no comparten este problema.
+    prompt_cli = _quitar_comillas_envolventes(prompt_cli)
+    if not nombre:
+        # El `\[` NO es adorno: 'prompt' ES un token del tema, asi que rich
+        # parseaba [prompt] como etiqueta de estilo y lo descartaba. Salida
+        # real medida: "Uso: /flujoteca ejecutar <nombre> " -- el UNICO
+        # momento en que el dueno ve la sintaxis (cuando ya se equivoco de
+        # nombre) y justo ahi se le ocultaba el argumento nuevo.
+        _print_line("[warn_cl]Uso: /flujoteca ejecutar <nombre> \\[prompt]"
+                    "[/warn_cl]")
+        if (resto or "").strip():
+            _print_line(f"[info_dim]no encuentro ningun flujo llamado "
+                        f"'{_escape((resto or '').strip()[:60])}'. /flujoteca "
+                        f"para ver la lista[/info_dim]")
+        return
+    try:
+        flujo, aviso_lectura = _ft.cargar_con_aviso(nombre)
+    except Exception as exc:
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    if aviso_lectura:
+        _print_line(f"[info_dim]{_escape(aviso_lectura)}[/info_dim]")
+
+    entrada = _flujoteca_nodo_entrada(flujo)
+    nodos = [n for n in (flujo.get("nodos") or []) if isinstance(n, dict)]
+    # EL AVISO QUE FALTABA. `flujoteca.asegurar_prompt` anade el nodo de
+    # entrada en TODO guardado con `args:""` y SIN que ningun nodo lo
+    # referencie: el cableado semantico ({{prompt}} dentro del `args` de otro
+    # nodo) no lo hace nadie por ti. Medido sobre el flujo REAL del dueno: el
+    # prompt se aceptaba, se ecoaba en la cabecera, salia `ok` en la tabla,
+    # el fichero quedaba con el texto VIEJO y no habia ni un aviso. Es una
+    # regresion de honestidad -- antes de existir el nodo, el CLI al menos
+    # decia "este flujo no tiene nodo de entrada"; con el nodo, el silencio
+    # era CONFIADO. La deteccion es determinista y cabe en una expresion.
+    usado_el_prompt = entrada is not None and any(
+        "{{%s}}" % entrada.get("id") in str(n.get("args") or "")
+        for n in nodos if n is not entrada)
+    if entrada is not None and not usado_el_prompt:
+        _marca = "{{%s}}" % entrada.get("id")
+        if prompt_cli:
+            _print_line(f"[warn_cl]'{_escape(nombre)}' tiene nodo de entrada "
+                        f"pero NINGUN nodo usa {_escape(_marca)}: tu texto no "
+                        f"llega a ninguna tool y el flujo corre igual que si "
+                        f"no lo hubieras escrito[/warn_cl]")
+            _print_line(f"[info_dim]para cablearlo: /flujoteca editar "
+                        f"{_escape(nombre)} haz que el flujo use el prompt"
+                        f"[/info_dim]")
+        elif not str(entrada.get("args") or ""):
+            # Ni prompt del CLI ni default: la entrada esta vacia Y ademas no
+            # la lee nadie. Ese flujo no puede hacer nada util con lo que le
+            # escribas, y callarlo es la version silenciosa de "no hacen nada".
+            _print_line(f"[warn_cl]'{_escape(nombre)}' tiene un nodo de "
+                        f"entrada vacio que ademas no usa ningun nodo "
+                        f"({_escape(_marca)} no aparece en el flujo): escribas "
+                        f"lo que escribas, no cambia nada[/warn_cl]")
+            _print_line(f"[info_dim]para cablearlo: /flujoteca editar "
+                        f"{_escape(nombre)} haz que el flujo use el prompt"
+                        f"[/info_dim]")
+    variables = None
+    if entrada is None:
+        # Flujo de antes del PEDIDO 3. Corre TAL CUAL -- los flujos del dueno
+        # son historial y no se reescriben por ejecutarlos -- pero si trajo un
+        # argumento se siembra como variable para que un `{{prompt}}` suelto
+        # funcione igual, y se dice como arreglarlo para siempre.
+        prompt_efectivo = prompt_cli
+        if prompt_cli:
+            variables = {"prompt": prompt_cli}
+        _print_line(f"[info_dim]este flujo no tiene nodo de entrada. Para que "
+                    f"acepte un prompt: /flujoteca editar {_escape(nombre)} "
+                    f"ponle un prompt al inicio[/info_dim]")
+    elif entrada.get("tool") == "prompt_fijo":
+        prompt_efectivo = str(entrada.get("args") or "")
+        if prompt_cli:
+            _print_line(f"[warn_cl]'{_escape(nombre)}' tiene el prompt FIJO: "
+                        f"corro con la constante del flujo e ignoro lo que "
+                        f"escribiste[/warn_cl]")
+            _print_line(f"[info_dim]para que sea variable: /flujoteca editar "
+                        f"{_escape(nombre)} haz que el prompt sea variable"
+                        f"[/info_dim]")
+    else:
+        prompt_efectivo = prompt_cli or str(entrada.get("args") or "")
+        if not prompt_efectivo:
+            prompt_efectivo = _flujoteca_pedir_prompt(nombre)
+
+    # El ctx COMPLETO. `_flujo_depth=1` reusa la guardia que ya existe en
+    # flows.py (techo 2): un nodo `ejecutar_flujo` dentro de este flujo puede
+    # correr UN sub-flujo, y el del nivel siguiente ya no.
+    ctx = _ctx_agente(ai, _print_line)
+    ctx["prompt_flujo"] = prompt_efectivo
+    ctx["_flujo_depth"] = 1
+    try:
+        from cognia.agent.tools import TOOLS, run_tool
+    except Exception as exc:
+        _print_line(f"[err_cl]no hay registro de tools: "
+                    f"{_escape(str(exc))}[/err_cl]")
+        return
+
+    _print_line(f"[mod]{_escape(nombre)}[/mod] "
+                f"[info_dim]{len(flujo.get('nodos') or [])} nodos"
+                + (f" | prompt: {_escape(prompt_efectivo[:70])}"
+                   if prompt_efectivo else " | sin prompt") + "[/info_dim]")
+    _t0 = time.time()
+    try:
+        res = _flows.ejecutar(
+            flujo, ctx, run_tool, tool_existe=lambda n: n in TOOLS,
+            log=lambda s: _print_line(f"[detail]{_escape(str(s))}[/detail]"),
+            variables=variables)
+    except Exception as exc:
+        # Un flujo invalido (FlowError) o un motor roto: se DICE. El modo de
+        # fallo caro de esta casa es el vacio silencioso, no la excepcion.
+        _print_line(f"[err_cl]el flujo no llego a correr: "
+                    f"{type(exc).__name__}: {_escape(str(exc))}[/err_cl]")
+        return
+    _dur = time.time() - _t0
+
+    # -- la tabla: id | estado | salida recortada --------------------------
+    for nid in res.get("orden") or []:
+        if nid in (res.get("denegados") or []):
+            # DENEGADO no es ERROR: el nodo no fallo, es que no se le dejo
+            # correr. Decirlo con su propia palabra es la diferencia entre
+            # "esto esta roto" y "esto necesita tu permiso".
+            estado, marca = "DENEGADO", "warn_cl"
+        elif nid in (res.get("errores") or {}):
+            estado, marca = "ERROR", "err_cl"
+        elif nid in (res.get("saltados") or []):
+            estado, marca = "saltado", "info_dim"
+        elif nid in (res.get("cacheados") or []):
+            estado, marca = "cacheado", "info_dim"
+        elif nid not in (res.get("salidas") or {}):
+            estado, marca = "sin correr", "warn_cl"
+        else:
+            estado, marca = "ok", "ok_cl"
+        _txt = " ".join(str((res.get("salidas") or {}).get(nid, "")).split())
+        _fila = f"{str(nid)[:18]:<18} {estado:<11}"
+        _print_line(f"  [{marca}]{_escape(_fila)}[/{marca}] "
+                    f"{_escape(_txt[:56])}")
+
+    # -- por que fallo cada nodo que fallo, y si fue el gate de permisos ---
+    _errores = res.get("errores") or {}
+    # La senal de denegacion es ESTRUCTURAL, no un regex sobre el texto:
+    # `flows.ejecutar` envuelve `ctx["confirm"]` y devuelve `denegados` +
+    # `motivos_denegacion`, que es la unica deteccion EXACTA. El regex que
+    # vivia aqui se aplicaba a TODAS las salidas, y desde el nodo de entrada
+    # obligatorio una de esas salidas es el TEXTO EN BRUTO que teclea el
+    # dueno. Medido: `/flujoteca ejecutar sano "confirma los datos del
+    # informe antes de escribir"` escribia el fichero perfectamente y aun asi
+    # imprimia "1 nodo(s) sin permiso (prompt)" -- sobre un nodo con
+    # danger=False que no pasa por ningun confirm, o sea que es IMPOSIBLE que
+    # lo deniegue nadie. Con la primera falsa alarma el dueno aprende a
+    # ignorar la linea que si importa, asi que un nodo de ENTRADA no se acusa
+    # jamas (el filtro por tool, ademas de la senal, es a proposito: dos
+    # capas para la linea que tiene que ser creible).
+    _entradas = {str(n.get("id")) for n in nodos
+                 if n.get("tool") in _FLUJOTECA_TOOLS_ENTRADA}
+    _denegados = [str(n) for n in (res.get("denegados") or [])
+                  if str(n) not in _entradas]
+    _motivos = dict(res.get("motivos_denegacion") or {})
+    for nid, msg in _errores.items():
+        if str(nid) in _denegados:
+            continue        # tiene su propia linea, con el motivo del gate
+        _print_line(f"[warn_cl]  {_escape(str(nid))}: "
+                    f"{_escape(str(msg)[:220])}[/warn_cl]")
+    if _denegados:
+        # NUNCA mudo: sin TTY el gate DENIEGA sin preguntar, y un flujo que
+        # se queda a medias por permisos tiene que decir que fue por permisos
+        # (si no, "no hacen nada" se convierte en "se bloquean" y tampoco se
+        # entiende por que).
+        _print_line(f"[warn_cl]  {len(_denegados)} nodo(s) sin permiso "
+                    f"({_escape(', '.join(str(x) for x in _denegados))}): no "
+                    f"hicieron nada; el resto del flujo siguio igual. Mira "
+                    f"/modo-permiso o /permisos[/warn_cl]")
+        for _nid in _denegados:
+            _mot = str(_motivos.get(_nid) or "").strip()
+            if _mot:
+                _print_line(f"[info_dim]  {_escape(_nid)}: "
+                            f"{_escape(_mot[:200])}[/info_dim]")
+    if res.get("cancelado"):
+        _print_line("[warn_cl]CANCELADO a mitad: los nodos que faltaban no "
+                    "corrieron[/warn_cl]")
+    if res.get("marcadores_vacios"):
+        _print_line(f"[warn_cl]marcadores sin valor (quedaron en hueco): "
+                    f"{_escape(', '.join(str(x) for x in res['marcadores_vacios']))}"
+                    f"[/warn_cl]")
+
+    # -- EL ENTREGABLE, entero, y los FICHEROS con su raiz -----------------
+    entregable = str(res.get("entregable") or "")
+    if entregable:
+        _show_response(entregable, "respuesta", respuesta_final=True)
+    else:
+        _print_line("[warn_cl]el flujo no produjo ningun entregable[/warn_cl]")
+    ficheros = [str(f) for f in (res.get("ficheros") or [])]
+    if ficheros:
+        _print_line(f"[ok_cl]Ficheros: {_escape(', '.join(ficheros))}[/ok_cl]")
+        _print_line(f"[info_dim]escritos en: "
+                    f"{_escape(_flujoteca_raiz_escritura())}[/info_dim]")
+    else:
+        _print_line("[info_dim]Ficheros: ninguno (este flujo no escribio nada "
+                    "en tu PC)[/info_dim]")
+    _print_line(f"[info_dim]{'OK' if res.get('ok') else 'con errores'} | "
+                f"{len(res.get('orden') or [])} nodos | "
+                f"{len(_errores)} con error | {_dur:.1f}s[/info_dim]")
+
+
+def _slash_flujoteca(arg: str = "", ai=None) -> None:
     """Biblioteca de flujos: crear, ver, editar hablando, versionar, restaurar."""
     from cognia.agent import flujoteca as _ft
 
@@ -8726,7 +9633,14 @@ def _slash_flujoteca(arg: str = "") -> None:
             "\n"
             "  /flujoteca                          lista los flujos\n"
             "  /flujoteca ver <nombre> [vN]        el flujo en texto\n"
-            "  /flujoteca abrir <nombre>           lienzo + linea de tiempo (navegador)\n"
+            "  /flujoteca ejecutar <nombre> [prompt]\n"
+            "                                      LO CORRE de verdad (tools\n"
+            "                                      reales); el prompt es opcional\n"
+            "                                      y pisa el nodo de entrada\n"
+            "  /flujoteca editor [nombre]          EDITOR VISUAL (arrastrar nodos,\n"
+            "                                      paleta de tools y chat con el modelo)\n"
+            "  /flujoteca abrir <nombre>           lienzo + linea de tiempo (solo lectura)\n"
+            "  /flujoteca importar <json|ruta>     mete un flujo copiado del editor\n"
             "  /flujoteca versiones <nombre>       el historial\n"
             "  /flujoteca editar <nombre> <que cambiar>\n"
             "                                      lo cambia hablando, y guarda una version\n"
@@ -8738,8 +9652,13 @@ def _slash_flujoteca(arg: str = "") -> None:
             "  /flujoteca politica [nunca|preguntar|permitido]\n"
             "                                      que puede borrar la IA\n"
             "\n"
-            "Para crear uno: /session-to-workflow convierte lo que hiciste\n"
-            "en esta sesion en un flujo reutilizable.",
+            "Para crear uno: /session-to-workflow (o /sesion-a-workflow)\n"
+            "convierte lo que hiciste en esta sesion en un flujo reutilizable\n"
+            "y lo abre en el editor.\n"
+            "\n"
+            "El editor es un servidor local efimero en 127.0.0.1 con una clave\n"
+            "de un solo arranque; se apaga solo a los 30 min sin uso, con\n"
+            "/salir, o desde el boton de la pagina.",
             "listado")
         return
 
@@ -8767,9 +9686,16 @@ def _slash_flujoteca(arg: str = "") -> None:
             _aviso_degradado("cli.flujoteca.config", f"{type(exc).__name__}: {exc}")
         return
 
-    if not resto and cmd not in ("nuevo",):
+    # 'editor' sin nombre abre el flujo mas reciente (listar() los da con el
+    # mas nuevo primero), asi que no exige resto.
+    if not resto and cmd not in ("nuevo", "editor"):
+        # El argumento nuevo se ensena AQUI tambien: este es el mensaje que
+        # sale cuando el dueno teclea `/flujoteca ejecutar` a secas, y era el
+        # unico camino de "me falta la sintaxis" que no nombraba el prompt.
+        _extra_uso = (" \\[prompt]" if cmd in ("ejecutar", "correr") else "")
         _print_line(f"[warn_cl]falta el nombre del flujo. "
-                    f"Uso: /flujoteca {_escape(cmd)} <nombre>[/warn_cl]")
+                    f"Uso: /flujoteca {_escape(cmd)} <nombre>{_extra_uso}"
+                    f"[/warn_cl]")
         return
 
     # ---- comandos que llevan nombre --------------------------------------
@@ -8788,15 +9714,73 @@ def _slash_flujoteca(arg: str = "") -> None:
         return
 
     if cmd == "abrir":
-        try:
-            from cognia.agent import flujoteca_view as _fv
-            abrir = bool(_load_config().get("memorias_abrir_navegador", True))
-            ruta = _fv.export(resto, open_browser=abrir)
-        except Exception as exc:
-            _aviso_degradado("cli.flujoteca.abrir", f"{type(exc).__name__}: {exc}")
-            _print_line(f"[err_cl]no pude abrir el lienzo: {_escape(str(exc))}[/err_cl]")
+        # 'abrir' sigue siendo el VISOR de solo lectura (fichero file://, sin
+        # servidor): es lo que funciona en remoto, en CI y sin display. El
+        # editor tiene su propio subcomando.
+        _flujoteca_pintar_apertura(resto,
+                                   _abrir_editor_flujo(resto, forzar_visor=True))
+        return
+
+    if cmd == "editor":
+        nombre = resto
+        if nombre and not _ft.existe(nombre) and _ft.existe("editor " + nombre):
+            # El subcomando gana SIEMPRE (esta en _FLUJOTECA_SUBCOMANDOS), pero
+            # si lo que queda no es ningun flujo y "editor <resto>" SI lo es,
+            # el dueno estaba nombrando un flujo llamado "editor de textos".
+            nombre = "editor " + nombre
+        if not nombre:
+            filas = _ft.listar()
+            if not filas:
+                _print_line("[warn_cl]no hay ningun flujo que editar. "
+                            "/flujoteca nuevo <nombre> crea uno[/warn_cl]")
+                return
+            nombre = filas[0]["nombre"]
+            _print_line(f"[info_dim]sin nombre: abro el mas reciente "
+                        f"('{_escape(nombre)}')[/info_dim]")
+        if not _ft.existe(nombre):
+            _print_line(f"[warn_cl]no hay ningun flujo llamado "
+                        f"'{_escape(nombre)}'. /flujoteca para ver la lista"
+                        f"[/warn_cl]")
             return
-        _show_response(f"Lienzo del flujo '{resto}'\n  {ruta}", "listado")
+        _flujoteca_pintar_apertura(nombre, _abrir_editor_flujo(nombre))
+        return
+
+    if cmd == "importar":
+        # La otra mitad del boton "Copiar JSON" del editor: lo que se copia de
+        # una pestana sin conexion se vuelve a meter por aca. Se VALIDA en
+        # Python antes de escribir nada (flows.validar es el unico validador
+        # que manda; el navegador no decide que es un DAG legal).
+        crudo = resto
+        try:
+            posible = Path(crudo).expanduser()
+            if len(crudo) < 400 and posible.is_file():
+                crudo = posible.read_text(encoding="utf-8")
+        except Exception:
+            pass                      # no era una ruta: es JSON pegado
+        try:
+            flujo = json.loads(crudo)
+        except Exception as exc:
+            _print_line(f"[err_cl]eso no es JSON valido: "
+                        f"{_escape(str(exc))}[/err_cl]")
+            return
+        if not isinstance(flujo, dict):
+            _print_line("[err_cl]el JSON tiene que ser un objeto con "
+                        "'nombre' y 'nodos'[/err_cl]")
+            return
+        nombre = str(flujo.get("nombre") or "").strip()
+        if not nombre:
+            _print_line("[err_cl]al JSON le falta el campo 'nombre'[/err_cl]")
+            return
+        try:
+            meta = _ft.guardar(flujo, nombre=nombre, nota="importado")
+        except Exception as exc:
+            _print_line(f"[err_cl]no se importo NADA: "
+                        f"{_escape(str(exc))}[/err_cl]")
+            return
+        _flujoteca_invalidar_completar()
+        _print_line(f"[ok_cl]'{_escape(nombre)}' importado como "
+                    f"v{meta['version_actual']}[/ok_cl]")
+        _show_response(_ft.describir(_ft.cargar(nombre)), "listado")
         return
 
     if cmd == "versiones":
@@ -8861,6 +9845,7 @@ def _slash_flujoteca(arg: str = "") -> None:
         except Exception as exc:
             _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
             return
+        _flujoteca_invalidar_completar()
         _print_line(f"[ok_cl]restaurada como v{meta['version_actual']}[/ok_cl] "
                     f"[info_dim](el historial no se toca: la version vieja "
                     f"sigue ahi)[/info_dim]")
@@ -8875,6 +9860,7 @@ def _slash_flujoteca(arg: str = "") -> None:
         viejo, nuevo = [x.strip() for x in resto.split("|", 1)]
         fn = _ft.renombrar if cmd == "renombrar" else _ft.duplicar
         r = fn(viejo, nuevo)
+        _flujoteca_invalidar_completar()
         if r.get("ok"):
             _print_line(f"[ok_cl]{_escape(r['motivo'])}[/ok_cl]")
         else:
@@ -8895,6 +9881,7 @@ def _slash_flujoteca(arg: str = "") -> None:
                 _print_line("[info_dim]no se borro nada[/info_dim]")
                 return
             r = _ft.borrar(resto, quien="usuario", politica=politica)
+        _flujoteca_invalidar_completar()
         if r.get("ok"):
             _print_line(f"[ok_cl]{_escape(r['motivo'])}[/ok_cl]")
         else:
@@ -8942,6 +9929,9 @@ def _slash_flujoteca(arg: str = "") -> None:
         _flujoteca_guardar_desde_ia(nombre, r, instruccion[:120])
         return
 
+    if cmd in ("ejecutar", "correr"):
+        return _flujoteca_ejecutar(resto, ai)
+
     if cmd == "nuevo":
         nombre = resto.strip()
         if not nombre:
@@ -8962,10 +9952,13 @@ def _slash_flujoteca(arg: str = "") -> None:
         except Exception as exc:
             _print_line(f"[err_cl]no se pudo crear: {_escape(str(exc))}[/err_cl]")
             return
-        _show_response(
-            f"Flujo '{nombre}' creado (v{meta['version_actual']})\n\n"
-            f"  /flujoteca editar {nombre} <que tiene que hacer>\n"
-            f"  /flujoteca abrir {nombre}", "listado")
+        _flujoteca_invalidar_completar()
+        _print_line(f"[ok_cl]Flujo '{_escape(nombre)}' creado "
+                    f"(v{meta['version_actual']})[/ok_cl]")
+        _print_line(f"[info_dim]/flujoteca editar {_escape(nombre)} <que tiene "
+                    f"que hacer>   para cambiarlo hablando[/info_dim]")
+        # EL FLUJO YA ESTA GUARDADO: si el editor no abre, se dice y ya.
+        _flujoteca_pintar_apertura(nombre, _abrir_editor_flujo(nombre))
         return
 
     _print_line(f"[warn_cl]no entiendo '{_escape(cmd)}'. "
@@ -8977,7 +9970,13 @@ def _slash_session_to_workflow(arg: str = "") -> None:
     from cognia.agent import flujo_ia as _fia
     from cognia.agent import flujoteca as _ft
 
-    nombre = (arg or "").strip()
+    # '--no-abrir' se QUITA del nombre: hasta hoy `nombre = arg.strip()` se
+    # tragaba el flag entero y el flujo acababa llamandose "informe --no-abrir".
+    crudo = (arg or "").strip()
+    abrir_al_final = "--no-abrir" not in crudo
+    if not abrir_al_final:
+        crudo = crudo.replace("--no-abrir", " ")
+    nombre = " ".join(crudo.split())
     if not _history:
         _print_line("[warn_cl]esta sesion todavia no tiene nada que "
                     "convertir[/warn_cl]")
@@ -8987,15 +9986,46 @@ def _slash_session_to_workflow(arg: str = "") -> None:
     # Se sacan del grabador de flujos si esta grabando; si no, del historial
     # del agente. Ninguna de las dos es obligatoria: sin ellas el modelo
     # trabaja solo con la conversacion, peor pero util.
+    #
+    # BUG ARREGLADO 2026-08-29: esto hacia `getattr(_gr, "grabacion_activa")`
+    # y ESA FUNCION NO EXISTE en cognia/flujos/grabador.py. getattr devolvia
+    # None, callable(None) es False, el except no saltaba, y `pasos` quedaba
+    # SIEMPRE []. O sea: el comando trabajaba solo con la charla, que es la
+    # fuente que flujo_ia.de_sesion documenta como la peor ("lo que se ejecuto
+    # es un hecho, lo que se dijo es una intencion"). La API real es
+    # `abiertas()` + `cargar(id)`.
+    #
+    # Tres decisiones, cada una con su motivo:
+    #  - solo grabaciones ABIERTAS: coger "la ultima cerrada" meteria trabajo
+    #    de OTRA sesion en este flujo.
+    #  - se filtran los pasos que fallaron: una traza de atasco ascendida a
+    #    procedimiento envenena las tareas de manana.
+    #  - se filtran los via_bus: sus args vienen recortados a 120 chars, asi
+    #    que producirian un flujo que corre y hace algo distinto. Se DICEN.
     pasos = []
     try:
         from cognia.flujos import grabador as _gr
-        activa = getattr(_gr, "grabacion_activa", None)
-        if callable(activa):
-            gid = activa()
-            if gid:
-                pasos = [p for p in (_gr.pasos(gid) or [])]
+        ids = _gr.abiertas()
+        if ids:
+            g = _gr.cargar(ids[-1])
+            crudos = list(getattr(g, "pasos", None) or []) if g else []
+            pasos = [p for p in crudos
+                     if p.get("ok") and not p.get("via_bus")]
+            recortados = [p for p in crudos if p.get("via_bus")]
+            if recortados:
+                # info_dim y NO detail: el modo sencillo (el default) suprime
+                # toda linea con '[detail]', y descartar pasos en silencio es
+                # indistinguible de "no habia pasos".
+                _print_line(f"[info_dim]{len(recortados)} pasos llegaron por "
+                            f"el bus con los args recortados a 120 chars: se "
+                            f"omiten[/info_dim]")
+            fallidos = [p for p in crudos if not p.get("ok")]
+            if fallidos:
+                _print_line(f"[info_dim]{len(fallidos)} pasos fallaron y no "
+                            f"entran en el flujo[/info_dim]")
     except Exception as exc:
+        # Ya no se traga el error en silencio: sin esto, la unica senal de que
+        # el puente estaba roto era un flujo peor, y eso no se ve.
         _aviso_degradado("cli.s2w.grabador", f"{type(exc).__name__}: {exc}")
 
     _parar_status_mejora()
@@ -9024,10 +10054,16 @@ def _slash_session_to_workflow(arg: str = "") -> None:
         _print_line(f"[info_dim]ya existia '{_escape(nombre_final)}': se "
                     f"guarda como version nueva[/info_dim]")
     if _flujoteca_guardar_desde_ia(nombre_final, r, "de la sesion"):
-        _print_line(f"[info_dim]/flujoteca abrir {_escape(nombre_final)}   "
-                    f"para verlo   ·   /flujoteca editar "
-                    f"{_escape(nombre_final)} <cambio>   para retocarlo"
-                    f"[/info_dim]")
+        _print_line(f"[info_dim]/flujoteca ver {_escape(nombre_final)}   "
+                    f"para leerlo   ·   /flujoteca editar "
+                    f"{_escape(nombre_final)} <cambio>   para retocarlo "
+                    f"hablando[/info_dim]")
+        if abrir_al_final:
+            # EL GUARDADO YA OCURRIO. Que el editor no abra no puede parecer
+            # nunca que el flujo no se guardo: por eso el "guardado como vN"
+            # sale ANTES y esto imprime su propio resultado aparte.
+            _flujoteca_pintar_apertura(nombre_final,
+                                       _abrir_editor_flujo(nombre_final))
 
 
 # Timings del ULTIMO turno contra el backend. llama-server no los guarda:
@@ -9158,19 +10194,50 @@ def _mejora_devolver_al_prompt(texto: str):
     return None
 
 
-def _mejorar_linea_interactiva(raw: str):
+def _tope_encuesta() -> int:
+    """Cuantos chars como mucho tiene un pedido para que se encueste."""
+    try:
+        from cognia.harness import encuesta as _enc
+        return int(_enc.MAX_CHARS_PARA_PREGUNTAR)
+    except Exception:
+        return 320
+
+
+def _mejorar_linea_interactiva(raw: str, *, solo_encuesta: bool = False):
     """Enganche del REPL. Devuelve el texto A ENVIAR, o None si el usuario se
-    llevo la mejora de vuelta al prompt para editarla."""
+    llevo la mejora de vuelta al prompt para editarla.
+
+    `solo_encuesta=True` cuando el REFORMULADOR rechazo la linea pero la
+    encuesta si aplica (el caso de "hazme una pagina web": es_candidato con
+    rechazar_ordenes=True descarta las ordenes). Ahi se pregunta lo que falta y
+    se envia la ORDEN con las respuestas incorporadas, sin reescribirla: es la
+    misma linea del dueno, mas datos. Reformularla es justo lo que convirtio
+    una orden en un plan con preguntas (transcript 2026-08-25).
+    """
     from cognia.ux import selector as _selector
 
+    if solo_encuesta:
+        _ctx_solo = _contexto_de_mejora(raw)
+        _texto_solo = _encuesta_interactiva(raw, _ctx_solo)
+        if _texto_solo is None:
+            return _mejora_devolver_al_prompt(raw)
+        return _texto_solo
+
     if _estado_mejorar() == "auto":
-        # Contexto SI, encuesta NO. En 'auto' el trato es que el usuario no
-        # toca nada: meter preguntas aqui convertiria el modo automatico en
-        # el modo manual, que es justo lo que el usuario apago. Las encuestas
-        # viven en el camino 'preguntar', donde el usuario YA eligio mejorar.
+        # En 'auto' el trato es que el usuario no toca nada, asi que la
+        # encuesta entra ACOTADA: solo con pedidos de menos de
+        # MAX_CHARS_PARA_PREGUNTAR y solo si `preparar()` devuelve al menos una
+        # pregunta (si no la hay, `_encuesta_interactiva` devuelve el texto
+        # intacto sin abrir un solo menu). Esta documentado en /encuestas.
         _ctx_auto = _contexto_de_mejora(raw)
-        mejora = _mejora_generar(raw, "cli.mejorar.auto",
-                                 contexto=getattr(_ctx_auto, "bloque", ""))
+        _texto_auto = raw
+        if _encuesta_aplica(raw) and len(raw.strip()) < _tope_encuesta():
+            _texto_auto = _encuesta_interactiva(raw, _ctx_auto)
+            if _texto_auto is None:
+                return _mejora_devolver_al_prompt(raw)
+        mejora = _mejora_generar(_texto_auto, "cli.mejorar.auto",
+                                 contexto=getattr(_ctx_auto, "bloque", ""),
+                                 encuesta_previa=_texto_auto != raw)
         if mejora is None or not mejora.ok:
             _linea_sin_mejorar(mejora)
             return raw
@@ -9216,7 +10283,8 @@ def _mejorar_linea_interactiva(raw: str):
         return _mejora_devolver_al_prompt(raw)
 
     mejora = _mejora_generar(_texto, "cli.mejorar.preguntar",
-                             contexto=getattr(_ctx, "bloque", ""))
+                             contexto=getattr(_ctx, "bloque", ""),
+                             encuesta_previa=_texto != raw)
     if mejora is None or not mejora.ok:
         if _texto != raw:
             # La encuesta SI aporto aunque el reformulador fallara: se envia
@@ -9287,7 +10355,19 @@ def _mejora_en_el_sitio(texto: str) -> str:
         _print_line("[info_dim]F3: esta linea no se mejora (es un comando, o "
                     "es demasiado corta/larga).[/info_dim]")
         return texto
-    mejora = _mejora_generar(base, "cli.mejorar.f3")
+    # Contexto + encuesta tambien en F3: hasta hoy esta via llamaba al
+    # reformulador con la linea PELADA (ni contexto ni preguntas), que es
+    # justo lo que el modulo documenta como la peor entrada posible.
+    # Con un paste expandido NO se encuesta: el pedido ya trae su cuerpo y
+    # abrir tres preguntas encima de 9.000 chars pegados es ruido.
+    _ctx_f3 = _contexto_de_mejora(base)
+    _texto_f3 = base
+    if "[pegado #" not in (texto or "") and _encuesta_aplica(base, explicito=True):
+        _parar_status_mejora()      # regla dura: ningun selector con Live vivo
+        _texto_f3 = _encuesta_interactiva(base, _ctx_f3) or base
+    mejora = _mejora_generar(_texto_f3, "cli.mejorar.f3",
+                             contexto=getattr(_ctx_f3, "bloque", ""),
+                             encuesta_previa=_texto_f3 != base)
     if mejora is None or not mejora.ok:
         _linea_sin_mejorar(mejora, "F3 sin mejorar")
         return texto
@@ -9426,8 +10506,13 @@ def _slash_mejorar(args: str) -> None:
     # Cualquier otra cosa es TEXTO a reformular: se imprime, no se envia. Es
     # la puerta testeable sin tty (y la forma de probar el experto a mano).
     _ctx_cmd = _contexto_de_mejora(args)
-    mejora = _mejora_generar(args, "cli.mejorar.comando",
-                             contexto=getattr(_ctx_cmd, "bloque", ""))
+    _texto_cmd = args
+    if _encuesta_aplica(args, explicito=True):
+        _parar_status_mejora()      # regla dura: ningun selector con Live vivo
+        _texto_cmd = _encuesta_interactiva(args, _ctx_cmd) or args
+    mejora = _mejora_generar(_texto_cmd, "cli.mejorar.comando",
+                             contexto=getattr(_ctx_cmd, "bloque", ""),
+                             encuesta_previa=_texto_cmd != args)
     if mejora is None:
         _print_line("[warn_cl]El mejorador no esta disponible (ver el aviso de "
                     "arriba).[/warn_cl]")
@@ -9783,6 +10868,160 @@ def _memorias_pintar_filas(filas, titulo: str) -> None:
     _show_response("\n".join(lineas), "listado")
 
 
+def _abrir_en_navegador() -> bool:
+    """Si esta sesion puede abrir ventanas del navegador.
+
+    UNA sola politica para /memorias, /biblioteca y el editor de flujos: la
+    clave de config 'memorias_abrir_navegador' (apagarla en /memorias apaga
+    las tres, y eso esta documentado en sus fichas) y la guarda COGNIA_REMOTO,
+    que es lo que corre cuando el REPL es hijo del servidor del movil: ahi una
+    ventana se abriria en la maquina EQUIVOCADA y nadie la veria.
+    """
+    if os.environ.get("COGNIA_REMOTO"):
+        return False
+    try:
+        return bool(_load_config().get("memorias_abrir_navegador", True))
+    except Exception as exc:
+        _aviso_degradado("cli.abrir.config", f"{type(exc).__name__}: {exc}")
+        return True
+
+
+def _slash_biblioteca(arg: str = "") -> None:
+    """La biblioteca de programas: la pagina, y abrir el producto.
+
+    Sin subcomando GENERA ~/.cognia/biblioteca.html y lo abre (mismo patron
+    que /memorias). 'abrir <ref>' abre EL PRODUCTO -- la web en el navegador,
+    el .py con la app del sistema, la carpeta si no hay entrypoint -- y 'ver
+    <id>' sigue mostrando el codigo en el terminal.
+
+    Todo por _show_response/_print_line y nunca por print(): _run redirige
+    stdout con redirect_stdout y un print aqui desapareceria.
+    """
+    partes = (arg or "").strip().split(None, 1)
+    cmd = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+
+    if not HAS_PROGRAM_CREATOR:
+        _print_line("[warn_cl][WARN] Modulo de programacion hobby no "
+                    "disponible.[/warn_cl]")
+        return
+
+    if cmd in ("ayuda", "-h", "--help"):
+        _show_response(
+            "/biblioteca - los programas que Cognia se fue construyendo\n"
+            "\n"
+            "  /biblioteca              genera la pagina y la abre\n"
+            "  /biblioteca abrir <id>   abre EL PRODUCTO (web, .py o carpeta)\n"
+            "  /biblioteca abrir 7      lo mismo por el numero de LA PAGINA\n"
+            "  /biblioteca ver <id>     el codigo, en el terminal\n"
+            "  /biblioteca lista        el resumen de siempre, sin navegador\n"
+            "\n"
+            "La pagina se arma leyendo el DISCO, no el index.json (que tiene\n"
+            "entradas fantasma y carpetas huerfanas): el banner declara las\n"
+            "dos discrepancias.\n"
+            "\n"
+            "Config (~/.cognia_config.json):\n"
+            "  memorias_abrir_navegador   false = solo escribe el fichero\n",
+            "listado")
+        return
+
+    if cmd in ("lista", "listar"):
+        # El resumen de texto de siempre (storage.format_library_summary):
+        # sigue siendo la via de quien no quiere abrir un navegador, y es la
+        # unica que sale del index.json en vez del disco.
+        try:
+            from cognia.program_creator import show_library
+            _show_response(show_library(), "listado")
+        except Exception as exc:
+            _aviso_degradado("cli.biblioteca.lista",
+                             f"{type(exc).__name__}: {exc}")
+            _print_line("[err_cl]no pude leer el resumen[/err_cl]")
+        return
+
+    if cmd == "ver":
+        if not resto:
+            _print_line("[warn_cl]Uso: /biblioteca ver <id>[/warn_cl]")
+            return
+        try:
+            from cognia.program_creator.storage import load_program_code
+            codigo = load_program_code(resto)
+        except Exception as exc:
+            _print_line(f"[err_cl]biblioteca ver no disponible: "
+                        f"{_escape(str(exc))}[/err_cl]")
+            return
+        if not codigo:
+            _print_line(f"[warn_cl]sin codigo para {_escape(resto)}[/warn_cl]")
+            return
+        _show_response(codigo[:6000], "listado")
+        return
+
+    if cmd == "abrir":
+        if not resto:
+            _print_line("[warn_cl]Uso: /biblioteca abrir <id|numero>[/warn_cl]")
+            return
+        try:
+            from cognia.program_creator import biblioteca_view as _bv
+            detalle = _bv.resolver_detalle(resto)
+        except Exception as exc:
+            _aviso_degradado("cli.biblioteca.resolver",
+                             f"{type(exc).__name__}: {exc}")
+            _print_line("[err_cl]no pude leer la biblioteca[/err_cl]")
+            return
+        item = detalle.get("item")
+        if not item:
+            # "no existe" y "es ambiguo" piden acciones distintas del dueno, y
+            # por eso resolver_detalle devuelve el motivo y los candidatos en
+            # vez de un None mudo.
+            _print_line(f"[warn_cl]{_escape(str(detalle.get('motivo') or 'no lo encuentro'))}"
+                        f"[/warn_cl]")
+            for cand in (detalle.get("candidatos") or [])[:6]:
+                _print_line(f"[info_dim]  /biblioteca abrir "
+                            f"{_escape(str(cand))}[/info_dim]")
+            return
+        res = _bv.abrir_producto(item, open_browser=_abrir_en_navegador())
+        lineas = [f"{item.get('title') or item.get('id')}", ""]
+        lineas.append(f"  {res.get('que')}: {res.get('ruta')}")
+        if not res.get("ok"):
+            lineas.append(f"  no se pudo abrir: {res.get('motivo')}")
+        elif not res.get("abierto"):
+            lineas.append(f"  no se abrio ventana ({res.get('motivo') or 'apagado'})")
+        _show_response("\n".join(lineas), "listado")
+        return
+
+    if cmd:
+        _print_line(f"[warn_cl]subcomando desconocido: '{_escape(cmd)}'. "
+                    f"Proba /biblioteca ayuda[/warn_cl]")
+        return
+
+    # Sin subcomando: la pagina entera.
+    abrir = _abrir_en_navegador()
+    try:
+        from cognia.program_creator import biblioteca_view as _bv
+        ruta = _bv.export(open_browser=abrir)
+        data = _bv.build_biblioteca_data()
+    except Exception as exc:
+        _aviso_degradado("cli.biblioteca.export", f"{type(exc).__name__}: {exc}")
+        _print_line("[err_cl]no pude generar la pagina de la biblioteca"
+                    "[/err_cl]")
+        return
+    cabecera = ("Biblioteca generada y abierta en el navegador" if abrir
+                else "Biblioteca generada")
+    lineas = [cabecera, f"  {ruta}", "",
+              f"  {data.get('total', 0)} productos en disco"]
+    for leng in (data.get("lenguajes") or []):
+        lineas.append(f"    {leng.get('etiqueta', leng.get('clave')):<14}"
+                      f"{leng.get('n', 0):>5}")
+    if data.get("fantasmas"):
+        # La pagina lee el DISCO; el index.json miente en las dos direcciones y
+        # callarlo dejaria al dueno con dos cuentas distintas sin explicacion.
+        lineas.append(f"  {data['fantasmas']} entradas del index.json sin "
+                      f"carpeta en disco (no salen en la pagina)")
+    lineas += ["", "  /biblioteca abrir <id>   abre el producto",
+               "  /biblioteca ver <id>     el codigo",
+               "  /biblioteca lista        el resumen en el terminal"]
+    _show_response("\n".join(lineas), "listado")
+
+
 def _slash_memorias(arg: str = "") -> None:
     """Dashboard y libreria de artefactos. Puerta de cognia/memory/catalogo.py
     y cognia/memory/memorias_view.py.
@@ -9930,7 +11169,7 @@ def _slash_skills(arg: str = ""):
         lines.append(f"  [{tag}] {name:<22} {s.description[:60]}")
     if _HAS_RICH and _console:
         from rich.markup import escape as _esc
-        _console.print(f"[titulo]Skills disponibles ({len(skills)}) -- usa /skill <nombre> [tarea]:[/titulo]")
+        _console.print(f"[titulo]Skills disponibles ({len(skills)}) -- usa /skill <nombre> \\[tarea]:[/titulo]")
         for ln in lines:
             _console.print(f"[detail]{_esc(ln)}[/detail]")
     else:
@@ -9949,7 +11188,7 @@ def _slash_skill(arg: str, ai):
     parts = (arg or "").strip().split(None, 1)
     skills = load_skills()
     if not parts:
-        _print_line("[detail]Uso: /skill <nombre> [tarea].  Lista: /skills[/detail]")
+        _print_line("[detail]Uso: /skill <nombre> \\[tarea].  Lista: /skills[/detail]")
         return
     name = parts[0]
     task = parts[1].strip() if len(parts) > 1 else ""
@@ -12589,7 +13828,7 @@ def _slash_enlaces(arg: str = "") -> None:
                     f"{extra}[/info_dim]")
         return
     if arg and arg != "estado":
-        _print_line("[warn_cl]Uso: /enlaces [estado | on | off][/warn_cl]")
+        _print_line("[warn_cl]Uso: /enlaces \\[estado | on | off][/warn_cl]")
         return
     tty = bool(_HAS_RICH and _console is not None
                and getattr(_console, "is_terminal", False))
@@ -12870,7 +14109,7 @@ def _slash_compactar(arg: str = "") -> None:
         _print_line(f"[info_dim]compactacion: cap {n} chars (guardado)[/info_dim]")
         return
     if arg and bajo != "estado":
-        _print_line("[warn_cl]Uso: /compactar [estado | resumen | truncado | "
+        _print_line("[warn_cl]Uso: /compactar \\[estado | resumen | truncado | "
                     "umbral <frac> | retencion <frac> | cap <chars>][/warn_cl]")
         return
     # Estado (default): la foto entera del subsistema.
@@ -13057,7 +14296,7 @@ def _slash_horizonte(arg: str = "") -> None:
                     f"(guardado)[/info_dim]")
         return
     if arg and bajo != "estado":
-        _print_line("[warn_cl]Uso: /horizonte [estado | on | off | rondas <n> "
+        _print_line("[warn_cl]Uso: /horizonte \\[estado | on | off | rondas <n> "
                     "| handoff <chars>][/warn_cl]")
         return
     # Estado (default).
@@ -13541,7 +14780,7 @@ def _slash_confianza(arg: str = "") -> None:
     partes = arg.split(None, 1)
     sub = partes[0].lower() if partes else ""
     resto = partes[1].strip() if len(partes) > 1 else ""
-    uso = ("[warn_cl]Uso: /confianza [estado | on | off | previa on|off | "
+    uso = ("[warn_cl]Uso: /confianza \\[estado | on | off | previa on|off | "
            "posterior on|off | acciones on|off | segundos <n> | paginas <n> | "
            "probar <pregunta>][/warn_cl]")
 
@@ -13745,7 +14984,7 @@ def _slash_bucle(arg: str = "") -> None:
                     f"[/info_dim]")
         return
     if arg and bajo != "estado":
-        _print_line("[warn_cl]Uso: /bucle [estado | on | off | umbrales <a,b,c> "
+        _print_line("[warn_cl]Uso: /bucle \\[estado | on | off | umbrales <a,b,c> "
                     "| fichero <n> | timeout <s>][/warn_cl]")
         return
     # Estado (default): la foto de los dos subsistemas.
@@ -14159,7 +15398,7 @@ def _slash_markdown(arg: str = "") -> None:
                     f"[/info_dim]")
         return
     if bajo not in ("", "estado"):
-        _print_line("[warn_cl]Uso: /markdown [estado | on | off | "
+        _print_line("[warn_cl]Uso: /markdown \\[estado | on | off | "
                     "tema <pygments>][/warn_cl]")
         return
     # estado: activo?, por que, tema vigente y quien manda
@@ -14252,7 +15491,7 @@ def _slash_prompt(arg: str = ""):
             _print_line(f"[ok]Prompt personalizado: {sub}[/ok] "
                         "[detail](el archivo no se toca)[/detail]")
         elif sub:
-            _print_line("[warn_cl]Uso: /prompt [editar | set <texto> | reset | "
+            _print_line("[warn_cl]Uso: /prompt \\[editar | set <texto> | reset | "
                         "off | on][/warn_cl]")
         else:
             # OJO: estado con estilos VISIBLES ([mod]/[info_dim]), no [detail]:
@@ -14296,7 +15535,7 @@ def _slash_memoria_agente(arg: str = "") -> None:
         _print_line(f"[info_dim]memoria del agente: {bajo} (guardado)[/info_dim]")
         return
     if bajo and bajo != "estado":
-        _print_line("[warn_cl]Uso: /memoria agente [on | off | estado][/warn_cl]")
+        _print_line("[warn_cl]Uso: /memoria agente \\[on | off | estado][/warn_cl]")
         return
     filas = [
         ("como llega", "dentro del PRIMER user de /hacer, en <memoria>...</memoria>, "
@@ -15336,20 +16575,107 @@ def _slash_resolver_conflicto(args: str) -> None:
 
 
 def _slash_comandos(args: str) -> None:
+    """Resumen del catalogo por categorias, en el nivel actual (/avanzado).
+
+    La cuenta se da SIEMPRE contra el total ("82 de 280"): un usuario que ve
+    82 comandos y no sabe que hay 280 no puede pedir los otros. Y el pie dice
+    con que comando se revelan, que es la unica forma de que ocultar no sea
+    una via muerta.
+    """
     total = len(_CMD_DESCRIPTIONS)
-    cats = {}
-    for cmd in _CMD_DESCRIPTIONS:
-        parts = cmd.lstrip("/").split("-")
-        root = parts[0]
-        cats[root] = cats.get(root, 0) + 1
-    top_cats = sorted(cats.items(), key=lambda x: -x[1])[:10]
-    print(f"Comandos disponibles: {total} total")
+    catalogo = _cmds_visibles()
+    ocultos = max(0, total - len(catalogo))
+    cats = []
+    try:
+        from cognia.harness import ayuda as _ah
+        cats = [(nombre, len(entradas))
+                for nombre, entradas in _ah.indice(catalogo, 200) if entradas]
+    except Exception as _exc_cm:
+        # Degrada al agrupado por raiz de siempre en vez de no imprimir nada:
+        # el modulo de ayuda puede faltar y este comando sigue teniendo que
+        # contestar (mismo criterio que el HELP_TEXT de emergencia).
+        _aviso_degradado("cli.comandos", f"{type(_exc_cm).__name__}: {_exc_cm}")
+        raices = {}
+        for cmd in catalogo:
+            raiz = cmd.lstrip("/").split("-")[0]
+            raices[raiz] = raices.get(raiz, 0) + 1
+        cats = [("/%s*" % r, n)
+                for r, n in sorted(raices.items(), key=lambda x: -x[1])[:10]]
+    print(f"Comandos disponibles: {len(catalogo)} de {total} total")
     print("Categorias principales:")
-    for cat, count in top_cats:
-        print(f"  /{cat}*   ({count} comandos)")
+    for cat, count in cats:
+        print(f"  {cat:<26} ({count} comando{'s' if count != 1 else ''})")
     print()
+    if ocultos:
+        print(f"{ocultos} comandos ocultos - /avanzado los revela")
     print("Usa /help para ver todos los comandos agrupados.")
     print("Usa /ayuda <comando> para ayuda detallada de un comando.")
+
+
+def _slash_avanzado(arg: str = "") -> None:
+    """Ensena u oculta los comandos de nicho.  on | off | estado
+
+    Sin argumento ENCIENDE, y no es un toggle a proposito: quien teclea
+    /avanzado quiere ver el catalogo entero, y un toggle lo esconderia justo
+    al teclearlo dos veces buscando la lista. Para volver hay que decir 'off'.
+
+    OCULTAR NO ES DESACTIVAR: esto no toca el despachador. Un comando de nicho
+    tecleado a mano sigue corriendo con el nivel en 'nucleo'.
+    """
+    valor = (arg or "").strip().lower()
+    total = len(_CMD_DESCRIPTIONS)
+    try:
+        from cognia import cli_visibilidad as _vis
+    except Exception as _exc_av:
+        _aviso_degradado("cli.avanzado", f"{type(_exc_av).__name__}: {_exc_av}")
+        _print_line("[err_cl]el modulo de visibilidad no cargo: el catalogo se "
+                    "ensena entero[/err_cl]")
+        return
+
+    if valor in ("estado", "?", "ver"):
+        avanzado = _vis.es_avanzado()
+        visibles = len(_vis.visibles(_CMD_DESCRIPTIONS, avanzado=avanzado))
+        _show_response(
+            "Visibilidad del catalogo de comandos\n"
+            "\n"
+            f"  nivel:      {_vis.get_nivel_cmds()}"
+            f"{'  (+ /modo avanzado)' if avanzado and _vis.get_nivel_cmds() != 'todo' else ''}\n"
+            f"  se anuncian: {visibles} de {total}\n"
+            f"  ocultos:     {total - visibles}\n"
+            "\n"
+            "  /avanzado       los revela\n"
+            "  /avanzado off   vuelve al nucleo\n"
+            "\n"
+            "  Los ocultos SIGUEN funcionando si los tecleas: esto filtra el\n"
+            "  anuncio (ayuda, autocompletado, enrutador), no el despachador.",
+            "listado")
+        return
+
+    if valor in ("", "on", "si", "todo", "todos"):
+        destino = "todo"
+    elif valor in ("off", "no", "nucleo", "sencillo"):
+        destino = "nucleo"
+    else:
+        _print_line(f"[warn_cl]no entiendo '{_escape(valor)}'. "
+                    f"Uso: /avanzado \\[on|off|estado][/warn_cl]")
+        return
+
+    try:
+        puesto = _vis.set_nivel_cmds(destino)
+    except Exception as _exc_sn:
+        _aviso_degradado("cli.avanzado", f"{type(_exc_sn).__name__}: {_exc_sn}")
+        _print_line("[err_cl]no pude guardar el nivel[/err_cl]")
+        return
+    _invalidar_caches_de_nivel()
+    visibles = len(_cmds_visibles())
+    if puesto == "todo":
+        _print_line(f"[ok_cl]catalogo completo: {visibles} de {total} "
+                    f"comandos[/ok_cl] [info_dim](/avanzado off vuelve al "
+                    f"nucleo)[/info_dim]")
+    else:
+        _print_line(f"[ok_cl]catalogo del nucleo: {visibles} de {total} "
+                    f"comandos[/ok_cl] [info_dim]({total - visibles} ocultos; "
+                    f"siguen funcionando si los tecleas)[/info_dim]")
 
 
 def _slash_ver_contexto(ai, args: str) -> None:
@@ -16126,7 +17452,7 @@ def _slash_deshacer(arg: str = ""):
         else:
             _print_line(_escape(_ck.deshacer(int(arg))))
     except ValueError:
-        _print_line("[warn_cl]Uso: /deshacer [n | lista | diff | hasta <n>][/warn_cl]")
+        _print_line("[warn_cl]Uso: /deshacer \\[n | lista | diff | hasta <n>][/warn_cl]")
     except Exception as exc:
         _print_line(f"[err_cl]no se pudo deshacer: {_escape(str(exc))}[/err_cl]")
 
@@ -16206,6 +17532,69 @@ def _slash_plan(arg: str = ""):
         _print_line("[ok]MODO EJECUTAR[/ok] \u2014 el agente puede escribir.")
 
 
+def _slash_enrutador(arg: str = "") -> None:
+    """/enrutador [estado|on|off] -- que decide el enrutado y cuanto cuesta.
+
+    Los contadores no son adorno: la memoria de la casa dice que un
+    `conversacional` falso VETA el enrutador entero y deja una accion sin
+    agente Y sin rescate, y esa regresion es invisible sin telemetria. Aqui
+    se ve el reparto chat/agente/comando, cuantas decisiones salieron del
+    camino barato (cache + determinista) y cuanto tardo la ultima."""
+    try:
+        from cognia import enrutador as _enr
+    except Exception as exc:
+        _print_line(f"[err_cl]enrutador no disponible: {_escape(str(exc))}[/err_cl]")
+        return
+    valor = (arg or "").strip().lower()
+    if valor in ("on", "off"):
+        os.environ["COGNIA_ENRUTADOR"] = "1" if valor == "on" else "0"
+        try:
+            cfg = _load_config()
+            cfg["enrutador"] = valor
+            _save_config(cfg)
+        except Exception as exc:
+            _aviso_degradado("cli.enrutador",
+                             f"config no guardada ({type(exc).__name__}: "
+                             f"{exc}); el cambio vale solo para esta sesion")
+        # Las decisiones cacheadas se tiran: apagar y encender sin vaciar la
+        # cache devolveria las mismas rutas de antes y pareceria que el
+        # interruptor no hace nada.
+        try:
+            _enr.invalidar_cache()
+        except Exception:
+            pass
+        _print_line(f"[ok_cl]enrutador {valor}[/ok_cl]")
+        return
+    if valor and valor not in ("estado", "ver"):
+        _print_line("[warn_cl]Uso: /enrutador \\[estado|on|off][/warn_cl]")
+        return
+    c = _enr.contadores()
+    u = _enr.ultimo_enrutado()
+    _print_line(f"[mod]Enrutador[/mod]: "
+                f"{'ACTIVO' if _enr.activo() else 'apagado'} "
+                f"[info_dim](COGNIA_ENRUTADOR)[/info_dim]")
+    try:
+        from cognia.agent.model_profiles import perfil_del_agente
+        _p = perfil_del_agente()
+        _print_line(f"  modelo: [info_dim]{_escape(str(_p.get('modelo') or '?'))}"
+                    f"[/info_dim]  pensamiento: "
+                    f"{'apagado' if _enr.kwargs_sin_pensar() else 'ENCENDIDO (caro)'}")
+    except Exception as exc:
+        _aviso_degradado("cli.enrutador", f"perfil no leido: {exc}")
+    _print_line(f"  rutas    chat {c.get('chat', 0)}  "
+                f"agente {c.get('agente', 0)}  comando {c.get('comando', 0)}")
+    _print_line(f"  camino   cache {c.get('cache_hits', 0)}  "
+                f"determinista {c.get('determinista', 0)}  "
+                f"modelo {c.get('modelo', 0)}  fallos {c.get('fallos', 0)}")
+    if u.get("ruta"):
+        _print_line(f"  ultimo   {u.get('ruta')}"
+                    + (f" {_escape(str(u.get('extra') or ''))[:40]}"
+                       if u.get("extra") else "")
+                    + f"  via {u.get('via') or '?'}  {float(u.get('ms') or 0):.0f} ms")
+    else:
+        _print_line("  [info_dim]todavia no enruto nada en esta sesion[/info_dim]")
+
+
 def _slash_workflow(arg: str = ""):
     """/workflow — reparte subtareas de razonamiento y junta los resultados.
 
@@ -16221,7 +17610,7 @@ def _slash_workflow(arg: str = ""):
     arg = (arg or "").strip()
     if not arg:
         _print_line("[warn_cl]Uso: /workflow <subtarea1; subtarea2; ...> "
-                    "[modo=paralelo|secuencial][/warn_cl]")
+                    "\\[modo=paralelo|secuencial][/warn_cl]")
         _print_line("[info_dim]cada subtarea tiene que ser autocontenida: el paso "
                     "no ve el resto de la conversacion[/info_dim]")
         return
@@ -16250,6 +17639,14 @@ def _slash_workflow(arg: str = ""):
             _show_response(res["texto"], "listado")
         return
     _show_response(res["texto"], "listado")
+    # `sin_efecto` (novena clave del envelope, 2026-08-29): la corrida
+    # TERMINO pero no toco el PC habiendosele pedido que lo tocara -- el
+    # caso medido son 732 tokens explicando que no puede hacer nada y un
+    # ok=True encima. `ok` no cambia (hay tests que fijan su semantica);
+    # lo que cambia es que aqui se DICE, y se dice adonde ir.
+    if res.get("sin_efecto"):
+        _print_line("[warn_cl]esto no toco tu PC. Para actuar: "
+                    "/hacer <tarea> o /flujoteca ejecutar <flujo>[/warn_cl]")
     _print_line(f"[info_dim]corrida {res['run_id']} · {res['tokens']} tokens[/info_dim]")
 
 
@@ -16380,10 +17777,61 @@ def _permisos_estado(_pr, raiz) -> None:
 # 2-4/5), y aca es codigo, no una advertencia en un README.
 # ══════════════════════════════════════════════════════════════════════════
 
+#: Techo de delegacion agente->sub-agente cuando nadie lo calcula (el bucle
+#: del agente lo pisa con el del `hybrid_router`). Mismo valor que el default
+#: de `route_profile`, para que un flujo lanzado desde /flujoteca tenga el
+#: mismo presupuesto de delegacion que la misma tarea lanzada con /hacer.
+_DELEGACION_MAX_DEFECTO = 2
+
+
+def _ctx_agente(ai, print_fn, *, allowed_tools=None, delegation_depth=0,
+                steps_remaining=8, show_diff=True) -> dict:
+    """El ctx que `run_tool` espera, armado en UN SOLO SITIO.
+
+    Habia dos y no se parecian: el COMPLETO que arma `_run_agent_task` (con
+    canal de confirmacion, corte cooperativo, diff y sub-agente) y el PELADO
+    de `_ctx_tools`, que es el que reciben todas las tools llamadas fuera del
+    bucle del agente -- el ejecutor de flujos entre ellas. La diferencia esta
+    MEDIDA y es la mitad del "los workflows no hacen nada en mi PC":
+
+      - sin `confirm`, `ejecutar` y `borrar_archivo` corren SIN pedir permiso:
+        el gate central (`_confirmar_accion`, que aplica /modo-permiso y las
+        reglas del proyecto) ni siquiera se consulta;
+      - sin `_run_agent`, un nodo `delegar_subtarea` -- que ESTA en la paleta
+        del editor visual -- contesta "delegacion no disponible en este
+        contexto" y el flujo entrega un error donde iba el trabajo;
+      - sin `_cancelado`, Ctrl-C no corta nada de lo que corre por aqui.
+
+    `show_diff=False` conserva el ctx pelado de siempre para los llamadores
+    que no quieren que una tool pinte un diff en medio de su salida.
+    """
+    return {
+        "ai": ai,
+        "print_fn": print_fn,
+        "working_memory": {},
+        "agent_state": {},
+        # Gate central de permisos. Ojo con la otra mitad del riesgo: sin TTY
+        # `_confirmar_accion` DENIEGA sin preguntar, asi que quien corra tools
+        # con este ctx tiene que IMPRIMIR el motivo de cada denegacion y
+        # seguir -- cablearlo mal convierte "no hacen nada" en "se bloquean".
+        "confirm": _confirmar_accion,
+        "_cancelado": _corte_pedido,
+        "show_diff": _show_diff_para_ctx(print_fn) if show_diff else False,
+        "_allowed_tools": allowed_tools,
+        "_delegation_depth": delegation_depth,
+        "_delegation_max": _DELEGACION_MAX_DEFECTO,
+        "_steps_remaining": steps_remaining,
+        "_run_agent": (lambda subtask, allowed_tools=None, max_steps=None,
+                       delegation_depth=0: _run_agent_task(
+                           ai, subtask, print_fn, max_steps=max_steps,
+                           allowed_tools=allowed_tools,
+                           delegation_depth=delegation_depth)),
+    }
+
+
 def _ctx_tools(ai=None):
     """El ctx minimo que espera run_tool fuera del bucle del agente."""
-    return {"ai": ai, "print_fn": _print_line, "working_memory": {},
-            "agent_state": {}, "show_diff": False}
+    return _ctx_agente(ai, _print_line, show_diff=False)
 
 
 def _slash_hermes(arg: str = ""):
@@ -16476,7 +17924,7 @@ def _slash_rutinas(ai, arg: str = ""):
                 _print_line(f"[info_dim]entrega suprimida: "
                             f"{_escape(str(inf.get('suprimido')))}[/info_dim]")
         else:
-            _print_line('[warn_cl]Uso: /rutinas [listar | crear "<horario>" <tarea> '
+            _print_line('[warn_cl]Uso: /rutinas \\[listar | crear "<horario>" <tarea> '
                         '| borrar <nombre> | ahora <nombre>][/warn_cl]')
             _print_line('[info_dim]horarios: "30m", "cada 2h", "0 2 * * *", ISO[/info_dim]')
     except ValueError as exc:
@@ -16503,7 +17951,7 @@ def _slash_grabar(arg: str = ""):
                             "[info_dim](/grabar fin para cerrar)[/info_dim]")
             else:
                 _print_line("[info_dim]sin grabacion activa. /grabar inicio "
-                            "[titulo] | fin | lista | ver <id> | borrar <id>[/info_dim]")
+                            "\\[titulo] | fin | lista | ver <id> | borrar <id>[/info_dim]")
         elif cmd == "inicio":
             _gr.suscribir()
             gid = _gr.iniciar(titulo=resto, workspace=os.getcwd())
@@ -16545,7 +17993,7 @@ def _slash_grabar(arg: str = ""):
             _print_line("[ok]borrada[/ok]" if _gr.borrar(resto.split()[0])
                         else "[warn_cl]no existe[/warn_cl]")
         else:
-            _print_line("[warn_cl]Uso: /grabar inicio [titulo] | fin | lista | "
+            _print_line("[warn_cl]Uso: /grabar inicio \\[titulo] | fin | lista | "
                         "ver <id> | borrar <id>[/warn_cl]")
     except Exception as exc:
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
@@ -16669,7 +18117,7 @@ def _slash_receta(ai, arg: str = ""):
             _ex.cuarentena(resto.split()[0], motivo="pedido por el usuario")
             _print_line("[ok]en cuarentena[/ok] (deja de sugerirse)")
         else:
-            _print_line("[warn_cl]Uso: /receta [lista | aprender <grabacion> | "
+            _print_line("[warn_cl]Uso: /receta \\[lista | aprender <grabacion> | "
                         "examinar <nombre> | correr <nombre> k=v | cuarentena <nombre>]"
                         "[/warn_cl]")
     except Exception as exc:
@@ -16903,7 +18351,7 @@ def _slash_centinela(ai, arg: str = ""):
             _print_line(f"evaluados {inf.get('evaluados', 0)}, "
                         f"disparos {len(_disp)}")
         else:
-            _print_line("[warn_cl]Uso: /centinela [lista | fichero <ruta> | "
+            _print_line("[warn_cl]Uso: /centinela \\[lista | fichero <ruta> | "
                         "backend <url> | comando <cmd> | parar <id> | tick][/warn_cl]")
     except Exception as exc:
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
@@ -17480,7 +18928,7 @@ def _rutinas_en_canon(ai, bot, arg: str) -> None:
         elif cmd == "ahora" and len(partes) >= 2:
             _bots_rutina(ai, bot, ["ahora", partes[1]])
         else:
-            _print_line(f'[warn_cl]Uso en el canon: /rutinas [listar | crear "<horario>" '
+            _print_line(f'[warn_cl]Uso en el canon: /rutinas \\[listar | crear "<horario>" '
                         f"<tarea> | borrar <n> | ahora <n>][/warn_cl]")
     except ValueError as exc:
         _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
@@ -17741,7 +19189,7 @@ def _bots_alma(bot, sub: str, resto: str) -> None:
         for a in avisos:
             _print_line(f"[warn_cl]  ⚠ {_escape(a)}[/warn_cl]")
     else:
-        _print_line('[warn_cl]Uso: /bots alma <bot> [ver | set "<texto>" | editar][/warn_cl]')
+        _print_line('[warn_cl]Uso: /bots alma <bot> \\[ver | set "<texto>" | editar][/warn_cl]')
 
 
 _RE_NOMBRE_RUTINA_AUTO = re.compile(r"rutina-(\d+)")
@@ -17842,7 +19290,7 @@ def _bots_skills(bot, partes: list) -> None:
         _R.guardar(bot)
         _print_line(f"[ok]quitada[/ok]; ahora: {_escape(', '.join(bot.skills)) or 'todas'}")
     else:
-        _print_line("[warn_cl]Uso: /bots skills <bot> [list | permitir <nombre> | quitar <nombre>][/warn_cl]")
+        _print_line("[warn_cl]Uso: /bots skills <bot> \\[list | permitir <nombre> | quitar <nombre>][/warn_cl]")
 
 
 def _bots_permisos(bot, partes: list) -> None:
@@ -17896,7 +19344,7 @@ def _bots_permisos(bot, partes: list) -> None:
         _R.guardar(bot)               # ValueError ruidoso si el modo no existe
         _print_line(f"[ok]modo de permisos de @{bot.nombre}[/ok]: {bot.modo_permiso or 'global'}")
     else:
-        _print_line('[warn_cl]Uso: /bots permisos <bot> [list | add [permitir|denegar|preguntar] '
+        _print_line('[warn_cl]Uso: /bots permisos <bot> \\[list | add \\[permitir|denegar|preguntar] '
                     '"<kind>(<glob>)" | rm <n> | modo <automatico|manual|bypass|global>][/warn_cl]')
         _print_line(f"[info_dim]kinds: {', '.join(_bots_kinds_permiso())}; shell_exec se casa contra "
                     f"la linea ENTERA (tuberias y ';' incluidos), el resto contra la ruta[/info_dim]")
@@ -17995,7 +19443,7 @@ def _bots_daemon(partes: list) -> None:
         _print_line("[ok]tarea programada quitada[/ok]" if rc == 0
                     else f"[err_cl]desinstalar devolvio {rc}[/err_cl]")
     else:
-        _print_line("[warn_cl]Uso: /bots daemon [estado | arrancar | parar | instalar | desinstalar][/warn_cl]")
+        _print_line("[warn_cl]Uso: /bots daemon \\[estado | arrancar | parar | instalar | desinstalar][/warn_cl]")
 
 
 def _bots_verdad_modelo(bot) -> str:
@@ -18233,6 +19681,20 @@ def _repl_sesion():
     # COGNIA_HORIZONTE del env, y horizonte.py el tope del traspaso; se
     # siembran desde la config y se validan (config invalida = grito).
     _aplicar_config_horizonte()
+    # ENRUTADO (/enrutador on|off): `enrutador.activo()` lee COGNIA_ENRUTADOR
+    # del env, asi que sin sembrarlo el interruptor no sobreviviria al cierre
+    # del proceso. Sin pisar lo que el usuario ya puso en el entorno.
+    try:
+        _cfg_enr = str(_load_config().get("enrutador", "")).strip().lower()
+        if _cfg_enr in ("on", "off") and "COGNIA_ENRUTADOR" not in os.environ:
+            os.environ["COGNIA_ENRUTADOR"] = "1" if _cfg_enr == "on" else "0"
+        elif _cfg_enr and _cfg_enr not in ("on", "off"):
+            _aviso_degradado("cli.enrutador",
+                             f"config 'enrutador'={_cfg_enr!r} no es on/off; "
+                             f"lo dejo como esta")
+    except Exception as _exc_ce:
+        _aviso_degradado("cli.enrutador",
+                         f"config no aplicada: {type(_exc_ce).__name__}: {_exc_ce}")
     # ESTILOS POR ELEMENTO (/estilo): conectar el motor de glow al registro
     # y cargar ~/.cognia/estilo.json con validacion ruidosa (roto = aviso
     # 'estilo' y aspecto por defecto). Antes del banner: si hay overrides la
@@ -18622,6 +20084,19 @@ def _repl_sesion():
     except Exception:
         pass
 
+    # ESCALON 3 del enrutado (PLAN2, PEDIDO 2): "el turno anterior activo el
+    # AGENTE". Alimenta `intent.detect(turno_previo_agente=...)`, que resuelve
+    # sin modelo los mensajes cortos con deictico ("y ahora borralo", "otra
+    # vez", "igual pero en el escritorio") cuando lo de antes fue una accion.
+    # Estaba IMPLEMENTADO Y SIN CABLEAR: ningun camino del producto lo ponia a
+    # True, asi que con la flota apagada "crea un fichero" + "y ahora borralo"
+    # NO BORRABA NADA (el modelo devuelve vacio y `decidir` cae a chat), y con
+    # la flota viva pagaba ~961 ms por una decision que cuesta 0 ms.
+    # Vive aqui, junto al resto del estado de sesion, y no en el modulo: es
+    # del REPL, y un `repl()` llamado dos veces no puede heredar el turno
+    # anterior de la sesion pasada.
+    _ultimo_turno_agente = False
+
     # -----------------------------------------------------------------------
     # Main loop
     # -----------------------------------------------------------------------
@@ -18643,7 +20118,7 @@ def _repl_sesion():
             try:
                 from cognia.console.monitors import pop_fired_events as _pfe
                 for _ev in _pfe():
-                    _print_line(f"[warn_cl][monitor] {_escape(_ev)}[/warn_cl]")
+                    _print_line(f"[warn_cl]\\[monitor] {_escape(_ev)}[/warn_cl]")
             except Exception:
                 pass
             # Monitores PERSISTENTES (cognia/monitores): sobreviven al reinicio del
@@ -18752,9 +20227,16 @@ def _repl_sesion():
             # se reformula lo que el usuario TECLEO, no los 256 KiB de ficheros
             # que expandir() puede inyectar en la misma linea. Cualquier fallo
             # deja `raw` intacto: mejorar es opcional, tragarse el turno no.
-            if _mejora_aplica(raw):
+            # La ENCUESTA es un EJE INDEPENDIENTE del reformulador: se evalua
+            # ANTES de _mejora_aplica porque esa CONSUME la marca de "linea ya
+            # decidida"; leida despues, la encuesta se abriria sobre algo que
+            # el dueno acaba de aprobar.
+            _quiere_encuesta = _encuesta_aplica(raw)
+            _quiere_mejora = _mejora_aplica(raw)
+            if _quiere_mejora or _quiere_encuesta:
                 try:
-                    _raw_mejorado = _mejorar_linea_interactiva(raw)
+                    _raw_mejorado = _mejorar_linea_interactiva(
+                        raw, solo_encuesta=not _quiere_mejora)
                 except Exception as _exc_mej:
                     _aviso_degradado("cli.mejorar",
                                      f"{type(_exc_mej).__name__}: {_exc_mej}")
@@ -18843,6 +20325,8 @@ def _repl_sesion():
                 _slash_multiverso(ai, raw[len("/multiverso"):])
             elif raw == "/autopsia" or raw.startswith("/autopsia "):
                 _slash_autopsia(ai, raw[len("/autopsia"):])
+            elif raw == "/enrutador" or raw.startswith("/enrutador "):
+                _slash_enrutador(raw[len("/enrutador"):].strip())
             elif raw == "/workflow" or raw.startswith("/workflow "):
                 # Al carril de fondo. _slash_workflow queda INTACTA (sigue siendo
                 # sincrona y sus tests la llaman derecho): lo unico que cambia es
@@ -18981,6 +20465,16 @@ def _repl_sesion():
 
             # -- System ---------------------------------------------------------
             elif raw == "/salir":
+                # El editor de flujos es un servidor local en un thread daemon:
+                # el atexit ya lo apaga, pero apagarlo AQUI cierra el puerto en
+                # el acto en vez de al morir el interprete (y la pestana abierta
+                # se entera y degrada a "sin conexion" con su boton de copiar).
+                try:
+                    from cognia.agent import flujoteca_editor as _fe_salir
+                    _fe_salir.parar()
+                except Exception as _exc_salir:
+                    _aviso_degradado("cli.salir.editor",
+                                     f"{type(_exc_salir).__name__}: {_exc_salir}")
                 print("Hasta luego.")
                 break
             elif raw == "/doctor":
@@ -19034,10 +20528,16 @@ def _repl_sesion():
                     # ('Ayuda de Cognia ... 240 comandos | 14 categorias') partia
                     # de linea en una terminal de 100 columnas.
                     _ancho = (getattr(_console, "width", 100) if _HAS_RICH else 100) - 2
+                    # La portada, el buscador y las secciones ensenan el
+                    # catalogo del NIVEL actual (/avanzado). '/ayuda todo' NO:
+                    # es la valvula de escape que siempre lo lista entero, y es
+                    # lo que la promesa "ocultar no es desactivar" necesita para
+                    # ser comprobable sin cambiar de nivel.
+                    _cat_ayuda = _cmds_visibles()
                     if not _arg_ayuda:
-                        _texto_ayuda = _ah.portada(_CMD_DESCRIPTIONS, _ancho)
+                        _texto_ayuda = _ah.portada(_cat_ayuda, _ancho)
                     elif _arg_ayuda.startswith("buscar"):
-                        _hits = _ah.buscar(_CMD_DESCRIPTIONS,
+                        _hits = _ah.buscar(_cat_ayuda,
                                            _arg_ayuda[len("buscar"):].strip())
                         _texto_ayuda = "\n".join(
                             f"  {c:22} {d}" for c, d, _ in _hits) or "  (sin coincidencias)"
@@ -19049,7 +20549,7 @@ def _repl_sesion():
                         # _CMD_DESCRIPTIONS -> UNA sola fuente.
                         _texto_ayuda = _ah.todo(_CMD_DESCRIPTIONS, _ancho)
                     else:
-                        _texto_ayuda = _ah.seccion(_CMD_DESCRIPTIONS, _arg_ayuda, _ancho)
+                        _texto_ayuda = _ah.seccion(_cat_ayuda, _arg_ayuda, _ancho)
                 except Exception as _exc_ayuda:
                     # Antes: 'except Exception: pass'. Con la ayuda navegable rota,
                     # el HELP_TEXT de emergencia es indistinguible de la ayuda de
@@ -19127,12 +20627,14 @@ def _repl_sesion():
                             _show_response(_bib_code[:6000], "listado")
                     except Exception as _bv_e:
                         _print_line(f"[err_cl]biblioteca ver no disponible: {_bv_e}[/err_cl]")
-            elif raw in ("/programs", "/library", "/biblioteca"):
-                if HAS_PROGRAM_CREATOR:
-                    from cognia.program_creator import show_library
-                    _run(raw, show_library, color="listado")
-                else:
-                    _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
+            elif (raw in ("/programs", "/library", "/biblioteca")
+                  or raw.startswith(("/biblioteca ", "/library ", "/programs "))):
+                # La rama '/biblioteca ver <id>' de arriba es MAS ESPECIFICA y
+                # va antes a proposito: si esta se pusiera primero se tragaria
+                # el 'ver'. _slash_biblioteca lo maneja igual (para
+                # '/biblioteca ver' sin id), pero el orden se queda como esta.
+                _slash_biblioteca(raw.split(" ", 1)[1].strip()
+                                  if " " in raw else "")
             elif raw in ("/autoprueba", "/verificar-productos") or raw.startswith("/autoprueba "):
                 # Cognia corre y puntua sus propios productos generados (compila/
                 # importa/arranca/sin-stubs). El cuerpo ya estaba listo en
@@ -19556,11 +21058,17 @@ def _repl_sesion():
             elif raw == "/contexto-vivo" or raw.startswith("/contexto-vivo "):
                 _slash_contexto_vivo(raw[len("/contexto-vivo"):].strip())
             elif raw == "/flujoteca" or raw.startswith("/flujoteca "):
-                _slash_flujoteca(raw[len("/flujoteca"):].strip())
+                _slash_flujoteca(raw[len("/flujoteca"):].strip(), ai)
             elif (raw == "/session-to-workflow"
                   or raw.startswith("/session-to-workflow ")):
                 _slash_session_to_workflow(
                     raw[len("/session-to-workflow"):].strip())
+            elif (raw == "/sesion-a-workflow"
+                  or raw.startswith("/sesion-a-workflow ")):
+                # El mismo comando con el nombre con el que lo pide el dueno.
+                # Hasta hoy no existia y contestaba "Comando desconocido".
+                _slash_session_to_workflow(
+                    raw[len("/sesion-a-workflow"):].strip())
             elif raw == "/encuestas" or raw.startswith("/encuestas "):
                 _slash_encuestas(raw[len("/encuestas"):].strip())
             elif raw == "/memorias" or raw.startswith("/memorias "):
@@ -19827,7 +21335,7 @@ def _repl_sesion():
                     _shown = _entries[:50]
                     for _e in _shown:
                         if _e.is_dir():
-                            _print_line(f"[detail]  [dir]  {_e.name}/[/detail]")
+                            _print_line(f"[detail]  \\[dir]  {_e.name}/[/detail]")
                         else:
                             _sz = _e.stat().st_size
                             if _sz >= 1_048_576:
@@ -19844,7 +21352,7 @@ def _repl_sesion():
             elif raw.startswith("/buscar "):
                 _rest = raw[len("/buscar "):].strip()
                 if not _rest:
-                    _print_line("[warn_cl]Uso: /buscar <patron> [directorio][/warn_cl]")
+                    _print_line("[warn_cl]Uso: /buscar <patron> \\[directorio][/warn_cl]")
                 else:
                     _parts = _rest.split(" ", 1)
                     _pat = _parts[0]
@@ -19977,7 +21485,7 @@ def _repl_sesion():
                 elif not _confirmar_accion("shell_exec", _cmd):
                     _print_line("[warn_cl]Cancelado.[/warn_cl]")
                 else:
-                    _print_line(f"[detail][ejecutar] $ {_escape(_cmd)}[/detail]")
+                    _print_line(f"[detail]\\[ejecutar] $ {_escape(_cmd)}[/detail]")
                     # Alias LOCAL a proposito: otras ramas de este mismo
                     # _repl_sesion hacen `import subprocess` a secas, lo que
                     # convierte el nombre en LOCAL de la funcion ENTERA — asi
@@ -20096,7 +21604,7 @@ def _repl_sesion():
             elif raw.startswith("/skill-cargar"):
                 _rest = raw[len("/skill-cargar"):].strip()
                 if not _rest:
-                    _print_line("[warn_cl]Uso: /skill-cargar <nombre> [args][/warn_cl]")
+                    _print_line("[warn_cl]Uso: /skill-cargar <nombre> \\[args][/warn_cl]")
                 else:
                     _parts2 = _rest.split(" ", 1)
                     _sname = _parts2[0]
@@ -20252,13 +21760,28 @@ def _repl_sesion():
                 from cognia.simple_mode import set_ui_mode, get_ui_mode
                 if _arg in ("sencillo", "avanzado"):
                     _m = set_ui_mode(_arg)
+                    # El modo de UI es una de las dos entradas de es_avanzado():
+                    # sin invalidar, el autocompletado y el enrutador seguirian
+                    # con el nivel viejo hasta reiniciar.
+                    _invalidar_caches_de_nivel()
                     _print_line(f"[ok_cl]Modo {_m}. " + (
                         "Cognia solo funciona, sin logs de proceso." if _m == "sencillo"
                         else "Se muestran los logs de proceso y todas las herramientas."
                         ) + "[/ok_cl]")
+                    if _m == "avanzado":
+                        _print_line("[info_dim]tambien se anuncian todos los "
+                                    "comandos; /avanzado off deja solo el "
+                                    "nucleo[/info_dim]")
                 else:
                     _print_line(f"[warn_cl]Modo actual: {get_ui_mode()}. "
                                 f"Uso: /modo sencillo | /modo avanzado[/warn_cl]")
+
+            # -- Visibilidad del catalogo de comandos ----------------------------
+            # Contigua a /modo porque son los dos ejes del mismo mando (uno la
+            # UI, el otro el catalogo), y SEPARADA a proposito: /pensar
+            # reescribe COGNIA_UI_MODE de rebote.
+            elif raw == "/avanzado" or raw.startswith("/avanzado "):
+                _slash_avanzado(raw[len("/avanzado"):].strip())
 
             # -- Chimera: loop cognitivo end-to-end sobre una consulta -----------
             elif raw == "/chimera" or raw.startswith("/chimera "):
@@ -20459,7 +21982,7 @@ def _repl_sesion():
                         try:
                             _fid = int(_proy_arg)
                         except ValueError:
-                            _print_line("[warn_cl]Uso: /proyectos [id]  -- el id debe ser un numero[/warn_cl]")
+                            _print_line("[warn_cl]Uso: /proyectos \\[id]  -- el id debe ser un numero[/warn_cl]")
                         else:
                             _flow = _pm.get_flow(_fid)
                             if not _flow:
@@ -20959,7 +22482,7 @@ def _repl_sesion():
                 if _lz_arg in ("on", "off"):
                     _LAZO["on"] = (_lz_arg == "on")
                 elif _lz_arg:
-                    _print_line("[warn_cl]Uso: /lazo [on|off]  (sin argumento alterna)[/warn_cl]")
+                    _print_line("[warn_cl]Uso: /lazo \\[on|off]  (sin argumento alterna)[/warn_cl]")
                 else:
                     _LAZO["on"] = not _LAZO["on"]
                 if not _lz_arg or _lz_arg in ("on", "off"):
@@ -20987,7 +22510,7 @@ def _repl_sesion():
             elif raw.startswith("/feedback ") or raw == "/feedback":
                 _fb_arg = raw[len("/feedback "):].strip() if raw.startswith("/feedback ") else ""
                 if not _fb_arg:
-                    _print_line("[warn_cl]Uso: /feedback [positivo|negativo|neutral][/warn_cl]")
+                    _print_line("[warn_cl]Uso: /feedback \\[positivo|negativo|neutral][/warn_cl]")
                 else:
                     _slash_feedback(_fb_arg)
 
@@ -21240,7 +22763,9 @@ def _repl_sesion():
                                   if _history
                                   and _history[-1].get("role") == "assistant"
                                   else "")
-                    _intent = _detect_intent(raw, respuesta_previa=_prev_chat)
+                    _intent = _detect_intent(
+                        raw, respuesta_previa=_prev_chat,
+                        turno_previo_agente=_ultimo_turno_agente)
                 except Exception:
                     _intent = None
                 _needs_tool = bool(_intent and _intent.needs_agent)
@@ -21280,22 +22805,50 @@ def _repl_sesion():
                         from cognia.enrutador import (activo as _enr_activo,
                                                       catalogo_compacto, decidir)
                         if _enr_activo():
-                            _cat_r = catalogo_compacto(_CMD_DESCRIPTIONS)
+                            # El enrutador propone comandos AL DUENO: le
+                            # llega el catalogo del nivel actual, igual que
+                            # a /ayuda. El cache del enrutador lo tira
+                            # _invalidar_caches_de_nivel() al cambiar.
+                            _cat_r = catalogo_compacto(_cmds_visibles())
                             _orch_r = getattr(ai, '_orchestrator', None)
                             if _orch_r is not None:
+                                # infer_fn=None a proposito: `decidir` usa
+                                # `enrutador.inferir_ruta`, que apaga el
+                                # PENSAMIENTO (preguntandole al perfil por la
+                                # clave correcta) y gasta 24 tokens. Con el
+                                # razonador puesto la misma decision de 4
+                                # tokens costaba 1.841-27.121 ms con varianza
+                                # de 3x sobre el MISMO mensaje; sin el,
+                                # 874-986 ms planos y 20/20 rutas correctas.
+                                # Y `contexto`: los ultimos 2 turnos, 200
+                                # chars cada uno, TOPE DURO de 600 -- el tope
+                                # es parte del cambio, no un extra (el
+                                # prefill medido son 219 ms y tres turnos
+                                # largos lo duplican).
                                 _ruta, _extra = decidir(
-                                    raw,
-                                    lambda p: _inferir_para_agente(_orch_r, p),
-                                    _cat_r)
+                                    raw, None, _cat_r,
+                                    contexto=_contexto_para_enrutador(),
+                                    turno_previo_agente=_ultimo_turno_agente)
                                 if _ruta == "comando":
-                                    _print_line(f"[detail]Infiero que esto pide "
-                                                f"{_extra.split()[0]} -- lo uso.[/detail]")
+                                    # [info_dim] y no [detail]: en modo
+                                    # SENCILLO (el default) [detail] no se
+                                    # pinta, o sea que hasta hoy el enrutador
+                                    # disparaba un comando SIN ANUNCIARLO.
+                                    _print_line(f"[info_dim]Infiero que esto pide "
+                                                f"{_extra.split()[0]} -- lo uso.[/info_dim]")
                                     _inyectadas.append(_extra)
                                     continue
                                 if _ruta == "agente":
                                     _needs_tool = True
-                    except Exception:
-                        pass
+                    except Exception as _exc_enr:
+                        # Nunca mudo (CLAUDE.md lo prohibe): un enrutador
+                        # roto y un enrutador que decidio CHAT se veian
+                        # exactamente igual desde fuera, que es el modo de
+                        # fallo caro de esta casa. El turno sigue por chat.
+                        _aviso_degradado(
+                            "cli.enrutador",
+                            f"{type(_exc_enr).__name__}: {_exc_enr}; el turno "
+                            f"sigue por chat")
                 if _needs_tool:
                     _hint = (_intent.suggested_tool if _intent
                              and _intent.needs_agent else "")
@@ -21337,10 +22890,17 @@ def _repl_sesion():
                         _print_line("[warn_cl]Turno del agente cortado. "
                                     "El REPL sigue vivo; /salir para salir.[/warn_cl]")
                         continue
+                    # El agente ACTUO: el proximo "y ahora borralo" se resuelve
+                    # sin modelo (escalon 3). Un turno cortado por Ctrl-C NO
+                    # cuenta: ese `except` hace `continue` sin llegar aqui.
+                    _ultimo_turno_agente = True
                     _show_response(_resp, _ACCENT, respuesta_final=True)
                     _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
                     _persist_turn(ai, raw, _resp)
                 if not _needs_tool:
+                    # Turno de CHAT: apaga el escalon 3, para que un "y ahora
+                    # borralo" detras de charla no active el agente solo.
+                    _ultimo_turno_agente = False
                     # Fast-path: stream tokens from llama.cpp if available
                     _streamed = False
                     _nuevo_turno_degradado()
@@ -21770,7 +23330,7 @@ def _repl_sesion():
                                             # lazo que se salta en silencio repite el
                                             # fallo tipico de Cognia)
                                             _linea_o_aviso(
-                                                f"[detail][lazo] {_lz_res.motivo} "
+                                                f"[detail]\\[lazo] {_lz_res.motivo} "
                                                 f"({len(_lz_res.veredictos)} claims) · "
                                                 f"{_lz_res.rondas} ronda(s)[/detail]",
                                                 f"[lazo] {_lz_res.motivo} "
@@ -22034,7 +23594,7 @@ def _repl_sesion():
                             _show_footer(elapsed, _texto_turno)
                             stage = result.get("language_engine", {}).get("stage", "")
                             if stage:
-                                _print_line(f"[detail][stage: {stage}][/detail]")
+                                _print_line(f"[detail]\\[stage: {stage}][/detail]")
                             _session_log.append({
                                 "input":   raw,
                                 "output":  _texto_turno,
@@ -22615,6 +24175,26 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                            allowed_tools=allowed_tools,
                            delegation_depth=delegation_depth)),
     }
+
+    # ── CONTRATO DE OBJETIVO, derivado AL ARRANCAR y CONGELADO ───────────
+    # Antes se derivaba al TERMINAR, y `derive_criteria_from_task` descarta
+    # todo `file_exists` cuya ruta YA EXISTE: como el agente acababa de
+    # crearla, el criterio se caia y el contrato salia VACIO -- ni check ni
+    # cruz, o sea /hacer sin oraculo visible. Derivarlo aqui cuesta 0 s (es
+    # regex sobre la letra de la tarea, sin modelo) y es exactamente lo que
+    # ya hace el modo horizonte unas lineas mas abajo con `_hz_criterios`.
+    # None = no se pudo derivar (se reintenta al final); [] = se derivo y no
+    # habia ningun criterio verificable, que es una respuesta distinta.
+    _criterios_congelados = None
+    try:
+        from cognia.agents.goal_contract import (
+            derive_criteria_from_task as _dc_ini)
+        _criterios_congelados = _dc_ini(task)
+    except Exception as _exc_gc:
+        _aviso_degradado("cli.contrato",
+                         f"criterios no derivados al arrancar "
+                         f"({type(_exc_gc).__name__}: {_exc_gc}); se derivan "
+                         f"al final, como antes")
 
     # Orchestrator (reused for planning + steps)
     try:
@@ -23368,7 +24948,14 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # no alias: el bloque de skill-con-verificacion de abajo puede
         # apendear criterios y no debe mutar la lista congelada (revision
         # 2026-08-09).
+        # Los criterios CONGELADOS al arrancar (`_criterios_congelados`)
+        # ganan a re-derivarlos aqui: al final, todo `file_exists` que el
+        # agente cumplio ya no pasa el filtro de `derive_criteria_from_task`
+        # y el contrato salia vacio justo cuando el trabajo estaba HECHO.
+        # None (la derivacion temprana fallo) sigue cayendo al camino viejo.
         _criteria = (list(_hz_criterios) if _hz_task_id
+                     else list(_criterios_congelados)
+                     if _criterios_congelados is not None
                      else derive_criteria_from_task(task))
         # Skill CON verificacion (auditoria F2): escribir-tests entrego un test
         # invalido sin que la tool tests corriera nunca -- el "no termines hasta

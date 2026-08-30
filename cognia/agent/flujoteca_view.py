@@ -27,17 +27,50 @@ a ~/.cognia/ y se abre con webbrowser.
 """
 from __future__ import annotations
 
+import html
 import json
+import re
 from pathlib import Path
 
 __all__ = ["build_datos", "render_html", "export"]
 
 
-def build_datos(nombre: str, *, tope_versiones: int = 40) -> dict:
-    """Todas las versiones del flujo con su layout ya calculado."""
+def _catalogo_tolerante() -> tuple:
+    """(nodos, motivo). El catalogo rico si se puede; ([], motivo) si no.
+
+    `catalogo_nodos` puede no estar implementado todavia, o fallar al leer el
+    registro de tools. Eso no puede tumbar la vista: el visor de solo lectura
+    tiene que abrir SIEMPRE, porque es justamente el que queda cuando lo
+    demas falla. El motivo se emite en los datos en vez de tragarselo."""
+    try:
+        from cognia.agent import catalogo_nodos as _cn
+        return list(_cn.catalogo() or []), ""
+    except Exception as exc:
+        return [], f"{type(exc).__name__}: {exc}"
+
+
+def build_datos(nombre: str, *, tope_versiones: int = 40,
+                con_catalogo: bool = False) -> dict:
+    """Todas las versiones del flujo con su layout ya calculado.
+
+    Emite ademas de lo que pinta el visor:
+      - `flujo`: el JSON CRUDO de cada version. El visor no lo necesita (le
+        basta el layout), pero el editor si: guardar exige mandar el flujo
+        entero, y reconstruirlo desde el layout perderia todo lo que el
+        layout no dibuja (saltar_si, reintentos, timeout_s).
+      - `ui`: lo que hay en meta['ui'], con las posiciones manuales. El
+        layout de cada version ya viene calculado CON ellas, para que el
+        fallback de solo lectura y el editor pinten lo mismo.
+
+    `con_catalogo=True` anade el catalogo de nodos (para el editor). Por
+    defecto no: el visor se abre por file:// y no tiene con quien hablar, asi
+    que embeber 96 tools solo engordaria el HTML.
+    """
     from cognia.agent import flujoteca as _ft
     from cognia.agent import flow_view as _fv
 
+    ui = _ft.leer_ui(nombre)
+    pos = ui.get("pos") if isinstance(ui.get("pos"), dict) else {}
     metas = _ft.versiones(nombre)
     versiones = []
     for m in metas[:tope_versiones]:
@@ -54,7 +87,7 @@ def build_datos(nombre: str, *, tope_versiones: int = 40) -> dict:
             continue
         try:
             flujo = _ft.cargar(nombre, v)
-            layout = _fv.build_layout(flujo)
+            layout = _fv.build_layout(flujo, pos)
         except Exception as exc:
             versiones.append({"v": v, "ts": m.get("ts", ""),
                               "nota": m.get("nota", ""), "borrada": False,
@@ -67,10 +100,16 @@ def build_datos(nombre: str, *, tope_versiones: int = 40) -> dict:
             "actual": bool(m.get("actual")), "borrada": False,
             "n_nodos": len(flujo.get("nodos") or []),
             "layout": layout,
+            "flujo": flujo,
             "nodos": {n.get("id"): n for n in (flujo.get("nodos") or [])},
         })
-    return {"nombre": nombre, "descripcion": _ft.descripcion(nombre),
-            "versiones": versiones}
+    datos = {"nombre": nombre, "descripcion": _ft.descripcion(nombre),
+             "ui": {"pos": dict(pos)}, "versiones": versiones}
+    if con_catalogo:
+        datos["catalogo"], motivo = _catalogo_tolerante()
+        if motivo:
+            datos["catalogo_motivo"] = motivo
+    return datos
 
 
 _HTML = r"""<!doctype html><html lang="es"><head><meta charset="utf-8">
@@ -260,16 +299,40 @@ if(rotas.length){
   a.textContent = "No se pudieron leer " + rotas.length + " versiones: " +
     rotas.map(v => "v" + v.v + " (" + v.error + ")").join(", ");
 }
+/* Esta pagina es de SOLO LECTURA y se abre por file://: no tiene con quien
+   hablar. Lo que edita es el editor visual, que va por HTTP; el pie apunta
+   ahi para que quien llega por aqui sepa donde se cambian las cosas. */
 $("#pie").textContent = D.versiones.length + " versiones  ·  pulsa una version para verla, " +
-  "y un nodo para su ficha  ·  editar: /flujoteca editar " + D.nombre;
+  "y un nodo para su ficha  ·  editor visual: /flujoteca editor " + D.nombre;
 pintarTimeline(); pintarLienzo(activa);
 </script></body></html>"""
 
 
 def render_html(datos: dict, title: str = "") -> str:
-    crudo = json.dumps(datos, ensure_ascii=False).replace("</", "<\\/")
-    titulo = title or f"Cognia · Flujo · {datos.get('nombre', '')}"
-    return _HTML.replace("__TITLE__", titulo).replace("__DATA__", crudo)
+    # Las dos sustituciones tienen que escapar, y por motivos distintos:
+    # __TITLE__ cae dentro de <title> (un nombre de flujo con "</title>"
+    # cerraria la etiqueta), y __DATA__ cae dentro de un <script>.
+    #
+    # POR QUE SE ESCAPAN TODOS LOS "<" Y NO SOLO "</" (medido 2026-08-29 en
+    # Chromium): escapar el cierre de etiqueta NO basta. "<!--" y "<script"
+    # meten al tokenizador de HTML en 'script data escaped', y en ese estado
+    # el </script> de la plantilla YA NO CIERRA el bloque: se traga el resto
+    # del documento, el JS entero muere por error de sintaxis y la pagina
+    # queda con la barra de herramientas pintada y CERO nodos. Un flujo que
+    # escriba una pagina HTML (escribir_archivo con "<!--<script>...") es el
+    # caso normal, no un ataque, y el dueno ve "un flujo vacio", no "una
+    # pagina rota". Todos los "<" del JSON estan DENTRO de cadenas (la
+    # sintaxis JSON no usa ese caracter), asi que < es JSON valido y JS
+    # valido, y JSON.parse/el literal lo devuelven igual: el dato no cambia.
+    crudo = json.dumps(datos, ensure_ascii=False).replace("<", "\\u003c")
+    titulo = html.escape(str(title or
+                             f"Cognia · Flujo · {datos.get('nombre', '')}"))
+    # Las dos sustituciones se hacen DE UNA PASADA. Encadenar .replace() deja
+    # que lo sustituido primero sea reinterpretado despues: un flujo llamado
+    # "__DATA__" entraba en el <title> y el segundo replace le metia el JSON
+    # entero dentro (el mismo bug que el token en el titulo del editor).
+    trozos = {"__TITLE__": titulo, "__DATA__": crudo}
+    return re.sub("__TITLE__|__DATA__", lambda m: trozos[m.group(0)], _HTML)
 
 
 def export(nombre: str, path: str | None = None, *,

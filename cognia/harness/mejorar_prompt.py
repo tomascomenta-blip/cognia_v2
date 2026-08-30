@@ -16,6 +16,29 @@ Reglas de diseno (por que este modulo es asi):
 - La falla mas grave posible aqui NO es "no mejoro": es INVENTAR requisitos que
   el usuario no dijo. Por eso el system prompt lo prohibe explicitamente y por
   eso `sanear_salida` rechaza las salidas que crecen o encogen demasiado.
+
+QUE VERSION DE SYSTEM ELEGIR (para quien cablea esto en el CLI)
+---------------------------------------------------------------
+No la elijas a mano: llama a `version_para(...)`. La regla, escrita una vez:
+
+    v2  (VERSION_DEFECTO)  el reformulador es el UNICO que puede pedir datos,
+                           asi que mete las preguntas DENTRO del prompt.
+                           Es el brazo medido en A/B (p=1,95e-3).
+    v4  (VERSION_CON_ENCUESTA)  alguien MAS ya pregunto -- cognia/harness/
+                           encuesta.py con su selector -- asi que el prompt
+                           entregado no lleva ni una pregunta: lo que falta
+                           queda como [placeholder] entre corchetes.
+    v1 / v3                solo si el dueno los pide a mano.
+
+    version_para(estado_encuestas, encuesta_previa=..., estilo=...)
+      estilo (config 'mejorar_prompt_estilo' / env COGNIA_MEJORA_PROMPT) gana
+      siempre; despues manda encuesta_previa; despues el estado de /encuestas.
+
+Y si la encuesta YA corrio, pasa ademas `encuesta_previa=True` a `mejorar()`:
+eso enciende la red DETERMINISTA `preguntas_al_usuario()` dentro de
+`sanear_salida`, que descarta la reformulacion si el modelo ignoro el system y
+devolvio preguntas igual. Con `encuesta_previa=False` (el default) el
+comportamiento es exactamente el de antes, byte a byte.
 """
 from __future__ import annotations
 
@@ -242,6 +265,91 @@ _EJEMPLOS_V3 = (
 
 _SYSTEM_V3 = _SYSTEM_V2.replace(_ANCLA_CIERRE, _EJEMPLOS_V3 + _ANCLA_CIERRE, 1)
 
+# --- v4 -------------------------------------------------------------------
+# POR QUE existe: v2 y v3 le ORDENAN al modelo meter las preguntas DENTRO del
+# prompt entregado (OBLIGATORIO 3 = "convierte cada hueco en una PREGUNTA
+# explicita") y ademas se lo ENSENAN con el EJEMPLO 1 ("Antes de proponer nada,
+# preguntame..."), que el modelo copia: 24/24 salidas del A/B contienen "Antes
+# de". Eso es correcto cuando NO hay otra forma de preguntar. Pero desde que
+# existe cognia/harness/encuesta.py el usuario contesta ANTES, en un selector
+# con flechas, y el prompt entregado con preguntas dentro es el bug que reporta
+# el dueno: le devuelve el trabajo de contestar dos veces.
+#
+# v4 = v2 con las preguntas apagadas y el HUECO conservado. Lo que NO se toca:
+# el criterio de exito, el formato, las 2-5 frases y las prohibiciones de
+# invencion. Los huecos siguen existiendo, pero como [placeholder] entre
+# corchetes -- eso es lo que impide el modo de fallo de v1 (devolver el texto
+# intacto -> sanear_salida lo rechaza por "identico al original" -> el
+# mejorador no mejora nada; riesgo 16 del plan).
+#
+# Se construye por .replace() sobre anclas EXACTAS de _SYSTEM_V2, igual que v3
+# y por el mismo motivo: el brazo medido en A/B (p=1,95e-3) tiene que seguir
+# siendo byte-identico a si mismo. Si un ancla dejara de existir, v4 quedaria
+# igual a v2 (silenciosamente) y lo cazan test_v4_no_pide_preguntas y
+# test_v4_deriva_de_v2_por_las_cuatro_anclas.
+_ANCLA_V4_OBLIGATORIO_3 = (
+    "3. Los datos que FALTAN se piden: convierte cada hueco en una PREGUNTA "
+    "explicita al asistente o en un [placeholder] entre corchetes. Nunca en un "
+    "dato supuesto. Si el propio OBJETO del pedido admite dos lecturas, "
+    "preguntalo tambien en vez de elegir una por tu cuenta.\n"
+)
+_V4_OBLIGATORIO_3 = (
+    "3. Los datos que FALTAN se dejan como [placeholder] entre corchetes. "
+    "NUNCA como una pregunta al usuario: las preguntas ya se hicieron aparte, "
+    "y este texto es el prompt final que el usuario envia. Tampoco se "
+    "sustituyen por un dato supuesto. Si el propio OBJETO del pedido admite "
+    "dos lecturas, dejalo como [placeholder] en vez de elegir una por tu "
+    "cuenta.\n"
+)
+
+_ANCLA_V4_EJEMPLO_1 = (
+    "EJEMPLO 1 - expansion legitima (asi si)\n"
+    "Usuario: quiero ponerme en forma\n"
+    "Salida: Arma un plan de entrenamiento para que yo me ponga en forma "
+    "partiendo de cero. Antes de proponer nada, preguntame cuantos dias por "
+    "semana puedo entrenar, de cuanto tiempo dispongo cada dia, que material o "
+    "gimnasio tengo a mano y si arrastro alguna lesion. Con esas respuestas "
+    "devuelve un plan semana a semana, con que hacer cada dia y una senal "
+    "concreta para saber si voy progresando.\n"
+)
+_V4_EJEMPLO_1 = (
+    "EJEMPLO 1 - expansion legitima (asi si)\n"
+    "Usuario: quiero ponerme en forma\n"
+    "Salida: Arma un plan de entrenamiento para que yo me ponga en forma "
+    "partiendo de cero, contando con [dias por semana disponibles], [tiempo "
+    "por sesion], [material o gimnasio disponible] y [lesiones a respetar]. "
+    "Devuelve un plan semana a semana, con que hacer cada dia y una senal "
+    "concreta para saber si voy progresando.\n"
+)
+
+_ANCLA_V4_PROHIBIDO = (
+    "- Responder el pedido, resolverlo, opinar o explicar que cambiaste.\n"
+)
+_V4_PROHIBIDO = (
+    "- Terminar el prompt con una lista de preguntas. Lo que falta se marca "
+    "con [corchetes], no se pregunta.\n"
+    "- Responder el pedido, resolverlo, opinar o explicar que cambiaste.\n"
+)
+
+# La regla de la tercera persona nombra 'preguntame' como ejemplo de fraseo
+# correcto. En v4 ese ejemplo es contraproducente (es justo la palabra que no
+# queremos ver en la salida), asi que la regla conserva su sentido -- escribir
+# en primera persona -- con otros ejemplos.
+_ANCLA_V4_TERCERA_PERSONA = (
+    "propio usuario, asi que se escribe con 'mi', 'me' y 'preguntame'; nunca "
+    "'el usuario', 'su escritorio' ni 'preguntale'.\n"
+)
+_V4_TERCERA_PERSONA = (
+    "propio usuario, asi que se escribe con 'mi' y 'me'; nunca 'el usuario' "
+    "ni 'su escritorio'.\n"
+)
+
+_SYSTEM_V4 = (_SYSTEM_V2
+              .replace(_ANCLA_V4_OBLIGATORIO_3, _V4_OBLIGATORIO_3, 1)
+              .replace(_ANCLA_V4_EJEMPLO_1, _V4_EJEMPLO_1, 1)
+              .replace(_ANCLA_V4_PROHIBIDO, _V4_PROHIBIDO, 1)
+              .replace(_ANCLA_V4_TERCERA_PERSONA, _V4_TERCERA_PERSONA, 1))
+
 # Punto de extension: la siguiente version se anade aqui y se selecciona por la
 # misma env var.
 #
@@ -286,9 +394,49 @@ _SYSTEM_V3 = _SYSTEM_V2.replace(_ANCLA_CIERRE, _EJEMPLOS_V3 + _ANCLA_CIERRE, 1)
 # no es byte-identico al brazo del 2026-08-19); lo que la respalda no es el
 # prompt sino el post-check DETERMINISTA `cambio_de_intencion` (abajo), que
 # descarta la salida aunque el modelo ignore la regla.
-VERSIONES_SYSTEM = {"v1": _SYSTEM_V1, "v2": _SYSTEM_V2, "v3": _SYSTEM_V3}
+VERSIONES_SYSTEM = {"v1": _SYSTEM_V1, "v2": _SYSTEM_V2, "v3": _SYSTEM_V3,
+                    "v4": _SYSTEM_V4}
 VERSION_DEFECTO = "v2"
+# Version que se sirve cuando las preguntas ya se hacen APARTE (encuesta). No
+# es el default global a proposito: el default tiene que seguir siendo el brazo
+# MEDIDO, y v4 solo es mejor que v2 cuando alguien mas pregunta. Ver
+# version_para() -- que es la funcion que debe llamar quien cablea, para no
+# tener que reinventar esta regla en cli.py.
+VERSION_CON_ENCUESTA = "v4"
 ENV_VERSION = "COGNIA_MEJORA_PROMPT"
+
+
+def version_para(estado_encuestas: str = "off", *,
+                 encuesta_previa: bool = False,
+                 estilo: Optional[str] = None) -> str:
+    """QUE version de system hay que servir. Funcion PURA: no lee la config.
+
+    Es la regla del PEDIDO 5.1 en un solo sitio, para que el cableado del CLI
+    no la reinvente (y no la reinvente distinto en las cuatro vias que llaman
+    al reformulador: 'auto', 'preguntar', F3 y '/mejorar <texto>').
+
+    - `estilo`: lo que el dueno eligio a mano (clave de config
+      'mejorar_prompt_estilo' o env COGNIA_MEJORA_PROMPT). SIEMPRE gana: si
+      pidio v2, se le sirve v2 aunque la encuesta haya corrido.
+    - `encuesta_previa`: el texto que se va a reformular YA viene enriquecido
+      con las respuestas de una encuesta. Manda sobre el estado.
+    - `estado_encuestas`: "off" | "auto" (encuesta.ESTADOS). Con las encuestas
+      encendidas se sirve v4 aunque esta linea concreta no haya encuestado:
+      quien pregunta es la encuesta, y meter preguntas en el prompt entregado
+      seria pedir dos veces lo mismo.
+
+    Devuelve un nombre valido de VERSIONES_SYSTEM; un `estilo` desconocido NO
+    se traga (lo resuelve _resolver_version, que avisa) y aqui se ignora para
+    que la eleccion por encuesta no quede pisada por una env var mal escrita.
+    """
+    pedido = str(estilo or "").strip().lower()
+    if pedido and pedido in VERSIONES_SYSTEM:
+        return pedido
+    if encuesta_previa:
+        return VERSION_CON_ENCUESTA
+    if str(estado_encuestas or "").strip().lower() not in ("", "off"):
+        return VERSION_CON_ENCUESTA
+    return VERSION_DEFECTO
 
 
 def _resolver_version(version: Optional[str] = None) -> tuple:
@@ -644,6 +792,45 @@ def cambio_de_intencion(original: str, mejora: str) -> str:
     return ""
 
 
+# Verbos con enclitico de PRIMERA persona: el que habla le pide un dato a su
+# interlocutor. 'pregunta' a secas no cuenta (puede ser un sustantivo: "la
+# pregunta de investigacion"); 'preguntame' si. Se comparan sobre _norm(), asi
+# que las tildes ya vienen quitadas ('preguntame' cubre el mismo verbo con tilde).
+_RE_PEDIDO_DE_DATO = re.compile(
+    r"\b(?:preguntame|pregunteme|decime|dime|digame|aclarame|aclareme"
+    r"|indicame|indiqueme|contame|cuentame|confirmame|especificame"
+    r"|precisame)\b")
+# Solo cuentan los '?' que CIERRAN una frase (fin de texto, espacio, salto o
+# comilla). Asi "que? no se" cuenta uno y una URL con '?' de query no cuenta
+# ninguno.
+_RE_INTERROGACION = re.compile(r"\?(?=$|[\s" + chr(34) + chr(39) + r")\]}])")
+
+
+def preguntas_al_usuario(mejora: str) -> int:
+    """Cuantas veces la reformulacion le PIDE un dato al usuario.
+
+    Suma dos senales deterministas: los '?' que cierran una frase y los verbos
+    con enclitico de primera persona ('preguntame', 'decime', 'aclarame'...).
+    No mira el original: aqui no se juzga si cambio la intencion (para eso esta
+    `cambio_de_intencion`), solo cuanto se le devuelve al usuario.
+
+    Se lee junto con el umbral de `sanear_salida`, que es >= 2 y no >= 1 a
+    proposito: hay reformulaciones LEGITIMAS con una sola marca -- el EJEMPLO 3
+    de v3 ("Organiza mi escritorio. Antes de mover nada, preguntame que hay
+    encima...") y el caso 'organizame' medido en el A/B -- y un umbral de 1 las
+    tiraria todas, devolviendo el sintoma contrario ("el mejorador no mejora").
+    Coste conocido y aceptado de ese umbral: una salida con UN solo
+    'preguntame' que arrastre cuatro huecos cuenta 1 y pasa; la que la para
+    entonces es el system v4, no esta red. Esta red existe para el caso en que
+    el modelo IGNORA el system, que es cuando enumera preguntas.
+    """
+    plano = _norm(mejora if isinstance(mejora, str) else "")
+    if not plano.strip():
+        return 0
+    return (len(_RE_INTERROGACION.findall(plano))
+            + len(_RE_PEDIDO_DE_DATO.findall(plano)))
+
+
 # ---------------------------------------------------------------- API publica
 
 def es_candidato(texto: str, *, minimo_chars: int = 12,
@@ -686,11 +873,24 @@ def es_candidato(texto: str, *, minimo_chars: int = 12,
     return True
 
 
-def sanear_salida(bruto: str, original: str) -> tuple:
+# Umbral de la red anti-preguntas. Ver preguntas_al_usuario() para por que es
+# 2 y no 1 (riesgo 17 del plan: un umbral mal puesto tira mejoras validas).
+MIN_PREGUNTAS_PARA_RECHAZAR = 2
+
+
+def sanear_salida(bruto: str, original: str, *,
+                  encuesta_previa: bool = False) -> tuple:
     """Limpia la salida cruda del modelo y decide si es USABLE.
 
     Devuelve (texto, motivo). motivo == "ok" significa aceptada; cualquier otro
     valor es un rechazo y el caller debe quedarse con el original.
+
+    `encuesta_previa=True` significa "al usuario YA se le pregunto aparte"
+    (cognia/harness/encuesta.py corrio y sus respuestas estan en `original`).
+    Solo entonces se enciende la red determinista contra las preguntas
+    embebidas: sin ese dato, pedir datos dentro del prompt es el comportamiento
+    correcto y documentado de v2, y rechazarlo seria romper el brazo medido.
+    El default False deja el comportamiento anterior byte a byte.
     """
     if not isinstance(bruto, str):
         return "", "salida no textual"
@@ -764,6 +964,17 @@ def sanear_salida(bruto: str, original: str) -> tuple:
         # lo grite via _aviso_degradado.
         return texto, "mejora descartada: cambiaba la intencion ({})".format(
             motivo_intencion)
+
+    if encuesta_previa:
+        # La encuesta YA pregunto en un selector y el usuario ya contesto. Si
+        # aun asi la reformulacion devuelve preguntas, el usuario las lee como
+        # "no me escuchaste" y tiene que contestar lo mismo dos veces: es el
+        # bug reportado. Se descarta entera y se envia el original ENRIQUECIDO
+        # (que ya trae las respuestas), no el crudo.
+        n = preguntas_al_usuario(texto)
+        if n >= MIN_PREGUNTAS_PARA_RECHAZAR:
+            return texto, ("mejora descartada: la salida devuelve {} preguntas "
+                           "y la encuesta ya pregunto".format(n))
 
     if base:
         # Encoger mucho = perdio datos del usuario. Crecer por encima del tope
@@ -919,13 +1130,18 @@ def _construir_generar(url: str, timeout_s: float, registro: dict) -> Callable:
 
 def mejorar(texto: str, *, contexto: str = "", timeout_s: float = TIMEOUT_DEFECTO,
             url: Optional[str] = None, generar_fn=None,
-            version: Optional[str] = None) -> Mejora:
+            version: Optional[str] = None,
+            encuesta_previa: bool = False) -> Mejora:
     """Reformula `texto` con el modelo local. NUNCA lanza.
 
     contexto: pistas de la sesion para desambiguar (nunca requisitos nuevos).
     generar_fn: inyectable, firma generar_fn(prompt, system) -> str.
-    version: "v1" | "v2"; sin valor manda COGNIA_MEJORA_PROMPT y luego el
-    default. Un valor desconocido cae al default y lo dice por `aviso`.
+    version: "v1" | "v2" | "v3" | "v4"; sin valor manda COGNIA_MEJORA_PROMPT y
+    luego el default. Un valor desconocido cae al default y lo dice por
+    `aviso`. Quien cablea NO deberia elegirla a mano: ver `version_para()`.
+    encuesta_previa: `texto` ya viene enriquecido por una encuesta contestada.
+    Enciende la red anti-preguntas de `sanear_salida` (ver su docstring); el
+    default False deja el comportamiento anterior intacto.
     """
     inicio = time.monotonic()
     original = texto if isinstance(texto, str) else ""
@@ -986,7 +1202,8 @@ def mejorar(texto: str, *, contexto: str = "", timeout_s: float = TIMEOUT_DEFECT
         return _fallo("cortado por presupuesto de tokens "
                       "(max_tokens={})".format(N_PREDICT))
 
-    limpio, motivo = sanear_salida(bruto, original)
+    limpio, motivo = sanear_salida(bruto, original,
+                                   encuesta_previa=encuesta_previa)
     if motivo != "ok":
         return _fallo(motivo)
 

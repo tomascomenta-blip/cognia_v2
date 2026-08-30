@@ -245,11 +245,26 @@ def test_marcador_todo_baja_a_medio_punto(tmp_path):
 
 # ── Interactivos: timeout NO es fallo ──────────────────────────────────────────
 
-def test_interactivo_con_stdin_cerrado_no_es_fallo(tmp_path):
+def test_interactivo_ahora_se_ejecuta_de_verdad_con_guion(tmp_path):
+    """CAMBIO DE COMPORTAMIENTO 2026-08-29 (era test_interactivo_con_stdin_cerrado).
+
+    Antes este producto "arrancaba" muriendo de EOFError sin ejecutar una sola
+    linea de su logica, y se le daban los 3 puntos igual. Ahora se le TECLEA un
+    guion derivado de su propio prompt ("nombre? " -> "Cognia"), asi que llega
+    al final: el stderr esta LIMPIO y el stdout trae el resultado.
+    """
     base = _armar_biblioteca(tmp_path, {"juego": {"program.py": INTERACTIVO}})
     prod, res, ev = _probar(base, "juego")
-    assert res["fases"]["arranca"]["ok"] is True, res["fases"]["arranca"]["detalle"]
-    assert "EOFError" in res["fases"]["arranca"]["stderr"]
+    arr = res["fases"]["arranca"]
+    assert arr["ok"] is True, arr["detalle"]
+    assert arr["origen_guion"] == "derivado" and arr["guion"][0] == "Cognia"
+    assert "EOFError" not in arr["stderr"]        # ya no muere de teclado
+    assert "hola Cognia" in arr["stdout"]         # EJECUTO su logica
+    # Brazo B: la MISMA corrida con otro nombre saluda a otro -> stdout distinto.
+    assert arr["no_reacciona"] is False
+    assert arr["brazo_b"]["guion"][0] == "Zenta"
+    assert "hola Zenta" in arr["brazo_b"]["stdout"]
+    assert "hola Cognia" not in arr["brazo_b"]["stdout"]
     assert ev["desglose"]["arranca"] == 3.0
 
 
@@ -341,3 +356,148 @@ def test_slash_autoprueba_parsea_args_e_imprime(tmp_path, capsys):
 def test_biblioteca_inexistente_no_explota(tmp_path):
     assert descubrir_productos(tmp_path / "no_existe") == []
     assert probar_todos(base=tmp_path / "no_existe")["total"] == 0
+
+
+# ── Contrato GENERICO de una pagina + gate de pixeles ─────────────────────────
+#
+# Estos SI abren un navegador de verdad (Playwright/chromium) y pilotan la
+# pagina: cuentan controles, los clican, pulsan teclas y comparan PIXELES entre
+# capturas. Son la unica forma de distinguir "el HTML es valido" de "la pagina
+# hace algo". El contrato es GENERICO a proposito: la memoria de esta casa mide
+# que el contrato "por idea" esta al nivel del azar y reprueba el 88-94% de las
+# paginas SANAS, asi que aqui hay dos casos SANOS por cada caso roto.
+
+pytest.importorskip("playwright.sync_api", reason="el contrato generico necesita Playwright")
+
+from cognia.autoprueba import _contrato_web, parece_juego   # noqa: E402
+
+_ESTILO = ("body{background:#102030;color:#eee;font-family:sans-serif;margin:0;padding:20px}"
+           ".b{width:60px;height:30px;background:#4af;margin:8px}")
+
+PAGINA_VIVA = f"""<!DOCTYPE html><html><head><title>Contador</title><style>{_ESTILO}</style></head>
+<body><h1>Contador de clics</h1><div class="b"></div>
+<button onclick="document.getElementById('n').textContent=+document.getElementById('n').textContent+1">mas</button>
+<span id="n">0</span>
+<p>una pagina normal, con texto suficiente para que el lienzo no sea uniforme.</p>
+</body></html>"""
+
+PAGINA_MUERTA = f"""<!DOCTYPE html><html><head><title>Panel</title><style>{_ESTILO}</style></head>
+<body><h1>Panel</h1>
+<button>uno</button><button>dos</button><button>tres</button>
+<p>solo texto: ningun boton hace nada y la pagina no se anima sola.</p>
+<p>segunda linea para que el lienzo tenga variacion de luminancia.</p>
+</body></html>"""
+
+PAGINA_NEGRA = """<!DOCTYPE html><html><head><title>Negra</title>
+<style>html,body{background:#000;margin:0;height:100%}button{opacity:0}</style></head>
+<body><button onclick="void 0">x</button></body></html>"""
+
+_JUEGO = """<!DOCTYPE html><html><head><title>Juego</title>
+<style>body{{margin:0;background:#111}}canvas{{display:block}}</style></head>
+<body><canvas id="c" width="1000" height="700"></canvas><script>
+var ctx=document.getElementById('c').getContext('2d'); var x=0, boost=0;
+{escucha}
+function loop(){{ x=(x+{paso}+boost)%900; if(boost>0){{boost=Math.max(0,boost-2);}}
+ ctx.fillStyle='#111'; ctx.fillRect(0,0,1000,700);
+ ctx.fillStyle='#0f0'; ctx.fillRect(x,300,140,140); requestAnimationFrame(loop);}} loop();
+</script></body></html>"""
+
+JUEGO_SORDO = _JUEGO.format(escucha="", paso=11)
+JUEGO_VIVO = _JUEGO.format(
+    escucha="document.addEventListener('keydown', function(e){ boost=340; });", paso=2)
+
+
+def _prod_html(tmp_path, nombre, html):
+    d = tmp_path / nombre
+    d.mkdir()
+    (d / "index.html").write_text(html, encoding="utf-8")
+    return {"id": nombre, "title": nombre.replace("_", " "), "description": "",
+            "directorio": str(d), "entrypoint": str(d / "index.html"),
+            "lenguaje": "html", "archivos_py": []}
+
+
+def test_contrato_aprueba_una_pagina_SANA(tmp_path):
+    """Caso sano: un boton que cambia el DOM basta. No se exige nada mas."""
+    prod = _prod_html(tmp_path, "viva", PAGINA_VIVA)
+    r = _contrato_web(prod, PAGINA_VIVA)
+    assert r["corrio"] is True, r["detalle"]
+    assert r["ok"] is True, r["detalle"]
+    assert r["clicables"] >= 1 and r["clics"] >= 1
+    assert r["cambio_dom"] is True
+    assert r["pixeles_ok"] is True
+
+
+def test_contrato_reprueba_una_pagina_con_TODOS_los_controles_muertos(tmp_path):
+    """Tres botones, tres clics, y el innerHTML del body no se mueve un byte."""
+    prod = _prod_html(tmp_path, "muerta", PAGINA_MUERTA)
+    r = _contrato_web(prod, PAGINA_MUERTA)
+    assert r["corrio"] is True and r["ok"] is False
+    assert r["clicables"] == 3 and r["clics"] == 3
+    assert r["cambio_dom"] is False and r["anima_sola"] is False
+    assert "NINGUNO hace nada" in r["detalle"]
+
+
+def test_gate_de_pixeles_rechaza_la_pagina_en_negro(tmp_path):
+    """Un frame negro no se puntua: se rechaza con motivo (regla de frames_gate)."""
+    prod = _prod_html(tmp_path, "negra", PAGINA_NEGRA)
+    r = _contrato_web(prod, PAGINA_NEGRA)
+    assert r["corrio"] is True and r["ok"] is False
+    assert r["pixeles_ok"] is False
+    assert "GATE DE PIXELES" in r["detalle"]
+    assert "NEGRO" in r["detalle"] or "UNIFORME" in r["detalle"]
+
+
+def test_juego_que_se_mueve_igual_sin_tocar_nada_NO_responde(tmp_path):
+    """El patron BASE vs ACTIVO de AGF, con su margen 1.15."""
+    prod = _prod_html(tmp_path, "juego_sordo", JUEGO_SORDO)
+    assert parece_juego(prod, JUEGO_SORDO) is True
+    r = _contrato_web(prod, JUEGO_SORDO)
+    assert r["corrio"] is True and r["ok"] is False, r["detalle"]
+    assert r["anima_sola"] is True
+    assert r["responde_input"] is False
+    assert r["actividad_activo"] <= r["actividad_base"] * 1.15
+    assert "NO RESPONDE AL INPUT" in r["detalle"]
+
+
+def test_el_mismo_juego_escuchando_el_teclado_SI_pasa(tmp_path):
+    """El contrafactual: identico salvo el addEventListener('keydown')."""
+    prod = _prod_html(tmp_path, "juego_vivo", JUEGO_VIVO)
+    r = _contrato_web(prod, JUEGO_VIVO)
+    assert r["corrio"] is True and r["ok"] is True, r["detalle"]
+    assert r["anima_sola"] is True and r["responde_input"] is True
+    assert r["actividad_activo"] > r["actividad_base"] * 1.15
+
+
+DASHBOARD_ANIMADO = """<!DOCTYPE html><html><head><title>Simulacion de inversiones</title>
+<style>body{margin:0;background:#0b1220;color:#dfe}
+.barra{height:24px;background:#3c9;margin:6px;animation:mover 1.4s infinite alternate}
+@keyframes mover{from{width:40px}to{width:820px}}</style></head>
+<body><h1>Cartera en vivo</h1>
+<div class="barra"></div><div class="barra"></div><div class="barra"></div>
+<p>panel que se refresca solo; no tiene controles ni escucha el teclado.</p>
+</body></html>"""
+
+
+def test_un_DASHBOARD_animado_sin_controles_NO_es_un_juego_sordo(tmp_path):
+    """
+    FALSO ROJO MEDIDO (2026-08-29). Con el gate de juego aplicado a todo lo que
+    "parece juego por codigo", investment_dashboard_simulation_01 y _02 —dos
+    dashboards reales de la biblioteca— reprobaban por 0,0497 contra 0,0507: un
+    2%, dentro del ruido de un diff de pixeles. Una pagina que se anima sola y
+    no tiene NI un control NI un addEventListener no ignora la entrada: no tiene
+    por donde oirla. Tras este guardarrail: 0 de 34 paginas reales reprobadas.
+    """
+    prod = _prod_html(tmp_path, "simulacion_de_inversiones", DASHBOARD_ANIMADO)
+    r = _contrato_web(prod, DASHBOARD_ANIMADO)
+    assert r["corrio"] is True
+    assert r["gate_juego"]["aplica"] is False, r["gate_juego"]["motivo"]
+    assert r["anima_sola"] is True and r["clicables"] == 0
+    assert r["ok"] is True, r["detalle"]
+
+
+def test_el_contrato_se_puede_apagar_y_lo_DICE(tmp_path, monkeypatch):
+    monkeypatch.setenv("COGNIA_CONTRATO_WEB", "0")
+    prod = _prod_html(tmp_path, "viva", PAGINA_VIVA)
+    r = _contrato_web(prod, PAGINA_VIVA)
+    assert r["corrio"] is False and r["ok"] is True
+    assert "desactivado" in r["detalle"]

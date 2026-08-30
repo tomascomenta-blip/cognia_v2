@@ -265,3 +265,59 @@ def test_directorio_inexistente_no_explota(tmp_path):
     assert ver["ok"] is False
     assert ver["fallo_duro"] == "sin_producto"
     assert reintentar_si_falla(tmp_path / "no_existe", verificacion=ver)["necesita_reintento"]
+
+
+# ── El veredicto MEDIDO llega al TEXTO que lee el dueno ───────────────────────
+#
+# POR QUE (medido en el dossier): /crear devolvia "Creacion completada.
+# Guardados: 1" y nada mas. El veredicto solo se imprimia por stdout dentro de
+# run_program_hobby, asi que en el control remoto y en el movil el dueno NO
+# tenia forma de saber si el programa que acababa de pedir corre o no.
+
+def test_texto_veredicto_dice_corre_o_no_corre():
+    from cognia.program_creator.program_creator import texto_veredicto
+
+    ok = texto_veredicto({"ok": True, "intentos": 1,
+                          "verificacion": {"puntaje": 8.5}})
+    assert ok == "verificado: corre 8.5/10 tras 1 reparacion(es)"
+
+    mal = texto_veredicto({
+        "ok": False, "intentos": 2,
+        "error_final": "ZeroDivisionError: division by zero",
+        "motivo_corte": "agotadas las 2 reparaciones",
+        "verificacion": {"puntaje": 6.0, "fallo_duro": "arranca"}})
+    assert "NO corre (6.0/10): arranca tras 2 reparacion(es)" in mal
+    assert "ZeroDivisionError" in mal
+    assert "agotadas las 2 reparaciones" in mal
+
+    indet = texto_veredicto({
+        "ok": False, "intentos": 0, "error_final": "el guion se quedo corto",
+        "verificacion": {"puntaje": 7.5, "fallo_duro": None,
+                         "resultado": {"indeterminado": "arranca"}}})
+    assert indet.startswith("INDETERMINADO (7.5/10)")
+
+
+def test_create_program_mete_el_veredicto_en_lo_que_devuelve(monkeypatch):
+    """La puerta del producto: lo que /crear le CONTESTA al dueno."""
+    import cognia.program_creator as paquete
+    import cognia.cognia as cg
+    from cognia.program_creator.program_creator import HobbySessionResult
+
+    meta = type("M", (), {"title": "Promediador", "directory": "promediador"})()
+    resultado = HobbySessionResult(
+        attempted=1, successful=1, stored=1, programs=[meta],
+        duration_sec=3.0, timestamp="2026-08-29T00:00:00",
+        verificaciones=[{
+            "ok": False, "intentos": 2, "title": "Promediador",
+            "error_final": "ZeroDivisionError: division by zero",
+            "motivo_corte": "agotadas las 2 reparaciones",
+            "verificacion": {"puntaje": 6.0, "fallo_duro": "arranca"}}])
+
+    monkeypatch.setattr(paquete, "run_program_hobby",
+                        lambda **kw: resultado, raising=False)
+    monkeypatch.setattr(cg, "HAS_PROGRAM_CREATOR", True, raising=False)
+
+    texto = cg.Cognia.create_program(object(), "un promediador de notas")
+    assert "Guardados: 1" in texto                     # lo de siempre sigue
+    assert "Promediador: NO corre (6.0/10): arranca" in texto
+    assert "ZeroDivisionError" in texto

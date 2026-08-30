@@ -2,6 +2,154 @@
 
 ---
 
+## [4.14.0] - 2026-08-30
+
+### Editor visual de flujos estilo n8n: `/flujoteca editor`
+
+La flujoteca ya sabia guardar flujos con versiones, pero el lienzo era
+ESTATICO: dibujaba y no dejaba editar. Ahora `/flujoteca editor <nombre>`
+levanta un editor de verdad, servido por un HTTP local efimero en 127.0.0.1
+con puerto 0 y token de un solo arranque (`cognia/agent/flujoteca_editor.py`,
+9 endpoints; sin token, 403).
+
+Se edita con el raton: arrastrar nodos (autosave con debounce de 800 ms que
+NO crea version), sacar nodos de la paleta, conectar puerto a puerto, panel
+de propiedades con doble clic o F2, seleccion multiple, deshacer/rehacer y
+los atajos de n8n. Las posiciones viven en `meta["ui"]["pos"]`, FUERA del
+DAG: dentro, `sanear_flujo` las descartaria en la primera edicion
+conversacional y `comparar()` contaria cada arrastre como un cambio.
+
+Los nodos se dividen por elementos, como pidio el dueno: 13 categorias
+(`cognia/agent/catalogo_nodos.py`) con color e icono propios sobre las tools
+reales, descripcion de una linea por tool, badge rojo en las peligrosas, y
+las familias apagadas pintadas como apagadas con el comando que las
+enciende, en vez de un cajon mudo.
+
+Y lleva un CHAT lateral donde el modelo local construye el flujo. Edita por
+DELTAS (`anadir_nodo`, `conectar`, `cambiar_args`, `cambiar_control`...) con
+respaldo al DAG entero, asi que el coste de salida no crece con el tamano
+del flujo.
+
+### Los flujos por fin HACEN cosas en tu PC
+
+El dueno reporto que "los workflows no entregan nada al final ni hacen nada
+en mi PC; hace mas el agente individual". Eran cinco fallos independientes:
+
+- **El separador de argumentos.** El prompt que ensena a construir flujos
+  usaba `args: "informe.md\nresumen"` y las tools exigen `ruta | contenido`.
+  Contrafactual medido sobre los flujos reales del dueno: el mismo flujo
+  cambiando solo el separador pasa de **0 bytes a 1.011**. Corregido en el
+  prompt, declarado en `_FORMATO`, y `flows.normalizar_args` lo arregla EN
+  LECTURA para los flujos ya guardados, sin reescribir el historial.
+- **El ctx pelado.** `_ctx_tools` no llevaba `confirm` ni `_run_agent`, asi
+  que las tools peligrosas corrian sin pedir permiso y un nodo
+  `delegar_subtarea` -que ESTA en la paleta- respondia "delegacion no
+  disponible en este contexto". Ahora hay una fabrica unica, `_ctx_agente`.
+- **No habia entregable.** `flows.ejecutar` devolvia 5 claves y ninguna decia
+  que se habia producido. Ahora devuelve `ok`, `entregable`, `ficheros`,
+  `cancelado`, `denegados` y `marcadores_vacios`, y el CLI los imprime con
+  la raiz donde se escribieron.
+- **`crear_flujo` emitia tools inexistentes** (`research_llm`, `synthesize`):
+  tabla de traduccion y validacion con `tool_existe` ANTES de persistir, para
+  que el fallo aparezca al CREAR y no al ejecutar.
+- **Ctrl-C no cortaba un flujo** y un nodo denegado por permisos contaba como
+  `ok`, con su texto de denegacion como entregable. Los dos, cerrados.
+
+### Un nodo de ENTRADA obligatorio, y `/flujoteca ejecutar`
+
+Todo flujo empieza ahora por un nodo de entrada: `prompt` (variable, el
+argumento del CLI lo pisa) o `prompt_fijo` (constante). El modo vive en el
+campo `tool` y no en un campo nuevo, que es lo unico que sobrevive a la
+whitelist cerrada de `sanear_flujo` y lo unico que sale en el diff del
+historial.
+
+    /flujoteca ejecutar informe_semanal
+    /flujoteca ejecutar pvz1 un nivel con zombis nuevos
+
+El prompt es opcional: sin argumento se usa el default del nodo; con nodo
+constante se corre con la constante y se avisa; un flujo viejo sin nodo de
+entrada corre igual. Si el flujo tiene nodo de entrada pero ningun nodo
+interpola `{{prompt}}`, el CLI lo DICE antes de correr, en vez de ejecutar
+en silencio ignorando lo que escribiste.
+
+### Chat o agente, decidido rapido
+
+El enrutado costaba entre 1,8 y 27 segundos por turno. Ahora resuelve por un
+camino determinista de cuatro escalones antes de tocar el modelo, y cuando
+pregunta lo hace con el pensamiento apagado y 24 tokens: **de 15 de cada 30
+mensajes de charla pagando modelo, a 0**, y el camino con modelo baja a
+874-986 ms planos. La regla de continuacion usa el contexto: tras una accion,
+"y ahora borralo" va al agente sin preguntarle a nadie.
+
+Al ensanchar los guards se midieron 4 regresiones accion->chat
+("cuentame el resultado de correr los tests" dejaba de correr los tests) y se
+revirtieron: las reglas de accion corren ANTES que los guards de charla.
+
+### Cognia prueba lo que construye
+
+`/crear` sella lo que produce y, si no corre, lo REPARA: el lazo
+probar->reparar->reprobar existia entero en `verificacion.py` y **no tenia un
+solo llamador** (el cableado estaba escrito como comentario). Tope de 2
+reparaciones, presupuesto de 120 s, y si se agota queda un sello honesto con
+`error_inicial` y `error_final` en vez de un silencio. Una reparacion que
+empeora -o que empata- no se queda en disco.
+
+Las paginas se prueban con contratos GENERICOS ejecutables (controles que
+responden, gate de pixeles contra el frame negro y el lienzo uniforme) y los
+juegos con el patron de fase base contra fase activa. Nada de contratos
+generados por idea: esa via esta medida al nivel del azar.
+
+### Comandos: `/avanzado`
+
+El catalogo tenia 280 comandos a la vista. Por defecto se muestran los 82 que
+usa un consumidor; `/avanzado` revela el resto y el nivel persiste. Ocultar
+NO es desactivar: un comando oculto tecleado entero sigue funcionando, y
+`/gaf` sigue sugiriendo `/grafo`.
+
+### `/biblioteca` abre sola
+
+`/biblioteca` genera y abre la biblioteca en el navegador con los productos
+reales del disco -no el `index.json`, que tenia 15 entradas fantasma y 56
+carpetas huerfanas- y `/biblioteca abrir <id>` abre el producto.
+
+### Honestidad de `/workflow` y `/flujo`
+
+Ninguno de los dos toca el disco por diseno, y no se rescatan: duplicarian
+`/hacer`. Lo que se arregla es la mentira. `/workflow` marcaba `ok=True`
+cuando algun paso devolvia texto -medido: 732 tokens explicando que no podia
+hacer nada-; ahora emite `sin_efecto` y el CLI dice "esto no toco tu PC. Para
+actuar: /hacer o /flujoteca ejecutar". `/flujo` declara que es un informe.
+
+### El mejorador de prompts pregunta de verdad
+
+Metia las preguntas DENTRO del prompt entregado en vez de hacer la encuesta
+interactiva. De 21 pedidos cortos tipicos llegaban a la encuesta 14; ahora
+llegan **21**. La puerta `es_candidato(rechazar_ordenes=True)` rechazaba
+justo las ordenes cortas a las que apuntaba ("hazme una pagina web"). Hay un
+system `v4` que deja los huecos como `[placeholder]`; `v2` queda intacto con
+un test de hash, porque es el brazo de un A/B publicado.
+
+### Arreglos que salieron de revisar lo recien escrito
+
+- `escapar solo "</" al meter JSON en un <script> NO basta`: `<!--` y
+  `<script` dejaban la pagina MUDA (barra pintada, cero datos), que parece
+  vacia y no rota. Escapado todo `<` como `<` en las tres vistas.
+- Un nombre de flujo llamado literalmente `__TOKEN__` metia el token de
+  sesion en el `<title>`, y de ahi al historial del navegador.
+- Un `args` de tipo dict se podia GUARDAR y despues el flujo era inabrible
+  para siempre, con un error opaco. Rechazado en `validar`, tolerado en la
+  vista.
+- El `atexit` del servidor del editor podia colgar el proceso para siempre
+  si el hilo del bucle no arrancaba.
+- `user_prefs` filtraba las claves persistidas, asi que una preferencia nueva
+  funcionaba en la sesion y se olvidaba al reiniciar SIN ERROR. Le pasaba ya
+  a `COGNIA_UI_MODE`. Hay un anticuerpo que recorre las claves declaradas.
+- `/session-to-workflow` llamaba a `grabador.grabacion_activa`, que no
+  existe: `getattr` devolvia None y los pasos quedaban SIEMPRE vacios. Toda
+  su vida trabajando solo con la charla.
+
+---
+
 ## [4.13.0] - 2026-08-29
 
 ### El cerebro por defecto ahora es Qwen3.8-27B Ridge
