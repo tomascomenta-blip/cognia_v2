@@ -379,9 +379,12 @@ def test_los_mandos_del_arnes_tienen_categoria_propia(catalogo):
     # 2026-08-25 (salvaguarda de borrado): /deshacer-borrado saca de la
     # papelera lo que el agente BORRO, hermano de /deshacer, y por la misma
     # razon: sin ponerlo aqui caia en "Agente y tareas" y la dejaba en 26.
+    # 2026-08-30: /revision (la compuerta que CORRE lo construido antes de
+    # entregarlo) es un mando del arnes por el mismo criterio que /bucle:
+    # sin ponerlo aqui caia en "Agente y tareas" por la palabra "agente".
     esperados = ("/markdown", "/spinner", "/expandir", "/offload", "/pegado",
                  "/enlaces", "/bucle", "/config-resuelta", "/deshacer",
-                 "/remoto", "/deshacer-borrado")
+                 "/remoto", "/deshacer-borrado", "/revision")
     for cmd in esperados:
         assert cmd in catalogo, cmd
         assert ayuda.clasificar(cmd, catalogo[cmd]) == "Consola y arnes", cmd

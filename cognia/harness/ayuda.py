@@ -329,6 +329,10 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     "Consola y arnes": (
         "/markdown", "/spinner", "/expandir", "/offload", "/pegado",
         "/enlaces", "/bucle", "/config-resuelta", "/deshacer", "/remoto",
+        # /revision (2026-08-30) es un mando del ARNES, no del agente: la
+        # compuerta que CORRE lo construido antes de entregarlo. Va con
+        # /bucle y /offload, que son sus hermanos (higiene del lazo).
+        "/revision",
         # /deshacer-borrado (papelera del agente, 2026-08-25) va JUNTO a
         # /deshacer, que es su hermano: uno revierte lo que el agente
         # ESCRIBIO y el otro saca de la papelera lo que BORRO. Sin esta

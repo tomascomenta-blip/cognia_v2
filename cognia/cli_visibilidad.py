@@ -144,7 +144,7 @@ AVANZADO: frozenset = frozenset({
     "/monitor", "/monitores", "/nota-fijar", "/notif", "/notif-leer", "/notif-limpiar",
     "/notif-todas", "/offload", "/oficina", "/pegado", "/plan", "/plan-borrar", "/plan-ok",
     "/plan-ver", "/powershell", "/prompt", "/proyectos", "/pulir", "/quiz", "/razonar",
-    "/recap", "/repasar", "/reporte", "/reporte-completo", "/revisar", "/rlm", "/seguridad",
+    "/recap", "/repasar", "/reporte", "/reporte-completo", "/revisar", "/revision", "/rlm", "/seguridad",
     "/sesion-a-workflow", "/sesion-ver", "/session-to-workflow", "/shell-kill", "/shells",
     "/skill-cargar", "/skill-nuevo", "/spinner", "/stats", "/usuario", "/usuarios",
     "/ver-contexto", "/vram", "/workflow", "/worktree", "/yo-actualizar",

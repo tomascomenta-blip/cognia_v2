@@ -80,6 +80,7 @@ reprueba el 88-94% de las paginas SANAS.
 """
 
 import ast
+import hashlib
 import json
 import os
 import re
@@ -172,6 +173,40 @@ _RESPUESTAS_POR_PROMPT = (
 # timeout) y la comparacion mediria otra cosa. Se dejan intactos a proposito.
 _SENTINELAS_GUION = frozenset({"0", "q", "quit", "exit", "salir", "fin"})
 
+# LA OPCION DE SALIDA DEL MENU, leida del propio fuente (2026-08-30).
+#
+# POR QUE: la cola fija ["0","q"] asume que todo menu sale con 0 o q, y el menu
+# mas comun que escribe un modelo no es ese: "1. Agregar  2. Listar  3. Buscar
+# 4. Salir". Ese programa nunca recibe su "4", da vueltas hasta quedarse sin
+# guion y la fase 'arranca' cierra INDETERMINADO ("el guion se quedo corto").
+# Medido en la tarea real de la agenda de contactos: 11 tests en verde, el
+# producto perfecto, y la prueba de punta a punta sin poder emitir veredicto —
+# que es justo la forma de producto de consola mas frecuente. Leer el numero de
+# su opcion de salida convierte ese indeterminado en un veredicto de verdad.
+#
+# Dos formas, porque las dos aparecen: "4. Salir" / "[4] Exit" / "4) terminar"
+# y "Salir (4)" / "Salir = 4". Se toma la PRIMERA que case; sin ninguna, la cola
+# de siempre (que sigue siendo correcta para los menus que salen con 0 o q).
+_RE_SALIDA_NUM_PRIMERO = re.compile(
+    r"""["'\s\[(]\s*(\d)\s*[.)\]:=-]\s*(?:salir|quit|exit|terminar|finalizar|adios|cerrar)""",
+    re.IGNORECASE)
+_RE_SALIDA_PALABRA_PRIMERO = re.compile(
+    r"""(?:salir|quit|exit|terminar|finalizar|adios|cerrar)\s*[\[(:=-]\s*(\d)\s*[\])]?""",
+    re.IGNORECASE)
+
+
+def salida_de_menu(codigo) -> str:
+    """El numero con el que se sale del menu del programa, o "" si no se ve ninguno.
+
+    Solo mira el FUENTE (los rotulos que imprime y su comparacion), nunca ejecuta.
+    Devuelve "" tambien para "0", que ya esta en la cola de siempre.
+    """
+    for rx in (_RE_SALIDA_NUM_PRIMERO, _RE_SALIDA_PALABRA_PRIMERO):
+        m = rx.search(codigo or "")
+        if m and m.group(1) != "0":
+            return m.group(1)
+    return ""
+
 # Pareja de cada respuesta que fabrica _RESPUESTAS_POR_PROMPT y GUION_GENERICO.
 # La regla es "mismo tipo, otro valor": a un int(input(...)) se le sigue dando
 # un numero, a un nombre otro nombre, a una ruta otra ruta.
@@ -185,10 +220,15 @@ _PAREJA_VARIANTE = {
 }
 
 
-def _variar(token):
-    """El valor alterno de UNA linea del guion. Determinista y del mismo tipo."""
+def _variar(token, salida=""):
+    """El valor alterno de UNA linea del guion. Determinista y del mismo tipo.
+
+    `salida` es la opcion con la que ESTE programa sale de su menu (leida del
+    fuente por salida_de_menu). Se trata como un sentinela mas: cambiarla en el
+    brazo B dejaria al menu sin su salida y los dos brazos mediran caminos
+    distintos, que es exactamente lo que guion_variante existe para evitar."""
     t = str(token)
-    if t.strip().lower() in _SENTINELAS_GUION:
+    if t.strip().lower() in _SENTINELAS_GUION or (salida and t == salida):
         return t
     if t in _PAREJA_VARIANTE:
         return _PAREJA_VARIANTE[t]
@@ -201,15 +241,18 @@ def _variar(token):
     return "z" + t[1:] if len(t) > 1 else "z"
 
 
-def guion_variante(guion):
+def guion_variante(guion, salida=""):
     """
     El mismo guion con otros VALORES: mismas lineas, mismos tokens de salida.
 
     Mismo numero de lineas a proposito: asi el EOF (si lo hay) cae en el mismo
     punto en los dos brazos y la diferencia de stdout solo puede venir del
     contenido tecleado. Esa es toda la razon de ser de esta funcion.
+
+    `salida` (opcional) es la opcion de salida del menu de ESE programa; se
+    respeta igual que 0/q. Sin ella el comportamiento es el de siempre.
     """
-    return [_variar(t) for t in (guion or [])]
+    return [_variar(t, salida) for t in (guion or [])]
 
 
 # Margen del brazo BASE vs ACTIVO, tomado literal de agf/agents/tester.py
@@ -533,12 +576,31 @@ def derivar_guion(codigo):
     # Si TODO lo que pide son numeros, la cola tambien: teclearle una "q" a un
     # int(input(...)) fabrica un ValueError que no es del producto.
     cola = _COLA_NUMERICA if all(r.isdigit() for r in base) else _COLA_MIXTA
+    # La opcion de salida de SU menu encabeza la cola, REPETIDA. Repetida porque
+    # el guion es POSICIONAL y no sabe en que prompt va a caer: un menu que en la
+    # opcion 1 pide un dato mas ("Numero: ") se come el token de salida como si
+    # fuera ese dato. Medido: con una sola copia, el menu sintetico de
+    # test_un_menu_que_sale_con_4_LLEGA_a_su_despedida se tragaba el "4" en el
+    # input del numero y volvia a quedar INDETERMINADO. Con tres, el token cae en
+    # el prompt del menu venga de donde venga. 0/q quedan detras como respaldo
+    # para los menus que si salen asi.
+    salida = salida_de_menu(codigo)
+    if salida:
+        cola = [salida] * 3 + [c for c in cola if c != salida]
     guion = list(base)
     i = 0
     while len(guion) < MAX_LINEAS_GUION - len(cola):
         guion.append(base[i % len(base)])
         i += 1
     return guion + cola, origen
+
+
+def _huella_fuente(ruta) -> str:
+    """sha1 del fuente del entrypoint, para saber si un guion DERIVADO envejecio."""
+    try:
+        return hashlib.sha1(_leer(ruta).encode("utf-8", "replace")).hexdigest()
+    except Exception:
+        return ""
 
 
 def guion_para(prod, usar_cache=True):
@@ -550,25 +612,46 @@ def guion_para(prod, usar_cache=True):
     (best-effort: una carpeta de solo lectura no puede romper la prueba), y
     COGNIA_AUTOPRUEBA_CACHE=0 lo desactiva para corridas que no deben tocar la
     biblioteca del dueno.
+
+    PERO UN GUION DERIVADO CADUCA CON SU FUENTE (2026-08-30). El guion se deduce
+    de los prompts de los `input()` del programa; si el programa cambia, el guion
+    viejo deja de tener nada que ver con lo que pide. Sin esto la cache CONDENA A
+    UN SANO, y esta medido: en la primera tarea real de /revision el modelo
+    escribio un conversor que pedia texto, se cacheo el guion generico de texto
+    ("hola mundo cognia hola"), la revision lo reprobo, el modelo lo REESCRIBIO
+    para pedir numeros -- y la segunda revision siguio tecleandole "hola mundo"
+    al programa nuevo, que respondia "necesito el monto" y salia con exit 1. El
+    producto funcionaba; el instrumento estaba midiendo la version anterior.
+    Por eso el registro guarda la HUELLA del fuente del que se dedujo: si no
+    coincide, se vuelve a derivar. Un fichero SIN huella (escrito a mano por el
+    dueno, o de una version anterior) sigue mandando, que es el contrato de
+    arriba: solo caduca lo que este modulo dedujo solo.
     """
     carpeta = Path(prod["directorio"])
     ruta = carpeta / NOMBRE_CACHE_GUION
+    fuente = prod.get("entrypoint") or ""
+    huella = _huella_fuente(fuente) if fuente else ""
     if usar_cache:
         try:
             datos = json.loads(ruta.read_text(encoding="utf-8"))
             guion = datos.get("guion")
-            if isinstance(guion, list) and all(isinstance(x, str) for x in guion):
+            previa = str(datos.get("huella") or "")
+            rancio = bool(previa) and bool(huella) and previa != huella
+            if (isinstance(guion, list) and all(isinstance(x, str) for x in guion)
+                    and not rancio):
                 return guion, datos.get("origen") or "cache"
         except Exception:
             pass    # sin cache o cache corrupta: se deriva de nuevo, no se rompe
 
-    guion, origen = derivar_guion(_leer(prod["entrypoint"]) if prod.get("entrypoint") else "")
+    guion, origen = derivar_guion(_leer(fuente) if fuente else "")
     if guion and usar_cache and os.environ.get("COGNIA_AUTOPRUEBA_CACHE", "1").strip() != "0":
         try:
             ruta.write_text(json.dumps(
-                {"guion": guion, "origen": origen,
+                {"guion": guion, "origen": origen, "huella": huella,
                  "nota": "guion de teclado de /autoprueba; editalo si tu programa "
-                         "se maneja de otra forma (manda sobre lo que deduce el regex)"},
+                         "se maneja de otra forma (manda sobre lo que deduce el regex). "
+                         "Borra la clave 'huella' para que tu guion no caduque al "
+                         "cambiar el programa."},
                 ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass    # best-effort: no poder cachear no cambia el veredicto
@@ -606,7 +689,7 @@ def _veredicto_arranque(rc, out, err, expiro, timeout, con_guion):
     return True, f"exit 0, {len(out.strip())} chars de salida"
 
 
-def _fase_arranca(prod, timeout, guion=None, origen_guion="sin_teclado"):
+def _fase_arranca(prod, timeout, guion=None, origen_guion="sin_teclado", salida=""):
     """
     Ejecuta el entrypoint en su propia carpeta con DOS guiones distintos.
 
@@ -645,7 +728,7 @@ def _fase_arranca(prod, timeout, guion=None, origen_guion="sin_teclado"):
     # brazo A (es el que da el veredicto y el que se cita en el sello), asi que
     # es el que tiene que correr al final. Con el orden al reves, un producto que
     # escribe "resultado.txt" dejaba en disco el resultado del guion VARIANTE.
-    variante = guion_variante(guion)
+    variante = guion_variante(guion, salida)
     rcb, outb, errb, expirob = _correr(argv, cwd=cwd, timeout=timeout, guion=variante)
     okb, _detb = _veredicto_arranque(rcb, outb, errb, expirob, timeout, con_guion=True)
 
@@ -1147,8 +1230,9 @@ def probar_producto(prod, timeout_arranque=TIMEOUT_ARRANQUE_SEG,
         return res
 
     guion, origen = guion_para(prod)
-    res["fases"]["arranca"] = _fase_arranca(prod, timeout_arranque,
-                                            guion=guion, origen_guion=origen)
+    res["fases"]["arranca"] = _fase_arranca(
+        prod, timeout_arranque, guion=guion, origen_guion=origen,
+        salida=salida_de_menu(_leer(prod["entrypoint"])))
     if res["fases"]["arranca"]["ok"] is False:
         res["fallo_duro"] = "arranca"
     elif res["fases"]["arranca"]["ok"] is None:

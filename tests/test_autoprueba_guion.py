@@ -51,6 +51,7 @@ from cognia.autoprueba import (
     lee_teclado,
     probar_producto,
     probar_todos,
+    salida_de_menu,
 )
 
 # ── Productos sinteticos REALES (se ejecutan de verdad) ────────────────────────
@@ -421,6 +422,56 @@ def test_sin_guion_posible_la_regla_vieja_sigue_viva(tmp_path):
 
 # ── 5. Cache del guion junto al producto ──────────────────────────────────────
 
+MENU_QUE_SALE_CON_4 = '''def menu():
+    total = 0
+    while True:
+        print("1. Sumar  2. Ver  4. Salir")
+        op = input("Elige opcion: ").strip()
+        if op == "1":
+            total += int(input("Numero: "))
+        elif op == "2":
+            print("TOTAL:", total)
+        elif op == "4":
+            print("Adios,", total)
+            return
+        else:
+            print("no valida")
+
+
+if __name__ == "__main__":
+    menu()
+'''
+
+
+def test_la_opcion_de_salida_se_lee_del_fuente():
+    """LA mejora de 2026-08-30: el menu mas comun no sale con 0 ni con q."""
+    assert salida_de_menu('print("1. Agregar  2. Listar  3. Buscar  4. Salir")') == "4"
+    assert salida_de_menu('print("[3] Exit")') == "3"
+    assert salida_de_menu('print("Salir (5)")') == "5"
+    assert salida_de_menu('print("0. Salir")') == ""      # 0 ya esta en la cola
+    assert salida_de_menu('print("1. Jugar  2. Ver")') == ""
+
+
+def test_un_menu_que_sale_con_4_LLEGA_a_su_despedida(tmp_path):
+    """Antes cerraba INDETERMINADO ('el guion se quedo corto'): el programa
+    estaba perfecto y la prueba no podia emitir veredicto. Medido en la tarea
+    real de la agenda de contactos."""
+    base = _biblioteca(tmp_path, {"agenda": {"program.py": MENU_QUE_SALE_CON_4}})
+    prod = _uno(base, "agenda")
+    res = probar_producto(prod, timeout_arranque=10, timeout_import=8)
+    arranca = res["fases"]["arranca"]
+    assert arranca["ok"] is True, arranca["detalle"]
+    assert "Adios" in arranca["stdout"]
+    assert res["fallo_duro"] is None and res["indeterminado"] is None
+
+
+def test_el_brazo_B_no_le_quita_la_salida_al_menu():
+    """Si el brazo B cambiara el 4 por otro numero, mediria OTRO camino."""
+    guion = ["1", "7", "4", "0", "q"]
+    assert guion_variante(guion, salida="4")[2] == "4"
+    assert guion_variante(guion)[2] != "4"      # sin decirselo, es un valor mas
+
+
 def test_el_guion_se_cachea_en_autoprueba_json(tmp_path):
     base = _biblioteca(tmp_path, {"suma": {"program.py": DOS_INPUTS}})
     prod = _uno(base, "suma")
@@ -442,6 +493,40 @@ def test_el_fichero_escrito_a_mano_MANDA_sobre_el_regex(tmp_path):
     res = probar_producto(prod, timeout_arranque=8, timeout_import=8)
     assert "TOTAL: 42" in res["fases"]["arranca"]["stdout"]      # 20 + 22
     assert (base / "suma" / "resultado.txt").read_text(encoding="utf-8") == "42"
+
+
+def test_un_guion_DERIVADO_caduca_cuando_cambia_el_fuente(tmp_path):
+    """LA regresion de 2026-08-30: la cache condenaba a un sano tras reparar.
+
+    Medido tecleando una tarea real con /revision: el modelo escribio un conversor que
+    pedia texto, se cacheo el guion generico de texto, la revision lo reprobo, el modelo
+    lo REESCRIBIO para pedir numeros -- y la segunda pasada le siguio tecleando "hola
+    mundo cognia hola" al programa NUEVO, que contestaba "necesito el monto" y salia con
+    exit 1. El producto funcionaba: el instrumento estaba midiendo la version anterior.
+    """
+    base = _biblioteca(tmp_path, {"suma": {"program.py": DOS_INPUTS}})
+    prod = _uno(base, "suma")
+    primero, _ = guion_para(prod)
+    ruta = base / "suma" / NOMBRE_CACHE_GUION
+    assert json.loads(ruta.read_text(encoding="utf-8"))["huella"]
+
+    # el modelo reescribe el programa: ahora pide OTRA cosa
+    (base / "suma" / "program.py").write_text(
+        'nombre = input("Como te llamas? ")\nprint("hola", nombre)\n', encoding="utf-8")
+    segundo, origen = guion_para(_uno(base, "suma"))
+    assert segundo != primero, "el guion viejo se reuso sobre un fuente distinto"
+    assert origen == "derivado"
+
+
+def test_un_guion_SIN_huella_sigue_mandando(tmp_path):
+    """El contrato de arriba no cambia: solo caduca lo que el modulo dedujo SOLO.
+    Un fichero escrito a mano (o de una version anterior) no trae huella y manda."""
+    base = _biblioteca(tmp_path, {"suma": {"program.py": DOS_INPUTS}})
+    (base / "suma" / NOMBRE_CACHE_GUION).write_text(
+        json.dumps({"guion": ["20", "22"], "origen": "a_mano"}), encoding="utf-8")
+    (base / "suma" / "program.py").write_text(
+        'x = input("otra cosa? ")\nprint(x)\n', encoding="utf-8")
+    assert guion_para(_uno(base, "suma")) == (["20", "22"], "a_mano")
 
 
 def test_cache_apagable_por_entorno(tmp_path, monkeypatch):

@@ -963,6 +963,23 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _nudges_verif = 0          # nudges de parada verificada ya inyectados
     _ts_1a_edicion = None      # epoch de la primera escritura del turno
     _reint_backend = 0         # reintentos por error transitorio del backend
+    # REVISION PROFUNDA ANTES DE ENTREGAR (harness/revision_profunda.py). La
+    # compuerta de arriba (parada_verificada) es POLITICA: mira si hay evidencia
+    # y, si no, le pide al MODELO que verifique. Esta EJECUTA: cuando el turno
+    # produjo un trabajo complejo, el arnes compila lo escrito, corre los tests
+    # que lo cubren y ARRANCA el producto de verdad (teclado guionado + brazo B,
+    # o navegador real y contrato de clics para una pagina) antes de dejar
+    # entregar. Corre PRIMERO a proposito: si sella con exito, registra la
+    # evidencia en el ledger y la compuerta de politica ya no gasta un turno del
+    # modelo pidiendo lo que esto acaba de hacer. COGNIA_REVISION=0 la apaga.
+    _rev_mod = None
+    _rondas_rev = 0            # rondas de reparacion pedidas por la revision
+    _informe_rev = None        # ultimo informe, para el footer del turno
+    try:
+        from cognia.harness import revision_profunda as _rev_mod
+    except Exception as _e_rev:
+        print_fn(f"[warn_cl]revision profunda no disponible "
+                 f"({type(_e_rev).__name__}: {_e_rev}); entrego sin ella[/warn_cl]")
     # ESPECULACION (multiverso/especulacion.py). El predictor por defecto es
     # deterministico (bigramas sobre la traza) y no cuesta un token: si tras
     # 'listar' este agente pidio 'leer_archivo' el 70% de las veces, adelantarlo
@@ -1458,6 +1475,50 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # —stop mal puesto vs presupuesto— se veian iguales antes).
                 print_fn("[warn_cl]respuesta final truncada por max_tokens "
                          f"({sampling['max_tokens']})[/warn_cl]")
+            # REVISION PROFUNDA (harness/revision_profunda.py): el arnes CORRE
+            # lo construido antes de dejarlo entregar. Va ANTES de la parada
+            # verificada porque un exito suyo registra evidencia fresca en el
+            # ledger, y entonces la compuerta de politica de abajo deja salir
+            # sin gastar un turno del modelo. Un fallo vuelve como turno de
+            # usuario con la EVIDENCIA real (traceback, exit code, cola de
+            # pytest), con la respuesta ya compuesta en rescate: igual que el
+            # nudge de abajo, la compuerta nunca destruye trabajo hecho.
+            if (_rev_mod is not None and ok and _muta is not None
+                    and _muta.ficheros_escritos()):
+                try:
+                    _informe_rev = _rev_mod.revisar({
+                        "ficheros_editados": _muta.ficheros_escritos(),
+                        "workspace": os.getcwd(),
+                        "pasos": pasos,
+                        "rondas_usadas": _rondas_rev,
+                        "superficie": "cli",
+                        "on_evento": lambda m: print_fn(
+                            f"[info_dim]{_escape_seguro(m)}[/info_dim]"),
+                    })
+                except Exception as _e_rv:
+                    # Contrato: revisar() no lanza. Si igual lanzo, la revision
+                    # no puede matar el turno que venia a proteger -- pero
+                    # tampoco puede callarse (el fallo tipico de esta casa es el
+                    # vacio silencioso).
+                    _informe_rev = None
+                    print_fn(f"[warn_cl]revision profunda: {type(_e_rv).__name__}: "
+                             f"{_e_rv}; entrego sin ella[/warn_cl]")
+                if _informe_rev and _informe_rev.get("nudge"):
+                    _rondas_rev += 1
+                    # El primer fallo es el titular; la lista nunca esta vacia
+                    # aca (sin fallos no hay nudge), pero el default va igual:
+                    # un IndexError en el camino caliente mataria el turno.
+                    _tit = ((_informe_rev.get("fallos") or [{}])[0]
+                            .get("detalle") or "")
+                    print_fn("[warn_cl]revision profunda: lo construido NO pasa "
+                             f"({_escape_seguro(_tit[:120])}); "
+                             f"pido la reparacion (ronda {_rondas_rev}/"
+                             f"{_rev_mod.max_rondas()})[/warn_cl]")
+                    _pendiente_verif = result_text or _pendiente_verif
+                    mensajes.append({"role": "user",
+                                     "content": _informe_rev["nudge"]})
+                    result_text, ok = "", False
+                    continue
             # PUERTA DE PARADA VERIFICADA (Hermes: verification_stop.py).
             # El modelo no cierra un turno que EDITO CODIGO sin evidencia
             # fresca de haberlo corrido. No es un prompt: es una continuacion
@@ -1945,6 +2006,27 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                        if h.startswith("RESULTADO ")), "")
         result_text = (f"(presupuesto de {max_turns} pasos agotado sin cierre) "
                        + ultimo[:300])
+        # REVISION PROFUNDA en SOLO-REPORTE. Agotar el presupuesto tambien es
+        # una entrega: el dueno se queda con lo que haya en disco y merece
+        # saber si ARRANCA. No se pide reparacion (no queda presupuesto con
+        # que repararlo: `rondas_usadas` va al tope a proposito), solo se
+        # corre y se cuenta. Sin esto, la primera tarea real que se paso de
+        # pasos entrego un main.py sin que nadie lo hubiera ejecutado.
+        if _rev_mod is not None and _muta is not None and _muta.ficheros_escritos():
+            try:
+                _informe_rev = _rev_mod.revisar({
+                    "ficheros_editados": _muta.ficheros_escritos(),
+                    "workspace": os.getcwd(),
+                    "pasos": pasos,
+                    "rondas_usadas": _rev_mod.max_rondas(),   # solo reporte
+                    "superficie": "cli",
+                    "on_evento": lambda m: print_fn(
+                        f"[info_dim]{_escape_seguro(m)}[/info_dim]"),
+                })
+            except Exception as _e_rv2:
+                _informe_rev = None
+                print_fn(f"[warn_cl]revision profunda: {type(_e_rv2).__name__}: "
+                         f"{_e_rv2}; entrego sin ella[/warn_cl]")
 
     # RESCATE de la respuesta pendiente: si la puerta de verificacion pidio un
     # nudge y despues se agoto el presupuesto, la respuesta que el modelo YA
@@ -1952,6 +2034,20 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     if _pendiente_verif and not (result_text or "").strip():
         result_text = _pendiente_verif
         ok = True
+    # FOOTER DE LA REVISION PROFUNDA: lo que el arnes CORRIO, con su veredicto.
+    # Se pega tambien cuando PASA, a proposito: "revisado y arranca" y "nadie lo
+    # miro" son dos estados distintos y el dueno tiene que poder distinguirlos.
+    if _informe_rev is not None:
+        try:
+            _pie_rev = _rev_mod.footer_de(_informe_rev) if _rev_mod else ""
+        except Exception:
+            _pie_rev = ""
+        if _pie_rev and (result_text or "").strip():
+            result_text = (result_text or "") + "\n\n" + _pie_rev
+        try:
+            ctx["_revision_profunda"] = _informe_rev
+        except Exception:
+            pass
     # FOOTER DE MUTACIONES FALLIDAS: hecho medido, no resumen del modelo.
     if _muta is not None:
         try:

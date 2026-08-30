@@ -3244,6 +3244,7 @@ _CMD_DESCRIPTIONS = {
     "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
     "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args), nudge por ediciones al mismo fichero y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | fichero <n> | timeout <s>]",
+    "/revision":        "Revision profunda antes de entregar: el arnes CORRE lo construido (sintaxis + tests que lo cubren + arrancar el producto de punta a punta) y le devuelve el fallo real al modelo  [estado | on|off | ejecutar on|off | rondas <n> | segundos <n> | informe | ahora <ruta...>]  (env COGNIA_REVISION=0 la apaga; COGNIA_REVISION_EJECUTAR=0 apaga solo el arranque del producto)",
     "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | acciones on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo; COGNIA_CHAT_AFIRMACIONES=0 apaga el detector de acciones inventadas)",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
@@ -3495,6 +3496,41 @@ _CMD_DETAILS = {
         "CONFIG: bots_on (on), bots_protocolo (on: seccion de mensajeria en el chat canonico), "
         "bots_max_hops (3: tope de saltos entre bots). La env COGNIA_BOTS=0 apaga todo ganando a la "
         "config; COGNIA_BOTS_DIR mueve el almacen. Remoto: GET /bots y /api/bots."),
+    "/revision": (
+        "REVISION PROFUNDA ANTES DE ENTREGAR (cognia/harness/revision_profunda.py). Un trabajo "
+        "COMPLEJO no se entrega porque suene bien: antes de que el agente cierre, el ARNES corre "
+        "lo que acaba de construir y le devuelve el fallo REAL si no pasa. No es una opinion del "
+        "modelo sobre si mismo — la autocritica ciega como juez esta prohibida por diseno en este "
+        "repo (agent/candidates.py) y medida como danina (Huang et al., ICLR 2024): cada veredicto "
+        "de aca sale de un proceso que corrio y de un exit code que se leyo. "
+        "TRES FASES: (1) SINTAXIS — compile()/json.loads de todo lo escrito; (2) TESTS — el comando "
+        "canonico del proyecto sobre los tests que CUBREN lo editado (no la suite entera; si no hay "
+        "ninguno lo dice y NOMBRA el que falta, porque ausencia de examen no es aprobado); "
+        "(3) EL PRODUCTO DE PUNTA A PUNTA — se ARRANCA de verdad reusando cognia/autoprueba.py: "
+        "teclado guionado a partir de sus propios input() y BRAZO B (la misma corrida con otros "
+        "valores, para saber si usa lo que se le teclea); si lo construido es una pagina, se abre "
+        "en un navegador real, se recogen los errores de JS y se le pasa el contrato de clics. "
+        "SI FALLA: el traceback / exit code / cola de pytest vuelve al modelo como turno de usuario "
+        "para que repare (rondas acotadas, default 2) con la respuesta ya compuesta EN RESCATE — la "
+        "compuerta nunca destruye trabajo hecho. Agotadas las rondas se ENTREGA IGUAL con un footer "
+        "que dice que quedo roto: nunca se traga el fallo. El footer se pega TAMBIEN cuando pasa, "
+        "para que 'revisado y arranca' y 'nadie lo miro' no se vean iguales. "
+        "CUANDO DISPARA (y por que no siempre): correr pytest y lanzar un proceso tras cada edicion "
+        "de dos lineas convierte cada turno en una espera, y un gate que no deja hacer nada acaba "
+        "apagado. Dispara si >= 2 ficheros de codigo, o >= 80 lineas utiles, o >= 10 pasos, o si hay "
+        "algo ARRANCABLE entre lo escrito. Lo que vive dentro de un paquete (con __init__.py al "
+        "lado) y los tests NO se lanzan sueltos: eso se importa, no se ejecuta. "
+        "USO: /revision (estado: mandos, umbrales y veredicto del ultimo turno) | on|off (clave "
+        "'revision') | ejecutar on|off ('revision_ejecutar': apaga SOLO el arranque del producto y "
+        "deja vivas sintaxis y tests) | rondas <n> ('revision_rondas', 0 = revisar y solo reportar) "
+        "| segundos <n> ('revision_segundos', presupuesto de PARED de la revision entera) | informe "
+        "(el ultimo informe con la evidencia entera) | ahora <ruta...> (revisa esas rutas ya mismo, "
+        "sin modelo: el diagnostico). "
+        "ENV: COGNIA_REVISION=0 apaga todo · COGNIA_REVISION_EJECUTAR=0 apaga el arranque · "
+        "COGNIA_REVISION_RONDAS · COGNIA_REVISION_SEGUNDOS · COGNIA_REVISION_FICHEROS/LINEAS/PASOS "
+        "mueven los umbrales de disparo. Se complementa con la parada verificada (compuerta de "
+        "POLITICA, cognia/hermes/parada_verificada.py): la revision corre PRIMERO y, si sella con "
+        "exito, registra la evidencia en su ledger para que aquella no gaste un turno del modelo."),
     "/confianza": (
         "NIVELES DE CONFIANZA DEL CHAT (cognia/agent/confianza_chat.py, 2026-08-24). Medido: a "
         "'cuantos suscriptores tiene The Acua Boy en YouTube?' el modelo confesaba 'no tengo acceso "
@@ -8388,6 +8424,18 @@ _CONFIG_DEFAULTS: dict = {
     "bots_on":                 "on",
     "bots_protocolo":          "on",
     "bots_max_hops":           "3",
+    # REVISION PROFUNDA antes de entregar (/revision,
+    # cognia/harness/revision_profunda.py). 'revision' on|off = compuerta
+    # entera; 'revision_ejecutar' = la fase de punta a punta que ARRANCA lo
+    # construido (apagarla deja vivas sintaxis y tests); 'revision_rondas' =
+    # cuantas veces se le devuelve el fallo al modelo para que repare;
+    # 'revision_segundos' = presupuesto de PARED de la revision entera.
+    # _aplicar_config_revision los traduce a COGNIA_REVISION* porque quien los
+    # lee es agent/loop.py, que no ve la config del REPL.
+    "revision":                "on",
+    "revision_ejecutar":       "on",
+    "revision_rondas":         "2",
+    "revision_segundos":       "180",
 }
 
 
@@ -14047,6 +14095,149 @@ def _aplicar_config_barra() -> None:
         _aviso_degradado("cli.barra_estado", f"config no aplicada: {exc}")
 
 
+def _aplicar_config_revision() -> None:
+    """Propaga la config de la revision profunda al entorno.
+
+    Quien la lee es `cognia/agent/loop.py` (a traves de
+    `harness/revision_profunda.activa()`), que corre por debajo del REPL y no ve
+    `~/.cognia_config.json`: sin esta siembra, `/revision off` diria OFF en
+    pantalla y el bucle seguiria revisando — exactamente la clase de bug del
+    flag TX (la config decia ACTIVO y el subsistema estaba muerto). No pisa lo
+    que el dueno ya puso en la env, y registra la siembra para que
+    /config-resuelta no atribuya el valor al entorno."""
+    try:
+        cfg = _load_config()
+        pares = (
+            ("COGNIA_REVISION",
+             "1" if str(cfg.get("revision", "on")).strip().lower() != "off" else "0"),
+            ("COGNIA_REVISION_EJECUTAR",
+             "1" if str(cfg.get("revision_ejecutar", "on")).strip().lower() != "off" else "0"),
+            ("COGNIA_REVISION_RONDAS", str(cfg.get("revision_rondas", "2")).strip()),
+            ("COGNIA_REVISION_SEGUNDOS", str(cfg.get("revision_segundos", "180")).strip()),
+        )
+        for var, valor in pares:
+            if valor and not (os.environ.get(var) or "").strip():
+                os.environ[var] = valor
+                _marcar_env_sembrada(var)
+    except Exception as exc:
+        _aviso_degradado("revision", f"config no aplicada: {exc}")
+
+
+def _slash_revision(arg: str = "") -> None:
+    """`/revision`: puerta de la revision profunda antes de entregar.
+
+    Sin args (o 'estado') muestra los mandos y el veredicto del ultimo turno
+    revisado. Subcomandos (persisten via _save_config y actualizan el env):
+      on|off             -> 'revision'
+      ejecutar on|off    -> 'revision_ejecutar' (la fase que ARRANCA el producto)
+      rondas <n>         -> 'revision_rondas'   (0 = revisar y solo reportar)
+      segundos <n>       -> 'revision_segundos' (presupuesto de pared)
+      informe            -> el ultimo informe entero, fase por fase
+      ahora <ruta...>    -> revisa ESAS rutas ya mismo (diagnostico sin modelo)"""
+    try:
+        from cognia.harness import revision_profunda as _rp
+    except Exception as exc:
+        _aviso_degradado("revision", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    partes = arg.split(None, 1)
+    sub = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    uso = ("[warn_cl]Uso: /revision \\[estado | on | off | ejecutar on|off | "
+           "rondas <n> | segundos <n> | informe | ahora <ruta...>][/warn_cl]")
+
+    def _guardar(clave, valor, env, valor_env, texto):
+        cfg = _load_config()
+        cfg[clave] = valor
+        _save_config(cfg)
+        os.environ[env] = valor_env      # la sesion viva, no solo la proxima
+        _marcar_env_sembrada(env)
+        _print_line(f"[info_dim]revision: {texto} (guardado)[/info_dim]")
+
+    if sub in ("on", "off") and not resto:
+        _guardar("revision", sub, "COGNIA_REVISION",
+                 "1" if sub == "on" else "0", sub)
+        return
+    if sub == "ejecutar":
+        if resto.lower() not in ("on", "off"):
+            _print_line("[warn_cl]Uso: /revision ejecutar on|off[/warn_cl]")
+            return
+        _guardar("revision_ejecutar", resto.lower(), "COGNIA_REVISION_EJECUTAR",
+                 "1" if resto.lower() == "on" else "0",
+                 f"arrancar el producto {resto.lower()}")
+        return
+    if sub in ("rondas", "segundos"):
+        minimo = 0 if sub == "rondas" else 10
+        try:
+            n = int(float(resto.replace(",", ".")))
+            if n < minimo:
+                raise ValueError(n)
+        except ValueError:
+            _print_line(f"[warn_cl]Uso: /revision {sub} <entero >= {minimo}>[/warn_cl]")
+            return
+        _guardar(f"revision_{sub}", str(n),
+                 f"COGNIA_REVISION_{sub.upper()}", str(n), f"{sub} {n}")
+        return
+    if sub == "ahora":
+        rutas = [r for r in resto.replace(",", " ").split() if r]
+        if not rutas:
+            _print_line("[warn_cl]Uso: /revision ahora <ruta> [<ruta>...]"
+                        "[/warn_cl]")
+            return
+        _print_line(f"[info_dim]revisando {len(rutas)} ruta(s) — esto EJECUTA "
+                    f"lo que haya arrancable[/info_dim]")
+        inf = _rp.revisar({"ficheros_editados": rutas, "workspace": os.getcwd(),
+                           "pasos": 99, "superficie": "cli",
+                           "on_evento": lambda m: _print_line(
+                               f"[info_dim]  · {_escape(str(m))}[/info_dim]")})
+        for linea in _rp.render(inf):
+            _print_line(linea)
+        return
+    if sub == "informe":
+        inf = _rp.ultimo()
+        if not inf:
+            _print_line("[info_dim]todavia no se reviso nada en esta sesion "
+                        "(la revision corre al cerrar una tarea de /hacer que "
+                        "haya escrito codigo)[/info_dim]")
+            return
+        for linea in _rp.render(inf):
+            _print_line(linea)
+        for f in (inf.get("fallos") or []):
+            _print_line(f"[err_cl]{_escape(f.get('fase', ''))}: "
+                        f"{_escape((f.get('detalle') or '')[:300])}[/err_cl]")
+            ev = (f.get("evidencia") or "").strip()
+            if ev:
+                for l in ev.splitlines()[-12:]:
+                    _print_line(f"[info_dim]  {_escape(l[:200])}[/info_dim]")
+        return
+    if sub and sub != "estado":
+        _print_line(uso)
+        return
+
+    m = _rp.mandos()
+    estado_col = "ok_cl" if m["activa"] else "warn_cl"
+    _print_line(f"[{estado_col}]revision profunda: "
+                f"{'ACTIVA' if m['activa'] else 'APAGADA'}[/{estado_col}]"
+                f" [info_dim]· arrancar el producto: "
+                f"{'si' if m['ejecutar_producto'] else 'no'} · rondas de "
+                f"reparacion: {m['rondas']} · presupuesto: {m['presupuesto_s']} s"
+                f"[/info_dim]")
+    _print_line(f"[info_dim]dispara con: >= {m['ficheros']} fichero(s) de codigo, "
+                f"o >= {m['lineas']} lineas utiles, o >= {m['pasos']} pasos, o si "
+                f"hay algo arrancable entre lo escrito[/info_dim]")
+    _print_line("[info_dim]fases: sintaxis (compile/json) · tests que CUBREN lo "
+                "editado · el producto de punta a punta (se arranca con teclado "
+                "guionado + brazo B; una pagina se abre en el navegador)[/info_dim]")
+    inf = _rp.ultimo()
+    if not inf:
+        _print_line("[info_dim]ultimo turno: sin revisar todavia[/info_dim]")
+    else:
+        for linea in _rp.render(inf):
+            _print_line(linea)
+        _print_line("[info_dim]  (/revision informe para la evidencia entera)"
+                    "[/info_dim]")
+
+
 def _slash_compactar(arg: str = "") -> None:
     """`/compactar`: puerta de la compactacion del contexto del agente (F4).
 
@@ -19669,6 +19860,10 @@ def _repl_sesion():
     # bloques por config -> env; el de aviso solo si el dueno lo fijo (vacio
     # = acoplado al umbral de compactacion, que ya quedo sembrado arriba).
     _aplicar_config_barra()
+    # REVISION PROFUNDA (/revision): agent/loop.py lee COGNIA_REVISION* del env,
+    # asi que sin propagar la config el interruptor no sobreviviria al cierre
+    # del proceso (y /revision off mentiria en pantalla).
+    _aplicar_config_revision()
     # NOTIFICACIONES de escritorio (F5): registrar el avisador para que un
     # fallo emitiendo el toast se vea como degradado (el modulo lee la config
     # a call-time, no hay env que propagar).
@@ -20451,6 +20646,9 @@ def _repl_sesion():
                 _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
             elif raw == "/bucle" or raw.startswith("/bucle "):
                 _slash_bucle(raw[len("/bucle "):] if raw.startswith("/bucle ") else "")
+            elif raw == "/revision" or raw.startswith("/revision "):
+                _slash_revision(
+                    raw[len("/revision "):] if raw.startswith("/revision ") else "")
             elif raw == "/confianza" or raw.startswith("/confianza "):
                 _slash_confianza(
                     raw[len("/confianza "):] if raw.startswith("/confianza ") else "")

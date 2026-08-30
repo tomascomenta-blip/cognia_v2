@@ -84,6 +84,14 @@ ENV_QUE_PISAN: dict = {
     # (/estilo animacion on|off); ux/glow.capacidades la lee a call-time y
     # COGNIA_ANIMACION=0 (o =1) la pisa sin siembra.
     "estilo_animacion":        ("COGNIA_ANIMACION",),
+    # Revision profunda antes de entregar (2026-08-30): el CLI las siembra desde
+    # _aplicar_config_revision y /revision las persiste. Sin este registro las
+    # cuatro saldrian como envs SUELTAS con su valor crudo ('1' en vez de 'on'),
+    # que es exactamente la mentira de origen que esta vista existe para matar.
+    "revision":                ("COGNIA_REVISION",),
+    "revision_ejecutar":       ("COGNIA_REVISION_EJECUTAR",),
+    "revision_rondas":         ("COGNIA_REVISION_RONDAS",),
+    "revision_segundos":       ("COGNIA_REVISION_SEGUNDOS",),
 }
 
 # Nombres que huelen a credencial: se enmascaran SIEMPRE en cualquier render.

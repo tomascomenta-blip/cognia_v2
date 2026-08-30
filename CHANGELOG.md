@@ -2,6 +2,82 @@
 
 ---
 
+## [4.15.0] - 2026-08-30
+
+### Revision profunda antes de entregar: el arnes CORRE lo construido
+
+Pedido del dueno: que Cognia revise a fondo sus trabajos complejos antes de dar
+un resultado final, **y no solo con tests, sino probando el producto de punta a
+punta**.
+
+El repo tenia las dos mitades sueltas. La compuerta de POLITICA
+(`cognia/hermes/parada_verificada.py`) mira si hay evidencia fresca y, si no,
+le PIDE al modelo que verifique — pero nunca ejecuta nada. Y el musculo de
+probar de verdad (`cognia/autoprueba.py`: compila -> importa -> arranca con
+teclado guionado y brazo B -> sin_stubs; y para una pagina, navegador real mas
+contrato de clics) solo se usaba a pedido sobre la biblioteca vieja. Nadie
+corria el producto RECIEN construido antes de que el agente dijera "listo".
+
+`cognia/harness/revision_profunda.py` es ese lazo, cableado en el bucle nativo
+(`cognia/agent/loop.py`) justo antes de entregar. Tres fases, todas con
+evidencia ejecutada:
+
+1. **SINTAXIS** — `compile()` / `json.loads` de todo lo escrito.
+2. **TESTS** — el comando canonico del proyecto sobre los tests que CUBREN lo
+   editado (no la suite entera). Si ninguno lo cubre, lo dice y NOMBRA el que
+   falta: ausencia de examen no es aprobado.
+3. **EL PRODUCTO** — se arranca de verdad. Un `.py` con guarda `__main__` se
+   ejecuta con un guion de teclado derivado de sus propios `input()`, con brazo
+   B para saber si USA lo que se le teclea; un `.html` se abre en un navegador
+   real, se recogen sus errores de JS y se le pasa el contrato de clics.
+
+Si falla, el traceback / exit code / cola de pytest vuelve al modelo como turno
+de usuario para que repare (2 rondas por defecto), con la respuesta ya
+compuesta EN RESCATE: la compuerta nunca destruye trabajo hecho. Agotadas las
+rondas se entrega igual, con un footer que dice que quedo roto. El footer se
+pega TAMBIEN cuando pasa, porque "revisado y arranca" y "nadie lo miro" no
+pueden verse iguales.
+
+No es autocritica: **no hay ni una llamada al modelo en este modulo**. La
+autocritica ciega como juez esta prohibida por diseno en el repo
+(`agent/candidates.py`) y medida como danina (Huang et al., ICLR 2024,
+arXiv:2310.01798). Cada veredicto sale de un proceso que corrio.
+
+Dispara solo en trabajos COMPLEJOS (>= 2 ficheros de codigo, o >= 80 lineas
+utiles, o >= 10 pasos, o algo arrancable entre lo escrito) porque un gate que
+corre tras cada edicion de dos lineas acaba apagado. Lo que vive dentro de un
+paquete (con `__init__.py` al lado) y los tests NO se lanzan sueltos: eso se
+importa, no se ejecuta — esa regla es la que hace seguro encenderlo por
+defecto.
+
+**Puerta:** `/revision` (estado, `on|off`, `ejecutar on|off`, `rondas <n>`,
+`segundos <n>`, `informe`, `ahora <ruta...>`), config persistida
+(`revision`, `revision_ejecutar`, `revision_rondas`, `revision_segundos`) y
+envs `COGNIA_REVISION*`, registradas en `/config-resuelta`.
+
+### Dos fallos del instrumento que cazo tecleandolo (no la suite)
+
+- **El guion de teclado cacheado condenaba a un SANO.** `.autoprueba.json`
+  manda sobre lo derivado y no caducaba: tras una reparacion, la segunda pasada
+  seguia tecleandole al programa NUEVO el guion deducido del VIEJO. Medido: un
+  conversor de monedas perfecto salia con `exit 1` porque se le tecleaba "hola
+  mundo cognia hola" a un `float(input(...))`. Ahora el registro guarda la
+  HUELLA del fuente del que se dedujo y un guion derivado caduca con su
+  programa; el escrito a mano (sin huella) sigue mandando.
+- **Un menu que sale con "4" nunca llegaba a su salida.** La cola fija
+  `["0","q"]` asume que todo menu sale con 0 o q, y el menu que mas escribe un
+  modelo es "1. Agregar 2. Listar 3. Buscar 4. Salir": se quedaba sin guion y
+  la fase cerraba INDETERMINADO. Ahora `salida_de_menu()` lee la opcion del
+  propio fuente y la pone (repetida, porque el guion es posicional) al final;
+  el brazo B la respeta como sentinela para no medir otro camino.
+- **Un producto en carpeta suelta no corria ni un test.** `plan_verificacion`
+  se rinde cuando el proyecto no DECLARA un comando, asi que un `main.py` con
+  su `test_main.py` al lado quedaba sin examen: en la tarea real de la agenda
+  de contactos el modelo escribio ONCE tests y no se ejecuto ninguno. Hay
+  respaldo por convencion de nombre.
+
+---
+
 ## [4.14.0] - 2026-08-30
 
 ### Editor visual de flujos estilo n8n: `/flujoteca editor`

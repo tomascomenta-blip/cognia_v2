@@ -14491,3 +14491,77 @@ verificado con `git show HEAD:cognia/cli.py`.
 - Bug de datos preexistente: `semantic_memory.description` de
   `agente_tarea_completada` y `respuesta_streaming` contiene un vector de
   embeddings en vez de texto. El catálogo lo detecta y avisa; no lo arregla.
+
+---
+
+## 2026-08-30 — Revisión profunda antes de entregar (4.15.0)
+
+Pedido del dueño: que Cognia revise a fondo sus trabajos complejos antes de dar
+un resultado final, **no solo con tests sino probando el producto de punta a
+punta**, entregado pulido, probado y publicado en PyPI.
+
+### Qué se construyó
+
+`cognia/harness/revision_profunda.py` + cableado en `cognia/agent/loop.py`
+(bucle nativo, en el cierre natural y en el cierre por presupuesto agotado) +
+puerta `/revision` en el CLI. Tres fases, todas ejecutadas: sintaxis (compile /
+json.loads), tests que CUBREN lo editado, y el PRODUCTO arrancado de verdad
+(reusando `cognia/autoprueba.py`: guion de teclado derivado de sus `input()` +
+brazo B; o navegador real + contrato de clics para una página). Un fallo vuelve
+al modelo como turno de usuario con la evidencia real, 2 rondas; agotadas, se
+entrega igual con footer honesto. Cero llamadas al modelo en el módulo.
+
+### Lo que cazó TECLEARLO (y no la suite) — tres fallos del instrumento
+
+1. **El guion cacheado condenaba a un SANO.** `.autoprueba.json` mandaba sobre
+   lo derivado y no caducaba: tras reparar, la 2ª pasada tecleaba al programa
+   NUEVO el guion del VIEJO. Un conversor de monedas perfecto salía `exit 1`
+   porque se le tecleaba "hola mundo cognia hola" a un `float(input(...))`.
+   Fix: el registro guarda la HUELLA sha1 del fuente; un guion derivado caduca
+   con su programa, el escrito a mano (sin huella) sigue mandando.
+2. **Un menú que sale con "4" nunca llegaba a su salida.** La cola fija
+   `["0","q"]` no cubre "1. Agregar 2. Listar 3. Buscar 4. Salir", el menú más
+   común que escribe un modelo: se quedaba sin guion y cerraba INDETERMINADO.
+   Fix: `salida_de_menu()` lee la opción del fuente y la pone repetida al final
+   (el guion es posicional: con una sola copia el token se lo comía el
+   `input("Numero: ")` de la opción 1); el brazo B la respeta como sentinela.
+3. **Un producto en carpeta suelta no corría ni un test.** `plan_verificacion`
+   se rinde si el proyecto no DECLARA comando, así que `main.py` con su
+   `test_main.py` al lado quedaba sin examen: en la tarea real de la agenda de
+   contactos el modelo escribió ONCE tests y no se ejecutó ninguno. Fix:
+   respaldo por convención de nombre (`tests_asociados`).
+
+### Tareas humanas tecleadas (salida real)
+
+- `/revision`, `/revision rondas 1`, `/revision` → estado correcto y persistido.
+- `hacer "programa que diga si un numero es primo"` → cerró por presupuesto; la
+  revisión en solo-reporte cubrió ese camino (antes se entregaba sin ejecutar).
+- `hacer "conversor de monedas"` → la revisión reprobó con `exit 1` y pidió
+  reparación; **el falso positivo del guion rancio salió de aquí**.
+- `hacer "agenda de contactos con menu y contactos.json"` →
+  `sintaxis OK (2 fich.) · tests OK: 11 passed · main.py OK: exit 0, 565 chars`
+  y el stdout real llega a `Adios. 8 contacto(s) en total.`
+- `hacer "agregale una opcion para borrar"` sobre un `main.py` con un
+  `NameError` latente → el modelo lo arregló y la revisión lo certificó
+  corriéndolo: `main.py OK: exit 0, 558 chars`.
+- Página con `totalFormateado` inexistente → `index.html FALLA` en 7,1 s:
+  "1 controles clicables y NINGUNO hace nada; el DOM no cambia".
+
+### Estado de la suite
+
+Preexistentes: 50 failed / 13.553 passed (20:36). **Cero regresiones**:
+stash de los 3 ficheros tocados y re-corrida de los 8 ficheros con más fallos →
+24 failed idénticos antes y después. Tests nuevos: 36 (`test_revision_profunda`)
++ 5 (`test_autoprueba_guion`).
+
+### Límites declarados
+
+- No es un sandbox: corre el producto con HOME/TEMP redirigidos pero con los
+  permisos del usuario, igual que `/autoprueba`.
+- No inventa tests: sin test que cubra lo editado la fase queda `ok=None` y
+  NOMBRA el que falta.
+- El presupuesto de pared se comprueba ENTRE fases; no interrumpe un subproceso
+  ya lanzado (cada fase trae su propio timeout).
+- La ronda de reparación puede quedarse sin turno si el gobernador por progreso
+  corta el bucle por meseta; el footer sigue siendo honesto (dice que quedó
+  roto), pero la reparación no llega a re-verificarse. Medido una vez.
