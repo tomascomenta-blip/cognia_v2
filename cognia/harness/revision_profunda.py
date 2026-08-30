@@ -42,6 +42,13 @@ LO QUE NO HACE (limites declarados, no deuda escondida)
       /autoprueba. Es la misma decision, con el mismo limite.
     - No juzga la CALIDAD del contenido (si el informe dice la verdad, si el diseno es
       bonito). Juzga que EXISTA, que compile, que sus tests pasen y que al usarlo no reviente.
+    - Solo esta cableado en el BUCLE NATIVO (`agent/loop.bucle_nativo`), que es el vivo. El
+      while legacy de `cli.py` (perfil 3B o COGNIA_AGENT_LEGACY=1) NO lo lleva: cablearlo
+      dos veces era duplicar la compuerta en el camino que ya no se usa. Se dice aca en vez
+      de dejar creer que cubre los dos.
+    - La ronda de reparacion puede quedarse sin turno si el gobernador por progreso corta el
+      bucle por meseta antes de que el modelo conteste. Medido una vez en una tarea real: el
+      footer sigue diciendo la verdad (que quedo roto), pero la reparacion no se re-verifica.
 
 POR QUE SOLO EN TRABAJOS COMPLEJOS
     Memoria de esta casa: "un gate que no deja hacer nada acaba apagado". Correr pytest y
