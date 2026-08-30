@@ -135,6 +135,32 @@ def register_action(sig_counts: dict, action: str, args: str) -> str:
 # forever while still being "effectively unlimited" for real tasks.
 AGENT_HARD_CAP = 40
 
+# TOOLS EXPLORATORIAS: leen y no tocan nada. Se reusa la tabla de
+# multiverso/reversibilidad (TOOLS_PURAS, la misma que autoriza a especular) y
+# se le suma `recuperar`, que no esta alli porque no es una accion del mundo
+# sino la via de recuperacion del propio offload -- y es, precisamente, la que
+# mas pasos de lectura consume. Un paso cuyas tools son TODAS de esta lista no
+# gasta credito de arranque en el gobernador de progreso (ver
+# presupuesto_progreso.CREDITO_EXPLORACION).
+try:
+    from cognia.multiverso.reversibilidad import TOOLS_PURAS as _TOOLS_PURAS
+    TOOLS_EXPLORATORIAS = frozenset(_TOOLS_PURAS) | {"recuperar"}
+except Exception:      # pragma: no cover - tabla ausente: nada es exploratorio
+    TOOLS_EXPLORATORIAS = frozenset({
+        "leer_archivo", "leer_lote", "listar", "buscar", "recuperar", "arbol"})
+
+# Techo al que puede llegar el presupuesto de pasos AMPLIANDOLO con progreso
+# VERIFICADO (nunca por pedirlo). Ver la ampliacion en bucle_nativo.
+AGENT_CAP_CON_PROGRESO = 120
+
+# Pasos de solo lectura que no gastan credito de arranque (el defecto lo fija
+# presupuesto_progreso; se importa aqui para no duplicar el numero).
+try:
+    from cognia.estado.presupuesto_progreso import (
+        CREDITO_EXPLORACION as _CREDITO_EXPLORACION)
+except Exception:      # pragma: no cover - el gobernador es opcional
+    _CREDITO_EXPLORACION = 8
+
 # Complexity rating (1-5) -> initial step budget.
 _RATING_TO_BUDGET = {1: 2, 2: 4, 3: 8, 4: 16, 5: 28}
 
@@ -932,6 +958,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _estado_on = os.environ.get("COGNIA_ESTADO", "1").strip().lower() not in (
         "0", "off", "false", "no")
     _canal = _estado = _prog = None
+    # El interruptor se lee UNA vez y fuera del bloque opcional de abajo: si el
+    # gobernador no carga, `_largas` tiene que seguir existiendo (lo mira la
+    # ampliacion del presupuesto). Un NameError aqui mataria el turno entero.
+    try:
+        from cognia.harness.offloading import tareas_largas as _tl
+        _largas = _tl()
+    except Exception:
+        _largas = True
     if _estado_on:
         try:
             from cognia.estado import canal as _canal
@@ -955,11 +989,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             # pasos el umbral sigue siendo exactamente el de hoy.
             # umbral_estancado (la MESETA, ya habiendo avanzado) no se toca:
             # ahi si hubo arranque y 6 pasos sin un avance nuevo es senal.
+            # COGNIA_TAREAS_LARGAS=0 devuelve el gobernador al arnes de
+            # antes del 2026-08-30 (sin credito de exploracion y sin contar
+            # el crecimiento del artefacto), para poder medir el A/B.
             _prog = _Progreso(nombre="bucle_nativo",
                               umbral_arranque=max(6, max_turns // 2),
-                              umbral_estancado=6)
+                              umbral_estancado=6,
+                              credito_exploracion=(
+                                  _CREDITO_EXPLORACION if _largas else 0),
+                              contar_crecimiento=_largas)
         except Exception:
             _estado_on = False
+    _ext_sin_avance = 0        # ampliaciones concedidas antes del 1er avance
     _nudges_verif = 0          # nudges de parada verificada ya inyectados
     _ts_1a_edicion = None      # epoch de la primera escritura del turno
     _reint_backend = 0         # reintentos por error transitorio del backend
@@ -1200,22 +1241,78 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _prog = None          # una sola vez por tarea
                 break
         if _pres is not None and not _pres.consume():
-            # ESTE es el corte por presupuesto desde el 2026-08-26: el techo
-            # auditado, con los refunds descontados (que es toda la
-            # diferencia). Antes era codigo muerto —`pasos < max_turns`
-            # cortaba siempre primero— y por eso el refund no devolvia nada.
+            # AMPLIACION GANADA CON EVIDENCIA (2026-08-30). El presupuesto de
+            # pasos es un PRIOR sacado del texto de la tarea, y el texto no
+            # sabe cuanto trabajo hay: "arregla el juego" son 267 caracteres,
+            # dificultad 0,351 -> 8 pasos, y el fichero a arreglar tenia 32 KB.
+            # Ninguna heuristica sobre el enunciado puede acertar eso.
             #
-            # Cierra con la EVIDENCIA del history, igual que el while/else de
-            # abajo. Sin esto, mover el corte a esta rama se llevaba por
-            # delante el ultimo RESULTADO y la tarea acababa en un parentesis
-            # vacio: el volcado sin evidencia que ese else arreglo en su dia.
-            _salida.sellar(RAZON_PRESUPUESTO_AGOTADO, f"techo {max_turns}")
-            _ultimo = next((h for h in reversed(history)
-                            if h.startswith("RESULTADO ")), "")
-            result_text = result_text or (
-                f"(presupuesto de {max_turns} pasos agotado sin cierre) "
-                + _ultimo[:300])
-            break
+            # Asi que el techo deja de ser solo un prior: se AMPLIA cuando el
+            # gobernador de progreso dice que la corrida avanza de verdad
+            # (>=1 avance verificado y ninguno de los cortes por estancamiento
+            # disparado). No se puede pedir ni declarar -- se gana con
+            # evidencia observada, y la ampliacion muere en cuanto el progreso
+            # se para, porque entonces corta la guarda de arriba. Techo duro
+            # AGENT_CAP_CON_PROGRESO para que siga siendo finito.
+            _ampliado = False
+            # QUINTO CORTE, encontrado CORRIENDO (2026-08-30). Con los cuatro
+            # arreglos de lectura la misma tarea ya no muere por
+            # 'sin_arranque'... y muere por el techo de 8 pasos igual, porque
+            # la ampliacion exigia un avance verificado y una tarea cuyo
+            # objeto es un fichero de 32 KB gasta sus primeros pasos LEYENDO.
+            # Medido: brazo A del A/B, 119 s, 8 pasos, 0 bytes escritos,
+            # '(presupuesto de 8 pasos agotado sin cierre)'.
+            #
+            # Asi que se concede UNA ampliacion antes del primer avance, y
+            # solo mientras el gobernador diga que la corrida esta sana. No es
+            # barra libre: el credito de exploracion es finito, asi que una
+            # corrida que solo lee acaba en 'sin_arranque' y deja de ampliar.
+            # A partir del primer avance, las ampliaciones las paga la
+            # evidencia.
+            _puede_ampliar = bool(_prog is not None
+                                  and (_prog.avances or _ext_sin_avance < 1))
+            if (_prog is not None and _largas and _puede_ampliar
+                    and _pres.max_total < AGENT_CAP_CON_PROGRESO):
+                _vv = _prog.veredicto()
+                if _vv.get("estado") == "avanza":
+                    if not _prog.avances:
+                        _ext_sin_avance += 1
+                    _extra = min(max(4, max_turns // 2),
+                                 AGENT_CAP_CON_PROGRESO - _pres.max_total)
+                    # El motivo NO miente: una ampliacion sin avances no es
+                    # "progreso verificado", es margen de arranque.
+                    _techo_nuevo = _pres.ampliar(
+                        _extra, "progreso_verificado" if _prog.avances
+                        else "arranque_sano")
+                    _techo_bruto = _techo_nuevo * 3
+                    _porque = (f"{len(_prog.avances)} avances verificados "
+                               f"(ultimo: {_prog.avances[-1]['detalle'][:60]})"
+                               if _prog.avances else
+                               "la corrida sigue sana y aun no ha podido "
+                               "producir su primer avance (una vez)")
+                    print_fn(f"[detail]presupuesto ampliado a {_techo_nuevo} "
+                             f"pasos: {_porque}[/detail]")
+                    # Se cobra AQUI la vuelta que el consume() de la guarda no
+                    # pudo cobrar; no se hace `continue` a proposito, porque
+                    # volver al principio del while cobraria una segunda.
+                    _ampliado = _pres.consume()
+            if not _ampliado:
+                # ESTE es el corte por presupuesto desde el 2026-08-26: el
+                # techo auditado, con los refunds descontados (que es toda la
+                # diferencia). Antes era codigo muerto -- `pasos < max_turns`
+                # cortaba siempre primero -- y por eso el refund no devolvia
+                # nada. Cierra con la EVIDENCIA del history, igual que el
+                # while/else de abajo: sin esto, mover el corte a esta rama se
+                # llevaba por delante el ultimo RESULTADO y la tarea acababa
+                # en un parentesis vacio.
+                _techo_final = _pres.max_total
+                _salida.sellar(RAZON_PRESUPUESTO_AGOTADO, f"techo {_techo_final}")
+                _ultimo = next((h for h in reversed(history)
+                                if h.startswith("RESULTADO ")), "")
+                result_text = result_text or (
+                    f"(presupuesto de {_techo_final} pasos agotado sin cierre) "
+                    + _ultimo[:300])
+                break
         pasos += 1
         if _especular and _espec is not None:
             # El hilo corre DURANTE completar(): la pared que se ahorra es la
@@ -1559,6 +1656,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
 
         idx_turno = len(mensajes)   # desde aca: lo apendeado en ESTE turno
         mensajes.append(mensaje_assistant(resp))
+        # ¿Fue este paso de PURA LECTURA? Se decide con los nombres de las
+        # tools que de verdad corrieron, no con la intencion del modelo.
+        _paso_solo_lectura = True
         for tc in resp.tool_calls:
             # ARGUMENTOS CORTADOS (2026-08-18). chat_client ya marcaba esto
             # (argumentos_rotos) y NADIE lo miraba: se llamaba a la tool con el
@@ -1739,6 +1839,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 tool_ok = bool(ctx["_ultimo_ok"])
             else:
                 tool_ok = not _es_fallo_tool(resultado, tc.nombre)
+            if tc.nombre not in TOOLS_EXPLORATORIAS:
+                _paso_solo_lectura = False
             if _muta is not None and es_operacion_de_fichero(tc.nombre):
                 # Se anota el INTENTO y su resultado MEDIDO. El footer del
                 # epilogo hace imposible que el modelo afirme haber escrito
@@ -1861,6 +1963,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     "content": (f"AVISO: ya llamaste '{tc.nombre}' con esos "
                                 "mismos argumentos y no avanzo. No la repitas: "
                                 "proba otra herramienta o responde el cierre.")})
+        if _prog is not None and _paso_solo_lectura and resp.tool_calls:
+            # LEER NO ES ESTAR ATASCADO. El paso ya se cobro (tokens y
+            # segundos siguen contando); lo unico que cambia es que no gasta
+            # credito de arranque hasta CREDITO_EXPLORACION pasos.
+            try:
+                _prog.marcar_exploratorio()
+            except Exception:
+                pass
         if mensajes is None:      # corto por estancamiento adentro del for
             break
 

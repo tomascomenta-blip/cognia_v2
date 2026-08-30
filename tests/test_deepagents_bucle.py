@@ -402,10 +402,13 @@ def test_p1_el_corte_por_estancamiento_deja_la_traza_sin_huerfanos(tmp_path, mon
 # ── P12: bucle por fichero ───────────────────────────────────────────────────
 
 def test_p12_contador_fichero_nudge_una_vez_por_umbral_y_normaliza_ruta():
+    # 2026-08-30: los APENDICES cuentan aparte (construir un fichero por
+    # partes no es reeditarlo), asi que la racha que dispara el nudge son
+    # escrituras/ediciones. Ver test_arnes_tareas_largas.py.
     c = rep.ContadorFichero()
     assert c.registrar("a.py", "editar_archivo") == ""
     assert c.registrar("./A.py", "escribir_archivo") == ""
-    n3 = c.registrar("a.py", "apendar_archivo")
+    n3 = c.registrar("a.py", "editar_archivo")
     assert n3.startswith(rep.MARCA) and "Llevas 3 ediciones sobre a.py" in n3
     assert "relee el fichero entero" in n3 and "cambia de enfoque" in n3
     assert c.registrar("a.py", "editar_archivo") == ""          # la 4a: nada
@@ -415,9 +418,12 @@ def test_p12_contador_fichero_nudge_una_vez_por_umbral_y_normaliza_ruta():
     assert c.registrar("a.py", "leer_archivo") == ""
     assert c.registrar("", "editar_archivo") == ""
     assert c.registrar("b.py", "editar_archivo") == ""
-    assert c.estado() == {"ficheros": {"a.py": 6, "b.py": 1}, "nudges": 2}
+    est = c.estado()
+    assert est["ficheros"] == {"a.py": 6, "b.py": 1} and est["nudges"] == 2
+    assert est["apendices"] == {}
     e = rep.estado()
     assert e["umbral_fichero"] == 3 and e["total_fichero"] == 2
+    assert e["umbral_apendice"] == rep.UMBRAL_APENDICE_DEFECTO
     assert e["ultimo_fichero"]["ruta"] == "a.py" and e["ultimo_fichero"]["n"] == 6
 
 

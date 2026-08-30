@@ -143,6 +143,32 @@ UMBRAL_BYTES = 2000
 CABEZA_DEFECTO = 15
 COLA_DEFECTO = 5
 
+# LO QUE EL AGENTE PIDIO POR SU NOMBRE NO ES RUIDO (2026-08-30).
+# El umbral de 2.000 bytes viene de Cline y esta pensado para la salida de un
+# COMANDO: un log de build de 4 MB no puede entrar en la ventana y el modelo
+# casi nunca necesita el medio. Pero se aplicaba igual al contenido de un
+# fichero que el agente acababa de pedir por su ruta, que es justo el caso
+# contrario: ese contenido ES el material de trabajo y lo va a necesitar
+# ENTERO para poder editarlo.
+#
+# MEDIDO sobre la corrida real del minecraft.html (2026-08-30): fichero de
+# 32.585 bytes / 656 lineas; lo que veia el modelo tras `leer_archivo` eran
+# 1.277 bytes (27 lineas), y recorrerlo entero exigia CINCO `recuperar` mas.
+# Siete pasos de lectura con un presupuesto de ocho. El cap no ahorraba ni un
+# token de contexto -- el contenido acababa igual en la ventana, troceado --,
+# solo cobraba cinco round-trips al modelo.
+#
+# La regla: las tools que devuelven el contenido de algo NOMBRADO por el
+# agente (un fichero, un handle) cobran umbral de LECTURA; las que devuelven
+# ruido de proceso (ejecutar, tests, logs) siguen con el de Cline.
+UMBRAL_LECTURA_BYTES = 32768
+CABEZA_LECTURA = 200
+ENV_UMBRAL_LECTURA = "COGNIA_TOOL_RESULT_MAX_LECTURA"
+ENV_CABEZA_LECTURA = "COGNIA_OFFLOAD_CABEZA_LECTURA"
+TOOLS_DE_LECTURA = frozenset({
+    "leer_archivo", "leer_lote", "recuperar", "ver_salida",
+})
+
 # Tope por linea mostrada en el resumen: una sola linea gigante no puede
 # reventar el presupuesto de las otras 19. El tope va en CHARS y ademas en
 # BYTES: 300 chars de emoji son 1200 bytes y el resumen se pasaba al doble del
@@ -154,7 +180,9 @@ _MAX_BYTES_LINEA = 400
 _CUOTA_CABEZA = 0.7
 
 # Ventana por defecto de `recuperar` cuando no se pide rango ni busqueda.
-_VENTANA_DEFECTO = 60
+# 200 y no 60: con el umbral de lectura a 32 KiB, un rango de 60 lineas deja
+# el ejemplo de la cabecera pidiendo migajas de lo que ya cabe entero.
+_VENTANA_DEFECTO = 200
 
 # Tope de bytes de `recuperar` = 4x el umbral (2000 -> 8000): recuperar un
 # trozo tiene que caber en la ventana igual que la observacion original.
@@ -290,6 +318,39 @@ def umbral_bytes() -> int:
     return valor if valor > 0 else UMBRAL_BYTES
 
 
+def tareas_largas() -> bool:
+    """El interruptor UNICO de los cuatro arreglos de tareas largas
+    (2026-08-30). COGNIA_TAREAS_LARGAS=0 devuelve el arnes al comportamiento
+    de antes, entero, para poder medir el A/B sin tocar codigo. Encendido por
+    defecto: los cuatro cortes estaban matando tareas reales."""
+    return os.environ.get("COGNIA_TAREAS_LARGAS", "1").strip().lower() not in (
+        "0", "off", "false", "no")
+
+
+def umbral_lectura_bytes() -> int:
+    """Umbral para las tools de LECTURA. Env COGNIA_TOOL_RESULT_MAX_LECTURA.
+
+    Nunca por debajo del umbral general: bajarlo seria castigar mas a la
+    lectura que al ruido, que es exactamente el bug que esto arregla.
+    """
+    base = umbral_bytes()
+    if not tareas_largas():
+        return base
+    bruto = os.environ.get(ENV_UMBRAL_LECTURA, "").strip()
+    if not bruto:
+        return max(base, UMBRAL_LECTURA_BYTES)
+    try:
+        valor = int(float(bruto))
+    except (TypeError, ValueError):
+        return max(base, UMBRAL_LECTURA_BYTES)
+    return max(base, valor) if valor > 0 else max(base, UMBRAL_LECTURA_BYTES)
+
+
+def es_tool_de_lectura(tool: str) -> bool:
+    """True si la tool devuelve contenido que el agente pidio por su nombre."""
+    return str(tool or "").strip() in TOOLS_DE_LECTURA
+
+
 def activo() -> bool:
     """EL lector del flag de encendido: COGNIA_OFFLOAD en el entorno.
 
@@ -325,6 +386,27 @@ def cabeza_defecto() -> int:
     return _entero_env("COGNIA_OFFLOAD_CABEZA", CABEZA_DEFECTO)
 
 
+def _cabeza_para(tool: str) -> int:
+    """Lineas de cabeza del preview segun la tool.
+
+    Si ni con el umbral de lectura cabe el contenido, la cabeza de una tool de
+    lectura es la de LECTURA: 15 lineas de un fichero de 3.000 no sirven para
+    editarlo. El knob explicito (COGNIA_OFFLOAD_CABEZA) manda SIEMPRE por
+    encima de esto: quien lo pone a mano esta pidiendo un preview concreto.
+    """
+    if es_tool_de_lectura(tool) and tareas_largas():
+        # Su propio knob, y por delante del general A PROPOSITO: el CLI
+        # siembra SIEMPRE COGNIA_OFFLOAD_CABEZA desde la config (15), asi que
+        # si el general mandara, la cabeza de lectura seria codigo muerto en
+        # el producto -- la trampa de "la rama construida que nadie cableo".
+        if os.environ.get(ENV_CABEZA_LECTURA, "").strip():
+            return _entero_env(ENV_CABEZA_LECTURA, CABEZA_LECTURA)
+        if os.environ.get("COGNIA_OFFLOAD_CABEZA", "").strip():
+            return cabeza_defecto()
+        return CABEZA_LECTURA
+    return cabeza_defecto()
+
+
 def cola_defecto() -> int:
     """Lineas de cola del preview; COGNIA_OFFLOAD_COLA la mueve (0 = solo
     cabeza, permitido). La cola existe porque el truncado clasico solo
@@ -332,12 +414,15 @@ def cola_defecto() -> int:
     return _entero_env("COGNIA_OFFLOAD_COLA", COLA_DEFECTO, minimo=0)
 
 
-def _umbral_efectivo(umbral) -> int:
-    """El umbral que pide el llamador, o el de entorno. Un valor basura cae al
-    de entorno en vez de lanzar: esto corre en el formateador de observaciones,
-    donde una excepcion cuesta el turno entero."""
+def _umbral_efectivo(umbral, tool: str = "") -> int:
+    """El umbral que pide el llamador, el de LECTURA si la tool es de lectura,
+    o el general. Un valor basura cae al de entorno en vez de lanzar: esto
+    corre en el formateador de observaciones, donde una excepcion cuesta el
+    turno entero."""
     valor = _entero(umbral)
-    return valor if valor and valor > 0 else umbral_bytes()
+    if valor and valor > 0:
+        return valor
+    return umbral_lectura_bytes() if es_tool_de_lectura(tool) else umbral_bytes()
 
 
 def _nuevo_id() -> str:
@@ -642,14 +727,14 @@ def resumir_para_modelo(contenido, tool: str = "", handle: str = "",
     + la instruccion concreta para pedir el resto (contrato deepseek-harness).
     """
     texto, crudo = _preparar(contenido)
-    umb = _umbral_efectivo(umbral)
+    umb = _umbral_efectivo(umbral, tool)
     total_bytes = len(crudo)
     if total_bytes <= umb:
         return texto
 
     lineas = _lineas(texto)
     total_lineas = len(lineas)
-    n_cabeza = max(1, int(cabeza) if cabeza is not None else cabeza_defecto())
+    n_cabeza = max(1, int(cabeza) if cabeza is not None else _cabeza_para(tool))
     n_cola = max(0, int(cola) if cola is not None else cola_defecto())
     # Sin solape: con pocas lineas la cola cede a favor de la cabeza.
     if n_cabeza + n_cola > total_lineas:
@@ -761,7 +846,7 @@ def formatear_observacion(contenido, tool: str = "", args: str = "",
     un fallo de almacenamiento NUNCA convierte una llamada exitosa en error.
     """
     texto, crudo = _preparar(contenido)
-    umb = _umbral_efectivo(umbral)
+    umb = _umbral_efectivo(umbral, tool)
     if len(crudo) <= umb:
         return texto
     ruta = ""
@@ -832,7 +917,11 @@ def recuperar(handle, desde=None, hasta=None, buscar=None,
     el error ES el siguiente prompt, y lanzar una excepcion aca mataria el
     turno por una equivocacion del modelo que el modelo puede corregir solo.
     """
-    tope = _entero(max_bytes) or (umbral_bytes() * _FACTOR_MAX_BYTES)
+    # `recuperar` es la via de recuperacion del offload: su ventana no puede
+    # ser mas estrecha que lo que hoy cabe de una sola vez en una lectura, o
+    # recorrer un fichero grande vuelve a costar N round-trips.
+    tope = _entero(max_bytes) or max(umbral_bytes() * _FACTOR_MAX_BYTES,
+                                     umbral_lectura_bytes())
     tope = max(200, tope)
 
     h = normalizar_handle(handle)
@@ -1149,7 +1238,11 @@ def estado() -> dict:
         "dir": str(dir_offload()),
         "sesion": sesion_actual(),
         "umbral": umbral_bytes(),
+        "umbral_lectura": umbral_lectura_bytes(),
+        "tareas_largas": tareas_largas(),
         "cabeza": cabeza_defecto(),
+        "cabeza_lectura": _cabeza_para("leer_archivo"),
+        "tools_lectura": sorted(TOOLS_DE_LECTURA),
         "cola": cola_defecto(),
         "handles": len(vivos),
         "bytes_sesion": sum(e["bytes"] for e in vivos),

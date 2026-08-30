@@ -14565,3 +14565,112 @@ stash de los 3 ficheros tocados y re-corrida de los 8 ficheros con más fallos �
 - La ronda de reparación puede quedarse sin turno si el gobernador por progreso
   corta el bucle por meseta; el footer sigue siendo honesto (dice que quedó
   roto), pero la reparación no llega a re-verificarse. Medido una vez.
+
+---
+
+## 2026-08-30 — 4.16.0: las tareas LARGAS mueren por cinco cortes, no por uno
+
+### El caso que lo destapó
+
+Cuatro corridas seguidas del dueño sobre `minecraft.html` (32.585 bytes, 656
+líneas, un juego voxel a medias). Ninguna escribió un byte:
+
+```
+✗ 808.8s ·  8 pasos · sin progreso verificado: meseta
+✗  61.2s ·  6 pasos · sin progreso verificado: sin_arranque
+✗  31.2s ·  6 pasos · sin progreso verificado: sin_arranque
+✗  30.8s ·  6 pasos · sin progreso verificado: sin_arranque
+```
+
+### Los cinco cortes, medidos ANTES de tocar nada
+
+1. **Amplificación de lectura.** `UMBRAL_BYTES=2000` y `CABEZA_DEFECTO=15` se
+   aplicaban igual a un log de build que al fichero que el agente acababa de
+   pedir por su ruta. Medido: de 32.585 bytes el modelo veía **1.277** (27
+   líneas) y recorrerlo entero exigía **5 `recuperar`** más → 7 pasos de pura
+   lectura. El cap no ahorraba contexto (el contenido acababa igual en la
+   ventana, troceado): solo cobraba 5 round-trips.
+2. **`umbral_arranque` = 6 con presupuesto 8.** `estimate_step_budget` daba 8
+   pasos a las tres tareas (dificultad 0,279–0,376 sobre 267–340 caracteres).
+   Leer costaba 7. Muerte en el paso 6, antes de la primera edición.
+3. **El progreso sobre UN artefacto que crece era invisible.**
+   `observar_fichero` solo contaba la transición inexistente→válido, así que
+   1 escritura + 4 apéndices = **1 avance** → `meseta` en el paso 8.
+4. **El nudge por fichero (umbral 3) contaba los apéndices.** Escribir por
+   partes es la vía que el propio arnés impone cuando el contenido no cabe en
+   un tool call; el nudge saltó en la 3ª y la 6ª operación pidiendo releer el
+   fichero entero, que es justo lo más caro.
+5. **El quinto SOLO apareció corriendo.** Con los cuatro arreglos la tarea ya
+   no moría por `sin_arranque`... y moría igual: `(presupuesto de 8 pasos
+   agotado sin cierre)`, 119 s, 0 bytes. El presupuesto es un PRIOR del TEXTO
+   de la tarea y el texto no sabe que el fichero pesa 32 KB.
+
+### El arreglo
+
+- `harness/offloading.py`: umbral por tool. `leer_archivo`, `leer_lote`,
+  `recuperar` y `ver_salida` van inline hasta **32 KiB** con cabeza de 200
+  líneas; `ejecutar`/`tests` siguen con los 2.000 de Cline. `recuperar` ya no
+  se capa por debajo de lo que cabe en una lectura.
+- `estado/presupuesto_progreso.py`: tipo de avance nuevo
+  `artefacto_crecio_valido` (el fichero sigue válido y supera su MÁXIMO
+  histórico por ≥200 B: un churn A→B→A no crece nunca) y crédito de
+  exploración (8 pasos de solo lectura no gastan arranque). Propiedad: los
+  pasos efectivos son SIEMPRE ≤ los crudos, así que la regla solo puede
+  RETRASAR un corte — no puede añadir ni una falsa alarma a las 135 tareas con
+  las que se calibró el umbral 4.
+- `harness/repeticion.py`: los apéndices tienen umbral propio (12) y su propio
+  texto (comprobar lo escrito, no releerlo entero).
+- `agent/loop.py`: el techo de pasos se AMPLIA mientras el gobernador diga
+  `avanza` — una ampliación de gracia antes del primer avance (motivo
+  `arranque_sano`) y el resto pagadas con avances verificados. Techo duro
+  `AGENT_CAP_CON_PROGRESO=120`. `hermes/presupuesto_turno.ampliar()` la audita.
+- Interruptor único **`COGNIA_TAREAS_LARGAS`** (on por defecto): a 0 el arnés
+  vuelve entero al comportamiento de antes. Es lo que hace medible el A/B.
+
+### Puertas en el CLI
+
+- `/offload estado` muestra `umbral lectura` (bytes + tools) y la cabeza de
+  lectura; `/offload lectura <bytes> [<N>]` los mueve y los persiste
+  (`offload_umbral_lectura`, `offload_cabeza_lectura`).
+- `/bucle estado` muestra el umbral de apéndices junto al de ediciones.
+
+### Verificación real
+
+- **A/B de la tarea del dueño** (`minecraft.html`, 32.585 B): con el arnés de
+  antes, `170.3s · (cerrada sin progreso verificado: sin_arranque)` y 0 bytes.
+- **`leer_archivo` del fichero real: 32.623 B en UN paso** (antes 1.277 + 5
+  `recuperar`).
+- **Tarea larga por partes** (`manual.md`, 6 capítulos, uno por apéndice):
+  `presupuesto ampliado a 12 pasos: 6 avances verificados (ultimo: manual.md)`
+  → **196 líneas / 11.276 B**, `✓ Objetivo verificado: 1/1`. Cero nudges por
+  fichero (antes habrían saltado dos).
+- **A/B sobre un fichero de 31.412 B con un bug**: brazo `TAREAS_LARGAS=0` →
+  `56.0s · sin_arranque`, el fichero sigue imprimiendo `12.1`; brazo parcheado
+  → `74.1s`, arreglado y verificado ejecutándolo (`36.3`), **0 `recuperar`**.
+- **Gate obligatorio**: `E2E CAMINO FELIZ: 5/5 OK en 2.0 min`.
+
+### Estado de la suite
+
+Corrida completa: **81 failed / 13.558 passed** en 42 min. A/B contra `HEAD`
+sobre los 30 ficheros que concentran los fallos: **55 failed en HEAD y 55 en el
+árbol parcheado, lista idéntica → cero regresiones**. Tests nuevos: 24
+(`test_arnes_tareas_largas.py`) + 3 (`test_arnes_ampliacion_pasos.py`),
+incluido el contrafactual de la corrida real.
+
+Seis tests existentes se actualizaron porque codificaban la semántica vieja
+(los tipos de avance, el umbral de apéndices, las constantes del preview) y dos
+fixtures porque el reparto por tool necesita aislarse; el detalle está en cada
+diff. `test_p1_el_corte_por_estancamiento_deja_la_traza_sin_huerfanos` **ya
+fallaba en `HEAD`** (comprobado en un worktree limpio): no es de este cambio.
+
+### Límites declarados
+
+- El sexto corte de la tarea del minecraft **es del modelo**, no del arnés:
+  con el fichero ya entero en contexto, el 27B repite `leer_archivo
+  minecraft.html` cinco veces e ignora los dos avisos, y el guardia de bucles
+  corta — correctamente. No se tocó.
+- La rampa de `max_tokens` (8192→16384→32768) con un 27B local a ~20 tok/s
+  cuesta ~27 min por intento: una tarea que pide un fichero enorme de una sola
+  vez sigue siendo inviable en esta máquina por VELOCIDAD, no por el arnés.
+- El crédito de exploración es finito (8): una corrida que solo lee sigue
+  muriendo por `sin_arranque`, y con ella se acaban las ampliaciones.

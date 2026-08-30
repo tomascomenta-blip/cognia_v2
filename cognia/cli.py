@@ -3239,7 +3239,7 @@ _CMD_DESCRIPTIONS = {
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
     "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
-    "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Uso: /offload [estado | on | off | umbral <bytes> | preview <N> [<M>] | lista]",
+    "/offload":         "Salidas grandes de tools a disco: el modelo ve cabeza+cola+referencia recuperable. Las LECTURAS (leer_archivo, recuperar...) tienen umbral propio. Uso: /offload [estado | on | off | umbral <bytes> | lectura <bytes> [<N>] | preview <N> [<M>] | lista]",
     "/compactar":       "A secas: resumen visual de la sesion (limpiar + ultimas interacciones). Con args: compactacion del contexto del agente. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
     "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
@@ -8290,6 +8290,11 @@ _CONFIG_DEFAULTS: dict = {
     "offload":          "on",
     "offload_umbral":   "2000",
     "offload_cabeza":   "15",
+    # Reparto por tool (2026-08-30): lo que el agente pidio por su nombre (un
+    # fichero, un handle) no es ruido de proceso. Se mueve con
+    # /offload lectura <bytes> [<cabeza>].
+    "offload_umbral_lectura": "32768",
+    "offload_cabeza_lectura": "200",
     "offload_cola":     "5",
     # COMPACTACION del contexto del agente (harness/compactacion, F4): al
     # superar el umbral del n_ctx, el modo 'resumen' funde el historial viejo
@@ -13933,6 +13938,10 @@ def _aplicar_config_offload() -> None:
             ("COGNIA_TOOL_RESULT_MAX", str(cfg.get("offload_umbral", "2000"))),
             ("COGNIA_OFFLOAD_CABEZA", str(cfg.get("offload_cabeza", "15"))),
             ("COGNIA_OFFLOAD_COLA", str(cfg.get("offload_cola", "5"))),
+            (_off.ENV_UMBRAL_LECTURA,
+             str(cfg.get("offload_umbral_lectura", "32768"))),
+            (_off.ENV_CABEZA_LECTURA,
+             str(cfg.get("offload_cabeza_lectura", "200"))),
         )
         for var, valor in pares:
             if not (os.environ.get(var) or "").strip():
@@ -13986,6 +13995,35 @@ def _slash_offload(arg: str = "") -> None:
         _marcar_env_sembrada("COGNIA_TOOL_RESULT_MAX")
         _print_line(f"[info_dim]offload: umbral {n} bytes (guardado)[/info_dim]")
         return
+    if bajo.startswith("lectura"):
+        partes = arg[len("lectura"):].split()
+        try:
+            umb = int(partes[0])
+            cab = int(partes[1]) if len(partes) > 1 else None
+            if umb < 200 or (cab is not None and cab < 1):
+                raise ValueError(umb)
+        except (IndexError, ValueError):
+            _print_line("[warn_cl]Uso: /offload lectura <bytes >= 200> "
+                        "[<lineas de cabeza >= 1>] -- umbral inline para las "
+                        "tools que devuelven contenido pedido por su nombre "
+                        "(leer_archivo, leer_lote, recuperar, ver_salida)"
+                        "[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["offload_umbral_lectura"] = str(umb)
+        os.environ[_off.ENV_UMBRAL_LECTURA] = str(umb)
+        _marcar_env_sembrada(_off.ENV_UMBRAL_LECTURA)
+        if cab is not None:
+            cfg["offload_cabeza_lectura"] = str(cab)
+            os.environ[_off.ENV_CABEZA_LECTURA] = str(cab)
+            _marcar_env_sembrada(_off.ENV_CABEZA_LECTURA)
+        _save_config(cfg)
+        _print_line(f"[info_dim]offload: las lecturas van inline hasta "
+                    f"{umb} bytes"
+                    + (f" y su preview es de {cab} lineas de cabeza"
+                       if cab is not None else "")
+                    + " (guardado)[/info_dim]")
+        return
     if bajo.startswith("preview"):
         partes = arg[len("preview"):].split()
         try:
@@ -14015,7 +14053,8 @@ def _slash_offload(arg: str = "") -> None:
         return
     if arg and bajo != "estado":
         _print_line("[warn_cl]Uso: /offload [estado | on | off | umbral <bytes> "
-                    "| preview <N> [<M>] | lista][/warn_cl]")
+                    "| lectura <bytes> [<N>] | preview <N> [<M>] | lista]"
+                    "[/warn_cl]")
         return
     # Estado (default): la foto entera del subsistema.
     est = _off.estado()
@@ -14029,7 +14068,16 @@ def _slash_offload(arg: str = "") -> None:
         ("dir spills", f"{est['dir']}  (sesion {est['sesion']}, "
                        f"{est['handles']} handles, {est['bytes_sesion']} B)"),
         ("umbral", f"{est['umbral']} bytes inline"),
-        ("preview", f"{est['cabeza']} lineas de cabeza + {est['cola']} de cola"),
+        # Reparto por tool (2026-08-30): lo que el agente pidio por su nombre
+        # (un fichero, un handle) no es ruido de proceso y no se capa igual.
+        ("umbral lectura",
+         f"{est.get('umbral_lectura', est['umbral'])} bytes inline para "
+         f"{', '.join(est.get('tools_lectura') or [])}"
+         + ("" if est.get("tareas_largas", True)
+            else "  (APAGADO por COGNIA_TAREAS_LARGAS=0)")),
+        ("preview", f"{est['cabeza']} lineas de cabeza + {est['cola']} de cola"
+                    f"  (lectura: {est.get('cabeza_lectura', est['cabeza'])} "
+                    f"de cabeza)"),
     ]
     ult = est["ultimo_spill"]
     if ult:
@@ -15200,7 +15248,9 @@ def _slash_bucle(arg: str = "") -> None:
         # ContadorFichero (deepagents 0.7.8): ediciones al MISMO fichero
         ("por fichero", f"nudge a las {er['umbral_fichero']} ediciones del "
                         f"mismo fichero ({_fuente(_rep.ENV_UMBRAL_FICHERO, 'repeticion_umbral_fichero')}); "
-                        f"{er['total_fichero']} en este proceso"
+                        f"{er.get('umbral_apendice', er['umbral_fichero'])} "
+                        f"si son apendices (construir por partes no es "
+                        f"reeditar); {er['total_fichero']} en este proceso"
                         + (f"; ultimo: {ult_f.get('ruta')} x{ult_f.get('n')} "
                            f"({ult_f.get('tool')})" if ult_f else "")),
         ("transparentes", ", ".join(er["exentas"]) or "ninguna"),

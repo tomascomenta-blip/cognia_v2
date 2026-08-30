@@ -96,6 +96,10 @@ def test_offload_no_marca_ERROR_en_la_cabecera_de_una_lectura_sana(tmp_path, mon
     from cognia.harness import offloading as off
     monkeypatch.setenv("COGNIA_OFFLOAD_DIR", str(tmp_path / "offload"))
     monkeypatch.setenv("COGNIA_TOOL_RESULT_MAX", "2000")
+    # Lo que se mide es la CABECERA de un spill, no el reparto de umbral por
+    # tool del 2026-08-30: con LECTURA=1 el umbral de lectura colapsa al
+    # general y estas 300 lineas vuelven a spillear como siempre.
+    monkeypatch.setenv("COGNIA_TOOL_RESULT_MAX_LECTURA", "1")
     cuerpo = "\n".join(f"2026-08-24T10:00:{i:02d} ERROR [cache] evento {i}"
                        for i in range(300))
     salida = off.formatear_observacion("RESULTADO leer_archivo grande.log: " + cuerpo,

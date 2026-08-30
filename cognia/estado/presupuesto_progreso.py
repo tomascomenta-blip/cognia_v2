@@ -88,6 +88,7 @@ TIPO_TEST = "test_en_verde"                    # verificacion que ANTES fallaba 
 TIPO_POSTCONDICION = "postcondicion_cumplida"  # postcondicion declarada, ahora cierta
 TIPO_ERROR = "error_resuelto"                  # un error que aparecia y ya no aparece
 TIPO_PENDIENTE = "pendiente_resuelto"          # item de pendientes, cerrado con evidencia
+TIPO_CRECIMIENTO = "artefacto_crecio_valido"   # el MISMO fichero crecio y sigue siendo valido
 
 TIPOS_AVANCE = (
     TIPO_FICHERO,
@@ -95,6 +96,7 @@ TIPOS_AVANCE = (
     TIPO_POSTCONDICION,
     TIPO_ERROR,
     TIPO_PENDIENTE,
+    TIPO_CRECIMIENTO,
 )
 
 # -- Umbrales, con la medicion que los fija --------------------------------
@@ -132,6 +134,38 @@ MIN_AVANCES_PARA_FACTOR = 2
 # La regla de meseta de coste necesita una linea base propia. Con un solo avance
 # la "mediana de coste por avance" es ese unico dato y cortar por el seria cortar
 # por ruido.
+
+MIN_CRECIMIENTO_BYTES = 200
+# UN ARTEFACTO QUE CRECE ES PROGRESO (2026-08-30). `observar_fichero` solo
+# contaba la transicion inexistente->valido, asi que una tarea que construye UN
+# fichero grande por partes (escribir_archivo + N apendar_archivo, que es como
+# el arnes obliga a escribir cuando el contenido no cabe en un tool call)
+# registraba exactamente UN avance y despues parecia parada. MEDIDO en la
+# corrida real del minecraft.html (2026-08-30): 1 escritura + 4 apendices + 1
+# edicion = 6 pasos, UN avance, cierre por 'meseta' en el paso 8 con el fichero
+# a medias (655 lineas, sin bucle de juego y sin `</html>`).
+#
+# El avance sigue siendo OBSERVADO, no declarado, y sigue siendo una TRANSICION:
+# el fichero tiene que seguir siendo valido y superar el MAXIMO historico de
+# bytes de esta corrida. Un churn que reescribe lo mismo (A->B->A) no crece
+# nunca, y por eso no puntua: es la misma propiedad anti-gaming del modulo.
+# 200 bytes = un bloque de codigo de verdad; por debajo es retoque.
+
+CREDITO_EXPLORACION = 8
+# LEER NO ES ESTAR ATASCADO (2026-08-30). `pasos_sin_avance` contaba TODOS los
+# pasos, incluidos los de solo lectura. MEDIDO: con el offload a 2.000 bytes,
+# recorrer entero el fichero de 32 KB que habia que editar costaba 1 `listar` +
+# 1 `leer_archivo` + 5 `recuperar` = SIETE pasos de pura lectura, y el umbral de
+# arranque era 6: la corrida moria por 'sin_arranque' antes de tener derecho a
+# su primera edicion. Paso tres veces seguidas el 2026-08-30.
+#
+# Los pasos exploratorios (tools puras: leer/listar/buscar/recuperar) no gastan
+# credito de arranque hasta `credito_exploracion`. PROPIEDAD QUE IMPORTA: los
+# pasos efectivos son SIEMPRE <= los crudos, o sea que esta regla solo puede
+# RETRASAR un corte, nunca adelantarlo -- no puede introducir ni una falsa
+# alarma nueva sobre las 135 tareas con las que se calibro el umbral 4. El tope
+# existe para que un bucle de solo lectura siga siendo finito: 8 lecturas
+# seguidas sin producir nada ya vuelven a contar.
 
 # -- Sugerencias: escritas PARA EL MODELO, no para un log ------------------
 #
@@ -195,6 +229,8 @@ class Progreso:
         umbral_estancado=PASOS_SIN_AVANCE_ESTANCADO,
         umbral_arranque=PASOS_SIN_AVANCE_SIN_ARRANQUE,
         factor_meseta=FACTOR_MESETA_COSTE,
+        credito_exploracion=CREDITO_EXPLORACION,
+        contar_crecimiento=True,
     ):
         self.nombre = nombre
         self.tope_tokens = tope_tokens
@@ -203,6 +239,11 @@ class Progreso:
         self.umbral_estancado = umbral_estancado
         self.umbral_arranque = umbral_arranque
         self.factor_meseta = factor_meseta
+        self.credito_exploracion = max(0, int(credito_exploracion or 0))
+        # Este modulo NO lee el entorno a proposito (seria intesteable y
+        # mentiria en un resume): el interruptor COGNIA_TAREAS_LARGAS lo
+        # traduce el integrador, que es quien si conoce el entorno.
+        self.contar_crecimiento = bool(contar_crecimiento)
 
         self.tokens = 0
         self.segundos = 0.0
@@ -217,12 +258,19 @@ class Progreso:
         self._verificaciones = {}   # clave -> bool (ultimo resultado conocido)
         self._errores = {}          # firma -> bool (presente)
         self._ficheros = {}         # ruta -> bool (valido)
+        self._tam_max = {}          # ruta -> bytes MAXIMOS vistos (para el crecimiento)
         self._postcondiciones = {}  # nombre -> bool
         self._pendientes = {}       # id -> bool (resuelto)
 
     # -- Coste -------------------------------------------------------------
-    def gastar(self, tokens=0, segundos=0.0, pasos=1):
-        """Suma coste. Devuelve el snapshot acumulado (dict)."""
+    def gastar(self, tokens=0, segundos=0.0, pasos=1, exploratorio=False):
+        """Suma coste. Devuelve el snapshot acumulado (dict).
+
+        `exploratorio=True` marca el paso como de SOLO LECTURA (tools puras).
+        Sigue costando tokens y segundos igual que cualquier otro -- lo unico
+        que cambia es que no gasta credito de arranque mientras quede
+        `credito_exploracion`. Ver la constante para el porque y el limite.
+        """
         tokens = _num(tokens, "tokens")
         segundos = _num(segundos, "segundos")
         pasos = _num(pasos, "pasos")
@@ -230,9 +278,22 @@ class Progreso:
         self.segundos += float(segundos)
         self.pasos += int(pasos)
         self._gastos.append(
-            {"paso": self.pasos, "tokens": int(tokens), "segundos": float(segundos)}
+            {"paso": self.pasos, "tokens": int(tokens), "segundos": float(segundos),
+             "exploratorio": bool(exploratorio)}
         )
         return {"tokens": self.tokens, "segundos": self.segundos, "pasos": self.pasos}
+
+    def marcar_exploratorio(self, valor=True):
+        """Marca el ULTIMO paso gastado como exploratorio (o deja de marcarlo).
+
+        Existe porque el integrador cobra el paso en cuanto el modelo contesta,
+        pero solo sabe si fue de lectura DESPUES de ejecutar las tools de ese
+        paso. Sin gasto previo no hace nada (nunca lanza: es contabilidad).
+        """
+        if not self._gastos:
+            return False
+        self._gastos[-1]["exploratorio"] = bool(valor)
+        return True
 
     # -- Avance ------------------------------------------------------------
     def avanzar(self, tipo, detalle, evidencia):
@@ -354,14 +415,33 @@ class Progreso:
         """
         ruta_s = str(ruta)
         valido, motivo = _validar_fichero(ruta_s, contenido)
+        tam = _tamano_fichero(ruta_s, contenido)
         antes = self._ficheros.get(ruta_s)
         self._ficheros[ruta_s] = valido
         if valido and not antes:
+            if tam is not None:
+                self._tam_max[ruta_s] = tam
             return {"avance": self.avanzar(TIPO_FICHERO, ruta_s, motivo),
                     "valido": True, "motivo": motivo}
         if (not valido) and antes is True:
             return {"avance": None, "valido": False, "motivo": motivo,
                     "regresion": self._regresion(TIPO_FICHERO, ruta_s, motivo)}
+        # CRECIMIENTO VERIFICADO: el fichero ya contaba como valido, pero ahora
+        # es MAS GRANDE que en cualquier momento anterior de esta corrida y
+        # sigue siendo valido. Es una transicion observada, no una declaracion.
+        # Contra el maximo historico a proposito: un churn A->B->A no crece.
+        if valido and tam is not None and self.contar_crecimiento:
+            tope = self._tam_max.get(ruta_s, 0)
+            if tam >= tope + MIN_CRECIMIENTO_BYTES:
+                self._tam_max[ruta_s] = tam
+                ev = "%d -> %d bytes (+%d) y sigue valido: %s" % (
+                    tope, tam, tam - tope, motivo)
+                return {"avance": self.avanzar(TIPO_CRECIMIENTO, ruta_s, ev),
+                        "valido": True, "motivo": motivo, "bytes": tam}
+            # La linea base NO se mueve con un crecimiento que no llego al
+            # minimo: si se moviera, diez apendices de 100 bytes (1 KB de
+            # trabajo real) no contarian ni una vez, porque cada uno subiria
+            # el liston que el siguiente tiene que batir.
         return {"avance": None, "valido": valido, "motivo": motivo}
 
     # -- Lectura -----------------------------------------------------------
@@ -370,6 +450,21 @@ class Progreso:
         if not self.avances:
             return self.pasos
         return self.pasos - self.avances[-1]["paso"]
+
+    def exploratorios_sin_avance(self):
+        """Pasos de SOLO LECTURA gastados desde el ultimo avance verificado."""
+        desde = self.avances[-1]["paso"] if self.avances else 0
+        return sum(1 for g in self._gastos
+                   if g["paso"] > desde and g.get("exploratorio"))
+
+    def pasos_efectivos_sin_avance(self):
+        """`pasos_sin_avance` descontando el credito de exploracion.
+
+        SIEMPRE <= `pasos_sin_avance()`: esta resta solo puede retrasar un
+        corte, nunca adelantarlo. Ver CREDITO_EXPLORACION.
+        """
+        return max(0, self.pasos_sin_avance()
+                   - min(self.exploratorios_sin_avance(), self.credito_exploracion))
 
     def coste_sin_avance(self):
         """Tokens y segundos gastados desde el ultimo avance verificado."""
@@ -447,6 +542,7 @@ class Progreso:
         """{estado, motivo, evidencia, sugerencia}. No lanza y no corta: informa."""
         n = len(self.avances)
         sin = self.pasos_sin_avance()
+        sin_ef = self.pasos_efectivos_sin_avance()
         coste = self.coste_sin_avance()
         ultimo = self.avances[-1]["detalle"] if n else ""
 
@@ -455,6 +551,8 @@ class Progreso:
             "avances": n,
             "pasos": self.pasos,
             "pasos_sin_avance": sin,
+            "pasos_efectivos_sin_avance": sin_ef,
+            "exploratorios_sin_avance": self.exploratorios_sin_avance(),
             "tokens": self.tokens,
             "tokens_sin_avance": coste["tokens"],
             "segundos": round(self.segundos, 3),
@@ -473,24 +571,24 @@ class Progreso:
                     eje=eje, valor=valor, limite=limite, avances=n),
             }
 
-        if n == 0 and sin >= self.umbral_arranque:
+        if n == 0 and sin_ef >= self.umbral_arranque:
             base["umbral"] = self.umbral_arranque
             return {
                 "estado": "estancado",
                 "motivo": "sin_arranque",
                 "evidencia": base,
                 "sugerencia": _SUGERENCIAS["sin_arranque"].format(
-                    pasos=sin, tokens=coste["tokens"]),
+                    pasos=sin_ef, tokens=coste["tokens"]),
             }
 
-        if n > 0 and sin >= self.umbral_estancado:
+        if n > 0 and sin_ef >= self.umbral_estancado:
             base["umbral"] = self.umbral_estancado
             return {
                 "estado": "estancado",
                 "motivo": "meseta",
                 "evidencia": base,
                 "sugerencia": _SUGERENCIAS["meseta"].format(
-                    avances=n, pasos=sin, tokens=coste["tokens"], ultimo=ultimo or "nada"),
+                    avances=n, pasos=sin_ef, tokens=coste["tokens"], ultimo=ultimo or "nada"),
             }
 
         mediana = self._mediana_coste_por_avance()
@@ -527,6 +625,8 @@ class Progreso:
                 "sin_arranque": self.umbral_arranque,
                 "estancado": self.umbral_estancado,
                 "factor_meseta": self.factor_meseta,
+                "credito_exploracion": self.credito_exploracion,
+                "contar_crecimiento": self.contar_crecimiento,
             },
             "avances": list(self.avances),
             "avances_por_tipo": por_tipo,
@@ -535,6 +635,23 @@ class Progreso:
             "curva": self.curva(),
             "veredicto": self.veredicto(),
         }
+
+
+def _tamano_fichero(ruta, contenido=None):
+    """Bytes del fichero (o del contenido en memoria). None si no se pudo medir.
+
+    None y 0 NO son lo mismo: un fichero vacio mide 0 y uno ilegible no mide.
+    Devolver 0 en el caso ilegible convertiria "no lo pude medir" en "encogio".
+    """
+    if contenido is not None:
+        try:
+            return len(str(contenido).encode("utf-8", "replace"))
+        except Exception:
+            return None
+    try:
+        return Path(ruta).stat().st_size
+    except OSError:
+        return None
 
 
 def _validar_fichero(ruta, contenido=None):

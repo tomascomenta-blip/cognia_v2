@@ -25,15 +25,19 @@ from cognia.estado.presupuesto_progreso import (
 )
 
 
-# -- Los cinco tipos de avance ----------------------------------------------
+# -- Los seis tipos de avance -----------------------------------------------
 
-def test_los_cinco_tipos_existen_y_son_los_esperados():
+def test_los_tipos_existen_y_son_los_esperados():
+    # 'artefacto_crecio_valido' se anadio el 2026-08-30: un fichero que crece
+    # y sigue siendo valido es la unica forma de progreso observable de una
+    # tarea que construye UN artefacto grande por partes.
     assert set(TIPOS_AVANCE) == {
         "fichero_nuevo_valido",
         "test_en_verde",
         "postcondicion_cumplida",
         "error_resuelto",
         "pendiente_resuelto",
+        "artefacto_crecio_valido",
     }
 
 
@@ -128,11 +132,14 @@ def test_tipo_pendiente_resuelto():
     assert len(p.avances) == 1
 
 
-def test_los_cinco_tipos_se_pueden_acumular_en_una_corrida(tmp_path):
-    p = Progreso(nombre="cinco")
+def test_los_tipos_se_pueden_acumular_en_una_corrida(tmp_path):
+    p = Progreso(nombre="todos")
     f = tmp_path / "a.py"
     f.write_text("y = 1\n", encoding="utf-8")
     p.gastar(tokens=10)
+    p.observar_fichero(f)
+    # y el sexto tipo: el MISMO fichero, mas grande y todavia valido
+    f.write_text("y = 1\n" + "z = 2\n" * 100, encoding="utf-8")
     p.observar_fichero(f)
     p.observar_verificacion("t", False)
     p.observar_verificacion("t", True, evidencia="1 passed")

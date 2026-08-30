@@ -340,7 +340,14 @@ def test_las_tools_que_se_repiten_por_diseno_no_cortan_la_tarea():
         assert len(trace) == 4, f"{tool}: se ejecutaron {len(trace)} de 4"
 
 
-def test_bucle_nativo_presupuesto_agotado_cierra_con_evidencia():
+def test_bucle_nativo_presupuesto_agotado_cierra_con_evidencia(monkeypatch):
+    # 2026-08-30: por defecto el techo ya no es fijo -- se AMPLIA mientras el
+    # gobernador diga que la corrida esta sana (ver
+    # test_arnes_ampliacion_pasos.py), asi que la rama de agotamiento solo se
+    # alcanza con el interruptor apagado o al llegar al techo duro. Lo que se
+    # mide aqui es esa rama: que cierra CON evidencia y no con un parentesis
+    # vacio.
+    monkeypatch.setenv("COGNIA_TAREAS_LARGAS", "0")
     tc = ToolCall(id="t", nombre="ejecutar", argumentos={"comando": "x"},
                   argumentos_crudos="{}")
     pasos = [RespuestaChat(texto="", finish_reason="tool_calls", usage={},

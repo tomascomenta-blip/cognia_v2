@@ -191,6 +191,11 @@ def test_el_arranque_del_repl_no_inventa_envs(tmp_path, monkeypatch):
     import cognia.cli as cli
     for var in ("COGNIA_OFFLOAD", "COGNIA_TOOL_RESULT_MAX",
                 "COGNIA_OFFLOAD_CABEZA", "COGNIA_OFFLOAD_COLA",
+                # las dos del reparto por tool (2026-08-30): sin ellas aqui,
+                # _aplicar_config_offload las sembraba de verdad y se filtraban
+                # a los ficheros siguientes -- exactamente el bug que este
+                # setenv-antes-de-delenv documenta.
+                "COGNIA_TOOL_RESULT_MAX_LECTURA", "COGNIA_OFFLOAD_CABEZA_LECTURA",
                 "COGNIA_COMPACT", "COGNIA_COMPACT_UMBRAL",
                 "COGNIA_COMPACT_RETENCION", "COGNIA_COMPACT_CAP"):
         # setenv ANTES de delenv: delenv(raising=False) sobre una var AUSENTE

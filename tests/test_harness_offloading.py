@@ -31,6 +31,13 @@ def almacen_aislado(tmp_path, monkeypatch):
     for var in ("COGNIA_TOOL_RESULT_MAX", "COGNIA_OFFLOAD",
                 "COGNIA_OFFLOAD_CABEZA", "COGNIA_OFFLOAD_COLA"):
         monkeypatch.delenv(var, raising=False)
+    # Este fichero fija el contrato del MECANISMO de offload, no el reparto de
+    # presupuesto por tool que se anadio el 2026-08-30. Con LECTURA=1 el
+    # umbral de las tools de lectura colapsa al general (`max(base, valor)`),
+    # asi que estos tests siguen midiendo lo que siempre midieron. El reparto
+    # nuevo tiene sus propios tests en test_arnes_tareas_largas.py.
+    monkeypatch.setenv("COGNIA_TOOL_RESULT_MAX_LECTURA", "1")
+    monkeypatch.setenv("COGNIA_OFFLOAD_CABEZA", str(off.CABEZA_DEFECTO))
     monkeypatch.setattr(off, "_AVISADOR", None)
     off._ULTIMO_SPILL.clear()
     off._ULTIMO_ERROR.clear()
@@ -104,7 +111,8 @@ def test_el_resumen_dice_como_leer_mas():
     salida = off.formatear_observacion(crudo, "leer_archivo", "gigante.log")
     handle = off.listar()[0]["handle"]
     assert handle in salida
-    assert f"recuperar {handle} lineas 16-75" in salida
+    assert (f"recuperar {handle} lineas 16-"
+            f"{off.CABEZA_DEFECTO + off._VENTANA_DEFECTO}") in salida
     assert f"recuperar {handle} buscar=" in salida
 
 
@@ -353,9 +361,10 @@ def test_la_tool_parsea_lo_que_escribe_el_modelo():
         assert "lineas 200-204 de 4000" in res.splitlines()[0], args
         assert "linea 00202" in res
     # Sin rango: las primeras 60 lineas, no un error.
-    assert "lineas 1-60" in off.herramienta_recuperar(h)
+    assert f"lineas 1-{off._VENTANA_DEFECTO}" in off.herramienta_recuperar(h)
     # Y el prefijo comido / las comillas del modelo se perdonan.
-    assert "lineas 1-60" in off.herramienta_recuperar(f"'{h[4:]}'")
+    assert (f"lineas 1-{off._VENTANA_DEFECTO}"
+            in off.herramienta_recuperar(f"'{h[4:]}'"))
     assert "linea 00250" in off.herramienta_recuperar(f"{h} buscar=linea 00250")
 
 

@@ -29,6 +29,10 @@ def taller(tmp_path, monkeypatch):
     monkeypatch.setattr(dev_tools, "AGENT_WORKSPACE_ROOT", str(tmp_path))
     monkeypatch.setenv("COGNIA_OFFLOAD_DIR", str(tmp_path / "offload"))
     monkeypatch.setenv("COGNIA_TOOL_RESULT_MAX", "2000")
+    # Este fichero mide el MECANISMO (que dice la cabecera y que se guardo),
+    # no el reparto de presupuesto por tool del 2026-08-30: LECTURA=1 colapsa
+    # el umbral de lectura al general y deja el escenario historico intacto.
+    monkeypatch.setenv("COGNIA_TOOL_RESULT_MAX_LECTURA", "1")
     f = tmp_path / "grande.log"
     f.write_text("\n".join(f"2026-08-24T10:00:00 ERROR [cache] evento {i} detalle={i * 7}"
                            for i in range(3000)) + "\n", encoding="utf-8")

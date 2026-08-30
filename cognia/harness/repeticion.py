@@ -82,6 +82,20 @@ ENV_UMBRALES = "COGNIA_REPETICION_UMBRALES"
 # Bucle por fichero: N ediciones al MISMO fichero dentro de una tarea.
 UMBRAL_FICHERO_DEFECTO = 3
 ENV_UMBRAL_FICHERO = "COGNIA_REPETICION_UMBRAL_FICHERO"
+
+# APENDAR NO ES REEDITAR (2026-08-30). El nudge por fichero existe para cazar
+# el bucle de "edito lo mismo una y otra vez sin cerrar el problema", y su
+# umbral de 3 esta calibrado para eso. Pero `apendar_archivo` es la via que el
+# propio arnes le impone al modelo cuando el contenido no cabe en un tool call
+# ("escribe el fichero POR PARTES", loop.py), asi que construir un fichero
+# grande dispara el nudge cada 3 partes POR DISENO -- y el nudge pide releer el
+# fichero entero, que es justo lo que mas pasos cuesta.
+# MEDIDO en la corrida del minecraft.html (2026-08-30): 1 escritura + 4
+# apendices y el nudge salio dos veces, en la 3a y en la 6a operacion.
+# Los apendices siguen contandose, pero con su propio umbral: 12 apendices al
+# mismo fichero sin cerrar SI es una senal; 3 son la construccion normal.
+UMBRAL_APENDICE_DEFECTO = 12
+ENV_UMBRAL_APENDICE = "COGNIA_REPETICION_UMBRAL_APENDICE"
 # Las tools que EDITAN (no borrar/mover: esas no se reintentan en bucle).
 # Nombres reales de agent/tools.py (@tool "escribir_archivo" etc.).
 TOOLS_EDICION = frozenset({"escribir_archivo", "editar_archivo",
@@ -195,6 +209,20 @@ def umbral_fichero() -> int:
     return parsear_umbral_fichero(os.environ.get(ENV_UMBRAL_FICHERO, ""))
 
 
+def umbral_apendice() -> int:
+    """El umbral efectivo de APENDICES al mismo fichero (env
+    COGNIA_REPETICION_UMBRAL_APENDICE o el default 12). Nunca por debajo del
+    umbral de edicion: seria castigar mas a construir que a reeditar."""
+    from cognia.harness.offloading import tareas_largas
+    base = umbral_fichero()
+    if not tareas_largas():
+        return base            # el interruptor devuelve el arnes de antes
+    crudo = os.environ.get(ENV_UMBRAL_APENDICE, "")
+    if not str(crudo).strip():
+        return max(base, UMBRAL_APENDICE_DEFECTO)
+    return max(base, parsear_umbral_fichero(crudo))
+
+
 def activo() -> bool:
     """Encendido salvo COGNIA_REPETICION=0/off/false/no. Vacio = encendido:
     es advisory y cuesta un dict lookup, asi que embebido tambien va."""
@@ -281,9 +309,17 @@ def texto_detallado(tool: str, n: int, args) -> str:
             f"respuesta final con lo que hay).")
 
 
-def texto_fichero(ruta: str, n: int) -> str:
+def texto_fichero(ruta: str, n: int, apendices: bool = False) -> str:
     """El nudge de RECONSIDERACION por fichero (misma voz que los dos de
-    arriba: concreto, cita el hecho, pide un cambio de enfoque)."""
+    arriba: concreto, cita el hecho, pide un cambio de enfoque).
+
+    `apendices=True` cambia el texto: a quien esta construyendo un fichero por
+    partes no se le pide releerlo entero (eso cuesta media tarea en pasos), se
+    le pide COMPROBAR lo que lleva escrito."""
+    if apendices:
+        return (f"{MARCA} Llevas {n} apendices sobre {ruta}. Antes de seguir "
+                f"anadiendo: comprueba lo que ya escribiste (que el fichero "
+                f"sea valido y arranque) y di que falta para cerrarlo.")
     return (f"{MARCA} Llevas {n} ediciones sobre {ruta} sin cerrar el "
             f"problema. Antes de la siguiente: relee el fichero entero, "
             f"enuncia la causa por escrito y cambia de enfoque; si no puedes, "
@@ -367,11 +403,15 @@ class ContadorFichero:
 
     def __init__(self):
         self.por_fichero: dict = {}
+        self.ediciones: dict = {}    # escribir_archivo / editar_archivo
+        self.apendices: dict = {}    # apendar_archivo (umbral propio)
         self.generacion = _GENERACION[0]
         self.nudges = 0
 
     def reset(self) -> None:
         self.por_fichero = {}
+        self.ediciones = {}
+        self.apendices = {}
         self.generacion = _GENERACION[0]
 
     def registrar(self, ruta, tool: str) -> str:
@@ -382,20 +422,30 @@ class ContadorFichero:
         clave = normalizar_ruta(ruta)
         if not clave:
             return ""
-        umbral = umbral_fichero()
+        # `por_fichero` sigue contando TODAS las operaciones (telemetria de
+        # /bucle estado, sin cambio de forma). La decision del nudge mira el
+        # contador de la FAMILIA de la operacion: reeditar y apendar son dos
+        # patologias distintas y tienen umbrales distintos.
         n = self.por_fichero.get(clave, 0) + 1
         self.por_fichero[clave] = n
-        if n < umbral or n % umbral != 0:
+        es_apendice = (tool == "apendar_archivo")
+        familia = self.apendices if es_apendice else self.ediciones
+        umbral = umbral_apendice() if es_apendice else umbral_fichero()
+        m = familia.get(clave, 0) + 1
+        familia[clave] = m
+        if m < umbral or m % umbral != 0:
             return ""
         self.nudges += 1
         _TOTAL_FICHERO[0] += 1
         _ULTIMO_FICHERO.clear()
-        _ULTIMO_FICHERO.update({"ruta": clave, "n": n, "tool": tool,
+        _ULTIMO_FICHERO.update({"ruta": clave, "n": m, "tool": tool,
                                 "ts": time.strftime("%Y-%m-%d %H:%M:%S")})
-        return texto_fichero(clave, n)
+        return texto_fichero(clave, m, apendices=es_apendice)
 
     def estado(self) -> dict:
-        return {"ficheros": dict(self.por_fichero), "nudges": self.nudges}
+        return {"ficheros": dict(self.por_fichero), "nudges": self.nudges,
+                "ediciones": dict(self.ediciones),
+                "apendices": dict(self.apendices)}
 
 
 _GLOBAL = Contador()     # fallback cuando run_tool no recibe un ctx dict
@@ -459,6 +509,12 @@ def estado() -> dict:
         err_f = ""
     except ConfigInvalida as exc:
         umb_f, err_f = UMBRAL_FICHERO_DEFECTO, str(exc)
+    try:
+        # Mismo guard: `umbral_apendice` se apoya en `umbral_fichero`, asi que
+        # una config rota tambien la alcanza y la puerta no puede reventar.
+        umb_ap = umbral_apendice()
+    except ConfigInvalida:
+        umb_ap = umb_f
     return {
         "activo": act,
         "umbrales": umb,
@@ -470,6 +526,9 @@ def estado() -> dict:
         "generacion": _GENERACION[0],
         # bucle por fichero (ContadorFichero)
         "umbral_fichero": umb_f,
+        # apendar_archivo tiene su propio umbral desde el 2026-08-30: es la
+        # via que el arnes impone para escribir un fichero grande por partes.
+        "umbral_apendice": umb_ap,
         "total_fichero": _TOTAL_FICHERO[0],
         "ultimo_fichero": dict(_ULTIMO_FICHERO),
     }

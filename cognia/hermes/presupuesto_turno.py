@@ -127,6 +127,7 @@ class PresupuestoTurno:
         self._consumos = 0           # bruto: vueltas realmente arrancadas
         self._refunds: List[Dict[str, Any]] = []
         self._refunds_ignorados = 0
+        self._ampliaciones: List[Dict[str, Any]] = []
 
     # -- gasto -------------------------------------------------------------
     def consume(self) -> bool:
@@ -168,7 +169,35 @@ class PresupuestoTurno:
             })
             return True
 
+    def ampliar(self, extra: int, motivo: str) -> int:
+        """Sube el techo en `extra` vueltas APUNTANDO el motivo. Devuelve el techo.
+
+        Es lo contrario del refund y por eso se audita igual: un techo que se
+        mueve sin dejar rastro convierte "la tarea necesito 24 pasos" en un
+        numero que nadie puede explicar. `extra` <= 0 no hace nada.
+        """
+        try:
+            n = int(extra)
+        except (TypeError, ValueError):
+            n = 0
+        if n <= 0:
+            return self.max_total
+        motivo_limpio = str(motivo or "").strip() or MOTIVO_SIN_MOTIVO
+        with self._lock:
+            self.max_total += n
+            self._ampliaciones.append({
+                "extra": n, "motivo": motivo_limpio,
+                "techo_tras": self.max_total, "gastado": self._gastado,
+            })
+            return self.max_total
+
     # -- lectura -----------------------------------------------------------
+    @property
+    def ampliaciones(self) -> List[Dict[str, Any]]:
+        """Copia del registro de ampliaciones del techo, en orden."""
+        with self._lock:
+            return [dict(a) for a in self._ampliaciones]
+
     @property
     def gastado(self) -> int:
         """Vueltas cobradas NETAS (lo que ve la guarda del bucle)."""

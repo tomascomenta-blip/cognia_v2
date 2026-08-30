@@ -200,7 +200,12 @@ def test_preview_numerado_cabeza_y_cola_con_numero_real():
 
 def test_preview_numerado_no_rompe_las_recetas_de_recuperacion():
     salida = off.formatear_observacion(_texto(4000), "leer_archivo", "g.log")
-    assert re.search(r"recuperar res:[0-9a-f]+ lineas 16-75", salida)
+    # El rango de ejemplo se DERIVA de los knobs (cabeza de lectura + ventana),
+    # no se copia: desde el 2026-08-30 una tool de lectura tiene cabeza propia.
+    ini = off._cabeza_para("leer_archivo") + 1
+    fin = ini + off._VENTANA_DEFECTO - 1
+    assert re.search(r"recuperar res:[0-9a-f]+ lineas %d-%d" % (ini, fin),
+                     salida)
     assert "leer_archivo " in salida and "buscar <texto> | " in salida
     assert re.search(r"^\s*4000\| linea 04000", salida, re.M)
 
