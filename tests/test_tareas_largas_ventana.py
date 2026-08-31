@@ -39,6 +39,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import pytest
+
 from cognia.agent import loop as L
 from cognia.agent import presupuesto_salida as PS
 from cognia.agent import rescate_parcial as RP
@@ -70,6 +72,29 @@ class _TC:
 
 
 SCHEMAS = [{"type": "function", "function": {"name": "escribir_archivo"}}]
+
+
+@pytest.fixture(autouse=True)
+def _sin_contaminar_el_contexto_vivo():
+    """Estos tests corren `bucle_nativo` de verdad, y ese bucle ANOTA la
+    ocupacion de la ventana en `harness.contexto_vivo`, que es estado de
+    MODULO. Sin limpiarlo, la ocupacion falsa de aqui (n_ctx=65536 con un
+    usage inventado) se filtraba a otros ficheros de la suite: el footer de
+    `test_wp3_presentacion::test_show_footer_no_inventa_tokens` salia como
+    "ctx ~100% libre" y ese test —que existe justo para que el footer NO
+    invente tokens— se ponia rojo por culpa de estos.
+
+    Se limpia ANTES y DESPUES: antes para no heredar lo de otro fichero,
+    despues para no dejarlo puesto."""
+    try:
+        from cognia.harness import contexto_vivo as cv
+    except ImportError:                       # sin el modulo no hay que limpiar
+        yield
+        return
+    cv.reiniciar()
+    yield
+    cv.reiniciar()
+
 
 
 # ── 1. La ventana es el techo ────────────────────────────────────────────────
