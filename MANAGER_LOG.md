@@ -14674,3 +14674,76 @@ fallaba en `HEAD`** (comprobado en un worktree limpio): no es de este cambio.
   vez sigue siendo inviable en esta máquina por VELOCIDAD, no por el arnés.
 - El crédito de exploración es finito (8): una corrida que solo lee sigue
   muriendo por `sin_arranque`, y con ella se acaban las ampliaciones.
+
+
+---
+
+## 2026-08-30 · Tareas LARGAS: el techo era la ventana, y el razonador no paraba
+
+**Pedido del dueno:** "el coso de minecraft sigue sin producir respuesta de un
+tiron, y ni siquiera produce output final; quiero que arregles todo lo que sea
+necesario para que no solo produzca la tarea de minecraft sino tareas largas
+del mismo calibre".
+
+### Lo que se midio ANTES de tocar codigo
+
+Tres sondas contra el llama-server real (Qwen3.8-27B-Ridge, n_ctx=65536):
+
+| sonda | max_tokens | prompt | razonamiento | tool call | finish |
+|---|---|---|---|---|---|
+| ventana llena | 32768 | 63.277 tok | 8.827 chars | **0** | length, total=65535 |
+| contexto vacio | 20000 | 369 tok | **52.535 chars** | **0** | length |
+| enable_thinking=false | 4000 | 333 tok | **0 chars** | **10.160 chars** | length |
+| reasoning_effort=low | 4000 | 357 tok | 821 chars | 9.965 chars | length |
+
+La primera fila mata la hipotesis obvia: se pidieron 32.768 tokens y llegaron
+2.258, con `total_tokens = n_ctx - 1`. **El corte lo daba la VENTANA, y la
+rampa del bucle subia `max_tokens`, que es el numero que no cortaba.** Las dos
+ultimas filas dan la causa independiente: con el pensamiento encendido el
+modelo NO TERMINA de pensar ni con cinco veces el presupuesto; apagado escribe
+el fichero con la quinta parte.
+
+### Cinco fallos encadenados, cinco arreglos
+
+1. **Ventana vs tope** — `cognia/agent/presupuesto_salida.py` (nuevo).
+2. **El razonador que no para** — el bucle apaga el pensamiento cuando el paso
+   se le va entero razonando sin llegar a llamar la herramienta.
+3. **Lo generado se tiraba** — `cognia/agent/rescate_parcial.py` (nuevo):
+   escribe el trozo que si llego y le da al modelo el ancla para CONTINUAR.
+4. **La compactacion no llegaba a correr** — valvula ANTES de llamar.
+5. **El 500 de tool call no es un backend caido** — cierre honesto con lo
+   escrito, en vez de `error_backend` mudo.
+
+Adyacente: `apendar_archivo` se comia la INDENTACION de los trozos multilinea
+(inocuo en bitacoras, IndentationError desde que las tareas largas se escriben
+por trozos).
+
+### Verificacion
+
+- `tests/test_tareas_largas_ventana.py`: 19 tests nuevos, con contrafactuales
+  (sin n_ctx no se inventa ventana; el corte por tope SI sigue subiendo el
+  tope; `editar_archivo` cortado NO se rescata; el rescate no machaca un
+  fichero mas grande).
+- Dirigidos: 50 passed (area del corte) + 82 passed (area de tools).
+- **E2E REAL, la misma tarea que fallaba**: disparo el aviso "el turno se fue
+  entero en razonar... repito el paso con el pensamiento APAGADO" y el agente
+  escribio `minecraft.html` de 11.969 bytes, HTML completo de `<!DOCTYPE html>`
+  a `</html>`. La corrida anterior: 48 minutos y cero ficheros.
+
+### Puerta nueva
+
+`/ventana` — el presupuesto de SALIDA real (n_ctx menos prompt), la reserva del
+server, el minimo util por paso y el estado del pensamiento.
+`/ventana pensamiento auto|on|off` persiste la palanca (`COGNIA_THINKING`).
+
+### Limites declarados
+
+- Lo medido es que apagar el pensamiento arregla el paso que ESCRIBE un fichero
+  grande. NO esta medido que un paso posterior de diagnostico razone igual de
+  bien sin pensamiento; por eso solo se apaga cuando el turno ya demostro que
+  se le va en pensar, y hay knob para impedirlo.
+- El primer paso de una tarea larga sigue pagando UNA generacion en descubrir
+  que el modelo espirala (~4 min con este modelo). Se aprende una vez por turno,
+  no por paso.
+- El rescate solo cubre "poner contenido al final de un fichero":
+  `editar_archivo` cortado no se rescata, porque media edicion no aplica.
