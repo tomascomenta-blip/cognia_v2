@@ -282,12 +282,15 @@ def test_limpiar_la_trampa_no_reescribe_el_nombre_del_comando(texto):
 def test_el_nombre_del_comando_tampoco_lleva_palabra_prohibida(texto):
     """`ayuda.clasificar()` mira la descripcion Y el nombre. Un comando
     llamado '/paso' se autoclasifica en la categoria llena mientras nadie le
-    de de alta su patron exacto."""
+    de de alta su patron exacto.
+
+    Se pregunta por SUBCADENA y al clasificador de verdad, no partiendo el
+    nombre por los guiones: partirlo era la regla equivocada, la que dejaba
+    pasar '/tareas-viejas' y '/traspaso'."""
+    ayuda = pytest.importorskip("cognia.harness.ayuda")
     espec = esp.desde_texto(texto)
-    partes = espec.cmd.lstrip("/").split("-")
-    assert not [p for p in partes if p in
-                ("tarea", "tareas", "agente", "agentes",
-                 "plan", "planes", "paso", "pasos")], espec.cmd
+    assert esp.nombre_envenenado(espec.cmd) == "", espec.cmd
+    assert ayuda.clasificar(espec.cmd, "") != "Agente y tareas", espec.cmd
 
 
 def test_cae_en_trampa_mira_LO_MISMO_QUE_EL_CLASIFICADOR():
