@@ -259,7 +259,11 @@ def test_bucle_nativo_tool_call_y_fin_natural():
                        usage={"completion_tokens": 10, "prompt_tokens": 200})
     out, history, trace = _correr([r1, r2], _run_tool)
     assert ejecutadas == [("escribir_archivo", "hola.txt | hola mundo")]
-    assert out["ok"] and out["texto"] == "Listo: hola.txt creado."
+    assert out["ok"] and out["texto"].startswith("Listo: hola.txt creado.")
+    # El cierre lleva ademas el bloque ENTREGA (2026-08-31): lo que quedo EN
+    # DISCO. Aqui el `run_tool` es un doble que no escribe nada, asi que la
+    # entrega dice justamente eso — el modelo declaro un fichero que no esta.
+    assert "ENTREGA" in out["texto"] and "hola.txt" in out["texto"]
     assert out["pasos"] == 2
     assert out["tokens"] == 60           # usage REAL, no len//4
     assert history[-1] == "RESULTADO escribir_archivo: OK (10 chars)"

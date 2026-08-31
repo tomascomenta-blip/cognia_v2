@@ -949,7 +949,8 @@ def _etiqueta(texto: str, tope: int = 60) -> str:
 # (url, temperature, top_p, max_tokens, razonador, via) son los que TODO
 # completar acepta desde siempre y jamas se filtran; los dos conjuntos son
 # disjuntos por construccion, asi que no hay colision de claves.
-_KW_OPCIONALES = ("response_format", "on_token", "on_reasoning", "cancelado")
+_KW_OPCIONALES = ("response_format", "on_token", "on_reasoning", "cancelado",
+                  "on_tool_frag")
 
 
 def _llamar(fn, mensajes, rf, opcionales=None, **kw):

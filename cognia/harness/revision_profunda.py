@@ -314,19 +314,47 @@ def artefacto_ejecutable(ficheros) -> "dict | None":
 
 # -- Fases --------------------------------------------------------------------
 
+_EXT_WEB_SINTAXIS = (".html", ".htm", ".xhtml", ".js", ".mjs", ".cjs", ".jsx")
+
+
 def fase_sintaxis(ficheros) -> dict:
-    """compile() de cada .py y json.loads de cada .json escrito. Reusa
-    `harness.verificacion.verificar_sintaxis` (misma regla y mismos mensajes que el
-    verificador de despues-de-editar; una segunda implementacion se desincronizaria)."""
+    """compile() de cada .py, json.loads de cada .json y comprobacion de que
+    cada .html/.js escrito este ENTERO. Reusa `harness.verificacion.
+    verificar_sintaxis` (misma regla y mismos mensajes que el verificador de
+    despues-de-editar; una segunda implementacion se desincronizaria) y
+    `estado.validar_web` para lo web.
+
+    HTML/JS entraron el 2026-08-31: hasta entonces esta fase los saltaba y
+    devolvia "no evaluada" sobre una entrega HTML, o sea que el UNICO producto
+    que el agente entrega mas a menudo era el unico que nadie miraba. El
+    validador web no juzga semantica (eso es `fase_producto`, que abre la
+    pagina en un navegador de verdad): solo dice si el fichero esta cortado.
+    """
     try:
         from cognia.harness.verificacion import verificar_sintaxis
     except Exception as exc:
         return {"ok": None, "detalle": f"no evaluada (verificacion no importable: {exc})",
                 "errores": [], "revisados": 0}
+    try:
+        from cognia.estado import validar_web as _vw
+    except Exception:
+        _vw = None
     errores, revisados = [], 0
     for f in ficheros:
         p = Path(f)
-        if p.suffix.lower() not in (".py", ".pyi", ".json"):
+        suf = p.suffix.lower()
+        if suf in _EXT_WEB_SINTAXIS:
+            if _vw is None:
+                continue
+            revisados += 1
+            try:
+                ok_web, mensaje = _vw.veredicto(p, _leer(p))
+            except Exception as exc:
+                ok_web, mensaje = None, f"no evaluable ({type(exc).__name__})"
+            if ok_web is False:
+                errores.append(f"{p.name}: {mensaje}")
+            continue
+        if suf not in (".py", ".pyi", ".json"):
             continue
         revisados += 1
         try:

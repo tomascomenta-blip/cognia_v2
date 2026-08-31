@@ -132,6 +132,27 @@ class RazonamientoTick(Evento):
 
 
 @dataclass(frozen=True)
+class TokensVivos(Evento):
+    """Llegaron `chars` del stream y NO hay que pintarlos: solo contarlos.
+
+    POR QUE EXISTE (2026-08-31, pedido del dueno: "que me aparezcan los tokens
+    en el modo agente, no solo el chat normal"). El contador `~N tok` de la
+    linea viva se alimenta de `TokenTexto` y `RazonamientoTick`, y los dos son
+    eventos de PINTAR: el chat los emite porque ademas streamea esa prosa. El
+    bucle del agente no puede emitirlos — su texto no se pinta token a token y
+    sus tool calls no son prosa — asi que en modo agente el contador se quedaba
+    en cero y el spinner solo decia los segundos. Este evento separa las dos
+    cosas: es un pulso de CONTABILIDAD, sin contenido que mostrar.
+
+    `fase` es informativa ('razonando' | 'escribiendo' | 'respondiendo'): el
+    renderer no la usa hoy, pero el sink de telemetria distingue con ella un
+    turno que se fue en pensar de uno que se fue escribiendo un fichero.
+    """
+    chars: int = 0
+    fase: str = ""
+
+
+@dataclass(frozen=True)
 class Aviso(Evento):
     """Algo que el usuario deberia poder ver pero no rompe el turno."""
     texto: str = ""

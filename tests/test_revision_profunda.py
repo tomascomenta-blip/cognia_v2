@@ -386,3 +386,38 @@ def test_el_bucle_del_agente_tiene_la_compuerta_cableada():
     assert "revision_profunda" in fuente
     assert "_rev_mod.revisar(" in fuente
     assert "footer_de(_informe_rev)" in fuente
+
+
+# -- HTML/JS en la fase de sintaxis (2026-08-31) --------------------------------
+
+HTML_CORTADO = ("<!DOCTYPE html>\n<html><body>\n<script>\n"
+                "class Renderer {\n  draw(){\n    this.gl.clear();\n")
+HTML_ENTERO = ("<!DOCTYPE html>\n<html><body>\n<script>\n"
+               "document.body.onclick = () => 1;\n</script>\n</body></html>\n")
+
+
+def test_fase_sintaxis_caza_el_html_truncado(tmp_path):
+    """Hasta el 2026-08-31 esta fase saltaba .html y devolvia 'no evaluada'
+    sobre una entrega HTML: el producto que el agente entrega mas a menudo era
+    el unico que nadie miraba. El caso es el index.html de 32 KB de la traza
+    del dueno, cortado a mitad de una clase."""
+    roto = tmp_path / "index.html"
+    roto.write_text(HTML_CORTADO, encoding="utf-8")
+    res = rp.fase_sintaxis([str(roto)])
+    assert res["ok"] is False and res["revisados"] == 1
+    assert any("INCOMPLETO" in e for e in res["errores"])
+
+
+def test_fase_sintaxis_deja_pasar_el_html_entero(tmp_path):
+    sano = tmp_path / "index.html"
+    sano.write_text(HTML_ENTERO, encoding="utf-8")
+    res = rp.fase_sintaxis([str(sano)])
+    assert res["ok"] is True and res["errores"] == []
+
+
+def test_fase_sintaxis_sigue_mirando_py_y_json(tmp_path):
+    """El camino de siempre no se toca: HTML se SUMA, no reemplaza."""
+    py = tmp_path / "roto.py"
+    py.write_text("def f(:\n", encoding="utf-8")
+    res = rp.fase_sintaxis([str(py)])
+    assert res["ok"] is False and res["revisados"] == 1

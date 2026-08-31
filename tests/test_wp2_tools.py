@@ -85,11 +85,26 @@ def test_leer_archivo_no_pasa_por_aci_trim(workspace, monkeypatch):
     assert "def funcion_0" in out and "def funcion_149" in out
 
 
-def test_leer_archivo_linea_kilometrica_se_corta(workspace):
+def test_leer_archivo_linea_larga_llega_ENTERA(workspace):
+    """El corte por linea (500 chars) quedo APAGADO el 2026-08-31, a pedido del
+    dueno: mutilaba lo que el modelo tiene que reproducir (el bloque SEARCH de
+    editar_archivo se copia de lo que se vio, y una linea cortada no casa
+    nunca). El cap por CHARS de la pagina ya acota la salida y corta en el
+    BORDE de una linea."""
     f = workspace / "mini.json"
     f.write_text("x" * 5000, encoding="utf-8")           # 1 linea de 5000
     out = T.run_tool("leer_archivo", str(f), _ctx())
-    assert "linea cortada" in out and "TRUNCADO" in out and "5000" in out
+    assert "linea cortada" not in out and "TRUNCADO" not in out
+    assert "x" * 5000 in out
+
+
+def test_leer_archivo_linea_PATOLOGICA_si_se_corta(workspace):
+    """La linea mas larga que la pagina entera se sigue cortando, con su marca:
+    sin eso la pagina saldria vacia (un json minificado en un solo renglon)."""
+    f = workspace / "monstruo.json"
+    f.write_text("y" * (T._LEER_CAP_CHARS + 4000), encoding="utf-8")
+    out = T.run_tool("leer_archivo", str(f), _ctx())
+    assert "linea cortada" in out and "TRUNCADO" in out
 
 
 def test_leer_archivo_vacio(workspace):

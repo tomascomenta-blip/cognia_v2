@@ -1292,19 +1292,74 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # historico.
     _stream_on = os.environ.get("COGNIA_STREAM", "1").strip().lower() not in (
         "0", "off", "false", "no")
-    _vivo = {"tokens": 0, "razonamiento": 0}
+    _vivo = {"tokens": 0, "razonamiento": 0, "chars_razon": 0,
+             "chars_tool": 0}
+
+    # VIGILANTE DEL CANAL DE RAZONAMIENTO (2026-08-31). Los cuatro detectores
+    # de bucle del repo cuentan LLAMADAS; un razonador que da vueltas sin
+    # llamar a nada es invisible para todos ellos. Ver harness/razonamiento.py.
+    try:
+        from cognia.harness import razonamiento as _rz_mod
+        _vig = _rz_mod.Vigilante()
+    except Exception as _e_rz:
+        _rz_mod, _vig = None, None
+        print_fn(f"[detail]vigilante de razonamiento no disponible "
+                 f"({type(_e_rz).__name__}): sigo sin el[/detail]")
+
+    # TOKENS EN VIVO EN MODO AGENTE (2026-08-31, pedido del dueno). El `~N tok`
+    # de la linea viva se alimentaba solo de TokenTexto y RazonamientoTick, que
+    # son eventos de PINTAR y el agente no emite: su texto no se pinta token a
+    # token y sus tool calls no son prosa. Resultado: en /hacer el spinner
+    # decia los segundos y nada mas, durante minutos. `TokensVivos` es el pulso
+    # de contabilidad que separa contar de mostrar.
+    #
+    # SE ACUMULA Y SE EMITE POR TIEMPO, no por fragmento: un evento por token
+    # son miles de pasadas por el bus para mover un numero que el ojo lee 4
+    # veces por segundo.
+    _PULSO_S = 0.25
+    _pulso = {"chars": 0, "t": 0.0, "fase": ""}
+
+    def _pulso_tokens(n_chars: int, fase: str, forzar: bool = False) -> None:
+        _pulso["chars"] += max(0, int(n_chars or 0))
+        _pulso["fase"] = fase
+        _ahora = __import__("time").monotonic()
+        if not forzar and _ahora - _pulso["t"] < _PULSO_S:
+            return
+        _pulso["t"] = _ahora
+        if _pulso["chars"] and _ev is not None:
+            _emitir(_ev.TokensVivos(chars=_pulso["chars"], fase=fase))
+            _pulso["chars"] = 0
 
     def _suma_token(_frag):
         _vivo["tokens"] += 1
+        _pulso_tokens(len(_frag or ""), "respondiendo")
+
+    def _suma_fragmento_tool(_frag):
+        """Argumentos de un tool call llegando: el UNICO latido de un paso que
+        esta escribiendo un fichero (ahi no hay content ni razonamiento)."""
+        _vivo["chars_tool"] += len(_frag or "")
+        _pulso_tokens(len(_frag or ""), "escribiendo")
 
     def _suma_razonamiento(_frag):
         _vivo["razonamiento"] += 1
+        _vivo["chars_razon"] += len(_frag or "")
+        _pulso_tokens(len(_frag or ""), "razonando")
+        # Aviso EN VIVO: el dueno ve que el modelo lleva 20.000 chars pensando
+        # en vez de mirar un spinner mudo. Cada hito se dice una vez por paso.
+        if _vig is not None:
+            try:
+                _av = _vig.vivo(_vivo["chars_razon"])
+            except Exception:
+                _av = ""
+            if _av:
+                print_fn(f"[warn_cl]{_av}[/warn_cl]")
 
     def _kwargs_stream() -> dict:
         """Los kwargs que encienden la rama SSE, o {} si esta apagada."""
         if not _stream_on:
             return {}
-        k = {"on_token": _suma_token, "on_reasoning": _suma_razonamiento}
+        k = {"on_token": _suma_token, "on_reasoning": _suma_razonamiento,
+             "on_tool_frag": _suma_fragmento_tool}
         _cc = ctx.get("_cancelado") if isinstance(ctx, dict) else None
         if callable(_cc):
             k["cancelado"] = _cc
@@ -1642,6 +1697,17 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 print_fn(f"[warn_cl]la ventana solo deja {_cabe} tokens de "
                          f"salida y no hay nada compactable: este paso puede "
                          f"no cerrar[/warn_cl]")
+        # El razonamiento se cuenta POR PASO (reintentos de ese paso incluidos:
+        # repetir la generacion es mas pensamiento sobre el mismo problema).
+        _vivo["chars_razon"] = 0
+        _vivo["chars_tool"] = 0
+        _pulso["chars"] = 0
+        if _vig is not None:
+            try:
+                _vig.nuevo_turno()
+            except Exception:
+                pass
+        _av_antes = len(_prog.avances) if _prog is not None else 0
         _t_paso = __import__("time").time()
         resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                          **_kwargs_stream())
@@ -1683,6 +1749,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # Cuando el corte es de VENTANA lo unico que ayuda es liberar
         # contexto, asi que eso es lo que se hace: compactar y repetir. Y si
         # no se libero nada, se sale del bucle sin gastar la vuelta.
+        # Ultimo pulso del paso: lo que quedo sin emitir por el throttle (el
+        # tramo final es justo el que cierra el fichero, y sin este flush el
+        # contador se quedaba corto en cada paso).
+        _pulso_tokens(0, _pulso.get("fase") or "respondiendo", forzar=True)
         _motivo_corte = _corte_en_tool_call(resp, schemas)
         # EL RESCATE VA ANTES QUE EL REINTENTO (2026-08-30). Si el turno
         # cortado trae dentro un fichero rescatable, repetir el paso TIRA esos
@@ -2605,6 +2675,38 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             estimado=(not (resp.usage or {}).get("prompt_tokens")
                       or bool(getattr(resp, "usage_estimado", False))),
             print_fn=print_fn)
+        # RECORDATORIO DE RAZONAMIENTO EN BUCLE (2026-08-31). Al cerrar el
+        # paso: ¿se fue en pensar y no dejo un avance verificado detras? El
+        # nudge entra como turno de usuario, igual que el del guardia y el del
+        # bucle por fichero, y al cruzar la racha dura se apaga el pensamiento
+        # (la unica intervencion con medicion: ver la palanca de arriba).
+        if _vig is not None:
+            _chars_razon = 0
+            try:
+                _razon_paso = (getattr(resp, "reasoning_content", "") or "")
+                _chars_razon = _vivo["chars_razon"] or len(_razon_paso)
+                _avanzo = (len(_prog.avances) > _av_antes if _prog is not None
+                           else bool(resp.tool_calls))
+                _vr = _vig.turno(_chars_razon, _avanzo, _razon_paso)
+            except Exception as _e_vr:
+                _vr = {}
+                print_fn(f"[detail]vigilante de razonamiento: "
+                         f"{type(_e_vr).__name__}: {_e_vr}[/detail]")
+            if _vr.get("apagar_pensamiento") and not _pensamiento["apagado"]:
+                if _lleva_thinking() and os.environ.get(
+                        "COGNIA_THINKING", "").strip().lower() not in (
+                        "on", "1", "true", "si"):
+                    _apagar_pensamiento()
+                    print_fn(f"[warn_cl]{_vr['racha']} pasos seguidos pensando "
+                             "mucho y sin un solo avance: apago el pensamiento "
+                             "extendido (COGNIA_THINKING=on lo impide)"
+                             "[/warn_cl]")
+            if _vr.get("nudge"):
+                mensajes.append({"role": "user", "content": _vr["nudge"]})
+                print_fn(f"[detail]razonamiento en bucle ({_chars_razon} chars, "
+                         f"racha {_vr.get('racha', 0)}"
+                         + (", repetido" if _vr.get("repetido") else "")
+                         + "): recordatorio inyectado[/detail]")
     else:
         # Presupuesto agotado sin cierre: redaccion final honesta con la
         # evidencia del history (no un volcado crudo).
@@ -2641,6 +2743,33 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 print_fn(f"[warn_cl]revision profunda: {type(_e_rv2).__name__}: "
                          f"{_e_rv2}; entrego sin ella[/warn_cl]")
 
+    # REVISION PROFUNDA EN **TODOS** LOS CIERRES (2026-08-31). Hasta hoy solo
+    # corria en dos: el cierre natural con respuesta y el presupuesto agotado.
+    # Los otros — estancamiento del gobernador ('sin progreso verificado:
+    # meseta_de_coste' / 'sin_arranque'), racha de tools fallidas, corte del
+    # usuario — salian por `break` sin que NADIE mirara lo que habia quedado en
+    # disco. Y son justo los cierres de la traza del dueno del 2026-08-31: tres
+    # tareas seguidas, media hora cada una, y el index.html de 32 KB cortado a
+    # mitad de una clase se entrego sin que se abriera ni una vez.
+    # Va en solo-reporte (rondas al tope): en un cierre por estancamiento no
+    # queda presupuesto con que reparar, pero saber si ARRANCA es gratis.
+    if (_informe_rev is None and _rev_mod is not None and _muta is not None
+            and _muta.ficheros_escritos()):
+        try:
+            _informe_rev = _rev_mod.revisar({
+                "ficheros_editados": _muta.ficheros_escritos(),
+                "workspace": os.getcwd(),
+                "pasos": pasos,
+                "rondas_usadas": _rev_mod.max_rondas(),   # solo reporte
+                "superficie": "cli",
+                "on_evento": lambda m: print_fn(
+                    f"[info_dim]{_escape_seguro(m)}[/info_dim]"),
+            })
+        except Exception as _e_rv3:
+            _informe_rev = None
+            print_fn(f"[warn_cl]revision profunda: {type(_e_rv3).__name__}: "
+                     f"{_e_rv3}; entrego sin ella[/warn_cl]")
+
     # RESCATE de la respuesta pendiente: si la puerta de verificacion pidio un
     # nudge y despues se agoto el presupuesto, la respuesta que el modelo YA
     # habia compuesto no se puede perder (turn_finalizer.py:100-124).
@@ -2669,6 +2798,24 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _foot = None
         if _foot:
             result_text = (result_text or "") + "\n\n" + _foot
+    # ENTREGA (2026-08-31): el turno no cierra sin decir QUE quedo en disco.
+    # Un cierre que dice "(cerrada sin progreso verificado: meseta_de_coste)"
+    # y pega el stdout de la ultima tool no le entrega nada al dueno; este
+    # bloque le dice, fichero a fichero, tamano y si esta ENTERO — y cuando no
+    # se escribio nada, lo dice tambien, que es el dato mas importante que
+    # puede dar un turno que no entrego. Determinista: sale del disco, no del
+    # modelo. Se salta en el cierre 'ok' SIN ficheros (una pregunta contestada
+    # en prosa no necesita inventario).
+    if _muta is not None:
+        try:
+            from cognia.harness import entrega as _entr
+            _escritos = _muta.ficheros_escritos()
+            if _escritos or not ok:
+                result_text = _entr.anexar(result_text, _escritos,
+                                           _muta.rutas_fallidas())
+        except Exception as _e_en:
+            print_fn(f"[detail]bloque de entrega no compuesto: "
+                     f"{type(_e_en).__name__}: {_e_en}[/detail]")
     if _prog is not None or _estado is not None:
         try:
             ctx["_progreso"] = _prog.informe() if _prog is not None else {}

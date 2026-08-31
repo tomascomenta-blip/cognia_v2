@@ -148,14 +148,58 @@ def test_result_shows_relative_path_not_absolute(workspace):
     assert str(workspace) not in out2
 
 
-def test_leer_archivo_marks_truncation(workspace):
+def test_leer_archivo_no_corta_lineas_que_caben(workspace):
+    """Una linea larga (pero mas corta que la pagina) llega ENTERA.
+
+    Antes se cortaba toda linea de mas de 500 chars con un marcador, y eso
+    rompia lo que el modelo tiene que reproducir: el bloque SEARCH de
+    editar_archivo se copia de lo que se vio, asi que una linea mutilada no
+    casa nunca. El cap por CHARS de la pagina ya acota la salida, y corta en el
+    borde de una linea. (2026-08-31)
+    """
     big = workspace / "big.txt"
     big.write_text("x" * 5000, encoding="utf-8")
     out = T.run_tool("leer_archivo", str(big), _ctx())
-    assert "TRUNCADO" in out and "5000" in out
+    assert "linea cortada" not in out
+    assert "TRUNCADO" not in out
+    assert "x" * 5000 in out
     small = workspace / "small.txt"
     small.write_text("hola corto", encoding="utf-8")
     assert "TRUNCADO" not in T.run_tool("leer_archivo", str(small), _ctx())
+
+
+def test_leer_archivo_marca_la_linea_patologica(workspace):
+    """La linea MAS LARGA QUE LA PAGINA ENTERA si se corta, y se avisa: sin
+    eso la pagina saldria vacia (json minificado de 200 KB en un renglon)."""
+    monstruo = workspace / "monstruo.json"
+    monstruo.write_text("y" * (T._LEER_CAP_CHARS + 5000), encoding="utf-8")
+    out = T.run_tool("leer_archivo", str(monstruo), _ctx())
+    assert "linea cortada" in out and "TRUNCADO" in out
+
+
+def test_leer_archivo_relectura_identica_avanza_de_pagina(workspace):
+    """La 2a llamada IDENTICA sobre un fichero truncado da el tramo SIGUIENTE.
+
+    Traza del dueno (2026-08-31): index.html de 729 lineas, cap de 24 KB; el
+    modelo pidio el fichero tres veces con los mismos argumentos y recibio los
+    mismos bytes las tres, gastando los pasos que hacian falta para escribir.
+    Ningun detector de bucle lo cazaba: leer no es editar y el resultado no era
+    un ERROR.
+    """
+    largo = workspace / "largo.txt"
+    # ~500 lineas de 71 chars = dos paginas justas con el cap de 24 KB.
+    largo.write_text("\n".join("linea %04d %s" % (i, "z" * 60)
+                               for i in range(1, 501)), encoding="utf-8")
+    ctx = _ctx()
+    uno = T.run_tool("leer_archivo", str(largo), ctx)
+    assert "TRUNCADO" in uno and "linea 0001" in uno
+    dos = T.run_tool("leer_archivo", str(largo), ctx)
+    assert "ya habias leido las lineas" in dos
+    assert "linea 0001" not in dos          # es el tramo siguiente, no el mismo
+    tres = T.run_tool("leer_archivo", str(largo), ctx)
+    assert "TERCERA vez" in tres
+    # Con un ctx nuevo (otra tarea) la paginacion vuelve a empezar.
+    assert "linea 0001" in T.run_tool("leer_archivo", str(largo), _ctx())
 
 
 def test_unknown_tool_is_handled():

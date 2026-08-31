@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "4.19.0"
+version = "4.20.0"
 description = "Local cognitive AI that runs offline on a small model, with episodic memory, self-improving prompts, and an AI-native image/scene creator"
 readme = "README.md"
 license = { text = "MIT" }
@@ -71,7 +71,16 @@ semantic = ["sentence-transformers>=2.2.0"]
 # build de PortAudio (WasapiSettings sin el parametro); soundcard capturo el
 # tono de prueba con pico=0.50127. Por eso soundcard y no sounddevice.
 #   pip install "cognia-ai[clases]"
-clases   = ["soundcard>=0.4.2", "faster-whisper>=1.0.0"]
+# matplotlib y sympy van AQUI y no en las deps duras: son lo que dibuja las
+# formulas (matplotlib.mathtext, sin instalar LaTeX) y las graficas de
+# /grabar-clase formula|grafico, y sympy es ademas quien parsea la expresion
+# con topes (cognia/clases/mates.py). Sin ellas `mates.disponible()` devuelve
+# el motivo con el `pip install` exacto y el subcomando lo ensenia; nunca
+# falla mudo. NO se meten en requirements.txt: eso es lo unico que instala el
+# CI de ubuntu y ahi solo hace falta lo que los tests importan de verdad (los
+# de mates ya usan pytest.importorskip).
+clases   = ["soundcard>=0.4.2", "faster-whisper>=1.0.0",
+            "matplotlib>=3.7", "sympy>=1.12"]
 pdf      = ["pdfplumber>=0.10.0"]
 # Inferencia local pip-nativa (sin cazar el binario llama-server): trae llama.cpp
 # via el binding de Python. Alternativa al llama-server.exe / al path numpy-shards.
@@ -104,7 +113,9 @@ voz      = ["sounddevice>=0.4", "faster-whisper>=1.0", "openwakeword>=0.6", "pip
 # su propio piso creaba una segunda restriccion que se desincronizaba (tenia
 # >=0.60.0 mientras el codigo exigia >=0.86.0).
 all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0", "llama-cpp-python>=0.2.20",
-            "mss>=9.0", "uiautomation>=2.0; sys_platform == 'win32'"]
+            "mss>=9.0", "uiautomation>=2.0; sys_platform == 'win32'",
+            "soundcard>=0.4.2", "faster-whisper>=1.0.0",
+            "matplotlib>=3.7", "sympy>=1.12"]
 
 [project.urls]
 Homepage   = "https://github.com/tomascomenta-blip/cognia_v2"
@@ -176,6 +187,18 @@ exclude = [
 # file or directory") y la perdida SILENCIOSA de la aceleracion CPU, porque el
 # builder no distingue "no compila" de "no hay fuente". Cazado 2026-08-02.
 "node" = ["*.c"]
+# CUADERNO DE CLASE (/grabar-clase): el cerebrito. `assets/cerebro.svg` es la
+# FUENTE DE DISENIO del icono y ademas se embebe INLINE en la cabecera del
+# cuaderno en vivo (vista_viva._cerebro_inline lo lee de
+# Path(__file__).with_name("assets")). Sin esta entrada el .svg NO viaja al
+# wheel -- package-data no incluye nada que no se declare -- y en una
+# instalacion limpia el cuaderno sale sin icono y el widget con la paleta a
+# medias, degradando por 'clases.vista_viva.cerebro' sin que nadie entienda
+# por que solo pasa en la version instalada. Los *.png se declaran aunque hoy
+# no haya ninguno (el icono del widget se dibuja en runtime con Pillow y se
+# cachea fuera del paquete): un patron que no matchea nada no cuesta nada, y
+# evita que un asset nuevo se quede fuera en silencio.
+"cognia.clases" = ["assets/*.svg", "assets/*.png"]
 
 # (v3.6.0) Se removio el bloque py-modules: esos modulos top-level se reorganizaron
 # dentro del paquete cognia_v3/ (core/memory/interfaces) y ahora se empaquetan via

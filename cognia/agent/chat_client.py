@@ -617,7 +617,7 @@ def _acumular_tool_calls(acc: dict, deltas: list) -> None:
 
 
 def _procesar_linea(linea: bytes, acc: dict, on_token, on_reasoning,
-                    avisos: "_Avisos") -> bool:
+                    avisos: "_Avisos", on_tool_frag=None) -> bool:
     """Un renglon del SSE. Devuelve True si el stream termino ([DONE])."""
     linea = linea.strip()
     if linea.startswith(b":"):
@@ -665,13 +665,23 @@ def _procesar_linea(linea: bytes, acc: dict, on_token, on_reasoning,
         _seguro(on_token, tok, avisos)
     if delta.get("tool_calls"):
         _acumular_tool_calls(acc["tcs"], delta["tool_calls"])
+        # El unico latido de un turno que esta ESCRIBIENDO: aqui no hay
+        # `content` ni razonamiento, solo los argumentos del tool call
+        # llegando de a trozos. Sin esto el agente se ve mudo mientras manda
+        # un fichero de 30 KB (2026-08-31).
+        if on_tool_frag is not None:
+            _frag_tc = "".join(
+                str(((t or {}).get("function") or {}).get("arguments") or "")
+                for t in delta["tool_calls"] if isinstance(t, dict))
+            if _frag_tc:
+                _seguro(on_tool_frag, _frag_tc, avisos)
     if eleccion.get("finish_reason"):
         acc["finish"] = eleccion["finish_reason"]
     return False
 
 
 def _leer_stream(r, acc: dict, on_token, on_reasoning, cancelado,
-                 inactividad: float, pared: float) -> None:
+                 inactividad: float, pared: float, on_tool_frag=None) -> None:
     """Consume el SSE de /v1/chat/completions dentro de `acc` (mutable).
 
     `acc` se pasa desde afuera A PROPOSITO: si el socket se corta a mitad, la
@@ -774,7 +784,8 @@ def _leer_stream(r, acc: dict, on_token, on_reasoning, cancelado,
                 if corte.pedido():
                     return
                 linea, buf = buf.split(b"\n", 1)
-                if _procesar_linea(linea, acc, on_token, on_reasoning, avisos):
+                if _procesar_linea(linea, acc, on_token, on_reasoning, avisos,
+                                   on_tool_frag):
                     return
             if dch.fin or (restante is not None and restante <= 0):
                 break
@@ -782,7 +793,8 @@ def _leer_stream(r, acc: dict, on_token, on_reasoning, cancelado,
         # se descartaba junto con su finish_reason. llama-server cierra bien,
         # pero un proxy o un backend no conforme no tienen por que.
         if buf.strip() and not corte.pedido():
-            _procesar_linea(buf, acc, on_token, on_reasoning, avisos)
+            _procesar_linea(buf, acc, on_token, on_reasoning, avisos,
+                            on_tool_frag)
         if trunco:
             raise ConnectionError(f"{trunco} ({acc['frames']} frames "
                                   "recibidos antes del corte)")
@@ -879,7 +891,8 @@ def completar(mensajes: list, tools: list = None, url: str = "",
               via: str = "agente_chat",
               response_format: dict = None,
               kwargs_plantilla: dict = None,
-              on_token=None, on_reasoning=None, cancelado=None) -> RespuestaChat:
+              on_token=None, on_reasoning=None, cancelado=None,
+              on_tool_frag=None) -> RespuestaChat:
     """UN turno de chat completions contra el server del agente.
 
     Nunca lanza: cualquier fallo vuelve como RespuestaChat(error=...) para
@@ -919,6 +932,12 @@ def completar(mensajes: list, tools: list = None, url: str = "",
 
       on_token(str)      -> cada fragmento de `content` segun sale.
       on_reasoning(str)  -> cada fragmento de pensamiento del razonador.
+      on_tool_frag(str)  -> cada fragmento de los ARGUMENTOS de un tool call
+                            segun sale. Es el unico canal por el que se ve
+                            avanzar un turno del agente que esta escribiendo
+                            un fichero: ahi no hay `content` ni razonamiento,
+                            solo argumentos, y sin este callback el turno se
+                            veia mudo durante minutos (2026-08-31).
       cancelado() -> bool: True corta y cierra la conexion.
 
     EL CORTE ES FUERA DE BANDA. cancelado() se consulta cada ~50 ms aunque el
@@ -999,7 +1018,7 @@ def completar(mensajes: list, tools: list = None, url: str = "",
     # el stream da (ver el texto salir, o poder cortar). Las claves se
     # agregan AL FINAL para que el body sin streaming quede byte-identico.
     stream = (on_token is not None or on_reasoning is not None
-              or cancelado is not None)
+              or cancelado is not None or on_tool_frag is not None)
     if stream:
         cuerpo["stream"] = True
         cuerpo["stream_options"] = {"include_usage": True}
@@ -1034,7 +1053,8 @@ def completar(mensajes: list, tools: list = None, url: str = "",
         with urllib.request.urlopen(req, timeout=espera) as r:
             if stream:
                 _leer_stream(r, acc, on_token, on_reasoning, cancelado,
-                             espera, _pared_del_stream(espera))
+                             espera, _pared_del_stream(espera),
+                             on_tool_frag=on_tool_frag)
                 crudo = _crudo_desde_stream(acc)
             else:
                 crudo = json.loads(r.read().decode("utf-8", errors="replace"))

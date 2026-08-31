@@ -228,6 +228,106 @@ def _nuevo_turno_degradado() -> None:
     _AVISOS_VISTOS.clear()
 
 
+# Cuanto detalle cabe en pantalla antes de dejar de informar. Un motivo mas
+# largo que esto se recorta AQUI y queda entero en ~/.cognia/logs/cognia.log.
+_TOPE_DETALLE_PANTALLA = 240
+
+# Cuando se considera que lo que hay dentro es RUIDO del modelo y no un
+# mensaje. DOS reglas, y basta con una:
+#   * TRES caracteres ilegibles ya son ruido. Un texto normal no trae ninguno
+#     (la puntuacion tipografica de uso corriente esta exenta), asi que tres
+#     no llegan por casualidad: el aviso real que recibio el duenio en la cara
+#     tenia cinco en 108 caracteres, un 4,6 % -- una regla de PROPORCION sola
+#     lo habria dejado pasar entero.
+#   * o mas del 12 % del texto, que caza los vertidos largos de basura.
+_MIN_ILEGIBLES = 3
+_UMBRAL_ILEGIBLE = 0.12
+
+
+def _caracter_ilegible(ch: str) -> bool:
+    """True si el duenio no puede leer ese caracter en su terminal.
+
+    'Ilegible' aqui es una decision de PRESENTACION y no un juicio sobre el
+    idioma: lo que no es imprimible, y lo que cae fuera del latino extendido
+    mas la puntuacion de uso corriente, sale como cuadraditos en la consola de
+    Windows -- y es ademas la firma exacta del modelo cuando se va por la rama
+    de los tokens basura.
+    """
+    if not ch.isprintable():
+        return ch not in "\t\n"
+    if ord(ch) < 0x300:                 # ASCII + latino-1 + latino ext. A
+        return False
+    return ch not in "\u2018\u2019\u201c\u201d\u2013\u2014\u2026\u00b7\u20ac"
+
+
+def _sin_ruido_del_modelo(texto: str) -> tuple:
+    """(texto presentable, cuantos caracteres ilegibles habia).
+
+    Sustituye cada RACHA ilegible por una marca y conserva lo legible de los
+    dos lados: cortar por el primer caracter raro se comeria la cola del
+    mensaje, que es justo donde el modulo dice QUE HIZO EN SU LUGAR ("...;
+    queda el nombre deterministico").
+    """
+    fuera, borrados, en_racha = [], 0, False
+    for ch in texto:
+        if _caracter_ilegible(ch):
+            borrados += 1
+            if not en_racha:
+                fuera.append("<ilegible>")
+                en_racha = True
+        else:
+            fuera.append(ch)
+            en_racha = False
+    limpio = "".join(fuera)
+    if borrados:
+        # Varias rachas seguidas separadas por espacios o puntuacion son UNA
+        # sola cosa para quien lo lee.
+        limpio = re.sub(r"(?:<ilegible>[ \t`',.:;|_-]*)+", "<ilegible>", limpio)
+    return limpio, borrados
+
+
+def _resumir_para_pantalla(texto: str) -> str:
+    """Lo que se PINTA de un motivo o de una linea de log. NO registra nada.
+
+    Es puro a proposito: lo llama tambien el formatter de la consola de logs,
+    y loguear desde dentro de un formatter se llama a si mismo (el record
+    vuelve a pasar por el mismo handler) hasta reventar por recursion. Quien
+    quiere el texto entero en el log es `_detalle_presentable`, que corre en
+    el camino normal.
+    """
+    crudo = str(texto or "")
+    if not crudo:
+        return crudo
+    limpio, borrados = _sin_ruido_del_modelo(crudo)
+    if borrados >= _MIN_ILEGIBLES or (
+            borrados and (borrados / max(1, len(crudo))) > _UMBRAL_ILEGIBLE):
+        limpio = (f"{limpio}  [respuesta ilegible del modelo, {borrados} "
+                  f"caracteres; entera en el log]")
+    else:
+        limpio = crudo                  # nada raro: se ensenia tal cual
+    if len(limpio) > _TOPE_DETALLE_PANTALLA:
+        limpio = (limpio[:_TOPE_DETALLE_PANTALLA]
+                  + " ... [recortado; entero en el log]")
+    return limpio
+
+
+def _detalle_presentable(via: str, detalle: str) -> str:
+    """`_resumir_para_pantalla` + el texto ENTERO al log cuando se recorta.
+
+    POR QUE: al parar una jornada, la pantalla recibia literalmente la
+    respuesta cruda del modelo ("clases/materias: respuesta del modelo fuera
+    de la lista (...)" con el parentesis lleno de ideogramas). El duenio no
+    puede hacer nada con eso y le tapa la linea que si le sirve. Se resume, se
+    dice que paso, y el texto entero queda en el log para diagnosticar.
+    """
+    crudo = str(detalle or "")
+    limpio = _resumir_para_pantalla(crudo)
+    if limpio != crudo:
+        logging.getLogger(__name__).warning(
+            "degradado %s (texto entero, resumido en pantalla): %r", via, crudo)
+    return limpio
+
+
 def _aviso_degradado(via: str, detalle: str = "",
                      backend: "bool | None" = None) -> None:
     """Aviso VISIBLE + registro en el audit, UNA vez por turno y por motivo.
@@ -241,6 +341,10 @@ def _aviso_degradado(via: str, detalle: str = "",
     LLM" y le pegaba "Arranca la flota". `backend` (opcional, tercero: las
     llamadas y los monkeypatch existentes no cambian) elige el origen; con
     None lo decide `_es_via_de_backend(via)`. Ver el bloque de arriba."""
+    # Lo que va a PANTALLA se resume; lo entero queda en el log (ver
+    # _detalle_presentable). La de-duplicacion usa ya el texto presentable:
+    # dos ruidos distintos del modelo dicen lo mismo y no hacen falta dos.
+    detalle = _detalle_presentable(via, detalle)
     clave = (_TURNO_DEGRADADO[0], via, detalle)
     if clave in _AVISOS_VISTOS:
         return
@@ -3243,12 +3347,13 @@ _CMD_DESCRIPTIONS = {
     "/compactar":       "A secas: resumen visual de la sesion (limpiar + ultimas interacciones). Con args: compactacion del contexto del agente. Uso: /compactar [estado | resumen | truncado | umbral <frac> | retencion <frac> | cap <chars>]",
     "/notificar":       "Notificaciones al terminar un turno largo (anillo 9;4 + BEL en Windows Terminal, toast nativo opcional); cualquier otro texto se envia como notificacion de escritorio. Uso: /notificar [<mensaje> | estado | on | off | prueba | modo <auto|osc|bell|toast> | umbral <segundos> | degradados on|off]",
     "/markdown":        "Markdown en streaming sin flicker para la respuesta: ventana viva + commit de lineas estables, codigo con sintaxis. Uso: /markdown [estado | on | off | tema <pygments>]",
-    "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args), nudge por ediciones al mismo fichero y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | fichero <n> | timeout <s>]",
+    "/entrega":         "Lo que el agente dejo EN DISCO en su ultima tarea: fichero a fichero, tamano y si esta ENTERO (un HTML cortado a mitad se marca ROTO con la linea del corte). El bloque se pega al cierre de cada tarea. Uso: /entrega [estado | on | off]",
+    "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args), nudge por ediciones al mismo fichero, recordatorio por RAZONAMIENTO en bucle (pensar mucho sin avanzar) y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | fichero <n> | timeout <s> | razonamiento [on|off|umbral <n>|racha <n>]]",
     "/revision":        "Revision profunda antes de entregar: el arnes CORRE lo construido (sintaxis + tests que lo cubren + arrancar el producto de punta a punta) y le devuelve el fallo real al modelo  [estado | on|off | ejecutar on|off | rondas <n> | segundos <n> | informe | ahora <ruta...>]  (env COGNIA_REVISION=0 la apaga; COGNIA_REVISION_EJECUTAR=0 apaga solo el arranque del producto)",
     "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | acciones on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo; COGNIA_CHAT_AFIRMACIONES=0 apaga el detector de acciones inventadas)",
     "/ventana":         "Presupuesto de SALIDA real: cuantos tokens deja la ventana (n_ctx) despues del prompt — el techo que de verdad corta las tareas largas, no max_tokens. Uso: /ventana [estado | pensamiento auto|on|off | continuo on|off|<rondas>|tramo N]. Con 'continuo' la respuesta no se trunca: al llegar al tope sigue donde murio y se pega sin costura",
     "/compilar":           "Cognia se fabrica sus propias herramientas: de una frase a un comando del CLI, generado, injertado, evaluado ejecutandolo y registrado. Uso: /compilar [<descripcion> | ensayo <desc> | lista | ver <cmd> | retirar <cmd> | receta | copias | revertir <sello>]",
-    "/grabar-clase":    "Graba tus clases y arma un cuaderno por materias con apuntes, imagenes y audio; detecta el cambio de asignatura solo. Uso: /grabar-clase [iniciar | parar | ver | nota <txt> | imagen <ruta> | materia <n> | olvidar]",
+    "/grabar-clase":    "Graba tus clases y arma un cuaderno por materias con apuntes, imagenes y audio; detecta el cambio de asignatura solo. Uso: /grabar-clase [iniciar | parar | cierre | ver | vivo | widget | pausar | reanudar | mutear | desmutear | forzar | marcar | nota <txt> | importante <txt> | imagen <ruta> | audio <ruta> | pegar | formula <latex> | grafico <expr|datos> | imagen-buscar <consulta> | imagen-usar <n> | pdf | doc estado | refinar on|off|estado | materia <n> | materias <a,b,c> | apuntes | transcribir | olvidar]  (config: clases_refinado, clases_doc_tools, clases_vivo_app, clases_imagenes)",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
@@ -3499,6 +3604,55 @@ _CMD_DETAILS = {
         "CONFIG: bots_on (on), bots_protocolo (on: seccion de mensajeria en el chat canonico), "
         "bots_max_hops (3: tope de saltos entre bots). La env COGNIA_BOTS=0 apaga todo ganando a la "
         "config; COGNIA_BOTS_DIR mueve el almacen. Remoto: GET /bots y /api/bots."),
+    "/grabar-clase": (
+        "CUADERNO DE CLASE (paquete cognia/clases). Graba la jornada entera capturando el audio que "
+        "SUENA en el equipo (una clase virtual entra por los altavoces, no por el microfono), lo "
+        "transcribe en caliente, detecta los cambios de asignatura y arma un cuaderno por materias "
+        "con apuntes, imagenes, formulas, graficas y clips.\n"
+        "GRABAR: 'iniciar [sistema|micro|ambas]' arranca (default: el audio del sistema); 'parar' "
+        "DEJA DE GRABAR en el acto -- el audio y la transcripcion quedan a salvo en disco y el "
+        "prompt vuelve enseguida -- y manda a un hilo de fondo lo caro: la deteccion DEFINITIVA de "
+        "materias y los apuntes, que con el modelo local son minutos. 'cierre' dice en que fase va "
+        "ese trabajo, cuanto lleva y si tu clase ya esta guardada; el final se anuncia solo entre "
+        "dos turnos. Ctrl-C corta la ESPERA, nunca el cierre (matarlo a media escritura es lo unico "
+        "que podria corromper el cuaderno), y si Cognia muere en medio la clase sigue estando: "
+        "'transcribir' y 'apuntes' la completan. COGNIA_SIN_FONDO=1 apaga el carril y cierra "
+        "TODO dentro del turno (es lo que hace solo en pipes, scripts y CI, donde un hilo daemon "
+        "moriria con el proceso antes de escribir los apuntes). 'pausar'/'reanudar' congelan el audio SIN cerrar "
+        "la jornada (el reloj para y el estado en disco pasa a 'pausada'); 'mutear'/'desmutear' "
+        "descartan el audio sin parar el reloj -- la unidad real es el TROZO de 30 s, asi que el "
+        "corte cae en el limite del trozo, hasta 30 s a cada lado de donde pulsaste.\n"
+        "'forzar' es LA SALIDA DE EMERGENCIA: quita el lock de grabacion sea de quien sea. Existe "
+        "porque los PID se reciclan -- un lock olvidado cuyo numero hoy es de otro programa dejaria "
+        "la grabacion bloqueada para siempre y sin ninguna forma de salir. Sobre una grabacion VIVA "
+        "de verdad produce dos grabadores sobre la misma carpeta: por eso hay que teclearlo.\n"
+        "VER: 'ver' exporta el cuaderno estatico (~/.cognia/cuaderno.html, imagenes embebidas) y lo "
+        "abre; 'vivo' levanta el servidor local y abre el cuaderno EN VIVO en ventana propia (--app "
+        "de Edge/Chrome), donde el documento se edita y se ve entrar la transcripcion en directo -- "
+        "imprime la URL con su token; 'vivo estado' / 'vivo parar' lo diagnostican y lo apagan. "
+        "'widget' enciende el cerebrito (icono flotante, proceso aparte: python -m cognia.clases). "
+        "'pdf' abre el cuaderno listo para Ctrl+P -> Guardar como PDF (imprimir es el camino "
+        "universal a PDF y la pagina ya trae su CSS de impresion).\n"
+        "APUNTAR EN EL MINUTO EXACTO (piden jornada grabando): 'nota <txt>', 'importante <txt>' "
+        "(no se resume ni se olvida), 'marcar', 'imagen <ruta>', 'audio <ruta>', 'pegar' (la imagen "
+        "del portapapeles), 'formula <latex>' (la dibuja matplotlib.mathtext, sin instalar LaTeX), "
+        "'grafico <expresion|datos>' (una curva de 'sin(x)*x' o unas barras de '3,5,8' o de "
+        "'lunes=3, martes=5'), 'imagen-buscar <consulta>' (Wikimedia Commons + Openverse, con autor "
+        "y licencia) y 'imagen-usar <n>' (baja la n-esima de esa lista y la mete CON su atribucion).\n"
+        "EL DOCUMENTO: al abrir el cuaderno ('ver' o 'vivo') se le anuncian al modelo las 7 tools "
+        "doc_* con las que ESCRIBE en los apuntes de la materia, y solo entonces: el catalogo tiene "
+        "techo MEDIDO (A/B 2026-07-25: 46 tools bajan el camino feliz de 4,25/5 a 2,5/5). "
+        "'doc estado' es su diagnostico (bloques, fijados, cuantos escribio la IA, respetados).\n"
+        "MANTENIMIENTO: 'materia <n>' corrige a mano la asignatura en curso; 'materias <a,b,c>' "
+        "declara el curso; 'apuntes' regenera los de la ultima jornada; 'transcribir' transcribe lo "
+        "pendiente; 'refinar on|off|estado' gobierna el refinado EN CALIENTE (encender es lo UNICO "
+        "que reabre uno que el disyuntor apago tras dos vueltas esteriles); 'olvidar [plan]' aplica "
+        "el olvido.\n"
+        "CONFIG: clases_refinado (on), clases_doc_tools (on), clases_vivo_app (on: ventana propia), "
+        "clases_imagenes (8 resultados). Env: COGNIA_CLASES_REFINADO, COGNIA_CLASES_REFINADO_PERIODO, "
+        "COGNIA_DOC_TOOLS, COGNIA_DOC_MATERIA. Instalacion: pip install \"cognia-ai[clases]\" trae la "
+        "captura de audio (soundcard), la transcripcion (faster-whisper) y las mates "
+        "(matplotlib+sympy); sin ellas cada subcomando dice exactamente que le falta."),
     "/revision": (
         "REVISION PROFUNDA ANTES DE ENTREGAR (cognia/harness/revision_profunda.py). Un trabajo "
         "COMPLEJO no se entrega porque suene bien: antes de que el agente cierre, el ARNES corre "
@@ -3569,6 +3723,28 @@ _CMD_DETAILS = {
         "evidencias, fuentes y aviso). Env: COGNIA_CONFIANZA=0 apaga todo ganando a la config. "
         "Punto de extension: extractores.registrar(patron, fn) para sitios nuevos y las listas "
         "_MARCAS_*/_PLATAFORMAS del clasificador."),
+    "/entrega": (
+        "ENTREGA (harness/entrega.py, 2026-08-31). Un turno del agente no cierra sin decir QUE quedo "
+        "en disco. POR QUE: la traza que lo motivo son tres tareas seguidas sobre el mismo juego, "
+        "media hora cada una, que cerraron con '(cerrada sin progreso verificado: meseta_de_coste)' "
+        "y el stdout de la ULTIMA tool ('SINTAXIS_OK', 'OK') — mientras en disco habia un index.html "
+        "de 32 KB cortado a mitad de una clase, y en dos de las tres tareas no se habia escrito ni un "
+        "byte. Ninguna de las dos cosas se dijo. "
+        "QUE HACE: al cerrar CUALQUIER tarea (cierre natural, presupuesto agotado, estancamiento del "
+        "gobernador de progreso, racha de tools fallidas o corte del usuario) se anexa a la respuesta "
+        "un bloque con una linea por fichero escrito: glifo OK/ROTO, nombre, bytes y el motivo; y para "
+        "los rotos, la LINEA donde se corta y sus ultimos caracteres, que es lo que hace falta para "
+        "continuarlo con apendar_archivo. Si no se escribio nada, lo dice — que es el dato mas "
+        "importante que puede dar un turno que no entrego. "
+        "COMO SE DECIDE 'ENTERO': .py compila, .json parsea, y .html/.js pasan por "
+        "estado/validar_web.py, que comprueba cierres (</script>, </html>, </body>) y balanceo de "
+        "llaves/parentesis/corchetes con doble pasada sobre la ambiguedad regex-vs-division (si las "
+        "dos lecturas discrepan, el veredicto es 'no evaluable', nunca 'roto'; medido: 0 falsos "
+        "positivos sobre los 439 .html/.js escritos a mano del disco). LIMITE HONESTO: dice si el "
+        "fichero esta COMPLETO, no si funciona — eso lo mide /revision, que abre la pagina en un "
+        "navegador de verdad. Es DETERMINISTA: sale de os.stat y del validador, no del modelo. "
+        "USO: /entrega (o /entrega estado) = la foto de la ultima entrega; on|off persiste la clave "
+        "'entrega'. Env: COGNIA_ENTREGA=0 lo apaga."),
     "/bucle": (
         "HIGIENE DEL LAZO (harness/repeticion + harness/timeout_tool, patron deepseek-harness). "
         "(1) RECORDATORIO DE REPETICION, advisory: por agente se cuenta la llamada CONSECUTIVA "
@@ -3596,13 +3772,29 @@ _CMD_DETAILS = {
         "distintos o no (las capas anteriores cuentan tool+args: tres editar_archivo sobre "
         "a.py con bloques distintos eran tres llamadas distintas); a la n-esima (default 3) y "
         "en cada multiplo el bucle nativo inyecta un turno user de reconsideracion. Advisory. "
-        "USO: /bucle (estado de los tres) | on|off (persiste 'repeticion') | umbrales <a,b,c> "
+        "(4) RAZONAMIENTO EN BUCLE (2026-08-31, harness/razonamiento.py): los tres detectores de "
+        "arriba cuentan LLAMADAS, y un razonador que da vueltas sin llamar a nada es invisible para "
+        "todos ellos (medido en esta casa: 52.535 chars de razonamiento y CERO tool calls con el "
+        "pensamiento encendido, contra 10.160 chars de tool call con el apagado). Este cuenta, por "
+        "paso, los chars del canal de razonamiento: un paso es PESADO a partir del umbral (default "
+        "4000) y la racha la rompe el AVANCE VERIFICADO del gobernador de progreso, no la llamada "
+        "(en la traza que lo motivo el modelo llamaba a herramientas en casi todos los pasos "
+        "—releia el mismo fichero— y la tarea no se movia). Al 1er paso pesado sin avance se "
+        "inyecta un nudge suave; al 2do uno fuerte que cita los numeros y pide escribir aunque sea "
+        "un trozo; a la racha (default 3) se APAGA el pensamiento extendido para el resto de la "
+        "tarea. Detecta ademas el razonamiento REPETIDO (solapamiento de shingles >= 0,45 con el "
+        "paso anterior) y lo nombra. Durante la generacion avisa en vivo a los 8.000 / 20.000 / "
+        "40.000 chars. Advisory: no corta, no veta. "
+        "USO: /bucle (estado de los cuatro) | on|off (persiste 'repeticion') | umbrales <a,b,c> "
         "(persiste 'repeticion_umbrales'; enteros >= 2 crecientes, se VALIDAN y una config "
         "invalida grita en vez de callar) | fichero <n> (persiste 'repeticion_umbral_fichero'; "
         "entero >= 2) | timeout <s> (persiste 'tool_timeout_s'; 0 = sin "
-        "limite). Envs: COGNIA_REPETICION=0 apaga GANANDO a la config; "
-        "COGNIA_REPETICION_UMBRALES, COGNIA_REPETICION_UMBRAL_FICHERO, COGNIA_TOOL_TIMEOUT, "
-        "COGNIA_TOOL_TIMEOUT_GRACIA."),
+        "limite) | razonamiento [on|off | umbral <n> (chars, >= 200) | racha <n> (>= 2)] "
+        "(persisten 'razonamiento', 'razonamiento_umbral', 'razonamiento_racha'; sin subcomando "
+        "imprime solo la foto de ese subsistema). Envs: COGNIA_REPETICION=0 apaga GANANDO a la "
+        "config; COGNIA_REPETICION_UMBRALES, COGNIA_REPETICION_UMBRAL_FICHERO, COGNIA_TOOL_TIMEOUT, "
+        "COGNIA_TOOL_TIMEOUT_GRACIA, COGNIA_RAZONAMIENTO, COGNIA_RAZONAMIENTO_UMBRAL, "
+        "COGNIA_RAZONAMIENTO_RACHA; COGNIA_THINKING=on impide que se apague el pensamiento."),
     "/horizonte": (
         "MODO HORIZONTE (agent/horizonte.py + estado_tarea.py; contrato RALPH de deepseek-harness "
         "tool-ralph). Con el modo encendido, cada /hacer corre en RONDAS: cada ronda es un worker "
@@ -4765,6 +4957,58 @@ def _aspecto_del_banner() -> dict:
     return b
 
 
+def _backend_vivo_sin_props(url: str) -> bool:
+    """True si en `url` hay un servidor VIVO aunque /props no dijera el modelo.
+
+    POR QUE EXISTE: el arranque decia "sin backend en http://127.0.0.1:8080 —
+    arranca: cognia flota arrancar" con llama-server sirviendo ahi de verdad
+    (/health -> {"status":"ok"}), mientras OTRA parte del programa lo daba por
+    OCUPADO. Dos partes del producto contradiciendose en la misma pantalla.
+
+    EL DIAGNOSTICO, y lo que NO se pudo reproducir. La hipotesis obvia era que
+    /props se atasca detras del slot de generacion y se come el timeout=3 de
+    `backend_activo.props()` (backend_activo.py:199). SE MIDIO y es FALSA en
+    esta build: con el 27B generando de verdad, /health tardo 0,9 ms y /props
+    1,2 ms (3 de 3), y `backend_activo.estado()` devolvio el modelo en 0,02 s.
+    O sea que la sonda no se bloquea por estar ocupado.
+
+    LO QUE SI ES CIERTO, y es la causa raiz -- FUERA de este fichero:
+    `props()` termina en `except Exception: datos = {}` (backend_activo.py:213)
+    y `estado()` traduce ese {} a "NO HAY BACKEND en ...". Con eso, CUATRO
+    estados distintos se pintan iguales: no hay nadie escuchando, el servidor
+    esta cargando el modelo (503), la peticion se paso de los 3 s, y la
+    llamada fallo por cualquier otra razon (en Windows, por ejemplo, un proxy
+    del sistema que se traga 127.0.0.1). Una sonda que falla NO es una
+    ausencia. El arreglo de fondo -- que props() distinga por que no hubo
+    respuesta -- es de backend_activo.py; aqui se deja de AFIRMAR lo que no se
+    sabe, que es lo que el duenio ve en pantalla.
+
+    Timeout corto y sin excepciones hacia afuera: esto decide UNA linea del
+    banner y no puede retrasar el arranque ni romperlo.
+    """
+    try:
+        import urllib.request as _urlreq
+        with _urlreq.urlopen(url.rstrip("/") + "/health", timeout=2):
+            return True
+    except Exception as exc:
+        # Un 503 ("cargando el modelo") llega como HTTPError y es un servidor
+        # VIVO: distinto de "no hay nadie escuchando" (URLError puro).
+        import urllib.error as _urlerr
+        return isinstance(exc, _urlerr.HTTPError)
+
+
+def _linea_sin_backend(plantilla: str, url: str) -> str:
+    """La linea del banner cuando /props no dijo el modelo.
+
+    Dice EXACTAMENTE lo que se sabe: que hay alguien vivo ahi y que no se pudo
+    averiguar que sirve. Ni "no hay backend" (falso) ni "esta ocupado" (una
+    causa que no se ha comprobado)."""
+    if url and _backend_vivo_sin_props(url):
+        return (f"backend VIVO en {url} (responde /health) pero /props no "
+                f"contesto: no se que modelo sirve")
+    return plantilla
+
+
 def _aviso_banner_oculto(id: str) -> None:
     """Identidad (D6 del diseno): el banner va POR DEFECTO y solo /estilo lo
     esconde; cuando esta oculto se dice en una linea, con la orden que lo
@@ -4818,6 +5062,7 @@ def _print_startup_panel():
                     _aviso_degradado("estilo", f"banner.linea_modelo.texto.sin_backend "
                                                f"no se pudo formatear ({_exc_fmt}); texto por defecto")
                     _sb = f"sin backend en {_e['url']} — arranca: cognia flota arrancar"
+                _sb = _linea_sin_backend(_sb, str(_e.get("url") or ""))
                 _linea = f"  {_sb}"
                 _estilo_ok = False
             if _HAS_RICH and _console:
@@ -4848,8 +5093,10 @@ def _print_startup_panel():
             # 'python scripts/...' NO viaja en el wheel: quien instalo por pip
             # no tiene ese fichero y la orden sugerida falla. El equivalente que
             # SI existe siempre es el subcomando (cognia/__main__.py:_cmd_flota).
-            _modelo_warn = (f"sin backend en {_e['url']} — "
-                            f"arranca: python -m cognia flota arrancar pensar")
+            _modelo_warn = _linea_sin_backend(
+                f"sin backend en {_e['url']} — "
+                f"arranca: python -m cognia flota arrancar pensar",
+                str(_e.get("url") or ""))
     except Exception:
         _modelo_txt = "desconocido"
 
@@ -8377,6 +8624,20 @@ _CONFIG_DEFAULTS: dict = {
     # inyecta un nudge de reconsideracion como turno user (ContadorFichero de
     # harness/repeticion; COGNIA_REPETICION_UMBRAL_FICHERO; entero >= 2).
     "repeticion_umbral_fichero": "3",
+    # RAZONAMIENTO EN BUCLE (2026-08-31, harness/razonamiento). Los detectores
+    # de arriba cuentan LLAMADAS; este mira el canal que ninguno miraba: un
+    # razonador que da vueltas sin dejar un avance verificado detras. Un paso
+    # es "pesado" a partir de 'razonamiento_umbral' chars de razonamiento
+    # (COGNIA_RAZONAMIENTO_UMBRAL) y a los 'razonamiento_racha' pasos pesados
+    # SEGUIDOS sin avance se apaga el pensamiento extendido
+    # (COGNIA_RAZONAMIENTO_RACHA). Se cambian con /bucle razonamiento.
+    "razonamiento":            "on",
+    "razonamiento_umbral":     "4000",
+    "razonamiento_racha":      "3",
+    # ENTREGA (2026-08-31, harness/entrega): 'entrega' on/off = cada tarea del
+    # agente cierra diciendo QUE quedo en disco, fichero a fichero, con su
+    # tamano y si esta ENTERO (COGNIA_ENTREGA). Se cambia con /entrega.
+    "entrega":                 "on",
     # MEMORIA COMO DATO para el agente (2026-08-24, deepagents 0.7.8,
     # middleware/memory.py MEMORY_SYSTEM_PROMPT: "file data from disk. It may
     # be outdated, incorrect, or written by someone other than the current
@@ -8448,6 +8709,28 @@ _CONFIG_DEFAULTS: dict = {
     "revision_ejecutar":       "on",
     "revision_rondas":         "2",
     "revision_segundos":       "180",
+    # CUADERNO DE CLASE (/grabar-clase, paquete cognia/clases). Las cuatro
+    # claves que decide el duenio y que _clases_sembrar_env traduce a env al
+    # arrancar el REPL (los modulos leen la env en cada llamada y no conocen
+    # ~/.cognia_config.json: sin la siembra la config no decidiria nada).
+    #   clases_refinado  on|off = refinado de apuntes EN CALIENTE mientras la
+    #     clase corre (COGNIA_CLASES_REFINADO). Default on: el subsistema trae
+    #     su propio disyuntor y sin backend se apaga solo tras dos vueltas
+    #     esteriles. Puerta: /grabar-clase refinar on|off|estado.
+    #   clases_doc_tools on|off = anunciarle al modelo la familia doc_* (las 7
+    #     tools con las que ESCRIBE en el documento de la materia) al abrir el
+    #     cuaderno, y solo entonces: el catalogo tiene techo MEDIDO en este
+    #     repo (A/B 2026-07-25, 46 tools bajan el camino feliz de 4,25/5 a
+    #     2,5/5), asi que siete tools mas no pueden estar puestas siempre.
+    #   clases_vivo_app  on|off = abrir el cuaderno en vivo en VENTANA PROPIA
+    #     (--app de Edge/Chrome) en vez de una pestania mas. Sin Chromium cae
+    #     al navegador por defecto diciendolo.
+    #   clases_imagenes  = cuantos resultados devuelve /grabar-clase
+    #     imagen-buscar (los que luego numera imagen-usar).
+    "clases_refinado":         "on",
+    "clases_doc_tools":        "on",
+    "clases_vivo_app":         "on",
+    "clases_imagenes":         "8",
 }
 
 
@@ -14627,6 +14910,1534 @@ def _slash_ventana(arg: str = "") -> None:
                 f"ESE mismo hueco.[/info_dim]")
 
 
+# ---------------------------------------------------------------------------
+# CUADERNO DE CLASE: los subcomandos NUEVOS de /grabar-clase (2026-08-31)
+# ---------------------------------------------------------------------------
+# EL PUNTO DE EXTENSION es `_CLASES_SUBCOMANDOS` (el dict del final del
+# bloque): un subcomando nuevo se da de alta escribiendo su funcion
+# `_clases_x(resto, ai)` y una entrada ahi, sin tocar el if/elif historico de
+# `_slash_grabar_clase`. Se hizo asi y no alargando la cadena de ifs porque
+# esta entrega mete DIECISEIS subcomandos de golpe y una cadena de treinta
+# ramas deja de ser legible justo donde hay que buscar el bug.
+#
+# TODO camino de fallo sale por `_aviso_degradado`: la leccion de la casa es
+# que "no lo cablearon" y "se rompio" no pueden verse igual desde afuera, y
+# aqui hay ocho subsistemas opcionales (audio, whisper, matplotlib, sympy,
+# PIL, red, navegador, tkinter) que pueden faltar de uno en uno.
+
+# Lo ULTIMO que devolvio `imagen-buscar`, para que `imagen-usar <n>` sepa a
+# que se refiere ese numero. Vive en un dict de modulo (y no en la config)
+# porque es estado de ESTA sesion: una lista de resultados de hace tres dias
+# apuntaria a urls que ya no sirven y el numero significaria otra cosa.
+_CLASES_BUSQUEDA = {"consulta": "", "resultados": []}
+
+# Los si/no que aceptan las claves de config de clases. Espejo de
+# refinado._SI / refinado._NO: si divergen, un 'si' escrito a mano en
+# ~/.cognia_config.json encenderia la config y dejaria la env en '0'.
+_CLASES_SI = ("1", "si", "on", "true", "yes", "y")
+_CLASES_NO = ("0", "no", "off", "false", "n")
+
+
+def _clases_ok(mensaje: str, detalle: str = "") -> None:
+    """El "salio bien" y su letra pequenia, en DOS lineas y no en una.
+
+    NO ES COSMETICA, es un vacio silencioso cazado tecleando: `_print_line`
+    tira la linea ENTERA si contiene '[detail]' (modo sencillo, que es el
+    default), asi que un `[ok]...[/ok] [detail]...[/detail]` en una sola
+    llamada desaparece con el detalle y el duenio ve un comando que no
+    contesta nada. Separandolo, el resultado siempre sale y lo unico que se
+    calla en modo sencillo es la letra pequenia, que es lo que se pretendia.
+    """
+    _print_line(f"[ok]{mensaje}[/ok]")
+    if detalle:
+        _print_line(f"[detail]{detalle}[/detail]")
+
+
+def _clases_encendido(cfg, clave: str, defecto: str = "on") -> bool:
+    """Lee una clave on/off de la config de clases. Un valor que no es ni si
+    ni no se DICE y se cae al default: tragarselo dejaria al duenio con una
+    capacidad apagada por una errata que nada nombra."""
+    crudo = str(cfg.get(clave, defecto)).strip().lower()
+    if crudo in _CLASES_SI:
+        return True
+    if crudo in _CLASES_NO:
+        return False
+    _aviso_degradado("clases.config",
+                     f"{clave}={crudo!r} no es un si/no; uso el default "
+                     f"({defecto})")
+    return defecto.lower() in _CLASES_SI
+
+
+def _clases_sembrar_env(cfg=None) -> None:
+    """Siembra COGNIA_CLASES_REFINADO desde la config (clases_refinado).
+
+    Los modulos de cognia/clases leen la env en CADA llamada y no conocen
+    ~/.cognia_config.json, asi que sin esta traduccion 'clases_refinado' seria
+    una clave que no decide nada -- el fallo que ya se pago con bots_max_hops.
+    No se siembra COGNIA_CLASES_REFINADO_PERIODO: el periodo se deja al
+    default medido del modulo y quien lo quiera cambiar tiene la env
+    documentada en la ficha de /grabar-clase.
+
+    Una env puesta A MANO en el shell GANA: quien exporta la variable antes de
+    arrancar esta diciendo algo mas concreto que la config de ayer.
+    """
+    cfg = cfg if cfg is not None else _load_config()
+    try:
+        from cognia.clases import refinado as _cr
+        var = _cr.ENV_ACTIVO
+    except Exception as exc:
+        # Sin el modulo no hay nada que sembrar, pero el nombre de la variable
+        # es estable: se siembra igual para que la config valga aunque el
+        # import de refinado se rompa (arrastra apuntes y el backend).
+        _aviso_degradado("clases.refinado",
+                         f"modulo no importable ({type(exc).__name__}: {exc}); "
+                         f"siembro COGNIA_CLASES_REFINADO a ciegas")
+        var = "COGNIA_CLASES_REFINADO"
+    if (os.environ.get(var) or "").strip():
+        return
+    os.environ[var] = "1" if _clases_encendido(cfg, "clases_refinado") else "0"
+    _marcar_env_sembrada(var)
+
+
+class _FormatoSinRuidoDelModelo(logging.Formatter):
+    """Envuelve al formatter de un handler de PANTALLA y resume lo ilegible.
+
+    POR QUE AQUI Y NO EN EL MODULO QUE AVISA: la linea que le llego a la cara
+    al duenio ("clases/materias: respuesta del modelo fuera de la lista
+    (...)") es un `log.warning` de cognia/clases/materias.py, no un
+    `_aviso_degradado`. Filtrarlo en el productor obligaria a repetir el
+    saneado en cada modulo que le pase texto del modelo al log; envolviendo el
+    FORMATTER de los handlers de pantalla se sanea todo lo que se pinta, una
+    vez y en un solo sitio.
+
+    Y solo los de pantalla: el handler de FICHERO conserva el registro ENTERO,
+    que es donde se diagnostica. Por eso se envuelve el formatter (que
+    devuelve una cadena) y no se filtra el record (que es el MISMO objeto para
+    todos los handlers y quedaria mutilado tambien para el fichero).
+    """
+
+    def __init__(self, base):
+        super().__init__()
+        self.base = base
+
+    def format(self, record):           # noqa: A003 (nombre de la stdlib)
+        return _resumir_para_pantalla(self.base.format(record))
+
+
+def _sanear_consola_de_logs() -> int:
+    """Envuelve los handlers de PANTALLA del logger 'cognia'. Idempotente.
+
+    Devuelve cuantos quedaron envueltos. El de fichero se salta a proposito
+    (ahi va el texto entero) y el enrutado a la interfaz se sanea en su propio
+    callback (`_log_a_interfaz`), que es donde nace y se instala mas tarde.
+    """
+    puestos = 0
+    for h in list(logging.getLogger("cognia").handlers):
+        if isinstance(h, logging.FileHandler):
+            continue
+        if isinstance(h.formatter, _FormatoSinRuidoDelModelo):
+            continue
+        h.setFormatter(_FormatoSinRuidoDelModelo(h.formatter
+                                                 or logging.Formatter()))
+        puestos += 1
+    return puestos
+
+
+# Las librerias que pisan el prompt durante una clase entera, silenciadas POR
+# NOMBRE. Nunca un filtro global: un `warnings.simplefilter("ignore")` taparia
+# tambien los avisos que sirven, y eso es cambiar un ruido por una ceguera.
+_RUIDO_LIBRERIAS = {"soundcard": False, "ctranslate2": False}
+
+
+def _silenciar_ruido_de_librerias() -> dict:
+    """Calla los dos avisos que salen CADA POCOS SEGUNDOS mientras se graba.
+
+    QUE SE CALLA Y POR QUE:
+      * soundcard, SoundcardRuntimeWarning "data discontinuity in recording"
+        (soundcard/mediafoundation.py): el loopback WASAPI lo emite cada vez
+        que el driver entrega un bloque con hueco -- varias veces por minuto
+        durante toda la clase, con su traza encima. No es accionable (el hueco
+        ya paso y la grabacion sigue) y tapa el prompt. Se filtra por el TEXTO
+        del mensaje, sin importar soundcard: importarlo aqui abriria el
+        subsistema de audio en cada arranque.
+      * ctranslate2, el aviso de que el modelo venia en float16 y este equipo
+        no lo soporta, asi que convierte los pesos. Es un log del C++ y NO un
+        warnings.warn, o sea que ningun filtro de `warnings` lo alcanza: se
+        baja con CT2_VERBOSE=-1 (su propia variable, -1 = solo errores), y con
+        setdefault -- quien la exporte a mano manda.
+
+    SE PUEDE (Y SE DEBE) LLAMAR MAS DE UNA VEZ: `filterwarnings` mete el
+    filtro DELANTE, asi que volver a llamarla recupera la prioridad cuando una
+    libreria instala el suyo mas tarde -- que es justo lo que hace soundcard al
+    importarse. Por eso la llama tambien '/grabar-clase iniciar'.
+
+    Lo que NO se toca: cualquier otro aviso de esas mismas librerias sigue
+    saliendo. Devuelve que se hizo para que se pueda comprobar.
+    """
+    import warnings
+    try:
+        warnings.filterwarnings(
+            "ignore", message=r".*data discontinuity in recording.*")
+        _RUIDO_LIBRERIAS["soundcard"] = True
+    except Exception as exc:
+        _aviso_degradado("cli.ruido",
+                         f"no pude filtrar el aviso de soundcard: "
+                         f"{type(exc).__name__}: {exc}")
+    if not os.environ.get("CT2_VERBOSE"):
+        os.environ["CT2_VERBOSE"] = "-1"
+        _RUIDO_LIBRERIAS["ctranslate2"] = True
+    return dict(_RUIDO_LIBRERIAS)
+
+
+def _clases_jornada_viva(cmd: str):
+    """La jornada viva, o None diciendo POR QUE no hay. Los subcomandos que
+    apuntan algo en el minuto exacto de la clase la necesitan todos."""
+    try:
+        from cognia.clases import jornada as _cj
+    except Exception as exc:
+        _aviso_degradado("clases", f"modulo no importable: {exc}")
+        return None
+    jv = _cj.viva()
+    if jv is None:
+        lock = _cj.lock_actual()
+        if lock.get("vivo") and lock.get("ajeno"):
+            _print_line(f"[warn_cl]la grabacion la tiene OTRO proceso "
+                        f"(PID {lock.get('pid')}, jornada "
+                        f"{_escape(str(lock.get('jornada') or '?'))}): "
+                        f"'{_escape(cmd)}' apunta en el minuto de la clase y "
+                        f"eso se hace desde ese proceso[/warn_cl]")
+            _print_line("[detail]/grabar-clase forzar  si sabes que ese PID ya "
+                        "no es Cognia[/detail]")
+            return None
+        _print_line(f"[warn_cl]no hay jornada grabando: '{_escape(cmd)}' se "
+                    f"apunta EN el minuto de la clase. Arranca con "
+                    f"/grabar-clase iniciar[/warn_cl]")
+    return jv
+
+
+def _clases_materia_actual() -> str:
+    """La materia sobre la que se escribe AHORA, o "" si no se sabe.
+
+    Es lo que se le pasa a la familia doc_* al abrir el cuaderno. Se pregunta
+    a `jornada.estado()` y NUNCA se adivina: '(sin clasificar aun)' no es una
+    materia, y tomarla por buena crearia en el cuaderno del duenio un
+    documento con ese nombre.
+    """
+    try:
+        from cognia.agent import documento_tools as _dt
+        sin_clasificar = _dt._MATERIA_SIN_CLASIFICAR
+    except Exception:
+        sin_clasificar = "(sin clasificar aun)"
+    try:
+        from cognia.clases import jornada as _cj
+        est = _cj.estado()
+    except Exception as exc:
+        _aviso_degradado("clases", f"no pude leer el estado: "
+                                   f"{type(exc).__name__}: {exc}")
+        return ""
+    if not est.get("grabando"):
+        # La ultima jornada CERRADA devuelve la materia de la ultima clase del
+        # dia: manana eso escribiria en el documento equivocado.
+        return ""
+    materia = str(est.get("materia") or "").strip()
+    return "" if materia == sin_clasificar else materia
+
+
+def _clases_encender_doc_tools(materia: str = "") -> dict:
+    """Le ANUNCIA al modelo la familia doc_* -- y solo al abrir el cuaderno.
+
+    ES EL CABLE QUE FALTABA. Las siete tools con las que la IA escribe en los
+    apuntes existen desde que se registro la familia en harness/familias.py,
+    pero nadie las encendia nunca: el flag COGNIA_DOC_TOOLS no lo pone ningun
+    comando, asi que para el duenio no existian.
+
+    Y se enciende AQUI y no siempre porque el catalogo tiene techo MEDIDO en
+    este repo (A/B 2026-07-25, n=4+4: pasar de 14 a 46 tools baja el camino
+    feliz de 4,25/5 a 2,5/5). Siete tools mas encendidas todo el rato le
+    cuestan al modelo en TODAS las tareas; encendidas con el cuaderno abierto
+    le cuestan solo mientras sirven.
+
+    Devuelve el dict de familias.activar (o uno con ok=False y el motivo).
+    """
+    cfg = _load_config()
+    if not _clases_encendido(cfg, "clases_doc_tools"):
+        return {"ok": False, "familia": "documento",
+                "detalle": "clases_doc_tools=off en la config: no anuncio las "
+                           "tools doc_* (se enciende con /config set "
+                           "clases_doc_tools on)"}
+    if materia:
+        try:
+            from cognia.agent import documento_tools as _dt
+            os.environ[_dt.ENV_MATERIA] = materia
+            _marcar_env_sembrada(_dt.ENV_MATERIA)
+        except Exception as exc:
+            _aviso_degradado("clases.doc_tools",
+                             f"no pude fijar la materia del documento: "
+                             f"{type(exc).__name__}: {exc}")
+    try:
+        from cognia.harness import familias as _fam
+        res = _fam.activar("documento")
+    except Exception as exc:
+        res = {"ok": False, "familia": "documento",
+               "detalle": f"harness.familias no importable: "
+                          f"{type(exc).__name__}: {exc}"}
+    if not res.get("ok"):
+        _aviso_degradado("clases.doc_tools", str(res.get("detalle") or ""))
+    return res
+
+
+def _clases_decir_doc_tools(res: dict) -> None:
+    """Una linea con lo que quedo anunciado. Se imprime al abrir el cuaderno:
+    que el modelo gane siete herramientas es un cambio de comportamiento y
+    tiene que verse."""
+    # info_dim y no detail (que el modo sencillo NO imprime): que el modelo
+    # gane siete herramientas cambia como se comporta el agente en el turno
+    # siguiente, y un cambio de comportamiento no puede ser invisible.
+    if not res.get("ok"):
+        detalle = str(res.get("detalle") or "")
+        if detalle:
+            _print_line(f"[info_dim]documento: {_escape(detalle)}[/info_dim]")
+        return
+    n = int(res.get("total") or 0)
+    _print_line(f"[info_dim]el modelo ya puede escribir en los apuntes "
+                f"({n} tools doc_*); se apaga con /config set "
+                f"clases_doc_tools off[/info_dim]")
+
+
+def _clases_adjuntar(jv, ruta, prefijo: str, texto: str, origen: str) -> str:
+    """Copia un fichero recien generado DENTRO de la jornada y lo apunta en el
+    minuto exacto. Devuelve el nombre del adjunto, o "" si no se pudo.
+
+    Cuello de botella a proposito: formula, grafico, pegar e imagen-usar
+    terminan todos igual (copiar + anotar), y tenerlo una sola vez es lo que
+    hace que un adjunto nuevo no se olvide de anotarse -- el fallo que deja
+    ficheros en la carpeta y el cuaderno mudo.
+    """
+    try:
+        from cognia.clases import almacen as _ca
+        from cognia.clases import cuaderno as _cc
+    except Exception as exc:
+        _aviso_degradado("clases", f"modulo no importable: {exc}")
+        return ""
+    try:
+        nombre = _ca.copiar_adjunto(jv.nombre, ruta, prefijo=prefijo)
+    except Exception as exc:
+        _aviso_degradado(origen, f"no pude copiar {ruta} al cuaderno: "
+                                 f"{type(exc).__name__}: {exc}")
+        return ""
+    try:
+        jv.anotar(_cc.TIPO_IMAGEN, texto=texto, adjunto=nombre,
+                  importante=True)
+    except Exception as exc:
+        _aviso_degradado(origen, f"el adjunto {nombre} se copio pero no pude "
+                                 f"anotarlo: {type(exc).__name__}: {exc}")
+        return ""
+    return nombre
+
+
+def _clases_tmp(nombre: str):
+    """Un Path temporal para el PNG que despues se copia a la jornada.
+
+    Se genera FUERA y se copia DENTRO (en vez de escribir directamente en
+    adjuntos/) porque `almacen.copiar_adjunto` es quien numera y sanea el
+    nombre; escribir a mano ahi duplicaria esa logica y es donde nacen los
+    'img_3.png' pisados.
+    """
+    import tempfile
+    from pathlib import Path as _P
+    return _P(tempfile.mkdtemp(prefix="cognia_clase_")) / nombre
+
+
+# -- widget / vivo / pdf ----------------------------------------------------
+
+def _clases_widget(resto: str = "", ai=None) -> None:
+    """`/grabar-clase widget`: enciende el cerebrito (el icono flotante).
+
+    EN UN PROCESO APARTE, y no aqui dentro, porque el widget es una app tk con
+    su propio mainloop: arrancarla en el hilo del REPL colgaria el prompt
+    hasta que el duenio cerrara el icono.
+    """
+    try:
+        from cognia.clases import widget as _wg
+    except Exception as exc:
+        _aviso_degradado("clases.widget", f"modulo no importable: {exc}")
+        return
+    try:
+        lock = _wg.lock_widget_actual()
+    except Exception as exc:
+        _aviso_degradado("clases.widget",
+                         f"no pude leer el lock del cerebrito: "
+                         f"{type(exc).__name__}: {exc}")
+        lock = {}
+    if lock.get("vivo") and lock.get("ajeno"):
+        _print_line(f"[warn_cl]ya hay un cerebrito abierto (PID "
+                    f"{lock.get('pid')})[/warn_cl]")
+        _print_line("[detail]cierralo desde su menu (Salir) antes de abrir "
+                    "otro[/detail]")
+        return
+    cmd = [sys.executable, "-m", "cognia.clases"]
+    kwargs = {"close_fds": True}
+    if os.name == "nt":
+        # DESACOPLADO: sin esto el cerebrito muere con el REPL, y el duenio
+        # que cierra la terminal pierde el icono sin saber por que.
+        kwargs["creationflags"] = (getattr(subprocess, "DETACHED_PROCESS", 0)
+                                   | getattr(subprocess,
+                                             "CREATE_NEW_PROCESS_GROUP", 0))
+    else:
+        kwargs["start_new_session"] = True
+    try:
+        proc = subprocess.Popen(cmd, **kwargs)
+    except OSError as exc:
+        _aviso_degradado("clases.widget",
+                         f"no pude lanzar el cerebrito ({exc}); pruebalo a "
+                         f"mano: {sys.executable} -m cognia.clases")
+        return
+    _clases_ok("cerebrito encendido",
+               f"PID {proc.pid}; se arrastra con el raton y recuerda donde "
+               f"lo dejaste")
+    _print_line("[detail]clic en el icono -> menu (grabar / pausar / mutear / "
+                "materia / ver cuaderno / salir)[/detail]")
+
+
+def _clases_vivo(resto: str = "", ai=None) -> None:
+    """`/grabar-clase vivo`: el cuaderno EN VIVO, en ventana propia.
+
+    AQUI ESTA EL CABLE QUE FALTABA: `servidor_vivo.fijar_pagina(vista_viva.
+    render)`. El transporte y la pagina son dos piezas a proposito -- el gancho
+    existe para que el servidor pueda arrancar y probarse aunque la pagina
+    reviente -- pero NADIE los unia, asi que `GET /` servia el placeholder del
+    transporte y el cuaderno no se veia nunca.
+
+    Subcomandos: sin nada arranca y abre; 'estado' diagnostica sin levantar
+    nada; 'parar' lo apaga.
+    """
+    try:
+        from cognia.clases import servidor_vivo as _sv
+    except Exception as exc:
+        _aviso_degradado("clases.servidor_vivo", f"no importable: {exc}")
+        return
+    orden = (resto or "").strip().lower()
+
+    if orden in ("parar", "apagar", "off", "stop"):
+        try:
+            _sv.parar()
+        except Exception as exc:
+            _aviso_degradado("clases.servidor_vivo",
+                             f"no pude apagarlo: {type(exc).__name__}: {exc}")
+            return
+        _print_line("[ok]cuaderno en vivo apagado[/ok]")
+        return
+
+    if orden in ("estado", "info"):
+        try:
+            est = _sv.estado()
+        except Exception as exc:
+            _aviso_degradado("clases.servidor_vivo",
+                             f"no pude leer el estado: "
+                             f"{type(exc).__name__}: {exc}")
+            return
+        filas = [("servidor", "VIVO" if est.get("vivo") else "apagado"),
+                 ("puerto", str(est.get("puerto") or "-")),
+                 ("pagina inyectada",
+                  "si (el cuaderno)" if est.get("pagina_inyectada")
+                  else "NO (se sirve el placeholder del transporte)"),
+                 ("clientes mirando", str(est.get("clientes", 0))),
+                 ("eventos enviados", str(est.get("enviados", 0))),
+                 ("lentos desconectados",
+                  str(est.get("desconectados_lentos", 0))),
+                 ("se apaga solo tras", f"{est.get('inactividad_min', 0)} min "
+                                        f"sin nadie"),
+                 ("handshake", str(est.get("handshake") or "-"))]
+        for k, v in filas:
+            _print_line(f"  [mod]{k:<22}[/mod] {_escape(v)}")
+        if est.get("vivo"):
+            _print_line(f"[info_dim]{_escape(str(est.get('url') or ''))}"
+                        f"[/info_dim]")
+        for k in ("aviso",):
+            if est.get(k):
+                _print_line(f"[warn_cl]{_escape(str(est[k]))}[/warn_cl]")
+        ult = est.get("ultimo_error") or {}
+        if ult.get("motivo"):
+            _print_line(f"[warn_cl]ultimo error: "
+                        f"{_escape(str(ult.get('motivo')))}[/warn_cl]")
+        return
+
+    if orden:
+        _print_line("[warn_cl]Uso: /grabar-clase vivo [estado | parar]"
+                    "[/warn_cl]")
+        return
+
+    try:
+        from cognia.clases import vista_viva as _vv
+    except Exception as exc:
+        _aviso_degradado("clases.vista_viva", f"no importable: {exc}")
+        _print_line("[err_cl]sin la pagina, el servidor solo serviria el "
+                    "placeholder del transporte[/err_cl]")
+        return
+    try:
+        _sv.fijar_pagina(_vv.render)
+    except Exception as exc:
+        _aviso_degradado("clases.vista_viva",
+                         f"el gancho de la pagina no se pudo fijar "
+                         f"({type(exc).__name__}: {exc}): se serviria el "
+                         f"placeholder")
+        return
+    try:
+        info = _sv.arrancar()
+    except Exception as exc:
+        _aviso_degradado("clases.servidor_vivo",
+                         f"no pude levantarlo: {type(exc).__name__}: {exc}")
+        return
+
+    _clases_ok(f"cuaderno en vivo "
+               f"{'levantado' if info.get('nuevo') else 'ya estaba'}",
+               f"puerto {info.get('puerto')}")
+    _print_line(f"[info_dim]{_escape(str(info.get('url') or ''))}[/info_dim]")
+    _print_line("[detail]la URL lleva el token: sin el, el servidor no "
+                "contesta. /grabar-clase vivo parar para apagarlo[/detail]")
+
+    _clases_decir_doc_tools(_clases_encender_doc_tools(_clases_materia_actual()))
+
+    if not _abrir_en_navegador():
+        _print_line("[detail]no abro ventana (sesion remota o "
+                    "memorias_abrir_navegador=off): abre la URL a mano"
+                    "[/detail]")
+        return
+    cfg = _load_config()
+    if not _clases_encendido(cfg, "clases_vivo_app"):
+        try:
+            import webbrowser
+            webbrowser.open(str(info.get("url") or ""))
+        except Exception as exc:
+            _aviso_degradado("clases.navegador",
+                             f"no pude abrir el navegador "
+                             f"({type(exc).__name__}: {exc}); la URL esta "
+                             f"arriba")
+        return
+    try:
+        from cognia.clases import widget as _wg
+        ok, msg = _wg.abrir_en_app(str(info.get("url") or ""))
+    except Exception as exc:
+        _aviso_degradado("clases.navegador",
+                         f"no pude abrir la ventana ({type(exc).__name__}: "
+                         f"{exc}); la URL esta arriba")
+        return
+    if ok:
+        _print_line(f"[detail]{_escape(str(msg))}[/detail]")
+    else:
+        _aviso_degradado("clases.navegador", str(msg))
+
+
+def _clases_pdf(resto: str = "", ai=None) -> None:
+    """`/grabar-clase pdf`: el cuaderno listo para Guardar como PDF.
+
+    IMPRIMIR ES EL CAMINO UNIVERSAL A PDF y por eso no se genera el PDF aqui:
+    hacerlo en Python exigiria un motor mas (reportlab o un Chromium
+    headless), y la pagina del cuaderno YA trae su `@media print` -- se va
+    todo lo que no es el documento y ningun bloque se parte entre dos hojas.
+    Se exporta el cuaderno ESTATICO (imagenes embebidas en data:), que es el
+    que se imprime igual sin servidor detras, se abre y se dice la tecla.
+    """
+    try:
+        from cognia.clases import vista as _cv
+    except Exception as exc:
+        _aviso_degradado("clases.vista", f"no importable: {exc}")
+        return
+    destino = (resto or "").strip() or None
+    try:
+        ruta = _cv.export(path=destino, open_browser=_abrir_en_navegador())
+    except Exception as exc:
+        _aviso_degradado("clases.vista", f"{type(exc).__name__}: {exc}")
+        _print_line("[err_cl]no pude generar el cuaderno para imprimir"
+                    "[/err_cl]")
+        return
+    _clases_ok("cuaderno listo para imprimir", _escape(str(ruta)))
+    # info_dim y no detail: ESTO es el comando. En modo sencillo (el default)
+    # una linea con [detail] no se imprime, y 'pdf' se quedaria sin decir la
+    # unica tecla que hay que pulsar.
+    _print_line("[info_dim]en el navegador: Ctrl+P -> Destino 'Guardar como "
+                "PDF'. La pagina ya se prepara sola para el papel[/info_dim]")
+    if not _abrir_en_navegador():
+        _print_line("[detail]no abro ventana (sesion remota o "
+                    "memorias_abrir_navegador=off): abre el fichero a mano"
+                    "[/detail]")
+
+
+# -- pausar / reanudar / mutear / desmutear / forzar ------------------------
+
+def _clases_interruptor(accion: str, etiquetas: tuple) -> None:
+    """Las cuatro puertas de jornada que son un si/no (pausar, reanudar,
+    mutear, desmutear) comparten forma: llamar, y distinguir "cambio" de "ya
+    estaba asi". Decir "pausada" cuando ya lo estaba es lo que hace que el
+    duenio pulse dos veces creyendo que no funciono."""
+    try:
+        from cognia.clases import jornada as _cj
+    except Exception as exc:
+        _aviso_degradado("clases", f"modulo no importable: {exc}")
+        return
+    try:
+        res = getattr(_cj, accion)()
+    except Exception as exc:
+        _aviso_degradado(f"clases.jornada.{accion}",
+                         f"{type(exc).__name__}: {exc}")
+        return
+    if not res.get("ok"):
+        _print_line(f"[warn_cl]{_escape(str(res.get('motivo') or 'no se pudo'))}"
+                    f"[/warn_cl]")
+        return
+    _print_line(f"[ok]{etiquetas[0]}[/ok]" if res.get("cambio")
+                else f"[info_dim]{etiquetas[1]}[/info_dim]")
+
+
+def _clases_pausar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase pausar`: deja de entrar audio, el reloj para y la
+    jornada queda 'pausada' en disco (el olvido ya no la purga)."""
+    _clases_interruptor("pausar", ("jornada PAUSADA: deja de entrar audio",
+                                   "ya estaba pausada"))
+
+
+def _clases_reanudar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase reanudar`. Si el micro seguia muteado, sigue muteado:
+    son dos interruptores distintos."""
+    _clases_interruptor("reanudar", ("grabando otra vez", "no estaba pausada"))
+
+
+def _clases_mutear(resto: str = "", ai=None) -> None:
+    """`/grabar-clase mutear`: descarta el audio SIN parar el reloj.
+
+    Se dice la granularidad porque importa: la unidad es el TROZO de 30 s, no
+    el segundo, asi que el corte real cae en el limite del trozo.
+    """
+    _clases_interruptor("mutear", ("micro MUTEADO: el audio se descarta y el "
+                                   "reloj sigue", "ya estaba muteado"))
+    _print_line("[detail]la unidad es el trozo de audio (~30 s): el corte cae "
+                "en su limite, no en el segundo exacto[/detail]")
+
+
+def _clases_desmutear(resto: str = "", ai=None) -> None:
+    """`/grabar-clase desmutear`."""
+    _clases_interruptor("desmutear", ("el audio vuelve a entrar",
+                                      "no estaba muteado"))
+
+
+def _clases_forzar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase forzar`: LA SALIDA DE EMERGENCIA del lock de grabacion.
+
+    Existe porque los PID se reciclan: un lock olvidado cuyo numero hoy es de
+    otro programa deja la grabacion bloqueada para siempre y sin ninguna forma
+    de salir -- `_pid_vivo` responde VIVO tambien cuando no puede comprobar el
+    proceso. El mensaje de "ya hay una grabacion" ya nombraba esta salida; sin
+    el comando, el duenio se quedaba sin grabar y sin salida.
+
+    NO se pone detras de un flag ni se hace automatico: robar el lock de una
+    grabacion viva de verdad produce dos grabadores sobre la misma carpeta,
+    asi que tiene que costar teclear algo.
+    """
+    try:
+        from cognia.clases import jornada as _cj
+    except Exception as exc:
+        _aviso_degradado("clases", f"modulo no importable: {exc}")
+        return
+    if _cj.viva() is not None:
+        _print_line("[warn_cl]la grabacion es de ESTE proceso: no hace falta "
+                    "forzar nada, para con /grabar-clase parar[/warn_cl]")
+        return
+    motivo = (resto or "").strip() or "el duenio lo forzo desde el CLI"
+    try:
+        res = _cj.forzar_liberacion(motivo)
+    except Exception as exc:
+        _aviso_degradado("clases.jornada.forzar",
+                         f"{type(exc).__name__}: {exc}")
+        return
+    lock = res.get("lock") or {}
+    if not res.get("liberado"):
+        _print_line(f"[info_dim]{_escape(str(res.get('aviso') or ''))}"
+                    f"[/info_dim]")
+        return
+    _clases_ok("lock de grabacion liberado A LA FUERZA",
+               f"era del PID {lock.get('pid') or 'ilegible'}, jornada "
+               f"{_escape(str(lock.get('jornada') or '?'))}")
+    if lock.get("vivo"):
+        _print_line("[warn_cl]ese PID contestaba VIVO: si de verdad era otra "
+                    "Cognia grabando, ahora hay dos grabadores sobre la misma "
+                    "carpeta[/warn_cl]")
+    _print_line("[detail]/grabar-clase iniciar  para grabar aqui[/detail]")
+
+
+# -- refinado ---------------------------------------------------------------
+
+def _clases_refinar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase refinar on|off|estado`: el refinado EN CALIENTE.
+
+    'on' es lo UNICO que reabre un refinado que el disyuntor apago. El
+    disyuntor lo apaga solo tras dos vueltas esteriles (~10 min sin backend) y
+    la regla 11 de CLAUDE.md dice que solo una intervencion HUMANA resetea esa
+    ventana: por eso encender es teclearlo y no un reintento automatico.
+    """
+    try:
+        from cognia.clases import refinado as _cr
+    except Exception as exc:
+        _aviso_degradado("clases.refinado", f"no importable: {exc}")
+        return
+    orden = (resto or "").strip().lower()
+
+    if orden in ("on", "off"):
+        cfg = _load_config()
+        cfg["clases_refinado"] = orden
+        try:
+            _save_config(cfg)
+        except Exception as exc:
+            _aviso_degradado("clases.refinado",
+                             f"no pude guardar la config "
+                             f"({type(exc).__name__}: {exc}): el cambio vale "
+                             f"solo para esta sesion")
+        os.environ[_cr.ENV_ACTIVO] = "1" if orden == "on" else "0"
+        _marcar_env_sembrada(_cr.ENV_ACTIVO)
+        _clases_ok(f"refinado en caliente: {orden}", "guardado en la config")
+        if orden == "on":
+            try:
+                from cognia.clases import jornada as _cj
+                jv = _cj.viva()
+            except Exception as exc:
+                _aviso_degradado("clases", f"no pude mirar la jornada viva: "
+                                           f"{type(exc).__name__}: {exc}")
+                jv = None
+            if jv is not None:
+                try:
+                    res = _cr.encender(jv.nombre)
+                except Exception as exc:
+                    _aviso_degradado("clases.refinado",
+                                     f"no pude reabrir el disyuntor: "
+                                     f"{type(exc).__name__}: {exc}")
+                    return
+                if res.get("venia_apagado"):
+                    _clases_ok("disyuntor del refinado reabierto",
+                               f"lo habia apagado: "
+                               f"{_escape(str(res['venia_apagado']))}")
+        return
+
+    if orden and orden not in ("estado", "info"):
+        _print_line("[warn_cl]Uso: /grabar-clase refinar on|off|estado"
+                    "[/warn_cl]")
+        return
+
+    try:
+        est = _cr.estado()
+    except Exception as exc:
+        _aviso_degradado("clases.refinado",
+                         f"no pude leer el estado: {type(exc).__name__}: {exc}")
+        return
+    # 'backend' es lo que devuelve llm_local.describir(): una CADENA
+    # ("llama en http://127.0.0.1:8080"), no un dict. Se cazo tecleandolo
+    # (AttributeError: 'str' object has no attribute 'get'), que es justo lo
+    # que la suite no ve porque nadie ejecuta este render.
+    filas = [("refinado", "ENCENDIDO" if est.get("activo") else "apagado"),
+             ("cada", "%.0f s" % float(est.get("periodo") or 0.0)),
+             ("tramo minimo", f"{est.get('min_tramo_chars', 0)} chars"),
+             ("ventanas por vuelta", str(est.get("ventanas_por_vuelta", 0))),
+             ("backend", str(est.get("backend") or "-"))]
+    for k, v in filas:
+        _print_line(f"  [mod]{k:<22}[/mod] {_escape(str(v))}")
+    for nombre, j in (est.get("jornadas") or {}).items():
+        _print_line(f"  [mod]{'jornada':<22}[/mod] {_escape(str(nombre))}: "
+                    f"{j.get('vueltas', 0)} vueltas, "
+                    f"{j.get('llamadas', 0)} llamadas, "
+                    f"{j.get('aniadidos', 0)} anadidos, "
+                    f"{j.get('esteriles', 0)} esteriles")
+        if j.get("apagado"):
+            _print_line(f"[warn_cl]APAGADO por el disyuntor: "
+                        f"{_escape(str(j['apagado']))}[/warn_cl]")
+            _print_line("[detail]/grabar-clase refinar on  lo reabre (es la "
+                        "unica via)[/detail]")
+        for a in (j.get("avisos") or [])[-3:]:
+            _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+    ult = est.get("ultimo_fallo") or {}
+    if ult.get("motivo"):
+        _print_line(f"[warn_cl]ultimo fallo: "
+                    f"{_escape(str(ult.get('motivo')))}[/warn_cl]")
+
+
+# -- mates: formula y grafico ----------------------------------------------
+
+def _clases_dibujar(resto: str, cmd: str, prefijo: str, dibujar) -> None:
+    """El tronco comun de `formula` y `grafico`: comprobar mates, dibujar el
+    PNG, y meterlo en el cuaderno SI hay clase grabando.
+
+    SIN JORNADA NO SE TIRA EL TRABAJO: el PNG ya esta hecho y se dice donde
+    quedo. Negarse ahi seria perder una formula que el duenio acaba de
+    teclear porque todavia no habia pulsado 'iniciar'.
+    """
+    if not resto:
+        _print_line(f"[warn_cl]Uso: /grabar-clase {_escape(cmd)} <...>"
+                    f"[/warn_cl]")
+        return
+    try:
+        from cognia.clases import mates as _cm
+    except Exception as exc:
+        _aviso_degradado("clases.mates", f"no importable: {exc}")
+        return
+    ok, motivo = _cm.disponible()
+    if not ok:
+        _aviso_degradado("clases.mates", motivo)
+        _print_line(f"[err_cl]{_escape(motivo)}[/err_cl]")
+        return
+    destino = _clases_tmp(prefijo + ".png")
+    try:
+        res = dibujar(_cm, destino)
+    except _cm.ErrorDeMates as exc:
+        # El mensaje de mates DICE donde esta el fallo (que caracter, que
+        # tope): es lo unico util, asi que se ensenia entero.
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    except Exception as exc:
+        _aviso_degradado("clases.mates", f"{type(exc).__name__}: {exc}")
+        return
+    for a in (res.get("avisos") or []):
+        _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+    try:
+        from cognia.clases import jornada as _cj
+        jv = _cj.viva()
+    except Exception as exc:
+        _aviso_degradado("clases", f"no pude mirar la jornada viva: "
+                                   f"{type(exc).__name__}: {exc}")
+        jv = None
+    if jv is None:
+        _clases_ok(f"{_escape(cmd)} dibujada en "
+                   f"{_escape(str(res.get('ruta')))}",
+                   f"{res.get('ancho_px')}x{res.get('alto_px')} px, "
+                   f"{int(res.get('bytes') or 0) // 1024} KB")
+        _print_line("[warn_cl]no hay jornada grabando: el PNG no entra al "
+                    "cuaderno. /grabar-clase iniciar y vuelve a "
+                    "teclearlo[/warn_cl]")
+        return
+    nombre = _clases_adjuntar(jv, res.get("ruta"), prefijo,
+                              str(res.get("texto") or ""), "clases.mates")
+    if not nombre:
+        _print_line(f"[warn_cl]el PNG quedo en "
+                    f"{_escape(str(res.get('ruta')))}[/warn_cl]")
+        return
+    _clases_ok(f"{_escape(cmd)} en el cuaderno ({_escape(nombre)})",
+               f"{res.get('ancho_px')}x{res.get('alto_px')} px")
+
+
+def _clases_formula(resto: str = "", ai=None) -> None:
+    """`/grabar-clase formula <latex>`: la dibuja y la apunta en el minuto.
+
+    Sin instalacion de LaTeX: la pinta `matplotlib.mathtext`.
+    """
+    latex = (resto or "").strip()
+    _clases_dibujar(latex, "formula", "formula",
+                    lambda _cm, destino: _cm.formula_a_png(latex, destino))
+
+
+def _clases_numeros(texto: str):
+    """(y, etiquetas) si `texto` es una serie de datos; (None, None) si es una
+    expresion.
+
+    LA DEDUCCION ES DEL CLI y no de mates a proposito: mates ya tiene la
+    puerta unica `graficar(expresion=..., y=..., etiquetas=...)` y lo que
+    falta aqui es traducir UNA linea tecleada a esos argumentos. Se acepta
+    '3,5,8' (serie) y 'lunes=3, martes=5' (barras con etiqueta); cualquier
+    otra cosa se manda como expresion, que es lo que hace que 'sin(x)*x'
+    funcione sin que nadie escriba 'tipo='.
+    """
+    partes = [p.strip() for p in texto.split(",") if p.strip()]
+    if len(partes) < 2:
+        return None, None
+    ys, etiquetas = [], []
+    for p in partes:
+        if "=" in p:
+            etq, _, val = p.partition("=")
+            etq, val = etq.strip(), val.strip()
+        else:
+            etq, val = "", p
+        try:
+            ys.append(float(val))
+        except ValueError:
+            return None, None
+        etiquetas.append(etq)
+    return ys, (etiquetas if all(etiquetas) else None)
+
+
+def _clases_grafico(resto: str = "", ai=None) -> None:
+    """`/grabar-clase grafico <expresion|datos>`: la grafica, al cuaderno.
+
+    'sin(x)*x' dibuja la curva; '3,5,8' una linea de datos; 'lunes=3,
+    martes=5' unas barras con su etiqueta.
+    """
+    texto = (resto or "").strip()
+    ys, etiquetas = _clases_numeros(texto)
+
+    def _dibuja(_cm, destino):
+        if ys is None:
+            return _cm.graficar(destino, expresion=texto)
+        return _cm.graficar(destino, y=ys, etiquetas=etiquetas)
+
+    _clases_dibujar(texto, "grafico", "grafica", _dibuja)
+
+
+# -- imagenes: buscar, usar, pegar ------------------------------------------
+
+def _clases_imagen_buscar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase imagen-buscar <consulta>`: imagenes REUTILIZABLES.
+
+    Wikimedia Commons + Openverse, con autor y licencia en cada linea. No
+    descarga nada: deja la lista numerada para `imagen-usar <n>`, que es lo
+    que la baja CON su atribucion. Separarlo en dos pasos es lo que permite
+    mirar la licencia antes de meter una foto en el cuaderno.
+    """
+    consulta = (resto or "").strip()
+    if not consulta:
+        _print_line("[warn_cl]Uso: /grabar-clase imagen-buscar <consulta>"
+                    "[/warn_cl]")
+        return
+    try:
+        from cognia import busqueda_imagenes as _bi
+    except Exception as exc:
+        _aviso_degradado("clases.imagenes", f"no importable: {exc}")
+        return
+    cfg = _load_config()
+    crudo = str(cfg.get("clases_imagenes", "8")).strip()
+    if crudo.isdigit() and int(crudo) > 0:
+        n = int(crudo)
+    else:
+        n = 8
+        _aviso_degradado("clases.config",
+                         f"clases_imagenes={crudo!r} no es un entero > 0; "
+                         f"uso 8")
+    _print_line(f"[detail]buscando '{_escape(consulta)}' en Commons y "
+                f"Openverse...[/detail]")
+    try:
+        resultados, avisos = _bi.buscar_con_avisos(consulta, n)
+    except _bi.ErrorBusquedaImagenes as exc:
+        _aviso_degradado("clases.imagenes", str(exc))
+        _print_line(f"[err_cl]{_escape(str(exc))}[/err_cl]")
+        return
+    except Exception as exc:
+        _aviso_degradado("clases.imagenes", f"{type(exc).__name__}: {exc}")
+        return
+    for a in avisos:
+        _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+    _CLASES_BUSQUEDA["consulta"] = consulta
+    _CLASES_BUSQUEDA["resultados"] = list(resultados)
+    if not resultados:
+        _print_line("[info_dim]ninguna imagen reutilizable para esa consulta"
+                    "[/info_dim]")
+        return
+    # NI UNA sola marca [detail] en estas dos lineas: `_print_line` tira la
+    # linea ENTERA si la lleva y el modo sencillo es el default, asi que la
+    # lista de resultados desaparecia y el comando no contestaba nada. Cazado
+    # tecleando '/grabar-clase imagen-buscar celula animal': salida VACIA.
+    for i, r in enumerate(resultados, 1):
+        marca = "" if r.get("atribucion_completa") else "  [SIN AUTOR]"
+        _print_line(f"  [mod]{i:>2}.[/mod] "
+                    f"{_escape(str(r.get('titulo') or ''))}  "
+                    f"({r.get('ancho')}x{r.get('alto')}, "
+                    f"{_escape(str(r.get('fuente') or ''))}){_escape(marca)}")
+        _print_line(f"      {_escape(str(r.get('autor') or '(sin autor)'))}"
+                    f" - {_escape(str(r.get('licencia') or '(sin licencia)'))}")
+    _print_line(f"[info_dim]/grabar-clase imagen-usar <1-{len(resultados)}>  "
+                f"la baja al cuaderno con su atribucion[/info_dim]")
+
+
+def _clases_imagen_usar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase imagen-usar <n>`: baja la n-esima y la apunta CON su
+    atribucion.
+
+    La atribucion viaja como el TEXTO de la entrada del cuaderno (la linea ya
+    la redacta busqueda_imagenes: titulo - autor - licencia - url): una imagen
+    con licencia CC que acaba en un cuaderno sin credito es exactamente lo que
+    la licencia prohibe, y adjuntarla sin el texto lo haria en silencio.
+    """
+    crudo = (resto or "").strip()
+    resultados = _CLASES_BUSQUEDA["resultados"]
+    if not resultados:
+        _print_line("[warn_cl]no hay ninguna busqueda en esta sesion: "
+                    "/grabar-clase imagen-buscar <consulta> primero[/warn_cl]")
+        return
+    if not crudo.isdigit() or not (1 <= int(crudo) <= len(resultados)):
+        _print_line(f"[warn_cl]Uso: /grabar-clase imagen-usar <1-"
+                    f"{len(resultados)}>  (de la busqueda "
+                    f"'{_escape(str(_CLASES_BUSQUEDA['consulta']))}')"
+                    f"[/warn_cl]")
+        return
+    elegida = resultados[int(crudo) - 1]
+    jv = _clases_jornada_viva("imagen-usar")
+    if jv is None:
+        return
+    try:
+        from cognia.clases import almacen as _ca
+        from cognia.clases import cuaderno as _cc
+    except Exception as exc:
+        _aviso_degradado("clases", f"modulo no importable: {exc}")
+        return
+    _print_line(f"[detail]bajando {_escape(str(elegida.get('titulo') or ''))}"
+                f"...[/detail]")
+    try:
+        nombre = _ca.descargar_adjunto(jv.nombre,
+                                       str(elegida.get("url_imagen") or ""),
+                                       prefijo="img")
+    except Exception as exc:
+        _aviso_degradado("clases.imagenes",
+                         f"no pude bajar la imagen: {type(exc).__name__}: "
+                         f"{exc}")
+        return
+    atribucion = str(elegida.get("atribucion") or "")
+    try:
+        jv.anotar(_cc.TIPO_IMAGEN, texto=atribucion, adjunto=nombre,
+                  importante=True)
+    except Exception as exc:
+        _aviso_degradado("clases.imagenes",
+                         f"la imagen {nombre} se bajo pero no pude anotarla: "
+                         f"{type(exc).__name__}: {exc}")
+        return
+    _clases_ok(f"imagen en el cuaderno ({_escape(nombre)})")
+    _print_line(f"  [mod]{'credito':<16}[/mod] {_escape(atribucion)}")
+    if not elegida.get("atribucion_completa"):
+        _print_line("[warn_cl]esta imagen no trae autor o licencia completos: "
+                    "revisa la pagina de origen antes de publicarla[/warn_cl]")
+
+
+def _clases_pegar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase pegar`: la imagen del portapapeles, al cuaderno.
+
+    Es el gesto real de una clase: recortar la pizarra con Win+Shift+S y
+    pegar. Sin esto habria que guardar el recorte a un fichero y teclear su
+    ruta, que es justo el paso donde se abandona.
+
+    PIL.ImageGrab existe en Windows y macOS; en Linux depende de que haya
+    xclip/wl-paste. Se dice en vez de callarse: 'el portapapeles no trae una
+    imagen' y 'aqui no hay portapapeles' son dos arreglos distintos.
+    """
+    jv = _clases_jornada_viva("pegar")
+    if jv is None:
+        return
+    try:
+        from PIL import ImageGrab
+    except Exception as exc:
+        _aviso_degradado("clases.pegar",
+                         f"PIL.ImageGrab no disponible ({type(exc).__name__}: "
+                         f"{exc}); instala pillow")
+        return
+    try:
+        dato = ImageGrab.grabclipboard()
+    except Exception as exc:
+        # En Linux sin xclip/wl-paste esto lanza; el mensaje dice que instalar.
+        _aviso_degradado("clases.pegar",
+                         f"no pude leer el portapapeles ({type(exc).__name__}: "
+                         f"{exc}); en Linux hace falta xclip o wl-clipboard")
+        return
+    if isinstance(dato, list):
+        # Copiar un FICHERO de imagen en el explorador da la lista de rutas.
+        rutas = [str(p) for p in dato if str(p).strip()]
+        if not rutas:
+            _print_line("[warn_cl]el portapapeles trae una lista vacia"
+                        "[/warn_cl]")
+            return
+        origen = rutas[0]
+    elif dato is None:
+        _print_line("[warn_cl]el portapapeles no trae ninguna imagen "
+                    "(copia una con Win+Shift+S y vuelve a teclearlo)"
+                    "[/warn_cl]")
+        return
+    else:
+        origen = _clases_tmp("pegada.png")
+        try:
+            dato.convert("RGB").save(str(origen), format="PNG")
+        except Exception as exc:
+            _aviso_degradado("clases.pegar",
+                             f"no pude guardar la imagen pegada: "
+                             f"{type(exc).__name__}: {exc}")
+            return
+    nombre = _clases_adjuntar(jv, origen, "pegada", "imagen pegada",
+                              "clases.pegar")
+    if not nombre:
+        return
+    _clases_ok(f"imagen pegada en el cuaderno ({_escape(nombre)})")
+
+
+# -- documento --------------------------------------------------------------
+
+def _clases_doc(resto: str = "", ai=None) -> None:
+    """`/grabar-clase doc estado`: el diagnostico del documento de bloques.
+
+    Es la puerta que CLAUDE.md exige para una capa sin uso directo: dice que
+    documentos hay, cuantos bloques y cuantos fijados, cuanto diario lleva sin
+    compactar, cuantos bloques escribio la IA y cuantos RESPETO por estar
+    fijados -- y si las tools doc_* estan anunciadas ahora mismo.
+    """
+    orden = (resto or "").strip()
+    partes = orden.split(None, 1)
+    sub = partes[0].lower() if partes else "estado"
+    materia = partes[1].strip() if len(partes) > 1 else ""
+    if sub not in ("estado", "info"):
+        # `doc <materia>` es lo que teclea quien no lee la ayuda: se acepta.
+        materia = orden
+        sub = "estado"
+    try:
+        from cognia.clases import documento as _cd
+    except Exception as exc:
+        _aviso_degradado("clases.documento", f"no importable: {exc}")
+        return
+    try:
+        est = _cd.estado(materia or None)
+    except Exception as exc:
+        _aviso_degradado("clases.documento", f"{type(exc).__name__}: {exc}")
+        return
+    docs = est.get("documentos") or []
+    _print_line(f"  [mod]{'raiz':<22}[/mod] {_escape(str(est.get('raiz','')))}")
+    _print_line(f"  [mod]{'documentos':<22}[/mod] "
+                f"{_escape(', '.join(str(d) for d in docs) or '(ninguno)')}")
+    if materia:
+        filas = [("materia", str(est.get("materia", ""))),
+                 ("bloques", str(est.get("bloques", 0))),
+                 ("fijados (del duenio)", str(est.get("fijados", 0))),
+                 ("escritos por la IA", str(est.get("de_la_ia", 0))),
+                 ("respetados", str(est.get("respetados", 0))),
+                 ("ops sin compactar",
+                  f"{est.get('ops_sin_compactar', 0)} de "
+                  f"{est.get('ops_por_instantanea', 0)}")]
+        for k, v in filas:
+            _print_line(f"  [mod]{k:<22}[/mod] {_escape(v)}")
+        for a in (est.get("avisos") or [])[-3:]:
+            _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+    elif docs:
+        _print_line("[detail]/grabar-clase doc estado <materia>  para el "
+                    "detalle de uno[/detail]")
+    try:
+        from cognia.agent.tools import TOOLS as _T
+        anunciadas = sorted(t for t in _T if t.startswith("doc_"))
+    except Exception as exc:
+        _aviso_degradado("clases.doc_tools",
+                         f"no pude leer el registro de tools: "
+                         f"{type(exc).__name__}: {exc}")
+        anunciadas = []
+    encendida = (os.environ.get("COGNIA_DOC_TOOLS", "").strip().lower()
+                 in _CLASES_SI)
+    _print_line(f"  [mod]{'tools doc_*':<22}[/mod] "
+                f"{len(anunciadas)} cargadas, "
+                f"{'ANUNCIADAS' if encendida else 'no anunciadas'}")
+    _print_line(f"  [mod]{'materia del modelo':<22}[/mod] "
+                f"{_escape(os.environ.get('COGNIA_DOC_MATERIA', '') or '(la de la jornada viva)')}")
+    ult = est.get("ultimo_fallo") or {}
+    if ult.get("motivo"):
+        _print_line(f"[warn_cl]ultimo fallo: "
+                    f"{_escape(str(ult.get('motivo')))}[/warn_cl]")
+    if not encendida:
+        _print_line("[detail]se encienden solas al abrir el cuaderno "
+                    "(/grabar-clase ver | vivo)[/detail]")
+
+
+# -- parar: EL CIERRE EN DOS FASES -----------------------------------------
+# LO URGENTE Y LO CARO NO SON LO MISMO, y meterlos en el mismo turno dejaba el
+# REPL mudo durante minutos: medido por el verificador 4 veces sobre jornadas
+# de 35-90 s, 3 de 4 NO devolvieron el prompt (>300 s, >420 s, >165 s: hubo que
+# matar el proceso). `jornada.parar()` hace cuatro cosas seguidas -- para la
+# captura, vacia la transcripcion pendiente, detecta las materias DEFINITIVAS y
+# genera los apuntes -- y las dos ultimas hablan con el modelo local: minutos,
+# y si el server esta ocupado cada llamada se come el timeout de 152 s.
+#
+# LAS DOS FASES:
+#   1) URGENTE (en el turno): que deje de ENTRAR AUDIO. Cuando
+#      `jv.grabador.viva` pasa a False, la captura solto sus hilos y todos los
+#      trozos estan escritos (captura.Grabador escribe cada trozo al
+#      cerrarlo). Ahi se dice lo que ya esta hecho y el prompt VUELVE.
+#   2) CARO (en un hilo daemon): vaciar la transcripcion pendiente, cortes
+#      definitivos, refinado y apuntes. Todo eso solo AGREGA sobre el audio ya
+#      guardado; si Cognia muere en medio, la clase sigue estando y se
+#      completa tecleando '/grabar-clase transcribir' y '/grabar-clase
+#      apuntes'.
+#
+# LA FRONTERA ESTA MEDIDA, no elegida a ojo. Con la fase 1 esperando a que se
+# vaciara TAMBIEN la transcripcion (`jv.viva`), una jornada real de 40 s
+# devolvia el prompt a los 30,01 s: whisper carga su modelo y transcribe los
+# trozos pendientes, y su propio join se da 120 s. Eso es otra vez un REPL
+# secuestrado. El audio, en cambio, para en decimas.
+#
+# POR QUE ESTE CARRIL Y NO `_lanzar_en_fondo`. El repo tiene dos carriles de
+# fondo. El del agente (`_lanzar_en_fondo`) es hilo + prompt de espera con el
+# teclado vivo: sirve cuando el duenio ESPERA el resultado del turno, porque lo
+# que teclea mientras tanto se ANOTA en cola y no se ejecuta. Aqui no vale --
+# el duenio acaba de dar la clase y tiene que poder seguir usando Cognia. El
+# otro es el de las rutinas (`_arrancar_carril_rutinas`): hilo daemon que
+# trabaja solo y deja lo suyo en una cola que el REPL DRENA ENTRE TURNOS, justo
+# antes de pedir la linea siguiente. Ese es el que encaja, y por la misma razon
+# que alli: imprimir DESDE el hilo pisa la linea a medio teclear.
+#
+# CTRL-C corta LA ESPERA, no el cierre: el hilo sigue y termina de escribir.
+# Matarlo a media escritura es lo unico que podria corromper el cuaderno, y no
+# hay forma de pedirlo desde aqui.
+#
+# LO QUE CUESTA (dicho, no escondido): mientras el hilo genera los apuntes usa
+# el UNICO slot del backend local, asi que un chat tecleado en ese rato compite
+# con el. Es el mismo trato que ya acepta el carril de las rutinas, y es
+# preferible a un REPL secuestrado: el trabajo se ve, se consulta y no bloquea.
+
+# Tope de la fase 1, MEDIDO en una jornada real (no elegido a ojo):
+#   * esperar a la transcripcion (`jv.viva`)      -> el prompt volvia a 30,01 s
+#   * esperar al grabador (`jv.grabador.viva`)    -> volvia a 10,02 s
+#   * con este tope                               -> vuelve a ~2,5 s
+# Los 10 s son el join de `captura.Grabador.parar`: su hilo esta dentro de
+# `rec.record(numframes=30 s)` y no mira la senal de parada hasta que el trozo
+# se llena, asi que el join se agota entero. Esperarle es esperar POR NADA: la
+# senal ya esta puesta desde el primer instante de `jornada.parar()`, el bucle
+# de captura no empieza ningun trozo mas (`while not self._parar.is_set()`) y
+# el que estuviera a medias se escribe igual cuando `record()` devuelve. Por
+# eso el tope es corto y el mensaje dice exactamente eso, sin prometer de mas.
+_CLASES_ESPERA_CAPTURA_S = 2.5
+
+# El cierre en curso (o el ultimo de esta sesion). Vive en un dict de modulo,
+# como `_CLASES_BUSQUEDA`, porque es estado de ESTA sesion: el cierre de ayer
+# no dice nada de lo que hay que mirar hoy.
+_CLASES_CIERRE = {"jornada": "", "hilo": None, "jv": None, "t0": 0.0,
+                  "t_captura": 0.0, "t_fin": 0.0, "resumen": None,
+                  "error": "", "inline": False}
+
+# Lo que el hilo del cierre deja dicho para que lo imprima el REPL entre
+# turnos (mismo patron que `_COLA_RUTINAS`).
+_CLASES_CIERRE_AVISOS: list = []
+
+
+def _clases_cierre_vivo() -> bool:
+    """True mientras el hilo del cierre sigue trabajando."""
+    hilo = _CLASES_CIERRE.get("hilo")
+    return hilo is not None and hilo.is_alive()
+
+
+def _clases_captura_viva(jv) -> bool:
+    """True mientras el grabador todavia tiene hilos de audio vivos.
+
+    ES EL MILESTONE DE LA FASE URGENTE. Cuando esto es False ya no entra audio
+    y los trozos estan escritos; lo que quede (transcribir, materias, apuntes)
+    solo agrega. Se mira el GRABADOR y no `jv.viva` -- que es grabador O
+    transcripcion -- porque la transcripcion pendiente tarda decenas de
+    segundos (whisper) y esperarla devolvia el prompt a los 30 s en una
+    jornada real de 40 s.
+    """
+    return bool(getattr(getattr(jv, "grabador", None), "viva", False))
+
+
+def _clases_cierre_fase() -> str:
+    """En que anda el cierre AHORA, deducido de lo OBSERVABLE.
+
+    No se le mete un canal de progreso a `jornada.parar()`: el orden de sus
+    pasos es su contrato y ese fichero no es este. La fase se lee de `jv.viva`,
+    que es exactamente lo que distingue "todavia vacia la transcripcion" de
+    "ya esta hablando con el modelo".
+    """
+    if not _CLASES_CIERRE.get("hilo") and not _CLASES_CIERRE.get("inline"):
+        return ""
+    if _clases_cierre_vivo():
+        jv = _CLASES_CIERRE.get("jv")
+        if _clases_captura_viva(jv):
+            return "cerrando la captura de audio"
+        if jv is not None and getattr(jv, "viva", False):
+            return "transcribiendo lo que quedo pendiente"
+        return "detectando materias y generando apuntes (habla con el modelo)"
+    return "fallo" if _CLASES_CIERRE.get("error") else "terminado"
+
+
+def _clases_hay_carril() -> bool:
+    """True si conviene mandar el cierre a un hilo. DOS condiciones:
+
+      * que exista carril de fondo (`_sin_carril()`: hay PromptSession y no
+        esta puesto COGNIA_SIN_FONDO=1);
+      * y que la sesion sea INTERACTIVA de verdad (stdin es una consola).
+
+    LA SEGUNDA LA ENSENIO EL TECLEADO. Con la entrada por pipe (un guion,
+    `echo ... | cognia`, el CI) prompt_toolkit SI logra crear la PromptSession
+    en esta maquina, asi que `_sin_carril()` decia que habia carril: el cierre
+    se fue al hilo, el guion siguio hasta '/salir' y el proceso salio con el
+    hilo daemon a medias -- la jornada se quedo SIN apuntes. Un guion no tiene
+    a quien devolverle el prompt: ahi el cierre se hace en el turno.
+    """
+    if _sin_carril():
+        return False
+    try:
+        return bool(sys.stdin.isatty())
+    except Exception as exc:
+        _aviso_degradado("clases.cierre",
+                         f"no pude saber si hay consola "
+                         f"({type(exc).__name__}: {exc}); cierro en el turno")
+        return False
+
+
+def _clases_esperar_cierre_al_salir(tope_s: float = 180.0) -> None:
+    """Antes de cerrar Cognia, ESPERAR al cierre que quedo en el hilo.
+
+    El hilo del cierre es daemon: si el proceso termina, muere en el acto y la
+    jornada se queda sin apuntes. MEDIDO tecleando un guion entero: el REPL
+    llego a '/salir' con el cierre en marcha y salio, y los apuntes no se
+    generaron nunca.
+
+    Es una espera CON TOPE y cortable con Ctrl-C, no una carcel: lo urgente ya
+    esta en disco y nadie tiene que quedarse preso de su portatil por unos
+    apuntes. Lo que no se puede es irse en SILENCIO, que es el modo de fallo
+    historico de la casa.
+    """
+    if not _clases_cierre_vivo():
+        _clases_cierre_drenar()
+        return
+    _print_line(f"[warn_cl]todavia se esta cerrando la jornada "
+                f"{_escape(str(_CLASES_CIERRE.get('jornada') or ''))}: "
+                f"{_escape(_clases_cierre_fase())}[/warn_cl]")
+    _print_line("[info_dim]el audio ya esta en disco; esto son los apuntes. "
+                "Ctrl-C para salir ya (se completan luego con /grabar-clase "
+                "apuntes)[/info_dim]")
+    hilo = _CLASES_CIERRE.get("hilo")
+    try:
+        hilo.join(timeout=tope_s)
+    except KeyboardInterrupt:
+        _print_line("[warn_cl]salida forzada: los apuntes quedan a medias. "
+                    "/grabar-clase apuntes los regenera[/warn_cl]")
+        return
+    if hilo.is_alive():
+        _aviso_degradado("clases.cierre",
+                         f"el cierre seguia despues de {tope_s:.0f} s: salgo "
+                         f"igual, el audio y la transcripcion estan en disco y "
+                         f"'/grabar-clase apuntes' completa la jornada")
+        return
+    _clases_cierre_drenar()
+
+
+def _clases_cierre_correr(parar_fn) -> None:
+    """El cuerpo del hilo del cierre. NO imprime nada: ENCOLA.
+
+    Imprimir desde aqui pisaria la linea que el duenio esta tecleando (es la
+    razon por la que el carril de las rutinas tampoco imprime). Y no muere
+    mudo: si `parar()` revienta, el motivo viaja en la cola y sale por
+    `_aviso_degradado` desde el hilo principal.
+    """
+    est = _CLASES_CIERRE
+    try:
+        est["resumen"] = parar_fn() or {}
+    except BaseException as exc:      # noqa: BLE001 -- el hilo no muere mudo
+        est["error"] = f"{type(exc).__name__}: {exc}"
+    finally:
+        est["t_fin"] = time.time()
+        _CLASES_CIERRE_AVISOS.append(
+            {"jornada": est.get("jornada", ""),
+             "resumen": est.get("resumen") or {},
+             "error": est.get("error", ""),
+             "segundos": max(0.0, est["t_fin"]
+                             - float(est.get("t0") or est["t_fin"]))})
+
+
+def _clases_cierre_pintar(aviso: dict) -> None:
+    """El parte FINAL del cierre: lo mismo que imprimia `parar` cuando lo hacia
+    todo dentro del turno, pero cuando de verdad esta hecho."""
+    jornada = str(aviso.get("jornada") or "")
+    if aviso.get("error"):
+        _print_line(f"[err_cl]el cierre de la jornada {_escape(jornada)} "
+                    f"fallo[/err_cl]")
+        _aviso_degradado("clases.cierre", str(aviso.get("error") or ""))
+        _print_line("[info_dim]lo grabado NO se pierde: /grabar-clase apuntes "
+                    "regenera los apuntes de esa jornada[/info_dim]")
+        return
+    res = aviso.get("resumen") or {}
+    materias, sesiones = "-", 0
+    try:
+        from cognia.clases import cuaderno as _cc
+        ses = _cc.sesiones_de(jornada)
+        sesiones = len(ses)
+        materias = ", ".join(sorted({s.materia for s in ses})) or "-"
+    except Exception as exc:
+        _aviso_degradado("clases.cuaderno",
+                         f"no pude leer las sesiones de {jornada}: "
+                         f"{type(exc).__name__}: {exc}")
+    mins = int(float(res.get("segundos") or 0.0) // 60)
+    _clases_ok(f"jornada {_escape(jornada)} cerrada del todo",
+               f"el cierre tardo {int(aviso.get('segundos') or 0)} s")
+    _print_line(f"  [mod]{'duracion':<22}[/mod] {mins} min")
+    _print_line(f"  [mod]{'materias':<22}[/mod] {_escape(materias)}")
+    _print_line(f"  [mod]{'sesiones':<22}[/mod] {sesiones}")
+    for a in (res.get("avisos") or [])[-3:]:
+        _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+    _print_line("[info_dim]/grabar-clase ver  para abrir el cuaderno"
+                "[/info_dim]")
+
+
+def _clases_cierre_drenar() -> None:
+    """Lo que dejo dicho el hilo del cierre, impreso ENTRE TURNOS.
+
+    Lo llama el bucle del REPL justo antes de pedir la linea siguiente, en el
+    mismo sitio y por la misma razon que el drenaje de las rutinas: desde el
+    hilo, cada linea pisaria el prompt a medio teclear.
+    """
+    while _CLASES_CIERRE_AVISOS:
+        _clases_cierre_pintar(_CLASES_CIERRE_AVISOS.pop(0))
+
+
+def _clases_parar(resto: str = "", ai=None) -> None:
+    """`/grabar-clase parar`: DEJA DE GRABAR ya, y lo caro va detras.
+
+    Devuelve el prompt en cuanto el audio y la transcripcion estan a salvo en
+    disco; la deteccion definitiva de materias y los apuntes siguen en un hilo
+    daemon que se consulta con `/grabar-clase cierre` y que anuncia el final
+    entre dos turnos. Ver el comentario grande de arriba: por que dos fases,
+    por que este carril y no el del agente, y que garantiza cada una.
+    """
+    try:
+        from cognia.clases import jornada as _cj
+    except Exception as exc:
+        _aviso_degradado("clases", f"modulo no importable: {exc}")
+        return
+    if _clases_cierre_vivo():
+        _print_line(f"[warn_cl]ya se esta cerrando la jornada "
+                    f"{_escape(str(_CLASES_CIERRE.get('jornada') or ''))}: "
+                    f"{_escape(_clases_cierre_fase())}[/warn_cl]")
+        _print_line("[info_dim]/grabar-clase cierre  para ver como va"
+                    "[/info_dim]")
+        return
+    jv = _cj.viva()
+    if jv is None:
+        _print_line("[warn_cl]no hay ninguna jornada grabando[/warn_cl]")
+        _clases_cierre_drenar()
+        return
+    nombre = str(getattr(jv, "nombre", "") or "")
+    _CLASES_CIERRE.update({"jornada": nombre, "jv": jv, "hilo": None,
+                           "t0": time.time(), "t_captura": 0.0, "t_fin": 0.0,
+                           "resumen": None, "error": "", "inline": False})
+
+    if not _clases_hay_carril():
+        # Sin consola interactiva (pipes, CI, scripts) el hilo seria una
+        # TRAMPA: el proceso terminaria antes que el y los apuntes no se
+        # generarian nunca. Ahi se cierra INLINE, que es el camino de siempre.
+        # COGNIA_SIN_FONDO=1 fuerza esta rama (el brazo de control del repo).
+        _CLASES_CIERRE["inline"] = True
+        _print_line("[info_dim]cerrando: transcribo lo pendiente, detecto "
+                    "materias y genero apuntes (sin carril de fondo: esto "
+                    "tarda minutos)[/info_dim]")
+        _clases_cierre_correr(_cj.parar)
+        _clases_cierre_drenar()
+        return
+
+    hilo = threading.Thread(target=_clases_cierre_correr, args=(_cj.parar,),
+                            name="cognia-clases-cierre", daemon=True)
+    _CLASES_CIERRE["hilo"] = hilo
+    try:
+        hilo.start()
+    except RuntimeError as exc:
+        # Sin hilo no hay carril: se cierra aqui mismo (lento, pero la jornada
+        # se cierra) y se DICE, que es lo contrario de quedarse mudo.
+        _CLASES_CIERRE["hilo"] = None
+        _CLASES_CIERRE["inline"] = True
+        _aviso_degradado("clases.cierre",
+                         f"no pude lanzar el hilo del cierre "
+                         f"({type(exc).__name__}: {exc}); cierro en el turno")
+        _clases_cierre_correr(_cj.parar)
+        _clases_cierre_drenar()
+        return
+
+    cortado = False
+    t0 = time.time()
+    try:
+        while hilo.is_alive() and _clases_captura_viva(jv):
+            if time.time() - t0 > _CLASES_ESPERA_CAPTURA_S:
+                break
+            time.sleep(0.05)
+    except KeyboardInterrupt:
+        cortado = True
+    _CLASES_CIERRE["t_captura"] = time.time() - t0
+
+    if not _clases_captura_viva(jv):
+        _clases_ok(f"grabacion cerrada: ya no entra audio y la jornada "
+                   f"{_escape(nombre)} esta en disco",
+                   f"la captura paro en {_CLASES_CIERRE['t_captura']:.1f} s; "
+                   f"la transcripcion pendiente y los apuntes van detras")
+    else:
+        # Ni un warn ni una promesa de mas: esto es lo que se sabe con
+        # certeza. La senal de parada esta puesta, el bucle de captura no
+        # empieza ningun trozo nuevo y el que estuviera a medias se guarda
+        # cuando su record() devuelva (hasta 30 s, el tamanio del trozo).
+        _clases_ok(f"grabacion cortada: la jornada {_escape(nombre)} no "
+                   f"recibe mas audio",
+                   f"el trozo en vuelo (hasta 30 s) se guarda solo al "
+                   f"cerrarse; lo anterior ya esta en disco")
+    if cortado:
+        _print_line("[info_dim]Ctrl-C corta la ESPERA, no el cierre: el hilo "
+                    "termina de escribir (matarlo a medias es lo unico que "
+                    "podria corromper el cuaderno)[/info_dim]")
+    if _clases_cierre_vivo():
+        _print_line(f"[info_dim]sigue en segundo plano: "
+                    f"{_escape(_clases_cierre_fase())}. El prompt es tuyo; "
+                    f"/grabar-clase cierre  dice como va[/info_dim]")
+    else:
+        _clases_cierre_drenar()
+
+
+def _clases_cierre(resto: str = "", ai=None) -> None:
+    """`/grabar-clase cierre`: como va el cierre de la ultima jornada.
+
+    La puerta que exige CLAUDE.md para el trabajo que ya no ocurre delante del
+    duenio: en que fase esta, cuanto lleva y -- lo que de verdad se pregunta a
+    los cinco minutos -- si su clase ya esta guardada.
+    """
+    _clases_cierre_drenar()          # si acabo mientras tanto, se dice aqui
+    est = _CLASES_CIERRE
+    fase = _clases_cierre_fase()
+    if not fase:
+        _print_line("[info_dim]ningun cierre en curso ni reciente en esta "
+                    "sesion[/info_dim]")
+        _print_line("[detail]/grabar-clase parar  cierra la jornada que este "
+                    "grabando[/detail]")
+        return
+    lleva = ((est["t_fin"] if est.get("t_fin") else time.time())
+             - float(est.get("t0") or 0.0))
+    a_salvo = "cerrando" if _clases_captura_viva(est.get("jv")) else "SI"
+    filas = [("jornada", str(est.get("jornada") or "")),
+             ("fase", fase),
+             ("lleva", "%d min %02d s" % (int(lleva) // 60, int(lleva) % 60)),
+             ("audio en disco", a_salvo),
+             ("carril", "en el turno (sin carril de fondo)"
+                        if est.get("inline") else "hilo de fondo")]
+    for k, v in filas:
+        _print_line(f"  [mod]{k:<22}[/mod] {_escape(str(v))}")
+    if est.get("error"):
+        _print_line(f"[err_cl]{_escape(str(est['error']))}[/err_cl]")
+        _print_line("[info_dim]lo grabado NO se pierde: /grabar-clase apuntes"
+                    "[/info_dim]")
+        return
+    if _clases_cierre_vivo():
+        _print_line("[info_dim]tu clase YA esta guardada (el audio esta en "
+                    "disco): lo que falta solo agrega texto y apuntes"
+                    "[/info_dim]")
+    else:
+        _print_line("[info_dim]terminado: /grabar-clase ver  abre el cuaderno"
+                    "[/info_dim]")
+
+
+# EL PUNTO DE EXTENSION. Un subcomando nuevo = una funcion `_clases_x(resto,
+# ai)` y una linea aqui. Los alias van al lado de su nombre canonico para que
+# se vea de un vistazo que 'grafica' y 'grafico' son lo mismo.
+_CLASES_SUBCOMANDOS = {
+    "parar": _clases_parar,
+    "fin": _clases_parar,
+    "stop": _clases_parar,
+    "off": _clases_parar,
+    "cierre": _clases_cierre,
+    "widget": _clases_widget,
+    "cerebrito": _clases_widget,
+    "vivo": _clases_vivo,
+    "pausar": _clases_pausar,
+    "reanudar": _clases_reanudar,
+    "mutear": _clases_mutear,
+    "desmutear": _clases_desmutear,
+    "forzar": _clases_forzar,
+    "refinar": _clases_refinar,
+    "refinado": _clases_refinar,
+    "formula": _clases_formula,
+    "grafico": _clases_grafico,
+    "grafica": _clases_grafico,
+    "imagen-buscar": _clases_imagen_buscar,
+    "imagen-usar": _clases_imagen_usar,
+    "pegar": _clases_pegar,
+    "pdf": _clases_pdf,
+    "imprimir": _clases_pdf,
+    "doc": _clases_doc,
+}
+
+
 def _slash_grabar_clase(arg: str = "", ai=None) -> None:
     """`/grabar-clase`: puerta del CUADERNO DE CLASE (paquete cognia/clases).
 
@@ -14635,21 +16446,45 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
     en caliente, detecta los cambios de asignatura y arma un cuaderno por
     materias con apuntes, imagenes y clips.
 
-    Subcomandos (el punto de extension es este if/elif; la logica vive entera
-    en cognia/clases/, aqui solo esta la puerta):
-      (sin arg)              estado: si graba, que materia y cuanto lleva
+    EL PUNTO DE EXTENSION es `_CLASES_SUBCOMANDOS` (arriba): un subcomando
+    nuevo se da de alta con su funcion `_clases_x(resto, ai)` y una linea en
+    ese dict, SIN alargar el if/elif de aqui abajo -- que se queda con los
+    subcomandos historicos porque moverlos no aportaria nada y arriesgaria una
+    regresion en lo unico que ya estaba entregado.
+
+    Subcomandos (la logica vive entera en cognia/clases/, aqui solo la puerta):
+      (sin arg)              estado: si graba, que materia, si esta pausada o
+                             muteada, si el lock lo tiene OTRO proceso, como
+                             va el refinado y que dijo la migracion de apuntes
       iniciar [micro|ambas]  arranca la jornada (default: audio del sistema)
-      parar                  cierra, detecta materias y genera los apuntes
-      ver                    abre el CUADERNO en el navegador
+      parar                  DEJA DE GRABAR ya (el audio queda en disco) y
+                             devuelve el prompt; las materias definitivas y
+                             los apuntes siguen en un hilo de fondo
+      cierre                 en que fase va ese trabajo y si la clase ya esta
+                             guardada
+      pausar / reanudar      congela el audio sin cerrar la jornada
+      mutear / desmutear     descarta el audio sin parar el reloj
+      forzar                 quita el lock de grabacion (salida de emergencia)
+      ver                    abre el CUADERNO estatico en el navegador
+      vivo [estado|parar]    el cuaderno EN VIVO en ventana propia
+      widget                 enciende el cerebrito (icono flotante)
+      pdf [ruta]             el cuaderno listo para Ctrl+P -> Guardar como PDF
       materia <nombre>       corrige a mano la asignatura en curso
       nota <texto>           apunta algo en el minuto exacto en que estas
       importante <texto>     igual, pero marcado: no se resume ni se olvida
       imagen <ruta>          mete una foto de la pizarra en el cuaderno
       audio <ruta>           mete un clip de audio
+      pegar                  la imagen del portapapeles (Win+Shift+S)
+      formula <latex>        la dibuja (mathtext) y la apunta en el minuto
+      grafico <expr|datos>   una curva de 'sin(x)*x' o barras de 'lunes=3, ...'
+      imagen-buscar <q>      imagenes reutilizables, con autor y licencia
+      imagen-usar <n>        baja la n-esima CON su atribucion
       marcar                 marca este instante sin escribir nada
       materias <a,b,c>       declara las asignaturas (mejora la deteccion)
       apuntes                regenera los apuntes de la ultima jornada
       transcribir            transcribe el audio que quedo pendiente
+      refinar on|off|estado  el refinado en caliente ('on' reabre el disyuntor)
+      doc estado [materia]   diagnostico del documento de bloques
       olvidar [plan]         aplica el olvido ('plan' solo lo ensenia)
     """
     try:
@@ -14669,6 +16504,13 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
         _show_response(_CMD_DETAILS.get("/grabar-clase", ""), "listado")
         return
 
+    # El registro se consulta ANTES que el if/elif: un subcomando nuevo no
+    # tiene que colarse entre las ramas viejas para existir.
+    manejador = _CLASES_SUBCOMANDOS.get(cmd)
+    if manejador is not None:
+        manejador(resto, ai)
+        return
+
     # -- arrancar ----------------------------------------------------------
     if cmd in ("iniciar", "empezar", "start", "on"):
         fuente = (resto or "sistema").lower()
@@ -14676,35 +16518,45 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
             _print_line("[warn_cl]Uso: /grabar-clase iniciar "
                         "[sistema|micro|ambas][/warn_cl]")
             return
+        if _clases_cierre_vivo():
+            # jornada.py suelta el lock de grabacion al FINAL de parar(), o
+            # sea cuando terminan los apuntes: arrancar ahora fallaria con un
+            # "ya hay una grabacion" que no explica nada.
+            _print_line(f"[warn_cl]todavia se esta cerrando la jornada "
+                        f"{_escape(str(_CLASES_CIERRE.get('jornada') or ''))}"
+                        f": {_escape(_clases_cierre_fase())}[/warn_cl]")
+            _print_line("[info_dim]el lock de grabacion se suelta al acabar "
+                        "los apuntes; /grabar-clase cierre  dice como va"
+                        "[/info_dim]")
+            return
         _orch = getattr(ai, "_orchestrator", None) if ai is not None else None
         jv, motivo = _cj.arrancar(fuente=fuente, orch=_orch)
         if jv is None:
             _print_line(f"[err_cl]no puedo grabar: {_escape(motivo)}[/err_cl]")
             _aviso_degradado("clases.captura", motivo)
             return
-        _print_line(f"[ok]grabando la jornada {jv.nombre}[/ok]  "
-                    f"[detail]({_escape(motivo)})[/detail]")
-        _print_line("[detail]sigue usando Cognia con normalidad; "
-                    "/grabar-clase parar cuando acabes[/detail]")
-        return
-
-    if cmd in ("parar", "fin", "stop", "off"):
-        if _cj.viva() is None:
-            _print_line("[warn_cl]no hay ninguna jornada grabando[/warn_cl]")
-            return
-        _print_line("[detail]cerrando: transcribo lo pendiente, detecto "
-                    "materias y genero apuntes...[/detail]")
-        res = _cj.parar()
-        ses = _cc.sesiones_de(res.get("jornada", ""))
-        mins = int(float(res.get("segundos") or 0.0) // 60)
-        _print_line(f"[ok]jornada {_escape(res.get('jornada',''))} cerrada[/ok]")
-        _print_line(f"  [mod]{'duracion':<16}[/mod] {mins} min")
-        _print_line(f"  [mod]{'materias':<16}[/mod] "
-                    f"{_escape(', '.join(sorted({s.materia for s in ses})) or '-')}")
-        _print_line(f"  [mod]{'sesiones':<16}[/mod] {len(ses)}")
-        for a in (res.get("avisos") or [])[-3:]:
-            _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
-        _print_line("[detail]/grabar-clase ver  para abrir el cuaderno[/detail]")
+        # LA TRAMPA DEL MODO SENCILLO, cazada TECLEANDO. `_print_line` tira
+        # la linea ENTERA si lleva '[detail]' y el modo sencillo es el DEFAULT:
+        # este "[ok]grabando la jornada X[/ok] [detail](...)[/detail]" iba en
+        # UNA sola llamada, asi que desaparecia con su detalle y el duenio
+        # tecleaba 'iniciar' y le volvia el prompt PELADO -- sin saber si
+        # grababa, que jornada era ni por que fuente. `_clases_ok` separa el
+        # resultado (siempre visible) de la letra pequenia.
+        # OTRA VEZ, y no es redundante: soundcard hace
+        # `warnings.simplefilter('always', SoundcardRuntimeWarning)` AL
+        # IMPORTARSE (mediafoundation.py:26) y ese filtro se mete DELANTE del
+        # nuestro. Como el import ocurre aqui dentro (captura lo carga al
+        # arrancar), el silenciado del arranque del REPL queda pisado y la
+        # traza vuelve a salir cada pocos segundos durante toda la clase.
+        # Medido: sin esta segunda llamada, dos avisos en los primeros 40 s de
+        # grabacion real.
+        _silenciar_ruido_de_librerias()
+        _clases_ok(f"grabando la jornada {_escape(jv.nombre)}",
+                   f"fuente {_escape(fuente)}; {_escape(motivo)}")
+        # info_dim y no detail: COMO se cierra la jornada es lo unico que hay
+        # que saber al empezar, y en sencillo un [detail] no se imprime.
+        _print_line("[info_dim]sigue usando Cognia con normalidad; "
+                    "/grabar-clase parar cuando acabes[/info_dim]")
         return
 
     # -- el cuaderno -------------------------------------------------------
@@ -14721,6 +16573,13 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
             _print_line("[err_cl]no pude generar el cuaderno[/err_cl]")
             return
         _print_line(f"[info_dim]cuaderno: {_escape(str(ruta))}[/info_dim]")
+        # Con el cuaderno abierto, el modelo gana las 7 tools doc_* con las
+        # que escribe en los apuntes. Ver _clases_encender_doc_tools: se
+        # encienden AQUI y no siempre porque el catalogo tiene techo medido.
+        _clases_decir_doc_tools(
+            _clases_encender_doc_tools(_clases_materia_actual()))
+        _print_line("[detail]/grabar-clase pdf  lo abre listo para imprimir; "
+                    "/grabar-clase vivo  lo abre EN VIVO y editable[/detail]")
         return
 
     # -- lo que aniade el duenio -------------------------------------------
@@ -14792,7 +16651,11 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
             _aviso_degradado("clases.apuntes", f"no importable: {exc}")
             return
         _orch = getattr(ai, "_orchestrator", None) if ai is not None else None
-        _print_line(f"[detail]generando apuntes de {ult[0]}...[/detail]")
+        # info_dim y no detail: esto tarda MINUTOS con el modelo local y en
+        # modo sencillo un [detail] no se imprime -- el duenio se quedaba
+        # mirando un prompt congelado sin una sola letra.
+        _print_line(f"[info_dim]generando apuntes de {_escape(ult[0])}... "
+                    f"(habla con el modelo; Ctrl-C corta)[/info_dim]")
         try:
             hechos = _ap.generar_jornada(ult[0], orch=_orch)
         except Exception as exc:
@@ -14811,8 +16674,8 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
         except Exception as exc:
             _aviso_degradado("clases.transcripcion", f"no importable: {exc}")
             return
-        _print_line(f"[detail]transcribiendo lo pendiente de {ult[0]}..."
-                    f"[/detail]")
+        _print_line(f"[info_dim]transcribiendo lo pendiente de "
+                    f"{_escape(ult[0])}... (Ctrl-C corta)[/info_dim]")
         try:
             res = _tr.transcribir_pendientes(ult[0])
         except Exception as exc:
@@ -14838,11 +16701,16 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
                     _print_line("[info_dim]no hay nada que olvidar todavia"
                                 "[/info_dim]")
                     return
+                # La fila y su letra pequenia, en DOS lineas: juntas, el
+                # '[detail]' del final se llevaba la fila ENTERA en modo
+                # sencillo y 'olvidar plan' no listaba nada (mismo bug que
+                # 'iniciar').
                 for a in acciones[:20]:
                     _print_line(f"  [mod]{str(a.get('accion','')):<22}[/mod] "
-                                f"{_escape(str(a.get('objetivo','')))} "
-                                f"[detail]({int(a.get('bytes',0))//1024} KB - "
-                                f"{_escape(str(a.get('por_que','')))})[/detail]")
+                                f"{_escape(str(a.get('objetivo','')))}  "
+                                f"({int(a.get('bytes',0))//1024} KB)")
+                    _print_line(f"[detail]      "
+                                f"{_escape(str(a.get('por_que','')))}[/detail]")
                 return
             res = _ol.aplicar()
         except Exception as exc:
@@ -14860,18 +16728,33 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
 
     # -- estado (sin subcomando) -------------------------------------------
     est = _cj.estado()
+    lock = est.get("lock") or {}
     if est.get("grabando"):
         seg = int(float(est.get("segundos") or 0))
-        _print_line(f"[ok]GRABANDO[/ok] jornada "
-                    f"{_escape(str(est.get('jornada','')))}")
+        _print_line(f"[ok]{'PAUSADA' if est.get('pausada') else 'GRABANDO'}"
+                    f"[/ok] jornada {_escape(str(est.get('jornada','')))}")
         filas = [("materia", str(est.get("materia") or "")),
                  ("lleva", "%d min %02d s" % (seg // 60, seg % 60)),
+                 # pausada/muteada son DOS interruptores distintos y se
+                 # imprimen los dos: reanudar no des-mutea, asi que "no entra
+                 # audio" tiene dos causas posibles y hay que poder verlas.
+                 ("pausada", "SI (/grabar-clase reanudar)" if est.get("pausada")
+                             else "no"),
+                 ("micro muteado", "SI (/grabar-clase desmutear)"
+                                   if est.get("muteada") else "no"),
                  ("trozos de audio", str(est.get("trozos", 0))),
                  ("transcritos", str(est.get("transcritos", 0))),
-                 ("en silencio", str(est.get("silencios", 0)))]
+                 ("en silencio", str(est.get("silencios", 0))),
+                 ("descartados", str(est.get("descartados", 0)))]
     else:
         if not est.get("jornada"):
             _print_line("[info_dim]el cuaderno esta vacio todavia.[/info_dim]")
+            if est.get("otro_proceso"):
+                _print_line(f"[warn_cl]pero hay una grabacion en el proceso "
+                            f"PID {lock.get('pid')} (jornada "
+                            f"{_escape(str(lock.get('jornada') or '?'))}): "
+                            f"para ahi, o /grabar-clase forzar si sabes que "
+                            f"ese PID ya no es Cognia[/warn_cl]")
             _print_line("[detail]/grabar-clase iniciar  para grabar tu jornada"
                         "[/detail]")
             return
@@ -14880,12 +16763,73 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
                  ("duracion", "%d min" % (int(float(est.get("segundos") or 0)) // 60)),
                  ("sesiones", str(est.get("sesiones", 0))),
                  ("materias", ", ".join(est.get("materias") or []) or "-")]
+    # EL LOCK DE OTRO PROCESO. Sin esta linea, un REPL abierto al lado del que
+    # graba se pinta como "no graba" y ofrece un iniciar que solo puede
+    # fallar: "no hay grabacion" y "la grabacion no es mia" son dos cosas.
+    if est.get("otro_proceso"):
+        filas.append(("la graba OTRO proceso",
+                      "PID %s (jornada %s)" % (lock.get("pid"),
+                                               lock.get("jornada") or "?")))
+    if lock.get("absurdo"):
+        filas.append(("lock sospechoso",
+                      "tiene %d h: casi seguro un PID reciclado"
+                      % (int(float(lock.get("edad") or 0.0)) // 3600)))
+    # El refinado en caliente: si el disyuntor lo apago, esto es lo unico que
+    # lo dice fuera de '/grabar-clase refinar estado'.
+    _apagado = ""
+    try:
+        from cognia.clases import refinado as _cr_e
+        _ref = _cr_e.estado(str(est.get("jornada") or ""))
+    except Exception as _exc_ref:
+        _aviso_degradado("clases.refinado",
+                         f"no pude leer su estado: "
+                         f"{type(_exc_ref).__name__}: {_exc_ref}")
+        _ref = {}
+    if _ref:
+        for _j in (_ref.get("jornadas") or {}).values():
+            if _j.get("apagado"):
+                _apagado = str(_j["apagado"])
+        filas.append(("refinado en caliente",
+                      "APAGADO por el disyuntor" if _apagado
+                      else ("encendido" if _ref.get("activo") else "apagado")))
+    # EL CIERRE EN CURSO. Desde que 'parar' devuelve el prompt en el acto, el
+    # trabajo caro sigue en un hilo: sin esta fila, el estado diria "ultima
+    # jornada cerrada" mientras los apuntes se estan escribiendo todavia.
+    # Solo mientras SIGUE (o si fallo): un "terminado" pegado en el estado el
+    # resto de la sesion seria ruido, y para eso esta '/grabar-clase cierre'.
+    _fase_cierre = (_clases_cierre_fase()
+                    if (_clases_cierre_vivo() or _CLASES_CIERRE.get("error"))
+                    else "")
+    if _fase_cierre:
+        filas.append(("cierre de %s" % (_CLASES_CIERRE.get("jornada") or "?"),
+                      _fase_cierre))
     for k, v in filas:
-        _print_line(f"  [mod]{k:<16}[/mod] {_escape(v)}")
+        _print_line(f"  [mod]{k:<22}[/mod] {_escape(v)}")
+    if _clases_cierre_vivo():
+        _print_line("[info_dim]/grabar-clase cierre  dice como va (tu clase "
+                    "ya esta guardada)[/info_dim]")
     for a in (est.get("avisos") or []):
         _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+    if _ref and _apagado:
+        _print_line(f"[warn_cl]refinado apagado: {_escape(_apagado)}. "
+                    f"/grabar-clase refinar on lo reabre (es la unica via)"
+                    f"[/warn_cl]")
+    # AVISOS DE MIGRACION DE APUNTES: lo que la migracion de claves tuvo que
+    # conservar aparte (huerfanos, empates de segundo). apuntes.py pedia
+    # EXACTAMENTE este cableado; hasta hoy solo se veian en el log y dentro
+    # del propio apuntes.json.
+    if est.get("jornada"):
+        try:
+            from cognia.clases import apuntes as _ap_e
+            for _a in _ap_e.avisos_migracion(str(est["jornada"])):
+                _aviso_degradado("clases.apuntes", str(_a))
+        except Exception as _exc_ap:
+            _aviso_degradado("clases.apuntes",
+                             f"no pude leer los avisos de migracion: "
+                             f"{type(_exc_ap).__name__}: {_exc_ap}")
     if not est.get("grabando"):
-        _print_line("[detail]/grabar-clase ver  abre el cuaderno[/detail]")
+        _print_line("[detail]/grabar-clase ver  abre el cuaderno  |  vivo  lo "
+                    "abre EN VIVO  |  widget  enciende el cerebrito[/detail]")
 
 
 def _slash_compilar(arg: str = "", ai=None) -> None:
@@ -15264,12 +17208,36 @@ def _aplicar_config_bucle() -> None:
         _aviso_degradado("timeout_tool", f"config 'tool_timeout_s'={tmo!r} "
                          f"no es un entero >= 0; uso 120")
         tmo = "120"
-    pares = (
+    pares = [
         (_rep.ENV_ACTIVO, "1" if act == "on" else "0"),
         (_rep.ENV_UMBRALES, umb),
         (_rep.ENV_UMBRAL_FICHERO, umb_f),
         (_tt.ENV_TIMEOUT, tmo),
-    )
+    ]
+    # Razonamiento en bucle: misma regla que los de arriba (validar, gritar si
+    # es basura, sembrar el default). Su import va aparte para que una
+    # instalacion sin el modulo no deje sin higiene de lazo al resto.
+    try:
+        from cognia.harness import razonamiento as _raz
+        act_r = str(cfg.get("razonamiento", "on")).strip().lower()
+        if act_r not in ("on", "off"):
+            _aviso_degradado("razonamiento", f"config 'razonamiento'={act_r!r} "
+                             f"no es on/off; uso on")
+            act_r = "on"
+        for clave, env, minimo, defecto in (
+                ("razonamiento_umbral", _raz.ENV_UMBRAL, 200, "4000"),
+                ("razonamiento_racha", _raz.ENV_RACHA, 2, "3")):
+            crudo = str(cfg.get(clave, defecto)).strip()
+            try:
+                _raz.parsear_entero(crudo, minimo)
+            except _raz.ConfigInvalida as exc:
+                _aviso_degradado("razonamiento", f"config {clave!r} invalida "
+                                 f"({exc}); uso {defecto}")
+                crudo = defecto
+            pares.append((env, crudo))
+        pares.append((_raz.ENV_ACTIVO, "1" if act_r == "on" else "0"))
+    except Exception as exc:
+        _aviso_degradado("razonamiento", f"config no aplicada: {exc}")
     for var, valor in pares:
         if not (os.environ.get(var) or "").strip():
             os.environ[var] = valor
@@ -15740,13 +17708,24 @@ def _slash_bucle(arg: str = "") -> None:
       fichero <n>         -> clave 'repeticion_umbral_fichero' (>= 2; nudge
                              a la n-esima edicion del MISMO fichero, pedido
                              por el bucle nativo a ContadorFichero)
-      timeout <s>         -> clave 'tool_timeout_s' (0 = sin limite)"""
+      timeout <s>         -> clave 'tool_timeout_s' (0 = sin limite)
+      razonamiento on|off       -> clave 'razonamiento' (COGNIA_RAZONAMIENTO)
+      razonamiento umbral <n>   -> clave 'razonamiento_umbral' (chars de
+                                   razonamiento que hacen "pesado" un paso)
+      razonamiento racha <n>    -> clave 'razonamiento_racha' (pasos pesados
+                                   seguidos SIN AVANCE antes de apagar el
+                                   pensamiento extendido)"""
     try:
         from cognia.harness import repeticion as _rep
         from cognia.harness import timeout_tool as _tt
     except Exception as exc:
         _aviso_degradado("repeticion", f"modulo no importable: {exc}")
         return
+    try:
+        from cognia.harness import razonamiento as _raz
+    except Exception as exc:
+        _raz = None
+        _aviso_degradado("razonamiento", f"modulo no importable: {exc}")
     arg = (arg or "").strip()
     bajo = arg.lower()
     if bajo in ("on", "off"):
@@ -15800,6 +17779,51 @@ def _slash_bucle(arg: str = "") -> None:
         _print_line(f"[info_dim]bucle por fichero: nudge a las {n} ediciones "
                     f"del mismo fichero (guardado)[/info_dim]")
         return
+    if bajo.startswith("razonamiento"):
+        if _raz is None:
+            _print_line("[warn_cl]el vigilante de razonamiento no esta "
+                        "disponible en esta instalacion[/warn_cl]")
+            return
+        resto = arg[len("razonamiento"):].strip()
+        sub = resto.lower()
+        if sub in ("on", "off"):
+            cfg = _load_config()
+            cfg["razonamiento"] = sub
+            _save_config(cfg)
+            os.environ[_raz.ENV_ACTIVO] = "1" if sub == "on" else "0"
+            _marcar_env_sembrada(_raz.ENV_ACTIVO)
+            _print_line(f"[info_dim]recordatorio de razonamiento en bucle: "
+                        f"{sub} (guardado)[/info_dim]")
+            return
+        for clave, env, minimo, que in (
+                ("umbral", _raz.ENV_UMBRAL, 200,
+                 "caracteres de razonamiento que hacen PESADO un paso"),
+                ("racha", _raz.ENV_RACHA, 2,
+                 "pasos pesados seguidos SIN AVANCE antes de apagar el "
+                 "pensamiento")):
+            if not sub.startswith(clave):
+                continue
+            try:
+                n = _raz.parsear_entero(resto[len(clave):], minimo)
+            except _raz.ConfigInvalida as exc:
+                _print_line(f"[warn_cl]Uso: /bucle razonamiento {clave} <n> "
+                            f"(entero >= {minimo}; {que}) -- {exc}[/warn_cl]")
+                return
+            cfg = _load_config()
+            cfg[f"razonamiento_{clave}"] = str(n)
+            _save_config(cfg)
+            os.environ[env] = str(n)
+            _marcar_env_sembrada(env)
+            _print_line(f"[info_dim]razonamiento: {clave} = {n} "
+                        f"({que}; guardado)[/info_dim]")
+            return
+        if resto:
+            _print_line("[warn_cl]Uso: /bucle razonamiento \\[on | off | "
+                        "umbral <n> | racha <n>][/warn_cl]")
+            return
+        # `/bucle razonamiento` a secas: solo la foto de este subsistema.
+        _print_line("\n".join(_estado_razonamiento(_raz)))
+        return
     if bajo.startswith("timeout"):
         crudo = arg[len("timeout"):].strip()
         try:
@@ -15822,7 +17846,7 @@ def _slash_bucle(arg: str = "") -> None:
         return
     if arg and bajo != "estado":
         _print_line("[warn_cl]Uso: /bucle \\[estado | on | off | umbrales <a,b,c> "
-                    "| fichero <n> | timeout <s>][/warn_cl]")
+                    "| fichero <n> | timeout <s> | razonamiento ...][/warn_cl]")
         return
     # Estado (default): la foto de los dos subsistemas.
     er = _rep.estado()
@@ -15882,6 +17906,118 @@ def _slash_bucle(arg: str = "") -> None:
     _print_line("\n".join(_estado_subsistema(
         "timeout por tool", "sin limite" if tmo == 0 else f"{tmo}s", filas_t,
         fuente=_fuente(_tt.ENV_TIMEOUT, "tool_timeout_s"), avisos=avisos_t)))
+    # El TERCER detector de bucle, el que mira el canal que los otros dos no
+    # miran: el razonamiento. Ver harness/razonamiento.py.
+    if _raz is not None:
+        _print_line("\n".join(_estado_razonamiento(_raz)))
+
+
+def _estado_razonamiento(_raz) -> list:
+    """Las lineas de estado del vigilante de razonamiento en bucle.
+
+    Aparte de `_slash_bucle` porque tambien la usa `/bucle razonamiento` a
+    secas, que es la puerta de diagnostico del subsistema.
+    """
+    er = _raz.estado()
+    ult = er.get("ultimo") or {}
+
+    def _fuente(var, clave):
+        env = (os.environ.get(var) or "").strip()
+        return (f"env {var}={env}" if env and not _env_es_sembrada(var)
+                else f"config '{clave}'")
+
+    filas = [
+        ("paso pesado", f"{er['umbral']} chars de razonamiento "
+                        f"({_fuente(_raz.ENV_UMBRAL, 'razonamiento_umbral')})"),
+        ("racha dura", f"{er['racha']} pasos pesados seguidos SIN AVANCE "
+                       f"verificado -> se apaga el pensamiento extendido "
+                       f"({_fuente(_raz.ENV_RACHA, 'razonamiento_racha')})"),
+        ("aviso en vivo", ", ".join(f"{h:,}".replace(",", ".")
+                                    for h in er["hitos"]) + " chars"),
+        ("se repite si", f"solapamiento >= {er['umbral_repeticion']} con el "
+                         "razonamiento del paso anterior"),
+        ("recordatorios", (f"{er['total']} en este proceso; ultimo: "
+                           f"{_num_seguro(ult.get('chars'))} chars, racha "
+                           f"{ult.get('racha')} ({ult.get('ts')})")
+                          if ult else "0 en este proceso"),
+        ("pensamiento apagado", f"{er['apagados']} vez/veces en este proceso"),
+    ]
+    return _estado_subsistema(
+        "razonamiento en bucle", bool(er["activo"]), filas,
+        fuente=_fuente(_raz.ENV_ACTIVO, "razonamiento"))
+
+
+def _num_seguro(n) -> str:
+    try:
+        return f"{int(n):,}".replace(",", ".")
+    except (TypeError, ValueError):
+        return "?"
+
+
+def _slash_entrega(arg: str = "") -> None:
+    """`/entrega`: que dejo el agente EN DISCO en su ultima tarea.
+
+    Sin args (o `estado`) imprime la foto del ultimo cierre; `on`/`off`
+    persisten la clave 'entrega' y propagan COGNIA_ENTREGA a la sesion.
+    """
+    try:
+        from cognia.harness import entrega as _ent
+    except Exception as exc:
+        _aviso_degradado("entrega", f"modulo no importable: {exc}")
+        return
+    bajo = (arg or "").strip().lower()
+    if bajo in ("on", "off"):
+        cfg = _load_config()
+        cfg["entrega"] = bajo
+        _save_config(cfg)
+        os.environ[_ent.ENV_ACTIVO] = "1" if bajo == "on" else "0"
+        _marcar_env_sembrada(_ent.ENV_ACTIVO)
+        _print_line(f"[info_dim]bloque de entrega: {bajo} (guardado)[/info_dim]")
+        return
+    if bajo and bajo != "estado":
+        _print_line("[warn_cl]Uso: /entrega \\[estado | on | off][/warn_cl]")
+        return
+    e = _ent.estado()
+    env = (os.environ.get(_ent.ENV_ACTIVO) or "").strip()
+    fuente = (f"env {_ent.ENV_ACTIVO}={env}"
+              if env and not _env_es_sembrada(_ent.ENV_ACTIVO)
+              else "config 'entrega'")
+    filas = [
+        ("entregas", f"{e['total']} en este proceso"),
+        ("ultima", (f"{e['ficheros']} fichero(s): {e['enteros']} entero(s), "
+                    f"{e['rotos']} roto(s) ({e['ts']})")
+                   if e["ficheros"] or e["ts"] else "ninguna todavia"),
+    ]
+    _err = e.get("ultimo_error") or {}
+    _avisos = ([f"ultimo error: {_err.get('motivo', '')} ({_err.get('ts', '')})"]
+               if _err else [])
+    _print_line("\n".join(_estado_subsistema(
+        "entrega", bool(e["activo"]), filas, fuente=fuente, avisos=_avisos)))
+    ult = _ent.ultimo()
+    if ult:
+        # El bloque TAL CUAL lo vio el dueno al cerrar la tarea: repetirlo aca
+        # es el punto de la puerta (volver a mirar la entrega sin rebuscar en
+        # el scrollback).
+        _print_line(_escape(_ent.bloque(ult)))
+
+
+def _aplicar_config_entrega() -> None:
+    """Propaga la config del bloque de entrega al entorno (F6: sin pisar lo
+    del usuario y marcando la siembra). Una config que no sea on/off grita."""
+    try:
+        from cognia.harness import entrega as _ent
+        cfg = _load_config()
+    except Exception as exc:
+        _aviso_degradado("entrega", f"config no aplicada: {exc}")
+        return
+    act = str(cfg.get("entrega", "on")).strip().lower()
+    if act not in ("on", "off"):
+        _aviso_degradado("entrega", f"config 'entrega'={act!r} no es on/off; "
+                         f"uso on")
+        act = "on"
+    if not (os.environ.get(_ent.ENV_ACTIVO) or "").strip():
+        os.environ[_ent.ENV_ACTIVO] = "1" if act == "on" else "0"
+        _marcar_env_sembrada(_ent.ENV_ACTIVO)
 
 
 def _aplicar_config_notificaciones() -> None:
@@ -20454,7 +22590,17 @@ def repl():
     reentradas = 0
     while True:
         try:
-            return _repl_sesion()
+            # try/finally y no un `return` pelado: por aqui se sale por TODOS
+            # los caminos (salir, Ctrl-D, Ctrl-C, excepcion), y el cierre de
+            # una jornada en el hilo daemon muere con el proceso.
+            try:
+                return _repl_sesion()
+            finally:
+                try:
+                    _clases_esperar_cierre_al_salir()
+                except Exception as _exc_cs:
+                    _aviso_degradado("clases.cierre",
+                                     f"{type(_exc_cs).__name__}: {_exc_cs}")
         except KeyboardInterrupt:
             print()
             if remoto and reentradas < 3:
@@ -20520,6 +22666,7 @@ def _repl_sesion():
     # leen COGNIA_REPETICION* / COGNIA_TOOL_TIMEOUT del env; se siembran desde
     # la config y se VALIDAN aqui (config invalida = grito, no silencio).
     _aplicar_config_bucle()
+    _aplicar_config_entrega()
     # MODO HORIZONTE (contrato ralph): _run_agent_task y '/hacer retomar' leen
     # COGNIA_HORIZONTE del env, y horizonte.py el tope del traspaso; se
     # siembran desde la config y se validan (config invalida = grito).
@@ -20665,6 +22812,26 @@ def _repl_sesion():
     except Exception as _exc_bots:
         _aviso_degradado("bots.config", f"{type(_exc_bots).__name__}: {_exc_bots}")
 
+    # Cuaderno de clase: clases_refinado -> COGNIA_CLASES_REFINADO. Los
+    # modulos de cognia/clases leen la env en cada llamada y no conocen
+    # ~/.cognia_config.json; sin esta siembra la clave no decidiria nada.
+    try:
+        _clases_sembrar_env()
+    except Exception as _exc_cl:
+        _aviso_degradado("clases.config",
+                         f"{type(_exc_cl).__name__}: {_exc_cl}")
+
+    # El ruido de las librerias de audio y de transcripcion, callado POR
+    # NOMBRE antes de que se pueda pulsar 'iniciar' (ver la funcion: que se
+    # calla y por que), y la consola de logs saneada para que una respuesta
+    # ilegible del modelo no llegue cruda a la pantalla.
+    try:
+        _silenciar_ruido_de_librerias()
+        _sanear_consola_de_logs()
+    except Exception as _exc_ruido:
+        _aviso_degradado("cli.ruido",
+                         f"{type(_exc_ruido).__name__}: {_exc_ruido}")
+
     # Startup panel + animated modules
     _print_startup_panel()
     _animate_startup(_init_lines)
@@ -20804,7 +22971,11 @@ def _repl_sesion():
             # ajena a columna 0. El nombre del modulo Python ya no viene
             # (logger_config._FormatoInterfaz lo quita para cognia.*).
             estilo = "err_cl" if nivel in ("ERROR", "CRITICAL") else "warn_cl"
-            _print_line(f"[{estilo}]  ⚠ {_escape(texto)}[/{estilo}]")
+            # _resumir_para_pantalla: una respuesta ilegible del modelo
+            # logueada por cualquier modulo no puede llegar cruda a la cara
+            # del duenio (queda entera en ~/.cognia/logs/cognia.log).
+            _print_line(f"[{estilo}]  ⚠ "
+                        f"{_escape(_resumir_para_pantalla(texto))}[/{estilo}]")
 
         _lc.enrutar_consola_a(_log_a_interfaz)
     except Exception as _exc:
@@ -20982,6 +23153,15 @@ def _repl_sesion():
                         _COLA_ENTRADA.append(f"/hacer {_tarea}")
             except Exception:
                 pass
+            # Cuaderno de clase: el cierre de la jornada corre en su hilo
+            # (ver _clases_parar) y deja aqui su parte. Se imprime ENTRE
+            # TURNOS, como las rutinas: desde el hilo pisaria la linea que el
+            # duenio esta tecleando.
+            try:
+                _clases_cierre_drenar()
+            except Exception as _exc_cc:
+                _aviso_degradado("clases.cierre",
+                                 f"{type(_exc_cc).__name__}: {_exc_cc}")
             # Entregas de las rutinas programadas que terminaron en el hilo del reloj.
             try:
                 while _COLA_RUTINAS:
@@ -21298,6 +23478,9 @@ def _repl_sesion():
                 _slash_markdown(raw[len("/markdown "):] if raw.startswith("/markdown ") else "")
             elif raw == "/bucle" or raw.startswith("/bucle "):
                 _slash_bucle(raw[len("/bucle "):] if raw.startswith("/bucle ") else "")
+            elif raw == "/entrega" or raw.startswith("/entrega "):
+                _slash_entrega(
+                    raw[len("/entrega "):] if raw.startswith("/entrega ") else "")
             elif raw == "/revision" or raw.startswith("/revision "):
                 _slash_revision(
                     raw[len("/revision "):] if raw.startswith("/revision ") else "")

@@ -959,6 +959,25 @@ class Renderer:
                     sangria="    " + _glifo("pensando.prosa", _MARCA_PENSAR) + " ")
             self._flujo_pensar.escribir(ev.fragmento)
 
+    def _on_tokens_vivos(self, ev: events.TokensVivos) -> None:
+        """Pulso de contabilidad del stream: suma al `~N tok` de la linea viva
+        y NO pinta nada (2026-08-31, tokens en modo agente).
+
+        No arranca ni para el status: si no hay uno corriendo, no hay linea que
+        actualizar y el numero se guarda igual para el proximo refresco. Asi
+        este evento no puede abrir un 'pensando…' huerfano ni competir con el
+        flujo de texto, que fue el fallo del tick de razonamiento (2026-08-24).
+        """
+        try:
+            self._chars_stream += max(0, int(ev.chars or 0))
+        except (TypeError, ValueError):
+            return
+        if self._status is not None and self._ticker is None:
+            # Sin ticker el status no se repinta solo: se refresca aqui para
+            # que el contador se mueva mientras el modelo genera. Con ticker
+            # NO se toca: seria un segundo escritor sobre la misma linea.
+            self._tick_spinner()
+
     def _on_token_texto(self, ev: events.TokenTexto) -> None:
         # un token vacio no abre el flujo: si lo abriera, TareaFin creeria que
         # la respuesta ya se streameo y se tragaria el resumen final
@@ -1221,6 +1240,7 @@ class Renderer:
         "ToolFin":          _on_tool_fin,
         "RazonamientoTick": _on_razonamiento_tick,
         "TokenTexto":       _on_token_texto,
+        "TokensVivos":      _on_tokens_vivos,
         "Aviso":            _on_aviso,
         "Degradado":        _on_degradado,
         "TareaFin":         _on_tarea_fin,

@@ -14922,3 +14922,432 @@ deltas no se pinta token a token — sigue intacta.
 - La medicion A/B contra el 27B del dueno quedo a medias: el llama-server de
   :8080 se cayo durante la prueba (el mismo `WinError 10061` de la sesion
   id 1069) y las medidas se completaron con llama3.2:3b y Qwen3-4B.
+
+
+---
+
+## 2026-08-31 — PIEZA D5: la PUERTA del cuaderno de clase en el CLI
+
+`/grabar-clase` gana 16 subcomandos, se cablean los DOS enganches que dejaban
+inertes las piezas de `cognia/clases/`, y el empaquetado deja de perder el
+icono en silencio. Ficheros: `cognia/cli.py`, `pyproject.toml`,
+`tests/test_clases_cli.py` (nuevo). `cognia/harness/familias.py` NO hizo falta
+tocarlo (ver abajo) y `requirements.txt` tampoco.
+
+### Los dos cableados que faltaban
+
+1. **`servidor_vivo.fijar_pagina(vista_viva.render)` — NADIE lo llamaba.** El
+   gancho es deliberado (el transporte tiene que poder arrancar y probarse
+   aunque la pagina reviente), pero sin nadie que lo uniera `GET /` servia el
+   *placeholder del transporte* y el cuaderno en vivo no se veia NUNCA. Ahora
+   lo une `/grabar-clase vivo`, que ademas abre la URL en VENTANA PROPIA
+   (`--app` de Edge/Chrome via `widget.abrir_en_app`) y dice el token.
+   Verificado con un GET real: **56.137 bytes** del cuaderno (con `id="doc"`,
+   el `@media print` y el cerebro SVG inline), `placeholder del transporte`
+   -> False, y `GET /estado` -> 200.
+
+2. **La familia `doc_*` no la encendia ningun comando.** Las 7 tools con las
+   que la IA escribe en los apuntes estaban registradas en
+   `harness/familias.py` y su flag `COGNIA_DOC_TOOLS` no lo ponia nadie: para
+   el duenio no existian. Ahora se anuncian al ABRIR el cuaderno (`ver` y
+   `vivo`) y solo entonces, porque el techo del catalogo esta MEDIDO en este
+   repo (A/B 2026-07-25: 46 tools bajan el camino feliz de 4,25/5 a 2,5/5).
+   Tecleado: `tools doc_*  0 cargadas, no anunciadas` -> `7 cargadas,
+   ANUNCIADAS`.
+
+`familias.py` ya traia la familia `documento` bien puesta (flag opt-in,
+`_carga_modulo`, prefijo `doc_`, entrada en `_instalable`): se verifico y se
+dejo como estaba. Lo que faltaba era el interruptor en el CLI, no el registro.
+
+### Lo que se entrega
+
+`widget`, `vivo [estado|parar]`, `pausar`, `reanudar`, `mutear`, `desmutear`,
+`forzar`, `refinar on|off|estado`, `formula <latex>`, `grafico <expr|datos>`,
+`imagen-buscar <q>`, `imagen-usar <n>`, `pegar`, `pdf [ruta]`,
+`doc estado [materia]`, mas el `estado` sin subcomando enriquecido (pausada,
+muteada, lock de OTRO proceso, lock absurdo, refinado, y los avisos de
+migracion de apuntes que `apuntes.avisos_migracion` llevaba pidiendo por
+escrito que se cablearan).
+
+Punto de extension: `_CLASES_SUBCOMANDOS` (dict nombre -> `_clases_x(resto,
+ai)`), consultado ANTES del if/elif historico. Config nueva con default
+sensato y on/off: `clases_refinado`, `clases_doc_tools`, `clases_vivo_app`,
+`clases_imagenes`; `_clases_sembrar_env()` traduce la primera a
+`COGNIA_CLASES_REFINADO` al arrancar el REPL (una env puesta a mano gana).
+`/grabar-clase ayuda` imprimia CADENA VACIA: no habia entrada en
+`_CMD_DETAILS`; ahora hay ficha completa.
+
+### Empaquetado (lo que se perdia EN SILENCIO)
+
+- `[tool.setuptools.package-data]` -> `"cognia.clases" = ["assets/*.svg",
+  "assets/*.png"]`. Sin esto `assets/cerebro.svg` NO viajaba al wheel y el
+  cuaderno instalado salia sin icono degradando por
+  `clases.vista_viva.cerebro` SOLO en la version instalada.
+  **Verificado construyendo el wheel de verdad**: el
+  `cognia_ai-4.19.0-py3-none-any.whl` contiene
+  `cognia/clases/assets/cerebro.svg`.
+- Extra `clases` += `matplotlib>=3.7`, `sympy>=1.12` (los que dibujan formulas
+  y graficas). En el METADATA del wheel: `Requires-Dist: matplotlib>=3.7;
+  extra == "clases"` y `sympy>=1.12`. Tambien en `all`.
+- `requirements.txt` SIN TOCAR a proposito: es lo unico que instala el CI de
+  ubuntu y ni soundcard (WASAPI) ni faster-whisper ni matplotlib pintan ahi.
+  Los tests que los necesitan ya se saltan solos con `importorskip`, y el test
+  nuevo no importa nada pesado a nivel de modulo. Hay un test que lo vigila.
+
+### TECLEADO — tres bugs que la suite NO habria visto
+
+Los tres se cazaron TECLEANDO en el REPL de verdad
+(`venv312\Scripts\python.exe -m cognia`), con la suite en verde.
+
+**Bug 1 — `refinar estado` moria con AttributeError.**
+`refinado.estado()["backend"]` es una CADENA (`llm_local.describir()`), no un
+dict; el render hacia `.get("resumen")`:
+
+    cognia> /grabar-clase refinar estado
+    File "cognia/cli.py", line 15305, in _clases_refinar
+        ("backend", str(back.get("resumen") or back.get("modelo")
+    AttributeError: 'str' object has no attribute 'get'
+
+Arreglado. Ahora:
+
+    cognia> /grabar-clase refinar estado
+      refinado               ENCENDIDO
+      cada                   300 s
+      tramo minimo           400 chars
+      ventanas por vuelta    2
+      backend                llama en http://127.0.0.1:8080
+
+**Bug 2 — `imagen-buscar` salia MUDO.** Las lineas de resultado llevaban
+`[detail]` y `_print_line` tira la linea ENTERA si la lleva; el modo sencillo
+es el DEFAULT. Salida real antes del arreglo: NADA. Despues:
+
+    cognia> /grabar-clase imagen-buscar celula animal
+       1. Wilson1900Fig2.jpg  (800x559, commons)
+          Edmund Beecher Wilson - Public domain
+       2. Animal cell NIH.jpg  (800x557, commons)
+          NIH - Public domain
+       3. Animal Cell Diagram.png  (800x791, commons)
+          Anastasia Hammett - CC BY-SA 3.0
+       8. Unlabeled Animal Cell.png  (800x587, commons)
+          Conrad 7 - CC0
+    /grabar-clase imagen-usar <1-8>  la baja al cuaderno con su atribucion
+
+**Bug 3 — el mismo vacio, en DIEZ sitios mas.** Todo
+`[ok]...[/ok] [detail]...[/detail]` en una sola llamada desaparecia entero.
+Se partio en `_clases_ok(mensaje, detalle)`: el resultado siempre sale, y solo
+la letra pequenia se calla en modo sencillo.
+
+### TECLEADO — las tareas humanas (N=5), salida REAL
+
+**1) La jornada de Biologia de punta a punta** (grabacion REAL con soundcard,
+red REAL contra Commons, matplotlib REAL):
+
+    cognia> /grabar-clase iniciar
+    cognia> /grabar-clase materia Biologia
+    desde ahora: Biologia
+    cognia> /grabar-clase imagen-buscar celula animal
+       8. Unlabeled Animal Cell.png  (800x587, commons)
+          Conrad 7 - CC0
+    cognia> /grabar-clase imagen-usar 8
+    imagen en el cuaderno (img_0001.png)
+      credito          Unlabeled Animal Cell.png - Conrad 7 - CC0 -
+    https://commons.wikimedia.org/wiki/File:Unlabeled_Animal_Cell.png
+    cognia> /grabar-clase importante entra en el examen: organulos de la celula animal
+    apuntado y marcado como importante
+    cognia> /grabar-clase formula \Delta G = \Delta H - T \Delta S
+    formula en el cuaderno (formula_0001.png)
+    cognia> /grabar-clase grafico 3,5,8,13
+    grafico en el cuaderno (grafica_0001.png)
+    cognia> /grabar-clase parar
+    jornada 2026-08-31-2 cerrada
+      duracion         0 min
+      materias         Biologia
+      sesiones         1
+    cognia> /grabar-clase ver
+    cuaderno: C:\Users\usuario\.cognia\cuaderno.html
+    el modelo ya puede escribir en los apuntes (7 tools doc_*); se apaga con
+    /config set clases_doc_tools off
+
+PNGs comprobados con Pillow: `formula.png 187x50`, curva `789x516`, barras
+`837x576`. PNG de verdad, no ficheros vacios.
+
+**2) Pausar/mutear a mitad de clase** (el estado enriquecido):
+
+    cognia> /grabar-clase iniciar
+    cognia> /grabar-clase
+    GRABANDO jornada 2026-08-31
+      materia                (sin clasificar aun)
+      lleva                  0 min 00 s
+      pausada                no
+      micro muteado          no
+      trozos de audio        0
+      descartados            0
+      refinado en caliente   encendido
+    cognia> /grabar-clase mutear
+    micro MUTEADO: el audio se descarta y el reloj sigue
+    cognia> /grabar-clase pausar
+    jornada PAUSADA: deja de entrar audio
+    cognia> /grabar-clase
+    PAUSADA jornada 2026-08-31
+      pausada                SI (/grabar-clase reanudar)
+      micro muteado          SI (/grabar-clase desmutear)
+    cognia> /grabar-clase reanudar
+    grabando otra vez
+    cognia> /grabar-clase desmutear
+    el audio vuelve a entrar
+    cognia> /grabar-clase parar
+    jornada 2026-08-31 cerrada
+
+**3) El lock lo tiene OTRA ventana — y la salida de emergencia.** Se tomo el
+lock desde OTRO proceso vivo (`jornada._tomar_lock`, PID 16092) y se teclearon
+las tres cosas que hace el duenio:
+
+    cognia> /grabar-clase
+      la graba OTRO proceso  PID 16092 (jornada jornada-de-otra-ventana)
+    cognia> /grabar-clase iniciar
+    no puedo grabar: ya hay una grabacion en el proceso PID 16092 (jornada
+    'jornada-de-otra-ventana', desde las 14:20). Paras ahi con /grabar-clase
+    parar, cierras ese proceso, o -- si sabes que ese PID ya no es Cognia -- lo
+    liberas a la fuerza con jornada.forzar_liberacion().
+      (degradado) clases.captura: ...
+    cognia> /grabar-clase forzar
+      (degradado) lock de grabacion liberado A LA FUERZA (PID 16092, jornada
+      'jornada-de-otra-ventana'): el duenio lo forzo desde el CLI
+    lock de grabacion liberado A LA FUERZA
+    ese PID contestaba VIVO: si de verdad era otra Cognia grabando, ahora hay
+    dos grabadores sobre la misma carpeta
+    cognia> /grabar-clase
+      ultima jornada         a-b            <- ya no aparece el otro proceso
+
+**4) El cuaderno en vivo, y su diagnostico:**
+
+    cognia> /grabar-clase vivo estado
+      servidor               apagado
+      pagina inyectada       NO (se sirve el placeholder del transporte)
+    cognia> /grabar-clase vivo
+    cuaderno en vivo levantado
+    http://127.0.0.1:62424/?t=wIlj69UIjKhGEdEyLamsAUouIGIyCBpR
+    cognia> /grabar-clase vivo estado
+      servidor               VIVO
+      puerto                 62424
+      pagina inyectada       si (el cuaderno)
+    cognia> /grabar-clase doc estado
+      tools doc_*            7 cargadas, ANUNCIADAS
+    cognia> /grabar-clase vivo parar
+    cuaderno en vivo apagado
+
+**5) El cerebrito y el PDF:**
+
+    cognia> /grabar-clase widget
+    cerebrito encendido                       (PID 25652, widget.lock escrito)
+    cognia> /grabar-clase widget
+    ya hay un cerebrito abierto (PID 25652)
+    cognia> /grabar-clase pdf
+    cuaderno listo para imprimir
+    en el navegador: Ctrl+P -> Destino 'Guardar como PDF'. La pagina ya se
+    prepara sola para el papel
+
+Y el on/off de la config, tecleado:
+
+    cognia> /config set clases_doc_tools off
+    Config actualizada: clases_doc_tools=off
+    cognia> /grabar-clase ver
+    documento: clases_doc_tools=off en la config: no anuncio las tools doc_*
+    (se enciende con /config set clases_doc_tools on)
+
+### Regresion
+
+`tests/test_clases_cli.py` (nuevo, 29 tests). **Revertido cada arreglo, uno a
+uno, para comprobar que el test cae:**
+
+| se revierte | test que cae |
+|---|---|
+| la ficha de `_CMD_DETAILS` | `test_la_ficha_del_comando_existe_...` |
+| `fijar_pagina(vista_viva.render)` | `test_vivo_une_el_transporte_con_la_pagina` |
+| el backend tratado como dict | `test_el_estado_del_refinado_no_revienta_...` |
+| `[detail]` en la lista de imagenes | `test_la_lista_de_imagenes_sobrevive_...` |
+| `[ok]` + `[detail]` en una linea | `test_el_ok_y_su_detalle_van_en_lineas_distintas` |
+| `package-data` + extra `clases` | `test_el_svg_del_cerebrito_viaja_al_wheel` y `test_el_extra_clases_trae_...` |
+
+HONESTIDAD: `test_la_familia_documento_esta_en_el_catalogo_de_familias` pasa
+IGUAL sin ningun cambio mio — la familia ya estaba en `familias.py`. Se deja
+como guardian de que no la quiten, no como prueba de esta entrega.
+
+Suite asignada, salida real:
+
+    venv312\Scripts\python.exe -m pytest tests/test_clases_*.py \
+        tests/test_busqueda_imagenes.py tests/test_documento_tools.py -q
+    599 passed, 3 skipped in 78.48s
+
+(linea base al empezar esta pieza: 502 passed, 3 skipped = 505. Los +97 son
+los 29 nuevos de aqui mas los que anadieron las piezas en paralelo.) Sin
+regresiones en `test_cli_commands / test_cli_config / test_cli_consistency /
+test_cli_cableado / test_cli_bots` (91 passed), `test_cli_comandos_tapados /
+test_cli_estado_unico` (18 passed) y `test_clases_cli + test_catalogo +
+test_catalogo_flags_off` en el MISMO proceso (53 passed, sin contaminacion de
+env).
+
+### TRES avisos: ficheros que NO son de esta pieza y hay que tocar
+
+1. **`cognia/agent/tools.py:359-368` (`_OPTIN_PREFIJOS`) — LAS 7 TOOLS SIGUEN
+   INVISIBLES PARA EL MODELO.** Medido en este repo hoy:
+
+       familias.activar('documento') -> ok, 7 tools nuevas
+       is_simple() -> True                     (el modo sencillo es el DEFAULT)
+       flag_de_optin('doc_ver') -> ''          (no esta en la tabla)
+       doc_ tools registradas: 7
+       doc_ tools VISIBLES   : 0
+
+   `simple_mode.visible_tools` solo rescata del recorte lo que `flag_de_optin`
+   reconoce; sin `doc_` en la tabla, las siete se filtran aunque el flag este
+   encendido. **El arreglo es UNA LINEA** en `_OPTIN_PREFIJOS`:
+
+       ("doc_", "COGNIA_DOC_TOOLS"),
+
+   No se aplico porque `tools.py` esta fuera de la asignacion de esta pieza y
+   ademas lo esta editando OTRO agente ahora mismo (`git diff` lo confirma:
+   cambios en `_leer_archivo`). Hasta que se aplique, el cableado 2 llega a
+   registrar las tools pero el modelo no las ve en modo sencillo.
+
+2. **`cognia/agent/loop.py:565-566` (`_TOOLS_ESCRITURA`).** Las tools de
+   documento reciben parrafos largos y no estan en el conjunto que la
+   compactacion trunca ni en la guarda `_lleva_marca_truncado`
+   (`loop.py:605`). Faltan `doc_escribir` y `doc_editar` (y, para cubrirlo
+   todo, `doc_formula`, `doc_grafica`, `doc_imagen`, `doc_tabla`).
+   `documento_tools.py` ya se defiende por su lado (rechaza el marcador de
+   truncado antes de escribir en los apuntes) y su propio encabezado dice que
+   la otra mitad esta en `loop.py`. No se toco: fichero fuera de la
+   asignacion.
+
+3. **`cognia/agent/catalogo_nodos.py::CATEGORIAS` (lineas ~186-256) — dos
+   guardianes en ROJO.**
+   `test_catalogo_nodos.py::test_ninguna_tool_registrable_en_caliente_cae_en_otros`
+   y `::test_la_paleta_no_pinta_otros_ni_con_todo_encendido` fallan porque las
+   7 `doc_*` caen en el cajon "Otros": ningun cajon declara el prefijo `doc_`.
+   Lo introdujo el alta de la familia `documento` en `familias.py` (que ya
+   estaba hecha antes de esta pieza), no el codigo de aqui — el test ni
+   importa `cognia.cli`. El propio docstring del test dice donde se arregla:
+   "el arreglo es CATEGORIAS, no el test". Lo natural es anadir
+   `"prefijos": ("doc_",)` al cajon `memoria` (que ya guarda `cuaderno`,
+   `anotar`, `notas`) o abrir uno propio para el cuaderno de clase.
+
+### Limites declarados
+
+- **No hay backend LLM en :8080 en esta maquina**, asi que lo que depende del
+  modelo (apuntes, refinado en caliente) se verifico solo por su camino de
+  degradacion. Todo lo demas se teclo de verdad.
+- `pdf` NO genera el PDF: exporta el cuaderno estatico (imagenes embebidas) y
+  lo abre listo para Ctrl+P. Generarlo en Python exigiria reportlab o un
+  Chromium headless, y la pagina ya trae su `@media print`. Esta declarado en
+  la ficha del comando.
+- Tras `parar`, `ver` anuncia las tools `doc_*` pero NO fija
+  `COGNIA_DOC_MATERIA`: `documento_tools` prohibe adivinar la materia de una
+  jornada CERRADA (manana escribiria en el documento de ayer). El modelo
+  recibe entonces el error de las tools, que dice exactamente como abrir el
+  documento. Es deliberado, no un olvido.
+- El mensaje de "ya hay una grabacion" (`jornada.py:318`) sigue diciendo
+  `jornada.forzar_liberacion()` en vez de `/grabar-clase forzar`, que ya
+  existe. `jornada.py` no es de esta pieza.
+- `cognia/cli.py` se reescribio entero una vez por un `write_text` que colapso
+  los CRLF a LF; se restauro el CRLF byte a byte al terminar (27.338 lineas,
+  CRLF == total de LF). El contenido no cambio por eso.
+- El tecleado dejo jornadas reales en `~/.cognia/clases` (`2026-08-31`,
+  `2026-08-31-2`, con su formula, su grafica y la imagen de Commons). No se
+  borran: son datos del duenio y ademas son la evidencia.
+
+
+## 2026-08-31 — 4.20.0: el turno no cierra sin ENTREGAR, y el razonamiento en bucle tiene guardia
+
+Pedido del dueno, con su traza pegada: *"cognia cli no me entrego nunca un
+archivo final resuelto... el html que entrego no servia"*, *"anade tambien
+reminders cuando este pensando en loop"*, *"que no se trunquen las lineas que
+escriba"*, *"que me aparezcan los tokens en el modo agente"*.
+
+### El diagnostico (leido en el codigo, no supuesto)
+
+`estado/presupuesto_progreso._validar_fichero` parseaba .py y .json y para todo
+lo demas decia "existe y no esta vacio". El `index.html` de 32 KB que el agente
+dejo cortado a mitad de una clase — sin `</script>`, sin `</html>`, con 50 ids
+de botones y UN `addEventListener` — sumaba DOS avances verificados
+(`fichero_nuevo_valido` + `artefacto_crecio_valido`) y el turno cerraba con
+"✓ Objetivo verificado: 1/1". Y `revision_profunda.fase_sintaxis` saltaba .html
+("no evaluada"), ademas de no correr NUNCA en los cierres por estancamiento,
+que son los tres de la traza.
+
+### Lo entregado
+
+1. `cognia/estado/validar_web.py` (nuevo): HTML/JS ENTERO o no. Cierres
+   (`</script>`, `</html>`, `</body>`) y balanceo, con DOBLE PASADA sobre la
+   ambiguedad regex-vs-division (si las dos lecturas discrepan el veredicto es
+   "no evaluable", nunca "roto") y los bundles minificados fuera.
+   **MEDIDO: 0 falsos positivos sobre los 439 .html/.js escritos a mano del
+   disco del dueno** (el unico que reprueba es el index.html roto de verdad), y
+   caza 21 de los 1.409 HTML de `generated_programs`.
+2. Cableado en `_validar_fichero` y en `revision_profunda.fase_sintaxis`.
+3. La revision profunda corre en **TODOS** los cierres (antes: solo cierre
+   natural y presupuesto agotado).
+4. `cognia/harness/entrega.py` (nuevo) + puerta `/entrega [estado|on|off]`:
+   inventario de lo que quedo en disco, con la LINEA del corte en los rotos y
+   un "no escribi nada" explicito cuando toca.
+5. `cognia/harness/razonamiento.py` (nuevo) + puerta `/bucle razonamiento
+   [on|off|umbral <n>|racha <n>]`: el quinto detector de bucle, el unico que
+   mira el canal del razonamiento. La racha la rompe el AVANCE verificado, no
+   la llamada.
+6. `leer_archivo`: corte por linea APAGADO (mutilaba los bloques SEARCH) y
+   relectura identica -> pagina SIGUIENTE.
+7. Tokens en vivo en modo agente: evento `TokensVivos` (contar sin pintar) +
+   `on_tool_frag` en `chat_client` — el unico latido de un paso que escribe un
+   fichero, donde no hay content ni razonamiento.
+
+### Compuertas (todas ANTES de subir)
+
+- **Gate e2e camino feliz 5/5 en 2,2 min** contra el 27B real en :8080.
+- **Suite: 71 failed / 14.611 passed.** Contrafactual con `git stash` sobre los
+  10 ficheros tocados y el MISMO subconjunto de 70 tests: 18 fallos con mis
+  cambios y **18 sin ellos, los mismos 18** -> cero regresiones. Los 4 que si
+  eran mios se arreglaron (visibilidad de `/entrega`, `cognia_setup.iss` a
+  4.20.0, y dos tests que fijaban el contrato viejo de `leer_archivo`).
+- **Tecleado contra el modelo real** (con `PYTHONPATH` al repo: sin eso
+  `python -m cognia` desde otra carpeta importa el paquete INSTALADO y se mide
+  la version vieja — media hora perdida por eso).
+
+### La prueba que cierra el circulo
+
+Misma tarea, mismo fichero, mismo modelo que la traza del dueno:
+
+    (cerrada sin progreso verificado: meseta)
+
+    [revision profunda: QUEDA ROTO tras 2 ronda(s) de reparacion] sintaxis OK
+    (1 fich.) · index.html FALLA: arranca: revisar_html OK | navegador: abre en
+    el navegador sin errores de JS | contrato: 10 controles clicables y NINGUNO
+    hace nada: tras 0 clics el innerHTML del body es identico, la pagina no se
+    anima sola y los pixeles no se movieron | 10 clicables de 14 controles
+
+    ENTREGA — lo que quedo en disco:
+      OK  index.html — 44.015 bytes · estructura completa (cierres y balanceo)
+      → los ficheros estan completos (estructura), pero eso no dice que hagan
+        lo que pediste.
+
+El arnes ABRIO la pagina y dijo la queja del dueno palabra por palabra ("los
+botones no tienen ninguna utilidad") en vez de dejar que la descubriera
+probando. Y los dos guardias nuevos dispararon en vivo en esa misma corrida:
+
+    [detail]razonamiento en bucle (7288 chars, racha 1): recordatorio inyectado
+    [warn_cl]lleva 8.001 caracteres pensando en este paso sin llamar a ninguna herramienta
+    [warn_cl]lleva 20.010 caracteres pensando en este paso sin llamar a ninguna herramienta
+
+### Limites declarados
+
+- `validar_web` dice si el fichero esta COMPLETO, **no si funciona**. Un HTML
+  entero con los botones muertos pasa por el; eso lo caza `fase_producto`, que
+  abre la pagina en un navegador de verdad. Se separan a proposito: un
+  validador estructural que fingiera juzgar semantica seria la clase de gate
+  que acaba apagado.
+- La corrida de prueba fue NO INTERACTIVA, asi que media docena de pasos se
+  fueron en `shell_exec` denegados por falta de humano al otro lado. En la
+  sesion del dueno esos pasos existen.
+- El aviso EN VIVO de razonamiento solo existe con streaming (`COGNIA_STREAM=1`,
+  el default); sin el, el recordatorio de cierre de paso sigue funcionando.
+- `test_autoprueba::test_el_mismo_juego_escuchando_el_teclado_SI_pasa` es FLAKY
+  (arranca un navegador): fallo en una corrida del subconjunto y paso en
+  aislado y en la siguiente. No se toco.

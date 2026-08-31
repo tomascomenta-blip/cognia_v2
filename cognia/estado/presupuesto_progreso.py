@@ -53,8 +53,11 @@ Limites declarados (a proposito, no son deuda oculta):
     Recibe el resultado de la verificacion que ya hizo otro (`cognia/harness/
     verificacion.py` es el proveedor natural). Un modulo de contabilidad que
     ademas ejecuta se vuelve imposible de testear sin red ni modelo.
-  - **`observar_fichero` solo valida Python y JSON.** Para el resto comprueba
-    existencia y tamano > 0. Declarar "compila" sobre un .md seria mentir.
+  - **`observar_fichero` valida Python, JSON, HTML y JS.** Los dos primeros se
+    parsean; HTML y JS se comprueban ESTRUCTURALMENTE (que no esten truncados:
+    ver `cognia/estado/validar_web.py`), que es el modo de fallo real del arnes.
+    Para el resto comprueba existencia y tamano > 0: declarar "compila" sobre un
+    .md seria mentir.
   - **El veredicto NO lanza excepciones ni corta por su cuenta.** Devuelve un
     dict; quien decide es el bucle. Cortar desde aqui esconderia la decision.
   - **Governance decay queda FUERA.** Este modulo no vigila si las restricciones
@@ -654,8 +657,15 @@ def _tamano_fichero(ruta, contenido=None):
         return None
 
 
+# Extensiones que `estado/validar_web.py` sabe mirar (HTML y JS). Se listan
+# aqui y no se importan del otro modulo para que este siga arrancando aunque
+# aquel falte: el import real va dentro de la funcion, con su try.
+_EXT_WEB = (".html", ".htm", ".xhtml", ".js", ".mjs", ".cjs", ".jsx")
+
+
 def _validar_fichero(ruta, contenido=None):
-    """(valido, motivo). Python y JSON se parsean; el resto solo existe/no vacio."""
+    """(valido, motivo). Python, JSON, HTML y JS se comprueban; el resto solo
+    existe/no vacio."""
     p = Path(ruta)
     texto = contenido
     if texto is None:
@@ -682,6 +692,20 @@ def _validar_fichero(ruta, contenido=None):
         except ValueError as e:
             return (False, "JSON invalido: %s" % e)
         return (True, "existe y parsea como JSON: %s (%d bytes)" % (ruta, len(texto)))
+    # HTML/JS: se comprueba que el fichero este ENTERO (2026-08-31). Sin esto,
+    # un index.html cortado a mitad de una clase -- sin </script> ni </html> --
+    # contaba como `fichero_nuevo_valido` Y como `artefacto_crecio_valido`: dos
+    # avances verificados sobre una entrega que no abre. Ver estado/validar_web.
+    if suf in _EXT_WEB:
+        try:
+            from cognia.estado import validar_web as _vw
+            ok_web, motivo_web = _vw.veredicto(ruta, texto)
+        except Exception:
+            ok_web = None                 # el validador nunca reprueba por su culpa
+        if ok_web is False:
+            return (False, "%s: %s" % (ruta, motivo_web))
+        if ok_web is True:
+            return (True, "existe y %s: %s (%d bytes)" % (motivo_web, ruta, len(texto)))
     return (True, "existe y no esta vacio: %s (%d bytes)" % (ruta, len(texto)))
 
 

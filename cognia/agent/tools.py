@@ -1000,7 +1000,17 @@ def _env_utf8() -> dict:
 # seguridad para archivos de lineas kilometricas (json minificado): 2000
 # lineas x 80 chars ~ 160k chars reventarian el contexto igual.
 _LEER_LIMIT_DEF = 2000     # lineas por llamada (default)
-_LEER_LINEA_MAX = 500      # una linea mas larga se corta con marcador
+# CORTE POR LINEA: APAGADO (2026-08-31, a pedido del dueno). Antes toda linea
+# de mas de 500 chars llegaba al modelo como `...[linea cortada: N chars]`, y
+# eso ROMPE lo que el modelo tiene que reproducir: el bloque SEARCH de
+# editar_archivo se copia de lo que se vio, asi que una linea cortada no casa
+# nunca; y en un read-mod-write el modelo reescribe la linea mutilada. El cap
+# de CHARS de abajo ya acota la salida, y corta en el BORDE de una linea, o
+# sea que el recorte por linea era una red redundante que estropeaba el
+# contenido. Solo se sigue cortando la linea PATOLOGICA (mas larga que el cap
+# entero: un json minificado de 200 KB en un renglon), porque si no la pagina
+# saldria vacia. COGNIA_LEER_LINEA_MAX=N lo vuelve a encender con tope N.
+_LEER_LINEA_MAX = int(os.environ.get("COGNIA_LEER_LINEA_MAX", "0"))
 _LEER_CAP_CHARS = int(os.environ.get("COGNIA_LEER_CAP", "24000"))
 
 # offset/limit al FINAL de los args, como tokens sueltos 'offset=N limit=M'
@@ -1071,13 +1081,50 @@ def _leer_archivo(args, ctx):
     if offset > total:
         return (f"RESULTADO leer_archivo {_disp(path)} ERROR: offset={offset} "
                 f"pero el archivo tiene {total} lineas")
+    # RELECTURA IDENTICA -> SIGUIENTE PAGINA (2026-08-31). Un fichero mas
+    # grande que el cap vuelve TRUNCADO con un puntero ("sigue con offset=471")
+    # y el modelo, si no lo obedece, repite la MISMA llamada y recibe los
+    # MISMOS bytes: en la traza del dueno (Ark/index.html, 729 lineas, cap
+    # 24 KB) eso paso tres veces en una tarea y otras dos en la siguiente, y se
+    # llevo los pasos que hacian falta para escribir. Ningun detector de bucle
+    # lo cazaba: leer no es editar, y el resultado no era un ERROR.
+    # Aca la segunda llamada IDENTICA sobre un fichero que quedo truncado
+    # devuelve el tramo SIGUIENTE y lo dice en la primera linea. No es magia
+    # escondida: es obedecer por el modelo el puntero que el propio resultado
+    # le dio. El estado vive en el ctx del agente (por tarea) y se olvida solo.
+    #
+    # El estado vive en `ctx['_leer_paginas']` y NO dentro de `ctx
+    # ['agent_state']`: ese dict se SERIALIZA a ~/.cognia_agent_state.json al
+    # cerrar la tarea, y una paginacion persistida haria que la primera
+    # lectura de la tarea SIGUIENTE empezara por la mitad del fichero. Aca es
+    # per-tarea y muere con el ctx.
+    _avance = ""
+    _clave_pag = f"{str(path).lower()}|{offset}|{limit}"
+    _pags = None
+    if isinstance(ctx, dict):
+        _pags = ctx.setdefault("_leer_paginas", {})
+        _prev = _pags.get(_clave_pag)
+        if _prev and _prev.get("hasta", 0) < total:
+            offset = _prev["hasta"] + 1
+            _avance = (f"[ya habias leido las lineas {_prev['desde']}-"
+                       f"{_prev['hasta']} de {_disp(path)} con esta MISMA "
+                       f"llamada; te doy el tramo siguiente desde la linea "
+                       f"{offset}]\n")
+        elif _prev:
+            _avance = (f"[esta es la TERCERA vez que pides {_disp(path)} con "
+                       f"los mismos argumentos y ya viste el fichero entero: "
+                       f"la respuesta no va a cambiar, decide con lo que "
+                       f"tienes]\n")
     sel, recorte_linea = [], False
     if limit is None:
         limit = max(1, total - offset + 1)
     for ln in lineas[offset - 1:offset - 1 + limit]:
-        if len(ln) > _LEER_LINEA_MAX:
-            ln = (ln[:_LEER_LINEA_MAX]
-                  + f"... [linea cortada: {len(ln)} chars]")
+        # Tope por linea: apagado salvo que el dueno lo encienda, y la linea
+        # patologica (mas larga que la pagina entera) se corta igual porque si
+        # no la pagina saldria vacia.
+        _tope_ln = _LEER_LINEA_MAX or (cap_chars or 0)
+        if _tope_ln and len(ln) > _tope_ln:
+            ln = ln[:_tope_ln] + f"... [linea cortada: {len(ln)} chars]"
             recorte_linea = True
         sel.append(ln)
     # red de seguridad por chars: cortar en la ultima linea COMPLETA que cabe
@@ -1089,7 +1136,9 @@ def _leer_archivo(args, ctx):
         mostradas.append(ln)
         usados += len(ln) + 1
     hasta = offset + len(mostradas) - 1
-    content = "\n".join(mostradas)
+    if _pags is not None:
+        _pags[_clave_pag] = {"desde": offset, "hasta": hasta, "total": total}
+    content = _avance + "\n".join(mostradas)
     if hasta < total or recorte_linea:
         # Marcador explicito: sin esto el modelo cree que vio el archivo entero
         # y lo sobrescribe con una version mas corta (perdida de datos en

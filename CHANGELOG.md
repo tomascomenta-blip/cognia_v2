@@ -2,6 +2,88 @@
 
 ---
 
+## [4.20.0] - 2026-08-31
+
+### EL TURNO NO CIERRA SIN ENTREGAR: que quedo en disco, y si esta ENTERO
+
+Traza del dueno, tres tareas seguidas sobre el mismo juego HTML, media hora
+cada una:
+
+    ✗ 819.0s · 31714 tokens · 15 pasos · sin progreso verificado: meseta_de_coste
+      (cerrada sin progreso verificado: meseta_de_coste)
+      Salida de la ejecución: extraido 19630 chars SINTAXIS_OK
+
+    ✗ 422.4s · 10816 tokens · 10 pasos · sin progreso verificado: sin_arranque
+      Salida de la ejecución: OK
+
+Lo que el dueno se llevo de las tres: el nombre de un motivo interno del arnes
+y el stdout de la ULTIMA tool. En disco habia un `index.html` de 32 KB cortado
+a mitad de una clase — sin `</script>`, sin `</html>`, con 50 ids de botones y
+UN solo `addEventListener` — y en dos de las tres tareas no se habia escrito ni
+un byte. Ninguna de las dos cosas se dijo. Peor: el HTML truncado contaba como
+**avance verificado** y el turno cerraba con "✓ Objetivo verificado: 1/1".
+
+Cinco arreglos, todos deterministas (salen del disco, no del modelo):
+
+**1. Un HTML truncado ya no es un fichero valido.** `cognia/estado/
+validar_web.py` (nuevo) comprueba que el fichero este ENTERO: `<script>` con su
+`</script>`, `</html>` y `</body>` si el documento los abrio, y balanceo de
+llaves/parentesis/corchetes de cada bloque de JS. La ambiguedad regex-vs-
+division se resuelve con DOBLE PASADA (una tratando `/` como regex cuando el
+contexto lo permite, otra como division siempre) y solo se reprueba lo que las
+dos coinciden en reprobar; los bundles minificados quedan fuera. **Medido: 0
+falsos positivos sobre los 439 .html/.js escritos a mano del disco del dueno, y
+caza el index.html de la traza.** Cableado en `presupuesto_progreso.
+_validar_fichero` (el gobernador de progreso) y en `revision_profunda.
+fase_sintaxis`, que hasta hoy saltaba .html y devolvia "no evaluada" sobre el
+producto que el agente entrega mas a menudo.
+
+**2. La revision profunda corre en TODOS los cierres.** Antes solo en dos (el
+cierre natural con respuesta y el presupuesto agotado); los otros —
+estancamiento del gobernador, racha de tools fallidas, corte del usuario —
+salian por `break` sin que nadie abriera lo que habia quedado en disco. Y son
+justo los tres cierres de la traza.
+
+**3. Bloque ENTREGA en todo cierre** (`cognia/harness/entrega.py`, nuevo): una
+linea por fichero escrito con glifo OK/ROTO, bytes y motivo; para los rotos, la
+LINEA en la que se corta y su cola, que es lo que hace falta para continuarlo
+con `apendar_archivo`. Y cuando no se escribio nada, lo dice — que es el dato
+mas importante que puede dar un turno que no entrego. Puerta: `/entrega
+[estado|on|off]`.
+
+**4. Recordatorio cuando el modelo piensa EN BUCLE** (`cognia/harness/
+razonamiento.py`, nuevo). Los cuatro detectores de bucle del repo cuentan
+LLAMADAS; un razonador que da vueltas sin dejar nada detras es invisible para
+todos ellos (medido en esta casa: 52.535 chars de razonamiento y CERO tool
+calls con el pensamiento encendido, contra 10.160 chars de tool call con el
+apagado). Este mira el otro canal: un paso es PESADO a partir de 4.000 chars de
+razonamiento, y la racha la rompe el AVANCE VERIFICADO, no la llamada — en la
+traza el modelo llamaba a herramientas en casi todos los pasos (releia el mismo
+fichero) y la tarea no se movia. Al 1er paso pesado sin avance, nudge suave; al
+2do, uno fuerte que cita los numeros; a la racha (3), se APAGA el pensamiento
+extendido. Detecta ademas el razonamiento repetido (shingles, solapamiento
+>= 0,45) y avisa en vivo a los 8.000 / 20.000 / 40.000 chars. Advisory: no
+corta, no veta. Puerta: `/bucle razonamiento [on|off|umbral <n>|racha <n>]`.
+
+**5. `leer_archivo` deja de mutilar y deja de repetirse.**
+- El corte por linea (500 chars, con marcador) queda APAGADO: rompia lo que el
+  modelo tiene que reproducir — el bloque SEARCH de `editar_archivo` se copia de
+  lo que se vio, asi que una linea mutilada no casa nunca. El cap por chars ya
+  acota la pagina y corta en el borde de una linea. Solo se sigue cortando la
+  linea patologica (mas larga que la pagina entera). `COGNIA_LEER_LINEA_MAX=N`
+  lo vuelve a encender.
+- La 2a llamada IDENTICA sobre un fichero que quedo truncado devuelve el tramo
+  SIGUIENTE y lo dice. En la traza el modelo pidio `index.html` tres veces con
+  los mismos argumentos y recibio los mismos bytes las tres, gastando los pasos
+  que hacian falta para escribir; ningun detector lo cazaba porque leer no es
+  editar y el resultado no era un ERROR.
+
+Config nueva: `entrega`, `razonamiento`, `razonamiento_umbral`,
+`razonamiento_racha` (envs `COGNIA_ENTREGA`, `COGNIA_RAZONAMIENTO`,
+`COGNIA_RAZONAMIENTO_UMBRAL`, `COGNIA_RAZONAMIENTO_RACHA`).
+
+---
+
 ## [4.19.0] - 2026-08-31
 
 ### SALIDA CONTINUA: la respuesta ya no se trunca por el tope

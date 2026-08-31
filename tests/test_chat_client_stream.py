@@ -995,3 +995,39 @@ def test_solo_keepalives_es_error_pero_con_la_causa_correcta(server):
     assert "keepalive" in resp.error
     assert "2 comentarios" in resp.error
     assert "ping" in resp.error            # la muestra sigue estando
+
+
+# -- on_tool_frag: el latido de un turno que ESCRIBE (2026-08-31) ---------------
+
+def test_on_tool_frag_recibe_los_argumentos_del_tool_call():
+    """Un paso del agente que escribe un fichero no manda `content` ni
+    razonamiento: solo argumentos de tool call. Sin este callback el turno se
+    veia mudo durante minutos y el contador de tokens del spinner marcaba 0."""
+    from cognia.agent import chat_client as cc
+
+    trozos = []
+    acc = {"texto": [], "razon": [], "tcs": {}, "finish": "", "usage": {},
+           "cortado": False, "malformados": 0, "frames": 0, "comentarios": 0,
+           "muestra": b"", "timings": {}, "usage_estimado": False,
+           "usage_via": ""}
+    avisos = cc._Avisos()
+    for pedazo in ('{"path": "a.html"', ', "contenido": "<html>"}'):
+        linea = ('data: {"choices":[{"delta":{"tool_calls":[{"index":0,'
+                 '"id":"t1","function":{"name":"escribir_archivo",'
+                 '"arguments":%s}}]}}]}' % json.dumps(pedazo)).encode("utf-8")
+        cc._procesar_linea(linea, acc, None, None, avisos, trozos.append)
+    assert "".join(trozos) == '{"path": "a.html", "contenido": "<html>"}'
+
+
+def test_sin_on_tool_frag_el_camino_es_el_de_siempre():
+    """El callback es OPT-IN: sin el, ni se calcula el fragmento."""
+    from cognia.agent import chat_client as cc
+
+    acc = {"texto": [], "razon": [], "tcs": {}, "finish": "", "usage": {},
+           "cortado": False, "malformados": 0, "frames": 0, "comentarios": 0,
+           "muestra": b"", "timings": {}, "usage_estimado": False,
+           "usage_via": ""}
+    linea = (b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"t1",'
+             b'"function":{"name":"listar","arguments":"{}"}}]}}]}')
+    assert cc._procesar_linea(linea, acc, None, None, cc._Avisos()) is False
+    assert acc["tcs"]
