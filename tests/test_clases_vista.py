@@ -81,6 +81,13 @@ def _wav_tono(ruta, ms=120, hz=440):
 
 XSS = "</script><img onerror=alert(1) src=x>"
 
+# Los dos terminadores de linea de JavaScript, escritos como \uXXXX y no
+# pegados crudos: un U+2028 literal en el fuente de un test es invisible en el
+# editor y no sobrevive a un round-trip por una codificacion que no sea utf-8,
+# asi que el test se volveria verde por haber perdido su propio veneno.
+LS, PS = "\u2028", "\u2029"          # LINE / PARAGRAPH SEPARATOR
+PEGADO_DE_UN_PDF = "copiado del PDF:" + LS + "segunda linea" + PS + "y otra"
+
 
 # La jornada se llama por su fecha ISO y el epoch tiene que ser ESE dia a esa
 # hora: si no cuadraran, la cabecera de la sesion ensenaria un dia y la etiqueta
@@ -144,6 +151,19 @@ def _fabricar(jornada="2026-08-30", inicio_epoch=INICIO):
               "claves": ["(f o g)' = f'(g) * g'"]},
     })
     return jornada
+
+
+def _datos_de(doc: str) -> dict:
+    """El JSON que la pagina lleva dentro, sacado del propio HTML.
+
+    Se parsea con json.loads TAL CUAL, sin deshacer antes ningun escape: los
+    \\u003c / \\u2028 son escapes JSON legales, y quien tiene que aceptarlos
+    es el parser -- si el test los revirtiera a mano estaria comprobando su
+    propio replace en vez del literal que va a leer el navegador.
+    """
+    m = re.search(r"const D = (\{.*?\});\n", doc, re.DOTALL)
+    assert m, "no encontre los datos embebidos"
+    return json.loads(m.group(1))
 
 
 # ── construir ────────────────────────────────────────────────────────────────
@@ -273,6 +293,30 @@ def test_el_xss_no_escapa_del_script():
     assert "</" not in cuerpo
 
 
+def test_un_separador_de_linea_de_js_no_deja_la_pagina_muda():
+    """U+2028 y U+2029 son terminadores de LINEA para JavaScript, y
+    json.dumps(ensure_ascii=False) los deja crudos. Uno dentro del literal
+    parte la sentencia `const D = {...};` por la mitad y la pagina entera se
+    queda muda -- el mismo desenlace que el '</script', por otra puerta.
+
+    No es un caso de laboratorio: U+2028 sale al pegar texto de un PDF.
+    """
+    _fabricar()
+    d = alm.dir_jornada("2026-08-30")
+    alm.apendar(d / alm.ENTRADAS,
+                {"t": 1500.0, "tipo": cua.TIPO_NOTA, "fuente": "usuario",
+                 "texto": PEGADO_DE_UN_PDF})
+
+    doc = vista.render_html(vista.construir())
+    cuerpo = doc.split("<script>", 1)[1].split("</script>", 1)[0]
+    assert LS not in cuerpo and PS not in cuerpo
+    assert "\\u2028" in doc and "\\u2029" in doc     # escapados, no borrados
+    # Y el texto del duenio sigue entero cuando el navegador lo parsea.
+    textos = [e["texto"] for m in _datos_de(doc)["materias"]
+              for s in m["sesiones"] for e in s["linea"]]
+    assert PEGADO_DE_UN_PDF in textos
+
+
 def test_el_titulo_tambien_se_escapa():
     doc = vista.render_html(vista.construir(), titulo='Fisica </title><script>alert(1)</script>')
     assert "</title><script>" not in doc
@@ -283,11 +327,13 @@ def test_los_datos_embebidos_son_json_valido():
     """Si el escape rompiera el literal, la pagina cargaria muda. Se recupera
     el JSON de la propia pagina y se parsea."""
     _fabricar()
-    doc = vista.render_html(vista.construir())
-    m = re.search(r"const D = (\{.*?\});\n", doc, re.DOTALL)
-    assert m, "no encontre los datos embebidos"
-    recuperado = json.loads(m.group(1).replace("\\u003c", "<"))
+    recuperado = _datos_de(vista.render_html(vista.construir()))
     assert recuperado["total_sesiones"] == 2
+    # Y el dato escapado vuelve a salir IDENTICO del parser: el escape no
+    # puede cambiar lo que el duenio escribio, solo como viaja.
+    textos = [e["texto"] for m in recuperado["materias"]
+              for s in m["sesiones"] for e in s["linea"]]
+    assert XSS in textos
 
 
 # ── degradaciones visibles ───────────────────────────────────────────────────
@@ -313,6 +359,42 @@ def test_un_adjunto_demasiado_grande_se_enlaza_en_vez_de_embeber(monkeypatch):
     assert "data:image/png" not in vista.render_html(datos)
 
 
+def test_el_pie_anuncia_los_bytes_que_la_pagina_pesa_de_verdad():
+    """`bytes_embebidos` es lo que el pie le promete al duenio antes de mandar
+    el cuaderno por correo. Tiene que ser lo que las fotos y el audio OCUPAN
+    EN EL HTML, no el tamanio de los ficheros de origen: base64 engorda 4/3, y
+    contar el origen hacia que la pagina se anunciara un ~35% mas ligera de lo
+    que pesa. En un curso con 60 MB de fotos eso son 20 MB de mentira, justo
+    en el numero que existe para saber si el correo va a rebotar.
+    """
+    _fabricar()
+    datos = vista.construir()
+    doc = vista.render_html(datos)
+    en_la_pagina = sum(len(u) for u in
+                       re.findall(r"data:[a-z/]+;base64,[A-Za-z0-9+/=]+", doc))
+    assert en_la_pagina > 0
+    assert datos["bytes_embebidos"] == en_la_pagina
+    # Y no es que coincidan por casualidad siendo iguales al origen: el
+    # original es sensiblemente mas chico.
+    origen = len(_png_rojo())
+    assert datos["bytes_embebidos"] > origen * 4 // 3
+
+
+def test_el_presupuesto_total_se_mide_en_bytes_de_PAGINA(monkeypatch):
+    """Tope justo en el tamanio del PNG de origen. Contando origen cabria (no
+    lo pasa); contando lo que aniade al HTML no cabe. Este test fija la UNIDAD
+    de TOPE_TOTAL, que es lo que se puede volver a torcer sin que nada chille.
+    """
+    _fabricar()
+    monkeypatch.setattr(vista, "TOPE_TOTAL", len(_png_rojo()))
+    datos = vista.construir(materias=["Fisica"])
+    img = [e for e in datos["materias"][0]["sesiones"][0]["linea"]
+           if e["tipo"] == cua.TIPO_IMAGEN][0]
+    assert img["src"] == "", "el data: URI pasa el tope aunque el fichero no"
+    assert img["enlace"].startswith("file://")
+    assert datos["bytes_embebidos"] == 0
+
+
 def test_el_presupuesto_total_tambien_corta(monkeypatch):
     _fabricar()
     monkeypatch.setattr(vista, "TOPE_TOTAL", 1)
@@ -320,6 +402,25 @@ def test_el_presupuesto_total_tambien_corta(monkeypatch):
     assert datos["bytes_embebidos"] == 0
     avisos = " | ".join(datos["avisos"])
     assert "tope" in avisos
+
+
+def test_el_sello_de_generacion_entra_por_parametro():
+    """El instante se INYECTA, como en olvido.py. Sin esto `construir()` no es
+    una funcion de sus datos: el mismo cuaderno da un HTML distinto cada
+    minuto y ningun test puede fijar la pagina. Y el reloj de pared en un test
+    es una bomba de relojeria (otro huso, otro dia, otro resultado).
+    """
+    _fabricar()
+    datos = vista.construir(ahora=INICIO)
+    assert datos["generado"] == time.strftime("%d/%m/%Y %H:%M",
+                                              time.localtime(INICIO))
+    assert datos["generado"] in vista.render_html(datos)
+    # Con el mismo dato de entrada, la pagina sale byte a byte igual.
+    assert vista.render_html(datos) == vista.render_html(datos)
+    # Y render_html no pisa el sello que ya trae el dict.
+    from datetime import datetime
+    otro = vista.construir(ahora=datetime.fromtimestamp(INICIO + 7200))
+    assert otro["generado"] != datos["generado"]
 
 
 def test_cuaderno_vacio_se_abre_igual_y_lo_dice():
@@ -350,11 +451,45 @@ def test_export_escribe_el_fichero_sin_abrir_navegador(tmp_path, monkeypatch):
 
 
 def test_export_no_pide_red_ni_ficheros_de_al_lado(tmp_path, monkeypatch):
-    """Autocontenido de verdad: cero src/href externos y cero CDN."""
+    """Autocontenido de verdad: cero URLs externas y cero CDN.
+
+    OJO CON COMO SE MIDE. La version anterior de este test recorria
+    re.findall(r'(?:src|href)="..."', doc) -- y esa lista es SIEMPRE VACIA,
+    porque la pagina no tiene ni un src ni un href estatico: todos los pone el
+    JS con setAttribute desde el JSON embebido. El bucle no se ejecutaba nunca
+    y el test pasaba dijera lo que dijera el assert de dentro. Se comprueban
+    las URLs donde de verdad viven: las del JSON.
+    """
     _fabricar()
+    # Un adjunto que NO se sabe embeber, para que la pagina lleve tambien la
+    # otra clase de URL: la file:// del enlace. Sin el, todos los 'enlace' del
+    # JSON salen vacios y el bucle de abajo solo mira los data:, que es medio
+    # test -- un CDN colado por la rama del enlace pasaria sin que chille.
+    d = alm.dir_jornada("2026-08-30")
+    (d / alm.DIR_ADJUNTOS / "esquema_0001.tiff").write_bytes(b"II*\x00nada")
+    alm.apendar(d / alm.ENTRADAS,
+                {"t": 1100.0, "tipo": cua.TIPO_IMAGEN, "fuente": "usuario",
+                 "adjunto": "esquema_0001.tiff", "texto": "el esquema en TIFF"})
+
     import webbrowser
     monkeypatch.setattr(webbrowser, "open", lambda *a, **k: None)
     doc = vista.export(path=tmp_path / "c.html", open_browser=False).read_text(encoding="utf-8")
+
     assert "http://" not in doc and "https://" not in doc
-    for atributo in re.findall(r'(?:src|href)="([^"]*)"', doc):
-        assert atributo.startswith(("data:", "file:", "#")), atributo
+    assert "<link " not in doc and "<script src" not in doc
+    assert "url(" not in doc              # ninguna fuente ni imagen de CSS
+    # La ausencia de atributos estaticos es el invariante que hacia vacuo al
+    # bucle: se afirma a proposito, para que si alguien mete un src="..." en
+    # una plantilla este test lo cace en vez de quedarse mudo.
+    assert re.findall(r'(?:src|href)="([^"]*)"', doc) == []
+
+    urls = []
+    for m in _datos_de(doc)["materias"]:
+        for s in m["sesiones"]:
+            for e in s["linea"]:
+                urls += [e["src"], e["enlace"]]
+    # Las dos ramas tienen que estar representadas o el bucle no prueba nada.
+    assert any(u.startswith("data:") for u in urls), "ningun adjunto embebido"
+    assert any(u.startswith("file:") for u in urls), "ningun adjunto enlazado"
+    for u in urls:
+        assert u == "" or u.startswith(("data:", "file:", "#")), u

@@ -313,6 +313,25 @@ def _texto_entre(habladas, t0: float, t1: float) -> str:
 
 # ── Senial 1: silencio ───────────────────────────────────────────────────────
 
+# Un silencio de mas de esto ya NO es "el profesor se ha callado": es un
+# cambio de clase. MEDIDO 2026-08-31: en la jornada de prueba los recreos
+# reales son de 270 s y el detector los veia, pero DURACION_MINIMA (600 s, el
+# largo tipico de una clase) vetaba el corte porque los bloques de prueba
+# duraban 500 s. Un heuristico de duracion no puede vetar una senial
+# INEQUIVOCA: cuatro minutos y medio sin que nadie hable no pasan a mitad de
+# una explicacion. Con silencio concluyente el piso baja a PISO_CON_SILENCIO,
+# que sigue impidiendo trocear la clase en pedacitos.
+SILENCIO_CONCLUYENTE = 180.0
+PISO_CON_SILENCIO = 120.0
+
+
+def _piso(silencio) -> float:
+    """El bloque minimo exigible para aceptar un corte en ese punto."""
+    if silencio and float(silencio.get("gap") or 0.0) >= SILENCIO_CONCLUYENTE:
+        return PISO_CON_SILENCIO
+    return DURACION_MINIMA
+
+
 def senal_silencio(entradas) -> list:
     """[{t, gap, fuerza}] por cada hueco >= SILENCIO_MINIMO.
 
@@ -320,7 +339,15 @@ def senal_silencio(entradas) -> list:
     depende ni del idioma ni del modelo, y sirve de linea base contra la que
     comparar lo que aporta la deriva.
     """
-    ent = _normalizar_entradas(entradas)
+    # SOLO LAS HABLADAS (2026-08-31, medido en la jornada de 28 min). La
+    # transcripcion escribe una marca de PAUSA (texto vacio) tras varios
+    # trozos seguidos de silencio; esa marca es metadato SOBRE el silencio, no
+    # un hecho que lo termine. Contandola, cada recreo real de 270 s se partia
+    # en dos huecos de 90 y 150, y la senial mas fuerte de todas -- un silencio
+    # de cuatro minutos y medio entre clases -- se quedaba por debajo del
+    # umbral. Con las habladas, los tres recreos salen a 510, 1020 y 1500 s
+    # contra las fronteras reales 518, 1024 y 1521: ocho segundos de error.
+    ent = _habladas(_normalizar_entradas(entradas))
     fuera = []
     for previa, actual in zip(ent, ent[1:]):
         gap = float(actual.t) - float(previa.t_fin or previa.t)
@@ -719,7 +746,7 @@ def detectar(entradas, materias_conocidas=None, pistas=None, orch=None) -> list:
         crudos = []
         for f in franjas:
             t, corroborado = _ajustar_al_silencio(f["t"], silencios)
-            crudos.append({"t": t, "materia": f["materia"],
+            crudos.append({"t": round(float(t), 3), "materia": f["materia"],
                            "confianza": 0.95 if corroborado else 0.8,
                            "por": "horario" + (" + silencio" if corroborado
                                                else " (sin pausa que lo confirme)")})
@@ -749,13 +776,14 @@ def detectar(entradas, materias_conocidas=None, pistas=None, orch=None) -> list:
             if d["fuerza"] > 0:
                 por_t[d["t"]] = {"deriva": d}
         for s in silencios:
-            if s["t"] <= ultimo + DURACION_MINIMA or s["t"] > fin - DURACION_MINIMA:
+            if s["t"] <= ultimo + _piso(s) or s["t"] > fin - _piso(s):
                 continue
             por_t.setdefault(s["t"], {})["silencio"] = s
 
         candidato = None
         for t in sorted(por_t):
-            if t - ultimo < DURACION_MINIMA or t > fin - DURACION_MINIMA:
+            piso = _piso(por_t[t].get("silencio"))
+            if t - ultimo < piso or t > fin - piso:
                 continue
             fs = por_t[t].get("silencio", {}).get("fuerza", 0.0)
             fd = por_t[t].get("deriva", {}).get("fuerza", 0.0)
@@ -787,7 +815,9 @@ def detectar(entradas, materias_conocidas=None, pistas=None, orch=None) -> list:
         cortes.append(candidato)
         ultimo = candidato["t"]
 
-    if guardia >= 64:
+    # El tope solo es un aviso si se llego a el CORTANDO: salir por falta de
+    # candidatos en la vuelta 64 es el final normal de una jornada larga.
+    if guardia >= 64 and candidato is not None:
         log.warning("clases/materias: tope de 64 cortes en una jornada; "
                     "se para (revisar DURACION_MINIMA=%.0fs)", DURACION_MINIMA)
 

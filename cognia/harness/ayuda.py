@@ -248,6 +248,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     # en 25, que es el tope duro, y un tope que se respeta a medias no es un
     # tope (test_ninguna_categoria_desborda_el_tope).
     "Crear y construir": (
+        "/compilar",
         "/crear", "/construir", "/pulir", "/autoprueba", "/biblioteca",
         "/ideas", "/encolar", "/arbitro", "/tutor", "/oficina", "/imagenes",
         "/ver", "/vigilar", "/chimera", "/grabar", "/receta",

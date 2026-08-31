@@ -3247,6 +3247,7 @@ _CMD_DESCRIPTIONS = {
     "/revision":        "Revision profunda antes de entregar: el arnes CORRE lo construido (sintaxis + tests que lo cubren + arrancar el producto de punta a punta) y le devuelve el fallo real al modelo  [estado | on|off | ejecutar on|off | rondas <n> | segundos <n> | informe | ahora <ruta...>]  (env COGNIA_REVISION=0 la apaga; COGNIA_REVISION_EJECUTAR=0 apaga solo el arranque del producto)",
     "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | acciones on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo; COGNIA_CHAT_AFIRMACIONES=0 apaga el detector de acciones inventadas)",
     "/ventana":         "Presupuesto de SALIDA real: cuantos tokens deja la ventana (n_ctx) despues del prompt — el techo que de verdad corta las tareas largas, no max_tokens. Uso: /ventana [estado | pensamiento auto|on|off]",
+    "/compilar":           "Cognia se fabrica sus propias herramientas: de una frase a un comando del CLI, generado, injertado, evaluado ejecutandolo y registrado. Uso: /compilar [<descripcion> | ensayo <desc> | lista | ver <cmd> | retirar <cmd> | receta | copias | revertir <sello>]",
     "/grabar-clase":    "Graba tus clases y arma un cuaderno por materias con apuntes, imagenes y audio; detecta el cambio de asignatura solo. Uso: /grabar-clase [iniciar | parar | ver | nota <txt> | imagen <ruta> | materia <n> | olvidar]",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
@@ -14825,6 +14826,178 @@ def _slash_grabar_clase(arg: str = "", ai=None) -> None:
         _print_line("[detail]/grabar-clase ver  abre el cuaderno[/detail]")
 
 
+def _slash_compilar(arg: str = "", ai=None) -> None:
+    """`/compilar`: Cognia se fabrica sus PROPIAS herramientas como comandos.
+
+    De una frase a un comando del CLI que funciona: especifica, genera el
+    codigo y los tests, lo injerta en los 5 sitios del catalogo, lo evalua
+    EJECUTANDOLO y lo registra. Si la evaluacion lo rechaza, lo retira y deja
+    el repo como estaba.
+
+    Edita cli.py de verdad. El duenio lo autorizo; las defensas son que el
+    injerto solo INSERTA en anclas conocidas, que todo es transaccional con
+    copia y rollback, y que los 4 guardianes del catalogo tienen que quedar
+    verdes o se revierte.
+
+    Subcomandos (punto de extension: este if/elif; la logica vive en
+    cognia/compilador/):
+      (sin arg)          estado: que sabe el compilador y que ha compilado
+      <descripcion>      COMPILA una herramienta nueva
+      ensayo <desc>      lo mismo pero SIN tocar el CLI (ensenia que saldria)
+      lista              las herramientas compiladas y su estado
+      ver <cmd>          la ficha de una, con su evidencia
+      retirar <cmd>      la quita del CLI y borra sus ficheros
+      receta             la receta de como se da de alta un comando
+      copias             las copias de seguridad del CLI
+      revertir <sello>   restaura el CLI desde una copia
+    """
+    try:
+        from cognia.compilador import orquesta as _co
+        from cognia.compilador import receta as _cr
+        from cognia.compilador import injertador as _ci
+    except Exception as exc:
+        _aviso_degradado("compilador", f"modulo no importable: {exc}")
+        return
+
+    arg = (arg or "").strip()
+    partes = arg.split(None, 1)
+    cmd = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+
+    if cmd in ("ayuda", "-h", "--help"):
+        _show_response(_CMD_DETAILS.get("/compilar", ""), "listado")
+        return
+
+    if cmd == "receta":
+        _show_response(_cr.RECETA_PROSA, "listado")
+        _print_line("[detail]trampas conocidas:[/detail]")
+        for t in _cr.TRAMPAS:
+            _print_line(f"  [mod]*[/mod] {_escape(t)}")
+        return
+
+    if cmd == "copias":
+        cs = _ci.copias()
+        if not cs:
+            _print_line("[info_dim]no hay copias todavia[/info_dim]")
+            return
+        for c in cs[:20]:
+            _print_line(f"  [mod]{_escape(c)}[/mod]")
+        _print_line("[detail]/compilar revertir <sello>[/detail]")
+        return
+
+    if cmd == "revertir":
+        if not resto:
+            _print_line("[warn_cl]Uso: /compilar revertir <sello>[/warn_cl]")
+            return
+        res = _ci.revertir_a(resto)
+        if res.get("ok"):
+            _print_line(f"[ok]CLI restaurado desde {_escape(resto)}[/ok]")
+            _print_line("[warn_cl]reinicia Cognia para que cargue el CLI "
+                        "restaurado[/warn_cl]")
+        else:
+            _print_line(f"[err_cl]{_escape(str(res.get('motivo','')))}[/err_cl]")
+        return
+
+    if cmd in ("lista", "listar"):
+        try:
+            from cognia.compilador import bitacora as _cb
+            hs = _cb.listar()
+        except Exception as exc:
+            _aviso_degradado("compilador.bitacora", f"{type(exc).__name__}: {exc}")
+            return
+        if not hs:
+            _print_line("[info_dim]todavia no has compilado ninguna "
+                        "herramienta[/info_dim]")
+            _print_line('[detail]/compilar "lo que quieres que haga"[/detail]')
+            return
+        for h in hs:
+            _print_line(f"  [mod]{str(h.get('cmd','')):<22}[/mod] "
+                        f"{str(h.get('estado','')):<10} "
+                        f"[detail]{_escape(str(h.get('veredicto','')))}[/detail]")
+        return
+
+    if cmd == "ver":
+        if not resto:
+            _print_line("[warn_cl]Uso: /compilar ver <comando>[/warn_cl]")
+            return
+        try:
+            from cognia.compilador import bitacora as _cb
+            _show_response(_cb.ficha(resto if resto.startswith("/")
+                                     else "/" + resto), "listado")
+        except Exception as exc:
+            _aviso_degradado("compilador.bitacora", f"{type(exc).__name__}: {exc}")
+        return
+
+    if cmd == "retirar":
+        if not resto:
+            _print_line("[warn_cl]Uso: /compilar retirar <comando>[/warn_cl]")
+            return
+        objetivo = resto if resto.startswith("/") else "/" + resto
+        res = _co.retirar(objetivo)
+        if res.get("ok"):
+            _print_line(f"[ok]{_escape(objetivo)} retirada del CLI[/ok]")
+            _print_line("[warn_cl]reinicia Cognia para que deje de estar"
+                        "[/warn_cl]")
+        else:
+            _print_line(f"[err_cl]{_escape(str(res.get('motivo','')))}[/err_cl]")
+        return
+
+    # -- compilar de verdad -------------------------------------------------
+    if cmd:
+        seco = (cmd == "ensayo")
+        descripcion = resto if seco else arg
+        if not descripcion:
+            _print_line("[warn_cl]Uso: /compilar ensayo <que quieres que haga>"
+                        "[/warn_cl]")
+            return
+        _orch = getattr(ai, "_orchestrator", None) if ai is not None else None
+        _print_line("[detail]especificando, generando, injertando y "
+                    "evaluando... esto tarda: se ejecutan los guardianes y "
+                    "los tests de verdad[/detail]")
+        try:
+            res = _co.compilar(descripcion, orch=_orch, seco=seco)
+        except Exception as exc:
+            _aviso_degradado("compilador", f"{type(exc).__name__}: {exc}")
+            _print_line("[err_cl]el compilador reventó; el CLI no se toco"
+                        "[/err_cl]")
+            return
+        for f in (res.get("fases") or []):
+            marca = "[ok]OK [/ok]" if f.get("ok") else "[err_cl]NO [/err_cl]"
+            _print_line(f"  {marca} [mod]{str(f.get('fase','')):<16}[/mod] "
+                        f"{_escape(str(f.get('detalle',''))[:120])}")
+        if res.get("ok"):
+            _print_line(f"[ok]{_escape(str(res.get('cmd','')))} lista"
+                        f"[/ok] [detail]{_escape(str(res.get('motivo','')))}"
+                        f"[/detail]")
+            if not res.get("seco"):
+                _print_line("[warn_cl]reinicia Cognia para poder teclearla"
+                            "[/warn_cl]")
+        else:
+            _print_line(f"[err_cl]{_escape(str(res.get('motivo','')))}[/err_cl]")
+        return
+
+    # -- estado (sin subcomando) -------------------------------------------
+    est = _co.estado()
+    filas = [("comandos en el CLI", str(est.get("comandos", 0))),
+             ("herramientas compiladas", str(len(est.get("compiladas") or []))),
+             ("de ellas vivas", str(len(est.get("vivas") or []))),
+             ("sitios por comando", str(len(est.get("sitios_obligatorios") or []))),
+             ("guardianes", str(len(est.get("guardianes") or []))),
+             ("categorias con hueco",
+              ", ".join((est.get("categorias_con_hueco") or [])[:3]) or "-"),
+             ("copias del CLI", str(len(est.get("copias") or [])))]
+    for k, v in filas:
+        _print_line(f"  [mod]{k:<24}[/mod] {_escape(v)}")
+    if est.get("sin_clasificar"):
+        _print_line(f"[warn_cl]comandos sin cubo: "
+                    f"{_escape(', '.join(est['sin_clasificar'][:5]))}[/warn_cl]")
+    if est.get("aviso"):
+        _print_line(f"[warn_cl]{_escape(str(est['aviso']))}[/warn_cl]")
+    _print_line('[detail]/compilar "lo que quieres que haga"  para crear una'
+                '[/detail]')
+    _print_line("[detail]/compilar receta  para ver como lo hace[/detail]")
+
+
 def _slash_horizonte(arg: str = "") -> None:
     """`/horizonte`: puerta del modo HORIZONTE (rondas de worker fresco con
     el contrato ralph de report de 5 campos + sello GoalContract).
@@ -23325,6 +23498,10 @@ def _repl_sesion():
                 _slash_limpiar_sesion("")
 
             # -- Unknown slash --------------------------------------------------
+            elif raw == "/compilar" or raw.startswith("/compilar "):
+                _slash_compilar(
+                    raw[len("/compilar "):]
+                    if raw.startswith("/compilar ") else "", ai)
             elif raw.startswith("/"):
                 # "Comando desconocido" a secas mandaba a leer un catalogo de 244
                 # comandos para encontrar el que te comiste una letra. El modulo de

@@ -133,6 +133,7 @@ NUCLEO: frozenset = frozenset({
 #: Util de verdad, pero de nicho: perfiles de maquina, planes y metas, grafo,
 #: aprendizaje, arnes de consola, cifrado, reportes. Lo revela `/avanzado`.
 AVANZADO: frozenset = frozenset({
+    "/compilar",
     "/activar", "/agente estado", "/analiticas", "/aprende-repo", "/aprender", "/aprendiendo",
     "/aprendiendo-buscar", "/autoprueba", "/backup", "/bloquear", "/buscar-memoria",
     "/buscar-web", "/centinela", "/conceptos", "/config-resuelta", "/contexto",

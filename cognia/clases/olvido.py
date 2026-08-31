@@ -24,9 +24,14 @@ LA ESCALA DE VALOR (esto es el modulo entero; el resto es fontaneria):
      jornada ya tiene apuntes. Sin apuntes no se toca: comprimir la fuente
      antes de haber destilado el producto pierde los dos a la vez, y es
      irreversible.
-  4. PURGABLE tras M dias -- `audio/`. Lo que ocupa el 99%. Los clips que el
-     duenio guardo a mano NO viven ahi: viven en `adjuntos/` (los copia
-     `almacen.copiar_adjunto`), asi que no caen en esta red.
+  4. PURGABLE tras M dias -- `audio/`, y SOLO si el STT ya escribio algo de
+     esa jornada. Lo que ocupa el 99%. Los clips que el duenio guardo a mano
+     NO viven ahi: viven en `adjuntos/` (los copia `almacen.copiar_adjunto`),
+     asi que no caen en esta red. La condicion de "ya transcrito" es la misma
+     idea que la del punto 3 un piso mas abajo: sin ella se borra la UNICA
+     copia de una clase, porque `transcripcion.transcribir_pendientes()`
+     existe justo para la jornada que se cerro con la cola a medias y para el
+     audio que el duenio metio por fuera.
 
 REGLA DURA: nada se borra sin que `plan()` lo pueda enseniar antes, y todo lo
 que se hace deja una linea en la bitacora JSONL de la raiz del cuaderno. El
@@ -89,6 +94,10 @@ ACCION_NADA = "nada"
 ESTADOS_ABIERTOS = ("grabando", "pausada")
 
 _FIN_DE_FRASE = re.compile(r"(?<=[.!?])\s+")
+# La marca de un salto en el recorte. En constante porque su longitud entra en
+# el presupuesto del muestreo: escribirla a mano en un sitio y contarla a mano
+# en otro es como el reparto se torcio la primera vez.
+_SALTO = "[...]"
 
 
 # -- politica ----------------------------------------------------------------
@@ -209,6 +218,11 @@ def plan(ahora=None) -> list:
         j = cua.cargar_jornada(nombre)
         abierta = str(j.estado or "") in ESTADOS_ABIERTOS
 
+        # Precondicion del punto 4: que el STT haya escrito algo de esta
+        # jornada. Se mide una vez y sirve para las dos reglas.
+        ruta_t = d / alm.TRANSCRIPCION
+        bytes_t = ruta_t.stat().st_size if ruta_t.is_file() else 0
+
         # 4. audio crudo
         bytes_audio = _bytes_dir(d / alm.DIR_AUDIO)
         if bytes_audio > 0 and edad >= pol["dias_audio"]:
@@ -217,16 +231,22 @@ def plan(ahora=None) -> list:
                                    bytes_audio,
                                    "jornada en estado %r: el grabador tiene "
                                    "ficheros abiertos ahi" % j.estado))
+            elif bytes_t <= 0:
+                filas.append(_fila(
+                    nombre, ACCION_NADA, alm.DIR_AUDIO, bytes_audio,
+                    "vieja (%.1f dias) pero SIN transcribir: borrar el audio "
+                    "aqui no deja ni el WAV ni el texto. Corre antes "
+                    "transcripcion.transcribir_pendientes(%r)"
+                    % (edad, nombre)))
             else:
                 filas.append(_fila(
                     nombre, ACCION_PURGAR_AUDIO, alm.DIR_AUDIO, bytes_audio,
-                    "audio crudo de %.1f dias (umbral %s); ya esta transcrito "
-                    "y los clips que guardo el duenio viven en %s"
-                    % (edad, pol["dias_audio"], alm.DIR_ADJUNTOS)))
+                    "audio crudo de %.1f dias (umbral %s); el STT ya escribio "
+                    "%s de esta jornada y los clips que guardo el duenio viven "
+                    "en %s" % (edad, pol["dias_audio"], alm.TRANSCRIPCION,
+                               alm.DIR_ADJUNTOS)))
 
         # 3. transcripcion literal
-        ruta_t = d / alm.TRANSCRIPCION
-        bytes_t = ruta_t.stat().st_size if ruta_t.is_file() else 0
         if bytes_t > 0 and edad >= pol["dias_transcripcion"]:
             if abierta:
                 filas.append(_fila(nombre, ACCION_NADA, alm.TRANSCRIPCION,
@@ -449,13 +469,20 @@ def _texto_compacto(texto: str, fraccion: float, orch):
     objetivo = max(200, int(len(texto) * max(0.01, float(fraccion))))
     if len(texto) <= objetivo:
         return texto, "sin recorte"
+    # Se atrapa Exception y no solo ImportError A PROPOSITO: un apuntes.py que
+    # reviente al importarse (o un destilador que reviente por fuera de
+    # `_pedir_compactar`) subiria hasta `aplicar` y la abortaria A MITAD --
+    # despues de haber borrado el audio de las jornadas anteriores y sin
+    # devolver ni el resumen ni las cifras. El motivo queda en el log; lo que
+    # no puede pasar es que se caiga callando.
     try:
         from cognia.clases import apuntes as _ap
-    except ImportError as exc:
-        _log.warning("olvido: sin cognia.clases.apuntes (%s); se compacta con "
-                     "recorte deterministico", exc)
-    else:
         salida = _pedir_compactar(_ap, texto, objetivo, orch)
+    except Exception as exc:
+        _log.warning("olvido: el destilador no esta disponible (%s: %s); se "
+                     "compacta con recorte deterministico",
+                     type(exc).__name__, exc)
+    else:
         if salida:
             return salida, "apuntes.compactar"
     return _recorte_uniforme(texto, objetivo), "recorte uniforme"
@@ -517,29 +544,38 @@ def _recorte_uniforme(texto: str, objetivo: int) -> str:
     primeros minutos de una clase son pasar lista y repetir lo del dia
     anterior. Un muestreo parejo conserva la forma de la sesion entera, que es
     lo unico que se le puede pedir a un recorte sin modelo. Los saltos se
-    marcan con [...] para que nadie lea el resultado como literal.
+    marcan con `_SALTO` para que nadie lea el resultado como literal.
     """
     frases = [f.strip() for f in _FIN_DE_FRASE.split(texto) if f.strip()]
     if len(frases) <= 1:
-        return texto[:objetivo].rstrip() + " [...]"
+        return texto[:objetivo].rstrip() + " " + _SALTO
     medio = sum(len(f) for f in frases) / float(len(frases))
-    caben = max(1, int(objetivo / max(1.0, medio + 1.0)))
-    paso = max(1, len(frases) // caben)
+    # Cada hueco entre dos frases no contiguas mete `_SALTO` mas su espacio, y
+    # ese coste hay que meterlo en la cuenta de cuantas caben. Sin el, `caben`
+    # sobreestimaba, `paso` salia corto y el bucle se quedaba sin presupuesto a
+    # media tira: el "reparto uniforme" degradaba a "los primeros dos tercios"
+    # sin decirlo (medido aqui: con 60 frases y objetivo=400 la ultima que
+    # entraba era la 40 de 59, y el resto de la clase no se muestreaba nunca).
+    coste_salto = len(_SALTO) + 1
+    caben = max(1, int(objetivo / max(1.0, medio + 1.0 + coste_salto)))
+    # Techo y no suelo: `len // caben` deja mas candidatos de los que caben y
+    # los ultimos se pierden en el break, que es justo la cola del tramo.
+    paso = max(1, -(-len(frases) // caben))
     salida, usado, previa = [], 0, -2
     for i in range(0, len(frases), paso):
         f = frases[i]
         if usado + len(f) > objetivo and salida:
             break
         if i != previa + 1 and salida:
-            salida.append("[...]")
-            usado += 6
+            salida.append(_SALTO)
+            usado += coste_salto
         salida.append(f)
         usado += len(f) + 1
         previa = i
     if not salida:                             # una sola frase gigante
-        return texto[:objetivo].rstrip() + " [...]"
+        return texto[:objetivo].rstrip() + " " + _SALTO
     if previa < len(frases) - 1:
-        salida.append("[...]")
+        salida.append(_SALTO)
     return " ".join(salida)
 
 
@@ -555,9 +591,15 @@ def _apuntar(t, jornada, accion, objetivo, tam, por_que, seco, fallos) -> None:
             "bytes": int(tam), "por_que": por_que, "seco": bool(seco),
             "fallos": list(fallos),
         })
-    except OSError as exc:
-        _log.warning("olvido: no se pudo escribir la bitacora (%s); la accion "
-                     "%s sobre %s queda SIN constancia", exc, accion, jornada)
+    except Exception as exc:
+        # Exception y no solo OSError: esto corre DESPUES de un borrado
+        # irreversible. Que la bitacora falle es malo (la accion queda sin
+        # constancia, y por eso el aviso es explicito), pero dejar subir la
+        # excepcion es peor: aborta la corrida entera sin devolver siquiera el
+        # detalle de lo que ya se borro.
+        _log.warning("olvido: no se pudo escribir la bitacora (%s: %s); la "
+                     "accion %s sobre %s queda SIN constancia",
+                     type(exc).__name__, exc, accion, jornada)
 
 
 def bitacora(limite: int = 50) -> list:

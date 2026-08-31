@@ -16,6 +16,7 @@ DOS DECISIONES DE MONTAJE, las dos por lecciones ya pagadas en este repo:
 
 from __future__ import annotations
 
+import re
 import sys
 from datetime import datetime
 
@@ -56,8 +57,14 @@ def _fabricar(nombre, dias, *, trozos=0, lineas=0, apuntes=None, notas=(),
         # 4 KB por trozo: no hacen falta 960 KB reales para medir bytes.
         (d / alm.DIR_AUDIO / ("%06d.wav" % (i + 1))).write_bytes(b"\0" * 4096)
     for i in range(lineas):
+        # Las claves son las que escribe `transcripcion._anotar`: 't'/'t_fin'
+        # y 'tipo', NO 't0'/'t1'. Escribir aqui la forma comoda en vez de la
+        # real dejaba sin ejercitar el fallback `r.get("t") / r.get("t_fin")`
+        # de _compactar_transcripcion, que es el unico camino que corre en la
+        # maquina del duenio.
         alm.apendar(d / alm.TRANSCRIPCION, {
-            "t0": i * 10.0, "t1": i * 10.0 + 10.0, "fuente": "sistema",
+            "t": i * 10.0, "t_fin": i * 10.0 + 10.0, "pausa": False,
+            "tipo": cua.TIPO_TRANSCRIPCION, "fuente": "sistema",
             "texto": "Frase numero %d de la clase sobre el tema de hoy." % i})
     if apuntes is not None:
         alm.guardar_json(d / alm.APUNTES, apuntes)
@@ -117,8 +124,11 @@ def test_desactivado_no_planea_nada(monkeypatch):
 # -- (a) el audio viejo se purga y el nuevo no -------------------------------
 
 def test_audio_viejo_se_purga_y_el_nuevo_no():
-    vieja = _fabricar("2026-07-01", dias=60, trozos=5)
-    nueva = _fabricar("2026-08-29", dias=2, trozos=4)
+    # `lineas=80`: el audio SOLO es purgable si el STT ya escribio algo (ver
+    # test_audio_sin_transcribir_no_se_purga). Sin eso este test estaria
+    # comprobando justo el camino que destruye la unica copia de la clase.
+    vieja = _fabricar("2026-07-01", dias=60, trozos=5, lineas=80)
+    nueva = _fabricar("2026-08-29", dias=2, trozos=4, lineas=10)
 
     filas = olvido.plan(ahora=AHORA)
     purgas = _acciones(filas, olvido.ACCION_PURGAR_AUDIO)
@@ -146,6 +156,47 @@ def test_jornada_abierta_no_se_purga():
     assert nada and "grabando" in nada[0]["por_que"]
     assert olvido.aplicar(ahora=AHORA)["bytes_liberados"] == 0
     assert alm.bytes_de("2026-06-01")["audio"] == 3 * 4096
+
+
+def test_audio_sin_transcribir_no_se_purga():
+    """El unico camino del modulo que puede destruir la UNICA copia de algo.
+
+    `transcripcion.transcribir_pendientes()` existe justo para la jornada que
+    se cerro con la cola a medias y para el audio que el duenio metio por
+    fuera: si el olvido se lleva esos WAV a los 14 dias, de esa clase no queda
+    ni el audio ni el texto. Antes del fix esto se purgaba, y la linea que
+    quedaba en la bitacora decia "ya esta transcrito" -- una constancia falsa
+    de un borrado irreversible.
+    """
+    d = _fabricar("2026-02-02", dias=200, trozos=5)        # lineas=0: sin STT
+    assert not (d / alm.TRANSCRIPCION).exists()
+
+    filas = olvido.plan(ahora=AHORA)
+    assert not _acciones(filas, olvido.ACCION_PURGAR_AUDIO)
+    nada = _acciones(filas, olvido.ACCION_NADA)
+    assert nada and "SIN transcribir" in nada[0]["por_que"]
+
+    res = olvido.aplicar(ahora=AHORA)
+    assert res["acciones"] == 0 and res["bytes_liberados"] == 0
+    assert alm.bytes_de("2026-02-02")["audio"] == 5 * 4096
+
+    # Y en cuanto el STT pasa, ese mismo audio SI es purgable: la regla
+    # retrasa el borrado, no lo bloquea para siempre.
+    for i in range(5):
+        alm.apendar(d / alm.TRANSCRIPCION,
+                    {"t": i * 10.0, "t_fin": i * 10.0 + 10.0,
+                     "tipo": cua.TIPO_TRANSCRIPCION, "texto": "algo dicho"})
+    assert olvido.aplicar(ahora=AHORA)["bytes_liberados"] == 5 * 4096
+
+
+def test_transcripcion_vacia_no_habilita_la_purga():
+    """Un transcripcion.jsonl de 0 bytes es "se creo y no se escribio nada",
+    no "ya esta transcrito"."""
+    d = _fabricar("2026-02-03", dias=200, trozos=2)
+    (d / alm.TRANSCRIPCION).write_bytes(b"")
+    assert not _acciones(olvido.plan(ahora=AHORA), olvido.ACCION_PURGAR_AUDIO)
+    olvido.aplicar(ahora=AHORA)
+    assert alm.bytes_de("2026-02-03")["audio"] == 2 * 4096
 
 
 def test_jornada_sin_fecha_es_intocable():
@@ -328,16 +379,64 @@ def test_se_apoya_en_apuntes_compactar_si_esta():
     assert reg["texto"].strip()
 
 
+def test_el_destilador_roto_no_tumba_la_corrida(monkeypatch):
+    """Que el destilador reviente no puede abortar `aplicar` A MITAD: para
+    entonces el audio de las jornadas anteriores YA se borro, y la corrida se
+    iria sin devolver ni las cifras ni el detalle de lo que hizo."""
+    d = _fabricar("2026-02-04", dias=200, trozos=3, lineas=80,
+                  apuntes=_apuntes_reales())
+
+    def _revienta(*_a, **_k):
+        raise RuntimeError("el modelo se cayo a media compactacion")
+    monkeypatch.setattr(olvido, "_pedir_compactar", _revienta)
+
+    res = olvido.aplicar(ahora=AHORA)             # no lanza
+    assert res["acciones"] == 2                   # audio Y transcripcion
+    assert alm.bytes_de("2026-02-04")["audio"] == 0
+    reg = alm.leer_jsonl(d / alm.TRANSCRIPCION)[0]
+    assert reg["via"] == "recorte uniforme"       # degrado, no se callo
+    assert reg["texto"].strip()
+
+
+def test_bitacora_rota_no_tumba_la_corrida(monkeypatch):
+    """`_apuntar` corre DESPUES de un borrado irreversible. Si la bitacora
+    falla la accion queda sin constancia (y eso se avisa en el log), pero
+    dejar subir la excepcion es peor: se pierde tambien el informe de lo que
+    ya se borro."""
+    _fabricar("2026-02-05", dias=200, trozos=3, lineas=80,
+              apuntes=_apuntes_reales())
+
+    def _revienta(*_a, **_k):
+        raise RuntimeError("disco lleno en la raiz del cuaderno")
+    monkeypatch.setattr(alm, "apendar", _revienta)
+
+    res = olvido.aplicar(ahora=AHORA)             # no lanza
+    assert res["acciones"] == 2
+    assert alm.bytes_de("2026-02-05")["audio"] == 0
+    assert any("purgado" in linea for linea in res["detalle"])
+
+
 # -- recorte deterministico --------------------------------------------------
 
 def test_recorte_uniforme_acorta_marca_y_reparte():
     """El camino sin modelo tiene que ser real: acorta de verdad, marca los
-    saltos y toca el final del tramo (no solo el principio, que en una clase
-    es pasar lista)."""
+    saltos y llega AL FINAL del tramo (no solo al principio, que en una clase
+    es pasar lista).
+
+    Los dos numeros de aqui salen del propio contrato, no de un ojimetro: el
+    tope es `objetivo` mas lo unico que el algoritmo puede aniadir despues de
+    cerrar el presupuesto (el espacio y el `_SALTO` final), y "llegar al
+    final" se mide como el ultimo 10% del tramo. Con el bucle anterior la
+    ultima frase muestreada era la 40 de 59 y este test lo dejaba pasar,
+    porque miraba `[-2]` (la penultima) contra un umbral de 30.
+    """
     frases = ["Frase numero %d del tramo completo." % i for i in range(60)]
-    texto = " ".join(frases)
-    salida = olvido._recorte_uniforme(texto, 400)
-    assert len(salida) <= 460                     # el margen es el [...] final
-    assert "[...]" in salida
-    assert "Frase numero 0" in salida
-    assert int(salida.split("Frase numero ")[-2].split(" ")[0]) > 30
+    objetivo = 400
+    salida = olvido._recorte_uniforme(" ".join(frases), objetivo)
+
+    assert len(salida) <= objetivo + 1 + len(" " + olvido._SALTO)
+    assert olvido._SALTO in salida
+    vistas = [int(n) for n in re.findall(r"Frase numero (\d+)", salida)]
+    assert vistas and vistas[0] == 0
+    assert vistas[-1] >= 0.9 * (len(frases) - 1)
+    assert vistas == sorted(vistas)               # en orden, no reordenadas

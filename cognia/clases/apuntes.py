@@ -76,10 +76,23 @@ _SOLAPE_CHARS = 200
 # a este presupuesto antes de trocear: 12 llamadas ya son minutos de espera y
 # el duenio genera la jornada entera, no una sesion.
 _MAX_VENTANAS = 12
-# Presupuestos de salida, cortos A PROPOSITO (ver decision 3 del encabezado).
-_TOK_VENTANA = 320
-_TOK_RESUMEN = 200
-_TOK_TITULO = 32
+# Presupuestos de salida. MEDIDOS el 2026-08-31 contra el modelo local del
+# duenio (llama-server, nemotron-3.5-lightning-30b-a3b Q4_0), una ventana de
+# 1900 chars, contando LINEAS ETIQUETADAS obtenidas:
+#
+#   max_tokens=320  -> 0 etiquetas (1274 chars, TODOS de razonamiento)  6,8 s
+#   max_tokens=700  -> 5 etiquetas, en espaniol y correctas            13,0 s
+#   max_tokens=1200 -> 5 etiquetas, las mismas                         16,5 s
+#   ' /no_think' al final del prompt: esta plantilla lo IGNORA (0 etiquetas
+#   a 320 y a 700; solo emitio a 1200).
+#
+# O sea: el razonador se gasta ~300 tokens pensando ANTES de escribir nada, y
+# 320 no es "acotado", es MUDO. 700 es el punto en el que empieza a emitir y
+# 1200 no aniade nada por un 27% mas de tiempo. Acotado sigue siendo la regla
+# (la salida es de pocas lineas etiquetadas), pero el tope tiene que pagar
+# tambien el peaje del <think>.
+_TOK_VENTANA = 700
+_TOK_RESUMEN = 400
 _TEMP = 0.2
 
 # Cuanto de cada seccion se guarda. Unos apuntes con 40 "ideas clave" no son
@@ -436,6 +449,23 @@ def _presupuesto_resumen(texto: str) -> int:
     return max(300, min(_cap_resumen(), len(texto) // 5))
 
 
+def _titulo_de_clave(sesion, claves: list) -> str:
+    """Materia + las primeras palabras de la primera clave GENERADA. Se salta
+    las notas del duenio: su nota es lo mas importante de la sesion, pero
+    "OJO: repasar esto" no dice de que iba la clase, que es lo unico que tiene
+    que hacer un titulo en la lista del cuaderno."""
+    materia = (getattr(sesion, "materia", "") or "Sin clasificar").strip()
+    del_duenio = {_norm(_texto_del_usuario(e))
+                  for e in (getattr(sesion, "del_usuario", list)() or [])}
+    for c in claves:
+        if _norm(c) in del_duenio:
+            continue
+        corto = " ".join(c.split()[:8]).strip(" ,:;.-")
+        if len(corto) >= 8:
+            return "%s: %s" % (materia, corto)
+    return ""
+
+
 def _titulo_extractivo(sesion, texto: str) -> str:
     """Materia + los dos terminos mas repetidos. No es bonito, pero un titulo
     generico ('Apuntes') hace inutil la lista de sesiones del cuaderno."""
@@ -762,22 +792,34 @@ def generar(sesion, orch=None, forzar=False) -> dict:
         ap["deberes"] = list(del_modelo.get("deberes") or [])[:_MAX_LISTA]
         ap["dudas"] = list(del_modelo.get("dudas") or [])[:_MAX_LISTA]
         ap["examen"] = list(del_modelo.get("examen") or [])[:_MAX_LISTA]
-        # Lo lexico no se descarta aunque haya modelo: "para manana el 4 y el
-        # 5" es literal del profesor y perderlo es perder el deber.
-        for seccion, extra in (("deberes", ext_deberes), ("examen", ext_examen)):
+        # Lo lexico se SUMA aunque haya modelo, no se descarta: "para manana el
+        # 4 y el 5" es literal del profesor y perderlo es perder el deber. En
+        # estas cuatro secciones el error caro es la OMISION (un deber que no
+        # aparece, una definicion que entra en el examen), asi que se prefiere
+        # recall a brevedad; la brevedad se cuida en 'claves'.
+        for seccion, extra, tope in (("deberes", ext_deberes, _MAX_LISTA),
+                                     ("examen", ext_examen, _MAX_LISTA),
+                                     ("definiciones", ext_definiciones, _MAX_DEFINICIONES),
+                                     ("formulas", ext_formulas, _MAX_FORMULAS)):
+            ya = {_norm(x["termino"] if isinstance(x, dict) else x) for x in ap[seccion]}
             for x in extra:
-                if _norm(x) not in {_norm(y) for y in ap[seccion]}:
+                clave = _norm(x["termino"] if isinstance(x, dict) else x)
+                if clave not in ya:
+                    ya.add(clave)
                     ap[seccion].append(x)
+            ap[seccion] = ap[seccion][:tope]
         resumen = _infer(orch, "Resume en espanol, en 3 frases cortas, estos "
                                "apuntes de %s. Responde solo el resumen.\n%s"
                          % (getattr(sesion, "materia", "clase"),
                             "\n".join(ap["claves"])[:1500]), _TOK_RESUMEN)
         ap["resumen"] = resumen[:_cap_resumen()] if resumen else ext_resumen
-        titulo = _infer(orch, "Titulo en espanol de maximo 8 palabras para unos "
-                              "apuntes de %s sobre esto. Responde solo el titulo.\n%s"
-                        % (getattr(sesion, "materia", "clase"),
-                           "\n".join(ap["claves"][:4])[:600]), _TOK_TITULO)
-        ap["titulo"] = titulo.splitlines()[0][:100] if titulo else _titulo_extractivo(sesion, texto)
+        # El titulo NO se le pide al modelo. Medido el 2026-08-31: con 32
+        # tokens (de sobra para 8 palabras) devolvio literalmente "<think>",
+        # porque el peaje de razonamiento se cobra igual en una llamada
+        # minuscula; darle 300 tokens para un titulo es pagar 6 s por lo que
+        # ya esta en la primera clave.
+        ap["titulo"] = _titulo_de_clave(sesion, ap["claves"]) or \
+            _titulo_extractivo(sesion, texto)
     else:
         ap["via"] = VIA_EXTRACTIVO
         ap["claves"] = ext_claves
@@ -797,9 +839,7 @@ def generar(sesion, orch=None, forzar=False) -> dict:
     # algo, se completa. Un apartado vacio no es una opinion del modelo, es una
     # omision -- y medido el 2026-08-31, el modelo local devolvio UNA sola
     # CLAVE para una clase entera mientras el extractivo sacaba ocho.
-    for seccion, extra, minimo in (("definiciones", ext_definiciones, 1),
-                                   ("formulas", ext_formulas, 1),
-                                   ("dudas", ext_dudas, 1),
+    for seccion, extra, minimo in (("dudas", ext_dudas, 1),
                                    ("claves", ext_claves, 3)):
         if len(ap[seccion]) >= minimo or not extra:
             continue

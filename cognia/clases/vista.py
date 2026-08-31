@@ -22,6 +22,15 @@ esa entrada, que ese adjunto no viaja con el HTML y por que. El fallo tipico de
 este repo es el vacio silencioso; una foto que falta y no se explica es
 exactamente eso.
 
+Los dos topes se cuentan en unidades DISTINTAS y a proposito. TOPE_ADJUNTO
+mira el fichero original, porque es el numero del que el duenio habla ("una
+foto de 3 MB"). TOPE_TOTAL mira lo que ese adjunto ANIADE AL HTML, que es 4/3
+del original: es un presupuesto de peso de pagina, y contarlo en bytes de
+origen dejaba pasar un fichero un 35% mas gordo que el tope y hacia que el pie
+anunciara menos peso del que la pagina tiene. Ese pie existe justo para que el
+duenio sepa si el correo va a rebotar, asi que ahi no puede haber un 35% de
+diferencia entre lo que dice y lo que pesa.
+
 APUNTES vs TRANSCRIPCION. El cuaderno son los APUNTES; la transcripcion es la
 FUENTE. Por eso el resumen, las claves, las formulas y lo que entra en examen
 se ven abiertos y la transcripcion entera va en un <details> plegado. Aun asi
@@ -31,11 +40,19 @@ tiene que caer la clase donde el profesor lo dijo, aunque no lo apuntara nadie.
 SEGURIDAD. Todo lo que se pinta viaja como DATO en un JSON embebido y se mete
 en el DOM con textContent o con setAttribute sobre plantillas <template>: la
 pagina no tiene ni un innerHTML. Y el JSON va con TODOS los "<" escapados como
-\\u003c, no solo el "</" -- medido en este repo el 2026-08-29: "<!--" y
-"<script" meten al tokenizador en 'script data escaped' y en ese estado el
-</script> de la plantilla ya no cierra el bloque, se traga el resto del
-documento y la pagina queda muda. Una nota de clase que copie codigo HTML es
-el caso NORMAL, no un ataque.
+\\u003c, no solo el "</". El motivo NO es una medida de este repo sino lo que
+dice el estandar de tokenizacion de HTML (WHATWG 13.2.5.15 y siguientes):
+"<!--" y "<script" hacen entrar al tokenizador en 'script data escaped', y en
+ese estado el </script> de la plantilla ya no cierra el bloque -- se traga el
+resto del documento y la pagina queda muda. Una nota de clase que copie codigo
+HTML es el caso NORMAL, no un ataque.
+
+Y con "<" no basta: json.dumps(ensure_ascii=False) deja crudos U+2028 y U+2029,
+que son TERMINADORES DE LINEA para JavaScript. Dentro de un literal de cadena
+eso es un error de sintaxis en cualquier motor anterior a ES2019, y el sintoma
+es el mismo: la pagina entera muda. No es rebuscado -- U+2028 aparece solo al
+pegar texto de un PDF, que es de donde salen la mitad de los apuntes. Se
+escapan los tres en _escapar_para_script().
 
 Sin modelo. Esta vista no llama al LLM: pinta lo que ya hay en el cuaderno.
 Los apuntes (titulo, resumen, claves) los produce quien los escribio en
@@ -60,10 +77,17 @@ log = logging.getLogger(__name__)
 __all__ = ["render_html", "construir", "export",
            "TOPE_ADJUNTO", "TOPE_TOTAL"]
 
-# Topes de embebido, en bytes del fichero ORIGINAL (el data: URI ocupa ~4/3).
-# 4 MB cubre de sobra una foto de pizarra del movil ya recortada y un clip de
-# voz de varios minutos; 64 MB de presupuesto total deja un curso entero
-# dentro de un HTML que Chrome y Firefox abren sin pelear.
+# Topes de embebido. DEFAULTS CONSERVADORES, NO MEDIDOS: nadie ha cronometrado
+# todavia en esta maquina a partir de que peso un navegador se atraganta con un
+# data: URI, ni cuanto pesa la foto de pizarra tipica del duenio. 4 MB por
+# adjunto y 64 MB de pagina son el orden de magnitud que deja pasar una jornada
+# entera de fotos sin llegar a los limites de los que si hay constancia publica
+# (Chrome corta un data: URI de navegacion en 2 MB, pero como src de <img> no
+# documenta tope). En cuanto haya una medida real se cambian aqui.
+#
+# UNIDADES, que no son la misma en los dos (ver cabecera):
+#   TOPE_ADJUNTO -> bytes del fichero ORIGINAL en disco.
+#   TOPE_TOTAL   -> bytes que la pagina ENGORDA, o sea el largo del data: URI.
 TOPE_ADJUNTO = 4 * 1024 * 1024
 TOPE_TOTAL = 64 * 1024 * 1024
 
@@ -210,6 +234,17 @@ def _leer_apuntes(crudo: dict) -> dict:
 
 # ── adjuntos ─────────────────────────────────────────────────────────────────
 
+def _peso_en_pagina(mime: str, tam: int) -> int:
+    """Cuanto ANIADE al HTML embeber un fichero de `tam` bytes con ese MIME.
+
+    Es exacto, no una estimacion: base64 son 4 caracteres por cada 3 bytes
+    redondeando hacia arriba, mas el prefijo 'data:<mime>;base64,'. Se calcula
+    ANTES de leer el fichero para no cargar 300 MB en RAM solo para descubrir
+    que no caben.
+    """
+    return len("data:%s;base64," % mime) + 4 * ((int(tam) + 2) // 3)
+
+
 def _embeber(jornada: str, nombre: str, tipo: str, gasto: dict) -> dict:
     """{'src','enlace','aviso'} para una imagen o un clip.
 
@@ -241,8 +276,8 @@ def _embeber(jornada: str, nombre: str, tipo: str, gasto: dict) -> dict:
                           "no viaja dentro del HTML, solo el enlace"
                           % (nombre, tam / 1048576.0, TOPE_ADJUNTO / 1048576.0))
         return fuera
-    if gasto["usado"] + tam > TOPE_TOTAL:
-        fuera["aviso"] = ("la pagina ya lleva %.0f MB embebidos (tope %.0f MB): "
+    if gasto["usado"] + _peso_en_pagina(mime, tam) > TOPE_TOTAL:
+        fuera["aviso"] = ("la pagina ya pesa %.1f MB de adjuntos (tope %.0f MB): "
                           "'%s' queda como enlace"
                           % (gasto["usado"] / 1048576.0, TOPE_TOTAL / 1048576.0, nombre))
         return fuera
@@ -252,9 +287,12 @@ def _embeber(jornada: str, nombre: str, tipo: str, gasto: dict) -> dict:
         fuera["aviso"] = "no pude leer '%s': %s" % (nombre, exc)
         log.warning("clases.vista: lectura fallo en %s: %s", ruta, exc)
         return fuera
-    gasto["usado"] += len(crudo)
-    fuera["bytes"] = len(crudo)
     fuera["src"] = "data:%s;base64,%s" % (mime, base64.b64encode(crudo).decode("ascii"))
+    # El presupuesto se gasta con lo que REALMENTE se aniade al HTML, no con el
+    # tamanio del fichero de origen: son cosas distintas por un factor 4/3, y
+    # ese factor es el que el pie de la pagina le promete al duenio que no hay.
+    fuera["bytes"] = len(fuera["src"])
+    gasto["usado"] += fuera["bytes"]
     fuera["enlace"] = ""   # esta dentro: el enlace al disco solo confundiria
     return fuera
 
@@ -307,13 +345,35 @@ def _sesion_a_dict(s: cua.Sesion, jor: cua.Jornada, gasto: dict, avisos: list) -
     }
 
 
-def construir(materias=None) -> dict:
+def _sello(ahora=None) -> str:
+    """La fecha de generacion que va en el pie, con el instante INYECTABLE.
+
+    Mismo patron que `olvido._epoch(ahora)`, y por el mismo motivo: sin esto
+    render_html() no es una funcion de sus datos -- el mismo cuaderno da un
+    HTML distinto cada minuto, y ningun test puede fijar la pagina entera.
+    Acepta None (reloj de pared), un epoch o un datetime.
+    """
+    if ahora is None:
+        epoch = time.time()
+    elif hasattr(ahora, "timestamp"):
+        epoch = float(ahora.timestamp())
+    else:
+        epoch = float(ahora)
+    return time.strftime("%d/%m/%Y %H:%M", time.localtime(epoch))
+
+
+def construir(materias=None, ahora=None) -> dict:
     """El dict que se embebe en la pagina: el cuaderno entero, por materia.
 
     `materias` es una lista de nombres para filtrar (se la pasa tal cual a
-    cuaderno.cuaderno). None = todo.
+    cuaderno.cuaderno). None = todo. `ahora` fija el sello de generacion
+    (None = reloj de pared).
     """
-    t0 = time.time()
+    # monotonic y no time(): 'ms' es una DURACION, y con time() un ajuste de
+    # NTP o el cambio de hora en mitad de una exportacion larga la deja en
+    # negativo.
+    t0 = time.monotonic()
+    generado = _sello(ahora)
     avisos: list = []
     gasto = {"usado": 0}
     try:
@@ -326,7 +386,7 @@ def construir(materias=None) -> dict:
         return {"materias": [], "total_sesiones": 0, "bytes_embebidos": 0,
                 "avisos": ["no pude leer el cuaderno: %s: %s"
                            % (type(exc).__name__, exc)],
-                "generado": time.strftime("%d/%m/%Y %H:%M"), "ms": 0}
+                "generado": generado, "ms": 0}
 
     jornadas: dict = {}   # cache: una jornada la comparten todas sus sesiones
     materias_out = []
@@ -355,8 +415,8 @@ def construir(materias=None) -> dict:
     materias_out.sort(key=lambda m: (-m["segundos"], m["nombre"].lower()))
     return {"materias": materias_out, "total_sesiones": total,
             "bytes_embebidos": gasto["usado"], "avisos": avisos,
-            "generado": time.strftime("%d/%m/%Y %H:%M"),
-            "ms": int((time.time() - t0) * 1000)}
+            "generado": generado,
+            "ms": int((time.monotonic() - t0) * 1000)}
 
 
 # ── la pagina ────────────────────────────────────────────────────────────────
@@ -698,7 +758,10 @@ document.addEventListener("keydown", e => {
 });
 /* El peso embebido se dice en la unidad que toca: "0.0 MB" en un cuaderno de
    7 KB parece que las fotos no viajaron, que es exactamente la duda que este
-   pie existe para quitar antes de mandar el fichero por correo. */
+   pie existe para quitar antes de mandar el fichero por correo.
+   D.bytes_embebidos son los bytes que las fotos y el audio OCUPAN EN ESTE
+   HTML (el data: URI ya en base64), no los del fichero de origen: la pregunta
+   que contesta el pie es "cuanto pesa esto que voy a adjuntar". */
 const emb = D.bytes_embebidos < 1048576
   ? (D.bytes_embebidos / 1024).toFixed(0) + " KB"
   : (D.bytes_embebidos / 1048576).toFixed(1) + " MB";
@@ -708,8 +771,31 @@ pintarMaterias(); pintar();
 </script></body></html>"""
 
 
-def render_html(datos, titulo: str = "Cuaderno de clase") -> str:
-    """El HTML entero, autocontenido. `datos` es lo que devuelve construir()."""
+# Lo que un literal JSON NO puede llevar crudo dentro de un <script>, con su
+# escape \uXXXX. Los tres estan dentro de una cadena JSON siempre (la sintaxis
+# JSON no usa ninguno de los tres fuera de cadenas), y ahi "<" es LA MISMA
+# cadena que "<" para el parser: el dato no cambia, solo deja de poder tocar al
+# tokenizador de HTML ni al lexer de JavaScript.
+_ESCAPES_SCRIPT = (("<", "\\u003c"),          # "</script", "<!--" -> script data escaped
+                   ("\u2028", "\\u2028"),   # LINE SEPARATOR
+                   ("\u2029", "\\u2029"))  # PARAGRAPH SEPARATOR
+#            ^ escritos como \uXXXX en el FUENTE a proposito: un U+2028
+#            literal aqui seria invisible en el editor y lo pierde cualquier
+#            round-trip por una codificacion que no sea utf-8.
+
+
+def _escapar_para_script(texto: str) -> str:
+    """Un JSON ya serializado, listo para meter dentro de un <script>."""
+    for malo, bueno in _ESCAPES_SCRIPT:
+        texto = texto.replace(malo, bueno)
+    return texto
+
+
+def render_html(datos, titulo: str = "Cuaderno de clase", ahora=None) -> str:
+    """El HTML entero, autocontenido. `datos` es lo que devuelve construir().
+
+    `ahora` solo se usa si `datos` no trae ya su sello de generacion.
+    """
     if not isinstance(datos, dict):
         raise TypeError("render_html espera el dict de construir(), no %r" % type(datos))
     datos = dict(datos)
@@ -717,14 +803,10 @@ def render_html(datos, titulo: str = "Cuaderno de clase") -> str:
     datos.setdefault("total_sesiones", 0)
     datos.setdefault("avisos", [])
     datos.setdefault("bytes_embebidos", 0)
-    datos.setdefault("generado", time.strftime("%d/%m/%Y %H:%M"))
+    datos.setdefault("generado", _sello(ahora))
 
-    # TODOS los "<" escapados, no solo "</" (ver la cabecera del modulo). Como
-    # la sintaxis JSON no usa "<", cada uno esta dentro de una cadena, y ahi
-    # < es la MISMA cadena para el parser: el dato no cambia, solo deja
-    # de poder tocar al tokenizador de HTML.
-    crudo = json.dumps(datos, ensure_ascii=False).replace("<", "\\u003c")
-    fichas = json.dumps(list(_ORDEN_FICHAS), ensure_ascii=False).replace("<", "\\u003c")
+    crudo = _escapar_para_script(json.dumps(datos, ensure_ascii=False))
+    fichas = _escapar_para_script(json.dumps(list(_ORDEN_FICHAS), ensure_ascii=False))
     # El titulo cae dentro de <title>: ahi manda el escape de HTML, no el de JS.
     tit = _html.escape(str(titulo or "Cuaderno de clase"))
     # UNA sola pasada. Encadenar .replace() deja que lo ya sustituido se
